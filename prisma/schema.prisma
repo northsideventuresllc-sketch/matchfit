@@ -1,0 +1,258 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  firstName       String
+  lastName        String
+  preferredName   String
+  username        String           @unique
+  phone           String
+  email           String           @unique
+  passwordHash    String
+  zipCode         String
+  dateOfBirth     String
+  termsAcceptedAt DateTime
+
+  twoFactorEnabled Boolean @default(false)
+  /// Last-used delivery channel (EMAIL | SMS | VOICE | NONE); mirrors default `ClientTwoFactorChannel` for login.
+  twoFactorMethod String @default("NONE")
+
+  /// Transient login 2FA only: HMAC of the 6-digit code sent after password check (never plaintext). Cleared after verify or cancel. Channel enrollment uses `ClientTwoFactorChannel.verifyOtpHash` instead — see model docs below.
+  twoFactorOtpHash    String?
+  twoFactorOtpExpires DateTime?
+  /// Wrong-code attempts during login 2FA; reset when a new code is issued or verification succeeds.
+  twoFactorLoginAttempts Int @default(0)
+
+  /// When true, session cookies use a longer lifetime; when false, shorter (see session helpers).
+  stayLoggedIn Boolean @default(true)
+
+  /// One-time nonce for email password-reset link (paired with signed JWT).
+  passwordChangeNonce    String?
+  passwordChangeExpires  DateTime?
+  passwordChangeOtpHash  String?
+  passwordChangeOtpExpires DateTime?
+
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+
+  /// Short public-style bio; never expose private address to trainer APIs.
+  bio String?
+
+  /// Relative URL served from `public/` (e.g. `/uploads/clients/...`).
+  profileImageUrl String?
+
+  /// Private mailing address — owner-only APIs; must never be selected for trainer/public profiles.
+  addressLine1   String?
+  addressLine2   String?
+  addressCity    String?
+  addressState   String?
+  addressPostal  String?
+  addressCountry String?
+
+  /// Last time username was changed (null = never changed since signup).
+  usernameChangedAt DateTime?
+
+  /// Email change: link sent to `pendingEmail`; paired with signed JWT + `emailChangeNonce`.
+  pendingEmail       String?
+  emailChangeNonce   String?
+  emailChangeExpires DateTime?
+
+  /// Phone change: OTP sent to new number (or to current email as fallback); `pendingPhone` until confirmed.
+  pendingPhone           String?
+  phoneChangeOtpHash     String?
+  phoneChangeOtpExpires  DateTime?
+  lastPhoneChangeRequest DateTime?
+
+  lastEmailChangeRequest DateTime?
+
+  twoFactorChannels ClientTwoFactorChannel[]
+
+  @@map("clients")
+}
+
+/// Destinations for sign-in 2FA (email, SMS, or voice). One verified row should be `isDefaultLogin` for OTP routing.
+/// - **Enrolling a new destination:** `verifyOtpHash` / `verifyOtpExpires` store the 6-digit proof-of-ownership code (see settings 2FA API).
+/// - **Signing in:** the live code lives on `Client.twoFactorOtpHash` (single active login challenge), not on this row.
+model ClientTwoFactorChannel {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// EMAIL | SMS | VOICE
+  delivery String
+  email    String?
+  phone    String?
+
+  verified Boolean @default(false)
+
+  /// 6-digit enrollment code (hashed) until `verified` becomes true; separate from login OTP on `Client`.
+  verifyOtpHash    String?
+  verifyOtpExpires DateTime?
+
+  /// Which channel receives login 2FA codes (exactly one verified default per client when 2FA is on).
+  isDefaultLogin Boolean @default(false)
+
+  @@index([clientId])
+  @@map("client_two_factor_channels")
+}
+
+/// Pre-payment registration only. Deleted after successful billing or when expired / abandoned.
+model PendingClientRegistration {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  firstName       String
+  lastName        String
+  preferredName   String
+  username        String
+  phone           String
+  email           String
+  passwordHash    String
+  zipCode         String
+  dateOfBirth     String
+  termsAcceptedAt DateTime
+
+  /// PENDING_2FA | AWAITING_PAYMENT
+  status              String    @default("PENDING_2FA")
+  twoFactorEnabled    Boolean   @default(false)
+  /// NONE | EMAIL | SMS | VOICE
+  twoFactorMethod     String
+  otpHash             String?
+  otpExpiresAt        DateTime?
+
+  stayLoggedIn Boolean @default(true)
+
+  stripeCustomerId    String?
+  stripeSubscriptionId String?
+
+  @@index([email])
+  @@index([username])
+  @@map("pending_client_registrations")
+}
+
+model Trainer {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  firstName String
+  lastName  String
+  username  String @unique
+  phone     String
+  email     String @unique
+  passwordHash String
+  bio       String?
+
+  preferredName      String?
+  pronouns           String?
+  ethnicity          String?
+  languagesSpoken    String?
+  fitnessNiches      String?
+  yearsCoaching      String?
+  genderIdentity     String?
+  profileImageUrl    String?
+  socialInstagram    String?
+  socialTiktok       String?
+  socialFacebook     String?
+  socialLinkedin     String?
+  socialOtherUrl     String?
+
+  termsAcceptedAt DateTime
+
+  twoFactorEnabled Boolean @default(false)
+  /// Last-used delivery channel (EMAIL | SMS | VOICE | NONE).
+  twoFactorMethod String @default("NONE")
+
+  twoFactorOtpHash       String?
+  twoFactorOtpExpires    DateTime?
+  twoFactorLoginAttempts Int      @default(0)
+
+  stayLoggedIn Boolean @default(true)
+
+  passwordChangeNonce      String?
+  passwordChangeExpires    DateTime?
+  passwordChangeOtpHash    String?
+  passwordChangeOtpExpires DateTime?
+
+  profile           TrainerProfile?
+  twoFactorChannels TrainerTwoFactorChannel[]
+
+  @@map("trainers")
+}
+
+/// Verified destinations for trainer sign-in 2FA (mirrors `ClientTwoFactorChannel`).
+model TrainerTwoFactorChannel {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  delivery String
+  email    String?
+  phone    String?
+
+  verified Boolean @default(false)
+
+  verifyOtpHash    String?
+  verifyOtpExpires DateTime?
+
+  isDefaultLogin Boolean @default(false)
+
+  @@index([trainerId])
+  @@map("trainer_two_factor_channels")
+}
+
+model TrainerProfile {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainerId String @unique
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  hasSignedTOS           Boolean @default(false)
+  hasUploadedW9          Boolean @default(false)
+  hasPaidBackgroundFee   Boolean @default(false)
+  /// Vendor pipeline: NOT_STARTED | PENDING | APPROVED | NEEDS_FURTHER_REVIEW | DENIED
+  backgroundCheckStatus String @default("NOT_STARTED")
+
+  /// Relative URL under `public/` (e.g. `/uploads/trainers/...`).
+  certificationUrl String?
+  /// Additional certs (PDF/image), optional.
+  otherCertificationUrl String?
+  /// CPT verification: NOT_STARTED | PENDING | APPROVED | DENIED
+  certificationReviewStatus String @default("NOT_STARTED")
+  /// Legacy parallel field; keep in sync with vendor status where applicable.
+  backgroundCheckReviewStatus String @default("NOT_STARTED")
+
+  /// JSON string of W-9 answers until a formal e-sign flow exists.
+  w9Json String?
+
+  /// Set when the trainer completes the skeleton background-check step; marks the compliance profile as ready for the main dashboard.
+  dashboardActivatedAt DateTime?
+  /// not_started | in_progress | completed — AI matching questionnaire.
+  matchQuestionnaireStatus String @default("not_started")
+  /// Structured answers for search + AI matching (JSON string; SQLite has no Prisma Json type here).
+  matchQuestionnaireAnswers     String?
+  matchQuestionnaireCompletedAt DateTime?
+  /// Plain-text profile for search + AI when pairing trainers with clients; regenerated on each questionnaire submit.
+  aiMatchProfileText String?
+
+  @@map("trainer_profiles")
+}

@@ -32,6 +32,13 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# local sqlite
+/prisma/dev.db
+/prisma/dev.db-journal
+/prisma/test_login_2fa.db
+/prisma/test_login_2fa.db-journal
 
 # vercel
 .vercel
@@ -39,3 +46,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# client-uploaded avatars (keep directory via .gitkeep)
+/public/uploads/clients/*
+!/public/uploads/clients/.gitkeep
