@@ -10,11 +10,14 @@ export type TrainerLoginPortalProps = {
   redirectAfterLogin: TrainerPostAuthPath;
   /** `dashboard` = dedicated dashboard sign-in copy; `onboarding` = general trainer portal copy */
   variant?: "dashboard" | "onboarding";
+  /** After email link password reset, prompt to sign in with the new password. */
+  passwordResetSuccess?: boolean;
 };
 
 export default function TrainerLoginPortal({
   redirectAfterLogin,
   variant = "onboarding",
+  passwordResetSuccess = false,
 }: TrainerLoginPortalProps) {
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
@@ -100,6 +103,14 @@ export default function TrainerLoginPortal({
                   role="alert"
                 >
                   {error}
+                </p>
+              ) : null}
+              {passwordResetSuccess ? (
+                <p
+                  className="mb-4 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100"
+                  role="status"
+                >
+                  Your password was updated. Sign in with your new password.
                 </p>
               ) : null}
               <form onSubmit={handleLogin} className="flex flex-col gap-5">

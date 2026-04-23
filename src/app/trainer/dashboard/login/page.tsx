@@ -8,7 +8,7 @@ import TrainerLoginPortal from "../../login/trainer-login-portal";
 export default async function TrainerDashboardLoginPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ next?: string }>;
+  searchParams?: Promise<{ next?: string; passwordReset?: string }>;
 }) {
   const trainerId = await getSessionTrainerId();
   if (trainerId) {
@@ -23,5 +23,12 @@ export default async function TrainerDashboardLoginPage({
   }
   const sp = searchParams ? await searchParams : {};
   const redirectAfterLogin = normalizeTrainerPostAuthPath(sp.next) ?? "/trainer/dashboard";
-  return <TrainerLoginPortal redirectAfterLogin={redirectAfterLogin} variant="dashboard" />;
+  const passwordResetSuccess = sp.passwordReset === "1" || sp.passwordReset === "true";
+  return (
+    <TrainerLoginPortal
+      redirectAfterLogin={redirectAfterLogin}
+      variant="dashboard"
+      passwordResetSuccess={passwordResetSuccess}
+    />
+  );
 }
