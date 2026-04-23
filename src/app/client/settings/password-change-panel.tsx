@@ -6,7 +6,13 @@ import { describePasswordPolicyViolations } from "@/lib/validations/client-regis
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 transition placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2";
 
-export function PasswordChangePanel(props: { twoFactorEnabled: boolean }) {
+export function PasswordChangePanel(props: {
+  twoFactorEnabled: boolean;
+  unstyled?: boolean;
+  /** Base path without trailing slash; defaults to client settings API. */
+  apiBase?: string;
+}) {
+  const apiBase = props.apiBase ?? "/api/client/settings";
   const [phase, setPhase] = useState<"idle" | "otp" | "email">("idle");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -15,17 +21,19 @@ export function PasswordChangePanel(props: { twoFactorEnabled: boolean }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [devPhoneMockTip, setDevPhoneMockTip] = useState(false);
 
   async function handleStart() {
     setError(null);
     setBusy(true);
     try {
-      const res = await fetch("/api/client/settings/password-change/start", { method: "POST" });
-      const data = (await res.json()) as { error?: string; flow?: "otp" | "email" };
+      const res = await fetch(`${apiBase}/password-change/start`, { method: "POST" });
+      const data = (await res.json()) as { error?: string; flow?: "otp" | "email"; devPhoneMock?: boolean };
       if (!res.ok) {
         setError(data.error ?? "Could not start password change.");
         return;
       }
+      setDevPhoneMockTip(Boolean(data.devPhoneMock));
       if (data.flow === "otp") {
         setPhase("otp");
         setCode("");
@@ -59,7 +67,7 @@ export function PasswordChangePanel(props: { twoFactorEnabled: boolean }) {
     }
     setBusy(true);
     try {
-      const res = await fetch("/api/client/settings/password-change/complete", {
+      const res = await fetch(`${apiBase}/password-change/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode: "otp", code, newPassword }),
@@ -83,16 +91,25 @@ export function PasswordChangePanel(props: { twoFactorEnabled: boolean }) {
     setCode("");
     setNewPassword("");
     setConfirmPassword("");
+    setDevPhoneMockTip(false);
   }
 
+  const shell = props.unstyled
+    ? "space-y-4"
+    : "rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8";
+
   return (
-    <div className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
-      <h2 className="text-lg font-black tracking-tight text-white">Password</h2>
-      <p className="mt-2 text-sm leading-relaxed text-white/55">
-        {props.twoFactorEnabled
-          ? "We will send a verification code to your 2FA method. Enter it here with your new password."
-          : "We will email you a secure link. Open it to choose a new password, then sign in again."}
-      </p>
+    <div className={shell}>
+      {props.unstyled ? null : (
+        <>
+          <h2 className="text-lg font-black tracking-tight text-white">Password</h2>
+          <p className="mt-2 text-sm leading-relaxed text-white/55">
+            {props.twoFactorEnabled
+              ? "We will send a verification code to your 2FA method. Enter it here with your new password."
+              : "We will email you a secure link. Open it to choose a new password, then sign in again."}
+          </p>
+        </>
+      )}
 
       {error ? (
         <p className="mt-4 rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]" role="alert">
@@ -130,6 +147,15 @@ export function PasswordChangePanel(props: { twoFactorEnabled: boolean }) {
 
       {phase === "otp" ? (
         <form onSubmit={handleCompleteOtp} className="mt-6 flex flex-col gap-4">
+          {devPhoneMockTip ? (
+            <p
+              className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-3 text-sm leading-relaxed text-emerald-100"
+              role="status"
+            >
+              Development mode: your 2FA code was not sent by SMS or voice. Check the terminal where{" "}
+              <span className="font-mono text-emerald-50">npm run dev</span> is running for the 6-digit code.
+            </p>
+          ) : null}
           <div className="flex flex-col gap-2">
             <label htmlFor="pwd-code" className="text-xs font-semibold uppercase tracking-wide text-white/50">
               Verification code

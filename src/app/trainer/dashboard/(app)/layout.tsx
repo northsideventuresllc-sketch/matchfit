@@ -15,12 +15,19 @@ export default async function TrainerDashboardAppLayout({
   }
   const trainer = await prisma.trainer.findUnique({
     where: { id: trainerId },
-    select: { firstName: true, lastName: true },
+    select: { firstName: true, lastName: true, preferredName: true, profileImageUrl: true },
   });
   if (!trainer) {
     redirect(staleTrainerSessionInvalidateRedirect("/trainer/dashboard/login"));
   }
-  const displayName = [trainer.firstName, trainer.lastName].filter(Boolean).join(" ").trim() || "Trainer";
+  const displayName =
+    trainer.preferredName?.trim() ||
+    [trainer.firstName, trainer.lastName].filter(Boolean).join(" ").trim() ||
+    "Trainer";
 
-  return <TrainerDashboardShell displayName={displayName}>{children}</TrainerDashboardShell>;
+  return (
+    <TrainerDashboardShell displayName={displayName} profileImageUrl={trainer.profileImageUrl}>
+      {children}
+    </TrainerDashboardShell>
+  );
 }

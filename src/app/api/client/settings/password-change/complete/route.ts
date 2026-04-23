@@ -27,7 +27,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "This reset link is invalid or has expired." }, { status: 400 });
       }
 
-      const client = await prisma.client.findUnique({ where: { id: claims.clientId } });
+      const client = await prisma.client.findUnique({ where: { id: claims.userId } });
       if (
         !client?.passwordChangeNonce ||
         !client.passwordChangeExpires ||

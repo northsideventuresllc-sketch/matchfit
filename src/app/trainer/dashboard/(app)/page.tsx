@@ -9,6 +9,15 @@ export const metadata: Metadata = {
   title: "Dashboard | Trainer | Match Fit",
 };
 
+function StatusDot(props: { ok: boolean }) {
+  return (
+    <span
+      className={`mt-0.5 inline-block h-2 w-2 shrink-0 rounded-full ${props.ok ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)]" : "bg-amber-400/90"}`}
+      aria-hidden
+    />
+  );
+}
+
 export default async function TrainerDashboardHomePage() {
   const trainerId = await getSessionTrainerId();
   if (!trainerId) {
@@ -20,6 +29,7 @@ export default async function TrainerDashboardHomePage() {
     select: {
       firstName: true,
       lastName: true,
+      preferredName: true,
       email: true,
       phone: true,
       username: true,
@@ -28,7 +38,6 @@ export default async function TrainerDashboardHomePage() {
         select: {
           hasSignedTOS: true,
           hasUploadedW9: true,
-          hasPaidBackgroundFee: true,
           backgroundCheckStatus: true,
           certificationReviewStatus: true,
           backgroundCheckReviewStatus: true,
@@ -44,7 +53,10 @@ export default async function TrainerDashboardHomePage() {
     redirect(staleTrainerSessionInvalidateRedirect("/trainer/dashboard/login"));
   }
 
-  const displayName = [trainer.firstName, trainer.lastName].filter(Boolean).join(" ").trim() || "Trainer";
+  const displayName =
+    trainer.preferredName?.trim() ||
+    [trainer.firstName, trainer.lastName].filter(Boolean).join(" ").trim() ||
+    "Trainer";
   const profile = trainer.profile;
   const questionnaireLabel =
     profile?.matchQuestionnaireStatus === "completed"
@@ -53,101 +65,181 @@ export default async function TrainerDashboardHomePage() {
         ? "In progress"
         : "Not started";
 
-  return (
-    <>
-      <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Dashboard</h1>
-      <p className="mt-2 text-lg font-semibold text-white/85">Welcome back, {displayName}</p>
-      <p className="mt-3 text-sm leading-relaxed text-white/55">
-        Signed in as <span className="text-white/80">{trainer.email}</span>
-        {trainer.username ? (
-          <>
-            {" "}
-            · <span className="text-white/70">@{trainer.username}</span>
-          </>
-        ) : null}
-      </p>
+  const complianceRows = [
+    { label: "Terms of service (trainer)", ok: Boolean(profile?.hasSignedTOS) },
+    { label: "W-9 on file", ok: Boolean(profile?.hasUploadedW9) },
+    {
+      label: "Background check",
+      ok: profile?.backgroundCheckStatus === "APPROVED",
+      detail: profile?.backgroundCheckStatus ?? "—",
+    },
+    {
+      label: "Certification review",
+      ok: profile?.certificationReviewStatus === "APPROVED",
+      detail: profile?.certificationReviewStatus ?? "—",
+    },
+    {
+      label: "Background review",
+      ok: profile?.backgroundCheckReviewStatus === "APPROVED",
+      detail: profile?.backgroundCheckReviewStatus ?? "—",
+    },
+  ] as const;
 
-      <section className="mt-8 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
-        <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Your profile</h2>
-        <dl className="mt-4 space-y-3 text-sm">
-          <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between">
-            <dt className="text-white/45">Phone</dt>
-            <dd className="font-medium text-white/90">{trainer.phone || "—"}</dd>
+  return (
+    <div className="space-y-8">
+      <header className="space-y-1">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Trainer home</p>
+        <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Welcome back</h1>
+        <p className="text-lg font-semibold text-white/90">{displayName}</p>
+        <p className="max-w-xl text-sm leading-relaxed text-white/50">
+          Signed in as <span className="text-white/75">{trainer.email}</span>
+          {trainer.username ? (
+            <>
+              {" "}
+              · <span className="text-white/65">@{trainer.username}</span>
+            </>
+          ) : null}
+        </p>
+      </header>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-7">
+          <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Quick links</h2>
+          <ul className="mt-4 space-y-2">
+            <li>
+              <Link
+                href="/trainer/dashboard/settings"
+                className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-3 text-sm font-semibold text-white/85 transition hover:border-[#FF7E00]/30 hover:bg-[#0E1016]"
+              >
+                Account settings
+                <span className="text-white/35" aria-hidden>
+                  →
+                </span>
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/trainer/dashboard/match-questionnaire"
+                className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-3 text-sm font-semibold text-white/85 transition hover:border-[#FF7E00]/30 hover:bg-[#0E1016]"
+              >
+                Match Me questionnaire
+                <span className="text-white/35" aria-hidden>
+                  →
+                </span>
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/trainer/onboarding"
+                className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-3 text-sm font-semibold text-white/85 transition hover:border-[#FF7E00]/30 hover:bg-[#0E1016]"
+              >
+                Compliance onboarding
+                <span className="text-white/35" aria-hidden>
+                  →
+                </span>
+              </Link>
+            </li>
+          </ul>
+        </section>
+
+        <section className="rounded-3xl border border-[#FF7E00]/25 bg-[linear-gradient(145deg,rgba(255,126,0,0.14),rgba(227,43,43,0.08))] p-6 sm:p-7">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-black tracking-tight text-white">Match Me</h2>
+            <span className="rounded-full border border-amber-400/45 bg-amber-400/15 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-100">
+              Client matching
+            </span>
           </div>
-          <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between">
-            <dt className="text-white/45">Bio</dt>
-            <dd className="max-w-md text-right font-medium text-white/90 sm:text-right">
-              {trainer.bio?.trim() ? trainer.bio : "—"}
-            </dd>
+          <p className="mt-2 text-sm leading-relaxed text-white/60">
+            One structured profile so search and our matcher understand how you coach, what you charge, and where you
+            meet clients.
+          </p>
+          <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-white/45">
+            Status: {questionnaireLabel}
+            {profile?.matchQuestionnaireCompletedAt
+              ? ` · Last submitted ${profile.matchQuestionnaireCompletedAt.toLocaleDateString(undefined, {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })}`
+              : null}
+          </p>
+          <div className="mt-5">
+            <Link
+              href="/trainer/dashboard/match-questionnaire"
+              className="inline-flex min-h-[3rem] w-full items-center justify-center rounded-xl border border-white/20 bg-[#0E1016]/80 px-5 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-white/35 hover:bg-[#0E1016]"
+            >
+              {profile?.matchQuestionnaireStatus === "completed" ? "Update Match Me" : "Complete Match Me"}
+            </Link>
           </div>
-          <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between">
-            <dt className="text-white/45">Dashboard profile</dt>
-            <dd className="font-medium text-white/90">
+        </section>
+      </div>
+
+      <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
+        <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Profile snapshot</h2>
+        <dl className="mt-5 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-white/40">Phone</dt>
+            <dd className="mt-1 text-sm font-medium text-white/90">{trainer.phone || "—"}</dd>
+          </div>
+          <div className="rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-white/40">Dashboard</dt>
+            <dd className="mt-1 text-sm font-medium text-white/90">
               {profile?.dashboardActivatedAt
-                ? `Activated ${profile.dashboardActivatedAt.toLocaleDateString(undefined, {
+                ? `Live since ${profile.dashboardActivatedAt.toLocaleDateString(undefined, {
                     year: "numeric",
                     month: "short",
                     day: "numeric",
                   })}`
-                : "Complete onboarding (including background check) to activate"}
+                : "Finish onboarding (including background check) to go live"}
+            </dd>
+          </div>
+          <div className="rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4 sm:col-span-2">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-white/40">Bio</dt>
+            <dd className="mt-1 text-sm font-medium leading-relaxed text-white/85">
+              {trainer.bio?.trim() ? trainer.bio : "—"}
             </dd>
           </div>
         </dl>
-      </section>
-
-      <section className="mt-6 rounded-3xl border border-[#FF7E00]/25 bg-[linear-gradient(135deg,rgba(255,126,0,0.12),rgba(227,43,43,0.08))] p-6 sm:p-8">
-        <div className="flex flex-wrap items-center gap-2 gap-y-1">
-          <h2 className="text-lg font-black tracking-tight text-white">Match Me</h2>
-          <span className="rounded-full border border-amber-400/45 bg-amber-400/15 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-100">
-            Required onboarding
-          </span>
-        </div>
-        <p className="mt-2 text-sm leading-relaxed text-white/60">
-          Finish this once so client search and our matcher can read who you coach, what you charge, where you meet
-          people, and how you work.
-        </p>
-        <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-white/45">
-          Status: {questionnaireLabel}
-          {profile?.matchQuestionnaireCompletedAt
-            ? ` · Last submitted ${profile.matchQuestionnaireCompletedAt.toLocaleDateString(undefined, {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-              })}`
-            : null}
-        </p>
-        <div className="mt-6">
-          <Link
-            href="/trainer/dashboard/match-questionnaire"
-            className="inline-flex min-h-[3rem] w-full items-center justify-center rounded-xl border border-white/20 bg-[#0E1016]/80 px-5 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-white/35 hover:bg-[#0E1016]"
-          >
-            {profile?.matchQuestionnaireStatus === "completed" ? "Update Match Me" : "Complete Match Me"}
+        <p className="mt-5 text-xs text-white/40">
+          Edit your coach bio, demographics, social links, and photo in{" "}
+          <Link href="/trainer/dashboard/settings" className="text-[#FF7E00] underline-offset-2 hover:underline">
+            account settings
           </Link>
-        </div>
+          .
+        </p>
       </section>
 
       {profile?.matchQuestionnaireStatus === "completed" && profile.aiMatchProfileText ? (
-        <section className="mt-6 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
+        <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
           <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-[#FF7E00]">Your Match Me — on file</h2>
           <p className="mt-2 text-sm leading-relaxed text-white/50">
-            This is the plain-text profile we store for search and AI when pairing you with clients. It updates whenever
-            you resubmit the questionnaire.
+            Plain-text profile for search and AI when pairing you with clients. Updates when you resubmit the
+            questionnaire.
           </p>
-          <pre className="mt-4 max-h-[28rem] overflow-auto whitespace-pre-wrap rounded-2xl border border-white/[0.06] bg-[#0E1016]/90 p-4 text-left text-xs leading-relaxed text-white/80">
+          <pre className="mt-4 max-h-[22rem] overflow-auto whitespace-pre-wrap rounded-2xl border border-white/[0.06] bg-[#0E1016]/90 p-4 text-left text-xs leading-relaxed text-white/80">
             {profile.aiMatchProfileText}
           </pre>
         </section>
       ) : null}
 
-      <section className="mt-6 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
+      <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
         <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Compliance snapshot</h2>
-        <ul className="mt-4 space-y-2 text-sm text-white/65">
-          <li>Terms of service (trainer): {profile?.hasSignedTOS ? "Yes" : "No"}</li>
-          <li>W-9 on file: {profile?.hasUploadedW9 ? "Yes" : "No"}</li>
-          <li>Background fee (skeleton): {profile?.hasPaidBackgroundFee ? "Recorded" : "No"}</li>
-          <li>Background check: {profile?.backgroundCheckStatus ?? "—"}</li>
-          <li>Certification review: {profile?.certificationReviewStatus ?? "—"}</li>
-          <li>Background review: {profile?.backgroundCheckReviewStatus ?? "—"}</li>
+        <ul className="mt-5 space-y-3">
+          {complianceRows.map((row) => (
+            <li key={row.label} className="flex gap-3 rounded-xl border border-white/[0.05] bg-[#0E1016]/40 px-4 py-3">
+              <StatusDot ok={row.ok} />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-white/85">{row.label}</p>
+                {"detail" in row ? (
+                  <p className="mt-0.5 text-xs text-white/45">
+                    {row.ok ? "Cleared" : `Status: ${row.detail}`}
+                  </p>
+                ) : (
+                  <p className="mt-0.5 text-xs text-white/45">{row.ok ? "Complete" : "Action needed"}</p>
+                )}
+              </div>
+            </li>
+          ))}
         </ul>
         <div className="mt-6">
           <Link
@@ -159,11 +251,11 @@ export default async function TrainerDashboardHomePage() {
         </div>
       </section>
 
-      <p className="mt-10 text-sm">
+      <p className="text-sm">
         <Link href="/" className="text-[#FF7E00] underline-offset-2 hover:underline">
           Back to home
         </Link>
       </p>
-    </>
+    </div>
   );
 }
