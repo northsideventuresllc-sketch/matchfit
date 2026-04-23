@@ -8,6 +8,7 @@ import {
   normalizeRegisterJson,
   registerSkipSchema,
 } from "@/lib/validations/client-register";
+import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
 
 function isAtLeast18(birthYmd: string): boolean {
@@ -72,7 +73,9 @@ export async function POST(req: Request) {
     await setRegistrationHoldCookie(pending.id);
     return NextResponse.json({ ok: true, pendingId: pending.id, next: "/client/subscribe" });
   } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: "Registration failed." }, { status: 500 });
+    const { message, status } = publicApiErrorFromUnknown(e, "Registration failed. Please try again.", {
+      logLabel: "[Match Fit register]",
+    });
+    return NextResponse.json({ error: message }, { status });
   }
 }

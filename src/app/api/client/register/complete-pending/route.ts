@@ -3,6 +3,7 @@ import { purgeExpiredRegistrationHolds } from "@/lib/purge-registration-holds";
 import { prisma } from "@/lib/prisma";
 import { completePendingSchema } from "@/lib/validations/client-register";
 import { setRegistrationHoldCookie } from "@/lib/session";
+import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
 
 const HOLD_TTL_MS = 72 * 60 * 60 * 1000;
@@ -50,7 +51,9 @@ export async function POST(req: Request) {
     await setRegistrationHoldCookie(pending.id);
     return NextResponse.json({ ok: true, pendingId: pending.id, next: "/client/subscribe" });
   } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: "Could not complete verification." }, { status: 500 });
+    const { message, status } = publicApiErrorFromUnknown(e, "Could not complete verification. Try again.", {
+      logLabel: "[Match Fit complete-pending]",
+    });
+    return NextResponse.json({ error: message }, { status });
   }
 }

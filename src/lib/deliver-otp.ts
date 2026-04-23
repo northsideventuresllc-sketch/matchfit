@@ -1,45 +1,81 @@
 /**
- * Sends one-time codes for 2FA. Match Fit only uses external providers when you
- * configure the related environment variables; otherwise codes are logged server-side
- * in development so nothing is shared with third parties without your integration.
+ * Sends one-time codes for 2FA. Match Fit uses Resend for email when RESEND_API_KEY is set;
+ * otherwise codes are logged server-side in development.
+ *
+ * **SMS / voice:** In production, Twilio is used when `TWILIO_*` env vars are set. In development,
+ * SMS and voice are **mocked** by default: nothing is sent; the 6-digit code is printed to the
+ * server terminal and the same hash/verify flow runs as in production. Set `MATCH_FIT_USE_TWILIO_IN_DEV=true`
+ * to exercise real Twilio from a dev server. Set `MATCH_FIT_MOCK_PHONE_OTP=true` to force the
+ * same mock in any environment (hosted beta).
+ *
+ * Email OTPs use `sendResendEmail` (dev inbox redirect in `resend-client.ts`).
  */
 
+import { RESEND_ONBOARDING_FROM, sendResendEmail } from "@/lib/resend-client";
+
 export type OtpChannel = "EMAIL" | "SMS" | "VOICE";
+
+/** When true, the SMS/voice path was mocked (terminal log only); clients may show a dev hint. */
+export type DeliverSignupOtpResult = { devPhoneMock?: boolean };
+
+function isRealTwilioEnabledInDevelopment(): boolean {
+  const v = process.env.MATCH_FIT_USE_TWILIO_IN_DEV?.trim().toLowerCase();
+  return v === "true" || v === "1" || v === "yes";
+}
+
+function forcePhoneOtpMockEverywhere(): boolean {
+  const v = process.env.MATCH_FIT_MOCK_PHONE_OTP?.trim().toLowerCase();
+  return v === "true" || v === "1" || v === "yes";
+}
+
+/**
+ * When true, SMS/VOICE OTPs are not sent via Twilio; the code is logged for local/beta testing.
+ */
+export function shouldMockSmsVoiceOtp(): boolean {
+  if (forcePhoneOtpMockEverywhere()) return true;
+  if (process.env.NODE_ENV === "development" && !isRealTwilioEnabledInDevelopment()) return true;
+  return false;
+}
+
+function logDevPhoneMockOtp(channel: OtpChannel, phone: string, code: string): void {
+  const line = "─".repeat(56);
+  console.info(`\n${line}`);
+  console.info(` Match Fit — DEV MOCK ${channel} (no Twilio send)`);
+  console.info(` Intended destination: ${phone}`);
+  console.info(` 6-digit code: ${code}`);
+  console.info(`${line}\n`);
+}
 
 export async function deliverSignupOtp(
   channel: OtpChannel,
   params: { email: string; phone: string; code: string },
-): Promise<void> {
+): Promise<DeliverSignupOtpResult> {
   const { email, phone, code } = params;
 
   if (channel === "EMAIL") {
     const key = process.env.RESEND_API_KEY;
-    const from = process.env.RESEND_FROM_EMAIL;
-    if (key && from) {
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${key}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from,
-          to: email,
-          subject: "Your Match Fit verification code",
-          text: `Your verification code is: ${code}\n\nThis code expires in 10 minutes.`,
-        }),
-      });
-      if (!res.ok) {
-        const t = await res.text();
-        throw new Error(`Email delivery failed: ${t}`);
+    if (!key) {
+      if (process.env.NODE_ENV === "development") {
+        console.info(`[Match Fit 2FA][EMAIL] (no RESEND_API_KEY) intended for ${email}: ${code}`);
+        return {};
       }
-      return;
+      throw new Error("RESEND_API_KEY must be set to send email codes in production.");
     }
-    if (process.env.NODE_ENV === "development") {
-      console.info(`[Match Fit 2FA][EMAIL] to ${email}: ${code}`);
-      return;
-    }
-    throw new Error("RESEND_API_KEY and RESEND_FROM_EMAIL must be set to send email codes in production.");
+
+    const body = `Your verification code is: ${code}\n\nThis code expires in 10 minutes.\n\nIf you did not try to sign in, ignore this message.`;
+
+    await sendResendEmail({
+      from: RESEND_ONBOARDING_FROM,
+      to: email,
+      subject: "Your Match Fit verification code",
+      text: body,
+    });
+    return {};
+  }
+
+  if (shouldMockSmsVoiceOtp()) {
+    logDevPhoneMockOtp(channel, phone, code);
+    return { devPhoneMock: true };
   }
 
   const sid = process.env.TWILIO_ACCOUNT_SID;
@@ -75,12 +111,7 @@ export async function deliverSignupOtp(
       const t = await res.text();
       throw new Error(`Phone delivery failed: ${t}`);
     }
-    return;
-  }
-
-  if (process.env.NODE_ENV === "development") {
-    console.info(`[Match Fit 2FA][${channel}] to ${phone}: ${code}`);
-    return;
+    return {};
   }
 
   throw new Error(

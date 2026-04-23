@@ -50,3 +50,7 @@ next-env.d.ts
 # client-uploaded avatars (keep directory via .gitkeep)
 /public/uploads/clients/*
 !/public/uploads/clients/.gitkeep
+
+# trainer-uploaded certifications (keep directory via .gitkeep)
+/public/uploads/trainers/*
+!/public/uploads/trainers/.gitkeep

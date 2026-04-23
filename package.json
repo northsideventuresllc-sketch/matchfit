@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "db:locks": "**npx** sh scripts/show-sqlite-db-locks.sh",
     "test:watch": "vitest",
     "postinstall": "prisma generate"
   },

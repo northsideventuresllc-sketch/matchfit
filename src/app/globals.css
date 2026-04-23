@@ -5,11 +5,23 @@
   --foreground: #171717;
 }
 
+@keyframes mf-trainer-fade {
+  from {
+    opacity: 0;
+    transform: translateY(0.625rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --animate-mf-trainer-fade: mf-trainer-fade 520ms ease-out both;
 }
 
 @media (prefers-color-scheme: dark) {

@@ -2,12 +2,12 @@ import { findClientByIdentifier } from "@/lib/client-queries";
 import { findTrainerByIdentifier } from "@/lib/trainer-queries";
 import { prisma } from "@/lib/prisma";
 import {
-  clearClientSession,
-  clearLoginChallengeCookie,
-  clearTrainerLoginChallengeCookie,
-  clearTrainerSession,
-  setClientSession,
-  setTrainerSession,
+  applyClientSessionToNextResponse,
+  applyTrainerSessionToNextResponse,
+  CLIENT_SESSION_COOKIE,
+  LOGIN_CHALLENGE_COOKIE,
+  TRAINER_LOGIN_CHALLENGE_COOKIE,
+  TRAINER_SESSION_COOKIE,
 } from "@/lib/session";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -66,11 +66,12 @@ export async function POST(req: Request) {
         { status: 404 },
       );
     }
-    await clearTrainerSession();
-    await clearTrainerLoginChallengeCookie();
-    await clearLoginChallengeCookie();
-    await setClientSession(client.id, client.stayLoggedIn);
-    return NextResponse.json({ ok: true, next: "/client/account" });
+    const res = NextResponse.json({ ok: true, next: "/client/account" });
+    res.cookies.delete(TRAINER_SESSION_COOKIE);
+    res.cookies.delete(TRAINER_LOGIN_CHALLENGE_COOKIE);
+    res.cookies.delete(LOGIN_CHALLENGE_COOKIE);
+    await applyClientSessionToNextResponse(res, client.id, client.stayLoggedIn);
+    return res;
   }
 
   const trainer = await findTrainerByIdentifier(trainerIdent);
@@ -80,10 +81,11 @@ export async function POST(req: Request) {
       { status: 404 },
     );
   }
-  await clearClientSession();
-  await clearLoginChallengeCookie();
-  await clearTrainerLoginChallengeCookie();
-  await setTrainerSession(trainer.id, trainer.stayLoggedIn);
   const next = await trainerShortcutPath(trainer.id);
-  return NextResponse.json({ ok: true, next });
+  const res = NextResponse.json({ ok: true, next });
+  res.cookies.delete(CLIENT_SESSION_COOKIE);
+  res.cookies.delete(LOGIN_CHALLENGE_COOKIE);
+  res.cookies.delete(TRAINER_LOGIN_CHALLENGE_COOKIE);
+  await applyTrainerSessionToNextResponse(res, trainer.id, trainer.stayLoggedIn);
+  return res;
 }

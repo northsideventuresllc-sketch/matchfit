@@ -4,9 +4,9 @@ import { getSessionClientId } from "@/lib/session";
 
 /**
  * If the visitor has a valid client session and "stay logged in" is enabled,
- * send them straight to the client dashboard (used from `/` and `/client`).
+ * send them straight to the client dashboard instead of the public home or sign-in screen.
  */
-export async function redirectStayLoggedInClientToAccount(): Promise<void> {
+export async function redirectStayLoggedInClientToDashboard(): Promise<void> {
   const clientId = await getSessionClientId();
   if (!clientId) return;
 

@@ -6,6 +6,7 @@ import { getAppOriginFromRequest } from "@/lib/app-origin";
 import { generateSixDigitCode, hashOtp } from "@/lib/otp";
 import { prisma } from "@/lib/prisma";
 import { signPasswordChangeToken } from "@/lib/password-change-jwt";
+import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { getSessionClientId } from "@/lib/session";
 import { NextResponse } from "next/server";
 
@@ -42,12 +43,29 @@ export async function POST(req: Request) {
           passwordChangeOtpExpires: otpExpiresAt,
         },
       });
-      await deliverSignupOtp(client.twoFactorMethod as OtpChannel, {
-        email: client.email,
-        phone: client.phone,
-        code,
+      let pwOtpMeta: { devPhoneMock?: boolean } = {};
+      try {
+        pwOtpMeta = await deliverSignupOtp(client.twoFactorMethod as OtpChannel, {
+          email: client.email,
+          phone: client.phone,
+          code,
+        });
+      } catch (deliverErr) {
+        console.error("[password-change start] OTP delivery failed; clearing password-change OTP.", deliverErr);
+        await prisma.client.update({
+          where: { id: clientId },
+          data: {
+            passwordChangeOtpHash: null,
+            passwordChangeOtpExpires: null,
+          },
+        });
+        throw deliverErr;
+      }
+      return NextResponse.json({
+        ok: true,
+        flow: "otp" as const,
+        ...(pwOtpMeta?.devPhoneMock ? { devPhoneMock: true } : {}),
       });
-      return NextResponse.json({ ok: true, flow: "otp" as const });
     }
 
     const nonce = randomBytes(24).toString("hex");
@@ -67,8 +85,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, flow: "email" as const });
   } catch (e) {
-    console.error(e);
-    const message = e instanceof Error ? e.message : "Could not start password change.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const { message, status } = publicApiErrorFromUnknown(e, "Could not start password change. Try again.", {
+      logLabel: "[Match Fit password-change start]",
+    });
+    return NextResponse.json({ error: message }, { status });
   }
 }

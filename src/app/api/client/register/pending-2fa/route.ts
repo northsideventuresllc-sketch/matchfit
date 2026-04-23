@@ -10,6 +10,7 @@ import {
   normalizeRegisterJson,
   registerPending2faSchema,
 } from "@/lib/validations/client-register";
+import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
 
 function isAtLeast18(birthYmd: string): boolean {
@@ -75,16 +76,28 @@ export async function POST(req: Request) {
       },
     });
 
-    await deliverSignupOtp(method, {
-      email,
-      phone: body.phone.trim(),
-      code,
-    });
+    let deliveryMeta: { devPhoneMock?: boolean } = {};
+    try {
+      deliveryMeta = await deliverSignupOtp(method, {
+        email,
+        phone: body.phone.trim(),
+        code,
+      });
+    } catch (deliverErr) {
+      console.error("[register pending-2FA] OTP delivery failed; removing pending row.", deliverErr);
+      await prisma.pendingClientRegistration.delete({ where: { id: pending.id } });
+      throw deliverErr;
+    }
 
-    return NextResponse.json({ ok: true, pendingId: pending.id });
+    return NextResponse.json({
+      ok: true,
+      pendingId: pending.id,
+      ...(deliveryMeta?.devPhoneMock ? { devPhoneMock: true } : {}),
+    });
   } catch (e) {
-    console.error(e);
-    const message = e instanceof Error ? e.message : "Could not start verification.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const { message, status } = publicApiErrorFromUnknown(e, "Could not start verification. Try again.", {
+      logLabel: "[Match Fit register pending-2FA]",
+    });
+    return NextResponse.json({ error: message }, { status });
   }
 }

@@ -1,7 +1,13 @@
 import Image from "next/image";
-import Link from "next/link";
+import { FeaturedTrainersCarousel } from "@/components/featured-trainers-carousel";
+import { HomeBrandBanner } from "@/components/home-brand-banner";
+import { HomeInfoSections } from "@/components/home-info-sections";
+import { HomeLoginMenu } from "@/components/home-login-menu";
+import { redirectStayLoggedInClientToDashboard } from "@/lib/redirect-stay-logged-in-client";
 
-export default function Home() {
+export default async function Home() {
+  await redirectStayLoggedInClientToDashboard();
+
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] text-white antialiased">
       <div
@@ -27,22 +33,16 @@ export default function Home() {
               />
             </div>
             <div className="leading-none">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
-                Atlanta
-              </p>
-              <p className="mt-1 text-sm font-black tracking-tight sm:text-base">
+              <p className="text-sm font-black tracking-tight sm:text-base">
                 <span className="text-[#E8EAEF]">Match</span>{" "}
                 <span className="text-[#E32B2B]">Fit</span>
               </p>
             </div>
           </div>
-          <Link
-            href="#cta"
-            className="hidden rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/80 backdrop-blur transition hover:border-white/20 hover:bg-white/[0.07] hover:text-white sm:inline-flex"
-          >
-            Get started
-          </Link>
+          <HomeLoginMenu />
         </header>
+
+        <HomeBrandBanner />
 
         <section className="mt-14 flex flex-1 flex-col items-center text-center sm:mt-20 lg:mt-24">
           <div className="relative">
@@ -73,93 +73,23 @@ export default function Home() {
           </p>
 
           <p className="mt-6 max-w-xl text-pretty text-base leading-relaxed text-white/60 sm:text-lg">
-            One roster. Two paths. Match Fit pairs Atlanta&apos;s most sought-after
-            trainers with clients who expect white-glove results, not guesswork.
+            The fitness matchmaking platform that connects clients with the right coaches—and gives trainers
+            the tools to grow their brands and client base without the usual friction.
           </p>
-
-          <div
-            id="cta"
-            className="mt-12 flex w-full max-w-xl flex-col gap-4 sm:mt-14 sm:flex-row sm:justify-center"
-          >
-            <Link
-              href="#for-clients"
-              className="group relative isolate flex min-h-[3.75rem] flex-1 items-center justify-center overflow-hidden rounded-2xl px-6 text-base font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_24px_60px_-18px_rgba(227,43,43,0.55)] transition duration-200 active:translate-y-px sm:min-h-[4rem] sm:flex-none sm:min-w-[220px] sm:text-[0.95rem]"
+          <p className="mt-4 text-sm text-white/40">
+            <a
+              href="#what-is-match-fit"
+              className="font-semibold text-[#FF7E00] underline-offset-4 transition hover:text-[#FFD34E] hover:underline"
             >
-              <span
-                aria-hidden
-                className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]"
-              />
-              <span
-                aria-hidden
-                className="absolute inset-px rounded-[0.9rem] bg-white/10 opacity-0 transition group-hover:opacity-100"
-              />
-              <span className="relative">Find a Trainer</span>
-            </Link>
-
-            <Link
-              href="#for-trainers"
-              className="group relative flex min-h-[3.75rem] flex-1 items-center justify-center overflow-hidden rounded-2xl px-6 text-base font-black uppercase tracking-[0.08em] text-white shadow-[0_20px_60px_-22px_rgba(0,0,0,0.9)] transition duration-200 active:translate-y-px sm:min-h-[4rem] sm:flex-none sm:min-w-[220px] sm:text-[0.95rem]"
-            >
-              <span
-                aria-hidden
-                className="absolute inset-0 rounded-2xl bg-[#12151C]"
-              />
-              <span
-                aria-hidden
-                className="absolute inset-0 rounded-2xl bg-[linear-gradient(135deg,rgba(255,211,78,0.35),rgba(255,126,0,0.2),rgba(227,43,43,0.35))] opacity-70 blur-xl transition group-hover:opacity-100"
-              />
-              <span className="absolute inset-0 rounded-2xl bg-[linear-gradient(135deg,#FFD34E,#FF7E00,#E32B2B)] p-[1.5px]">
-                <span className="flex h-full w-full items-center justify-center rounded-[0.925rem] bg-[#0E1016]">
-                  Join the Roster
-                </span>
-              </span>
-            </Link>
-          </div>
+              Learn how it works
+            </a>{" "}
+            or scroll to explore trainers, pricing, and session types.
+          </p>
         </section>
 
-        <section className="mt-20 grid gap-5 sm:mt-24 lg:grid-cols-2 lg:gap-6">
-          <article
-            id="for-trainers"
-            className="relative scroll-mt-28 overflow-hidden rounded-3xl border border-white/[0.07] bg-[#12151C]/80 p-7 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8"
-          >
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(255,126,0,0.35),transparent_65%)]"
-            />
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]">
-              For trainers
-            </p>
-            <h2 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">
-              Atlanta&apos;s top coaches belong here.
-            </h2>
-            <p className="mt-4 text-pretty text-[15px] leading-relaxed text-white/60 sm:text-base">
-              Showcase your specialty, protect your time, and get introduced to
-              serious clients-athletes, executives, and performers-who are ready
-              to invest in outcomes.
-            </p>
-          </article>
+        <FeaturedTrainersCarousel />
 
-          <article
-            id="for-clients"
-            className="relative scroll-mt-28 overflow-hidden rounded-3xl border border-white/[0.07] bg-[#12151C]/80 p-7 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8"
-          >
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -left-20 -bottom-28 h-64 w-64 rounded-full bg-[radial-gradient(circle_at_center,rgba(227,43,43,0.28),transparent_68%)]"
-            />
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#E32B2B]">
-              For clients
-            </p>
-            <h2 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">
-              The best in the city-without the noise.
-            </h2>
-            <p className="mt-4 text-pretty text-[15px] leading-relaxed text-white/60 sm:text-base">
-              Stop scrolling endless profiles. Match Fit is built for people who
-              want elite training, structured progression, and recovery that keeps
-              you durable-not just tired.
-            </p>
-          </article>
-        </section>
+        <HomeInfoSections />
       </div>
     </main>
   );

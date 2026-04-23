@@ -1,8 +1,12 @@
 import { SignJWT, jwtVerify } from "jose";
+import type { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { normalizeTrainerPostAuthPath, type TrainerPostAuthPath } from "@/lib/trainer-post-auth-redirect";
 
 export const CLIENT_SESSION_COOKIE = "mf_client_session";
+export const TRAINER_SESSION_COOKIE = "mf_trainer_session";
 export const LOGIN_CHALLENGE_COOKIE = "mf_login_challenge";
+export const TRAINER_LOGIN_CHALLENGE_COOKIE = "mf_trainer_login_challenge";
 export const REGISTRATION_HOLD_COOKIE = "mf_registration_hold";
 
 const REMEMBER_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
@@ -71,6 +75,84 @@ export async function getSessionClientId(): Promise<string | null> {
   return verifySessionToken(token);
 }
 
+export async function setTrainerSession(trainerId: string, rememberMe: boolean): Promise<void> {
+  const token = await signSessionToken(trainerId, rememberMe);
+  const store = await cookies();
+  const base = {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+  };
+  if (rememberMe) {
+    store.set(TRAINER_SESSION_COOKIE, token, { ...base, maxAge: REMEMBER_COOKIE_MAX_AGE });
+  } else {
+    store.set(TRAINER_SESSION_COOKIE, token, base);
+  }
+}
+
+/** Prefer this from Route Handlers so the session cookie is definitely attached to the returned `NextResponse`. */
+export async function applyTrainerSessionToNextResponse(
+  res: NextResponse,
+  trainerId: string,
+  rememberMe: boolean,
+): Promise<void> {
+  const token = await signSessionToken(trainerId, rememberMe);
+  const base = {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+  };
+  if (rememberMe) {
+    res.cookies.set(TRAINER_SESSION_COOKIE, token, { ...base, maxAge: REMEMBER_COOKIE_MAX_AGE });
+  } else {
+    res.cookies.set(TRAINER_SESSION_COOKIE, token, base);
+  }
+}
+
+/** Prefer this from Route Handlers so the session cookie is definitely attached to the returned `NextResponse`. */
+export async function applyClientSessionToNextResponse(
+  res: NextResponse,
+  clientId: string,
+  rememberMe: boolean,
+): Promise<void> {
+  const token = await signSessionToken(clientId, rememberMe);
+  const base = {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+  };
+  if (rememberMe) {
+    res.cookies.set(CLIENT_SESSION_COOKIE, token, { ...base, maxAge: REMEMBER_COOKIE_MAX_AGE });
+  } else {
+    res.cookies.set(CLIENT_SESSION_COOKIE, token, base);
+  }
+}
+
+export function applyTrainerLoginChallengeToNextResponse(res: NextResponse, token: string): void {
+  res.cookies.set(TRAINER_LOGIN_CHALLENGE_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 10,
+  });
+}
+
+export async function clearTrainerSession(): Promise<void> {
+  const store = await cookies();
+  store.delete(TRAINER_SESSION_COOKIE);
+}
+
+export async function getSessionTrainerId(): Promise<string | null> {
+  const store = await cookies();
+  const token = store.get(TRAINER_SESSION_COOKIE)?.value;
+  if (!token) return null;
+  return verifySessionToken(token);
+}
+
 export async function signLoginChallengeToken(
   clientId: string,
   opts?: { stayLoggedIn?: boolean },
@@ -113,6 +195,54 @@ export async function setLoginChallengeCookie(token: string): Promise<void> {
 export async function clearLoginChallengeCookie(): Promise<void> {
   const store = await cookies();
   store.delete(LOGIN_CHALLENGE_COOKIE);
+}
+
+export async function signTrainerLoginChallengeToken(
+  trainerId: string,
+  opts?: { stayLoggedIn?: boolean; redirectAfterLogin?: TrainerPostAuthPath },
+): Promise<string> {
+  const rm = opts?.stayLoggedIn === false ? 0 : 1;
+  const next = opts?.redirectAfterLogin;
+  const body: Record<string, unknown> = { t: "trainer_login_challenge", rm };
+  if (next) body.next = next;
+  return new SignJWT(body)
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(trainerId)
+    .setIssuedAt()
+    .setExpirationTime("10m")
+    .sign(getAuthSecretKey());
+}
+
+export async function verifyTrainerLoginChallengeToken(
+  token: string,
+): Promise<{ trainerId: string; stayLoggedIn: boolean; redirectAfter?: TrainerPostAuthPath } | null> {
+  try {
+    const { payload } = await jwtVerify(token, getAuthSecretKey());
+    if (payload.t !== "trainer_login_challenge") return null;
+    const sub = typeof payload.sub === "string" ? payload.sub : null;
+    if (!sub) return null;
+    const stayLoggedIn = payload.rm !== 0;
+    const redirectAfter = normalizeTrainerPostAuthPath(payload.next);
+    return { trainerId: sub, stayLoggedIn, ...(redirectAfter ? { redirectAfter } : {}) };
+  } catch {
+    return null;
+  }
+}
+
+export async function setTrainerLoginChallengeCookie(token: string): Promise<void> {
+  const store = await cookies();
+  store.set(TRAINER_LOGIN_CHALLENGE_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 10,
+  });
+}
+
+export async function clearTrainerLoginChallengeCookie(): Promise<void> {
+  const store = await cookies();
+  store.delete(TRAINER_LOGIN_CHALLENGE_COOKIE);
 }
 
 export async function signRegistrationHoldToken(pendingId: string): Promise<string> {

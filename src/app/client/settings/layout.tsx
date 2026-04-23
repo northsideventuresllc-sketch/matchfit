@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Security & 2FA | Match Fit",
+  title: "Account Settings | Match Fit",
 };
 
 export default function ClientSettingsLayout({

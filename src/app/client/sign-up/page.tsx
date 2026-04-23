@@ -91,6 +91,7 @@ export default function ClientSignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [stayLoggedIn, setStayLoggedIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [devPhoneMockTip, setDevPhoneMockTip] = useState(false);
 
   function buildProfilePayload() {
     const fn = firstName.trim();
@@ -219,6 +220,7 @@ export default function ClientSignUpPage() {
 
   async function handleSend2fa() {
     setError(null);
+    setDevPhoneMockTip(false);
     if (!selectedChannel) {
       setError("Choose how you want to receive your verification code.");
       return;
@@ -233,7 +235,7 @@ export default function ClientSignUpPage() {
           twoFactorMethod: selectedChannel,
         }),
       });
-      const data = (await res.json()) as { error?: string; pendingId?: string };
+      const data = (await res.json()) as { error?: string; pendingId?: string; devPhoneMock?: boolean };
       if (!res.ok) {
         setError(data.error ?? "Could not send the verification code.");
         return;
@@ -242,6 +244,7 @@ export default function ClientSignUpPage() {
         setPendingId(data.pendingId);
         setAwaitingCode(true);
         setOtpCode("");
+        setDevPhoneMockTip(Boolean(data.devPhoneMock));
       }
     } catch {
       setError("Something went wrong. Try again.");
@@ -561,9 +564,9 @@ export default function ClientSignUpPage() {
           ) : !awaitingCode ? (
             <div className="flex flex-col gap-6">
               <p className="text-sm leading-relaxed text-white/55">
-                Choose where we should send a one-time code. SMS and voice use the phone number you entered. Email
-                uses your account email. Codes are only sent through a provider you configure in production; otherwise
-                they are logged on the server in development.
+                Choose where we should send a one-time code. SMS and voice use the phone number you entered; email uses
+                your account address. In local development, SMS and voice are mocked: the code is printed in the terminal
+                running the app, not sent by Twilio.
               </p>
 
               <div className="flex flex-col gap-3">
@@ -627,6 +630,16 @@ export default function ClientSignUpPage() {
             </div>
           ) : (
             <form onSubmit={handleVerify2fa} className="flex flex-col gap-5">
+              {devPhoneMockTip ? (
+                <p
+                  className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-3 text-sm leading-relaxed text-emerald-100"
+                  role="status"
+                >
+                  Development mode: your code was not sent by SMS or phone. Check the terminal where{" "}
+                  <span className="font-mono text-emerald-50">npm run dev</span> is running, copy the 6-digit code, and
+                  enter it below. Verification works the same as production.
+                </p>
+              ) : null}
               <div className="flex flex-col gap-2">
                 <label htmlFor="su-otp" className={labelClass}>
                   Verification code
@@ -661,6 +674,7 @@ export default function ClientSignUpPage() {
                   setPendingId(null);
                   setOtpCode("");
                   setError(null);
+                  setDevPhoneMockTip(false);
                 }}
                 className="text-center text-xs font-semibold uppercase tracking-wide text-white/40 transition hover:text-white/65"
               >

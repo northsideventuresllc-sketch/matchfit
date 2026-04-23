@@ -114,13 +114,34 @@ export const settings2faSchema = z.discriminatedUnion("action", [
     password: z.string().min(1),
   }),
   z.object({
-    action: z.literal("request_enable"),
+    action: z.literal("request_add_channel"),
     password: z.string().min(1),
-    method: z.enum(["EMAIL", "SMS", "VOICE"]),
+    delivery: z.enum(["EMAIL", "SMS", "VOICE"]),
+    email: z.string().email().optional(),
+    phone: z.string().min(6).optional(),
   }),
   z.object({
-    action: z.literal("confirm_enable"),
+    action: z.literal("confirm_add_channel"),
+    channelId: z.string().min(1),
     code: z.string().regex(/^\d{6}$/),
+  }),
+  z.object({
+    action: z.literal("delete_channel"),
+    password: z.string().min(1),
+    channelId: z.string().min(1),
+  }),
+  z.object({
+    action: z.literal("set_default_login_channel"),
+    password: z.string().min(1),
+    channelId: z.string().min(1),
+  }),
+  z.object({
+    action: z.literal("resend_channel_verify"),
+    password: z.string().min(1),
+    channelId: z.string().min(1),
+  }),
+  z.object({
+    action: z.literal("abandon_unverified_channels"),
   }),
 ]);
 

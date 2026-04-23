@@ -7,6 +7,7 @@ import {
   setClientSession,
   verifyLoginChallengeToken,
 } from "@/lib/session";
+import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -93,7 +94,9 @@ export async function POST(req: Request) {
     await setClientSession(clientId, stayLoggedIn);
     return NextResponse.json({ ok: true });
   } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: "Verification failed." }, { status: 500 });
+    const { message, status } = publicApiErrorFromUnknown(e, "Verification could not be completed. Try again.", {
+      logLabel: "[Match Fit complete 2FA]",
+    });
+    return NextResponse.json({ error: message }, { status });
   }
 }
