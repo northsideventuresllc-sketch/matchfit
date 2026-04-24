@@ -7,6 +7,8 @@ import { TrainerPortalHeader } from "@/components/trainer/trainer-portal-header"
 export type TrainerDashboardShellProps = {
   displayName: string;
   profileImageUrl: string | null;
+  /** When false, the Compliance nav item is hidden (details page requires completed onboarding). */
+  showComplianceInNav?: boolean;
   children: React.ReactNode;
 };
 
@@ -22,6 +24,11 @@ const NAV = [
     label: "Match Me",
     match: (p: string) => p.startsWith("/trainer/dashboard/match-questionnaire"),
   },
+  {
+    href: "/trainer/dashboard/compliance",
+    label: "Compliance",
+    match: (p: string) => p.startsWith("/trainer/dashboard/compliance"),
+  },
 ] as const;
 
 export function TrainerDashboardShell(props: TrainerDashboardShellProps) {
@@ -29,6 +36,8 @@ export function TrainerDashboardShell(props: TrainerDashboardShellProps) {
   const isHome = pathname === "/trainer/dashboard";
   const backHref = !isHome ? "/trainer/dashboard" : undefined;
   const backLabel = !isHome ? "← Dashboard" : undefined;
+  const showCompliance = props.showComplianceInNav !== false;
+  const navItems = showCompliance ? NAV : NAV.filter((item) => item.href !== "/trainer/dashboard/compliance");
 
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-[#07080C] px-5 py-10 text-white sm:px-8 sm:py-12">
@@ -48,7 +57,7 @@ export function TrainerDashboardShell(props: TrainerDashboardShellProps) {
           aria-label="Trainer Dashboard"
           className="mb-8 flex flex-wrap gap-2 rounded-2xl border border-white/[0.07] bg-[#0E1016]/60 p-1.5 backdrop-blur-md"
         >
-          {NAV.map((item) => {
+          {navItems.map((item) => {
             const active = item.match(pathname);
             return (
               <Link

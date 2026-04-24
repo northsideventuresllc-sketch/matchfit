@@ -39,7 +39,10 @@ export async function POST(req: Request) {
           create: {
             backgroundCheckStatus: "NOT_STARTED",
             certificationReviewStatus: "NOT_STARTED",
+            nutritionistCertificationReviewStatus: "NOT_STARTED",
             backgroundCheckReviewStatus: "NOT_STARTED",
+            onboardingTrackCpt: false,
+            onboardingTrackNutrition: false,
           },
         },
       },

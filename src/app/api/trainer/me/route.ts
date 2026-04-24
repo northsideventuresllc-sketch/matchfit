@@ -32,7 +32,11 @@ const trainerMeSelect = {
       backgroundCheckStatus: true,
       certificationUrl: true,
       otherCertificationUrl: true,
+      nutritionistCertificationUrl: true,
       certificationReviewStatus: true,
+      nutritionistCertificationReviewStatus: true,
+      onboardingTrackCpt: true,
+      onboardingTrackNutrition: true,
       backgroundCheckReviewStatus: true,
       dashboardActivatedAt: true,
       matchQuestionnaireStatus: true,
@@ -65,7 +69,10 @@ export async function GET() {
           trainerId: trainer.id,
           backgroundCheckStatus: "NOT_STARTED",
           certificationReviewStatus: "NOT_STARTED",
+          nutritionistCertificationReviewStatus: "NOT_STARTED",
           backgroundCheckReviewStatus: "NOT_STARTED",
+          onboardingTrackCpt: false,
+          onboardingTrackNutrition: false,
         },
       });
       trainer = await prisma.trainer.findUnique({

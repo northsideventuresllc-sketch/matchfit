@@ -33,7 +33,7 @@ export default async function TrainerVerify2faPage() {
       completeTwoFactorUrl="/api/trainer/login/complete-2fa"
       resendTwoFactorUrl="/api/trainer/login/resend-2fa"
       cancelTwoFactorUrl="/api/trainer/login/cancel-2fa"
-      afterVerifyHref="/trainer/onboarding"
+      afterVerifyHref="/trainer/dashboard"
       cancelReturnHref="/trainer/dashboard/login"
     />
   );

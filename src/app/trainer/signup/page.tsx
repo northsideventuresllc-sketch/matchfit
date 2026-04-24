@@ -12,7 +12,7 @@ export default async function TrainerSignUpPage() {
       select: { id: true },
     });
     if (trainer) {
-      redirect("/trainer/onboarding");
+      redirect("/trainer/dashboard");
     }
     redirect(staleTrainerSessionInvalidateRedirect("/trainer/signup"));
   }

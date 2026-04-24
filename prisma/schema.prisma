@@ -238,11 +238,24 @@ model TrainerProfile {
   otherCertificationUrl String?
   /// CPT verification: NOT_STARTED | PENDING | APPROVED | DENIED
   certificationReviewStatus String @default("NOT_STARTED")
+  /// Nutritionist / nutrition credential file (PDF/image).
+  nutritionistCertificationUrl String?
+  /// Same status enum as CPT: NOT_STARTED | PENDING | APPROVED | DENIED
+  nutritionistCertificationReviewStatus String @default("NOT_STARTED")
+
+  /// Onboarding step: which professional paths the trainer selected (drives required uploads).
+  onboardingTrackCpt        Boolean @default(false)
+  onboardingTrackNutrition Boolean @default(false)
+
   /// Legacy parallel field; keep in sync with vendor status where applicable.
   backgroundCheckReviewStatus String @default("NOT_STARTED")
 
   /// JSON string of W-9 answers until a formal e-sign flow exists.
   w9Json String?
+
+  /// Proof-of-email OTP before sending a W-9 copy to the trainer account email (hashed; cleared after use).
+  w9SelfServeEmailOtpHash    String?
+  w9SelfServeEmailOtpExpires DateTime?
 
   /// Set when the trainer completes the skeleton background-check step; marks the compliance profile as ready for the main dashboard.
   dashboardActivatedAt DateTime?

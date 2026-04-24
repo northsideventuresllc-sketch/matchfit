@@ -31,7 +31,7 @@ async function trainerShortcutPath(trainerId: string): Promise<string> {
   if (row?.profile?.dashboardActivatedAt) {
     return "/trainer/dashboard";
   }
-  return "/trainer/onboarding";
+  return "/trainer/dashboard";
 }
 
 /**

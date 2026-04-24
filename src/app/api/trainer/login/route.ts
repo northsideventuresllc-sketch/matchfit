@@ -21,7 +21,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid login request." }, { status: 400 });
     }
     const { identifier, password, stayLoggedIn, redirectAfterLogin: redirectRaw } = parsed.data;
-    const redirectAfterLogin = normalizeTrainerPostAuthPath(redirectRaw) ?? "/trainer/onboarding";
+    const redirectAfterLogin = normalizeTrainerPostAuthPath(redirectRaw) ?? "/trainer/dashboard";
     const trainer = await findTrainerByIdentifier(identifier);
     if (!trainer) {
       return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });

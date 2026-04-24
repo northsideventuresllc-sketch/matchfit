@@ -51,7 +51,7 @@ export default function TrainerLoginPortal({
         router.push(data.next ?? "/trainer/verify-2fa");
         return;
       }
-      router.push(data.next ?? "/trainer/onboarding");
+      router.push(data.next ?? "/trainer/dashboard");
       router.refresh();
     } catch {
       setError("Something went wrong. Try again.");

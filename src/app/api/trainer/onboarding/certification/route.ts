@@ -16,6 +16,12 @@ function extForMime(mime: string): string | null {
   return null;
 }
 
+function parseUploadType(raw: FormDataEntryValue | null): "cpt" | "other" | "nutritionist" {
+  if (raw === "other") return "other";
+  if (raw === "nutritionist") return "nutritionist";
+  return "cpt";
+}
+
 export async function POST(req: Request) {
   try {
     const trainerId = await getSessionTrainerId();
@@ -25,8 +31,7 @@ export async function POST(req: Request) {
 
     const form = await req.formData();
     const file = form.get("file");
-    const uploadTypeRaw = form.get("uploadType");
-    const uploadType = uploadTypeRaw === "other" ? "other" : "cpt";
+    const uploadType = parseUploadType(form.get("uploadType"));
 
     if (!file || !(file instanceof Blob)) {
       return NextResponse.json({ error: "Choose a PDF or image file." }, { status: 400 });
@@ -48,7 +53,11 @@ export async function POST(req: Request) {
 
     const profile = await prisma.trainerProfile.findUnique({
       where: { trainerId },
-      select: { certificationUrl: true, otherCertificationUrl: true },
+      select: {
+        certificationUrl: true,
+        otherCertificationUrl: true,
+        nutritionistCertificationUrl: true,
+      },
     });
     if (!profile) {
       return NextResponse.json({ error: "Profile not found." }, { status: 400 });
@@ -57,9 +66,16 @@ export async function POST(req: Request) {
     const relative =
       uploadType === "other"
         ? `/uploads/trainers/${trainerId}-other-cert.${ext}`
-        : `/uploads/trainers/${trainerId}-cert.${ext}`;
+        : uploadType === "nutritionist"
+          ? `/uploads/trainers/${trainerId}-nutrition-cert.${ext}`
+          : `/uploads/trainers/${trainerId}-cert.${ext}`;
 
-    const prevKey = uploadType === "other" ? profile.otherCertificationUrl : profile.certificationUrl;
+    const prevKey =
+      uploadType === "other"
+        ? profile.otherCertificationUrl
+        : uploadType === "nutritionist"
+          ? profile.nutritionistCertificationUrl
+          : profile.certificationUrl;
     const prev = prevKey?.split("?")[0];
     if (prev?.startsWith("/uploads/trainers/")) {
       const oldPath = path.join(process.cwd(), "public", prev.replace(/^\//, ""));
@@ -78,14 +94,21 @@ export async function POST(req: Request) {
       data:
         uploadType === "other"
           ? { otherCertificationUrl: relative }
-          : {
-              certificationUrl: relative,
-              certificationReviewStatus: "PENDING",
-            },
+          : uploadType === "nutritionist"
+            ? {
+                nutritionistCertificationUrl: relative,
+                nutritionistCertificationReviewStatus: "PENDING",
+              }
+            : {
+                certificationUrl: relative,
+                certificationReviewStatus: "PENDING",
+              },
       select: {
         certificationUrl: true,
         otherCertificationUrl: true,
+        nutritionistCertificationUrl: true,
         certificationReviewStatus: true,
+        nutritionistCertificationReviewStatus: true,
       },
     });
 
@@ -96,7 +119,9 @@ export async function POST(req: Request) {
       uploadType,
       certificationUrl: updated.certificationUrl,
       otherCertificationUrl: updated.otherCertificationUrl,
+      nutritionistCertificationUrl: updated.nutritionistCertificationUrl,
       certificationReviewStatus: updated.certificationReviewStatus,
+      nutritionistCertificationReviewStatus: updated.nutritionistCertificationReviewStatus,
     });
   } catch (e) {
     const { message, status } = publicApiErrorFromUnknown(e, "Could not upload certification.", {

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { certificationsGatePassed } from "@/lib/trainer-onboarding-cert-gate";
 
 /**
  * When compliance + onboarding profile are complete, mark the trainer dashboard as activated once.
@@ -11,13 +12,15 @@ export async function maybeActivateTrainerDashboard(trainerId: string): Promise<
       hasSignedTOS: true,
       hasUploadedW9: true,
       backgroundCheckStatus: true,
+      onboardingTrackCpt: true,
+      onboardingTrackNutrition: true,
       certificationReviewStatus: true,
+      nutritionistCertificationReviewStatus: true,
     },
   });
   if (!prof || prof.dashboardActivatedAt) return;
   const bgOk = prof.backgroundCheckStatus === "APPROVED";
-  const cptOk = prof.certificationReviewStatus === "APPROVED";
-  if (prof.hasSignedTOS && prof.hasUploadedW9 && bgOk && cptOk) {
+  if (prof.hasSignedTOS && prof.hasUploadedW9 && bgOk && certificationsGatePassed(prof)) {
     await prisma.trainerProfile.update({
       where: { trainerId },
       data: { dashboardActivatedAt: new Date() },

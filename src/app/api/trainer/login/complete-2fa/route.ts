@@ -89,7 +89,7 @@ export async function POST(req: Request) {
         stayLoggedIn,
       },
     });
-    const next = redirectAfter ?? "/trainer/onboarding";
+    const next = redirectAfter ?? "/trainer/dashboard";
     const res = NextResponse.json({ ok: true, next });
     res.cookies.delete(TRAINER_LOGIN_CHALLENGE_COOKIE);
     await applyTrainerSessionToNextResponse(res, trainerId, stayLoggedIn);

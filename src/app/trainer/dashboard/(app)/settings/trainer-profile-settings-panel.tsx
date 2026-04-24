@@ -3,6 +3,8 @@
 import { FormEvent, forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CollapsibleSettingsSection } from "@/components/client/collapsible-settings-section";
+import { TrainerSocialUrlFields } from "@/components/trainer/trainer-social-url-fields";
+import { normalizeTrainerSocialFields } from "@/lib/trainer-social-urls";
 import { assertAvatarMime, AVATAR_MAX_BYTES } from "@/lib/validations/client-settings-profile";
 
 const inputClass =
@@ -201,6 +203,18 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
       setError(null);
       setOkMsg(null);
       try {
+        const socialNorm = normalizeTrainerSocialFields({
+          socialInstagram,
+          socialTiktok,
+          socialFacebook,
+          socialLinkedin,
+          socialOtherUrl,
+        });
+        if (!socialNorm.ok) {
+          setError(socialNorm.error);
+          return false;
+        }
+        const s = socialNorm.value;
         const res = await fetch("/api/trainer/settings/profile", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -215,11 +229,11 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
             fitnessNiches,
             yearsCoaching,
             genderIdentity,
-            socialInstagram,
-            socialTiktok,
-            socialFacebook,
-            socialLinkedin,
-            socialOtherUrl,
+            socialInstagram: s.socialInstagram ?? "",
+            socialTiktok: s.socialTiktok ?? "",
+            socialFacebook: s.socialFacebook ?? "",
+            socialLinkedin: s.socialLinkedin ?? "",
+            socialOtherUrl: s.socialOtherUrl ?? "",
           }),
         });
         const data = (await res.json()) as { error?: string; profile?: TrainerSettingsProfile };
@@ -230,6 +244,11 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
         if (data.profile) {
           setProfile(data.profile);
           setOkMsg("Profile saved.");
+          setSocialInstagram(data.profile.socialInstagram ?? "");
+          setSocialTiktok(data.profile.socialTiktok ?? "");
+          setSocialFacebook(data.profile.socialFacebook ?? "");
+          setSocialLinkedin(data.profile.socialLinkedin ?? "");
+          setSocialOtherUrl(data.profile.socialOtherUrl ?? "");
           setBaselineStr(
             serializeCoachDraft({
               firstName: data.profile.firstName,
@@ -631,37 +650,28 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
                 />
               </div>
             </div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-white/45">Social Links</p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {(
-                [
-                  ["Instagram", socialInstagram, setSocialInstagram, "tr-ig"],
-                  ["TikTok", socialTiktok, setSocialTiktok, "tr-tt"],
-                  ["Facebook", socialFacebook, setSocialFacebook, "tr-fb"],
-                  ["LinkedIn", socialLinkedin, setSocialLinkedin, "tr-li"],
-                ] as const
-              ).map(([label, val, setVal, id]) => (
-                <div key={id} className="flex flex-col gap-2">
-                  <label htmlFor={id} className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                    {label}
-                  </label>
-                  <input id={id} value={val} onChange={(e) => setVal(e.target.value)} className={inputClass} disabled={busy} />
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="tr-other" className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                Other Link
-              </label>
-              <input
-                id="tr-other"
-                value={socialOtherUrl}
-                onChange={(e) => setSocialOtherUrl(e.target.value)}
-                className={inputClass}
-                disabled={busy}
-                placeholder="https://"
-              />
-            </div>
+            <TrainerSocialUrlFields
+              socialInstagram={socialInstagram}
+              socialTiktok={socialTiktok}
+              socialFacebook={socialFacebook}
+              socialLinkedin={socialLinkedin}
+              socialOtherUrl={socialOtherUrl}
+              onSocialInstagram={setSocialInstagram}
+              onSocialTiktok={setSocialTiktok}
+              onSocialFacebook={setSocialFacebook}
+              onSocialLinkedin={setSocialLinkedin}
+              onSocialOtherUrl={setSocialOtherUrl}
+              ids={{
+                instagram: "tr-ig",
+                tiktok: "tr-tt",
+                facebook: "tr-fb",
+                linkedin: "tr-li",
+                other: "tr-other",
+              }}
+              inputClassName={inputClass}
+              disabled={busy}
+              showSectionTitle
+            />
             {footerSaveMode ? null : (
               <button
                 type="button"

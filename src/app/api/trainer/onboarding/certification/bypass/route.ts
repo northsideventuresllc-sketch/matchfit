@@ -8,6 +8,7 @@ import { z } from "zod";
 
 const bodySchema = z.object({
   devPassword: z.string(),
+  scopes: z.array(z.enum(["cpt", "nutritionist"])).optional(),
 });
 
 export async function POST(req: Request) {
@@ -22,16 +23,44 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Incorrect development password." }, { status: 403 });
     }
 
+    const profile = await prisma.trainerProfile.findUnique({
+      where: { trainerId },
+      select: {
+        onboardingTrackCpt: true,
+        onboardingTrackNutrition: true,
+      },
+    });
+    if (!profile) {
+      return NextResponse.json({ error: "Profile not found." }, { status: 400 });
+    }
+
+    let scopes = parsed.data.scopes;
+    if (!scopes?.length) {
+      scopes = [];
+      if (profile.onboardingTrackCpt) scopes.push("cpt");
+      if (profile.onboardingTrackNutrition) scopes.push("nutritionist");
+      if (!scopes.length) scopes = ["cpt"];
+    }
+
+    const data: {
+      certificationReviewStatus?: string;
+      nutritionistCertificationReviewStatus?: string;
+    } = {};
+    if (scopes.includes("cpt")) {
+      data.certificationReviewStatus = "APPROVED";
+    }
+    if (scopes.includes("nutritionist")) {
+      data.nutritionistCertificationReviewStatus = "APPROVED";
+    }
+
     await prisma.trainerProfile.update({
       where: { trainerId },
-      data: {
-        certificationReviewStatus: "APPROVED",
-      },
+      data,
     });
 
     await maybeActivateTrainerDashboard(trainerId);
 
-    return NextResponse.json({ ok: true, certificationReviewStatus: "APPROVED" as const });
+    return NextResponse.json({ ok: true, scopes });
   } catch (e) {
     const { message, status } = publicApiErrorFromUnknown(e, "Could not bypass certification.", {
       logLabel: "[Match Fit trainer certification bypass]",

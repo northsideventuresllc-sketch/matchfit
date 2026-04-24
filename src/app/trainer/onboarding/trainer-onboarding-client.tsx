@@ -5,7 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TRAINER_ONBOARDING_AGREEMENT_BULLETS } from "@/app/trainer/onboarding/trainer-agreement-bullets";
+import { CREDIBLE_CPT_ORGANIZATIONS } from "@/app/trainer/onboarding/credible-cpt-organizations";
+import { CREDIBLE_NUTRITION_CREDENTIALS } from "@/app/trainer/onboarding/credible-nutrition-credentials";
+import { OnboardingCertStatusLegend } from "@/app/trainer/onboarding/onboarding-cert-status-legend";
+import { TrainerSocialUrlFields } from "@/components/trainer/trainer-social-url-fields";
 import { verifyTrainerOnboardingDevPassword } from "@/lib/trainer-dev-bypass";
+import { certificationsGatePassed } from "@/lib/trainer-onboarding-cert-gate";
+import { normalizeTrainerSocialFields } from "@/lib/trainer-social-urls";
 import { postTrainerLogout } from "@/lib/trainer-logout";
 import { coerceTrainerBackgroundVendorStatus, coerceTrainerCptStatus } from "@/lib/trainer-onboarding-status";
 
@@ -37,7 +43,11 @@ type TrainerMe = {
     backgroundCheckStatus: string;
     certificationUrl: string | null;
     otherCertificationUrl: string | null;
+    nutritionistCertificationUrl: string | null;
     certificationReviewStatus: string;
+    nutritionistCertificationReviewStatus: string;
+    onboardingTrackCpt: boolean;
+    onboardingTrackNutrition: boolean;
     backgroundCheckReviewStatus: string;
     dashboardActivatedAt?: string | null;
     matchQuestionnaireStatus?: string;
@@ -114,7 +124,13 @@ export default function TrainerOnboardingClient() {
 
   const [certFile, setCertFile] = useState<File | null>(null);
   const [otherCertFile, setOtherCertFile] = useState<File | null>(null);
+  const [nutrCertFile, setNutrCertFile] = useState<File | null>(null);
   const [certBusy, setCertBusy] = useState(false);
+
+  const [pathCpt, setPathCpt] = useState(false);
+  const [pathNutrition, setPathNutrition] = useState(false);
+  const [pathConfirmAck, setPathConfirmAck] = useState(false);
+  const [pathBypassPassword, setPathBypassPassword] = useState("");
 
   const [bgDevPassword, setBgDevPassword] = useState("");
   const [certBypassPassword, setCertBypassPassword] = useState("");
@@ -174,9 +190,10 @@ export default function TrainerOnboardingClient() {
           if (p) {
             if (!p.hasSignedTOS) setStep(1);
             else if (p.backgroundCheckStatus !== "APPROVED") setStep(2);
-            else if (p.certificationReviewStatus !== "APPROVED") setStep(3);
-            else if (!p.hasUploadedW9) setStep(4);
-            else setStep(5);
+            else if (!p.onboardingTrackCpt && !p.onboardingTrackNutrition) setStep(3);
+            else if (!certificationsGatePassed(p)) setStep(4);
+            else if (!p.hasUploadedW9) setStep(5);
+            else setStep(6);
           }
         }
       }
@@ -196,16 +213,38 @@ export default function TrainerOnboardingClient() {
 
   const profile = trainer?.profile;
 
+  useEffect(() => {
+    if (!profile) return;
+    setPathCpt(profile.onboardingTrackCpt);
+    setPathNutrition(profile.onboardingTrackNutrition);
+  }, [profile?.onboardingTrackCpt, profile?.onboardingTrackNutrition]);
+
   const bgVendor = useMemo(() => coerceTrainerBackgroundVendorStatus(profile?.backgroundCheckStatus), [profile?.backgroundCheckStatus]);
   const cptStatus = useMemo(() => coerceTrainerCptStatus(profile?.certificationReviewStatus), [profile?.certificationReviewStatus]);
+  const nutritionStatus = useMemo(
+    () => coerceTrainerCptStatus(profile?.nutritionistCertificationReviewStatus),
+    [profile?.nutritionistCertificationReviewStatus],
+  );
   const showCptPendingPill = cptStatus === "PENDING" && !!profile?.certificationUrl;
+  const showNutritionPendingPill = nutritionStatus === "PENDING" && !!profile?.nutritionistCertificationUrl;
   const bgNeedsReview = bgVendor === "NEEDS_FURTHER_REVIEW";
+
+  const certsComplete = useMemo(() => {
+    if (!profile) return false;
+    return certificationsGatePassed({
+      onboardingTrackCpt: profile.onboardingTrackCpt,
+      onboardingTrackNutrition: profile.onboardingTrackNutrition,
+      certificationReviewStatus: profile.certificationReviewStatus,
+      nutritionistCertificationReviewStatus: profile.nutritionistCertificationReviewStatus,
+    });
+  }, [profile]);
 
   const stepHeading = useMemo(() => {
     if (step === 1) return "Acknowledgements";
     if (step === 2) return "Background Screening";
-    if (step === 3) return "Certifications";
-    if (step === 4) return "Tax information (Form W-9)";
+    if (step === 3) return "Your professional path";
+    if (step === 4) return "Certifications";
+    if (step === 5) return "Tax information (Form W-9)";
     return "Profile Set Up";
   }, [step]);
 
@@ -256,11 +295,89 @@ export default function TrainerOnboardingClient() {
     }
   }
 
+  async function handleProfessionalPathContinue() {
+    setError(null);
+    if (!pathCpt && !pathNutrition) {
+      setError("Select at least one professional path.");
+      return;
+    }
+    if (!pathConfirmAck) {
+      setError("Confirm that you understand the certification requirements for your selection.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/trainer/onboarding/professional-path", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          trackCpt: pathCpt,
+          trackNutrition: pathNutrition,
+          confirmCredentialRequirements: true,
+        }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setError(data.error ?? "Could not save your selection.");
+        return;
+      }
+      await loadMe();
+      setStep(4);
+    } catch {
+      setError("Something went wrong.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleProfessionalPathBypass() {
+    setError(null);
+    if (!verifyTrainerOnboardingDevPassword(pathBypassPassword)) {
+      setError("Incorrect password. It must match exactly and is case-sensitive.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/trainer/onboarding/professional-path/bypass", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ devPassword: pathBypassPassword }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setError(data.error ?? "Bypass failed.");
+        return;
+      }
+      setPathBypassPassword("");
+      setPathConfirmAck(true);
+      await loadMe();
+      setStep(4);
+    } catch {
+      setError("Something went wrong.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleSaveProfile(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setBusy(true);
     try {
+      const socialNorm = normalizeTrainerSocialFields({
+        socialInstagram,
+        socialTiktok,
+        socialFacebook,
+        socialLinkedin,
+        socialOtherUrl,
+      });
+      if (!socialNorm.ok) {
+        setError(socialNorm.error);
+        return;
+      }
+      const s = socialNorm.value;
       const res = await fetch("/api/trainer/onboarding/basic-profile", {
         method: "PATCH",
         credentials: "include",
@@ -276,11 +393,11 @@ export default function TrainerOnboardingClient() {
           fitnessNiches,
           yearsCoaching,
           genderIdentity,
-          socialInstagram,
-          socialTiktok,
-          socialFacebook,
-          socialLinkedin,
-          socialOtherUrl,
+          socialInstagram: s.socialInstagram ?? "",
+          socialTiktok: s.socialTiktok ?? "",
+          socialFacebook: s.socialFacebook ?? "",
+          socialLinkedin: s.socialLinkedin ?? "",
+          socialOtherUrl: s.socialOtherUrl ?? "",
         }),
       });
       const data = (await res.json()) as { error?: string };
@@ -344,7 +461,7 @@ export default function TrainerOnboardingClient() {
         return;
       }
       await loadMe();
-      setStep(5);
+      setStep(6);
     } catch {
       setError("Something went wrong.");
     } finally {
@@ -352,18 +469,24 @@ export default function TrainerOnboardingClient() {
     }
   }
 
-  async function handleCertUpload(kind: "cpt" | "other") {
+  async function handleCertUpload(kind: "cpt" | "other" | "nutritionist") {
     setError(null);
-    const file = kind === "cpt" ? certFile : otherCertFile;
+    const file = kind === "cpt" ? certFile : kind === "nutritionist" ? nutrCertFile : otherCertFile;
     if (!file) {
-      setError(kind === "cpt" ? "Choose a CPT or training certification file first." : "Choose an additional certification file first.");
+      setError(
+        kind === "cpt"
+          ? "Choose a CPT certification file first."
+          : kind === "nutritionist"
+            ? "Choose a nutritionist certification file first."
+            : "Choose an additional certification file first.",
+      );
       return;
     }
     setCertBusy(true);
     try {
       const fd = new FormData();
       fd.set("file", file);
-      fd.set("uploadType", kind === "other" ? "other" : "cpt");
+      fd.set("uploadType", kind === "other" ? "other" : kind === "nutritionist" ? "nutritionist" : "cpt");
       const res = await fetch("/api/trainer/onboarding/certification", { method: "POST", credentials: "include", body: fd });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) {
@@ -371,6 +494,7 @@ export default function TrainerOnboardingClient() {
         return;
       }
       if (kind === "cpt") setCertFile(null);
+      else if (kind === "nutritionist") setNutrCertFile(null);
       else setOtherCertFile(null);
       await loadMe();
     } catch {
@@ -431,17 +555,23 @@ export default function TrainerOnboardingClient() {
 
   async function handleCertBypass() {
     setError(null);
-    if (!certBypassPassword) {
-      setError("Enter the development password to bypass certification for testing.");
+    if (!verifyTrainerOnboardingDevPassword(certBypassPassword)) {
+      setError("Incorrect password. It must match exactly and is case-sensitive.");
       return;
     }
     setBusy(true);
     try {
+      const scopes: ("cpt" | "nutritionist")[] = [];
+      if (profile?.onboardingTrackCpt) scopes.push("cpt");
+      if (profile?.onboardingTrackNutrition) scopes.push("nutritionist");
       const res = await fetch("/api/trainer/onboarding/certification/bypass", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ devPassword: certBypassPassword }),
+        body: JSON.stringify({
+          devPassword: certBypassPassword,
+          scopes: scopes.length ? scopes : ["cpt"],
+        }),
       });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) {
@@ -506,7 +636,7 @@ export default function TrainerOnboardingClient() {
         </header>
 
         <div className="mt-10 flex flex-wrap items-center gap-2">
-          {[1, 2, 3, 4, 5].map((n) => (
+          {[1, 2, 3, 4, 5, 6].map((n) => (
             <button
               key={n}
               type="button"
@@ -524,7 +654,7 @@ export default function TrainerOnboardingClient() {
         {stepSubline ? (
           <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-white/45">{stepSubline}</p>
         ) : null}
-        <p className="mt-2 text-sm text-white/55 sm:text-base">Step {step} of 5</p>
+        <p className="mt-2 text-sm text-white/55 sm:text-base">Step {step} of 6</p>
 
         <div className="mt-8 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
           {error ? (
@@ -647,83 +777,254 @@ export default function TrainerOnboardingClient() {
 
           {step === 3 ? (
             <div className="flex flex-col gap-6">
-              <p className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-50">
-                You cannot move on until your CPT (or primary personal-training certification) is verified as{" "}
-                <span className="font-black tracking-wide">APPROVED</span>.
+              <p className="text-sm leading-relaxed text-white/65">
+                Choose how you will serve clients on Match Fit. You may select one or both paths. On the next step you
+                will upload the credentials that match your selection.
               </p>
-              <div className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/80 px-4 py-4 text-xs text-white/55">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-white/40">CPT verification status:</p>
-                <p className="mt-2 text-sm font-black tracking-[0.12em] text-white">{cptStatus}</p>
-                <p className="mt-3 text-[13px] leading-relaxed text-white/60">
-                  <span className="font-semibold text-white/85">NOT STARTED:</span> no CPT file uploaded.{" "}
-                  <span className="font-semibold text-white/85">PENDING:</span> file uploaded, not yet verified.{" "}
-                  <span className="font-semibold text-white/85">APPROVED:</span> certification verified.{" "}
-                  <span className="font-semibold text-white/85">DENIED:</span> verification failed.
-                </p>
-                {cptStatus === "DENIED" ? (
-                  <p className="mt-3 rounded-lg border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-3 py-2 text-[13px] text-[#FFB4B4]">
-                    Your certification was denied. You will receive an email with specific reasons. You cannot continue
-                    until Match Fit staff updates your record or approves a resubmission.
-                  </p>
-                ) : null}
-                {showCptPendingPill ? (
-                  <div className="mt-3">
-                    <HumanReviewPill />
+              <div className="space-y-4">
+                <label
+                  className={`flex cursor-pointer gap-4 rounded-2xl border p-4 transition ${
+                    pathCpt ? "border-[#FF7E00]/45 bg-[#FF7E00]/08" : "border-white/[0.08] bg-[#0E1016]/80 hover:border-white/15"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={pathCpt}
+                    onChange={(e) => setPathCpt(e.target.checked)}
+                    className="mt-1 h-4 w-4 shrink-0 accent-[#FF7E00]"
+                  />
+                  <div>
+                    <p className="text-sm font-bold text-white">Certified Personal Trainer</p>
+                    <p className="mt-2 text-[13px] leading-relaxed text-white/55">
+                      You will coach clients through exercise, programming, and session delivery. You must upload a
+                      current CPT (Certified Personal Trainer) credential from a credible, nationally recognized
+                      organization (see examples on the next screen).
+                    </p>
                   </div>
-                ) : null}
-              </div>
-
-              <div>
-                <p className="text-sm font-semibold text-white">CPT / primary certification</p>
-                <p className="mt-1 text-xs text-white/50">PDF or image, up to 5 MB.</p>
-                <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+                </label>
+                <label
+                  className={`flex cursor-pointer gap-4 rounded-2xl border p-4 transition ${
+                    pathNutrition ? "border-[#FF7E00]/45 bg-[#FF7E00]/08" : "border-white/[0.08] bg-[#0E1016]/80 hover:border-white/15"
+                  }`}
+                >
                   <input
-                    type="file"
-                    accept=".pdf,image/*"
-                    onChange={(e) => setCertFile(e.target.files?.[0] ?? null)}
-                    className="text-sm text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white"
+                    type="checkbox"
+                    checked={pathNutrition}
+                    onChange={(e) => setPathNutrition(e.target.checked)}
+                    className="mt-1 h-4 w-4 shrink-0 accent-[#FF7E00]"
                   />
-                  <button
-                    type="button"
-                    disabled={certBusy}
-                    onClick={() => void handleCertUpload("cpt")}
-                    className="flex min-h-[3rem] items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:border-white/25 disabled:opacity-50"
-                  >
-                    {certBusy ? "Uploading…" : "Upload CPT file"}
-                  </button>
-                </div>
-                {profile?.certificationUrl ? (
-                  <p className="mt-2 font-mono text-[11px] text-white/50">{profile.certificationUrl}</p>
-                ) : null}
+                  <div>
+                    <p className="text-sm font-bold text-white">Nutritionist</p>
+                    <p className="mt-2 text-[13px] leading-relaxed text-white/55">
+                      You will provide nutrition coaching, meal guidance, or related education within your scope of
+                      practice. You must upload a nutrition credential that Match Fit can verify (for example RDN/RD,
+                      CNC, or another recognized nutrition certification — examples on the next screen).
+                    </p>
+                  </div>
+                </label>
               </div>
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-4">
+                <input
+                  type="checkbox"
+                  checked={pathConfirmAck}
+                  onChange={(e) => setPathConfirmAck(e.target.checked)}
+                  className="mt-1 h-4 w-4 accent-[#FF7E00]"
+                />
+                <span className="text-sm leading-relaxed text-white/70">
+                  I confirm that I understand the certification requirements for the path(s) I selected and that I
+                  will upload matching documentation on the next step.
+                </span>
+              </label>
+              <div className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-4">
+                <p className="text-xs text-amber-50/95">
+                  Testing: bypass this step with the development password (case-sensitive). This will mark both paths
+                  selected so all upload sections appear on the next screen.
+                </p>
+                <label className="mt-3 block text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="path-bypass-pw">
+                  Development password
+                </label>
+                <input
+                  id="path-bypass-pw"
+                  type="password"
+                  autoComplete="off"
+                  value={pathBypassPassword}
+                  onChange={(e) => setPathBypassPassword(e.target.value)}
+                  className="mt-2 w-full rounded-xl border border-white/10 bg-[#0B0C0F] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 focus:border-[#FF7E00]/40 focus:ring-2"
+                />
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void handleProfessionalPathBypass()}
+                  className="mt-3 flex min-h-[3rem] w-full items-center justify-center rounded-xl border border-amber-400/40 bg-amber-400/15 px-4 text-xs font-black tracking-[0.08em] text-amber-100 transition hover:border-amber-400/55 disabled:opacity-50"
+                >
+                  BYPASS THIS STEP
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-white/25"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || !pathConfirmAck || (!pathCpt && !pathNutrition)}
+                  onClick={() => void handleProfessionalPathContinue()}
+                  className="group relative isolate flex min-h-[3rem] flex-1 items-center justify-center overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition disabled:opacity-40"
+                >
+                  <span aria-hidden className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]" />
+                  <span className="relative">{busy ? "Saving…" : "Save and continue"}</span>
+                </button>
+              </div>
+            </div>
+          ) : null}
 
-              <div>
-                <p className="text-sm font-semibold text-white">Other relevant certifications</p>
-                <p className="mt-1 text-xs text-white/50">Optional — PDF or image, up to 5 MB.</p>
-                <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <input
-                    type="file"
-                    accept=".pdf,image/*"
-                    onChange={(e) => setOtherCertFile(e.target.files?.[0] ?? null)}
-                    className="text-sm text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white"
-                  />
-                  <button
-                    type="button"
-                    disabled={certBusy}
-                    onClick={() => void handleCertUpload("other")}
-                    className="flex min-h-[3rem] items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:border-white/25 disabled:opacity-50"
-                  >
-                    {certBusy ? "Uploading…" : "Upload other certification"}
-                  </button>
+          {step === 4 ? (
+            <div className="flex flex-col gap-6">
+              {profile?.onboardingTrackCpt && profile?.onboardingTrackNutrition ? (
+                <p className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-50">
+                  Upload and verify each required credential. You cannot continue until every selected path shows{" "}
+                  <span className="font-black tracking-wide">APPROVED</span> for CPT and for nutrition.
+                </p>
+              ) : null}
+              {profile?.onboardingTrackCpt && !profile?.onboardingTrackNutrition ? (
+                <p className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-50">
+                  Upload your CPT credential. You cannot continue until CPT verification is{" "}
+                  <span className="font-black tracking-wide">APPROVED</span>.
+                </p>
+              ) : null}
+              {profile?.onboardingTrackNutrition && !profile?.onboardingTrackCpt ? (
+                <p className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-50">
+                  Upload your nutrition credential. You cannot continue until nutrition verification is{" "}
+                  <span className="font-black tracking-wide">APPROVED</span>.
+                </p>
+              ) : null}
+
+              {profile?.onboardingTrackCpt ? (
+                <>
+                  <div className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/80 px-4 py-4 text-xs text-white/55">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-white/40">CPT verification status:</p>
+                    <p className="mt-2 text-sm font-black tracking-[0.12em] text-white">{cptStatus}</p>
+                    {cptStatus === "DENIED" ? (
+                      <p className="mt-3 rounded-lg border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-3 py-2 text-[13px] text-[#FFB4B4]">
+                        Your CPT credential was denied. You will receive an email with specific reasons. You cannot
+                        continue until Match Fit staff updates your record or approves a resubmission.
+                      </p>
+                    ) : null}
+                    {showCptPendingPill ? (
+                      <div className="mt-3">
+                        <HumanReviewPill />
+                      </div>
+                    ) : null}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">CPT (Certified Personal Trainer Certification)</p>
+                    <p className="mt-1 text-xs leading-relaxed text-white/50">
+                      PDF or image, up to 5 MB. Your CPT must be issued by a credible organization that commercial gyms
+                      and professional training employers commonly accept (see list below).
+                    </p>
+                    <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <input
+                        type="file"
+                        accept=".pdf,image/*"
+                        onChange={(e) => setCertFile(e.target.files?.[0] ?? null)}
+                        className="text-sm text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white"
+                      />
+                      <button
+                        type="button"
+                        disabled={certBusy}
+                        onClick={() => void handleCertUpload("cpt")}
+                        className="flex min-h-[3rem] items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:border-white/25 disabled:opacity-50"
+                      >
+                        {certBusy ? "Uploading…" : "Upload CPT file"}
+                      </button>
+                    </div>
+                    {profile?.certificationUrl ? (
+                      <p className="mt-2 font-mono text-[11px] text-white/50">{profile.certificationUrl}</p>
+                    ) : null}
+                  </div>
+                </>
+              ) : null}
+
+              {profile?.onboardingTrackNutrition ? (
+                <>
+                  <div className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/80 px-4 py-4 text-xs text-white/55">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-white/40">
+                      Nutrition credential status:
+                    </p>
+                    <p className="mt-2 text-sm font-black tracking-[0.12em] text-white">{nutritionStatus}</p>
+                    {nutritionStatus === "DENIED" ? (
+                      <p className="mt-3 rounded-lg border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-3 py-2 text-[13px] text-[#FFB4B4]">
+                        Your nutrition credential was denied. You will receive an email with specific reasons. You cannot
+                        continue until Match Fit staff updates your record or approves a resubmission.
+                      </p>
+                    ) : null}
+                    {showNutritionPendingPill ? (
+                      <div className="mt-3">
+                        <HumanReviewPill />
+                      </div>
+                    ) : null}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">Nutritionist certification</p>
+                    <p className="mt-1 text-xs leading-relaxed text-white/50">
+                      PDF or image, up to 5 MB. Upload a credential from a credible nutrition organization (see examples
+                      below). Match Fit may request scope-of-practice details depending on your jurisdiction.
+                    </p>
+                    <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <input
+                        type="file"
+                        accept=".pdf,image/*"
+                        onChange={(e) => setNutrCertFile(e.target.files?.[0] ?? null)}
+                        className="text-sm text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white"
+                      />
+                      <button
+                        type="button"
+                        disabled={certBusy}
+                        onClick={() => void handleCertUpload("nutritionist")}
+                        className="flex min-h-[3rem] items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:border-white/25 disabled:opacity-50"
+                      >
+                        {certBusy ? "Uploading…" : "Upload nutritionist certification"}
+                      </button>
+                    </div>
+                    {profile?.nutritionistCertificationUrl ? (
+                      <p className="mt-2 font-mono text-[11px] text-white/50">{profile.nutritionistCertificationUrl}</p>
+                    ) : null}
+                  </div>
+                </>
+              ) : null}
+
+              {profile?.onboardingTrackCpt || profile?.onboardingTrackNutrition ? (
+                <div>
+                  <p className="text-sm font-semibold text-white">Other relevant certifications</p>
+                  <p className="mt-1 text-xs text-white/50">Optional — PDF or image, up to 5 MB.</p>
+                  <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <input
+                      type="file"
+                      accept=".pdf,image/*"
+                      onChange={(e) => setOtherCertFile(e.target.files?.[0] ?? null)}
+                      className="text-sm text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white"
+                    />
+                    <button
+                      type="button"
+                      disabled={certBusy}
+                      onClick={() => void handleCertUpload("other")}
+                      className="flex min-h-[3rem] items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:border-white/25 disabled:opacity-50"
+                    >
+                      {certBusy ? "Uploading…" : "Upload other certification"}
+                    </button>
+                  </div>
+                  {profile?.otherCertificationUrl ? (
+                    <p className="mt-2 font-mono text-[11px] text-white/50">{profile.otherCertificationUrl}</p>
+                  ) : null}
                 </div>
-                {profile?.otherCertificationUrl ? (
-                  <p className="mt-2 font-mono text-[11px] text-white/50">{profile.otherCertificationUrl}</p>
-                ) : null}
-              </div>
+              ) : null}
 
               <div className="rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-4">
                 <label className="text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="cert-bypass-pw">
-                  Bypass certification upload (testing)
+                  Bypass certification verification (testing)
                 </label>
                 <input
                   id="cert-bypass-pw"
@@ -739,31 +1040,78 @@ export default function TrainerOnboardingClient() {
                   onClick={() => void handleCertBypass()}
                   className="mt-3 flex min-h-[3rem] w-full items-center justify-center rounded-xl border border-amber-400/35 bg-amber-400/10 px-4 text-xs font-black uppercase tracking-[0.12em] text-amber-100 transition hover:border-amber-400/55 disabled:opacity-50"
                 >
-                  Bypass certification upload
+                  Bypass certification verification
                 </button>
               </div>
 
               <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
-                  onClick={() => setStep(2)}
+                  onClick={() => setStep(3)}
                   className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-white/25"
                 >
                   Back
                 </button>
                 <button
                   type="button"
-                  disabled={cptStatus !== "APPROVED"}
-                  onClick={() => setStep(4)}
+                  disabled={!certsComplete}
+                  onClick={() => setStep(5)}
                   className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-white/25 disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   Continue to W-9
                 </button>
               </div>
+
+              <OnboardingCertStatusLegend title="Credential verification statuses" />
+              {profile?.onboardingTrackCpt ? (
+                <section className="mt-2 border-t border-white/10 pt-6">
+                  <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-[#FF7E00]/90">
+                    Widely accepted CPT-issuing organizations
+                  </h3>
+                  <p className="mt-2 text-[12px] leading-relaxed text-white/50">
+                    Major health clubs and training studios commonly hire from NCCA-accredited CPT programs and other
+                    established national providers. Examples include:
+                  </p>
+                  <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {CREDIBLE_CPT_ORGANIZATIONS.map((org) => (
+                      <li
+                        key={org.issuer}
+                        className="rounded-2xl border border-white/[0.07] bg-[#0E1016]/90 px-4 py-3 text-[12px] leading-snug text-white/70"
+                      >
+                        <p className="font-semibold text-white/90">{org.issuer}</p>
+                        <p className="mt-1 text-white/60">{org.credential}</p>
+                        {org.note ? <p className="mt-2 text-[11px] text-white/45">{org.note}</p> : null}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+              {profile?.onboardingTrackNutrition ? (
+                <section className="mt-6 border-t border-white/10 pt-6">
+                  <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-[#FF7E00]/90">
+                    Recognized nutrition credentials
+                  </h3>
+                  <p className="mt-2 text-[12px] leading-relaxed text-white/50">
+                    Examples of nutrition credentials often paired with coaching in professional settings:
+                  </p>
+                  <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {CREDIBLE_NUTRITION_CREDENTIALS.map((c) => (
+                      <li
+                        key={c.issuer}
+                        className="rounded-2xl border border-white/[0.07] bg-[#0E1016]/90 px-4 py-3 text-[12px] leading-snug text-white/70"
+                      >
+                        <p className="font-semibold text-white/90">{c.issuer}</p>
+                        <p className="mt-1 text-white/60">{c.credential}</p>
+                        {c.note ? <p className="mt-2 text-[11px] text-white/45">{c.note}</p> : null}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
             </div>
           ) : null}
 
-          {step === 4 ? (
+          {step === 5 ? (
             <form onSubmit={handleW9Submit} className="flex flex-col gap-5">
               <p className="text-sm text-white/60">
                 Your personal information is protected in line with our security practices. After you finish, your W-9
@@ -937,7 +1285,7 @@ export default function TrainerOnboardingClient() {
               <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
-                  onClick={() => setStep(3)}
+                  onClick={() => setStep(4)}
                   className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-white/25"
                 >
                   Back
@@ -954,7 +1302,7 @@ export default function TrainerOnboardingClient() {
             </form>
           ) : null}
 
-          {step === 5 ? (
+          {step === 6 ? (
             <form onSubmit={handleSaveProfile} className="flex flex-col gap-5">
               <p className="text-sm text-white/55">
                 First and last name are taken from your trainer sign-up. You can adjust everything here later from your
@@ -1095,75 +1443,35 @@ export default function TrainerOnboardingClient() {
                 </div>
                 {avatarBusy ? <p className="mt-2 text-xs text-white/45">Uploading photo…</p> : null}
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="soc-ig">
-                    Instagram
-                  </label>
-                  <input
-                    id="soc-ig"
-                    value={socialInstagram}
-                    onChange={(e) => setSocialInstagram(e.target.value)}
-                    placeholder="@handle"
-                    className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="soc-tt">
-                    TikTok
-                  </label>
-                  <input
-                    id="soc-tt"
-                    value={socialTiktok}
-                    onChange={(e) => setSocialTiktok(e.target.value)}
-                    placeholder="@handle"
-                    className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="soc-fb">
-                    Facebook
-                  </label>
-                  <input
-                    id="soc-fb"
-                    value={socialFacebook}
-                    onChange={(e) => setSocialFacebook(e.target.value)}
-                    placeholder="Profile URL or handle"
-                    className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="soc-li">
-                    LinkedIn
-                  </label>
-                  <input
-                    id="soc-li"
-                    value={socialLinkedin}
-                    onChange={(e) => setSocialLinkedin(e.target.value)}
-                    placeholder="Profile URL"
-                    className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2"
-                  />
-                </div>
-                <div className="flex flex-col gap-2 sm:col-span-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="soc-ot">
-                    Additional link (website, Linktree, etc.)
-                  </label>
-                  <input
-                    id="soc-ot"
-                    value={socialOtherUrl}
-                    onChange={(e) => setSocialOtherUrl(e.target.value)}
-                    placeholder="https://"
-                    className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2"
-                  />
-                </div>
-              </div>
+              <TrainerSocialUrlFields
+                socialInstagram={socialInstagram}
+                socialTiktok={socialTiktok}
+                socialFacebook={socialFacebook}
+                socialLinkedin={socialLinkedin}
+                socialOtherUrl={socialOtherUrl}
+                onSocialInstagram={setSocialInstagram}
+                onSocialTiktok={setSocialTiktok}
+                onSocialFacebook={setSocialFacebook}
+                onSocialLinkedin={setSocialLinkedin}
+                onSocialOtherUrl={setSocialOtherUrl}
+                ids={{
+                  instagram: "soc-ig",
+                  tiktok: "soc-tt",
+                  facebook: "soc-fb",
+                  linkedin: "soc-li",
+                  other: "soc-ot",
+                }}
+                inputClassName="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2"
+                disabled={busy || avatarBusy}
+                showSectionTitle
+              />
               <p className="rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-3 text-xs text-white/55">
                 You can change your profile, social links, and photo anytime from your trainer dashboard.
               </p>
               <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
-                  onClick={() => setStep(4)}
+                  onClick={() => setStep(5)}
                   className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-white/25"
                 >
                   Back

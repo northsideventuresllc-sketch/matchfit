@@ -45,11 +45,11 @@ export const trainerBasicProfileSchema = z.object({
   fitnessNiches: z.string().trim().max(2000).optional().default(""),
   yearsCoaching: z.string().trim().max(40).optional().default(""),
   genderIdentity: z.string().trim().max(120).optional().default(""),
-  socialInstagram: z.string().trim().max(120).optional().default(""),
-  socialTiktok: z.string().trim().max(120).optional().default(""),
-  socialFacebook: z.string().trim().max(120).optional().default(""),
-  socialLinkedin: z.string().trim().max(120).optional().default(""),
-  socialOtherUrl: z.string().trim().max(500).optional().default(""),
+  socialInstagram: z.string().trim().max(2048).optional().default(""),
+  socialTiktok: z.string().trim().max(2048).optional().default(""),
+  socialFacebook: z.string().trim().max(2048).optional().default(""),
+  socialLinkedin: z.string().trim().max(2048).optional().default(""),
+  socialOtherUrl: z.string().trim().max(2048).optional().default(""),
 });
 
 export const trainerAgreementsSchema = z

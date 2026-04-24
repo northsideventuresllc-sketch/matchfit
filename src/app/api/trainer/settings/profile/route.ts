@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
+import { normalizeTrainerSocialFields } from "@/lib/trainer-social-urls";
 import { maybeActivateTrainerDashboard } from "@/lib/trainer-onboarding-dashboard";
 import { trainerBasicProfileSchema } from "@/lib/validations/trainer-register";
 import { NextResponse } from "next/server";
@@ -60,6 +61,18 @@ export async function PATCH(req: Request) {
     }
     const body = parsed.data;
 
+    const socialNorm = normalizeTrainerSocialFields({
+      socialInstagram: body.socialInstagram,
+      socialTiktok: body.socialTiktok,
+      socialFacebook: body.socialFacebook,
+      socialLinkedin: body.socialLinkedin,
+      socialOtherUrl: body.socialOtherUrl,
+    });
+    if (!socialNorm.ok) {
+      return NextResponse.json({ error: socialNorm.error }, { status: 400 });
+    }
+    const s = socialNorm.value;
+
     await prisma.trainer.update({
       where: { id: trainerId },
       data: {
@@ -73,11 +86,11 @@ export async function PATCH(req: Request) {
         fitnessNiches: body.fitnessNiches.trim() || null,
         yearsCoaching: body.yearsCoaching.trim() || null,
         genderIdentity: body.genderIdentity.trim() || null,
-        socialInstagram: body.socialInstagram.trim() || null,
-        socialTiktok: body.socialTiktok.trim() || null,
-        socialFacebook: body.socialFacebook.trim() || null,
-        socialLinkedin: body.socialLinkedin.trim() || null,
-        socialOtherUrl: body.socialOtherUrl.trim() || null,
+        socialInstagram: s.socialInstagram,
+        socialTiktok: s.socialTiktok,
+        socialFacebook: s.socialFacebook,
+        socialLinkedin: s.socialLinkedin,
+        socialOtherUrl: s.socialOtherUrl,
       },
     });
 
