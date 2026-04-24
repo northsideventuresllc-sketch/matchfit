@@ -17,7 +17,7 @@ function getReducedMotionServerSnapshot() {
 }
 
 const chipClass =
-  "shrink-0 whitespace-nowrap rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[0.55rem] font-bold uppercase leading-tight tracking-[0.12em] text-white/50 sm:text-[0.6rem]";
+  "shrink-0 whitespace-nowrap rounded-full border border-white/[0.1] bg-white/[0.06] px-3 py-1 text-[0.55rem] font-bold uppercase leading-tight tracking-[0.12em] text-white/65 shadow-[0_0_20px_-8px_rgba(255,126,0,0.35)] sm:text-[0.6rem] sm:text-white/75";
 
 type Props = { labels: readonly string[] };
 
@@ -28,40 +28,33 @@ export function HomeBrandBannerMarquee({ labels }: Props) {
     getReducedMotionServerSnapshot,
   );
 
-  if (reduceMotion) {
-    return (
-      <div className="flex flex-wrap justify-center gap-1.5 py-2" role="list" aria-label="Match Fit highlights">
-        {labels.map((label) => (
-          <span key={label} role="listitem" className={chipClass}>
-            {label}
-          </span>
-        ))}
-      </div>
-    );
-  }
-
   const loop = [...labels, ...labels];
+  const trackAnim = reduceMotion ? "animate-mf-banner-marquee-slow" : "animate-mf-banner-marquee";
 
   return (
-    <div
-      className="relative w-full overflow-hidden py-2"
-      role="presentation"
-      aria-label="Match Fit highlights, scrolling"
-    >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-[#0E1016] to-transparent sm:w-16"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-[#0E1016] to-transparent sm:w-16"
-      />
-      <div className="mf-banner-marquee-track flex w-max animate-mf-banner-marquee gap-2 will-change-transform">
-        {loop.map((label, i) => (
-          <span key={`${label}-${i}`} className={chipClass}>
-            {label}
-          </span>
-        ))}
+    <div className="relative w-full py-2.5">
+      <p className="sr-only">Highlights: {labels.join(". ")}.</p>
+
+      <div className="mf-banner-marquee-window relative mx-auto w-full max-w-5xl overflow-hidden py-1 sm:max-w-6xl">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 left-0 z-10 w-[10%] max-w-[4.5rem] bg-gradient-to-r from-[#0E1016] via-[#0E1016]/40 to-transparent"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 z-10 w-[10%] max-w-[4.5rem] bg-gradient-to-l from-[#0E1016] via-[#0E1016]/40 to-transparent"
+        />
+
+        <div
+          aria-hidden
+          className={`mf-banner-marquee-track flex w-max items-center gap-3 sm:gap-4 ${trackAnim} will-change-transform`}
+        >
+          {loop.map((label, i) => (
+            <span key={`${label}-${i}`} className={chipClass}>
+              {label}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );
