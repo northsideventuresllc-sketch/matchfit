@@ -11,12 +11,6 @@ type Props = {
   /** When set, shows this link on the left (e.g. back to dashboard from settings). */
   backHref?: string;
   backLabel?: string;
-  /** Trainer dashboard: primary entry to required Match Me + future optional questionnaires. */
-  matchQuestionnairesCta?: {
-    href: string;
-    headline: string;
-    description: string;
-  };
 };
 
 export function TrainerPortalHeader(props: Props) {
@@ -51,10 +45,8 @@ export function TrainerPortalHeader(props: Props) {
     }
   }
 
-  const cta = props.matchQuestionnairesCta;
-
   return (
-    <header className="mb-8 space-y-3">
+    <header className="mb-8">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 pt-0.5">
           {props.backHref ? (
@@ -114,20 +106,6 @@ export function TrainerPortalHeader(props: Props) {
           ) : null}
         </div>
       </div>
-
-      {cta ? (
-        <Link
-          href={cta.href}
-          title={cta.description}
-          className="block w-full rounded-2xl border border-[#FF7E00]/30 bg-[linear-gradient(145deg,rgba(255,126,0,0.12),rgba(227,43,43,0.06))] px-4 py-3 text-left shadow-[0_12px_40px_-20px_rgba(255,126,0,0.35)] transition hover:border-[#FF7E00]/45 hover:bg-[linear-gradient(145deg,rgba(255,126,0,0.16),rgba(227,43,43,0.08))] sm:py-2.5"
-        >
-          <span className="block text-[11px] font-black uppercase tracking-[0.12em] text-[#FF7E00]">{cta.headline}</span>
-          <span className="mt-1.5 block text-[11px] leading-snug text-white/60 sm:text-xs sm:leading-relaxed">{cta.description}</span>
-          <span className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-white/50">
-            Open questionnaires <span aria-hidden className="text-[#FF7E00]">→</span>
-          </span>
-        </Link>
-      ) : null}
     </header>
   );
 }

@@ -37,6 +37,8 @@ yarn-error.log*
 # local sqlite
 /prisma/dev.db
 /prisma/dev.db-journal
+/prisma/prisma/*.db
+/prisma/prisma/*.db-journal
 /prisma/test_login_2fa.db
 /prisma/test_login_2fa.db-journal
 
