@@ -1,3 +1,18 @@
+import { HomeBrandBannerMarquee } from "@/components/home-brand-banner-marquee";
+
+const BANNER_BUBBLE_LABELS = [
+  "Trainer travels to you",
+  "Your location, your call",
+  "Flexible for your schedule",
+  "Virtual sessions",
+  "DIY workout programs",
+  "Nutrition coaching",
+  "Individualized. Experience.",
+  "Experienced trainers",
+  "Certified coaches",
+  "Goal-focused support",
+] as const;
+
 export function HomeBrandBanner() {
   return (
     <div className="relative z-10 mt-5 w-full sm:mt-7">
@@ -22,29 +37,9 @@ export function HomeBrandBanner() {
                 Connect. Train smarter. Build momentum that lasts.
               </span>
             </p>
-
-            <div className="flex max-w-3xl flex-wrap justify-center gap-1.5">
-              {[
-                "Trainer travels to you",
-                "Your location, your call",
-                "Flexible for your schedule",
-                "Virtual sessions",
-                "DIY workout programs",
-                "Nutrition coaching",
-                "Individualized. Experience.",
-                "Experienced trainers",
-                "Certified coaches",
-                "Goal-focused support",
-              ].map((label) => (
-                <span
-                  key={label}
-                  className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[0.55rem] font-bold uppercase leading-tight tracking-[0.12em] text-white/50 sm:text-[0.6rem]"
-                >
-                  {label}
-                </span>
-              ))}
-            </div>
           </div>
+
+          <HomeBrandBannerMarquee labels={BANNER_BUBBLE_LABELS} />
 
           <div
             aria-hidden
