@@ -134,11 +134,11 @@ export default function TrainerSignUpClient() {
             href="/trainer/dashboard/login"
             className="text-xs font-semibold uppercase tracking-wide text-white/50 transition hover:text-white/75"
           >
-            Back to log in
+            Back to Sign-In
           </Link>
         </header>
 
-        <h1 className="mt-10 text-2xl font-black tracking-tight sm:mt-12 sm:text-3xl">Create your trainer account</h1>
+        <h1 className="mt-10 text-2xl font-black tracking-tight sm:mt-12 sm:text-3xl">Create Your Trainer Account</h1>
         <p className="mt-2 text-sm leading-relaxed text-white/55 sm:text-base">
           You will complete compliance steps after this screen. Use a strong password; you can enable two-factor
           authentication later just like clients.

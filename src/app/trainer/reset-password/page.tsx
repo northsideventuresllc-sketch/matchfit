@@ -118,9 +118,9 @@ export default function TrainerResetPasswordPage() {
           href="/trainer/dashboard/login"
           className="text-xs font-semibold uppercase tracking-wide text-white/45 hover:text-white/70"
         >
-          ← Trainer log in
+          ← Back to Trainer Sign-In
         </Link>
-        <h1 className="mt-6 text-2xl font-black tracking-tight sm:text-3xl">Set a new password</h1>
+        <h1 className="mt-6 text-2xl font-black tracking-tight sm:text-3xl">Set a New Password</h1>
         <p className="mt-2 text-sm text-white/55">Choose a strong password you have not used here before.</p>
         <Suspense fallback={<p className="mt-8 text-sm text-white/45">Loading…</p>}>
           <ResetPasswordForm />

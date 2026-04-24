@@ -90,7 +90,7 @@ export function TrainerPortalHeader(props: Props) {
               className="block px-4 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/[0.06]"
               onClick={() => setMenuOpen(false)}
             >
-              Account settings
+              Account Settings
             </Link>
             <button
               role="menuitem"

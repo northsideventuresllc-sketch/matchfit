@@ -6,7 +6,7 @@ import { getSessionTrainerId } from "@/lib/session";
 import { TrainerSettingsPageClient } from "./trainer-settings-page-client";
 
 export const metadata: Metadata = {
-  title: "Account settings | Trainer | Match Fit",
+  title: "Account Settings | Trainer | Match Fit",
 };
 
 export default async function TrainerAccountSettingsPage() {

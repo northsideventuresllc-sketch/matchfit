@@ -62,11 +62,11 @@ export default async function TrainerDashboardHomePage() {
     profile?.matchQuestionnaireStatus === "completed"
       ? "Completed"
       : profile?.matchQuestionnaireStatus === "in_progress"
-        ? "In progress"
-        : "Not started";
+        ? "In Progress"
+        : "Not Started";
 
   const complianceRows = [
-    { label: "Terms of service (trainer)", ok: Boolean(profile?.hasSignedTOS) },
+    { label: "Trainer terms of service", ok: Boolean(profile?.hasSignedTOS) },
     { label: "W-9 on file", ok: Boolean(profile?.hasUploadedW9) },
     {
       label: "Background check",
@@ -88,7 +88,7 @@ export default async function TrainerDashboardHomePage() {
   return (
     <div className="space-y-8">
       <header className="space-y-1">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Trainer home</p>
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Trainer Home</p>
         <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Welcome back</h1>
         <p className="text-lg font-semibold text-white/90">{displayName}</p>
         <p className="max-w-xl text-sm leading-relaxed text-white/50">
@@ -104,14 +104,14 @@ export default async function TrainerDashboardHomePage() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-7">
-          <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Quick links</h2>
+          <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Quick Links</h2>
           <ul className="mt-4 space-y-2">
             <li>
               <Link
                 href="/trainer/dashboard/settings"
                 className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-3 text-sm font-semibold text-white/85 transition hover:border-[#FF7E00]/30 hover:bg-[#0E1016]"
               >
-                Account settings
+                Account Settings
                 <span className="text-white/35" aria-hidden>
                   →
                 </span>
@@ -122,7 +122,7 @@ export default async function TrainerDashboardHomePage() {
                 href="/trainer/dashboard/match-questionnaire"
                 className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-3 text-sm font-semibold text-white/85 transition hover:border-[#FF7E00]/30 hover:bg-[#0E1016]"
               >
-                Match Me questionnaire
+                Match Me Questionnaire
                 <span className="text-white/35" aria-hidden>
                   →
                 </span>
@@ -133,7 +133,7 @@ export default async function TrainerDashboardHomePage() {
                 href="/trainer/onboarding"
                 className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-3 text-sm font-semibold text-white/85 transition hover:border-[#FF7E00]/30 hover:bg-[#0E1016]"
               >
-                Compliance onboarding
+                Compliance Onboarding
                 <span className="text-white/35" aria-hidden>
                   →
                 </span>
@@ -146,7 +146,7 @@ export default async function TrainerDashboardHomePage() {
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-black tracking-tight text-white">Match Me</h2>
             <span className="rounded-full border border-amber-400/45 bg-amber-400/15 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-100">
-              Client matching
+              Client Matching
             </span>
           </div>
           <p className="mt-2 text-sm leading-relaxed text-white/60">
@@ -175,14 +175,14 @@ export default async function TrainerDashboardHomePage() {
       </div>
 
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
-        <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Profile snapshot</h2>
+        <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Profile Snapshot</h2>
         <dl className="mt-5 grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4">
             <dt className="text-xs font-semibold uppercase tracking-wide text-white/40">Phone</dt>
             <dd className="mt-1 text-sm font-medium text-white/90">{trainer.phone || "—"}</dd>
           </div>
           <div className="rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4">
-            <dt className="text-xs font-semibold uppercase tracking-wide text-white/40">Dashboard</dt>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-white/40">Dashboard status</dt>
             <dd className="mt-1 text-sm font-medium text-white/90">
               {profile?.dashboardActivatedAt
                 ? `Live since ${profile.dashboardActivatedAt.toLocaleDateString(undefined, {
@@ -203,7 +203,7 @@ export default async function TrainerDashboardHomePage() {
         <p className="mt-5 text-xs text-white/40">
           Edit your coach bio, demographics, social links, and photo in{" "}
           <Link href="/trainer/dashboard/settings" className="text-[#FF7E00] underline-offset-2 hover:underline">
-            account settings
+            Account Settings
           </Link>
           .
         </p>
@@ -211,7 +211,7 @@ export default async function TrainerDashboardHomePage() {
 
       {profile?.matchQuestionnaireStatus === "completed" && profile.aiMatchProfileText ? (
         <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
-          <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-[#FF7E00]">Your Match Me — on file</h2>
+          <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-[#FF7E00]">Your Match Me Profile on File</h2>
           <p className="mt-2 text-sm leading-relaxed text-white/50">
             Plain-text profile for search and AI when pairing you with clients. Updates when you resubmit the
             questionnaire.
@@ -223,7 +223,7 @@ export default async function TrainerDashboardHomePage() {
       ) : null}
 
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
-        <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Compliance snapshot</h2>
+        <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Compliance Snapshot</h2>
         <ul className="mt-5 space-y-3">
           {complianceRows.map((row) => (
             <li key={row.label} className="flex gap-3 rounded-xl border border-white/[0.05] bg-[#0E1016]/40 px-4 py-3">
@@ -246,14 +246,14 @@ export default async function TrainerDashboardHomePage() {
             href="/trainer/onboarding"
             className="inline-flex min-h-[3rem] w-full items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] px-5 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-white/25 hover:bg-white/[0.09]"
           >
-            Continue compliance onboarding
+            Continue Compliance Onboarding
           </Link>
         </div>
       </section>
 
       <p className="text-sm">
         <Link href="/" className="text-[#FF7E00] underline-offset-2 hover:underline">
-          Back to home
+          Back to Home
         </Link>
       </p>
     </div>

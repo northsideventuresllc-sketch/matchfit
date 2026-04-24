@@ -470,7 +470,7 @@ export default function TrainerOnboardingClient() {
       <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-[#0B0C0F] px-5 text-center text-sm text-white/70">
         <p>{meError ?? "Session expired. Please sign in again."}</p>
         <Link href="/trainer/dashboard/login" className="text-[#FF7E00] underline-offset-4 hover:underline">
-          Back to trainer log in
+          Back to Trainer Sign-In
         </Link>
       </main>
     );
@@ -556,7 +556,7 @@ export default function TrainerOnboardingClient() {
                   href="/trainer/dashboard"
                   className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold tracking-wide text-white transition hover:border-white/25"
                 >
-                  Back to dashboard
+                  Back to Dashboard
                 </Link>
                 <button
                   type="button"
@@ -564,7 +564,7 @@ export default function TrainerOnboardingClient() {
                   title="Trainer Terms of Service link will be added before launch."
                   className="flex min-h-[3rem] flex-1 cursor-not-allowed items-center justify-center rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm font-semibold tracking-wide text-white/35"
                 >
-                  View trainer Terms of Service
+                  View Trainer Terms of Service
                 </button>
               </div>
               <button

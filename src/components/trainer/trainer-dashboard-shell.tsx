@@ -14,7 +14,7 @@ const NAV = [
   { href: "/trainer/dashboard", label: "Dashboard", match: (p: string) => p === "/trainer/dashboard" },
   {
     href: "/trainer/dashboard/settings",
-    label: "Account settings",
+    label: "Account Settings",
     match: (p: string) => p.startsWith("/trainer/dashboard/settings"),
   },
   {
@@ -45,7 +45,7 @@ export function TrainerDashboardShell(props: TrainerDashboardShellProps) {
         />
 
         <nav
-          aria-label="Trainer dashboard"
+          aria-label="Trainer Dashboard"
           className="mb-8 flex flex-wrap gap-2 rounded-2xl border border-white/[0.07] bg-[#0E1016]/60 p-1.5 backdrop-blur-md"
         >
           {NAV.map((item) => {

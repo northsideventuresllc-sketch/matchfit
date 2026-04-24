@@ -44,7 +44,7 @@ export default async function TrainerMatchQuestionnairePage() {
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Match Me</h1>
           <span className="rounded-full border border-amber-400/45 bg-amber-400/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-amber-100">
-            Required onboarding
+            Required Onboarding
           </span>
         </div>
         <p className="mt-2 text-sm leading-relaxed text-white/50">

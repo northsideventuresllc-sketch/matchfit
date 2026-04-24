@@ -153,7 +153,7 @@ export function TrainerSettingsPageClient(props: Props) {
   return (
     <div className="pb-28">
       <div>
-        <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Account settings</h1>
+        <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Account Settings</h1>
         <p className="mt-2 text-sm leading-relaxed text-white/50">
           Manage your coach profile, session, password, and two-factor authentication—the same flow as the client
           portal, tailored for trainers.
@@ -184,7 +184,7 @@ export function TrainerSettingsPageClient(props: Props) {
         />
 
         <CollapsibleSettingsSection
-          title="Stay logged in"
+          title="Stay Logged In"
           description="Choose whether this browser keeps you signed in longer between visits."
           defaultOpen={false}
         >
@@ -204,7 +204,7 @@ export function TrainerSettingsPageClient(props: Props) {
         </CollapsibleSettingsSection>
 
         <CollapsibleSettingsSection
-          title="Two-factor authentication"
+          title="Two-Factor Authentication"
           description="Add a verification step when you sign in from a new device."
           defaultOpen={false}
         >
@@ -227,7 +227,7 @@ export function TrainerSettingsPageClient(props: Props) {
             onClick={() => requestNavigate("/trainer/dashboard")}
             className="text-[#FF7E00] underline-offset-2 hover:underline"
           >
-            Back to dashboard
+            Back to Dashboard
           </button>
         </p>
       </div>
@@ -246,7 +246,7 @@ export function TrainerSettingsPageClient(props: Props) {
                 aria-hidden
                 className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]"
               />
-              <span className="relative">{footerBusy ? "Saving…" : "Save changes"}</span>
+              <span className="relative">{footerBusy ? "Saving…" : "Save Changes"}</span>
             </button>
           </div>
         </div>
@@ -255,7 +255,7 @@ export function TrainerSettingsPageClient(props: Props) {
       {leaveOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-5" role="dialog" aria-modal>
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#12151C] p-6 shadow-2xl">
-            <h2 className="text-lg font-black text-white">Unsaved changes</h2>
+            <h2 className="text-lg font-black text-white">Unsaved Changes</h2>
             <p className="mt-2 text-sm leading-relaxed text-white/55">
               You have updates that are not saved yet. Do you want to save them before leaving this page?
             </p>
@@ -270,7 +270,7 @@ export function TrainerSettingsPageClient(props: Props) {
                   aria-hidden
                   className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]"
                 />
-                <span className="relative">{footerBusy ? "Saving…" : "Save changes"}</span>
+                <span className="relative">{footerBusy ? "Saving…" : "Save Changes"}</span>
               </button>
               <button
                 type="button"
@@ -278,7 +278,7 @@ export function TrainerSettingsPageClient(props: Props) {
                 onClick={() => void leaveDialogAbandon()}
                 className="min-h-[3rem] flex-1 rounded-xl border border-white/15 bg-white/[0.06] px-4 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-white/25 disabled:opacity-50"
               >
-                Leave without saving
+                Leave Without Saving
               </button>
             </div>
             <button

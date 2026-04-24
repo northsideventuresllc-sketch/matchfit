@@ -87,7 +87,7 @@ export default function TrainerLoginPortal({
 
         <div className="mt-12 flex flex-1 flex-col sm:mt-16">
           <h1 className="text-center text-2xl font-black tracking-tight text-white sm:text-3xl">
-            {variant === "dashboard" ? "Trainer dashboard" : "Trainer portal"}
+            {variant === "dashboard" ? "Trainer Dashboard" : "Trainer Portal"}
           </h1>
           <p className="mx-auto mt-3 max-w-md text-center text-sm leading-relaxed text-white/55 sm:text-base">
             {variant === "dashboard"
@@ -192,7 +192,7 @@ export default function TrainerLoginPortal({
 
               <div className="relative my-8 flex items-center gap-4">
                 <span className="h-px flex-1 bg-white/10" />
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-white/35">New trainer?</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-white/35">New Trainer?</span>
                 <span className="h-px flex-1 bg-white/10" />
               </div>
 
@@ -200,7 +200,7 @@ export default function TrainerLoginPortal({
                 href="/trainer/signup"
                 className="flex min-h-[3.25rem] w-full items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-white/25 hover:bg-white/[0.07]"
               >
-                Create trainer account
+                Create Trainer Account
               </Link>
             </div>
 
@@ -209,14 +209,14 @@ export default function TrainerLoginPortal({
                 href="/"
                 className="text-white/50 underline-offset-4 transition hover:text-white/70 hover:underline"
               >
-                Back to home
+                Back to Home
               </Link>
               {" · "}
               <Link
                 href="/client"
                 className="text-white/50 underline-offset-4 transition hover:text-white/70 hover:underline"
               >
-                Client portal
+                Client Portal
               </Link>
             </p>
           </div>

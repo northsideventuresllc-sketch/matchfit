@@ -375,14 +375,14 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
         ) : null}
 
         <CollapsibleSettingsSection
-          title="Coach profile & signup details"
+          title="Coach Profile & Sign-Up Details"
           description="What you entered when joining Match Fit—names, photo, bio, and how clients find you."
           defaultOpen
         >
           <div className="space-y-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
               <div className="shrink-0">
-                <p className="text-xs font-semibold uppercase tracking-wide text-white/50">Profile photo</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-white/50">Profile Photo</p>
                 <div className="relative mt-2 h-24 w-24 overflow-hidden rounded-2xl border border-white/10 bg-[#0E1016]">
                   {imgSrc ? (
                     // eslint-disable-next-line @next/next/no-img-element -- blob preview or stored avatar URL
@@ -418,14 +418,14 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
                       setPendingAvatarFile(f);
                     }}
                   />
-                  Change photo
+                  Change Photo
                 </label>
               </div>
               <div className="min-w-0 flex-1 space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="flex flex-col gap-2">
                     <label htmlFor="tr-fn" className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                      First name
+                      First Name
                     </label>
                     <input
                       id="tr-fn"
@@ -438,7 +438,7 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
                   </div>
                   <div className="flex flex-col gap-2">
                     <label htmlFor="tr-ln" className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                      Last name
+                      Last Name
                     </label>
                     <input
                       id="tr-ln"
@@ -452,7 +452,7 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
                 </div>
                 <div className="flex flex-col gap-2">
                   <label htmlFor="tr-pref" className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                    Preferred name <span className="text-white/35">(optional)</span>
+                    Preferred Name <span className="text-white/35">(Optional)</span>
                   </label>
                   <input
                     id="tr-pref"
@@ -515,7 +515,7 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
                 </div>
                 <PasswordField
                   id="tr-user-pw"
-                  label="Current password"
+                  label="Current Password"
                   autoComplete="current-password"
                   value={usernamePassword}
                   onChange={setUsernamePassword}
@@ -527,7 +527,7 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
                 disabled={busy || username === profile.username || !usernamePassword}
                 className="mt-4 min-h-[2.75rem] rounded-xl border border-white/15 bg-white/[0.06] px-4 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:border-white/25 disabled:opacity-40"
               >
-                Update username
+                Update Username
               </button>
             </form>
 
@@ -542,14 +542,14 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
                   aria-hidden
                   className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]"
                 />
-                <span className="relative">{busy ? "Saving…" : "Save profile"}</span>
+                <span className="relative">{busy ? "Saving…" : "Save Profile"}</span>
               </button>
             )}
           </div>
         </CollapsibleSettingsSection>
 
         <CollapsibleSettingsSection
-          title="Background & visibility"
+          title="Background & Visibility"
           description="Optional details for inclusion and matching. You can update these anytime."
           defaultOpen={false}
         >
@@ -582,7 +582,7 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
             </div>
             <div className="flex flex-col gap-2">
               <label htmlFor="tr-lang" className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                Languages spoken
+                Languages Spoken
               </label>
               <input
                 id="tr-lang"
@@ -594,7 +594,7 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
             </div>
             <div className="flex flex-col gap-2">
               <label htmlFor="tr-niche" className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                Fitness niches
+                Fitness Niches
               </label>
               <textarea
                 id="tr-niche"
@@ -608,7 +608,7 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
                 <label htmlFor="tr-years" className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                  Years coaching
+                  Years of Coaching
                 </label>
                 <input
                   id="tr-years"
@@ -620,7 +620,7 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
               </div>
               <div className="flex flex-col gap-2">
                 <label htmlFor="tr-gen" className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                  Gender identity
+                  Gender Identity
                 </label>
                 <input
                   id="tr-gen"
@@ -631,7 +631,7 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
                 />
               </div>
             </div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-white/45">Social links</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-white/45">Social Links</p>
             <div className="grid gap-4 sm:grid-cols-2">
               {(
                 [
@@ -651,7 +651,7 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
             </div>
             <div className="flex flex-col gap-2">
               <label htmlFor="tr-other" className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                Other link
+                Other Link
               </label>
               <input
                 id="tr-other"
@@ -681,7 +681,7 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
                   aria-hidden
                   className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]"
                 />
-                <span className="relative">{busy ? "Saving…" : "Save details"}</span>
+                <span className="relative">{busy ? "Saving…" : "Save Details"}</span>
               </button>
             )}
           </div>
