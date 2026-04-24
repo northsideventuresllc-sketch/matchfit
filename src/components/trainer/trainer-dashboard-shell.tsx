@@ -20,16 +20,18 @@ const NAV = [
     match: (p: string) => p.startsWith("/trainer/dashboard/settings"),
   },
   {
-    href: "/trainer/dashboard/match-questionnaire",
-    label: "Match Me",
-    match: (p: string) => p.startsWith("/trainer/dashboard/match-questionnaire"),
-  },
-  {
     href: "/trainer/dashboard/compliance",
     label: "Compliance",
     match: (p: string) => p.startsWith("/trainer/dashboard/compliance"),
   },
 ] as const;
+
+const MATCH_QUESTIONNAIRES_HEADER_CTA = {
+  href: "/trainer/dashboard/match-questionnaire",
+  headline: "Match questionnaires",
+  description:
+    "Click here to complete your required Match Me questionnaire. Optional questionnaires will continue to appear as our AI learns more about what you specialize in.",
+} as const;
 
 export function TrainerDashboardShell(props: TrainerDashboardShellProps) {
   const pathname = usePathname();
@@ -51,6 +53,7 @@ export function TrainerDashboardShell(props: TrainerDashboardShellProps) {
           profileImageUrl={props.profileImageUrl}
           backHref={backHref}
           backLabel={backLabel}
+          matchQuestionnairesCta={MATCH_QUESTIONNAIRES_HEADER_CTA}
         />
 
         <nav
