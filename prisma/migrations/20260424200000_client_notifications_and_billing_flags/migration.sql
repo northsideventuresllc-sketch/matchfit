@@ -1,6 +1,6 @@
 -- AlterTable
 ALTER TABLE "clients" ADD COLUMN "notificationPrefsJson" TEXT;
-ALTER TABLE "clients" ADD COLUMN "stripeSubscriptionActive" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "clients" ADD COLUMN "stripeSubscriptionActive" BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE "clients" ADD COLUMN "subscriptionGraceUntil" DATETIME;
 
 -- CreateTable
