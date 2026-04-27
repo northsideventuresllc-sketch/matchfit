@@ -104,6 +104,7 @@ model Client {
   fitHubComments     TrainerFitHubComment[]
   fitHubReposts      ClientFitHubRepost[]
   fitHubPostReports  TrainerFitHubPostReport[]
+  fitHubPostShares   ClientFitHubPostShare[]
 
   /// JSON: rolling algorithm context built from daily questionnaire answers (see `lib/client-daily-questionnaire.ts`).
   dailyAlgorithmContextJson String?
@@ -324,9 +325,26 @@ model TrainerFitHubPost {
   comments        TrainerFitHubComment[]
   reposts         ClientFitHubRepost[]
   contentReports  TrainerFitHubPostReport[]
+  clientShares    ClientFitHubPostShare[]
 
   @@index([trainerId, createdAt])
   @@map("trainer_fit_hub_posts")
+}
+
+/// One recorded share per client per post (idempotent share action; `shareCount` stays in sync in API).
+model ClientFitHubPostShare {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  postId String
+  post   TrainerFitHubPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, clientId])
+  @@index([clientId])
+  @@map("client_fit_hub_post_shares")
 }
 
 /// Client-reported FitHub post for trust & safety review (does not auto-suspend accounts).

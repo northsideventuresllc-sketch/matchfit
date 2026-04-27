@@ -90,9 +90,11 @@ export async function GET() {
       where.trainerId = { in: [...savedIds] };
     }
 
+    const takeRaw = prefs.feedStyle === "ALGORITHMIC" ? 180 : 60;
     const rows = await prisma.trainerFitHubPost.findMany({
       where,
-      take: 60,
+      take: takeRaw,
+      orderBy: { createdAt: "desc" },
       include: {
         trainer: {
           select: {
@@ -118,10 +120,11 @@ export async function GET() {
     });
 
     let sorted = [...rows];
-    if (prefs.feedStyle === "NEWEST" || prefs.feedStyle === "SAVED_COACHES_ONLY") {
-      sorted.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    } else {
+    if (prefs.feedStyle === "ALGORITHMIC") {
       sorted.sort((a, b) => scorePost(b, prefs, savedIds) - scorePost(a, prefs, savedIds));
+      sorted = sorted.slice(0, 60);
+    } else {
+      sorted = sorted.slice(0, 60);
     }
 
     sorted = dedupeByTrainer(sorted, prefs.hideRepeatedTrainers);

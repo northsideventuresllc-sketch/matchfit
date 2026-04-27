@@ -19,12 +19,18 @@ export async function syncClientSubscriptionFromStripe(subscriptionId: string): 
   const sub = (await stripe.subscriptions.retrieve(subscriptionId)) as Stripe.Subscription & { status: string };
   const client = await prisma.client.findFirst({
     where: { stripeSubscriptionId: subscriptionId },
-    select: { id: true },
+    select: { id: true, subscriptionGraceUntil: true },
   });
   if (!client) return;
 
   const ok = activeStripeStatuses(String(sub.status));
-  const graceUntil = ok ? null : new Date(Date.now() + GRACE_MS);
+  const now = Date.now();
+  const existingGrace = client.subscriptionGraceUntil;
+  const graceUntil = ok
+    ? null
+    : existingGrace && existingGrace.getTime() > now
+      ? existingGrace
+      : new Date(now + GRACE_MS);
 
   await prisma.client.update({
     where: { id: client.id },
