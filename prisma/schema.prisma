@@ -7,7 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Client {
+model Client {username                    String?   @unique
+preferredName               String?
+profileImageUrl             String?
+matchPreferencesCompletedAt DateTime?}
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -22,7 +25,6 @@ model Client {
   zipCode         String
   dateOfBirth     String
   termsAcceptedAt DateTime
-
   twoFactorEnabled Boolean @default(false)
   /// Last-used delivery channel (EMAIL | SMS | VOICE | NONE); mirrors default `ClientTwoFactorChannel` for login.
   twoFactorMethod String @default("NONE")
@@ -78,7 +80,6 @@ model Client {
   twoFactorChannels ClientTwoFactorChannel[]
 
   @@map("clients")
-}
 
 /// Destinations for sign-in 2FA (email, SMS, or voice). One verified row should be `isDefaultLogin` for OTP routing.
 /// - **Enrolling a new destination:** `verifyOtpHash` / `verifyOtpExpires` store the 6-digit proof-of-ownership code (see settings 2FA API).
