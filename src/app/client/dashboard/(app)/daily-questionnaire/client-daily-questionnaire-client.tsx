@@ -72,16 +72,6 @@ export function ClientDailyQuestionnaireClient() {
   }, [load]);
 
   const active = data?.state === "active" ? data : null;
-  const questions = active?.questionnaire.questions.questions;
-
-  useEffect(() => {
-    if (!questions) return;
-    const init: Record<string, string> = {};
-    for (const q of questions) {
-      if (q.kind === "trainer_interest_scale" && !init[q.id]) init[q.id] = "3";
-    }
-    setAnswers((prev) => ({ ...init, ...prev }));
-  }, [questions]);
 
   const cooldownLabel = useMemo(() => {
     if (data?.state !== "cooldown") return "";
