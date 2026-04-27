@@ -2,8 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 transition placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2";
@@ -92,6 +95,22 @@ export default function ClientSignUpPage() {
   const [stayLoggedIn, setStayLoggedIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [devPhoneMockTip, setDevPhoneMockTip] = useState(false);
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
+
+  function turnstileField(): { turnstileToken?: string } {
+    if (!TURNSTILE_SITE_KEY) return {};
+    const token = turnstileRef.current?.getToken();
+    return token ? { turnstileToken: token } : {};
+  }
+
+  function assertTurnstileOrSetError(): boolean {
+    if (!TURNSTILE_SITE_KEY) return true;
+    if (!turnstileRef.current?.getToken()) {
+      setError("Please wait for the security check to finish, then try again.");
+      return false;
+    }
+    return true;
+  }
 
   function buildProfilePayload() {
     const fn = firstName.trim();
@@ -197,16 +216,18 @@ export default function ClientSignUpPage() {
 
   async function handleSkip2fa() {
     setError(null);
+    if (!assertTurnstileOrSetError()) return;
     setBusy(true);
     try {
       const res = await fetch("/api/client/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...buildProfilePayload(), skipTwoFactor: true }),
+        body: JSON.stringify({ ...buildProfilePayload(), skipTwoFactor: true, ...turnstileField() }),
       });
       const data = (await res.json()) as { error?: string; next?: string };
       if (!res.ok) {
         setError(data.error ?? "Could not create your account.");
+        turnstileRef.current?.reset();
         return;
       }
       // Full navigation so the httpOnly registration cookie is present before the billing page loads.
@@ -225,6 +246,7 @@ export default function ClientSignUpPage() {
       setError("Choose how you want to receive your verification code.");
       return;
     }
+    if (!assertTurnstileOrSetError()) return;
     setBusy(true);
     try {
       const res = await fetch("/api/client/register/pending-2fa", {
@@ -233,11 +255,13 @@ export default function ClientSignUpPage() {
         body: JSON.stringify({
           ...buildProfilePayload(),
           twoFactorMethod: selectedChannel,
+          ...turnstileField(),
         }),
       });
       const data = (await res.json()) as { error?: string; pendingId?: string; devPhoneMock?: boolean };
       if (!res.ok) {
         setError(data.error ?? "Could not send the verification code.");
+        turnstileRef.current?.reset();
         return;
       }
       if (data.pendingId) {
@@ -260,16 +284,18 @@ export default function ClientSignUpPage() {
       setError("Enter the 6-digit code.");
       return;
     }
+    if (!assertTurnstileOrSetError()) return;
     setBusy(true);
     try {
       const res = await fetch("/api/client/register/complete-pending", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pendingId, code: otpCode }),
+        body: JSON.stringify({ pendingId, code: otpCode, ...turnstileField() }),
       });
       const data = (await res.json()) as { error?: string; next?: string };
       if (!res.ok) {
         setError(data.error ?? "Verification failed.");
+        turnstileRef.current?.reset();
         return;
       }
       window.location.assign(data.next ?? "/client/subscribe");
@@ -561,7 +587,14 @@ export default function ClientSignUpPage() {
                 <span className="relative">{busy ? "Please wait…" : "Next"}</span>
               </button>
             </form>
-          ) : !awaitingCode ? (
+          ) : (
+            <>
+              {TURNSTILE_SITE_KEY ? (
+                <div className="mb-6 flex justify-center">
+                  <TurnstileWidget ref={turnstileRef} siteKey={TURNSTILE_SITE_KEY} />
+                </div>
+              ) : null}
+              {!awaitingCode ? (
             <div className="flex flex-col gap-6">
               <p className="text-sm leading-relaxed text-white/55">
                 Choose where we should send a one-time code. SMS and voice use the phone number you entered; email uses
@@ -681,6 +714,8 @@ export default function ClientSignUpPage() {
                 Choose a different method
               </button>
             </form>
+              )}
+            </>
           )}
         </div>
 

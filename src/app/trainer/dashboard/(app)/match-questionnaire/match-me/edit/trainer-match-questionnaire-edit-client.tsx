@@ -9,6 +9,7 @@ import {
 } from "@/lib/trainer-match-questionnaire-draft";
 import type { MatchQuestionnaireEditSlug } from "@/lib/trainer-match-questionnaire-section-meta";
 import { MATCH_QUESTIONNAIRE_SECTIONS } from "@/lib/trainer-match-questionnaire-section-meta";
+import { TRAINER_MATCH_ME_PATH, TRAINER_MATCH_QUESTIONNAIRES_PATH } from "@/lib/trainer-match-questionnaires-routes";
 import {
   AGE_GROUP_IDS,
   AGE_GROUP_LABELS,
@@ -28,7 +29,7 @@ import {
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 transition placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2";
 
-const labelClass = "text-xs font-semibold uppercase tracking-wide text-white/50";
+const labelClass = "text-xs font-semibold text-white/50";
 
 function emptyServiceMap(): Record<MatchServiceId, { priceUsd: string; billingUnit: BillingUnit } | null> {
   const o = {} as Record<MatchServiceId, { priceUsd: string; billingUnit: BillingUnit } | null>;
@@ -224,34 +225,36 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
     if (href) router.push(href);
   }
 
-  function guardedHubClick(e: React.MouseEvent<HTMLAnchorElement>) {
+  function guardedLeave(e: React.MouseEvent, href: string) {
     if (!isDirty) return;
     e.preventDefault();
-    setLeaveModal({ href: "/trainer/dashboard/match-questionnaire" });
+    setLeaveModal({ href });
   }
 
   const step = props.step;
 
   return (
     <>
-      <div className="mb-6 flex flex-wrap items-center gap-3">
+      <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
         <Link
-          href="/trainer/dashboard/match-questionnaire"
-          onClick={guardedHubClick}
-          className="text-xs font-semibold uppercase tracking-wide text-white/45 transition hover:text-white/70"
+          href={TRAINER_MATCH_QUESTIONNAIRES_PATH}
+          onClick={(e) => guardedLeave(e, TRAINER_MATCH_QUESTIONNAIRES_PATH)}
+          className="text-xs font-medium text-white/45 transition hover:text-white/70"
         >
-          ← All Match Me sections
+          ← Match questionnaires
+        </Link>
+        <Link
+          href={TRAINER_MATCH_ME_PATH}
+          onClick={(e) => guardedLeave(e, TRAINER_MATCH_ME_PATH)}
+          className="text-xs font-medium text-white/45 transition hover:text-white/70"
+        >
+          ← Match Me sections
         </Link>
       </div>
 
       <div className="mb-6 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl font-black tracking-tight text-white sm:text-2xl">{section.title}</h1>
-          {section.requiredForClientVisibility ? (
-            <span className="rounded-full border border-amber-400/45 bg-amber-400/15 px-2 py-0.5 text-[8px] font-black uppercase leading-tight tracking-wide text-amber-100 sm:text-[9px]">
-              Required for client visibility
-            </span>
-          ) : null}
+          <h1 className="text-xl font-semibold tracking-tight text-white sm:text-2xl">{section.title}</h1>
         </div>
         <p className="text-[11px] leading-snug text-white/50">{section.disclaimer}</p>
         {completed ? (
@@ -273,7 +276,7 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
 
         {step === 1 ? (
           <section className="space-y-4 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 sm:p-8">
-            <h2 className="text-lg font-black text-white">Session formats</h2>
+            <h2 className="text-lg font-semibold text-white">{section.title}</h2>
             <p className="text-sm text-white/55">Toggle every format you are willing to offer.</p>
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-4">
               <input
@@ -298,7 +301,7 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
 
         {step === 2 ? (
           <section className="space-y-5 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 sm:p-8">
-            <h2 className="text-lg font-black text-white">Services & pricing</h2>
+            <h2 className="text-lg font-semibold text-white">{section.title}</h2>
             <p className="text-sm text-white/55">
               Turn on each service you sell and set your rate. Only options compatible with your session formats are
               shown.
@@ -389,7 +392,7 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
 
         {step === 3 ? (
           <section className="space-y-4 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 sm:p-8">
-            <h2 className="text-lg font-black text-white">In-person service area</h2>
+            <h2 className="text-lg font-semibold text-white">{section.title}</h2>
             {offersInPerson ? (
               <>
                 <p className="text-sm text-white/55">
@@ -434,7 +437,7 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
 
         {step === 4 ? (
           <section className="space-y-6 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 sm:p-8">
-            <h2 className="text-lg font-black text-white">Clients you serve best</h2>
+            <h2 className="text-lg font-semibold text-white">Clients You Serve Best</h2>
             <div>
               <p className={labelClass}>Age ranges (select all that apply)</p>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -443,7 +446,7 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
                     key={id}
                     type="button"
                     onClick={() => toggle(ageGroups, id, setAgeGroups)}
-                    className={`rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-wide transition ${
+                    className={`rounded-full border px-3 py-2 text-xs font-medium transition ${
                       ageGroups.includes(id)
                         ? "border-[#FF7E00]/50 bg-[#FF7E00]/15 text-white"
                         : "border-white/10 text-white/50 hover:border-white/20"
@@ -530,7 +533,7 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
 
         {step === 5 ? (
           <section className="space-y-4 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 sm:p-8">
-            <h2 className="text-lg font-black text-white">Coaching philosophy & confirmation</h2>
+            <h2 className="text-lg font-semibold text-white">Coaching Philosophy & Confirmation</h2>
             <p className="text-sm text-white/55">
               At least a few sentences on how you coach, what clients can expect, and what makes your approach distinct
               (80+ characters).
@@ -566,16 +569,16 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
 
         <div className="flex flex-wrap gap-3">
           <Link
-            href="/trainer/dashboard/match-questionnaire"
-            onClick={guardedHubClick}
-            className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-white/25"
+            href={TRAINER_MATCH_ME_PATH}
+            onClick={(e) => guardedLeave(e, TRAINER_MATCH_ME_PATH)}
+            className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:border-white/25"
           >
             Back
           </Link>
           <button
             type="submit"
             disabled={busy}
-            className="group relative isolate min-h-[3rem] flex-1 overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition disabled:opacity-50"
+            className="group relative isolate min-h-[3rem] flex-1 overflow-hidden rounded-xl px-4 text-sm font-semibold text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition disabled:opacity-50"
           >
             <span aria-hidden className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]" />
             <span className="relative">{busy ? "Saving…" : completed ? "Update Match Me" : "Save Match Me"}</span>
@@ -591,7 +594,7 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
           aria-labelledby="leave-match-title"
         >
           <div className="max-w-md rounded-2xl border border-white/10 bg-[#12151C] p-6 shadow-2xl">
-            <h2 id="leave-match-title" className="text-lg font-black text-white">
+            <h2 id="leave-match-title" className="text-lg font-semibold text-white">
               Unsaved changes
             </h2>
             <p className="mt-2 text-sm text-white/55">
@@ -602,7 +605,7 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
                 type="button"
                 disabled={busy}
                 onClick={() => void handleLeaveSave()}
-                className="min-h-[2.75rem] flex-1 rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/15 px-4 text-xs font-black uppercase tracking-wide text-white transition hover:bg-[#FF7E00]/25 disabled:opacity-50"
+                className="min-h-[2.75rem] flex-1 rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/15 px-4 text-sm font-semibold text-white transition hover:bg-[#FF7E00]/25 disabled:opacity-50"
               >
                 Save & continue
               </button>
@@ -610,7 +613,7 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
                 type="button"
                 disabled={busy}
                 onClick={handleLeaveDiscard}
-                className="min-h-[2.75rem] flex-1 rounded-xl border border-white/15 bg-white/[0.06] px-4 text-xs font-black uppercase tracking-wide text-white/80 transition hover:border-white/25 disabled:opacity-50"
+                className="min-h-[2.75rem] flex-1 rounded-xl border border-white/15 bg-white/[0.06] px-4 text-sm font-semibold text-white/80 transition hover:border-white/25 disabled:opacity-50"
               >
                 Don&apos;t save
               </button>

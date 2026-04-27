@@ -7,11 +7,13 @@ import {
   verifyTrainerLoginChallengeToken,
 } from "@/lib/session";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
+import { verifyTurnstileToken } from "@/lib/turnstile-verify";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 const bodySchema = z.object({
   code: z.string().regex(/^\d{6}$/),
+  turnstileToken: z.string().optional(),
 });
 
 const MAX_ATTEMPTS = 3;
@@ -30,9 +32,23 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Enter the 6-digit code." }, { status: 400 });
     }
+    const turn = await verifyTurnstileToken(parsed.data.turnstileToken, req);
+    if (!turn.ok) {
+      return NextResponse.json({ error: turn.error }, { status: turn.status });
+    }
     const { code } = parsed.data;
 
     const trainer = await prisma.trainer.findUnique({ where: { id: trainerId } });
+    if (trainer?.safetySuspended) {
+      return NextResponse.json(
+        {
+          error:
+            "Your trainer account is suspended pending a Match Fit safety review. You will regain access once the review is complete.",
+          code: "ACCOUNT_SUSPENDED",
+        },
+        { status: 403 },
+      );
+    }
     if (!trainer?.twoFactorOtpHash || !trainer.twoFactorOtpExpires) {
       return NextResponse.json(
         { error: "No active verification code. Request a new code or sign in again.", codeInvalidated: true },

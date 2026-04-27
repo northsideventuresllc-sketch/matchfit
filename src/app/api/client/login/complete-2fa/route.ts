@@ -8,11 +8,15 @@ import {
   verifyLoginChallengeToken,
 } from "@/lib/session";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
+import { safeInternalNextPath } from "@/lib/safe-internal-next-path";
+import { verifyTurnstileToken } from "@/lib/turnstile-verify";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 const bodySchema = z.object({
   code: z.string().regex(/^\d{6}$/),
+  next: z.string().optional(),
+  turnstileToken: z.string().optional(),
 });
 
 const MAX_ATTEMPTS = 3;
@@ -31,9 +35,24 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Enter the 6-digit code." }, { status: 400 });
     }
-    const { code } = parsed.data;
+    const turn = await verifyTurnstileToken(parsed.data.turnstileToken, req);
+    if (!turn.ok) {
+      return NextResponse.json({ error: turn.error }, { status: turn.status });
+    }
+    const { code, next: nextRaw } = parsed.data;
+    const nextPath = safeInternalNextPath(nextRaw);
 
     const client = await prisma.client.findUnique({ where: { id: clientId } });
+    if (client?.safetySuspended) {
+      return NextResponse.json(
+        {
+          error:
+            "Your client account is suspended pending a Match Fit safety review. You will regain access once the review is complete.",
+          code: "ACCOUNT_SUSPENDED",
+        },
+        { status: 403 },
+      );
+    }
     if (!client?.twoFactorOtpHash || !client.twoFactorOtpExpires) {
       return NextResponse.json(
         { error: "No active verification code. Request a new code or sign in again.", codeInvalidated: true },
@@ -92,7 +111,7 @@ export async function POST(req: Request) {
     });
     await clearLoginChallengeCookie();
     await setClientSession(clientId, stayLoggedIn);
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, ...(nextPath ? { next: nextPath } : {}) });
   } catch (e) {
     const { message, status } = publicApiErrorFromUnknown(e, "Verification could not be completed. Try again.", {
       logLabel: "[Match Fit complete 2FA]",

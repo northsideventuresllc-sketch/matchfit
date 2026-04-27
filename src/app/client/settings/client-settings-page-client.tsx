@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ClientPortalHeader } from "@/components/client/client-portal-header";
 import { CollapsibleSettingsSection } from "@/components/client/collapsible-settings-section";
 import { PasswordChangePanel } from "./password-change-panel";
+import { ClientMatchPreferencesForm } from "@/components/client/client-match-preferences-form";
 import {
   ProfileSettingsPanel,
   type ClientSettingsProfile,
@@ -22,6 +24,7 @@ type Props = {
   initialDefaultChannelId: string | null;
   headerPreferredName: string;
   headerProfileImageUrl: string | null;
+  matchPreferencesIncomplete?: boolean;
 };
 
 export function ClientSettingsPageClient(props: Props) {
@@ -155,7 +158,7 @@ export function ClientSettingsPageClient(props: Props) {
         <ClientPortalHeader
           preferredName={props.headerPreferredName}
           profileImageUrl={props.headerProfileImageUrl}
-          backHref="/client/account"
+          backHref="/client/dashboard"
           backLabel="← Dashboard"
         />
 
@@ -164,6 +167,18 @@ export function ClientSettingsPageClient(props: Props) {
           <p className="mt-2 text-sm leading-relaxed text-white/50">
             Manage your Match Fit profile and security preferences. Expand a section to review or update it.
           </p>
+          {props.matchPreferencesIncomplete ? (
+            <p className="mt-4 rounded-xl border border-[#FF7E00]/30 bg-[#FF7E00]/10 px-4 py-3 text-sm text-white/80">
+              Update your{" "}
+              <Link
+                href="/client/dashboard/preferences/onboarding"
+                className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline"
+              >
+                match preferences
+              </Link>{" "}
+              (onboarding) to unlock the full client dashboard.
+            </p>
+          ) : null}
         </div>
 
         {footerError ? (
@@ -188,6 +203,14 @@ export function ClientSettingsPageClient(props: Props) {
           onProfileFooterBlockedChange={setProfileSaveBlocked}
           footerSaveMode
         />
+
+        <CollapsibleSettingsSection
+          title="Match preferences"
+          description="Goals, services, delivery style, and discovery controls. Same editor as the dashboard Match preferences page."
+          defaultOpen={false}
+        >
+          <ClientMatchPreferencesForm mode="settings" />
+        </CollapsibleSettingsSection>
 
         <CollapsibleSettingsSection
           title="Stay Logged In"
@@ -228,7 +251,7 @@ export function ClientSettingsPageClient(props: Props) {
         <p className="text-sm">
           <button
             type="button"
-            onClick={() => requestNavigate("/client/account")}
+            onClick={() => requestNavigate("/client/dashboard")}
             className="text-[#FF7E00] underline-offset-2 hover:underline"
           >
             Back to Dashboard

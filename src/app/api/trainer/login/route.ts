@@ -11,6 +11,7 @@ import {
 } from "@/lib/session";
 import { normalizeTrainerPostAuthPath } from "@/lib/trainer-post-auth-redirect";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
+import { verifyTurnstileToken } from "@/lib/turnstile-verify";
 import { trainerLoginSchema } from "@/lib/validations/trainer-register";
 import { NextResponse } from "next/server";
 
@@ -19,6 +20,10 @@ export async function POST(req: Request) {
     const parsed = trainerLoginSchema.safeParse(await req.json());
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid login request." }, { status: 400 });
+    }
+    const turn = await verifyTurnstileToken(parsed.data.turnstileToken, req);
+    if (!turn.ok) {
+      return NextResponse.json({ error: turn.error }, { status: turn.status });
     }
     const { identifier, password, stayLoggedIn, redirectAfterLogin: redirectRaw } = parsed.data;
     const redirectAfterLogin = normalizeTrainerPostAuthPath(redirectRaw) ?? "/trainer/dashboard";
@@ -29,6 +34,17 @@ export async function POST(req: Request) {
     const ok = await verifyPassword(password, trainer.passwordHash);
     if (!ok) {
       return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
+    }
+
+    if (trainer.safetySuspended) {
+      return NextResponse.json(
+        {
+          error:
+            "Your trainer account is suspended pending a Match Fit safety review. You will regain access once the review is complete.",
+          code: "ACCOUNT_SUSPENDED",
+        },
+        { status: 403 },
+      );
     }
 
     const otpDelivery = await getTrainerLoginOtpDelivery(trainer.id);

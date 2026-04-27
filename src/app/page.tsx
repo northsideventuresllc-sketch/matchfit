@@ -4,9 +4,16 @@ import { HomeBrandBanner } from "@/components/home-brand-banner";
 import { HomeInfoSections } from "@/components/home-info-sections";
 import { HomeLoginMenu } from "@/components/home-login-menu";
 import { redirectStayLoggedInClientToDashboard } from "@/lib/redirect-stay-logged-in-client";
+import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 
 export default async function Home() {
   await redirectStayLoggedInClientToDashboard();
+
+  const [clientId, trainerId] = await Promise.all([getSessionClientId(), getSessionTrainerId()]);
+  const homeAuth = {
+    clientLoggedIn: Boolean(clientId),
+    trainerLoggedIn: Boolean(trainerId),
+  };
 
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] text-white antialiased">
@@ -39,7 +46,7 @@ export default async function Home() {
               </p>
             </div>
           </div>
-          <HomeLoginMenu />
+          <HomeLoginMenu homeAuth={homeAuth} />
         </header>
 
         <HomeBrandBanner />
@@ -89,7 +96,7 @@ export default async function Home() {
 
         <FeaturedTrainersCarousel />
 
-        <HomeInfoSections />
+        <HomeInfoSections homeAuth={homeAuth} />
       </div>
     </main>
   );

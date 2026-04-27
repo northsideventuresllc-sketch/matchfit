@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { completePendingSchema } from "@/lib/validations/client-register";
 import { setRegistrationHoldCookie } from "@/lib/session";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
+import { verifyTurnstileToken } from "@/lib/turnstile-verify";
 import { NextResponse } from "next/server";
 
 const HOLD_TTL_MS = 72 * 60 * 60 * 1000;
@@ -16,6 +17,10 @@ export async function POST(req: Request) {
     const parsed = completePendingSchema.safeParse(json);
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid verification request." }, { status: 400 });
+    }
+    const turn = await verifyTurnstileToken(parsed.data.turnstileToken, req);
+    if (!turn.ok) {
+      return NextResponse.json({ error: turn.error }, { status: turn.status });
     }
     const { pendingId, code } = parsed.data;
 

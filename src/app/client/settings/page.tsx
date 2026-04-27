@@ -39,6 +39,7 @@ export default async function ClientSettingsPage() {
       addressState: true,
       addressPostal: true,
       addressCountry: true,
+      matchPreferencesCompletedAt: true,
     },
   });
   if (!client) {
@@ -94,6 +95,7 @@ export default async function ClientSettingsPage() {
       initialDefaultChannelId={initialDefaultChannelId}
       headerPreferredName={client.preferredName}
       headerProfileImageUrl={client.profileImageUrl}
+      matchPreferencesIncomplete={!client.matchPreferencesCompletedAt}
     />
   );
 }

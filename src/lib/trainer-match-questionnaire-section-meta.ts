@@ -1,4 +1,4 @@
-/** URL segment under `/trainer/dashboard/match-questionnaire/edit/[slug]`. */
+/** URL segment under `/trainer/dashboard/match-questionnaire/match-me/edit/[slug]`. */
 export const MATCH_QUESTIONNAIRE_EDIT_SLUGS = [
   "session-formats",
   "services-pricing",
@@ -25,47 +25,42 @@ export const MATCH_QUESTIONNAIRE_SECTIONS = [
   {
     slug: "session-formats" as const,
     step: 1 as const,
-    title: "Session formats",
+    title: "Session Formats",
     summary: "Virtual, in-person, or both.",
     disclaimer:
       "Select only formats you actually deliver. Misrepresentation can hurt matches and may violate the trainer agreement.",
-    requiredForClientVisibility: true,
   },
   {
     slug: "services-pricing" as const,
     step: 2 as const,
-    title: "Services & pricing",
+    title: "Services & Pricing",
     summary: "What you sell and how you bill.",
     disclaimer:
       "Prices power search filters and client expectations. Final charges at booking may include platform fees not shown here.",
-    requiredForClientVisibility: false,
   },
   {
     slug: "in-person-area" as const,
     step: 3 as const,
-    title: "In-person service area",
+    title: "In-Person Service Area",
     summary: "ZIP center point and mile radius.",
     disclaimer:
       "Used for discovery only—not a legal service territory. Exact meeting locations are agreed directly with clients.",
-    requiredForClientVisibility: false,
   },
   {
     slug: "clients-goals" as const,
     step: 4 as const,
-    title: "Clients & goals",
+    title: "Clients & Goals",
     summary: "Ages, levels, goals, languages, experience.",
     disclaimer:
       "Pick combinations you genuinely coach well. Overstating your scope can lead to poor fit and complaints.",
-    requiredForClientVisibility: false,
   },
   {
     slug: "philosophy-confirm" as const,
     step: 5 as const,
-    title: "Philosophy & confirmation",
+    title: "Philosophy & Confirmation",
     summary: "Narrative plus accuracy attestation.",
     disclaimer:
       "This narrative may feed search previews and AI matching. Keep it truthful, professional, and updated when your approach changes.",
-    requiredForClientVisibility: false,
   },
 ] as const;
 

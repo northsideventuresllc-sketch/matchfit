@@ -1,4 +1,5 @@
 import { finalizeRegistrationAfterPayment } from "@/lib/billing-finalize";
+import { syncClientSubscriptionFromStripe } from "@/lib/stripe-sync-client-subscription";
 import { getStripe } from "@/lib/stripe-server";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
@@ -45,6 +46,13 @@ export async function POST(req: Request) {
       const subId = invoice.subscription;
       if (typeof subId === "string") {
         await finalizeRegistrationAfterPayment(subId);
+        await syncClientSubscriptionFromStripe(subId);
+      }
+    }
+    if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
+      const sub = event.data.object as Stripe.Subscription;
+      if (sub.id) {
+        await syncClientSubscriptionFromStripe(sub.id);
       }
     }
   } catch (e) {

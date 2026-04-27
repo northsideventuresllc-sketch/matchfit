@@ -215,8 +215,13 @@ export default function TrainerOnboardingClient() {
 
   useEffect(() => {
     if (!profile) return;
-    setPathCpt(profile.onboardingTrackCpt);
-    setPathNutrition(profile.onboardingTrackNutrition);
+    const cpt = profile.onboardingTrackCpt;
+    const nut = profile.onboardingTrackNutrition;
+    const id = window.setTimeout(() => {
+      setPathCpt(cpt);
+      setPathNutrition(nut);
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [profile?.onboardingTrackCpt, profile?.onboardingTrackNutrition]);
 
   const bgVendor = useMemo(() => coerceTrainerBackgroundVendorStatus(profile?.backgroundCheckStatus), [profile?.backgroundCheckStatus]);

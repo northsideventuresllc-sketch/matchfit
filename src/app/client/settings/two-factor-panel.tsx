@@ -61,7 +61,7 @@ function deliveryLabel(d: string): string {
 
 export const TwoFactorPanel = forwardRef<TwoFactorPanelRef, PanelProps>(function TwoFactorPanel(props, ref) {
   const settingsBase = props.settingsApiBase ?? "/api/client/settings";
-  const dashboardHref = props.dashboardLinkHref ?? "/client/account";
+  const dashboardHref = props.dashboardLinkHref ?? "/client/dashboard";
   const router = useRouter();
   const baseline = useRef({
     defaultId: props.initialDefaultChannelId,

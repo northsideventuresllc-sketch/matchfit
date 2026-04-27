@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
+import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
 
 const MOCK_BANNER =
   "Local development: SMS/voice codes are not sent. Look at the terminal where `npm run dev` is running for your 6-digit code.";
@@ -21,20 +22,24 @@ export type Verify2faClientProps = {
   resendTwoFactorUrl?: string;
   cancelTwoFactorUrl?: string;
   afterVerifyHref?: string;
+  /** Safe internal path returned from complete-2FA (e.g. deep link after sign-in). */
+  redirectAfterVerify?: string | null;
   cancelReturnHref?: string;
+  /** Cloudflare Turnstile site key (same as `NEXT_PUBLIC_TURNSTILE_SITE_KEY`). */
+  turnstileSiteKey?: string;
 };
 
 const DEFAULT_COMPLETE = "/api/client/login/complete-2fa";
 const DEFAULT_RESEND = "/api/client/login/resend-2fa";
 const DEFAULT_CANCEL = "/api/client/login/cancel-2fa";
-const DEFAULT_AFTER = "/client/account";
+const DEFAULT_AFTER = "/client/dashboard";
 const DEFAULT_CANCEL_RETURN = "/client";
 
 export function Verify2faClient(props: Verify2faClientProps) {
   const completeUrl = props.completeTwoFactorUrl ?? DEFAULT_COMPLETE;
   const resendUrl = props.resendTwoFactorUrl ?? DEFAULT_RESEND;
   const cancelUrl = props.cancelTwoFactorUrl ?? DEFAULT_CANCEL;
-  const afterVerifyHref = props.afterVerifyHref ?? DEFAULT_AFTER;
+  const afterVerifyHref = props.afterVerifyHref ?? props.redirectAfterVerify ?? DEFAULT_AFTER;
   const cancelReturnHref = props.cancelReturnHref ?? DEFAULT_CANCEL_RETURN;
 
   const router = useRouter();
@@ -44,6 +49,8 @@ export function Verify2faClient(props: Verify2faClientProps) {
   const [resendBusy, setResendBusy] = useState(false);
   const [codeInvalidated, setCodeInvalidated] = useState(false);
   const [mockBanner, setMockBanner] = useState(Boolean(props.showDevPhoneMockBanner));
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
+  const tsKey = props.turnstileSiteKey ?? "";
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -52,12 +59,24 @@ export function Verify2faClient(props: Verify2faClientProps) {
       setError("Enter the 6-digit code.");
       return;
     }
+    if (tsKey) {
+      const token = turnstileRef.current?.getToken();
+      if (!token) {
+        setError("Please wait for the security check to finish, then try again.");
+        return;
+      }
+    }
     setBusy(true);
     try {
+      const turnstileToken = tsKey ? turnstileRef.current?.getToken() : undefined;
       const res = await fetch(completeUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({
+          code,
+          ...(props.redirectAfterVerify ? { next: props.redirectAfterVerify } : {}),
+          ...(turnstileToken ? { turnstileToken } : {}),
+        }),
       });
       const data = (await res.json()) as {
         error?: string;
@@ -68,6 +87,7 @@ export function Verify2faClient(props: Verify2faClientProps) {
       };
       if (!res.ok) {
         setError(typeof data.error === "string" && data.error.trim() ? data.error : "Verification failed.");
+        turnstileRef.current?.reset();
         if (data.codeInvalidated) {
           setCodeInvalidated(true);
         } else if (data.attemptsRemaining !== undefined) {
@@ -150,6 +170,11 @@ export function Verify2faClient(props: Verify2faClientProps) {
               ) : null}
 
               <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+                {tsKey ? (
+                  <div className="flex justify-center">
+                    <TurnstileWidget ref={turnstileRef} siteKey={tsKey} />
+                  </div>
+                ) : null}
                 <div className="flex flex-col gap-2">
                   <label htmlFor="v2-code" className="text-xs font-semibold uppercase tracking-wide text-white/50">
                     6-digit code

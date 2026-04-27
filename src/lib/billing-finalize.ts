@@ -73,6 +73,8 @@ export async function finalizeRegistrationAfterPayment(subscriptionId: string): 
           stayLoggedIn: hold.stayLoggedIn,
           stripeCustomerId: customerId,
           stripeSubscriptionId: subscriptionId,
+          stripeSubscriptionActive: true,
+          subscriptionGraceUntil: null,
         },
       });
       await tx.pendingClientRegistration.delete({ where: { id: hold.id } });
