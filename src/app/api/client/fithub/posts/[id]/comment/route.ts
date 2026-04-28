@@ -1,3 +1,4 @@
+import { isFitHubPostPubliclyInteractable } from "@/lib/fithub-public-feed";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
 import { NextResponse } from "next/server";
@@ -11,8 +12,11 @@ export async function POST(req: Request, ctx: Ctx) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
     const { id: postId } = await ctx.params;
-    const post = await prisma.trainerFitHubPost.findUnique({ where: { id: postId }, select: { id: true } });
-    if (!post) {
+    const post = await prisma.trainerFitHubPost.findUnique({
+      where: { id: postId },
+      select: { id: true, visibility: true, scheduledPublishAt: true },
+    });
+    if (!post || !isFitHubPostPubliclyInteractable(post)) {
       return NextResponse.json({ error: "Not found." }, { status: 404 });
     }
 

@@ -3,17 +3,35 @@ import { FeaturedTrainersCarousel } from "@/components/featured-trainers-carouse
 import { HomeBrandBanner } from "@/components/home-brand-banner";
 import { HomeInfoSections } from "@/components/home-info-sections";
 import { HomeLoginMenu } from "@/components/home-login-menu";
+import { getFeaturedTrainersForHomepage } from "@/lib/featured-homepage-data";
+import { prisma } from "@/lib/prisma";
 import { redirectStayLoggedInClientToDashboard } from "@/lib/redirect-stay-logged-in-client";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 
-export default async function Home() {
+type HomeProps = { searchParams?: Promise<{ zip?: string }> };
+
+export default async function Home({ searchParams }: HomeProps) {
   await redirectStayLoggedInClientToDashboard();
+
+  const sp = searchParams ? await searchParams : {};
+  const zipFromQuery = typeof sp.zip === "string" && sp.zip.trim() ? sp.zip.trim() : null;
 
   const [clientId, trainerId] = await Promise.all([getSessionClientId(), getSessionTrainerId()]);
   const homeAuth = {
     clientLoggedIn: Boolean(clientId),
     trainerLoggedIn: Boolean(trainerId),
   };
+
+  let zipForFeatured = zipFromQuery;
+  if (clientId) {
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { zipCode: true },
+    });
+    if (client?.zipCode?.trim()) zipForFeatured = client.zipCode.trim();
+  }
+
+  const featuredTrainers = await getFeaturedTrainersForHomepage({ zipInput: zipForFeatured });
 
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] text-white antialiased">
@@ -94,7 +112,7 @@ export default async function Home() {
           </p>
         </section>
 
-        <FeaturedTrainersCarousel />
+        <FeaturedTrainersCarousel trainers={featuredTrainers} />
 
         <HomeInfoSections homeAuth={homeAuth} />
       </div>

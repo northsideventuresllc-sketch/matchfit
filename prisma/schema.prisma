@@ -112,6 +112,9 @@ model Client {
   dailyQuestionnaires ClientDailyQuestionnaire[]
   bugReports         ClientBugReport[]
 
+  serviceTransactions TrainerClientServiceTransaction[] @relation("TrainerServiceTxClient")
+  trainerTokenGifts     ClientTrainerTokenGift[]
+
   @@map("clients")
 }
 
@@ -240,6 +243,17 @@ model Trainer {
   safetySuspended   Boolean   @default(false)
   safetySuspendedAt DateTime?
 
+  featuredRaffleEntries   FeaturedRaffleEntry[]
+  featuredPlacementBids   FeaturedPlacementBid[]
+  featuredDailyAllocations FeaturedDailyAllocation[]
+
+  tokenBalance              TrainerTokenBalance?
+  tokenLedgerEntries        TrainerTokenLedgerEntry[]
+  fitHubPostPromotions      TrainerFitHubPostPromotion[]
+  weeklyTokenGrants         TrainerWeeklyTokenGrant[]
+  clientServiceTransactions TrainerClientServiceTransaction[] @relation("TrainerServiceTxTrainer")
+  tokenGiftsReceived        ClientTrainerTokenGift[]
+
   @@map("trainers")
 }
 
@@ -284,13 +298,13 @@ model ClientDailyQuestionnaire {
   @@map("client_daily_questionnaires")
 }
 
-/// Client-submitted product issues/feedback reports from dashboard footer.
+/// Product issues/feedback reports (from dashboard or public report page).
 model ClientBugReport {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
 
-  clientId String
-  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   anonymous   Boolean @default(false)
   reporterName String?
@@ -329,11 +343,20 @@ model TrainerFitHubPost {
   trainerId String
   trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 
-  /// TEXT | IMAGE | VIDEO
+  /// TEXT | IMAGE | VIDEO | CAROUSEL
   postType String
   caption  String?
   bodyText String?
   mediaUrl String?
+
+  /// When set in the future, the post stays hidden from public FitHub until this time.
+  scheduledPublishAt DateTime?
+  /// PUBLIC | PRIVATE — private posts are only visible to the author in Premium MY CONTENT.
+  visibility String @default("PUBLIC")
+  /// JSON string array of normalized hashtag tokens (no #, lowercase).
+  hashtagsJson String?
+  /// JSON string array of image/video URLs for CAROUSEL posts (2+ items).
+  mediaUrlsJson String?
 
   shareCount Int @default(0)
 
@@ -345,6 +368,7 @@ model TrainerFitHubPost {
   reposts         ClientFitHubRepost[]
   contentReports  TrainerFitHubPostReport[]
   clientShares    ClientFitHubPostShare[]
+  promotions      TrainerFitHubPostPromotion[]
 
   @@index([trainerId, createdAt])
   @@map("trainer_fit_hub_posts")
@@ -543,6 +567,8 @@ model TrainerProfile {
   /// Structured answers for search + AI matching (JSON string; SQLite has no Prisma Json type here).
   matchQuestionnaireAnswers     String?
   matchQuestionnaireCompletedAt DateTime?
+  /// Optional questionnaire completions (JSON array), excluding mandatory Match Me.
+  followUpQuestionnaireAnswersJson String?
   /// Plain-text profile for search + AI when pairing trainers with clients; regenerated on each questionnaire submit.
   aiMatchProfileText String?
 
@@ -655,4 +681,193 @@ model SuspensionRecord {
   @@index([purgeAfter])
   @@index([subjectIsTrainer, subjectId])
   @@map("suspension_records")
+}
+
+/// Premium trainers enter a daily random draw (weighted tickets) for the public home “featured” carousel.
+/// `displayDayKey` is the America/New_York calendar date when winners are shown (bidding/entries close at midnight Eastern at the start of that date).
+model FeaturedRaffleEntry {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  /// First three digits of the trainer’s in-person US ZIP from the Match questionnaire (regional pool).
+  regionZipPrefix String
+  displayDayKey   String
+  /// Each entrant contributes this many tickets in the weighted draw (product default: 5).
+  ticketWeight Int @default(5)
+
+  @@unique([trainerId, regionZipPrefix, displayDayKey])
+  @@index([regionZipPrefix, displayDayKey])
+  @@map("featured_raffle_entries")
+}
+
+/// Paid sponsored slots (top two bids per region per display day). Amounts are in USD cents; billing may be simulated until coach Stripe is connected.
+model FeaturedPlacementBid {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  regionZipPrefix String
+  displayDayKey   String
+  /// Current committed bid total (non-refundable; increases when the trainer raises their bid).
+  amountCents    Int
+  /// Amount successfully collected toward this bid window (≤ amountCents when a card charge is partial / pending).
+  paidCents      Int @default(0)
+  rulesVersion   String?
+  rulesAcceptedAt DateTime?
+
+  @@unique([trainerId, regionZipPrefix, displayDayKey])
+  @@index([regionZipPrefix, displayDayKey])
+  @@map("featured_placement_bids")
+}
+
+/// Materialized winners for a region + display day (resolved after the Eastern midnight cutoff).
+model FeaturedDailyAllocation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  regionZipPrefix String
+  displayDayKey   String
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  /// PAID_BID | RAFFLE
+  source   String
+  /// Lower sorts earlier in the carousel (paid bids first).
+  sortOrder Int
+
+  @@unique([regionZipPrefix, displayDayKey, trainerId])
+  @@index([regionZipPrefix, displayDayKey, sortOrder])
+  @@map("featured_daily_allocations")
+}
+
+/// Cached trainer token balance (source of truth is `TrainerTokenLedgerEntry`; balance updated in the same DB transaction).
+model TrainerTokenBalance {
+  trainerId String  @id
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  balance   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@map("trainer_token_balances")
+}
+
+/// Immutable audit log for all trainer token movements.
+model TrainerTokenLedgerEntry {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  /// Signed delta applied to balance (credits positive, debits negative).
+  delta Int
+
+  /// WEEKLY_GRANT | SALE_REWARD | STRIPE_PURCHASE | CLIENT_GIFT | PROMOTION_SPEND | ADMIN_ADJUST
+  reason String
+
+  /// Optional idempotency / linkage (e.g. Stripe session id, weekly grant key).
+  referenceKey String?
+
+  /// Optional JSON for debugging (pack counts, post id, etc.).
+  metaJson String?
+
+  @@index([trainerId, createdAt])
+  @@index([trainerId, reason, referenceKey])
+  @@map("trainer_token_ledger_entries")
+}
+
+/// Time-bounded FitHub post boost paid with tokens (regional scoring in client feed).
+model TrainerFitHubPostPromotion {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  postId String
+  post   TrainerFitHubPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  /// Total tokens debited for this window (minimum 20 per scheduled day at creation).
+  tokensSpent Int
+
+  /// Chosen promotion length in whole days (≥ 1).
+  durationDays Int
+
+  /// First three digits of trainer in-person ZIP when promotion was created (drives regional boost).
+  regionZipPrefix String
+
+  startsAt DateTime
+  endsAt   DateTime
+
+  @@index([postId, startsAt, endsAt])
+  @@index([trainerId, endsAt])
+  @@map("trainer_fit_hub_post_promotions")
+}
+
+/// Idempotent weekly free token drop for premium trainers (America/New_York ISO week key).
+model TrainerWeeklyTokenGrant {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  /// e.g. 2026-W17 (ISO week, America/New_York calendar date).
+  weekKey String
+
+  @@unique([trainerId, weekKey])
+  @@map("trainer_weekly_token_grants")
+}
+
+/// Completed paid service between client and trainer (drives sale-token rewards + chat tipping eligibility).
+model TrainerClientServiceTransaction {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  clientId String
+  client   Client @relation("TrainerServiceTxClient", fields: [clientId], references: [id], onDelete: Cascade)
+  trainerId String
+  trainer   Trainer @relation("TrainerServiceTxTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
+
+  completedAt DateTime
+  amountCents Int @default(0)
+
+  /// STRIPE_CHECKOUT | STAFF_IMPORT
+  source String @default("STRIPE_CHECKOUT")
+
+  /// When set, duplicate Stripe events must not double-award sale tokens.
+  stripeCheckoutSessionId String? @unique
+
+  /// Optional dedupe key for staff imports or future non-Stripe flows.
+  idempotencyKey String? @unique
+
+  /// When sale-token reward was applied (idempotent).
+  trainerSaleTokensGrantedAt DateTime?
+
+  @@index([clientId, trainerId, completedAt])
+  @@map("trainer_client_service_transactions")
+}
+
+/// Client → trainer appreciation tokens (platform-minted to trainer). Capped per ISO week (NY) per pair for abuse control.
+model ClientTrainerTokenGift {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  amount  Int
+  weekKey String
+
+  @@index([clientId, trainerId, weekKey])
+  @@map("client_trainer_token_gifts")
 }

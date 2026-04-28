@@ -14,7 +14,14 @@ export async function GET() {
     }
     const trainer = await prisma.trainer.findUnique({
       where: { id: trainerId },
-      select: { email: true },
+      select: {
+        email: true,
+        profile: {
+          select: {
+            premiumStudioEnabledAt: true,
+          },
+        },
+      },
     });
     if (!trainer) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
@@ -25,6 +32,8 @@ export async function GET() {
       email: trainer.email,
       hasStripeCustomer: false,
       hasActiveSubscription: false,
+      premiumStudioActive: Boolean(trainer.profile?.premiumStudioEnabledAt),
+      premiumStudioEnabledAt: trainer.profile?.premiumStudioEnabledAt?.toISOString() ?? null,
       message:
         "Trainer billing (subscriptions, Premium Page fees, and payouts) will appear here when Stripe is connected for coaches. You can still review this page for future renewal dates and receipts.",
     });

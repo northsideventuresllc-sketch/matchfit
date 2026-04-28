@@ -19,9 +19,6 @@ function validEmail(email: string): boolean {
 export async function POST(req: Request) {
   try {
     const clientId = await getSessionClientId();
-    if (!clientId) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
 
     const body = (await req.json().catch(() => ({}))) as {
       anonymous?: boolean;
@@ -52,7 +49,7 @@ export async function POST(req: Request) {
 
     await prisma.clientBugReport.create({
       data: {
-        clientId,
+        clientId: clientId ?? null,
         anonymous,
         reporterName: anonymous ? null : name,
         reporterEmail: email,
