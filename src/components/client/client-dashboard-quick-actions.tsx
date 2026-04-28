@@ -2,19 +2,12 @@
 
 import Link from "next/link";
 
-function IconMatchArms(props: { className?: string }) {
+function IconSearch(props: { className?: string }) {
   return (
     <svg viewBox="0 0 64 64" fill="none" className={props.className} aria-hidden>
-      <circle cx="22" cy="24" r="10" stroke="currentColor" strokeWidth="2.5" />
-      <circle cx="42" cy="24" r="10" stroke="currentColor" strokeWidth="2.5" />
-      <path
-        d="M18 38c4 6 10 8 14 8s10-2 14-8"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-      <path d="M26 32h12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M30 28v8M34 28v8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="28" cy="28" r="14" stroke="currentColor" strokeWidth="2.8" />
+      <path d="M38.5 38.5 50 50" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+      <path d="M22 28h12M28 22v12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
     </svg>
   );
 }
@@ -51,7 +44,7 @@ const ACTIONS = [
   {
     href: "/client/dashboard/find-trainers",
     label: "FIND COACHES",
-    Icon: IconMatchArms,
+    Icon: IconSearch,
   },
   {
     href: "/client/dashboard/messages",

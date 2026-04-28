@@ -65,7 +65,7 @@ export default function ClientChatsHubPage() {
               href="/client/dashboard/find-trainers"
               className="text-[#FF7E00] font-semibold underline-offset-2 hover:underline"
             >
-              Find coaches
+              Find Coaches
             </Link>
           </p>
         </div>

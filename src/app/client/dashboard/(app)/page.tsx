@@ -141,11 +141,11 @@ export default async function ClientDashboardHomePage() {
           <p className="text-sm font-medium leading-relaxed text-white/85">{client.bio?.trim() ? client.bio : "—"}</p>
         </div>
         <p className="mx-auto mt-4 max-w-xl text-center text-xs text-white/45">
-          EDIT YOUR STORY IN{" "}
+          Edit your story in{" "}
           <Link href="/client/settings" className="text-[#FF7E00] underline-offset-2 hover:underline">
-            ACCOUNT SETTINGS
+            Account Settings
           </Link>{" "}
-          UNDER PROFILE. TRAINERS ONLY SEE WHAT YOU PLACE ON YOUR PUBLIC CLIENT PAGE.
+          under Profile. Trainers only see what you place on your public client page.
         </p>
       </section>
 

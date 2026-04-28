@@ -25,6 +25,7 @@ export function billingExemptDashboardPath(pathname: string): boolean {
     pathname.startsWith("/client/dashboard/notifications") ||
     pathname.startsWith("/client/dashboard/fithub") ||
     pathname.startsWith("/client/dashboard/daily-questionnaire") ||
+    pathname.startsWith("/client/dashboard/bug-report") ||
     pathname.startsWith("/client/dashboard/preferences/onboarding")
   );
 }

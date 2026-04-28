@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ClientFitHubSettingsForm } from "./client-fithub-settings-form";
 
 export const metadata: Metadata = {
-  title: "FitHub settings | Client | Match Fit",
+  title: "FitHub Settings | Client | Match Fit",
 };
 
 export default function ClientFitHubSettingsPage() {
@@ -11,7 +11,7 @@ export default function ClientFitHubSettingsPage() {
     <div className="space-y-8">
       <header className="space-y-2 text-center">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Personalization</p>
-        <h1 className="text-3xl font-black tracking-[0.04em] sm:text-4xl">FitHub settings</h1>
+        <h1 className="text-3xl font-black tracking-[0.04em] sm:text-4xl">FitHub Settings</h1>
         <p className="mx-auto max-w-xl text-sm leading-relaxed text-white/50">
           Tune how your feed is built, which formats you see, and how aggressively we highlight coaches you already follow.
         </p>

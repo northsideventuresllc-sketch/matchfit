@@ -67,6 +67,10 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+function titleCaseAnswerLabel(input: string): string {
+  return input.replace(/\b([a-z])/g, (m) => m.toUpperCase());
+}
+
 function buildFocusBlurb(trainer: { fitnessNiches: string | null; bio: string | null }): string {
   const n = trainer.fitnessNiches?.trim();
   const b = trainer.bio?.trim();
@@ -77,21 +81,22 @@ function buildFocusBlurb(trainer: { fitnessNiches: string | null; bio: string | 
 
 function interestOptionsFromPrefs(prefs: ReturnType<typeof parseClientMatchPreferencesJson>): { value: string; label: string }[] {
   const base: { value: string; label: string }[] = [
-    { value: "strength", label: "Strength & lifting" },
-    { value: "conditioning", label: "Conditioning & cardio" },
-    { value: "mobility", label: "Mobility & recovery" },
-    { value: "nutrition", label: "Nutrition habits" },
-    { value: "accountability", label: "Accountability & routine" },
-    { value: "sport", label: "Sport-specific work" },
+    { value: "strength", label: "Strength & Lifting" },
+    { value: "conditioning", label: "Conditioning & Cardio" },
+    { value: "mobility", label: "Mobility & Recovery" },
+    { value: "nutrition", label: "Nutrition Habits" },
+    { value: "accountability", label: "Accountability & Routine" },
+    { value: "sport", label: "Sport-Specific Work" },
   ];
   const niche = prefs.fitnessNiches?.trim();
   if (niche) {
     const token = niche.split(/[,;\n]/)[0]?.trim();
     if (token && token.length > 2) {
-      base.unshift({ value: "niche_primary", label: `My niche focus: ${token.length > 48 ? `${token.slice(0, 45)}…` : token}` });
+      const trimmedToken = token.length > 48 ? `${token.slice(0, 45)}…` : token;
+      base.unshift({ value: "niche_primary", label: `My Niche Focus: ${titleCaseAnswerLabel(trimmedToken)}` });
     }
   }
-  return base.slice(0, 6);
+  return base.slice(0, 6).map((row) => ({ ...row, label: titleCaseAnswerLabel(row.label) }));
 }
 
 async function pickRecentTrainersForClient(clientZip: string, excludeTrainerIds: string[]) {
@@ -195,8 +200,8 @@ export async function buildDailyQuestionnairePayload(clientId: string): Promise<
         focusBlurb: buildFocusBlurb(primary),
         scaleMin: 1,
         scaleMax: 5,
-        lowLabel: "Not interested",
-        highLabel: "Very interested",
+        lowLabel: "Not Interested",
+        highLabel: "Very Interested",
       }
     : {
         id: "q_trainer_fit",
@@ -208,8 +213,8 @@ export async function buildDailyQuestionnairePayload(clientId: string): Promise<
         focusBlurb: "We will prioritize introductions that respect your match preferences.",
         scaleMin: 1,
         scaleMax: 5,
-        lowLabel: "Prefer established coaches",
-        highLabel: "Excited to meet new coaches",
+        lowLabel: "Prefer Established Coaches",
+        highLabel: "Excited to Meet New Coaches",
       };
 
   const q2: DailyInterestPickQuestion = {

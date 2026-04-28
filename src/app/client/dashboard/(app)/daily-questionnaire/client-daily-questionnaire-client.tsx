@@ -22,6 +22,10 @@ type CooldownPayload = {
   nextAvailableAt: string;
 };
 
+function titleCaseAnswerLabel(input: string): string {
+  return input.replace(/\b([a-z])/g, (m) => m.toUpperCase());
+}
+
 export function ClientDailyQuestionnaireClient() {
   const router = useRouter();
   const [data, setData] = useState<ActivePayload | CooldownPayload | null>(null);
@@ -30,6 +34,7 @@ export function ClientDailyQuestionnaireClient() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
   const lastQuestionnaireId = useRef<string | null>(null);
 
   const load = useCallback(async () => {
@@ -54,6 +59,7 @@ export function ClientDailyQuestionnaireClient() {
             if (q.kind === "trainer_interest_scale") init[q.id] = "3";
           }
           setAnswers(init);
+          setCurrentStep(0);
         }
       }
     } catch {
@@ -72,6 +78,12 @@ export function ClientDailyQuestionnaireClient() {
   }, [load]);
 
   const active = data?.state === "active" ? data : null;
+  const questionList = active?.questionnaire.questions.questions ?? [];
+  const totalSteps = questionList.length;
+  const stepIndex = Math.max(0, Math.min(currentStep, Math.max(0, totalSteps - 1)));
+  const currentQuestion = questionList[stepIndex] ?? null;
+  const currentAnswer = currentQuestion ? (answers[currentQuestion.id] ?? "") : "";
+  const canMoveNext = currentQuestion ? currentAnswer.trim().length > 0 : false;
 
   const cooldownLabel = useMemo(() => {
     if (data?.state !== "cooldown") return "";
@@ -154,8 +166,6 @@ export function ClientDailyQuestionnaireClient() {
     );
   }
 
-  const [q1, q2, q3] = active.questionnaire.questions.questions;
-
   return (
     <div className="space-y-8">
       <p className="text-center text-xs text-white/45">{active.questionnaire.questions.context.summaryLine}</p>
@@ -166,39 +176,70 @@ export function ClientDailyQuestionnaireClient() {
         </p>
       ) : null}
 
-      <ol className="space-y-8">
-        <li className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/50 p-5">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#FF7E00]/90">Question 1</p>
-          <TrainerInterestBlock
-            q={q1}
-            value={answers[q1.id] ?? ""}
-            onChange={(v) => setAnswers((a) => ({ ...a, [q1.id]: v }))}
-          />
-        </li>
-        <li className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/50 p-5">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#FF7E00]/90">Question 2</p>
-          <InterestPickBlock
-            q={q2}
-            value={answers[q2.id] ?? ""}
-            onChange={(v) => setAnswers((a) => ({ ...a, [q2.id]: v }))}
-          />
-        </li>
-        <li className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/50 p-5">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#FF7E00]/90">Question 3</p>
-          <FreeTextBlock q={q3} value={answers[q3.id] ?? ""} onChange={(v) => setAnswers((a) => ({ ...a, [q3.id]: v }))} />
-        </li>
-      </ol>
+      <div className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/50 p-5">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#FF7E00]/90">
+            Question {stepIndex + 1} of {totalSteps}
+          </p>
+          <p className="text-[10px] uppercase tracking-[0.12em] text-white/35">
+            {Math.round(((stepIndex + 1) / Math.max(totalSteps, 1)) * 100)}% complete
+          </p>
+        </div>
 
-      <div className="flex justify-center">
+        {currentQuestion?.kind === "trainer_interest_scale" ? (
+          <TrainerInterestBlock
+            q={currentQuestion}
+            value={answers[currentQuestion.id] ?? ""}
+            onChange={(v) => setAnswers((a) => ({ ...a, [currentQuestion.id]: v }))}
+          />
+        ) : null}
+        {currentQuestion?.kind === "single_choice" ? (
+          <InterestPickBlock
+            q={currentQuestion}
+            value={answers[currentQuestion.id] ?? ""}
+            onChange={(v) => setAnswers((a) => ({ ...a, [currentQuestion.id]: v }))}
+          />
+        ) : null}
+        {currentQuestion?.kind === "free_text" ? (
+          <FreeTextBlock
+            q={currentQuestion}
+            value={answers[currentQuestion.id] ?? ""}
+            onChange={(v) => setAnswers((a) => ({ ...a, [currentQuestion.id]: v }))}
+          />
+        ) : null}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-center gap-3">
         <button
           type="button"
-          disabled={submitting}
-          onClick={() => void submit()}
-          className="group relative isolate flex min-h-[3rem] w-full max-w-md items-center justify-center overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition disabled:opacity-50"
+          disabled={stepIndex === 0}
+          onClick={() => setCurrentStep((s) => Math.max(0, s - 1))}
+          className="min-h-[3rem] min-w-[8rem] rounded-xl border border-white/20 bg-white/[0.03] px-4 text-sm font-bold text-white/80 transition hover:bg-white/[0.06] disabled:opacity-40"
         >
-          <span aria-hidden className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]" />
-          <span className="relative">{submitting ? "Saving…" : "Submit answers"}</span>
+          Back
         </button>
+
+        {stepIndex < totalSteps - 1 ? (
+          <button
+            type="button"
+            disabled={!canMoveNext}
+            onClick={() => setCurrentStep((s) => Math.min(totalSteps - 1, s + 1))}
+            className="group relative isolate flex min-h-[3rem] min-w-[10rem] items-center justify-center overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition disabled:opacity-50"
+          >
+            <span aria-hidden className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]" />
+            <span className="relative">Next Question</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={submitting || !canMoveNext}
+            onClick={() => void submit()}
+            className="group relative isolate flex min-h-[3rem] min-w-[10rem] items-center justify-center overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition disabled:opacity-50"
+          >
+            <span aria-hidden className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]" />
+            <span className="relative">{submitting ? "Saving…" : "Submit Answers"}</span>
+          </button>
+        )}
       </div>
     </div>
   );
@@ -276,7 +317,7 @@ function InterestPickBlock(props: {
                 onChange={() => props.onChange(o.value)}
                 className="accent-[#FF7E00]"
               />
-              <span className="text-sm text-white/85">{o.label}</span>
+              <span className="text-sm text-white/85">{titleCaseAnswerLabel(o.label)}</span>
             </label>
           </li>
         ))}
