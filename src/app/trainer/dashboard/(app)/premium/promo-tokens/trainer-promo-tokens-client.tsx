@@ -181,8 +181,11 @@ export function TrainerPromoTokensClient() {
         {posts.length === 0 ? (
           <p className="text-sm text-white/50">
             No public video posts yet.{" "}
-            <Link href="/trainer/dashboard/premium/studio" className="text-[#FF7E00] underline-offset-2 hover:underline">
-              Create one in Premium Studio
+            <Link
+              href="/trainer/dashboard/premium/fit-hub-content"
+              className="text-[#FF7E00] underline-offset-2 hover:underline"
+            >
+              Create one in Fit Hub &amp; content
             </Link>
             .
           </p>

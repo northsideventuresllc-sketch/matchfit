@@ -18,7 +18,7 @@ export function PremiumSignupClient() {
         setError(data.error ?? "Could not complete signup.");
         return;
       }
-      router.push("/trainer/dashboard/premium/studio");
+      router.push("/trainer/dashboard/premium");
       router.refresh();
     } catch {
       setError("Network error.");
@@ -35,8 +35,8 @@ export function PremiumSignupClient() {
         </p>
       ) : null}
       <p className="mx-auto max-w-lg text-sm leading-relaxed text-white/55">
-        Premium Page is your social-style space to share photos, videos, and posts with clients. Checkout and plan
-        details will plug in here later—this button turns on the studio shell so you can preview the experience.
+        Enrolling turns on the premium hub and tools above. Checkout and plan details will connect here in a later
+        release—this flow is for early access to the studio and token surfaces.
       </p>
       <button
         type="button"
@@ -45,7 +45,7 @@ export function PremiumSignupClient() {
         className="group relative isolate mx-auto flex min-h-[3rem] w-full max-w-md items-center justify-center overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition disabled:opacity-50"
       >
         <span aria-hidden className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]" />
-        <span className="relative">{busy ? "Enrolling…" : "Sign up for Premium Page"}</span>
+        <span className="relative">{busy ? "Enrolling…" : "SIGN UP FOR PREMIUM PAGE"}</span>
       </button>
     </div>
   );

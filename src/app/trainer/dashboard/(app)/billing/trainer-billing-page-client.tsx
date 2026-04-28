@@ -169,16 +169,16 @@ export function TrainerBillingPageClient() {
           {summary.premiumStudioActive ? (
             <>
               <a
-                href="/trainer/dashboard/premium/studio"
+                href="/trainer/dashboard/premium"
                 className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-[#FF7E00]/35 bg-[#FF7E00]/12 px-4 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/50 sm:max-w-xs"
               >
-                OPEN PREMIUM STUDIO
+                OPEN PREMIUM HUB
               </a>
               <a
-                href="/trainer/dashboard/premium"
+                href="/trainer/dashboard/premium/fit-hub-content"
                 className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] px-4 text-xs font-black uppercase tracking-[0.08em] text-white/85 transition hover:border-white/25 sm:max-w-xs"
               >
-                MANAGE PREMIUM PAGE
+                FIT HUB &amp; CONTENT
               </a>
             </>
           ) : (

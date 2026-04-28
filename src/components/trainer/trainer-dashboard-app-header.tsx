@@ -21,7 +21,7 @@ type Props = {
   backHref?: string;
   backLabel?: string;
   initialUnreadCount: number;
-  /** When true, Premium header button opens the social-style studio instead of signup. */
+  /** When true, trainer has premium tools enabled (header still opens the shared premium hub). */
   premiumStudioActive: boolean;
 };
 
@@ -45,9 +45,7 @@ export function TrainerDashboardAppHeader(props: Props) {
   const initial = props.displayName.trim().charAt(0).toUpperCase() || "?";
   const avatarSrc = props.profileImageUrl?.split("?")[0] ?? "";
 
-  const premiumHref = props.premiumStudioActive
-    ? "/trainer/dashboard/premium/studio"
-    : "/trainer/dashboard/premium";
+  const premiumHref = "/trainer/dashboard/premium";
 
   const fitHubHref = "/trainer/dashboard/fit-hub";
 
@@ -140,7 +138,11 @@ export function TrainerDashboardAppHeader(props: Props) {
         </Link>
         <Link
           href={premiumHref}
-          className="rounded-xl border border-[#FF7E00]/35 bg-[#FF7E00]/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/90 outline-none ring-[#FF7E00]/30 transition hover:border-[#FF7E00]/50 hover:bg-[#FF7E00]/18 focus-visible:ring-2 sm:px-4 sm:text-xs"
+          className={`rounded-xl border bg-[#FF7E00]/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/90 outline-none ring-[#FF7E00]/30 transition hover:bg-[#FF7E00]/18 focus-visible:ring-2 sm:px-4 sm:text-xs ${
+            props.premiumStudioActive
+              ? "border-emerald-400/40 hover:border-emerald-300/55"
+              : "border-[#FF7E00]/35 hover:border-[#FF7E00]/50"
+          }`}
         >
           Premium Studio
         </Link>

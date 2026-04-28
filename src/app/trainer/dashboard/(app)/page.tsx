@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { TrainerDashboardLogoutLink } from "@/components/trainer/trainer-dashboard-logout-link";
 import { TrainerDashboardQuickActions } from "@/components/trainer/trainer-dashboard-quick-actions";
+import { TrainerPremiumHubSummary } from "@/components/trainer/trainer-premium-hub-summary";
 import { TrainerMatchAnswersPreview } from "@/components/trainer/trainer-match-answers-preview";
 import { parseAiMatchProfileForDisplay } from "@/lib/ai-match-profile-parse";
 import { prisma } from "@/lib/prisma";
@@ -51,6 +52,7 @@ export default async function TrainerDashboardHomePage() {
           dashboardActivatedAt: true,
           matchQuestionnaireStatus: true,
           aiMatchProfileText: true,
+          premiumStudioEnabledAt: true,
         },
       },
     },
@@ -72,6 +74,8 @@ export default async function TrainerDashboardHomePage() {
       ? parseAiMatchProfileForDisplay(profile.aiMatchProfileText)
       : null;
 
+  const premiumActive = Boolean(profile?.premiumStudioEnabledAt);
+
   return (
     <div className="space-y-8">
       <header className="space-y-1 text-center">
@@ -89,6 +93,19 @@ export default async function TrainerDashboardHomePage() {
           <div className="mt-6">
             <TrainerDashboardQuickActions />
           </div>
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-2xl space-y-4 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
+        <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-white/40">Premium Page</h2>
+        <TrainerPremiumHubSummary variant="compact" />
+        <div className="flex justify-center pt-1">
+          <Link
+            href="/trainer/dashboard/premium"
+            className="inline-flex min-h-[2.75rem] w-full max-w-sm items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/12 px-5 text-xs font-black uppercase tracking-[0.1em] text-white transition hover:border-[#FF7E00]/55 hover:bg-[#FF7E00]/18"
+          >
+            {premiumActive ? "Open premium hub" : "Explore premium enrollment"}
+          </Link>
         </div>
       </section>
 

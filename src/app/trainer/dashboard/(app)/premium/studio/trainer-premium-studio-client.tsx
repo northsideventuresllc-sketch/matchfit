@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
-import { FeaturedListingStudioPanel } from "@/components/trainer/featured-listing-studio-panel";
 
 type StudioMode = "photo" | "video" | "checkin" | "carousel";
 
@@ -272,8 +271,6 @@ export function TrainerPremiumStudioClient() {
 
   return (
     <>
-      <FeaturedListingStudioPanel />
-
       <div className="grid gap-3 sm:grid-cols-2">
         <button
           type="button"
@@ -484,7 +481,10 @@ export function TrainerPremiumStudioClient() {
             </div>
 
             <p className="mt-4 text-center text-[10px] text-white/35">
-              <Link href="/trainer/dashboard/premium/my-content" className="text-[#FF7E00] underline-offset-2 hover:underline">
+              <Link
+                href="/trainer/dashboard/premium/fit-hub-content#my-content"
+                className="text-[#FF7E00] underline-offset-2 hover:underline"
+              >
                 MY CONTENT
               </Link>{" "}
               — view, share, delete, or make posts private.

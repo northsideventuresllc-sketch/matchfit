@@ -19,7 +19,13 @@ type MyPost = {
   isScheduled: boolean;
 };
 
-export function TrainerPremiumMyContentClient() {
+type MyContentProps = {
+  /** When true, hides the top nav link (used on the combined Fit Hub & content page). */
+  embedded?: boolean;
+};
+
+export function TrainerPremiumMyContentClient(props: MyContentProps) {
+  const embedded = Boolean(props.embedded);
   const router = useRouter();
   const [posts, setPosts] = useState<MyPost[] | null>(null);
   const [username, setUsername] = useState<string>("");
@@ -125,14 +131,21 @@ export function TrainerPremiumMyContentClient() {
 
   return (
     <div className="space-y-6">
-      <p className="text-center text-xs text-white/45">
-        <Link href="/trainer/dashboard/premium/studio" className="text-[#FF7E00] underline-offset-2 hover:underline">
-          Back to Premium Studio
-        </Link>
-      </p>
+      {!embedded ? (
+        <p className="text-center text-xs text-white/45">
+          <Link
+            href="/trainer/dashboard/premium/fit-hub-content"
+            className="text-[#FF7E00] underline-offset-2 hover:underline"
+          >
+            Back to Fit Hub &amp; content
+          </Link>
+        </p>
+      ) : null}
 
       {!posts?.length ? (
-        <p className="py-10 text-center text-sm text-white/45">No posts yet. Create one from Premium Studio.</p>
+        <p className="py-10 text-center text-sm text-white/45">
+          No posts yet. Use the composer above to create your first Fit Hub post.
+        </p>
       ) : (
         <ul className="space-y-3">
           {posts.map((p) => (

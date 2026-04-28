@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { TrainerPremiumHubBackLink } from "@/components/trainer/trainer-premium-hub-summary";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { TrainerPromoTokensClient } from "./trainer-promo-tokens-client";
@@ -20,5 +21,10 @@ export default async function TrainerPromoTokensPage() {
     redirect("/trainer/dashboard/premium");
   }
 
-  return <TrainerPromoTokensClient />;
+  return (
+    <div className="space-y-8">
+      <TrainerPremiumHubBackLink />
+      <TrainerPromoTokensClient />
+    </div>
+  );
 }
