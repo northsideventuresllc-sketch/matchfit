@@ -24,6 +24,8 @@ type FeedPost = {
   caption: string | null;
   bodyText: string | null;
   mediaUrl: string | null;
+  mediaUrls?: string[];
+  hashtags?: string[];
   shareCount: number;
   likedByMe: boolean;
   repostedByMe: boolean;
@@ -351,6 +353,31 @@ function FitHubPostCard(props: {
               loop={props.autoplayVideo}
             />
           </div>
+        ) : null}
+
+        {p.postType === "CAROUSEL" && (p.mediaUrls?.length ?? 0) > 0 ? (
+          <div className="mt-4 flex gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-black/30 p-2 pb-3">
+            {(p.mediaUrls ?? []).map((u, i) => (
+              <div key={`${p.id}-c-${i}`} className="h-64 w-52 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black/40">
+                {u.match(/\.(mp4|webm|mov)(\?|$)/i) ? (
+                  <video src={u} className="h-full w-full object-cover" controls playsInline muted={!props.autoplayVideo} />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={u} alt="" className="h-full w-full object-cover" />
+                )}
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {(p.hashtags?.length ?? 0) > 0 ? (
+          <p className="mt-3 text-xs font-semibold text-[#FF7E00]/85">
+            {(p.hashtags ?? []).map((h) => (
+              <span key={h} className="mr-2">
+                #{h}
+              </span>
+            ))}
+          </p>
         ) : null}
       </div>
 

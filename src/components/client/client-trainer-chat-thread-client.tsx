@@ -5,9 +5,19 @@ import { SAFETY_REPORT_CATEGORIES } from "@/lib/safety-constants";
 
 type Msg = { id: string; authorRole: string; body: string; createdAt: string };
 
+type TokenTip = {
+  trainerPremium: boolean;
+  suggestedGift: number;
+  giftedThisWeek: number;
+  capPerWeek: number;
+  hasQualifyingService: boolean;
+};
+
 export function ClientTrainerChatThreadClient(props: { trainerUsername: string }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [official, setOfficial] = useState<string | null>(null);
+  const [tokenTip, setTokenTip] = useState<TokenTip | null>(null);
+  const [giftAmount, setGiftAmount] = useState(20);
   const [text, setText] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,6 +34,7 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
       const data = (await res.json()) as {
         messages?: Msg[];
         officialChatStartedAt?: string | null;
+        tokenTip?: TokenTip;
         error?: string;
       };
       if (!res.ok) {
@@ -32,6 +43,12 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
       }
       setMessages(data.messages ?? []);
       setOfficial(data.officialChatStartedAt ?? null);
+      setTokenTip(data.tokenTip ?? null);
+      if (data.tokenTip?.trainerPremium) {
+        const capLeft = Math.max(0, data.tokenTip.capPerWeek - data.tokenTip.giftedThisWeek);
+        const next = Math.min(data.tokenTip.suggestedGift, Math.max(1, capLeft || 1));
+        setGiftAmount(next);
+      }
     } catch {
       setErr("Network error.");
     } finally {
@@ -45,6 +62,24 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
     }, 0);
     return () => window.clearTimeout(t);
   }, [load]);
+
+  async function sendTokens() {
+    setErr(null);
+    const res = await fetch(
+      `/api/client/conversations/${encodeURIComponent(props.trainerUsername)}/gift-tokens`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: giftAmount }),
+      },
+    );
+    const data = (await res.json()) as { error?: string };
+    if (!res.ok) {
+      setErr(data.error ?? "Could not send tokens.");
+      return;
+    }
+    void load();
+  }
 
   async function send() {
     setErr(null);
@@ -172,6 +207,58 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
       {!official ? (
         <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.07] p-4 text-sm text-amber-100/90">
           This chat opens after the coach accepts your profile interest or sends you a discovery nudge.
+        </div>
+      ) : null}
+
+      {official && tokenTip?.hasQualifyingService ? (
+        <div className="rounded-2xl border border-[#FF7E00]/25 bg-[#FF7E00]/[0.07] p-4 text-sm text-white/85">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#FF7E00]/90">Appreciation tokens</p>
+          {!tokenTip.trainerPremium ? (
+            <p className="mt-2 text-xs text-white/55">
+              This coach is not on Premium Page, so token gifts are not enabled for this thread.
+            </p>
+          ) : (
+            (() => {
+              const capLeft = Math.max(0, tokenTip.capPerWeek - tokenTip.giftedThisWeek);
+              return (
+                <>
+                  <p className="mt-2 text-xs text-white/60">
+                    Suggested: <strong className="text-white/90">{tokenTip.suggestedGift}</strong> tokens. You have sent{" "}
+                    <strong className="text-white/90">{tokenTip.giftedThisWeek}</strong> / {tokenTip.capPerWeek} tokens
+                    to this coach this week (active subscription required; caps reduce abuse).
+                  </p>
+                  {capLeft < 1 ? (
+                    <p className="mt-2 text-xs text-amber-100/80">Weekly gift limit reached for this coach.</p>
+                  ) : (
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+                      <label className="flex-1 text-xs text-white/50">
+                        Amount
+                        <input
+                          type="number"
+                          min={1}
+                          max={capLeft}
+                          value={giftAmount}
+                          onChange={(e) =>
+                            setGiftAmount(
+                              Math.max(1, Math.min(capLeft, parseInt(e.target.value, 10) || 1)),
+                            )
+                          }
+                          className="mt-1 w-full rounded-xl border border-white/10 bg-[#0E1016] px-3 py-2 text-sm text-white"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => void sendTokens()}
+                        className="inline-flex min-h-[2.75rem] shrink-0 items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/15 px-5 text-xs font-black uppercase tracking-[0.1em] text-white transition hover:border-[#FF7E00]/55"
+                      >
+                        Send tokens
+                      </button>
+                    </div>
+                  )}
+                </>
+              );
+            })()
+          )}
         </div>
       ) : null}
 

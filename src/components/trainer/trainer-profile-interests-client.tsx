@@ -81,7 +81,7 @@ export function TrainerProfileInterestsClient() {
           <p>No pending inquiries.</p>
           <p className="mt-4">
             <Link href="/trainer/dashboard/discover-clients" className="text-[#FF7E00] font-semibold underline-offset-2 hover:underline">
-              Discover clients
+              Discover Clients
             </Link>
           </p>
         </div>

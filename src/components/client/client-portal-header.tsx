@@ -82,7 +82,7 @@ export function ClientPortalHeader(props: Props) {
         {menuOpen ? (
           <div
             role="menu"
-            className="absolute right-0 top-[calc(100%+0.5rem)] z-50 min-w-[12rem] overflow-hidden rounded-xl border border-white/10 bg-[#12151C] py-1 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.85)]"
+            className="absolute right-0 top-[calc(100%+0.5rem)] z-50 min-w-[14rem] overflow-hidden rounded-xl border border-white/10 bg-[#12151C] py-1 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.85)]"
           >
             <Link
               role="menuitem"
@@ -102,6 +102,30 @@ export function ClientPortalHeader(props: Props) {
             </Link>
             <Link
               role="menuitem"
+              href="/client/dashboard/fithub-settings"
+              className="block px-4 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/[0.06]"
+              onClick={() => setMenuOpen(false)}
+            >
+              FitHub Settings
+            </Link>
+            <Link
+              role="menuitem"
+              href="/client/dashboard/billing"
+              className="block px-4 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/[0.06]"
+              onClick={() => setMenuOpen(false)}
+            >
+              Billing Settings
+            </Link>
+            <Link
+              role="menuitem"
+              href="/client/dashboard/notification-settings"
+              className="block px-4 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/[0.06]"
+              onClick={() => setMenuOpen(false)}
+            >
+              Notification Settings
+            </Link>
+            <Link
+              role="menuitem"
               href="/client/settings"
               className="block px-4 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/[0.06]"
               onClick={() => setMenuOpen(false)}
@@ -115,7 +139,7 @@ export function ClientPortalHeader(props: Props) {
               onClick={() => void logout()}
               className="w-full px-4 py-3 text-left text-sm font-semibold text-white/70 transition hover:bg-white/[0.06] disabled:opacity-50"
             >
-              {logoutBusy ? "Signing out…" : "Log out"}
+              {logoutBusy ? "Signing out…" : "Log Out"}
             </button>
           </div>
         ) : null}

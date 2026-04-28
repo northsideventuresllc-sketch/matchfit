@@ -218,6 +218,12 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
             need—so you can train on your own time. Many coaches add scheduled touchpoints each month to adjust
             the plan and keep you accountable.
           </p>
+          <p className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-xs leading-relaxed text-white/45 sm:text-[13px]">
+            <span className="font-semibold text-[#FF7E00]/90">Disclaimer:</span> You are responsible for giving your
+            trainer accurate and complete information needed to build a safe, effective DIY program. Pricing is set by
+            each trainer and will vary based on the scope of work and the monthly workload required to create, update,
+            and support your plan.
+          </p>
         </ServiceCard>
 
         <ServiceCard title="Nutrition plans" gradientBar="from-[#FFD34E] to-[#FF7E00]">
@@ -388,6 +394,32 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
         </p>
       </SectionShell>
 
+      <SectionShell
+        id="liability-notice"
+        eyebrow="Liability notice"
+        eyebrowClass="text-[#FFD34E]"
+        title="General liability and platform responsibility statement"
+        accent="right"
+      >
+        <p>
+          Match Fit maintains business insurance, including general liability coverage, to support platform
+          operations and promote a safer environment for clients and trainers.
+        </p>
+        <p>
+          Match Fit is a technology marketplace that connects independent trainers and clients. Trainers are
+          responsible for their own professional services, credentials, programming decisions, and in-session
+          conduct. Clients are responsible for providing accurate health and training information, following
+          professional guidance appropriately, and obtaining any required medical clearance before participating
+          in fitness activities.
+        </p>
+        <p>
+          By using Match Fit, users acknowledge that fitness and nutrition activities carry inherent risks. To
+          the fullest extent permitted by law, Match Fit disclaims liability for injuries, losses, or damages
+          arising from trainer-client services, third-party facilities, or off-platform interactions. This
+          statement is a general informational notice and does not replace the full Terms of Service.
+        </p>
+      </SectionShell>
+
       <div className="grid gap-5 lg:grid-cols-2">
         <article
           id="for-clients"
@@ -469,6 +501,27 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           </Link>
         </div>
       )}
+
+      <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-center gap-1.5 pt-1 sm:gap-2">
+        <Link
+          href="/privacy"
+          className="inline-flex min-h-8 items-center justify-center rounded-lg border border-white/[0.12] bg-white/[0.03] px-3 text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-white/60 transition hover:border-white/[0.22] hover:text-white/85"
+        >
+          Privacy Policy
+        </Link>
+        <Link
+          href="/terms"
+          className="inline-flex min-h-8 items-center justify-center rounded-lg border border-white/[0.12] bg-white/[0.03] px-3 text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-white/60 transition hover:border-white/[0.22] hover:text-white/85"
+        >
+          Terms Of Service
+        </Link>
+        <Link
+          href="/report-bug"
+          className="inline-flex min-h-8 items-center justify-center rounded-lg border border-white/[0.12] bg-white/[0.03] px-3 text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-white/60 transition hover:border-white/[0.22] hover:text-white/85"
+        >
+          Report A Bug
+        </Link>
+      </div>
     </div>
   );
 }

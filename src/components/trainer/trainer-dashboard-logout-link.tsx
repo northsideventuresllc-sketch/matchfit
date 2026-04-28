@@ -25,7 +25,7 @@ export function TrainerDashboardLogoutLink() {
         }}
         className="text-[#FF7E00] underline-offset-2 transition hover:underline disabled:opacity-50"
       >
-        {busy ? "Signing out…" : "Log out"}
+        {busy ? "Signing out…" : "Log Out"}
       </button>
     </div>
   );

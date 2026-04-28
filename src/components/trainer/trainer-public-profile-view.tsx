@@ -139,57 +139,6 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
               <p className="mt-6 text-center text-xs text-white/35 sm:text-left">Match Fit Coach</p>
             )}
 
-            {socialLinksOrdered.length > 0 ? (
-              <section
-                className="mt-6 rounded-2xl border border-[#FF7E00]/25 bg-[linear-gradient(165deg,rgba(255,126,0,0.12)_0%,rgba(14,16,22,0.95)_45%)] px-4 py-5 sm:px-5"
-                aria-label="Social media and other links"
-              >
-                <h2 className="text-center text-[11px] font-black uppercase tracking-[0.18em] text-[#FFD34E] sm:text-left">
-                  Social media &amp; other links
-                </h2>
-                <p className="mt-2 text-center text-xs leading-relaxed text-white/50 sm:text-left">
-                  Every destination below opens in a new tab, including social profiles and any extra link this coach
-                  added.
-                </p>
-                <ul className="mt-4 space-y-3">
-                  {socialLinksOrdered.map((s, i) => (
-                    <li key={`${s.platform}-${i}-${s.url}`}>
-                      <a
-                        href={s.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex flex-col gap-2 rounded-xl border border-white/[0.14] bg-[#0B0C0F]/80 px-4 py-3.5 transition hover:border-[#FF7E00]/45 hover:bg-[#12151C]/90 sm:flex-row sm:items-center sm:gap-4"
-                      >
-                        <div className="flex min-w-0 flex-1 items-center gap-3">
-                          {s.platform === "other" ? (
-                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/[0.08] text-sm font-black text-[#FF7E00]">
-                              ↗
-                            </span>
-                          ) : (
-                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-[#0E1016]">
-                              <TrainerSocialBrandIcon
-                                platform={s.platform as Exclude<typeof s.platform, "other">}
-                                className="h-7 w-7"
-                              />
-                            </span>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <span className="block text-sm font-black text-white">{s.label}</span>
-                            <span className="mt-1 block break-all text-sm font-medium leading-snug text-[#FF7E00] underline-offset-2 hover:underline">
-                              {s.url}
-                            </span>
-                          </div>
-                        </div>
-                        <span className="shrink-0 self-start text-[10px] font-black uppercase tracking-[0.12em] text-white/45 sm:self-center">
-                          Open ↗
-                        </span>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-
             <div className="mt-6">
               <Link
                 href={props.messageHref}
@@ -309,6 +258,34 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
                     <TrainerMatchAnswersPreview blocks={props.highlightBlocks} variant="public" />
                   </div>
                 ) : null}
+              </section>
+            ) : null}
+
+            {socialLinksOrdered.length > 0 ? (
+              <section className="mt-10 border-t border-white/[0.06] pt-6" aria-label="Social media links">
+                <p className="text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-white/35">
+                  Social Links
+                </p>
+                <p className="mt-2 text-center text-xs text-white/40">Tap a platform to open it in a new tab.</p>
+                <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2">
+                  {socialLinksOrdered.map((s, i) => (
+                    <a
+                      key={`${s.platform}-${i}-${s.url}`}
+                      href={s.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-sm text-white/55 underline-offset-2 transition hover:text-[#FF7E00] hover:underline"
+                    >
+                      {s.platform === "other" ? null : (
+                        <TrainerSocialBrandIcon
+                          platform={s.platform as Exclude<typeof s.platform, "other">}
+                          className="h-4 w-4"
+                        />
+                      )}
+                      <span>{s.label}</span>
+                    </a>
+                  ))}
+                </div>
               </section>
             ) : null}
 

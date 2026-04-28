@@ -18,7 +18,7 @@ const NAV = [
   { href: "/trainer/dashboard", label: "Dashboard", match: (p: string) => p === "/trainer/dashboard" },
   {
     href: "/trainer/dashboard/discover-clients",
-    label: "Discover clients",
+    label: "Discover Clients",
     match: (p: string) => p.startsWith("/trainer/dashboard/discover-clients"),
   },
   {
@@ -36,11 +36,6 @@ const NAV = [
     label: "Match questionnaires",
     match: (p: string) => p.startsWith("/trainer/dashboard/match-questionnaire"),
   },
-  {
-    href: "/trainer/dashboard/compliance",
-    label: "Compliance",
-    match: (p: string) => p.startsWith("/trainer/dashboard/compliance"),
-  },
 ] as const;
 
 export function TrainerDashboardShell(props: TrainerDashboardShellProps) {
@@ -48,8 +43,7 @@ export function TrainerDashboardShell(props: TrainerDashboardShellProps) {
   const isHome = pathname === "/trainer/dashboard";
   const backHref = !isHome ? "/trainer/dashboard" : undefined;
   const backLabel = !isHome ? "← Dashboard" : undefined;
-  const showCompliance = props.showComplianceInNav !== false;
-  const navItems = showCompliance ? NAV : NAV.filter((item) => item.href !== "/trainer/dashboard/compliance");
+  const navItems = NAV;
 
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-[#07080C] px-5 py-10 text-white sm:px-8 sm:py-12">
@@ -91,18 +85,21 @@ export function TrainerDashboardShell(props: TrainerDashboardShellProps) {
 
         {props.children}
 
-        <footer className="mt-12 space-y-4 border-t border-white/[0.08] pt-6 text-xs leading-relaxed text-white/45">
-          <p>
+        <footer className="mt-12 space-y-4 border-t border-white/[0.08] pt-6 text-center text-xs leading-relaxed text-white/45">
+          <p className="mx-auto max-w-2xl">
             All billing information is safely encrypted and secured within the Match Fit interface and will not be
             shared with third parties unless express written consent is given.
           </p>
-          <p>
+          <p className="mx-auto max-w-2xl">
             Keep sensitive coordination inside Match Fit chat once a thread is open. Automated systems may review chat
             content to help ensure contact details and off-platform payment instructions are not shared in chat.
             In-person exchanges of contact information are outside Match Fit&apos;s control and are not governed by these
             monitoring tools.
           </p>
           <p className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-[10px] font-bold uppercase tracking-[0.14em]">
+            <Link href="/report-bug" className="text-white/50 underline-offset-2 transition hover:text-white/75 hover:underline">
+              Report a bug
+            </Link>
             <Link href="/privacy" className="text-white/50 underline-offset-2 transition hover:text-white/75 hover:underline">
               Privacy policy
             </Link>

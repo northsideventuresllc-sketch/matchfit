@@ -16,7 +16,7 @@ export function ClientBugReportForm() {
   const [anonymous, setAnonymous] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [category, setCategory] = useState(CATEGORIES[0].value);
+  const [category, setCategory] = useState<string>(CATEGORIES[0].value);
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

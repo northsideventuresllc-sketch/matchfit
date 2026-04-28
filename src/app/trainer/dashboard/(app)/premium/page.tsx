@@ -32,14 +32,33 @@ export default async function TrainerPremiumSignupPage() {
       </header>
 
       {active ? (
-        <div className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-8 text-center">
-          <p className="text-sm text-white/70">You&apos;re enrolled in Premium Page.</p>
-          <Link
-            href="/trainer/dashboard/premium/studio"
-            className="mt-4 inline-flex min-h-[3rem] items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/12 px-6 text-sm font-semibold uppercase tracking-wide text-white transition hover:border-[#FF7E00]/55"
-          >
-            Open Premium studio
-          </Link>
+        <div className="space-y-5 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-8">
+          <div className="text-center">
+            <p className="text-sm text-white/70">You&apos;re enrolled in Premium Page.</p>
+            <p className="mt-2 text-xs text-white/45">
+              Posting and scheduled publishing tools are managed in Premium so FitHub can stay focused on cross-trainer discovery.
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link
+              href="/trainer/dashboard/premium/studio"
+              className="inline-flex min-h-[3rem] min-w-[10rem] items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/12 px-6 text-sm font-black uppercase tracking-[0.1em] text-white transition hover:border-[#FF7E00]/55"
+            >
+              Premium Studio
+            </Link>
+            <Link
+              href="/trainer/dashboard/premium/my-content"
+              className="inline-flex min-h-[3rem] min-w-[10rem] items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-6 text-sm font-black uppercase tracking-[0.1em] text-white/90 transition hover:border-white/25"
+            >
+              MY CONTENT
+            </Link>
+            <Link
+              href="/trainer/dashboard/premium/promo-tokens"
+              className="inline-flex min-h-[3rem] min-w-[10rem] items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-6 text-sm font-black uppercase tracking-[0.1em] text-emerald-100 transition hover:border-emerald-500/45"
+            >
+              Promo tokens
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-8">

@@ -6,6 +6,8 @@ export const trainerNotificationPrefsSchema = z.object({
   pushCertificationUpdates: z.boolean().default(true),
   pushComplianceReminders: z.boolean().default(true),
   pushBilling: z.boolean().default(true),
+  billingEmailNotifications: z.boolean().default(true),
+  billingTextNotifications: z.boolean().default(false),
   pushPlatformUpdates: z.boolean().default(true),
 });
 
@@ -17,6 +19,8 @@ export const defaultTrainerNotificationPrefs: TrainerNotificationPrefs = {
   pushCertificationUpdates: true,
   pushComplianceReminders: true,
   pushBilling: true,
+  billingEmailNotifications: true,
+  billingTextNotifications: false,
   pushPlatformUpdates: true,
 };
 

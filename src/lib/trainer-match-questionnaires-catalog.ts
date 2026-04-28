@@ -24,7 +24,7 @@ export const TRAINER_QUESTIONNAIRES_CATALOG: readonly TrainerQuestionnaireCatalo
   },
   {
     key: "follow-up",
-    title: "Follow-up questionnaires",
+    title: "Follow-Up Questionnaires",
     href: null,
     summary: "Short, targeted surveys as our systems learn more about what you specialize in.",
     disclaimer: FOLLOW_UP_SURVEYS_BLURB,

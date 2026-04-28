@@ -43,7 +43,7 @@ export function TrainerDashboardBackgroundVisibility(props: {
 
   return (
     <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
-      <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-white/40">Background &amp; visibility</h2>
+      <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-white/40">Background Check &amp; visibility</h2>
       <p className="mx-auto mt-2 max-w-lg text-center text-sm leading-relaxed text-white/50">
         Same fields as in{" "}
         <Link href={props.settingsHref} className="text-[#FF7E00] underline-offset-2 hover:underline">

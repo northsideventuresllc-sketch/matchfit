@@ -112,6 +112,7 @@ export function TrainerDashboardAppHeader(props: Props) {
   }
 
   const b = badgeLabel(unread);
+  const unreadDropdownItems = notifs?.filter((n) => !n.read) ?? [];
 
   return (
     <header className="mb-8 flex flex-wrap items-center justify-between gap-3">
@@ -141,7 +142,7 @@ export function TrainerDashboardAppHeader(props: Props) {
           href={premiumHref}
           className="rounded-xl border border-[#FF7E00]/35 bg-[#FF7E00]/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/90 outline-none ring-[#FF7E00]/30 transition hover:border-[#FF7E00]/50 hover:bg-[#FF7E00]/18 focus-visible:ring-2 sm:px-4 sm:text-xs"
         >
-          Premium Page
+          Premium Studio
         </Link>
 
         <div className="relative" ref={notifWrapRef}>
@@ -165,14 +166,14 @@ export function TrainerDashboardAppHeader(props: Props) {
               aria-label="Notifications"
             >
               <div className="border-b border-white/[0.06] px-4 py-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#FF7E00]/90">Coach alerts</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#FF7E00]/90">UNREAD ALERTS</p>
               </div>
               <div className="max-h-80 overflow-y-auto">
                 {notifBusy && !notifs ? (
                   <p className="px-4 py-6 text-center text-xs text-white/45">Loading…</p>
-                ) : notifs && notifs.length ? (
+                ) : unreadDropdownItems.length ? (
                   <ul className="divide-y divide-white/[0.06]">
-                    {notifs.map((n) => (
+                    {unreadDropdownItems.map((n) => (
                       <li key={n.id} className="flex gap-2 px-3 py-3">
                         <button
                           type="button"
@@ -209,16 +210,27 @@ export function TrainerDashboardAppHeader(props: Props) {
                     ))}
                   </ul>
                 ) : (
-                  <p className="px-4 py-6 text-center text-xs text-white/45">No notifications yet.</p>
+                  <p className="px-4 py-6 text-center text-xs text-white/45">
+                    {notifs?.length
+                      ? "You are all caught up. Open Notifications Center to review read items."
+                      : "No notifications yet."}
+                  </p>
                 )}
               </div>
-              <div className="border-t border-white/[0.06] px-3 py-2 text-center">
+              <div className="space-y-2 border-t border-white/[0.06] px-3 py-3">
                 <Link
-                  href="/trainer/dashboard/notification-settings"
-                  className="text-sm font-semibold text-[#FF7E00] underline-offset-2 hover:underline"
+                  href="/trainer/dashboard/notifications"
+                  className="flex w-full items-center justify-center rounded-xl border border-[#FF7E00]/35 bg-[#FF7E00]/10 px-3 py-2.5 text-center text-xs font-black uppercase tracking-[0.12em] text-[#FF7E00] transition hover:border-[#FF7E00]/55 hover:bg-[#FF7E00]/15"
                   onClick={() => setNotifOpen(false)}
                 >
-                  Notification settings
+                  Notifications Center
+                </Link>
+                <Link
+                  href="/trainer/dashboard/notification-settings"
+                  className="block text-center text-xs font-semibold text-white/50 underline-offset-2 transition hover:text-white/80 hover:underline"
+                  onClick={() => setNotifOpen(false)}
+                >
+                  Notification Settings
                 </Link>
               </div>
             </div>
@@ -287,6 +299,14 @@ export function TrainerDashboardAppHeader(props: Props) {
               >
                 Account Settings
               </Link>
+              <Link
+                role="menuitem"
+                href="/trainer/dashboard/compliance"
+                className="block px-4 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/[0.06]"
+                onClick={() => setMenuOpen(false)}
+              >
+                Compliance Details
+              </Link>
               <button
                 role="menuitem"
                 type="button"
@@ -294,7 +314,7 @@ export function TrainerDashboardAppHeader(props: Props) {
                 onClick={() => void logout()}
                 className="w-full px-4 py-3 text-left text-sm font-semibold text-white/70 transition hover:bg-white/[0.06] disabled:opacity-50"
               >
-                {logoutBusy ? "Signing out…" : "Log out"}
+                {logoutBusy ? "Signing out…" : "Log Out"}
               </button>
             </div>
           ) : null}
