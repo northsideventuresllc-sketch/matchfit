@@ -110,6 +110,7 @@ model Client {
   dailyAlgorithmContextJson String?
 
   dailyQuestionnaires ClientDailyQuestionnaire[]
+  bugReports         ClientBugReport[]
 
   @@map("clients")
 }
@@ -281,6 +282,24 @@ model ClientDailyQuestionnaire {
 
   @@index([clientId, windowStartedAt])
   @@map("client_daily_questionnaires")
+}
+
+/// Client-submitted product issues/feedback reports from dashboard footer.
+model ClientBugReport {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  anonymous   Boolean @default(false)
+  reporterName String?
+  reporterEmail String?
+  category    String
+  description String
+
+  @@index([clientId, createdAt])
+  @@map("client_bug_reports")
 }
 
 /// In-app notification feed (nudges, matches, billing, product updates).
