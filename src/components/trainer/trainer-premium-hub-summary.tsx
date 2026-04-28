@@ -22,20 +22,21 @@ export function TrainerPremiumHubSummary(props: Props) {
         <p className="text-sm leading-relaxed text-white/75">
           <span className="font-semibold text-white/90">Premium trainers</span> unlock featured placement options, a Fit
           Hub studio for posts clients actually see, and promotion tokens for regional boosts—plus one hub to manage it
-          all.
+          all. Treating those surfaces as part of your business plan is one of the fastest ways to get in front of serious
+          clients.
         </p>
         <ul className="mt-3 space-y-1.5 text-xs text-white/55">
           <li>
-            <span className="font-semibold text-[#FF7E00]/95">Featured Trainer</span> — eligibility, daily entry, and
-            bidding for discovery.
+            <span className="font-semibold text-[#FF7E00]/95">Placement &amp; Auctions</span> — eligibility, daily entry,
+            and bidding for discovery.
           </li>
           <li>
-            <span className="font-semibold text-[#FF7E00]/95">Fit Hub &amp; content</span> — create and schedule media;
-            edit visibility in My Content.
+            <span className="font-semibold text-[#FF7E00]/95">Content Creation</span> — create and schedule media; edit
+            visibility in My Content.
           </li>
           <li>
-            <span className="font-semibold text-[#FF7E00]/95">Promotion tokens</span> — balance, packs, and promoted video
-            runs by region.
+            <span className="font-semibold text-[#FF7E00]/95">Token Balance &amp; FitHub Boost</span> — balance, packs, and
+            promoted video runs by region.
           </li>
         </ul>
       </div>
@@ -66,25 +67,28 @@ export function TrainerPremiumHubSummary(props: Props) {
 
       <div className="relative mt-6 grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-[#FF7E00]/20 bg-[#12151C]/90 p-4 text-left">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#FF7E00]/90">Featured Trainer</p>
-          <p className="mt-2 text-xs leading-relaxed text-white/55">
+          <p className="text-xs leading-relaxed text-white/55">
             Manage eligibility, daily raffle entry, and auction bids so you can surface in client-facing featured
             experiences when windows open.
           </p>
+          <p className="mt-3 text-sm font-semibold tracking-tight text-white/90">Placement &amp; Auctions</p>
+          <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-[#FF7E00]/90">Featured Trainer</p>
         </div>
         <div className="rounded-2xl border border-white/[0.08] bg-[#12151C]/90 p-4 text-left">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/50">Fit Hub &amp; content</p>
-          <p className="mt-2 text-xs leading-relaxed text-white/55">
+          <p className="text-xs leading-relaxed text-white/55">
             Upload photos, clips, check-ins, and carousels—then publish or schedule. My Content on the same page is where
             you review, share, privatize, or remove what is live.
           </p>
+          <p className="mt-3 text-sm font-semibold tracking-tight text-white/90">Content Creation</p>
+          <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/50">Fit Hub &amp; Content</p>
         </div>
         <div className="rounded-2xl border border-emerald-500/20 bg-[#12151C]/90 p-4 text-left">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200/90">Promotion tokens</p>
-          <p className="mt-2 text-xs leading-relaxed text-white/55">
+          <p className="text-xs leading-relaxed text-white/55">
             Track your balance, buy packs when you need more runway, and spend tokens to promote eligible public videos
             to clients in your configured service region.
           </p>
+          <p className="mt-3 text-sm font-semibold tracking-tight text-white/90">Token Balance &amp; FitHub Boost</p>
+          <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200/90">Promotion Tokens</p>
         </div>
       </div>
     </div>

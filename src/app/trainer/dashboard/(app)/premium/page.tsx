@@ -27,59 +27,63 @@ export default async function TrainerPremiumSignupPage() {
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Growth</p>
         <h1 className="text-3xl font-black uppercase tracking-[0.06em] sm:text-4xl">Premium Page</h1>
         <p className="mx-auto max-w-2xl text-sm leading-relaxed text-white/55">
-          One hub for premium tools: featured placement, Fit Hub publishing, and promotion tokens. Open a destination
-          below—each page focuses on a single job so you are never hunting through tabs.
+          {active ? (
+            <>
+              One hub for featured placement, Fit Hub publishing, and promotion tokens—each destination below focuses on
+              a single job so you are not hunting through tabs. Like programming or cues, visibility works best when it is
+              deliberate: a modest investment in those surfaces helps the right clients find you before you get lost in the
+              scroll.
+            </>
+          ) : (
+            <>
+              One hub for featured placement, Fit Hub publishing, and promotion tokens once you enroll. When you are
+              ready, the same tools become part of how you run the business—not just a badge—so the clients who fit you
+              actually see your work.
+            </>
+          )}
         </p>
       </header>
-
-      <TrainerPremiumHubSummary variant="full" />
 
       {active ? (
         <div className="mx-auto grid max-w-4xl gap-4 sm:grid-cols-3">
           <Link
             href="/trainer/dashboard/premium/featured"
-            className="group flex min-h-[10rem] flex-col justify-between rounded-3xl border border-[#FF7E00]/25 bg-gradient-to-br from-[#FF7E00]/[0.12] to-[#12151C]/95 p-5 text-left shadow-[0_24px_60px_-28px_rgba(255,126,0,0.35)] transition hover:border-[#FF7E00]/45"
+            className="group flex min-h-[11rem] flex-col items-center justify-center gap-3 rounded-3xl border border-white/[0.1] bg-[#12151C]/90 px-5 py-6 text-center transition hover:border-[#FF7E00]/35"
           >
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#FF7E00]/95">Featured Trainer</p>
-              <p className="mt-3 text-sm font-semibold text-white/90">Placement &amp; auctions</p>
-              <p className="mt-2 text-xs leading-relaxed text-white/50">
-                Eligibility, daily entry, and bidding for featured windows.
-              </p>
-            </div>
-            <span className="mt-4 text-[10px] font-black uppercase tracking-[0.12em] text-white/45 group-hover:text-white/70">
+            <p className="text-base font-semibold text-white">Featured Trainer</p>
+            <p className="text-sm font-semibold text-[#FF7E00]">Placement &amp; Auctions</p>
+            <p className="max-w-[14rem] text-xs leading-relaxed text-white/45">
+              Eligibility, daily entry, and bidding for featured windows.
+            </p>
+            <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/35 group-hover:text-white/55">
               Open →
             </span>
           </Link>
 
           <Link
             href="/trainer/dashboard/premium/fit-hub-content"
-            className="group flex min-h-[10rem] flex-col justify-between rounded-3xl border border-white/[0.1] bg-[#12151C]/90 p-5 text-left transition hover:border-white/20"
+            className="group flex min-h-[11rem] flex-col items-center justify-center gap-3 rounded-3xl border border-white/[0.1] bg-[#12151C]/90 px-5 py-6 text-center transition hover:border-[#FF7E00]/35"
           >
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/45">Fit Hub &amp; content</p>
-              <p className="mt-3 text-sm font-semibold text-white/90">Create + My Content</p>
-              <p className="mt-2 text-xs leading-relaxed text-white/50">
-                Composer for posts and the full library for edits and visibility.
-              </p>
-            </div>
-            <span className="mt-4 text-[10px] font-black uppercase tracking-[0.12em] text-white/45 group-hover:text-white/70">
+            <p className="text-base font-semibold text-white">Fit Hub &amp; Content</p>
+            <p className="text-sm font-semibold text-[#FF7E00]">Content Creation</p>
+            <p className="max-w-[14rem] text-xs leading-relaxed text-white/45">
+              Composer for posts and the full library for edits and visibility.
+            </p>
+            <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/35 group-hover:text-white/55">
               Open →
             </span>
           </Link>
 
           <Link
             href="/trainer/dashboard/premium/promo-tokens"
-            className="group flex min-h-[10rem] flex-col justify-between rounded-3xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 to-[#12151C]/95 p-5 text-left transition hover:border-emerald-400/40"
+            className="group flex min-h-[11rem] flex-col items-center justify-center gap-3 rounded-3xl border border-white/[0.1] bg-[#12151C]/90 px-5 py-6 text-center transition hover:border-[#FF7E00]/35"
           >
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200/90">Promotion tokens</p>
-              <p className="mt-3 text-sm font-semibold text-white/90">Balance &amp; boosts</p>
-              <p className="mt-2 text-xs leading-relaxed text-white/50">
-                Weekly grants, packs, and regional video promotions.
-              </p>
-            </div>
-            <span className="mt-4 text-[10px] font-black uppercase tracking-[0.12em] text-white/45 group-hover:text-white/70">
+            <p className="text-base font-semibold text-white">Promotion Tokens</p>
+            <p className="text-sm font-semibold text-[#FF7E00]">Token Balance &amp; FitHub Boost</p>
+            <p className="max-w-[14rem] text-xs leading-relaxed text-white/45">
+              Weekly grants, packs, and regional video promotions.
+            </p>
+            <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/35 group-hover:text-white/55">
               Open →
             </span>
           </Link>
@@ -89,6 +93,8 @@ export default async function TrainerPremiumSignupPage() {
           <PremiumSignupClient />
         </div>
       )}
+
+      <TrainerPremiumHubSummary variant="full" />
 
       <div className="flex justify-center pt-4">
         <Link
