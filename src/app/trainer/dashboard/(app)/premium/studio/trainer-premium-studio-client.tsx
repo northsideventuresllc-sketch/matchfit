@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
+import { FeaturedListingStudioPanel } from "@/components/trainer/featured-listing-studio-panel";
 
 type StudioMode = "photo" | "video" | "checkin" | "carousel";
 
@@ -271,6 +272,8 @@ export function TrainerPremiumStudioClient() {
 
   return (
     <>
+      <FeaturedListingStudioPanel />
+
       <div className="grid gap-3 sm:grid-cols-2">
         <button
           type="button"

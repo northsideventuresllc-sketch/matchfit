@@ -35,8 +35,8 @@ export function PremiumSignupClient() {
         </p>
       ) : null}
       <p className="mx-auto max-w-lg text-sm leading-relaxed text-white/55">
-        Enrolling turns on the premium hub and tools above. Checkout and plan details will connect here in a later
-        release—this flow is for early access to the studio and token surfaces.
+        Enrolling turns on the premium hub and per-area shortcuts. Checkout and plan details will connect here in a later
+        release—this flow is for early access to the studio and token surfaces. A fuller breakdown sits below.
       </p>
       <button
         type="button"

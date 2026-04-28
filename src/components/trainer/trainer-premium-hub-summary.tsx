@@ -5,6 +5,8 @@ type Variant = "full" | "compact";
 type Props = {
   variant?: Variant;
   className?: string;
+  /** When true, copy references shortcut cards above this block (enrolled hub). */
+  quickLinksAbove?: boolean;
 };
 
 /**
@@ -13,6 +15,7 @@ type Props = {
 export function TrainerPremiumHubSummary(props: Props) {
   const variant = props.variant ?? "full";
   const wrap = props.className?.trim() ? props.className : "";
+  const quickLinksAbove = props.quickLinksAbove ?? true;
 
   if (variant === "compact") {
     return (
@@ -60,35 +63,44 @@ export function TrainerPremiumHubSummary(props: Props) {
           the right clients see your best work—not just a badge.
         </p>
         <p className="text-xs leading-relaxed text-white/45">
-          After you enroll, the quick links on this page send you straight into each area. Everything here is designed so
-          clients discover you, trust your content, and can act on it in one flow.
+          {quickLinksAbove ? (
+            <>
+              The shortcuts above jump you into each workspace; this section spells out what you are opening and why it
+              matters for discovery and trust.
+            </>
+          ) : (
+            <>
+              When you are ready, enroll using the card above. After you are on premium, the three shortcut cards on this
+              page lead this overview—each one opens a focused workspace.
+            </>
+          )}
         </p>
       </div>
 
       <div className="relative mt-6 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-[#FF7E00]/20 bg-[#12151C]/90 p-4 text-left">
-          <p className="text-xs leading-relaxed text-white/55">
+        <div className="rounded-2xl border border-white/[0.08] bg-[#12151C]/90 p-4 text-center">
+          <p className="text-sm font-semibold text-white">Featured Trainer</p>
+          <p className="mt-2 text-sm font-semibold text-[#FF7E00]">Placement &amp; Auctions</p>
+          <p className="mx-auto mt-2 max-w-[14rem] text-xs leading-relaxed text-white/45">
             Manage eligibility, daily raffle entry, and auction bids so you can surface in client-facing featured
             experiences when windows open.
           </p>
-          <p className="mt-3 text-sm font-semibold tracking-tight text-white/90">Placement &amp; Auctions</p>
-          <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-[#FF7E00]/90">Featured Trainer</p>
         </div>
-        <div className="rounded-2xl border border-white/[0.08] bg-[#12151C]/90 p-4 text-left">
-          <p className="text-xs leading-relaxed text-white/55">
+        <div className="rounded-2xl border border-white/[0.08] bg-[#12151C]/90 p-4 text-center">
+          <p className="text-sm font-semibold text-white">Fit Hub &amp; Content</p>
+          <p className="mt-2 text-sm font-semibold text-[#FF7E00]">Content Creation</p>
+          <p className="mx-auto mt-2 max-w-[14rem] text-xs leading-relaxed text-white/45">
             Upload photos, clips, check-ins, and carousels—then publish or schedule. My Content on the same page is where
             you review, share, privatize, or remove what is live.
           </p>
-          <p className="mt-3 text-sm font-semibold tracking-tight text-white/90">Content Creation</p>
-          <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/50">Fit Hub &amp; Content</p>
         </div>
-        <div className="rounded-2xl border border-emerald-500/20 bg-[#12151C]/90 p-4 text-left">
-          <p className="text-xs leading-relaxed text-white/55">
+        <div className="rounded-2xl border border-white/[0.08] bg-[#12151C]/90 p-4 text-center">
+          <p className="text-sm font-semibold text-white">Promotion Tokens</p>
+          <p className="mt-2 text-sm font-semibold text-[#FF7E00]">Token Balance &amp; FitHub Boost</p>
+          <p className="mx-auto mt-2 max-w-[14rem] text-xs leading-relaxed text-white/45">
             Track your balance, buy packs when you need more runway, and spend tokens to promote eligible public videos
             to clients in your configured service region.
           </p>
-          <p className="mt-3 text-sm font-semibold tracking-tight text-white/90">Token Balance &amp; FitHub Boost</p>
-          <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200/90">Promotion Tokens</p>
         </div>
       </div>
     </div>

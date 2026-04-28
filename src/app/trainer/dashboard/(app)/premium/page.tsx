@@ -94,7 +94,7 @@ export default async function TrainerPremiumSignupPage() {
         </div>
       )}
 
-      <TrainerPremiumHubSummary variant="full" />
+      <TrainerPremiumHubSummary variant="full" quickLinksAbove={active} />
 
       <div className="flex justify-center pt-4">
         <Link
