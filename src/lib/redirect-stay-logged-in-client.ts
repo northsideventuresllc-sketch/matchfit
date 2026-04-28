@@ -1,12 +1,13 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
+import { safeInternalNextPath } from "@/lib/safe-internal-next-path";
 
 /**
  * If the visitor has a valid client session and "stay logged in" is enabled,
- * send them straight to the client dashboard instead of the public home or sign-in screen.
+ * send them to `next` when it is a safe internal path; otherwise the client dashboard.
  */
-export async function redirectStayLoggedInClientToDashboard(): Promise<void> {
+export async function redirectStayLoggedInClientToDashboard(nextRaw?: string | null): Promise<void> {
   const clientId = await getSessionClientId();
   if (!clientId) return;
 
@@ -15,6 +16,7 @@ export async function redirectStayLoggedInClientToDashboard(): Promise<void> {
     select: { stayLoggedIn: true },
   });
   if (client?.stayLoggedIn) {
-    redirect("/client/account");
+    const next = safeInternalNextPath(nextRaw);
+    redirect(next ?? "/client/dashboard");
   }
 }

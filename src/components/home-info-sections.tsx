@@ -1,5 +1,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { HomeCtaLogoutBar } from "@/components/home-cta-logout-bar";
+import {
+  CLIENT_SIGN_UP_PATH,
+  TRAINER_SIGN_UP_PATH,
+  type HomePageAuth,
+} from "@/lib/home-page-auth";
 
 function SectionShell({
   id,
@@ -62,7 +68,9 @@ function ServiceCard({
   );
 }
 
-export function HomeInfoSections() {
+export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
+  const loggedIn = homeAuth.clientLoggedIn || homeAuth.trainerLoggedIn;
+
   return (
     <div className="mt-20 space-y-6 sm:mt-24 sm:space-y-8">
       {/* 1 — Value first: why the product exists + economics (retention: answer “why stay” early) */}
@@ -226,6 +234,38 @@ export function HomeInfoSections() {
         </ServiceCard>
       </div>
 
+      <SectionShell
+        id="fithub"
+        eyebrow="FitHub"
+        eyebrowClass="text-[#FFD34E]"
+        title="Where clients scroll and trainers show up between sessions"
+        accent="left"
+      >
+        <div className="grid gap-8 border-t border-white/[0.08] pt-2 lg:grid-cols-2 lg:gap-10">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#E32B2B]">For clients</p>
+            <p className="mt-3">
+              <span className="font-semibold text-white/88">FitHub</span> is your in-app feed of posts from
+              trainers on Match Fit—quick tips, workouts, mindset checks, and moments from their coaching life
+              in <span className="font-semibold text-white/80">text, photos, or video</span>. Scroll to see who
+              resonates with you, then like, comment, or repost when something clicks. It is a low-pressure way
+              to learn how coaches think and train before you ever book a session.
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]">For trainers</p>
+            <p className="mt-3">
+              <span className="font-semibold text-white/88">FitHub</span> is your publishing lane inside Match
+              Fit: share short-form content from your dashboard so clients (and future clients) see your voice,
+              expertise, and personality between appointments. Posts can carry{" "}
+              <span className="font-semibold text-white/80">captions, write-ups, and media</span> that reinforce
+              your brand, spark conversation through comments and engagement, and keep you visible without living
+              on another social network.
+            </p>
+          </div>
+        </div>
+      </SectionShell>
+
       {/* 5 — Trust / intelligence layer */}
       <SectionShell
         id="smarter-matching"
@@ -386,43 +426,49 @@ export function HomeInfoSections() {
         </article>
       </div>
 
-      <div
-        id="cta"
-        className="mx-auto flex w-full max-w-xl flex-col gap-4 sm:flex-row sm:justify-center"
-      >
-        <Link
-          href="/client/sign-up"
-          title="Create a client account"
-          className="group relative isolate flex min-h-[3.75rem] flex-1 items-center justify-center overflow-hidden rounded-2xl px-6 text-center text-base font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_24px_60px_-18px_rgba(227,43,43,0.55)] transition duration-200 active:translate-y-px sm:min-h-[4rem] sm:flex-none sm:min-w-[220px] sm:text-[0.95rem]"
+      {loggedIn ? (
+        <div id="cta" className="mx-auto w-full max-w-xl">
+          <HomeCtaLogoutBar />
+        </div>
+      ) : (
+        <div
+          id="cta"
+          className="mx-auto flex w-full max-w-xl flex-col gap-4 sm:flex-row sm:justify-center"
         >
-          <span
-            aria-hidden
-            className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]"
-          />
-          <span
-            aria-hidden
-            className="absolute inset-px rounded-[0.9rem] bg-white/10 opacity-0 transition group-hover:opacity-100"
-          />
-          <span className="relative">Find My Match</span>
-        </Link>
+          <Link
+            href={CLIENT_SIGN_UP_PATH}
+            title="Client sign up"
+            className="group relative isolate flex min-h-[3.75rem] flex-1 items-center justify-center overflow-hidden rounded-2xl px-6 text-center text-base font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_24px_60px_-18px_rgba(227,43,43,0.55)] transition duration-200 active:translate-y-px sm:min-h-[4rem] sm:flex-none sm:min-w-[220px] sm:text-[0.95rem]"
+          >
+            <span
+              aria-hidden
+              className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]"
+            />
+            <span
+              aria-hidden
+              className="absolute inset-px rounded-[0.9rem] bg-white/10 opacity-0 transition group-hover:opacity-100"
+            />
+            <span className="relative">Find My Match</span>
+          </Link>
 
-        <Link
-          href="/trainer/signup"
-          title="Start trainer sign-up"
-          className="group relative flex min-h-[3.75rem] flex-1 items-center justify-center overflow-hidden rounded-2xl px-6 text-center text-base font-black uppercase tracking-[0.08em] text-white shadow-[0_20px_60px_-22px_rgba(0,0,0,0.9)] transition duration-200 active:translate-y-px sm:min-h-[4rem] sm:flex-none sm:min-w-[240px] sm:text-[0.95rem]"
-        >
-          <span aria-hidden className="absolute inset-0 rounded-2xl bg-[#12151C]" />
-          <span
-            aria-hidden
-            className="absolute inset-0 rounded-2xl bg-[linear-gradient(135deg,rgba(255,211,78,0.35),rgba(255,126,0,0.2),rgba(227,43,43,0.35))] opacity-70 blur-xl transition group-hover:opacity-100"
-          />
-          <span className="absolute inset-0 rounded-2xl bg-[linear-gradient(135deg,#FFD34E,#FF7E00,#E32B2B)] p-[1.5px]">
-            <span className="flex h-full w-full items-center justify-center rounded-[0.925rem] bg-[#0E1016] px-2">
-              Build My Fitness Brand
+          <Link
+            href={TRAINER_SIGN_UP_PATH}
+            title="Trainer sign up"
+            className="group relative flex min-h-[3.75rem] flex-1 items-center justify-center overflow-hidden rounded-2xl px-6 text-center text-base font-black uppercase tracking-[0.08em] text-white shadow-[0_20px_60px_-22px_rgba(0,0,0,0.9)] transition duration-200 active:translate-y-px sm:min-h-[4rem] sm:flex-none sm:min-w-[240px] sm:text-[0.95rem]"
+          >
+            <span aria-hidden className="absolute inset-0 rounded-2xl bg-[#12151C]" />
+            <span
+              aria-hidden
+              className="absolute inset-0 rounded-2xl bg-[linear-gradient(135deg,rgba(255,211,78,0.35),rgba(255,126,0,0.2),rgba(227,43,43,0.35))] opacity-70 blur-xl transition group-hover:opacity-100"
+            />
+            <span className="absolute inset-0 rounded-2xl bg-[linear-gradient(135deg,#FFD34E,#FF7E00,#E32B2B)] p-[1.5px]">
+              <span className="flex h-full w-full items-center justify-center rounded-[0.925rem] bg-[#0E1016] px-2">
+                Build My Fitness Brand
+              </span>
             </span>
-          </span>
-        </Link>
-      </div>
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

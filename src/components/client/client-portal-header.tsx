@@ -86,6 +86,22 @@ export function ClientPortalHeader(props: Props) {
           >
             <Link
               role="menuitem"
+              href="/client/dashboard"
+              className="block px-4 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/[0.06]"
+              onClick={() => setMenuOpen(false)}
+            >
+              Dashboard
+            </Link>
+            <Link
+              role="menuitem"
+              href="/client/dashboard/messages"
+              className="block px-4 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/[0.06]"
+              onClick={() => setMenuOpen(false)}
+            >
+              Chats
+            </Link>
+            <Link
+              role="menuitem"
               href="/client/settings"
               className="block px-4 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/[0.06]"
               onClick={() => setMenuOpen(false)}

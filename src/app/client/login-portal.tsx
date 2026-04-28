@@ -3,12 +3,18 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, Suspense, useState } from "react";
+import { FormEvent, Suspense, useRef, useState } from "react";
+import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import { safeInternalNextPath } from "@/lib/safe-internal-next-path";
 
-function ClientPortalInner() {
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
+
+function ClientPortalInner(props: { defaultNext: string | null }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const showPasswordResetBanner = searchParams.get("passwordReset") === "1";
+  const safeNext =
+    safeInternalNextPath(searchParams.get("next")) ?? safeInternalNextPath(props.defaultNext) ?? null;
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -16,27 +22,39 @@ function ClientPortalInner() {
   const [stayLoggedIn, setStayLoggedIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
 
   async function handleLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    if (TURNSTILE_SITE_KEY) {
+      const token = turnstileRef.current?.getToken();
+      if (!token) {
+        setError("Please wait for the security check to finish, then try again.");
+        return;
+      }
+    }
     setBusy(true);
     try {
+      const turnstileToken = TURNSTILE_SITE_KEY ? turnstileRef.current?.getToken() : undefined;
       const res = await fetch("/api/client/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier, password, stayLoggedIn }),
+        body: JSON.stringify({ identifier, password, stayLoggedIn, ...(turnstileToken ? { turnstileToken } : {}) }),
       });
       const data = (await res.json()) as { error?: string; needsTwoFactor?: boolean; next?: string };
       if (!res.ok) {
         setError(data.error ?? "Could not sign you in.");
+        turnstileRef.current?.reset();
         return;
       }
       if (data.needsTwoFactor) {
-        router.push(data.next ?? "/client/verify-2fa");
+        const base = data.next ?? "/client/verify-2fa";
+        const q = safeNext ? `?next=${encodeURIComponent(safeNext)}` : "";
+        router.push(`${base}${q}`);
         return;
       }
-      router.push("/client/account");
+      router.push(safeNext ?? "/client/dashboard");
       router.refresh();
     } catch {
       setError("Something went wrong. Try again.");
@@ -154,6 +172,12 @@ function ClientPortalInner() {
                   </span>
                 </label>
 
+                {TURNSTILE_SITE_KEY ? (
+                  <div className="flex justify-center pt-1">
+                    <TurnstileWidget ref={turnstileRef} siteKey={TURNSTILE_SITE_KEY} />
+                  </div>
+                ) : null}
+
                 <button
                   type="submit"
                   disabled={busy}
@@ -190,7 +214,7 @@ function ClientPortalInner() {
                 href="/"
                 className="text-white/50 underline-offset-4 transition hover:text-white/70 hover:underline"
               >
-                Back to home
+                Back to Home
               </Link>
             </p>
           </div>
@@ -200,7 +224,8 @@ function ClientPortalInner() {
   );
 }
 
-export default function LoginPortal() {
+export default function LoginPortal(props: { defaultNext?: string | null }) {
+  const defaultNext = props.defaultNext ?? null;
   return (
     <Suspense
       fallback={
@@ -209,7 +234,7 @@ export default function LoginPortal() {
         </main>
       }
     >
-      <ClientPortalInner />
+      <ClientPortalInner defaultNext={defaultNext} />
     </Suspense>
   );
 }

@@ -40,7 +40,7 @@ function ConfirmCheckout({ sessionId }: { sessionId: string }) {
           setMessage(data.error ?? "Could not confirm your payment.");
           return;
         }
-        router.push("/client/account");
+        router.push("/client/dashboard");
         router.refresh();
       } catch {
         if (!cancelled) {

@@ -90,22 +90,26 @@ export const registerProfileSchema = z.object({
 export const registerSkipSchema = registerProfileSchema.extend({
   skipTwoFactor: z.literal(true),
   stayLoggedIn: z.boolean().optional().default(true),
+  turnstileToken: z.string().optional(),
 });
 
 export const registerPending2faSchema = registerProfileSchema.extend({
   twoFactorMethod: z.enum(["EMAIL", "SMS", "VOICE"]),
   stayLoggedIn: z.boolean().optional().default(true),
+  turnstileToken: z.string().optional(),
 });
 
 export const completePendingSchema = z.object({
   pendingId: z.string().min(1),
   code: z.string().regex(/^\d{6}$/),
+  turnstileToken: z.string().optional(),
 });
 
 export const loginSchema = z.object({
   identifier: z.string().trim().min(1),
   password: z.string().min(1),
   stayLoggedIn: z.boolean().optional().default(true),
+  turnstileToken: z.string().optional(),
 });
 
 export const settings2faSchema = z.discriminatedUnion("action", [

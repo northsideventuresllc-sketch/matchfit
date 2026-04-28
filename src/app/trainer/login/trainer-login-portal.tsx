@@ -3,8 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
+import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
 import type { TrainerPostAuthPath } from "@/lib/trainer-post-auth-redirect";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
 export type TrainerLoginPortalProps = {
   redirectAfterLogin: TrainerPostAuthPath;
@@ -26,17 +29,32 @@ export default function TrainerLoginPortal({
   const [stayLoggedIn, setStayLoggedIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
 
   async function handleLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    if (TURNSTILE_SITE_KEY) {
+      const token = turnstileRef.current?.getToken();
+      if (!token) {
+        setError("Please wait for the security check to finish, then try again.");
+        return;
+      }
+    }
     setBusy(true);
     try {
+      const turnstileToken = TURNSTILE_SITE_KEY ? turnstileRef.current?.getToken() : undefined;
       const res = await fetch("/api/trainer/login", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier, password, stayLoggedIn, redirectAfterLogin }),
+        body: JSON.stringify({
+          identifier,
+          password,
+          stayLoggedIn,
+          redirectAfterLogin,
+          ...(turnstileToken ? { turnstileToken } : {}),
+        }),
       });
       const data = (await res.json()) as {
         error?: string;
@@ -45,6 +63,7 @@ export default function TrainerLoginPortal({
       };
       if (!res.ok) {
         setError(data.error ?? "Could not sign you in.");
+        turnstileRef.current?.reset();
         return;
       }
       if (data.needsTwoFactor) {
@@ -172,6 +191,12 @@ export default function TrainerLoginPortal({
                     Stay logged in on this device (longer session).
                   </span>
                 </label>
+
+                {TURNSTILE_SITE_KEY ? (
+                  <div className="flex justify-center pt-1">
+                    <TurnstileWidget ref={turnstileRef} siteKey={TURNSTILE_SITE_KEY} />
+                  </div>
+                ) : null}
 
                 <button
                   type="submit"

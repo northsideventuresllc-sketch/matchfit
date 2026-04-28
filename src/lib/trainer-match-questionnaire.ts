@@ -216,9 +216,8 @@ export function buildAiMatchProfileText(p: TrainerMatchQuestionnairePayload): st
     lines.push(`- ${name}: $${line.priceUsd} ${BILLING_UNIT_LABELS[line.billingUnit]}`);
   }
   if (p.offersInPerson && p.inPersonZip) {
-    lines.push(
-      `In-person coverage: within ${p.inPersonRadiusMiles ?? "?"} miles of US ZIP ${p.inPersonZip}`,
-    );
+    const miles = p.inPersonRadiusMiles ?? "?";
+    lines.push(`In-person coverage: ${miles} mile radius of ${p.inPersonZip}`);
   }
   lines.push(`Years coaching: ${p.yearsCoaching}`);
   lines.push(`Best age ranges: ${p.ageGroups.map((id) => AGE_GROUP_LABELS[id]).join("; ")}`);

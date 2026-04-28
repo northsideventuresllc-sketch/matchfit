@@ -22,7 +22,6 @@ model Client {
   zipCode         String
   dateOfBirth     String
   termsAcceptedAt DateTime
-
   twoFactorEnabled Boolean @default(false)
   /// Last-used delivery channel (EMAIL | SMS | VOICE | NONE); mirrors default `ClientTwoFactorChannel` for login.
   twoFactorMethod String @default("NONE")
@@ -44,6 +43,10 @@ model Client {
 
   stripeCustomerId     String?
   stripeSubscriptionId String?
+  /// Mirrors Stripe subscription status for dashboard access control.
+  stripeSubscriptionActive Boolean @default(false)
+  /// When subscription is inactive and `now` is after this instant, non-billing dashboard routes require renewal (null = no lock).
+  subscriptionGraceUntil DateTime?
 
   /// Short public-style bio; never expose private address to trainer APIs.
   bio String?
@@ -70,12 +73,43 @@ model Client {
   /// Phone change: OTP sent to new number (or to current email as fallback); `pendingPhone` until confirmed.
   pendingPhone           String?
   phoneChangeOtpHash     String?
-  phoneChangeOtpExpires  DateTime?
+  phoneChangeOtpExpires DateTime?
   lastPhoneChangeRequest DateTime?
-
   lastEmailChangeRequest DateTime?
 
   twoFactorChannels ClientTwoFactorChannel[]
+
+  /// JSON document: goals, service types, delivery modes, niche interests (see `lib/client-match-preferences.ts`).
+  matchPreferencesJson          String?
+  matchPreferencesCompletedAt   DateTime?
+  /// When true, published client profile can be discovered by trainers who may send a nudge.
+  allowTrainerDiscovery Boolean @default(true)
+
+  trainerNudges   TrainerClientNudge[]
+  savedTrainers   ClientSavedTrainer[]
+  conversations   TrainerClientConversation[]
+
+  safetySuspended   Boolean   @default(false)
+  safetySuspendedAt DateTime?
+
+  /// JSON: per-category push toggles (see `lib/client-notification-prefs.ts`).
+  notificationPrefsJson String?
+
+  /// JSON: FitHub feed & social viewing preferences (see `lib/client-fithub-prefs.ts`).
+  fitHubPrefsJson String?
+
+  notifications ClientNotification[]
+
+  fitHubPostLikes    TrainerFitHubPostLike[]
+  fitHubComments     TrainerFitHubComment[]
+  fitHubReposts      ClientFitHubRepost[]
+  fitHubPostReports  TrainerFitHubPostReport[]
+  fitHubPostShares   ClientFitHubPostShare[]
+
+  /// JSON: rolling algorithm context built from daily questionnaire answers (see `lib/client-daily-questionnaire.ts`).
+  dailyAlgorithmContextJson String?
+
+  dailyQuestionnaires ClientDailyQuestionnaire[]
 
   @@map("clients")
 }
@@ -191,7 +225,233 @@ model Trainer {
   profile           TrainerProfile?
   twoFactorChannels TrainerTwoFactorChannel[]
 
+  clientNudges    TrainerClientNudge[]
+  savedByClients  ClientSavedTrainer[]
+  conversations   TrainerClientConversation[]
+
+  fitHubPosts TrainerFitHubPost[]
+
+  /// JSON: per-category push toggles (see `lib/trainer-notification-prefs.ts`).
+  notificationPrefsJson String?
+
+  notifications TrainerNotification[]
+
+  safetySuspended   Boolean   @default(false)
+  safetySuspendedAt DateTime?
+
   @@map("trainers")
+}
+
+/// A trainer tapped “Nudge” on a client’s public profile to start a conversation.
+model TrainerClientNudge {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  message String?
+  readAt  DateTime?
+
+  @@index([clientId, createdAt])
+  @@index([trainerId])
+  @@map("trainer_client_nudges")
+}
+
+/// One generated set of 3 daily matching questions per client; renewed at most every 24h after completion.
+model ClientDailyQuestionnaire {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// Start of the 24h window for this questionnaire instance.
+  windowStartedAt DateTime
+
+  /// JSON: three individualized questions (see `lib/client-daily-questionnaire.ts`).
+  questionsJson String
+
+  /// JSON: map of question id -> answer payload (strings).
+  answersJson String?
+
+  completedAt DateTime?
+
+  @@index([clientId, windowStartedAt])
+  @@map("client_daily_questionnaires")
+}
+
+/// In-app notification feed (nudges, matches, billing, product updates).
+model ClientNotification {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// NUDGE | NEW_MATCH | DAILY_QUESTIONNAIRE | APP_UPDATE | BILLING | SYSTEM
+  kind    String
+  title   String
+  body    String
+  linkHref String?
+  readAt  DateTime?
+
+  @@index([clientId, createdAt])
+  @@map("client_notifications")
+}
+
+/// Trainer-authored social post for the client FitHub feed.
+model TrainerFitHubPost {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  /// TEXT | IMAGE | VIDEO
+  postType String
+  caption  String?
+  bodyText String?
+  mediaUrl String?
+
+  shareCount Int @default(0)
+
+  /// When set, identifies an idempotent demo/QA seed row (`syncFitHubDemoSeedPosts` in `lib/client-fithub-sample-posts.ts`).
+  demoSeedKey String? @unique
+
+  likes           TrainerFitHubPostLike[]
+  comments        TrainerFitHubComment[]
+  reposts         ClientFitHubRepost[]
+  contentReports  TrainerFitHubPostReport[]
+  clientShares    ClientFitHubPostShare[]
+
+  @@index([trainerId, createdAt])
+  @@map("trainer_fit_hub_posts")
+}
+
+/// One recorded share per client per post (idempotent share action; `shareCount` stays in sync in API).
+model ClientFitHubPostShare {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  postId String
+  post   TrainerFitHubPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, clientId])
+  @@index([clientId])
+  @@map("client_fit_hub_post_shares")
+}
+
+/// Client-reported FitHub post for trust & safety review (does not auto-suspend accounts).
+model TrainerFitHubPostReport {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  postId String
+  post   TrainerFitHubPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// Values from `FITHUB_CONTENT_REPORT_CATEGORIES` (`lib/fithub-content-report-categories.ts`).
+  category String
+  details  String?
+
+  /// PENDING | REVIEWED | DISMISSED
+  status String @default("PENDING")
+
+  @@unique([postId, clientId])
+  @@index([status, createdAt])
+  @@map("trainer_fit_hub_post_reports")
+}
+
+model TrainerFitHubPostLike {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  postId String
+  post   TrainerFitHubPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, clientId])
+  @@index([clientId])
+  @@map("trainer_fit_hub_post_likes")
+}
+
+model TrainerFitHubComment {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  postId String
+  post   TrainerFitHubPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  body String
+
+  @@index([postId, createdAt])
+  @@map("trainer_fit_hub_comments")
+}
+
+model ClientFitHubRepost {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  postId String
+  post   TrainerFitHubPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, clientId])
+  @@index([clientId])
+  @@map("client_fit_hub_reposts")
+}
+
+/// In-app notification feed for trainers (inquiries, chats, compliance, billing, platform).
+model TrainerNotification {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  /// INQUIRY | CHAT | COMPLIANCE | CERTIFICATION | BILLING | PLATFORM
+  kind     String
+  title    String
+  body     String
+  linkHref String?
+  readAt   DateTime?
+
+  @@index([trainerId, createdAt])
+  @@map("trainer_notifications")
+}
+
+/// Client saved a trainer from browse (e.g. swipe right) for quick access and chats list.
+model ClientSavedTrainer {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  clientId  String
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  /// Client interest on trainer profile: PENDING_TRAINER (awaiting coach) | ACCEPTED | DECLINED. Default ACCEPTED preserves legacy saves.
+  trainerInquiryStatus String @default("ACCEPTED")
+
+  @@unique([clientId, trainerId])
+  @@index([clientId])
+  @@index([trainerId, trainerInquiryStatus])
+  @@map("client_saved_trainers")
 }
 
 /// Verified destinations for trainer sign-in 2FA (mirrors `ClientTwoFactorChannel`).
@@ -267,5 +527,113 @@ model TrainerProfile {
   /// Plain-text profile for search + AI when pairing trainers with clients; regenerated on each questionnaire submit.
   aiMatchProfileText String?
 
+  /// When set, trainer completed Premium Page signup and can use the Premium studio (social-style creator tools).
+  premiumStudioEnabledAt DateTime?
+
   @@map("trainer_profiles")
+}
+
+/// One row per trainer–client pair for on-platform messaging.
+model TrainerClientConversation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// POTENTIAL_CLIENT | LEAD | FIRST_TIME_CLIENT | REGULAR_CLIENT | FORMER_CLIENT
+  relationshipStage String @default("POTENTIAL_CLIENT")
+
+  /// Chat is live for both sides (e.g. inquiry accepted, or trainer-initiated nudge).
+  officialChatStartedAt DateTime?
+
+  messages TrainerClientChatMessage[]
+
+  @@unique([trainerId, clientId])
+  @@index([trainerId, updatedAt])
+  @@index([clientId, updatedAt])
+  @@map("trainer_client_conversations")
+}
+
+model TrainerClientChatMessage {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  conversationId String
+  conversation   TrainerClientConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  /// TRAINER | CLIENT
+  authorRole String
+  body       String
+
+  @@index([conversationId, createdAt])
+  @@map("trainer_client_chat_messages")
+}
+
+/// A block is bidirectional for product purposes but stored from the initiator’s perspective.
+model UserBlock {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  blockerIsTrainer Boolean
+  blockerId        String
+  blockedIsTrainer Boolean
+  blockedId        String
+
+  reasonCategory String?
+  reasonDetails  String?
+
+  @@unique([blockerIsTrainer, blockerId, blockedIsTrainer, blockedId])
+  @@index([blockedIsTrainer, blockedId])
+  @@map("user_blocks")
+}
+
+model SafetyReport {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  reporterIsTrainer Boolean
+  reporterId        String
+
+  subjectIsTrainer Boolean
+  subjectId        String
+
+  category String
+  details  String
+
+  /// PENDING | CLOSED
+  status String @default("PENDING")
+
+  suspensionRecords SuspensionRecord[]
+
+  @@index([subjectIsTrainer, subjectId, createdAt])
+  @@index([status, createdAt])
+  @@map("safety_reports")
+}
+
+/// Compliance / audit copy for account suspensions. Housekeeping purges via `purgeAfter` after lift.
+/// Product-facing fields: `id`, `reason`, optional `expiresAt` (row also links `SafetyReport` and subject).
+model SuspensionRecord {
+  id        String   @id @default(cuid())
+  reason    String?
+  expiresAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  subjectIsTrainer Boolean
+  subjectId        String
+
+  reportId String?
+  report   SafetyReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  liftedAt DateTime?
+  /// After lift: `liftedAt + 5 years`. Rows with `liftedAt` set and `purgeAfter` in the past may be deleted.
+  purgeAfter DateTime
+
+  @@index([purgeAfter])
+  @@index([subjectIsTrainer, subjectId])
+  @@map("suspension_records")
 }

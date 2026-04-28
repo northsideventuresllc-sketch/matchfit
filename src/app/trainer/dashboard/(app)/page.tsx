@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { TrainerDashboardBackgroundVisibility } from "@/components/trainer/trainer-dashboard-background-visibility";
+import { TrainerDashboardLogoutLink } from "@/components/trainer/trainer-dashboard-logout-link";
+import { TrainerMatchAnswersPreview } from "@/components/trainer/trainer-match-answers-preview";
+import { parseAiMatchProfileForDisplay } from "@/lib/ai-match-profile-parse";
 import { prisma } from "@/lib/prisma";
 import { backgroundCheckStatusLabel, certificationReviewStatusLabel } from "@/lib/trainer-compliance-status-copy";
 import {
@@ -52,6 +56,17 @@ export default async function TrainerDashboardHomePage() {
       preferredName: true,
       username: true,
       bio: true,
+      pronouns: true,
+      ethnicity: true,
+      languagesSpoken: true,
+      fitnessNiches: true,
+      yearsCoaching: true,
+      genderIdentity: true,
+      socialInstagram: true,
+      socialTiktok: true,
+      socialFacebook: true,
+      socialLinkedin: true,
+      socialOtherUrl: true,
       profile: {
         select: {
           hasSignedTOS: true,
@@ -104,71 +119,38 @@ export default async function TrainerDashboardHomePage() {
     },
   ] as const;
 
+  const settingsHref = "/trainer/dashboard/settings";
+
+  const matchBlocks =
+    profile?.matchQuestionnaireStatus === "completed" && profile.aiMatchProfileText
+      ? parseAiMatchProfileForDisplay(profile.aiMatchProfileText)
+      : null;
+
   return (
     <div className="space-y-8">
-      <header className="space-y-1">
+      <header className="space-y-1 text-center">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Trainer Home</p>
-        <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Welcome Back</h1>
+        <h1 className="text-3xl font-black uppercase tracking-[0.06em] sm:text-4xl">Welcome Back</h1>
         <p className="text-lg font-semibold text-white/90">{displayName}</p>
-        <p className="max-w-xl text-sm leading-relaxed text-white/50">
+        <p className="mx-auto max-w-xl text-sm leading-relaxed text-white/50">
           Signed in as <span className="text-white/75">@{trainer.username}</span>
         </p>
       </header>
 
-      <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:max-w-xl sm:p-7">
-        <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Quick Links</h2>
-        <ul className="mt-4 space-y-2">
-          <li>
-            <Link
-              href="/trainer/dashboard/settings"
-              className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-3 text-sm font-semibold text-white/85 transition hover:border-[#FF7E00]/30 hover:bg-[#0E1016]"
-            >
-              Account Settings
-              <span className="text-white/35" aria-hidden>
-                →
-              </span>
-            </Link>
-          </li>
-          <li>
-            {complianceComplete ? (
-              <Link
-                href="/trainer/dashboard/compliance"
-                className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-3 text-sm font-semibold text-white/85 transition hover:border-[#FF7E00]/30 hover:bg-[#0E1016]"
-              >
-                Compliance Details
-                <span className="text-white/35" aria-hidden>
-                  →
-                </span>
-              </Link>
-            ) : (
-              <Link
-                href="/trainer/onboarding"
-                className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-3 text-sm font-semibold text-white/85 transition hover:border-[#FF7E00]/30 hover:bg-[#0E1016]"
-              >
-                Compliance Onboarding
-                <span className="text-white/35" aria-hidden>
-                  →
-                </span>
-              </Link>
-            )}
-          </li>
-        </ul>
-      </section>
-
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
-        <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Biography</h2>
-        <div className="mt-5 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4">
+        <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-white/40">Biography</h2>
+        <div className="mx-auto mt-5 max-w-2xl rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4 text-left">
           <p className="text-sm font-medium leading-relaxed text-white/85">{trainer.bio?.trim() ? trainer.bio : "—"}</p>
         </div>
-        <p className="mt-4 text-xs text-white/45">
+        <p className="mx-auto mt-4 max-w-xl text-center text-xs text-white/45">
           Phone and email can be updated in{" "}
-          <Link href="/trainer/dashboard/settings" className="text-[#FF7E00] underline-offset-2 hover:underline">
+          <Link href={settingsHref} className="text-[#FF7E00] underline-offset-2 hover:underline">
             Account Settings
           </Link>
           . Edit your coach bio, demographics, social links, and photo there as well.
         </p>
         {profile?.dashboardActivatedAt ? (
-          <p className="mt-2 text-xs font-semibold text-emerald-200/80">
+          <p className="mx-auto mt-2 max-w-xl text-center text-xs font-semibold text-emerald-200/80">
             Dashboard is live since{" "}
             {profile.dashboardActivatedAt.toLocaleDateString(undefined, {
               year: "numeric",
@@ -178,38 +160,61 @@ export default async function TrainerDashboardHomePage() {
             .
           </p>
         ) : (
-          <p className="mt-2 text-xs text-white/40">Finish compliance onboarding to go live on the platform.</p>
+          <p className="mx-auto mt-2 max-w-xl text-center text-xs text-white/40">
+            Finish compliance onboarding to go live on the platform.
+          </p>
         )}
       </section>
 
-      {profile?.matchQuestionnaireStatus === "completed" && profile.aiMatchProfileText ? (
+      <TrainerDashboardBackgroundVisibility
+        settingsHref={settingsHref}
+        data={{
+          pronouns: trainer.pronouns,
+          ethnicity: trainer.ethnicity,
+          languagesSpoken: trainer.languagesSpoken,
+          fitnessNiches: trainer.fitnessNiches,
+          yearsCoaching: trainer.yearsCoaching,
+          genderIdentity: trainer.genderIdentity,
+          socialInstagram: trainer.socialInstagram,
+          socialTiktok: trainer.socialTiktok,
+          socialFacebook: trainer.socialFacebook,
+          socialLinkedin: trainer.socialLinkedin,
+          socialOtherUrl: trainer.socialOtherUrl,
+        }}
+      />
+
+      {matchBlocks ? (
         <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
-          <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-[#FF7E00]">Your Match Me Profile on File</h2>
-          <p className="mt-2 text-sm leading-relaxed text-white/50">
-            Plain-text profile for search and AI when pairing you with clients. Updates when you resubmit the
-            questionnaire.
+          <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-[#FF7E00]">Match Me answers</h2>
+          <div className="mt-5">
+            <TrainerMatchAnswersPreview blocks={matchBlocks} />
+          </div>
+          <p className="mt-5 text-center text-xs text-white/40">
+            Editable from{" "}
+            <Link href="/trainer/dashboard/match-questionnaire" className="text-[#FF7E00] underline-offset-2 hover:underline">
+              match questionnaires
+            </Link>
+            .
           </p>
-          <pre className="mt-4 max-h-[22rem] overflow-auto whitespace-pre-wrap rounded-2xl border border-white/[0.06] bg-[#0E1016]/90 p-4 text-left text-xs leading-relaxed text-white/80">
-            {profile.aiMatchProfileText}
-          </pre>
         </section>
       ) : null}
 
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
-        <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Compliance Snapshot</h2>
         {complianceComplete ? (
-          <div className="mt-5 space-y-4">
+          <div className="mt-5 space-y-4 text-center">
             <p className="text-sm font-medium text-white/80">Compliance Completed</p>
-            <p className="text-sm text-white/50">
+            <p className="mx-auto max-w-lg text-sm text-white/50">
               All required onboarding checks are satisfied. You can review agreements, your W-9, background check
               status, and uploaded certifications anytime.
             </p>
-            <Link
-              href="/trainer/dashboard/compliance"
-              className="inline-flex min-h-[3rem] w-full items-center justify-center rounded-xl border border-[#FF7E00]/35 bg-[#FF7E00]/10 px-5 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/50 sm:w-auto"
-            >
-              Review Compliance Details
-            </Link>
+            <div className="flex justify-center pt-1">
+              <Link
+                href="/trainer/dashboard/compliance"
+                className="inline-flex min-h-[3rem] w-full max-w-md items-center justify-center rounded-xl border border-[#FF7E00]/35 bg-[#FF7E00]/10 px-5 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/50 sm:w-auto sm:min-w-[14rem]"
+              >
+                Review Compliance Details
+              </Link>
+            </div>
           </div>
         ) : (
           <>
@@ -224,10 +229,10 @@ export default async function TrainerDashboardHomePage() {
                 </li>
               ))}
             </ul>
-            <div className="mt-6">
+            <div className="mt-6 flex justify-center">
               <Link
                 href="/trainer/onboarding"
-                className="inline-flex min-h-[3rem] w-full items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] px-5 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-white/25 hover:bg-white/[0.09]"
+                className="inline-flex min-h-[3rem] w-full max-w-md items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] px-5 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-white/25 hover:bg-white/[0.09] sm:w-auto sm:min-w-[14rem]"
               >
                 Continue Compliance Onboarding
               </Link>
@@ -236,11 +241,7 @@ export default async function TrainerDashboardHomePage() {
         )}
       </section>
 
-      <p className="text-sm">
-        <Link href="/" className="text-[#FF7E00] underline-offset-2 hover:underline">
-          Back to Home
-        </Link>
-      </p>
+      <TrainerDashboardLogoutLink />
     </div>
   );
 }

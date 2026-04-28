@@ -35,6 +35,7 @@ export default async function TrainerVerify2faPage() {
       cancelTwoFactorUrl="/api/trainer/login/cancel-2fa"
       afterVerifyHref="/trainer/dashboard"
       cancelReturnHref="/trainer/dashboard/login"
+      turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
     />
   );
 }

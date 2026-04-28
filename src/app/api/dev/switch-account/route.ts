@@ -66,7 +66,7 @@ export async function POST(req: Request) {
         { status: 404 },
       );
     }
-    const res = NextResponse.json({ ok: true, next: "/client/account" });
+    const res = NextResponse.json({ ok: true, next: "/client/dashboard" });
     res.cookies.delete(TRAINER_SESSION_COOKIE);
     res.cookies.delete(TRAINER_LOGIN_CHALLENGE_COOKIE);
     res.cookies.delete(LOGIN_CHALLENGE_COOKIE);

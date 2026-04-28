@@ -7,6 +7,7 @@ export const trainerLoginSchema = z.object({
   password: z.string().min(1),
   stayLoggedIn: z.boolean().optional().default(true),
   redirectAfterLogin: z.enum(TRAINER_POST_AUTH_PATHS).optional(),
+  turnstileToken: z.string().optional(),
 });
 
 export const trainerSignupSchema = z
@@ -28,6 +29,7 @@ export const trainerSignupSchema = z
     password: passwordPolicySchema,
     agreedToTerms: z.boolean(),
     stayLoggedIn: z.boolean().optional().default(true),
+    turnstileToken: z.string().optional(),
   })
   .refine((d) => d.agreedToTerms === true, {
     message: "You must accept the Terms of Service.",

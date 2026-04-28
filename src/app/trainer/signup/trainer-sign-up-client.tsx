@@ -3,8 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 transition placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2";
@@ -33,6 +36,7 @@ export default function TrainerSignUpClient() {
   const [stayLoggedIn, setStayLoggedIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -76,9 +80,17 @@ export default function TrainerSignUpClient() {
       setError("Please agree to the Terms of Service to continue.");
       return;
     }
+    if (TURNSTILE_SITE_KEY) {
+      const token = turnstileRef.current?.getToken();
+      if (!token) {
+        setError("Please wait for the security check to finish, then try again.");
+        return;
+      }
+    }
 
     setBusy(true);
     try {
+      const turnstileToken = TURNSTILE_SITE_KEY ? turnstileRef.current?.getToken() : undefined;
       const res = await fetch("/api/trainer/register", {
         method: "POST",
         credentials: "include",
@@ -92,11 +104,13 @@ export default function TrainerSignUpClient() {
           password,
           agreedToTerms: true,
           stayLoggedIn,
+          ...(turnstileToken ? { turnstileToken } : {}),
         }),
       });
       const data = (await res.json()) as { error?: string; next?: string };
       if (!res.ok) {
         setError(data.error ?? "Could not create your account.");
+        turnstileRef.current?.reset();
         return;
       }
       window.location.assign(data.next ?? "/trainer/onboarding");
@@ -310,6 +324,12 @@ export default function TrainerSignUpClient() {
                 .
               </label>
             </div>
+
+            {TURNSTILE_SITE_KEY ? (
+              <div className="flex justify-center pt-1">
+                <TurnstileWidget ref={turnstileRef} siteKey={TURNSTILE_SITE_KEY} />
+              </div>
+            ) : null}
 
             <button
               type="submit"

@@ -4,6 +4,7 @@ import { applyTrainerSessionToNextResponse } from "@/lib/session";
 import { isTrainerEmailTaken, isTrainerUsernameTaken } from "@/lib/trainer-queries";
 import { trainerSignupSchema } from "@/lib/validations/trainer-register";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
+import { verifyTurnstileToken } from "@/lib/turnstile-verify";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -12,6 +13,10 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       const msg = parsed.error.issues[0]?.message ?? "Invalid registration.";
       return NextResponse.json({ error: msg }, { status: 400 });
+    }
+    const turn = await verifyTurnstileToken(parsed.data.turnstileToken, req);
+    if (!turn.ok) {
+      return NextResponse.json({ error: turn.error }, { status: turn.status });
     }
     const body = parsed.data;
     const username = body.username.trim();

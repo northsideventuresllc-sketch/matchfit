@@ -9,6 +9,7 @@ import {
   registerSkipSchema,
 } from "@/lib/validations/client-register";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
+import { verifyTurnstileToken } from "@/lib/turnstile-verify";
 import { NextResponse } from "next/server";
 
 function isAtLeast18(birthYmd: string): boolean {
@@ -30,6 +31,10 @@ export async function POST(req: Request) {
     const parsed = registerSkipSchema.safeParse(normalizeRegisterJson(json));
     if (!parsed.success) {
       return NextResponse.json({ error: firstZodErrorMessage(parsed.error) }, { status: 400 });
+    }
+    const turn = await verifyTurnstileToken(parsed.data.turnstileToken, req);
+    if (!turn.ok) {
+      return NextResponse.json({ error: turn.error }, { status: turn.status });
     }
     const body = parsed.data;
     if (!isAtLeast18(body.dateOfBirth)) {
