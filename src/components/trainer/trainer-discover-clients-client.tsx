@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
   TRAINER_DISCOVERY_STRICTNESS_LABELS,
@@ -20,7 +21,12 @@ type Row = {
   deliveryOk: boolean;
 };
 
-export function TrainerDiscoverClientsClient() {
+type Props = {
+  isPremium: boolean;
+};
+
+export function TrainerDiscoverClientsClient(props: Props) {
+  const { isPremium } = props;
   const [strictness, setStrictness] = useState(3);
   const [clients, setClients] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,6 +76,7 @@ export function TrainerDiscoverClientsClient() {
       premiumNotice?: string;
       nudgesUsedToday?: number;
       nudgesDailyLimit?: number;
+      unlimitedNudges?: boolean;
     };
     if (!res.ok) {
       setToast(data.error ?? "Could not send nudge.");
@@ -77,8 +84,12 @@ export function TrainerDiscoverClientsClient() {
       return;
     }
     setToast(`Nudge sent to @${username}.`);
-    if (data.nudgesUsedToday != null && data.nudgesDailyLimit != null) {
+    if (data.unlimitedNudges) {
+      setPremiumLine(null);
+    } else if (data.nudgesUsedToday != null && data.nudgesDailyLimit != null) {
       setPremiumLine(`Used ${data.nudgesUsedToday} of ${data.nudgesDailyLimit} free nudges today. ${PREMIUM_NUDGES_PRODUCT_NOTICE}`);
+    } else {
+      setPremiumLine(null);
     }
   }
 
@@ -104,12 +115,42 @@ export function TrainerDiscoverClientsClient() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-amber-500/25 bg-amber-500/[0.07] p-5 text-sm leading-relaxed text-amber-100/90">
-        <p className="font-bold uppercase tracking-[0.12em] text-amber-200/90">Nudge limits</p>
-        <p className="mt-2 text-amber-100/85">
-          You can send up to <span className="font-semibold text-white">3 discovery nudges per day</span> on the free
-          tier. {PREMIUM_NUDGES_PRODUCT_NOTICE}
+      <section
+        className={
+          isPremium
+            ? "rounded-3xl border border-emerald-500/25 bg-emerald-500/[0.07] p-5 text-sm leading-relaxed text-emerald-100/90"
+            : "rounded-3xl border border-amber-500/25 bg-amber-500/[0.07] p-5 text-sm leading-relaxed text-amber-100/90"
+        }
+      >
+        <p
+          className={
+            isPremium
+              ? "font-bold uppercase tracking-[0.12em] text-emerald-200/90"
+              : "font-bold uppercase tracking-[0.12em] text-amber-200/90"
+          }
+        >
+          Nudge limits
         </p>
+        {isPremium ? (
+          <p className="mt-2 text-emerald-100/85">
+            With <span className="font-semibold text-white">Match Fit Premium</span>, discovery nudges are{" "}
+            <span className="font-semibold text-white">unlimited</span> for clients who appear on this list and still
+            accept trainer discovery—there is no three-per-day cap on your account. Your practical limit is the same
+            reach you see here: eligible profiles only.
+          </p>
+        ) : (
+          <p className="mt-2 text-amber-100/85">
+            You can send up to <span className="font-semibold text-white">3 discovery nudges per day</span> on the free
+            tier. Need more than 3 nudges per day?{" "}
+            <Link
+              href="/trainer/dashboard/premium"
+              className="font-semibold text-[#FF7E00] underline decoration-[#FF7E00]/40 underline-offset-2 transition hover:text-[#FF9A3D]"
+            >
+              Match Fit Premium
+            </Link>{" "}
+            ($19.99/month) will unlock higher limits — billing is handled by a separate integration.
+          </p>
+        )}
       </section>
 
       {error ? (
