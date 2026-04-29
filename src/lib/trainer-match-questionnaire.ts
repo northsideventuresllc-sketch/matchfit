@@ -3,7 +3,7 @@ import { z } from "zod";
 export const BILLING_UNITS = ["per_session", "per_hour", "per_month"] as const;
 export type BillingUnit = (typeof BILLING_UNITS)[number];
 
-/** Services trainers can price; flags show which session formats each can apply to. */
+/** Services trainers can list from the dashboard; flags show which delivery modes Match Fit supports per template. */
 export const MATCH_SERVICE_CATALOG = [
   {
     id: "one_on_one_pt",
@@ -57,9 +57,17 @@ export const MATCH_SERVICE_CATALOG = [
 
 export type MatchServiceId = (typeof MATCH_SERVICE_CATALOG)[number]["id"];
 
-const matchServiceIdSchema = z
-  .string()
-  .refine((id): id is MatchServiceId => MATCH_SERVICE_CATALOG.some((s) => s.id === id), "Invalid service.");
+/** How a published package is delivered (set on the dashboard only). */
+export const SERVICE_DELIVERY_MODES = ["virtual", "in_person", "both"] as const;
+export type ServiceDeliveryMode = (typeof SERVICE_DELIVERY_MODES)[number];
+
+/** Catalog entries coaches can add from the nutrition path (requires nutrition onboarding track). */
+export const MATCH_SERVICE_IDS_NUTRITION_OFFERING: MatchServiceId[] = ["nutrition_coaching", "online_program"];
+
+/** Catalog entries coaches can add from the CPT / training path (requires CPT onboarding track). */
+export const MATCH_SERVICE_IDS_PT_OFFERING: MatchServiceId[] = MATCH_SERVICE_CATALOG.filter(
+  (s) => s.id !== "nutrition_coaching",
+).map((s) => s.id);
 
 export const AGE_GROUP_IDS = ["18_29", "30_44", "45_54", "55_plus"] as const;
 export const CLIENT_LEVEL_IDS = ["beginners", "intermediate", "advanced"] as const;
@@ -77,28 +85,11 @@ export const CLIENT_GOAL_IDS = [
 ] as const;
 export const LANGUAGE_IDS = ["english", "spanish", "french", "portuguese", "mandarin", "other"] as const;
 
-export function serviceAllowedForFormats(
-  serviceId: MatchServiceId,
-  offersVirtual: boolean,
-  offersInPerson: boolean,
-): boolean {
-  const row = MATCH_SERVICE_CATALOG.find((s) => s.id === serviceId);
-  if (!row) return false;
-  return (offersVirtual && row.virtual) || (offersInPerson && row.inPerson);
-}
-
-const serviceLineSchema = z.object({
-  serviceId: matchServiceIdSchema,
-  priceUsd: z.number().min(15).max(5000),
-  billingUnit: z.enum(BILLING_UNITS),
-});
-
 export const trainerMatchQuestionnaireSchema = z
   .object({
     schemaVersion: z.literal(1),
     offersVirtual: z.boolean(),
     offersInPerson: z.boolean(),
-    services: z.array(serviceLineSchema).min(1, "Add at least one service with a price."),
     inPersonZip: z.string().trim().max(12).optional().nullable(),
     inPersonRadiusMiles: z.number().int().min(1).max(150).optional().nullable(),
     ageGroups: z.array(z.enum(AGE_GROUP_IDS)).min(1, "Select at least one age range."),
@@ -131,25 +122,6 @@ export const trainerMatchQuestionnaireSchema = z
           code: "custom",
           message: "Enter how many miles from that ZIP you accept in-person clients.",
           path: ["inPersonRadiusMiles"],
-        });
-      }
-    }
-    const seen = new Set<string>();
-    for (const line of data.services) {
-      if (seen.has(line.serviceId)) {
-        ctx.addIssue({
-          code: "custom",
-          message: "Each service type can only appear once.",
-          path: ["services"],
-        });
-        break;
-      }
-      seen.add(line.serviceId);
-      if (!serviceAllowedForFormats(line.serviceId, data.offersVirtual, data.offersInPerson)) {
-        ctx.addIssue({
-          code: "custom",
-          message: `Service “${line.serviceId}” does not match your session formats.`,
-          path: ["services"],
         });
       }
     }
@@ -199,8 +171,8 @@ export const BILLING_UNIT_LABELS: Record<BillingUnit, string> = {
 };
 
 /**
- * Single plain-text document for search indexing and AI matching (trainer → clients).
- * Keep in sync with questionnaire schema fields.
+ * Match Me only (session formats, in-person matching radius, client fit, philosophy).
+ * Services & rates are stored separately and merged via `composeTrainerAiMatchProfileText`.
  */
 export function buildAiMatchProfileText(p: TrainerMatchQuestionnairePayload): string {
   const lines: string[] = [];
@@ -209,12 +181,6 @@ export function buildAiMatchProfileText(p: TrainerMatchQuestionnairePayload): st
   if (p.offersVirtual) formats.push("Virtual");
   if (p.offersInPerson) formats.push("In-person");
   lines.push(`Session formats: ${formats.join(", ")}`);
-  lines.push("Services and rates:");
-  for (const line of p.services) {
-    const cat = MATCH_SERVICE_CATALOG.find((c) => c.id === line.serviceId);
-    const name = cat?.label ?? line.serviceId;
-    lines.push(`- ${name}: $${line.priceUsd} ${BILLING_UNIT_LABELS[line.billingUnit]}`);
-  }
   if (p.offersInPerson && p.inPersonZip) {
     const miles = p.inPersonRadiusMiles ?? "?";
     lines.push(`In-person coverage: ${miles} mile radius of ${p.inPersonZip}`);

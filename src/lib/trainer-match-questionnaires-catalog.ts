@@ -17,7 +17,7 @@ export const TRAINER_QUESTIONNAIRES_CATALOG: readonly TrainerQuestionnaireCatalo
     title: "Match Me",
     href: TRAINER_MATCH_ME_PATH,
     summary:
-      "Session formats, services and rates, in-person area, who you coach best, and your philosophy—everything we use for client search and AI matching.",
+      "Session format preferences, in-person matching area, who you coach best, and your philosophy—used for discovery and AI matching. Services and rates are managed from your dashboard.",
     disclaimer:
       "This is required for your account to be shown to clients until every part is complete. Saving any section returns you to your dashboard. Optional follow-up surveys may appear later; they never replace Match Me.",
     badge: "Required for client visibility",

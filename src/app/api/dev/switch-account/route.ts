@@ -9,6 +9,7 @@ import {
   TRAINER_LOGIN_CHALLENGE_COOKIE,
   TRAINER_SESSION_COOKIE,
 } from "@/lib/session";
+import { syncDevelopmentTestTrainerCertificationsForTrainer } from "@/lib/trainer-dev-test-cert-sync";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -81,6 +82,12 @@ export async function POST(req: Request) {
       { status: 404 },
     );
   }
+  await syncDevelopmentTestTrainerCertificationsForTrainer({
+    id: trainer.id,
+    username: trainer.username,
+    email: trainer.email,
+    phone: trainer.phone,
+  });
   const next = await trainerShortcutPath(trainer.id);
   const res = NextResponse.json({ ok: true, next });
   res.cookies.delete(CLIENT_SESSION_COOKIE);

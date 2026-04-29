@@ -572,6 +572,9 @@ model TrainerProfile {
   /// Plain-text profile for search + AI when pairing trainers with clients; regenerated on each questionnaire submit.
   aiMatchProfileText String?
 
+  /// Published services & pricing (JSON). Managed only from the trainer dashboard—not Match Me.
+  serviceOfferingsJson String?
+
   /// When set, trainer completed Premium Page signup and can use Premium Hub (social-style creator tools).
   premiumStudioEnabledAt DateTime?
   /// Last time the trainer opened FitHub studio activity in Premium (unread counts vs main notification digest).

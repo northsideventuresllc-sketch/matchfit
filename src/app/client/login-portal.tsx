@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useRef, useState } from "react";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { safeInternalNextPath } from "@/lib/safe-internal-next-path";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
@@ -54,8 +55,7 @@ function ClientPortalInner(props: { defaultNext: string | null }) {
         router.push(`${base}${q}`);
         return;
       }
-      router.push(safeNext ?? "/client/dashboard");
-      router.refresh();
+      navigateWithFullLoad(safeNext ?? "/client/dashboard");
     } catch {
       setError("Something went wrong. Try again.");
     } finally {

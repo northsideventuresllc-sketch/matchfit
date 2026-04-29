@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { FormEvent, useRef, useState } from "react";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 
 const MOCK_BANNER =
   "Local development: SMS/voice codes are not sent. Look at the terminal where `npm run dev` is running for your 6-digit code.";
@@ -42,7 +42,6 @@ export function Verify2faClient(props: Verify2faClientProps) {
   const afterVerifyHref = props.afterVerifyHref ?? props.redirectAfterVerify ?? DEFAULT_AFTER;
   const cancelReturnHref = props.cancelReturnHref ?? DEFAULT_CANCEL_RETURN;
 
-  const router = useRouter();
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -96,8 +95,7 @@ export function Verify2faClient(props: Verify2faClientProps) {
         return;
       }
       const destination = typeof data.next === "string" && data.next.startsWith("/") ? data.next : afterVerifyHref;
-      router.push(destination);
-      router.refresh();
+      navigateWithFullLoad(destination);
     } catch {
       setError("Something went wrong. Try again.");
     } finally {
@@ -128,8 +126,7 @@ export function Verify2faClient(props: Verify2faClientProps) {
 
   async function handleCancel() {
     await fetch(cancelUrl, { method: "POST" });
-    router.push(cancelReturnHref);
-    router.refresh();
+    navigateWithFullLoad(cancelReturnHref);
   }
 
   return (

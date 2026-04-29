@@ -5,9 +5,17 @@ import { TrainerPublicProfileView } from "@/components/trainer/trainer-public-pr
 import type { TrainerPublicSocialLink } from "@/components/trainer/trainer-public-profile-view";
 import { parseAiMatchProfileForDisplay } from "@/lib/ai-match-profile-parse";
 import { mapMatchProfileBlocksForPublicClientPage } from "@/lib/trainer-public-match-profile-display";
+import {
+  offeringDocumentToDisplayLines,
+  parseTrainerServiceOfferingsJson,
+} from "@/lib/trainer-service-offerings";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import {
+  trainerOffersNutritionServices,
+  trainerOffersPersonalTrainingServices,
+} from "@/lib/trainer-service-buckets";
 
 type Props = { params: Promise<{ username: string }> };
 
@@ -30,10 +38,10 @@ function certificationBadges(profile: {
   nutritionistCertificationReviewStatus: string;
 }): string[] {
   const out: string[] = [];
-  if (profile.onboardingTrackCpt && profile.certificationReviewStatus === "APPROVED") {
+  if (trainerOffersPersonalTrainingServices(profile)) {
     out.push("Certified Personal Trainer");
   }
-  if (profile.onboardingTrackNutrition && profile.nutritionistCertificationReviewStatus === "APPROVED") {
+  if (trainerOffersNutritionServices(profile)) {
     out.push("Nutrition credential");
   }
   return out;
@@ -156,6 +164,7 @@ export default async function TrainerPublicProfilePage({ params }: Props) {
           nutritionistCertificationReviewStatus: true,
           matchQuestionnaireStatus: true,
           aiMatchProfileText: true,
+          serviceOfferingsJson: true,
         },
       },
     },
@@ -176,8 +185,12 @@ export default async function TrainerPublicProfilePage({ params }: Props) {
       ? parseAiMatchProfileForDisplay(trainer.profile.aiMatchProfileText)
       : [];
 
+  const offeringsDoc = parseTrainerServiceOfferingsJson(trainer.profile.serviceOfferingsJson);
+  const fromOfferings = offeringDocumentToDisplayLines(offeringsDoc);
   const servicesBlock = blocks.find((b) => b.kind === "list" && b.title === "Services and Rates");
-  const servicesRates = servicesBlock && servicesBlock.kind === "list" ? servicesBlock.items : null;
+  const legacyRates = servicesBlock && servicesBlock.kind === "list" ? servicesBlock.items : null;
+  const servicesRates =
+    fromOfferings.length > 0 ? fromOfferings : legacyRates && legacyRates.length > 0 ? legacyRates : null;
   const coachBlocks = blocks.filter((b) => !(b.kind === "list" && b.title === "Services and Rates"));
   const { highlightBlocks, idealClientParagraph } = mapMatchProfileBlocksForPublicClientPage(
     coachBlocks,
@@ -196,6 +209,8 @@ export default async function TrainerPublicProfilePage({ params }: Props) {
       ? "/trainer/dashboard"
       : "/client";
 
+  const disableClientActions = sessionTrainerId != null && sessionTrainerId === trainer.id;
+
   return (
     <TrainerPublicProfileView
       displayName={displayName(trainer)}
@@ -213,6 +228,7 @@ export default async function TrainerPublicProfilePage({ params }: Props) {
       fullProfileUrl={fullProfileUrl}
       backToDashboardHref={backToDashboardHref}
       messageHref={messagePath}
+      disableClientActions={disableClientActions}
       servicesRates={servicesRates}
       idealClientParagraph={idealClientParagraph}
       highlightBlocks={highlightBlocks}

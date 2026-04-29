@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
 import { FormEvent, useMemo, useRef, useState } from "react";
 
@@ -231,7 +232,7 @@ export default function ClientSignUpPage() {
         return;
       }
       // Full navigation so the httpOnly registration cookie is present before the billing page loads.
-      window.location.assign(data.next ?? "/client/subscribe");
+      navigateWithFullLoad(data.next ?? "/client/subscribe");
     } catch {
       setError("Something went wrong. Try again.");
     } finally {
@@ -298,7 +299,7 @@ export default function ClientSignUpPage() {
         turnstileRef.current?.reset();
         return;
       }
-      window.location.assign(data.next ?? "/client/subscribe");
+      navigateWithFullLoad(data.next ?? "/client/subscribe");
     } catch {
       setError("Something went wrong. Try again.");
     } finally {

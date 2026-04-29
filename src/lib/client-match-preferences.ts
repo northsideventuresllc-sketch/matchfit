@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  trainerOffersNutritionServices,
+  trainerOffersPersonalTrainingServices,
+  type TrainerServiceBucketProfile,
+} from "@/lib/trainer-service-buckets";
 
 export const SERVICE_TYPES = ["personal_training", "nutrition"] as const;
 export const DELIVERY_MODES = ["in_person", "mobile", "virtual", "diy", "nutrition_planning"] as const;
@@ -80,12 +85,12 @@ export function deliveryModeMatchesTrainerText(
 
 export function trainerMatchesServiceTypes(
   prefs: ClientMatchPreferences,
-  trainerProfile: { onboardingTrackCpt: boolean; onboardingTrackNutrition: boolean },
+  trainerProfile: TrainerServiceBucketProfile,
 ): boolean {
   const wantsPt = prefs.serviceTypes.includes("personal_training");
   const wantsNut = prefs.serviceTypes.includes("nutrition");
-  const okPt = wantsPt && trainerProfile.onboardingTrackCpt;
-  const okNut = wantsNut && trainerProfile.onboardingTrackNutrition;
+  const okPt = wantsPt && trainerOffersPersonalTrainingServices(trainerProfile);
+  const okNut = wantsNut && trainerOffersNutritionServices(trainerProfile);
   return okPt || okNut;
 }
 
@@ -94,7 +99,7 @@ export function scoreTrainerForClientPrefs(
   trainer: {
     fitnessNiches: string | null;
     aiMatchProfileText: string | null;
-    profile: { onboardingTrackCpt: boolean; onboardingTrackNutrition: boolean };
+    profile: TrainerServiceBucketProfile;
   },
 ): { score: number; nicheHits: number; serviceOk: boolean; deliveryOk: boolean } {
   const haystack = `${trainer.fitnessNiches ?? ""} ${trainer.aiMatchProfileText ?? ""}`.toLowerCase();

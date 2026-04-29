@@ -62,6 +62,8 @@ export async function GET(req: Request) {
       profile: {
         onboardingTrackCpt: trainer.profile.onboardingTrackCpt,
         onboardingTrackNutrition: trainer.profile.onboardingTrackNutrition,
+        certificationReviewStatus: trainer.profile.certificationReviewStatus,
+        nutritionistCertificationReviewStatus: trainer.profile.nutritionistCertificationReviewStatus,
       },
     };
 

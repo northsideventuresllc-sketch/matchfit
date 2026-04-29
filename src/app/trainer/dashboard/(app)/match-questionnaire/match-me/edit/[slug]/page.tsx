@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { TRAINER_MATCH_ME_PATH } from "@/lib/trainer-match-questionnaires-routes";
 import { TrainerMatchQuestionnaireEditClient } from "../trainer-match-questionnaire-edit-client";
 import { defaultTrainerMatchQuestionnaireDraft, parseTrainerMatchQuestionnaireDraft } from "@/lib/trainer-match-questionnaire-draft";
 import {
@@ -33,6 +34,9 @@ export default async function TrainerMatchQuestionnaireEditSectionPage({
   }
 
   const { slug } = await params;
+  if (slug === "services-pricing") {
+    redirect(TRAINER_MATCH_ME_PATH);
+  }
   if (!MATCH_QUESTIONNAIRE_EDIT_SLUGS.includes(slug as MatchQuestionnaireEditSlug)) {
     notFound();
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 
 function isEditableElement(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false;
@@ -41,7 +42,7 @@ export function DevAccountShortcuts() {
           return;
         }
         if (data?.next) {
-          window.location.assign(data.next);
+          navigateWithFullLoad(data.next);
         }
       } catch (e) {
         console.warn("[Match Fit dev shortcut] request failed", e);

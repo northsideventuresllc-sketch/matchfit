@@ -40,6 +40,14 @@ function isVideoUrl(u: string): boolean {
   return /\.(mp4|webm|mov)(\?|$)/i.test(u);
 }
 
+/** TEXT check-ins have no media strip; IMAGE, VIDEO, and CAROUSEL show a preview when URLs exist. */
+function shouldShowMediaPreview(p: MyPost): boolean {
+  const t = p.postType.trim().toUpperCase();
+  if (t === "TEXT") return false;
+  if (t === "IMAGE" || t === "VIDEO" || t === "CAROUSEL") return Boolean(firstThumb(p));
+  return Boolean(firstThumb(p));
+}
+
 function statusBadge(p: MyPost): { label: string; className: string } {
   if (p.isScheduled) return { label: "SCHEDULED", className: "bg-sky-500/20 text-sky-100 ring-1 ring-sky-400/35" };
   if (p.visibility === "PRIVATE") return { label: "PRIVATE", className: "bg-white/10 text-white/60 ring-1 ring-white/15" };
@@ -196,27 +204,26 @@ export function TrainerPremiumMyContentClient(props: MyContentProps) {
         <ul className="space-y-4">
           {posts.map((p) => {
             const thumb = firstThumb(p);
+            const showPreview = shouldShowMediaPreview(p);
             const st = statusBadge(p);
             return (
               <li
                 key={p.id}
                 className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0E1016]/60 shadow-[0_16px_40px_-28px_rgba(0,0,0,0.85)]"
               >
-                <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-stretch">
-                  <div className="relative h-28 w-full shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black/30 sm:h-auto sm:w-36">
-                    {thumb ? (
-                      isVideoUrl(thumb) ? (
+                <div
+                  className={`flex flex-col gap-3 p-3 ${showPreview ? "sm:flex-row sm:items-stretch" : ""}`}
+                >
+                  {showPreview && thumb ? (
+                    <div className="relative h-28 w-full shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black/30 sm:h-auto sm:w-36">
+                      {isVideoUrl(thumb) ? (
                         <video src={thumb} className="h-full w-full object-cover" muted playsInline />
                       ) : (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={thumb} alt="" className="h-full w-full object-cover" />
-                      )
-                    ) : (
-                      <div className="flex h-full min-h-[7rem] items-center justify-center text-[10px] font-bold uppercase tracking-wide text-white/25">
-                        {p.postType}
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  ) : null}
                   <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[10px] font-black uppercase tracking-wide text-[#FF7E00]/90">{p.postType}</span>

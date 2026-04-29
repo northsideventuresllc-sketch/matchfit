@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { postTrainerLogout } from "@/lib/trainer-logout";
 
 type NotifRow = {
@@ -101,8 +102,7 @@ export function TrainerDashboardAppHeader(props: Props) {
     setLogoutBusy(true);
     try {
       await postTrainerLogout();
-      router.push("/trainer/dashboard/login");
-      router.refresh();
+      navigateWithFullLoad("/trainer/dashboard/login");
     } finally {
       setLogoutBusy(false);
       setMenuOpen(false);

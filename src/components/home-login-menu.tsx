@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { postClientLogout } from "@/lib/client-logout";
 import { postTrainerLogout } from "@/lib/trainer-logout";
 import type { HomePageAuth } from "@/lib/home-page-auth";
@@ -49,7 +50,7 @@ export function HomeLoginMenu({ homeAuth }: Props) {
     try {
       await Promise.all([postClientLogout(), postTrainerLogout()]);
     } finally {
-      window.location.href = "/";
+      navigateWithFullLoad("/");
     }
   }
 

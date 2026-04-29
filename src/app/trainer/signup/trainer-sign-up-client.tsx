@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
 import { FormEvent, useRef, useState } from "react";
 
@@ -113,7 +114,7 @@ export default function TrainerSignUpClient() {
         turnstileRef.current?.reset();
         return;
       }
-      window.location.assign(data.next ?? "/trainer/onboarding");
+      navigateWithFullLoad(data.next ?? "/trainer/onboarding");
     } catch {
       setError("Something went wrong. Try again.");
     } finally {

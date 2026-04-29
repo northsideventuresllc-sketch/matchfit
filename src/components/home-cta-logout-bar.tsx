@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { postClientLogout } from "@/lib/client-logout";
 import { postTrainerLogout } from "@/lib/trainer-logout";
 
@@ -12,7 +13,7 @@ export function HomeCtaLogoutBar() {
     try {
       await Promise.all([postClientLogout(), postTrainerLogout()]);
     } finally {
-      window.location.href = "/";
+      navigateWithFullLoad("/");
     }
   }
 
