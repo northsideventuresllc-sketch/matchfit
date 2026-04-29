@@ -6,6 +6,19 @@ import { isTrainerPremiumStudioActive } from "@/lib/trainer-premium-studio";
 
 export const TOKENS_PER_USD_PACK = 20;
 export const USD_PACK_PRICE_CENTS = 500;
+/** Checkout tiers (Stripe uses `packTier` metadata). Legacy checkouts used `packCount` × TOKENS_PER_USD_PACK. */
+export const PROMO_TOKEN_PACK_TIERS = [
+  { id: "starter", tokens: 20, usdCents: 500, label: "Starter" },
+  { id: "growth", tokens: 100, usdCents: 2000, label: "Growth" },
+  { id: "scale", tokens: 1000, usdCents: 8000, label: "Scale" },
+] as const;
+
+export type PromoTokenPackTierId = (typeof PROMO_TOKEN_PACK_TIERS)[number]["id"];
+
+export function getPromoPackTierById(id: string): (typeof PROMO_TOKEN_PACK_TIERS)[number] | null {
+  return PROMO_TOKEN_PACK_TIERS.find((t) => t.id === id) ?? null;
+}
+
 export const WEEKLY_PREMIUM_TRAINER_GRANT = 20;
 export const SALE_COMPLETED_TRAINER_REWARD = 10;
 export const MIN_PROMO_TOKENS_PER_DAY = 20;
@@ -143,9 +156,9 @@ export async function grantSaleTokensForServiceTransaction(transactionId: string
 export async function creditTokensFromStripePurchase(
   trainerId: string,
   stripeCheckoutSessionId: string,
-  packCount: number,
+  tokenAmount: number,
 ): Promise<{ credited: number } | { skipped: true }> {
-  const tokens = packCount * TOKENS_PER_USD_PACK;
+  const tokens = Math.floor(tokenAmount);
   if (tokens <= 0) return { skipped: true };
   const result = await prisma.$transaction(async (tx) => {
     const dup = await tx.trainerTokenLedgerEntry.findFirst({
@@ -204,15 +217,41 @@ export async function loadActivePromotionsForPosts(
   return map;
 }
 
+export async function getPostEngagementBetween(postId: string, rangeStart: Date, rangeEnd: Date) {
+  const [likes, comments, reposts, shares] = await Promise.all([
+    prisma.trainerFitHubPostLike.count({
+      where: { postId, createdAt: { gte: rangeStart, lte: rangeEnd } },
+    }),
+    prisma.trainerFitHubComment.count({
+      where: { postId, createdAt: { gte: rangeStart, lte: rangeEnd } },
+    }),
+    prisma.clientFitHubRepost.count({
+      where: { postId, createdAt: { gte: rangeStart, lte: rangeEnd } },
+    }),
+    prisma.clientFitHubPostShare.count({
+      where: { postId, createdAt: { gte: rangeStart, lte: rangeEnd } },
+    }),
+  ]);
+  return { likes, comments, reposts, shares };
+}
+
+export function promotionPhase(startsAt: Date, endsAt: Date, now = new Date()): "scheduled" | "current" | "past" {
+  if (startsAt > now) return "scheduled";
+  if (endsAt <= now) return "past";
+  return "current";
+}
+
 export async function createVideoPromotion(args: {
   trainerId: string;
   postId: string;
   durationDays: number;
   tokensBudget: number;
+  /** When set in the future, promotion is scheduled; tokens are still debited at creation. */
+  scheduledStartsAt?: Date | null;
 }): Promise<{ ok: true; promotionId: string } | { error: string }> {
-  const { trainerId, postId, durationDays, tokensBudget } = args;
+  const { trainerId, postId, durationDays, tokensBudget, scheduledStartsAt } = args;
   if (!(await isTrainerPremiumStudioActive(trainerId))) {
-    return { error: "Premium studio is required for promotion tokens." };
+    return { error: "Premium Hub is required for promotion tokens." };
   }
   if (durationDays < 1 || durationDays > MAX_PROMO_DURATION_DAYS) {
     return { error: `Duration must be between 1 and ${MAX_PROMO_DURATION_DAYS} days.` };
@@ -250,12 +289,32 @@ export async function createVideoPromotion(args: {
     return { error: "Only public posts can be promoted to the client feed." };
   }
   const now = new Date();
+  let startsAt = now;
+  if (scheduledStartsAt) {
+    if (scheduledStartsAt.getTime() <= now.getTime() + 60_000) {
+      return { error: "Scheduled start must be at least one minute from now." };
+    }
+    const maxLeadMs = 90 * 86400000;
+    if (scheduledStartsAt.getTime() > now.getTime() + maxLeadMs) {
+      return { error: "Cannot schedule more than 90 days ahead." };
+    }
+    startsAt = scheduledStartsAt;
+  }
+  const endsAt = new Date(startsAt.getTime() + durationDays * 86400000);
+
   const overlap = await prisma.trainerFitHubPostPromotion.findFirst({
-    where: { postId, endsAt: { gt: now }, startsAt: { lte: now } },
+    where: {
+      postId,
+      startsAt: { lt: endsAt },
+      endsAt: { gt: startsAt },
+    },
     select: { id: true },
   });
   if (overlap) {
-    return { error: "This post already has an active promotion window. Wait for it to end or pick another post." };
+    return {
+      error:
+        "This post already has a promotion that overlaps these dates. Wait for it to finish, adjust the schedule, or pick another post.",
+    };
   }
   try {
     const promotionId = await prisma.$transaction(async (tx) => {
@@ -266,9 +325,8 @@ export async function createVideoPromotion(args: {
         -tokensBudget,
         "PROMOTION_SPEND",
         `promotion:${id}`,
-        JSON.stringify({ postId, durationDays }),
+        JSON.stringify({ postId, durationDays, scheduled: Boolean(scheduledStartsAt) }),
       );
-      const endsAt = new Date(now.getTime() + durationDays * 86400000);
       await tx.trainerFitHubPostPromotion.create({
         data: {
           id,
@@ -277,7 +335,7 @@ export async function createVideoPromotion(args: {
           tokensSpent: tokensBudget,
           durationDays,
           regionZipPrefix: region,
-          startsAt: now,
+          startsAt,
           endsAt,
         },
       });
@@ -493,4 +551,86 @@ export async function recordTrainerServiceTransactionAndReward(args: {
     }
     throw e;
   }
+}
+
+export type TrainerPromotionDashboardRow = {
+  id: string;
+  phase: "scheduled" | "current" | "past";
+  startsAt: string;
+  endsAt: string;
+  tokensSpent: number;
+  durationDays: number;
+  regionZipPrefix: string;
+  tokensPerDay: number;
+  /** Same formula as client FitHub feed when viewer ZIP matches promotion region (0–160 scale). */
+  estMaxRegionalBoost: number;
+  post: { id: string; caption: string | null; mediaUrl: string | null; postType: string };
+  stats: { likes: number; comments: number; reposts: number; shares: number };
+  statsWindowNote: string;
+};
+
+export async function listTrainerPromotionsForDashboard(trainerId: string): Promise<TrainerPromotionDashboardRow[]> {
+  const now = new Date();
+  const rows = await prisma.trainerFitHubPostPromotion.findMany({
+    where: { trainerId },
+    orderBy: { startsAt: "desc" },
+    take: 100,
+    select: {
+      id: true,
+      startsAt: true,
+      endsAt: true,
+      tokensSpent: true,
+      durationDays: true,
+      regionZipPrefix: true,
+      post: { select: { id: true, caption: true, mediaUrl: true, postType: true } },
+    },
+  });
+
+  const out: TrainerPromotionDashboardRow[] = [];
+  for (const r of rows) {
+    const phase = promotionPhase(r.startsAt, r.endsAt, now);
+    let rangeStart = r.startsAt;
+    let rangeEnd = r.endsAt;
+    let statsWindowNote: string;
+    if (phase === "scheduled") {
+      rangeEnd = r.startsAt;
+      statsWindowNote = "Engagement counts appear after the promotion starts.";
+    } else if (phase === "current") {
+      rangeEnd = now < r.endsAt ? now : r.endsAt;
+      statsWindowNote = "Engagement so far during this active window (updates as the run continues).";
+    } else {
+      statsWindowNote = "Total engagement recorded during the completed promotion window.";
+    }
+    const stats =
+      phase === "scheduled"
+        ? { likes: 0, comments: 0, reposts: 0, shares: 0 }
+        : await getPostEngagementBetween(r.post.id, rangeStart, rangeEnd);
+    const tokensPerDay = r.tokensSpent / Math.max(1, r.durationDays);
+    const estMaxRegionalBoost = promotionRegionalFeedBoost(
+      r.tokensSpent,
+      r.durationDays,
+      r.regionZipPrefix,
+      r.regionZipPrefix,
+    );
+    out.push({
+      id: r.id,
+      phase,
+      startsAt: r.startsAt.toISOString(),
+      endsAt: r.endsAt.toISOString(),
+      tokensSpent: r.tokensSpent,
+      durationDays: r.durationDays,
+      regionZipPrefix: r.regionZipPrefix,
+      tokensPerDay: Math.round(tokensPerDay * 100) / 100,
+      estMaxRegionalBoost,
+      post: {
+        id: r.post.id,
+        caption: r.post.caption,
+        mediaUrl: r.post.mediaUrl,
+        postType: r.post.postType,
+      },
+      stats,
+      statsWindowNote,
+    });
+  }
+  return out;
 }

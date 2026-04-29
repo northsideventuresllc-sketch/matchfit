@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 
 export const metadata: Metadata = {
-  title: "Premium Page | Trainer | Match Fit",
+  title: "Premium Hub | Trainer | Match Fit",
 };
 
 export default async function TrainerPremiumSignupPage() {
@@ -24,21 +24,20 @@ export default async function TrainerPremiumSignupPage() {
   return (
     <div className="space-y-8 pb-4">
       <header className="space-y-3 text-center">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Growth</p>
-        <h1 className="text-3xl font-black uppercase tracking-[0.06em] sm:text-4xl">Premium Page</h1>
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Premium Page</p>
+        <h1 className="text-3xl font-black uppercase tracking-[0.12em] sm:text-4xl">PREMIUM HUB</h1>
         <p className="mx-auto max-w-2xl text-sm leading-relaxed text-white/55">
           {active ? (
             <>
-              One hub for featured placement, Fit Hub publishing, and promotion tokens—each destination below focuses on
-              a single job so you are not hunting through tabs. Like programming or cues, visibility works best when it is
-              deliberate: a modest investment in those surfaces helps the right clients find you before you get lost in the
-              scroll.
+              You chose to invest in your Premium Page—this hub is your backstage for that decision. Each card below opens
+              a focused workspace: where you stand for featured placement, how you publish to FitHub, and how promotion
+              tokens amplify video in your region. Expect clear controls and honest status, so you always know what is
+              live, what is scheduled, and what still needs your attention.
             </>
           ) : (
             <>
-              One hub for featured placement, Fit Hub publishing, and promotion tokens once you enroll. When you are
-              ready, the same tools become part of how you run the business—not just a badge—so the clients who fit you
-              actually see your work.
+              When you enroll, the Premium Page brings featured placement, FitHub publishing, and promotion tokens into one
+              hub—so the clients who fit you can actually see your work, not just your badge.
             </>
           )}
         </p>
@@ -64,7 +63,7 @@ export default async function TrainerPremiumSignupPage() {
             href="/trainer/dashboard/premium/fit-hub-content"
             className="group flex min-h-[11rem] flex-col items-center justify-center gap-3 rounded-3xl border border-white/[0.1] bg-[#12151C]/90 px-5 py-6 text-center transition hover:border-[#FF7E00]/35"
           >
-            <p className="text-base font-semibold text-white">Fit Hub &amp; Content</p>
+            <p className="text-base font-semibold text-white">FitHub &amp; Content</p>
             <p className="text-sm font-semibold text-[#FF7E00]">Content Creation</p>
             <p className="max-w-[14rem] text-xs leading-relaxed text-white/45">
               Composer for posts and the full library for edits and visibility.

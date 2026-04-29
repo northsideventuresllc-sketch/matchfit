@@ -23,9 +23,9 @@ export function TrainerPremiumHubSummary(props: Props) {
         className={`rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#FF7E00]/[0.08] via-[#12151C] to-[#0E1016] p-5 text-left shadow-[0_20px_60px_-30px_rgba(0,0,0,0.75)] ${wrap}`}
       >
         <p className="text-sm leading-relaxed text-white/75">
-          <span className="font-semibold text-white/90">Premium trainers</span> unlock featured placement options, a Fit
-          Hub studio for posts clients actually see, and promotion tokens for regional boosts—plus one hub to manage it
-          all. Treating those surfaces as part of your business plan is one of the fastest ways to get in front of serious
+          <span className="font-semibold text-white/90">Premium trainers</span> unlock featured placement options, a FitHub
+          studio for posts clients actually see, and promotion tokens for regional boosts—plus one hub to manage it all.
+          Treating those surfaces as part of your business plan is one of the fastest ways to get in front of serious
           clients.
         </p>
         <ul className="mt-3 space-y-1.5 text-xs text-white/55">
@@ -59,7 +59,7 @@ export function TrainerPremiumHubSummary(props: Props) {
       <div className="relative space-y-4 text-center">
         <p className="text-sm leading-relaxed text-white/70">
           Being a <span className="font-semibold text-white">premium trainer</span> means you get the full growth stack:
-          tools to compete for featured placement, a professional pipeline to publish to Fit Hub, and token-based boosts so
+          tools to compete for featured placement, a professional pipeline to publish to FitHub, and token-based boosts so
           the right clients see your best work—not just a badge.
         </p>
         <p className="text-xs leading-relaxed text-white/45">
@@ -87,7 +87,7 @@ export function TrainerPremiumHubSummary(props: Props) {
           </p>
         </div>
         <div className="rounded-2xl border border-white/[0.08] bg-[#12151C]/90 p-4 text-center">
-          <p className="text-sm font-semibold text-white">Fit Hub &amp; Content</p>
+          <p className="text-sm font-semibold text-white">FitHub &amp; Content</p>
           <p className="mt-2 text-sm font-semibold text-[#FF7E00]">Content Creation</p>
           <p className="mx-auto mt-2 max-w-[14rem] text-xs leading-relaxed text-white/45">
             Upload photos, clips, check-ins, and carousels—then publish or schedule. My Content on the same page is where
@@ -114,7 +114,7 @@ export function TrainerPremiumHubBackLink() {
         href="/trainer/dashboard/premium"
         className="font-semibold text-[#FF7E00] underline-offset-2 transition hover:text-[#FF9A3D] hover:underline"
       >
-        ← Premium hub
+        ← PREMIUM HUB
       </Link>
     </p>
   );

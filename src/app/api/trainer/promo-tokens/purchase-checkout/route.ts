@@ -5,12 +5,12 @@ import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { getStripe } from "@/lib/stripe-server";
 import { isTrainerPremiumStudioActive } from "@/lib/trainer-premium-studio";
-import { TOKENS_PER_USD_PACK, USD_PACK_PRICE_CENTS } from "@/lib/trainer-promo-tokens";
+import { getPromoPackTierById } from "@/lib/trainer-promo-tokens";
 
 export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
-  packCount: z.number().int().min(1).max(40),
+  packTier: z.enum(["starter", "growth", "scale"]),
 });
 
 export async function POST(req: Request) {
@@ -38,20 +38,24 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid payload." }, { status: 400 });
     }
-    const { packCount } = parsed.data;
+    const tier = getPromoPackTierById(parsed.data.packTier);
+    if (!tier) {
+      return NextResponse.json({ error: "Unknown pack." }, { status: 400 });
+    }
     const origin = getAppOriginFromRequest(req);
+    const usd = tier.usdCents / 100;
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: trainer.email,
       line_items: [
         {
-          quantity: packCount,
+          quantity: 1,
           price_data: {
             currency: "usd",
-            unit_amount: USD_PACK_PRICE_CENTS,
+            unit_amount: tier.usdCents,
             product_data: {
-              name: `Match Fit promotion tokens (${TOKENS_PER_USD_PACK} per pack)`,
-              description: `${TOKENS_PER_USD_PACK} tokens per $${(USD_PACK_PRICE_CENTS / 100).toFixed(2)} pack. Premium coaches only.`,
+              name: `Match Fit promotion tokens — ${tier.label} pack`,
+              description: `${tier.tokens} tokens for $${usd.toFixed(2)}. Premium Page coaches only.`,
             },
           },
         },
@@ -59,7 +63,8 @@ export async function POST(req: Request) {
       metadata: {
         purpose: "trainer_promo_tokens",
         trainerId,
-        packCount: String(packCount),
+        packTier: tier.id,
+        tokenAmount: String(tier.tokens),
       },
       success_url: `${origin}/trainer/dashboard/premium/promo-tokens?checkout=success`,
       cancel_url: `${origin}/trainer/dashboard/premium/promo-tokens?checkout=cancel`,
@@ -69,7 +74,7 @@ export async function POST(req: Request) {
     }
     return NextResponse.json({
       url: session.url,
-      tokens: packCount * TOKENS_PER_USD_PACK,
+      tokens: tier.tokens,
     });
   } catch (e) {
     console.error(e);

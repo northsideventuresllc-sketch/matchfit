@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FEATURED_RULES_VERSION } from "@/lib/featured-rules-version";
+import { formatFeaturedDisplayDayLabel } from "@/lib/featured-eastern-calendar";
 
 type ListingGet =
   | {
@@ -167,7 +168,7 @@ export function FeaturedListingStudioPanel() {
         <p className="mt-3 text-xs text-white/40">
           Rules version {data.rulesVersion}. See{" "}
           <Link href="/terms#featured-placement" className="text-[#FF7E00] underline-offset-2 hover:underline">
-            Terms — Featured placement
+            Terms of Service
           </Link>
           .
         </p>
@@ -180,10 +181,29 @@ export function FeaturedListingStudioPanel() {
       <div>
         <h2 className="text-sm font-black uppercase tracking-[0.14em] text-[#FF7E00]/90">Featured home placement</h2>
         <p className="mt-2 text-xs text-white/45">
-          Premium-only. Regional pool <span className="font-semibold text-white/70">ZIP prefix {data.regionZipPrefix}**</span> ·
-          Display day <span className="font-semibold text-white/70">{data.entryDisplayDayKey}</span> (America/New_York cutoff).
+          Regional pool <span className="font-semibold text-white/70">ZIP prefix {data.regionZipPrefix}**</span> · Eastern
+          cutoff timer below.
         </p>
         <p className="mt-2 text-xs font-semibold text-[#FFD34E]/90">{formatCountdown(msLeft)}</p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-[#FF7E00]/35 bg-[#FF7E00]/[0.1] p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FF7E00]/85">You are bidding for</p>
+          <p className="mt-2 text-base font-black leading-snug text-white sm:text-lg">
+            {formatFeaturedDisplayDayLabel(data.entryDisplayDayKey)}
+          </p>
+          <p className="mt-2 text-[10px] leading-relaxed text-white/45">
+            Calendar key <span className="font-mono text-white/55">{data.entryDisplayDayKey}</span> · America/New_York
+          </p>
+        </div>
+        <div className="rounded-xl border border-white/[0.1] bg-black/25 p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/50">Minimum next bid (you)</p>
+          <p className="mt-2 text-3xl font-black tabular-nums tracking-tight text-[#FFD34E]">
+            {formatUsd(data.bids.minNextBidCents)}
+          </p>
+          <p className="mt-2 text-[10px] text-white/40">Total amount required to place or stay in the top two paid slots.</p>
+        </div>
       </div>
 
       {formError ? (
@@ -206,12 +226,12 @@ export function FeaturedListingStudioPanel() {
             coaches enter.
           </li>
           <li>
-            <strong className="text-white/60">Alternate method of entry (AMOE):</strong> email Match Fit support from
+            <strong className="text-white/60">Alternative Method of Entry (AMOE):</strong> email Match Fit support from
             your trainer account email with subject line “Featured raffle AMOE” during the same window — one free raffle
             entry (void where prohibited). Use the contact channel published in the product footer or your account notices.
           </li>
           <li>
-            <strong className="text-white/60">Paid spots:</strong> two highest binding bids per region per day are{" "}
+            <strong className="text-white/60">Paid Spots:</strong> two highest binding bids per region per day are{" "}
             <em>sponsored placements</em>, not gambling; you are buying advertising visibility. Bids are not refunds once the
             window locks. Card charges may post when coach billing is connected; amounts are binding today.
           </li>
@@ -223,7 +243,7 @@ export function FeaturedListingStudioPanel() {
         <p className="mt-2 text-[10px] text-white/35">
           Not legal advice. See{" "}
           <Link href="/terms#featured-placement" className="text-[#FF7E00] underline-offset-2 hover:underline">
-            Terms — Featured placement
+            Terms of Service
           </Link>
           .
         </p>
@@ -233,9 +253,19 @@ export function FeaturedListingStudioPanel() {
         <div className="rounded-xl border border-white/[0.06] p-4">
           <h3 className="text-xs font-black uppercase tracking-[0.12em] text-white/55">Daily raffle</h3>
           <p className="mt-2 text-[11px] leading-relaxed text-white/45">{data.raffle.copy}</p>
-          <p className="mt-2 text-xs text-white/55">
-            Status:{" "}
-            <span className="font-semibold text-white/80">{data.raffle.entered ? "Entered" : "Not entered yet"}</span>
+          <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-white/55">
+            <span>Status</span>
+            <span
+              className={`inline-flex rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-wide ${
+                msLeft <= 0
+                  ? "bg-white/10 text-white/55 ring-1 ring-white/15"
+                  : data.raffle.entered
+                    ? "bg-emerald-500/25 text-emerald-100 ring-1 ring-emerald-500/40"
+                    : "bg-amber-500/20 text-amber-50 ring-1 ring-amber-400/35"
+              }`}
+            >
+              {msLeft <= 0 ? "CLOSED" : data.raffle.entered ? "ENTERED" : "NOT ENTERED"}
+            </span>
           </p>
           <button
             type="button"
@@ -249,6 +279,18 @@ export function FeaturedListingStudioPanel() {
 
         <div className="rounded-xl border border-white/[0.06] p-4">
           <h3 className="text-xs font-black uppercase tracking-[0.12em] text-white/55">Sponsored bid (top 2)</h3>
+          <p className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-white/45">
+            <span>Bid window</span>
+            <span
+              className={`inline-flex rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-wide ${
+                msLeft <= 0
+                  ? "bg-white/10 text-white/50 ring-1 ring-white/15"
+                  : "bg-emerald-500/20 text-emerald-100 ring-1 ring-emerald-500/40"
+              }`}
+            >
+              {msLeft <= 0 ? "CLOSED" : "OPEN"}
+            </span>
+          </p>
           <p className="mt-2 text-[11px] text-white/45">
             Minimum next total for you: <span className="font-semibold text-white/75">{formatUsd(data.bids.minNextBidCents)}</span>
             {data.bids.myAmountCents != null ? (

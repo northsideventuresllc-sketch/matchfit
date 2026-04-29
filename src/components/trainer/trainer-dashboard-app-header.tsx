@@ -144,7 +144,7 @@ export function TrainerDashboardAppHeader(props: Props) {
               : "border-[#FF7E00]/35 hover:border-[#FF7E00]/50"
           }`}
         >
-          Premium Studio
+          Premium Hub
         </Link>
 
         <div className="relative" ref={notifWrapRef}>

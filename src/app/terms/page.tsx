@@ -1,6 +1,11 @@
-import Link from "next/link";
+import { LegalPageFooterNav } from "@/components/legal-page-footer-nav";
+import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  const clientId = await getSessionClientId();
+  const trainerId = await getSessionTrainerId();
+  const role = clientId ? "client" : trainerId ? "trainer" : "guest";
+
   return (
     <main className="min-h-dvh bg-[#0B0C0F] px-5 py-12 text-white sm:px-8">
       <div className="mx-auto max-w-2xl">
@@ -37,11 +42,7 @@ export default function TermsPage() {
           </p>
         </section>
 
-        <p className="mt-10">
-          <Link href="/client/sign-up" className="text-sm font-semibold text-[#FF7E00] hover:underline">
-            Back to sign up
-          </Link>
-        </p>
+        <LegalPageFooterNav role={role} />
       </div>
     </main>
   );

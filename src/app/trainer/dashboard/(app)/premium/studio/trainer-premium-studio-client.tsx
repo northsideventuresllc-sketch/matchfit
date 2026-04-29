@@ -7,6 +7,11 @@ import { FeaturedListingStudioPanel } from "@/components/trainer/featured-listin
 
 type StudioMode = "photo" | "video" | "checkin" | "carousel";
 
+type TrainerPremiumStudioClientProps = {
+  /** When false, hides featured raffle/bid UI (FitHub & Content page only). Default true. */
+  showFeaturedListing?: boolean;
+};
+
 const MS_DAY = 24 * 60 * 60 * 1000;
 
 async function uploadFitHubFile(file: File): Promise<string> {
@@ -65,7 +70,8 @@ function ComposerFields(props: {
   );
 }
 
-export function TrainerPremiumStudioClient() {
+export function TrainerPremiumStudioClient(props: TrainerPremiumStudioClientProps = {}) {
+  const { showFeaturedListing = true } = props;
   const router = useRouter();
   const [mode, setMode] = useState<StudioMode | null>(null);
   const [busy, setBusy] = useState(false);
@@ -272,53 +278,59 @@ export function TrainerPremiumStudioClient() {
 
   return (
     <>
-      <FeaturedListingStudioPanel />
+      {showFeaturedListing ? <FeaturedListingStudioPanel /> : null}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <button
-          type="button"
-          onClick={() => {
-            resetForm();
-            setMode("photo");
-          }}
-          className="flex min-h-[5.5rem] flex-col items-center justify-center rounded-2xl border border-white/[0.1] bg-[#0E1016]/70 px-4 py-4 text-center transition hover:border-[#FF7E00]/35"
-        >
-          <span className="text-sm font-black uppercase tracking-[0.12em] text-[#FF7E00]/90">Photo Studio</span>
-          <span className="mt-2 text-xs text-white/45">Upload an image, add a caption, post or schedule.</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            resetForm();
-            setMode("video");
-          }}
-          className="flex min-h-[5.5rem] flex-col items-center justify-center rounded-2xl border border-white/[0.1] bg-[#0E1016]/70 px-4 py-4 text-center transition hover:border-[#FF7E00]/35"
-        >
-          <span className="text-sm font-black uppercase tracking-[0.12em] text-[#FF7E00]/90">Video Clip</span>
-          <span className="mt-2 text-xs text-white/45">Upload a clip, add a caption, post or schedule.</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            resetForm();
-            setMode("checkin");
-          }}
-          className="flex min-h-[5.5rem] flex-col items-center justify-center rounded-2xl border border-white/[0.1] bg-[#0E1016]/70 px-4 py-4 text-center transition hover:border-[#FF7E00]/35"
-        >
-          <span className="text-sm font-black uppercase tracking-[0.12em] text-[#FF7E00]/90">Check In Post</span>
-          <span className="mt-2 text-xs text-white/45">Write a text update with optional hashtags.</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            resetForm();
-            setMode("carousel");
-          }}
-          className="flex min-h-[5.5rem] flex-col items-center justify-center rounded-2xl border border-white/[0.1] bg-[#0E1016]/70 px-4 py-4 text-center transition hover:border-[#FF7E00]/35"
-        >
-          <span className="text-sm font-black uppercase tracking-[0.12em] text-[#FF7E00]/90">Media Carousel</span>
-          <span className="mt-2 text-xs text-white/45">Swipe montage — upload multiple photos or videos.</span>
-        </button>
+      <div className="rounded-3xl border border-[#FF7E00]/25 bg-[linear-gradient(180deg,rgba(255,126,0,0.12)_0%,rgba(18,21,28,0.92)_2.5rem)] p-4 shadow-[0_20px_60px_-40px_rgba(255,126,0,0.45)] sm:p-6">
+        <div className="mb-4 text-center">
+          <p className="text-sm font-black uppercase tracking-[0.35em] text-[#FF7E00] sm:text-base">Post</p>
+          <p className="mt-1 text-[11px] text-white/45">Choose a format—everything publishes to the client FitHub feed.</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => {
+              resetForm();
+              setMode("photo");
+            }}
+            className="flex min-h-[5.5rem] flex-col items-center justify-center rounded-2xl border border-white/[0.1] bg-[#0E1016]/70 px-4 py-4 text-center transition hover:border-[#FF7E00]/35"
+          >
+            <span className="text-sm font-black uppercase tracking-[0.12em] text-[#FF7E00]/90">Photo Studio</span>
+            <span className="mt-2 text-xs text-white/45">Upload an image, add a caption, post or schedule.</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              resetForm();
+              setMode("video");
+            }}
+            className="flex min-h-[5.5rem] flex-col items-center justify-center rounded-2xl border border-white/[0.1] bg-[#0E1016]/70 px-4 py-4 text-center transition hover:border-[#FF7E00]/35"
+          >
+            <span className="text-sm font-black uppercase tracking-[0.12em] text-[#FF7E00]/90">Video Clip</span>
+            <span className="mt-2 text-xs text-white/45">Upload a clip, add a caption, post or schedule.</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              resetForm();
+              setMode("checkin");
+            }}
+            className="flex min-h-[5.5rem] flex-col items-center justify-center rounded-2xl border border-white/[0.1] bg-[#0E1016]/70 px-4 py-4 text-center transition hover:border-[#FF7E00]/35"
+          >
+            <span className="text-sm font-black uppercase tracking-[0.12em] text-[#FF7E00]/90">Check In Post</span>
+            <span className="mt-2 text-xs text-white/45">Write a text update with optional hashtags.</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              resetForm();
+              setMode("carousel");
+            }}
+            className="flex min-h-[5.5rem] flex-col items-center justify-center rounded-2xl border border-white/[0.1] bg-[#0E1016]/70 px-4 py-4 text-center transition hover:border-[#FF7E00]/35"
+          >
+            <span className="text-sm font-black uppercase tracking-[0.12em] text-[#FF7E00]/90">Media Carousel</span>
+            <span className="mt-2 text-xs text-white/45">Swipe montage — upload multiple photos or videos.</span>
+          </button>
+        </div>
       </div>
 
       <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => void onPickPhoto(e)} />

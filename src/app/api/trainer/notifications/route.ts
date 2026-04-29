@@ -1,4 +1,5 @@
 import { ensureStarterTrainerNotifications } from "@/lib/trainer-notification-seed";
+import { ensureFitHubStudioDigestTrainerNotification } from "@/lib/trainer-fithub-studio-activity";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { NextResponse } from "next/server";
@@ -15,6 +16,7 @@ export async function GET() {
     }
 
     await ensureStarterTrainerNotifications(trainerId);
+    await ensureFitHubStudioDigestTrainerNotification(trainerId);
 
     const [items, unreadCount] = await Promise.all([
       prisma.trainerNotification.findMany({

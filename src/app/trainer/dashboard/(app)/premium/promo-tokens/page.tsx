@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { PremiumStudioLockedNotice } from "@/components/trainer/premium-studio-locked";
 import { TrainerPremiumHubBackLink } from "@/components/trainer/trainer-premium-hub-summary";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
@@ -17,8 +18,15 @@ export default async function TrainerPromoTokensPage() {
     where: { trainerId },
     select: { premiumStudioEnabledAt: true },
   });
-  if (!profile?.premiumStudioEnabledAt) {
-    redirect("/trainer/dashboard/premium");
+  const active = Boolean(profile?.premiumStudioEnabledAt);
+
+  if (!active) {
+    return (
+      <div className="space-y-8">
+        <TrainerPremiumHubBackLink />
+        <PremiumStudioLockedNotice areaLabel="Promotion Tokens" />
+      </div>
+    );
   }
 
   return (

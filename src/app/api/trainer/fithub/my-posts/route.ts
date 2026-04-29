@@ -30,6 +30,14 @@ export async function GET() {
         shareCount: true,
         scheduledPublishAt: true,
         visibility: true,
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+            reposts: true,
+            clientShares: true,
+          },
+        },
       },
     });
 
@@ -38,6 +46,14 @@ export async function GET() {
       posts: rows.map((p) => {
         const scheduled = p.scheduledPublishAt?.getTime();
         const isScheduled = scheduled != null && scheduled > now;
+        const mediaUrls = (() => {
+          try {
+            const v = p.mediaUrlsJson ? (JSON.parse(p.mediaUrlsJson) as unknown) : null;
+            return Array.isArray(v) ? v.filter((u): u is string => typeof u === "string") : [];
+          } catch {
+            return [];
+          }
+        })();
         return {
           id: p.id,
           createdAt: p.createdAt.toISOString(),
@@ -45,16 +61,13 @@ export async function GET() {
           caption: p.caption,
           bodyText: p.bodyText,
           mediaUrl: p.mediaUrl,
-          mediaUrls: (() => {
-            try {
-              const v = p.mediaUrlsJson ? (JSON.parse(p.mediaUrlsJson) as unknown) : null;
-              return Array.isArray(v) ? v.filter((u): u is string => typeof u === "string") : [];
-            } catch {
-              return [];
-            }
-          })(),
+          mediaUrls,
           hashtags: parseStoredHashtagsJson(p.hashtagsJson),
           shareCount: p.shareCount,
+          likeCount: p._count.likes,
+          commentCount: p._count.comments,
+          repostCount: p._count.reposts,
+          recordedShareCount: p._count.clientShares,
           scheduledPublishAt: p.scheduledPublishAt?.toISOString() ?? null,
           visibility: p.visibility,
           isScheduled,

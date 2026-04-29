@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createVideoPromotion } from "@/lib/trainer-promo-tokens";
+import { MAX_PROMO_DURATION_DAYS, MIN_PROMO_TOKENS_PER_DAY, MAX_SINGLE_PROMOTION_TOKENS, createVideoPromotion } from "@/lib/trainer-promo-tokens";
 import { getSessionTrainerId } from "@/lib/session";
 import { isTrainerPremiumStudioActive } from "@/lib/trainer-premium-studio";
 
@@ -8,8 +8,10 @@ export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
   postId: z.string().min(1),
-  durationDays: z.number().int().min(1).max(30),
-  tokensBudget: z.number().int().min(20).max(20_000),
+  durationDays: z.number().int().min(1).max(MAX_PROMO_DURATION_DAYS),
+  tokensBudget: z.number().int().min(MIN_PROMO_TOKENS_PER_DAY).max(MAX_SINGLE_PROMOTION_TOKENS),
+  /** ISO datetime; when set, promotion window starts at this instant (must be in the future). */
+  scheduledStartsAt: z.string().optional().nullable(),
 });
 
 export async function POST(req: Request) {
@@ -26,11 +28,20 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid payload." }, { status: 400 });
     }
+    let scheduled: Date | null = null;
+    if (parsed.data.scheduledStartsAt?.trim()) {
+      const d = new Date(parsed.data.scheduledStartsAt);
+      if (Number.isNaN(d.getTime())) {
+        return NextResponse.json({ error: "Invalid scheduled start time." }, { status: 400 });
+      }
+      scheduled = d;
+    }
     const res = await createVideoPromotion({
       trainerId,
       postId: parsed.data.postId,
       durationDays: parsed.data.durationDays,
       tokensBudget: parsed.data.tokensBudget,
+      scheduledStartsAt: scheduled,
     });
     if ("error" in res) {
       return NextResponse.json({ error: res.error }, { status: 400 });

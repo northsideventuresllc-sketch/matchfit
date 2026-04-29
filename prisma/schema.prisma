@@ -572,8 +572,10 @@ model TrainerProfile {
   /// Plain-text profile for search + AI when pairing trainers with clients; regenerated on each questionnaire submit.
   aiMatchProfileText String?
 
-  /// When set, trainer completed Premium Page signup and can use the Premium studio (social-style creator tools).
+  /// When set, trainer completed Premium Page signup and can use Premium Hub (social-style creator tools).
   premiumStudioEnabledAt DateTime?
+  /// Last time the trainer opened FitHub studio activity in Premium (unread counts vs main notification digest).
+  fitHubStudioActivitySeenAt DateTime?
 
   @@map("trainer_profiles")
 }

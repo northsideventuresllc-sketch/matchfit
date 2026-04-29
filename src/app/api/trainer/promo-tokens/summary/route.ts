@@ -6,6 +6,7 @@ import {
   MAX_PROMO_DURATION_DAYS,
   MAX_SINGLE_PROMOTION_TOKENS,
   MIN_PROMO_TOKENS_PER_DAY,
+  PROMO_TOKEN_PACK_TIERS,
   TOKENS_PER_USD_PACK,
   USD_PACK_PRICE_CENTS,
   WEEKLY_PREMIUM_TRAINER_GRANT,
@@ -50,6 +51,12 @@ export async function GET() {
       balance,
       regionZipPrefix,
       regionalBoostConfigured: Boolean(regionZipPrefix),
+      packTiers: PROMO_TOKEN_PACK_TIERS.map((t) => ({
+        id: t.id,
+        label: t.label,
+        tokens: t.tokens,
+        priceUsd: t.usdCents / 100,
+      })),
       economics: {
         tokensPerPack: TOKENS_PER_USD_PACK,
         packPriceUsd: USD_PACK_PRICE_CENTS / 100,
