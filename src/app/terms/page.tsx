@@ -16,7 +16,7 @@ export default async function TermsPage() {
         </p>
 
         <section id="featured-placement" className="mt-12 scroll-mt-24 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
-          <h2 className="text-lg font-black tracking-tight">Featured home placement (trainers)</h2>
+          <h2 className="text-lg font-black tracking-tight">Featured Home Placement (Trainers)</h2>
           <p className="mt-3 text-sm leading-relaxed text-white/60">
             Premium Page coaches may participate in a regional program to appear in the public “featured trainers” module.
             The program has two parts: (1) a <strong className="text-white/80">daily random allocation</strong> among

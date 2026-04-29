@@ -4,9 +4,12 @@ import Link from "next/link";
 
 export type LegalPageFooterRole = "client" | "trainer" | "guest";
 
-const linkClass = "text-sm font-semibold text-[#FF7E00] hover:underline";
+/** Row of footer actions, centered; uppercase is on each control because native buttons often skip inherited text-transform. */
+const navClass =
+  "mt-10 flex flex-row flex-wrap items-center justify-center gap-x-6 gap-y-2 text-center";
+const linkClass = "text-xs font-semibold uppercase tracking-wide text-[#FF7E00] hover:underline";
 const buttonClass =
-  "cursor-pointer border-0 bg-transparent p-0 text-left text-sm font-semibold text-[#FF7E00] hover:underline";
+  "cursor-pointer border-0 bg-transparent p-0 text-center text-xs font-semibold uppercase tracking-wide text-[#FF7E00] hover:underline";
 
 export function LegalPageFooterNav(props: { role: LegalPageFooterRole }) {
   function goBack() {
@@ -16,7 +19,7 @@ export function LegalPageFooterNav(props: { role: LegalPageFooterRole }) {
 
   if (props.role === "client") {
     return (
-      <nav className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-8 sm:gap-y-2" aria-label="Leave this page">
+      <nav className={navClass} aria-label="Leave this page">
         <button type="button" className={buttonClass} onClick={goBack}>
           Previous page
         </button>
@@ -29,7 +32,7 @@ export function LegalPageFooterNav(props: { role: LegalPageFooterRole }) {
 
   if (props.role === "trainer") {
     return (
-      <nav className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-8 sm:gap-y-2" aria-label="Leave this page">
+      <nav className={navClass} aria-label="Leave this page">
         <button type="button" className={buttonClass} onClick={goBack}>
           Previous page
         </button>
@@ -41,7 +44,7 @@ export function LegalPageFooterNav(props: { role: LegalPageFooterRole }) {
   }
 
   return (
-    <nav className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-8 sm:gap-y-2" aria-label="Leave this page">
+    <nav className={navClass} aria-label="Leave this page">
       <Link href="/" className={linkClass}>
         Back to Home
       </Link>

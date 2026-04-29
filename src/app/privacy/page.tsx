@@ -1,11 +1,20 @@
 import { LegalPageFooterNav } from "@/components/legal-page-footer-nav";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 
-/** Replace before launch — must match your operating entity and DPO / privacy inbox. */
-const EFFECTIVE_DATE = "April 29, 2026";
-const OPERATOR_LEGAL_NAME = "[Insert your legal entity name]";
-const PRIVACY_CONTACT_EMAIL = "[Insert privacy email address]";
-const PHYSICAL_ADDRESS_LINE = "[Insert mailing address for privacy requests, if required in your jurisdictions]";
+/** Legal operator of Match Fit. */
+const OPERATOR_LEGAL_NAME = "Northside Ventures LLC";
+
+/** Privacy and data-rights requests. */
+const PRIVACY_CONTACT_EMAIL = "northside.ventures.llc@gmail.com";
+
+/** Postal address for written privacy requests and official notices where applicable. */
+const PHYSICAL_ADDRESS_LINE = "1954 Airport Rd STE 1277, Chamblee, GA 30341, United States";
+
+/**
+ * Version in force for this posted policy. Update this string to the publication date whenever
+ * you deploy a materially revised Privacy Policy so users can see which version applies.
+ */
+const POLICY_EFFECTIVE_DATE = "April 29, 2026";
 
 function P({ children }: { children: React.ReactNode }) {
   return <p className="mt-3 text-sm leading-relaxed text-white/60">{children}</p>;
@@ -41,7 +50,10 @@ export default async function PrivacyPage() {
       <div className="mx-auto max-w-2xl">
         <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Privacy Policy</h1>
         <p className="mt-4 text-xs uppercase tracking-wide text-white/45">
-          Effective date: {EFFECTIVE_DATE}
+          Effective Date: {POLICY_EFFECTIVE_DATE}
+        </p>
+        <p className="mt-2 text-xs leading-relaxed text-white/45">
+          Whenever we publish an updated policy, we change this effective date to match the version you are reading.
         </p>
         <P>
           Match Fit (&quot;Match Fit,&quot; the &quot;Service&quot;) is operated by <Strong>{OPERATOR_LEGAL_NAME}</Strong>{" "}
@@ -55,15 +67,10 @@ export default async function PrivacyPage() {
         </P>
 
         <section className="mt-8 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
-          <h2 className="text-base font-black tracking-tight">Contact us</h2>
+          <h2 className="text-base font-black tracking-tight">Contact Us</h2>
           <P>
-            For privacy questions or requests: <Strong>{PRIVACY_CONTACT_EMAIL}</Strong>
-            {PHYSICAL_ADDRESS_LINE.startsWith("[") ? null : (
-              <>
-                {" "}
-                or write to us at <Strong>{PHYSICAL_ADDRESS_LINE}</Strong>.
-              </>
-            )}
+            For privacy questions or requests: <Strong>{PRIVACY_CONTACT_EMAIL}</Strong>, or write to us at{" "}
+            <Strong>{PHYSICAL_ADDRESS_LINE}</Strong>.
           </P>
         </section>
 
@@ -77,27 +84,27 @@ export default async function PrivacyPage() {
           sell your personal information as that term is commonly defined in U.S. state privacy laws.
         </P>
 
-        <H2 id="collect">2. Information we collect</H2>
+        <H2 id="collect">2. Information We Collect</H2>
         <P>Depending on whether you are a client, a trainer (coach), or a visitor, we may collect:</P>
 
-        <h3 className="mt-6 text-sm font-bold text-white/90">2.1 Account and authentication</h3>
+        <h3 className="mt-6 text-sm font-bold text-white/90">2.1 Account and Authentication</h3>
         <Ul>
           <Li>
-            <Strong>Identifiers and contact data:</Strong> name, preferred name, username, email address, phone number,
+            <Strong>Identifiers and Contact Data:</Strong> name, preferred name, username, email address, phone number,
             date of birth, and ZIP or postal code.
           </Li>
           <Li>
-            <Strong>Credentials and security:</Strong> password (stored using one-way hashing—we do not store your
+            <Strong>Credentials and Security:</Strong> password (stored using one-way hashing—we do not store your
             plaintext password), two-factor authentication settings, verification codes (stored as hashes or transient
             values, not plaintext), session identifiers in HTTP-only cookies, and &quot;stay logged in&quot; preferences.
           </Li>
           <Li>
-            <Strong>Terms and compliance timestamps:</Strong> records that you accepted applicable terms or completed
+            <Strong>Terms and Compliance Timestamps:</Strong> records that you accepted applicable terms or completed
             certain compliance steps where the product requires it.
           </Li>
         </Ul>
 
-        <h3 className="mt-6 text-sm font-bold text-white/90">2.2 Client-specific data</h3>
+        <h3 className="mt-6 text-sm font-bold text-white/90">2.2 Client-Specific Data</h3>
         <Ul>
           <Li>
             <Strong>Profile and preferences:</Strong> public-style bio, profile photo, match and discovery preferences
@@ -105,12 +112,12 @@ export default async function PrivacyPage() {
             notification preferences.
           </Li>
           <Li>
-            <Strong>Wellness and matching inputs:</Strong> daily matching questionnaire content and answers, and derived
+            <Strong>Wellness and Matching Inputs:</Strong> daily matching questionnaire content and answers, and derived
             algorithm context we compute to personalize prompts or matching. Treat this as sensitive wellness-related
             information you choose to share.
           </Li>
           <Li>
-            <Strong>Mailing address (optional):</Strong> if you provide it for your own records; we design the product so
+            <Strong>Mailing Address (Optional):</Strong> if you provide it for your own records; we design the product so
             trainers do not receive your full private address through routine trainer APIs.
           </Li>
           <Li>
@@ -118,86 +125,86 @@ export default async function PrivacyPage() {
             Stripe under its own terms and privacy policy—we do not store full payment card numbers on our servers.
           </Li>
           <Li>
-            <Strong>Social and engagement on Fit Hub:</Strong> likes, comments, reposts, shares, and content reports you
+            <Strong>Social and Engagement on Fit Hub:</Strong> likes, comments, reposts, shares, and content reports you
             submit about trainer posts.
           </Li>
           <Li>
-            <Strong>Trainer relationships:</Strong> saved trainers, conversation and message content, trainer
+            <Strong>Trainer Relationships:</Strong> saved trainers, conversation and message content, trainer
             &quot;nudges,&quot; relationship stage labels we display in the product, and optional token &quot;gifts&quot;
             you send to trainers subject to product rules.
           </Li>
         </Ul>
 
-        <h3 className="mt-6 text-sm font-bold text-white/90">2.3 Trainer-specific data</h3>
+        <h3 className="mt-6 text-sm font-bold text-white/90">2.3 Trainer-Specific Data</h3>
         <Ul>
           <Li>
-            <Strong>Professional profile:</Strong> bio, photo, pronouns, demographics you choose to disclose (for
+            <Strong>Professional Profile:</Strong> bio, photo, pronouns, demographics you choose to disclose (for
             example ethnicity or gender identity), languages, coaching experience, niches, and links or handles for
             social profiles you add.
           </Li>
           <Li>
-            <Strong>Compliance and verification:</Strong> certification and nutrition credential files you upload,
+            <Strong>Compliance and Verification:</Strong> certification and nutrition credential files you upload,
             onboarding track selections, background check pipeline status, W-9 or tax information you submit through our
             flows, and related review statuses.
           </Li>
           <Li>
-            <Strong>Matching questionnaire:</Strong> structured answers, optional follow-up questionnaires, and plain
+            <Strong>Matching Questionnaire:</Strong> structured answers, optional follow-up questionnaires, and plain
             text or derived &quot;AI match profile&quot; text generated from your responses to improve discovery and
             pairing.
           </Li>
           <Li>
-            <Strong>Fit Hub and Premium tools:</Strong> posts (text, images, video, carousels), captions, hashtags,
+            <Strong>Fit Hub and Premium Tools:</Strong> posts (text, images, video, carousels), captions, hashtags,
             scheduling choices, visibility (public or private to you), promotions paid with in-platform tokens, and studio
             activity timestamps used for notifications.
           </Li>
           <Li>
-            <Strong>Featured placement program:</Strong> regional pool identifiers derived from your published in-person
+            <Strong>Featured Placement Program:</Strong> regional pool identifiers derived from your published in-person
             service ZIP (for example the first three digits of a U.S. ZIP code), raffle entries, bid amounts and payment
             status, display-day keys, and outcomes needed to operate the program described in our Terms.
           </Li>
           <Li>
-            <Strong>Tokens and rewards:</Strong> token balances, ledger entries, weekly grants, purchases through Stripe
+            <Strong>Tokens and Rewards:</Strong> token balances, ledger entries, weekly grants, purchases through Stripe
             Checkout where enabled, and rewards tied to documented client service transactions.
           </Li>
           <Li>
-            <Strong>Billing (where connected):</Strong> Stripe-related identifiers for coach billing, invoices, or
+            <Strong>Billing (Where Connected):</Strong> Stripe-related identifiers for coach billing, invoices, or
             purchases as implemented in the product.
           </Li>
         </Ul>
 
-        <h3 className="mt-6 text-sm font-bold text-white/90">2.4 Trust, safety, and support</h3>
+        <h3 className="mt-6 text-sm font-bold text-white/90">2.4 Trust, Safety, and Support</h3>
         <Ul>
           <Li>
-            <Strong>Blocks and safety reports:</Strong> who blocked whom, optional reasons, and reports you file about
+            <Strong>Blocks and Safety Reports:</Strong> who blocked whom, optional reasons, and reports you file about
             another user.
           </Li>
           <Li>
-            <Strong>Account enforcement records:</Strong> suspension reasons, timing, and retention windows needed for
+            <Strong>Account Enforcement Records:</Strong> suspension reasons, timing, and retention windows needed for
             audit or legal compliance.
           </Li>
           <Li>
-            <Strong>Bug and feedback reports:</Strong> category, description, optional name, email, and whether you chose
+            <Strong>Bug and Feedback Reports:</Strong> category, description, optional name, email, and whether you chose
             to submit anonymously.
           </Li>
         </Ul>
 
-        <h3 className="mt-6 text-sm font-bold text-white/90">2.5 Technical and usage data</h3>
+        <h3 className="mt-6 text-sm font-bold text-white/90">2.5 Technical and Usage Data</h3>
         <Ul>
           <Li>
-            <Strong>Device and log data:</Strong> IP address, browser type, app version where applicable, dates and
+            <Strong>Device and Log Data:</Strong> IP address, browser type, app version where applicable, dates and
             times of requests, referring URLs, and diagnostic logs. We use this for security, fraud prevention, debugging,
             and service reliability.
           </Li>
           <Li>
-            <Strong>Cookies and similar technologies:</Strong> cookies that maintain your session and security flows. We
+            <Strong>Cookies and Similar Technologies:</Strong> cookies that maintain your session and security flows. We
             may use essential cookies even if optional marketing cookies are not present.
           </Li>
         </Ul>
 
-        <H2 id="sources">3. How we collect information</H2>
+        <H2 id="sources">3. How We Collect Information</H2>
         <Ul>
           <Li>
-            <Strong>Directly from you</Strong> when you register, complete profiles or questionnaires, upload media,
+            <Strong>Directly From You</Strong> when you register, complete profiles or questionnaires, upload media,
             send messages, make purchases, or contact support.
           </Li>
           <Li>
@@ -205,12 +212,12 @@ export default async function PrivacyPage() {
             technologies.
           </Li>
           <Li>
-            <Strong>From service providers</Strong> such as payment processors (for example confirmation of subscription
+            <Strong>From Service Providers</Strong> such as payment processors (for example confirmation of subscription
             status from Stripe).
           </Li>
         </Ul>
 
-        <H2 id="use">4. How we use information</H2>
+        <H2 id="use">4. How We Use Information</H2>
         <P>We use personal information to:</P>
         <Ul>
           <Li>Provide, operate, maintain, and improve Match Fit;</Li>
@@ -227,26 +234,26 @@ export default async function PrivacyPage() {
           </Li>
         </Ul>
 
-        <H2 id="legal-bases">5. Legal bases (EEA, UK, and similar jurisdictions)</H2>
+        <H2 id="legal-bases">5. Legal Bases (EEA, UK, and Similar Jurisdictions)</H2>
         <P>
-          Where GDPR or similar laws apply, we rely on one or more of the following: <Strong>performance of a contract</Strong>{" "}
-          (providing the Service you request); <Strong>legitimate interests</Strong> (security, product improvement, and
-          fraud prevention, balanced against your rights); <Strong>legal obligation</Strong>; and, where required,{" "}
-          <Strong>consent</Strong> (for example for certain marketing communications or non-essential cookies, if we offer
+          Where GDPR or similar laws apply, we rely on one or more of the following: <Strong>Performance of a Contract</Strong>{" "}
+          (providing the Service you request); <Strong>Legitimate Interests</Strong> (security, product improvement, and
+          fraud prevention, balanced against your rights); <Strong>Legal Obligation</Strong>; and, where required,{" "}
+          <Strong>Consent</Strong> (for example for certain marketing communications or non-essential cookies, if we offer
           them and you opt in). You may withdraw consent where processing is consent-based, without affecting the lawfulness
           of processing before withdrawal.
         </P>
 
-        <H2 id="disclosure">6. How we share information</H2>
+        <H2 id="disclosure">6. How We Share Information</H2>
         <P>We may share personal information with:</P>
         <Ul>
           <Li>
-            <Strong>Other users</Strong> as needed to operate features you use—for example, profile fields you make
+            <Strong>Other Users</Strong> as needed to operate features you use—for example, profile fields you make
             visible, Fit Hub posts you publish as public, chat messages within a conversation, or discovery preferences
             you enable for coaches to find you.
           </Li>
           <Li>
-            <Strong>Service providers (processors)</Strong> who assist us under contract, including:
+            <Strong>Service Providers (Processors)</Strong> who assist us under contract, including:
             <Ul>
               <Li>
                 <Strong>Stripe, Inc.</Strong> and affiliates for payments, billing portals, and related fraud and compliance
@@ -260,20 +267,20 @@ export default async function PrivacyPage() {
                 channels;
               </Li>
               <Li>
-                <Strong>Cloud hosting, database, and infrastructure</Strong> vendors that store or process data on our
+                <Strong>Cloud Hosting, Database, and Infrastructure</Strong> vendors that store or process data on our
                 behalf.
               </Li>
             </Ul>
           </Li>
           <Li>
-            <Strong>Professional advisers</Strong> such as lawyers or accountants under confidentiality obligations.
+            <Strong>Professional Advisers</Strong> such as lawyers or accountants under confidentiality obligations.
           </Li>
           <Li>
             <Strong>Authorities</Strong> when we believe disclosure is required by law, regulation, legal process, or
             governmental request, or to protect the rights, property, or safety of Match Fit, our users, or the public.
           </Li>
           <Li>
-            <Strong>Business transfers:</Strong> in connection with a merger, acquisition, financing, or sale of assets,
+            <Strong>Business Transfers:</Strong> in connection with a merger, acquisition, financing, or sale of assets,
             subject to appropriate confidentiality and continuity commitments.
           </Li>
         </Ul>
@@ -300,7 +307,7 @@ export default async function PrivacyPage() {
           are responsible for maintaining the confidentiality of your password and devices.
         </P>
 
-        <H2 id="rights">9. Your choices and rights</H2>
+        <H2 id="rights">9. Your Choices and Rights</H2>
         <P>Depending on your location, you may have the right to:</P>
         <Ul>
           <Li>Access, correct, or update certain profile information through in-product settings;</Li>
@@ -328,7 +335,7 @@ export default async function PrivacyPage() {
           information, contact us and we will take appropriate steps to delete it.
         </P>
 
-        <H2 id="international">11. International users</H2>
+        <H2 id="international">11. International Users</H2>
         <P>
           If you access the Service from outside the United States, your information may be processed in the United States
           or other countries where we or our vendors operate. Those countries may have different data protection laws than
@@ -336,13 +343,13 @@ export default async function PrivacyPage() {
           transfers.
         </P>
 
-        <H2 id="third-party">12. Third-party links and embedded services</H2>
+        <H2 id="third-party">12. Third-Party Links and Embedded Services</H2>
         <P>
           Trainers may link to external social networks or websites. Payment flows may embed or redirect to Stripe. Those
           third parties have their own privacy policies. We are not responsible for their practices.
         </P>
 
-        <H2 id="ai">13. Automated processing and matching</H2>
+        <H2 id="ai">13. Automated Processing and Matching</H2>
         <P>
           We may use algorithms and, where product features enable it, machine-assisted processing to rank or suggest
           coaches, personalize questionnaires, or generate trainer-facing match profile text from questionnaire answers.
@@ -351,11 +358,11 @@ export default async function PrivacyPage() {
           fitness marketplace, unless we disclose otherwise in-product and provide any rights required by law.
         </P>
 
-        <H2 id="changes">14. Changes to this policy</H2>
+        <H2 id="changes">14. Changes to This Policy</H2>
         <P>
-          We may update this Privacy Policy from time to time. We will post the revised version and update the effective
-          date. If changes are material, we will provide additional notice as required by law (for example, by email or
-          in-app message).
+          We may update this Privacy Policy from time to time. Each posted version shows its own effective date at the top
+          of this page; we update that date when a new version goes live. If changes are material, we will provide
+          additional notice as required by law (for example, by email or in-app message).
         </P>
 
         <H2 id="disclaimers">15. Limitations</H2>
@@ -365,11 +372,12 @@ export default async function PrivacyPage() {
         </P>
 
         <section className="mt-12 rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-200/90">Legal review</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-200/90">Legal Review</p>
           <p className="mt-2 text-xs leading-relaxed text-white/55">
-            Replace the bracketed operator name and contact fields at the top of this file, align subprocessors with your
-            actual vendors and DPAs, and have qualified counsel review this policy for your jurisdictions, payment flows,
-            and any advertising or analytics tools you add before relying on it at scale.
+            Align the subprocessors list with your executed vendor agreements, bump{" "}
+            <code className="rounded bg-white/10 px-1 py-0.5 text-[0.65rem] text-white/70">POLICY_EFFECTIVE_DATE</code> when
+            you ship policy updates, and have qualified counsel review this policy for your jurisdictions, payment flows,
+            and any advertising or analytics tools you add.
           </p>
         </section>
 

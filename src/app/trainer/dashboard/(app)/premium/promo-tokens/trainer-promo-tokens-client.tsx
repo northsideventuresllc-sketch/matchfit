@@ -355,111 +355,140 @@ export function TrainerPromoTokensClient() {
         )}
       </div>
 
-      <div className="space-y-4 rounded-2xl border border-white/[0.08] bg-[#12151C]/90 p-6">
-        <h2 className="text-center text-sm font-black uppercase tracking-[0.22em] text-[#FF7E00]/95">Promoted content</h2>
-
-        <div className="flex flex-wrap justify-center gap-2 rounded-2xl border border-white/[0.06] bg-black/20 p-1">
-          {TAB_LABELS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setPromoTab(t.id)}
-              className={`rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wide transition sm:px-4 sm:text-xs ${
-                promoTab === t.id
-                  ? "bg-[#FF7E00]/25 text-white ring-1 ring-[#FF7E00]/40"
-                  : "text-white/45 hover:bg-white/[0.04] hover:text-white/70"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0E1016]/70 p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-white/40">Promotion dashboard</p>
-          <p className="mt-1 text-[11px] leading-relaxed text-white/45">
-            Use engagement during each window and the estimated regional feed boost (when a client ZIP prefix matches
-            yours) to judge whether a run was worth the spend. Boost scores are model estimates, not impressions.
-          </p>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-xl border border-white/[0.06] bg-black/30 px-3 py-2 text-center">
-              <p className="text-[9px] font-bold uppercase tracking-wide text-white/35">Runs</p>
-              <p className="mt-1 text-lg font-black tabular-nums text-white">{tabDashboard.n}</p>
-            </div>
-            <div className="rounded-xl border border-white/[0.06] bg-black/30 px-3 py-2 text-center">
-              <p className="text-[9px] font-bold uppercase tracking-wide text-white/35">Tokens spent</p>
-              <p className="mt-1 text-lg font-black tabular-nums text-[#FFD34E]">{tabDashboard.tokens}</p>
-            </div>
-            <div className="rounded-xl border border-white/[0.06] bg-black/30 px-3 py-2 text-center">
-              <p className="text-[9px] font-bold uppercase tracking-wide text-white/35">Engagement</p>
-              <p className="mt-1 text-xs font-bold tabular-nums text-white/85">
-                ♥{tabDashboard.likes} · 💬{tabDashboard.comments}
+      <div className="space-y-4">
+        <div className="rounded-3xl border border-[#FF7E00]/25 bg-[linear-gradient(180deg,rgba(255,126,0,0.12)_0%,rgba(18,21,28,0.92)_2.5rem)] p-5 shadow-[0_20px_60px_-40px_rgba(255,126,0,0.45)] sm:p-6">
+          <div className="text-center">
+            <p className="text-sm font-black uppercase tracking-[0.28em] text-[#FF7E00] sm:text-base">Promoted content</p>
+            <p className="mt-1 text-[11px] text-white/45">Switch tabs to review past, live, or scheduled runs for this bucket.</p>
+          </div>
+          <div className="mt-4 flex flex-wrap justify-center gap-2 rounded-2xl border border-white/[0.1] bg-black/25 p-1">
+            {TAB_LABELS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setPromoTab(t.id)}
+                className={`rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wide transition sm:px-4 sm:text-xs ${
+                  promoTab === t.id
+                    ? "bg-[#FF7E00]/25 text-white ring-1 ring-[#FF7E00]/40"
+                    : "text-white/45 hover:bg-white/[0.06] hover:text-white/70"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <div className="mt-6 border-t border-white/[0.08] pt-5">
+            {tabPromotions.length === 0 ? (
+              <p className="rounded-xl border border-white/[0.08] bg-black/30 py-8 text-center text-sm text-white/45">
+                Nothing in this bucket yet.
               </p>
-              <p className="mt-0.5 text-[10px] text-white/45">
-                ↻{tabDashboard.reposts} · ⧉{tabDashboard.shares}
-              </p>
-            </div>
-            <div className="rounded-xl border border-white/[0.06] bg-black/30 px-3 py-2 text-center">
-              <p className="text-[9px] font-bold uppercase tracking-wide text-white/35">Avg est. boost</p>
-              <p className="mt-1 text-lg font-black tabular-nums text-emerald-200/95">{tabDashboard.avgBoost}</p>
-              <p className="text-[9px] text-white/35">0–160 scale</p>
-            </div>
+            ) : (
+              <ul className="space-y-4">
+                {tabPromotions.map((p) => (
+                  <li
+                    key={p.id}
+                    className="overflow-hidden rounded-2xl border border-white/[0.12] bg-black/30 p-4 shadow-[0_12px_40px_-28px_rgba(0,0,0,0.75)]"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                      <div className="h-24 w-full shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black/30 sm:h-28 sm:w-40">
+                        {p.post.mediaUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={p.post.mediaUrl} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-[10px] font-bold uppercase text-white/25">
+                            Video
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <p className="text-xs font-semibold text-white/90 line-clamp-2">{p.post.caption ?? "(No caption)"}</p>
+                        <p className="text-[10px] text-white/40">
+                          {new Date(p.startsAt).toLocaleString()} → {new Date(p.endsAt).toLocaleString()}
+                        </p>
+                        <p className="text-[10px] text-white/45">
+                          Region <span className="font-mono text-white/70">{p.regionZipPrefix}**</span> · {p.durationDays}{" "}
+                          day(s) · {p.tokensSpent} tokens · ~{p.tokensPerDay}/day
+                        </p>
+                        <p className="text-[10px] italic text-white/35">{p.statsWindowNote}</p>
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          <span className="rounded-md bg-rose-500/15 px-2 py-1 text-[10px] font-bold text-rose-100">
+                            ♥ {p.stats.likes}
+                          </span>
+                          <span className="rounded-md bg-sky-500/15 px-2 py-1 text-[10px] font-bold text-sky-100">
+                            💬 {p.stats.comments}
+                          </span>
+                          <span className="rounded-md bg-violet-500/15 px-2 py-1 text-[10px] font-bold text-violet-100">
+                            ↻ {p.stats.reposts}
+                          </span>
+                          <span className="rounded-md bg-amber-500/15 px-2 py-1 text-[10px] font-bold text-amber-50">
+                            ⧉ {p.stats.shares}
+                          </span>
+                          <span className="rounded-md bg-emerald-500/15 px-2 py-1 text-[10px] font-bold text-emerald-100">
+                            Est. boost {p.estMaxRegionalBoost}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
 
-        {tabPromotions.length === 0 ? (
-          <p className="py-6 text-center text-sm text-white/45">Nothing in this bucket yet.</p>
-        ) : (
-          <ul className="space-y-4">
-            {tabPromotions.map((p) => (
-              <li
-                key={p.id}
-                className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0E1016]/60 p-4 shadow-[0_12px_40px_-28px_rgba(0,0,0,0.75)]"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <div className="h-24 w-full shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black/30 sm:h-28 sm:w-40">
-                    {p.post.mediaUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.post.mediaUrl} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-[10px] font-bold uppercase text-white/25">
-                        Video
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <p className="text-xs font-semibold text-white/90 line-clamp-2">{p.post.caption ?? "(No caption)"}</p>
-                    <p className="text-[10px] text-white/40">
-                      {new Date(p.startsAt).toLocaleString()} → {new Date(p.endsAt).toLocaleString()}
-                    </p>
-                    <p className="text-[10px] text-white/45">
-                      Region <span className="font-mono text-white/70">{p.regionZipPrefix}**</span> · {p.durationDays}{" "}
-                      day(s) · {p.tokensSpent} tokens · ~{p.tokensPerDay}/day
-                    </p>
-                    <p className="text-[10px] italic text-white/35">{p.statsWindowNote}</p>
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <span className="rounded-md bg-rose-500/15 px-2 py-1 text-[10px] font-bold text-rose-100">
-                        ♥ {p.stats.likes}
-                      </span>
-                      <span className="rounded-md bg-sky-500/15 px-2 py-1 text-[10px] font-bold text-sky-100">
-                        💬 {p.stats.comments}
-                      </span>
-                      <span className="rounded-md bg-violet-500/15 px-2 py-1 text-[10px] font-bold text-violet-100">
-                        ↻ {p.stats.reposts}
-                      </span>
-                      <span className="rounded-md bg-amber-500/15 px-2 py-1 text-[10px] font-bold text-amber-50">
-                        ⧉ {p.stats.shares}
-                      </span>
-                      <span className="rounded-md bg-emerald-500/15 px-2 py-1 text-[10px] font-bold text-emerald-100">
-                        Est. boost {p.estMaxRegionalBoost}
-                      </span>
-                    </div>
-                  </div>
+        <div className="rounded-3xl border border-[#FF7E00]/25 bg-[linear-gradient(180deg,rgba(255,126,0,0.12)_0%,rgba(18,21,28,0.92)_2.5rem)] p-5 shadow-[0_20px_60px_-40px_rgba(255,126,0,0.45)] sm:p-6">
+          <div className="mb-4 text-center">
+            <p className="text-sm font-black uppercase tracking-[0.28em] text-[#FF7E00] sm:text-base">Promotion dashboard</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-white/45">
+              Totals for the tab you selected in Promoted content. Engagement is counted in-window; boost is the same
+              regional score model as the client FitHub feed when a client ZIP prefix matches yours (not impressions).
+            </p>
+          </div>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-white/[0.1] bg-black/35 px-4 py-4 text-center">
+                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-white/45">Runs</p>
+                <p className="mt-2 text-2xl font-black tabular-nums leading-none text-white">{tabDashboard.n}</p>
+              </div>
+              <div className="rounded-xl border border-white/[0.1] bg-black/35 px-4 py-4 text-center">
+                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-white/45">Tokens spent</p>
+                <p className="mt-2 text-2xl font-black tabular-nums leading-none text-[#FFD34E]">{tabDashboard.tokens}</p>
+              </div>
+              <div className="rounded-xl border border-white/[0.1] bg-black/35 px-4 py-4 text-center">
+                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-white/45">Avg est. boost</p>
+                <p className="mt-2 text-2xl font-black tabular-nums leading-none text-emerald-200/95">{tabDashboard.avgBoost}</p>
+                <p className="mt-2 text-[10px] text-white/40">0–160 scale</p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/[0.12] bg-black/25 p-4 sm:p-5">
+              <div className="mb-4 text-center sm:text-left">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FF7E00]/90">Engagement</p>
+                <p className="mt-1 text-xs leading-relaxed text-white/50">
+                  In-window totals for the tab you selected (likes, comments, reposts, and recorded shares).
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+                <div className="flex flex-col items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/[0.08] px-3 py-4 text-center sm:min-h-[6.5rem] sm:justify-center sm:py-5">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-rose-200/80">Likes</p>
+                  <p className="text-2xl font-black tabular-nums leading-none text-white sm:text-3xl">{tabDashboard.likes}</p>
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
+                <div className="flex flex-col items-center gap-2 rounded-xl border border-sky-500/25 bg-sky-500/[0.08] px-3 py-4 text-center sm:min-h-[6.5rem] sm:justify-center sm:py-5">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-sky-200/85">Comments</p>
+                  <p className="text-2xl font-black tabular-nums leading-none text-white sm:text-3xl">{tabDashboard.comments}</p>
+                </div>
+                <div className="flex flex-col items-center gap-2 rounded-xl border border-violet-500/25 bg-violet-500/[0.08] px-3 py-4 text-center sm:min-h-[6.5rem] sm:justify-center sm:py-5">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-violet-200/85">Reposts</p>
+                  <p className="text-2xl font-black tabular-nums leading-none text-white sm:text-3xl">{tabDashboard.reposts}</p>
+                </div>
+                <div className="flex flex-col items-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.1] px-3 py-4 text-center sm:min-h-[6.5rem] sm:justify-center sm:py-5">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-amber-100/90">Shares</p>
+                  <p className="text-2xl font-black tabular-nums leading-none text-white sm:text-3xl">{tabDashboard.shares}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {err ? (
