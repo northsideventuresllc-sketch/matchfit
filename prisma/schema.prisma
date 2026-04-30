@@ -562,17 +562,17 @@ model TrainerProfile {
 
   /// Set when the trainer completes the skeleton background-check step; marks the compliance profile as ready for the main dashboard.
   dashboardActivatedAt DateTime?
-  /// not_started | in_progress | completed — AI matching questionnaire.
+  /// not_started | in_progress | completed — Onboarding Questionnaire (trainer Daily Questionnaires).
   matchQuestionnaireStatus String @default("not_started")
   /// Structured answers for search + AI matching (JSON string; SQLite has no Prisma Json type here).
   matchQuestionnaireAnswers     String?
   matchQuestionnaireCompletedAt DateTime?
-  /// Optional questionnaire completions (JSON array), excluding mandatory Match Me.
+  /// Optional questionnaire completions (JSON array), excluding mandatory Onboarding Questionnaire.
   followUpQuestionnaireAnswersJson String?
-  /// Plain-text profile for search + AI when pairing trainers with clients; regenerated on each questionnaire submit.
+  /// Plain-text profile for search + AI when pairing trainers with clients; regenerated on each Onboarding Questionnaire submit.
   aiMatchProfileText String?
 
-  /// Published services & pricing (JSON). Managed only from the trainer dashboard—not Match Me.
+  /// Published services & pricing (JSON). Managed only from the trainer dashboard—not the Onboarding Questionnaire.
   serviceOfferingsJson String?
 
   /// When set, trainer completed Premium Page signup and can use Premium Hub (social-style creator tools).
@@ -697,7 +697,7 @@ model FeaturedRaffleEntry {
   trainerId String
   trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 
-  /// First three digits of the trainer’s in-person US ZIP from the Match questionnaire (regional pool).
+  /// First three digits of the trainer’s in-person US ZIP from the Onboarding Questionnaire (regional pool).
   regionZipPrefix String
   displayDayKey   String
   /// Each entrant contributes this many tickets in the weighted draw (product default: 5).
