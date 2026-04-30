@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
 
 const inputClass =
@@ -77,7 +78,7 @@ export function PasswordChangePanel(props: {
         setError(data.error ?? "Could not update password.");
         return;
       }
-      window.location.assign(data.next ?? "/client?passwordReset=1");
+      navigateWithFullLoad(data.next ?? "/client?passwordReset=1");
     } catch {
       setError("Something went wrong. Try again.");
     } finally {

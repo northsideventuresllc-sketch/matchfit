@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { isTrainerClientPairBlocked } from "@/lib/user-block-queries";
+import { buildClientChatTokenTipContext } from "@/lib/trainer-promo-tokens";
 import { NextResponse } from "next/server";
 
 const MAX_BODY = 4000;
@@ -57,10 +58,13 @@ export async function GET(_req: Request, ctx: RouteContext) {
       },
     });
 
+    const tokenTip = await buildClientChatTokenTipContext(clientId, trainer.id);
+
     return NextResponse.json({
       conversationId: conv?.id ?? null,
       officialChatStartedAt: conv?.officialChatStartedAt?.toISOString() ?? null,
       relationshipStage: conv?.relationshipStage ?? "POTENTIAL_CLIENT",
+      tokenTip,
       messages:
         conv?.messages.map((m) => ({
           id: m.id,

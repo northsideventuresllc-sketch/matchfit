@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 
 export const metadata: Metadata = {
-  title: "Match Me | Trainer | Match Fit",
+  title: "Onboarding Questionnaire | Trainer | Match Fit",
 };
 
 export default async function TrainerMatchMeQuestionnairePage() {
@@ -34,18 +34,18 @@ export default async function TrainerMatchMeQuestionnairePage() {
           href={TRAINER_MATCH_QUESTIONNAIRES_PATH}
           className="text-xs font-medium text-white/45 transition hover:text-white/70"
         >
-          ← Match questionnaires
+          ← Daily questionnaires
         </Link>
       </div>
 
       <div>
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Match Me</h1>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Onboarding Questionnaire</h1>
           <span
-            className="max-w-[16rem] rounded-full border border-amber-400/45 bg-amber-400/15 px-3 py-1.5 text-xs font-medium leading-snug text-amber-100 sm:max-w-none"
+            className="max-w-[16rem] rounded-full border border-amber-400/45 bg-amber-400/15 px-3 py-1.5 text-[10px] font-black uppercase leading-snug tracking-wide text-amber-100 sm:max-w-none sm:text-xs"
             title="Finish every section so your account can appear in client search and matching."
           >
-            Required for client visibility
+            REQUIRED FOR CLIENT VISIBILITY
           </span>
         </div>
         <p className="mt-2 text-sm leading-relaxed text-white/50">

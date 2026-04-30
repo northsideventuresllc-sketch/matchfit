@@ -40,6 +40,8 @@ export type TrainerPublicProfileViewProps = {
   /** Client account, trainer dashboard, or client portal when signed out. */
   backToDashboardHref: string;
   messageHref: string;
+  /** When true (coach viewing own `/trainers/...` link), client CTAs are non-interactive preview only. */
+  disableClientActions?: boolean;
   servicesRates: string[] | null;
   /** Human ideal-client copy; questionnaire “levels” are not shown verbatim. */
   idealClientParagraph: string | null;
@@ -57,6 +59,7 @@ function chip(text: string) {
 }
 
 export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
+  const preview = Boolean(props.disableClientActions);
   const initial = props.displayName.trim().charAt(0).toUpperCase() || "?";
   const avatar = props.profileImageUrl?.split("?")[0];
 
@@ -103,6 +106,12 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
           </div>
 
           <div className="relative -mt-16 px-5 pb-8 pt-0 sm:px-8">
+            {preview ? (
+              <p className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/[0.12] px-3 py-2.5 text-center text-[11px] font-semibold leading-relaxed text-amber-100/95">
+                You&apos;re previewing your client-facing profile. Message and checkout stay inactive here so you
+                aren&apos;t sent through the client sign-in flow by mistake.
+              </p>
+            ) : null}
             <div className="flex flex-col items-center text-center sm:flex-row sm:items-end sm:gap-6 sm:text-left">
               <div className="relative h-[7.5rem] w-[7.5rem] shrink-0 overflow-hidden rounded-[1.35rem] border-[3px] border-[#0B0C0F] bg-[#12151C] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.9)]">
                 {avatar ? (
@@ -139,67 +148,28 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
               <p className="mt-6 text-center text-xs text-white/35 sm:text-left">Match Fit Coach</p>
             )}
 
-            {socialLinksOrdered.length > 0 ? (
-              <section
-                className="mt-6 rounded-2xl border border-[#FF7E00]/25 bg-[linear-gradient(165deg,rgba(255,126,0,0.12)_0%,rgba(14,16,22,0.95)_45%)] px-4 py-5 sm:px-5"
-                aria-label="Social media and other links"
-              >
-                <h2 className="text-center text-[11px] font-black uppercase tracking-[0.18em] text-[#FFD34E] sm:text-left">
-                  Social media &amp; other links
-                </h2>
-                <p className="mt-2 text-center text-xs leading-relaxed text-white/50 sm:text-left">
-                  Every destination below opens in a new tab, including social profiles and any extra link this coach
-                  added.
-                </p>
-                <ul className="mt-4 space-y-3">
-                  {socialLinksOrdered.map((s, i) => (
-                    <li key={`${s.platform}-${i}-${s.url}`}>
-                      <a
-                        href={s.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex flex-col gap-2 rounded-xl border border-white/[0.14] bg-[#0B0C0F]/80 px-4 py-3.5 transition hover:border-[#FF7E00]/45 hover:bg-[#12151C]/90 sm:flex-row sm:items-center sm:gap-4"
-                      >
-                        <div className="flex min-w-0 flex-1 items-center gap-3">
-                          {s.platform === "other" ? (
-                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/[0.08] text-sm font-black text-[#FF7E00]">
-                              ↗
-                            </span>
-                          ) : (
-                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-[#0E1016]">
-                              <TrainerSocialBrandIcon
-                                platform={s.platform as Exclude<typeof s.platform, "other">}
-                                className="h-7 w-7"
-                              />
-                            </span>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <span className="block text-sm font-black text-white">{s.label}</span>
-                            <span className="mt-1 block break-all text-sm font-medium leading-snug text-[#FF7E00] underline-offset-2 hover:underline">
-                              {s.url}
-                            </span>
-                          </div>
-                        </div>
-                        <span className="shrink-0 self-start text-[10px] font-black uppercase tracking-[0.12em] text-white/45 sm:self-center">
-                          Open ↗
-                        </span>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-
             <div className="mt-6">
-              <Link
-                href={props.messageHref}
-                className="inline-flex min-h-[3.25rem] w-full items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#FF7E00_0%,#E32B2B_100%)] px-5 text-sm font-black uppercase tracking-[0.1em] text-white shadow-[0_16px_40px_-12px_rgba(255,126,0,0.55)] transition hover:brightness-110 sm:max-w-md"
-              >
-                Message coach
-              </Link>
+              {preview ? (
+                <div
+                  role="presentation"
+                  aria-hidden
+                  className="inline-flex min-h-[3.25rem] w-full cursor-not-allowed select-none items-center justify-center rounded-2xl border border-white/[0.12] bg-white/[0.06] px-5 text-sm font-black uppercase tracking-[0.1em] text-white/40 sm:max-w-md"
+                >
+                  Message coach
+                </div>
+              ) : (
+                <Link
+                  href={props.messageHref}
+                  className="inline-flex min-h-[3.25rem] w-full items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#FF7E00_0%,#E32B2B_100%)] px-5 text-sm font-black uppercase tracking-[0.1em] text-white shadow-[0_16px_40px_-12px_rgba(255,126,0,0.55)] transition hover:brightness-110 sm:max-w-md"
+                >
+                  Message coach
+                </Link>
+              )}
             </div>
             <p className="mt-3 text-center text-[11px] leading-relaxed text-white/40 sm:text-left">
-              Questions about packages or scheduling? Start a conversation—coaches reply here first.
+              {preview
+                ? "On your live link, clients tap here to open chat with you. This control is preview-only while you are signed in as the coach."
+                : "Questions about packages or scheduling? Start a conversation—coaches reply here first."}
             </p>
 
             {(props.yearsCoaching?.trim() || nicheChips.length > 0) && (
@@ -250,7 +220,11 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
             {props.servicesRates && props.servicesRates.length > 0 ? (
               <section className="mt-10 border-t border-white/[0.06] pt-8">
                 <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[#FF7E00]">Services &amp; rates</h2>
-                <p className="mt-2 text-xs text-white/45">Transparent pricing—tap message if you want a custom bundle.</p>
+                <p className="mt-2 text-xs text-white/45">
+                  {preview
+                    ? "Transparent pricing on your live profile—checkout is for signed-in clients only."
+                    : "Transparent pricing—tap message if you want a custom bundle."}
+                </p>
                 <ul className="mt-5 space-y-3">
                   {props.servicesRates.map((line, i) => (
                     <li
@@ -265,15 +239,26 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
                   ))}
                 </ul>
                 <div className="mt-6">
-                  <Link
-                    href="/client/subscribe"
-                    className="inline-flex min-h-[3.25rem] w-full items-center justify-center rounded-2xl border border-[#FF7E00]/45 bg-[#FF7E00]/15 px-5 text-sm font-black uppercase tracking-[0.14em] text-white transition hover:border-[#FF7E00]/60 hover:bg-[#FF7E00]/22"
-                  >
-                    CHECKOUT
-                  </Link>
+                  {preview ? (
+                    <div
+                      role="presentation"
+                      aria-hidden
+                      className="inline-flex min-h-[3.25rem] w-full cursor-not-allowed select-none items-center justify-center rounded-2xl border border-white/[0.12] bg-white/[0.05] px-5 text-sm font-black uppercase tracking-[0.14em] text-white/40"
+                    >
+                      Checkout
+                    </div>
+                  ) : (
+                    <Link
+                      href="/client/subscribe"
+                      className="inline-flex min-h-[3.25rem] w-full items-center justify-center rounded-2xl border border-[#FF7E00]/45 bg-[#FF7E00]/15 px-5 text-sm font-black uppercase tracking-[0.14em] text-white transition hover:border-[#FF7E00]/60 hover:bg-[#FF7E00]/22"
+                    >
+                      CHECKOUT
+                    </Link>
+                  )}
                   <p className="mt-3 text-center text-[10px] leading-relaxed italic text-white/38 sm:text-left">
-                    Match Fit applies a 20% service charge on checkout to support the platform, coaches, and secure
-                    payments. Card processing may include an additional transaction fee from the payment provider.
+                    {preview
+                      ? "Clients who are logged in will use checkout here. You are only previewing this screen as the coach."
+                      : "Match Fit applies a 20% administrative fee on non-subscription purchases at checkout, plus a transaction fee to cover payment processing (e.g. Stripe). Your platform subscription is billed separately from these add-ons."}
                   </p>
                 </div>
               </section>
@@ -309,6 +294,34 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
                     <TrainerMatchAnswersPreview blocks={props.highlightBlocks} variant="public" />
                   </div>
                 ) : null}
+              </section>
+            ) : null}
+
+            {socialLinksOrdered.length > 0 ? (
+              <section className="mt-10 border-t border-white/[0.06] pt-6" aria-label="Social media links">
+                <p className="text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-white/35">
+                  Social Links
+                </p>
+                <p className="mt-2 text-center text-xs text-white/40">Tap a platform to open it in a new tab.</p>
+                <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2">
+                  {socialLinksOrdered.map((s, i) => (
+                    <a
+                      key={`${s.platform}-${i}-${s.url}`}
+                      href={s.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-sm text-white/55 underline-offset-2 transition hover:text-[#FF7E00] hover:underline"
+                    >
+                      {s.platform === "other" ? null : (
+                        <TrainerSocialBrandIcon
+                          platform={s.platform as Exclude<typeof s.platform, "other">}
+                          className="h-4 w-4"
+                        />
+                      )}
+                      <span>{s.label}</span>
+                    </a>
+                  ))}
+                </div>
               </section>
             ) : null}
 

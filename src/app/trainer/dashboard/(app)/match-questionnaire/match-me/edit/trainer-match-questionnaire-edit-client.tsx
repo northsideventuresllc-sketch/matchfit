@@ -13,17 +13,12 @@ import { TRAINER_MATCH_ME_PATH, TRAINER_MATCH_QUESTIONNAIRES_PATH } from "@/lib/
 import {
   AGE_GROUP_IDS,
   AGE_GROUP_LABELS,
-  BILLING_UNITS,
-  BILLING_UNIT_LABELS,
   CLIENT_GOAL_IDS,
   CLIENT_GOAL_LABELS,
   CLIENT_LEVEL_IDS,
   CLIENT_LEVEL_LABELS,
   LANGUAGE_IDS,
   LANGUAGE_LABELS,
-  MATCH_SERVICE_CATALOG,
-  type BillingUnit,
-  type MatchServiceId,
 } from "@/lib/trainer-match-questionnaire";
 
 const inputClass =
@@ -31,33 +26,17 @@ const inputClass =
 
 const labelClass = "text-xs font-semibold text-white/50";
 
-function emptyServiceMap(): Record<MatchServiceId, { priceUsd: string; billingUnit: BillingUnit } | null> {
-  const o = {} as Record<MatchServiceId, { priceUsd: string; billingUnit: BillingUnit } | null>;
-  for (const s of MATCH_SERVICE_CATALOG) {
-    o[s.id] = null;
-  }
-  return o;
-}
-
 function stableDraftString(d: TrainerMatchQuestionnaireDraft): string {
   return JSON.stringify(d);
 }
 
 type Props = {
   slug: MatchQuestionnaireEditSlug;
-  step: 1 | 2 | 3 | 4 | 5;
+  step: 1 | 2 | 3 | 4;
   initialDraft: TrainerMatchQuestionnaireDraft;
   status: string;
   completedAtIso: string | null;
 };
-
-function servicesMapFromDraft(d: TrainerMatchQuestionnaireDraft) {
-  const next = emptyServiceMap();
-  for (const line of d.services) {
-    next[line.serviceId] = { priceUsd: String(line.priceUsd), billingUnit: line.billingUnit };
-  }
-  return next;
-}
 
 export function TrainerMatchQuestionnaireEditClient(props: Props) {
   const router = useRouter();
@@ -71,7 +50,6 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
   const d0 = props.initialDraft;
   const [offersVirtual, setOffersVirtual] = useState(d0.offersVirtual);
   const [offersInPerson, setOffersInPerson] = useState(d0.offersInPerson);
-  const [services, setServices] = useState(() => servicesMapFromDraft(d0));
   const [inPersonZip, setInPersonZip] = useState(d0.inPersonZip ?? "");
   const [inPersonRadiusMiles, setInPersonRadiusMiles] = useState(
     d0.inPersonRadiusMiles != null ? String(d0.inPersonRadiusMiles) : "",
@@ -89,22 +67,12 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
   const completed = props.status === "completed";
 
   const serializeDraft = useCallback((): TrainerMatchQuestionnaireDraft => {
-    const lines: TrainerMatchQuestionnaireDraft["services"] = [];
-    for (const s of MATCH_SERVICE_CATALOG) {
-      const row = services[s.id];
-      if (row) {
-        const price = Number(row.priceUsd);
-        if (!Number.isFinite(price)) continue;
-        lines.push({ serviceId: s.id, priceUsd: price, billingUnit: row.billingUnit });
-      }
-    }
     const radius = inPersonRadiusMiles.trim() === "" ? null : Number(inPersonRadiusMiles);
     const years = Number(yearsCoaching);
     return {
       schemaVersion: 1,
       offersVirtual,
       offersInPerson,
-      services: lines,
       inPersonZip: offersInPerson ? inPersonZip.trim() || null : null,
       inPersonRadiusMiles: offersInPerson && radius != null && Number.isFinite(radius) ? radius : null,
       ageGroups,
@@ -126,7 +94,6 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
     languages,
     offersInPerson,
     offersVirtual,
-    services,
     yearsCoaching,
   ]);
 
@@ -241,14 +208,14 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
           onClick={(e) => guardedLeave(e, TRAINER_MATCH_QUESTIONNAIRES_PATH)}
           className="text-xs font-medium text-white/45 transition hover:text-white/70"
         >
-          ← Match questionnaires
+          ← Daily Questionnaires
         </Link>
         <Link
           href={TRAINER_MATCH_ME_PATH}
           onClick={(e) => guardedLeave(e, TRAINER_MATCH_ME_PATH)}
           className="text-xs font-medium text-white/45 transition hover:text-white/70"
         >
-          ← Match Me sections
+          ← Questionnaire sections
         </Link>
       </div>
 
@@ -259,7 +226,7 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
         <p className="text-[11px] leading-snug text-white/50">{section.disclaimer}</p>
         {completed ? (
           <p className="text-xs text-emerald-200/80">
-            Match Me on file
+            Onboarding Questionnaire on file
             {props.completedAtIso
               ? ` · ${new Date(props.completedAtIso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`
               : ""}
@@ -300,97 +267,6 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
         ) : null}
 
         {step === 2 ? (
-          <section className="space-y-5 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 sm:p-8">
-            <h2 className="text-lg font-semibold text-white">{section.title}</h2>
-            <p className="text-sm text-white/55">
-              Turn on each service you sell and set your rate. Only options compatible with your session formats are
-              shown.
-            </p>
-            <div className="space-y-4">
-              {MATCH_SERVICE_CATALOG.filter(
-                (s) => (offersVirtual && s.virtual) || (offersInPerson && s.inPerson),
-              ).map((s) => {
-                const row = services[s.id];
-                const on = Boolean(row);
-                return (
-                  <div key={s.id} className="rounded-2xl border border-white/[0.06] bg-[#0E1016]/70 p-4">
-                    <label className="flex cursor-pointer items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={on}
-                        onChange={(e) => {
-                          setServices((prev) => ({
-                            ...prev,
-                            [s.id]: e.target.checked
-                              ? { priceUsd: "75", billingUnit: "per_session" as BillingUnit }
-                              : null,
-                          }));
-                        }}
-                        className="h-4 w-4 accent-[#FF7E00]"
-                      />
-                      <span className="text-sm font-semibold text-white">{s.label}</span>
-                    </label>
-                    {on ? (
-                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                        <div className="flex flex-col gap-2">
-                          <label className={labelClass} htmlFor={`price-${s.id}`}>
-                            Price (USD)
-                          </label>
-                          <input
-                            id={`price-${s.id}`}
-                            type="number"
-                            min={15}
-                            max={5000}
-                            step={1}
-                            value={row?.priceUsd ?? ""}
-                            onChange={(e) =>
-                              setServices((prev) => ({
-                                ...prev,
-                                [s.id]: {
-                                  ...(prev[s.id] as { priceUsd: string; billingUnit: BillingUnit }),
-                                  priceUsd: e.target.value,
-                                },
-                              }))
-                            }
-                            className={inputClass}
-                          />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <label className={labelClass} htmlFor={`unit-${s.id}`}>
-                            Billing
-                          </label>
-                          <select
-                            id={`unit-${s.id}`}
-                            value={row?.billingUnit ?? "per_session"}
-                            onChange={(e) =>
-                              setServices((prev) => ({
-                                ...prev,
-                                [s.id]: {
-                                  ...(prev[s.id] as { priceUsd: string; billingUnit: BillingUnit }),
-                                  billingUnit: e.target.value as BillingUnit,
-                                },
-                              }))
-                            }
-                            className={inputClass}
-                            style={{ colorScheme: "dark" }}
-                          >
-                            {BILLING_UNITS.map((u) => (
-                              <option key={u} value={u}>
-                                {BILLING_UNIT_LABELS[u]}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        ) : null}
-
-        {step === 3 ? (
           <section className="space-y-4 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 sm:p-8">
             <h2 className="text-lg font-semibold text-white">{section.title}</h2>
             {offersInPerson ? (
@@ -435,7 +311,7 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
           </section>
         ) : null}
 
-        {step === 4 ? (
+        {step === 3 ? (
           <section className="space-y-6 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 sm:p-8">
             <h2 className="text-lg font-semibold text-white">Clients You Serve Best</h2>
             <div>
@@ -531,7 +407,7 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
           </section>
         ) : null}
 
-        {step === 5 ? (
+        {step === 4 ? (
           <section className="space-y-4 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 sm:p-8">
             <h2 className="text-lg font-semibold text-white">Coaching Philosophy & Confirmation</h2>
             <p className="text-sm text-white/55">
@@ -561,7 +437,7 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
               />
               <span className="text-sm text-white/75">
                 I certify that my answers are accurate to the best of my knowledge and that I will keep my Match Fit
-                profile updated if my offerings or pricing change.
+                profile updated if my match preferences or coaching details change.
               </span>
             </label>
           </section>
@@ -581,7 +457,9 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
             className="group relative isolate min-h-[3rem] flex-1 overflow-hidden rounded-xl px-4 text-sm font-semibold text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition disabled:opacity-50"
           >
             <span aria-hidden className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]" />
-            <span className="relative">{busy ? "Saving…" : completed ? "Update Match Me" : "Save Match Me"}</span>
+            <span className="relative">
+              {busy ? "Saving…" : completed ? "Update questionnaire" : "Save questionnaire"}
+            </span>
           </button>
         </div>
       </form>

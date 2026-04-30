@@ -5,10 +5,14 @@ import {
   validateTrainerMatchQuestionnaireStep,
 } from "@/lib/trainer-match-questionnaire-draft";
 import {
-  buildAiMatchProfileText,
   trainerMatchQuestionnaireSchema,
   type TrainerMatchQuestionnairePayload,
 } from "@/lib/trainer-match-questionnaire";
+import {
+  composeTrainerAiMatchProfileText,
+  migrateLegacyQuestionnaireServices,
+  parseTrainerServiceOfferingsJson,
+} from "@/lib/trainer-service-offerings";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -19,6 +23,8 @@ export async function GET() {
     if (!trainerId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
+
+    await migrateLegacyQuestionnaireServices(trainerId);
 
     const profile = await prisma.trainerProfile.findUnique({
       where: { trainerId },
@@ -61,6 +67,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
+    await migrateLegacyQuestionnaireServices(trainerId);
+
     const json: unknown = await req.json();
     const parsed = trainerMatchQuestionnaireSchema.safeParse(json);
     if (!parsed.success) {
@@ -68,7 +76,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: msg, issues: parsed.error.issues }, { status: 400 });
     }
     const payload: TrainerMatchQuestionnairePayload = parsed.data;
-    const aiMatchProfileText = buildAiMatchProfileText(payload);
+
+    const existing = await prisma.trainerProfile.findUnique({
+      where: { trainerId },
+      select: { serviceOfferingsJson: true },
+    });
+    const offerings = parseTrainerServiceOfferingsJson(existing?.serviceOfferingsJson);
+    const aiMatchProfileText = composeTrainerAiMatchProfileText(payload, offerings);
 
     await prisma.trainerProfile.upsert({
       where: { trainerId },
@@ -97,12 +111,12 @@ export async function POST(req: Request) {
 }
 
 const patchBodySchema = z.object({
-  step: z.coerce.number().int().min(1).max(5),
+  step: z.coerce.number().int().min(1).max(4),
   answers: z.unknown(),
 });
 
 /**
- * Save one section of the Match Me questionnaire. Accepts the full draft object; validates only `step`.
+ * Save one section of the Onboarding Questionnaire. Accepts the full draft object; validates only `step`.
  * Marks `completed` only when the full strict schema passes.
  */
 export async function PATCH(req: Request) {
@@ -122,6 +136,8 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Invalid answers object." }, { status: 400 });
     }
 
+    await migrateLegacyQuestionnaireServices(trainerId);
+
     const incoming = parseTrainerMatchQuestionnaireDraft(answers);
     const stepErr = validateTrainerMatchQuestionnaireStep(incoming, step);
     if (stepErr) {
@@ -133,7 +149,13 @@ export async function PATCH(req: Request) {
       const strict = trainerMatchQuestionnaireSchema.safeParse({ ...incoming, certifyAccurate: true as const });
       if (strict.success) payload = strict.data;
     }
-    const aiMatchProfileText = payload ? buildAiMatchProfileText(payload) : null;
+
+    const row = await prisma.trainerProfile.findUnique({
+      where: { trainerId },
+      select: { serviceOfferingsJson: true },
+    });
+    const offerings = parseTrainerServiceOfferingsJson(row?.serviceOfferingsJson);
+    const aiMatchProfileText = payload ? composeTrainerAiMatchProfileText(payload, offerings) : null;
 
     await prisma.trainerProfile.upsert({
       where: { trainerId },

@@ -5,11 +5,11 @@ export const TRAINER_DISCOVERY_STRICTNESS_MIN = 1;
 export const TRAINER_DISCOVERY_STRICTNESS_MAX = 5;
 
 export const TRAINER_DISCOVERY_STRICTNESS_LABELS: Record<number, string> = {
-  1: "Kind of closely",
-  2: "Somewhat closely",
-  3: "Moderately closely",
-  4: "Quite closely",
-  5: "Very closely",
+  1: "KIND OF CLOSELY",
+  2: "SOMEWHAT CLOSELY",
+  3: "MODERATELY CLOSELY",
+  4: "QUITE CLOSELY",
+  5: "VERY CLOSELY",
 };
 
 export function parseTrainerDiscoveryStrictness(raw: string | null | undefined): number {

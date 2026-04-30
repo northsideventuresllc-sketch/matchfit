@@ -1,8 +1,13 @@
 import type { Prisma } from "@prisma/client";
 import { ensureClientFitHubSamplePosts } from "@/lib/client-fithub-sample-posts";
 import { parseClientFithubPrefsJson } from "@/lib/client-fithub-prefs";
+import { clientPreferenceSearchTokens, parseClientMatchPreferencesJson } from "@/lib/client-match-preferences";
+import { clientZipToPrefix } from "@/lib/featured-region";
+import { fithubPublicFeedVisibilityWhere } from "@/lib/fithub-public-feed";
+import { parseStoredHashtagsJson } from "@/lib/trainer-fithub-hashtags";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
+import { loadActivePromotionsForPosts, promotionRegionalFeedBoost } from "@/lib/trainer-promo-tokens";
 import { NextResponse } from "next/server";
 
 function coachDisplayName(trainer: {
@@ -17,21 +22,39 @@ function coachDisplayName(trainer: {
   );
 }
 
+function hashtagInterestBoost(postTags: string[], clientHaystackTokens: Set<string>): number {
+  if (!postTags.length || !clientHaystackTokens.size) return 0;
+  let bonus = 0;
+  for (const tag of postTags) {
+    if (clientHaystackTokens.has(tag)) bonus += 14;
+    for (const tok of clientHaystackTokens) {
+      if (tok.length > 2 && (tok.includes(tag) || tag.includes(tok))) bonus += 5;
+    }
+  }
+  return Math.min(bonus, 36);
+}
+
 function scorePost(
   p: {
+    id: string;
     createdAt: Date;
     trainerId: string;
     shareCount: number;
+    hashtagsJson: string | null;
     _count: { likes: number; comments: number; reposts: number };
   },
   prefs: ReturnType<typeof parseClientFithubPrefsJson>,
   savedIds: Set<string>,
+  clientMatchTokens: Set<string>,
+  promotionBoost: number,
 ): number {
   let s = p._count.likes * 2 + p._count.comments * 3 + p._count.reposts * 4 + p.shareCount;
   if (prefs.prioritizeSavedCoaches && savedIds.has(p.trainerId)) s += 40;
   if (prefs.onlyTrainersInYourArea && savedIds.has(p.trainerId)) s += 25;
+  s += hashtagInterestBoost(parseStoredHashtagsJson(p.hashtagsJson), clientMatchTokens);
   const ageH = (Date.now() - p.createdAt.getTime()) / 3600000;
   s += Math.max(0, 48 - ageH);
+  s += promotionBoost;
   return s;
 }
 
@@ -55,7 +78,7 @@ export async function GET() {
     }
     const client = await prisma.client.findUnique({
       where: { id: clientId },
-      select: { id: true, fitHubPrefsJson: true },
+      select: { id: true, fitHubPrefsJson: true, matchPreferencesJson: true, zipCode: true },
     });
     if (!client) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
@@ -63,10 +86,14 @@ export async function GET() {
 
     await ensureClientFitHubSamplePosts();
     const prefs = parseClientFithubPrefsJson(client.fitHubPrefsJson);
+    const matchPrefs = parseClientMatchPreferencesJson(client.matchPreferencesJson);
+    const clientMatchTokens = new Set(clientPreferenceSearchTokens(matchPrefs));
 
     const types: string[] = [];
     if (prefs.showTextPosts) types.push("TEXT");
-    if (prefs.showImagePosts) types.push("IMAGE");
+    if (prefs.showImagePosts) {
+      types.push("IMAGE", "CAROUSEL");
+    }
     if (prefs.showVideoPosts) types.push("VIDEO");
     if (!types.length) types.push("TEXT");
 
@@ -77,17 +104,22 @@ export async function GET() {
     const savedIds = new Set(savedRows.map((r) => r.trainerId));
 
     const where: Prisma.TrainerFitHubPostWhereInput = {
-      postType: { in: types },
+      AND: [
+        { postType: { in: types } },
+        fithubPublicFeedVisibilityWhere(),
+        ...(prefs.feedStyle === "SAVED_COACHES_ONLY"
+          ? !savedIds.size
+            ? []
+            : [{ trainerId: { in: [...savedIds] } }]
+          : []),
+      ],
     };
-    if (prefs.feedStyle === "SAVED_COACHES_ONLY") {
-      if (!savedIds.size) {
-        return NextResponse.json({
-          posts: [],
-          feedEmptyReason: "SAVED_COACHES_ONLY",
-          preferences: prefs,
-        });
-      }
-      where.trainerId = { in: [...savedIds] };
+    if (prefs.feedStyle === "SAVED_COACHES_ONLY" && !savedIds.size) {
+      return NextResponse.json({
+        posts: [],
+        feedEmptyReason: "SAVED_COACHES_ONLY",
+        preferences: prefs,
+      });
     }
 
     const takeRaw = prefs.feedStyle === "ALGORITHMIC" ? 180 : 60;
@@ -119,11 +151,31 @@ export async function GET() {
       },
     });
 
+    const clientZipPrefix = clientZipToPrefix(client.zipCode);
+    const promotionMap = await loadActivePromotionsForPosts(
+      rows.map((r) => r.id),
+    );
+    function promotionBoostFor(postId: string): number {
+      const pr = promotionMap.get(postId);
+      if (!pr) return 0;
+      return promotionRegionalFeedBoost(
+        pr.tokensSpent,
+        pr.durationDays,
+        pr.regionZipPrefix,
+        clientZipPrefix,
+      );
+    }
+
     let sorted = [...rows];
-    if (prefs.feedStyle === "ALGORITHMIC") {
-      sorted.sort((a, b) => scorePost(b, prefs, savedIds) - scorePost(a, prefs, savedIds));
+    if (prefs.feedStyle === "NEWEST" || prefs.feedStyle === "SAVED_COACHES_ONLY") {
+      sorted.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       sorted = sorted.slice(0, 60);
     } else {
+      sorted.sort(
+        (a, b) =>
+          scorePost(b, prefs, savedIds, clientMatchTokens, promotionBoostFor(b.id)) -
+          scorePost(a, prefs, savedIds, clientMatchTokens, promotionBoostFor(a.id)),
+      );
       sorted = sorted.slice(0, 60);
     }
 
@@ -149,6 +201,15 @@ export async function GET() {
         caption: p.caption,
         bodyText: p.bodyText,
         mediaUrl: p.mediaUrl,
+        mediaUrls: (() => {
+          try {
+            const v = p.mediaUrlsJson ? (JSON.parse(p.mediaUrlsJson) as unknown) : null;
+            return Array.isArray(v) ? v.filter((u): u is string => typeof u === "string") : [];
+          } catch {
+            return [];
+          }
+        })(),
+        hashtags: parseStoredHashtagsJson(p.hashtagsJson),
         shareCount: p.shareCount,
         likedByMe: p.likes.length > 0,
         repostedByMe: p.reposts.length > 0,

@@ -1,7 +1,6 @@
 /** URL segment under `/trainer/dashboard/match-questionnaire/match-me/edit/[slug]`. */
 export const MATCH_QUESTIONNAIRE_EDIT_SLUGS = [
   "session-formats",
-  "services-pricing",
   "in-person-area",
   "clients-goals",
   "philosophy-confirm",
@@ -9,46 +8,38 @@ export const MATCH_QUESTIONNAIRE_EDIT_SLUGS = [
 
 export type MatchQuestionnaireEditSlug = (typeof MATCH_QUESTIONNAIRE_EDIT_SLUGS)[number];
 
-export function slugToStep(slug: string): 1 | 2 | 3 | 4 | 5 | null {
+export function slugToStep(slug: string): 1 | 2 | 3 | 4 | null {
   const i = MATCH_QUESTIONNAIRE_EDIT_SLUGS.indexOf(slug as MatchQuestionnaireEditSlug);
   if (i === -1) return null;
-  return (i + 1) as 1 | 2 | 3 | 4 | 5;
+  return (i + 1) as 1 | 2 | 3 | 4;
 }
 
 export function stepToSlug(step: number): MatchQuestionnaireEditSlug | null {
-  if (step < 1 || step > 5) return null;
+  if (step < 1 || step > 4) return null;
   return MATCH_QUESTIONNAIRE_EDIT_SLUGS[step - 1];
 }
 
-/** One Match Me questionnaire — sections are editable parts. Each bubble has its own disclaimer. */
+/** Onboarding Questionnaire — sections are editable parts. Each bubble has its own disclaimer. */
 export const MATCH_QUESTIONNAIRE_SECTIONS = [
   {
     slug: "session-formats" as const,
     step: 1 as const,
     title: "Session Formats",
-    summary: "Virtual, in-person, or both.",
+    summary: "Virtual, in-person, or both—for client matching only.",
     disclaimer:
-      "Select only formats you actually deliver. Misrepresentation can hurt matches and may violate the trainer agreement.",
-  },
-  {
-    slug: "services-pricing" as const,
-    step: 2 as const,
-    title: "Services & Pricing",
-    summary: "What you sell and how you bill.",
-    disclaimer:
-      "Prices power search filters and client expectations. Final charges at booking may include platform fees not shown here.",
+      "These preferences help Match Fit pair you with clients. They do not set your public packages or prices—manage services from your trainer dashboard.",
   },
   {
     slug: "in-person-area" as const,
-    step: 3 as const,
+    step: 2 as const,
     title: "In-Person Service Area",
     summary: "ZIP center point and mile radius.",
     disclaimer:
-      "Used for discovery only—not a legal service territory. Exact meeting locations are agreed directly with clients.",
+      "Used for discovery and matching—not a legal service territory. Exact meeting locations are agreed directly with clients.",
   },
   {
     slug: "clients-goals" as const,
-    step: 4 as const,
+    step: 3 as const,
     title: "Clients & Goals",
     summary: "Ages, levels, goals, languages, experience.",
     disclaimer:
@@ -56,7 +47,7 @@ export const MATCH_QUESTIONNAIRE_SECTIONS = [
   },
   {
     slug: "philosophy-confirm" as const,
-    step: 5 as const,
+    step: 4 as const,
     title: "Philosophy & Confirmation",
     summary: "Narrative plus accuracy attestation.",
     disclaimer:
@@ -65,4 +56,4 @@ export const MATCH_QUESTIONNAIRE_SECTIONS = [
 ] as const;
 
 export const FOLLOW_UP_SURVEYS_BLURB =
-  "Optional, shorter questionnaires may appear here as our systems learn your specialties. They help keep your profile sharp—none replace the core Match Me sections above.";
+  "Optional, shorter questionnaires may appear here as our systems learn your specialties. They help keep your profile sharp—none replace the core Onboarding Questionnaire sections above.";

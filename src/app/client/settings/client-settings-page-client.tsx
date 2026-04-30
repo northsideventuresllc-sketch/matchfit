@@ -248,7 +248,7 @@ export function ClientSettingsPageClient(props: Props) {
           />
         </CollapsibleSettingsSection>
 
-        <p className="text-sm">
+        <p className="text-center text-sm">
           <button
             type="button"
             onClick={() => requestNavigate("/client/dashboard")}

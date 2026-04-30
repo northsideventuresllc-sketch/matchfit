@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { postTrainerLogout } from "@/lib/trainer-logout";
 
 type Props = {
@@ -14,7 +14,6 @@ type Props = {
 };
 
 export function TrainerPortalHeader(props: Props) {
-  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [logoutBusy, setLogoutBusy] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -37,8 +36,7 @@ export function TrainerPortalHeader(props: Props) {
     setLogoutBusy(true);
     try {
       await postTrainerLogout();
-      router.push("/trainer/dashboard/login");
-      router.refresh();
+      navigateWithFullLoad("/trainer/dashboard/login");
     } finally {
       setLogoutBusy(false);
       setMenuOpen(false);

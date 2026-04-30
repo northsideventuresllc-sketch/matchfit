@@ -27,6 +27,23 @@ type W9Stored = {
   submittedAt?: string;
 };
 
+function statusPillClass(status: string | null | undefined): string {
+  const s = (status ?? "NOT_STARTED").trim().toUpperCase();
+  if (s === "APPROVED") {
+    return "border-emerald-300/35 bg-emerald-500/15 text-emerald-200";
+  }
+  if (s === "PENDING") {
+    return "border-amber-300/35 bg-amber-500/15 text-amber-100";
+  }
+  if (s === "NEEDS_FURTHER_REVIEW") {
+    return "border-orange-300/35 bg-orange-500/15 text-orange-100";
+  }
+  if (s === "DENIED") {
+    return "border-rose-300/35 bg-rose-500/15 text-rose-200";
+  }
+  return "border-white/15 bg-white/[0.07] text-white/80";
+}
+
 function maskTin(tin: string | undefined): string {
   const raw = (tin ?? "").replace(/\s/g, "");
   if (!raw) return "—";
@@ -185,7 +202,14 @@ export default async function TrainerComplianceDetailsPage() {
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
         <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Background Check</h2>
         <p className="mt-3 text-sm text-white/75">
-          Vendor status: <span className="font-semibold text-white">{bgLabel}</span>
+          Vendor status:{" "}
+          <span
+            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black tracking-[0.08em] ${statusPillClass(
+              profile?.backgroundCheckStatus,
+            )}`}
+          >
+            {bgLabel.toUpperCase()}
+          </span>
         </p>
         <p className="mt-2 text-xs text-white/45">
           Detailed reports are maintained by the screening provider. Contact Match Fit support if you have questions
@@ -198,16 +222,36 @@ export default async function TrainerComplianceDetailsPage() {
         <p className="mt-3 text-sm text-white/60">
           {profile?.onboardingTrackCpt ? (
             <span className="block">
-              CPT / primary track: <span className="font-semibold text-white/90">{cptLabel}</span>
+              CPT / primary track:{" "}
+              <span
+                className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black tracking-[0.08em] ${statusPillClass(
+                  profile?.certificationReviewStatus,
+                )}`}
+              >
+                {cptLabel.toUpperCase()}
+              </span>
             </span>
           ) : null}
           {profile?.onboardingTrackNutrition ? (
             <span className="mt-1 block">
-              Nutrition track: <span className="font-semibold text-white/90">{nutLabel}</span>
+              Nutrition track:{" "}
+              <span
+                className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black tracking-[0.08em] ${statusPillClass(
+                  profile?.nutritionistCertificationReviewStatus,
+                )}`}
+              >
+                {nutLabel.toUpperCase()}
+              </span>
             </span>
           ) : null}
           {!profile?.onboardingTrackCpt && !profile?.onboardingTrackNutrition ? (
-            <span className="font-semibold text-white/90">{cptLabel}</span>
+            <span
+              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black tracking-[0.08em] ${statusPillClass(
+                profile?.certificationReviewStatus,
+              )}`}
+            >
+              {cptLabel.toUpperCase()}
+            </span>
           ) : null}
         </p>
         {certFiles.length ? (

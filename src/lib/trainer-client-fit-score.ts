@@ -1,10 +1,11 @@
 import type { ClientMatchPreferences } from "@/lib/client-match-preferences";
 import { scoreTrainerForClientPrefs } from "@/lib/client-match-preferences";
+import type { TrainerServiceBucketProfile } from "@/lib/trainer-service-buckets";
 
 export type TrainerIdealHaystackSource = {
   fitnessNiches: string | null;
   aiMatchProfileText: string | null;
-  profile: { onboardingTrackCpt: boolean; onboardingTrackNutrition: boolean };
+  profile: TrainerServiceBucketProfile;
 };
 
 /** How strongly the client’s stated preferences overlap the trainer’s published “ideal client” text. */

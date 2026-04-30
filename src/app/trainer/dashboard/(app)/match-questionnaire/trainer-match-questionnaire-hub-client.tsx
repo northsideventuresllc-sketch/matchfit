@@ -19,7 +19,7 @@ export function TrainerMatchQuestionnaireHubClient(props: Props) {
           className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100"
           role="status"
         >
-          Match Me is on file
+          Onboarding Questionnaire is on file
           {props.completedAtIso
             ? ` (submitted ${new Date(props.completedAtIso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })})`
             : ""}
@@ -27,7 +27,7 @@ export function TrainerMatchQuestionnaireHubClient(props: Props) {
         </p>
       ) : (
         <p className="rounded-xl border border-white/[0.08] bg-[#0E1016]/80 px-4 py-3 text-sm text-white/55">
-          Match Me is one questionnaire with several parts. Complete every part so your profile can appear to clients.
+          This is one questionnaire with several parts. Complete every part so your profile can appear to clients.
           Choose a section to edit—each has reminders that apply only to that part.
         </p>
       )}

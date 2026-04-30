@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 
 function SubscribeContent() {
   const router = useRouter();
@@ -29,7 +30,7 @@ function SubscribeContent() {
           setLoading(false);
           return;
         }
-        window.location.assign(data.url);
+        navigateWithFullLoad(data.url);
       } catch {
         if (!cancelled) {
           setFatal("Network error. Try again.");

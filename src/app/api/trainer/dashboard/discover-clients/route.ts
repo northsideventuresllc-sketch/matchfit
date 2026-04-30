@@ -51,7 +51,7 @@ export async function GET(req: Request) {
     }
     if (trainer.profile.matchQuestionnaireStatus !== "completed" || !trainer.profile.aiMatchProfileText?.trim()) {
       return NextResponse.json(
-        { error: "Finish your Match Me questionnaire so we know your ideal client profile." },
+        { error: "Finish your Onboarding Questionnaire so we know your ideal client profile." },
         { status: 403 },
       );
     }
@@ -62,6 +62,8 @@ export async function GET(req: Request) {
       profile: {
         onboardingTrackCpt: trainer.profile.onboardingTrackCpt,
         onboardingTrackNutrition: trainer.profile.onboardingTrackNutrition,
+        certificationReviewStatus: trainer.profile.certificationReviewStatus,
+        nutritionistCertificationReviewStatus: trainer.profile.nutritionistCertificationReviewStatus,
       },
     };
 

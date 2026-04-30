@@ -28,6 +28,7 @@ export async function POST(req: Request) {
         profile: {
           select: {
             dashboardActivatedAt: true,
+            premiumStudioEnabledAt: true,
             hasSignedTOS: true,
             hasUploadedW9: true,
             backgroundCheckStatus: true,
@@ -68,15 +69,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "This client has not finished onboarding yet." }, { status: 403 });
     }
 
+    const isPremium = Boolean(trainer.profile.premiumStudioEnabledAt);
     const { start, end } = utcDayRange();
     const nudgesToday = await prisma.trainerClientNudge.count({
       where: { trainerId: trainer.id, createdAt: { gte: start, lt: end } },
     });
-    /**
-     * Daily free cap. Premium unlimited nudges ($19.99/mo) will be wired when the billing agent lands Stripe.
-     * Until then, all accounts share the free tier limit.
-     */
-    if (nudgesToday >= FREE_TRAINER_NUDGES_PER_DAY) {
+    if (!isPremium && nudgesToday >= FREE_TRAINER_NUDGES_PER_DAY) {
       return NextResponse.json(
         {
           error: `You have used all ${FREE_TRAINER_NUDGES_PER_DAY} free discovery nudges for today.`,
@@ -125,6 +123,12 @@ export async function POST(req: Request) {
       }),
     ]);
 
+    if (isPremium) {
+      return NextResponse.json({
+        ok: true,
+        unlimitedNudges: true,
+      });
+    }
     return NextResponse.json({
       ok: true,
       nudgesUsedToday: nudgesToday + 1,

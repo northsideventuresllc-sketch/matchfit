@@ -2,13 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TRAINER_ONBOARDING_AGREEMENT_BULLETS } from "@/app/trainer/onboarding/trainer-agreement-bullets";
 import { CREDIBLE_CPT_ORGANIZATIONS } from "@/app/trainer/onboarding/credible-cpt-organizations";
 import { CREDIBLE_NUTRITION_CREDENTIALS } from "@/app/trainer/onboarding/credible-nutrition-credentials";
 import { OnboardingCertStatusLegend } from "@/app/trainer/onboarding/onboarding-cert-status-legend";
 import { TrainerSocialUrlFields } from "@/components/trainer/trainer-social-url-fields";
+import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { verifyTrainerOnboardingDevPassword } from "@/lib/trainer-dev-bypass";
 import { certificationsGatePassed } from "@/lib/trainer-onboarding-cert-gate";
 import { normalizeTrainerSocialFields } from "@/lib/trainer-social-urls";
@@ -95,7 +95,6 @@ function buildDevW9Autofill(trainer: TrainerMe) {
 const AGREEMENT_COUNT = TRAINER_ONBOARDING_AGREEMENT_BULLETS.length;
 
 export default function TrainerOnboardingClient() {
-  const router = useRouter();
   const [step, setStep] = useState(1);
   const [loadingMe, setLoadingMe] = useState(true);
   const [meError, setMeError] = useState<string | null>(null);
@@ -260,8 +259,7 @@ export default function TrainerOnboardingClient() {
 
   async function handleLogout() {
     await postTrainerLogout();
-    router.push("/trainer/dashboard/login");
-    router.refresh();
+    navigateWithFullLoad("/trainer/dashboard/login");
   }
 
   function toggleAgreement(i: number) {
@@ -428,8 +426,7 @@ export default function TrainerOnboardingClient() {
         }
       }
       await loadMe();
-      router.push("/trainer/dashboard");
-      router.refresh();
+      navigateWithFullLoad("/trainer/dashboard");
     } catch {
       setError("Something went wrong.");
     } finally {
@@ -693,14 +690,12 @@ export default function TrainerOnboardingClient() {
                 >
                   Back to Dashboard
                 </Link>
-                <button
-                  type="button"
-                  disabled
-                  title="Trainer Terms of Service link will be added before launch."
-                  className="flex min-h-[3rem] flex-1 cursor-not-allowed items-center justify-center rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm font-semibold tracking-wide text-white/35"
+                <Link
+                  href="/terms#trainer-terms"
+                  className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold tracking-wide text-white transition hover:border-white/25"
                 >
                   View Trainer Terms of Service
-                </button>
+                </Link>
               </div>
               <button
                 type="button"

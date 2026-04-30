@@ -1,0 +1,2 @@
+Development-only placeholder file for CPT certification upload URL.
+Not a real credential — used when MATCH_FIT_DEV_APPROVE_ALL_TRAINER_CERTS or test-trainer cert sync is enabled.

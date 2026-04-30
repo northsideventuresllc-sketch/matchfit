@@ -19,6 +19,11 @@ const NAV = [
     match: (p: string) => p.startsWith("/client/dashboard/fithub"),
   },
   {
+    href: "/client/dashboard/daily-questionnaire",
+    label: "Daily questionare",
+    match: (p: string) => p.startsWith("/client/dashboard/daily-questionnaire"),
+  },
+  {
     href: "/client/dashboard/find-trainers",
     label: "Find coaches",
     match: (p: string) => p.startsWith("/client/dashboard/find-trainers"),
@@ -86,7 +91,7 @@ export function ClientDashboardShell(props: ClientDashboardShellProps) {
         {props.children}
 
         <footer className="mt-12 space-y-4 border-t border-white/[0.08] pt-6 text-xs leading-relaxed text-white/45">
-          <p>
+          <p className="text-center">
             All billing information is safely encrypted and secured within the Match Fit interface and will not be
             shared with third parties unless express written consent is given.
           </p>
@@ -96,6 +101,12 @@ export function ClientDashboardShell(props: ClientDashboardShellProps) {
             </Link>
             <Link href="/terms" className="text-white/50 underline-offset-2 transition hover:text-white/75 hover:underline">
               Terms of service
+            </Link>
+            <Link
+              href="/client/dashboard/bug-report"
+              className="text-white/50 underline-offset-2 transition hover:text-white/75 hover:underline"
+            >
+              Report a bug
             </Link>
           </p>
         </footer>

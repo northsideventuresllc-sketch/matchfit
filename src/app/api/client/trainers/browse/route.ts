@@ -83,6 +83,8 @@ export async function GET(req: Request) {
         profile: {
           onboardingTrackCpt: profile.onboardingTrackCpt,
           onboardingTrackNutrition: profile.onboardingTrackNutrition,
+          certificationReviewStatus: profile.certificationReviewStatus,
+          nutritionistCertificationReviewStatus: profile.nutritionistCertificationReviewStatus,
         },
       });
       return {

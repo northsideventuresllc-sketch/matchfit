@@ -68,7 +68,7 @@ export function TrainerChatsHubClient() {
             </Link>
             <span className="text-white/25">·</span>
             <Link href="/trainer/dashboard/discover-clients" className="text-[#FF7E00] font-semibold underline-offset-2 hover:underline">
-              Discover clients
+              Discover Clients
             </Link>
           </p>
         </div>

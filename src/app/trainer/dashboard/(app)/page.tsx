@@ -1,46 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { TrainerDashboardBackgroundVisibility } from "@/components/trainer/trainer-dashboard-background-visibility";
 import { TrainerDashboardLogoutLink } from "@/components/trainer/trainer-dashboard-logout-link";
+import { TrainerDashboardServicesBubble } from "@/components/trainer/trainer-dashboard-services-bubble";
+import { TrainerDashboardQuickActions } from "@/components/trainer/trainer-dashboard-quick-actions";
+import { TrainerPremiumHubSummary } from "@/components/trainer/trainer-premium-hub-summary";
 import { TrainerMatchAnswersPreview } from "@/components/trainer/trainer-match-answers-preview";
 import { parseAiMatchProfileForDisplay } from "@/lib/ai-match-profile-parse";
 import { prisma } from "@/lib/prisma";
-import { backgroundCheckStatusLabel, certificationReviewStatusLabel } from "@/lib/trainer-compliance-status-copy";
-import {
-  isTrainerComplianceComplete,
-  type TrainerComplianceProfileFields,
-} from "@/lib/trainer-compliance-complete";
-import { certificationsGatePassed } from "@/lib/trainer-onboarding-cert-gate";
+import { trainerPublishedProfilePath } from "@/lib/trainer-public-profile-route";
 import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
 import { getSessionTrainerId } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: "Dashboard | Trainer | Match Fit",
 };
-
-function StatusDot(props: { ok: boolean }) {
-  return (
-    <span
-      className={`mt-0.5 inline-block h-2 w-2 shrink-0 rounded-full ${props.ok ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)]" : "bg-amber-400/90"}`}
-      aria-hidden
-    />
-  );
-}
-
-function certificationReviewSubtitle(p: TrainerComplianceProfileFields | null): string {
-  if (!p) return certificationReviewStatusLabel(undefined);
-  if (certificationsGatePassed(p)) return "";
-  const parts: string[] = [];
-  if (p.onboardingTrackCpt) {
-    parts.push(`CPT: ${certificationReviewStatusLabel(p.certificationReviewStatus)}`);
-  }
-  if (p.onboardingTrackNutrition) {
-    parts.push(`Nutrition: ${certificationReviewStatusLabel(p.nutritionistCertificationReviewStatus)}`);
-  }
-  if (parts.length) return parts.join(" · ");
-  return certificationReviewStatusLabel(p.certificationReviewStatus);
-}
 
 export default async function TrainerDashboardHomePage() {
   const trainerId = await getSessionTrainerId();
@@ -79,6 +53,7 @@ export default async function TrainerDashboardHomePage() {
           dashboardActivatedAt: true,
           matchQuestionnaireStatus: true,
           aiMatchProfileText: true,
+          premiumStudioEnabledAt: true,
         },
       },
     },
@@ -93,31 +68,14 @@ export default async function TrainerDashboardHomePage() {
     "Trainer";
   const profile = trainer.profile;
 
-  const complianceComplete = isTrainerComplianceComplete(profile);
+  const settingsHref = "/trainer/dashboard/settings";
 
-  const complianceRows = [
-    {
-      label: "Trainer Terms of Service",
-      ok: Boolean(profile?.hasSignedTOS),
-      line: (ok: boolean) => (ok ? "Complete" : "Action Needed"),
-    },
-    {
-      label: "Background Check",
-      ok: profile?.backgroundCheckStatus === "APPROVED",
-      line: (ok: boolean) =>
-        ok ? "Approved" : `Status: ${backgroundCheckStatusLabel(profile?.backgroundCheckStatus)}`,
-    },
-    {
-      label: "W-9 on File",
-      ok: Boolean(profile?.hasUploadedW9),
-      line: (ok: boolean) => (ok ? "Complete" : "Action Needed"),
-    },
-    {
-      label: "Certification Review",
-      ok: profile ? certificationsGatePassed(profile) : false,
-      line: (ok: boolean) => (ok ? "Complete" : `Status: ${certificationReviewSubtitle(profile)}`),
-    },
-  ] as const;
+  const matchBlocks =
+    profile?.matchQuestionnaireStatus === "completed" && profile.aiMatchProfileText
+      ? parseAiMatchProfileForDisplay(profile.aiMatchProfileText)
+      : null;
+
+  const premiumActive = Boolean(profile?.premiumStudioEnabledAt);
 
   const settingsHref = "/trainer/dashboard/settings";
 
@@ -137,8 +95,43 @@ export default async function TrainerDashboardHomePage() {
         </p>
       </header>
 
+      <section className="mx-auto flex w-full max-w-md flex-col items-center">
+        <div className="w-full rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 text-center shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:max-w-none sm:p-7">
+          <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Quick Links</h2>
+          <div className="mt-6">
+            <TrainerDashboardQuickActions />
+          </div>
+        </div>
+      </section>
+
+      <TrainerDashboardServicesBubble />
+
+      <section className="mx-auto w-full max-w-2xl space-y-4 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
+        <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-white/40">Premium Page</h2>
+        <TrainerPremiumHubSummary variant="compact" />
+        <div className="flex justify-center pt-1">
+          <Link
+            href="/trainer/dashboard/premium"
+            className="inline-flex min-h-[2.75rem] w-full max-w-sm items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/12 px-5 text-xs font-black uppercase tracking-[0.1em] text-white transition hover:border-[#FF7E00]/55 hover:bg-[#FF7E00]/18"
+          >
+            {premiumActive ? "Open premium hub" : "Explore premium enrollment"}
+          </Link>
+        </div>
+      </section>
+
+      <div className="flex justify-center">
+        <Link
+          href={trainerPublishedProfilePath(trainer.username)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-[2.9rem] w-full max-w-md items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/12 px-5 text-sm font-semibold text-white transition hover:border-[#FF7E00]/55 hover:bg-[#FF7E00]/18"
+        >
+          See Profile
+        </Link>
+      </div>
+
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
-        <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-white/40">Biography</h2>
+        <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-white/40">Profile & visibility</h2>
         <div className="mx-auto mt-5 max-w-2xl rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4 text-left">
           <p className="text-sm font-medium leading-relaxed text-white/85">{trainer.bio?.trim() ? trainer.bio : "—"}</p>
         </div>
@@ -164,81 +157,63 @@ export default async function TrainerDashboardHomePage() {
             Finish compliance onboarding to go live on the platform.
           </p>
         )}
+        <div className="mx-auto mt-6 max-w-2xl space-y-2">
+          {[
+            ["Pronouns", trainer.pronouns],
+            ["Ethnicity", trainer.ethnicity],
+            ["Languages spoken", trainer.languagesSpoken],
+            ["Fitness niches", trainer.fitnessNiches],
+            ["Years of coaching", trainer.yearsCoaching],
+            ["Gender identity", trainer.genderIdentity],
+            ["Instagram", trainer.socialInstagram],
+            ["TikTok", trainer.socialTiktok],
+            ["Facebook", trainer.socialFacebook],
+            ["LinkedIn", trainer.socialLinkedin],
+            ["Other link", trainer.socialOtherUrl],
+          ].map(([label, value]) => {
+            const v = value?.trim();
+            const isUrl = Boolean(v && /^https?:\/\//i.test(v));
+            return (
+              <div
+                key={label}
+                className="rounded-xl border border-white/[0.05] bg-[#0E1016]/50 px-4 py-3 sm:grid sm:grid-cols-[minmax(8rem,11rem)_1fr] sm:items-start sm:gap-4 sm:py-3.5"
+              >
+                <div className="text-[11px] font-semibold text-white/40">{label}</div>
+                <div className="mt-1 text-sm leading-relaxed text-white/85 sm:mt-0">
+                  {v ? (
+                    isUrl ? (
+                      <a href={v} target="_blank" rel="noopener noreferrer" className="text-[#FF7E00] underline-offset-2 hover:underline">
+                        {v}
+                      </a>
+                    ) : (
+                      <span className="whitespace-pre-wrap">{v}</span>
+                    )
+                  ) : (
+                    "—"
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </section>
 
-      <TrainerDashboardBackgroundVisibility
-        settingsHref={settingsHref}
-        data={{
-          pronouns: trainer.pronouns,
-          ethnicity: trainer.ethnicity,
-          languagesSpoken: trainer.languagesSpoken,
-          fitnessNiches: trainer.fitnessNiches,
-          yearsCoaching: trainer.yearsCoaching,
-          genderIdentity: trainer.genderIdentity,
-          socialInstagram: trainer.socialInstagram,
-          socialTiktok: trainer.socialTiktok,
-          socialFacebook: trainer.socialFacebook,
-          socialLinkedin: trainer.socialLinkedin,
-          socialOtherUrl: trainer.socialOtherUrl,
-        }}
-      />
-
-      {matchBlocks ? (
-        <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
-          <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-[#FF7E00]">Match Me answers</h2>
-          <div className="mt-5">
-            <TrainerMatchAnswersPreview blocks={matchBlocks} />
+      <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
+        <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-[#FF7E00]">
+          Onboarding Questionnaire answers
+        </h2>
+        <details className="mt-5 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-3">
+          <summary className="cursor-pointer list-none text-center text-sm font-semibold tracking-wide text-[#FF7E00]">
+            SHOW ANSWERS
+          </summary>
+          <div className="mt-4">
+            {matchBlocks ? (
+              <TrainerMatchAnswersPreview blocks={matchBlocks} />
+            ) : (
+              <p className="text-center text-sm text-white/55">No Onboarding Questionnaire answers on file yet.</p>
+            )}
           </div>
-          <p className="mt-5 text-center text-xs text-white/40">
-            Editable from{" "}
-            <Link href="/trainer/dashboard/match-questionnaire" className="text-[#FF7E00] underline-offset-2 hover:underline">
-              match questionnaires
-            </Link>
-            .
-          </p>
-        </section>
-      ) : null}
-
-      <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
-        {complianceComplete ? (
-          <div className="mt-5 space-y-4 text-center">
-            <p className="text-sm font-medium text-white/80">Compliance Completed</p>
-            <p className="mx-auto max-w-lg text-sm text-white/50">
-              All required onboarding checks are satisfied. You can review agreements, your W-9, background check
-              status, and uploaded certifications anytime.
-            </p>
-            <div className="flex justify-center pt-1">
-              <Link
-                href="/trainer/dashboard/compliance"
-                className="inline-flex min-h-[3rem] w-full max-w-md items-center justify-center rounded-xl border border-[#FF7E00]/35 bg-[#FF7E00]/10 px-5 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/50 sm:w-auto sm:min-w-[14rem]"
-              >
-                Review Compliance Details
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <>
-            <ul className="mt-5 space-y-3">
-              {complianceRows.map((row) => (
-                <li key={row.label} className="flex gap-3 rounded-xl border border-white/[0.05] bg-[#0E1016]/40 px-4 py-3">
-                  <StatusDot ok={row.ok} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-white/85">{row.label}</p>
-                    <p className="mt-0.5 text-xs text-white/45">{row.line(row.ok)}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-6 flex justify-center">
-              <Link
-                href="/trainer/onboarding"
-                className="inline-flex min-h-[3rem] w-full max-w-md items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] px-5 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-white/25 hover:bg-white/[0.09] sm:w-auto sm:min-w-[14rem]"
-              >
-                Continue Compliance Onboarding
-              </Link>
-            </div>
-          </>
-        )}
+        </details>
       </section>
 
       <TrainerDashboardLogoutLink />

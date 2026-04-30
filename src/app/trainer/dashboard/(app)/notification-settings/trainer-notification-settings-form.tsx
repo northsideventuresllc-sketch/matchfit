@@ -8,20 +8,20 @@ import {
 } from "@/lib/trainer-notification-prefs";
 
 const ROWS: { key: keyof TrainerNotificationPrefs; label: string; hint: string }[] = [
-  { key: "pushClientInquiry", label: "Client inquiries", hint: "When a client requests you or accepts a connection." },
-  { key: "pushChatMessages", label: "Chat messages", hint: "New messages in threads with clients." },
+  { key: "pushClientInquiry", label: "Client Inquiries", hint: "When a client requests you or accepts a connection." },
+  { key: "pushChatMessages", label: "Chat Messages", hint: "New messages in threads with clients." },
   {
     key: "pushCertificationUpdates",
-    label: "Credential reviews",
+    label: "Credential Reviews",
     hint: "Status changes on CPT, nutrition, or other uploaded certifications.",
   },
   {
     key: "pushComplianceReminders",
-    label: "Compliance reminders",
+    label: "Compliance Reminders",
     hint: "Background check, W-9, agreements, and other onboarding tasks.",
   },
-  { key: "pushBilling", label: "Billing & payouts", hint: "Charges, receipts, failed payments, and payout notices." },
-  { key: "pushPlatformUpdates", label: "Platform & safety", hint: "Product updates, policy changes, and account security." },
+  { key: "pushBilling", label: "Billing & Payouts", hint: "Charges, receipts, failed payments, and payout notices." },
+  { key: "pushPlatformUpdates", label: "Platform & Safety", hint: "Product updates, policy changes, and account security." },
 ];
 
 export function TrainerNotificationSettingsForm() {
@@ -100,7 +100,7 @@ export function TrainerNotificationSettingsForm() {
         </p>
       ) : null}
 
-      <p className="text-sm text-white/55">
+      <p className="mx-auto max-w-xl text-center text-sm text-white/55">
         These toggles control which categories can surface push notifications as Match Fit rolls out native push for
         coaches. In-app notifications may still appear for critical billing, compliance, and safety events.
       </p>

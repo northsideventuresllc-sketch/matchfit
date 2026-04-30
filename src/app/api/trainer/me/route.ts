@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { syncDevelopmentTestTrainerCertificationsForTrainer } from "@/lib/trainer-dev-test-cert-sync";
 import { getSessionTrainerId } from "@/lib/session";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
@@ -75,6 +76,22 @@ export async function GET() {
           onboardingTrackNutrition: false,
         },
       });
+      trainer = await prisma.trainer.findUnique({
+        where: { id: trainerId },
+        select: trainerMeSelect,
+      });
+      if (!trainer) {
+        return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+      }
+    }
+
+    const synced = await syncDevelopmentTestTrainerCertificationsForTrainer({
+      id: trainer.id,
+      username: trainer.username,
+      email: trainer.email,
+      phone: trainer.phone,
+    });
+    if (synced) {
       trainer = await prisma.trainer.findUnique({
         where: { id: trainerId },
         select: trainerMeSelect,

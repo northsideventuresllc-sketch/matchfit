@@ -14,10 +14,10 @@ const FEED_STYLES: { value: ClientFithubFeedStyle; label: string; hint: string }
     label: "Algorithmic",
     hint: "Blend of engagement, freshness, and coaches you interact with.",
   },
-  { value: "NEWEST", label: "Newest first", hint: "Strict reverse chronological order." },
+  { value: "NEWEST", label: "Newest First", hint: "Strict reverse chronological order." },
   {
     value: "SAVED_COACHES_ONLY",
-    label: "Saved coaches only",
+    label: "Saved Coaches Only",
     hint: "Only posts from coaches you have saved to your list.",
   },
 ];
@@ -99,7 +99,7 @@ export function ClientFitHubSettingsForm() {
       ) : null}
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-white/90">Feed generation</h2>
+        <h2 className="text-sm font-semibold text-white/90">Feed Generation</h2>
         <p className="text-xs text-white/45">Control how posts are ordered and which coaches can appear.</p>
         <ul className="space-y-2">
           {FEED_STYLES.map((row) => (
@@ -124,11 +124,11 @@ export function ClientFitHubSettingsForm() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-white/90">Discovery & relevance</h2>
+        <h2 className="text-sm font-semibold text-white/90">Discovery & Relevance</h2>
         <ul className="space-y-3">
           <li className="flex items-start justify-between gap-4 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-3">
             <div>
-              <p className="text-sm font-semibold text-white/90">Prioritize saved coaches</p>
+              <p className="text-sm font-semibold text-white/90">Prioritize Saved Coaches</p>
               <p className="mt-1 text-xs text-white/45">Boosts posts from coaches you have saved when using the algorithmic feed.</p>
             </div>
             <input
@@ -140,7 +140,7 @@ export function ClientFitHubSettingsForm() {
           </li>
           <li className="flex items-start justify-between gap-4 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-3">
             <div>
-              <p className="text-sm font-semibold text-white/90">Emphasize coaches in your circle</p>
+              <p className="text-sm font-semibold text-white/90">Emphasize Coaches in Your Circle</p>
               <p className="mt-1 text-xs text-white/45">
                 Until regional routing ships, this uses saved coaches as a stand-in for “near you” in the algorithmic mix.
               </p>
@@ -154,7 +154,7 @@ export function ClientFitHubSettingsForm() {
           </li>
           <li className="flex items-start justify-between gap-4 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-3">
             <div>
-              <p className="text-sm font-semibold text-white/90">Hide back-to-back posts from the same coach</p>
+              <p className="text-sm font-semibold text-white/90">Hide Back-to-Back Posts from the Same Coach</p>
               <p className="mt-1 text-xs text-white/45">Keeps the feed varied when many posts exist from one creator.</p>
             </div>
             <input
@@ -168,13 +168,13 @@ export function ClientFitHubSettingsForm() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-white/90">Content types</h2>
+        <h2 className="text-sm font-semibold text-white/90">Content Types</h2>
         <ul className="space-y-3">
           {(
             [
-              ["showTextPosts", "Text posts", "Written updates and long captions."] as const,
-              ["showImagePosts", "Photo posts", "Still frames and image carousels (when available)."] as const,
-              ["showVideoPosts", "Video posts", "Clips and short-form video from coaches."] as const,
+              ["showTextPosts", "Text Posts", "Written updates and long captions."] as const,
+              ["showImagePosts", "Photo Posts", "Still frames and image carousels (when available)."] as const,
+              ["showVideoPosts", "Video Posts", "Clips and short-form video from coaches."] as const,
             ] as const
           ).map(([key, label, hint]) => (
             <li
@@ -197,11 +197,11 @@ export function ClientFitHubSettingsForm() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-white/90">Playback & sensitivity</h2>
+        <h2 className="text-sm font-semibold text-white/90">Playback & Sensitivity</h2>
         <ul className="space-y-3">
           <li className="flex items-start justify-between gap-4 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-3">
             <div>
-              <p className="text-sm font-semibold text-white/90">Autoplay video (muted)</p>
+              <p className="text-sm font-semibold text-white/90">Autoplay Video (Muted)</p>
               <p className="mt-1 text-xs text-white/45">Browsers may still block autoplay until you interact with the page.</p>
             </div>
             <input
@@ -213,7 +213,7 @@ export function ClientFitHubSettingsForm() {
           </li>
           <li className="flex items-start justify-between gap-4 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-3">
             <div>
-              <p className="text-sm font-semibold text-white/90">Show high-intensity content</p>
+              <p className="text-sm font-semibold text-white/90">Show High-Intensity Content</p>
               <p className="mt-1 text-xs text-white/45">
                 Reserved for future labels (max-effort, competition prep). Turning this off will hide tagged posts when the
                 taxonomy ships.

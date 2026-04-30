@@ -222,15 +222,6 @@ export function ClientDashboardAppHeader(props: Props) {
           ) : null}
         </div>
 
-        <Link
-          href="/client/dashboard/daily-questionnaire"
-          className="rounded-xl border border-white/12 bg-[#0E1016]/80 px-2.5 py-2 text-[9px] font-black uppercase leading-tight tracking-[0.1em] text-white/80 outline-none ring-[#FF7E00]/30 transition hover:border-white/20 hover:text-white focus-visible:ring-2 sm:px-3 sm:text-[10px] sm:tracking-[0.12em]"
-        >
-          DAILY
-          <br />
-          QUESTIONARE
-        </Link>
-
         <div className="relative" ref={wrapRef}>
           <button
             type="button"

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useRef, useState } from "react";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import type { TrainerPostAuthPath } from "@/lib/trainer-post-auth-redirect";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
@@ -70,8 +71,8 @@ export default function TrainerLoginPortal({
         router.push(data.next ?? "/trainer/verify-2fa");
         return;
       }
-      router.push(data.next ?? "/trainer/dashboard");
-      router.refresh();
+      // Full navigation avoids App Router races; defer so React/Next finish this commit (prevents stuck dark overlay).
+      navigateWithFullLoad(data.next ?? "/trainer/dashboard");
     } catch {
       setError("Something went wrong. Try again.");
     } finally {
