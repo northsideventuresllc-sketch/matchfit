@@ -21,6 +21,17 @@ const bodySchema = z.object({
 
 const MAX_ATTEMPTS = 3;
 
+function accountSuspendedResponse() {
+  return NextResponse.json(
+    {
+      error:
+        "Your client account is suspended pending a Match Fit safety review. You will regain access once the review is complete.",
+      code: "ACCOUNT_SUSPENDED",
+    },
+    { status: 403 },
+  );
+}
+
 export async function POST(req: Request) {
   try {
     const store = await cookies();
@@ -30,6 +41,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Verification session expired. Sign in again." }, { status: 401 });
     }
     const { clientId, stayLoggedIn } = challengeResult;
+    const client = await prisma.client.findUnique({ where: { id: clientId } });
+    if (client?.safetySuspended) {
+      return accountSuspendedResponse();
+    }
 
     const parsed = bodySchema.safeParse(await req.json());
     if (!parsed.success) {
@@ -41,18 +56,6 @@ export async function POST(req: Request) {
     }
     const { code, next: nextRaw } = parsed.data;
     const nextPath = safeInternalNextPath(nextRaw);
-
-    const client = await prisma.client.findUnique({ where: { id: clientId } });
-    if (client?.safetySuspended) {
-      return NextResponse.json(
-        {
-          error:
-            "Your client account is suspended pending a Match Fit safety review. You will regain access once the review is complete.",
-          code: "ACCOUNT_SUSPENDED",
-        },
-        { status: 403 },
-      );
-    }
     if (!client?.twoFactorOtpHash || !client.twoFactorOtpExpires) {
       return NextResponse.json(
         { error: "No active verification code. Request a new code or sign in again.", codeInvalidated: true },
