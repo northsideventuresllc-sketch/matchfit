@@ -1,6 +1,6 @@
 /**
  * Regional pool for featured placement: first three digits of the trainer’s
- * in-person US ZIP from the Match questionnaire (virtual-only coaches cannot join this pool).
+ * in-person US ZIP from the Onboarding Questionnaire (virtual-only coaches cannot join this pool).
  */
 export function trainerMatchAnswersToRegionZipPrefix(answersJson: string | null): string | null {
   if (!answersJson?.trim()) return null;

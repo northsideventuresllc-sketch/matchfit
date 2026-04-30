@@ -22,7 +22,7 @@ export async function DELETE(_req: Request, ctx: Ctx) {
     const { key } = await ctx.params;
     const normalized = decodeURIComponent(key).trim().toLowerCase();
     if (!normalized || normalized === "match-me") {
-      return NextResponse.json({ error: "Match Me cannot be deleted." }, { status: 400 });
+      return NextResponse.json({ error: "The Onboarding Questionnaire cannot be deleted." }, { status: 400 });
     }
 
     const profile = await prisma.trainerProfile.findUnique({

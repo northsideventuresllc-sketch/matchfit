@@ -192,7 +192,9 @@ export default async function TrainerDashboardHomePage() {
       </section>
 
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
-        <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-[#FF7E00]">Match Me answers</h2>
+        <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-[#FF7E00]">
+          Onboarding Questionnaire answers
+        </h2>
         <details className="mt-5 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-3">
           <summary className="cursor-pointer list-none text-center text-sm font-semibold tracking-wide text-[#FF7E00]">
             SHOW ANSWERS
@@ -201,7 +203,7 @@ export default async function TrainerDashboardHomePage() {
             {matchBlocks ? (
               <TrainerMatchAnswersPreview blocks={matchBlocks} />
             ) : (
-              <p className="text-center text-sm text-white/55">No Match Me answers on file yet.</p>
+              <p className="text-center text-sm text-white/55">No Onboarding Questionnaire answers on file yet.</p>
             )}
           </div>
         </details>

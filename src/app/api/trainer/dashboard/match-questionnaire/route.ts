@@ -116,7 +116,7 @@ const patchBodySchema = z.object({
 });
 
 /**
- * Save one section of the Match Me questionnaire. Accepts the full draft object; validates only `step`.
+ * Save one section of the Onboarding Questionnaire. Accepts the full draft object; validates only `step`.
  * Marks `completed` only when the full strict schema passes.
  */
 export async function PATCH(req: Request) {

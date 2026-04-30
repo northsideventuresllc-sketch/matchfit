@@ -39,7 +39,7 @@ export async function GET() {
         eligible: false,
         reason: "IN_PERSON_ZIP_REQUIRED",
         message:
-          "Regional featured placement uses the first three digits of your in-person ZIP from the Match questionnaire. Add in-person coverage with a valid US ZIP to join your local pool.",
+          "Regional featured placement uses the first three digits of your in-person ZIP from your Onboarding Questionnaire. Add in-person coverage with a valid US ZIP to join your local pool.",
         rulesVersion: FEATURED_RULES_VERSION,
       });
     }

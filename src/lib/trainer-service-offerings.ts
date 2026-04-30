@@ -308,7 +308,7 @@ export async function migrateLegacyQuestionnaireServices(trainerId: string): Pro
     });
   } catch (e) {
     console.error(
-      "[migrateLegacyQuestionnaireServices] Could not write serviceOfferingsJson (run migrations). Stripping legacy services from Match Me JSON only.",
+      "[migrateLegacyQuestionnaireServices] Could not write serviceOfferingsJson (run migrations). Stripping legacy services from Onboarding Questionnaire JSON only.",
       e,
     );
     try {

@@ -98,7 +98,7 @@ export function TrainerDiscoverClientsClient(props: Props) {
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
         <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-white/40">Match strictness</h2>
         <p className="mx-auto mt-3 max-w-xl text-center text-sm text-white/50">
-          Tune how closely surfaced clients need to align with your Match Me ideal profile.
+          Tune how closely surfaced clients need to align with your Onboarding Questionnaire ideal profile.
         </p>
         <div className="mx-auto mt-6 max-w-md space-y-3">
           <input
@@ -173,7 +173,7 @@ export function TrainerDiscoverClientsClient(props: Props) {
         <p className="text-center text-sm text-white/45">Loading…</p>
       ) : clients.length === 0 ? (
         <p className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-8 text-center text-sm text-white/50">
-          No clients match at this strictness. Try a looser setting or finish more of your Match Me questionnaire.
+          No clients match at this strictness. Try a looser setting or add more detail in your Onboarding Questionnaire.
         </p>
       ) : (
         <ul className="space-y-4">

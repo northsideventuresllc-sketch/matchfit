@@ -274,7 +274,7 @@ export async function createVideoPromotion(args: {
   if (!region) {
     return {
       error:
-        "Set your in-person service ZIP in the Match questionnaire so regional boosts can apply. Virtual-only coaches cannot use regional video boosts.",
+        "Set your in-person service ZIP in your Onboarding Questionnaire so regional boosts can apply. Virtual-only coaches cannot use regional video boosts.",
     };
   }
   const post = await prisma.trainerFitHubPost.findFirst({

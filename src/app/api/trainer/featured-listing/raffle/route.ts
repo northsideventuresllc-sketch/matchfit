@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            "You need an in-person US ZIP on your Match questionnaire before you can join a regional featured raffle.",
+            "You need an in-person US ZIP in your Onboarding Questionnaire before you can join a regional featured raffle.",
         },
         { status: 400 },
       );

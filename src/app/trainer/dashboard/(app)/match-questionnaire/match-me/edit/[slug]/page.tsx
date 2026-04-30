@@ -19,7 +19,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const titleSlug = MATCH_QUESTIONNAIRE_EDIT_SLUGS.includes(slug as MatchQuestionnaireEditSlug) ? slug : "section";
   return {
-    title: `Match Me · ${titleSlug.replace(/-/g, " ")} | Trainer | Match Fit`,
+    title: `Onboarding Questionnaire · ${titleSlug.replace(/-/g, " ")} | Trainer | Match Fit`,
   };
 }
 

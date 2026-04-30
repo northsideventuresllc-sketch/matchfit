@@ -148,7 +148,7 @@ export default async function PrivacyPage() {
             flows, and related review statuses.
           </Li>
           <Li>
-            <Strong>Matching Questionnaire:</Strong> structured answers, optional follow-up questionnaires, and plain
+            <Strong>Onboarding Questionnaire:</Strong> structured answers, optional Additional Questionnaires, and plain
             text or derived &quot;AI match profile&quot; text generated from your responses to improve discovery and
             pairing.
           </Li>

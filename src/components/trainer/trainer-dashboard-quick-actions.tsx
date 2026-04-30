@@ -51,7 +51,7 @@ const ACTIONS = [
   },
   {
     href: "/trainer/dashboard/match-questionnaire",
-    label: "MATCH QUESTIONNAIRE",
+    label: "DAILY QUESTIONNAIRES",
     Icon: IconMatchMe,
   },
 ] as const;

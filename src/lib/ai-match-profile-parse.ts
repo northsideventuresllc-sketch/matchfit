@@ -128,7 +128,7 @@ export function parseAiMatchProfileForDisplay(raw: string): AiMatchProfileDispla
   }
 
   if (blocks.length === 0 && raw.trim()) {
-    blocks.push({ kind: "prose", title: "Match Me Answers", body: raw.trim() });
+    blocks.push({ kind: "prose", title: "Onboarding Questionnaire answers", body: raw.trim() });
   }
 
   return blocks;

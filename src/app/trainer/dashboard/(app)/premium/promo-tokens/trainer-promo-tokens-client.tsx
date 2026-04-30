@@ -234,7 +234,7 @@ export function TrainerPromoTokensClient() {
         </p>
         {!summary.regionalBoostConfigured ? (
           <p className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100/90">
-            Add your in-person US ZIP in the Match questionnaire so regional boosts can apply.
+            Add your in-person US ZIP in your Onboarding Questionnaire so regional boosts can apply.
           </p>
         ) : null}
       </div>

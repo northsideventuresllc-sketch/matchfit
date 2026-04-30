@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 
 export const metadata: Metadata = {
-  title: "Match questionnaires | Trainer | Match Fit",
+  title: "Daily Questionnaires | Trainer | Match Fit",
 };
 
 export default async function TrainerMatchQuestionnairesOverviewPage() {
@@ -107,10 +107,12 @@ export default async function TrainerMatchQuestionnairesOverviewPage() {
     <div className="space-y-10">
       <header className="space-y-2 text-center">
         <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF7E00]/90">Trainer</p>
-        <h1 className="text-3xl font-black uppercase tracking-[0.08em] text-white sm:text-4xl">Match questionnaires</h1>
+        <h1 className="text-3xl font-black uppercase tracking-[0.08em] text-white sm:text-4xl">Daily Questionnaires</h1>
         <p className="mx-auto max-w-xl text-sm leading-relaxed text-white/50">
-          Each link below is its own questionnaire. <span className="text-white/70">Match Me</span> is required for
-          client visibility until it&apos;s fully complete; other surveys may appear over time.
+          Each link below is its own questionnaire. The{" "}
+          <span className="text-white/70">Onboarding Questionnaire</span> controls client visibility: until every part is
+          finished, you will not be shown to clients. More questionnaires will appear over time so we can match you more
+          accurately and send nudges that are more likely to become real clients.
         </p>
       </header>
 

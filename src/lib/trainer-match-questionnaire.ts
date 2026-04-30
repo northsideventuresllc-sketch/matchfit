@@ -171,7 +171,7 @@ export const BILLING_UNIT_LABELS: Record<BillingUnit, string> = {
 };
 
 /**
- * Match Me only (session formats, in-person matching radius, client fit, philosophy).
+ * Onboarding Questionnaire only (session formats, in-person matching radius, client fit, philosophy).
  * Services & rates are stored separately and merged via `composeTrainerAiMatchProfileText`.
  */
 export function buildAiMatchProfileText(p: TrainerMatchQuestionnairePayload): string {

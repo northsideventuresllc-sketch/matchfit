@@ -33,7 +33,7 @@ const NAV = [
   },
   {
     href: "/trainer/dashboard/match-questionnaire",
-    label: "Match questionnaires",
+    label: "DAILY QUESTIONNAIRES",
     match: (p: string) => p.startsWith("/trainer/dashboard/match-questionnaire"),
   },
 ] as const;

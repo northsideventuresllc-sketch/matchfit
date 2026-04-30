@@ -208,14 +208,14 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
           onClick={(e) => guardedLeave(e, TRAINER_MATCH_QUESTIONNAIRES_PATH)}
           className="text-xs font-medium text-white/45 transition hover:text-white/70"
         >
-          ← Match questionnaires
+          ← Daily Questionnaires
         </Link>
         <Link
           href={TRAINER_MATCH_ME_PATH}
           onClick={(e) => guardedLeave(e, TRAINER_MATCH_ME_PATH)}
           className="text-xs font-medium text-white/45 transition hover:text-white/70"
         >
-          ← Match Me sections
+          ← Questionnaire sections
         </Link>
       </div>
 
@@ -226,7 +226,7 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
         <p className="text-[11px] leading-snug text-white/50">{section.disclaimer}</p>
         {completed ? (
           <p className="text-xs text-emerald-200/80">
-            Match Me on file
+            Onboarding Questionnaire on file
             {props.completedAtIso
               ? ` · ${new Date(props.completedAtIso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`
               : ""}
@@ -457,7 +457,9 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
             className="group relative isolate min-h-[3rem] flex-1 overflow-hidden rounded-xl px-4 text-sm font-semibold text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition disabled:opacity-50"
           >
             <span aria-hidden className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]" />
-            <span className="relative">{busy ? "Saving…" : completed ? "Update Match Me" : "Save Match Me"}</span>
+            <span className="relative">
+              {busy ? "Saving…" : completed ? "Update questionnaire" : "Save questionnaire"}
+            </span>
           </button>
         </div>
       </form>

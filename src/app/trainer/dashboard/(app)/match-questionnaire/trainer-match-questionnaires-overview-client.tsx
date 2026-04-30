@@ -107,7 +107,7 @@ export function TrainerMatchQuestionnairesOverviewClient(props: Props) {
         <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-white/40">Completed Questionnaires</h2>
         {props.completed.length === 0 ? (
           <p className="mx-auto max-w-3xl rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-4 text-center text-sm text-white/45">
-            No completed questionnaires yet.
+            No completed Questionnaires yet.
           </p>
         ) : (
           <div className="space-y-4">
@@ -133,7 +133,7 @@ export function TrainerMatchQuestionnairesOverviewClient(props: Props) {
                 <div className="mt-4">
                   {q.href ? (
                     <Link href={q.href} className="text-xs font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
-                      Reopen Questionnaire
+                      Reopen Onboarding Questionnaire
                     </Link>
                   ) : null}
                 </div>

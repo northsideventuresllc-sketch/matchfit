@@ -96,7 +96,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            "Finish your Match Me profile first so clients can understand how you coach. Then publish services from this dashboard.",
+            "Finish your Onboarding Questionnaire first so clients can understand how you coach. Then publish services from this dashboard.",
         },
         { status: 400 },
       );
@@ -134,7 +134,7 @@ export async function POST(req: Request) {
     const strictQ = trainerMatchQuestionnaireSchema.safeParse({ ...qDraft, certifyAccurate: true as const });
     if (!strictQ.success) {
       return NextResponse.json(
-        { error: strictQ.error.issues[0]?.message ?? "Match Me answers are incomplete." },
+        { error: strictQ.error.issues[0]?.message ?? "Onboarding Questionnaire answers are incomplete." },
         { status: 400 },
       );
     }

@@ -123,7 +123,7 @@ export function TrainerDashboardServicesBubble() {
         fetch("/api/trainer/dashboard/service-offerings", { credentials: "include" }),
       ]);
       if (!meRes.ok) throw new Error(await readApiErrorMessage(meRes, "Could not load your account."));
-      if (!qRes.ok) throw new Error(await readApiErrorMessage(qRes, "Could not load Match Me questionnaire."));
+      if (!qRes.ok) throw new Error(await readApiErrorMessage(qRes, "Could not load Onboarding Questionnaire."));
       if (!oRes.ok) throw new Error(await readApiErrorMessage(oRes, "Could not load published services."));
       const meJson = (await meRes.json()) as MeResponse;
       const qJson = (await qRes.json()) as QuestionnaireResponse;
@@ -227,7 +227,7 @@ export function TrainerDashboardServicesBubble() {
     }
     if (!questionnaireComplete) {
       setFormErr(
-        "Finish your Match Me questionnaire once so your profile is on file. After that, you can publish offerings here without leaving the dashboard.",
+        "Finish your Onboarding Questionnaire once so your profile is on file. After that, you can publish offerings here without leaving the dashboard.",
       );
       return;
     }
@@ -434,7 +434,7 @@ export function TrainerDashboardServicesBubble() {
               <p className="mt-2 text-sm text-white/50">No published service lines yet—add your first package below.</p>
             )}
             <p className="mt-3 text-[11px] leading-relaxed text-white/38">
-              Match Me only stores session format preferences and your in-person matching radius. Packages, prices, and
+              The Onboarding Questionnaire only stores session format preferences and your in-person matching radius. Packages, prices, and
               delivery for what you sell are managed here—your public profile pulls from this list.
             </p>
           </div>
@@ -447,7 +447,9 @@ export function TrainerDashboardServicesBubble() {
             >
               Add a new service
             </button>
-            <p className="text-center text-xs text-white/40">To change match preferences (session formats, radius), use Match Me in the sidebar.</p>
+            <p className="text-center text-xs text-white/40">
+              To change match preferences (session formats, radius), use Daily Questionnaires in the nav.
+            </p>
           </div>
         </div>
       ) : null}

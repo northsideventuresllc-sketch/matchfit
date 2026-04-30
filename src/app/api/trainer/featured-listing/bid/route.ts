@@ -47,7 +47,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            "You need an in-person US ZIP on your Match questionnaire before you can bid in a regional auction.",
+            "You need an in-person US ZIP in your Onboarding Questionnaire before you can bid in a regional auction.",
         },
         { status: 400 },
       );

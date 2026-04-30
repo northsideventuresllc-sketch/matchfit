@@ -19,7 +19,7 @@ export function stepToSlug(step: number): MatchQuestionnaireEditSlug | null {
   return MATCH_QUESTIONNAIRE_EDIT_SLUGS[step - 1];
 }
 
-/** One Match Me questionnaire — sections are editable parts. Each bubble has its own disclaimer. */
+/** Onboarding Questionnaire — sections are editable parts. Each bubble has its own disclaimer. */
 export const MATCH_QUESTIONNAIRE_SECTIONS = [
   {
     slug: "session-formats" as const,
@@ -56,4 +56,4 @@ export const MATCH_QUESTIONNAIRE_SECTIONS = [
 ] as const;
 
 export const FOLLOW_UP_SURVEYS_BLURB =
-  "Optional, shorter questionnaires may appear here as our systems learn your specialties. They help keep your profile sharp—none replace the core Match Me sections above.";
+  "Optional, shorter questionnaires may appear here as our systems learn your specialties. They help keep your profile sharp—none replace the core Onboarding Questionnaire sections above.";

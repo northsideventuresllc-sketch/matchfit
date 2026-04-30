@@ -10,24 +10,24 @@ export type TrainerQuestionnaireCatalogEntry = {
   badge: string | null;
 };
 
-/** Cards on the Match questionnaires overview (each item is its own questionnaire). */
+/** Cards on the Daily Questionnaires overview (each item is its own questionnaire). */
 export const TRAINER_QUESTIONNAIRES_CATALOG: readonly TrainerQuestionnaireCatalogEntry[] = [
   {
     key: "match-me",
-    title: "Match Me",
+    title: "Onboarding Questionnaire",
     href: TRAINER_MATCH_ME_PATH,
     summary:
       "Session format preferences, in-person matching area, who you coach best, and your philosophy—used for discovery and AI matching. Services and rates are managed from your dashboard.",
     disclaimer:
-      "This is required for your account to be shown to clients until every part is complete. Saving any section returns you to your dashboard. Optional follow-up surveys may appear later; they never replace Match Me.",
-    badge: "Required for client visibility",
+      "This is required for your account to be shown to clients until every part is complete. Saving any section returns you to your dashboard. Additional questionnaires may appear later; they never replace this onboarding flow.",
+    badge: "REQUIRED FOR CLIENT VISIBILITY",
   },
   {
     key: "follow-up",
-    title: "Follow-Up Questionnaires",
+    title: "Additional Questionnaires",
     href: null,
     summary: "Short, targeted surveys as our systems learn more about what you specialize in.",
     disclaimer: FOLLOW_UP_SURVEYS_BLURB,
-    badge: "Optional · coming soon",
+    badge: "Optional · over time",
   },
 ] as const;
