@@ -77,6 +77,13 @@ export default async function TrainerDashboardHomePage() {
 
   const premiumActive = Boolean(profile?.premiumStudioEnabledAt);
 
+  const settingsHref = "/trainer/dashboard/settings";
+
+  const matchBlocks =
+    profile?.matchQuestionnaireStatus === "completed" && profile.aiMatchProfileText
+      ? parseAiMatchProfileForDisplay(profile.aiMatchProfileText)
+      : null;
+
   return (
     <div className="space-y-8">
       <header className="space-y-1 text-center">

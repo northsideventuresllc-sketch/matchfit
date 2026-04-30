@@ -48,6 +48,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
     }
 
+    if (client.safetySuspended) {
+      return NextResponse.json(
+        {
+          error:
+            "Your client account is suspended pending a Match Fit safety review. You will regain access once the review is complete.",
+          code: "ACCOUNT_SUSPENDED",
+        },
+        { status: 403 },
+      );
+    }
+
     const otpDelivery = await getLoginOtpDelivery(client.id);
     if (client.twoFactorEnabled && otpDelivery) {
       const code = generateSixDigitCode();
