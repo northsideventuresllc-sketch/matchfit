@@ -14,6 +14,17 @@ import { verifyTurnstileToken } from "@/lib/turnstile-verify";
 import { loginSchema } from "@/lib/validations/client-register";
 import { NextResponse } from "next/server";
 
+function accountSuspendedResponse() {
+  return NextResponse.json(
+    {
+      error:
+        "Your client account is suspended pending a Match Fit safety review. You will regain access once the review is complete.",
+      code: "ACCOUNT_SUSPENDED",
+    },
+    { status: 403 },
+  );
+}
+
 export async function POST(req: Request) {
   try {
     const parsed = loginSchema.safeParse(await req.json());
@@ -29,20 +40,12 @@ export async function POST(req: Request) {
     if (!client) {
       return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
     }
+    if (client.safetySuspended) {
+      return accountSuspendedResponse();
+    }
     const ok = await verifyPassword(password, client.passwordHash);
     if (!ok) {
       return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
-    }
-
-    if (client.safetySuspended) {
-      return NextResponse.json(
-        {
-          error:
-            "Your client account is suspended pending a Match Fit safety review. You will regain access once the review is complete.",
-          code: "ACCOUNT_SUSPENDED",
-        },
-        { status: 403 },
-      );
     }
 
     const otpDelivery = await getLoginOtpDelivery(client.id);
