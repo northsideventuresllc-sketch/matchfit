@@ -13,7 +13,7 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-type Ctx = { params: Promise<{ trainerUsername: string }> };
+type Ctx = { params: Promise<{ username: string }> };
 
 export async function POST(_req: Request, ctx: Ctx) {
   try {
@@ -29,8 +29,8 @@ export async function POST(_req: Request, ctx: Ctx) {
       return NextResponse.json({ error: "NEXT_PUBLIC_APP_URL must be set for Twilio callbacks." }, { status: 503 });
     }
 
-    const { trainerUsername } = await ctx.params;
-    const handle = decodeURIComponent(trainerUsername).trim();
+    const { username } = await ctx.params;
+    const handle = decodeURIComponent(username).trim();
     const trainer = await prisma.trainer.findUnique({
       where: { username: handle },
       select: { id: true, phone: true, deidentifiedAt: true },
