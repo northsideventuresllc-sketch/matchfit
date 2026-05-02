@@ -740,8 +740,14 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
         ) : null}
       </div>
 
-      {official && !archived ? (
+      {official &&
+      !archived &&
+      (voiceCallEnabled ||
+        bookingSnapshot ||
+        pendingBookings.length > 0 ||
+        (phoneCall?.paid && phoneCall.twilioConfigured)) ? (
         <div className="space-y-3 rounded-xl border border-white/[0.08] bg-[#0c0d12]/95 px-3 py-3 sm:px-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">Bookings, video &amp; voice</p>
           {bookingSnapshot ? (
             <p className="text-[11px] text-white/55">
               <span className="font-semibold text-white/75">Client booking credits: </span>
@@ -751,18 +757,91 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
             </p>
           ) : null}
           {pendingBookings.length > 0 ? (
-            <div className="text-[11px] text-white/55">
-              <span className="font-bold uppercase tracking-[0.1em] text-sky-200/85">Pending invites</span>
-              <ul className="mt-1 list-inside list-disc space-y-1">
+            <div className="space-y-2 text-[11px] text-white/55">
+              <span className="font-bold uppercase tracking-[0.1em] text-sky-200/85">Sessions on calendar</span>
+              <ul className="mt-1 space-y-2">
                 {pendingBookings.map((b) => (
-                  <li key={b.id}>
-                    {new Date(b.startsAt).toLocaleString(undefined, {
-                      weekday: "short",
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
+                  <li key={b.id} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/35">{b.status.replace(/_/g, " ")}</p>
+                        <p className="text-xs text-white/80">
+                          {new Date(b.startsAt).toLocaleString(undefined, {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                        {b.videoConferenceJoinUrl ? (
+                          <a
+                            href={b.videoConferenceJoinUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-1 inline-block text-[10px] font-bold uppercase tracking-[0.08em] text-indigo-200/90 underline-offset-2 hover:underline"
+                          >
+                            Open current video link
+                          </a>
+                        ) : null}
+                      </div>
+                      {phoneCall?.paid ? (
+                        <button
+                          type="button"
+                          disabled={videoBusy}
+                          onClick={() => {
+                            setVideoAttachId((id) => (id === b.id ? null : b.id));
+                            setManualVideoUrl("");
+                          }}
+                          className="shrink-0 self-start rounded-lg border border-white/12 px-2 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-white/65 transition hover:border-[#FF7E00]/40 hover:text-white/90 disabled:opacity-40"
+                        >
+                          {videoAttachId === b.id ? "Close video tools" : "Video link"}
+                        </button>
+                      ) : null}
+                    </div>
+                    {videoAttachId === b.id && phoneCall?.paid ? (
+                      <div className="mt-2 space-y-2 border-t border-white/[0.06] pt-2">
+                        <p className="text-[10px] text-white/45">
+                          Manual link or sync creates a meeting for this booking window. Manage OAuth under{" "}
+                          <Link href="/trainer/dashboard/video-meetings" className="text-[#FF9A4A] underline-offset-2 hover:underline">
+                            Video
+                          </Link>
+                          .
+                        </p>
+                        <input
+                          value={manualVideoUrl}
+                          onChange={(e) => setManualVideoUrl(e.target.value)}
+                          placeholder="https://… (Meet, Zoom, or Teams)"
+                          className="w-full rounded-lg border border-white/10 bg-[#0E1016] px-2 py-2 text-xs text-white placeholder:text-white/30"
+                        />
+                        <button
+                          type="button"
+                          disabled={videoBusy}
+                          onClick={() => void saveManualVideo(b.id)}
+                          className="w-full rounded-lg border border-indigo-400/35 bg-indigo-500/12 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-indigo-100 disabled:opacity-40"
+                        >
+                          Save manual link
+                        </button>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(["GOOGLE", "ZOOM", "MICROSOFT"] as const).map((p) => {
+                            const connected = videoOAuthProviders.includes(p);
+                            const label = p === "GOOGLE" ? "Meet" : p === "ZOOM" ? "Zoom" : "Teams";
+                            return (
+                              <button
+                                key={p}
+                                type="button"
+                                disabled={videoBusy || !connected}
+                                title={!connected ? `Connect ${label} on the Video page first` : undefined}
+                                onClick={() => void syncVideo(b.id, p)}
+                                className="flex-1 rounded-lg border border-[#FF7E00]/30 bg-[#FF7E00]/10 py-1.5 text-[9px] font-black uppercase tracking-[0.08em] text-white/85 disabled:opacity-35"
+                              >
+                                Sync {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -808,6 +887,22 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
               </button>
             </div>
           ) : null}
+          {phoneCall?.paid && phoneCall.twilioConfigured && !phoneCall.ready ? (
+            <div className="rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2 text-[11px] leading-relaxed text-amber-50/90">
+              <span className="font-bold uppercase tracking-[0.08em] text-amber-200/90">Masked calls </span>
+              Both sides must opt in under{" "}
+              <Link href="/trainer/dashboard/settings" className="text-[#FF9A4A] underline-offset-2 hover:underline">
+                Account Settings → Masked calls &amp; phone privacy
+              </Link>
+              .
+            </div>
+          ) : null}
+          {phoneCall?.paid && !phoneCall.twilioConfigured ? (
+            <p className="text-[11px] text-white/45">Masked calling is not enabled on this server yet.</p>
+          ) : null}
+          {!phoneCall?.paid && phoneCall?.twilioConfigured ? (
+            <p className="text-[11px] text-white/45">Voice and synced video unlock after this client completes a paid checkout with you.</p>
+          ) : null}
           {voiceCallEnabled ? (
             <button
               type="button"
@@ -815,7 +910,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
               onClick={() => void startMaskedCallTrainer()}
               className="w-full rounded-lg border border-sky-400/35 bg-sky-500/12 py-2 text-xs font-bold uppercase tracking-[0.08em] text-sky-100 disabled:opacity-40"
             >
-              {callBusy ? "Calling…" : "Call client (masked number)"}
+              {callBusy ? "Calling…" : "Start masked call"}
             </button>
           ) : null}
         </div>

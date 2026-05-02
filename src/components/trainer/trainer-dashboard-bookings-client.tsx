@@ -10,6 +10,8 @@ type BookingRow = {
   startsAt: string;
   endsAt: string | null;
   inviteNote: string | null;
+  videoConferenceJoinUrl: string | null;
+  videoConferenceProvider: string | null;
   clientUsername: string;
   clientLabel: string;
 };
@@ -361,6 +363,24 @@ export function TrainerDashboardBookingsClient() {
                 <span className="uppercase tracking-wide text-white/40">{b.status}</span>
               </div>
               {b.inviteNote ? <p className="mt-1 text-xs text-white/50">{b.inviteNote}</p> : null}
+              {b.videoConferenceJoinUrl ? (
+                <a
+                  href={b.videoConferenceJoinUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex text-[10px] font-black uppercase tracking-[0.1em] text-indigo-200/90 underline-offset-2 hover:underline"
+                >
+                  Video ({(b.videoConferenceProvider ?? "LINK").replace(/_/g, " ")})
+                </a>
+              ) : (
+                <p className="mt-2 text-[10px] text-white/38">
+                  Video: use{" "}
+                  <a href="/trainer/dashboard/messages" className="text-[#FF9A4A] underline-offset-2 hover:underline">
+                    Chats
+                  </a>{" "}
+                  → client thread → Video link.
+                </p>
+              )}
             </li>
           ))}
         </ul>
