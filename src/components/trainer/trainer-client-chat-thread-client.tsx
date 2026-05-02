@@ -32,6 +32,14 @@ type ShareablePost = {
   createdAt: string;
 };
 
+type PendingBooking = { id: string; startsAt: string; endsAt: string | null; inviteNote: string | null };
+type BookingSnapshot = {
+  sessionCreditsPurchased: number;
+  sessionCreditsUsed: number;
+  bookingUnlimitedAfterPurchase: boolean;
+  creditsRemaining: number;
+};
+
 export function TrainerClientChatThreadClient(props: { clientUsername: string }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [official, setOfficial] = useState<string | null>(null);
@@ -59,6 +67,15 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
   const [unmatchInitiatedBy, setUnmatchInitiatedBy] = useState<string | null>(null);
   const [archiveBusy, setArchiveBusy] = useState(false);
   const [blockMode, setBlockMode] = useState<SafetyBlockMode>("full");
+  const [voiceCallEnabled, setVoiceCallEnabled] = useState(false);
+  const [bookingSnapshot, setBookingSnapshot] = useState<BookingSnapshot | null>(null);
+  const [pendingBookings, setPendingBookings] = useState<PendingBooking[]>([]);
+  const [callBusy, setCallBusy] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteStart, setInviteStart] = useState("");
+  const [inviteEnd, setInviteEnd] = useState("");
+  const [inviteNote, setInviteNote] = useState("");
+  const [inviteBusy, setInviteBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,6 +94,9 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
         canRevive?: boolean;
         archiveExpiresAt?: string | null;
         unmatchInitiatedBy?: string | null;
+        voiceCallEnabled?: boolean;
+        bookingSnapshot?: BookingSnapshot | null;
+        pendingBookings?: PendingBooking[];
         error?: string;
       };
       if (!res.ok) {
@@ -110,12 +130,65 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
         if (!ps.some((s) => s.serviceId === prev)) return ps[0]!.serviceId;
         return prev;
       });
+      setVoiceCallEnabled(Boolean(data.voiceCallEnabled));
+      setBookingSnapshot(data.bookingSnapshot ?? null);
+      setPendingBookings(data.pendingBookings ?? []);
     } catch {
       setErr("Network error.");
     } finally {
       setLoading(false);
     }
   }, [props.clientUsername]);
+
+  async function startMaskedCallTrainer() {
+    setCallBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/trainer/conversations/${encodeURIComponent(props.clientUsername)}/masked-call`, {
+        method: "POST",
+      });
+      const data = (await res.json()) as { error?: string; message?: string };
+      if (!res.ok) {
+        setErr(data.error ?? "Could not start call.");
+        return;
+      }
+      window.alert(data.message ?? "Your phone should ring shortly. Answer to connect.");
+    } finally {
+      setCallBusy(false);
+    }
+  }
+
+  async function sendBookingInvite() {
+    if (!inviteStart.trim() || !inviteEnd.trim()) {
+      setErr("Choose a start and end time for the invite.");
+      return;
+    }
+    const startsAt = new Date(inviteStart);
+    const endsAt = new Date(inviteEnd);
+    setInviteBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/trainer/conversations/${encodeURIComponent(props.clientUsername)}/booking-invite`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startsAt: startsAt.toISOString(),
+          endsAt: endsAt.toISOString(),
+          note: inviteNote.trim() || undefined,
+        }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setErr(data.error ?? "Could not send invite.");
+        return;
+      }
+      setInviteOpen(false);
+      setInviteNote("");
+      void load();
+    } finally {
+      setInviteBusy(false);
+    }
+  }
 
   async function archiveChat() {
     if (!window.confirm("Delete this chat and unmatch? The thread moves to Archives for 90 days.")) return;
@@ -593,6 +666,87 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
           </div>
         ) : null}
       </div>
+
+      {official && !archived ? (
+        <div className="space-y-3 rounded-xl border border-white/[0.08] bg-[#0c0d12]/95 px-3 py-3 sm:px-4">
+          {bookingSnapshot ? (
+            <p className="text-[11px] text-white/55">
+              <span className="font-semibold text-white/75">Client booking credits: </span>
+              {bookingSnapshot.bookingUnlimitedAfterPurchase
+                ? "Unlimited scheduling (monthly / DIY-style purchase on file)."
+                : `${bookingSnapshot.creditsRemaining} session slot(s) left to invite (pending invites count against this).`}
+            </p>
+          ) : null}
+          {pendingBookings.length > 0 ? (
+            <div className="text-[11px] text-white/55">
+              <span className="font-bold uppercase tracking-[0.1em] text-sky-200/85">Pending invites</span>
+              <ul className="mt-1 list-inside list-disc space-y-1">
+                {pendingBookings.map((b) => (
+                  <li key={b.id}>
+                    {new Date(b.startsAt).toLocaleString(undefined, {
+                      weekday: "short",
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setInviteOpen((o) => !o)}
+            className="w-full rounded-lg border border-white/12 bg-white/[0.04] py-2 text-[11px] font-bold uppercase tracking-[0.08em] text-white/75"
+          >
+            {inviteOpen ? "Hide booking invite" : "Send booking invite"}
+          </button>
+          {inviteOpen ? (
+            <div className="space-y-2 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+              <label className="block text-[10px] font-bold uppercase text-white/40">Start</label>
+              <input
+                type="datetime-local"
+                value={inviteStart}
+                onChange={(e) => setInviteStart(e.target.value)}
+                className="w-full rounded-lg border border-white/10 bg-[#0E1016] px-2 py-2 text-xs text-white"
+              />
+              <label className="block text-[10px] font-bold uppercase text-white/40">End</label>
+              <input
+                type="datetime-local"
+                value={inviteEnd}
+                onChange={(e) => setInviteEnd(e.target.value)}
+                className="w-full rounded-lg border border-white/10 bg-[#0E1016] px-2 py-2 text-xs text-white"
+              />
+              <label className="block text-[10px] font-bold uppercase text-white/40">Note (optional)</label>
+              <input
+                value={inviteNote}
+                onChange={(e) => setInviteNote(e.target.value)}
+                className="w-full rounded-lg border border-white/10 bg-[#0E1016] px-2 py-2 text-xs text-white"
+                maxLength={500}
+              />
+              <button
+                type="button"
+                disabled={inviteBusy}
+                onClick={() => void sendBookingInvite()}
+                className="w-full rounded-lg border border-emerald-400/35 bg-emerald-500/12 py-2 text-[11px] font-bold uppercase tracking-[0.08em] text-emerald-100 disabled:opacity-40"
+              >
+                {inviteBusy ? "Sending…" : "Send invite to chat"}
+              </button>
+            </div>
+          ) : null}
+          {voiceCallEnabled ? (
+            <button
+              type="button"
+              disabled={callBusy}
+              onClick={() => void startMaskedCallTrainer()}
+              className="w-full rounded-lg border border-sky-400/35 bg-sky-500/12 py-2 text-xs font-bold uppercase tracking-[0.08em] text-sky-100 disabled:opacity-40"
+            >
+              {callBusy ? "Calling…" : "Call client (masked number)"}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="flex flex-col gap-2 border-t border-white/[0.08] pt-3 sm:flex-row sm:items-stretch">
         {official && !archived && trainerPremiumStudio ? (

@@ -69,6 +69,8 @@ export type TrainerPublicProfileViewProps = {
   checkoutNotice?: "success" | "canceled" | null;
   /** Logged-in client (not previewing own link): discreet feed & privacy controls in the header. */
   showClientPrivacyMenu?: boolean;
+  /** Public availability summary page (set from the trainer dashboard). */
+  availabilityHref?: string;
 };
 
 function chip(text: string) {
@@ -209,6 +211,16 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
                 </Link>
               )}
             </div>
+            {props.availabilityHref && !preview ? (
+              <p className="mt-3 text-center sm:text-left">
+                <Link
+                  href={props.availabilityHref}
+                  className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#FF9A4A] underline-offset-2 hover:underline"
+                >
+                  See availability
+                </Link>
+              </p>
+            ) : null}
             <p className="mt-3 text-center text-[11px] leading-relaxed text-white/40 sm:text-left">
               {preview
                 ? "On your live link, clients tap here to open chat with you. This control is preview-only while you are signed in as the coach."

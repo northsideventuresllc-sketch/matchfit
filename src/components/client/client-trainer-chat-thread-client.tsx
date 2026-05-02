@@ -18,6 +18,14 @@ type TokenTip = {
   hasQualifyingService: boolean;
 };
 
+type PendingBooking = { id: string; startsAt: string; endsAt: string | null; inviteNote: string | null };
+type BookingSnapshot = {
+  sessionCreditsPurchased: number;
+  sessionCreditsUsed: number;
+  bookingUnlimitedAfterPurchase: boolean;
+  creditsRemaining: number;
+};
+
 export function ClientTrainerChatThreadClient(props: { trainerUsername: string }) {
   const searchParams = useSearchParams();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -37,6 +45,10 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
   const [unmatchInitiatedBy, setUnmatchInitiatedBy] = useState<string | null>(null);
   const [archiveBusy, setArchiveBusy] = useState(false);
   const [blockMode, setBlockMode] = useState<SafetyBlockMode>("full");
+  const [voiceCallEnabled, setVoiceCallEnabled] = useState(false);
+  const [bookingSnapshot, setBookingSnapshot] = useState<BookingSnapshot | null>(null);
+  const [pendingBookings, setPendingBookings] = useState<PendingBooking[]>([]);
+  const [callBusy, setCallBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -51,6 +63,9 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
         canRevive?: boolean;
         archiveExpiresAt?: string | null;
         unmatchInitiatedBy?: string | null;
+        voiceCallEnabled?: boolean;
+        bookingSnapshot?: BookingSnapshot | null;
+        pendingBookings?: PendingBooking[];
         error?: string;
       };
       if (!res.ok) {
@@ -69,6 +84,9 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
         const next = Math.min(data.tokenTip.suggestedGift, Math.max(1, capLeft || 1));
         setGiftAmount(next);
       }
+      setVoiceCallEnabled(Boolean(data.voiceCallEnabled));
+      setBookingSnapshot(data.bookingSnapshot ?? null);
+      setPendingBookings(data.pendingBookings ?? []);
     } catch {
       setErr("Network error.");
     } finally {
@@ -141,6 +159,52 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
     const data = (await res.json()) as { error?: string };
     if (!res.ok) {
       setErr(data.error ?? "Could not send tokens.");
+      return;
+    }
+    void load();
+  }
+
+  async function startMaskedCall() {
+    setCallBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/client/conversations/${encodeURIComponent(props.trainerUsername)}/masked-call`, {
+        method: "POST",
+      });
+      const data = (await res.json()) as { error?: string; message?: string };
+      if (!res.ok) {
+        setErr(data.error ?? "Could not start call.");
+        return;
+      }
+      window.alert(data.message ?? "Your phone should ring shortly. Answer to connect.");
+    } finally {
+      setCallBusy(false);
+    }
+  }
+
+  async function confirmBooking(bookingId: string) {
+    setErr(null);
+    const res = await fetch(
+      `/api/client/conversations/${encodeURIComponent(props.trainerUsername)}/bookings/${encodeURIComponent(bookingId)}/confirm`,
+      { method: "POST" },
+    );
+    const data = (await res.json()) as { error?: string };
+    if (!res.ok) {
+      setErr(data.error ?? "Could not confirm.");
+      return;
+    }
+    void load();
+  }
+
+  async function declineBooking(bookingId: string) {
+    setErr(null);
+    const res = await fetch(
+      `/api/client/conversations/${encodeURIComponent(props.trainerUsername)}/bookings/${encodeURIComponent(bookingId)}/decline`,
+      { method: "POST" },
+    );
+    const data = (await res.json()) as { error?: string };
+    if (!res.ok) {
+      setErr(data.error ?? "Could not decline.");
       return;
     }
     void load();
@@ -461,6 +525,70 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
           </div>
         ) : null}
       </div>
+
+      {official && !archived ? (
+        <div className="space-y-3 rounded-xl border border-white/[0.08] bg-[#0c0d12]/95 px-3 py-3 sm:px-4">
+          {bookingSnapshot ? (
+            <p className="text-[11px] text-white/55">
+              <span className="font-semibold text-white/75">Booking credits: </span>
+              {bookingSnapshot.bookingUnlimitedAfterPurchase
+                ? "Unlimited scheduling for your current monthly / DIY-style purchase."
+                : `${bookingSnapshot.creditsRemaining} session slot(s) available to confirm.`}
+            </p>
+          ) : null}
+          {pendingBookings.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-sky-200/85">Pending invites</p>
+              {pendingBookings.map((b) => (
+                <div
+                  key={b.id}
+                  className="flex flex-col gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0 text-xs text-white/75">
+                    <p className="font-semibold text-white/90">
+                      {new Date(b.startsAt).toLocaleString(undefined, {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                      {b.endsAt ? ` – ${new Date(b.endsAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}` : ""}
+                    </p>
+                    {b.inviteNote ? <p className="mt-1 text-[11px] text-white/50">{b.inviteNote}</p> : null}
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void confirmBooking(b.id)}
+                      className="rounded-lg border border-emerald-400/40 bg-emerald-500/15 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-100"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void declineBooking(b.id)}
+                      className="rounded-lg border border-white/15 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-white/60"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {voiceCallEnabled ? (
+            <button
+              type="button"
+              disabled={callBusy}
+              onClick={() => void startMaskedCall()}
+              className="w-full rounded-lg border border-sky-400/35 bg-sky-500/12 py-2 text-xs font-bold uppercase tracking-[0.08em] text-sky-100 transition hover:border-sky-400/50 disabled:opacity-40"
+            >
+              {callBusy ? "Calling…" : "Call coach (masked number)"}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="flex flex-col gap-2 border-t border-white/[0.08] pt-3 sm:flex-row">
         <textarea
