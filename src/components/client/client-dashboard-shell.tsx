@@ -20,7 +20,7 @@ const NAV = [
   },
   {
     href: "/client/dashboard/daily-questionnaire",
-    label: "Daily questionare",
+    label: "Daily questionnaire",
     match: (p: string) => p.startsWith("/client/dashboard/daily-questionnaire"),
   },
   {
@@ -35,13 +35,8 @@ const NAV = [
   },
   {
     href: "/client/dashboard/preferences",
-    label: "Match preferences",
+    label: "Match Preferences",
     match: (p: string) => p === "/client/dashboard/preferences",
-  },
-  {
-    href: "/client/settings",
-    label: "Account settings",
-    match: (p: string) => p.startsWith("/client/settings"),
   },
 ] as const;
 

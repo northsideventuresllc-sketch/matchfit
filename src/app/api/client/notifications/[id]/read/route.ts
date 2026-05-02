@@ -1,3 +1,4 @@
+import { countClientUnreadInboxNotifications } from "@/lib/client-notification-retention";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
 import { NextResponse } from "next/server";
@@ -15,6 +16,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
     const row = await prisma.clientNotification.findFirst({
       where: { id, clientId },
+      select: { id: true, readAt: true },
     });
     if (!row) {
       return NextResponse.json({ error: "Not found." }, { status: 404 });
@@ -26,9 +28,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
       data: { readAt: read ? new Date() : null },
     });
 
-    const unreadCount = await prisma.clientNotification.count({
-      where: { clientId, readAt: null },
-    });
+    const unreadCount = await countClientUnreadInboxNotifications(clientId);
 
     return NextResponse.json({ ok: true, unreadCount });
   } catch (e) {

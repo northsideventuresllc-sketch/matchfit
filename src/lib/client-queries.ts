@@ -7,6 +7,7 @@ export async function findClientByIdentifier(identifier: string) {
   if (!raw) return null;
   return prisma.client.findFirst({
     where: {
+      deidentifiedAt: null,
       OR: [{ username: raw }, { phone: raw }, { email: raw.toLowerCase() }],
     },
   });
@@ -14,7 +15,7 @@ export async function findClientByIdentifier(identifier: string) {
 
 export async function isUsernameTaken(username: string): Promise<boolean> {
   const u = username.trim();
-  const existing = await prisma.client.findUnique({ where: { username: u } });
+  const existing = await prisma.client.findFirst({ where: { username: u, deidentifiedAt: null } });
   if (existing) return true;
   const pending = await prisma.pendingClientRegistration.findFirst({
     where: {
@@ -28,7 +29,7 @@ export async function isUsernameTaken(username: string): Promise<boolean> {
 
 export async function isEmailTaken(email: string): Promise<boolean> {
   const e = email.trim().toLowerCase();
-  const existing = await prisma.client.findUnique({ where: { email: e } });
+  const existing = await prisma.client.findFirst({ where: { email: e, deidentifiedAt: null } });
   if (existing) return true;
   const pending = await prisma.pendingClientRegistration.findFirst({
     where: {
@@ -44,11 +45,11 @@ export async function isEmailTaken(email: string): Promise<boolean> {
 export async function isEmailTakenByAnother(email: string, excludeClientId: string): Promise<boolean> {
   const e = email.trim().toLowerCase();
   const other = await prisma.client.findFirst({
-    where: { email: e, NOT: { id: excludeClientId } },
+    where: { email: e, deidentifiedAt: null, NOT: { id: excludeClientId } },
   });
   if (other) return true;
   const pendingHolder = await prisma.client.findFirst({
-    where: { pendingEmail: e, NOT: { id: excludeClientId } },
+    where: { pendingEmail: e, deidentifiedAt: null, NOT: { id: excludeClientId } },
   });
   if (pendingHolder) return true;
   const pending = await prisma.pendingClientRegistration.findFirst({
@@ -65,7 +66,7 @@ export async function isEmailTakenByAnother(email: string, excludeClientId: stri
 export async function isPhoneTakenByAnother(phone: string, excludeClientId: string): Promise<boolean> {
   const p = phone.trim();
   const other = await prisma.client.findFirst({
-    where: { phone: p, NOT: { id: excludeClientId } },
+    where: { phone: p, deidentifiedAt: null, NOT: { id: excludeClientId } },
   });
   if (other) return true;
   const pending = await prisma.pendingClientRegistration.findFirst({
@@ -82,7 +83,7 @@ export async function isPhoneTakenByAnother(phone: string, excludeClientId: stri
 export async function isUsernameTakenByAnother(username: string, excludeClientId: string): Promise<boolean> {
   const u = username.trim();
   const other = await prisma.client.findFirst({
-    where: { username: u, NOT: { id: excludeClientId } },
+    where: { username: u, deidentifiedAt: null, NOT: { id: excludeClientId } },
   });
   if (other) return true;
   const pending = await prisma.pendingClientRegistration.findFirst({

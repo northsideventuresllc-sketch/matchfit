@@ -236,6 +236,7 @@ export function ClientFitHubFeedClient() {
             setSwipeHint(msg);
             window.setTimeout(() => setSwipeHint(null), 3200);
           }}
+          onMutedFromFeed={() => void load()}
         />
       ))}
     </div>
@@ -255,10 +256,13 @@ function FitHubPostCard(props: {
   onSubmitComment: () => void;
   onReport: () => void;
   onSavedCoach: (message: string) => void;
+  onMutedFromFeed?: () => void;
 }) {
   const { post: p } = props;
+  const feedMenuRef = useRef<HTMLDetailsElement | null>(null);
   const startX = useRef<number | null>(null);
   const tracking = useRef(false);
+  const suppressAvatarLinkNav = useRef(false);
 
   async function trySaveCoach(deltaX: number) {
     if (deltaX < 72) return;
@@ -275,13 +279,37 @@ function FitHubPostCard(props: {
     props.onSavedCoach(`Saved @${p.trainer.username} to your coaches.`);
   }
 
+  async function muteCoachInFithubOnly() {
+    const res = await fetch("/api/safety/block", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        targetUsername: p.trainer.username,
+        targetIsTrainer: true,
+        blockMode: "fithub_only",
+      }),
+    });
+    if (res.ok) {
+      feedMenuRef.current?.removeAttribute("open");
+      props.onMutedFromFeed?.();
+    }
+  }
+
   return (
     <article className="overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/95 shadow-[0_24px_60px_-28px_rgba(0,0,0,0.85)]">
       <div className="border-b border-white/[0.06] px-4 py-3">
         <div className="flex items-center gap-3">
-          <div
-            className="relative h-14 w-14 shrink-0 cursor-ew-resize touch-pan-y overflow-hidden rounded-2xl border border-dashed border-white/20 bg-[#0E1016]"
-            title="Swipe right on avatar to save coach"
+          <Link
+            href={`/trainers/${encodeURIComponent(p.trainer.username)}`}
+            aria-label={`${p.trainer.displayName} profile`}
+            title="View profile · swipe right on avatar to save coach"
+            className="relative h-14 w-14 shrink-0 cursor-pointer touch-pan-y overflow-hidden rounded-2xl border border-dashed border-white/20 bg-[#0E1016] outline-none ring-[#FF7E00]/30 focus-visible:ring-2"
+            onClick={(e) => {
+              if (suppressAvatarLinkNav.current) {
+                e.preventDefault();
+                suppressAvatarLinkNav.current = false;
+              }
+            }}
             onPointerDown={(e) => {
               tracking.current = true;
               startX.current = e.clientX;
@@ -298,6 +326,9 @@ function FitHubPostCard(props: {
               tracking.current = false;
               const dx = e.clientX - startX.current;
               startX.current = null;
+              if (dx >= 72) {
+                suppressAvatarLinkNav.current = true;
+              }
               void trySaveCoach(dx);
             }}
             onPointerCancel={() => {
@@ -309,19 +340,24 @@ function FitHubPostCard(props: {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={p.trainer.profileImageUrl.split("?")[0]} alt="" className="pointer-events-none h-full w-full object-cover" />
             ) : (
-              <span className="flex h-full w-full items-center justify-center text-sm font-black text-white/35">
+              <span className="pointer-events-none flex h-full w-full items-center justify-center text-sm font-black text-white/35">
                 {p.trainer.displayName.charAt(0).toUpperCase()}
               </span>
             )}
-          </div>
+          </Link>
           <div className="min-w-0 flex-1">
             <Link
               href={`/trainers/${encodeURIComponent(p.trainer.username)}`}
-              className="truncate text-sm font-bold text-white/95 hover:text-[#FF7E00]"
+              className="block truncate text-sm font-bold text-white/95 hover:text-[#FF7E00]"
             >
               {p.trainer.displayName}
             </Link>
-            <p className="truncate text-xs text-white/40">@{p.trainer.username}</p>
+            <Link
+              href={`/trainers/${encodeURIComponent(p.trainer.username)}`}
+              className="mt-0.5 block truncate text-[10px] font-medium leading-tight tracking-wide text-white/42 hover:text-[#FF7E00]/90"
+            >
+              @{p.trainer.username}
+            </Link>
             <p className="mt-1 text-[10px] uppercase tracking-wide text-white/30">Swipe right on the avatar to save coach</p>
           </div>
           <span className="text-[10px] font-black uppercase tracking-wide text-white/35">{p.postType}</span>
@@ -426,6 +462,23 @@ function FitHubPostCard(props: {
         >
           {p.reportedByMe ? "Reported" : "Report"}
         </button>
+        <details ref={feedMenuRef} className="relative">
+          <summary className="cursor-pointer list-none rounded-xl bg-white/[0.04] px-2.5 py-2 text-[10px] font-black uppercase tracking-wide text-white/35 marker:content-none [&::-webkit-details-marker]:hidden hover:bg-white/[0.08] hover:text-white/55">
+            ···
+          </summary>
+          <div className="absolute bottom-full right-0 z-20 mb-1 w-48 rounded-xl border border-white/10 bg-[#12151C] py-1 shadow-xl">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                void muteCoachInFithubOnly();
+              }}
+              className="block w-full px-3 py-2 text-left text-[11px] text-white/70 hover:bg-white/[0.05]"
+            >
+              Hide coach in FitHub
+            </button>
+          </div>
+        </details>
       </div>
 
       {props.commentsOpen ? (
@@ -518,7 +571,14 @@ function FitHubReportModal(props: {
           compliance with typical social posting rules. False reports may limit your account.
         </p>
         <p className="mt-3 truncate text-xs text-white/40">
-          Post by <span className="text-white/70">{p.trainer.displayName}</span> (@{p.trainer.username})
+          Post by <span className="text-white/70">{p.trainer.displayName}</span> (
+          <Link
+            href={`/trainers/${encodeURIComponent(p.trainer.username)}`}
+            className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline"
+          >
+            @{p.trainer.username}
+          </Link>
+          )
         </p>
 
         <label className="mt-5 block text-xs font-bold uppercase tracking-wide text-white/45">

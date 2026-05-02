@@ -45,8 +45,10 @@ export default async function TrainerW9PrintPage() {
       backgroundCheckStatus: true,
       onboardingTrackCpt: true,
       onboardingTrackNutrition: true,
+      onboardingTrackSpecialist: true,
       certificationReviewStatus: true,
       nutritionistCertificationReviewStatus: true,
+      specialistCertificationReviewStatus: true,
     },
   });
 

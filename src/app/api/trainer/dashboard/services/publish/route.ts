@@ -8,33 +8,41 @@ import {
   MATCH_SERVICE_CATALOG,
   MATCH_SERVICE_IDS_NUTRITION_OFFERING,
   MATCH_SERVICE_IDS_PT_OFFERING,
-  trainerMatchQuestionnaireSchema,
   type MatchServiceId,
   type ServiceDeliveryMode,
 } from "@/lib/trainer-match-questionnaire";
-import { parseTrainerMatchQuestionnaireDraft } from "@/lib/trainer-match-questionnaire-draft";
 import {
-  loadTrainerProfileAnswersAndOfferings,
+  mergeServiceOfferingFrequencyFields,
   migrateLegacyQuestionnaireServices,
+  minListPriceUsdOnLine,
   parseTrainerServiceOfferingsJson,
-  trainerServiceOfferingsDocumentSchema,
+  persistTrainerServiceOfferingsWithAi,
+  resolvedTrainerServicePublicTitle,
+  SESSION_FREQUENCY_KINDS,
+  trainerServiceOfferingVariationSchema,
   type TrainerServiceOfferingLine,
   type TrainerServiceOfferingsDocument,
-  composeTrainerAiMatchProfileText,
 } from "@/lib/trainer-service-offerings";
 import { trainerPublishedProfilePath } from "@/lib/trainer-public-profile-route";
+import { trainerOffersNutritionServices, trainerOffersPersonalTrainingServices } from "@/lib/trainer-service-buckets";
 
 const publishBodySchema = z.object({
   offeringKind: z.enum(["nutrition", "personal_training"]),
   serviceId: z.string().trim().min(1),
+  publicTitle: z.string().trim().max(80).optional(),
   priceUsd: z.number().min(15).max(5000),
   billingUnit: z.enum(BILLING_UNITS),
   description: z.string().trim().min(20).max(600),
   sessionMinutes: z.number().int().min(15).max(240).optional(),
   sessionsPerWeek: z.number().int().min(1).max(14).optional(),
+  sessionFrequencyKind: z.enum(SESSION_FREQUENCY_KINDS).default("none"),
+  sessionFrequencyCount: z.number().int().min(1).max(31).optional(),
+  sessionFrequencyCustom: z.string().trim().max(120).optional(),
   delivery: z.enum(["virtual", "in_person", "both"]),
   inPersonZip: z.string().trim().max(12).optional(),
   inPersonRadiusMiles: z.coerce.number().int().min(1).max(150).optional(),
+  variations: z.array(trainerServiceOfferingVariationSchema).max(24).optional(),
+  priceCheckAiEnabled: z.boolean().optional(),
 });
 
 function isMatchServiceId(id: string): id is MatchServiceId {
@@ -80,6 +88,10 @@ export async function POST(req: Request) {
           select: {
             onboardingTrackCpt: true,
             onboardingTrackNutrition: true,
+            onboardingTrackSpecialist: true,
+            certificationReviewStatus: true,
+            nutritionistCertificationReviewStatus: true,
+            specialistCertificationReviewStatus: true,
             matchQuestionnaireStatus: true,
             matchQuestionnaireAnswers: true,
             serviceOfferingsJson: true,
@@ -102,44 +114,45 @@ export async function POST(req: Request) {
       );
     }
 
-    if (body.offeringKind === "nutrition" && !prof.onboardingTrackNutrition) {
+    const bucket = {
+      onboardingTrackCpt: prof.onboardingTrackCpt,
+      onboardingTrackNutrition: prof.onboardingTrackNutrition,
+      onboardingTrackSpecialist: prof.onboardingTrackSpecialist,
+      certificationReviewStatus: prof.certificationReviewStatus,
+      nutritionistCertificationReviewStatus: prof.nutritionistCertificationReviewStatus,
+      specialistCertificationReviewStatus: prof.specialistCertificationReviewStatus,
+    };
+
+    if (body.offeringKind === "nutrition" && !trainerOffersNutritionServices(bucket)) {
       return NextResponse.json(
-        { error: "Only coaches on the nutrition track can publish nutrition offerings." },
+        {
+          error:
+            "Nutrition offerings unlock after you select the nutrition path in onboarding and Match Fit approves your nutrition credential.",
+        },
         { status: 403 },
       );
     }
-    if (body.offeringKind === "personal_training" && !prof.onboardingTrackCpt) {
+    if (body.offeringKind === "personal_training" && !trainerOffersPersonalTrainingServices(bucket)) {
       return NextResponse.json(
-        { error: "Only coaches on the CPT track can publish personal training offerings." },
+        {
+          error:
+            "Training offerings unlock after CPT or an approved specialist credential (CSCS / CES / group fitness) is on file for your account.",
+        },
         { status: 403 },
       );
     }
 
     await migrateLegacyQuestionnaireServices(trainerId);
 
-    const refreshed = await loadTrainerProfileAnswersAndOfferings(trainerId);
+    const refreshed = await prisma.trainerProfile.findUnique({
+      where: { trainerId },
+      select: { serviceOfferingsJson: true },
+    });
     if (!refreshed) {
       return NextResponse.json({ error: "Profile not found." }, { status: 400 });
     }
 
-    let answers: unknown = null;
-    if (refreshed.matchQuestionnaireAnswers) {
-      try {
-        answers = JSON.parse(refreshed.matchQuestionnaireAnswers) as unknown;
-      } catch {
-        answers = null;
-      }
-    }
-    const qDraft = parseTrainerMatchQuestionnaireDraft(answers);
-    const strictQ = trainerMatchQuestionnaireSchema.safeParse({ ...qDraft, certifyAccurate: true as const });
-    if (!strictQ.success) {
-      return NextResponse.json(
-        { error: strictQ.error.issues[0]?.message ?? "Onboarding Questionnaire answers are incomplete." },
-        { status: 400 },
-      );
-    }
-
-    let doc = parseTrainerServiceOfferingsJson(refreshed.serviceOfferingsJson ?? null);
+    const doc = parseTrainerServiceOfferingsJson(refreshed.serviceOfferingsJson ?? null);
     if (doc.services.some((s) => s.serviceId === serviceId)) {
       return NextResponse.json(
         { error: "You already publish this service type. Remove it in the dashboard editor before adding it again." },
@@ -154,8 +167,23 @@ export async function POST(req: Request) {
       description: body.description.trim(),
       delivery: body.delivery as ServiceDeliveryMode,
     };
+    const pub = body.publicTitle?.trim();
+    if (pub) newLine.publicTitle = pub;
     if (body.sessionMinutes != null) newLine.sessionMinutes = body.sessionMinutes;
-    if (body.sessionsPerWeek != null) newLine.sessionsPerWeek = body.sessionsPerWeek;
+    mergeServiceOfferingFrequencyFields(newLine, {
+      sessionFrequencyKind: body.sessionFrequencyKind,
+      sessionFrequencyCount: body.sessionFrequencyCount,
+      sessionFrequencyCustom: body.sessionFrequencyCustom,
+      sessionsPerWeek: body.sessionsPerWeek,
+    });
+
+    if (body.variations && body.variations.length > 0) {
+      newLine.variations = body.variations;
+      newLine.priceUsd = minListPriceUsdOnLine(newLine);
+    }
+    if (body.priceCheckAiEnabled === false) {
+      newLine.priceCheckAiEnabled = false;
+    }
 
     const mergedLines = [...doc.services, newLine];
     const anyNeedsInPersonAnchor = mergedLines.some(
@@ -183,35 +211,13 @@ export async function POST(req: Request) {
       inPersonServiceRadiusMiles: nextRadius,
     };
 
-    const validated = trainerServiceOfferingsDocumentSchema.safeParse(nextDoc);
-    if (!validated.success) {
-      const msg = validated.error.issues[0]?.message ?? "Could not validate service package.";
-      return NextResponse.json({ error: msg, issues: validated.error.issues }, { status: 400 });
-    }
-
-    const aiMatchProfileText = composeTrainerAiMatchProfileText(strictQ.data, validated.data);
-
-    try {
-      await prisma.trainerProfile.update({
-        where: { trainerId },
-        data: {
-          serviceOfferingsJson: JSON.stringify(validated.data),
-          aiMatchProfileText,
-        },
-      });
-    } catch {
-      return NextResponse.json(
-        {
-          error:
-            "Your database is missing the published-services column. From the project root run `npx prisma migrate deploy` (production) or `npx prisma db push` (local), then try again.",
-        },
-        { status: 503 },
-      );
+    const persisted = await persistTrainerServiceOfferingsWithAi(trainerId, nextDoc);
+    if (!persisted.ok) {
+      return NextResponse.json({ error: persisted.error }, { status: persisted.status });
     }
 
     const profilePath = trainerPublishedProfilePath(trainer.username);
-    const cat = MATCH_SERVICE_CATALOG.find((c) => c.id === serviceId);
-    const label = cat?.label ?? serviceId;
+    const label = resolvedTrainerServicePublicTitle(newLine);
 
     await prisma.trainerNotification.create({
       data: {

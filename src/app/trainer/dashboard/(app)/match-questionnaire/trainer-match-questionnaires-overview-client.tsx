@@ -28,7 +28,7 @@ export function TrainerMatchQuestionnairesOverviewClient(props: Props) {
   async function handleDelete(card: QuestionnaireCard) {
     if (!card.canDelete || busyKey) return;
     const ok = window.confirm(
-      "Delete this questionnaire's answers?\n\nThis will remove its data from trainer-client matching signals immediately. This action cannot be undone.",
+      "DELETE THIS QUESTIONNAIRE'S ANSWERS?\n\nTHIS WILL REMOVE ITS DATA FROM TRAINER-CLIENT MATCHING SIGNALS IMMEDIATELY. THIS ACTION CANNOT BE UNDONE.",
     );
     if (!ok) return;
 
@@ -132,7 +132,10 @@ export function TrainerMatchQuestionnairesOverviewClient(props: Props) {
                 </p>
                 <div className="mt-4">
                   {q.href ? (
-                    <Link href={q.href} className="text-xs font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
+                    <Link
+                      href={q.href}
+                      className="text-xs font-black uppercase tracking-wide text-[#FF7E00] underline-offset-2 hover:underline"
+                    >
                       Reopen Onboarding Questionnaire
                     </Link>
                   ) : null}
@@ -143,7 +146,7 @@ export function TrainerMatchQuestionnairesOverviewClient(props: Props) {
                       type="button"
                       disabled={busyKey === q.key}
                       onClick={() => void handleDelete(q)}
-                      className="text-xs font-semibold text-[#FFB4B4] underline-offset-2 transition hover:underline disabled:opacity-50"
+                      className="text-xs font-black uppercase tracking-wide text-[#FFB4B4] underline-offset-2 transition hover:underline disabled:opacity-50"
                     >
                       {busyKey === q.key ? "Deleting…" : "Delete answers"}
                     </button>

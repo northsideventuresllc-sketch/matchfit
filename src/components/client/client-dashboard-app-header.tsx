@@ -13,6 +13,7 @@ type NotifRow = {
   linkHref: string | null;
   read: boolean;
   createdAt: string;
+  archivedAt?: string | null;
 };
 
 type Props = {
@@ -215,7 +216,7 @@ export function ClientDashboardAppHeader(props: Props) {
                   className="block text-center text-xs font-semibold text-white/50 underline-offset-2 transition hover:text-white/80 hover:underline"
                   onClick={() => setNotifOpen(false)}
                 >
-                  Notification settings
+                  Notification Settings
                 </Link>
               </div>
             </div>

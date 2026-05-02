@@ -58,28 +58,27 @@ const ACTIONS = [
 
 export function TrainerDashboardQuickActions() {
   return (
-    <div className="relative">
-      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-[#12151C] to-transparent" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-[#12151C] to-transparent" />
-      <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 pt-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="w-full">
+      <ul className="grid grid-cols-3 gap-2.5 sm:gap-4">
         {ACTIONS.map((a) => {
           const Icon = a.Icon;
           return (
-            <Link
-              key={a.href}
-              href={a.href}
-              className="group flex min-w-[46%] shrink-0 snap-center flex-col items-center justify-start gap-3 rounded-2xl border border-white/[0.08] bg-[#0E1016]/60 px-4 py-6 text-center transition duration-200 hover:border-[#FF7E00]/35 sm:min-w-[30%]"
-            >
-              <div className="flex h-20 w-20 scale-100 items-center justify-center rounded-2xl border border-[#FF7E00]/25 bg-[#FF7E00]/10 text-[#FF7E00] transition duration-200 group-hover:scale-110 group-hover:border-[#FF7E00]/45 group-hover:bg-[#FF7E00]/16">
-                <Icon className="h-11 w-11" />
-              </div>
-              <p className="text-[10px] font-black uppercase leading-tight tracking-[0.14em] text-white/70 transition group-hover:text-white">
-                {a.label}
-              </p>
-            </Link>
+            <li key={a.href} className="min-w-0">
+              <Link
+                href={a.href}
+                className="group flex h-full min-h-[9.75rem] flex-col items-center justify-between gap-2 rounded-2xl border border-white/[0.08] bg-[#0E1016]/60 px-2 py-4 text-center transition duration-200 hover:border-[#FF7E00]/35 sm:min-h-[11.25rem] sm:gap-3 sm:px-3 sm:py-5"
+              >
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#FF7E00]/25 bg-[#FF7E00]/10 text-[#FF7E00] transition duration-200 group-hover:scale-105 group-hover:border-[#FF7E00]/45 group-hover:bg-[#FF7E00]/16 sm:h-[4.5rem] sm:w-[4.5rem]">
+                  <Icon className="h-8 w-8 sm:h-10 sm:w-10" />
+                </div>
+                <p className="flex min-h-[2.75rem] w-full flex-1 items-center justify-center text-pretty text-[8px] font-black uppercase leading-snug tracking-[0.1em] text-white/70 transition group-hover:text-white sm:min-h-[3.25rem] sm:text-[9px] sm:tracking-[0.12em]">
+                  {a.label}
+                </p>
+              </Link>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </div>
   );
 }

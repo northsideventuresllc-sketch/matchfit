@@ -26,6 +26,8 @@ export async function POST(req: Request) {
       data: {
         onboardingTrackCpt: true,
         onboardingTrackNutrition: true,
+        onboardingTrackSpecialist: false,
+        specialistProfessionalRole: null,
       },
     });
 
@@ -33,6 +35,7 @@ export async function POST(req: Request) {
       ok: true,
       trackCpt: true,
       trackNutrition: true,
+      trackSpecialist: false,
     });
   } catch (e) {
     const { message, status } = publicApiErrorFromUnknown(e, "Could not bypass professional path.", {

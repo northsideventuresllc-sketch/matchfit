@@ -1,13 +1,21 @@
+import { runOutboundChatComplianceMonitoring } from "@/lib/chat-compliance-monitor";
 import { prisma } from "@/lib/prisma";
+import {
+  conversationArchiveMetaForActor,
+  purgeExpiredArchivedConversations,
+} from "@/lib/trainer-client-conversation-archive";
 import { getSessionClientId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
-import { isTrainerClientPairBlocked } from "@/lib/user-block-queries";
+import { canAuthorSendChatMessage } from "@/lib/trainer-client-chat-rules";
+import { clientHasPaidTrainerOnce, getConversationBookingSnapshot } from "@/lib/trainer-client-booking-credits";
 import { buildClientChatTokenTipContext } from "@/lib/trainer-promo-tokens";
+import { twilioVoiceConfigured } from "@/lib/twilio-voice-bridge";
+import { isTrainerClientChatBlocked } from "@/lib/user-block-queries";
 import { NextResponse } from "next/server";
 
 const MAX_BODY = 4000;
 
-type RouteContext = { params: Promise<{ trainerUsername: string }> };
+type RouteContext = { params: Promise<{ username: string }> };
 
 export async function GET(_req: Request, ctx: RouteContext) {
   try {
@@ -16,8 +24,8 @@ export async function GET(_req: Request, ctx: RouteContext) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    const { trainerUsername } = await ctx.params;
-    const handle = decodeURIComponent(trainerUsername).trim();
+    const { username } = await ctx.params;
+    const handle = decodeURIComponent(username).trim();
     const trainer = await prisma.trainer.findUnique({
       where: { username: handle },
       select: {
@@ -28,10 +36,13 @@ export async function GET(_req: Request, ctx: RouteContext) {
             hasSignedTOS: true,
             hasUploadedW9: true,
             backgroundCheckStatus: true,
+            backgroundCheckClearedAt: true,
             onboardingTrackCpt: true,
             onboardingTrackNutrition: true,
+            onboardingTrackSpecialist: true,
             certificationReviewStatus: true,
             nutritionistCertificationReviewStatus: true,
+            specialistCertificationReviewStatus: true,
           },
         },
       },
@@ -40,9 +51,11 @@ export async function GET(_req: Request, ctx: RouteContext) {
       return NextResponse.json({ error: "Coach not found." }, { status: 404 });
     }
 
-    if (await isTrainerClientPairBlocked(trainer.id, clientId)) {
+    if (await isTrainerClientChatBlocked(trainer.id, clientId)) {
       return NextResponse.json({ error: "Unavailable." }, { status: 403 });
     }
+
+    await purgeExpiredArchivedConversations();
 
     const conv = await prisma.trainerClientConversation.findUnique({
       where: { trainerId_clientId: { trainerId: trainer.id, clientId } },
@@ -50,6 +63,9 @@ export async function GET(_req: Request, ctx: RouteContext) {
         id: true,
         officialChatStartedAt: true,
         relationshipStage: true,
+        archivedAt: true,
+        archiveExpiresAt: true,
+        unmatchInitiatedBy: true,
         messages: {
           orderBy: { createdAt: "asc" },
           take: 200,
@@ -59,11 +75,46 @@ export async function GET(_req: Request, ctx: RouteContext) {
     });
 
     const tokenTip = await buildClientChatTokenTipContext(clientId, trainer.id);
+    const archive = conversationArchiveMetaForActor({
+      conv: conv
+        ? {
+            archivedAt: conv.archivedAt,
+            archiveExpiresAt: conv.archiveExpiresAt,
+            unmatchInitiatedBy: conv.unmatchInitiatedBy,
+          }
+        : null,
+      actor: "CLIENT",
+    });
+
+    const paidOnce = await clientHasPaidTrainerOnce(clientId, trainer.id);
+    const voiceCallEnabled = Boolean(paidOnce && twilioVoiceConfigured() && !archive.archived);
+    const bookingSnapshot = conv ? await getConversationBookingSnapshot(trainer.id, clientId) : null;
+    const pendingBookings =
+      conv && !archive.archived
+        ? await prisma.bookedTrainingSession.findMany({
+            where: { trainerId: trainer.id, clientId, status: "INVITED" },
+            orderBy: { scheduledStartAt: "asc" },
+            take: 8,
+            select: { id: true, scheduledStartAt: true, scheduledEndAt: true, inviteNote: true },
+          })
+        : [];
 
     return NextResponse.json({
       conversationId: conv?.id ?? null,
       officialChatStartedAt: conv?.officialChatStartedAt?.toISOString() ?? null,
       relationshipStage: conv?.relationshipStage ?? "POTENTIAL_CLIENT",
+      archived: archive.archived,
+      canRevive: archive.canRevive,
+      archiveExpiresAt: archive.archiveExpiresAt,
+      unmatchInitiatedBy: archive.unmatchInitiatedBy,
+      voiceCallEnabled,
+      bookingSnapshot,
+      pendingBookings: pendingBookings.map((b) => ({
+        id: b.id,
+        startsAt: b.scheduledStartAt.toISOString(),
+        endsAt: b.scheduledEndAt?.toISOString() ?? null,
+        inviteNote: b.inviteNote,
+      })),
       tokenTip,
       messages:
         conv?.messages.map((m) => ({
@@ -86,8 +137,8 @@ export async function POST(req: Request, ctx: RouteContext) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    const { trainerUsername } = await ctx.params;
-    const handle = decodeURIComponent(trainerUsername).trim();
+    const { username } = await ctx.params;
+    const handle = decodeURIComponent(username).trim();
     const trainer = await prisma.trainer.findUnique({
       where: { username: handle },
       select: {
@@ -98,10 +149,13 @@ export async function POST(req: Request, ctx: RouteContext) {
             hasSignedTOS: true,
             hasUploadedW9: true,
             backgroundCheckStatus: true,
+            backgroundCheckClearedAt: true,
             onboardingTrackCpt: true,
             onboardingTrackNutrition: true,
+            onboardingTrackSpecialist: true,
             certificationReviewStatus: true,
             nutritionistCertificationReviewStatus: true,
+            specialistCertificationReviewStatus: true,
           },
         },
       },
@@ -110,7 +164,7 @@ export async function POST(req: Request, ctx: RouteContext) {
       return NextResponse.json({ error: "Coach not found." }, { status: 404 });
     }
 
-    if (await isTrainerClientPairBlocked(trainer.id, clientId)) {
+    if (await isTrainerClientChatBlocked(trainer.id, clientId)) {
       return NextResponse.json({ error: "Messaging is blocked for this thread." }, { status: 403 });
     }
 
@@ -126,12 +180,31 @@ export async function POST(req: Request, ctx: RouteContext) {
     const conv = await prisma.trainerClientConversation.findUnique({
       where: { trainerId_clientId: { trainerId: trainer.id, clientId } },
     });
+    if (conv?.archivedAt) {
+      return NextResponse.json({ error: "This chat is archived. Revive it if you are the person who archived it." }, { status: 403 });
+    }
     if (!conv?.officialChatStartedAt) {
       return NextResponse.json(
         { error: "This chat opens after the coach accepts your interest, or after they send you a nudge." },
         { status: 403 },
       );
     }
+
+    const prior = await prisma.trainerClientChatMessage.findMany({
+      where: { conversationId: conv.id },
+      orderBy: { createdAt: "asc" },
+      select: { authorRole: true },
+    });
+    const gate = canAuthorSendChatMessage(prior, "CLIENT");
+    if (!gate.ok) {
+      return NextResponse.json({ error: gate.reason }, { status: 429 });
+    }
+
+    await runOutboundChatComplianceMonitoring({
+      conversationId: conv.id,
+      authorRole: "CLIENT",
+      body: text,
+    });
 
     const msg = await prisma.trainerClientChatMessage.create({
       data: {

@@ -68,6 +68,7 @@ export async function finalizeRegistrationAfterPayment(subscriptionId: string): 
           zipCode: hold.zipCode,
           dateOfBirth: hold.dateOfBirth,
           termsAcceptedAt: hold.termsAcceptedAt,
+          privacyPolicyAcceptedAt: hold.privacyPolicyAcceptedAt ?? hold.termsAcceptedAt,
           twoFactorEnabled,
           twoFactorMethod,
           stayLoggedIn: hold.stayLoggedIn,

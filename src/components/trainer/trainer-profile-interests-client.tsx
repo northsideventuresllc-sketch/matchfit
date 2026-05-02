@@ -66,8 +66,9 @@ export function TrainerProfileInterestsClient() {
   return (
     <div className="space-y-6">
       <p className="mx-auto max-w-xl text-center text-sm text-white/50">
-        Clients who saved your profile or swiped interest appear here until you accept or decline. Accepting opens the
-        official Match Fit chat thread.
+        Pending list: clients who tapped <span className="font-semibold text-white/70">Interested</span> or swiped
+        right on you. Respond here — accepting opens the official Match Fit chat and notifies the client. Declining
+        keeps your chat closed but leaves a record for the client under Interested.
       </p>
       {error ? (
         <p className="rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-center text-sm text-[#FFB4B4]">

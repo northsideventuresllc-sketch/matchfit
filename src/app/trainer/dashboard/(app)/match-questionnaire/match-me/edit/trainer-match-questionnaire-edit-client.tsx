@@ -20,6 +20,7 @@ import {
   LANGUAGE_IDS,
   LANGUAGE_LABELS,
 } from "@/lib/trainer-match-questionnaire";
+import { MATCH_QUESTIONNAIRE_YEARS_COACHING_MAX } from "@/lib/trainer-profile-demography-options";
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 transition placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2";
@@ -215,7 +216,7 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
           onClick={(e) => guardedLeave(e, TRAINER_MATCH_ME_PATH)}
           className="text-xs font-medium text-white/45 transition hover:text-white/70"
         >
-          ← Questionnaire sections
+          ← Questionnaire Sections
         </Link>
       </div>
 
@@ -394,15 +395,18 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
               <label className={labelClass} htmlFor="years">
                 Years you have coached or trained people (0 if you are just starting professionally)
               </label>
-              <input
+              <select
                 id="years"
-                type="number"
-                min={0}
-                max={60}
                 value={yearsCoaching}
                 onChange={(e) => setYearsCoaching(e.target.value)}
                 className={inputClass}
-              />
+              >
+                {Array.from({ length: MATCH_QUESTIONNAIRE_YEARS_COACHING_MAX + 1 }, (_, i) => (
+                  <option key={i} value={String(i)}>
+                    {i === 0 ? "0 (just starting)" : i === 1 ? "1 year" : `${i} years`}
+                  </option>
+                ))}
+              </select>
             </div>
           </section>
         ) : null}
@@ -447,18 +451,18 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
           <Link
             href={TRAINER_MATCH_ME_PATH}
             onClick={(e) => guardedLeave(e, TRAINER_MATCH_ME_PATH)}
-            className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:border-white/25"
+            className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-black uppercase tracking-wide text-white transition hover:border-white/25"
           >
             Back
           </Link>
           <button
             type="submit"
             disabled={busy}
-            className="group relative isolate min-h-[3rem] flex-1 overflow-hidden rounded-xl px-4 text-sm font-semibold text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition disabled:opacity-50"
+            className="group relative isolate min-h-[3rem] flex-1 overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-wide text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition disabled:opacity-50"
           >
             <span aria-hidden className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]" />
             <span className="relative">
-              {busy ? "Saving…" : completed ? "Update questionnaire" : "Save questionnaire"}
+              {busy ? "Saving…" : completed ? "Update Questionnaire" : "Save Questionnaire"}
             </span>
           </button>
         </div>
@@ -472,10 +476,10 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
           aria-labelledby="leave-match-title"
         >
           <div className="max-w-md rounded-2xl border border-white/10 bg-[#12151C] p-6 shadow-2xl">
-            <h2 id="leave-match-title" className="text-lg font-semibold text-white">
+            <h2 id="leave-match-title" className="text-lg font-black uppercase tracking-wide text-white">
               Unsaved changes
             </h2>
-            <p className="mt-2 text-sm text-white/55">
+            <p className="mt-3 text-xs font-semibold uppercase leading-relaxed tracking-wide text-white/55 sm:text-sm">
               Save this section before leaving, or discard changes and continue. Cancel stays on this page.
             </p>
             <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -483,7 +487,7 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
                 type="button"
                 disabled={busy}
                 onClick={() => void handleLeaveSave()}
-                className="min-h-[2.75rem] flex-1 rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/15 px-4 text-sm font-semibold text-white transition hover:bg-[#FF7E00]/25 disabled:opacity-50"
+                className="min-h-[2.75rem] flex-1 rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/15 px-4 text-xs font-black uppercase tracking-wide text-white transition hover:bg-[#FF7E00]/25 disabled:opacity-50 sm:text-sm"
               >
                 Save & continue
               </button>
@@ -491,7 +495,7 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
                 type="button"
                 disabled={busy}
                 onClick={handleLeaveDiscard}
-                className="min-h-[2.75rem] flex-1 rounded-xl border border-white/15 bg-white/[0.06] px-4 text-sm font-semibold text-white/80 transition hover:border-white/25 disabled:opacity-50"
+                className="min-h-[2.75rem] flex-1 rounded-xl border border-white/15 bg-white/[0.06] px-4 text-xs font-black uppercase tracking-wide text-white/90 transition hover:border-white/25 disabled:opacity-50 sm:text-sm"
               >
                 Don&apos;t save
               </button>
@@ -499,7 +503,7 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
                 type="button"
                 disabled={busy}
                 onClick={() => setLeaveModal(null)}
-                className="min-h-[2.75rem] flex-1 rounded-xl border border-white/10 px-4 text-xs font-semibold text-white/55 transition hover:text-white/80 disabled:opacity-50"
+                className="min-h-[2.75rem] flex-1 rounded-xl border border-white/10 px-4 text-xs font-black uppercase tracking-wide text-white/55 transition hover:text-white/80 disabled:opacity-50 sm:text-sm"
               >
                 Cancel
               </button>

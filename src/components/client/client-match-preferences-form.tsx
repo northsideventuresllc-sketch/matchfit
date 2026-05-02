@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SERVICE_TYPES, type ClientMatchPreferences, defaultClientMatchPreferences } from "@/lib/client-match-preferences";
 
@@ -18,7 +19,6 @@ export function ClientMatchPreferencesForm(props: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [ok, setOk] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<ClientMatchPreferences>({ ...defaultClientMatchPreferences });
   const [allowTrainerDiscovery, setAllowTrainerDiscovery] = useState(true);
 
@@ -73,7 +73,6 @@ export function ClientMatchPreferencesForm(props: Props) {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    setOk(null);
     setSaving(true);
     try {
       const body: Record<string, unknown> = {
@@ -98,7 +97,7 @@ export function ClientMatchPreferencesForm(props: Props) {
         router.refresh();
         return;
       }
-      setOk("Preferences saved.");
+      router.push("/client/dashboard");
       router.refresh();
     } catch {
       setError("Something went wrong. Try again.");
@@ -118,12 +117,6 @@ export function ClientMatchPreferencesForm(props: Props) {
           {error}
         </p>
       ) : null}
-      {ok ? (
-        <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100" role="status">
-          {ok}
-        </p>
-      ) : null}
-
       <section className="space-y-3">
         <label className={labelClass} htmlFor="goals">
           What are you looking to accomplish?
@@ -152,7 +145,7 @@ export function ClientMatchPreferencesForm(props: Props) {
                 onChange={() => toggleService(t)}
                 className="h-4 w-4 accent-[#FF7E00]"
               />
-              {t === "personal_training" ? "Personal training" : "Nutrition coaching"}
+              {t === "personal_training" ? "Personal Training" : "Nutrition Coaching"}
             </label>
           ))}
         </div>
@@ -163,11 +156,11 @@ export function ClientMatchPreferencesForm(props: Props) {
         <div className="grid gap-2 sm:grid-cols-2">
           {(
             [
-              ["in_person", "In-person sessions"],
-              ["mobile", "Mobile / house-call"],
-              ["virtual", "Virtual sessions"],
-              ["diy", "DIY programming / templates"],
-              ["nutrition_planning", "Nutrition planning"],
+              ["in_person", "In-Person Sessions"],
+              ["mobile", "Mobile / House-Call"],
+              ["virtual", "Virtual Sessions"],
+              ["diy", "DIY Programming / Templates"],
+              ["nutrition_planning", "Nutrition Planning"],
             ] as const
           ).map(([key, label]) => (
             <label
@@ -199,7 +192,11 @@ export function ClientMatchPreferencesForm(props: Props) {
           placeholder="e.g. powerlifting, postpartum, marathon, corrective exercise — comma separated"
         />
         <p className="text-xs text-white/40">
-          We use this text (plus your goals) to rank coaches. You can widen results anytime on Find coaches.
+          We use this text (plus your goals) to rank coaches. You can widen results anytime on{" "}
+          <Link href="/client/dashboard/find-trainers" className="text-[#FF7E00] underline-offset-2 hover:underline">
+            find coaches
+          </Link>
+          .
         </p>
       </section>
 
@@ -214,8 +211,11 @@ export function ClientMatchPreferencesForm(props: Props) {
           <span>
             <span className="font-semibold text-white">Relax matching by default</span>
             <span className="mt-1 block text-xs text-white/45">
-              When on, the Find coaches screen starts in “near match” mode so you still see great coaches who are close to
-              your delivery style or niche wording.
+              When on, the{" "}
+              <Link href="/client/dashboard/find-trainers" className="text-[#FF7E00] underline-offset-2 hover:underline">
+                find coaches
+              </Link>{" "}
+              screen starts in “near match” mode so you still see great coaches who are close to your preferences.
             </span>
           </span>
         </label>
@@ -246,7 +246,7 @@ export function ClientMatchPreferencesForm(props: Props) {
       >
         <span aria-hidden className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]" />
         <span className="relative">
-          {saving ? "Saving…" : props.mode === "onboarding" ? "Save & enter dashboard" : "Save match preferences"}
+          {saving ? "Saving…" : props.mode === "onboarding" ? "Save & enter dashboard" : "Save my preferences"}
         </span>
       </button>
     </form>

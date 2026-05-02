@@ -56,12 +56,22 @@ export async function POST(req: Request) {
         }
         if (md.purpose === "trainer_service_sale" && md.trainerId && md.clientId) {
           const amountCents = Math.max(0, parseInt(String(md.amountCents ?? "0"), 10) || 0);
+          const sessionCreditsGranted = Math.max(0, parseInt(String(md.sessionCreditsGranted ?? "0"), 10) || 0);
+          const bookingUnlimitedPurchase = md.bookingUnlimited === "1" || md.bookingUnlimited === "true";
+          const conversationId = typeof md.conversationId === "string" && md.conversationId.trim() ? md.conversationId.trim() : null;
+          const serviceId = typeof md.serviceId === "string" && md.serviceId.trim() ? md.serviceId.trim() : null;
+          const billingUnit = typeof md.billingUnit === "string" && md.billingUnit.trim() ? md.billingUnit.trim() : null;
           await recordTrainerServiceTransactionAndReward({
             clientId: md.clientId,
             trainerId: md.trainerId,
             amountCents,
             stripeCheckoutSessionId: session.id,
             source: "STRIPE_CHECKOUT",
+            serviceId,
+            billingUnit,
+            sessionCreditsGranted,
+            bookingUnlimitedPurchase,
+            conversationId,
           });
         }
       }

@@ -11,14 +11,15 @@ type Item = {
   postPreview: string | null;
   actorLabel: string;
   body?: string;
+  read: boolean;
 };
 
 const FILTER_OPTIONS: { value: "ALL" | FitHubStudioActivityKind; label: string }[] = [
-  { value: "ALL", label: "All activity" },
-  { value: "LIKE", label: "Likes only" },
-  { value: "COMMENT", label: "Comments only" },
-  { value: "REPOST", label: "Reposts only" },
-  { value: "SHARE", label: "Shares only" },
+  { value: "ALL", label: "All Activity" },
+  { value: "LIKE", label: "Likes Only" },
+  { value: "COMMENT", label: "Comments Only" },
+  { value: "REPOST", label: "Reposts Only" },
+  { value: "SHARE", label: "Shares Only" },
 ];
 
 function kindLabel(k: FitHubStudioActivityKind): string {
@@ -44,6 +45,7 @@ export function TrainerFitHubStudioNotifications() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [markBusy, setMarkBusy] = useState(false);
+  const [markItemBusyId, setMarkItemBusyId] = useState<string | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async (f: "ALL" | FitHubStudioActivityKind) => {
@@ -53,11 +55,14 @@ export function TrainerFitHubStudioNotifications() {
       const q = f === "ALL" ? "" : `?filter=${encodeURIComponent(f)}`;
       const res = await fetch(`/api/trainer/fithub/studio-activity${q}`, { cache: "no-store" });
       const j = (await res.json()) as { items?: Item[]; unseenCount?: number; error?: string };
+      // Backward compat if API omits `read`
+      const rawItems = j.items ?? [];
+      const normalized = rawItems.map((x) => ({ ...x, read: Boolean((x as Item).read) }));
       if (!res.ok) {
         setErr(j.error ?? "Could not load.");
         return;
       }
-      setItems(j.items ?? []);
+      setItems(normalized);
       setUnseenCount(typeof j.unseenCount === "number" ? j.unseenCount : 0);
     } catch {
       setErr("Network error.");
@@ -96,6 +101,33 @@ export function TrainerFitHubStudioNotifications() {
       setErr("Network error.");
     } finally {
       setMarkBusy(false);
+    }
+  }
+
+  async function markItemsRead(ids: string[]) {
+    if (!ids.length) return;
+    const snapshot = items;
+    setItems((prev) => prev.map((x) => (ids.includes(x.id) ? { ...x, read: true } : x)));
+    setMarkItemBusyId(ids[0] ?? null);
+    setErr(null);
+    try {
+      const res = await fetch("/api/trainer/fithub/studio-activity/mark-items-read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemIds: ids }),
+      });
+      const j = (await res.json()) as { unseenCount?: number; error?: string };
+      if (!res.ok) {
+        setItems(snapshot);
+        setErr(j.error ?? "Could not update.");
+        return;
+      }
+      if (typeof j.unseenCount === "number") setUnseenCount(j.unseenCount);
+    } catch {
+      setItems(snapshot);
+      setErr("Network error.");
+    } finally {
+      setMarkItemBusyId(null);
     }
   }
 
@@ -157,16 +189,39 @@ export function TrainerFitHubStudioNotifications() {
             ) : null}
             <ul className="space-y-2 pb-2">
               {items.map((it) => (
-                <li key={it.id} className="rounded-xl border border-white/[0.06] bg-black/25 px-3 py-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wide text-[#FF7E00]/90">{kindLabel(it.kind)}</span>
-                    <span className="text-[10px] text-white/35">{new Date(it.createdAt).toLocaleString()}</span>
+                <li
+                  key={it.id}
+                  className={`rounded-xl border border-white/[0.06] bg-black/25 px-3 py-2 ${it.read ? "opacity-60" : ""}`}
+                >
+                  <div className="flex items-start gap-2">
+                    <label
+                      className="mt-0.5 flex cursor-pointer select-none items-center"
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={it.read}
+                        disabled={it.read || markItemBusyId === it.id}
+                        onChange={() => {
+                          if (it.read) return;
+                          void markItemsRead([it.id]);
+                        }}
+                        className="h-4 w-4 shrink-0 rounded border-white/25 bg-[#12151C] text-[#FF7E00] focus:ring-[#FF7E00]/40"
+                        aria-label={it.read ? "Read" : "Mark as read"}
+                      />
+                    </label>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-wide text-[#FF7E00]/90">{kindLabel(it.kind)}</span>
+                        <span className="text-[10px] text-white/35">{new Date(it.createdAt).toLocaleString()}</span>
+                      </div>
+                      <p className="mt-1 text-xs font-semibold text-white/85">{it.actorLabel}</p>
+                      {it.body ? <p className="mt-1 text-xs text-white/60 line-clamp-3">{it.body}</p> : null}
+                      <p className="mt-1 text-[10px] text-white/40 line-clamp-2">
+                        Post: {it.postPreview?.trim() ? it.postPreview : "(no caption)"}
+                      </p>
+                    </div>
                   </div>
-                  <p className="mt-1 text-xs font-semibold text-white/85">{it.actorLabel}</p>
-                  {it.body ? <p className="mt-1 text-xs text-white/60 line-clamp-3">{it.body}</p> : null}
-                  <p className="mt-1 text-[10px] text-white/40 line-clamp-2">
-                    Post: {it.postPreview?.trim() ? it.postPreview : "(no caption)"}
-                  </p>
                 </li>
               ))}
             </ul>

@@ -1,9 +1,13 @@
+import {
+  queryClientNotificationsForApi,
+  runClientNotificationLifecycle,
+} from "@/lib/client-notification-retention";
 import { ensureStarterClientNotifications } from "@/lib/client-notification-seed";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const clientId = await getSessionClientId();
     if (!clientId) {
@@ -15,28 +19,15 @@ export async function GET() {
     }
 
     await ensureStarterClientNotifications(clientId);
+    await runClientNotificationLifecycle(clientId);
 
-    const [items, unreadCount] = await Promise.all([
-      prisma.clientNotification.findMany({
-        where: { clientId },
-        orderBy: { createdAt: "desc" },
-        take: 80,
-        select: {
-          id: true,
-          kind: true,
-          title: true,
-          body: true,
-          linkHref: true,
-          readAt: true,
-          createdAt: true,
-        },
-      }),
-      prisma.clientNotification.count({
-        where: { clientId, readAt: null },
-      }),
-    ]);
+    const url = new URL(req.url);
+    const box = url.searchParams.get("box") === "archive" ? "archive" : "inbox";
+
+    const { items, unreadCount } = await queryClientNotificationsForApi(clientId, box);
 
     return NextResponse.json({
+      box,
       unreadCount,
       notifications: items.map((n) => ({
         id: n.id,
@@ -46,6 +37,7 @@ export async function GET() {
         linkHref: n.linkHref,
         read: n.readAt != null,
         createdAt: n.createdAt.toISOString(),
+        archivedAt: n.archivedAt?.toISOString() ?? null,
       })),
     });
   } catch (e) {

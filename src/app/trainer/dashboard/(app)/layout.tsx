@@ -26,6 +26,7 @@ export default async function TrainerDashboardAppLayout({
       username: true,
       profileImageUrl: true,
       safetySuspended: true,
+      deidentifiedAt: true,
       profile: {
         select: {
           hasSignedTOS: true,
@@ -33,14 +34,19 @@ export default async function TrainerDashboardAppLayout({
           backgroundCheckStatus: true,
           onboardingTrackCpt: true,
           onboardingTrackNutrition: true,
+          onboardingTrackSpecialist: true,
           certificationReviewStatus: true,
           nutritionistCertificationReviewStatus: true,
+          specialistCertificationReviewStatus: true,
           premiumStudioEnabledAt: true,
         },
       },
     },
   });
   if (!trainer) {
+    redirect(staleTrainerSessionInvalidateRedirect("/trainer/dashboard/login"));
+  }
+  if (trainer.deidentifiedAt) {
     redirect(staleTrainerSessionInvalidateRedirect("/trainer/dashboard/login"));
   }
   if (trainer.safetySuspended) {

@@ -5,7 +5,7 @@ import { TrainerClientChatThreadClient } from "@/components/trainer/trainer-clie
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
-import { isTrainerClientPairBlocked } from "@/lib/user-block-queries";
+import { isTrainerClientChatBlocked } from "@/lib/user-block-queries";
 
 type Props = { params: Promise<{ clientUsername: string }> };
 
@@ -48,7 +48,7 @@ export default async function TrainerClientMessagesPage({ params }: Props) {
     redirect(staleTrainerSessionInvalidateRedirect("/trainer/dashboard/login"));
   }
 
-  if (await isTrainerClientPairBlocked(trainerId, client.id)) {
+  if (await isTrainerClientChatBlocked(trainerId, client.id)) {
     notFound();
   }
 

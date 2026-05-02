@@ -19,6 +19,7 @@ export default async function ClientSettingsPage() {
   const client = await prisma.client.findUnique({
     where: { id: clientId },
     select: {
+      deidentifiedAt: true,
       twoFactorEnabled: true,
       twoFactorMethod: true,
       stayLoggedIn: true,
@@ -43,6 +44,9 @@ export default async function ClientSettingsPage() {
     },
   });
   if (!client) {
+    redirect(staleClientSessionInvalidateRedirect("/client"));
+  }
+  if (client.deidentifiedAt) {
     redirect(staleClientSessionInvalidateRedirect("/client"));
   }
 

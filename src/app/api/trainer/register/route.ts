@@ -40,14 +40,18 @@ export async function POST(req: Request) {
         email,
         passwordHash,
         termsAcceptedAt: new Date(),
+        privacyPolicyAcceptedAt: new Date(),
         profile: {
           create: {
             backgroundCheckStatus: "NOT_STARTED",
             certificationReviewStatus: "NOT_STARTED",
             nutritionistCertificationReviewStatus: "NOT_STARTED",
+            specialistCertificationReviewStatus: "NOT_STARTED",
             backgroundCheckReviewStatus: "NOT_STARTED",
             onboardingTrackCpt: false,
             onboardingTrackNutrition: false,
+            onboardingTrackSpecialist: false,
+            otherCertificationReviewStatus: "NOT_STARTED",
           },
         },
       },

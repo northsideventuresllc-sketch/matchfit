@@ -23,7 +23,7 @@ export default function ClientDashboardPreferencesPage() {
       <p className="text-center text-xs text-white/40">
         Need to tweak your name, bio, or photo?{" "}
         <Link href="/client/settings" className="text-[#FF7E00] underline-offset-2 hover:underline">
-          Account settings
+          Account Settings
         </Link>
       </p>
     </div>

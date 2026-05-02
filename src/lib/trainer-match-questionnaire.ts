@@ -1,55 +1,59 @@
 import { z } from "zod";
 
-export const BILLING_UNITS = ["per_session", "per_hour", "per_month"] as const;
+export const BILLING_UNITS = ["per_session", "multi_session", "per_hour", "per_month"] as const;
 export type BillingUnit = (typeof BILLING_UNITS)[number];
+
+/** How a published package is delivered (set on the dashboard only). */
+export const SERVICE_DELIVERY_MODES = ["virtual", "in_person", "both"] as const;
+export type ServiceDeliveryMode = (typeof SERVICE_DELIVERY_MODES)[number];
 
 /** Services trainers can list from the dashboard; flags show which delivery modes Match Fit supports per template. */
 export const MATCH_SERVICE_CATALOG = [
   {
     id: "one_on_one_pt",
-    label: "One-on-one personal training",
+    label: "One-on-One Personal Training",
     virtual: true,
     inPerson: true,
   },
   {
     id: "small_group",
-    label: "Small group training (2–8 people)",
+    label: "Small Group Training (2–8 People)",
     virtual: true,
     inPerson: true,
   },
   {
     id: "nutrition_coaching",
-    label: "Nutrition & accountability coaching",
+    label: "Nutrition and Accountability Coaching",
     virtual: true,
     inPerson: false,
   },
   {
     id: "online_program",
-    label: "Custom online program / plan design",
+    label: "Custom Online Program / Plan Design",
     virtual: true,
     inPerson: false,
   },
   {
     id: "sports_specific",
-    label: "Sport-specific coaching",
+    label: "Sport-Specific Coaching",
     virtual: true,
     inPerson: true,
   },
   {
     id: "mobility_recovery",
-    label: "Mobility & recovery sessions",
+    label: "Mobility and Recovery Sessions",
     virtual: true,
     inPerson: true,
   },
   {
     id: "hiit_conditioning",
-    label: "HIIT & conditioning",
+    label: "HIIT and Conditioning",
     virtual: true,
     inPerson: true,
   },
   {
     id: "yoga_pilates_style",
-    label: "Yoga / Pilates-style movement coaching",
+    label: "Yoga / Pilates-Style Movement Coaching",
     virtual: true,
     inPerson: true,
   },
@@ -57,9 +61,24 @@ export const MATCH_SERVICE_CATALOG = [
 
 export type MatchServiceId = (typeof MATCH_SERVICE_CATALOG)[number]["id"];
 
-/** How a published package is delivered (set on the dashboard only). */
-export const SERVICE_DELIVERY_MODES = ["virtual", "in_person", "both"] as const;
-export type ServiceDeliveryMode = (typeof SERVICE_DELIVERY_MODES)[number];
+/** DIY-style templates skip live-session length and multi-session billing. */
+export function serviceOfferingIsDiyTemplate(serviceId: MatchServiceId): boolean {
+  return serviceId === "online_program";
+}
+
+/** Live virtual or in-person (or hybrid) packages need a scheduled session length, except DIY templates. */
+export function serviceOfferingNeedsSessionLength(
+  serviceId: MatchServiceId,
+  delivery: ServiceDeliveryMode,
+): boolean {
+  if (serviceOfferingIsDiyTemplate(serviceId)) return false;
+  return delivery === "virtual" || delivery === "in_person" || delivery === "both";
+}
+
+/** “Multiple sessions” billing applies to packaged session offerings, not DIY plan-only listings. */
+export function matchServiceAllowsMultiSessionBilling(serviceId: MatchServiceId): boolean {
+  return !serviceOfferingIsDiyTemplate(serviceId);
+}
 
 /** Catalog entries coaches can add from the nutrition path (requires nutrition onboarding track). */
 export const MATCH_SERVICE_IDS_NUTRITION_OFFERING: MatchServiceId[] = ["nutrition_coaching", "online_program"];
@@ -165,14 +184,15 @@ export const LANGUAGE_LABELS: Record<(typeof LANGUAGE_IDS)[number], string> = {
 };
 
 export const BILLING_UNIT_LABELS: Record<BillingUnit, string> = {
-  per_session: "Per session",
-  per_hour: "Per hour",
-  per_month: "Per month (ongoing coaching)",
+  per_session: "Per Session",
+  multi_session: "Multiple Sessions (Package)",
+  per_hour: "Per Hour",
+  per_month: "Per Month (Ongoing Coaching)",
 };
 
 /**
  * Onboarding Questionnaire only (session formats, in-person matching radius, client fit, philosophy).
- * Services & rates are stored separately and merged via `composeTrainerAiMatchProfileText`.
+ * Services and rates are stored separately and merged via `composeTrainerAiMatchProfileText`.
  */
 export function buildAiMatchProfileText(p: TrainerMatchQuestionnairePayload): string {
   const lines: string[] = [];

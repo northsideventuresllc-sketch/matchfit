@@ -71,6 +71,7 @@ export async function POST(req: Request) {
         zipCode: body.zipCode,
         dateOfBirth: body.dateOfBirth,
         termsAcceptedAt: new Date(),
+        privacyPolicyAcceptedAt: new Date(),
         status: "PENDING_2FA",
         twoFactorEnabled: true,
         twoFactorMethod: method,

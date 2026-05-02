@@ -2,6 +2,10 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ClientDashboardShell } from "@/components/client/client-dashboard-shell";
 import { billingExemptDashboardPath, isClientBillingHardLocked } from "@/lib/client-billing-access";
+import {
+  countClientUnreadInboxNotifications,
+  runClientNotificationLifecycle,
+} from "@/lib/client-notification-retention";
 import { prisma } from "@/lib/prisma";
 import { purgeExpiredSuspensionRecords } from "@/lib/suspension-lifecycle";
 import { staleClientSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
@@ -26,9 +30,13 @@ export default async function ClientDashboardAppLayout({
       stripeSubscriptionId: true,
       stripeSubscriptionActive: true,
       subscriptionGraceUntil: true,
+      deidentifiedAt: true,
     },
   });
   if (!client) {
+    redirect(staleClientSessionInvalidateRedirect("/client"));
+  }
+  if (client.deidentifiedAt) {
     redirect(staleClientSessionInvalidateRedirect("/client"));
   }
 
@@ -45,9 +53,8 @@ export default async function ClientDashboardAppLayout({
     redirect("/client/dashboard/billing?locked=1");
   }
 
-  const unreadCount = await prisma.clientNotification.count({
-    where: { clientId, readAt: null },
-  });
+  await runClientNotificationLifecycle(clientId);
+  const unreadCount = await countClientUnreadInboxNotifications(clientId);
 
   const displayName = client.preferredName?.trim() || "Client";
 

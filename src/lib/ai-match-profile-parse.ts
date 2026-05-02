@@ -8,6 +8,31 @@ export type AiMatchProfileDisplayBlock =
  * Normalizes in-person coverage for display, e.g. `15 mile radius of 30333`.
  * Accepts legacy text like `within 15 miles of US ZIP 30333`.
  */
+/**
+ * Removes the first `Services and rates:` bullet list from anywhere in the document (legacy compose
+ * appended it after philosophy, which otherwise gets folded into the Coaching Philosophy prose block).
+ */
+export function stripServicesAndRatesSection(raw: string): { remainder: string; items: string[] | null } {
+  const lines = raw.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i]?.trim() !== "Services and rates:") continue;
+    const items: string[] = [];
+    let j = i + 1;
+    for (; j < lines.length; j++) {
+      const L = lines[j]!;
+      if (L.startsWith("- ")) {
+        items.push(L.slice(2).trim());
+        continue;
+      }
+      if (L.trim() === "") continue;
+      break;
+    }
+    lines.splice(i, j - i);
+    return { remainder: lines.join("\n"), items: items.length ? items : null };
+  }
+  return { remainder: raw, items: null };
+}
+
 export function formatInPersonCoverageForDisplay(raw: string): string {
   const t = raw.trim();
   const legacy = t.match(/^within\s+(\d+)\s*miles?\s+of\s+US\s*ZIP\s*(\d{5}(?:-\d{4})?)\s*\.?$/i);
@@ -26,7 +51,8 @@ export function formatInPersonCoverageForDisplay(raw: string): string {
  * Tolerant of minor format drift (extra blank lines).
  */
 export function parseAiMatchProfileForDisplay(raw: string): AiMatchProfileDisplayBlock[] {
-  const lines = raw.split(/\r?\n/);
+  const { remainder, items: pulledServiceItems } = stripServicesAndRatesSection(raw);
+  const lines = remainder.split(/\r?\n/);
   const blocks: AiMatchProfileDisplayBlock[] = [];
   let i = 0;
 
@@ -51,28 +77,6 @@ export function parseAiMatchProfileForDisplay(raw: string): AiMatchProfileDispla
   const session = takeLine("Session formats:");
   if (session != null) {
     blocks.push({ kind: "kv", title: "Session Formats", value: session });
-  }
-
-  while (i < lines.length && lines[i]?.trim() === "") i++;
-  if (lines[i]?.trim() === "Services and rates:") {
-    i++;
-    const items: string[] = [];
-    while (i < lines.length) {
-      const L = lines[i];
-      if (L.startsWith("- ")) {
-        items.push(L.slice(2).trim());
-        i++;
-        continue;
-      }
-      if (L.trim() === "") {
-        i++;
-        continue;
-      }
-      break;
-    }
-    if (items.length) {
-      blocks.push({ kind: "list", title: "Services and Rates", items });
-    }
   }
 
   const coverage = takeLine("In-person coverage:");
@@ -127,8 +131,14 @@ export function parseAiMatchProfileForDisplay(raw: string): AiMatchProfileDispla
     }
   }
 
-  if (blocks.length === 0 && raw.trim()) {
-    blocks.push({ kind: "prose", title: "Onboarding Questionnaire answers", body: raw.trim() });
+  if (blocks.length === 0 && remainder.trim()) {
+    blocks.push({ kind: "prose", title: "Onboarding Questionnaire answers", body: remainder.trim() });
+  }
+
+  if (pulledServiceItems && pulledServiceItems.length > 0) {
+    const sessionIdx = blocks.findIndex((b) => b.kind === "kv" && b.title === "Session Formats");
+    const insertAt = sessionIdx >= 0 ? sessionIdx + 1 : 0;
+    blocks.splice(insertAt, 0, { kind: "list", title: "Services and Rates", items: pulledServiceItems });
   }
 
   return blocks;

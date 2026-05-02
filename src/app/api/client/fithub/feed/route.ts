@@ -7,6 +7,7 @@ import { fithubPublicFeedVisibilityWhere } from "@/lib/fithub-public-feed";
 import { parseStoredHashtagsJson } from "@/lib/trainer-fithub-hashtags";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
+import { getTrainerIdsHiddenFromClientFithub } from "@/lib/user-block-queries";
 import { loadActivePromotionsForPosts, promotionRegionalFeedBoost } from "@/lib/trainer-promo-tokens";
 import { NextResponse } from "next/server";
 
@@ -58,16 +59,26 @@ function scorePost(
   return s;
 }
 
-function dedupeByTrainer<T extends { trainerId: string }>(posts: T[], enabled: boolean): T[] {
-  if (!enabled) return posts;
+/** Keep sort order; at most one post per trainer; stop at `limit` posts (used when hideRepeatedTrainers is on). */
+function takeUniqueTrainersInOrder<T extends { trainerId: string }>(posts: T[], limit: number): T[] {
   const seen = new Set<string>();
   const out: T[] = [];
   for (const p of posts) {
     if (seen.has(p.trainerId)) continue;
     seen.add(p.trainerId);
     out.push(p);
+    if (out.length >= limit) break;
   }
   return out;
+}
+
+function applyFeedLengthCap<T extends { trainerId: string }>(
+  posts: T[],
+  hideRepeatedTrainers: boolean,
+  limit: number,
+): T[] {
+  if (hideRepeatedTrainers) return takeUniqueTrainersInOrder(posts, limit);
+  return posts.slice(0, limit);
 }
 
 export async function GET() {
@@ -97,16 +108,21 @@ export async function GET() {
     if (prefs.showVideoPosts) types.push("VIDEO");
     if (!types.length) types.push("TEXT");
 
-    const savedRows = await prisma.clientSavedTrainer.findMany({
-      where: { clientId },
-      select: { trainerId: true },
-    });
+    const [savedRows, fithubBlockedTrainerIds] = await Promise.all([
+      prisma.clientSavedTrainer.findMany({
+        where: { clientId },
+        select: { trainerId: true },
+      }),
+      getTrainerIdsHiddenFromClientFithub(clientId),
+    ]);
     const savedIds = new Set(savedRows.map((r) => r.trainerId));
 
+    const blockedList = [...fithubBlockedTrainerIds];
     const where: Prisma.TrainerFitHubPostWhereInput = {
       AND: [
         { postType: { in: types } },
         fithubPublicFeedVisibilityWhere(),
+        ...(blockedList.length ? [{ trainerId: { notIn: blockedList } }] : []),
         ...(prefs.feedStyle === "SAVED_COACHES_ONLY"
           ? !savedIds.size
             ? []
@@ -122,7 +138,10 @@ export async function GET() {
       });
     }
 
-    const takeRaw = prefs.feedStyle === "ALGORITHMIC" ? 180 : 60;
+    // Fetch extra rows when we will dedupe by trainer so we can still return up to `limit` unique trainers.
+    const limit = 60;
+    const takeRaw =
+      prefs.feedStyle === "ALGORITHMIC" || prefs.hideRepeatedTrainers ? 180 : limit;
     const rows = await prisma.trainerFitHubPost.findMany({
       where,
       take: takeRaw,
@@ -169,17 +188,15 @@ export async function GET() {
     let sorted = [...rows];
     if (prefs.feedStyle === "NEWEST" || prefs.feedStyle === "SAVED_COACHES_ONLY") {
       sorted.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-      sorted = sorted.slice(0, 60);
     } else {
       sorted.sort(
         (a, b) =>
           scorePost(b, prefs, savedIds, clientMatchTokens, promotionBoostFor(b.id)) -
           scorePost(a, prefs, savedIds, clientMatchTokens, promotionBoostFor(a.id)),
       );
-      sorted = sorted.slice(0, 60);
     }
 
-    sorted = dedupeByTrainer(sorted, prefs.hideRepeatedTrainers);
+    sorted = applyFeedLengthCap(sorted, prefs.hideRepeatedTrainers, limit);
 
     const postIds = sorted.map((p) => p.id);
     const reportedRows =

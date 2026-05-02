@@ -37,12 +37,12 @@ export function shouldMockSmsVoiceOtp(): boolean {
   return false;
 }
 
-function logDevPhoneMockOtp(channel: OtpChannel, phone: string, code: string): void {
+function logDevPhoneMockOtp(channel: OtpChannel, phone: string): void {
   const line = "─".repeat(56);
   console.info(`\n${line}`);
   console.info(` Match Fit — DEV MOCK ${channel} (no Twilio send)`);
   console.info(` Intended destination: ${phone}`);
-  console.info(` 6-digit code: ${code}`);
+  console.info(` OTP issued (value not logged — use dev UI hint or non-production delivery).`);
   console.info(`${line}\n`);
 }
 
@@ -56,7 +56,9 @@ export async function deliverSignupOtp(
     const key = process.env.RESEND_API_KEY;
     if (!key) {
       if (process.env.NODE_ENV === "development") {
-        console.info(`[Match Fit 2FA][EMAIL] (no RESEND_API_KEY) intended for ${email}: ${code}`);
+        console.info(
+          `[Match Fit 2FA][EMAIL] (no RESEND_API_KEY) intended for ${email} — OTP issued, not logged (set RESEND_API_KEY for real delivery).`,
+        );
         return {};
       }
       throw new Error("RESEND_API_KEY must be set to send email codes in production.");
@@ -74,7 +76,7 @@ export async function deliverSignupOtp(
   }
 
   if (shouldMockSmsVoiceOtp()) {
-    logDevPhoneMockOtp(channel, phone, code);
+    logDevPhoneMockOtp(channel, phone);
     return { devPhoneMock: true };
   }
 

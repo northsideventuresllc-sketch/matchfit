@@ -2,6 +2,7 @@ import { fithubPublicFeedVisibilityWhere } from "@/lib/fithub-public-feed";
 import { parseStoredHashtagsJson } from "@/lib/trainer-fithub-hashtags";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
+import { getTrainerIdsMutedInTrainerFithub } from "@/lib/user-block-queries";
 import { NextResponse } from "next/server";
 
 function trainerDisplayName(trainer: {
@@ -23,8 +24,12 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
+    const muted = await getTrainerIdsMutedInTrainerFithub(sessionTrainerId);
+    const mutedList = [...muted];
     const rows = await prisma.trainerFitHubPost.findMany({
-      where: fithubPublicFeedVisibilityWhere(),
+      where: {
+        AND: [fithubPublicFeedVisibilityWhere(), ...(mutedList.length ? [{ trainerId: { notIn: mutedList } }] : [])],
+      },
       take: 80,
       include: {
         trainer: {
@@ -43,6 +48,7 @@ export async function GET() {
     });
 
     return NextResponse.json({
+      viewerTrainerId: sessionTrainerId,
       posts: rows.map((p) => ({
         id: p.id,
         createdAt: p.createdAt.toISOString(),

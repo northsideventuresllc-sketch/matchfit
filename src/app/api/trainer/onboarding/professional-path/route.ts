@@ -16,17 +16,19 @@ export async function PATCH(req: Request) {
       const msg = parsed.error.issues[0]?.message ?? "Invalid selection.";
       return NextResponse.json({ error: msg }, { status: 400 });
     }
-    const { trackCpt, trackNutrition } = parsed.data;
+    const { trackCpt, trackNutrition, trackSpecialist, specialistRole } = parsed.data;
 
     await prisma.trainerProfile.update({
       where: { trainerId },
       data: {
         onboardingTrackCpt: trackCpt,
         onboardingTrackNutrition: trackNutrition,
+        onboardingTrackSpecialist: trackSpecialist,
+        specialistProfessionalRole: trackSpecialist ? specialistRole ?? null : null,
       },
     });
 
-    return NextResponse.json({ ok: true, trackCpt, trackNutrition });
+    return NextResponse.json({ ok: true, trackCpt, trackNutrition, trackSpecialist, specialistRole });
   } catch (e) {
     const { message, status } = publicApiErrorFromUnknown(e, "Could not save your professional path.", {
       logLabel: "[Match Fit trainer professional path]",

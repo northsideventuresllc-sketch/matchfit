@@ -14,8 +14,10 @@ export async function maybeActivateTrainerDashboard(trainerId: string): Promise<
       backgroundCheckStatus: true,
       onboardingTrackCpt: true,
       onboardingTrackNutrition: true,
+      onboardingTrackSpecialist: true,
       certificationReviewStatus: true,
       nutritionistCertificationReviewStatus: true,
+      specialistCertificationReviewStatus: true,
     },
   });
   if (!prof || prof.dashboardActivatedAt) return;

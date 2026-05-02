@@ -17,7 +17,7 @@ export const TRAINER_QUESTIONNAIRES_CATALOG: readonly TrainerQuestionnaireCatalo
     title: "Onboarding Questionnaire",
     href: TRAINER_MATCH_ME_PATH,
     summary:
-      "Session format preferences, in-person matching area, who you coach best, and your philosophy—used for discovery and AI matching. Services and rates are managed from your dashboard.",
+      "Session format preferences, in-person matching area, who you coach best, and your philosophy, used for discovery and AI matching. Services and rates are managed from your dashboard.",
     disclaimer:
       "This is required for your account to be shown to clients until every part is complete. Saving any section returns you to your dashboard. Additional questionnaires may appear later; they never replace this onboarding flow.",
     badge: "REQUIRED FOR CLIENT VISIBILITY",

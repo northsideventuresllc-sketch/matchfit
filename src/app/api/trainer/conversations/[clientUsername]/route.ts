@@ -1,8 +1,9 @@
 import { CONVERSATION_RELATIONSHIP_STAGES, type ConversationRelationshipStage } from "@/lib/safety-constants";
 import { prisma } from "@/lib/prisma";
+import { purgeExpiredArchivedConversations } from "@/lib/trainer-client-conversation-archive";
 import { getSessionTrainerId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
-import { isTrainerClientPairBlocked } from "@/lib/user-block-queries";
+import { isTrainerClientChatBlocked } from "@/lib/user-block-queries";
 import { NextResponse } from "next/server";
 
 type RouteContext = { params: Promise<{ clientUsername: string }> };
@@ -25,8 +26,10 @@ export async function PATCH(req: Request, ctx: RouteContext) {
             backgroundCheckStatus: true,
             onboardingTrackCpt: true,
             onboardingTrackNutrition: true,
+            onboardingTrackSpecialist: true,
             certificationReviewStatus: true,
             nutritionistCertificationReviewStatus: true,
+            specialistCertificationReviewStatus: true,
           },
         },
       },
@@ -45,9 +48,11 @@ export async function PATCH(req: Request, ctx: RouteContext) {
       return NextResponse.json({ error: "Client not found." }, { status: 404 });
     }
 
-    if (await isTrainerClientPairBlocked(trainerId, client.id)) {
+    if (await isTrainerClientChatBlocked(trainerId, client.id)) {
       return NextResponse.json({ error: "Unavailable." }, { status: 403 });
     }
+
+    await purgeExpiredArchivedConversations();
 
     const body = (await req.json()) as { relationshipStage?: string };
     const raw = body.relationshipStage?.trim().toUpperCase() ?? "";
@@ -61,6 +66,12 @@ export async function PATCH(req: Request, ctx: RouteContext) {
     });
     if (!conv) {
       return NextResponse.json({ error: "No conversation for this client yet." }, { status: 404 });
+    }
+    if (conv.archivedAt) {
+      return NextResponse.json(
+        { error: "This chat is archived. Only the person who archived it can revive it from Archives." },
+        { status: 403 },
+      );
     }
 
     await prisma.trainerClientConversation.update({

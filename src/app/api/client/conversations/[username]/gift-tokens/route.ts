@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
-import { isTrainerClientPairBlocked } from "@/lib/user-block-queries";
+import { isTrainerClientChatBlocked } from "@/lib/user-block-queries";
 import { clientGiftTokensToTrainer } from "@/lib/trainer-promo-tokens";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,7 @@ const bodySchema = z.object({
   amount: z.number().int().min(1).max(100),
 });
 
-type RouteContext = { params: Promise<{ trainerUsername: string }> };
+type RouteContext = { params: Promise<{ username: string }> };
 
 export async function POST(req: Request, ctx: RouteContext) {
   try {
@@ -20,8 +20,8 @@ export async function POST(req: Request, ctx: RouteContext) {
     if (!clientId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
-    const { trainerUsername } = await ctx.params;
-    const handle = decodeURIComponent(trainerUsername).trim();
+    const { username } = await ctx.params;
+    const handle = decodeURIComponent(username).trim();
     const trainer = await prisma.trainer.findUnique({
       where: { username: handle },
       select: {
@@ -34,8 +34,10 @@ export async function POST(req: Request, ctx: RouteContext) {
             backgroundCheckStatus: true,
             onboardingTrackCpt: true,
             onboardingTrackNutrition: true,
+            onboardingTrackSpecialist: true,
             certificationReviewStatus: true,
             nutritionistCertificationReviewStatus: true,
+            specialistCertificationReviewStatus: true,
           },
         },
       },
@@ -43,13 +45,16 @@ export async function POST(req: Request, ctx: RouteContext) {
     if (!trainer?.profile || trainer.profile.dashboardActivatedAt == null || !isTrainerComplianceComplete(trainer.profile)) {
       return NextResponse.json({ error: "Coach not found." }, { status: 404 });
     }
-    if (await isTrainerClientPairBlocked(trainer.id, clientId)) {
+    if (await isTrainerClientChatBlocked(trainer.id, clientId)) {
       return NextResponse.json({ error: "Unavailable." }, { status: 403 });
     }
     const conv = await prisma.trainerClientConversation.findUnique({
       where: { trainerId_clientId: { trainerId: trainer.id, clientId } },
-      select: { id: true, officialChatStartedAt: true },
+      select: { id: true, officialChatStartedAt: true, archivedAt: true },
     });
+    if (conv?.archivedAt) {
+      return NextResponse.json({ error: "This chat is archived." }, { status: 403 });
+    }
     if (!conv?.officialChatStartedAt) {
       return NextResponse.json({ error: "Chat is not open for this coach yet." }, { status: 403 });
     }

@@ -33,7 +33,7 @@ export function TrainerMatchQuestionnaireHubClient(props: Props) {
       )}
 
       <div className="space-y-3">
-        <p className="text-xs font-semibold text-white/40">Sections</p>
+        <p className="text-xs font-semibold text-white/40">Questionnaire Sections</p>
         <div className="grid gap-3 sm:grid-cols-2">
           {MATCH_QUESTIONNAIRE_SECTIONS.map((sec) => (
             <Link
@@ -46,7 +46,7 @@ export function TrainerMatchQuestionnaireHubClient(props: Props) {
               </div>
               <p className="mt-1 text-[11px] text-white/40">{sec.summary}</p>
               <p className="mt-3 text-[11px] leading-snug text-white/50">{sec.disclaimer}</p>
-              <p className="mt-3 text-xs font-semibold text-[#FF7E00]">Edit section →</p>
+              <p className="mt-3 text-xs font-black uppercase tracking-wide text-[#FF7E00]">Edit section →</p>
             </Link>
           ))}
         </div>

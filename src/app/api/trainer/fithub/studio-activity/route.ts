@@ -3,6 +3,7 @@ import { isTrainerPremiumStudioActive } from "@/lib/trainer-premium-studio";
 import {
   countTrainerFitHubUnseenInteractions,
   ensureFitHubStudioDigestTrainerNotification,
+  getTrainerFitHubStudioReadKeys,
   getTrainerFitHubStudioSeenAt,
   listTrainerFitHubStudioActivity,
   type FitHubStudioActivityKind,
@@ -27,10 +28,17 @@ export async function GET(req: Request) {
 
     await ensureFitHubStudioDigestTrainerNotification(trainerId);
 
-    const [items, unseenCount, lastSeenAt] = await Promise.all([
-      listTrainerFitHubStudioActivity(trainerId, filter === "ALL" ? "ALL" : filter, 150),
-      countTrainerFitHubUnseenInteractions(trainerId),
+    const [readKeys, lastSeenAt] = await Promise.all([
+      getTrainerFitHubStudioReadKeys(trainerId),
       getTrainerFitHubStudioSeenAt(trainerId),
+    ]);
+
+    const [items, unseenCount] = await Promise.all([
+      listTrainerFitHubStudioActivity(trainerId, filter === "ALL" ? "ALL" : filter, 150, {
+        readKeys,
+        seenAt: lastSeenAt,
+      }),
+      countTrainerFitHubUnseenInteractions(trainerId),
     ]);
 
     return NextResponse.json({

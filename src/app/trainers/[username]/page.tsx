@@ -5,10 +5,9 @@ import { TrainerPublicProfileView } from "@/components/trainer/trainer-public-pr
 import type { TrainerPublicSocialLink } from "@/components/trainer/trainer-public-profile-view";
 import { parseAiMatchProfileForDisplay } from "@/lib/ai-match-profile-parse";
 import { mapMatchProfileBlocksForPublicClientPage } from "@/lib/trainer-public-match-profile-display";
-import {
-  offeringDocumentToDisplayLines,
-  parseTrainerServiceOfferingsJson,
-} from "@/lib/trainer-service-offerings";
+import { offeringDocumentToDisplayLines, parseTrainerServiceOfferingsJson, publishedPurchaseSkusFromLine } from "@/lib/trainer-service-offerings";
+import { parseTrainerOptionalProfileVisibility } from "@/lib/optional-profile-visibility";
+import { getTrainerPublicReviewSummary } from "@/lib/client-trainer-reviews";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
@@ -17,7 +16,10 @@ import {
   trainerOffersPersonalTrainingServices,
 } from "@/lib/trainer-service-buckets";
 
-type Props = { params: Promise<{ username: string }> };
+type Props = {
+  params: Promise<{ username: string }>;
+  searchParams?: Promise<{ serviceCheckout?: string }>;
+};
 
 function displayName(trainer: {
   preferredName: string | null;
@@ -91,6 +93,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       firstName: true,
       lastName: true,
       bio: true,
+      deidentifiedAt: true,
       profile: {
         select: {
           dashboardActivatedAt: true,
@@ -99,14 +102,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           backgroundCheckStatus: true,
           onboardingTrackCpt: true,
           onboardingTrackNutrition: true,
+          onboardingTrackSpecialist: true,
           certificationReviewStatus: true,
           nutritionistCertificationReviewStatus: true,
+          specialistCertificationReviewStatus: true,
         },
       },
     },
   });
   const published =
-    trainer?.profile?.dashboardActivatedAt != null && isTrainerComplianceComplete(trainer.profile);
+    trainer?.profile?.dashboardActivatedAt != null &&
+    !trainer.deidentifiedAt &&
+    isTrainerComplianceComplete(trainer.profile);
   if (!trainer || !published) {
     return {
       title: `Coach | Match Fit`,
@@ -127,9 +134,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function TrainerPublicProfilePage({ params }: Props) {
+export default async function TrainerPublicProfilePage({ params, searchParams }: Props) {
   const { username } = await params;
   const handle = decodeURIComponent(username);
+  const checkoutQuery = searchParams ? await searchParams : {};
+  const checkoutNotice =
+    checkoutQuery.serviceCheckout === "success"
+      ? "success"
+      : checkoutQuery.serviceCheckout === "canceled"
+        ? "canceled"
+        : null;
 
   const trainer = await prisma.trainer.findUnique({
     where: { username: handle },
@@ -152,6 +166,8 @@ export default async function TrainerPublicProfilePage({ params }: Props) {
       socialFacebook: true,
       socialLinkedin: true,
       socialOtherUrl: true,
+      optionalProfileVisibilityJson: true,
+      deidentifiedAt: true,
       profile: {
         select: {
           dashboardActivatedAt: true,
@@ -160,17 +176,21 @@ export default async function TrainerPublicProfilePage({ params }: Props) {
           backgroundCheckStatus: true,
           onboardingTrackCpt: true,
           onboardingTrackNutrition: true,
+          onboardingTrackSpecialist: true,
           certificationReviewStatus: true,
           nutritionistCertificationReviewStatus: true,
+          specialistCertificationReviewStatus: true,
           matchQuestionnaireStatus: true,
           aiMatchProfileText: true,
           serviceOfferingsJson: true,
+          bookingAvailabilityJson: true,
+          bookingTimezone: true,
         },
       },
     },
   });
 
-  if (!trainer?.profile) {
+  if (!trainer?.profile || trainer.deidentifiedAt) {
     notFound();
   }
 
@@ -179,6 +199,8 @@ export default async function TrainerPublicProfilePage({ params }: Props) {
   if (!published) {
     notFound();
   }
+
+  const vis = parseTrainerOptionalProfileVisibility(trainer.optionalProfileVisibilityJson);
 
   const blocks =
     trainer.profile.matchQuestionnaireStatus === "completed" && trainer.profile.aiMatchProfileText
@@ -191,6 +213,17 @@ export default async function TrainerPublicProfilePage({ params }: Props) {
   const legacyRates = servicesBlock && servicesBlock.kind === "list" ? servicesBlock.items : null;
   const servicesRates =
     fromOfferings.length > 0 ? fromOfferings : legacyRates && legacyRates.length > 0 ? legacyRates : null;
+  const purchasableServices =
+    fromOfferings.length > 0
+      ? offeringsDoc.services.flatMap((s) =>
+          publishedPurchaseSkusFromLine(s).map((sku) => ({
+            serviceId: sku.serviceId,
+            variationId: sku.variationId,
+            bundleTierId: sku.bundleTierId,
+            label: sku.label,
+          })),
+        )
+      : null;
   const coachBlocks = blocks.filter((b) => !(b.kind === "list" && b.title === "Services and Rates"));
   const { highlightBlocks, idealClientParagraph } = mapMatchProfileBlocksForPublicClientPage(
     coachBlocks,
@@ -211,18 +244,21 @@ export default async function TrainerPublicProfilePage({ params }: Props) {
 
   const disableClientActions = sessionTrainerId != null && sessionTrainerId === trainer.id;
 
+  const reviewSummary = await getTrainerPublicReviewSummary(trainer.id);
+  const showClientReviewPanel = Boolean(clientId) && !disableClientActions;
+
   return (
     <TrainerPublicProfileView
       displayName={displayName(trainer)}
       username={trainer.username}
       bio={trainer.bio}
       profileImageUrl={trainer.profileImageUrl}
-      pronouns={trainer.pronouns}
+      pronouns={vis.showPronouns ? trainer.pronouns : null}
       fitnessNiches={trainer.fitnessNiches}
       yearsCoaching={trainer.yearsCoaching}
-      languagesSpoken={trainer.languagesSpoken}
-      genderIdentity={trainer.genderIdentity}
-      ethnicity={trainer.ethnicity}
+      languagesSpoken={vis.showLanguagesSpoken ? trainer.languagesSpoken : null}
+      genderIdentity={vis.showGenderIdentity ? trainer.genderIdentity : null}
+      ethnicity={vis.showEthnicity ? trainer.ethnicity : null}
       certificationBadges={certificationBadges(trainer.profile)}
       socialLinks={socialLinks(trainer)}
       fullProfileUrl={fullProfileUrl}
@@ -232,6 +268,13 @@ export default async function TrainerPublicProfilePage({ params }: Props) {
       servicesRates={servicesRates}
       idealClientParagraph={idealClientParagraph}
       highlightBlocks={highlightBlocks}
+      reviewSummary={reviewSummary}
+      showClientReviewPanel={showClientReviewPanel}
+      purchasableServices={purchasableServices}
+      clientIsSignedIn={Boolean(clientId)}
+      checkoutNotice={checkoutNotice}
+      showClientPrivacyMenu={Boolean(clientId) && !disableClientActions}
+      availabilityHref={`/trainers/${encodeURIComponent(trainer.username)}/availability`}
     />
   );
 }

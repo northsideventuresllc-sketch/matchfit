@@ -15,6 +15,7 @@ import {
   type TrainerProfileSettingsPanelRef,
   type TrainerSettingsProfile,
 } from "./trainer-profile-settings-panel";
+import { TrainerPrivacySettingsSection } from "@/components/trainer/trainer-privacy-settings-section";
 
 const TRAINER_SETTINGS_API = "/api/trainer/settings";
 
@@ -220,6 +221,8 @@ export function TrainerSettingsPageClient(props: Props) {
             dashboardLinkHref="/trainer/dashboard"
           />
         </CollapsibleSettingsSection>
+
+        <TrainerPrivacySettingsSection />
 
         <p className="text-sm">
           <button

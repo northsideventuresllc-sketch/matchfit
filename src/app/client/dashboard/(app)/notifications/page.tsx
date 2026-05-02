@@ -13,11 +13,13 @@ export default function ClientNotificationsCenterPage() {
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Inbox</p>
         <h1 className="text-3xl font-black tracking-[0.04em] text-white sm:text-4xl">Notifications Center</h1>
         <p className="mx-auto max-w-xl text-sm leading-relaxed text-white/50">
-          Every alert stays here until you delete it from view. Use the check to mark items read or unread.
+          Inbox items auto-archive 30 days after they arrive. Archived items are kept for 90 days, then removed
+          automatically. In Archive, delete individual alerts, select several and delete them together, or use Delete all
+          to empty the archive.
         </p>
         <p className="text-xs text-white/40">
           <Link href="/client/dashboard/notification-settings" className="text-[#FF7E00] underline-offset-2 hover:underline">
-            Notification settings
+            Notification Settings
           </Link>
         </p>
       </header>

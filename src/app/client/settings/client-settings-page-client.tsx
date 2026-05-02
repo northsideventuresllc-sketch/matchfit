@@ -14,6 +14,7 @@ import {
 } from "./profile-settings-panel";
 import { StayLoggedInPanel } from "./stay-logged-in-panel";
 import { TwoFactorPanel, type TwoFactorChannelDTO, type TwoFactorPanelRef } from "./two-factor-panel";
+import { ClientPrivacySettingsSection } from "@/components/client/client-privacy-settings-section";
 
 type Props = {
   initialProfile: ClientSettingsProfile;
@@ -174,7 +175,7 @@ export function ClientSettingsPageClient(props: Props) {
                 href="/client/dashboard/preferences/onboarding"
                 className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline"
               >
-                match preferences
+                Match Preferences
               </Link>{" "}
               (onboarding) to unlock the full client dashboard.
             </p>
@@ -205,8 +206,8 @@ export function ClientSettingsPageClient(props: Props) {
         />
 
         <CollapsibleSettingsSection
-          title="Match preferences"
-          description="Goals, services, delivery style, and discovery controls. Same editor as the dashboard Match preferences page."
+          title="Match Preferences"
+          description="Goals, services, delivery style, and discovery controls. Same editor as the dashboard Match Preferences page."
           defaultOpen={false}
         >
           <ClientMatchPreferencesForm mode="settings" />
@@ -247,6 +248,8 @@ export function ClientSettingsPageClient(props: Props) {
             onFooterBlockedChange={setTwoFaFooterBlocked}
           />
         </CollapsibleSettingsSection>
+
+        <ClientPrivacySettingsSection />
 
         <p className="text-center text-sm">
           <button

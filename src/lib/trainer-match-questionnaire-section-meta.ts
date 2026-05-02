@@ -56,4 +56,4 @@ export const MATCH_QUESTIONNAIRE_SECTIONS = [
 ] as const;
 
 export const FOLLOW_UP_SURVEYS_BLURB =
-  "Optional, shorter questionnaires may appear here as our systems learn your specialties. They help keep your profile sharp—none replace the core Onboarding Questionnaire sections above.";
+  "Optional, shorter questionnaires may appear here as our systems learn your specialties. They help keep your profile sharp—none replace the core Onboarding Questionnaire Sections above.";
