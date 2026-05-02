@@ -7,12 +7,32 @@ import {
   parseTrainerDiscoveryStrictness,
 } from "@/lib/trainer-discovery-strictness";
 import { scoreClientForTrainerIdeal } from "@/lib/trainer-client-fit-score";
-import { isTrainerClientPairBlocked } from "@/lib/user-block-queries";
+import { isBrowsePassCooldownActive } from "@/lib/client-trainer-browse";
+import {
+  currentTrainerDiscoverBucket,
+  STANDARD_MATCH_BATCH_SIZE,
+} from "@/lib/trainer-discover-match-batch";
+import { isTrainerPremiumStudioActive } from "@/lib/trainer-premium-studio";
+import { isClientHiddenFromTrainerDiscover } from "@/lib/user-block-queries";
+import { assertTrainerClientPayloadHasNoAddress } from "@/lib/trainer-safe-client-profile";
 import { NextResponse } from "next/server";
 
 function displayClientName(c: { preferredName: string; firstName: string; lastName: string }): string {
   return c.preferredName?.trim() || [c.firstName, c.lastName].filter(Boolean).join(" ").trim() || "Client";
 }
+
+type InternalRow = {
+  id: string;
+  username: string;
+  displayName: string;
+  zipCode: string;
+  bio: string | null;
+  profileImageUrl: string | null;
+  score: number;
+  nicheHits: number;
+  serviceOk: boolean;
+  deliveryOk: boolean;
+};
 
 export async function GET(req: Request) {
   try {
@@ -36,10 +56,13 @@ export async function GET(req: Request) {
             hasSignedTOS: true,
             hasUploadedW9: true,
             backgroundCheckStatus: true,
+            backgroundCheckClearedAt: true,
             onboardingTrackCpt: true,
             onboardingTrackNutrition: true,
+            onboardingTrackSpecialist: true,
             certificationReviewStatus: true,
             nutritionistCertificationReviewStatus: true,
+            specialistCertificationReviewStatus: true,
             aiMatchProfileText: true,
             matchQuestionnaireStatus: true,
           },
@@ -67,8 +90,21 @@ export async function GET(req: Request) {
       },
     };
 
+    const matchedConvs = await prisma.trainerClientConversation.findMany({
+      where: { trainerId, officialChatStartedAt: { not: null } },
+      select: { clientId: true },
+    });
+    const matchedClientIds = new Set(matchedConvs.map((c) => c.clientId));
+
+    const trainerBrowsePasses = await prisma.trainerClientBrowsePass.findMany({
+      where: { trainerId },
+      select: { clientId: true, createdAt: true, lastPassedAt: true },
+    });
+    const trainerPassByClientId = new Map(trainerBrowsePasses.map((p) => [p.clientId, p]));
+
     const clients = await prisma.client.findMany({
       where: {
+        deidentifiedAt: null,
         allowTrainerDiscovery: true,
         matchPreferencesCompletedAt: { not: null },
         ...(q
@@ -97,24 +133,18 @@ export async function GET(req: Request) {
       },
     });
 
-    const rows: Array<{
-      username: string;
-      displayName: string;
-      zipCode: string;
-      bio: string | null;
-      profileImageUrl: string | null;
-      score: number;
-      nicheHits: number;
-      serviceOk: boolean;
-      deliveryOk: boolean;
-    }> = [];
+    const internal: InternalRow[] = [];
 
     for (const c of clients) {
-      if (await isTrainerClientPairBlocked(trainer.id, c.id)) continue;
+      if (matchedClientIds.has(c.id)) continue;
+      const tp = trainerPassByClientId.get(c.id);
+      if (tp && isBrowsePassCooldownActive(tp.lastPassedAt, tp.createdAt)) continue;
+      if (await isClientHiddenFromTrainerDiscover(trainer.id, c.id)) continue;
       const prefs = parseClientMatchPreferencesJson(c.matchPreferencesJson);
       const m = scoreClientForTrainerIdeal(ideal, prefs);
       if (!clientMatchesTrainerDiscoveryStrictness(strictness, prefs, m)) continue;
-      rows.push({
+      internal.push({
+        id: c.id,
         username: c.username,
         displayName: displayClientName(c),
         zipCode: c.zipCode,
@@ -127,11 +157,57 @@ export async function GET(req: Request) {
       });
     }
 
-    rows.sort((a, b) => b.score - a.score);
+    internal.sort((a, b) => b.score - a.score);
+
+    const isPremium = await isTrainerPremiumStudioActive(trainerId);
+    let served = internal;
+
+    if (!isPremium) {
+      const bucket = currentTrainerDiscoverBucket();
+      const existing = await prisma.trainerDiscoverMatchBatch.findUnique({
+        where: { trainerId_bucket: { trainerId, bucket } },
+      });
+      if (!existing) {
+        const pick = internal.slice(0, STANDARD_MATCH_BATCH_SIZE);
+        if (pick.length > 0) {
+          await prisma.trainerDiscoverMatchBatch.create({
+            data: {
+              trainerId,
+              bucket,
+              clientIdsJson: JSON.stringify(pick.map((r) => r.id)),
+            },
+          });
+        }
+        served = pick;
+      } else {
+        let ids: string[] = [];
+        try {
+          ids = JSON.parse(existing.clientIdsJson) as string[];
+        } catch {
+          ids = [];
+        }
+        const idSet = new Set(ids);
+        served = internal.filter((r) => idSet.has(r.id));
+      }
+    } else {
+      served = internal.slice(0, 48);
+    }
+
+    const clientsOut = served.map(({ id: _omit, ...rest }) => rest);
+    if (process.env.NODE_ENV !== "production") {
+      for (const row of clientsOut) {
+        assertTrainerClientPayloadHasNoAddress(row, "discover-clients");
+      }
+    }
 
     return NextResponse.json({
       strictness,
-      clients: rows.slice(0, 48),
+      matchBatch: {
+        premiumUnlimited: isPremium,
+        standardBatchSize: STANDARD_MATCH_BATCH_SIZE,
+        standardWindowHours: 12,
+      },
+      clients: clientsOut,
     });
   } catch (e) {
     console.error(e);

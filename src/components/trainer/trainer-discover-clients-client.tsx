@@ -34,19 +34,33 @@ export function TrainerDiscoverClientsClient(props: Props) {
   const [nudgeMsg, setNudgeMsg] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<string | null>(null);
   const [premiumLine, setPremiumLine] = useState<string | null>(null);
+  const [matchBatchNote, setMatchBatchNote] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(`/api/trainer/dashboard/discover-clients?strictness=${strictness}`);
-      const data = (await res.json()) as { clients?: Row[]; error?: string };
+      const data = (await res.json()) as {
+        clients?: Row[];
+        error?: string;
+        matchBatch?: { premiumUnlimited: boolean; standardBatchSize: number; standardWindowHours: number };
+      };
       if (!res.ok) {
         setError(data.error ?? "Could not load clients.");
         setClients([]);
+        setMatchBatchNote(null);
         return;
       }
       setClients(data.clients ?? []);
+      const mb = data.matchBatch;
+      if (mb && !mb.premiumUnlimited) {
+        setMatchBatchNote(
+          `Standard plan: up to ${mb.standardBatchSize} discovery matches per ${mb.standardWindowHours} hours (UTC bucket). Premium unlocks unlimited batching.`,
+        );
+      } else {
+        setMatchBatchNote(null);
+      }
     } catch {
       setError("Network error.");
       setClients([]);
@@ -95,6 +109,11 @@ export function TrainerDiscoverClientsClient(props: Props) {
 
   return (
     <div className="space-y-8">
+      {matchBatchNote ? (
+        <p className="rounded-2xl border border-white/[0.1] bg-white/[0.04] px-4 py-3 text-xs leading-relaxed text-white/55">
+          {matchBatchNote}
+        </p>
+      ) : null}
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
         <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-white/40">Match strictness</h2>
         <p className="mx-auto mt-3 max-w-xl text-center text-sm text-white/50">
@@ -141,7 +160,7 @@ export function TrainerDiscoverClientsClient(props: Props) {
         ) : (
           <p className="mt-2 text-amber-100/85">
             You can send up to <span className="font-semibold text-white">3 discovery nudges per day</span> on the free
-            tier. Need more than 3 nudges per day?{" "}
+            tier (separate from the 10-client match batch every 12 hours). Need more than 3 nudges per day?{" "}
             <Link
               href="/trainer/dashboard/premium"
               className="font-semibold text-[#FF7E00] underline decoration-[#FF7E00]/40 underline-offset-2 transition hover:text-[#FF9A3D]"

@@ -22,6 +22,8 @@ model Client {
   zipCode         String
   dateOfBirth     String
   termsAcceptedAt DateTime
+  /// When the user accepted the posted Privacy Policy (aligned with terms at sign-up / checkout).
+  privacyPolicyAcceptedAt DateTime?
   twoFactorEnabled Boolean @default(false)
   /// Last-used delivery channel (EMAIL | SMS | VOICE | NONE); mirrors default `ClientTwoFactorChannel` for login.
   twoFactorMethod String @default("NONE")
@@ -87,6 +89,10 @@ model Client {
 
   trainerNudges   TrainerClientNudge[]
   savedTrainers   ClientSavedTrainer[]
+  /// Swipe-left on Find Trainers: excluded from swipe deck but still listed in scroll (until matched).
+  trainerBrowsePasses ClientTrainerBrowsePass[]
+  /// Trainer-initiated unmatch: hidden from this trainer’s discovery deck for 90 days.
+  trainerDiscoverPasses TrainerClientBrowsePass[]
   conversations   TrainerClientConversation[]
 
   safetySuspended   Boolean   @default(false)
@@ -114,6 +120,17 @@ model Client {
 
   serviceTransactions TrainerClientServiceTransaction[] @relation("TrainerServiceTxClient")
   trainerTokenGifts     ClientTrainerTokenGift[]
+
+  bookedSessionsClient BookedTrainingSession[] @relation("BookedSessionClient")
+  diyEngagementsClient DiyPlanEngagement[]     @relation("DiyEngagementClient")
+
+  /// Client-authored star reviews + optional testimonials for trainers they worked with.
+  clientTrainerReviews ClientTrainerReview[]
+
+  /// JSON toggles for optional public-profile fields (see `lib/optional-profile-visibility.ts`).
+  optionalProfileVisibilityJson String?
+  /// Set when the user deletes their account; row retained for FKs / safety records with PII scrubbed.
+  deidentifiedAt DateTime?
 
   @@map("clients")
 }
@@ -163,6 +180,7 @@ model PendingClientRegistration {
   zipCode         String
   dateOfBirth     String
   termsAcceptedAt DateTime
+  privacyPolicyAcceptedAt DateTime?
 
   /// PENDING_2FA | AWAITING_PAYMENT
   status              String    @default("PENDING_2FA")
@@ -210,6 +228,7 @@ model Trainer {
   socialOtherUrl     String?
 
   termsAcceptedAt DateTime
+  privacyPolicyAcceptedAt DateTime?
 
   twoFactorEnabled Boolean @default(false)
   /// Last-used delivery channel (EMAIL | SMS | VOICE | NONE).
@@ -226,12 +245,19 @@ model Trainer {
   passwordChangeOtpHash    String?
   passwordChangeOtpExpires DateTime?
 
+  optionalProfileVisibilityJson String?
+  deidentifiedAt DateTime?
+
   profile           TrainerProfile?
   twoFactorChannels TrainerTwoFactorChannel[]
 
   clientNudges    TrainerClientNudge[]
   savedByClients  ClientSavedTrainer[]
+  clientBrowsePasses ClientTrainerBrowsePass[]
+  /// Trainer passed / unmatched this client in discovery (90-day cooldown).
+  trainerDiscoverPasses TrainerClientBrowsePass[]
   conversations   TrainerClientConversation[]
+  discoverMatchBatches TrainerDiscoverMatchBatch[]
 
   fitHubPosts TrainerFitHubPost[]
 
@@ -254,6 +280,11 @@ model Trainer {
   clientServiceTransactions TrainerClientServiceTransaction[] @relation("TrainerServiceTxTrainer")
   tokenGiftsReceived        ClientTrainerTokenGift[]
 
+  bookedSessionsTrainer BookedTrainingSession[] @relation("BookedSessionTrainer")
+  diyEngagementsTrainer DiyPlanEngagement[]     @relation("DiyEngagementTrainer")
+
+  clientTrainerReviews ClientTrainerReview[]
+
   @@map("trainers")
 }
 
@@ -275,7 +306,8 @@ model TrainerClientNudge {
   @@map("trainer_client_nudges")
 }
 
-/// One generated set of 3 daily matching questions per client; renewed at most every 24h after completion.
+/// One generated set of 3 daily matching questions per client. Incomplete instances expire after 72h (archived).
+/// After completion, a 24h cooldown applies before the next questionnaire is created.
 model ClientDailyQuestionnaire {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -283,7 +315,7 @@ model ClientDailyQuestionnaire {
   clientId String
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  /// Start of the 24h window for this questionnaire instance.
+  /// Start of the window for this questionnaire instance.
   windowStartedAt DateTime
 
   /// JSON: three individualized questions (see `lib/client-daily-questionnaire.ts`).
@@ -294,7 +326,11 @@ model ClientDailyQuestionnaire {
 
   completedAt DateTime?
 
+  /// Set when an incomplete questionnaire is superseded (e.g. after 72h without submit).
+  archivedAt DateTime?
+
   @@index([clientId, windowStartedAt])
+  @@index([clientId, archivedAt, completedAt])
   @@map("client_daily_questionnaires")
 }
 
@@ -331,7 +367,11 @@ model ClientNotification {
   linkHref String?
   readAt  DateTime?
 
+  /// Set when the client archives or when the inbox auto-archives (30 days after createdAt).
+  archivedAt DateTime?
+
   @@index([clientId, createdAt])
+  @@index([clientId, archivedAt])
   @@map("client_notifications")
 }
 
@@ -497,6 +537,43 @@ model ClientSavedTrainer {
   @@map("client_saved_trainers")
 }
 
+/// Client dismissed a coach in the swipe deck (left swipe). Hidden from swipe only; scroll still lists until matched.
+model ClientTrainerBrowsePass {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  clientId  String
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  /// When the client last passed this coach; drives 90-day exclusion from the “new” deck (`createdAt` if null).
+  lastPassedAt DateTime?
+
+  @@unique([clientId, trainerId])
+  @@index([clientId])
+  @@map("client_trainer_browse_passes")
+}
+
+/// Trainer dismissed / unmatched this client in discovery (90-day exclusion, mirrors `ClientTrainerBrowsePass`).
+model TrainerClientBrowsePass {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// When the coach last passed or unmatched this client (`createdAt` if null).
+  lastPassedAt DateTime?
+
+  @@unique([trainerId, clientId])
+  @@index([trainerId])
+  @@index([clientId])
+  @@map("trainer_client_browse_passes")
+}
+
 /// Verified destinations for trainer sign-in 2FA (mirrors `ClientTwoFactorChannel`).
 model TrainerTwoFactorChannel {
   id        String   @id @default(cuid())
@@ -539,6 +616,8 @@ model TrainerProfile {
   certificationUrl String?
   /// Additional certs (PDF/image), optional.
   otherCertificationUrl String?
+  /// Optional additional cert — NOT_STARTED | PENDING | APPROVED | DENIED (does not block onboarding).
+  otherCertificationReviewStatus String @default("NOT_STARTED")
   /// CPT verification: NOT_STARTED | PENDING | APPROVED | DENIED
   certificationReviewStatus String @default("NOT_STARTED")
   /// Nutritionist / nutrition credential file (PDF/image).
@@ -549,6 +628,12 @@ model TrainerProfile {
   /// Onboarding step: which professional paths the trainer selected (drives required uploads).
   onboardingTrackCpt        Boolean @default(false)
   onboardingTrackNutrition Boolean @default(false)
+  /// Mutually exclusive with CPT for catalog: CSCS / CES / accredited group fitness (see `trainer-specialist-roles.ts`).
+  onboardingTrackSpecialist Boolean @default(false)
+  /// When specialist track is on: slug from `SPECIALIST_ROLE_IDS`.
+  specialistProfessionalRole String?
+  specialistCertificationUrl String?
+  specialistCertificationReviewStatus String @default("NOT_STARTED")
 
   /// Legacy parallel field; keep in sync with vendor status where applicable.
   backgroundCheckReviewStatus String @default("NOT_STARTED")
@@ -559,6 +644,11 @@ model TrainerProfile {
   /// Proof-of-email OTP before sending a W-9 copy to the trainer account email (hashed; cleared after use).
   w9SelfServeEmailOtpHash    String?
   w9SelfServeEmailOtpExpires DateTime?
+
+  /// When background screening last returned APPROVED (drives 12-month renewal cycle).
+  backgroundCheckClearedAt DateTime?
+  /// Set when we notify the trainer that renewal is due within ~30 days.
+  backgroundCheckExpiryWarningSentAt DateTime?
 
   /// Set when the trainer completes the skeleton background-check step; marks the compliance profile as ready for the main dashboard.
   dashboardActivatedAt DateTime?
@@ -579,6 +669,13 @@ model TrainerProfile {
   premiumStudioEnabledAt DateTime?
   /// Last time the trainer opened FitHub studio activity in Premium (unread counts vs main notification digest).
   fitHubStudioActivitySeenAt DateTime?
+  /// JSON string array of studio activity item ids marked read individually (`like-*`, `comment-*`, `repost-*`, `share-*`).
+  fitHubStudioActivityReadKeysJson String?
+
+  /// JSON: guidelines text, weekly windows, specific slots (see `lib/booking-availability.ts`).
+  bookingAvailabilityJson String?
+  /// IANA zone for interpreting availability (display + booking copy).
+  bookingTimezone String @default("America/New_York")
 
   @@map("trainer_profiles")
 }
@@ -600,12 +697,61 @@ model TrainerClientConversation {
   /// Chat is live for both sides (e.g. inquiry accepted, or trainer-initiated nudge).
   officialChatStartedAt DateTime?
 
-  messages TrainerClientChatMessage[]
+  /// When one party archived / unmatched; thread moves out of active inbox until revived or purged.
+  archivedAt        DateTime?
+  /// Auto-delete archived row after this instant (typically `archivedAt` + 90 days).
+  archiveExpiresAt  DateTime?
+  /// CLIENT | TRAINER — who chose delete/unmatch; only they may revive within the archive window.
+  unmatchInitiatedBy String?
+
+  /// Session credits from paid packages (per_session / multi_session / per_hour); DIY + monthly set unlimited flag instead.
+  sessionCreditsPurchased Int @default(0)
+  sessionCreditsUsed      Int @default(0)
+  /// When true (DIY or monthly-style purchase), booking does not consume session credits.
+  bookingUnlimitedAfterPurchase Boolean @default(false)
+
+  messages               TrainerClientChatMessage[]
+  chatAdminReviewItems   ChatAdminReviewItem[]
+  bookedTrainingSessions BookedTrainingSession[]
 
   @@unique([trainerId, clientId])
   @@index([trainerId, updatedAt])
   @@index([clientId, updatedAt])
+  @@index([archiveExpiresAt])
   @@map("trainer_client_conversations")
+}
+
+/// Client star rating (1–5) and optional testimonial for a trainer. Rows are retained when hidden or moderated for coach archive.
+model ClientTrainerReview {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  stars Int
+
+  /// Public testimonial; cleared when automated moderation removes harmful content.
+  testimonialText String?
+
+  /// When the testimonial was removed by automated policy (stars may remain).
+  testimonialModeratedAt DateTime?
+
+  /// Client removed the review from public visibility; excluded from profile averages and client-facing lists.
+  removedByClientAt DateTime?
+
+  /// Trainer requested the client remove or edit this review; only the client can delete.
+  trainerRemovalRequestedAt DateTime?
+
+  /// Idempotent: promo tokens granted for a qualifying five-star review (Premium Hub coaches).
+  fiveStarTokensGrantedAt DateTime?
+
+  @@index([trainerId, createdAt])
+  @@index([clientId, trainerId])
+  @@map("client_trainer_reviews")
 }
 
 model TrainerClientChatMessage {
@@ -623,6 +769,101 @@ model TrainerClientChatMessage {
   @@map("trainer_client_chat_messages")
 }
 
+/// Trust & safety queue: suspected off-platform payment leakage or PII in chat (see `lib/chat-leakage-detection.ts`).
+model ChatAdminReviewItem {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  conversationId String
+  conversation   TrainerClientConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  /// TRAINER | CLIENT
+  authorRole         String
+  matchedSignalsJson String
+  bodyExcerpt        String
+
+  /// PENDING | REVIEWED
+  status String @default("PENDING")
+
+  @@index([status, createdAt])
+  @@map("chat_admin_review_items")
+}
+
+/// Standard-tier trainer discovery: which client ids were served in a 12-hour UTC bucket (max 10).
+model TrainerDiscoverMatchBatch {
+  id        String   @id @default(cuid())
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  /// floor(unix_ms / (12 * 3600 * 1000))
+  bucket Int
+
+  /// JSON array of client ids (UUID strings), max length 10.
+  clientIdsJson String
+
+  @@unique([trainerId, bucket])
+  @@index([trainerId])
+  @@map("trainer_discover_match_batches")
+}
+
+/// Booked mobile/virtual session awaiting client confirmation (24h auto-complete when implemented).
+model BookedTrainingSession {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainerId String
+  trainer   Trainer @relation("BookedSessionTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client @relation("BookedSessionClient", fields: [clientId], references: [id], onDelete: Cascade)
+
+  conversationId String?
+  conversation   TrainerClientConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  scheduledStartAt       DateTime
+  scheduledEndAt         DateTime?
+  confirmationDeadlineAt DateTime
+
+  /// PENDING_CONFIRMATION | INVITED | AUTO_COMPLETED | CLIENT_DISPUTED | CLIENT_CONFIRMED | CANCELLED
+  status String @default("PENDING_CONFIRMATION")
+
+  trainerAmountCents Int @default(0)
+
+  inviteNote String?
+
+  sourceServiceTransactionId String?
+  sourceServiceTransaction   TrainerClientServiceTransaction? @relation("BookingFromServiceTx", fields: [sourceServiceTransactionId], references: [id], onDelete: SetNull)
+
+  @@index([status, confirmationDeadlineAt])
+  @@index([trainerId, clientId])
+  @@index([trainerId, scheduledStartAt])
+  @@index([conversationId])
+  @@map("booked_training_sessions")
+}
+
+/// DIY first-delivery SLA (5 business days from engagement start).
+model DiyPlanEngagement {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainerId String
+  trainer   Trainer @relation("DiyEngagementTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client @relation("DiyEngagementClient", fields: [clientId], references: [id], onDelete: Cascade)
+
+  engagementStartedAt DateTime
+  firstDeliverByAt    DateTime
+  firstDeliveredAt    DateTime?
+
+  /// PENDING_DELIVERY | DELIVERED | MISSED | REFUND_ALERT_SENT
+  status String @default("PENDING_DELIVERY")
+
+  @@index([status, firstDeliverByAt])
+  @@index([trainerId, clientId])
+  @@map("diy_plan_engagements")
+}
+
 /// A block is bidirectional for product purposes but stored from the initiator’s perspective.
 model UserBlock {
   id        String   @id @default(cuid())
@@ -635,6 +876,17 @@ model UserBlock {
 
   reasonCategory String?
   reasonDetails  String?
+
+  /// Client→trainer or mirrored on trainer→client: exclude this trainer from the client’s match browse decks.
+  hideTrainerFromClientMatchFeed Boolean @default(true)
+  /// Client→trainer or mirrored: hide this trainer’s FitHub posts from the client’s feed.
+  hideTrainerFromClientFithub Boolean @default(true)
+  /// Trainer→client: exclude this client from the trainer’s discover-clients list.
+  hideClientFromTrainerDiscover Boolean @default(true)
+  /// Trainer→trainer: viewer (blocker) does not see blocked coach’s posts in the trainer FitHub feed.
+  hideBlockedTrainerFromViewerTrainerFithub Boolean @default(false)
+  /// When true, DMs and related APIs treat the pair as non-contactable until lifted.
+  blockDirectChat Boolean @default(true)
 
   @@unique([blockerIsTrainer, blockerId, blockedIsTrainer, blockedId])
   @@index([blockedIsTrainer, blockedId])
@@ -774,7 +1026,7 @@ model TrainerTokenLedgerEntry {
   /// Signed delta applied to balance (credits positive, debits negative).
   delta Int
 
-  /// WEEKLY_GRANT | SALE_REWARD | STRIPE_PURCHASE | CLIENT_GIFT | PROMOTION_SPEND | ADMIN_ADJUST
+  /// WEEKLY_GRANT | SALE_REWARD | STRIPE_PURCHASE | CLIENT_GIFT | PROMOTION_SPEND | ADMIN_ADJUST | FIVE_STAR_REVIEW
   reason String
 
   /// Optional idempotency / linkage (e.g. Stripe session id, weekly grant key).
@@ -855,6 +1107,14 @@ model TrainerClientServiceTransaction {
 
   /// When sale-token reward was applied (idempotent).
   trainerSaleTokensGrantedAt DateTime?
+
+  serviceId     String?
+  billingUnit   String?
+  /// Credits this checkout added toward bookable sessions (0 when unlimited purchase).
+  sessionCreditsGranted        Int     @default(0)
+  bookingUnlimitedPurchase     Boolean @default(false)
+
+  bookingsFromPurchase BookedTrainingSession[] @relation("BookingFromServiceTx")
 
   @@index([clientId, trainerId, completedAt])
   @@map("trainer_client_service_transactions")

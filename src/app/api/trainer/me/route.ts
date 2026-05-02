@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { syncDevelopmentTestTrainerCertificationsForTrainer } from "@/lib/trainer-dev-test-cert-sync";
+import { backfillTrainerOnboardingTracksFromLegacyState } from "@/lib/trainer-onboarding-track-backfill";
 import { getSessionTrainerId } from "@/lib/session";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
 
 const trainerMeSelect = {
   id: true,
+  deidentifiedAt: true,
   firstName: true,
   lastName: true,
   username: true,
@@ -31,13 +33,20 @@ const trainerMeSelect = {
       hasUploadedW9: true,
       hasPaidBackgroundFee: true,
       backgroundCheckStatus: true,
+      backgroundCheckClearedAt: true,
+      backgroundCheckExpiryWarningSentAt: true,
       certificationUrl: true,
       otherCertificationUrl: true,
       nutritionistCertificationUrl: true,
       certificationReviewStatus: true,
       nutritionistCertificationReviewStatus: true,
+      specialistCertificationReviewStatus: true,
       onboardingTrackCpt: true,
       onboardingTrackNutrition: true,
+      onboardingTrackSpecialist: true,
+      specialistProfessionalRole: true,
+      specialistCertificationUrl: true,
+      otherCertificationReviewStatus: true,
       backgroundCheckReviewStatus: true,
       dashboardActivatedAt: true,
       matchQuestionnaireStatus: true,
@@ -60,7 +69,7 @@ export async function GET() {
       select: trainerMeSelect,
     });
 
-    if (!trainer) {
+    if (!trainer || trainer.deidentifiedAt) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
@@ -71,18 +80,30 @@ export async function GET() {
           backgroundCheckStatus: "NOT_STARTED",
           certificationReviewStatus: "NOT_STARTED",
           nutritionistCertificationReviewStatus: "NOT_STARTED",
+          specialistCertificationReviewStatus: "NOT_STARTED",
           backgroundCheckReviewStatus: "NOT_STARTED",
           onboardingTrackCpt: false,
           onboardingTrackNutrition: false,
+          onboardingTrackSpecialist: false,
+          otherCertificationReviewStatus: "NOT_STARTED",
         },
       });
       trainer = await prisma.trainer.findUnique({
         where: { id: trainerId },
         select: trainerMeSelect,
       });
-      if (!trainer) {
+      if (!trainer || trainer.deidentifiedAt) {
         return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
       }
+    }
+
+    await backfillTrainerOnboardingTracksFromLegacyState(trainerId);
+    trainer = await prisma.trainer.findUnique({
+      where: { id: trainerId },
+      select: trainerMeSelect,
+    });
+    if (!trainer || trainer.deidentifiedAt) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
     const synced = await syncDevelopmentTestTrainerCertificationsForTrainer({
@@ -96,7 +117,7 @@ export async function GET() {
         where: { id: trainerId },
         select: trainerMeSelect,
       });
-      if (!trainer) {
+      if (!trainer || trainer.deidentifiedAt) {
         return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
       }
     }

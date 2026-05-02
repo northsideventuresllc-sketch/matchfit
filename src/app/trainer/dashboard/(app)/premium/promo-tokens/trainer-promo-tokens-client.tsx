@@ -242,7 +242,11 @@ export function TrainerPromoTokensClient() {
       <div className="rounded-3xl border border-[#FF7E00]/25 bg-[linear-gradient(180deg,rgba(255,126,0,0.12)_0%,rgba(18,21,28,0.92)_2.5rem)] p-5 shadow-[0_20px_60px_-40px_rgba(255,126,0,0.45)] sm:p-6">
         <div className="mb-4 text-center">
           <p className="text-sm font-black uppercase tracking-[0.3em] text-[#FF7E00] sm:text-base">Buy token packs</p>
-          <p className="mt-1 text-[11px] text-white/45">One checkout per pack. Tokens credit after Stripe confirms payment.</p>
+          <p className="mt-1 text-[11px] text-white/45">
+            One checkout per pack. Tokens credit after Stripe confirms payment. Checkout adds a separate{" "}
+            <strong className="text-white/70">20% non-refundable administrative fee</strong> plus Stripe processing on top of
+            the pack price (Terms §3).
+          </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
           {(tiers.length
@@ -259,6 +263,7 @@ export function TrainerPromoTokensClient() {
             >
               <p className="text-[10px] font-black uppercase tracking-[0.15em] text-white/40">{t.label}</p>
               <p className="mt-2 text-2xl font-black text-white">${t.priceUsd.toFixed(2)}</p>
+              <p className="mt-0.5 text-[10px] leading-snug text-white/40">Pack subtotal before admin + processing.</p>
               <p className="mt-1 text-sm font-bold text-[#FFD34E]">{t.tokens} tokens</p>
               <button
                 type="button"

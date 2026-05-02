@@ -1,3 +1,5 @@
+import { queueChatAdminReview } from "@/lib/chat-admin-review-queue";
+import { scanChatTextForLeakageSignals } from "@/lib/chat-leakage-detection";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
@@ -32,10 +34,13 @@ export async function POST(req: Request) {
             hasSignedTOS: true,
             hasUploadedW9: true,
             backgroundCheckStatus: true,
+            backgroundCheckClearedAt: true,
             onboardingTrackCpt: true,
             onboardingTrackNutrition: true,
+            onboardingTrackSpecialist: true,
             certificationReviewStatus: true,
             nutritionistCertificationReviewStatus: true,
+            specialistCertificationReviewStatus: true,
           },
         },
       },
@@ -85,6 +90,20 @@ export async function POST(req: Request) {
       );
     }
 
+    const existingConv = await prisma.trainerClientConversation.findUnique({
+      where: { trainerId_clientId: { trainerId: trainer.id, clientId: client.id } },
+      select: { archivedAt: true },
+    });
+    if (existingConv?.archivedAt) {
+      return NextResponse.json(
+        {
+          error:
+            "This thread is archived. The client must revive the chat (if they ended it) or wait until the archive expires before a new nudge can reopen messaging.",
+        },
+        { status: 403 },
+      );
+    }
+
     const coachName =
       trainer.preferredName?.trim() ||
       [trainer.firstName, trainer.lastName].filter(Boolean).join(" ").trim() ||
@@ -122,6 +141,22 @@ export async function POST(req: Request) {
         },
       }),
     ]);
+
+    if (message) {
+      const conv = await prisma.trainerClientConversation.findUnique({
+        where: { trainerId_clientId: { trainerId: trainer.id, clientId: client.id } },
+        select: { id: true },
+      });
+      const leak = scanChatTextForLeakageSignals(message);
+      if (conv && leak.flagged) {
+        await queueChatAdminReview({
+          conversationId: conv.id,
+          authorRole: "TRAINER",
+          signals: leak.signals,
+          body: message,
+        });
+      }
+    }
 
     if (isPremium) {
       return NextResponse.json({
