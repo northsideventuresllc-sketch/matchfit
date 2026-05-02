@@ -15,6 +15,7 @@ import {
 import { StayLoggedInPanel } from "./stay-logged-in-panel";
 import { TwoFactorPanel, type TwoFactorChannelDTO, type TwoFactorPanelRef } from "./two-factor-panel";
 import { ClientPrivacySettingsSection } from "@/components/client/client-privacy-settings-section";
+import { PhoneBridgeConsentPanel } from "@/components/shared/phone-bridge-consent-panel";
 
 type Props = {
   initialProfile: ClientSettingsProfile;
@@ -247,6 +248,14 @@ export function ClientSettingsPageClient(props: Props) {
             onDirtyChange={setTwoFaLeaveDirty}
             onFooterBlockedChange={setTwoFaFooterBlocked}
           />
+        </CollapsibleSettingsSection>
+
+        <CollapsibleSettingsSection
+          title="Masked calls & phone privacy"
+          description="Control whether Match Fit may place masked voice calls using the phone number on your profile."
+          defaultOpen={false}
+        >
+          <PhoneBridgeConsentPanel settingsApi="/api/client/settings/phone-bridge" />
         </CollapsibleSettingsSection>
 
         <ClientPrivacySettingsSection />

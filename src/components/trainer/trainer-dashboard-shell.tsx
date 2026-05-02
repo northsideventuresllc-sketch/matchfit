@@ -37,6 +37,11 @@ const NAV = [
     match: (p: string) => p.startsWith("/trainer/dashboard/bookings"),
   },
   {
+    href: "/trainer/dashboard/video-meetings",
+    label: "Video",
+    match: (p: string) => p.startsWith("/trainer/dashboard/video-meetings"),
+  },
+  {
     href: "/trainer/dashboard/reviews",
     label: "Reviews",
     match: (p: string) => p.startsWith("/trainer/dashboard/reviews"),

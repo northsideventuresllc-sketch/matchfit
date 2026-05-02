@@ -18,7 +18,23 @@ type TokenTip = {
   hasQualifyingService: boolean;
 };
 
-type PendingBooking = { id: string; startsAt: string; endsAt: string | null; inviteNote: string | null };
+type PhoneCallInfo = {
+  ready: boolean;
+  paid: boolean;
+  twilioConfigured: boolean;
+  clientOptIn: boolean;
+  trainerOptIn: boolean;
+};
+
+type PendingBooking = {
+  id: string;
+  status: string;
+  startsAt: string;
+  endsAt: string | null;
+  inviteNote: string | null;
+  videoConferenceJoinUrl: string | null;
+  videoConferenceProvider: string | null;
+};
 type BookingSnapshot = {
   sessionCreditsPurchased: number;
   sessionCreditsUsed: number;
@@ -46,6 +62,7 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
   const [archiveBusy, setArchiveBusy] = useState(false);
   const [blockMode, setBlockMode] = useState<SafetyBlockMode>("full");
   const [voiceCallEnabled, setVoiceCallEnabled] = useState(false);
+  const [phoneCall, setPhoneCall] = useState<PhoneCallInfo | null>(null);
   const [bookingSnapshot, setBookingSnapshot] = useState<BookingSnapshot | null>(null);
   const [pendingBookings, setPendingBookings] = useState<PendingBooking[]>([]);
   const [callBusy, setCallBusy] = useState(false);
@@ -64,6 +81,7 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
         archiveExpiresAt?: string | null;
         unmatchInitiatedBy?: string | null;
         voiceCallEnabled?: boolean;
+        phoneCall?: PhoneCallInfo;
         bookingSnapshot?: BookingSnapshot | null;
         pendingBookings?: PendingBooking[];
         error?: string;
@@ -85,6 +103,7 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
         setGiftAmount(next);
       }
       setVoiceCallEnabled(Boolean(data.voiceCallEnabled));
+      setPhoneCall(data.phoneCall ?? null);
       setBookingSnapshot(data.bookingSnapshot ?? null);
       setPendingBookings(data.pendingBookings ?? []);
     } catch {

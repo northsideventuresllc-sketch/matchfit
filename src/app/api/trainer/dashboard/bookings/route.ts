@@ -33,6 +33,8 @@ export async function GET(req: Request) {
         scheduledStartAt: true,
         scheduledEndAt: true,
         inviteNote: true,
+        videoConferenceJoinUrl: true,
+        videoConferenceProvider: true,
         client: { select: { username: true, preferredName: true, firstName: true, lastName: true } },
       },
     });
@@ -44,6 +46,8 @@ export async function GET(req: Request) {
         startsAt: r.scheduledStartAt.toISOString(),
         endsAt: r.scheduledEndAt?.toISOString() ?? null,
         inviteNote: r.inviteNote,
+        videoConferenceJoinUrl: r.videoConferenceJoinUrl,
+        videoConferenceProvider: r.videoConferenceProvider,
         clientUsername: r.client.username,
         clientLabel:
           r.client.preferredName?.trim() ||

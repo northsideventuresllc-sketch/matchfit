@@ -122,6 +122,11 @@ export async function GET(_req: Request, ctx: RouteContext) {
     const voiceCallEnabled = phoneCall.ready;
     const bookingSnapshot = conv ? await getConversationBookingSnapshot(trainerId, client.id) : null;
     const horizon = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    const videoOAuthProviders = await prisma.trainerVideoConferenceConnection.findMany({
+      where: { trainerId, revokedAt: null },
+      select: { provider: true },
+    });
+
     const pendingBookings =
       conv && !archive.archived
         ? await prisma.bookedTrainingSession.findMany({
@@ -181,6 +186,7 @@ export async function GET(_req: Request, ctx: RouteContext) {
         createdAt: p.createdAt.toISOString(),
       })),
       checkoutHint,
+      videoOAuthProviders: videoOAuthProviders.map((v) => v.provider),
       messages:
         conv?.messages.map((m) => ({
           id: m.id,

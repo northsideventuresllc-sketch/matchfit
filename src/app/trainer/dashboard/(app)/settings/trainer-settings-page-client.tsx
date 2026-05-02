@@ -16,6 +16,7 @@ import {
   type TrainerSettingsProfile,
 } from "./trainer-profile-settings-panel";
 import { TrainerPrivacySettingsSection } from "@/components/trainer/trainer-privacy-settings-section";
+import { PhoneBridgeConsentPanel } from "@/components/shared/phone-bridge-consent-panel";
 
 const TRAINER_SETTINGS_API = "/api/trainer/settings";
 
@@ -220,6 +221,14 @@ export function TrainerSettingsPageClient(props: Props) {
             settingsApiBase={TRAINER_SETTINGS_API}
             dashboardLinkHref="/trainer/dashboard"
           />
+        </CollapsibleSettingsSection>
+
+        <CollapsibleSettingsSection
+          title="Masked calls & phone privacy"
+          description="Control whether Match Fit may place masked voice calls using the phone number on your profile."
+          defaultOpen={false}
+        >
+          <PhoneBridgeConsentPanel settingsApi="/api/trainer/settings/phone-bridge" />
         </CollapsibleSettingsSection>
 
         <TrainerPrivacySettingsSection />
