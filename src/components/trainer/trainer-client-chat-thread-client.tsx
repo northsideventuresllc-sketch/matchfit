@@ -32,7 +32,23 @@ type ShareablePost = {
   createdAt: string;
 };
 
-type PendingBooking = { id: string; startsAt: string; endsAt: string | null; inviteNote: string | null };
+type PhoneCallInfo = {
+  ready: boolean;
+  paid: boolean;
+  twilioConfigured: boolean;
+  clientOptIn: boolean;
+  trainerOptIn: boolean;
+};
+
+type PendingBooking = {
+  id: string;
+  status: string;
+  startsAt: string;
+  endsAt: string | null;
+  inviteNote: string | null;
+  videoConferenceJoinUrl: string | null;
+  videoConferenceProvider: string | null;
+};
 type BookingSnapshot = {
   sessionCreditsPurchased: number;
   sessionCreditsUsed: number;
@@ -68,9 +84,14 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
   const [archiveBusy, setArchiveBusy] = useState(false);
   const [blockMode, setBlockMode] = useState<SafetyBlockMode>("full");
   const [voiceCallEnabled, setVoiceCallEnabled] = useState(false);
+  const [phoneCall, setPhoneCall] = useState<PhoneCallInfo | null>(null);
   const [bookingSnapshot, setBookingSnapshot] = useState<BookingSnapshot | null>(null);
   const [pendingBookings, setPendingBookings] = useState<PendingBooking[]>([]);
+  const [videoOAuthProviders, setVideoOAuthProviders] = useState<string[]>([]);
   const [callBusy, setCallBusy] = useState(false);
+  const [videoAttachId, setVideoAttachId] = useState<string | null>(null);
+  const [manualVideoUrl, setManualVideoUrl] = useState("");
+  const [videoBusy, setVideoBusy] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteStart, setInviteStart] = useState("");
   const [inviteEnd, setInviteEnd] = useState("");
@@ -95,8 +116,10 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
         archiveExpiresAt?: string | null;
         unmatchInitiatedBy?: string | null;
         voiceCallEnabled?: boolean;
+        phoneCall?: PhoneCallInfo;
         bookingSnapshot?: BookingSnapshot | null;
         pendingBookings?: PendingBooking[];
+        videoOAuthProviders?: string[];
         error?: string;
       };
       if (!res.ok) {
@@ -131,8 +154,10 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
         return prev;
       });
       setVoiceCallEnabled(Boolean(data.voiceCallEnabled));
+      setPhoneCall(data.phoneCall ?? null);
       setBookingSnapshot(data.bookingSnapshot ?? null);
       setPendingBookings(data.pendingBookings ?? []);
+      setVideoOAuthProviders(data.videoOAuthProviders ?? []);
     } catch {
       setErr("Network error.");
     } finally {
@@ -155,6 +180,54 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
       window.alert(data.message ?? "Your phone should ring shortly. Answer to connect.");
     } finally {
       setCallBusy(false);
+    }
+  }
+
+  async function saveManualVideo(bookingId: string) {
+    const url = manualVideoUrl.trim();
+    if (!url) {
+      setErr("Paste an https meeting link.");
+      return;
+    }
+    setVideoBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/trainer/dashboard/bookings/${encodeURIComponent(bookingId)}/video`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "manual", joinUrl: url }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setErr(data.error ?? "Could not save link.");
+        return;
+      }
+      setManualVideoUrl("");
+      setVideoAttachId(null);
+      void load();
+    } finally {
+      setVideoBusy(false);
+    }
+  }
+
+  async function syncVideo(bookingId: string, provider: "GOOGLE" | "ZOOM" | "MICROSOFT") {
+    setVideoBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/trainer/dashboard/bookings/${encodeURIComponent(bookingId)}/video`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sync", provider }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setErr(data.error ?? "Could not create meeting.");
+        return;
+      }
+      setVideoAttachId(null);
+      void load();
+    } finally {
+      setVideoBusy(false);
     }
   }
 

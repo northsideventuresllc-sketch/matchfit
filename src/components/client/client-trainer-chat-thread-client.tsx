@@ -545,8 +545,14 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
         ) : null}
       </div>
 
-      {official && !archived ? (
+      {official &&
+      !archived &&
+      (voiceCallEnabled ||
+        bookingSnapshot ||
+        pendingBookings.length > 0 ||
+        (phoneCall?.paid && phoneCall.twilioConfigured)) ? (
         <div className="space-y-3 rounded-xl border border-white/[0.08] bg-[#0c0d12]/95 px-3 py-3 sm:px-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">Sessions &amp; voice</p>
           {bookingSnapshot ? (
             <p className="text-[11px] text-white/55">
               <span className="font-semibold text-white/75">Booking credits: </span>
@@ -557,14 +563,15 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
           ) : null}
           {pendingBookings.length > 0 ? (
             <div className="space-y-2">
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-sky-200/85">Pending invites</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-sky-200/85">Upcoming on Match Fit</p>
               {pendingBookings.map((b) => (
                 <div
                   key={b.id}
-                  className="flex flex-col gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 sm:flex-row sm:items-start sm:justify-between"
                 >
                   <div className="min-w-0 text-xs text-white/75">
-                    <p className="font-semibold text-white/90">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/35">{b.status.replace(/_/g, " ")}</p>
+                    <p className="mt-0.5 font-semibold text-white/90">
                       {new Date(b.startsAt).toLocaleString(undefined, {
                         weekday: "short",
                         month: "short",
@@ -575,26 +582,56 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
                       {b.endsAt ? ` – ${new Date(b.endsAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}` : ""}
                     </p>
                     {b.inviteNote ? <p className="mt-1 text-[11px] text-white/50">{b.inviteNote}</p> : null}
+                    {b.videoConferenceJoinUrl ? (
+                      <a
+                        href={b.videoConferenceJoinUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-flex min-h-[2.25rem] items-center justify-center rounded-lg border border-indigo-400/35 bg-indigo-500/12 px-3 text-[10px] font-black uppercase tracking-[0.1em] text-indigo-100 transition hover:border-indigo-400/50"
+                      >
+                        Open video ({(b.videoConferenceProvider ?? "LINK").replace(/_/g, " ")})
+                      </a>
+                    ) : null}
                   </div>
-                  <div className="flex shrink-0 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void confirmBooking(b.id)}
-                      className="rounded-lg border border-emerald-400/40 bg-emerald-500/15 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-100"
-                    >
-                      Confirm
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void declineBooking(b.id)}
-                      className="rounded-lg border border-white/15 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-white/60"
-                    >
-                      Decline
-                    </button>
-                  </div>
+                  {b.status === "INVITED" ? (
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void confirmBooking(b.id)}
+                        className="rounded-lg border border-emerald-400/40 bg-emerald-500/15 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-100"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void declineBooking(b.id)}
+                        className="rounded-lg border border-white/15 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-white/60"
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>
+          ) : null}
+          {phoneCall?.paid && phoneCall.twilioConfigured && !phoneCall.ready ? (
+            <div className="rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2 text-[11px] leading-relaxed text-amber-50/90">
+              <span className="font-bold uppercase tracking-[0.08em] text-amber-200/90">Masked calls </span>
+              Both you and your coach must opt in under{" "}
+              <Link href="/client/settings" className="text-[#FF9A4A] underline-offset-2 hover:underline">
+                Account Settings → Masked calls &amp; phone privacy
+              </Link>
+              . Your real number is never shown to the coach.
+            </div>
+          ) : null}
+          {phoneCall?.paid && !phoneCall.twilioConfigured ? (
+            <p className="text-[11px] text-white/45">Masked calling is not enabled on this server yet.</p>
+          ) : null}
+          {!phoneCall?.paid && phoneCall?.twilioConfigured ? (
+            <p className="text-[11px] text-white/45">
+              Voice calls unlock after you complete at least one paid checkout with this coach on Match Fit.
+            </p>
           ) : null}
           {voiceCallEnabled ? (
             <button
@@ -603,7 +640,7 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
               onClick={() => void startMaskedCall()}
               className="w-full rounded-lg border border-sky-400/35 bg-sky-500/12 py-2 text-xs font-bold uppercase tracking-[0.08em] text-sky-100 transition hover:border-sky-400/50 disabled:opacity-40"
             >
-              {callBusy ? "Calling…" : "Call coach (masked number)"}
+              {callBusy ? "Calling…" : "Start masked call"}
             </button>
           ) : null}
         </div>
