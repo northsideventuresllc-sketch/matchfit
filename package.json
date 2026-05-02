@@ -8,8 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "db:locks": "**npx** sh scripts/show-sqlite-db-locks.sh",
+    "db:push": "prisma db push",
+    "db:locks": "sh scripts/show-sqlite-db-locks.sh",
     "test:watch": "vitest",
+    "seed:dashboard-demo": "node --env-file=.env scripts/seed-demo-client-dashboard-showcase.js",
     "postinstall": "prisma generate"
   },
   "dependencies": {
