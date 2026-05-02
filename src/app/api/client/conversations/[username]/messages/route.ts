@@ -7,9 +7,9 @@ import {
 import { getSessionClientId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { canAuthorSendChatMessage } from "@/lib/trainer-client-chat-rules";
-import { clientHasPaidTrainerOnce, getConversationBookingSnapshot } from "@/lib/trainer-client-booking-credits";
+import { getPhoneCallEligibility } from "@/lib/phone-bridge-eligibility";
+import { getConversationBookingSnapshot } from "@/lib/trainer-client-booking-credits";
 import { buildClientChatTokenTipContext } from "@/lib/trainer-promo-tokens";
-import { twilioVoiceConfigured } from "@/lib/twilio-voice-bridge";
 import { isTrainerClientChatBlocked } from "@/lib/user-block-queries";
 import { NextResponse } from "next/server";
 
@@ -86,16 +86,34 @@ export async function GET(_req: Request, ctx: RouteContext) {
       actor: "CLIENT",
     });
 
-    const paidOnce = await clientHasPaidTrainerOnce(clientId, trainer.id);
-    const voiceCallEnabled = Boolean(paidOnce && twilioVoiceConfigured() && !archive.archived);
+    const phoneCall = await getPhoneCallEligibility({
+      clientId,
+      trainerId: trainer.id,
+      archived: archive.archived,
+    });
+    const voiceCallEnabled = phoneCall.ready;
     const bookingSnapshot = conv ? await getConversationBookingSnapshot(trainer.id, clientId) : null;
+    const horizon = new Date(Date.now() - 6 * 60 * 60 * 1000);
     const pendingBookings =
       conv && !archive.archived
         ? await prisma.bookedTrainingSession.findMany({
-            where: { trainerId: trainer.id, clientId, status: "INVITED" },
+            where: {
+              trainerId: trainer.id,
+              clientId,
+              scheduledStartAt: { gte: horizon },
+              OR: [{ status: "INVITED" }, { status: "CLIENT_CONFIRMED", videoConferenceJoinUrl: { not: null } }],
+            },
             orderBy: { scheduledStartAt: "asc" },
-            take: 8,
-            select: { id: true, scheduledStartAt: true, scheduledEndAt: true, inviteNote: true },
+            take: 12,
+            select: {
+              id: true,
+              status: true,
+              scheduledStartAt: true,
+              scheduledEndAt: true,
+              inviteNote: true,
+              videoConferenceJoinUrl: true,
+              videoConferenceProvider: true,
+            },
           })
         : [];
 
@@ -108,12 +126,22 @@ export async function GET(_req: Request, ctx: RouteContext) {
       archiveExpiresAt: archive.archiveExpiresAt,
       unmatchInitiatedBy: archive.unmatchInitiatedBy,
       voiceCallEnabled,
+      phoneCall: {
+        ready: phoneCall.ready,
+        paid: phoneCall.paid,
+        twilioConfigured: phoneCall.twilioConfigured,
+        clientOptIn: phoneCall.clientOptIn,
+        trainerOptIn: phoneCall.trainerOptIn,
+      },
       bookingSnapshot,
       pendingBookings: pendingBookings.map((b) => ({
         id: b.id,
+        status: b.status,
         startsAt: b.scheduledStartAt.toISOString(),
         endsAt: b.scheduledEndAt?.toISOString() ?? null,
         inviteNote: b.inviteNote,
+        videoConferenceJoinUrl: b.videoConferenceJoinUrl,
+        videoConferenceProvider: b.videoConferenceProvider,
       })),
       tokenTip,
       messages:

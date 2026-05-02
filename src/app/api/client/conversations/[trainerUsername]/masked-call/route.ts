@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
-import { clientHasPaidTrainerOnce } from "@/lib/trainer-client-booking-credits";
+import { getPhoneCallEligibility } from "@/lib/phone-bridge-eligibility";
 import {
   normalizePhoneE164,
   publicAppBaseUrl,
@@ -41,10 +41,19 @@ export async function POST(_req: Request, ctx: Ctx) {
     if (await isTrainerClientChatBlocked(trainer.id, clientId)) {
       return NextResponse.json({ error: "Unavailable." }, { status: 403 });
     }
-    const paid = await clientHasPaidTrainerOnce(clientId, trainer.id);
-    if (!paid) {
+    const gate = await getPhoneCallEligibility({ clientId, trainerId: trainer.id, archived: false });
+    if (!gate.paid) {
       return NextResponse.json(
         { error: "Calls unlock after you complete at least one paid checkout with this coach on Match Fit." },
+        { status: 403 },
+      );
+    }
+    if (!gate.clientOptIn || !gate.trainerOptIn) {
+      return NextResponse.json(
+        {
+          error:
+            "Both you and your coach must enable Match Fit masked calls in Account Settings before voice connect can start. Your phone number is never shown to the other person.",
+        },
         { status: 403 },
       );
     }

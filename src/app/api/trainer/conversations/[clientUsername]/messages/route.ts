@@ -6,12 +6,12 @@ import {
 } from "@/lib/trainer-client-conversation-archive";
 import { getSessionTrainerId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
-import { clientHasPaidTrainerOnce, getConversationBookingSnapshot } from "@/lib/trainer-client-booking-credits";
+import { getPhoneCallEligibility } from "@/lib/phone-bridge-eligibility";
+import { getConversationBookingSnapshot } from "@/lib/trainer-client-booking-credits";
 import { canAuthorSendChatMessage } from "@/lib/trainer-client-chat-rules";
 import { computeTrainerCheckoutHint } from "@/lib/trainer-chat-checkout-hint";
 import { BILLING_UNIT_LABELS, type BillingUnit } from "@/lib/trainer-match-questionnaire";
 import { parseTrainerServiceOfferingsJson, resolvedTrainerServicePublicTitle } from "@/lib/trainer-service-offerings";
-import { twilioVoiceConfigured } from "@/lib/twilio-voice-bridge";
 import { isTrainerClientChatBlocked } from "@/lib/user-block-queries";
 import { NextResponse } from "next/server";
 
@@ -114,16 +114,34 @@ export async function GET(_req: Request, ctx: RouteContext) {
       lastClientMessageId,
     });
 
-    const paidOnce = await clientHasPaidTrainerOnce(client.id, trainerId);
-    const voiceCallEnabled = Boolean(paidOnce && twilioVoiceConfigured() && !archive.archived);
+    const phoneCall = await getPhoneCallEligibility({
+      clientId: client.id,
+      trainerId,
+      archived: archive.archived,
+    });
+    const voiceCallEnabled = phoneCall.ready;
     const bookingSnapshot = conv ? await getConversationBookingSnapshot(trainerId, client.id) : null;
+    const horizon = new Date(Date.now() - 6 * 60 * 60 * 1000);
     const pendingBookings =
       conv && !archive.archived
         ? await prisma.bookedTrainingSession.findMany({
-            where: { trainerId, clientId: client.id, status: "INVITED" },
+            where: {
+              trainerId,
+              clientId: client.id,
+              scheduledStartAt: { gte: horizon },
+              status: { in: ["INVITED", "CLIENT_CONFIRMED", "PENDING_CONFIRMATION"] },
+            },
             orderBy: { scheduledStartAt: "asc" },
-            take: 8,
-            select: { id: true, scheduledStartAt: true, scheduledEndAt: true, inviteNote: true },
+            take: 12,
+            select: {
+              id: true,
+              status: true,
+              scheduledStartAt: true,
+              scheduledEndAt: true,
+              inviteNote: true,
+              videoConferenceJoinUrl: true,
+              videoConferenceProvider: true,
+            },
           })
         : [];
 
@@ -136,12 +154,22 @@ export async function GET(_req: Request, ctx: RouteContext) {
       archiveExpiresAt: archive.archiveExpiresAt,
       unmatchInitiatedBy: archive.unmatchInitiatedBy,
       voiceCallEnabled,
+      phoneCall: {
+        ready: phoneCall.ready,
+        paid: phoneCall.paid,
+        twilioConfigured: phoneCall.twilioConfigured,
+        clientOptIn: phoneCall.clientOptIn,
+        trainerOptIn: phoneCall.trainerOptIn,
+      },
       bookingSnapshot,
       pendingBookings: pendingBookings.map((b) => ({
         id: b.id,
+        status: b.status,
         startsAt: b.scheduledStartAt.toISOString(),
         endsAt: b.scheduledEndAt?.toISOString() ?? null,
         inviteNote: b.inviteNote,
+        videoConferenceJoinUrl: b.videoConferenceJoinUrl,
+        videoConferenceProvider: b.videoConferenceProvider,
       })),
       trainerPremiumStudio: premiumStudio,
       publishedServices,
