@@ -132,6 +132,10 @@ model Client {
   /// Set when the user deletes their account; row retained for FKs / safety records with PII scrubbed.
   deidentifiedAt DateTime?
 
+  /// Opt-in: allow Match Fit to place Twilio-masked bridge calls using this account’s phone on file (never shown to the other party).
+  allowPhoneBridge         Boolean   @default(false)
+  allowPhoneBridgeConsentAt DateTime?
+
   @@map("clients")
 }
 
@@ -284,6 +288,13 @@ model Trainer {
   diyEngagementsTrainer DiyPlanEngagement[]     @relation("DiyEngagementTrainer")
 
   clientTrainerReviews ClientTrainerReview[]
+
+  /// OAuth-linked accounts used to create Meet / Zoom / Teams links for paid clients’ bookings.
+  videoConferenceConnections TrainerVideoConferenceConnection[]
+
+  /// Opt-in: allow Match Fit to place Twilio-masked bridge calls using this account’s phone on file (never shown to the other party).
+  allowPhoneBridge         Boolean   @default(false)
+  allowPhoneBridgeConsentAt DateTime?
 
   @@map("trainers")
 }
@@ -806,6 +817,34 @@ model TrainerDiscoverMatchBatch {
   @@map("trainer_discover_match_batches")
 }
 
+/// Encrypted OAuth refresh material for trainer-initiated video meetings (Zoom, Google Meet, Microsoft Teams).
+model TrainerVideoConferenceConnection {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  /// GOOGLE | ZOOM | MICROSOFT
+  provider String
+
+  /// AES-256-GCM payload (iv + ciphertext + auth tag), base64 — see `lib/field-encryption.ts`.
+  encryptedOAuthBundle String
+
+  /// Access-token expiry when known (refresh token lives inside bundle).
+  accessTokenExpiresAt DateTime?
+
+  /// Non-sensitive hint for UI (e.g. email domain or Zoom login id).
+  externalAccountHint String?
+
+  revokedAt DateTime?
+
+  @@unique([trainerId, provider])
+  @@index([trainerId])
+  @@map("trainer_video_conference_connections")
+}
+
 /// Booked mobile/virtual session awaiting client confirmation (24h auto-complete when implemented).
 model BookedTrainingSession {
   id        String   @id @default(cuid())
@@ -833,6 +872,13 @@ model BookedTrainingSession {
 
   sourceServiceTransactionId String?
   sourceServiceTransaction   TrainerClientServiceTransaction? @relation("BookingFromServiceTx", fields: [sourceServiceTransactionId], references: [id], onDelete: SetNull)
+
+  /// HTTPS join link for virtual sessions (manual paste or created via trainer’s linked Zoom / Meet / Teams).
+  videoConferenceJoinUrl     String?
+  /// MANUAL | GOOGLE_MEET | ZOOM | MICROSOFT_TEAMS
+  videoConferenceProvider    String?
+  videoConferenceExternalId  String?
+  videoConferenceSyncedAt    DateTime?
 
   @@index([status, confirmationDeadlineAt])
   @@index([trainerId, clientId])
