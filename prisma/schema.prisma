@@ -687,6 +687,8 @@ model TrainerProfile {
   bookingAvailabilityJson String?
   /// IANA zone for interpreting availability (display + booking copy).
   bookingTimezone String @default("America/New_York")
+  /// When true, paying clients may complete self-service booking from the trainer’s public profile (in addition to chat invites).
+  clientPublicSelfBookingEnabled Boolean @default(false)
 
   @@map("trainer_profiles")
 }

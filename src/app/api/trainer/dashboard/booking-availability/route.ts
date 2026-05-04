@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { defaultTrainerBookingAvailability, trainerBookingAvailabilitySchema } from "@/lib/booking-availability";
+import { normalizeUsBookingTimezone } from "@/lib/us-booking-timezones";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { NextResponse } from "next/server";
 
@@ -14,7 +15,7 @@ export async function GET() {
     }
     const profile = await prisma.trainerProfile.findUnique({
       where: { trainerId },
-      select: { bookingAvailabilityJson: true, bookingTimezone: true },
+      select: { bookingAvailabilityJson: true, bookingTimezone: true, clientPublicSelfBookingEnabled: true },
     });
     if (!profile) {
       return NextResponse.json({ error: "No profile." }, { status: 404 });
@@ -23,14 +24,17 @@ export async function GET() {
     if (profile.bookingAvailabilityJson?.trim()) {
       try {
         const parsed = trainerBookingAvailabilitySchema.safeParse(JSON.parse(profile.bookingAvailabilityJson) as unknown);
-        if (parsed.success) document = parsed.data;
+        if (parsed.success) {
+          document = { ...defaultTrainerBookingAvailability(), ...parsed.data };
+        }
       } catch {
         /* keep default */
       }
     }
     return NextResponse.json({
-      timezone: profile.bookingTimezone,
+      timezone: normalizeUsBookingTimezone(profile.bookingTimezone),
       document,
+      clientPublicSelfBookingEnabled: profile.clientPublicSelfBookingEnabled,
     });
   } catch (e) {
     console.error(e);
@@ -55,21 +59,31 @@ export async function PATCH(req: Request) {
     const json = await req.json().catch(() => null) as {
       document?: unknown;
       timezone?: string;
+      clientPublicSelfBookingEnabled?: unknown;
     } | null;
-    if (!json?.document) {
-      return NextResponse.json({ error: "document required." }, { status: 400 });
+    const hasDoc = json?.document != null;
+    const hasSelf = typeof json?.clientPublicSelfBookingEnabled === "boolean";
+    if (!hasDoc && !hasSelf) {
+      return NextResponse.json({ error: "document and/or clientPublicSelfBookingEnabled required." }, { status: 400 });
     }
-    const parsed = trainerBookingAvailabilitySchema.safeParse(json.document);
-    if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid availability document." }, { status: 400 });
+    let nextJson: string | undefined;
+    if (hasDoc) {
+      const parsed = trainerBookingAvailabilitySchema.safeParse(json.document);
+      if (!parsed.success) {
+        return NextResponse.json({ error: "Invalid availability document." }, { status: 400 });
+      }
+      nextJson = JSON.stringify(parsed.data);
     }
-    const tz = typeof json.timezone === "string" && json.timezone.trim().length > 2 ? json.timezone.trim().slice(0, 64) : undefined;
+    const tzRaw = typeof json.timezone === "string" && json.timezone.trim().length > 2 ? json.timezone.trim().slice(0, 64) : undefined;
+    const tz = tzRaw ? normalizeUsBookingTimezone(tzRaw) : undefined;
+    const selfBook = hasSelf ? (json!.clientPublicSelfBookingEnabled as boolean) : undefined;
 
     await prisma.trainerProfile.update({
       where: { trainerId },
       data: {
-        bookingAvailabilityJson: JSON.stringify(parsed.data),
-        ...(tz ? { bookingTimezone: tz } : {}),
+        ...(nextJson != null ? { bookingAvailabilityJson: nextJson } : {}),
+        ...(tz != null ? { bookingTimezone: tz } : {}),
+        ...(selfBook != null ? { clientPublicSelfBookingEnabled: selfBook } : {}),
         updatedAt: new Date(),
       },
     });

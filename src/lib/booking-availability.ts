@@ -13,12 +13,50 @@ const specificSlotSchema = z.object({
   endAt: z.string().datetime(),
 });
 
-export const trainerBookingAvailabilitySchema = z.object({
-  schemaVersion: z.literal(1),
-  guidelinesText: z.string().trim().max(2000).optional(),
-  weeklyRules: z.array(weeklyRuleSchema).max(14).optional(),
-  specificSlots: z.array(specificSlotSchema).max(80).optional(),
+const ymdSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+const unavailableDateOnceSchema = z.object({
+  /** Calendar date in the trainer’s booking timezone (YYYY-MM-DD). */
+  date: ymdSchema,
 });
+
+const unavailableWeekdayAllDaySchema = z.object({
+  /** 0 = Sunday … 6 = Saturday — repeats every week, all day unavailable. */
+  dayOfWeek: z.number().int().min(0).max(6),
+});
+
+export const trainerBookingAvailabilitySchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    guidelinesText: z.string().trim().max(2000).optional(),
+    weeklyRules: z.array(weeklyRuleSchema).max(14).optional(),
+    /** One-off extra openings (non-repeating), stored as ISO datetimes. */
+    specificSlots: z.array(specificSlotSchema).max(80).optional(),
+    /** One-off entire calendar days off (trainer-local dates). */
+    unavailableDatesOnce: z.array(unavailableDateOnceSchema).max(366).optional(),
+    /** Recurring: every week this weekday is fully blocked. */
+    unavailableWeekdaysAllDay: z.array(unavailableWeekdayAllDaySchema).max(7).optional(),
+  })
+  .superRefine((val, ctx) => {
+    const ws = val.unavailableWeekdaysAllDay ?? [];
+    const seen = new Set<number>();
+    for (const w of ws) {
+      if (seen.has(w.dayOfWeek)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["unavailableWeekdaysAllDay"], message: "Each weekday may appear once." });
+        return;
+      }
+      seen.add(w.dayOfWeek);
+    }
+    const once = val.unavailableDatesOnce ?? [];
+    const datesSeen = new Set<string>();
+    for (const o of once) {
+      if (datesSeen.has(o.date)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["unavailableDatesOnce"], message: "Duplicate blackout dates." });
+        return;
+      }
+      datesSeen.add(o.date);
+    }
+  });
 
 export type TrainerBookingAvailability = z.infer<typeof trainerBookingAvailabilitySchema>;
 
@@ -64,6 +102,21 @@ export function summarizeTrainerAvailabilityForPublic(
 
   const weekly = doc.weeklyRules ?? [];
   const slots = doc.specificSlots ?? [];
+  const offOnce = doc.unavailableDatesOnce ?? [];
+  const offWeekly = doc.unavailableWeekdaysAllDay ?? [];
+
+  if (offWeekly.length) {
+    const names = offWeekly.map((x) => DAY_NAMES[x.dayOfWeek] ?? "").filter(Boolean);
+    if (names.length) {
+      lines.push(`Not available (recurring, all day): ${names.join(", ")} (${timezoneLabel}).`);
+    }
+  }
+  if (offOnce.length) {
+    const sorted = [...offOnce].map((x) => x.date).sort();
+    const preview = sorted.slice(0, 6).join(", ");
+    const more = sorted.length > 6 ? ` +${sorted.length - 6} more` : "";
+    lines.push(`Blocked dates: ${preview}${more}.`);
+  }
 
   /** Heuristic: many unrelated one-off slots → ask client to contact coach. */
   const hyperspecific =
@@ -118,5 +171,11 @@ function slotsShareSameWeekdayPattern(slots: { startAt: string; endAt: string }[
 }
 
 export function defaultTrainerBookingAvailability(): TrainerBookingAvailability {
-  return { schemaVersion: 1, guidelinesText: "", weeklyRules: [], specificSlots: [] };
+  return {
+    schemaVersion: 1,
+    weeklyRules: [],
+    specificSlots: [],
+    unavailableDatesOnce: [],
+    unavailableWeekdaysAllDay: [],
+  };
 }

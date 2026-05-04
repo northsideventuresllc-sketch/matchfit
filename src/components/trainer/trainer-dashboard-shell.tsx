@@ -33,7 +33,7 @@ const NAV = [
   },
   {
     href: "/trainer/dashboard/bookings",
-    label: "Bookings",
+    label: "Schedule",
     match: (p: string) => p.startsWith("/trainer/dashboard/bookings"),
   },
   {

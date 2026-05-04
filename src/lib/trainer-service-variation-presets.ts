@@ -96,13 +96,13 @@ export function templateVariationsForService(serviceId: MatchServiceId): Trainer
           variationId: vid(),
           label: "4-week custom plan",
           priceUsd: 249,
-          billingUnit: "multi_session",
+          billingUnit: "per_session",
         },
         {
           variationId: vid(),
           label: "8-week custom plan",
           priceUsd: 449,
-          billingUnit: "multi_session",
+          billingUnit: "per_session",
           bundleTiers: [
             {
               tierId: tid(),

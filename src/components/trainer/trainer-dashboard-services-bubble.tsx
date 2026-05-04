@@ -57,27 +57,6 @@ function newBundleTierId(): string {
   return `t_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
-function minListAcrossVariations(rows: TrainerServiceOfferingVariation[]): number {
-  let m = Infinity;
-  for (const v of rows) {
-    m = Math.min(m, v.priceUsd);
-    for (const t of v.bundleTiers ?? []) m = Math.min(m, t.priceUsd);
-  }
-  return Number.isFinite(m) ? m : 15;
-}
-
-function scaleVariationsByFactor(rows: TrainerServiceOfferingVariation[], factor: number): TrainerServiceOfferingVariation[] {
-  const clamp = (n: number, max: number) => Math.min(max, Math.max(15, Math.round(n * 100) / 100));
-  return rows.map((row) => ({
-    ...row,
-    priceUsd: clamp(row.priceUsd * factor, 5000),
-    bundleTiers: (row.bundleTiers ?? []).map((t) => ({
-      ...t,
-      priceUsd: clamp(t.priceUsd * factor, 50_000),
-    })),
-  }));
-}
-
 type OfferingKind = "nutrition" | "personal_training";
 
 type MeResponse = {
@@ -161,7 +140,15 @@ export function TrainerDashboardServicesBubble() {
   const [offeringsDoc, setOfferingsDoc] = useState<TrainerServiceOfferingsDocument | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
 
-  const [screen, setScreen] = useState<"home" | "category" | "service" | "delivery" | "details">("home");
+  type ServiceWizardScreen =
+    | "home"
+    | "category"
+    | "service"
+    | "packageBase"
+    | "variations"
+    | "bundles"
+    | "aiReview";
+  const [screen, setScreen] = useState<ServiceWizardScreen>("home");
   const [offeringKind, setOfferingKind] = useState<OfferingKind | null>(null);
   const [serviceId, setServiceId] = useState<MatchServiceId | null>(null);
   const [delivery, setDelivery] = useState<ServiceDeliveryMode | null>(null);
@@ -188,8 +175,6 @@ export function TrainerDashboardServicesBubble() {
   );
   const [priceModalBusy, setPriceModalBusy] = useState(false);
   const priceModalCancelledRef = useRef(false);
-  /** When package options exist, last “anchor” list USD used to scale rows on main-price blur. */
-  const priceAnchorRef = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
     setLoadErr(null);
@@ -263,6 +248,12 @@ export function TrainerDashboardServicesBubble() {
     return BILLING_UNITS.filter((u) => u !== "multi_session" || matchServiceAllowsMultiSessionBilling(serviceId));
   }, [serviceId]);
 
+  /** Per-option billing: multi-session packs are modeled in the bundle step, not as a row billing unit. */
+  const variationBillingOptions = useMemo(
+    () => billingUnitOptions.filter((u) => u !== "multi_session"),
+    [billingUnitOptions],
+  );
+
   const needsSessionLength = Boolean(
     serviceId && delivery && serviceOfferingNeedsSessionLength(serviceId, delivery),
   );
@@ -299,7 +290,6 @@ export function TrainerDashboardServicesBubble() {
     setFormErr(null);
     setVariations([]);
     setPriceCheckAiEnabled(true);
-    priceAnchorRef.current = null;
   }
 
   useEffect(() => {
@@ -356,12 +346,12 @@ export function TrainerDashboardServicesBubble() {
   function onPickService(id: MatchServiceId) {
     setServiceId(id);
     setDelivery(null);
-    setScreen("delivery");
+    setScreen("packageBase");
   }
 
-  function onPickDelivery(d: ServiceDeliveryMode) {
-    setDelivery(d);
-    setScreen("details");
+  function normalizeVariationRow(v: TrainerServiceOfferingVariation): TrainerServiceOfferingVariation {
+    const bu = v.billingUnit === "multi_session" ? "per_session" : v.billingUnit;
+    return { ...v, billingUnit: bu };
   }
 
   function parsePriceUsdField(): number | null {
@@ -439,56 +429,14 @@ export function TrainerDashboardServicesBubble() {
     return line;
   }
 
-  function validateDetails(priceOverride?: number): string | null {
-    if (!offeringKind || !serviceId || !delivery) return "Complete all steps first.";
+  function validatePackageBase(): string | null {
+    if (!offeringKind || !serviceId) return "Choose a template first.";
+    if (!delivery) return "Choose how this package is delivered.";
     if (publicTitle.trim().length > TRAINER_SERVICE_PUBLIC_TITLE_MAX) {
       return `Public title must be ${TRAINER_SERVICE_PUBLIC_TITLE_MAX} characters or fewer.`;
     }
     if (description.trim().length < 20) {
       return "Add a short client-facing description (at least 20 characters).";
-    }
-    const sm = sessionMinutes.trim() === "" ? undefined : Number(sessionMinutes);
-    if (variations.length > 0) {
-      for (let i = 0; i < variations.length; i++) {
-        const v = variations[i]!;
-        if (!v.label.trim()) return `Option ${i + 1}: enter a label.`;
-        if (v.priceUsd < 15 || v.priceUsd > 5000) return `Option ${i + 1}: price must be between $15 and $5,000.`;
-        if (!matchServiceAllowsMultiSessionBilling(serviceId) && v.billingUnit === "multi_session") {
-          return `Option ${i + 1}: this template cannot bill as a multi-session package.`;
-        }
-        if (needsSessionLength && !serviceOfferingIsDiyTemplate(serviceId)) {
-          const m = v.sessionMinutes;
-          if (m == null || !Number.isFinite(m) || m < 15 || m > 240) {
-            return `Option ${i + 1}: enter session length (15–240 minutes) for this template.`;
-          }
-        }
-        const tiers = v.bundleTiers ?? [];
-        for (let j = 0; j < tiers.length; j++) {
-          const t = tiers[j]!;
-          if (!Number.isFinite(t.quantity) || t.quantity < 2 || t.quantity > 52) {
-            return `Option ${i + 1}, bundle ${j + 1}: quantity must be 2–52 sessions.`;
-          }
-          if (!Number.isFinite(t.priceUsd) || t.priceUsd < 15 || t.priceUsd > 50_000) {
-            return `Option ${i + 1}, bundle ${j + 1}: total price must be between $15 and $50,000.`;
-          }
-        }
-      }
-      const tentative = buildTentativeOfferingLine();
-      const listMin = tentative ? minListPriceUsdOnLine(tentative) : null;
-      if (listMin == null || !Number.isFinite(listMin)) return "Fix option prices before continuing.";
-      const price = priceOverride ?? listMin;
-      if (price < 15 || price > 5000) return "Lowest option price must stay between $15 and $5,000.";
-    } else {
-      const price = priceOverride ?? parsePriceUsdField();
-      if (price == null || price < 15) return "Enter a valid price in USD (minimum $15).";
-      if (price > 5000) return "Maximum list price is $5,000.";
-      if (needsSessionLength) {
-        if (sm == null || !Number.isFinite(sm) || sm < 15 || sm > 240) {
-          return "Session length is required (15–240 minutes) for virtual or in-person packages on this template.";
-        }
-      } else if (sessionMinutes.trim() !== "" && (!Number.isFinite(sm) || sm! < 15 || sm! > 240)) {
-        return "Session length should be between 15 and 240 minutes, or leave it blank.";
-      }
     }
     if (sessionFrequencyKind === "per_week") {
       const n = Number(sessionFrequencyCount.trim());
@@ -511,6 +459,66 @@ export function TrainerDashboardServicesBubble() {
       return "Enter max drive distance between 1 and 150 miles for in-person coverage.";
     }
     return null;
+  }
+
+  function validateVariationsStep(priceOverride?: number): string | null {
+    if (!serviceId || !delivery) return "Complete package details first.";
+    const sm = sessionMinutes.trim() === "" ? undefined : Number(sessionMinutes);
+    if (variations.length > 0) {
+      for (let i = 0; i < variations.length; i++) {
+        const v = variations[i]!;
+        if (!v.label.trim()) return `Option ${i + 1}: enter a label.`;
+        if (v.priceUsd < 15 || v.priceUsd > 5000) return `Option ${i + 1}: price must be between $15 and $5,000.`;
+        if (v.billingUnit === "multi_session") {
+          return `Option ${i + 1}: use “Per session / hour / month” here; multi-session packs belong in the bundle step.`;
+        }
+        if (needsSessionLength && !serviceOfferingIsDiyTemplate(serviceId)) {
+          const m = v.sessionMinutes;
+          if (m == null || !Number.isFinite(m) || m < 15 || m > 240) {
+            return `Option ${i + 1}: enter session length (15–240 minutes) for this template.`;
+          }
+        }
+      }
+      const tentative = buildTentativeOfferingLine();
+      const listMin = tentative ? minListPriceUsdOnLine(tentative) : null;
+      if (listMin == null || !Number.isFinite(listMin)) return "Fix option prices before continuing.";
+      const price = priceOverride ?? listMin;
+      if (price < 15 || price > 5000) return "Lowest option price must stay between $15 and $5,000.";
+    } else {
+      const price = priceOverride ?? parsePriceUsdField();
+      if (price == null || price < 15) return "Enter a valid price in USD (minimum $15).";
+      if (price > 5000) return "Maximum list price is $5,000.";
+      if (needsSessionLength) {
+        if (sm == null || !Number.isFinite(sm) || sm < 15 || sm > 240) {
+          return "Session length is required (15–240 minutes) for virtual or in-person packages on this template.";
+        }
+      } else if (sessionMinutes.trim() !== "" && (!Number.isFinite(sm) || sm! < 15 || sm! > 240)) {
+        return "Session length should be between 15 and 240 minutes, or leave it blank.";
+      }
+    }
+    return null;
+  }
+
+  function validateBundlesStep(): string | null {
+    if (!serviceId || !delivery) return null;
+    for (let i = 0; i < variations.length; i++) {
+      const v = variations[i]!;
+      const tiers = v.bundleTiers ?? [];
+      for (let j = 0; j < tiers.length; j++) {
+        const t = tiers[j]!;
+        if (!Number.isFinite(t.quantity) || t.quantity < 2 || t.quantity > 52) {
+          return `Option ${i + 1}, bundle ${j + 1}: quantity must be 2–52 sessions.`;
+        }
+        if (!Number.isFinite(t.priceUsd) || t.priceUsd < 15 || t.priceUsd > 50_000) {
+          return `Option ${i + 1}, bundle ${j + 1}: total price must be between $15 and $50,000.`;
+        }
+      }
+    }
+    return null;
+  }
+
+  function validateDetails(priceOverride?: number): string | null {
+    return validatePackageBase() ?? validateVariationsStep(priceOverride) ?? validateBundlesStep();
   }
 
   async function fetchPriceCheckFull(price: number): Promise<PriceCheckResult | null> {
@@ -737,13 +745,10 @@ export function TrainerDashboardServicesBubble() {
     setSessionFrequencyCustom(line.sessionFrequencyCustom ?? "");
     setDescription(line.description ?? "");
     setPublicTitle(line.publicTitle ?? "");
-    setVariations(line.variations && line.variations.length > 0 ? [...line.variations] : []);
+    setVariations(
+      line.variations && line.variations.length > 0 ? line.variations.map(normalizeVariationRow) : [],
+    );
     setPriceCheckAiEnabled(line.priceCheckAiEnabled !== false);
-    if (line.variations && line.variations.length > 0) {
-      priceAnchorRef.current = minListPriceUsdOnLine(line);
-    } else {
-      priceAnchorRef.current = line.priceUsd;
-    }
     const o = offeringsDoc ?? defaultTrainerServiceOfferingsDocument();
     setInPersonZip((o.inPersonServiceZip ?? draft.inPersonZip ?? "").trim());
     setInPersonRadiusMiles(
@@ -753,7 +758,7 @@ export function TrainerDashboardServicesBubble() {
           ? String(draft.inPersonRadiusMiles)
           : "",
     );
-    setScreen("details");
+    setScreen("packageBase");
   }
 
   async function removeServiceRow(sid: MatchServiceId) {
@@ -1008,7 +1013,7 @@ export function TrainerDashboardServicesBubble() {
       {screen === "service" && offeringKind ? (
         <div className="mx-auto mt-8 max-w-2xl space-y-4">
           <p className="text-center text-sm font-semibold text-white/85">Choose a Match Fit Template</p>
-          <p className="text-center text-xs text-white/45">You can set a custom public title on the next step.</p>
+          <p className="text-center text-xs text-white/45">You can set a custom public title in step 1 after you pick a template.</p>
           <div className="grid max-h-[min(28rem,55vh)] auto-rows-fr gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
             {serviceCatalogForKind.map((s) => (
               <button
@@ -1030,38 +1035,13 @@ export function TrainerDashboardServicesBubble() {
         </div>
       ) : null}
 
-      {screen === "delivery" && serviceId ? (
+      {screen === "packageBase" && serviceId && offeringKind ? (
         <div className="mx-auto mt-8 max-w-lg space-y-4">
-          <p className="text-center text-sm font-semibold text-white/85">How Will This Be Delivered?</p>
-          {deliveryOptions.length === 0 ? (
-            <p className="text-center text-sm text-rose-300/90">This service template is not available on Match Fit.</p>
-          ) : (
-            <div className="space-y-2">
-              {deliveryOptions.map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => onPickDelivery(opt.id)}
-                  className="w-full rounded-2xl border border-white/[0.08] bg-[#0E1016]/60 px-4 py-4 text-left transition hover:border-[#FF7E00]/45"
-                >
-                  <p className="text-sm font-bold text-white">{opt.label}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-white/50">{opt.hint}</p>
-                </button>
-              ))}
-            </div>
-          )}
-          <button type="button" onClick={() => setScreen("service")} className="w-full text-center text-xs text-white/45 hover:text-white/70">
-            BACK
-          </button>
-        </div>
-      ) : null}
-
-      {screen === "details" && serviceId && delivery && offeringKind ? (
-        <div className="mx-auto mt-8 max-w-lg space-y-4">
+          <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Step 1 of 4 · Main package details</p>
           <p className="text-center text-sm font-semibold text-white/85">
-            {editingServiceId ? "Edit Package" : "Package Details"}
+            {editingServiceId ? "Edit package — shared details" : "Main package details"}
           </p>
-            <p className="text-center text-xs text-white/45">
+          <p className="text-center text-xs text-white/45">
             <span className="font-semibold uppercase tracking-wide text-white/40">Template</span>:{" "}
             {MATCH_SERVICE_CATALOG.find((s) => s.id === serviceId)?.label}
             {editingServiceId ? (
@@ -1070,8 +1050,36 @@ export function TrainerDashboardServicesBubble() {
               </span>
             ) : null}
           </p>
+          <p className="text-center text-[11px] leading-relaxed text-white/38">
+            Delivery, title, cadence, service area, and description apply to every checkout option you add next.
+          </p>
 
           <div className="space-y-4 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4">
+            <div>
+              <p className={labelClass}>Method of delivery</p>
+              {deliveryOptions.length === 0 ? (
+                <p className="mt-2 text-sm text-rose-300/90">This service template is not available on Match Fit.</p>
+              ) : (
+                <div className="mt-2 space-y-2">
+                  {deliveryOptions.map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setDelivery(opt.id)}
+                      className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
+                        delivery === opt.id
+                          ? "border-[#FF7E00]/55 bg-[#FF7E00]/12"
+                          : "border-white/[0.08] bg-[#0E1016]/60 hover:border-[#FF7E00]/45"
+                      }`}
+                    >
+                      <p className="text-sm font-bold text-white">{opt.label}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-white/50">{opt.hint}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div>
               <label className={labelClass}>Public title (optional)</label>
               <input
@@ -1085,67 +1093,7 @@ export function TrainerDashboardServicesBubble() {
                 Shown on your profile and in the market price check. Leave blank to use the template name shown above.
               </p>
             </div>
-            <div>
-              <label className={labelClass}>Price (USD)</label>
-              <input
-                className={`${inputClass} mt-1.5`}
-                inputMode="decimal"
-                value={priceUsd}
-                onChange={(e) => setPriceUsd(sanitizeTrainerServicePriceUsdTyping(e.target.value))}
-                onBlur={() => {
-                  const n = parseTrainerServicePriceUsdInput(priceUsd);
-                  if (n != null) setPriceUsd(formatTrainerServicePriceUsd(n));
-                  if (variations.length === 0) {
-                    priceAnchorRef.current = n != null && n >= 15 ? n : null;
-                    return;
-                  }
-                  if (n == null || n < 15 || !Number.isFinite(n)) return;
-                  const prev = priceAnchorRef.current;
-                  if (prev == null || prev < 15) {
-                    priceAnchorRef.current = n;
-                    return;
-                  }
-                  const factor = n / prev;
-                  if (Math.abs(1 - factor) < 0.0005) {
-                    priceAnchorRef.current = n;
-                    return;
-                  }
-                  setVariations((rows) => scaleVariationsByFactor(rows, factor));
-                  priceAnchorRef.current = n;
-                }}
-                placeholder="0.00"
-              />
-              <p className="mt-1 text-[10px] text-white/35">Digits and one decimal only; formatted on blur (e.g. 85 → $85.00).</p>
-              {variations.length > 0 ? (
-                <p className="mt-1 text-[10px] text-amber-200/75">
-                  With package options below, the saved list price is the lowest-priced checkout row (Review uses that floor). When you change this amount and leave the field, every option and bundle total scales by the same ratio so your structure stays intact.
-                </p>
-              ) : null}
-            </div>
-            <div>
-              <label className={labelClass}>How you bill</label>
-              <select
-                className={`${inputClass} mt-1.5`}
-                value={billingUnit}
-                onChange={(e) => setBillingUnit(e.target.value as BillingUnit)}
-              >
-                {billingUnitOptions.map((u) => (
-                  <option key={u} value={u}>
-                    {BILLING_UNIT_LABELS[u]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>{needsSessionLength ? "Session length (required)" : "Session length (optional)"}</label>
-              <input
-                className={`${inputClass} mt-1.5`}
-                inputMode="numeric"
-                value={sessionMinutes}
-                onChange={(e) => setSessionMinutes(e.target.value.replace(/\D/g, ""))}
-                placeholder="Minutes (e.g. 60)"
-              />
-            </div>
+
             <div>
               <label className={labelClass}>Session frequency</label>
               <select
@@ -1191,7 +1139,7 @@ export function TrainerDashboardServicesBubble() {
                 <p className="mt-1 text-[10px] text-white/35">{sessionFrequencyCustom.trim().length}/120</p>
               </div>
             ) : null}
-            {(delivery === "in_person" || delivery === "both") && (
+            {delivery && (delivery === "in_person" || delivery === "both") ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className={labelClass}>In-person center ZIP</label>
@@ -1213,7 +1161,7 @@ export function TrainerDashboardServicesBubble() {
                   />
                 </div>
               </div>
-            )}
+            ) : null}
             <div>
               <label className={labelClass}>Client-facing description</label>
               <textarea
@@ -1225,12 +1173,104 @@ export function TrainerDashboardServicesBubble() {
               />
               <p className="mt-1 text-[10px] text-white/35">{description.trim().length}/600</p>
             </div>
+          </div>
 
-            <div className="border-t border-white/[0.08] pt-4">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setFormErr(null);
+                const err = validatePackageBase();
+                if (err) {
+                  setFormErr(err);
+                  return;
+                }
+                setScreen("variations");
+              }}
+              className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-[#FF7E00]/45 bg-[#FF7E00]/16 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/60 disabled:opacity-45"
+            >
+              Continue to options
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => (editingServiceId ? resetFlow() : setScreen("service"))}
+              className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] text-sm font-black uppercase tracking-[0.08em] text-white/80 hover:border-white/20 disabled:opacity-45"
+            >
+              {editingServiceId ? "Cancel" : "Back"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {screen === "variations" && serviceId && delivery && offeringKind ? (
+        <div className="mx-auto mt-8 max-w-lg space-y-4">
+          <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Step 2 of 4 · Prices & billing</p>
+          <p className="text-center text-sm font-semibold text-white/85">Package options & pricing</p>
+          <p className="text-center text-xs text-white/45">
+            <span className="font-semibold uppercase tracking-wide text-white/40">Template</span>:{" "}
+            {MATCH_SERVICE_CATALOG.find((s) => s.id === serviceId)?.label}
+            {editingServiceId ? (
+              <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wide text-[#FF7E00]/80">
+                Published — changes go live after you save
+              </span>
+            ) : null}
+          </p>
+          <p className="text-center text-[11px] leading-relaxed text-white/38">
+            Each row is a checkout choice with its own price and billing (per session, hour, or month). The profile “from” price is the
+            lowest row. Multi-session packs belong in step 3—bundles.
+          </p>
+
+          <div className="space-y-4 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4">
+            {variations.length === 0 ? (
+              <>
+                <div>
+                  <label className={labelClass}>Price (USD)</label>
+                  <input
+                    className={`${inputClass} mt-1.5`}
+                    inputMode="decimal"
+                    value={priceUsd}
+                    onChange={(e) => setPriceUsd(sanitizeTrainerServicePriceUsdTyping(e.target.value))}
+                    onBlur={() => {
+                      const n = parseTrainerServicePriceUsdInput(priceUsd);
+                      if (n != null) setPriceUsd(formatTrainerServicePriceUsd(n));
+                    }}
+                    placeholder="0.00"
+                  />
+                  <p className="mt-1 text-[10px] text-white/35">Digits and one decimal only; formatted on blur.</p>
+                </div>
+                <div>
+                  <label className={labelClass}>How you bill</label>
+                  <select
+                    className={`${inputClass} mt-1.5`}
+                    value={billingUnit}
+                    onChange={(e) => setBillingUnit(e.target.value as BillingUnit)}
+                  >
+                    {billingUnitOptions.map((u) => (
+                      <option key={u} value={u}>
+                        {BILLING_UNIT_LABELS[u]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>{needsSessionLength ? "Session length (required)" : "Session length (optional)"}</label>
+                  <input
+                    className={`${inputClass} mt-1.5`}
+                    inputMode="numeric"
+                    value={sessionMinutes}
+                    onChange={(e) => setSessionMinutes(e.target.value.replace(/\D/g, ""))}
+                    placeholder="Minutes (e.g. 60)"
+                  />
+                </div>
+              </>
+            ) : null}
+
+            <div className={variations.length === 0 ? "border-t border-white/[0.08] pt-4" : ""}>
               <p className={labelClass}>Package options (optional)</p>
               <p className="mt-1 text-[10px] leading-relaxed text-white/35">
-                Add rows clients pick at checkout (e.g. 45 vs 60 minutes) and optional bundle tiers. One template can list every
-                variation—no duplicate services.
+                Add rows clients pick at checkout (e.g. 45 vs 60 minutes). One template can list every variation—no duplicate services.
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <button
@@ -1238,18 +1278,8 @@ export function TrainerDashboardServicesBubble() {
                   disabled={!serviceId || busy}
                   onClick={() => {
                     if (!serviceId) return;
-                    const raw = templateVariationsForService(serviceId);
-                    const anchor = parsePriceUsdField();
-                    let next = raw;
-                    if (anchor != null && anchor >= 15) {
-                      const tmin = minListAcrossVariations(raw);
-                      if (tmin >= 15) {
-                        const factor = anchor / tmin;
-                        next = scaleVariationsByFactor(raw, factor);
-                      }
-                    }
+                    const next = templateVariationsForService(serviceId).map(normalizeVariationRow);
                     setVariations(next);
-                    priceAnchorRef.current = minListAcrossVariations(next);
                   }}
                   className="rounded-lg border border-[#FF7E00]/35 bg-[#FF7E00]/10 px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-white/90 transition hover:border-[#FF7E00]/55 disabled:opacity-40"
                 >
@@ -1261,7 +1291,6 @@ export function TrainerDashboardServicesBubble() {
                     disabled={busy}
                     onClick={() => {
                       setVariations([]);
-                      priceAnchorRef.current = null;
                     }}
                     className="rounded-lg border border-white/12 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-white/55 transition hover:border-white/25"
                   >
@@ -1279,7 +1308,7 @@ export function TrainerDashboardServicesBubble() {
                         variationId: newVariationId(),
                         label: "New option",
                         priceUsd: 85,
-                        billingUnit: matchServiceAllowsMultiSessionBilling(serviceId) ? billingUnit : "per_session",
+                        billingUnit: "per_session",
                         sessionMinutes:
                           needsSessionLength && !serviceOfferingIsDiyTemplate(serviceId) ? 60 : undefined,
                         bundleTiers: [],
@@ -1351,7 +1380,7 @@ export function TrainerDashboardServicesBubble() {
                           )
                         }
                       >
-                        {billingUnitOptions.map((u) => (
+                        {variationBillingOptions.map((u) => (
                           <option key={u} value={u}>
                             {BILLING_UNIT_LABELS[u]}
                           </option>
@@ -1379,133 +1408,222 @@ export function TrainerDashboardServicesBubble() {
                       />
                     </div>
                   ) : null}
-
-                  <div className="border-t border-white/[0.06] pt-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-white/40">Bundle tiers (optional)</p>
-                    <p className="mt-0.5 text-[10px] text-white/32">Larger session counts at a total package price (checkout shows one row per tier).</p>
-                    {(v.bundleTiers ?? []).map((t, ti) => (
-                      <div
-                        key={t.tierId}
-                        className="mt-2 grid gap-2 rounded-lg border border-white/[0.06] bg-[#0E1016]/60 p-2 sm:grid-cols-12"
-                      >
-                        <div className="sm:col-span-3">
-                          <label className="text-[9px] font-semibold uppercase text-white/35">Qty</label>
-                          <input
-                            type="number"
-                            min={2}
-                            max={52}
-                            className={`${inputClass} mt-1 py-2 text-sm`}
-                            value={t.quantity}
-                            onChange={(e) => {
-                              const n = Number(e.target.value);
-                              setVariations((prev) =>
-                                prev.map((row, i) => {
-                                  if (i !== vi) return row;
-                                  const tiers = [...(row.bundleTiers ?? [])];
-                                  const cur = tiers[ti];
-                                  if (!cur) return row;
-                                  tiers[ti] = { ...cur, quantity: Number.isFinite(n) ? Math.floor(n) : cur.quantity };
-                                  return { ...row, bundleTiers: tiers };
-                                }),
-                              );
-                            }}
-                          />
-                        </div>
-                        <div className="sm:col-span-4">
-                          <label className="text-[9px] font-semibold uppercase text-white/35">Total $</label>
-                          <input
-                            type="number"
-                            min={15}
-                            max={50000}
-                            step={1}
-                            className={`${inputClass} mt-1 py-2 text-sm`}
-                            value={t.priceUsd}
-                            onChange={(e) => {
-                              const n = Number(e.target.value);
-                              setVariations((prev) =>
-                                prev.map((row, i) => {
-                                  if (i !== vi) return row;
-                                  const tiers = [...(row.bundleTiers ?? [])];
-                                  const cur = tiers[ti];
-                                  if (!cur) return row;
-                                  tiers[ti] = { ...cur, priceUsd: Number.isFinite(n) ? n : cur.priceUsd };
-                                  return { ...row, bundleTiers: tiers };
-                                }),
-                              );
-                            }}
-                          />
-                        </div>
-                        <div className="sm:col-span-4">
-                          <label className="text-[9px] font-semibold uppercase text-white/35">Label (optional)</label>
-                          <input
-                            className={`${inputClass} mt-1 py-2 text-sm`}
-                            value={t.label ?? ""}
-                            onChange={(e) => {
-                              setVariations((prev) =>
-                                prev.map((row, i) => {
-                                  if (i !== vi) return row;
-                                  const tiers = [...(row.bundleTiers ?? [])];
-                                  const cur = tiers[ti];
-                                  if (!cur) return row;
-                                  tiers[ti] = { ...cur, label: e.target.value };
-                                  return { ...row, bundleTiers: tiers };
-                                }),
-                              );
-                            }}
-                            placeholder="4-pack"
-                            maxLength={80}
-                          />
-                        </div>
-                        <div className="flex items-end sm:col-span-1">
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => {
-                              setVariations((prev) =>
-                                prev.map((row, i) => {
-                                  if (i !== vi) return row;
-                                  return {
-                                    ...row,
-                                    bundleTiers: (row.bundleTiers ?? []).filter((bt) => bt.tierId !== t.tierId),
-                                  };
-                                }),
-                              );
-                            }}
-                            className="w-full rounded border border-white/10 py-2 text-[10px] font-bold uppercase text-white/50 hover:border-rose-400/35 hover:text-rose-200/90"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() =>
-                        setVariations((prev) =>
-                          prev.map((row, i) => {
-                            if (i !== vi) return row;
-                            const q = 4;
-                            const nextPrice = Math.max(15, Math.round(row.priceUsd * q * 0.92 * 100) / 100);
-                            const tier: TrainerServiceOfferingBundleTier = {
-                              tierId: newBundleTierId(),
-                              quantity: q,
-                              priceUsd: nextPrice,
-                              label: `${q}-pack`,
-                            };
-                            return { ...row, bundleTiers: [...(row.bundleTiers ?? []), tier] };
-                          }),
-                        )
-                      }
-                      className="mt-2 rounded-lg border border-white/12 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-white/55 hover:border-[#FF7E00]/35"
-                    >
-                      + Add bundle tier
-                    </button>
-                  </div>
                 </div>
               ))}
             </div>
           </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setFormErr(null);
+                const err = validateVariationsStep();
+                if (err) {
+                  setFormErr(err);
+                  return;
+                }
+                setScreen("bundles");
+              }}
+              className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-[#FF7E00]/45 bg-[#FF7E00]/16 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/60 disabled:opacity-45"
+            >
+              Continue
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setScreen("packageBase")}
+              className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] text-sm font-black uppercase tracking-[0.08em] text-white/80 hover:border-white/20 disabled:opacity-45"
+            >
+              Back
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {screen === "bundles" && serviceId && delivery && offeringKind ? (
+        <div className="mx-auto mt-8 max-w-lg space-y-4">
+          <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Step 3 of 4 · Bundle tiers</p>
+          <p className="text-center text-sm font-semibold text-white/85">Volume packs (optional)</p>
+          <p className="text-center text-xs text-white/45">
+            <span className="font-semibold uppercase tracking-wide text-white/40">Template</span>:{" "}
+            {MATCH_SERVICE_CATALOG.find((s) => s.id === serviceId)?.label}
+          </p>
+          <p className="text-center text-[11px] leading-relaxed text-white/38">
+            Add larger session counts at a total package price. Checkout shows one row per tier under each option.
+          </p>
+
+          {variations.length === 0 ? (
+            <p className="rounded-xl border border-white/[0.06] bg-[#0E1016]/50 p-4 text-center text-sm text-white/50">
+              You have a single-price listing—no per-option bundles. Continue to review and publish.
+            </p>
+          ) : (
+            <div className="space-y-4 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4">
+              {variations.map((v, vi) => (
+                <div key={v.variationId} className="space-y-3 rounded-xl border border-white/[0.08] bg-black/25 p-3">
+                  <p className="text-[11px] font-bold text-white/85">{v.label.trim() || `Option ${vi + 1}`}</p>
+                  <p className="text-[10px] text-white/32">Larger session counts at a total package price (optional).</p>
+                  {(v.bundleTiers ?? []).map((t, ti) => (
+                    <div
+                      key={t.tierId}
+                      className="mt-2 grid gap-2 rounded-lg border border-white/[0.06] bg-[#0E1016]/60 p-2 sm:grid-cols-12"
+                    >
+                      <div className="sm:col-span-3">
+                        <label className="text-[9px] font-semibold uppercase text-white/35">Qty</label>
+                        <input
+                          type="number"
+                          min={2}
+                          max={52}
+                          className={`${inputClass} mt-1 py-2 text-sm`}
+                          value={t.quantity}
+                          onChange={(e) => {
+                            const n = Number(e.target.value);
+                            setVariations((prev) =>
+                              prev.map((row, i) => {
+                                if (i !== vi) return row;
+                                const tiers = [...(row.bundleTiers ?? [])];
+                                const cur = tiers[ti];
+                                if (!cur) return row;
+                                tiers[ti] = { ...cur, quantity: Number.isFinite(n) ? Math.floor(n) : cur.quantity };
+                                return { ...row, bundleTiers: tiers };
+                              }),
+                            );
+                          }}
+                        />
+                      </div>
+                      <div className="sm:col-span-4">
+                        <label className="text-[9px] font-semibold uppercase text-white/35">Total $</label>
+                        <input
+                          type="number"
+                          min={15}
+                          max={50000}
+                          step={1}
+                          className={`${inputClass} mt-1 py-2 text-sm`}
+                          value={t.priceUsd}
+                          onChange={(e) => {
+                            const n = Number(e.target.value);
+                            setVariations((prev) =>
+                              prev.map((row, i) => {
+                                if (i !== vi) return row;
+                                const tiers = [...(row.bundleTiers ?? [])];
+                                const cur = tiers[ti];
+                                if (!cur) return row;
+                                tiers[ti] = { ...cur, priceUsd: Number.isFinite(n) ? n : cur.priceUsd };
+                                return { ...row, bundleTiers: tiers };
+                              }),
+                            );
+                          }}
+                        />
+                      </div>
+                      <div className="sm:col-span-4">
+                        <label className="text-[9px] font-semibold uppercase text-white/35">Label (optional)</label>
+                        <input
+                          className={`${inputClass} mt-1 py-2 text-sm`}
+                          value={t.label ?? ""}
+                          onChange={(e) => {
+                            setVariations((prev) =>
+                              prev.map((row, i) => {
+                                if (i !== vi) return row;
+                                const tiers = [...(row.bundleTiers ?? [])];
+                                const cur = tiers[ti];
+                                if (!cur) return row;
+                                tiers[ti] = { ...cur, label: e.target.value };
+                                return { ...row, bundleTiers: tiers };
+                              }),
+                            );
+                          }}
+                          placeholder="4-pack"
+                          maxLength={80}
+                        />
+                      </div>
+                      <div className="flex items-end sm:col-span-1">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => {
+                            setVariations((prev) =>
+                              prev.map((row, i) => {
+                                if (i !== vi) return row;
+                                return {
+                                  ...row,
+                                  bundleTiers: (row.bundleTiers ?? []).filter((bt) => bt.tierId !== t.tierId),
+                                };
+                              }),
+                            );
+                          }}
+                          className="w-full rounded border border-white/10 py-2 text-[10px] font-bold uppercase text-white/50 hover:border-rose-400/35 hover:text-rose-200/90"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      setVariations((prev) =>
+                        prev.map((row, i) => {
+                          if (i !== vi) return row;
+                          const q = 4;
+                          const nextPrice = Math.max(15, Math.round(row.priceUsd * q * 0.92 * 100) / 100);
+                          const tier: TrainerServiceOfferingBundleTier = {
+                            tierId: newBundleTierId(),
+                            quantity: q,
+                            priceUsd: nextPrice,
+                            label: `${q}-pack`,
+                          };
+                          return { ...row, bundleTiers: [...(row.bundleTiers ?? []), tier] };
+                        }),
+                      )
+                    }
+                    className="mt-2 rounded-lg border border-white/12 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-white/55 hover:border-[#FF7E00]/35"
+                  >
+                    + Add bundle tier
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setFormErr(null);
+                const err = validateBundlesStep();
+                if (err) {
+                  setFormErr(err);
+                  return;
+                }
+                setScreen("aiReview");
+              }}
+              className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-[#FF7E00]/45 bg-[#FF7E00]/16 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/60 disabled:opacity-45"
+            >
+              Continue
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setScreen("variations")}
+              className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] text-sm font-black uppercase tracking-[0.08em] text-white/80 hover:border-white/20 disabled:opacity-45"
+            >
+              Back
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {screen === "aiReview" && serviceId && delivery && offeringKind ? (
+        <div className="mx-auto mt-8 max-w-lg space-y-4">
+          <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Step 4 of 4 · Review & publish</p>
+          <p className="text-center text-sm font-semibold text-white/85">Market check & publish</p>
+          <p className="text-center text-xs text-white/45">
+            <span className="font-semibold uppercase tracking-wide text-white/40">Template</span>:{" "}
+            {MATCH_SERVICE_CATALOG.find((s) => s.id === serviceId)?.label}
+          </p>
 
           <label className="mt-1 flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.08] bg-[#0E1016]/40 px-3 py-3">
             <input
@@ -1529,17 +1647,46 @@ export function TrainerDashboardServicesBubble() {
               onClick={() => void openPriceCheckModal()}
               className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-[#FF7E00]/45 bg-[#FF7E00]/16 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/60 disabled:opacity-45"
             >
-              {busy ? "Working…" : "REVIEW"}
+              {busy ? "Working…" : "Review pricing"}
             </button>
             <button
               type="button"
               disabled={busy}
-              onClick={() => (editingServiceId ? resetFlow() : setScreen("delivery"))}
-              className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] text-sm font-black uppercase tracking-[0.08em] text-white/80 hover:border-white/20 disabled:opacity-45"
+              onClick={() => {
+                setFormErr(null);
+                const err = validateDetails();
+                if (err) {
+                  setFormErr(err);
+                  return;
+                }
+                const tentative = buildTentativeOfferingLine();
+                const p =
+                  variations.length > 0 && tentative ? minListPriceUsdOnLine(tentative) : parsePriceUsdField();
+                if (p != null && Number.isFinite(p)) void executePublish(p);
+              }}
+              className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.08] text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-white/25 disabled:opacity-45"
             >
-              {editingServiceId ? "CANCEL" : "BACK"}
+              Publish
             </button>
           </div>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => setScreen("bundles")}
+            className="w-full text-center text-xs font-semibold uppercase tracking-wide text-white/45 hover:text-white/70"
+          >
+            Back
+          </button>
+          {editingServiceId ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => resetFlow()}
+              className="w-full text-center text-[11px] font-semibold uppercase tracking-wide text-white/35 hover:text-white/55"
+            >
+              Cancel edit
+            </button>
+          ) : null}
         </div>
       ) : null}
 
