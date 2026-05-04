@@ -39,16 +39,6 @@ export async function POST(req: Request) {
     const { code } = parsed.data;
 
     const trainer = await prisma.trainer.findUnique({ where: { id: trainerId } });
-    if (trainer?.safetySuspended) {
-      return NextResponse.json(
-        {
-          error:
-            "Your trainer account is suspended pending a Match Fit safety review. You will regain access once the review is complete.",
-          code: "ACCOUNT_SUSPENDED",
-        },
-        { status: 403 },
-      );
-    }
     if (!trainer?.twoFactorOtpHash || !trainer.twoFactorOtpExpires) {
       return NextResponse.json(
         { error: "No active verification code. Request a new code or sign in again.", codeInvalidated: true },
@@ -93,6 +83,21 @@ export async function POST(req: Request) {
           attemptsRemaining: remaining,
         },
         { status: 400 },
+      );
+    }
+
+    const suspendedGate = await prisma.trainer.findUnique({
+      where: { id: trainerId },
+      select: { safetySuspended: true },
+    });
+    if (suspendedGate?.safetySuspended) {
+      return NextResponse.json(
+        {
+          error:
+            "Your trainer account is suspended pending a Match Fit safety review. You will regain access once the review is complete.",
+          code: "ACCOUNT_SUSPENDED",
+        },
+        { status: 403 },
       );
     }
 
