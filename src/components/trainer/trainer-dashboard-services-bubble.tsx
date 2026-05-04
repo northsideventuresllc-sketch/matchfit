@@ -57,6 +57,27 @@ function newBundleTierId(): string {
   return `t_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function minListAcrossVariations(rows: TrainerServiceOfferingVariation[]): number {
+  let m = Infinity;
+  for (const v of rows) {
+    m = Math.min(m, v.priceUsd);
+    for (const t of v.bundleTiers ?? []) m = Math.min(m, t.priceUsd);
+  }
+  return Number.isFinite(m) ? m : 15;
+}
+
+function scaleVariationsByFactor(rows: TrainerServiceOfferingVariation[], factor: number): TrainerServiceOfferingVariation[] {
+  const clamp = (n: number, max: number) => Math.min(max, Math.max(15, Math.round(n * 100) / 100));
+  return rows.map((row) => ({
+    ...row,
+    priceUsd: clamp(row.priceUsd * factor, 5000),
+    bundleTiers: (row.bundleTiers ?? []).map((t) => ({
+      ...t,
+      priceUsd: clamp(t.priceUsd * factor, 50_000),
+    })),
+  }));
+}
+
 type OfferingKind = "nutrition" | "personal_training";
 
 type MeResponse = {
@@ -167,6 +188,8 @@ export function TrainerDashboardServicesBubble() {
   );
   const [priceModalBusy, setPriceModalBusy] = useState(false);
   const priceModalCancelledRef = useRef(false);
+  /** When package options exist, last “anchor” list USD used to scale rows on main-price blur. */
+  const priceAnchorRef = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
     setLoadErr(null);
@@ -276,6 +299,7 @@ export function TrainerDashboardServicesBubble() {
     setFormErr(null);
     setVariations([]);
     setPriceCheckAiEnabled(true);
+    priceAnchorRef.current = null;
   }
 
   useEffect(() => {
@@ -715,6 +739,11 @@ export function TrainerDashboardServicesBubble() {
     setPublicTitle(line.publicTitle ?? "");
     setVariations(line.variations && line.variations.length > 0 ? [...line.variations] : []);
     setPriceCheckAiEnabled(line.priceCheckAiEnabled !== false);
+    if (line.variations && line.variations.length > 0) {
+      priceAnchorRef.current = minListPriceUsdOnLine(line);
+    } else {
+      priceAnchorRef.current = line.priceUsd;
+    }
     const o = offeringsDoc ?? defaultTrainerServiceOfferingsDocument();
     setInPersonZip((o.inPersonServiceZip ?? draft.inPersonZip ?? "").trim());
     setInPersonRadiusMiles(
@@ -1066,13 +1095,30 @@ export function TrainerDashboardServicesBubble() {
                 onBlur={() => {
                   const n = parseTrainerServicePriceUsdInput(priceUsd);
                   if (n != null) setPriceUsd(formatTrainerServicePriceUsd(n));
+                  if (variations.length === 0) {
+                    priceAnchorRef.current = n != null && n >= 15 ? n : null;
+                    return;
+                  }
+                  if (n == null || n < 15 || !Number.isFinite(n)) return;
+                  const prev = priceAnchorRef.current;
+                  if (prev == null || prev < 15) {
+                    priceAnchorRef.current = n;
+                    return;
+                  }
+                  const factor = n / prev;
+                  if (Math.abs(1 - factor) < 0.0005) {
+                    priceAnchorRef.current = n;
+                    return;
+                  }
+                  setVariations((rows) => scaleVariationsByFactor(rows, factor));
+                  priceAnchorRef.current = n;
                 }}
                 placeholder="0.00"
               />
               <p className="mt-1 text-[10px] text-white/35">Digits and one decimal only; formatted on blur (e.g. 85 → $85.00).</p>
               {variations.length > 0 ? (
                 <p className="mt-1 text-[10px] text-amber-200/75">
-                  With package options below, the saved list price is the lowest-priced checkout row (Review uses that floor).
+                  With package options below, the saved list price is the lowest-priced checkout row (Review uses that floor). When you change this amount and leave the field, every option and bundle total scales by the same ratio so your structure stays intact.
                 </p>
               ) : null}
             </div>
@@ -1192,7 +1238,18 @@ export function TrainerDashboardServicesBubble() {
                   disabled={!serviceId || busy}
                   onClick={() => {
                     if (!serviceId) return;
-                    setVariations(templateVariationsForService(serviceId));
+                    const raw = templateVariationsForService(serviceId);
+                    const anchor = parsePriceUsdField();
+                    let next = raw;
+                    if (anchor != null && anchor >= 15) {
+                      const tmin = minListAcrossVariations(raw);
+                      if (tmin >= 15) {
+                        const factor = anchor / tmin;
+                        next = scaleVariationsByFactor(raw, factor);
+                      }
+                    }
+                    setVariations(next);
+                    priceAnchorRef.current = minListAcrossVariations(next);
                   }}
                   className="rounded-lg border border-[#FF7E00]/35 bg-[#FF7E00]/10 px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-white/90 transition hover:border-[#FF7E00]/55 disabled:opacity-40"
                 >
@@ -1202,7 +1259,10 @@ export function TrainerDashboardServicesBubble() {
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => setVariations([])}
+                    onClick={() => {
+                      setVariations([]);
+                      priceAnchorRef.current = null;
+                    }}
                     className="rounded-lg border border-white/12 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-white/55 transition hover:border-white/25"
                   >
                     Clear options

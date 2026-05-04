@@ -1,4 +1,10 @@
-import { MATCH_SERVICE_CATALOG, type BillingUnit, type MatchServiceId, type ServiceDeliveryMode } from "@/lib/trainer-match-questionnaire";
+import {
+  BILLING_UNIT_LABELS,
+  MATCH_SERVICE_CATALOG,
+  type BillingUnit,
+  type MatchServiceId,
+  type ServiceDeliveryMode,
+} from "@/lib/trainer-match-questionnaire";
 import type { OfferingPriceCheckListingContext, PriceCheckResult, PriceVerdict } from "@/lib/trainer-offering-price-suggest";
 import { analyzeOfferingPriceBenchmark, roundPriceToStep } from "@/lib/trainer-offering-price-suggest";
 
@@ -37,12 +43,27 @@ export async function analyzeOfferingPriceOpenAi(
   const label = custom && custom.length > 0 ? custom : (MATCH_SERVICE_CATALOG.find((s) => s.id === input.serviceId)?.label ?? input.serviceId);
   const bench = analyzeOfferingPriceBenchmark(input);
 
+  const purchaseRows =
+    input.pricingCheckSkus?.map((s) => ({
+      billingUnit: s.billingUnit,
+      billingLabel: BILLING_UNIT_LABELS[s.billingUnit],
+      listPriceUsd: s.priceUsd,
+      bundleQuantity: s.bundleQuantity,
+      sessionMinutes: s.sessionMinutes ?? null,
+      label: s.label.slice(0, 500),
+    })) ?? null;
+
   const userPayload = {
     serviceLabel: label,
     serviceId: input.serviceId,
+    /** Legacy line-level billing when there are no package options; each checkout row still has its own billingUnit in purchaseRows. */
     billingUnit: input.billingUnit,
     delivery: input.delivery,
     coachPriceUsd: input.priceUsd,
+    coachPriceNote:
+      input.pricingCheckSkus && input.pricingCheckSkus.length > 0
+        ? "coachPriceUsd is the lowest checkout list USD (the profile “From” anchor). Each row in purchaseRows has its own billingUnit (per_session, per_hour, per_month, or multi_session). For multi_session rows, listPriceUsd is the TOTAL for bundleQuantity sessions—not a per-session price."
+        : "coachPriceUsd is the coach’s list price for this package at the billingUnit shown.",
     fullDescription: input.description.trim().slice(0, 2000),
     sessionMinutes: input.sessionMinutes ?? null,
     sessionFrequencyKind: input.sessionFrequencyKind ?? null,
@@ -51,11 +72,13 @@ export async function analyzeOfferingPriceOpenAi(
     inPersonZip: input.inPersonZip?.trim() ?? null,
     inPersonRadiusMiles: input.inPersonRadiusMiles ?? null,
     variationsJson: input.variationsJson?.trim().slice(0, 6000) ?? null,
+    pricingRowsHuman: input.pricingRowsHuman?.trim().slice(0, 8000) ?? null,
+    purchaseRows,
     internalBenchmarkLow: bench.benchmarkLowUsd,
     internalBenchmarkMid: bench.benchmarkMidUsd,
     internalBenchmarkHigh: bench.benchmarkHighUsd,
     guidance:
-      "Weigh the FULL description, session length, cadence (frequency fields), and for in-person/hybrid the max drive distance (miles from hub ZIP)—not the service template name alone. Longer sessions, wider travel, and premium positioning in copy can justify higher prices; group-style language may support lower retail. Anchor suggestedPriceUsd to internal benchmarks unless the listing clearly warrants a material adjustment.",
+      "Weigh the FULL description, session length, cadence (frequency fields), and for in-person/hybrid the max drive distance (miles from hub ZIP)—not the service template name alone. When purchaseRows or pricingRowsHuman is present, analyze EVERY checkout row: each row’s billingLabel tells whether the list price is per session, per hour, per month, or a multi-session bundle total. Do not assume all rows are per-session. Longer sessions, wider travel, and premium positioning in copy can justify higher prices; group-style language may support lower retail. Anchor suggestedPriceUsd to internal benchmarks (computed per-row for mixed packages) unless the listing clearly warrants a material adjustment.",
   };
 
   const body = {
@@ -66,7 +89,7 @@ export async function analyzeOfferingPriceOpenAi(
       {
         role: "system" as const,
         content:
-          "You help US fitness coaches price virtual and in-person packages. You receive the coach's full listing context: delivery mode, billing unit, public title, full client-facing description, session length (minutes when applicable), session cadence fields, for in-person/hybrid the hub ZIP and max drive distance in miles, and optionally `variationsJson` describing multiple published price tiers (lengths, per-session vs bundles). Compare their entered `coachPriceUsd` to typical consumer-facing retail for a package with THAT scope—including how multi-tier bundles relate to single-session options—not template-only pricing. Respond with JSON only: verdict (too_low|fair|too_high), suggestedPriceUsd (integer 15-5000; use internalBenchmarkMid as a soft anchor but adjust when description, mileage, session length, cadence, or variation structure clearly warrant it), headline (max 90 chars), detail (2-4 sentences, plain English; reference at least one concrete listing detail when relevant). Never claim you scraped live competitor sites.",
+          "You help US fitness coaches price virtual and in-person packages. You receive the coach's full listing context: delivery mode, line-level billingUnit (fallback when there are no rows), public title, full client-facing description, session length (minutes when applicable), session cadence fields, for in-person/hybrid the hub ZIP and max drive distance in miles, optional raw variationsJson, and—when the coach uses package options—pricingRowsHuman and purchaseRows: one object per actual checkout row. Each purchaseRows[].billingUnit / billingLabel is authoritative for that row (per session, per hour, per month, or multi_session). For multi_session, listPriceUsd is the TOTAL for bundleQuantity sessions. coachPriceUsd matches the cheapest row’s list price when options exist (see coachPriceNote). Compare the ENTIRE set of rows to typical US consumer retail for those billing types—not template-only and not “everything per session.” Respond with JSON only: verdict (too_low|fair|too_high), suggestedPriceUsd (integer 15-5000; align with internal benchmarks which already reflect mixed billing when purchaseRows exist), headline (max 90 chars), detail (2-5 sentences, plain English; name specific rows or billing types when helpful). Never claim you scraped live competitor sites.",
       },
       {
         role: "user" as const,

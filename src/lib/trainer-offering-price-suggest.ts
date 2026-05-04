@@ -5,6 +5,8 @@ import {
   type MatchServiceId,
   type ServiceDeliveryMode,
 } from "@/lib/trainer-match-questionnaire";
+import { formatTrainerServicePriceUsd } from "@/lib/trainer-service-price-display";
+import type { PublishedPurchaseSku } from "@/lib/trainer-service-offerings";
 
 export type PriceVerdict = "too_low" | "fair" | "too_high";
 
@@ -95,6 +97,15 @@ function deliveryPremiumFactor(delivery: ServiceDeliveryMode): number {
   return 1;
 }
 
+/** One purchasable row for mixed-billing price checks. */
+export type PricingCheckSkuRow = {
+  label: string;
+  billingUnit: BillingUnit;
+  priceUsd: number;
+  bundleQuantity: number;
+  sessionMinutes?: number;
+};
+
 /** Optional listing context so benchmarks and AI are not “template only”. */
 export type OfferingPriceCheckListingContext = {
   sessionMinutes?: number;
@@ -110,6 +121,10 @@ export type OfferingPriceCheckListingContext = {
   variationsJson?: string | null;
   /** When false, OpenAI pricing pass is skipped (benchmarks only). */
   priceCheckAiEnabled?: boolean;
+  /** Flattened checkout rows (when package options exist) for per-unit benchmarking and AI. */
+  pricingCheckSkus?: PricingCheckSkuRow[];
+  /** Human-readable checkout rows (preferred over raw JSON for models and copy). */
+  pricingRowsHuman?: string | null;
 };
 
 function travelLoadMultiplier(delivery: ServiceDeliveryMode, radiusMiles?: number): number {
@@ -170,11 +185,155 @@ function formatListingContextClauses(ctx: OfferingPriceCheckListingContext, deli
     if (z) parts.push(`in-person hub ZIP ${z}`);
     if (r != null && Number.isFinite(r)) parts.push(`max drive distance ${Math.round(r)} mi`);
   }
+  const prh = ctx.pricingRowsHuman?.trim();
+  if (prh && prh.length > 4) {
+    parts.push(`checkout rows: ${prh.slice(0, 1200)}${prh.length > 1200 ? "…" : ""}`);
+  }
   const vj = ctx.variationsJson?.trim();
-  if (vj && vj.length > 4) {
+  if ((!prh || prh.length < 5) && vj && vj.length > 4) {
     parts.push(`published options (JSON): ${vj.slice(0, 400)}${vj.length > 400 ? "…" : ""}`);
   }
   return parts;
+}
+
+/** Readable lines for OpenAI / benchmark detail when SKUs are already flattened. */
+export function formatPricingRowsHuman(skus: PublishedPurchaseSku[]): string {
+  return skus
+    .map((s, i) => {
+      const unit = BILLING_UNIT_LABELS[s.billingUnit];
+      const mins = s.sessionMinutes != null && s.sessionMinutes > 0 ? ` | ${s.sessionMinutes} min` : "";
+      if (s.billingUnit === "multi_session" && s.bundleQuantity > 1) {
+        const each = s.priceUsd / s.bundleQuantity;
+        return `${i + 1}. [${unit}] ${formatTrainerServicePriceUsd(s.priceUsd)} total for ${s.bundleQuantity} sessions (~${formatTrainerServicePriceUsd(each)} / session)${mins} — ${s.label.slice(0, 220)}`;
+      }
+      return `${i + 1}. [${unit}] ${formatTrainerServicePriceUsd(s.priceUsd)}${mins} — ${s.label.slice(0, 220)}`;
+    })
+    .join("\n");
+}
+
+function benchmarkOneSkuRow(
+  serviceId: MatchServiceId,
+  delivery: ServiceDeliveryMode,
+  description: string,
+  ctx: OfferingPriceCheckListingContext,
+  sku: PricingCheckSkuRow,
+): { verdict: PriceVerdict; low: number; mid: number; high: number; suggested: number; comparePrice: number } {
+  const qty = Math.max(1, Math.floor(sku.bundleQuantity));
+  const bandUnit: BillingUnit = sku.billingUnit === "multi_session" ? "per_session" : sku.billingUnit;
+  const band = getBenchmarkBand(serviceId, bandUnit);
+  const f = listingContextMultiplier({
+    ...ctx,
+    delivery,
+    billingUnit: sku.billingUnit,
+    sessionMinutes: sku.sessionMinutes ?? ctx.sessionMinutes,
+    description,
+  });
+  let low: number;
+  let mid: number;
+  let high: number;
+  let comparePrice: number;
+  if (sku.billingUnit === "multi_session") {
+    low = roundPriceToStep(band.low * f * qty);
+    mid = roundPriceToStep(band.mid * f * qty);
+    high = roundPriceToStep(band.high * f * qty);
+    comparePrice = sku.priceUsd;
+  } else {
+    low = roundPriceToStep(band.low * f);
+    mid = roundPriceToStep(band.mid * f);
+    high = roundPriceToStep(band.high * f);
+    comparePrice = sku.priceUsd;
+  }
+  let verdict: PriceVerdict = "fair";
+  if (comparePrice < low * 0.88) verdict = "too_low";
+  else if (comparePrice > high * 1.12) verdict = "too_high";
+  let suggested = mid;
+  if (verdict === "too_low") suggested = roundPriceToStep(Math.min(high * 0.92, Math.max(mid, comparePrice * 1.15)));
+  if (verdict === "too_high") suggested = roundPriceToStep(Math.max(low * 1.08, Math.min(mid, comparePrice * 0.92)));
+  return { verdict, low, mid, high, suggested, comparePrice };
+}
+
+function analyzeOfferingPriceBenchmarkMulti(
+  input: {
+    serviceId: MatchServiceId;
+    billingUnit: BillingUnit;
+    delivery: ServiceDeliveryMode;
+    priceUsd: number;
+    description: string;
+    publicTitle?: string;
+  } & OfferingPriceCheckListingContext,
+): PriceCheckResult {
+  const skus = input.pricingCheckSkus!;
+  const rows = skus.map((sku) => ({
+    sku,
+    ...benchmarkOneSkuRow(input.serviceId, input.delivery, input.description, input, sku),
+  }));
+  let verdict: PriceVerdict = "fair";
+  if (rows.some((r) => r.verdict === "too_low")) verdict = "too_low";
+  else if (rows.some((r) => r.verdict === "too_high")) verdict = "too_high";
+
+  let floorIdx = 0;
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i]!.sku.priceUsd < rows[floorIdx]!.sku.priceUsd) floorIdx = i;
+  }
+  const suggestedPriceUsd = rows[floorIdx]!.suggested;
+  const benchmarkLowUsd = Math.min(...rows.map((r) => r.low));
+  const benchmarkHighUsd = Math.max(...rows.map((r) => r.high));
+  const benchmarkMidUsd = roundPriceToStep((benchmarkLowUsd + benchmarkHighUsd) / 2);
+
+  const custom = input.publicTitle?.trim();
+  const label = custom && custom.length > 0 ? custom : (MATCH_SERVICE_CATALOG.find((s) => s.id === input.serviceId)?.label ?? input.serviceId);
+  const distinctUnits = new Set(skus.map((s) => s.billingUnit));
+  const mixedBilling = distinctUnits.size > 1;
+
+  const headline =
+    verdict === "too_low"
+      ? mixedBilling
+        ? "Some rows look low vs typical retail for their billing type"
+        : "This may be below typical market rates"
+      : verdict === "too_high"
+        ? mixedBilling
+          ? "Some rows look high vs typical retail for their billing type"
+          : "This may be above what clients expect for similar offers"
+        : mixedBilling
+          ? "Your mixed package rows look broadly in range"
+          : "Your price looks aligned with typical listings";
+
+  const ctxClauses = formatListingContextClauses(input, input.delivery);
+  const ctxSentence =
+    ctxClauses.length > 0
+      ? ` Your saved package details (${ctxClauses.join("; ")}) widen or narrow the template band slightly—not just the service name.`
+      : "";
+  const descSnippet = input.description.trim().slice(0, 180);
+  const descSentence =
+    descSnippet.length >= 40
+      ? ` Listing copy (“${descSnippet}${input.description.trim().length > 180 ? "…" : ""}”) still nudges the band slightly.`
+      : "";
+
+  const rowHints = rows
+    .map((r, i) => {
+      const u = BILLING_UNIT_LABELS[r.sku.billingUnit];
+      return `Row ${i + 1} (${u}, list ${formatTrainerServicePriceUsd(r.sku.priceUsd)}): ~${formatTrainerServicePriceUsd(r.low)}–${formatTrainerServicePriceUsd(r.high)} vs benchmarks`;
+    })
+    .slice(0, 6)
+    .join(" ");
+
+  const detail =
+    verdict === "too_low"
+      ? `For “${label}” with multiple published checkout rows, Match Fit compared **each row to the benchmark that matches its billing unit** (per session, per hour, per month, or multi-session pack totals—not everything as per-session). ${rowHints}${ctxSentence}${descSentence}`
+      : verdict === "too_high"
+        ? `For “${label}”, at least one checkout row sits above the typical band for how that row is billed. ${rowHints}${ctxSentence}${descSentence}`
+        : `For “${label}”, your lowest list row is about ${formatTrainerServicePriceUsd(input.priceUsd)}; benchmarks across the ${skus.length} checkout row(s) look broadly consistent${mixedBilling ? " even with mixed billing units" : ""}. ${rowHints}${ctxSentence}${descSentence}`;
+
+  return {
+    verdict,
+    suggestedPriceUsd,
+    headline,
+    detail,
+    benchmarkLowUsd,
+    benchmarkMidUsd,
+    benchmarkHighUsd,
+    source: "benchmark",
+  };
 }
 
 /**
@@ -192,6 +351,9 @@ export function analyzeOfferingPriceBenchmark(
     publicTitle?: string;
   } & OfferingPriceCheckListingContext,
 ): PriceCheckResult {
+  if (input.pricingCheckSkus && input.pricingCheckSkus.length > 0) {
+    return analyzeOfferingPriceBenchmarkMulti(input);
+  }
   const band = getBenchmarkBand(input.serviceId, input.billingUnit);
   const f = listingContextMultiplier(input);
   const low = roundPriceToStep(band.low * f);

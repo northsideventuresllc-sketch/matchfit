@@ -5,11 +5,16 @@ import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { BILLING_UNITS, MATCH_SERVICE_CATALOG, type MatchServiceId, type ServiceDeliveryMode } from "@/lib/trainer-match-questionnaire";
 import {
   analyzeOfferingPriceBenchmark,
+  formatPricingRowsHuman,
   suggestAutoPriceUsd,
   type PriceCheckResult,
 } from "@/lib/trainer-offering-price-suggest";
 import { analyzeOfferingPriceOpenAi } from "@/lib/trainer-offering-price-openai";
-import { SESSION_FREQUENCY_KINDS, trainerServiceOfferingVariationSchema } from "@/lib/trainer-service-offerings";
+import {
+  SESSION_FREQUENCY_KINDS,
+  publishedSkusForPriceCheckPayload,
+  trainerServiceOfferingVariationSchema,
+} from "@/lib/trainer-service-offerings";
 
 const bodySchema = z.object({
   serviceId: z.string().trim().min(1),
@@ -56,6 +61,32 @@ export async function POST(req: Request) {
     const variationsJson =
       body.variations && body.variations.length > 0 ? JSON.stringify(body.variations) : undefined;
 
+    const hasPackageOptions = Boolean(body.variations && body.variations.length > 0);
+    const skuPayload = {
+      serviceId,
+      delivery,
+      billingUnit: body.billingUnit,
+      priceUsd: body.priceUsd,
+      description: body.description,
+      publicTitle: body.publicTitle,
+      sessionMinutes: body.sessionMinutes,
+      variations: body.variations,
+      sessionFrequencyKind: body.sessionFrequencyKind,
+      sessionFrequencyCount: body.sessionFrequencyCount,
+      sessionFrequencyCustom: body.sessionFrequencyCustom,
+    };
+    const flatSkus = publishedSkusForPriceCheckPayload(skuPayload);
+    const pricingRowsHuman = hasPackageOptions ? formatPricingRowsHuman(flatSkus) : undefined;
+    const pricingCheckSkus = hasPackageOptions
+      ? flatSkus.map((s) => ({
+          label: s.label.slice(0, 500),
+          billingUnit: s.billingUnit,
+          priceUsd: s.priceUsd,
+          bundleQuantity: s.bundleQuantity,
+          sessionMinutes: s.sessionMinutes,
+        }))
+      : undefined;
+
     const listingExtras = {
       sessionMinutes: body.sessionMinutes,
       sessionFrequencyKind: body.sessionFrequencyKind,
@@ -65,6 +96,8 @@ export async function POST(req: Request) {
       inPersonRadiusMiles: body.inPersonRadiusMiles,
       variationsJson,
       priceCheckAiEnabled: body.priceCheckAiEnabled,
+      pricingRowsHuman,
+      pricingCheckSkus,
     };
 
     if (body.mode === "auto_only") {

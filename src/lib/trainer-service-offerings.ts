@@ -425,6 +425,46 @@ export function publishedPurchaseSkusFromLine(line: TrainerServiceOfferingLine):
   return out;
 }
 
+/** Builds checkout SKUs from a dashboard / price-check payload (single line or multi-variation). */
+export type PriceCheckPublishedSkusPayload = {
+  serviceId: MatchServiceId;
+  delivery: ServiceDeliveryMode;
+  billingUnit: BillingUnit;
+  priceUsd: number;
+  description: string;
+  publicTitle?: string;
+  sessionMinutes?: number;
+  variations?: TrainerServiceOfferingVariation[];
+  sessionFrequencyKind?: SessionFrequencyKind;
+  sessionFrequencyCount?: number;
+  sessionFrequencyCustom?: string;
+  sessionsPerWeek?: number;
+};
+
+export function publishedSkusForPriceCheckPayload(p: PriceCheckPublishedSkusPayload): PublishedPurchaseSku[] {
+  const desc = p.description.trim();
+  const line: TrainerServiceOfferingLine = {
+    serviceId: p.serviceId,
+    delivery: p.delivery,
+    billingUnit: p.billingUnit,
+    priceUsd: p.priceUsd,
+    description: desc.length > 0 ? desc : "xxxxxxxxxxxxxxxxxxxx",
+    ...(p.publicTitle?.trim() ? { publicTitle: p.publicTitle.trim() } : {}),
+    ...(p.variations && p.variations.length > 0
+      ? { variations: p.variations }
+      : p.sessionMinutes != null && Number.isFinite(p.sessionMinutes)
+        ? { sessionMinutes: Math.round(p.sessionMinutes) }
+        : {}),
+  };
+  mergeServiceOfferingFrequencyFields(line, {
+    sessionFrequencyKind: p.sessionFrequencyKind ?? "none",
+    sessionFrequencyCount: p.sessionFrequencyCount,
+    sessionFrequencyCustom: p.sessionFrequencyCustom,
+    sessionsPerWeek: p.sessionsPerWeek,
+  });
+  return publishedPurchaseSkusFromLine(line);
+}
+
 export function resolveServiceCheckoutSku(
   line: TrainerServiceOfferingLine,
   variationId: string | null | undefined,
