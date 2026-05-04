@@ -8,10 +8,21 @@ const weeklyRuleSchema = z.object({
   endMinutes: z.number().int().min(1).max(24 * 60),
 });
 
-const specificSlotSchema = z.object({
-  startAt: z.string().datetime(),
-  endAt: z.string().datetime(),
-});
+/** Accept any string `Date.parse` understands (Z, offset, or local); persisted copy is normalized to ISO Z on save. */
+const isoInstantString = z
+  .string()
+  .min(4)
+  .refine((s) => !Number.isNaN(Date.parse(s)), "Invalid datetime");
+
+const specificSlotSchema = z
+  .object({
+    startAt: isoInstantString,
+    endAt: isoInstantString,
+  })
+  .refine((x) => new Date(x.endAt).getTime() > new Date(x.startAt).getTime(), {
+    message: "Slot end must be after start",
+    path: ["endAt"],
+  });
 
 const ymdSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 

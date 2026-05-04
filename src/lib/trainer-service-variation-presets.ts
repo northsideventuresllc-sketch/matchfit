@@ -1,5 +1,13 @@
-import type { BillingUnit, MatchServiceId } from "@/lib/trainer-match-questionnaire";
-import type { TrainerServiceOfferingBundleTier, TrainerServiceOfferingVariation } from "@/lib/trainer-service-offerings";
+import type { BillingUnit, MatchServiceId, ServiceDeliveryMode } from "@/lib/trainer-match-questionnaire";
+import {
+  serviceOfferingIsDiyTemplate,
+  serviceOfferingNeedsSessionLength,
+} from "@/lib/trainer-match-questionnaire";
+import {
+  variationRequiresSessionCount,
+  type TrainerServiceOfferingBundleTier,
+  type TrainerServiceOfferingVariation,
+} from "@/lib/trainer-service-offerings";
 
 function vid(): string {
   const c = globalThis.crypto;
@@ -23,23 +31,10 @@ export function templateVariationsForService(serviceId: MatchServiceId): Trainer
   ): TrainerServiceOfferingVariation => ({
     variationId: vid(),
     label,
+    sessionCount: 1,
     sessionMinutes: minutes,
     priceUsd,
     billingUnit: billing,
-    bundleTiers: [
-      {
-        tierId: tid(),
-        quantity: 4,
-        priceUsd: Math.round(priceUsd * 4 * 0.92 * 100) / 100,
-        label: "4-pack (≈8% off)",
-      },
-      {
-        tierId: tid(),
-        quantity: 8,
-        priceUsd: Math.round(priceUsd * 8 * 0.85 * 100) / 100,
-        label: "8-pack (≈15% off)",
-      },
-    ],
   });
 
   switch (serviceId) {
@@ -66,28 +61,12 @@ export function templateVariationsForService(serviceId: MatchServiceId): Trainer
           label: "Bi-weekly accountability",
           priceUsd: 199,
           billingUnit: "per_month",
-          bundleTiers: [
-            {
-              tierId: tid(),
-              quantity: 3,
-              priceUsd: 549,
-              label: "3-month prepay",
-            },
-          ],
         },
         {
           variationId: vid(),
           label: "Weekly coaching + messaging",
           priceUsd: 349,
           billingUnit: "per_month",
-          bundleTiers: [
-            {
-              tierId: tid(),
-              quantity: 3,
-              priceUsd: 949,
-              label: "3-month prepay",
-            },
-          ],
         },
       ];
     case "online_program":
@@ -103,14 +82,6 @@ export function templateVariationsForService(serviceId: MatchServiceId): Trainer
           label: "8-week custom plan",
           priceUsd: 449,
           billingUnit: "per_session",
-          bundleTiers: [
-            {
-              tierId: tid(),
-              quantity: 2,
-              priceUsd: 799,
-              label: "Two 8-week cycles",
-            },
-          ],
         },
       ];
     default:
@@ -118,12 +89,45 @@ export function templateVariationsForService(serviceId: MatchServiceId): Trainer
         {
           variationId: vid(),
           label: "Standard package",
+          sessionCount: 1,
           sessionMinutes: 60,
           priceUsd: 85,
           billingUnit: "per_session",
         },
       ];
   }
+}
+
+const SESSION_LENGTH_ROTATION = [60, 45, 75, 90] as const;
+
+/** One checkout row seeded from list price & billing (dashboard “Add variation”). Rotates session length for timed templates. */
+export function variationRowFromBaseMetrics(args: {
+  serviceId: MatchServiceId;
+  delivery: ServiceDeliveryMode;
+  priceUsd: number;
+  billingUnit: BillingUnit;
+  /** Rows already on screen before this add. */
+  rowIndex: number;
+}): TrainerServiceOfferingVariation {
+  const bu = args.billingUnit === "multi_session" ? "per_session" : args.billingUnit;
+  const price = Math.min(5000, Math.max(15, Math.round(args.priceUsd * 100) / 100));
+  const needsLen =
+    serviceOfferingNeedsSessionLength(args.serviceId, args.delivery) && !serviceOfferingIsDiyTemplate(args.serviceId);
+  const minutes = needsLen ? SESSION_LENGTH_ROTATION[args.rowIndex % SESSION_LENGTH_ROTATION.length] : undefined;
+  const label = minutes != null ? `${minutes}-minute option` : `Option ${args.rowIndex + 1}`;
+  const row: TrainerServiceOfferingVariation = {
+    variationId: vid(),
+    label,
+    priceUsd: price,
+    billingUnit: bu,
+  };
+  if (variationRequiresSessionCount(args.serviceId, bu)) {
+    row.sessionCount = 1;
+  }
+  if (minutes != null) {
+    row.sessionMinutes = minutes;
+  }
+  return row;
 }
 
 export function emptyBundleTier(): TrainerServiceOfferingBundleTier {

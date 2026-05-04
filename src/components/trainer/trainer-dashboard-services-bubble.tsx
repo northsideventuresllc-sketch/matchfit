@@ -18,12 +18,15 @@ import {
 import { parseTrainerMatchQuestionnaireDraft } from "@/lib/trainer-match-questionnaire-draft";
 import type { PriceCheckResult } from "@/lib/trainer-offering-price-suggest";
 import {
+  computeBundleTierTotalFromDiscount,
   defaultTrainerServiceOfferingsDocument,
   effectiveSessionFrequencyKind,
   mergeServiceOfferingFrequencyFields,
   minListPriceUsdOnLine,
   resolvedTrainerServicePublicTitle,
   TRAINER_SERVICE_PUBLIC_TITLE_MAX,
+  variationEligibleForBundlePrompt,
+  variationRequiresSessionCount,
   type ServiceOfferingFrequencyDto,
   type SessionFrequencyKind,
   type TrainerServiceOfferingBundleTier,
@@ -31,7 +34,7 @@ import {
   type TrainerServiceOfferingVariation,
   type TrainerServiceOfferingsDocument,
 } from "@/lib/trainer-service-offerings";
-import { templateVariationsForService } from "@/lib/trainer-service-variation-presets";
+import { templateVariationsForService, variationRowFromBaseMetrics } from "@/lib/trainer-service-variation-presets";
 import {
   formatTrainerServicePriceUsd,
   parseTrainerServicePriceUsdInput,
@@ -145,8 +148,8 @@ export function TrainerDashboardServicesBubble() {
     | "category"
     | "service"
     | "packageBase"
-    | "variations"
-    | "bundles"
+    | "baseOfferings"
+    | "copyDetails"
     | "aiReview";
   const [screen, setScreen] = useState<ServiceWizardScreen>("home");
   const [offeringKind, setOfferingKind] = useState<OfferingKind | null>(null);
@@ -155,7 +158,6 @@ export function TrainerDashboardServicesBubble() {
 
   const [priceUsd, setPriceUsd] = useState("");
   const [billingUnit, setBillingUnit] = useState<BillingUnit>("per_session");
-  const [sessionMinutes, setSessionMinutes] = useState("");
   const [sessionFrequencyKind, setSessionFrequencyKind] = useState<SessionFrequencyKind>("none");
   const [sessionFrequencyCount, setSessionFrequencyCount] = useState("");
   const [sessionFrequencyCustom, setSessionFrequencyCustom] = useState("");
@@ -175,6 +177,8 @@ export function TrainerDashboardServicesBubble() {
   );
   const [priceModalBusy, setPriceModalBusy] = useState(false);
   const priceModalCancelledRef = useRef(false);
+  const [bulkBundlePromptOpen, setBulkBundlePromptOpen] = useState(false);
+  const bundlesDetailsRef = useRef<HTMLDetailsElement>(null);
 
   const refresh = useCallback(async () => {
     setLoadErr(null);
@@ -272,7 +276,6 @@ export function TrainerDashboardServicesBubble() {
     setEditingServiceId(null);
     setPriceUsd("");
     setBillingUnit("per_session");
-    setSessionMinutes("");
     setSessionFrequencyKind("none");
     setSessionFrequencyCount("");
     setSessionFrequencyCustom("");
@@ -290,6 +293,7 @@ export function TrainerDashboardServicesBubble() {
     setFormErr(null);
     setVariations([]);
     setPriceCheckAiEnabled(true);
+    setBulkBundlePromptOpen(false);
   }
 
   useEffect(() => {
@@ -349,9 +353,85 @@ export function TrainerDashboardServicesBubble() {
     setScreen("packageBase");
   }
 
-  function normalizeVariationRow(v: TrainerServiceOfferingVariation): TrainerServiceOfferingVariation {
+  function normalizeVariationRow(
+    v: TrainerServiceOfferingVariation,
+    effectiveServiceId: MatchServiceId | null = serviceId,
+  ): TrainerServiceOfferingVariation {
     const bu = v.billingUnit === "multi_session" ? "per_session" : v.billingUnit;
-    return { ...v, billingUnit: bu };
+    let next: TrainerServiceOfferingVariation = { ...v, billingUnit: bu };
+    if (!effectiveServiceId) return next;
+    const keepSessionCountForHourBundles =
+      next.billingUnit === "per_hour" && !serviceOfferingIsDiyTemplate(effectiveServiceId);
+    if (!variationRequiresSessionCount(effectiveServiceId, next.billingUnit) && !keepSessionCountForHourBundles) {
+      const { sessionCount: _c, ...rest } = next;
+      next = rest as TrainerServiceOfferingVariation;
+    }
+    return next;
+  }
+
+  /** Stable labels + trimmed copy for API / price math (call after step 3 for real titles). */
+  function normalizedVariationsForApi(): TrainerServiceOfferingVariation[] | undefined {
+    if (!serviceId || variations.length === 0) return undefined;
+    return variations.map((v, i) => {
+      let next = normalizeVariationRow(
+        {
+          ...v,
+          label: v.label.trim() || `Option ${i + 1}`,
+          variationDescription: v.variationDescription?.trim()
+            ? v.variationDescription.trim().slice(0, 400)
+            : undefined,
+        },
+        serviceId,
+      );
+      const tiers = next.bundleTiers;
+      if (tiers && tiers.length > 0) {
+        next = {
+          ...next,
+          bundleTiers: tiers.map((t) => ({
+            ...t,
+            label: t.label?.trim() || undefined,
+            discountPercent:
+              t.discountPercent != null && Number.isFinite(t.discountPercent)
+                ? Math.min(90, Math.max(0, Math.round(t.discountPercent)))
+                : undefined,
+          })),
+        };
+      } else {
+        const { bundleTiers: _b, ...rest } = next;
+        next = rest as TrainerServiceOfferingVariation;
+      }
+      return next;
+    });
+  }
+
+  function bundleTierPriceFromRow(v: TrainerServiceOfferingVariation, tier: TrainerServiceOfferingBundleTier): number {
+    const pct = tier.discountPercent ?? 0;
+    const baseUnits = v.billingUnit === "per_month" ? 1 : Math.max(1, v.sessionCount ?? 1);
+    return computeBundleTierTotalFromDiscount({
+      billingUnit: v.billingUnit,
+      basePriceUsd: v.priceUsd,
+      baseUnitCount: baseUnits,
+      tierQuantity: tier.quantity,
+      discountPercent: pct,
+    });
+  }
+
+  function addVariationFromBaseMetrics() {
+    if (!serviceId || !delivery) return;
+    setFormErr(null);
+    const n = parsePriceUsdField();
+    if (n == null || n < 15 || n > 5000) {
+      setFormErr("Enter a valid list price ($15–$5,000) before adding a variation.");
+      return;
+    }
+    const row = variationRowFromBaseMetrics({
+      serviceId,
+      delivery,
+      priceUsd: n,
+      billingUnit,
+      rowIndex: variations.length,
+    });
+    setVariations((prev) => [...prev, normalizeVariationRow(row, serviceId)]);
   }
 
   function parsePriceUsdField(): number | null {
@@ -364,10 +444,6 @@ export function TrainerDashboardServicesBubble() {
   function priceCheckListingPayload(): Record<string, unknown> {
     if (!delivery) return {};
     const out: Record<string, unknown> = { sessionFrequencyKind };
-    const sm = sessionMinutes.trim() === "" ? undefined : Number(sessionMinutes);
-    if (sm != null && Number.isFinite(sm) && sm >= 15 && sm <= 240) {
-      out.sessionMinutes = sm;
-    }
     if (sessionFrequencyKind === "per_week" || sessionFrequencyKind === "per_month") {
       const n = Number(sessionFrequencyCount.trim());
       if (Number.isFinite(n)) out.sessionFrequencyCount = Math.floor(n);
@@ -384,7 +460,7 @@ export function TrainerDashboardServicesBubble() {
       }
     }
     if (variations.length > 0) {
-      out.variations = variations;
+      out.variations = normalizedVariationsForApi() ?? variations;
     }
     if (!priceCheckAiEnabled) {
       out.priceCheckAiEnabled = false;
@@ -408,18 +484,18 @@ export function TrainerDashboardServicesBubble() {
 
   function buildTentativeOfferingLine(): TrainerServiceOfferingLine | null {
     if (!serviceId || !delivery) return null;
-    const sm = sessionMinutes.trim() === "" ? undefined : Number(sessionMinutes);
     const pub = publicTitle.trim();
     const desc = description.trim();
     const anchor = parsePriceUsdField();
+    const vApi = normalizedVariationsForApi();
     const line: TrainerServiceOfferingLine = {
       serviceId,
       delivery,
       billingUnit,
       priceUsd: anchor != null && anchor >= 15 && anchor <= 5000 ? anchor : 100,
       description: desc.length >= 20 ? desc : "xxxxxxxxxxxxxxxxxxxx",
-      sessionMinutes: variations.length > 0 ? undefined : sm,
-      variations: variations.length > 0 ? variations : undefined,
+      sessionMinutes: undefined,
+      variations: vApi && vApi.length > 0 ? vApi : undefined,
     };
     mergeServiceOfferingFrequencyFields(line, buildFrequencyBody());
     if (pub) line.publicTitle = pub;
@@ -434,9 +510,6 @@ export function TrainerDashboardServicesBubble() {
     if (!delivery) return "Choose how this package is delivered.";
     if (publicTitle.trim().length > TRAINER_SERVICE_PUBLIC_TITLE_MAX) {
       return `Public title must be ${TRAINER_SERVICE_PUBLIC_TITLE_MAX} characters or fewer.`;
-    }
-    if (description.trim().length < 20) {
-      return "Add a short client-facing description (at least 20 characters).";
     }
     if (sessionFrequencyKind === "per_week") {
       const n = Number(sessionFrequencyCount.trim());
@@ -461,21 +534,39 @@ export function TrainerDashboardServicesBubble() {
     return null;
   }
 
-  function validateVariationsStep(priceOverride?: number): string | null {
+  function validateCopyDetails(): string | null {
+    if (description.trim().length < 20) {
+      return "Add a client-facing description (at least 20 characters) on the copy step.";
+    }
+    for (let i = 0; i < variations.length; i++) {
+      const v = variations[i]!;
+      const vd = v.variationDescription?.trim();
+      if (vd && vd.length > 400) {
+        return `Option ${i + 1}: shorten the extra description (400 characters max).`;
+      }
+    }
+    return null;
+  }
+
+  function validateBaseOfferingsStep(priceOverride?: number): string | null {
     if (!serviceId || !delivery) return "Complete package details first.";
-    const sm = sessionMinutes.trim() === "" ? undefined : Number(sessionMinutes);
     if (variations.length > 0) {
       for (let i = 0; i < variations.length; i++) {
         const v = variations[i]!;
-        if (!v.label.trim()) return `Option ${i + 1}: enter a label.`;
         if (v.priceUsd < 15 || v.priceUsd > 5000) return `Option ${i + 1}: price must be between $15 and $5,000.`;
         if (v.billingUnit === "multi_session") {
-          return `Option ${i + 1}: use “Per session / hour / month” here; multi-session packs belong in the bundle step.`;
+          return `Option ${i + 1}: use “Per session / hour / month” on the row; larger packs go under bundle pricing.`;
+        }
+        if (variationRequiresSessionCount(serviceId, v.billingUnit)) {
+          const c = v.sessionCount;
+          if (c == null || !Number.isFinite(c) || c < 1 || c > 20) {
+            return `Option ${i + 1}: enter how many sessions this price covers (1–20).`;
+          }
         }
         if (needsSessionLength && !serviceOfferingIsDiyTemplate(serviceId)) {
           const m = v.sessionMinutes;
-          if (m == null || !Number.isFinite(m) || m < 15 || m > 240) {
-            return `Option ${i + 1}: enter session length (15–240 minutes) for this template.`;
+          if (m == null || !Number.isFinite(m) || m < 15 || m > 120) {
+            return `Option ${i + 1}: enter session length (15–120 minutes) for this template.`;
           }
         }
       }
@@ -488,12 +579,8 @@ export function TrainerDashboardServicesBubble() {
       const price = priceOverride ?? parsePriceUsdField();
       if (price == null || price < 15) return "Enter a valid price in USD (minimum $15).";
       if (price > 5000) return "Maximum list price is $5,000.";
-      if (needsSessionLength) {
-        if (sm == null || !Number.isFinite(sm) || sm < 15 || sm > 240) {
-          return "Session length is required (15–240 minutes) for virtual or in-person packages on this template.";
-        }
-      } else if (sessionMinutes.trim() !== "" && (!Number.isFinite(sm) || sm! < 15 || sm! > 240)) {
-        return "Session length should be between 15 and 240 minutes, or leave it blank.";
+      if (needsSessionLength && !serviceOfferingIsDiyTemplate(serviceId)) {
+        return "This template uses timed sessions. Add at least one package option row to set session length (15–120 minutes) with price and billing.";
       }
     }
     return null;
@@ -507,7 +594,7 @@ export function TrainerDashboardServicesBubble() {
       for (let j = 0; j < tiers.length; j++) {
         const t = tiers[j]!;
         if (!Number.isFinite(t.quantity) || t.quantity < 2 || t.quantity > 52) {
-          return `Option ${i + 1}, bundle ${j + 1}: quantity must be 2–52 sessions.`;
+          return `Option ${i + 1}, bundle ${j + 1}: quantity must be between 2 and 52.`;
         }
         if (!Number.isFinite(t.priceUsd) || t.priceUsd < 15 || t.priceUsd > 50_000) {
           return `Option ${i + 1}, bundle ${j + 1}: total price must be between $15 and $50,000.`;
@@ -518,7 +605,12 @@ export function TrainerDashboardServicesBubble() {
   }
 
   function validateDetails(priceOverride?: number): string | null {
-    return validatePackageBase() ?? validateVariationsStep(priceOverride) ?? validateBundlesStep();
+    return (
+      validatePackageBase() ??
+      validateBaseOfferingsStep(priceOverride) ??
+      validateBundlesStep() ??
+      validateCopyDetails()
+    );
   }
 
   async function fetchPriceCheckFull(price: number): Promise<PriceCheckResult | null> {
@@ -640,12 +732,12 @@ export function TrainerDashboardServicesBubble() {
       setFormErr(err);
       return;
     }
-    const sm = sessionMinutes.trim() === "" ? undefined : Number(sessionMinutes);
     const needsZip = delivery === "in_person" || delivery === "both";
     const zip = inPersonZip.trim();
     const radius = inPersonRadiusMiles.trim() === "" ? undefined : Number(inPersonRadiusMiles);
 
     const freqBody = buildFrequencyBody();
+    const vSave = normalizedVariationsForApi();
 
     const isEdit = editingServiceId != null;
     const pub = publicTitle.trim();
@@ -653,7 +745,7 @@ export function TrainerDashboardServicesBubble() {
       priceUsd: effectiveListPrice,
       billingUnit,
       description: description.trim(),
-      sessionMinutes: variations.length > 0 ? undefined : sm,
+      sessionMinutes: undefined,
       delivery,
       inPersonZip: needsZip ? zip : undefined,
       inPersonRadiusMiles: needsZip ? radius : undefined,
@@ -669,13 +761,18 @@ export function TrainerDashboardServicesBubble() {
 
     setBusy(true);
     try {
-      const patchBody = { ...baseBody, publicTitle: pub, variations, ...aiBody };
+      const patchBody = {
+        ...baseBody,
+        publicTitle: pub,
+        variations: variations.length > 0 && vSave ? vSave : [],
+        ...aiBody,
+      };
       const publishBody = {
         offeringKind,
         serviceId,
         ...baseBody,
         ...(pub ? { publicTitle: pub } : {}),
-        ...(variations.length > 0 ? { variations } : {}),
+        ...(vSave && vSave.length > 0 ? { variations: vSave } : {}),
         ...(!isEdit && priceCheckAiEnabled === false ? { priceCheckAiEnabled: false as const } : {}),
       };
       const res = await fetch(
@@ -732,7 +829,6 @@ export function TrainerDashboardServicesBubble() {
     setDelivery(line.delivery);
     setPriceUsd(formatTrainerServicePriceUsd(line.priceUsd));
     setBillingUnit(line.billingUnit);
-    setSessionMinutes(line.sessionMinutes != null ? String(line.sessionMinutes) : "");
     const fk = effectiveSessionFrequencyKind(line);
     setSessionFrequencyKind(fk);
     if (fk === "per_week") {
@@ -745,9 +841,42 @@ export function TrainerDashboardServicesBubble() {
     setSessionFrequencyCustom(line.sessionFrequencyCustom ?? "");
     setDescription(line.description ?? "");
     setPublicTitle(line.publicTitle ?? "");
-    setVariations(
-      line.variations && line.variations.length > 0 ? line.variations.map(normalizeVariationRow) : [],
-    );
+    const foldLegacyLineSessionIntoVariation =
+      (!line.variations || line.variations.length === 0) &&
+      serviceOfferingNeedsSessionLength(line.serviceId, line.delivery) &&
+      !serviceOfferingIsDiyTemplate(line.serviceId) &&
+      line.sessionMinutes != null;
+
+    if (line.variations && line.variations.length > 0) {
+      setVariations(
+        line.variations.map((v) => normalizeVariationRow(v, line.serviceId)).map((v) => {
+          if (variationRequiresSessionCount(line.serviceId, v.billingUnit) && v.sessionCount == null) {
+            return { ...v, sessionCount: 1 };
+          }
+          return v;
+        }),
+      );
+    } else if (foldLegacyLineSessionIntoVariation) {
+      const labelSeed =
+        line.publicTitle?.trim() ||
+        MATCH_SERVICE_CATALOG.find((s) => s.id === line.serviceId)?.label ||
+        "Option 1";
+      setVariations([
+        normalizeVariationRow(
+          {
+            variationId: newVariationId(),
+            label: labelSeed,
+            sessionMinutes: line.sessionMinutes!,
+            priceUsd: line.priceUsd,
+            billingUnit: line.billingUnit,
+            ...(variationRequiresSessionCount(line.serviceId, line.billingUnit) ? { sessionCount: 1 } : {}),
+          },
+          line.serviceId,
+        ),
+      ]);
+    } else {
+      setVariations([]);
+    }
     setPriceCheckAiEnabled(line.priceCheckAiEnabled !== false);
     const o = offeringsDoc ?? defaultTrainerServiceOfferingsDocument();
     setInPersonZip((o.inPersonServiceZip ?? draft.inPersonZip ?? "").trim());
@@ -1013,7 +1142,9 @@ export function TrainerDashboardServicesBubble() {
       {screen === "service" && offeringKind ? (
         <div className="mx-auto mt-8 max-w-2xl space-y-4">
           <p className="text-center text-sm font-semibold text-white/85">Choose a Match Fit Template</p>
-          <p className="text-center text-xs text-white/45">You can set a custom public title in step 1 after you pick a template.</p>
+          <p className="text-center text-xs text-white/45">
+            Optional public title in step 1; per-row titles (if you add options) are edited in step 3.
+          </p>
           <div className="grid max-h-[min(28rem,55vh)] auto-rows-fr gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
             {serviceCatalogForKind.map((s) => (
               <button
@@ -1051,7 +1182,7 @@ export function TrainerDashboardServicesBubble() {
             ) : null}
           </p>
           <p className="text-center text-[11px] leading-relaxed text-white/38">
-            Delivery, title, cadence, service area, and description apply to every checkout option you add next.
+            Delivery, optional title, cadence, and service area apply to this package. Client-facing copy is added in step 3.
           </p>
 
           <div className="space-y-4 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4">
@@ -1162,17 +1293,6 @@ export function TrainerDashboardServicesBubble() {
                 </div>
               </div>
             ) : null}
-            <div>
-              <label className={labelClass}>Client-facing description</label>
-              <textarea
-                className={`${inputClass} mt-1.5 min-h-[7rem] resize-y`}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="What is included, who it is for, and how you support clients—at least 20 characters."
-                maxLength={600}
-              />
-              <p className="mt-1 text-[10px] text-white/35">{description.trim().length}/600</p>
-            </div>
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -1186,11 +1306,11 @@ export function TrainerDashboardServicesBubble() {
                   setFormErr(err);
                   return;
                 }
-                setScreen("variations");
+                setScreen("baseOfferings");
               }}
               className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-[#FF7E00]/45 bg-[#FF7E00]/16 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/60 disabled:opacity-45"
             >
-              Continue to options
+              Continue to base offerings
             </button>
             <button
               type="button"
@@ -1204,10 +1324,10 @@ export function TrainerDashboardServicesBubble() {
         </div>
       ) : null}
 
-      {screen === "variations" && serviceId && delivery && offeringKind ? (
+      {screen === "baseOfferings" && serviceId && delivery && offeringKind ? (
         <div className="mx-auto mt-8 max-w-lg space-y-4">
-          <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Step 2 of 4 · Prices & billing</p>
-          <p className="text-center text-sm font-semibold text-white/85">Package options & pricing</p>
+          <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Step 2 of 4 · Base package offerings</p>
+          <p className="text-center text-sm font-semibold text-white/85">Metrics, variations & optional bundles</p>
           <p className="text-center text-xs text-white/45">
             <span className="font-semibold uppercase tracking-wide text-white/40">Template</span>:{" "}
             {MATCH_SERVICE_CATALOG.find((s) => s.id === serviceId)?.label}
@@ -1218,13 +1338,17 @@ export function TrainerDashboardServicesBubble() {
             ) : null}
           </p>
           <p className="text-center text-[11px] leading-relaxed text-white/38">
-            Each row is a checkout choice with its own price and billing (per session, hour, or month). The profile “from” price is the
-            lowest row. Multi-session packs belong in step 3—bundles.
+            Step 2 is grouped into collapsible sections. Set list price and billing first, then use{" "}
+            <span className="font-semibold text-white/55">Add variation</span> to generate each checkout row from those metrics (session
+            length appears on rows only). Bundle pricing is next. Client-facing copy is step 3.
           </p>
 
-          <div className="space-y-4 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4">
-            {variations.length === 0 ? (
-              <>
+          <div className="space-y-3">
+            <details open className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/50 px-4 py-3">
+              <summary className="cursor-pointer list-none text-sm font-semibold text-white/85 [&::-webkit-details-marker]:hidden">
+                <span className="text-[#FF7E00]">▸</span> List price & how you bill
+              </summary>
+              <div className="mt-3 space-y-4">
                 <div>
                   <label className={labelClass}>Price (USD)</label>
                   <input
@@ -1254,90 +1378,75 @@ export function TrainerDashboardServicesBubble() {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className={labelClass}>{needsSessionLength ? "Session length (required)" : "Session length (optional)"}</label>
-                  <input
-                    className={`${inputClass} mt-1.5`}
-                    inputMode="numeric"
-                    value={sessionMinutes}
-                    onChange={(e) => setSessionMinutes(e.target.value.replace(/\D/g, ""))}
-                    placeholder="Minutes (e.g. 60)"
-                  />
-                </div>
-              </>
-            ) : null}
-
-            <div className={variations.length === 0 ? "border-t border-white/[0.08] pt-4" : ""}>
-              <p className={labelClass}>Package options (optional)</p>
-              <p className="mt-1 text-[10px] leading-relaxed text-white/35">
-                Add rows clients pick at checkout (e.g. 45 vs 60 minutes). One template can list every variation—no duplicate services.
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
+                <p className="text-[10px] leading-relaxed text-white/38">
+                  Each new variation copies this price and billing unit. Edit rows afterward if a checkout option should differ.
+                </p>
                 <button
                   type="button"
-                  disabled={!serviceId || busy}
-                  onClick={() => {
-                    if (!serviceId) return;
-                    const next = templateVariationsForService(serviceId).map(normalizeVariationRow);
-                    setVariations(next);
-                  }}
-                  className="rounded-lg border border-[#FF7E00]/35 bg-[#FF7E00]/10 px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-white/90 transition hover:border-[#FF7E00]/55 disabled:opacity-40"
+                  disabled={busy || !serviceId || !delivery}
+                  onClick={() => addVariationFromBaseMetrics()}
+                  className="w-full rounded-xl border border-[#FF7E00]/45 bg-[#FF7E00]/16 py-3 text-xs font-black uppercase tracking-[0.1em] text-white transition hover:border-[#FF7E00]/58 disabled:opacity-40"
                 >
-                  Insert template options
-                </button>
-                {variations.length > 0 ? (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      setVariations([]);
-                    }}
-                    className="rounded-lg border border-white/12 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-white/55 transition hover:border-white/25"
-                  >
-                    Clear options
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  disabled={busy || !serviceId}
-                  onClick={() => {
-                    if (!serviceId) return;
-                    setVariations((prev) => [
-                      ...prev,
-                      {
-                        variationId: newVariationId(),
-                        label: "New option",
-                        priceUsd: 85,
-                        billingUnit: "per_session",
-                        sessionMinutes:
-                          needsSessionLength && !serviceOfferingIsDiyTemplate(serviceId) ? 60 : undefined,
-                        bundleTiers: [],
-                      },
-                    ]);
-                  }}
-                  className="rounded-lg border border-white/12 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-white/55 transition hover:border-white/25"
-                >
-                  Add empty option
+                  Add variation
                 </button>
               </div>
+            </details>
+
+            <details open className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/50 px-4 py-3">
+              <summary className="cursor-pointer list-none text-sm font-semibold text-white/85 [&::-webkit-details-marker]:hidden">
+                <span className="text-[#FF7E00]">▸</span> Checkout variations
+                {variations.length > 0 ? (
+                  <span className="ml-2 text-[11px] font-normal text-white/40">({variations.length})</span>
+                ) : null}
+              </summary>
+              <div className="mt-3 space-y-3">
+                {variations.length === 0 ? (
+                  <p className="text-xs leading-relaxed text-white/50">
+                    No rows yet. Use <span className="font-semibold text-white/70">Add variation</span> in the section above—each click
+                    adds a row built from your list price and billing (timed templates rotate 60 / 45 / 75 / 90 minute suggestions).
+                  </p>
+                ) : null}
+                {variations.length > 0 ? (
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setVariations([])}
+                      className="rounded-lg border border-white/12 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-white/55 transition hover:border-white/25"
+                    >
+                      Clear all variations
+                    </button>
+                  </div>
+                ) : null}
+
+                <details className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2">
+                  <summary className="cursor-pointer list-none text-[11px] font-semibold text-white/55 [&::-webkit-details-marker]:hidden">
+                    Catalog presets (optional)
+                  </summary>
+                  <p className="mt-2 text-[10px] leading-relaxed text-white/40">
+                    Replace all rows with Match Fit starter durations and prices for this template (you can still edit after).
+                  </p>
+                  <button
+                    type="button"
+                    disabled={!serviceId || busy}
+                    onClick={() => {
+                      if (!serviceId) return;
+                      const next = templateVariationsForService(serviceId).map((v) => normalizeVariationRow(v, serviceId));
+                      setVariations(next);
+                    }}
+                    className="mt-2 rounded-lg border border-[#FF7E00]/35 bg-[#FF7E00]/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white/90 transition hover:border-[#FF7E00]/55 disabled:opacity-40"
+                  >
+                    Replace with catalog presets
+                  </button>
+                </details>
 
               {variations.map((v, vi) => (
                 <div key={v.variationId} className="mt-4 space-y-3 rounded-xl border border-white/[0.08] bg-black/25 p-3">
-                  <div className="flex flex-wrap items-end justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <label className={labelClass}>Option label</label>
-                      <input
-                        className={`${inputClass} mt-1.5`}
-                        value={v.label}
-                        onChange={(e) => {
-                          setVariations((prev) =>
-                            prev.map((row, i) => (i === vi ? { ...row, label: e.target.value } : row))
-                          );
-                        }}
-                        placeholder="e.g. 60-minute sessions"
-                        maxLength={80}
-                      />
-                    </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-[11px] font-bold text-white/70">
+                      Row {vi + 1}
+                      <span className="ml-2 font-normal text-white/35">(title in step 3)</span>
+                    </p>
                     <button
                       type="button"
                       disabled={busy}
@@ -1347,6 +1456,95 @@ export function TrainerDashboardServicesBubble() {
                       Remove
                     </button>
                   </div>
+                  {needsSessionLength && !serviceOfferingIsDiyTemplate(serviceId) ? (
+                    <div>
+                      <label className={labelClass}>Session length (minutes, max 120)</label>
+                      <input
+                        className={`${inputClass} mt-1.5`}
+                        inputMode="numeric"
+                        value={v.sessionMinutes ?? ""}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/\D/g, "");
+                          const n = raw === "" ? undefined : Number(raw);
+                          setVariations((prev) =>
+                            prev.map((row, i) =>
+                              i === vi
+                                ? {
+                                    ...row,
+                                    sessionMinutes:
+                                      n == null || !Number.isFinite(n)
+                                        ? undefined
+                                        : Math.min(120, Math.max(15, Math.floor(n))),
+                                  }
+                                : row,
+                            ),
+                          );
+                        }}
+                        placeholder="e.g. 60"
+                      />
+                    </div>
+                  ) : null}
+                  {serviceId && variationRequiresSessionCount(serviceId, v.billingUnit) ? (
+                    <div>
+                      <label className={labelClass}>Sessions in this option</label>
+                      <input
+                        className={`${inputClass} mt-1.5`}
+                        inputMode="numeric"
+                        min={1}
+                        max={20}
+                        value={v.sessionCount ?? ""}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/\D/g, "");
+                          const n = raw === "" ? undefined : Number(raw);
+                          setVariations((prev) =>
+                            prev.map((row, i) =>
+                              i === vi
+                                ? {
+                                    ...row,
+                                    sessionCount:
+                                      n != null && Number.isFinite(n) ? Math.min(20, Math.max(1, Math.floor(n))) : undefined,
+                                  }
+                                : row,
+                            ),
+                          );
+                        }}
+                        placeholder="1–20"
+                      />
+                      <p className="mt-1 text-[10px] text-white/35">
+                        Total sessions clients get at checkout for this row (max 20). Price below is the total for all of them.
+                      </p>
+                    </div>
+                  ) : serviceId && !serviceOfferingIsDiyTemplate(serviceId) && v.billingUnit === "per_hour" ? (
+                    <div>
+                      <label className={labelClass}>Hours in this row (optional, 1–20)</label>
+                      <input
+                        className={`${inputClass} mt-1.5`}
+                        inputMode="numeric"
+                        min={1}
+                        max={20}
+                        value={v.sessionCount ?? ""}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/\D/g, "");
+                          const n = raw === "" ? undefined : Number(raw);
+                          setVariations((prev) =>
+                            prev.map((row, i) =>
+                              i === vi
+                                ? {
+                                    ...row,
+                                    sessionCount:
+                                      n != null && Number.isFinite(n) ? Math.min(20, Math.max(1, Math.floor(n))) : undefined,
+                                  }
+                                : row,
+                            ),
+                          );
+                        }}
+                        placeholder="For bulk-hour bundles, use 4–20"
+                      />
+                      <p className="mt-1 text-[10px] text-white/35">
+                        Leave blank for a simple hourly row. Set 4–20 hours to unlock the bulk bundle prompt and % pricing below.
+                      </p>
+                    </div>
+                  ) : null}
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div>
                       <label className={labelClass}>Price (USD)</label>
@@ -1366,19 +1564,32 @@ export function TrainerDashboardServicesBubble() {
                           );
                         }}
                       />
+                      {serviceId && variationRequiresSessionCount(serviceId, v.billingUnit) && (v.sessionCount ?? 1) > 1 ? (
+                        <p className="mt-1 text-[10px] text-white/32">Enter the package total (not per-session math).</p>
+                      ) : null}
                     </div>
                     <div>
                       <label className={labelClass}>Billing</label>
                       <select
                         className={`${inputClass} mt-1.5`}
                         value={v.billingUnit}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const bu = e.target.value as BillingUnit;
                           setVariations((prev) =>
-                            prev.map((row, i) =>
-                              i === vi ? { ...row, billingUnit: e.target.value as BillingUnit } : row,
-                            ),
-                          )
-                        }
+                            prev.map((row, i) => {
+                              if (i !== vi) return row;
+                              if (!serviceId) return { ...row, billingUnit: bu };
+                              if (variationRequiresSessionCount(serviceId, bu)) {
+                                return { ...row, billingUnit: bu, sessionCount: row.sessionCount ?? 1 };
+                              }
+                              if (bu === "per_hour" && !serviceOfferingIsDiyTemplate(serviceId)) {
+                                return { ...row, billingUnit: bu };
+                              }
+                              const { sessionCount: _sc, ...rest } = row;
+                              return { ...rest, billingUnit: bu };
+                            }),
+                          );
+                        }}
                       >
                         {variationBillingOptions.map((u) => (
                           <option key={u} value={u}>
@@ -1388,29 +1599,193 @@ export function TrainerDashboardServicesBubble() {
                       </select>
                     </div>
                   </div>
-                  {needsSessionLength && !serviceOfferingIsDiyTemplate(serviceId) ? (
-                    <div>
-                      <label className={labelClass}>Session length (minutes)</label>
-                      <input
-                        className={`${inputClass} mt-1.5`}
-                        inputMode="numeric"
-                        value={v.sessionMinutes ?? ""}
-                        onChange={(e) => {
-                          const raw = e.target.value.replace(/\D/g, "");
-                          const n = raw === "" ? undefined : Number(raw);
-                          setVariations((prev) =>
-                            prev.map((row, i) =>
-                              i === vi ? { ...row, sessionMinutes: n == null || !Number.isFinite(n) ? undefined : n } : row,
-                            ),
-                          );
-                        }}
-                        placeholder="e.g. 60"
-                      />
-                    </div>
-                  ) : null}
                 </div>
               ))}
-            </div>
+              </div>
+            </details>
+
+            <details ref={bundlesDetailsRef} className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/45 px-4 py-3">
+            <summary className="cursor-pointer list-none text-sm font-semibold text-white/85 [&::-webkit-details-marker]:hidden">
+              <span className="text-[#FF7E00]">▸</span> Bundle prices (optional — collapsible)
+            </summary>
+            <p className="mt-2 text-[10px] leading-relaxed text-white/42">
+              <span className="font-semibold text-white/60">Per session:</span> each tier is a larger session count; % off applies to the
+              implied per-session rate from your row total.{" "}
+              <span className="font-semibold text-white/60">Per hour:</span> same using hours in the row and tier.{" "}
+              <span className="font-semibold text-white/60">Per month:</span> tiers are months prepaid; % off applies to your monthly
+              list price.
+            </p>
+            {variations.length === 0 ? (
+              <p className="mt-2 text-xs text-white/45">Add variation rows above to attach bundle tiers.</p>
+            ) : (
+              <div className="mt-3 space-y-4">
+                {variations.map((v, vi) => (
+                  <div key={`${v.variationId}-bundles`} className="space-y-2 rounded-xl border border-white/[0.06] bg-black/20 p-3">
+                    <p className="text-[11px] font-bold text-white/80">{v.label.trim() || `Row ${vi + 1}`}</p>
+                    {(v.bundleTiers ?? []).map((t, ti) => (
+                      <div
+                        key={t.tierId}
+                        className="grid gap-2 rounded-lg border border-white/[0.06] bg-[#0E1016]/60 p-2 sm:grid-cols-12"
+                      >
+                        <div className="sm:col-span-2">
+                          <label className="text-[9px] font-semibold uppercase text-white/35">Qty</label>
+                          <input
+                            type="number"
+                            min={2}
+                            max={52}
+                            className={`${inputClass} mt-1 py-2 text-sm`}
+                            value={t.quantity}
+                            onChange={(e) => {
+                              const n = Number(e.target.value);
+                              setVariations((prev) =>
+                                prev.map((row, i) => {
+                                  if (i !== vi) return row;
+                                  const tiers = [...(row.bundleTiers ?? [])];
+                                  const cur = tiers[ti];
+                                  if (!cur) return row;
+                                  const qty = Number.isFinite(n) ? Math.min(52, Math.max(2, Math.floor(n))) : cur.quantity;
+                                  const nextT = { ...cur, quantity: qty };
+                                  const priceUsd =
+                                    cur.discountPercent != null && Number.isFinite(cur.discountPercent)
+                                      ? bundleTierPriceFromRow(row, { ...nextT, discountPercent: cur.discountPercent })
+                                      : cur.priceUsd;
+                                  tiers[ti] = { ...nextT, priceUsd };
+                                  return { ...row, bundleTiers: tiers };
+                                }),
+                              );
+                            }}
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="text-[9px] font-semibold uppercase text-white/35">% off</label>
+                          <input
+                            type="number"
+                            min={0}
+                            max={90}
+                            className={`${inputClass} mt-1 py-2 text-sm`}
+                            value={t.discountPercent ?? ""}
+                            placeholder="—"
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const n = raw === "" ? undefined : Number(raw);
+                              setVariations((prev) =>
+                                prev.map((row, i) => {
+                                  if (i !== vi) return row;
+                                  const tiers = [...(row.bundleTiers ?? [])];
+                                  const cur = tiers[ti];
+                                  if (!cur) return row;
+                                  const pct =
+                                    n != null && Number.isFinite(n) ? Math.min(90, Math.max(0, Math.floor(n))) : undefined;
+                                  const nextT = { ...cur, discountPercent: pct };
+                                  const priceUsd =
+                                    pct != null ? bundleTierPriceFromRow(row, { ...nextT, discountPercent: pct }) : cur.priceUsd;
+                                  tiers[ti] = { ...nextT, priceUsd };
+                                  return { ...row, bundleTiers: tiers };
+                                }),
+                              );
+                            }}
+                          />
+                        </div>
+                        <div className="sm:col-span-3">
+                          <label className="text-[9px] font-semibold uppercase text-white/35">Total $</label>
+                          <input
+                            type="number"
+                            min={15}
+                            max={50000}
+                            step={1}
+                            className={`${inputClass} mt-1 py-2 text-sm`}
+                            value={t.priceUsd}
+                            onChange={(e) => {
+                              const n = Number(e.target.value);
+                              setVariations((prev) =>
+                                prev.map((row, i) => {
+                                  if (i !== vi) return row;
+                                  const tiers = [...(row.bundleTiers ?? [])];
+                                  const cur = tiers[ti];
+                                  if (!cur) return row;
+                                  tiers[ti] = {
+                                    ...cur,
+                                    priceUsd: Number.isFinite(n) ? n : cur.priceUsd,
+                                    discountPercent: undefined,
+                                  };
+                                  return { ...row, bundleTiers: tiers };
+                                }),
+                              );
+                            }}
+                          />
+                        </div>
+                        <div className="sm:col-span-4">
+                          <label className="text-[9px] font-semibold uppercase text-white/35">Label (optional)</label>
+                          <input
+                            className={`${inputClass} mt-1 py-2 text-sm`}
+                            value={t.label ?? ""}
+                            onChange={(e) => {
+                              setVariations((prev) =>
+                                prev.map((row, i) => {
+                                  if (i !== vi) return row;
+                                  const tiers = [...(row.bundleTiers ?? [])];
+                                  const cur = tiers[ti];
+                                  if (!cur) return row;
+                                  tiers[ti] = { ...cur, label: e.target.value };
+                                  return { ...row, bundleTiers: tiers };
+                                }),
+                              );
+                            }}
+                            placeholder="8-pack"
+                            maxLength={80}
+                          />
+                        </div>
+                        <div className="flex items-end sm:col-span-1">
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => {
+                              setVariations((prev) =>
+                                prev.map((row, i) => {
+                                  if (i !== vi) return row;
+                                  return {
+                                    ...row,
+                                    bundleTiers: (row.bundleTiers ?? []).filter((bt) => bt.tierId !== t.tierId),
+                                  };
+                                }),
+                              );
+                            }}
+                            className="w-full rounded border border-white/10 py-2 text-[10px] font-bold uppercase text-white/50 hover:border-rose-400/35 hover:text-rose-200/90"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        setVariations((prev) =>
+                          prev.map((row, i) => {
+                            if (i !== vi) return row;
+                            const q = 4;
+                            const tier: TrainerServiceOfferingBundleTier = {
+                              tierId: newBundleTierId(),
+                              quantity: q,
+                              priceUsd: 0,
+                              label: `${q}-pack`,
+                              discountPercent: 8,
+                            };
+                            tier.priceUsd = bundleTierPriceFromRow(row, tier);
+                            return { ...row, bundleTiers: [...(row.bundleTiers ?? []), tier] };
+                          }),
+                        )
+                      }
+                      className="rounded-lg border border-white/12 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-white/55 hover:border-[#FF7E00]/35"
+                    >
+                      + Add bundle tier
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </details>
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -1419,16 +1794,29 @@ export function TrainerDashboardServicesBubble() {
               disabled={busy}
               onClick={() => {
                 setFormErr(null);
-                const err = validateVariationsStep();
+                const err = validateBaseOfferingsStep();
                 if (err) {
                   setFormErr(err);
                   return;
                 }
-                setScreen("bundles");
+                const errB = validateBundlesStep();
+                if (errB) {
+                  setFormErr(errB);
+                  return;
+                }
+                const needBulk =
+                  Boolean(serviceId) &&
+                  variations.some(
+                    (row) =>
+                      variationEligibleForBundlePrompt(serviceId!, row) &&
+                      !(row.bundleTiers && row.bundleTiers.length > 0),
+                  );
+                if (needBulk) setBulkBundlePromptOpen(true);
+                else setScreen("copyDetails");
               }}
               className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-[#FF7E00]/45 bg-[#FF7E00]/16 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/60 disabled:opacity-45"
             >
-              Continue
+              Continue to copy
             </button>
             <button
               type="button"
@@ -1439,152 +1827,144 @@ export function TrainerDashboardServicesBubble() {
               Back
             </button>
           </div>
+          {bulkBundlePromptOpen ? (
+            <div
+              className="fixed inset-0 z-[99] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="bulk-bundle-title"
+            >
+              <div className="w-full max-w-md rounded-2xl border border-white/[0.12] bg-[#12151C] p-6 shadow-2xl">
+                <h3 id="bulk-bundle-title" className="text-center text-sm font-bold text-white">
+                  Do you want to offer bundle prices?
+                </h3>
+                <p className="mt-3 text-center text-xs leading-relaxed text-white/55">
+                  At least one row is set to 4–20 sessions (or bulk hours on an hourly row) without bundle tiers yet. Add volume pricing now,
+                  or skip and write your client-facing copy next.
+                </p>
+                <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBulkBundlePromptOpen(false);
+                      const el = bundlesDetailsRef.current;
+                      if (el) {
+                        el.open = true;
+                        el.scrollIntoView({ behavior: "smooth", block: "center" });
+                      }
+                    }}
+                    className="inline-flex min-h-[2.75rem] flex-1 items-center justify-center rounded-xl border border-[#FF7E00]/45 bg-[#FF7E00]/16 text-xs font-black uppercase tracking-wide text-white"
+                  >
+                    Yes, set up bundles
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBulkBundlePromptOpen(false);
+                      setScreen("copyDetails");
+                    }}
+                    className="inline-flex min-h-[2.75rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] text-xs font-bold uppercase tracking-wide text-white/90"
+                  >
+                    No, continue
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
-      {screen === "bundles" && serviceId && delivery && offeringKind ? (
+      {screen === "copyDetails" && serviceId && delivery && offeringKind ? (
         <div className="mx-auto mt-8 max-w-lg space-y-4">
-          <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Step 3 of 4 · Bundle tiers</p>
-          <p className="text-center text-sm font-semibold text-white/85">Volume packs (optional)</p>
+          <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Step 3 of 4 · Copy & descriptions</p>
+          <p className="text-center text-sm font-semibold text-white/85">What clients read</p>
           <p className="text-center text-xs text-white/45">
             <span className="font-semibold uppercase tracking-wide text-white/40">Template</span>:{" "}
             {MATCH_SERVICE_CATALOG.find((s) => s.id === serviceId)?.label}
           </p>
           <p className="text-center text-[11px] leading-relaxed text-white/38">
-            Add larger session counts at a total package price. Checkout shows one row per tier under each option.
+            Start with the package-wide description. Per-row titles and blurbs are optional and tucked into collapsible sections so this
+            screen stays scannable.
           </p>
 
-          {variations.length === 0 ? (
-            <p className="rounded-xl border border-white/[0.06] bg-[#0E1016]/50 p-4 text-center text-sm text-white/50">
-              You have a single-price listing—no per-option bundles. Continue to review and publish.
+          <div className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/50 p-4">
+            <p className={labelClass}>Service description (required)</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-white/38">
+              This is the main text for the whole package—what is included, who it is for, and how you support clients.
             </p>
-          ) : (
-            <div className="space-y-4 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4">
-              {variations.map((v, vi) => (
-                <div key={v.variationId} className="space-y-3 rounded-xl border border-white/[0.08] bg-black/25 p-3">
-                  <p className="text-[11px] font-bold text-white/85">{v.label.trim() || `Option ${vi + 1}`}</p>
-                  <p className="text-[10px] text-white/32">Larger session counts at a total package price (optional).</p>
-                  {(v.bundleTiers ?? []).map((t, ti) => (
-                    <div
-                      key={t.tierId}
-                      className="mt-2 grid gap-2 rounded-lg border border-white/[0.06] bg-[#0E1016]/60 p-2 sm:grid-cols-12"
-                    >
-                      <div className="sm:col-span-3">
-                        <label className="text-[9px] font-semibold uppercase text-white/35">Qty</label>
+            <textarea
+              className={`${inputClass} mt-2 min-h-[7rem] resize-y`}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What is included, who it is for, and how you support clients—at least 20 characters."
+              maxLength={600}
+            />
+            <p className="mt-1 text-[10px] text-white/35">{description.trim().length}/600 · minimum 20 characters</p>
+          </div>
+
+          {variations.length > 0 ? (
+            <details className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/50 px-4 py-3">
+              <summary className="cursor-pointer list-none text-sm font-semibold text-white/85 [&::-webkit-details-marker]:hidden">
+                <span className="text-[#FF7E00]">▸</span> Optional copy per checkout row
+                <span className="ml-2 text-[11px] font-normal text-white/40">({variations.length})</span>
+              </summary>
+              <p className="mt-2 text-[10px] leading-relaxed text-white/42">
+                Titles and extra blurbs apply only to the matching checkout option. Open one row at a time to edit.
+              </p>
+              <div className="mt-3 space-y-2">
+                {variations.map((v, vi) => (
+                  <details
+                    key={`copy-${v.variationId}`}
+                    className="rounded-xl border border-white/[0.06] bg-black/25 px-3 py-2"
+                  >
+                    <summary className="cursor-pointer list-none text-[12px] font-semibold text-white/80 [&::-webkit-details-marker]:hidden">
+                      Row {vi + 1}
+                      <span className="ml-2 font-normal text-white/45">
+                        {v.label.trim() ? `· ${v.label.trim().slice(0, 42)}${v.label.trim().length > 42 ? "…" : ""}` : ""}
+                      </span>
+                    </summary>
+                    <div className="mt-3 space-y-3 pb-1">
+                      <div>
+                        <label className={labelClass}>Public title (optional)</label>
                         <input
-                          type="number"
-                          min={2}
-                          max={52}
-                          className={`${inputClass} mt-1 py-2 text-sm`}
-                          value={t.quantity}
-                          onChange={(e) => {
-                            const n = Number(e.target.value);
-                            setVariations((prev) =>
-                              prev.map((row, i) => {
-                                if (i !== vi) return row;
-                                const tiers = [...(row.bundleTiers ?? [])];
-                                const cur = tiers[ti];
-                                if (!cur) return row;
-                                tiers[ti] = { ...cur, quantity: Number.isFinite(n) ? Math.floor(n) : cur.quantity };
-                                return { ...row, bundleTiers: tiers };
-                              }),
-                            );
-                          }}
-                        />
-                      </div>
-                      <div className="sm:col-span-4">
-                        <label className="text-[9px] font-semibold uppercase text-white/35">Total $</label>
-                        <input
-                          type="number"
-                          min={15}
-                          max={50000}
-                          step={1}
-                          className={`${inputClass} mt-1 py-2 text-sm`}
-                          value={t.priceUsd}
-                          onChange={(e) => {
-                            const n = Number(e.target.value);
-                            setVariations((prev) =>
-                              prev.map((row, i) => {
-                                if (i !== vi) return row;
-                                const tiers = [...(row.bundleTiers ?? [])];
-                                const cur = tiers[ti];
-                                if (!cur) return row;
-                                tiers[ti] = { ...cur, priceUsd: Number.isFinite(n) ? n : cur.priceUsd };
-                                return { ...row, bundleTiers: tiers };
-                              }),
-                            );
-                          }}
-                        />
-                      </div>
-                      <div className="sm:col-span-4">
-                        <label className="text-[9px] font-semibold uppercase text-white/35">Label (optional)</label>
-                        <input
-                          className={`${inputClass} mt-1 py-2 text-sm`}
-                          value={t.label ?? ""}
+                          className={`${inputClass} mt-1.5`}
+                          value={v.label}
                           onChange={(e) => {
                             setVariations((prev) =>
-                              prev.map((row, i) => {
-                                if (i !== vi) return row;
-                                const tiers = [...(row.bundleTiers ?? [])];
-                                const cur = tiers[ti];
-                                if (!cur) return row;
-                                tiers[ti] = { ...cur, label: e.target.value };
-                                return { ...row, bundleTiers: tiers };
-                              }),
+                              prev.map((row, i) => (i === vi ? { ...row, label: e.target.value } : row)),
                             );
                           }}
-                          placeholder="4-pack"
+                          placeholder={`e.g. ${v.sessionMinutes ? `${v.sessionMinutes}-minute block` : "Checkout option"}`}
                           maxLength={80}
                         />
                       </div>
-                      <div className="flex items-end sm:col-span-1">
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => {
+                      <div>
+                        <label className={labelClass}>Extra description for this row (optional)</label>
+                        <textarea
+                          className={`${inputClass} mt-1.5 min-h-[4rem] resize-y`}
+                          value={v.variationDescription ?? ""}
+                          onChange={(e) => {
                             setVariations((prev) =>
-                              prev.map((row, i) => {
-                                if (i !== vi) return row;
-                                return {
-                                  ...row,
-                                  bundleTiers: (row.bundleTiers ?? []).filter((bt) => bt.tierId !== t.tierId),
-                                };
-                              }),
+                              prev.map((row, i) =>
+                                i === vi ? { ...row, variationDescription: e.target.value.slice(0, 400) } : row,
+                              ),
                             );
                           }}
-                          className="w-full rounded border border-white/10 py-2 text-[10px] font-bold uppercase text-white/50 hover:border-rose-400/35 hover:text-rose-200/90"
-                        >
-                          ×
-                        </button>
+                          placeholder="Add specifics for this checkout choice only."
+                          maxLength={400}
+                        />
+                        <p className="mt-1 text-[10px] text-white/35">{(v.variationDescription ?? "").trim().length}/400</p>
                       </div>
                     </div>
-                  ))}
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() =>
-                      setVariations((prev) =>
-                        prev.map((row, i) => {
-                          if (i !== vi) return row;
-                          const q = 4;
-                          const nextPrice = Math.max(15, Math.round(row.priceUsd * q * 0.92 * 100) / 100);
-                          const tier: TrainerServiceOfferingBundleTier = {
-                            tierId: newBundleTierId(),
-                            quantity: q,
-                            priceUsd: nextPrice,
-                            label: `${q}-pack`,
-                          };
-                          return { ...row, bundleTiers: [...(row.bundleTiers ?? []), tier] };
-                        }),
-                      )
-                    }
-                    className="mt-2 rounded-lg border border-white/12 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-white/55 hover:border-[#FF7E00]/35"
-                  >
-                    + Add bundle tier
-                  </button>
-                </div>
-              ))}
-            </div>
+                  </details>
+                ))}
+              </div>
+            </details>
+          ) : (
+            <p className="rounded-2xl border border-white/[0.06] bg-[#0E1016]/40 px-4 py-3 text-center text-xs leading-relaxed text-white/50">
+              You are using a single list price with no checkout rows. The service description above is all clients need for copy on this
+              package.
+            </p>
           )}
 
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -1593,7 +1973,7 @@ export function TrainerDashboardServicesBubble() {
               disabled={busy}
               onClick={() => {
                 setFormErr(null);
-                const err = validateBundlesStep();
+                const err = validateDetails();
                 if (err) {
                   setFormErr(err);
                   return;
@@ -1602,12 +1982,12 @@ export function TrainerDashboardServicesBubble() {
               }}
               className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-[#FF7E00]/45 bg-[#FF7E00]/16 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/60 disabled:opacity-45"
             >
-              Continue
+              Continue to review
             </button>
             <button
               type="button"
               disabled={busy}
-              onClick={() => setScreen("variations")}
+              onClick={() => setScreen("baseOfferings")}
               className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] text-sm font-black uppercase tracking-[0.08em] text-white/80 hover:border-white/20 disabled:opacity-45"
             >
               Back
@@ -1672,7 +2052,7 @@ export function TrainerDashboardServicesBubble() {
           <button
             type="button"
             disabled={busy}
-            onClick={() => setScreen("bundles")}
+            onClick={() => setScreen("copyDetails")}
             className="w-full text-center text-xs font-semibold uppercase tracking-wide text-white/45 hover:text-white/70"
           >
             Back

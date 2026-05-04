@@ -4,6 +4,19 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
+function clientLabel(c: {
+  preferredName: string | null;
+  firstName: string;
+  lastName: string;
+  username: string;
+}): string {
+  return (
+    c.preferredName?.trim() ||
+    [c.firstName, c.lastName].filter(Boolean).join(" ").trim() ||
+    c.username
+  );
+}
+
 export async function GET(req: Request) {
   try {
     const trainerId = await getSessionTrainerId();
@@ -11,54 +24,48 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
     const url = new URL(req.url);
-    const from = url.searchParams.get("from");
-    const to = url.searchParams.get("to");
-    const start = from ? new Date(from) : new Date(Date.now() - 7 * 86400000);
-    const end = to ? new Date(to) : new Date(Date.now() + 120 * 86400000);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      return NextResponse.json({ error: "Invalid date range." }, { status: 400 });
-    }
+    const scope = url.searchParams.get("scope") === "past" ? "past" : "upcoming";
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") ?? "40", 10) || 40));
+    const now = new Date();
 
     const rows = await prisma.bookedTrainingSession.findMany({
       where: {
         trainerId,
-        scheduledStartAt: { gte: start, lte: end },
+        sessionDelivery: "VIRTUAL",
         status: { not: "CANCELLED" },
+        scheduledStartAt:
+          scope === "past" ? { lt: now } : { gte: new Date(now.getTime() - 5 * 60 * 1000) },
       },
-      orderBy: { scheduledStartAt: "asc" },
-      take: 200,
+      orderBy: { scheduledStartAt: scope === "past" ? "desc" : "asc" },
+      take: limit,
       select: {
         id: true,
-        status: true,
         scheduledStartAt: true,
         scheduledEndAt: true,
-        inviteNote: true,
-        sessionDelivery: true,
+        status: true,
         videoConferenceJoinUrl: true,
         videoConferenceProvider: true,
-        client: { select: { username: true, preferredName: true, firstName: true, lastName: true } },
+        client: {
+          select: { username: true, preferredName: true, firstName: true, lastName: true },
+        },
       },
     });
 
     return NextResponse.json({
-      bookings: rows.map((r) => ({
+      scope,
+      meetings: rows.map((r) => ({
         id: r.id,
-        status: r.status,
         startsAt: r.scheduledStartAt.toISOString(),
         endsAt: r.scheduledEndAt?.toISOString() ?? null,
-        inviteNote: r.inviteNote,
-        sessionDelivery: r.sessionDelivery,
+        status: r.status,
         videoConferenceJoinUrl: r.videoConferenceJoinUrl,
         videoConferenceProvider: r.videoConferenceProvider,
         clientUsername: r.client.username,
-        clientLabel:
-          r.client.preferredName?.trim() ||
-          [r.client.firstName, r.client.lastName].filter(Boolean).join(" ").trim() ||
-          r.client.username,
+        clientLabel: clientLabel(r.client),
       })),
     });
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Could not load bookings." }, { status: 500 });
+    return NextResponse.json({ error: "Could not load meetings." }, { status: 500 });
   }
 }

@@ -690,6 +690,9 @@ model TrainerProfile {
   /// When true, paying clients may complete self-service booking from the trainer’s public profile (in addition to chat invites).
   clientPublicSelfBookingEnabled Boolean @default(false)
 
+  /// JSON: default virtual meeting length, preferred sync platform, etc. (see `lib/trainer-virtual-meeting-settings.ts`).
+  virtualMeetingSettingsJson String?
+
   @@map("trainer_profiles")
 }
 
@@ -874,6 +877,9 @@ model BookedTrainingSession {
 
   sourceServiceTransactionId String?
   sourceServiceTransaction   TrainerClientServiceTransaction? @relation("BookingFromServiceTx", fields: [sourceServiceTransactionId], references: [id], onDelete: SetNull)
+
+  /// IN_PERSON | VIRTUAL
+  sessionDelivery String @default("IN_PERSON")
 
   /// HTTPS join link for virtual sessions (manual paste or created via trainer’s linked Zoom / Meet / Teams).
   videoConferenceJoinUrl     String?

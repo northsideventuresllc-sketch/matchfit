@@ -32,6 +32,7 @@ type PendingBooking = {
   startsAt: string;
   endsAt: string | null;
   inviteNote: string | null;
+  sessionDelivery?: "IN_PERSON" | "VIRTUAL" | null;
   videoConferenceJoinUrl: string | null;
   videoConferenceProvider: string | null;
 };
@@ -571,6 +572,9 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
                 >
                   <div className="min-w-0 text-xs text-white/75">
                     <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/35">{b.status.replace(/_/g, " ")}</p>
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#FF9A4A]/90">
+                      {b.sessionDelivery === "VIRTUAL" ? "Virtual meeting" : "In person"}
+                    </p>
                     <p className="mt-0.5 font-semibold text-white/90">
                       {new Date(b.startsAt).toLocaleString(undefined, {
                         weekday: "short",
@@ -582,14 +586,14 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
                       {b.endsAt ? ` – ${new Date(b.endsAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}` : ""}
                     </p>
                     {b.inviteNote ? <p className="mt-1 text-[11px] text-white/50">{b.inviteNote}</p> : null}
-                    {b.videoConferenceJoinUrl ? (
+                    {b.videoConferenceJoinUrl && b.sessionDelivery === "VIRTUAL" ? (
                       <a
                         href={b.videoConferenceJoinUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="mt-2 inline-flex min-h-[2.25rem] items-center justify-center rounded-lg border border-indigo-400/35 bg-indigo-500/12 px-3 text-[10px] font-black uppercase tracking-[0.1em] text-indigo-100 transition hover:border-indigo-400/50"
                       >
-                        Open video ({(b.videoConferenceProvider ?? "LINK").replace(/_/g, " ")})
+                        Open virtual meeting ({(b.videoConferenceProvider ?? "LINK").replace(/_/g, " ")})
                       </a>
                     ) : null}
                   </div>

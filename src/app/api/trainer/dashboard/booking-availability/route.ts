@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { defaultTrainerBookingAvailability, trainerBookingAvailabilitySchema } from "@/lib/booking-availability";
+import { validateTrainerAvailabilityConsistency } from "@/lib/booking-availability-validate";
 import { normalizeUsBookingTimezone } from "@/lib/us-booking-timezones";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { NextResponse } from "next/server";
@@ -26,9 +27,11 @@ export async function GET() {
         const parsed = trainerBookingAvailabilitySchema.safeParse(JSON.parse(profile.bookingAvailabilityJson) as unknown);
         if (parsed.success) {
           document = { ...defaultTrainerBookingAvailability(), ...parsed.data };
+        } else {
+          console.error("[booking-availability GET] Stored JSON failed validation:", parsed.error);
         }
-      } catch {
-        /* keep default */
+      } catch (e) {
+        console.error("[booking-availability GET] JSON parse error:", e);
       }
     }
     return NextResponse.json({
@@ -72,7 +75,19 @@ export async function PATCH(req: Request) {
       if (!parsed.success) {
         return NextResponse.json({ error: "Invalid availability document." }, { status: 400 });
       }
-      nextJson = JSON.stringify(parsed.data);
+      const conflicts = validateTrainerAvailabilityConsistency(parsed.data);
+      if (conflicts.length) {
+        return NextResponse.json({ error: conflicts.join(" ") }, { status: 400 });
+      }
+      const d = parsed.data;
+      const normalized: typeof d = {
+        ...d,
+        specificSlots: d.specificSlots?.map((slot) => ({
+          startAt: new Date(slot.startAt).toISOString(),
+          endAt: new Date(slot.endAt).toISOString(),
+        })),
+      };
+      nextJson = JSON.stringify(normalized);
     }
     const tzRaw = typeof json.timezone === "string" && json.timezone.trim().length > 2 ? json.timezone.trim().slice(0, 64) : undefined;
     const tz = tzRaw ? normalizeUsBookingTimezone(tzRaw) : undefined;

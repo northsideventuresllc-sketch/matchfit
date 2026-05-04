@@ -2,7 +2,7 @@ import { TrainerDashboardBookingsClient } from "@/components/trainer/trainer-das
 
 export default function TrainerBookingsPage() {
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div id="trainer-bookings-availability" className="mx-auto max-w-4xl scroll-mt-8 space-y-8">
       <div className="text-center">
         <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">Bookings &amp; Availability</h1>
         <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/55">

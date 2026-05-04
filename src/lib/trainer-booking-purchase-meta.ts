@@ -40,6 +40,15 @@ export function bookingPurchaseMetaFromSku(sku: PublishedPurchaseSku): BookingPu
       bookingUnlimitedPurchase: false,
     };
   }
+  if (sku.billingUnit === "per_session") {
+    const n = Math.max(1, Math.min(20, Math.floor(sku.bundleQuantity || 1)));
+    return {
+      serviceId: sku.serviceId,
+      billingUnit: sku.billingUnit,
+      sessionCreditsGranted: n,
+      bookingUnlimitedPurchase: false,
+    };
+  }
   return {
     serviceId: sku.serviceId,
     billingUnit: sku.billingUnit,

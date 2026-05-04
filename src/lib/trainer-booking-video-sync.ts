@@ -56,7 +56,7 @@ export async function trainerSetManualBookingVideo(args: {
   }
   const paid = await clientHasPaidTrainerOnce(row.clientId, args.trainerId);
   if (!paid) {
-    return { error: "Video meetings are available only after this client has completed a paid checkout with you." };
+    return { error: "Virtual meetings are available only after this client has completed a paid checkout with you." };
   }
   await prisma.bookedTrainingSession.update({
     where: { id: row.id },
@@ -90,7 +90,7 @@ export async function trainerSyncBookingVideoFromOAuth(args: {
   }
   const paid = await clientHasPaidTrainerOnce(row.clientId, args.trainerId);
   if (!paid) {
-    return { error: "Video meetings are available only after this client has completed a paid checkout with you." };
+    return { error: "Virtual meetings are available only after this client has completed a paid checkout with you." };
   }
   const end = row.scheduledEndAt ?? new Date(row.scheduledStartAt.getTime() + 60 * 60 * 1000);
 
@@ -98,7 +98,7 @@ export async function trainerSyncBookingVideoFromOAuth(args: {
     where: { trainerId: args.trainerId, provider: args.provider, revokedAt: null },
   });
   if (!conn) {
-    return { error: "Connect this provider under Video meetings in your dashboard first." };
+    return { error: "Connect this provider under Virtual Meetings in your dashboard first." };
   }
   const plain = decryptUtf8(conn.encryptedOAuthBundle);
   if (!plain) return { error: "Stored credentials could not be decrypted. Disconnect and reconnect this provider." };

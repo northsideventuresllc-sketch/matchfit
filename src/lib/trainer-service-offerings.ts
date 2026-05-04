@@ -74,16 +74,60 @@ export const trainerServiceOfferingBundleTierSchema = z.object({
   quantity: z.number().int().min(2).max(52),
   priceUsd: z.number().min(15).max(50_000),
   label: z.string().trim().max(80).optional(),
+  /** When set, dashboard derived tier total from base row using this discount (0–90). */
+  discountPercent: z.number().min(0).max(90).optional(),
 });
 
 export const trainerServiceOfferingVariationSchema = z.object({
   variationId: z.string().trim().min(2).max(48),
   label: z.string().trim().min(1).max(80),
-  sessionMinutes: z.number().int().min(15).max(240).optional(),
+  /** Optional extra client-facing copy for this checkout row (shown on profile / checkout when present). */
+  variationDescription: z.string().trim().max(400).optional(),
+  /** How many sessions this checkout row covers (1–20); required for per-session rows except DIY templates. */
+  sessionCount: z.number().int().min(1).max(20).optional(),
+  sessionMinutes: z.number().int().min(15).max(120).optional(),
   priceUsd: z.number().min(15).max(5000),
   billingUnit: z.enum(BILLING_UNITS),
   bundleTiers: z.array(trainerServiceOfferingBundleTierSchema).max(8).optional(),
 });
+
+/** Per-session rows on non-DIY templates must declare how many sessions the price covers (max 20). */
+export function variationRequiresSessionCount(
+  serviceId: MatchServiceId | null | undefined,
+  billingUnit: BillingUnit,
+): boolean {
+  if (!serviceId) return false;
+  return !serviceOfferingIsDiyTemplate(serviceId) && billingUnit === "per_session";
+}
+
+/** Bulk bundle prompt: 4–20 sessions/hours on per-session or per-hour rows (non-DIY). */
+export function variationEligibleForBundlePrompt(
+  serviceId: MatchServiceId | null | undefined,
+  v: { billingUnit: BillingUnit; sessionCount?: number },
+): boolean {
+  if (!serviceId || serviceOfferingIsDiyTemplate(serviceId)) return false;
+  const c = v.sessionCount;
+  if (c == null || c < 4 || c > 20) return false;
+  return v.billingUnit === "per_session" || v.billingUnit === "per_hour";
+}
+
+/** Tier list price from base row, unit count, tier size, and % off (stored totals must stay ≥ $15). */
+export function computeBundleTierTotalFromDiscount(args: {
+  billingUnit: BillingUnit;
+  basePriceUsd: number;
+  baseUnitCount: number;
+  tierQuantity: number;
+  discountPercent: number;
+}): number {
+  const pct = Math.min(90, Math.max(0, args.discountPercent));
+  const f = 1 - pct / 100;
+  if (args.billingUnit === "per_month") {
+    return Math.max(15, Math.round(args.basePriceUsd * args.tierQuantity * f * 100) / 100);
+  }
+  const units = Math.max(1, args.baseUnitCount);
+  const unitRate = args.basePriceUsd / units;
+  return Math.max(15, Math.round(unitRate * args.tierQuantity * f * 100) / 100);
+}
 
 export type TrainerServiceOfferingBundleTier = z.infer<typeof trainerServiceOfferingBundleTierSchema>;
 export type TrainerServiceOfferingVariation = z.infer<typeof trainerServiceOfferingVariationSchema>;
@@ -95,7 +139,7 @@ export const trainerServiceOfferingLineSchema = z.object({
   priceUsd: z.number().min(15).max(5000),
   billingUnit: z.enum(BILLING_UNITS),
   description: z.string().trim().max(600).optional(),
-  sessionMinutes: z.number().int().min(15).max(240).optional(),
+  sessionMinutes: z.number().int().min(15).max(120).optional(),
   /** @deprecated Prefer `sessionFrequencyKind` + `sessionFrequencyCount` for per-week cadence. */
   sessionsPerWeek: z.number().int().min(1).max(14).optional(),
   sessionFrequencyKind: z.enum(SESSION_FREQUENCY_KINDS).optional(),
@@ -181,12 +225,22 @@ export const trainerServiceOfferingsDocumentSchema = z
               path: ["services", i, "variations", j, "billingUnit"],
             });
           }
-          if (serviceOfferingNeedsSessionLength(line.serviceId, line.delivery) && !serviceOfferingIsDiyTemplate(line.serviceId)) {
-            const m = v.sessionMinutes;
-            if (m == null || !Number.isFinite(m) || m < 15 || m > 240) {
+          if (variationRequiresSessionCount(line.serviceId, v.billingUnit)) {
+            const c = v.sessionCount;
+            if (c == null || !Number.isFinite(c) || c < 1 || c > 20) {
               ctx.addIssue({
                 code: "custom",
-                message: "Session length is required (15–240 minutes) for each option on this template.",
+                message: "Each per-session option must include how many sessions (1–20) that price covers.",
+                path: ["services", i, "variations", j, "sessionCount"],
+              });
+            }
+          }
+          if (serviceOfferingNeedsSessionLength(line.serviceId, line.delivery) && !serviceOfferingIsDiyTemplate(line.serviceId)) {
+            const m = v.sessionMinutes;
+            if (m == null || !Number.isFinite(m) || m < 15 || m > 120) {
+              ctx.addIssue({
+                code: "custom",
+                message: "Session length is required (15–120 minutes) for each option on this template.",
                 path: ["services", i, "variations", j, "sessionMinutes"],
               });
             }
@@ -205,12 +259,13 @@ export const trainerServiceOfferingsDocumentSchema = z
             seenT.add(t.tierId);
           }
         }
-      } else if (serviceOfferingNeedsSessionLength(line.serviceId, line.delivery)) {
+      } else if (serviceOfferingNeedsSessionLength(line.serviceId, line.delivery) && !serviceOfferingIsDiyTemplate(line.serviceId)) {
         const m = line.sessionMinutes;
-        if (m == null || !Number.isFinite(m) || m < 15 || m > 240) {
+        if (m == null || !Number.isFinite(m) || m < 15 || m > 120) {
           ctx.addIssue({
             code: "custom",
-            message: "Session length is required (15–240 minutes) for virtual or in-person packages on this template.",
+            message:
+              "Session length is required (15–120 minutes) for virtual or in-person packages. Add package option rows in the dashboard—session length is set on each row, not with list price alone.",
             path: ["services", i, "sessionMinutes"],
           });
         }
@@ -315,10 +370,43 @@ export function defaultTrainerServiceOfferingsDocument(): TrainerServiceOffering
   };
 }
 
+/** Legacy rows omitted sessionCount; default to 1 so stored JSON keeps validating. */
+function augmentOfferingsSessionCountDefaults(parsed: unknown): unknown {
+  if (!parsed || typeof parsed !== "object") return parsed;
+  const doc = parsed as { services?: unknown[] };
+  if (!Array.isArray(doc.services)) return parsed;
+  return {
+    ...doc,
+    services: doc.services.map((line: unknown) => {
+      if (!line || typeof line !== "object") return line;
+      const l = line as { serviceId?: string; variations?: unknown[] };
+      if (!Array.isArray(l.variations)) return line;
+      const sid = l.serviceId as MatchServiceId | undefined;
+      return {
+        ...l,
+        variations: l.variations.map((v: unknown) => {
+          if (!v || typeof v !== "object") return v;
+          const row = v as { billingUnit?: BillingUnit; sessionCount?: number };
+          if (
+            sid &&
+            row.billingUnit &&
+            variationRequiresSessionCount(sid, row.billingUnit) &&
+            (row.sessionCount == null || !Number.isFinite(row.sessionCount))
+          ) {
+            return { ...row, sessionCount: 1 };
+          }
+          return v;
+        }),
+      };
+    }),
+  };
+}
+
 export function parseTrainerServiceOfferingsJson(raw: string | null | undefined): TrainerServiceOfferingsDocument {
   if (!raw?.trim()) return defaultTrainerServiceOfferingsDocument();
   try {
-    const parsed = trainerServiceOfferingsDocumentSchema.safeParse(JSON.parse(raw) as unknown);
+    const json = JSON.parse(raw) as unknown;
+    const parsed = trainerServiceOfferingsDocumentSchema.safeParse(augmentOfferingsSessionCountDefaults(json));
     return parsed.success ? parsed.data : defaultTrainerServiceOfferingsDocument();
   } catch {
     return defaultTrainerServiceOfferingsDocument();
@@ -387,26 +475,35 @@ export function publishedPurchaseSkusFromLine(line: TrainerServiceOfferingLine):
   const out: PublishedPurchaseSku[] = [];
   for (const v of line.variations) {
     const metaV: string[] = [modality];
+    const sessionPackQty = variationRequiresSessionCount(line.serviceId, v.billingUnit)
+      ? Math.max(1, Math.min(20, v.sessionCount ?? 1))
+      : 1;
+    if (variationRequiresSessionCount(line.serviceId, v.billingUnit) && sessionPackQty > 1) {
+      metaV.push(`${sessionPackQty} sessions`);
+    }
     if (v.sessionMinutes != null && v.sessionMinutes > 0) metaV.push(`${v.sessionMinutes} min`);
     const freq = sessionFrequencyMetaFragment(line);
     if (freq) metaV.push(freq);
     const headV = `${baseTitle} — ${v.label} (${metaV.join(" · ")}): ${formatTrainerServicePriceUsd(v.priceUsd)} ${
       BILLING_UNIT_LABELS[v.billingUnit as BillingUnit]
     }`;
-    const labelBase = desc ? `${headV} — ${desc}` : headV;
+    const varDesc = v.variationDescription?.trim();
+    const labelBase = [desc ? `${headV} — ${desc}` : headV, varDesc].filter(Boolean).join(" — ");
     out.push({
       checkoutKey: `${line.serviceId}:${v.variationId}`,
       serviceId: line.serviceId,
       variationId: v.variationId,
       bundleTierId: null,
-      bundleQuantity: 1,
+      bundleQuantity: sessionPackQty,
       label: labelBase,
       priceUsd: v.priceUsd,
       billingUnit: v.billingUnit,
       sessionMinutes: v.sessionMinutes,
     });
     for (const t of v.bundleTiers ?? []) {
-      const tierLabel = t.label?.trim() || `${t.quantity} sessions`;
+      const unitWord =
+        v.billingUnit === "per_hour" ? "hours" : v.billingUnit === "per_month" ? "months" : "sessions";
+      const tierLabel = t.label?.trim() || `${t.quantity} ${unitWord}`;
       const headT = `${baseTitle} — ${v.label} — ${tierLabel}: ${formatTrainerServicePriceUsd(t.priceUsd)} total`;
       const labelT = desc ? `${headT} — ${desc}` : headT;
       out.push({
@@ -655,7 +752,7 @@ export async function migrateLegacyQuestionnaireServices(trainerId: string): Pro
     }
     if (typeof o.sessionMinutes === "number" && Number.isFinite(o.sessionMinutes)) {
       const m = Math.floor(o.sessionMinutes);
-      if (m >= 15 && m <= 240) line.sessionMinutes = m;
+      if (m >= 15 && m <= 120) line.sessionMinutes = m;
     }
     if (typeof o.sessionsPerWeek === "number" && Number.isFinite(o.sessionsPerWeek)) {
       const w = Math.floor(o.sessionsPerWeek);

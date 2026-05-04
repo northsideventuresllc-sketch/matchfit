@@ -33,7 +33,7 @@ const publishBodySchema = z.object({
   priceUsd: z.number().min(15).max(5000),
   billingUnit: z.enum(BILLING_UNITS),
   description: z.string().trim().min(20).max(600),
-  sessionMinutes: z.number().int().min(15).max(240).optional(),
+  sessionMinutes: z.number().int().min(15).max(120).optional(),
   sessionsPerWeek: z.number().int().min(1).max(14).optional(),
   sessionFrequencyKind: z.enum(SESSION_FREQUENCY_KINDS).default("none"),
   sessionFrequencyCount: z.number().int().min(1).max(31).optional(),

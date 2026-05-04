@@ -141,6 +141,7 @@ export async function GET(_req: Request, ctx: RouteContext) {
             select: {
               id: true,
               status: true,
+              sessionDelivery: true,
               scheduledStartAt: true,
               scheduledEndAt: true,
               inviteNote: true,
@@ -170,6 +171,7 @@ export async function GET(_req: Request, ctx: RouteContext) {
       pendingBookings: pendingBookings.map((b) => ({
         id: b.id,
         status: b.status,
+        sessionDelivery: b.sessionDelivery,
         startsAt: b.scheduledStartAt.toISOString(),
         endsAt: b.scheduledEndAt?.toISOString() ?? null,
         inviteNote: b.inviteNote,

@@ -43,6 +43,7 @@ type PhoneCallInfo = {
 type PendingBooking = {
   id: string;
   status: string;
+  sessionDelivery: string;
   startsAt: string;
   endsAt: string | null;
   inviteNote: string | null;
@@ -96,6 +97,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
   const [inviteStart, setInviteStart] = useState("");
   const [inviteEnd, setInviteEnd] = useState("");
   const [inviteNote, setInviteNote] = useState("");
+  const [inviteSessionDelivery, setInviteSessionDelivery] = useState<"IN_PERSON" | "VIRTUAL">("IN_PERSON");
   const [inviteBusy, setInviteBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -248,6 +250,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
           startsAt: startsAt.toISOString(),
           endsAt: endsAt.toISOString(),
           note: inviteNote.trim() || undefined,
+          sessionDelivery: inviteSessionDelivery,
         }),
       });
       const data = (await res.json()) as { error?: string };
@@ -637,6 +640,79 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
             })
           )}
         </div>
+        <div className="relative border-t border-white/[0.07] bg-[#08090d]/95 px-3 py-2.5 sm:px-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+            {official && !archived && trainerPremiumStudio ? (
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setPlusOpen((o) => !o)}
+                  className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#FF7E00]/35 bg-[#FF7E00]/15 text-xl font-light leading-none text-white shadow-inner transition hover:border-[#FF7E00]/50"
+                  aria-expanded={plusOpen}
+                  aria-haspopup="true"
+                  title="Share from Premium"
+                >
+                  +
+                </button>
+                {plusOpen ? (
+                  <div className="absolute bottom-full left-0 z-20 mb-2 w-72 rounded-xl border border-white/10 bg-[#151925] p-2 shadow-2xl">
+                    <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white/40">FitHub post</p>
+                    <div className="max-h-48 overflow-y-auto">
+                      {shareableFitHubPosts.length === 0 ? (
+                        <p className="px-2 py-2 text-xs text-white/45">No public posts yet.</p>
+                      ) : (
+                        shareableFitHubPosts.map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            disabled={Boolean(sendingPostId)}
+                            onClick={() => void shareFitHubPost(p.id)}
+                            className="flex w-full flex-col gap-0.5 rounded-lg px-2 py-2 text-left text-xs text-white/80 hover:bg-white/[0.06] disabled:opacity-40"
+                          >
+                            <span className="line-clamp-2">{p.preview}</span>
+                            <span className="text-[10px] text-white/35">{p.postType}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                    <div className="mt-1 border-t border-white/[0.06] pt-2">
+                      <button
+                        type="button"
+                        disabled
+                        className="w-full rounded-lg px-2 py-2 text-left text-xs text-white/35"
+                        title="Coming soon"
+                      >
+                        Reviews (coming soon)
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              disabled={!official || archived}
+              placeholder={
+                archived
+                  ? "Archived — messaging is paused."
+                  : official
+                    ? "Write a message…"
+                    : "Chat opens after the thread is active."
+              }
+              rows={3}
+              className="min-h-[4.5rem] flex-1 resize-none rounded-xl border border-white/[0.1] bg-[#0E1016]/90 px-3 py-2 text-sm text-white shadow-inner placeholder:text-white/30 disabled:opacity-40"
+            />
+            <button
+              type="button"
+              disabled={!official || archived || !text.trim()}
+              onClick={() => void send()}
+              className="inline-flex min-h-[3rem] shrink-0 items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-gradient-to-br from-[#FF7E00]/25 to-[#FF7E00]/10 px-6 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/55 disabled:opacity-40"
+            >
+              Send
+            </button>
+          </div>
+        </div>
         {official && !archived && publishedServices.length > 0 ? (
           <div className="relative border-t border-white/[0.07] bg-[#0a0b10]/95 px-3 py-2 sm:px-4">
             {showAiCheckoutHint && checkoutHintActive ? (
@@ -747,7 +823,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
         pendingBookings.length > 0 ||
         (phoneCall?.paid && phoneCall.twilioConfigured)) ? (
         <div className="space-y-3 rounded-xl border border-white/[0.08] bg-[#0c0d12]/95 px-3 py-3 sm:px-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">Bookings, video &amp; voice</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">Bookings &amp; voice</p>
           {bookingSnapshot ? (
             <p className="text-[11px] text-white/55">
               <span className="font-semibold text-white/75">Client booking credits: </span>
@@ -765,6 +841,9 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/35">{b.status.replace(/_/g, " ")}</p>
+                        <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#FF9A4A]/90">
+                          {b.sessionDelivery === "VIRTUAL" ? "Virtual meeting" : "In person"}
+                        </p>
                         <p className="text-xs text-white/80">
                           {new Date(b.startsAt).toLocaleString(undefined, {
                             weekday: "short",
@@ -785,7 +864,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
                           </a>
                         ) : null}
                       </div>
-                      {phoneCall?.paid ? (
+                      {phoneCall?.paid && b.sessionDelivery === "VIRTUAL" ? (
                         <button
                           type="button"
                           disabled={videoBusy}
@@ -795,16 +874,16 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
                           }}
                           className="shrink-0 self-start rounded-lg border border-white/12 px-2 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-white/65 transition hover:border-[#FF7E00]/40 hover:text-white/90 disabled:opacity-40"
                         >
-                          {videoAttachId === b.id ? "Close video tools" : "Video link"}
+                          {videoAttachId === b.id ? "Close virtual meetings" : "Virtual meetings"}
                         </button>
                       ) : null}
                     </div>
-                    {videoAttachId === b.id && phoneCall?.paid ? (
+                    {videoAttachId === b.id && phoneCall?.paid && b.sessionDelivery === "VIRTUAL" ? (
                       <div className="mt-2 space-y-2 border-t border-white/[0.06] pt-2">
                         <p className="text-[10px] text-white/45">
-                          Manual link or sync creates a meeting for this booking window. Manage OAuth under{" "}
+                          Add a link or sync from a connected account. Manage accounts under{" "}
                           <Link href="/trainer/dashboard/video-meetings" className="text-[#FF9A4A] underline-offset-2 hover:underline">
-                            Video
+                            Virtual Meetings
                           </Link>
                           .
                         </p>
@@ -831,7 +910,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
                                 key={p}
                                 type="button"
                                 disabled={videoBusy || !connected}
-                                title={!connected ? `Connect ${label} on the Video page first` : undefined}
+                                title={!connected ? `Connect ${label} on Virtual Meetings first` : undefined}
                                 onClick={() => void syncVideo(b.id, p)}
                                 className="flex-1 rounded-lg border border-[#FF7E00]/30 bg-[#FF7E00]/10 py-1.5 text-[9px] font-black uppercase tracking-[0.08em] text-white/85 disabled:opacity-35"
                               >
@@ -856,6 +935,31 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
           </button>
           {inviteOpen ? (
             <div className="space-y-2 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/45">Session type</p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setInviteSessionDelivery("IN_PERSON")}
+                  className={`min-h-[2.25rem] flex-1 rounded-lg border px-2 py-2 text-[10px] font-bold uppercase tracking-[0.08em] transition ${
+                    inviteSessionDelivery === "IN_PERSON"
+                      ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-100"
+                      : "border-white/10 bg-transparent text-white/50 hover:border-white/20"
+                  }`}
+                >
+                  In person
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInviteSessionDelivery("VIRTUAL")}
+                  className={`min-h-[2.25rem] flex-1 rounded-lg border px-2 py-2 text-[10px] font-bold uppercase tracking-[0.08em] transition ${
+                    inviteSessionDelivery === "VIRTUAL"
+                      ? "border-sky-400/50 bg-sky-500/15 text-sky-100"
+                      : "border-white/10 bg-transparent text-white/50 hover:border-white/20"
+                  }`}
+                >
+                  Virtual meeting
+                </button>
+              </div>
               <label className="block text-[10px] font-bold uppercase text-white/40">Start</label>
               <input
                 type="datetime-local"
@@ -915,78 +1019,6 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
           ) : null}
         </div>
       ) : null}
-
-      <div className="flex flex-col gap-2 border-t border-white/[0.08] pt-3 sm:flex-row sm:items-stretch">
-        {official && !archived && trainerPremiumStudio ? (
-          <div className="relative shrink-0">
-            <button
-              type="button"
-              onClick={() => setPlusOpen((o) => !o)}
-              className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#FF7E00]/35 bg-[#FF7E00]/15 text-xl font-light leading-none text-white shadow-inner transition hover:border-[#FF7E00]/50"
-              aria-expanded={plusOpen}
-              aria-haspopup="true"
-              title="Share from Premium"
-            >
-              +
-            </button>
-            {plusOpen ? (
-              <div className="absolute bottom-full left-0 z-20 mb-2 w-72 rounded-xl border border-white/10 bg-[#151925] p-2 shadow-2xl">
-                <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white/40">FitHub post</p>
-                <div className="max-h-48 overflow-y-auto">
-                  {shareableFitHubPosts.length === 0 ? (
-                    <p className="px-2 py-2 text-xs text-white/45">No public posts yet.</p>
-                  ) : (
-                    shareableFitHubPosts.map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        disabled={Boolean(sendingPostId)}
-                        onClick={() => void shareFitHubPost(p.id)}
-                        className="flex w-full flex-col gap-0.5 rounded-lg px-2 py-2 text-left text-xs text-white/80 hover:bg-white/[0.06] disabled:opacity-40"
-                      >
-                        <span className="line-clamp-2">{p.preview}</span>
-                        <span className="text-[10px] text-white/35">{p.postType}</span>
-                      </button>
-                    ))
-                  )}
-                </div>
-                <div className="mt-1 border-t border-white/[0.06] pt-2">
-                  <button
-                    type="button"
-                    disabled
-                    className="w-full rounded-lg px-2 py-2 text-left text-xs text-white/35"
-                    title="Coming soon"
-                  >
-                    Reviews (coming soon)
-                  </button>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          disabled={!official || archived}
-          placeholder={
-            archived
-              ? "Archived — messaging is paused."
-              : official
-                ? "Write a message…"
-                : "Chat opens after the thread is active."
-          }
-          rows={3}
-          className="min-h-[4.5rem] flex-1 resize-none rounded-xl border border-white/[0.1] bg-[#0E1016]/90 px-3 py-2 text-sm text-white shadow-inner placeholder:text-white/30 disabled:opacity-40"
-        />
-        <button
-          type="button"
-          disabled={!official || archived || !text.trim()}
-          onClick={() => void send()}
-          className="inline-flex min-h-[3rem] shrink-0 items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-gradient-to-br from-[#FF7E00]/25 to-[#FF7E00]/10 px-6 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/55 disabled:opacity-40"
-        >
-          Send
-        </button>
-      </div>
 
       {official && !archived ? (
         <div className="mt-2 rounded-xl border border-white/[0.07] bg-[#08090d]/90 px-3 py-2.5 text-center text-[9px] leading-snug text-white/38 sm:px-4 sm:text-[10px] sm:leading-relaxed">

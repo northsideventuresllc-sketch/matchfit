@@ -38,7 +38,7 @@ const NAV = [
   },
   {
     href: "/trainer/dashboard/video-meetings",
-    label: "Video",
+    label: "Virtual Meetings",
     match: (p: string) => p.startsWith("/trainer/dashboard/video-meetings"),
   },
   {

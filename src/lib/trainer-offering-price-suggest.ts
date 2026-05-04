@@ -206,6 +206,10 @@ export function formatPricingRowsHuman(skus: PublishedPurchaseSku[]): string {
         const each = s.priceUsd / s.bundleQuantity;
         return `${i + 1}. [${unit}] ${formatTrainerServicePriceUsd(s.priceUsd)} total for ${s.bundleQuantity} sessions (~${formatTrainerServicePriceUsd(each)} / session)${mins} — ${s.label.slice(0, 220)}`;
       }
+      if (s.billingUnit === "per_session" && s.bundleQuantity > 1) {
+        const each = s.priceUsd / s.bundleQuantity;
+        return `${i + 1}. [${unit}] ${formatTrainerServicePriceUsd(s.priceUsd)} total for ${s.bundleQuantity} sessions (~${formatTrainerServicePriceUsd(each)} / session)${mins} — ${s.label.slice(0, 220)}`;
+      }
       return `${i + 1}. [${unit}] ${formatTrainerServicePriceUsd(s.priceUsd)}${mins} — ${s.label.slice(0, 220)}`;
     })
     .join("\n");
@@ -233,6 +237,11 @@ function benchmarkOneSkuRow(
   let high: number;
   let comparePrice: number;
   if (sku.billingUnit === "multi_session") {
+    low = roundPriceToStep(band.low * f * qty);
+    mid = roundPriceToStep(band.mid * f * qty);
+    high = roundPriceToStep(band.high * f * qty);
+    comparePrice = sku.priceUsd;
+  } else if (sku.billingUnit === "per_session" && qty > 1) {
     low = roundPriceToStep(band.low * f * qty);
     mid = roundPriceToStep(band.mid * f * qty);
     high = roundPriceToStep(band.high * f * qty);

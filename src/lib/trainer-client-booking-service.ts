@@ -18,6 +18,8 @@ export async function createTrainerBookingInvite(args: {
   startsAt: Date;
   endsAt: Date;
   note?: string | null;
+  /** IN_PERSON | VIRTUAL */
+  sessionDelivery?: "IN_PERSON" | "VIRTUAL";
 }): Promise<{ ok: true; bookingId: string } | { error: string }> {
   const paid = await clientHasPaidTrainerOnce(args.clientId, args.trainerId);
   if (!paid) {
@@ -59,6 +61,8 @@ export async function createTrainerBookingInvite(args: {
     }
   }
 
+  const sessionDelivery = args.sessionDelivery === "VIRTUAL" ? "VIRTUAL" : "IN_PERSON";
+
   const booking = await prisma.bookedTrainingSession.create({
     data: {
       trainerId: args.trainerId,
@@ -70,6 +74,7 @@ export async function createTrainerBookingInvite(args: {
       status: "INVITED",
       trainerAmountCents: 0,
       inviteNote: args.note?.trim() || null,
+      sessionDelivery,
     },
     select: { id: true },
   });
@@ -82,8 +87,9 @@ export async function createTrainerBookingInvite(args: {
     minute: "2-digit",
   });
   const endLabel = args.endsAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const deliveryPhrase = sessionDelivery === "VIRTUAL" ? "Virtual meeting" : "In person";
   const msgBody = [
-    `Match Fit booking invite: ${startLabel} – ${endLabel}.`,
+    `Match Fit booking invite (${deliveryPhrase}): ${startLabel} – ${endLabel}.`,
     args.note?.trim() ? `Note from your coach: ${args.note.trim()}` : null,
     `Booking id: ${booking.id}`,
     `Reply in this thread if you need a change. To confirm, open your chat booking actions (Confirm) for id ${booking.id}.`,

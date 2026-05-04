@@ -23,7 +23,7 @@ const bodySchema = z.object({
   delivery: z.enum(["virtual", "in_person", "both"]),
   priceUsd: z.number().min(15).max(5000),
   description: z.string().trim().max(600).optional().default(""),
-  sessionMinutes: z.number().int().min(15).max(240).optional(),
+  sessionMinutes: z.number().int().min(15).max(120).optional(),
   sessionFrequencyKind: z.enum(SESSION_FREQUENCY_KINDS).optional(),
   sessionFrequencyCount: z.number().int().min(1).max(31).optional(),
   sessionFrequencyCustom: z.string().trim().max(120).optional(),
