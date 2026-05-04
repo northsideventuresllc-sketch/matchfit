@@ -10,6 +10,15 @@ import type { PublishedPurchaseSku } from "@/lib/trainer-service-offerings";
 
 export type PriceVerdict = "too_low" | "fair" | "too_high";
 
+/** One coach-facing suggestion vs typical market (checklist in AI review modal). */
+export type CoachListingRecommendation = {
+  id: string;
+  /** Plain language; shown next to a checkbox. */
+  label: string;
+  /** use_suggested_anchor = can apply Match Fit suggested anchor price to your listing in one tap. */
+  applyKind: "none" | "use_suggested_anchor";
+};
+
 export type PriceCheckResult = {
   verdict: PriceVerdict;
   /** Match Fit suggested list price in USD (15–5000). */
@@ -18,6 +27,10 @@ export type PriceCheckResult = {
   headline: string;
   /** Longer guidance for the coach. */
   detail: string;
+  /** Short, non-technical summary for the coach (preferred over `detail` in UI). */
+  summaryPlain?: string;
+  /** Actionable checklist vs market; optional until enrichment runs. */
+  recommendations?: CoachListingRecommendation[];
   /** Typical range used for comparison (US virtual / hybrid coaching, approximate 2025 retail). */
   benchmarkLowUsd: number;
   benchmarkMidUsd: number;
@@ -433,4 +446,116 @@ export function suggestAutoPriceUsd(
     description: input.description ?? "",
   });
   return roundPriceToStep(band.mid * f);
+}
+
+function clampPlainSummary(s: string | undefined, max = 280): string | undefined {
+  const t = s?.trim();
+  if (!t) return undefined;
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1)}…`;
+}
+
+function defaultSummaryPlain(result: PriceCheckResult): string {
+  const low = formatTrainerServicePriceUsd(result.benchmarkLowUsd);
+  const high = formatTrainerServicePriceUsd(result.benchmarkHighUsd);
+  if (result.verdict === "too_low") {
+    return `Compared with similar coach listings (${low}–${high} is a common band), your price looks on the low side. That can attract deal-seekers—or make people wonder what is included. Change only what feels right for you.`;
+  }
+  if (result.verdict === "too_high") {
+    return `Compared with similar listings (${low}–${high} is a common band), your price reads a bit high. That is fine for a premium offer—just make sure your description shows why you are worth it.`;
+  }
+  return `Your pricing looks in a healthy range for this type of package (${low}–${high} is a typical band). Small tweaks to copy or options can still help conversions.`;
+}
+
+function buildDefaultRecommendations(
+  result: PriceCheckResult,
+  ctx: { description: string; hasMultipleSkus: boolean },
+): CoachListingRecommendation[] {
+  const out: CoachListingRecommendation[] = [];
+  const sug = formatTrainerServicePriceUsd(result.suggestedPriceUsd);
+  if (result.verdict !== "fair") {
+    out.push({
+      id: "align-list-price",
+      label: ctx.hasMultipleSkus
+        ? `Bring your checkout prices closer to typical market levels (we suggest scaling toward about ${sug} on your lowest-priced option).`
+        : `Set your list price closer to what similar coaches charge (about ${sug} is a reasonable target).`,
+      applyKind: "use_suggested_anchor",
+    });
+  }
+  const d = ctx.description.trim();
+  if (d.length < 80) {
+    out.push({
+      id: "expand-description",
+      label: "Add a few more sentences to your description so clients understand what they get for the price.",
+      applyKind: "none",
+    });
+  }
+  if (result.verdict === "fair" && d.length >= 80) {
+    out.push({
+      id: "optional-fine-tune",
+      label: "Optional: skim your titles and options to make sure the first line a client reads matches how you want to be positioned.",
+      applyKind: "none",
+    });
+  }
+  return out;
+}
+
+function sanitizeRecommendations(raw: unknown): CoachListingRecommendation[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CoachListingRecommendation[] = [];
+  let anchorUsed = false;
+  for (const item of raw) {
+    if (out.length >= 10) break;
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const id = typeof o.id === "string" && o.id.trim() ? o.id.trim().slice(0, 64) : "";
+    const label = typeof o.label === "string" && o.label.trim() ? o.label.trim().slice(0, 220) : "";
+    if (!id || !label) continue;
+    let applyKind: CoachListingRecommendation["applyKind"] = "none";
+    const k = typeof o.applyKind === "string" ? o.applyKind.trim() : "";
+    if (k === "use_suggested_anchor" && !anchorUsed) {
+      applyKind = "use_suggested_anchor";
+      anchorUsed = true;
+    }
+    out.push({ id, label, applyKind });
+  }
+  return out;
+}
+
+function ensurePriceAnchorRec(
+  result: PriceCheckResult,
+  recs: CoachListingRecommendation[],
+  ctx: { hasMultipleSkus: boolean },
+): CoachListingRecommendation[] {
+  if (result.verdict === "fair") return recs;
+  if (recs.some((r) => r.applyKind === "use_suggested_anchor")) return recs;
+  const sug = formatTrainerServicePriceUsd(result.suggestedPriceUsd);
+  const extra: CoachListingRecommendation = {
+    id: "align-list-price-fallback",
+    label: ctx.hasMultipleSkus
+      ? `Adjust checkout prices toward typical market levels (about ${sug} on your lowest option is a starting point).`
+      : `Adjust your list price toward typical market levels (about ${sug} is a starting point).`,
+    applyKind: "use_suggested_anchor",
+  };
+  return [extra, ...recs];
+}
+
+export type EnrichPriceCheckContext = {
+  description: string;
+  hasMultipleSkus: boolean;
+};
+
+/** Adds coach-friendly summary + checklist; safe to call on benchmark or OpenAI results. */
+export function enrichPriceCheckResultForCoachUi(
+  result: PriceCheckResult,
+  ctx: EnrichPriceCheckContext,
+): PriceCheckResult {
+  const summaryPlain = clampPlainSummary(result.summaryPlain) ?? defaultSummaryPlain(result);
+  let recommendations = sanitizeRecommendations(result.recommendations);
+  if (recommendations.length === 0) {
+    recommendations = buildDefaultRecommendations(result, ctx);
+  } else {
+    recommendations = ensurePriceAnchorRec(result, recommendations, ctx);
+  }
+  return { ...result, summaryPlain, recommendations };
 }

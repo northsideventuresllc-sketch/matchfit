@@ -5,6 +5,7 @@ import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { BILLING_UNITS, MATCH_SERVICE_CATALOG, type MatchServiceId, type ServiceDeliveryMode } from "@/lib/trainer-match-questionnaire";
 import {
   analyzeOfferingPriceBenchmark,
+  enrichPriceCheckResultForCoachUi,
   formatPricingRowsHuman,
   suggestAutoPriceUsd,
   type PriceCheckResult,
@@ -115,6 +116,10 @@ export async function POST(req: Request) {
     }
 
     const customTitle = body.publicTitle?.trim();
+    const enrichCtx = {
+      description: body.description,
+      hasMultipleSkus: Boolean(body.variations && body.variations.length > 0),
+    };
 
     if (body.priceCheckAiEnabled === false) {
       const bench = analyzeOfferingPriceBenchmark({
@@ -126,13 +131,17 @@ export async function POST(req: Request) {
         publicTitle: customTitle && customTitle.length > 0 ? customTitle : undefined,
         ...listingExtras,
       });
-      return NextResponse.json({
-        ...bench,
-        source: "benchmark" as const,
-        aiDisabled: true,
-        detail:
-          `${bench.detail} AI pricing review is turned off for this package—only Match Fit benchmarks are shown. Toggle “AI pricing suggestions” on in Services to get an OpenAI-assisted pass (when configured).`,
-      });
+      return NextResponse.json(
+        enrichPriceCheckResultForCoachUi(
+          {
+            ...bench,
+            source: "benchmark" as const,
+            aiDisabled: true,
+            detail: `${bench.detail} (Numbers only here—no AI pass for this request.)`,
+          },
+          enrichCtx,
+        ),
+      );
     }
 
     const ai = await analyzeOfferingPriceOpenAi({
@@ -154,7 +163,7 @@ export async function POST(req: Request) {
       ...listingExtras,
     });
 
-    return NextResponse.json(result);
+    return NextResponse.json(enrichPriceCheckResultForCoachUi(result, enrichCtx));
   } catch (e) {
     const { message, status } = publicApiErrorFromUnknown(e, "Could not analyze pricing.", {
       logLabel: "[Match Fit trainer service price check]",

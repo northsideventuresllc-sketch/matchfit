@@ -5,7 +5,12 @@ import {
   type MatchServiceId,
   type ServiceDeliveryMode,
 } from "@/lib/trainer-match-questionnaire";
-import type { OfferingPriceCheckListingContext, PriceCheckResult, PriceVerdict } from "@/lib/trainer-offering-price-suggest";
+import type {
+  CoachListingRecommendation,
+  OfferingPriceCheckListingContext,
+  PriceCheckResult,
+  PriceVerdict,
+} from "@/lib/trainer-offering-price-suggest";
 import { analyzeOfferingPriceBenchmark, roundPriceToStep } from "@/lib/trainer-offering-price-suggest";
 
 type OpenAiShape = {
@@ -13,6 +18,10 @@ type OpenAiShape = {
   suggestedPriceUsd?: number;
   headline?: string;
   detail?: string;
+  /** Short, friendly summary for the coach (no jargon). */
+  summaryPlain?: string;
+  /** Checklist items: { id, label, applyKind: "none" | "use_suggested_anchor" }. */
+  recommendations?: unknown[];
 };
 
 function coerceVerdict(v: string | undefined): PriceVerdict {
@@ -89,7 +98,7 @@ export async function analyzeOfferingPriceOpenAi(
       {
         role: "system" as const,
         content:
-          "You help US fitness coaches price virtual and in-person packages. You receive the coach's full listing context: delivery mode, line-level billingUnit (fallback when there are no rows), public title, full client-facing description, session length (minutes when applicable), session cadence fields, for in-person/hybrid the hub ZIP and max drive distance in miles, optional raw variationsJson, and—when the coach uses package options—pricingRowsHuman and purchaseRows: one object per actual checkout row. Each purchaseRows[].billingUnit / billingLabel is authoritative for that row (per session, per hour, per month, or multi_session). For multi_session, listPriceUsd is the TOTAL for bundleQuantity sessions. coachPriceUsd matches the cheapest row’s list price when options exist (see coachPriceNote). Compare the ENTIRE set of rows to typical US consumer retail for those billing types—not template-only and not “everything per session.” Respond with JSON only: verdict (too_low|fair|too_high), suggestedPriceUsd (integer 15-5000; align with internal benchmarks which already reflect mixed billing when purchaseRows exist), headline (max 90 chars), detail (2-5 sentences, plain English; name specific rows or billing types when helpful). Never claim you scraped live competitor sites.",
+          'You help US fitness coaches review a full service listing (not just price). You receive delivery, billing, title, full description, cadence, travel radius when relevant, and every checkout row when options exist. Compare the whole listing to typical US consumer expectations for those billing types. Respond with JSON only. Fields: verdict (too_low|fair|too_high); suggestedPriceUsd (integer 15–5000; align with internalBenchmarkLow/Mid/High which already reflect mixed billing); headline (max 72 chars, plain English); detail (optional, max 400 chars, technical notes if any); summaryPlain (required, max 220 chars: warm, short, zero jargon—like talking to a coach friend; no "benchmark", "SKU", or "billing unit"); recommendations (array, 3–8 items): each { id: unique_snake_case, label: max 140 chars—one specific change vs "what clients usually see" in plain English, applyKind: "use_suggested_anchor" at most ONCE across the array (only for "nudge list/checkout prices toward suggestedPriceUsd"), otherwise "none" for copy, cadence, clarity, or positioning tips. Never claim you scraped live sites.',
       },
       {
         role: "user" as const,
@@ -126,14 +135,21 @@ export async function analyzeOfferingPriceOpenAi(
         : bench.headline;
     const detail =
       typeof parsed.detail === "string" && parsed.detail.trim()
-        ? parsed.detail.trim().slice(0, 900)
+        ? parsed.detail.trim().slice(0, 400)
         : bench.detail;
+    const summaryPlain =
+      typeof parsed.summaryPlain === "string" && parsed.summaryPlain.trim()
+        ? parsed.summaryPlain.trim().slice(0, 280)
+        : undefined;
+    const recommendations = Array.isArray(parsed.recommendations) ? parsed.recommendations : undefined;
 
     return {
       verdict,
       suggestedPriceUsd: suggested,
       headline,
       detail,
+      summaryPlain,
+      recommendations: recommendations as CoachListingRecommendation[] | undefined,
       benchmarkLowUsd: bench.benchmarkLowUsd,
       benchmarkMidUsd: bench.benchmarkMidUsd,
       benchmarkHighUsd: bench.benchmarkHighUsd,

@@ -17,6 +17,7 @@ import {
 } from "@/lib/trainer-match-questionnaire";
 import { parseTrainerMatchQuestionnaireDraft } from "@/lib/trainer-match-questionnaire-draft";
 import type { PriceCheckResult } from "@/lib/trainer-offering-price-suggest";
+import { roundPriceToStep } from "@/lib/trainer-offering-price-suggest";
 import {
   computeBundleTierTotalFromDiscount,
   defaultTrainerServiceOfferingsDocument,
@@ -166,7 +167,6 @@ export function TrainerDashboardServicesBubble() {
   const [inPersonZip, setInPersonZip] = useState("");
   const [inPersonRadiusMiles, setInPersonRadiusMiles] = useState("");
   const [variations, setVariations] = useState<TrainerServiceOfferingVariation[]>([]);
-  const [priceCheckAiEnabled, setPriceCheckAiEnabled] = useState(true);
 
   const [busy, setBusy] = useState(false);
   const [formErr, setFormErr] = useState<string | null>(null);
@@ -175,10 +175,11 @@ export function TrainerDashboardServicesBubble() {
   const [priceModal, setPriceModal] = useState<null | { loading: boolean; result?: PriceCheckResult & { aiDisabled?: boolean } }>(
     null,
   );
-  const [priceModalBusy, setPriceModalBusy] = useState(false);
   const priceModalCancelledRef = useRef(false);
   const [bulkBundlePromptOpen, setBulkBundlePromptOpen] = useState(false);
   const bundlesDetailsRef = useRef<HTMLDetailsElement>(null);
+  const [listingReviewOpen, setListingReviewOpen] = useState(false);
+  const [aiRecChecked, setAiRecChecked] = useState<Record<string, boolean>>({});
 
   const refresh = useCallback(async () => {
     setLoadErr(null);
@@ -292,8 +293,9 @@ export function TrainerDashboardServicesBubble() {
     );
     setFormErr(null);
     setVariations([]);
-    setPriceCheckAiEnabled(true);
     setBulkBundlePromptOpen(false);
+    setListingReviewOpen(false);
+    setAiRecChecked({});
   }
 
   useEffect(() => {
@@ -307,6 +309,16 @@ export function TrainerDashboardServicesBubble() {
           : "",
     );
   }, [draft.inPersonZip, draft.inPersonRadiusMiles, offeringsDoc]);
+
+  useEffect(() => {
+    if (priceModal?.loading === false && priceModal.result?.recommendations?.length) {
+      const next: Record<string, boolean> = {};
+      for (const rec of priceModal.result.recommendations) {
+        next[rec.id] = true;
+      }
+      setAiRecChecked(next);
+    }
+  }, [priceModal]);
 
   function startAddFlow() {
     setSuccess(null);
@@ -461,9 +473,6 @@ export function TrainerDashboardServicesBubble() {
     }
     if (variations.length > 0) {
       out.variations = normalizedVariationsForApi() ?? variations;
-    }
-    if (!priceCheckAiEnabled) {
-      out.priceCheckAiEnabled = false;
     }
     return out;
   }
@@ -664,63 +673,6 @@ export function TrainerDashboardServicesBubble() {
     setPriceModal({ loading: false, result });
   }
 
-  async function onModalAutoGeneratePrice() {
-    if (!serviceId || !delivery) return;
-    if (variations.length > 0) {
-      setFormErr("Auto-generate is only available for single-price packages. Clear package options or set prices manually.");
-      return;
-    }
-    setFormErr(null);
-    const err = validateDetails();
-    if (err) {
-      setFormErr(err);
-      return;
-    }
-    priceModalCancelledRef.current = false;
-    setPriceModalBusy(true);
-    try {
-      const res = await fetch("/api/trainer/dashboard/services/price-check", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          serviceId,
-          publicTitle: publicTitle.trim() || undefined,
-          billingUnit,
-          delivery,
-          priceUsd: Math.min(5000, Math.max(15, parsePriceUsdField() ?? 100)),
-          description: description.trim(),
-          mode: "auto_only",
-          ...priceCheckListingPayload(),
-        }),
-      });
-      if (priceModalCancelledRef.current) return;
-      if (!res.ok) {
-        setFormErr(await readApiErrorMessage(res, "Could not generate a price."));
-        return;
-      }
-      const j = (await res.json()) as { suggestedPriceUsd?: number };
-      const suggested = typeof j.suggestedPriceUsd === "number" && Number.isFinite(j.suggestedPriceUsd) ? j.suggestedPriceUsd : null;
-      if (suggested == null) {
-        setFormErr("Could not generate a price. Try again.");
-        return;
-      }
-      setPriceUsd(String(suggested));
-      setPriceModal({ loading: true });
-      const full = await fetchPriceCheckFull(suggested);
-      if (priceModalCancelledRef.current) return;
-      if (!full) {
-        setPriceModal(null);
-        return;
-      }
-      setPriceModal({ loading: false, result: full });
-    } catch {
-      setFormErr("Network error. Try again.");
-    } finally {
-      setPriceModalBusy(false);
-    }
-  }
-
   async function executePublish(finalPriceUsd: number) {
     if (!offeringKind || !serviceId || !delivery || !me?.username) return;
     setFormErr(null);
@@ -752,20 +704,12 @@ export function TrainerDashboardServicesBubble() {
       ...freqBody,
     };
 
-    const aiBody =
-      priceCheckAiEnabled === false
-        ? { priceCheckAiEnabled: false as const }
-        : isEdit
-          ? { priceCheckAiEnabled: true as const }
-          : {};
-
     setBusy(true);
     try {
       const patchBody = {
         ...baseBody,
         publicTitle: pub,
         variations: variations.length > 0 && vSave ? vSave : [],
-        ...aiBody,
       };
       const publishBody = {
         offeringKind,
@@ -773,7 +717,6 @@ export function TrainerDashboardServicesBubble() {
         ...baseBody,
         ...(pub ? { publicTitle: pub } : {}),
         ...(vSave && vSave.length > 0 ? { variations: vSave } : {}),
-        ...(!isEdit && priceCheckAiEnabled === false ? { priceCheckAiEnabled: false as const } : {}),
       };
       const res = await fetch(
         isEdit
@@ -803,6 +746,57 @@ export function TrainerDashboardServicesBubble() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function applySuggestedAnchorPriceUsd(suggestedRaw: number) {
+    const suggested = roundPriceToStep(suggestedRaw);
+    const tentative = buildTentativeOfferingLine();
+    const curMin = tentative ? minListPriceUsdOnLine(tentative) : parsePriceUsdField();
+    if (curMin == null || !Number.isFinite(curMin) || curMin <= 0) {
+      setPriceUsd(formatTrainerServicePriceUsd(Math.min(5000, Math.max(15, suggested))));
+      return;
+    }
+    const factor = suggested / curMin;
+    if (variations.length === 0) {
+      setPriceUsd(formatTrainerServicePriceUsd(Math.min(5000, Math.max(15, suggested))));
+      return;
+    }
+    setVariations((prev) =>
+      prev.map((v) => {
+        const nextPrice = roundPriceToStep(Math.min(5000, Math.max(15, v.priceUsd * factor)));
+        const tiers = v.bundleTiers?.map((t) => ({
+          ...t,
+          priceUsd: roundPriceToStep(Math.min(50_000, Math.max(15, t.priceUsd * factor))),
+        }));
+        return { ...v, priceUsd: nextPrice, bundleTiers: tiers };
+      }),
+    );
+  }
+
+  function handleAiModalKeepOriginal() {
+    setPriceModal(null);
+  }
+
+  function handleAiModalApplyChanges(applyAll: boolean) {
+    const r = priceModal?.result;
+    if (!r?.recommendations?.length) {
+      setPriceModal(null);
+      return;
+    }
+    if (applyAll) {
+      const all: Record<string, boolean> = {};
+      for (const rec of r.recommendations) {
+        all[rec.id] = true;
+      }
+      setAiRecChecked(all);
+    }
+    const targets = applyAll
+      ? r.recommendations.filter((x) => x.applyKind === "use_suggested_anchor")
+      : r.recommendations.filter((x) => x.applyKind === "use_suggested_anchor" && aiRecChecked[x.id]);
+    if (targets.length > 0) {
+      applySuggestedAnchorPriceUsd(r.suggestedPriceUsd);
+    }
+    setPriceModal(null);
   }
 
   function beginEdit(line: TrainerServiceOfferingLine) {
@@ -877,7 +871,6 @@ export function TrainerDashboardServicesBubble() {
     } else {
       setVariations([]);
     }
-    setPriceCheckAiEnabled(line.priceCheckAiEnabled !== false);
     const o = offeringsDoc ?? defaultTrainerServiceOfferingsDocument();
     setInPersonZip((o.inPersonServiceZip ?? draft.inPersonZip ?? "").trim());
     setInPersonRadiusMiles(
@@ -1221,7 +1214,7 @@ export function TrainerDashboardServicesBubble() {
                 maxLength={TRAINER_SERVICE_PUBLIC_TITLE_MAX}
               />
               <p className="mt-1 text-[10px] leading-relaxed text-white/35">
-                Shown on your profile and in the market price check. Leave blank to use the template name shown above.
+                Shown on your profile and in the step 4 AI listing check. Leave blank to use the template name shown above.
               </p>
             </div>
 
@@ -1999,35 +1992,41 @@ export function TrainerDashboardServicesBubble() {
       {screen === "aiReview" && serviceId && delivery && offeringKind ? (
         <div className="mx-auto mt-8 max-w-lg space-y-4">
           <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Step 4 of 4 · Review & publish</p>
-          <p className="text-center text-sm font-semibold text-white/85">Market check & publish</p>
+          <p className="text-center text-sm font-semibold text-white/85">Review & publish</p>
           <p className="text-center text-xs text-white/45">
             <span className="font-semibold uppercase tracking-wide text-white/40">Template</span>:{" "}
             {MATCH_SERVICE_CATALOG.find((s) => s.id === serviceId)?.label}
           </p>
+          <p className="text-center text-xs leading-relaxed text-white/50">
+            Run <span className="font-semibold text-white/75">AI check</span> on your full listing (copy, prices, and options). Use{" "}
+            <span className="font-semibold text-white/75">REVIEW</span> to see and edit everything in one place before you publish—nothing
+            goes live until you hit Publish.
+          </p>
 
-          <label className="mt-1 flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.08] bg-[#0E1016]/40 px-3 py-3">
-            <input
-              type="checkbox"
-              className="mt-0.5 h-4 w-4 shrink-0 accent-[#FF7E00]"
-              checked={priceCheckAiEnabled}
-              onChange={(e) => setPriceCheckAiEnabled(e.target.checked)}
-            />
-            <span className="text-left text-[11px] leading-relaxed text-white/60">
-              <span className="font-bold text-white/85">AI pricing suggestions</span>
-              {" — "}
-              When on, Review can use OpenAI (if configured) with benchmarks. When off, only benchmarks run—no AI recommendation on what to
-              change.
-            </span>
-          </label>
-
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <button
               type="button"
               disabled={busy}
               onClick={() => void openPriceCheckModal()}
-              className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-[#FF7E00]/45 bg-[#FF7E00]/16 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/60 disabled:opacity-45"
+              className="inline-flex min-h-[3rem] items-center justify-center rounded-xl border border-[#FF7E00]/45 bg-[#FF7E00]/16 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/60 disabled:opacity-45 sm:text-[11px]"
             >
-              {busy ? "Working…" : "Review pricing"}
+              {busy ? "Working…" : "AI check"}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setFormErr(null);
+                const err = validateDetails();
+                if (err) {
+                  setFormErr(err);
+                  return;
+                }
+                setListingReviewOpen(true);
+              }}
+              className="inline-flex min-h-[3rem] items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] text-xs font-black uppercase tracking-[0.1em] text-white/90 transition hover:border-white/25 disabled:opacity-45"
+            >
+              Review
             </button>
             <button
               type="button"
@@ -2044,7 +2043,7 @@ export function TrainerDashboardServicesBubble() {
                   variations.length > 0 && tentative ? minListPriceUsdOnLine(tentative) : parsePriceUsdField();
                 if (p != null && Number.isFinite(p)) void executePublish(p);
               }}
-              className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.08] text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-white/25 disabled:opacity-45"
+              className="inline-flex min-h-[3rem] items-center justify-center rounded-xl border border-white/15 bg-white/[0.08] text-xs font-black uppercase tracking-[0.08em] text-white transition hover:border-white/25 disabled:opacity-45 sm:text-[11px]"
             >
               Publish
             </button>
@@ -2077,21 +2076,20 @@ export function TrainerDashboardServicesBubble() {
           aria-modal="true"
           aria-labelledby="price-check-title"
         >
-          <div className="max-h-[min(90vh,32rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-white/[0.12] bg-[#12151C] p-5 shadow-2xl sm:p-6">
+          <div className="max-h-[min(92vh,40rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-white/[0.12] bg-[#12151C] p-5 shadow-2xl sm:p-6">
             <h3 id="price-check-title" className="text-center text-sm font-bold tracking-wide text-[#FF7E00]">
-              Market Price Check
+              AI listing check
             </h3>
-            <p className="mt-2 text-center text-xs leading-relaxed text-white/45">
-              Estimates use Match Fit benchmarks and, when configured, an AI pass. This is guidance only—not tax or legal
-              advice.
+            <p className="mt-2 text-center text-[11px] leading-relaxed text-white/45">
+              Guidance from Match Fit ranges and (when available) AI— not tax or legal advice.
             </p>
 
             {priceModal.loading ? (
-              <p className="mt-8 text-center text-sm text-white/60">Analyzing your package…</p>
+              <p className="mt-8 text-center text-sm text-white/60">Checking your listing…</p>
             ) : priceModal.result ? (
-              <div className="mt-5 space-y-3 rounded-xl border border-white/[0.08] bg-[#0E1016]/70 p-4 text-sm text-white/85">
+              <div className="mt-5 space-y-4 rounded-xl border border-white/[0.08] bg-[#0E1016]/70 p-4 text-sm text-white/85">
                 <p
-                  className={`text-center text-[13px] font-bold ${
+                  className={`text-center text-[11px] font-black uppercase tracking-[0.14em] ${
                     priceModal.result.verdict === "too_high"
                       ? "text-amber-200"
                       : priceModal.result.verdict === "too_low"
@@ -2099,28 +2097,27 @@ export function TrainerDashboardServicesBubble() {
                         : "text-emerald-200"
                   }`}
                 >
-                  {priceModal.result.headline}
+                  {priceModal.result.verdict === "too_high"
+                    ? "Priced above the usual range"
+                    : priceModal.result.verdict === "too_low"
+                      ? "Priced below the usual range"
+                      : "Looks in range"}
                 </p>
-                <p className="text-xs leading-relaxed text-white/60">{priceModal.result.detail}</p>
-                {priceModal.result.aiDisabled ? (
-                  <p className="text-center text-[10px] font-semibold uppercase tracking-wide text-white/40">
-                    AI review off — benchmarks only
-                  </p>
-                ) : null}
-                <div className="rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2 text-center text-xs text-white/55">
-                  <span className="text-white/40">Typical band: </span>
+                <p className="text-center text-[13px] leading-snug text-white/80">
+                  {priceModal.result.summaryPlain ?? priceModal.result.headline}
+                </p>
+                <div className="rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2 text-center text-[11px] text-white/55">
+                  <span className="text-white/40">Typical range: </span>
                   {formatTrainerServicePriceUsd(priceModal.result.benchmarkLowUsd)}–
-                  {formatTrainerServicePriceUsd(priceModal.result.benchmarkHighUsd)} ·{" "}
-                  <span className="text-white/40">Suggested: </span>
+                  {formatTrainerServicePriceUsd(priceModal.result.benchmarkHighUsd)}
+                  <span className="mx-1 text-white/30">·</span>
+                  <span className="text-white/40">Suggested anchor: </span>
                   <span className="font-bold text-[#FF7E00]">
                     {formatTrainerServicePriceUsd(priceModal.result.suggestedPriceUsd)}
                   </span>
-                  {priceModal.result.source === "openai" ? (
-                    <span className="ml-1 text-[10px] uppercase text-white/35">AI-assisted</span>
-                  ) : null}
                 </div>
-                <p className="text-center text-xs text-white/45">
-                  {variations.length > 0 ? "Lowest option list price: " : "Your entered price: "}
+                <p className="text-center text-[11px] text-white/45">
+                  {variations.length > 0 ? "Your lowest checkout price today: " : "Your list price today: "}
                   <span className="font-semibold text-white">
                     {(() => {
                       const tentative = buildTentativeOfferingLine();
@@ -2132,6 +2129,46 @@ export function TrainerDashboardServicesBubble() {
                     })()}
                   </span>
                 </p>
+                {priceModal.result.aiDisabled ? (
+                  <p className="text-center text-[10px] font-semibold uppercase tracking-wide text-white/40">
+                    Numbers only (no AI pass for this request)
+                  </p>
+                ) : null}
+
+                {priceModal.result.recommendations && priceModal.result.recommendations.length > 0 ? (
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-white/40">Suggested changes</p>
+                    <ul className="mt-2 space-y-2">
+                      {priceModal.result.recommendations.map((rec) => (
+                        <li key={rec.id}>
+                          <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-white/[0.06] bg-black/15 px-3 py-2.5 text-left text-[12px] leading-snug text-white/75">
+                            <input
+                              type="checkbox"
+                              className="mt-0.5 h-4 w-4 shrink-0 accent-[#FF7E00]"
+                              checked={aiRecChecked[rec.id] ?? true}
+                              onChange={(e) => {
+                                setAiRecChecked((prev) => ({ ...prev, [rec.id]: e.target.checked }));
+                              }}
+                            />
+                            <span>{rec.label}</span>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-2 text-[10px] leading-relaxed text-white/38">
+                      Items that can auto-update your <span className="font-semibold text-white/55">prices</span> toward the suggested
+                      anchor are applied when you use the orange buttons. Other lines are reminders—use{" "}
+                      <span className="font-semibold text-white/55">Review</span> or the wizard steps to edit those yourself.
+                    </p>
+                  </div>
+                ) : null}
+
+                <details className="rounded-lg border border-white/[0.05] bg-black/10 px-3 py-2">
+                  <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-wide text-white/40">
+                    More detail
+                  </summary>
+                  <p className="mt-2 text-[11px] leading-relaxed text-white/45">{priceModal.result.detail}</p>
+                </details>
               </div>
             ) : null}
 
@@ -2140,46 +2177,27 @@ export function TrainerDashboardServicesBubble() {
                 <>
                   <button
                     type="button"
-                    disabled={busy || priceModalBusy || variations.length > 0}
-                    onClick={() => {
-                      const s = priceModal.result!.suggestedPriceUsd;
-                      setPriceUsd(formatTrainerServicePriceUsd(s));
-                      void executePublish(s);
-                    }}
-                    className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-[#FF7E00]/50 bg-[#FF7E00]/18 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/65 disabled:opacity-45"
+                    disabled={busy}
+                    onClick={() => handleAiModalKeepOriginal()}
+                    className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-white/15 bg-white/[0.05] text-[11px] font-black uppercase tracking-[0.08em] text-white/90 transition hover:border-white/25 disabled:opacity-45"
                   >
-                    Use suggested {formatTrainerServicePriceUsd(priceModal.result.suggestedPriceUsd)}
+                    Keep original
                   </button>
                   <button
                     type="button"
-                    disabled={busy || priceModalBusy || (variations.length === 0 && parsePriceUsdField() == null)}
-                    onClick={() => {
-                      const tentative = buildTentativeOfferingLine();
-                      const p =
-                        variations.length > 0 && tentative
-                          ? minListPriceUsdOnLine(tentative)
-                          : parsePriceUsdField();
-                      if (p != null) void executePublish(p);
-                    }}
-                    className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-white/15 bg-white/[0.05] text-xs font-bold uppercase tracking-wide text-white/90 hover:border-white/25 disabled:opacity-45"
+                    disabled={busy}
+                    onClick={() => handleAiModalApplyChanges(false)}
+                    className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-[#FF7E00]/50 bg-[#FF7E00]/18 text-[11px] font-black uppercase tracking-[0.07em] text-white transition hover:border-[#FF7E00]/65 disabled:opacity-45"
                   >
-                    Keep my{" "}
-                    {(() => {
-                      const tentative = buildTentativeOfferingLine();
-                      const p =
-                        variations.length > 0 && tentative
-                          ? minListPriceUsdOnLine(tentative)
-                          : parsePriceUsdField();
-                      return p != null ? formatTrainerServicePriceUsd(p) : "price";
-                    })()}
+                    Make checked changes
                   </button>
                   <button
                     type="button"
-                    disabled={busy || priceModalBusy || variations.length > 0}
-                    onClick={() => void onModalAutoGeneratePrice()}
-                    className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-white/12 bg-transparent text-xs font-semibold uppercase tracking-wide text-white/70 hover:border-white/20 disabled:opacity-45"
+                    disabled={busy}
+                    onClick={() => handleAiModalApplyChanges(true)}
+                    className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/28 text-[11px] font-black uppercase tracking-[0.07em] text-white transition hover:border-[#FF7E00]/55 disabled:opacity-45"
                   >
-                    {priceModalBusy ? "Generating…" : "Auto-generate from market"}
+                    Make all suggested changes
                   </button>
                 </>
               ) : null}
@@ -2192,7 +2210,311 @@ export function TrainerDashboardServicesBubble() {
                 }}
                 className="text-center text-[11px] font-semibold uppercase tracking-wide text-white/40 hover:text-white/60 disabled:opacity-30"
               >
-                Cancel
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {listingReviewOpen && screen === "aiReview" && serviceId && delivery && offeringKind ? (
+        <div
+          className="fixed inset-0 z-[101] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="listing-review-title"
+        >
+          <div className="max-h-[min(92vh,44rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/[0.12] bg-[#12151C] p-5 shadow-2xl sm:p-6">
+            <h3 id="listing-review-title" className="text-center text-sm font-bold tracking-wide text-[#FF7E00]">
+              Review your listing
+            </h3>
+            <p className="mt-2 text-center text-[11px] leading-relaxed text-white/45">
+              Nothing is published from this screen. Edit below, then close and hit <span className="font-semibold text-white/60">Publish</span>{" "}
+              when you are ready.
+            </p>
+            <p className="mt-3 text-center text-xs text-white/50">
+              <span className="font-semibold uppercase tracking-wide text-white/40">Template</span>:{" "}
+              {MATCH_SERVICE_CATALOG.find((s) => s.id === serviceId)?.label}
+            </p>
+
+            <div className="mt-5 space-y-4">
+              <div>
+                <p className={labelClass}>How clients receive this</p>
+                <div className="mt-2 space-y-2">
+                  {deliveryOptions.map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setDelivery(opt.id)}
+                      className={`w-full rounded-xl border px-3 py-3 text-left text-sm transition ${
+                        delivery === opt.id
+                          ? "border-[#FF7E00]/55 bg-[#FF7E00]/12 text-white"
+                          : "border-white/[0.08] bg-[#0E1016]/60 text-white/80 hover:border-[#FF7E00]/45"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className={labelClass}>Session frequency</label>
+                <select
+                  className={`${inputClass} mt-1.5`}
+                  value={sessionFrequencyKind}
+                  onChange={(e) => {
+                    const v = e.target.value as SessionFrequencyKind;
+                    setSessionFrequencyKind(v);
+                    setSessionFrequencyCount("");
+                    setSessionFrequencyCustom("");
+                  }}
+                >
+                  <option value="per_week">Per week</option>
+                  <option value="per_month">Per month</option>
+                  <option value="custom">Custom</option>
+                  <option value="none">No set frequency</option>
+                </select>
+              </div>
+              {sessionFrequencyKind === "per_week" || sessionFrequencyKind === "per_month" ? (
+                <div>
+                  <label className={labelClass}>
+                    {sessionFrequencyKind === "per_week" ? "Sessions per week" : "Sessions per month"}
+                  </label>
+                  <input
+                    className={`${inputClass} mt-1.5`}
+                    inputMode="numeric"
+                    value={sessionFrequencyCount}
+                    onChange={(e) => setSessionFrequencyCount(e.target.value.replace(/\D/g, ""))}
+                    placeholder={sessionFrequencyKind === "per_week" ? "1–14" : "1–31"}
+                  />
+                </div>
+              ) : null}
+              {sessionFrequencyKind === "custom" ? (
+                <div>
+                  <label className={labelClass}>Describe cadence</label>
+                  <textarea
+                    className={`${inputClass} mt-1.5 min-h-[4rem] resize-y`}
+                    value={sessionFrequencyCustom}
+                    onChange={(e) => setSessionFrequencyCustom(e.target.value.slice(0, 120))}
+                    maxLength={120}
+                  />
+                </div>
+              ) : null}
+
+              {delivery === "in_person" || delivery === "both" ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className={labelClass}>In-person center ZIP</label>
+                    <input className={`${inputClass} mt-1.5`} value={inPersonZip} onChange={(e) => setInPersonZip(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Max drive (miles)</label>
+                    <input
+                      className={`${inputClass} mt-1.5`}
+                      inputMode="numeric"
+                      value={inPersonRadiusMiles}
+                      onChange={(e) => setInPersonRadiusMiles(e.target.value)}
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              <div>
+                <label className={labelClass}>Public title (optional)</label>
+                <input
+                  className={`${inputClass} mt-1.5`}
+                  value={publicTitle}
+                  onChange={(e) => setPublicTitle(e.target.value)}
+                  maxLength={TRAINER_SERVICE_PUBLIC_TITLE_MAX}
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>Service description</label>
+                <textarea
+                  className={`${inputClass} mt-1.5 min-h-[6rem] resize-y`}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  maxLength={600}
+                />
+                <p className="mt-1 text-[10px] text-white/35">{description.trim().length}/600</p>
+              </div>
+
+              {variations.length === 0 ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className={labelClass}>List price (USD)</label>
+                    <input
+                      className={`${inputClass} mt-1.5`}
+                      inputMode="decimal"
+                      value={priceUsd}
+                      onChange={(e) => setPriceUsd(sanitizeTrainerServicePriceUsdTyping(e.target.value))}
+                      onBlur={() => {
+                        const n = parseTrainerServicePriceUsdInput(priceUsd);
+                        if (n != null) setPriceUsd(formatTrainerServicePriceUsd(n));
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Billing</label>
+                    <select
+                      className={`${inputClass} mt-1.5`}
+                      value={billingUnit}
+                      onChange={(e) => setBillingUnit(e.target.value as BillingUnit)}
+                    >
+                      {billingUnitOptions.map((u) => (
+                        <option key={u} value={u}>
+                          {BILLING_UNIT_LABELS[u]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className={labelClass}>Checkout options</p>
+                  {variations.map((v, vi) => (
+                    <div key={v.variationId} className="rounded-xl border border-white/[0.08] bg-[#0E1016]/50 p-3">
+                      <p className="text-[11px] font-semibold text-white/70">Option {vi + 1}</p>
+                      {needsSessionLength && !serviceOfferingIsDiyTemplate(serviceId) ? (
+                        <div className="mt-2">
+                          <label className={labelClass}>Session length (min)</label>
+                          <input
+                            className={`${inputClass} mt-1.5`}
+                            inputMode="numeric"
+                            value={v.sessionMinutes ?? ""}
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(/\D/g, "");
+                              const n = raw === "" ? undefined : Number(raw);
+                              setVariations((prev) =>
+                                prev.map((row, i) =>
+                                  i === vi
+                                    ? {
+                                        ...row,
+                                        sessionMinutes:
+                                          n == null || !Number.isFinite(n)
+                                            ? undefined
+                                            : Math.min(120, Math.max(15, Math.floor(n))),
+                                      }
+                                    : row,
+                                ),
+                              );
+                            }}
+                          />
+                        </div>
+                      ) : null}
+                      {serviceId && variationRequiresSessionCount(serviceId, v.billingUnit) ? (
+                        <div className="mt-2">
+                          <label className={labelClass}>Sessions in this option</label>
+                          <input
+                            className={`${inputClass} mt-1.5`}
+                            inputMode="numeric"
+                            value={v.sessionCount ?? ""}
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(/\D/g, "");
+                              const n = raw === "" ? undefined : Number(raw);
+                              setVariations((prev) =>
+                                prev.map((row, i) =>
+                                  i === vi
+                                    ? {
+                                        ...row,
+                                        sessionCount:
+                                          n != null && Number.isFinite(n) ? Math.min(20, Math.max(1, Math.floor(n))) : undefined,
+                                      }
+                                    : row,
+                                ),
+                              );
+                            }}
+                          />
+                        </div>
+                      ) : null}
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        <div>
+                          <label className={labelClass}>Price (USD)</label>
+                          <input
+                            type="number"
+                            min={15}
+                            max={5000}
+                            className={`${inputClass} mt-1.5`}
+                            value={Number.isFinite(v.priceUsd) ? v.priceUsd : ""}
+                            onChange={(e) => {
+                              const n = Number(e.target.value);
+                              setVariations((prev) =>
+                                prev.map((row, i) => (i === vi ? { ...row, priceUsd: Number.isFinite(n) ? n : row.priceUsd } : row)),
+                              );
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Billing</label>
+                          <select
+                            className={`${inputClass} mt-1.5`}
+                            value={v.billingUnit}
+                            onChange={(e) => {
+                              const bu = e.target.value as BillingUnit;
+                              setVariations((prev) =>
+                                prev.map((row, i) => {
+                                  if (i !== vi) return row;
+                                  if (!serviceId) return { ...row, billingUnit: bu };
+                                  if (variationRequiresSessionCount(serviceId, bu)) {
+                                    return { ...row, billingUnit: bu, sessionCount: row.sessionCount ?? 1 };
+                                  }
+                                  if (bu === "per_hour" && !serviceOfferingIsDiyTemplate(serviceId)) {
+                                    return { ...row, billingUnit: bu };
+                                  }
+                                  const { sessionCount: _sc, ...rest } = row;
+                                  return { ...rest, billingUnit: bu };
+                                }),
+                              );
+                            }}
+                          >
+                            {variationBillingOptions.map((u) => (
+                              <option key={u} value={u}>
+                                {BILLING_UNIT_LABELS[u]}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <label className={labelClass}>Row title (optional)</label>
+                        <input
+                          className={`${inputClass} mt-1.5`}
+                          value={v.label}
+                          onChange={(e) => {
+                            setVariations((prev) =>
+                              prev.map((row, i) => (i === vi ? { ...row, label: e.target.value } : row)),
+                            );
+                          }}
+                          maxLength={80}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setListingReviewOpen(false)}
+                className="inline-flex min-h-[2.75rem] flex-1 items-center justify-center rounded-xl border border-[#FF7E00]/45 bg-[#FF7E00]/16 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/60"
+              >
+                Done
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setListingReviewOpen(false);
+                  setScreen("packageBase");
+                }}
+                className="inline-flex min-h-[2.75rem] flex-1 items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] text-xs font-semibold uppercase tracking-wide text-white/75 hover:border-white/20"
+              >
+                Jump to step 1
               </button>
             </div>
           </div>
