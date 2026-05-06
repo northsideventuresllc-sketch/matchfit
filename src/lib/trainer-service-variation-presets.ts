@@ -1,9 +1,13 @@
-import type { BillingUnit, MatchServiceId, ServiceDeliveryMode } from "@/lib/trainer-match-questionnaire";
 import {
+  BILLING_UNIT_LABELS,
+  type BillingUnit,
+  type MatchServiceId,
+  type ServiceDeliveryMode,
   serviceOfferingIsDiyTemplate,
   serviceOfferingNeedsSessionLength,
 } from "@/lib/trainer-match-questionnaire";
 import {
+  clampTrainerServiceSessionMinutes,
   variationRequiresSessionCount,
   type TrainerServiceOfferingBundleTier,
   type TrainerServiceOfferingVariation,
@@ -58,14 +62,20 @@ export function templateVariationsForService(serviceId: MatchServiceId): Trainer
       return [
         {
           variationId: vid(),
-          label: "Bi-weekly accountability",
-          priceUsd: 199,
-          billingUnit: "per_month",
+          label: "Weekly coaching & accountability",
+          priceUsd: 89,
+          billingUnit: "per_week",
         },
         {
           variationId: vid(),
-          label: "Weekly coaching + messaging",
-          priceUsd: 349,
+          label: "Semi-weekly coaching cadence",
+          priceUsd: 159,
+          billingUnit: "twice_weekly",
+        },
+        {
+          variationId: vid(),
+          label: "Monthly nutrition package",
+          priceUsd: 319,
           billingUnit: "per_month",
         },
       ];
@@ -73,15 +83,21 @@ export function templateVariationsForService(serviceId: MatchServiceId): Trainer
       return [
         {
           variationId: vid(),
-          label: "4-week custom plan",
-          priceUsd: 249,
-          billingUnit: "per_session",
+          label: "Weekly plan design",
+          priceUsd: 69,
+          billingUnit: "per_week",
         },
         {
           variationId: vid(),
-          label: "8-week custom plan",
-          priceUsd: 449,
-          billingUnit: "per_session",
+          label: "Semi-weekly program updates",
+          priceUsd: 119,
+          billingUnit: "twice_weekly",
+        },
+        {
+          variationId: vid(),
+          label: "Monthly programming block",
+          priceUsd: 229,
+          billingUnit: "per_month",
         },
       ];
     default:
@@ -100,6 +116,21 @@ export function templateVariationsForService(serviceId: MatchServiceId): Trainer
 
 const SESSION_LENGTH_ROTATION = [60, 45, 75, 90] as const;
 
+/** Metrics line for a checkout row (billing + session length when the template requires it). */
+export function variationCheckoutSetupSummary(
+  serviceId: MatchServiceId,
+  delivery: ServiceDeliveryMode,
+  v: Pick<TrainerServiceOfferingVariation, "billingUnit" | "sessionMinutes">,
+): string {
+  const units = [BILLING_UNIT_LABELS[v.billingUnit]];
+  const needsLen =
+    serviceOfferingNeedsSessionLength(serviceId, delivery) && !serviceOfferingIsDiyTemplate(serviceId);
+  if (needsLen && v.sessionMinutes != null && Number.isFinite(v.sessionMinutes)) {
+    units.push(`${Math.floor(v.sessionMinutes)} min`);
+  }
+  return units.join(" · ");
+}
+
 /** One checkout row seeded from list price & billing (dashboard “Add variation”). Rotates session length for timed templates. */
 export function variationRowFromBaseMetrics(args: {
   serviceId: MatchServiceId;
@@ -108,13 +139,22 @@ export function variationRowFromBaseMetrics(args: {
   billingUnit: BillingUnit;
   /** Rows already on screen before this add. */
   rowIndex: number;
+  /** When set (timed templates), seeds session length instead of rotating defaults. */
+  sessionMinutesOverride?: number;
 }): TrainerServiceOfferingVariation {
   const bu = args.billingUnit === "multi_session" ? "per_session" : args.billingUnit;
   const price = Math.min(5000, Math.max(15, Math.round(args.priceUsd * 100) / 100));
   const needsLen =
     serviceOfferingNeedsSessionLength(args.serviceId, args.delivery) && !serviceOfferingIsDiyTemplate(args.serviceId);
-  const minutes = needsLen ? SESSION_LENGTH_ROTATION[args.rowIndex % SESSION_LENGTH_ROTATION.length] : undefined;
-  const label = minutes != null ? `${minutes}-minute option` : `Option ${args.rowIndex + 1}`;
+  const minutes = needsLen
+    ? args.sessionMinutesOverride != null && Number.isFinite(args.sessionMinutesOverride)
+      ? clampTrainerServiceSessionMinutes(args.sessionMinutesOverride)
+      : SESSION_LENGTH_ROTATION[args.rowIndex % SESSION_LENGTH_ROTATION.length]
+    : undefined;
+  const label = variationCheckoutSetupSummary(args.serviceId, args.delivery, {
+    billingUnit: bu,
+    sessionMinutes: minutes,
+  });
   const row: TrainerServiceOfferingVariation = {
     variationId: vid(),
     label,

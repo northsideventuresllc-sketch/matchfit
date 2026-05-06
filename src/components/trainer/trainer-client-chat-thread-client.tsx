@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ChatAttachmentDisplay } from "@/components/chat/chat-attachment-display";
 import { ChatMessageBody } from "@/components/chat/chat-message-body";
+import type { ChatAttachmentPayload } from "@/lib/chat-attachment";
 import {
   CONVERSATION_RELATIONSHIP_STAGES,
   CONVERSATION_RELATIONSHIP_STAGE_LABELS,
@@ -12,10 +14,18 @@ import {
 import type { SafetyBlockMode } from "@/lib/safety-block-modes";
 import type { TrainerCheckoutHint } from "@/lib/trainer-chat-checkout-hint";
 import { OFF_PLATFORM_LIQUIDATED_DAMAGES_NOTICE } from "@/lib/tos-off-platform-deterrent";
+import type { CheckInThreadPayload } from "@/components/chat/session-check-in-panels";
+import { SessionCheckInPanelTrainer } from "@/components/chat/session-check-in-panels";
 
 const CHECKOUT_HINT_DISMISS_KEY = "mf_trainer_checkout_hint_dismiss";
 
-type Msg = { id: string; authorRole: string; body: string; createdAt: string };
+type Msg = {
+  id: string;
+  authorRole: string;
+  body: string;
+  createdAt: string;
+  attachment?: ChatAttachmentPayload | null;
+};
 
 type PublishedService = {
   serviceId: string;
@@ -88,6 +98,9 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
   const [phoneCall, setPhoneCall] = useState<PhoneCallInfo | null>(null);
   const [bookingSnapshot, setBookingSnapshot] = useState<BookingSnapshot | null>(null);
   const [pendingBookings, setPendingBookings] = useState<PendingBooking[]>([]);
+  const [checkInThread, setCheckInThread] = useState<CheckInThreadPayload>(null);
+  const [packageCancelReason, setPackageCancelReason] = useState("");
+  const [packageCancelBusy, setPackageCancelBusy] = useState(false);
   const [videoOAuthProviders, setVideoOAuthProviders] = useState<string[]>([]);
   const [callBusy, setCallBusy] = useState(false);
   const [videoAttachId, setVideoAttachId] = useState<string | null>(null);
@@ -99,6 +112,8 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
   const [inviteNote, setInviteNote] = useState("");
   const [inviteSessionDelivery, setInviteSessionDelivery] = useState<"IN_PERSON" | "VIRTUAL">("IN_PERSON");
   const [inviteBusy, setInviteBusy] = useState(false);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const attachInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -121,6 +136,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
         phoneCall?: PhoneCallInfo;
         bookingSnapshot?: BookingSnapshot | null;
         pendingBookings?: PendingBooking[];
+        checkInThread?: CheckInThreadPayload;
         videoOAuthProviders?: string[];
         error?: string;
       };
@@ -159,6 +175,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
       setPhoneCall(data.phoneCall ?? null);
       setBookingSnapshot(data.bookingSnapshot ?? null);
       setPendingBookings(data.pendingBookings ?? []);
+      setCheckInThread(data.checkInThread ?? null);
       setVideoOAuthProviders(data.videoOAuthProviders ?? []);
     } catch {
       setErr("Network error.");
@@ -230,6 +247,31 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
       void load();
     } finally {
       setVideoBusy(false);
+    }
+  }
+
+  async function submitPackageCancellation() {
+    const reason = packageCancelReason.trim();
+    if (reason.length < 10) {
+      setErr("Enter a clear reason (at least 10 characters) for Match Fit staff.");
+      return;
+    }
+    setPackageCancelBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch(
+        `/api/trainer/conversations/${encodeURIComponent(props.clientUsername)}/package-cancellation-request`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason }) },
+      );
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setErr(data.error ?? "Could not submit.");
+        return;
+      }
+      setPackageCancelReason("");
+      window.alert("Request submitted. Match Fit will review payout details and reply through our normal support channel.");
+    } finally {
+      setPackageCancelBusy(false);
     }
   }
 
@@ -325,6 +367,31 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
     if (data.message) setMessages((m) => [...m, data.message!]);
     setText("");
     void load();
+  }
+
+  async function uploadAttachment(file: File) {
+    setUploadBusy(true);
+    setErr(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const cap = text.trim();
+      if (cap) fd.append("caption", cap);
+      const res = await fetch(
+        `/api/trainer/conversations/${encodeURIComponent(props.clientUsername)}/messages/attachment`,
+        { method: "POST", body: fd },
+      );
+      const data = (await res.json()) as { error?: string; message?: Msg };
+      if (!res.ok) {
+        setErr(data.error ?? "Could not send file.");
+        return;
+      }
+      if (data.message) setMessages((m) => [...m, data.message!]);
+      setText("");
+      void load();
+    } finally {
+      setUploadBusy(false);
+    }
   }
 
   async function sendServiceCheckout(serviceIdOverride?: string) {
@@ -451,7 +518,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-left">
       <div className="rounded-2xl border border-white/[0.07] bg-gradient-to-br from-[#141824]/95 via-[#0E1016]/90 to-[#0B0C0F]/95 px-4 py-3 text-center text-[11px] leading-relaxed text-white/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
         <p className="font-semibold uppercase tracking-[0.12em] text-[#FF7E00]/85">Compliance monitoring</p>
         <p className="mt-1">
@@ -469,7 +536,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
       </div>
 
       {archived ? (
-        <div className="space-y-3 rounded-2xl border border-amber-500/30 bg-amber-500/[0.08] p-4 text-sm text-amber-50/95">
+        <div className="space-y-3 rounded-2xl border border-amber-500/30 bg-amber-500/[0.08] p-4 text-center text-sm text-amber-50/95">
           <p className="font-semibold uppercase tracking-[0.1em] text-amber-200/90">Archived</p>
           <p className="text-xs leading-relaxed text-amber-50/85">
             This chat was removed from your active inbox. It stays in Archives until{" "}
@@ -496,8 +563,8 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-1">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-8">
+        <div className="min-w-0 flex-1 space-y-1 text-left">
           <label className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/40">Relationship label</label>
           <select
             value={stage}
@@ -519,19 +586,19 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
         <button
           type="button"
           onClick={() => setSafetyOpen((o) => !o)}
-          className="text-[11px] font-medium text-white/38 underline-offset-4 transition hover:text-white/60 hover:underline"
+          className="shrink-0 self-start text-[11px] font-medium text-white/38 underline-offset-4 transition hover:text-white/60 hover:underline sm:self-auto sm:pt-6"
         >
           {safetyOpen ? "Close safety" : "Safety & Reporting"}
         </button>
       </div>
 
       {safetyOpen ? (
-        <div className="space-y-4 rounded-2xl border border-white/[0.08] bg-[#12151C]/90 p-4">
-          <p className="text-xs text-white/50">
+        <div className="space-y-4 rounded-2xl border border-white/[0.08] bg-[#12151C]/90 p-4 text-left">
+          <p className="text-center text-xs text-white/50">
             Reports are routed to Match Fit for review and may suspend the account until staff lift the hold. Limits
             below can be changed anytime in Settings → Privacy.
           </p>
-          <div>
+          <div className="text-left">
             <label className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/40">Limit this client</label>
             <select
               value={blockMode}
@@ -557,7 +624,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
               Apply limits
             </button>
           </div>
-          <div className="border-t border-white/[0.06] pt-4">
+          <div className="border-t border-white/[0.06] pt-4 text-left">
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#E32B2B]/80">Report client</p>
             <select
               value={reportCat}
@@ -589,11 +656,13 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
       ) : null}
 
       {err ? (
-        <p className="rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]">{err}</p>
+        <p className="rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-center text-sm text-[#FFB4B4]">
+          {err}
+        </p>
       ) : null}
 
       {!archived && !official ? (
-        <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.07] p-4 text-sm text-amber-100/90">
+        <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.07] p-4 text-center text-sm text-amber-100/90">
           This thread is waiting to open. If the client came from a profile inquiry, accept it from{" "}
           <Link href="/trainer/dashboard/interests" className="font-semibold text-white underline-offset-2 hover:underline">
             Inquiries
@@ -609,16 +678,16 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
         />
         <div className="relative max-h-[28rem] min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-4 sm:px-4">
           {loading ? (
-            <p className="py-8 text-center text-sm text-white/45">Loading messages…</p>
+            <p className="py-8 text-sm text-white/45">Loading messages…</p>
           ) : messages.length === 0 ? (
-            <p className="py-8 text-center text-sm text-white/45">No messages yet. Say hello.</p>
+            <p className="py-8 text-sm text-white/45">No messages yet. Say hello.</p>
           ) : (
             messages.map((m) => {
               const mine = m.authorRole === "TRAINER";
               return (
-                <div key={m.id} className={`flex min-w-0 ${mine ? "justify-end" : "justify-start"}`}>
+                <div key={m.id} className="flex min-w-0 justify-start">
                   <div
-                    className={`min-w-0 max-w-[min(100%,28rem)] overflow-hidden rounded-2xl px-4 py-2.5 shadow-lg ${
+                    className={`min-w-0 max-w-[min(100%,28rem)] overflow-hidden rounded-2xl px-4 py-2.5 text-left shadow-lg ${
                       mine
                         ? "rounded-br-md border border-[#FF7E00]/25 bg-gradient-to-br from-[#FF7E00]/25 to-[#c45a00]/10 text-white/95"
                         : "rounded-bl-md border border-white/[0.08] bg-[#1a1f2e]/90 text-white/85"
@@ -633,15 +702,40 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
                         minute: "2-digit",
                       })}
                     </p>
-                    <ChatMessageBody text={m.body} />
+                    {m.attachment ? <ChatAttachmentDisplay attachment={m.attachment} variant="trainer" /> : null}
+                    {!m.attachment?.syntheticBody ? <ChatMessageBody text={m.body} /> : null}
                   </div>
                 </div>
               );
             })
           )}
         </div>
-        <div className="relative border-t border-white/[0.07] bg-[#08090d]/95 px-3 py-2.5 sm:px-4">
+        <div className="relative border-t border-white/[0.07] bg-[#08090d]/95 px-3 py-2.5 text-left sm:px-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+            {official && !archived ? (
+              <>
+                <input
+                  ref={attachInputRef}
+                  type="file"
+                  className="hidden"
+                  accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (f) void uploadAttachment(f);
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={uploadBusy}
+                  onClick={() => attachInputRef.current?.click()}
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] text-lg leading-none text-white/85 shadow-inner transition hover:border-white/25 disabled:opacity-40"
+                  title="Attach a file (PDF, Word, image, or video — max 50 MB)"
+                >
+                  {uploadBusy ? "…" : "📎"}
+                </button>
+              </>
+            ) : null}
             {official && !archived && trainerPremiumStudio ? (
               <div className="relative shrink-0">
                 <button
@@ -714,11 +808,11 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
           </div>
         </div>
         {official && !archived && publishedServices.length > 0 ? (
-          <div className="relative border-t border-white/[0.07] bg-[#0a0b10]/95 px-3 py-2 sm:px-4">
+          <div className="relative border-t border-white/[0.07] bg-[#0a0b10]/95 px-3 py-2 text-center sm:px-4">
             {showAiCheckoutHint && checkoutHintActive ? (
-              <div className="mb-2 rounded-lg border border-sky-500/22 bg-sky-950/30 px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
+              <div className="mb-2 rounded-lg border border-sky-500/22 bg-sky-950/30 px-2.5 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                <div className="flex flex-col items-center gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1 sm:text-left">
                     <p className="text-[9px] font-black uppercase tracking-[0.14em] text-sky-200/88">Assistant</p>
                     <p className="mt-0.5 text-[11px] leading-snug text-white/55">
                       {checkoutHintActive.mode === "single"
@@ -740,7 +834,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
                     type="button"
                     disabled={sendingCheckout}
                     onClick={() => void sendServiceCheckout(checkoutHintActive.picks[0]!.serviceId)}
-                    className="mt-2 w-full rounded-lg border border-sky-400/32 bg-sky-500/12 px-3 py-2 text-left transition hover:border-sky-400/48 hover:bg-sky-500/18 disabled:opacity-40"
+                    className="mt-2 w-full rounded-lg border border-sky-400/32 bg-sky-500/12 px-3 py-2 text-center transition hover:border-sky-400/48 hover:bg-sky-500/18 disabled:opacity-40"
                   >
                     <span className="text-[9px] font-black uppercase tracking-[0.1em] text-sky-200/85">Send payment link</span>
                     <span className="mt-0.5 block line-clamp-2 text-[13px] font-semibold text-white/92">
@@ -755,7 +849,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
                         type="button"
                         disabled={sendingCheckout}
                         onClick={() => void sendServiceCheckout(p.serviceId)}
-                        className="min-w-0 max-w-[100%] flex-1 basis-[calc(33.333%-0.375rem)] rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-left transition hover:border-sky-400/35 hover:bg-sky-500/10 disabled:opacity-40"
+                        className="min-w-0 max-w-[100%] flex-1 basis-[calc(33.333%-0.375rem)] rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-center transition hover:border-sky-400/35 hover:bg-sky-500/10 disabled:opacity-40"
                       >
                         <span className="line-clamp-2 text-[11px] font-medium leading-tight text-white/86">{p.title}</span>
                         <span className="mt-0.5 block text-[9px] tabular-nums text-white/38">
@@ -771,12 +865,12 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
             <button
               type="button"
               onClick={() => setServicePickerOpen((o) => !o)}
-              className="text-left text-[11px] text-white/36 underline-offset-2 transition hover:text-white/58 hover:underline"
+              className="text-center text-[11px] text-white/36 underline-offset-2 transition hover:text-white/58 hover:underline"
             >
               {servicePickerOpen ? "Hide manual picker" : "Send a different checkout link…"}
             </button>
             {servicePickerOpen ? (
-              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-stretch">
+              <div className="mt-2 flex flex-col gap-2 text-left sm:flex-row sm:items-stretch">
                 <select
                   value={selectedServiceId}
                   onChange={(e) => setSelectedServiceId(e.target.value)}
@@ -821,24 +915,51 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
       (voiceCallEnabled ||
         bookingSnapshot ||
         pendingBookings.length > 0 ||
+        checkInThread?.sessions.length ||
         (phoneCall?.paid && phoneCall.twilioConfigured)) ? (
-        <div className="space-y-3 rounded-xl border border-white/[0.08] bg-[#0c0d12]/95 px-3 py-3 sm:px-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">Bookings &amp; voice</p>
+        <div className="space-y-3 rounded-xl border border-white/[0.08] bg-[#0c0d12]/95 px-3 py-3 text-left sm:px-4">
+          <p className="text-center text-[10px] font-black uppercase tracking-[0.14em] text-white/40">Bookings &amp; voice</p>
           {bookingSnapshot ? (
             <p className="text-[11px] text-white/55">
               <span className="font-semibold text-white/75">Client booking credits: </span>
               {bookingSnapshot.bookingUnlimitedAfterPurchase
                 ? "Unlimited scheduling (monthly / DIY-style purchase on file)."
-                : `${bookingSnapshot.creditsRemaining} session slot(s) left to invite (pending invites count against this).`}
+                : `${bookingSnapshot.sessionCreditsUsed} of ${bookingSnapshot.sessionCreditsPurchased} session slot(s) used (${bookingSnapshot.creditsRemaining} remaining to invite; pending invites count against remaining).`}
             </p>
           ) : null}
+          {checkInThread?.sessions.length ? (
+            <SessionCheckInPanelTrainer clientUsername={props.clientUsername} checkInThread={checkInThread} onUpdated={() => void load()} />
+          ) : null}
+          <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/45">Full package cancellation</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-white/45">
+              To cancel an entire purchased package (not a single session), submit a reason here. Match Fit staff reviews each request and follows up with payout details.
+            </p>
+            <textarea
+              value={packageCancelReason}
+              onChange={(e) => setPackageCancelReason(e.target.value)}
+              rows={3}
+              placeholder="Reason for staff (required, min 10 characters)"
+              className="mt-2 w-full rounded-lg border border-white/10 bg-[#0E1016] px-2 py-2 text-xs text-white placeholder:text-white/30"
+            />
+            <button
+              type="button"
+              disabled={packageCancelBusy}
+              onClick={() => void submitPackageCancellation()}
+              className="mt-2 w-full rounded-lg border border-rose-400/35 bg-rose-500/12 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-rose-100 disabled:opacity-40"
+            >
+              {packageCancelBusy ? "Submitting…" : "Submit for staff review"}
+            </button>
+          </div>
           {pendingBookings.length > 0 ? (
-            <div className="space-y-2 text-[11px] text-white/55">
-              <span className="font-bold uppercase tracking-[0.1em] text-sky-200/85">Sessions on calendar</span>
+            <div className="space-y-2 text-left text-[11px] text-white/55">
+              <span className="block text-center font-bold uppercase tracking-[0.1em] text-sky-200/85">
+                Sessions on calendar
+              </span>
               <ul className="mt-1 space-y-2">
                 {pendingBookings.map((b) => (
                   <li key={b.id} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex flex-col gap-1 text-left sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/35">{b.status.replace(/_/g, " ")}</p>
                         <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#FF9A4A]/90">
@@ -934,7 +1055,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
             {inviteOpen ? "Hide booking invite" : "Send booking invite"}
           </button>
           {inviteOpen ? (
-            <div className="space-y-2 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+            <div className="space-y-2 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-left">
               <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/45">Session type</p>
               <div className="flex gap-2">
                 <button
@@ -992,7 +1113,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
             </div>
           ) : null}
           {phoneCall?.paid && phoneCall.twilioConfigured && !phoneCall.ready ? (
-            <div className="rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2 text-[11px] leading-relaxed text-amber-50/90">
+            <div className="rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2 text-center text-[11px] leading-relaxed text-amber-50/90">
               <span className="font-bold uppercase tracking-[0.08em] text-amber-200/90">Masked calls </span>
               Both sides must opt in under{" "}
               <Link href="/trainer/dashboard/settings" className="text-[#FF9A4A] underline-offset-2 hover:underline">
@@ -1002,10 +1123,12 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
             </div>
           ) : null}
           {phoneCall?.paid && !phoneCall.twilioConfigured ? (
-            <p className="text-[11px] text-white/45">Masked calling is not enabled on this server yet.</p>
+            <p className="text-center text-[11px] text-white/45">Masked calling is not enabled on this server yet.</p>
           ) : null}
           {!phoneCall?.paid && phoneCall?.twilioConfigured ? (
-            <p className="text-[11px] text-white/45">Voice and synced video unlock after this client completes a paid checkout with you.</p>
+            <p className="text-center text-[11px] text-white/45">
+              Voice and synced video unlock after this client completes a paid checkout with you.
+            </p>
           ) : null}
           {voiceCallEnabled ? (
             <button

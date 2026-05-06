@@ -1,5 +1,7 @@
+import { evaluateCoachServiceCheckoutPolicy } from "@/lib/coach-service-checkout-policy";
 import { getAppOriginFromRequest } from "@/lib/app-origin";
 import { prisma } from "@/lib/prisma";
+import { isPrismaMissingColumnError } from "@/lib/prisma-missing-column";
 import { getSessionClientId } from "@/lib/session";
 import { createTrainerServiceSaleStripeCheckoutSession } from "@/lib/stripe-trainer-service-sale-checkout";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
@@ -10,10 +12,14 @@ import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
+const PROFILE_CHECKOUT_COL = "clientsCanPurchaseServicesFromProfile";
+
 const bodySchema = z.object({
   serviceId: z.string().min(1).max(120),
   variationId: z.string().min(1).max(48).optional(),
   bundleTierId: z.string().min(1).max(48).optional(),
+  /** Must match the prep page query `ctx` (profile link vs chat-shared link). */
+  checkoutContext: z.enum(["profile", "chat"]).optional().default("profile"),
 });
 
 type RouteContext = { params: Promise<{ username: string }> };
@@ -36,30 +42,63 @@ export async function POST(req: Request, ctx: RouteContext) {
     const { username } = await ctx.params;
     const handle = decodeURIComponent(username).trim();
 
-    const trainer = await prisma.trainer.findUnique({
-      where: { username: handle },
-      select: {
-        id: true,
-        username: true,
-        deidentifiedAt: true,
-        profile: {
-          select: {
-            dashboardActivatedAt: true,
-            serviceOfferingsJson: true,
-            hasSignedTOS: true,
-            hasUploadedW9: true,
-            backgroundCheckStatus: true,
-            backgroundCheckClearedAt: true,
-            onboardingTrackCpt: true,
-            onboardingTrackNutrition: true,
-            onboardingTrackSpecialist: true,
-            certificationReviewStatus: true,
-            nutritionistCertificationReviewStatus: true,
-            specialistCertificationReviewStatus: true,
+    let trainer;
+    try {
+      trainer = await prisma.trainer.findUnique({
+        where: { username: handle },
+        select: {
+          id: true,
+          username: true,
+          deidentifiedAt: true,
+          profile: {
+            select: {
+              dashboardActivatedAt: true,
+              serviceOfferingsJson: true,
+              clientsCanPurchaseServicesFromProfile: true,
+              hasSignedTOS: true,
+              hasUploadedW9: true,
+              backgroundCheckStatus: true,
+              backgroundCheckClearedAt: true,
+              onboardingTrackCpt: true,
+              onboardingTrackNutrition: true,
+              onboardingTrackSpecialist: true,
+              certificationReviewStatus: true,
+              nutritionistCertificationReviewStatus: true,
+              specialistCertificationReviewStatus: true,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (e) {
+      if (isPrismaMissingColumnError(e, PROFILE_CHECKOUT_COL)) {
+        trainer = await prisma.trainer.findUnique({
+          where: { username: handle },
+          select: {
+            id: true,
+            username: true,
+            deidentifiedAt: true,
+            profile: {
+              select: {
+                dashboardActivatedAt: true,
+                serviceOfferingsJson: true,
+                hasSignedTOS: true,
+                hasUploadedW9: true,
+                backgroundCheckStatus: true,
+                backgroundCheckClearedAt: true,
+                onboardingTrackCpt: true,
+                onboardingTrackNutrition: true,
+                onboardingTrackSpecialist: true,
+                certificationReviewStatus: true,
+                nutritionistCertificationReviewStatus: true,
+                specialistCertificationReviewStatus: true,
+              },
+            },
+          },
+        });
+      } else {
+        throw e;
+      }
+    }
 
     const profile = trainer?.profile ?? null;
     const published =
@@ -99,6 +138,17 @@ export async function POST(req: Request, ctx: RouteContext) {
       select: { id: true, officialChatStartedAt: true },
     });
 
+    const profileAllows =
+      profile && PROFILE_CHECKOUT_COL in profile ? profile.clientsCanPurchaseServicesFromProfile !== false : true;
+    const policy = evaluateCoachServiceCheckoutPolicy({
+      checkoutContext: parsed.data.checkoutContext,
+      clientsCanPurchaseServicesFromProfile: profileAllows,
+      officialChatStartedAt: conv?.officialChatStartedAt,
+    });
+    if (!policy.allowed) {
+      return NextResponse.json({ error: policy.message }, { status: 403 });
+    }
+
     const origin = getAppOriginFromRequest(req);
     const u = encodeURIComponent(trainer.username);
     let checkoutReturn = `/client/checkout/coach-service?trainer=${u}&serviceId=${encodeURIComponent(parsed.data.serviceId)}`;
@@ -107,6 +157,9 @@ export async function POST(req: Request, ctx: RouteContext) {
     }
     if (parsed.data.bundleTierId?.trim()) {
       checkoutReturn += `&bundleTierId=${encodeURIComponent(parsed.data.bundleTierId.trim())}`;
+    }
+    if (parsed.data.checkoutContext === "chat") {
+      checkoutReturn += "&ctx=chat";
     }
 
     let url: string;
@@ -127,6 +180,7 @@ export async function POST(req: Request, ctx: RouteContext) {
           skuCheckoutKey: sku.checkoutKey,
         },
         conversationId: conv?.officialChatStartedAt ? conv.id : null,
+        checkoutContext: parsed.data.checkoutContext,
         successUrl: `${origin}/trainers/${u}?serviceCheckout=success`,
         cancelUrl: `${origin}${checkoutReturn}&canceled=1`,
       });

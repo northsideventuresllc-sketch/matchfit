@@ -5,7 +5,9 @@ import {
   BILLING_UNIT_LABELS,
   MATCH_SERVICE_CATALOG,
   SERVICE_DELIVERY_MODES,
+  billingUnitIsCadencePackBase,
   matchServiceAllowsMultiSessionBilling,
+  serviceOfferingCadenceBillingTemplates,
   serviceOfferingIsDiyTemplate,
   serviceOfferingNeedsSessionLength,
   type BillingUnit,
@@ -24,6 +26,17 @@ const matchServiceIdSchema = z
 
 /** Max length for optional coach-defined title shown on the public profile (template label is the fallback). */
 export const TRAINER_SERVICE_PUBLIC_TITLE_MAX = 80;
+
+/** Session length (minutes) when a template requires it (variations and single-price rows). */
+export const TRAINER_SERVICE_SESSION_MINUTES_MIN = 30;
+export const TRAINER_SERVICE_SESSION_MINUTES_MAX = 120;
+
+export function clampTrainerServiceSessionMinutes(n: number): number {
+  return Math.min(
+    TRAINER_SERVICE_SESSION_MINUTES_MAX,
+    Math.max(TRAINER_SERVICE_SESSION_MINUTES_MIN, Math.floor(n)),
+  );
+}
 
 export const SESSION_FREQUENCY_KINDS = ["per_week", "per_month", "custom", "none"] as const;
 export type SessionFrequencyKind = (typeof SESSION_FREQUENCY_KINDS)[number];
@@ -78,6 +91,36 @@ export const trainerServiceOfferingBundleTierSchema = z.object({
   discountPercent: z.number().min(0).max(90).optional(),
 });
 
+const addOnBillingUnits = ["per_session", "per_hour"] as const;
+
+export const trainerServiceOfferingAddOnSchema = z
+  .object({
+    addonId: z.string().trim().min(1).max(48),
+    /** Client-visible title (coach-editable). */
+    label: z.string().trim().min(1).max(140),
+    /** Preset / catalog description of what the add-on is. */
+    description: z.string().trim().max(280).optional(),
+    /** Coach-specific note: what makes their version unique. */
+    coachSummary: z.string().trim().max(400).optional(),
+    /** Add-on list price (required together with `billingUnit` for new dashboard publishes). */
+    priceUsd: z.number().min(15).max(5000).optional(),
+    /** Per time (session-style) vs hourly. */
+    billingUnit: z.enum(addOnBillingUnits).optional(),
+  })
+  .superRefine((a, ctx) => {
+    const hasP = a.priceUsd != null && Number.isFinite(a.priceUsd);
+    const hasB = a.billingUnit != null;
+    if (hasP !== hasB) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Optional add-ons need both a price and a billing unit (or neither for legacy rows).",
+        path: hasP ? ["billingUnit"] : ["priceUsd"],
+      });
+    }
+  });
+
+export type TrainerServiceOfferingAddOn = z.infer<typeof trainerServiceOfferingAddOnSchema>;
+
 export const trainerServiceOfferingVariationSchema = z.object({
   variationId: z.string().trim().min(2).max(48),
   label: z.string().trim().min(1).max(80),
@@ -85,7 +128,7 @@ export const trainerServiceOfferingVariationSchema = z.object({
   variationDescription: z.string().trim().max(400).optional(),
   /** How many sessions this checkout row covers (1–20); required for per-session rows except DIY templates. */
   sessionCount: z.number().int().min(1).max(20).optional(),
-  sessionMinutes: z.number().int().min(15).max(120).optional(),
+  sessionMinutes: z.number().int().min(TRAINER_SERVICE_SESSION_MINUTES_MIN).max(TRAINER_SERVICE_SESSION_MINUTES_MAX).optional(),
   priceUsd: z.number().min(15).max(5000),
   billingUnit: z.enum(BILLING_UNITS),
   bundleTiers: z.array(trainerServiceOfferingBundleTierSchema).max(8).optional(),
@@ -97,18 +140,32 @@ export function variationRequiresSessionCount(
   billingUnit: BillingUnit,
 ): boolean {
   if (!serviceId) return false;
-  return !serviceOfferingIsDiyTemplate(serviceId) && billingUnit === "per_session";
+  if (!serviceId || serviceOfferingIsDiyTemplate(serviceId) || serviceOfferingCadenceBillingTemplates(serviceId)) {
+    return false;
+  }
+  return billingUnit === "per_session" || billingUnit === "per_person";
 }
 
-/** Bulk bundle prompt: 4–20 sessions/hours on per-session or per-hour rows (non-DIY). */
-export function variationEligibleForBundlePrompt(
-  serviceId: MatchServiceId | null | undefined,
-  v: { billingUnit: BillingUnit; sessionCount?: number },
-): boolean {
-  if (!serviceId || serviceOfferingIsDiyTemplate(serviceId)) return false;
-  const c = v.sessionCount;
-  if (c == null || c < 4 || c > 20) return false;
-  return v.billingUnit === "per_session" || v.billingUnit === "per_hour";
+/** Client-facing unit word for bundle tier quantity (sessions, weeks, months, etc.). */
+export function bundleTierQuantityUnitPhrase(lineBillingUnit: BillingUnit): string {
+  if (lineBillingUnit === "per_hour") return "hours";
+  if (billingUnitIsCadencePackBase(lineBillingUnit)) {
+    if (lineBillingUnit === "per_week") return "weeks";
+    if (lineBillingUnit === "twice_weekly") return "two-week blocks";
+    return "months";
+  }
+  return "sessions";
+}
+
+/** Default tier label when the coach adds a prepay tier (sessions, weeks, etc.). */
+export function bundleTierSuggestLabel(quantity: number, lineBillingUnit: BillingUnit): string {
+  const q = Math.max(2, Math.floor(quantity));
+  if (lineBillingUnit === "per_hour") return `${q}-hour bundle`;
+  if (lineBillingUnit === "per_week") return `${q}-week bundle`;
+  if (lineBillingUnit === "twice_weekly") return `${q}× semi-week bundle`;
+  if (lineBillingUnit === "per_month") return `${q}-month bundle`;
+  if (lineBillingUnit === "per_person") return `${q}-session pack (per person)`;
+  return `${q}-pack`;
 }
 
 /** Tier list price from base row, unit count, tier size, and % off (stored totals must stay ≥ $15). */
@@ -121,12 +178,28 @@ export function computeBundleTierTotalFromDiscount(args: {
 }): number {
   const pct = Math.min(90, Math.max(0, args.discountPercent));
   const f = 1 - pct / 100;
-  if (args.billingUnit === "per_month") {
+  if (billingUnitIsCadencePackBase(args.billingUnit)) {
     return Math.max(15, Math.round(args.basePriceUsd * args.tierQuantity * f * 100) / 100);
   }
   const units = Math.max(1, args.baseUnitCount);
   const unitRate = args.basePriceUsd / units;
   return Math.max(15, Math.round(unitRate * args.tierQuantity * f * 100) / 100);
+}
+
+/** Bundle tiers on the single list-price row (no variations). Uses one billing unit × list price as the base rate. */
+export function bundleTierPriceFromMainOfferingLine(args: {
+  billingUnit: BillingUnit;
+  basePriceUsd: number;
+  tierQuantity: number;
+  discountPercent?: number;
+}): number {
+  return computeBundleTierTotalFromDiscount({
+    billingUnit: args.billingUnit,
+    basePriceUsd: args.basePriceUsd,
+    baseUnitCount: 1,
+    tierQuantity: args.tierQuantity,
+    discountPercent: args.discountPercent ?? 0,
+  });
 }
 
 export type TrainerServiceOfferingBundleTier = z.infer<typeof trainerServiceOfferingBundleTierSchema>;
@@ -139,7 +212,7 @@ export const trainerServiceOfferingLineSchema = z.object({
   priceUsd: z.number().min(15).max(5000),
   billingUnit: z.enum(BILLING_UNITS),
   description: z.string().trim().max(600).optional(),
-  sessionMinutes: z.number().int().min(15).max(120).optional(),
+  sessionMinutes: z.number().int().min(TRAINER_SERVICE_SESSION_MINUTES_MIN).max(TRAINER_SERVICE_SESSION_MINUTES_MAX).optional(),
   /** @deprecated Prefer `sessionFrequencyKind` + `sessionFrequencyCount` for per-week cadence. */
   sessionsPerWeek: z.number().int().min(1).max(14).optional(),
   sessionFrequencyKind: z.enum(SESSION_FREQUENCY_KINDS).optional(),
@@ -148,8 +221,16 @@ export const trainerServiceOfferingLineSchema = z.object({
   delivery: z.enum(SERVICE_DELIVERY_MODES),
   /** Optional length / package rows; when set, checkout uses these rows (and optional bundle tiers) instead of the single line price. */
   variations: z.array(trainerServiceOfferingVariationSchema).max(24).optional(),
+  /** Volume tiers when there are no `variations` — same shape as per-variation bundle tiers. */
+  bundleTiers: z.array(trainerServiceOfferingBundleTierSchema).max(8).optional(),
   /** When false, dashboard “Review” skips OpenAI and uses benchmarks only. Defaults to on when unset. */
   priceCheckAiEnabled: z.boolean().optional(),
+  /** Optional upsells (motivational check-ins, meal-prep add-ons, etc.). */
+  optionalAddOns: z.array(trainerServiceOfferingAddOnSchema).max(12).optional(),
+  /** Profile listing: shown vs hidden on the public services block. */
+  siteVisibility: z.enum(["visible", "hidden"]).optional(),
+  /** Purchase state: bookable vs paused (still visible when site is visible). */
+  clientBookingAvailability: z.enum(["available", "unavailable"]).optional(),
 });
 
 export type TrainerServiceOfferingLine = z.infer<typeof trainerServiceOfferingLineSchema>;
@@ -205,6 +286,14 @@ export const trainerServiceOfferingsDocumentSchema = z
         });
       }
       const hasVariations = Boolean(line.variations && line.variations.length > 0);
+      if (hasVariations && line.bundleTiers && line.bundleTiers.length > 0) {
+        ctx.addIssue({
+          code: "custom",
+          message:
+            "Bundle packs belong on each checkout row when variations exist. Remove these main-offering bundle tiers or delete your extra rows first.",
+          path: ["services", i, "bundleTiers"],
+        });
+      }
       if (hasVariations) {
         const seenV = new Set<string>();
         for (let j = 0; j < (line.variations?.length ?? 0); j++) {
@@ -230,17 +319,17 @@ export const trainerServiceOfferingsDocumentSchema = z
             if (c == null || !Number.isFinite(c) || c < 1 || c > 20) {
               ctx.addIssue({
                 code: "custom",
-                message: "Each per-session option must include how many sessions (1–20) that price covers.",
+                message: "Each per-session or per-person option must include how many sessions (1–20) that price covers.",
                 path: ["services", i, "variations", j, "sessionCount"],
               });
             }
           }
-          if (serviceOfferingNeedsSessionLength(line.serviceId, line.delivery) && !serviceOfferingIsDiyTemplate(line.serviceId)) {
+          if (serviceOfferingNeedsSessionLength(line.serviceId, line.delivery)) {
             const m = v.sessionMinutes;
-            if (m == null || !Number.isFinite(m) || m < 15 || m > 120) {
+            if (m == null || !Number.isFinite(m) || m < TRAINER_SERVICE_SESSION_MINUTES_MIN || m > TRAINER_SERVICE_SESSION_MINUTES_MAX) {
               ctx.addIssue({
                 code: "custom",
-                message: "Session length is required (15–120 minutes) for each option on this template.",
+                message: `Session length is required (${TRAINER_SERVICE_SESSION_MINUTES_MIN}–${TRAINER_SERVICE_SESSION_MINUTES_MAX} minutes) for each option on this template.`,
                 path: ["services", i, "variations", j, "sessionMinutes"],
               });
             }
@@ -259,15 +348,37 @@ export const trainerServiceOfferingsDocumentSchema = z
             seenT.add(t.tierId);
           }
         }
-      } else if (serviceOfferingNeedsSessionLength(line.serviceId, line.delivery) && !serviceOfferingIsDiyTemplate(line.serviceId)) {
-        const m = line.sessionMinutes;
-        if (m == null || !Number.isFinite(m) || m < 15 || m > 120) {
-          ctx.addIssue({
-            code: "custom",
-            message:
-              "Session length is required (15–120 minutes) for virtual or in-person packages. Add package option rows in the dashboard—session length is set on each row, not with list price alone.",
-            path: ["services", i, "sessionMinutes"],
-          });
+      } else {
+        if (line.bundleTiers && line.bundleTiers.length > 0) {
+          const seenBt = new Set<string>();
+          for (let j = 0; j < line.bundleTiers.length; j++) {
+            const t = line.bundleTiers[j]!;
+            if (seenBt.has(t.tierId)) {
+              ctx.addIssue({
+                code: "custom",
+                message: "Each bundle tier needs a unique id.",
+                path: ["services", i, "bundleTiers", j, "tierId"],
+              });
+              break;
+            }
+            seenBt.add(t.tierId);
+          }
+        }
+        if (serviceOfferingNeedsSessionLength(line.serviceId, line.delivery)) {
+          const m = line.sessionMinutes;
+          if (
+            m == null ||
+            !Number.isFinite(m) ||
+            m < TRAINER_SERVICE_SESSION_MINUTES_MIN ||
+            m > TRAINER_SERVICE_SESSION_MINUTES_MAX
+          ) {
+            ctx.addIssue({
+              code: "custom",
+              message:
+                `Session length is required (${TRAINER_SERVICE_SESSION_MINUTES_MIN}–${TRAINER_SERVICE_SESSION_MINUTES_MAX} minutes) for virtual or in-person packages when you use a single list price.`,
+              path: ["services", i, "sessionMinutes"],
+            });
+          }
         }
       }
       const freqKind: SessionFrequencyKind =
@@ -457,22 +568,46 @@ export function publishedPurchaseSkusFromLine(line: TrainerServiceOfferingLine):
     if (freq) meta.push(freq);
     const head = `${baseTitle} (${meta.join(" · ")}): ${formatTrainerServicePriceUsd(line.priceUsd)} ${BILLING_UNIT_LABELS[line.billingUnit as BillingUnit]}`;
     const label = desc ? `${head} — ${desc}` : head;
-    return [
-      {
-        checkoutKey: line.serviceId,
+    const baseSku: PublishedPurchaseSku = {
+      checkoutKey: line.serviceId,
+      serviceId: line.serviceId,
+      variationId: null,
+      bundleTierId: null,
+      bundleQuantity: 1,
+      label,
+      priceUsd: line.priceUsd,
+      billingUnit: line.billingUnit,
+      sessionMinutes: line.sessionMinutes,
+    };
+    const out: PublishedPurchaseSku[] = [baseSku];
+    const bundleTierBilling: BillingUnit = billingUnitIsCadencePackBase(line.billingUnit as BillingUnit)
+      ? (line.billingUnit as BillingUnit)
+      : line.billingUnit === "per_person"
+        ? "per_person"
+        : "multi_session";
+    for (const t of line.bundleTiers ?? []) {
+      const unitWord = bundleTierQuantityUnitPhrase(line.billingUnit as BillingUnit);
+      const tierLabel = t.label?.trim() || `${t.quantity} ${unitWord}`;
+      const headT = `${baseTitle} — ${tierLabel}: ${formatTrainerServicePriceUsd(t.priceUsd)} total`;
+      const labelT = desc ? `${headT} — ${desc}` : headT;
+      out.push({
+        checkoutKey: `${line.serviceId}:${t.tierId}`,
         serviceId: line.serviceId,
         variationId: null,
-        bundleTierId: null,
-        bundleQuantity: 1,
-        label,
-        priceUsd: line.priceUsd,
-        billingUnit: line.billingUnit,
+        bundleTierId: t.tierId,
+        bundleQuantity: t.quantity,
+        label: labelT,
+        priceUsd: t.priceUsd,
+        billingUnit: bundleTierBilling,
         sessionMinutes: line.sessionMinutes,
-      },
-    ];
+      });
+    }
+    return out;
   }
 
   const out: PublishedPurchaseSku[] = [];
+  const catalogRowTitle =
+    MATCH_SERVICE_CATALOG.find((c) => c.id === line.serviceId)?.label ?? line.serviceId;
   for (const v of line.variations) {
     const metaV: string[] = [modality];
     const sessionPackQty = variationRequiresSessionCount(line.serviceId, v.billingUnit)
@@ -484,7 +619,8 @@ export function publishedPurchaseSkusFromLine(line: TrainerServiceOfferingLine):
     if (v.sessionMinutes != null && v.sessionMinutes > 0) metaV.push(`${v.sessionMinutes} min`);
     const freq = sessionFrequencyMetaFragment(line);
     if (freq) metaV.push(freq);
-    const headV = `${baseTitle} — ${v.label} (${metaV.join(" · ")}): ${formatTrainerServicePriceUsd(v.priceUsd)} ${
+    const rowTitle = v.label?.trim() || catalogRowTitle;
+    const headV = `${baseTitle} — ${rowTitle} (${metaV.join(" · ")}): ${formatTrainerServicePriceUsd(v.priceUsd)} ${
       BILLING_UNIT_LABELS[v.billingUnit as BillingUnit]
     }`;
     const varDesc = v.variationDescription?.trim();
@@ -500,11 +636,15 @@ export function publishedPurchaseSkusFromLine(line: TrainerServiceOfferingLine):
       billingUnit: v.billingUnit,
       sessionMinutes: v.sessionMinutes,
     });
+    const varBundleBilling: BillingUnit = billingUnitIsCadencePackBase(v.billingUnit)
+      ? v.billingUnit
+      : v.billingUnit === "per_person"
+        ? "per_person"
+        : "multi_session";
     for (const t of v.bundleTiers ?? []) {
-      const unitWord =
-        v.billingUnit === "per_hour" ? "hours" : v.billingUnit === "per_month" ? "months" : "sessions";
+      const unitWord = bundleTierQuantityUnitPhrase(v.billingUnit);
       const tierLabel = t.label?.trim() || `${t.quantity} ${unitWord}`;
-      const headT = `${baseTitle} — ${v.label} — ${tierLabel}: ${formatTrainerServicePriceUsd(t.priceUsd)} total`;
+      const headT = `${baseTitle} — ${rowTitle} — ${tierLabel}: ${formatTrainerServicePriceUsd(t.priceUsd)} total`;
       const labelT = desc ? `${headT} — ${desc}` : headT;
       out.push({
         checkoutKey: `${line.serviceId}:${v.variationId}:${t.tierId}`,
@@ -514,7 +654,7 @@ export function publishedPurchaseSkusFromLine(line: TrainerServiceOfferingLine):
         bundleQuantity: t.quantity,
         label: labelT,
         priceUsd: t.priceUsd,
-        billingUnit: "multi_session",
+        billingUnit: varBundleBilling,
         sessionMinutes: v.sessionMinutes,
       });
     }
@@ -571,9 +711,14 @@ export function resolveServiceCheckoutSku(
   const vNorm = variationId?.trim() || null;
   const tNorm = bundleTierId?.trim() || null;
   if (!vNorm) {
-    const d = skus.find((s) => s.variationId == null);
-    if (!d) return { ok: false, error: "Invalid package selection." };
-    return { ok: true, sku: d };
+    if (!tNorm) {
+      const d = skus.find((s) => s.variationId == null && s.bundleTierId == null);
+      if (!d) return { ok: false, error: "Invalid package selection." };
+      return { ok: true, sku: d };
+    }
+    const hit = skus.find((s) => s.variationId == null && s.bundleTierId === tNorm);
+    if (!hit) return { ok: false, error: "That package option is not available." };
+    return { ok: true, sku: hit };
   }
   if (tNorm) {
     const hit = skus.find((s) => s.variationId === vNorm && s.bundleTierId === tNorm);
@@ -594,21 +739,97 @@ export function minListPriceUsdOnLine(line: TrainerServiceOfferingLine): number 
 export function coachServiceCheckoutSearch(
   trainerUsername: string,
   sku: { serviceId: string; variationId: string | null; bundleTierId: string | null },
+  opts?: { checkoutContext?: "profile" | "chat" },
 ): string {
   const u = encodeURIComponent(trainerUsername);
   const sid = encodeURIComponent(sku.serviceId);
+  let base: string;
   if (!sku.variationId) {
-    return `trainer=${u}&serviceId=${sid}`;
+    if (!sku.bundleTierId) {
+      base = `trainer=${u}&serviceId=${sid}`;
+    } else {
+      base = `trainer=${u}&serviceId=${sid}&bundleTierId=${encodeURIComponent(sku.bundleTierId)}`;
+    }
+  } else {
+    const vid = encodeURIComponent(sku.variationId);
+    if (!sku.bundleTierId) {
+      base = `trainer=${u}&serviceId=${sid}&variationId=${vid}`;
+    } else {
+      base = `trainer=${u}&serviceId=${sid}&variationId=${vid}&bundleTierId=${encodeURIComponent(sku.bundleTierId)}`;
+    }
   }
-  const vid = encodeURIComponent(sku.variationId);
-  if (!sku.bundleTierId) {
-    return `trainer=${u}&serviceId=${sid}&variationId=${vid}`;
+  if (opts?.checkoutContext === "chat") {
+    return `${base}&ctx=chat`;
   }
-  return `trainer=${u}&serviceId=${sid}&variationId=${vid}&bundleTierId=${encodeURIComponent(sku.bundleTierId)}`;
+  return base;
+}
+
+export function effectiveSiteVisibility(line: TrainerServiceOfferingLine): "visible" | "hidden" {
+  return line.siteVisibility === "hidden" ? "hidden" : "visible";
+}
+
+export function effectiveClientBookingAvailability(line: TrainerServiceOfferingLine): "available" | "unavailable" {
+  return line.clientBookingAvailability === "unavailable" ? "unavailable" : "available";
+}
+
+function formatOptionalAddOnClientSummary(a: TrainerServiceOfferingAddOn): string {
+  const title = a.label.trim();
+  const bits: string[] = [];
+  if (a.priceUsd != null && a.billingUnit) {
+    const bill =
+      a.billingUnit === "per_hour"
+        ? `${formatTrainerServicePriceUsd(a.priceUsd)} per hour`
+        : `${formatTrainerServicePriceUsd(a.priceUsd)} per time`;
+    bits.push(bill);
+  }
+  if (a.description?.trim()) bits.push(a.description.trim());
+  if (a.coachSummary?.trim()) bits.push(a.coachSummary.trim());
+  return bits.length ? `${title} (${bits.join(" · ")})` : title;
+}
+
+function augmentSkuLabelsWithAddOns(line: TrainerServiceOfferingLine, skus: PublishedPurchaseSku[]): PublishedPurchaseSku[] {
+  const adds = line.optionalAddOns?.filter((a) => a.label.trim().length > 0) ?? [];
+  if (adds.length === 0) return skus;
+  const suffix = ` — Optional add-ons: ${adds.map((a) => formatOptionalAddOnClientSummary(a)).join("; ")}`;
+  return skus.map((sku, idx) => (idx === 0 ? { ...sku, label: `${sku.label}${suffix}` } : sku));
+}
+
+export function offeringServicesForPublicProfile(doc: TrainerServiceOfferingsDocument): TrainerServiceOfferingLine[] {
+  return doc.services.filter((s) => effectiveSiteVisibility(s) !== "hidden");
 }
 
 export function offeringDocumentToDisplayLines(doc: TrainerServiceOfferingsDocument): string[] {
-  return doc.services.flatMap((s) => publishedPurchaseSkusFromLine(s).map((x) => x.label));
+  return offeringServicesForPublicProfile(doc).flatMap((s) =>
+    augmentSkuLabelsWithAddOns(s, publishedPurchaseSkusFromLine(s)).map((x) => x.label),
+  );
+}
+
+export type PublicPurchasableSkuSummary = {
+  serviceId: MatchServiceId;
+  variationId: string | null;
+  bundleTierId: string | null;
+  label: string;
+};
+
+export function publicPurchasableSkuSummaries(
+  doc: TrainerServiceOfferingsDocument,
+  allowCheckoutFromPublicProfile: boolean,
+): PublicPurchasableSkuSummary[] {
+  if (!allowCheckoutFromPublicProfile) return [];
+  return publicBrowseableSkuSummaries(doc);
+}
+
+/** All client-visible purchasable SKUs (for profile display), independent of profile vs chat checkout policy. */
+export function publicBrowseableSkuSummaries(doc: TrainerServiceOfferingsDocument): PublicPurchasableSkuSummary[] {
+  return offeringServicesForPublicProfile(doc).flatMap((s) => {
+    if (effectiveClientBookingAvailability(s) === "unavailable") return [];
+    return augmentSkuLabelsWithAddOns(s, publishedPurchaseSkusFromLine(s)).map((sku) => ({
+      serviceId: sku.serviceId,
+      variationId: sku.variationId,
+      bundleTierId: sku.bundleTierId,
+      label: sku.label,
+    }));
+  });
 }
 
 export function composeTrainerAiMatchProfileText(
@@ -617,7 +838,9 @@ export function composeTrainerAiMatchProfileText(
 ): string {
   const base = buildAiMatchProfileText(questionnaire);
   if (!offerings.services.length) return base;
-  const rateLines = offerings.services.flatMap((s) => publishedPurchaseSkusFromLine(s).map((sku) => `- ${sku.label}`));
+  const rateLines = offeringServicesForPublicProfile(offerings).flatMap((s) =>
+    augmentSkuLabelsWithAddOns(s, publishedPurchaseSkusFromLine(s)).map((sku) => `- ${sku.label}`),
+  );
   const block = ["Services and rates:", ...rateLines].join("\n");
   /** After `Session formats:` so `parseAiMatchProfileForDisplay` and human readers see rates before philosophy. */
   const lines = base.split(/\r?\n/);
@@ -752,7 +975,7 @@ export async function migrateLegacyQuestionnaireServices(trainerId: string): Pro
     }
     if (typeof o.sessionMinutes === "number" && Number.isFinite(o.sessionMinutes)) {
       const m = Math.floor(o.sessionMinutes);
-      if (m >= 15 && m <= 120) line.sessionMinutes = m;
+      if (m >= TRAINER_SERVICE_SESSION_MINUTES_MIN && m <= TRAINER_SERVICE_SESSION_MINUTES_MAX) line.sessionMinutes = m;
     }
     if (typeof o.sessionsPerWeek === "number" && Number.isFinite(o.sessionsPerWeek)) {
       const w = Math.floor(o.sessionsPerWeek);

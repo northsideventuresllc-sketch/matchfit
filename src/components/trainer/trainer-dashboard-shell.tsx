@@ -98,7 +98,7 @@ export function TrainerDashboardShell(props: TrainerDashboardShellProps) {
           })}
         </nav>
 
-        {props.children}
+        <div className="w-full text-center">{props.children}</div>
 
         <footer className="mt-12 space-y-4 border-t border-white/[0.08] pt-6 text-center text-xs leading-relaxed text-white/45">
           <p className="mx-auto max-w-2xl">

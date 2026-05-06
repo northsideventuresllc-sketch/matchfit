@@ -88,7 +88,7 @@ export default async function ClientTrainerMessagesPage({ params }: Props) {
   return (
     <main className="min-h-dvh bg-[#0B0C0F] px-5 py-10 text-white sm:px-8">
       <div className="mx-auto max-w-lg">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:flex-wrap sm:justify-center">
           <Link
             href="/client/dashboard/messages"
             className="text-xs font-bold uppercase tracking-[0.14em] text-white/40 transition hover:text-white/65"
@@ -103,8 +103,8 @@ export default async function ClientTrainerMessagesPage({ params }: Props) {
           </Link>
         </div>
 
-        <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-4">
+        <div className="mt-8 flex flex-col items-center gap-4 text-center sm:flex-row sm:justify-center">
+          <div className="flex min-w-0 flex-col items-center gap-4 sm:flex-row">
             <Link
               href={trainerProfileHref}
               className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-[#12151C] transition hover:border-[#FF7E00]/40"
@@ -118,7 +118,7 @@ export default async function ClientTrainerMessagesPage({ params }: Props) {
                 </span>
               )}
             </Link>
-            <div className="min-w-0">
+            <div className="min-w-0 text-center">
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#FF7E00]/90">Messages</p>
               <h1 className="truncate text-xl font-black tracking-tight">{name}</h1>
               <Link
@@ -141,13 +141,13 @@ export default async function ClientTrainerMessagesPage({ params }: Props) {
           </Link>
         </div>
 
-        <div className="mt-10 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
+        <div className="mt-10 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 text-left shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
           <Suspense fallback={<p className="text-sm text-white/45">Loading chat…</p>}>
             <ClientTrainerChatThreadClient trainerUsername={trainer.username} />
           </Suspense>
         </div>
 
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+        <div className="mt-8 flex flex-col gap-3 text-center sm:flex-row sm:justify-center">
           <Link
             href="/client/dashboard"
             className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] px-4 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-white/25"
@@ -162,8 +162,8 @@ export default async function ClientTrainerMessagesPage({ params }: Props) {
           </Link>
         </div>
 
-        <p className="mt-10 text-sm">
-          <Link href="/" className="text-white/45 underline-offset-2 transition hover:text-white/70 hover:underline">
+        <p className="mt-10 text-center">
+          <Link href="/" className="text-sm text-white/45 underline-offset-2 transition hover:text-white/70 hover:underline">
             Match Fit Home
           </Link>
         </p>

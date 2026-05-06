@@ -1,5 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import {
+  autoSatisfyGateASilenceCron,
+  reconcilePayoutBufferDates,
+  settleSessionsPastPayoutBuffer,
+  syncCheckInActiveFlags,
+} from "@/lib/session-check-in-actions";
+import {
   backgroundCheckExpiresAt,
   shouldSendBackgroundCheckExpiryWarning,
 } from "@/lib/trainer-background-check-renewal";
@@ -9,6 +15,10 @@ export type TosCronSummary = {
   backgroundCheckSuspensions: number;
   backgroundCheckClearedBackfill: number;
   sessionsAutoCompleted: number;
+  checkInFlagsSynced: number;
+  gateASilenceAutoConfirmed: number;
+  payoutBuffersRepaired: number;
+  sessionsClearedPastPayoutBuffer: number;
   diyRefundAlerts: number;
 };
 
@@ -150,12 +160,20 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   const backfill = await backfillApprovedBackgroundCheckTimestamps();
   const { warnings, suspensions } = await processBackgroundCheckRenewals();
   const sessionsAutoCompleted = await autoCompleteSessions();
+  const checkInFlagsSynced = await syncCheckInActiveFlags();
+  const gateASilenceAutoConfirmed = await autoSatisfyGateASilenceCron();
+  const payoutBuffersRepaired = await reconcilePayoutBufferDates();
+  const sessionsClearedPastPayoutBuffer = await settleSessionsPastPayoutBuffer();
   const diyRefundAlerts = await diyMissedDeliveries();
   return {
     backgroundCheckClearedBackfill: backfill,
     backgroundCheckWarningsSent: warnings,
     backgroundCheckSuspensions: suspensions,
     sessionsAutoCompleted,
+    checkInFlagsSynced,
+    gateASilenceAutoConfirmed,
+    payoutBuffersRepaired,
+    sessionsClearedPastPayoutBuffer,
     diyRefundAlerts,
   };
 }

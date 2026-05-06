@@ -123,6 +123,8 @@ model Client {
 
   bookedSessionsClient BookedTrainingSession[] @relation("BookedSessionClient")
   diyEngagementsClient DiyPlanEngagement[]     @relation("DiyEngagementClient")
+  trainerPackageCancellationRequests TrainerPackageCancellationRequest[]
+  sessionPayoutDisputes               SessionPayoutDispute[]
 
   /// Client-authored star reviews + optional testimonials for trainers they worked with.
   clientTrainerReviews ClientTrainerReview[]
@@ -286,6 +288,7 @@ model Trainer {
 
   bookedSessionsTrainer BookedTrainingSession[] @relation("BookedSessionTrainer")
   diyEngagementsTrainer DiyPlanEngagement[]     @relation("DiyEngagementTrainer")
+  trainerPackageCancellationRequests TrainerPackageCancellationRequest[]
 
   clientTrainerReviews ClientTrainerReview[]
 
@@ -676,6 +679,9 @@ model TrainerProfile {
   /// Published services & pricing (JSON). Managed only from the trainer dashboard—not the Onboarding Questionnaire.
   serviceOfferingsJson String?
 
+  /// When false, clients see services on the profile but checkout links are withheld (arrange purchase after you connect).
+  clientsCanPurchaseServicesFromProfile Boolean @default(true)
+
   /// When set, trainer completed Premium Page signup and can use Premium Hub (social-style creator tools).
   premiumStudioEnabledAt DateTime?
   /// Last time the trainer opened FitHub studio activity in Premium (unread counts vs main notification digest).
@@ -726,9 +732,13 @@ model TrainerClientConversation {
   /// When true (DIY or monthly-style purchase), booking does not consume session credits.
   bookingUnlimitedAfterPurchase Boolean @default(false)
 
+  /// After trainer declines a client-initiated reschedule, client must purchase again before new invites (per policy).
+  blockFreeSessionBookingUntilRepurchase Boolean @default(false)
+
   messages               TrainerClientChatMessage[]
   chatAdminReviewItems   ChatAdminReviewItem[]
   bookedTrainingSessions BookedTrainingSession[]
+  packageCancellationRequests TrainerPackageCancellationRequest[]
 
   @@unique([trainerId, clientId])
   @@index([trainerId, updatedAt])
@@ -780,6 +790,8 @@ model TrainerClientChatMessage {
   /// TRAINER | CLIENT
   authorRole String
   body       String
+  /// Trainer-uploaded share: JSON `{ url, filename, mimeType, sizeBytes }` (public `/uploads/...` URL).
+  attachmentJson String?
 
   @@index([conversationId, createdAt])
   @@map("trainer_client_chat_messages")
@@ -888,11 +900,121 @@ model BookedTrainingSession {
   videoConferenceExternalId  String?
   videoConferenceSyncedAt    DateTime?
 
+  /// NONE | SCHEDULED | CHECK_IN_ACTIVE | AWAITING_CLIENT_FOLLOWUP | COMPLETED_LOCKED | AUTO_COMPLETED | CANCELLED_FOREGONE | CANCELLED_RESCHED_DECLINED_BY_CLIENT | CANCELLED_RESCHED_DECLINED_BY_TRAINER
+  fulfillmentStatus String @default("NONE")
+
+  /// Net service-pool amount for this session after platform + processing fees (per ledger ÷ units × consumption).
+  allocatedCoachServiceCents Int @default(0)
+
+  markedCompleteAt   DateTime?
+  markedNotCompleteAt DateTime?
+  sessionClosedAt    DateTime?
+  lastStripeRefundId String?
+  lastStripeRefundCents Int?
+
+  /// Stripe PI to use for prorated refunds tied to this seat (set when the client confirms the invite).
+  attributionStripePaymentIntentId String?
+
+  rescheduleRequests SessionRescheduleRequest[]
+  payoutDisputes     SessionPayoutDispute[]
+
+  /// Client Gate A closed (confirm, auto-silence, or revoke handled separately).
+  gateASatisfiedAt DateTime?
+  /// CLIENT_CONFIRM | AUTO_SILENCE
+  gateASource          String?
+  gateARevokedBeforeStartAt DateTime?
+
+  /// Trainer Gate B — manual only; payout stays on file until set.
+  trainerGateBCompletedAt DateTime?
+
+  /// Starts after BOTH gates close: max(gate A, gate B) + 48h dispute buffer.
+  payoutBufferEndsAt DateTime?
+  payoutFundsFrozen  Boolean @default(false)
+
+  /// Billing units consumed by this session (1 for per-session; fractional hours for per_hour).
+  sessionConsumedUnits Float @default(1)
+
+  /// Net add-on ledger slice attributed to this booking (see transaction ledger).
+  allocatedNetAddonCents Int @default(0)
+
+  disputeOpenedAt DateTime?
+
   @@index([status, confirmationDeadlineAt])
   @@index([trainerId, clientId])
   @@index([trainerId, scheduledStartAt])
   @@index([conversationId])
   @@map("booked_training_sessions")
+}
+
+/// Post–Gate A client dispute: freezes payout until admin resolves.
+model SessionPayoutDispute {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookedTrainingSessionId String
+  bookedTrainingSession   BookedTrainingSession @relation(fields: [bookedTrainingSessionId], references: [id], onDelete: Cascade)
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  answeredWasRescheduled Boolean
+  answeredWasCancelled   Boolean
+  answeredReasonDetail   String
+
+  /// PENDING_ADMIN | RESOLVED
+  status String @default("PENDING_ADMIN")
+
+  @@index([status])
+  @@index([bookedTrainingSessionId])
+  @@map("session_payout_disputes")
+}
+
+/// One session at a time: propose new start/end; counterparty accepts or declines (policy-driven refunds).
+model SessionRescheduleRequest {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookedTrainingSessionId String
+  bookedTrainingSession   BookedTrainingSession @relation(fields: [bookedTrainingSessionId], references: [id], onDelete: Cascade)
+
+  requestedByTrainer Boolean
+
+  proposedStartAt DateTime
+  proposedEndAt   DateTime
+  note            String?
+
+  /// PENDING | ACCEPTED | DECLINED | WITHDRAWN
+  status String @default("PENDING")
+
+  @@index([bookedTrainingSessionId])
+  @@index([status])
+  @@map("session_reschedule_requests")
+}
+
+/// Trainer requests cancellation of an entire purchased package; staff reviews payout (see admin tools).
+model TrainerPackageCancellationRequest {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  conversationId String
+  conversation   TrainerClientConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  trainerId      String
+  trainer        Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  clientId       String
+  client         Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  reason String
+
+  /// PENDING_REVIEW | APPROVED | REJECTED
+  status String @default("PENDING_REVIEW")
+
+  adminDecisionNotes String?
+
+  @@index([status])
+  @@index([trainerId])
+  @@map("trainer_package_cancellation_requests")
 }
 
 /// DIY first-delivery SLA (5 business days from engagement start).
@@ -913,6 +1035,16 @@ model DiyPlanEngagement {
   /// PENDING_DELIVERY | DELIVERED | MISSED | REFUND_ALERT_SENT
   status String @default("PENDING_DELIVERY")
 
+  /// Confirmation of receivables: trainer logs first deliverable (mirror of SLA delivery when applicable).
+  trainerReceivableLoggedAt DateTime?
+  clientReceivableAcknowledgedAt DateTime?
+  /// Payout-cycle hold: earliest time funds may release after payment + 14d (effective after handshake).
+  cycleFundsReleaseNotBeforeAt DateTime?
+
+  sourceServiceTransactionId String?
+  sourceServiceTransaction   TrainerClientServiceTransaction? @relation(fields: [sourceServiceTransactionId], references: [id], onDelete: SetNull)
+
+  @@unique([sourceServiceTransactionId])
   @@index([status, firstDeliverByAt])
   @@index([trainerId, clientId])
   @@map("diy_plan_engagements")
@@ -1156,6 +1288,15 @@ model TrainerClientServiceTransaction {
   /// When set, duplicate Stripe events must not double-award sale tokens.
   stripeCheckoutSessionId String? @unique
 
+  /// PaymentIntent on the Checkout Session (partial refunds use this id).
+  stripePaymentIntentId String?
+
+  /// Total amount the card was charged (coach subtotal + admin line item), in USD cents when known.
+  totalChargedCents Int?
+
+  /// Match Fit 20% administrative line item in cents when known (non-refundable).
+  adminFeeCents Int?
+
   /// Optional dedupe key for staff imports or future non-Stripe flows.
   idempotencyKey String? @unique
 
@@ -1164,13 +1305,36 @@ model TrainerClientServiceTransaction {
 
   serviceId     String?
   billingUnit   String?
+  /// Stripe / checkout label snapshot for receipts (e.g. tier title).
+  purchaseLabelSnapshot String?
   /// Credits this checkout added toward bookable sessions (0 when unlimited purchase).
   sessionCreditsGranted        Int     @default(0)
   bookingUnlimitedPurchase     Boolean @default(false)
 
+  /// When set, receipt/notifications for this row were delivered (idempotent with Stripe retries).
+  purchaseSideEffectsAt DateTime?
+
   bookingsFromPurchase BookedTrainingSession[] @relation("BookingFromServiceTx")
+  diyPlanEngagements   DiyPlanEngagement[]
+
+  /// Gross card total (coach line + Match Fit admin line).
+  ledgerGrossTotalCents Int?
+  /// Estimated Stripe processing (non-refundable display + ledger).
+  ledgerStripeFeeEstimateCents Int?
+  ledgerNetAfterFeesCents     Int?
+
+  ledgerNetServicePoolCents Int?
+  ledgerNetAddonPoolCents     Int       @default(0)
+  ledgerTotalServiceUnits     Int?
+  ledgerTotalAddonUnits       Int       @default(0)
+  ledgerPerServiceUnitNetCents Int?
+  ledgerPerAddonUnitNetCents   Int       @default(0)
+
+  /// SERVICE_UNIT | TIME_UNIT | CYCLE_DIY
+  payoutModel String?
 
   @@index([clientId, trainerId, completedAt])
+  @@index([stripePaymentIntentId])
   @@map("trainer_client_service_transactions")
 }
 

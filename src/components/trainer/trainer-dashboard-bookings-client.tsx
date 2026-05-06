@@ -584,30 +584,38 @@ export function TrainerDashboardBookingsClient() {
   }, [doc, selectedAvailYmd]);
 
   return (
-    <div className="space-y-10">
+    <div className="flex w-full flex-col items-center space-y-10">
       {actionErr ? (
-        <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100/90">{actionErr}</p>
+        <p className="w-full max-w-3xl rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-100/90">
+          {actionErr}
+        </p>
       ) : null}
       {validationErr ? (
-        <p className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-50/95">{validationErr}</p>
+        <p className="w-full max-w-3xl rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-center text-sm text-amber-50/95">
+          {validationErr}
+        </p>
       ) : null}
       {availabilityFetchErr ? (
-        <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100/90">{availabilityFetchErr}</p>
+        <p className="w-full max-w-3xl rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-100/90">
+          {availabilityFetchErr}
+        </p>
       ) : null}
       {bookingsFetchErr ? (
-        <p className="rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3 text-sm text-red-200/85">{bookingsFetchErr}</p>
+        <p className="w-full max-w-3xl rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3 text-center text-sm text-red-200/85">
+          {bookingsFetchErr}
+        </p>
       ) : null}
 
       {/* Availability — view / edit */}
-      <section className="relative overflow-hidden rounded-2xl border border-white/[0.1] bg-[#10131c]/95 shadow-[0_0_0_1px_rgba(255,126,0,0.06)]">
+      <section className="relative w-full max-w-3xl overflow-hidden rounded-2xl border border-white/[0.1] bg-[#10131c]/95 shadow-[0_0_0_1px_rgba(255,126,0,0.06)]">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_80%_at_10%_-20%,rgba(255,126,0,0.12),transparent_50%),radial-gradient(ellipse_70%_60%_at_100%_0%,rgba(99,102,241,0.08),transparent_45%)]"
         />
         <div className="relative p-5 sm:p-7">
-          <div>
+          <div className="text-center">
             <h2 className="text-xl font-black tracking-tight text-white">My Availability</h2>
-            <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-white/50">
+            <p className="mx-auto mt-1.5 max-w-xl text-xs leading-relaxed text-white/50">
               What clients see on your profile stays high-level; here you shape the rhythm of your week.
             </p>
           </div>
@@ -616,16 +624,16 @@ export function TrainerDashboardBookingsClient() {
             {!availabilityEditMode ? (
               <div className="space-y-5">
                 <div className="rounded-2xl border border-white/[0.07] bg-gradient-to-br from-white/[0.06] to-transparent p-4 sm:p-5">
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">Preview</p>
+                  <p className="text-center text-[10px] font-black uppercase tracking-[0.16em] text-white/35">Preview</p>
                   <div className="mt-4 grid gap-4 sm:grid-cols-3">
                     <div className="rounded-xl border border-white/[0.06] bg-[#0a0c11]/80 p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#FF9A4A]/90">Weekly hours</p>
-                      <ul className="mt-3 space-y-2 text-sm text-white/80">
+                      <p className="text-center text-[10px] font-bold uppercase tracking-[0.12em] text-[#FF9A4A]/90">Weekly hours</p>
+                      <ul className="mt-3 space-y-2 text-center text-sm text-white/80">
                         {(doc.weeklyRules ?? []).length === 0 ? (
                           <li className="text-white/40">No weekly windows yet.</li>
                         ) : (
                           (doc.weeklyRules ?? []).map((r, i) => (
-                            <li key={`w-${i}`} className="flex items-center gap-2">
+                            <li key={`w-${i}`} className="flex items-center justify-center gap-2">
                               <span className="h-2 w-2 shrink-0 rounded-full bg-[#FF7E00]" />
                               <span>
                                 {DAYS_LONG[r.dayOfWeek]} · {formatMinutes(r.startMinutes)}–{formatMinutes(r.endMinutes)}
@@ -636,13 +644,13 @@ export function TrainerDashboardBookingsClient() {
                       </ul>
                     </div>
                     <div className="rounded-xl border border-white/[0.06] bg-[#0a0c11]/80 p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-300/90">One-off openings</p>
-                      <ul className="mt-3 space-y-2 text-sm text-white/80">
+                      <p className="text-center text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-300/90">One-off openings</p>
+                      <ul className="mt-3 space-y-2 text-center text-sm text-white/80">
                         {(doc.specificSlots ?? []).length === 0 ? (
                           <li className="text-white/40">None added.</li>
                         ) : (
                           (doc.specificSlots ?? []).map((s, i) => (
-                            <li key={`s-${i}`} className="flex items-center gap-2">
+                            <li key={`s-${i}`} className="flex flex-wrap items-center justify-center gap-2">
                               <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400/80" />
                               <span>
                                 {new Date(s.startAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })} –{" "}
@@ -654,20 +662,20 @@ export function TrainerDashboardBookingsClient() {
                       </ul>
                     </div>
                     <div className="rounded-xl border border-white/[0.06] bg-[#0a0c11]/80 p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-rose-300/90">Blackouts</p>
-                      <ul className="mt-3 space-y-2 text-sm text-white/80">
+                      <p className="text-center text-[10px] font-bold uppercase tracking-[0.12em] text-rose-300/90">Blackouts</p>
+                      <ul className="mt-3 space-y-2 text-center text-sm text-white/80">
                         {(doc.unavailableWeekdaysAllDay ?? []).length === 0 && (doc.unavailableDatesOnce ?? []).length === 0 ? (
                           <li className="text-white/40">No blackout days.</li>
                         ) : (
                           <>
                             {(doc.unavailableWeekdaysAllDay ?? []).map((u, i) => (
-                              <li key={`bw-${i}`} className="flex items-center gap-2">
+                              <li key={`bw-${i}`} className="flex items-center justify-center gap-2">
                                 <span className="h-2 w-2 shrink-0 rounded-full bg-rose-400/90" />
                                 Every {DAYS_LONG[u.dayOfWeek]} (all day)
                               </li>
                             ))}
                             {(doc.unavailableDatesOnce ?? []).map((u, i) => (
-                              <li key={`bd-${i}`} className="flex items-center gap-2">
+                              <li key={`bd-${i}`} className="flex items-center justify-center gap-2">
                                 <span className="h-2 w-2 shrink-0 rounded-full bg-rose-400/60" />
                                 {u.date}
                               </li>
@@ -704,7 +712,7 @@ export function TrainerDashboardBookingsClient() {
                       </button>
                     ))}
                   </div>
-                  <div className="mt-3 flex flex-wrap items-end gap-2">
+                  <div className="mt-3 flex flex-wrap items-end justify-center gap-2">
                     <label className="text-xs text-white/50">
                       From
                       <input
@@ -731,9 +739,9 @@ export function TrainerDashboardBookingsClient() {
                       Add window
                     </button>
                   </div>
-                  <ul className="mt-3 space-y-1 text-xs text-white/70">
+                  <ul className="mt-3 space-y-1 text-center text-xs text-white/70">
                     {(doc.weeklyRules ?? []).map((r, i) => (
-                      <li key={`${r.dayOfWeek}-${r.startMinutes}-${i}`} className="flex items-center justify-between gap-2">
+                      <li key={`${r.dayOfWeek}-${r.startMinutes}-${i}`} className="flex flex-wrap items-center justify-center gap-2">
                         <span>
                           {DAYS[r.dayOfWeek]} · {formatMinutes(r.startMinutes)}–{formatMinutes(r.endMinutes)}
                         </span>
@@ -746,12 +754,12 @@ export function TrainerDashboardBookingsClient() {
                 </div>
 
                 <div className="rounded-xl border border-white/[0.08] bg-[#0c0e14]/90 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">Unavailability</p>
-                  <p className="mt-1 text-[11px] text-white/45">
+                  <p className="text-center text-[10px] font-black uppercase tracking-[0.14em] text-white/40">Unavailability</p>
+                  <p className="mx-auto mt-1 max-w-md text-center text-[11px] leading-relaxed text-white/45">
                     One-off blocked dates turn off your repeating weekly hours for that calendar day only. Check &quot;Repeat weekly&quot; to
                     block that weekday every week (cannot overlap weekly hours on that weekday).
                   </p>
-                <div className="mt-3 flex flex-wrap items-end gap-3">
+                <div className="mt-3 flex flex-wrap items-end justify-center gap-3">
                   <label className="text-xs text-white/50">
                     Date
                     <input
@@ -778,11 +786,11 @@ export function TrainerDashboardBookingsClient() {
                     Add blackout
                   </button>
                 </div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="mt-3 grid gap-3 text-center sm:grid-cols-2">
                   <ul className="space-y-1 text-xs text-white/70">
                     <li className="text-white/40">One-off blocked dates</li>
                     {(doc.unavailableDatesOnce ?? []).map((u, i) => (
-                      <li key={u.date} className="flex justify-between gap-2">
+                      <li key={u.date} className="flex flex-wrap items-center justify-center gap-2">
                         {u.date}
                         <button type="button" className="text-rose-300/90 hover:underline" onClick={() => removeBlackoutOnce(i)}>
                           Remove
@@ -793,7 +801,7 @@ export function TrainerDashboardBookingsClient() {
                   <ul className="space-y-1 text-xs text-white/70">
                     <li className="text-white/40">Recurring blocked weekdays</li>
                     {(doc.unavailableWeekdaysAllDay ?? []).map((u, i) => (
-                      <li key={u.dayOfWeek} className="flex justify-between gap-2">
+                      <li key={u.dayOfWeek} className="flex flex-wrap items-center justify-center gap-2">
                         Every {DAYS_LONG[u.dayOfWeek]}
                         <button type="button" className="text-rose-300/90 hover:underline" onClick={() => removeBlackoutWeekly(i)}>
                           Remove
@@ -805,9 +813,9 @@ export function TrainerDashboardBookingsClient() {
               </div>
 
               <div className="rounded-xl border border-white/[0.08] bg-[#0c0e14]/90 p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">One-off availability (non-repeating)</p>
-                <p className="mt-1 text-[11px] text-white/45">Extra openings outside your weekly pattern.</p>
-                <div className="mt-3 flex flex-wrap items-end gap-2">
+                <p className="text-center text-[10px] font-black uppercase tracking-[0.14em] text-white/40">One-off availability (non-repeating)</p>
+                <p className="mx-auto mt-1 max-w-sm text-center text-[11px] text-white/45">Extra openings outside your weekly pattern.</p>
+                <div className="mt-3 flex flex-wrap items-end justify-center gap-2">
                   <label className="text-xs text-white/50">
                     Start
                     <input
@@ -834,9 +842,9 @@ export function TrainerDashboardBookingsClient() {
                     Add slot
                   </button>
                 </div>
-                <ul className="mt-3 space-y-1 text-xs text-white/70">
+                <ul className="mt-3 space-y-1 text-center text-xs text-white/70">
                   {(doc.specificSlots ?? []).map((s, i) => (
-                    <li key={`${s.startAt}-${i}`} className="flex justify-between gap-2">
+                    <li key={`${s.startAt}-${i}`} className="flex flex-col items-center gap-1 sm:flex-row sm:justify-center sm:gap-2">
                       <span>
                         {new Date(s.startAt).toLocaleString()} → {new Date(s.endAt).toLocaleString()}
                       </span>
@@ -847,7 +855,7 @@ export function TrainerDashboardBookingsClient() {
                   ))}
                 </ul>
               </div>
-              <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-white/[0.08] pt-5">
+              <div className="mt-5 flex flex-wrap justify-center gap-2 border-t border-white/[0.08] pt-5">
                 <button
                   type="button"
                   onClick={() => void cancelAvailabilityEdit()}
@@ -868,21 +876,14 @@ export function TrainerDashboardBookingsClient() {
             ) : null}
 
             <div className="rounded-xl border border-white/[0.08] bg-[#0c0e14]/90 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">Availability calendar</p>
-                  {availabilityCalendarOpen ? (
-                    <p className="mt-1 text-[11px] text-white/45">
-                      Tap a date for details. Orange = weekly hours, green = extra opening, red = blackout; muted orange = repeating hours
-                      off for that day only (one-off blackout).
-                    </p>
-                  ) : (
-                    <p className="mt-1 text-[11px] text-white/40">
-                      Grid hidden — your saved rules still apply. Use Show to open the month view.
-                    </p>
-                  )}
-                </div>
-                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              <div className="text-center">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/40">Availability calendar</p>
+                {!availabilityCalendarOpen ? (
+                  <p className="mx-auto mt-1 max-w-lg text-[11px] leading-relaxed text-white/40">
+                    Calendar hidden — your saved rules still apply. Tap Show calendar below to open this month.
+                  </p>
+                ) : null}
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
                   <button
                     type="button"
                     onClick={() => shiftAvailCalendar(-1)}
@@ -902,19 +903,23 @@ export function TrainerDashboardBookingsClient() {
                   >
                     →
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setAvailabilityCalendarOpen((o) => !o)}
-                    className="rounded-lg border border-white/[0.12] bg-white/[0.05] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-[#FF9A4A] transition hover:border-white/[0.18] hover:bg-white/[0.08]"
-                    aria-expanded={availabilityCalendarOpen}
-                  >
-                    {availabilityCalendarOpen ? "▴ Hide grid" : "▾ Show grid"}
-                  </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setAvailabilityCalendarOpen((o) => !o)}
+                  className="mx-auto mt-3 flex min-h-[2.25rem] w-full max-w-xs items-center justify-center rounded-lg border border-white/[0.12] bg-white/[0.05] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[#FF9A4A] transition hover:border-white/[0.18] hover:bg-white/[0.08] hover:text-[#ffb066]"
+                  aria-expanded={availabilityCalendarOpen}
+                >
+                  {availabilityCalendarOpen ? "▴ HIDE CALENDAR" : "▾ SHOW CALENDAR"}
+                </button>
               </div>
               {availabilityCalendarOpen ? (
               <>
-              <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-white/45">
+              <p className="mx-auto mt-3 max-w-lg text-center text-[11px] leading-relaxed text-white/45">
+                Tap a date for details. Orange = weekly hours, green = extra opening, red = blackout; muted orange = repeating hours off
+                for that day only (one-off blackout).
+              </p>
+              <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-2 text-[10px] text-white/45">
                 <span className="inline-flex items-center gap-1">
                   <span className="h-2 w-2 rounded-full bg-[#FF7E00]" /> Weekly
                 </span>
@@ -972,7 +977,7 @@ export function TrainerDashboardBookingsClient() {
                 </div>
               </div>
               {selectedAvailYmd ? (
-                <div className="mt-4 rounded-xl border border-white/[0.08] bg-[#0a0c11]/90 p-3">
+                <div className="mt-4 rounded-xl border border-white/[0.08] bg-[#0a0c11]/90 p-3 text-center">
                   <p className="text-xs font-semibold text-white/85">{selectedAvailYmd}</p>
                   {selectedAvailHits.length === 0 ? (
                     <p className="mt-2 text-xs text-white/45">Nothing on this date.</p>
@@ -981,7 +986,7 @@ export function TrainerDashboardBookingsClient() {
                       {selectedAvailHits.map((h, idx) => (
                         <li
                           key={`${h.kind}-${"index" in h ? h.index : "x"}-${idx}`}
-                          className="flex flex-wrap items-center justify-between gap-2 text-xs text-white/75"
+                          className="flex flex-col items-center gap-2 text-xs text-white/75 sm:flex-row sm:flex-wrap sm:justify-center"
                         >
                           <span>{h.label}</span>
                           {availabilityEditMode && h.kind !== "weeklyPausedForDate" ? (
@@ -997,7 +1002,7 @@ export function TrainerDashboardBookingsClient() {
                       ))}
                     </ul>
                   )}
-                  <p className="mt-2 text-[10px] text-white/38">
+                  <p className="mt-2 text-center text-[10px] text-white/38">
                     {availabilityEditMode
                       ? "Use Save at the bottom when you are done editing."
                       : "Tap Edit availability to add, remove, or change rules."}
@@ -1010,7 +1015,7 @@ export function TrainerDashboardBookingsClient() {
           </div>
 
           {!availabilityEditMode ? (
-            <div className="mt-6 flex justify-center sm:justify-end">
+            <div className="mt-6 flex justify-center">
               <button
                 type="button"
                 onClick={() => {
@@ -1031,23 +1036,25 @@ export function TrainerDashboardBookingsClient() {
             </div>
           ) : null}
 
-          {savedAvailabilityOk ? <p className="relative mt-4 text-xs text-emerald-300/90">Availability saved.</p> : null}
+          {savedAvailabilityOk ? <p className="relative mt-4 text-center text-xs text-emerald-300/90">Availability saved.</p> : null}
         </div>
       </section>
 
       {/* Booking calendar */}
-      <section className="relative overflow-hidden rounded-2xl border border-white/[0.1] bg-[#10131c]/95 shadow-[0_0_0_1px_rgba(99,102,241,0.06)]">
+      <section className="relative w-full max-w-3xl overflow-hidden rounded-2xl border border-white/[0.1] bg-[#10131c]/95 shadow-[0_0_0_1px_rgba(99,102,241,0.06)]">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_70%_at_80%_-10%,rgba(99,102,241,0.1),transparent_45%)]"
         />
         <div className="relative p-5 sm:p-7">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="w-full">
               <h2 className="text-xl font-black tracking-tight text-white">Booking Calendar</h2>
-              <p className="mt-1.5 max-w-md text-xs text-white/50">Use the arrows to change month. The list matches this range.</p>
+              <p className="mx-auto mt-1.5 max-w-md text-xs text-white/50">
+                Use the arrows to change month. The list matches this range.
+              </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <div className="relative" ref={syncRef}>
                 <button
                   type="button"
@@ -1058,7 +1065,7 @@ export function TrainerDashboardBookingsClient() {
                   <span className="text-white/50">{syncOpen ? "▴" : "▾"}</span>
                 </button>
                 {syncOpen ? (
-                  <div className="absolute right-0 z-20 mt-2 min-w-[14rem] rounded-xl border border-white/[0.12] bg-[#0c0e14] py-1 shadow-xl">
+                  <div className="absolute left-1/2 z-20 mt-2 min-w-[14rem] -translate-x-1/2 rounded-xl border border-white/[0.12] bg-[#0c0e14] py-1 text-left shadow-xl">
                     {calendarAccounts.length === 0 ? (
                       <p className="px-3 py-2 text-[11px] text-white/45">No calendar accounts connected.</p>
                     ) : (
@@ -1155,11 +1162,11 @@ export function TrainerDashboardBookingsClient() {
             </div>
           </div>
 
-          <h3 className="mt-8 text-sm font-bold uppercase tracking-[0.12em] text-white/50">Session list</h3>
-          <ul className="mt-3 space-y-2 text-sm text-white/80">
+          <h3 className="mt-8 text-center text-sm font-bold uppercase tracking-[0.12em] text-white/50">Session list</h3>
+          <ul className="mt-3 space-y-2 text-center text-sm text-white/80">
             {bookings.length === 0 && !bookingsBusy ? <li className="text-white/45">No sessions in this month view.</li> : null}
             {bookings.map((b) => (
-              <li key={b.id} className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+              <li key={b.id} className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-center">
                 <span className="font-semibold text-white/90">{b.clientLabel}</span>{" "}
                 <span className="text-white/45">@{b.clientUsername}</span>
                 <div className="mt-1 text-xs text-white/55">
@@ -1195,20 +1202,9 @@ export function TrainerDashboardBookingsClient() {
         </div>
       </section>
 
-      {/* Settings — centered card, collapsible */}
-      <div className="flex justify-center">
-        <section className="w-full max-w-xl rounded-2xl border border-white/[0.08] bg-[#0d1018]/95 p-5 text-center sm:p-7">
-          <button
-            type="button"
-            onClick={() => setSettingsSectionOpen((o) => !o)}
-            className="group flex w-full items-center justify-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-3 text-center transition hover:border-white/[0.12] hover:bg-white/[0.05]"
-            aria-expanded={settingsSectionOpen}
-          >
-            <h2 className="text-lg font-black tracking-tight text-white">Booking &amp; Availability Settings</h2>
-            <span className="text-xs font-bold text-[#FF9A4A] transition group-hover:text-[#ffb066]">
-              {settingsSectionOpen ? "▴ Hide" : "▾ Show"}
-            </span>
-          </button>
+      {/* Settings — collapsible (same centered column as other cards) */}
+      <section className="w-full max-w-3xl rounded-2xl border border-white/[0.08] bg-[#0d1018]/95 p-5 text-center sm:p-7">
+          <h2 className="text-lg font-black tracking-tight text-white">Booking &amp; Availability Settings</h2>
           {!settingsSectionOpen ? (
             <p className="mx-auto mt-3 max-w-md text-[11px] leading-relaxed text-white/40">
               Timezone, public guidelines, after-payment booking, and virtual meeting shortcuts.
@@ -1218,14 +1214,22 @@ export function TrainerDashboardBookingsClient() {
               Fine-tune how Match Fit talks about your time and what clients can do after they pay.
             </p>
           )}
+          <button
+            type="button"
+            onClick={() => setSettingsSectionOpen((o) => !o)}
+            className="mt-4 inline-flex min-h-[2.75rem] w-full max-w-xs items-center justify-center rounded-xl border border-white/[0.1] bg-white/[0.05] px-4 text-xs font-bold uppercase tracking-[0.14em] text-[#FF9A4A] transition hover:border-white/[0.18] hover:bg-white/[0.08] hover:text-[#ffb066] sm:w-auto sm:max-w-none"
+            aria-expanded={settingsSectionOpen}
+          >
+            {settingsSectionOpen ? "▴ Hide" : "▾ Show"}
+          </button>
           {settingsSectionOpen ? (
-          <div className="mx-auto mt-6 max-w-md space-y-5 text-left">
+          <div className="mx-auto mt-6 max-w-md space-y-5 text-center">
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-white/40">Timezone (United States)</label>
               <select
                 value={normalizeUsBookingTimezone(timezone)}
                 onChange={(e) => setTimezone(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-white/12 bg-[#0E1016] px-3 py-2.5 text-sm text-white"
+                className="mt-2 w-full rounded-xl border border-white/12 bg-[#0E1016] px-3 py-2.5 text-left text-sm text-white"
               >
                 {US_BOOKING_TIMEZONE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -1241,16 +1245,16 @@ export function TrainerDashboardBookingsClient() {
                 onChange={(e) => setGuidelines(e.target.value)}
                 rows={4}
                 placeholder="e.g. Virtual weekday mornings; in-person within 10 miles of downtown weekends."
-                className="mt-2 w-full rounded-xl border border-white/12 bg-[#0E1016] px-3 py-2 text-sm text-white placeholder:text-white/30"
+                className="mt-2 w-full rounded-xl border border-white/12 bg-[#0E1016] px-3 py-2 text-left text-sm text-white placeholder:text-white/30"
               />
             </div>
             <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
-              <label className="flex cursor-pointer items-start gap-3">
+              <label className="flex cursor-pointer flex-col items-center gap-3 text-center">
                 <input
                   type="checkbox"
                   checked={clientPublicSelfBookingEnabled}
                   onChange={(e) => setClientPublicSelfBookingEnabled(e.target.checked)}
-                  className="mt-1 rounded border-white/20 bg-[#0E1016]"
+                  className="rounded border-white/20 bg-[#0E1016]"
                 />
                 <span>
                   <span className="text-xs font-black uppercase tracking-[0.14em] text-white/90">
@@ -1299,7 +1303,6 @@ export function TrainerDashboardBookingsClient() {
           </div>
           ) : null}
         </section>
-      </div>
 
       {inviteOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center">

@@ -1,3 +1,4 @@
+import { parseChatAttachmentJson } from "@/lib/chat-attachment";
 import { runOutboundChatComplianceMonitoring } from "@/lib/chat-compliance-monitor";
 import { prisma } from "@/lib/prisma";
 import {
@@ -7,6 +8,7 @@ import {
 import { getSessionTrainerId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { getPhoneCallEligibility } from "@/lib/phone-bridge-eligibility";
+import { loadCheckInSessionsForThread } from "@/lib/chat-check-in-thread-snapshot";
 import { getConversationBookingSnapshot } from "@/lib/trainer-client-booking-credits";
 import { canAuthorSendChatMessage } from "@/lib/trainer-client-chat-rules";
 import { computeTrainerCheckoutHint } from "@/lib/trainer-chat-checkout-hint";
@@ -55,10 +57,11 @@ export async function GET(_req: Request, ctx: RouteContext) {
           archivedAt: true,
           archiveExpiresAt: true,
           unmatchInitiatedBy: true,
+          blockFreeSessionBookingUntilRepurchase: true,
           messages: {
             orderBy: { createdAt: "asc" },
             take: 200,
-            select: { id: true, authorRole: true, body: true, createdAt: true },
+            select: { id: true, authorRole: true, body: true, createdAt: true, attachmentJson: true },
           },
         },
       }),
@@ -114,42 +117,93 @@ export async function GET(_req: Request, ctx: RouteContext) {
       lastClientMessageId,
     });
 
-    const phoneCall = await getPhoneCallEligibility({
-      clientId: client.id,
-      trainerId,
-      archived: archive.archived,
-    });
+    let phoneCall: Awaited<ReturnType<typeof getPhoneCallEligibility>>;
+    try {
+      phoneCall = await getPhoneCallEligibility({
+        clientId: client.id,
+        trainerId,
+        archived: archive.archived,
+      });
+    } catch (phoneErr) {
+      console.error("[Match Fit trainer chat GET] phone eligibility skipped (DB may be behind migrations)", phoneErr);
+      phoneCall = {
+        paid: false,
+        twilioConfigured: false,
+        clientOptIn: false,
+        trainerOptIn: false,
+        ready: false,
+        archived: archive.archived,
+      };
+    }
     const voiceCallEnabled = phoneCall.ready;
-    const bookingSnapshot = conv ? await getConversationBookingSnapshot(trainerId, client.id) : null;
-    const horizon = new Date(Date.now() - 6 * 60 * 60 * 1000);
-    const videoOAuthProviders = await prisma.trainerVideoConferenceConnection.findMany({
-      where: { trainerId, revokedAt: null },
-      select: { provider: true },
-    });
 
-    const pendingBookings =
-      conv && !archive.archived
-        ? await prisma.bookedTrainingSession.findMany({
-            where: {
-              trainerId,
-              clientId: client.id,
-              scheduledStartAt: { gte: horizon },
-              status: { in: ["INVITED", "CLIENT_CONFIRMED", "PENDING_CONFIRMATION"] },
-            },
-            orderBy: { scheduledStartAt: "asc" },
-            take: 12,
-            select: {
-              id: true,
-              status: true,
-              sessionDelivery: true,
-              scheduledStartAt: true,
-              scheduledEndAt: true,
-              inviteNote: true,
-              videoConferenceJoinUrl: true,
-              videoConferenceProvider: true,
-            },
-          })
-        : [];
+    let bookingSnapshot: Awaited<ReturnType<typeof getConversationBookingSnapshot>> | null = null;
+    let checkInThread: Awaited<ReturnType<typeof loadCheckInSessionsForThread>> | null = null;
+    let videoOAuthProviders: { provider: string }[] = [];
+    let pendingBookings: {
+      id: string;
+      status: string;
+      sessionDelivery: string | null;
+      scheduledStartAt: Date;
+      scheduledEndAt: Date | null;
+      inviteNote: string | null;
+      videoConferenceJoinUrl: string | null;
+      videoConferenceProvider: string | null;
+    }[] = [];
+    try {
+      bookingSnapshot = conv ? await getConversationBookingSnapshot(trainerId, client.id) : null;
+    } catch (snapErr) {
+      console.error("[Match Fit trainer chat GET] booking snapshot skipped (DB may be behind migrations)", snapErr);
+    }
+    try {
+      if (conv && !archive.archived) {
+        checkInThread = await loadCheckInSessionsForThread({ trainerId, clientId: client.id });
+      }
+    } catch (checkInErr) {
+      console.error("[Match Fit trainer chat GET] check-in snapshot skipped (DB may be behind migrations)", checkInErr);
+    }
+    try {
+      videoOAuthProviders = await prisma.trainerVideoConferenceConnection.findMany({
+        where: { trainerId, revokedAt: null },
+        select: { provider: true },
+      });
+    } catch (oauthErr) {
+      console.error("[Match Fit trainer chat GET] video OAuth list skipped", oauthErr);
+    }
+    try {
+      if (conv && !archive.archived) {
+        const horizon = new Date(Date.now() - 6 * 60 * 60 * 1000);
+        pendingBookings = await prisma.bookedTrainingSession.findMany({
+          where: {
+            trainerId,
+            clientId: client.id,
+            scheduledStartAt: { gte: horizon },
+            OR: [
+              { status: { in: ["INVITED", "PENDING_CONFIRMATION"] } },
+              { status: "CLIENT_CONFIRMED", videoConferenceJoinUrl: { not: null } },
+              {
+                status: "CLIENT_CONFIRMED",
+                fulfillmentStatus: { in: ["NONE", "SCHEDULED", "CHECK_IN_ACTIVE", "AWAITING_CLIENT_FOLLOWUP"] },
+              },
+            ],
+          },
+          orderBy: { scheduledStartAt: "asc" },
+          take: 12,
+          select: {
+            id: true,
+            status: true,
+            sessionDelivery: true,
+            scheduledStartAt: true,
+            scheduledEndAt: true,
+            inviteNote: true,
+            videoConferenceJoinUrl: true,
+            videoConferenceProvider: true,
+          },
+        });
+      }
+    } catch (sessionsErr) {
+      console.error("[Match Fit trainer chat GET] pending sessions skipped (DB may be behind migrations)", sessionsErr);
+    }
 
     return NextResponse.json({
       conversationId: conv?.id ?? null,
@@ -168,6 +222,8 @@ export async function GET(_req: Request, ctx: RouteContext) {
         trainerOptIn: phoneCall.trainerOptIn,
       },
       bookingSnapshot,
+      blockFreeSessionBookingUntilRepurchase: conv?.blockFreeSessionBookingUntilRepurchase ?? false,
+      checkInThread,
       pendingBookings: pendingBookings.map((b) => ({
         id: b.id,
         status: b.status,
@@ -195,6 +251,7 @@ export async function GET(_req: Request, ctx: RouteContext) {
           authorRole: m.authorRole,
           body: m.body,
           createdAt: m.createdAt.toISOString(),
+          attachment: parseChatAttachmentJson(m.attachmentJson),
         })) ?? [],
     });
   } catch (e) {

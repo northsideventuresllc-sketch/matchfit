@@ -2,9 +2,13 @@ import { runOutboundChatComplianceMonitoring } from "@/lib/chat-compliance-monit
 import { getAppOriginFromRequest } from "@/lib/app-origin";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
-import { createTrainerServiceSaleStripeCheckoutSession } from "@/lib/stripe-trainer-service-sale-checkout";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
-import { parseTrainerServiceOfferingsJson, resolvedTrainerServicePublicTitle } from "@/lib/trainer-service-offerings";
+import {
+  coachServiceCheckoutSearch,
+  parseTrainerServiceOfferingsJson,
+  publishedPurchaseSkusFromLine,
+  resolvedTrainerServicePublicTitle,
+} from "@/lib/trainer-service-offerings";
 import { isTrainerClientInteractionRestricted } from "@/lib/user-block-queries";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -87,36 +91,29 @@ export async function POST(req: Request, ctx: RouteContext) {
       return NextResponse.json({ error: "That service is not on your published offerings list." }, { status: 404 });
     }
 
-    const baseCents = Math.round(line.priceUsd * 100);
-    if (!Number.isFinite(baseCents) || baseCents < 1500 || baseCents > 500_000) {
-      return NextResponse.json({ error: "Service price is not valid for checkout." }, { status: 400 });
+    const skus = publishedPurchaseSkusFromLine(line);
+    const sku = skus[0];
+    if (!sku) {
+      return NextResponse.json({ error: "That service has no checkout rows configured." }, { status: 400 });
     }
 
     const origin = getAppOriginFromRequest(req);
-
-    let checkoutUrl: string;
-    try {
-      checkoutUrl = await createTrainerServiceSaleStripeCheckoutSession({
-        trainerId,
-        trainerUsername: trainer.username,
-        clientId: client.id,
-        clientEmail: client.email,
-        line,
-        conversationId: conv.id,
-        successUrl: `${origin}/client/messages/${encodeURIComponent(trainer.username)}?serviceCheckout=success`,
-        cancelUrl: `${origin}/client/messages/${encodeURIComponent(trainer.username)}?serviceCheckout=cancel`,
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Could not start checkout.";
-      const status = msg.includes("not configured") ? 503 : 500;
-      return NextResponse.json({ error: msg }, { status });
-    }
+    const qs = coachServiceCheckoutSearch(
+      trainer.username,
+      {
+        serviceId: sku.serviceId,
+        variationId: sku.variationId,
+        bundleTierId: sku.bundleTierId,
+      },
+      { checkoutContext: "chat" },
+    );
+    const prepUrl = `${origin}/client/checkout/coach-service?${qs}`;
 
     const serviceTitle = resolvedTrainerServicePublicTitle(line);
     const msgBody = [
-      `Here is your secure Match Fit checkout for: ${serviceTitle}.`,
-      `Total charged at checkout includes the listed service amount plus Match Fit’s administrative fee (shown as its own line).`,
-      checkoutUrl,
+      `Here’s your Match Fit checkout for: ${serviceTitle}.`,
+      `Tap the link—review totals on Match Fit—then finish payment securely on Stripe (coach package plus Match Fit’s administrative fee line).`,
+      prepUrl,
     ].join("\n\n");
 
     await runOutboundChatComplianceMonitoring({
@@ -144,7 +141,7 @@ export async function POST(req: Request, ctx: RouteContext) {
         body: msg.body,
         createdAt: msg.createdAt.toISOString(),
       },
-      checkoutUrl,
+      checkoutUrl: prepUrl,
     });
   } catch (e) {
     console.error(e);

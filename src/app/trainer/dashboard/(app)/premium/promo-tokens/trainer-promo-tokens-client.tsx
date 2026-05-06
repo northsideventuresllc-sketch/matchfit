@@ -467,7 +467,7 @@ export function TrainerPromoTokensClient() {
             </div>
 
             <div className="rounded-2xl border border-white/[0.12] bg-black/25 p-4 sm:p-5">
-              <div className="mb-4 text-center sm:text-left">
+              <div className="mb-4 text-center">
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FF7E00]/90">Engagement</p>
                 <p className="mt-1 text-xs leading-relaxed text-white/50">
                   In-window totals for the tab you selected (likes, comments, reposts, and recorded shares).

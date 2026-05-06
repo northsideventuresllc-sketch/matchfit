@@ -18,6 +18,10 @@ import {
   persistTrainerServiceOfferingsWithAi,
   resolvedTrainerServicePublicTitle,
   SESSION_FREQUENCY_KINDS,
+  TRAINER_SERVICE_SESSION_MINUTES_MAX,
+  TRAINER_SERVICE_SESSION_MINUTES_MIN,
+  trainerServiceOfferingAddOnSchema,
+  trainerServiceOfferingBundleTierSchema,
   trainerServiceOfferingVariationSchema,
   type TrainerServiceOfferingLine,
   type TrainerServiceOfferingsDocument,
@@ -32,7 +36,7 @@ const mutateBodySchema = z.object({
   priceUsd: z.number().min(15).max(5000),
   billingUnit: z.enum(BILLING_UNITS),
   description: z.string().trim().min(20).max(600),
-  sessionMinutes: z.number().int().min(15).max(120).optional(),
+  sessionMinutes: z.number().int().min(TRAINER_SERVICE_SESSION_MINUTES_MIN).max(TRAINER_SERVICE_SESSION_MINUTES_MAX).optional(),
   sessionsPerWeek: z.number().int().min(1).max(14).optional(),
   sessionFrequencyKind: z.enum(SESSION_FREQUENCY_KINDS).default("none"),
   sessionFrequencyCount: z.number().int().min(1).max(31).optional(),
@@ -41,7 +45,9 @@ const mutateBodySchema = z.object({
   inPersonZip: z.string().trim().max(12).optional(),
   inPersonRadiusMiles: z.coerce.number().int().min(1).max(150).optional(),
   variations: z.array(trainerServiceOfferingVariationSchema).max(24).optional(),
+  bundleTiers: z.array(trainerServiceOfferingBundleTierSchema).max(8).optional(),
   priceCheckAiEnabled: z.boolean().optional(),
+  optionalAddOns: z.array(trainerServiceOfferingAddOnSchema).max(12).optional(),
 });
 
 function isMatchServiceId(id: string): id is MatchServiceId {
@@ -184,11 +190,22 @@ export async function PATCH(req: Request, ctx: Ctx) {
         delete updatedLine.variations;
       } else {
         updatedLine.variations = body.variations;
+        delete updatedLine.bundleTiers;
+      }
+    }
+    if (body.bundleTiers !== undefined) {
+      if (body.bundleTiers.length === 0) delete updatedLine.bundleTiers;
+      else if (!updatedLine.variations || updatedLine.variations.length === 0) {
+        updatedLine.bundleTiers = body.bundleTiers;
       }
     }
     if (body.priceCheckAiEnabled !== undefined) {
       if (body.priceCheckAiEnabled === false) updatedLine.priceCheckAiEnabled = false;
       else delete updatedLine.priceCheckAiEnabled;
+    }
+    if (body.optionalAddOns !== undefined) {
+      if (body.optionalAddOns.length === 0) delete updatedLine.optionalAddOns;
+      else updatedLine.optionalAddOns = body.optionalAddOns;
     }
     if (updatedLine.variations && updatedLine.variations.length > 0) {
       updatedLine.priceUsd = minListPriceUsdOnLine(updatedLine);

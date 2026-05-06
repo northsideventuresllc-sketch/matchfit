@@ -1,6 +1,7 @@
 import {
   BILLING_UNIT_LABELS,
   MATCH_SERVICE_CATALOG,
+  billingUnitIsCadencePackBase,
   type BillingUnit,
   type MatchServiceId,
   type ServiceDeliveryMode,
@@ -51,15 +52,20 @@ const BENCHMARKS: Record<MatchServiceId, Partial<Record<BillingUnit, Band>>> = {
   },
   small_group: {
     per_session: { low: 22, mid: 42, high: 85 },
+    per_person: { low: 18, mid: 34, high: 72 },
     per_hour: { low: 55, mid: 95, high: 180 },
     per_month: { low: 160, mid: 320, high: 640 },
   },
   nutrition_coaching: {
+    per_week: { low: 55, mid: 95, high: 185 },
+    twice_weekly: { low: 95, mid: 165, high: 320 },
     per_session: { low: 50, mid: 95, high: 165 },
     per_hour: { low: 75, mid: 125, high: 210 },
     per_month: { low: 199, mid: 349, high: 699 },
   },
   online_program: {
+    per_week: { low: 45, mid: 79, high: 155 },
+    twice_weekly: { low: 79, mid: 135, high: 260 },
     per_session: { low: 40, mid: 75, high: 140 },
     per_hour: { low: 60, mid: 100, high: 180 },
     per_month: { low: 129, mid: 249, high: 499 },
@@ -99,6 +105,19 @@ export function getBenchmarkBand(serviceId: MatchServiceId, billingUnit: Billing
   if (billingUnit === "multi_session") {
     const pack = BENCHMARKS[serviceId]?.per_session;
     if (pack) return pack;
+  }
+  if (billingUnit === "per_person") {
+    const slot = BENCHMARKS[serviceId]?.per_session;
+    if (slot) return { low: slot.low * 0.82, mid: slot.mid * 0.82, high: slot.high * 0.85 };
+  }
+  if (billingUnit === "per_week" || billingUnit === "twice_weekly") {
+    const mo = BENCHMARKS[serviceId]?.per_month;
+    if (mo) {
+      if (billingUnit === "per_week") {
+        return { low: mo.low / 4.5, mid: mo.mid / 4.5, high: mo.high / 4.5 };
+      }
+      return { low: mo.low / 2.15, mid: mo.mid / 2.15, high: mo.high / 2.15 };
+    }
   }
   const anyUnit = BENCHMARKS[serviceId]?.per_session ?? BENCHMARKS[serviceId]?.per_hour ?? BENCHMARKS[serviceId]?.per_month;
   return anyUnit ?? DEFAULT_BAND;
@@ -150,7 +169,7 @@ function travelLoadMultiplier(delivery: ServiceDeliveryMode, radiusMiles?: numbe
 
 function sessionLengthMultiplier(billingUnit: BillingUnit, sessionMinutes?: number): number {
   if (sessionMinutes == null || !Number.isFinite(sessionMinutes)) return 1;
-  if (billingUnit === "per_month") return 1;
+  if (billingUnit === "per_month" || billingUnitIsCadencePackBase(billingUnit)) return 1;
   const delta = sessionMinutes - 60;
   return Math.min(1.1, Math.max(0.94, 1 + delta * 0.0025));
 }
@@ -215,13 +234,29 @@ export function formatPricingRowsHuman(skus: PublishedPurchaseSku[]): string {
     .map((s, i) => {
       const unit = BILLING_UNIT_LABELS[s.billingUnit];
       const mins = s.sessionMinutes != null && s.sessionMinutes > 0 ? ` | ${s.sessionMinutes} min` : "";
-      if (s.billingUnit === "multi_session" && s.bundleQuantity > 1) {
-        const each = s.priceUsd / s.bundleQuantity;
-        return `${i + 1}. [${unit}] ${formatTrainerServicePriceUsd(s.priceUsd)} total for ${s.bundleQuantity} sessions (~${formatTrainerServicePriceUsd(each)} / session)${mins} — ${s.label.slice(0, 220)}`;
+      const qty = s.bundleQuantity;
+      if (billingUnitIsCadencePackBase(s.billingUnit) && qty > 1) {
+        const periodWord =
+          s.billingUnit === "per_week" ? "weeks" : s.billingUnit === "twice_weekly" ? "two-week blocks" : "months";
+        const eachLabel = s.billingUnit === "per_week" ? "week" : s.billingUnit === "twice_weekly" ? "two-week block" : "month";
+        const each = s.priceUsd / qty;
+        return `${i + 1}. [${unit}] ${formatTrainerServicePriceUsd(s.priceUsd)} total for ${qty} ${periodWord} (~${formatTrainerServicePriceUsd(each)} per ${eachLabel}) — ${s.label.slice(0, 220)}`;
       }
-      if (s.billingUnit === "per_session" && s.bundleQuantity > 1) {
-        const each = s.priceUsd / s.bundleQuantity;
-        return `${i + 1}. [${unit}] ${formatTrainerServicePriceUsd(s.priceUsd)} total for ${s.bundleQuantity} sessions (~${formatTrainerServicePriceUsd(each)} / session)${mins} — ${s.label.slice(0, 220)}`;
+      if (s.billingUnit === "multi_session" && qty > 1) {
+        const each = s.priceUsd / qty;
+        return `${i + 1}. [${unit}] ${formatTrainerServicePriceUsd(s.priceUsd)} total for ${qty} sessions (~${formatTrainerServicePriceUsd(each)} / session)${mins} — ${s.label.slice(0, 220)}`;
+      }
+      if (s.billingUnit === "per_session" && qty > 1) {
+        const each = s.priceUsd / qty;
+        return `${i + 1}. [${unit}] ${formatTrainerServicePriceUsd(s.priceUsd)} total for ${qty} sessions (~${formatTrainerServicePriceUsd(each)} / session)${mins} — ${s.label.slice(0, 220)}`;
+      }
+      if (s.billingUnit === "per_person" && qty > 1) {
+        const each = s.priceUsd / qty;
+        return `${i + 1}. [${unit}] ${formatTrainerServicePriceUsd(s.priceUsd)} total for ${qty} per-person sessions (~${formatTrainerServicePriceUsd(each)} / session / person)${mins} — ${s.label.slice(0, 220)}`;
+      }
+      if (s.billingUnit === "per_hour" && qty > 1) {
+        const each = s.priceUsd / qty;
+        return `${i + 1}. [${unit}] ${formatTrainerServicePriceUsd(s.priceUsd)} total for ${qty} hours (~${formatTrainerServicePriceUsd(each)} / hour)${mins} — ${s.label.slice(0, 220)}`;
       }
       return `${i + 1}. [${unit}] ${formatTrainerServicePriceUsd(s.priceUsd)}${mins} — ${s.label.slice(0, 220)}`;
     })
@@ -249,12 +284,14 @@ function benchmarkOneSkuRow(
   let mid: number;
   let high: number;
   let comparePrice: number;
-  if (sku.billingUnit === "multi_session") {
-    low = roundPriceToStep(band.low * f * qty);
-    mid = roundPriceToStep(band.mid * f * qty);
-    high = roundPriceToStep(band.high * f * qty);
-    comparePrice = sku.priceUsd;
-  } else if (sku.billingUnit === "per_session" && qty > 1) {
+  const scaleTotalByQty =
+    qty > 1 &&
+    (billingUnitIsCadencePackBase(sku.billingUnit) ||
+      sku.billingUnit === "multi_session" ||
+      sku.billingUnit === "per_session" ||
+      sku.billingUnit === "per_person" ||
+      sku.billingUnit === "per_hour");
+  if (scaleTotalByQty) {
     low = roundPriceToStep(band.low * f * qty);
     mid = roundPriceToStep(band.mid * f * qty);
     high = roundPriceToStep(band.high * f * qty);
@@ -341,7 +378,7 @@ function analyzeOfferingPriceBenchmarkMulti(
 
   const detail =
     verdict === "too_low"
-      ? `For “${label}” with multiple published checkout rows, Match Fit compared **each row to the benchmark that matches its billing unit** (per session, per hour, per month, or multi-session pack totals—not everything as per-session). ${rowHints}${ctxSentence}${descSentence}`
+      ? `For “${label}” with multiple published checkout rows, Match Fit compared **each row to the benchmark that matches its billing unit** (per session, per person, per hour, per week, semi-weekly, per month, or prepay bundle totals—not everything as per-session). ${rowHints}${ctxSentence}${descSentence}`
       : verdict === "too_high"
         ? `For “${label}”, at least one checkout row sits above the typical band for how that row is billed. ${rowHints}${ctxSentence}${descSentence}`
         : `For “${label}”, your lowest list row is about ${formatTrainerServicePriceUsd(input.priceUsd)}; benchmarks across the ${skus.length} checkout row(s) look broadly consistent${mixedBilling ? " even with mixed billing units" : ""}. ${rowHints}${ctxSentence}${descSentence}`;

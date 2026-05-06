@@ -120,3 +120,50 @@ export async function deliverSignupOtp(
     "Configure TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_NUMBER to send SMS or voice codes in production.",
   );
 }
+
+/** Short transactional SMS (receipts, etc.) — reuses OTP mock / Twilio configuration. */
+export async function deliverTransactionalSms(
+  e164Phone: string,
+  body: string,
+): Promise<{ devMock?: boolean } | Record<string, never>> {
+  const phone = e164Phone.trim();
+  const text = body.trim();
+  if (!phone || !text) {
+    throw new Error("Phone and message body are required.");
+  }
+
+  if (shouldMockSmsVoiceOtp()) {
+    const line = "─".repeat(56);
+    console.info(`\n${line}\n Match Fit — DEV MOCK transactional SMS\n To: ${phone}\n ${text.slice(0, 320)}\n${line}\n`);
+    return { devMock: true };
+  }
+
+  const sid = process.env.TWILIO_ACCOUNT_SID;
+  const token = process.env.TWILIO_AUTH_TOKEN;
+  const fromNum = process.env.TWILIO_FROM_NUMBER;
+  if (sid && token && fromNum) {
+    const auth = Buffer.from(`${sid}:${token}`).toString("base64");
+    const form = new URLSearchParams({
+      To: phone,
+      From: fromNum,
+      Body: text.slice(0, 1200),
+    });
+    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${auth}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: form,
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error(`SMS delivery failed: ${t}`);
+    }
+    return {};
+  }
+
+  throw new Error(
+    "Configure TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_NUMBER to send SMS receipts.",
+  );
+}

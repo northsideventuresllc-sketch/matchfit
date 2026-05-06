@@ -1,7 +1,9 @@
 import { randomUUID } from "crypto";
 import type { Prisma } from "@prisma/client";
+import { deliverCoachServicePurchaseSideEffects } from "@/lib/coach-service-purchase-side-effects";
 import { applyConversationAfterServicePurchase } from "@/lib/trainer-client-booking-credits";
 import { prisma } from "@/lib/prisma";
+import { computeCheckoutLedgerSplits } from "@/lib/financial-ledger-split";
 import { clientZipToPrefix, trainerMatchAnswersToRegionZipPrefix } from "@/lib/featured-region";
 import { isTrainerPremiumStudioActive } from "@/lib/trainer-premium-studio";
 
@@ -521,10 +523,15 @@ export async function recordTrainerServiceTransactionAndReward(args: {
   trainerId: string;
   amountCents: number;
   stripeCheckoutSessionId?: string | null;
+  stripePaymentIntentId?: string | null;
+  totalChargedCents?: number | null;
+  adminFeeCents?: number | null;
   idempotencyKey?: string | null;
   source: "STRIPE_CHECKOUT" | "STAFF_IMPORT";
   serviceId?: string | null;
   billingUnit?: string | null;
+  /** Human-readable package line for receipts (Stripe metadata `serviceLabel`). */
+  purchaseLabelSnapshot?: string | null;
   sessionCreditsGranted?: number | null;
   bookingUnlimitedPurchase?: boolean | null;
   conversationId?: string | null;
@@ -536,6 +543,7 @@ export async function recordTrainerServiceTransactionAndReward(args: {
     });
     if (existing) {
       await grantSaleTokensForServiceTransaction(existing.id);
+      await deliverCoachServicePurchaseSideEffects(existing.id);
       return { ok: true, transactionId: existing.id, duplicate: true };
     }
   }
@@ -546,10 +554,21 @@ export async function recordTrainerServiceTransactionAndReward(args: {
     });
     if (existing) {
       await grantSaleTokensForServiceTransaction(existing.id);
+      await deliverCoachServicePurchaseSideEffects(existing.id);
       return { ok: true, transactionId: existing.id, duplicate: true };
     }
   }
   try {
+    const ledger = computeCheckoutLedgerSplits({
+      coachSubtotalCents: args.amountCents,
+      totalChargedCents: args.totalChargedCents,
+      adminFeeCents: args.adminFeeCents,
+      sessionCreditsGranted: Math.max(0, args.sessionCreditsGranted ?? 0),
+      billingUnit: args.billingUnit,
+      bookingUnlimitedPurchase: Boolean(args.bookingUnlimitedPurchase),
+      serviceId: args.serviceId,
+    });
+
     const row = await prisma.trainerClientServiceTransaction.create({
       data: {
         clientId: args.clientId,
@@ -558,11 +577,26 @@ export async function recordTrainerServiceTransactionAndReward(args: {
         amountCents: args.amountCents,
         source: args.source,
         stripeCheckoutSessionId: args.stripeCheckoutSessionId ?? undefined,
+        stripePaymentIntentId: args.stripePaymentIntentId?.trim() || undefined,
+        totalChargedCents: args.totalChargedCents ?? undefined,
+        adminFeeCents: args.adminFeeCents ?? undefined,
         idempotencyKey: args.idempotencyKey ?? undefined,
         serviceId: args.serviceId?.trim() || undefined,
         billingUnit: args.billingUnit?.trim() || undefined,
+        purchaseLabelSnapshot: args.purchaseLabelSnapshot?.trim()?.slice(0, 500) || undefined,
         sessionCreditsGranted: Math.max(0, args.sessionCreditsGranted ?? 0),
         bookingUnlimitedPurchase: Boolean(args.bookingUnlimitedPurchase),
+
+        payoutModel: ledger.payoutModel,
+        ledgerGrossTotalCents: ledger.ledgerGrossTotalCents,
+        ledgerStripeFeeEstimateCents: ledger.ledgerStripeFeeEstimateCents,
+        ledgerNetAfterFeesCents: ledger.ledgerNetAfterFeesCents,
+        ledgerNetServicePoolCents: ledger.ledgerNetServicePoolCents,
+        ledgerNetAddonPoolCents: ledger.ledgerNetAddonPoolCents,
+        ledgerTotalServiceUnits: ledger.ledgerTotalServiceUnits,
+        ledgerTotalAddonUnits: ledger.ledgerTotalAddonUnits,
+        ledgerPerServiceUnitNetCents: ledger.ledgerPerServiceUnitNetCents,
+        ledgerPerAddonUnitNetCents: ledger.ledgerPerAddonUnitNetCents,
       },
     });
     await applyConversationAfterServicePurchase({
@@ -573,6 +607,7 @@ export async function recordTrainerServiceTransactionAndReward(args: {
       bookingUnlimitedPurchase: Boolean(args.bookingUnlimitedPurchase),
     });
     await grantSaleTokensForServiceTransaction(row.id);
+    await deliverCoachServicePurchaseSideEffects(row.id);
     return { ok: true, transactionId: row.id };
   } catch (e) {
     const code = (e as { code?: string })?.code;
@@ -584,6 +619,7 @@ export async function recordTrainerServiceTransactionAndReward(args: {
         });
         if (row) {
           await grantSaleTokensForServiceTransaction(row.id);
+          await deliverCoachServicePurchaseSideEffects(row.id);
           return { ok: true, transactionId: row.id, duplicate: true };
         }
       }
@@ -594,6 +630,7 @@ export async function recordTrainerServiceTransactionAndReward(args: {
         });
         if (row) {
           await grantSaleTokensForServiceTransaction(row.id);
+          await deliverCoachServicePurchaseSideEffects(row.id);
           return { ok: true, transactionId: row.id, duplicate: true };
         }
       }

@@ -14,6 +14,8 @@ import { analyzeOfferingPriceOpenAi } from "@/lib/trainer-offering-price-openai"
 import {
   SESSION_FREQUENCY_KINDS,
   publishedSkusForPriceCheckPayload,
+  TRAINER_SERVICE_SESSION_MINUTES_MAX,
+  TRAINER_SERVICE_SESSION_MINUTES_MIN,
   trainerServiceOfferingVariationSchema,
 } from "@/lib/trainer-service-offerings";
 
@@ -24,7 +26,7 @@ const bodySchema = z.object({
   delivery: z.enum(["virtual", "in_person", "both"]),
   priceUsd: z.number().min(15).max(5000),
   description: z.string().trim().max(600).optional().default(""),
-  sessionMinutes: z.number().int().min(15).max(120).optional(),
+  sessionMinutes: z.number().int().min(TRAINER_SERVICE_SESSION_MINUTES_MIN).max(TRAINER_SERVICE_SESSION_MINUTES_MAX).optional(),
   sessionFrequencyKind: z.enum(SESSION_FREQUENCY_KINDS).optional(),
   sessionFrequencyCount: z.number().int().min(1).max(31).optional(),
   sessionFrequencyCustom: z.string().trim().max(120).optional(),

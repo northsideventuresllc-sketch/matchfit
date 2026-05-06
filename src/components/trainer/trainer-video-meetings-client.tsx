@@ -244,10 +244,10 @@ export function TrainerVideoMeetingsClient() {
   });
 
   return (
-    <div className="space-y-8">
+    <div className="flex w-full flex-col items-center space-y-8">
       {banner ? (
         <p
-          className={`rounded-xl border px-4 py-3 text-sm ${
+          className={`w-full max-w-3xl rounded-xl border px-4 py-3 text-center text-sm ${
             searchParams.get("oauthError")
               ? "border-amber-500/35 bg-amber-500/10 text-amber-100/90"
               : "border-emerald-500/35 bg-emerald-500/10 text-emerald-100/90"
@@ -256,12 +256,16 @@ export function TrainerVideoMeetingsClient() {
           {banner}
         </p>
       ) : null}
-      {summaryErr ? <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100/90">{summaryErr}</p> : null}
+      {summaryErr ? (
+        <p className="w-full max-w-3xl rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-100/90">
+          {summaryErr}
+        </p>
+      ) : null}
 
       {/* 1 — Schedule (first bubble) */}
-      <section className="rounded-2xl border border-white/[0.08] bg-[#10131c]/90 p-5 sm:p-6">
-        <h2 className="text-lg font-bold tracking-tight text-white">Schedule a Virtual Meeting</h2>
-        <p className="mt-2 text-xs leading-relaxed text-white/50">
+      <section className="w-full max-w-3xl rounded-2xl border border-white/[0.08] bg-[#10131c]/90 p-5 text-center sm:p-6">
+        <h2 className="text-lg font-black tracking-tight text-white">Schedule a Virtual Meeting</h2>
+        <p className="mx-auto mt-2 max-w-lg text-xs leading-relaxed text-white/50">
           Pick a paid client, window, and optional platform. We send a <span className="text-white/70">virtual</span> booking invite to
           your chat thread; when they confirm, it shows on your{" "}
           <Link href="/trainer/dashboard/bookings" className="text-[#FF9A4A] underline-offset-2 hover:underline">
@@ -269,11 +273,11 @@ export function TrainerVideoMeetingsClient() {
           </Link>
           .
         </p>
-        <div className="mt-4 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-3 text-[11px] text-white/55">
-          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/40">Platforms</p>
-          <ul className="mt-2 space-y-1.5">
+        <div className="mx-auto mt-4 max-w-md rounded-xl border border-white/[0.06] bg-black/20 px-3 py-3 text-[11px] text-white/55">
+          <p className="text-center text-[10px] font-bold uppercase tracking-[0.12em] text-white/40">Platforms</p>
+          <ul className="mt-2 space-y-2 text-center">
             {connectPlatforms.map((p) => (
-              <li key={p.key} className="flex flex-wrap items-baseline justify-between gap-2">
+              <li key={p.key} className="flex flex-col items-center gap-0.5 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-2">
                 <span className="font-semibold text-white/80">{p.label}</span>
                 <span className={p.connected ? "text-emerald-200/80" : "text-amber-200/85"}>
                   {p.connected ? (p.hint ? `Connected · ${p.hint}` : "Connected") : "(NOT CONNECTED)"}
@@ -282,15 +286,15 @@ export function TrainerVideoMeetingsClient() {
             ))}
           </ul>
         </div>
-        {clientsErr ? <p className="mt-3 text-xs text-amber-200/90">{clientsErr}</p> : null}
-        {scheduleErr ? <p className="mt-3 text-xs text-red-200/90">{scheduleErr}</p> : null}
-        {scheduleOk ? <p className="mt-3 text-xs text-emerald-200/90">{scheduleOk}</p> : null}
-        <div className="mt-4 space-y-3">
+        {clientsErr ? <p className="mt-3 text-center text-xs text-amber-200/90">{clientsErr}</p> : null}
+        {scheduleErr ? <p className="mt-3 text-center text-xs text-red-200/90">{scheduleErr}</p> : null}
+        {scheduleOk ? <p className="mt-3 text-center text-xs text-emerald-200/90">{scheduleOk}</p> : null}
+        <div className="mx-auto mt-4 max-w-md space-y-3 text-center">
           <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-white/40">Client</label>
           <select
             value={scheduleClient}
             onChange={(e) => setScheduleClient(e.target.value)}
-            className="w-full rounded-xl border border-white/12 bg-[#0E1016] px-3 py-2 text-sm text-white"
+            className="w-full rounded-xl border border-white/12 bg-[#0E1016] px-3 py-2 text-left text-sm text-white"
           >
             <option value="">Select…</option>
             {clients.map((c) => (
@@ -308,18 +312,20 @@ export function TrainerVideoMeetingsClient() {
               setScheduleStart(v);
               if (v) applyDefaultEndFromStart(v);
             }}
-            className="w-full rounded-xl border border-white/12 bg-[#0E1016] px-3 py-2 text-sm text-white"
+            className="w-full rounded-xl border border-white/12 bg-[#0E1016] px-3 py-2 text-left text-sm text-white"
           />
           <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-white/40">End</label>
           <input
             type="datetime-local"
             value={scheduleEnd}
             onChange={(e) => setScheduleEnd(e.target.value)}
-            className="w-full rounded-xl border border-white/12 bg-[#0E1016] px-3 py-2 text-sm text-white"
+            className="w-full rounded-xl border border-white/12 bg-[#0E1016] px-3 py-2 text-left text-sm text-white"
           />
           <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-white/40">OAuth platform (optional)</label>
-          <p className="text-[10px] text-white/40">If selected, we try to create a meeting link on that provider after the invite is sent.</p>
-          <div className="flex flex-wrap gap-2">
+          <p className="mx-auto max-w-xs text-[10px] leading-relaxed text-white/40">
+            If selected, we try to create a meeting link on that provider after the invite is sent.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
             {(["GOOGLE", "ZOOM", "MICROSOFT"] as const).map((k) => {
               const p = connectPlatforms.find((x) => x.key === k);
               const connected = p?.connected ?? false;
@@ -345,7 +351,7 @@ export function TrainerVideoMeetingsClient() {
             value={scheduleNote}
             onChange={(e) => setScheduleNote(e.target.value)}
             maxLength={500}
-            className="w-full rounded-xl border border-white/12 bg-[#0E1016] px-3 py-2 text-sm text-white"
+            className="w-full rounded-xl border border-white/12 bg-[#0E1016] px-3 py-2 text-left text-sm text-white"
           />
           <button
             type="button"
@@ -359,26 +365,28 @@ export function TrainerVideoMeetingsClient() {
       </section>
 
       {/* 2 — Upcoming schedule */}
-      <section className="rounded-2xl border border-white/[0.08] bg-[#10131c]/90 p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <h2 className="text-lg font-bold tracking-tight text-white">Virtual Meeting Schedule</h2>
-          {(summary?.upcomingVirtualTotal ?? 0) > 4 ? (
+      <section className="w-full max-w-3xl rounded-2xl border border-white/[0.08] bg-[#10131c]/90 p-5 text-center sm:p-6">
+        <h2 className="text-lg font-black tracking-tight text-white">Virtual Meeting Schedule</h2>
+        <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-white/50">
+          Next upcoming virtual sessions (confirmed or pending with a future start).
+        </p>
+        {(summary?.upcomingVirtualTotal ?? 0) > 4 ? (
+          <div className="mt-3">
             <Link
               href="/trainer/dashboard/video-meetings/all?scope=upcoming"
               className="text-[11px] font-black uppercase tracking-[0.14em] text-[#FF9A4A] underline-offset-2 hover:underline"
             >
               MORE
             </Link>
-          ) : null}
-        </div>
-        <p className="mt-2 text-xs text-white/50">Next upcoming virtual sessions (confirmed or pending with a future start).</p>
-        <ul className="mt-4 space-y-2">
+          </div>
+        ) : null}
+        <ul className="mt-4 space-y-2 text-center">
           {(summary?.upcomingVirtual ?? []).length === 0 ? (
             <li className="text-sm text-white/45">No upcoming virtual meetings in this window.</li>
           ) : (
             (summary?.upcomingVirtual ?? []).map((m) => (
-              <li key={m.id} className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-white/80">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <li key={m.id} className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-center text-sm text-white/80">
+                <div className="flex flex-col items-center gap-1 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-2">
                   <span className="font-semibold text-white/90">{m.clientLabel}</span>
                   <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/35">{m.status.replace(/_/g, " ")}</span>
                 </div>
@@ -397,27 +405,27 @@ export function TrainerVideoMeetingsClient() {
                     href={m.videoConferenceJoinUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-2 inline-block text-[10px] font-black uppercase tracking-[0.1em] text-indigo-200/90 underline-offset-2 hover:underline"
+                    className="mt-2 inline-block text-center text-[10px] font-black uppercase tracking-[0.1em] text-indigo-200/90 underline-offset-2 hover:underline"
                   >
                     Open join link
                   </a>
                 ) : (
-                  <p className="mt-2 text-[10px] text-white/38">No join link yet — add from chat after the client confirms.</p>
+                  <p className="mx-auto mt-2 max-w-xs text-[10px] text-white/38">No join link yet — add from chat after the client confirms.</p>
                 )}
               </li>
             ))
           )}
         </ul>
-        <div className="mt-6 border-t border-white/[0.06] pt-4">
+        <div className="mt-6 border-t border-white/[0.06] pt-4 text-center">
           <button
             type="button"
             onClick={() => setShowPastBlock((v) => !v)}
-            className="text-left text-[11px] font-bold uppercase tracking-[0.12em] text-[#FF9A4A] underline-offset-2 hover:underline"
+            className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#FF9A4A] underline-offset-2 hover:underline"
           >
             {showPastBlock ? "Hide past meetings" : "See all past meetings"}
           </button>
           {showPastBlock ? (
-            <ul className="mt-3 space-y-2">
+            <ul className="mt-3 space-y-2 text-center">
               {(summary?.pastVirtual ?? []).length === 0 ? (
                 <li className="text-xs text-white/45">No past virtual meetings loaded yet.</li>
               ) : (
@@ -449,20 +457,9 @@ export function TrainerVideoMeetingsClient() {
         </div>
       </section>
 
-      {/* Bottom — centered Virtual Meeting Settings (collapsible) */}
-      <div className="flex justify-center">
-        <section className="w-full max-w-xl rounded-2xl border border-white/[0.08] bg-[#0d1018]/95 p-5 text-center sm:p-7">
-          <button
-            type="button"
-            onClick={() => setVirtualMeetingSettingsOpen((o) => !o)}
-            className="group flex w-full items-center justify-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-3 text-center transition hover:border-white/[0.12] hover:bg-white/[0.05]"
-            aria-expanded={virtualMeetingSettingsOpen}
-          >
-            <h2 className="text-lg font-black tracking-tight text-white">Virtual Meeting Settings</h2>
-            <span className="text-xs font-bold text-[#FF9A4A] transition group-hover:text-[#ffb066]">
-              {virtualMeetingSettingsOpen ? "▴ Hide" : "▾ Show"}
-            </span>
-          </button>
+      {/* Bottom — Virtual Meeting Settings (collapsible, matches Bookings layout) */}
+      <section className="w-full max-w-3xl rounded-2xl border border-white/[0.08] bg-[#0d1018]/95 p-5 text-center sm:p-7">
+          <h2 className="text-lg font-black tracking-tight text-white">Virtual Meeting Settings</h2>
           {!virtualMeetingSettingsOpen ? (
             <p className="mx-auto mt-3 max-w-md text-[11px] leading-relaxed text-white/40">
               OAuth providers, callback URLs, connect/disconnect, and session preferences.
@@ -476,10 +473,18 @@ export function TrainerVideoMeetingsClient() {
               .
             </p>
           )}
+          <button
+            type="button"
+            onClick={() => setVirtualMeetingSettingsOpen((o) => !o)}
+            className="mx-auto mt-4 flex min-h-[2.25rem] w-full max-w-xs items-center justify-center rounded-xl border border-white/[0.1] bg-white/[0.05] px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] text-[#FF9A4A] transition hover:border-white/[0.18] hover:bg-white/[0.08] hover:text-[#ffb066]"
+            aria-expanded={virtualMeetingSettingsOpen}
+          >
+            {virtualMeetingSettingsOpen ? "▴ Hide" : "▾ Show"}
+          </button>
 
           {virtualMeetingSettingsOpen ? (
             <>
-          <h3 className="mt-8 text-sm font-bold tracking-tight text-white">Connect Providers</h3>
+          <h3 className="mt-8 text-center text-sm font-bold tracking-tight text-white">Connect Providers</h3>
           <p className="mx-auto mt-2 max-w-md text-[11px] leading-relaxed text-white/45">
             Link the platforms you use for virtual sessions. Refresh tokens are stored encrypted (AES-256-GCM).
           </p>
@@ -487,9 +492,9 @@ export function TrainerVideoMeetingsClient() {
             {connectPlatforms.map((p) => {
               const o = OAUTH[p.key];
               return (
-                <div key={p.key} className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-4">
+                <div key={p.key} className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-4 text-center">
                   {p.connected ? (
-                    <div className="space-y-3 text-left">
+                    <div className="space-y-3 text-center">
                       <p className="text-xs font-semibold text-white/85">{p.label}</p>
                       {p.hint ? <p className="text-[10px] text-white/45">Linked: {p.hint}</p> : <p className="text-[10px] text-emerald-200/70">Connected</p>}
                       <button
@@ -515,12 +520,14 @@ export function TrainerVideoMeetingsClient() {
           </div>
 
           {prefsDraft ? (
-            <div className="mx-auto mt-10 max-w-md space-y-4 border-t border-white/[0.08] pt-8 text-left">
-              <h3 className="text-center text-sm font-bold tracking-tight text-white">Preferences</h3>
-              {settingsErr ? <p className="text-center text-xs text-red-200/90">{settingsErr}</p> : null}
-              {settingsOk ? <p className="text-center text-xs text-emerald-200/90">Saved.</p> : null}
+            <div className="mx-auto mt-10 max-w-md space-y-4 border-t border-white/[0.08] pt-8 text-center">
+              <h3 className="text-sm font-bold tracking-tight text-white">Preferences</h3>
+              {settingsErr ? <p className="text-xs text-red-200/90">{settingsErr}</p> : null}
+              {settingsOk ? <p className="text-xs text-emerald-200/90">Saved.</p> : null}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-white/40">Default session length (minutes)</label>
+                <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-white/40">
+                  Default session length (minutes)
+                </label>
                 <input
                   type="number"
                   min={15}
@@ -532,7 +539,7 @@ export function TrainerVideoMeetingsClient() {
                       d ? { ...d, defaultDurationMins: Math.min(240, Math.max(15, parseInt(e.target.value, 10) || 60)) } : d,
                     )
                   }
-                  className="mt-2 w-full rounded-xl border border-white/12 bg-[#0E1016] px-3 py-2 text-sm text-white"
+                  className="mt-2 w-full rounded-xl border border-white/12 bg-[#0E1016] px-3 py-2 text-left text-sm text-white"
                 />
                 <p className="mt-1 text-[10px] text-white/38">Used when we pre-fill the end time on this page.</p>
               </div>
@@ -547,7 +554,7 @@ export function TrainerVideoMeetingsClient() {
                       return { ...d, preferredSyncPlatform: v === "" ? null : (v as "GOOGLE" | "ZOOM" | "MICROSOFT") };
                     })
                   }
-                  className="mt-2 w-full rounded-xl border border-white/12 bg-[#0E1016] px-3 py-2 text-sm text-white"
+                  className="mt-2 w-full rounded-xl border border-white/12 bg-[#0E1016] px-3 py-2 text-left text-sm text-white"
                 >
                   <option value="">No default</option>
                   <option value="GOOGLE">Google Meet</option>
@@ -555,12 +562,12 @@ export function TrainerVideoMeetingsClient() {
                   <option value="MICROSOFT">Microsoft Teams</option>
                 </select>
               </div>
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+              <label className="flex cursor-pointer flex-col items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-center">
                 <input
                   type="checkbox"
                   checked={Boolean(prefsDraft.remindFiveMinutesBefore)}
                   onChange={(e) => setPrefsDraft((d) => (d ? { ...d, remindFiveMinutesBefore: e.target.checked } : d))}
-                  className="mt-1 rounded border-white/20 bg-[#0E1016]"
+                  className="rounded border-white/20 bg-[#0E1016]"
                 />
                 <span>
                   <span className="text-sm font-semibold text-white/90">Five-minute reminder</span>
@@ -581,8 +588,7 @@ export function TrainerVideoMeetingsClient() {
           ) : null}
             </>
           ) : null}
-        </section>
-      </div>
+      </section>
     </div>
   );
 }

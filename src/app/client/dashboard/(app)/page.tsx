@@ -147,7 +147,7 @@ export default async function ClientDashboardHomePage() {
                         </span>
                       )}
                     </Link>
-                    <div className="min-w-0 flex-1 text-left">
+                    <div className="min-w-0 flex-1 text-center">
                       <Link href={chatHref} className="block truncate text-sm font-semibold text-white/90 hover:underline">
                         {name}
                       </Link>
@@ -198,7 +198,7 @@ export default async function ClientDashboardHomePage() {
                           </span>
                         )}
                       </Link>
-                      <div className="min-w-0 flex-1 text-left">
+                      <div className="min-w-0 flex-1 text-center">
                         <Link href={profileHref} className="block truncate text-sm font-semibold text-white/90 hover:underline">
                           {c.displayName}
                         </Link>
@@ -268,7 +268,7 @@ export default async function ClientDashboardHomePage() {
                         </span>
                       )}
                     </Link>
-                    <div className="min-w-0 flex-1 text-left">
+                    <div className="min-w-0 flex-1 text-center">
                       <Link href={chatHref} className="block truncate text-sm font-semibold text-white/90 hover:underline">
                         {name}
                       </Link>
@@ -299,7 +299,7 @@ export default async function ClientDashboardHomePage() {
 
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
         <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-white/40">YOUR BIO</h2>
-        <div className="mx-auto mt-5 max-w-2xl rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4 text-left">
+        <div className="mx-auto mt-5 max-w-2xl rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4 text-center">
           <p className="text-sm font-medium leading-relaxed text-white/85">{client.bio?.trim() ? client.bio : "—"}</p>
         </div>
         <p className="mx-auto mt-4 max-w-xl text-center text-xs text-white/45">

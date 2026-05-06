@@ -9,6 +9,7 @@ type Props = {
   serviceId: string;
   variationId?: string;
   bundleTierId?: string;
+  checkoutContext: "profile" | "chat";
   summaryLine: string;
   serviceSubtotalLabel: string;
   adminFeeLabel: string;
@@ -29,6 +30,7 @@ export function CoachServiceCheckoutClient(props: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           serviceId: props.serviceId,
+          checkoutContext: props.checkoutContext,
           ...(props.variationId ? { variationId: props.variationId } : {}),
           ...(props.bundleTierId ? { bundleTierId: props.bundleTierId } : {}),
         }),

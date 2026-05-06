@@ -3,14 +3,48 @@ import { redirect } from "next/navigation";
 import { CoachServiceCheckoutClient } from "./coach-service-checkout-client";
 import { adminFeeCentsFromBaseSubtotalCents } from "@/lib/platform-fees";
 import { prisma } from "@/lib/prisma";
+import { isPrismaMissingColumnError } from "@/lib/prisma-missing-column";
 import { getSessionClientId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { formatTrainerServicePriceUsd } from "@/lib/trainer-service-price-display";
-import { parseTrainerServiceOfferingsJson, resolveServiceCheckoutSku } from "@/lib/trainer-service-offerings";
+import {
+  evaluateCoachServiceCheckoutPolicy,
+  parseCoachServiceCheckoutContext,
+} from "@/lib/coach-service-checkout-policy";
+import {
+  effectiveClientBookingAvailability,
+  effectiveSiteVisibility,
+  parseTrainerServiceOfferingsJson,
+  resolveServiceCheckoutSku,
+} from "@/lib/trainer-service-offerings";
 import { isTrainerClientInteractionRestricted } from "@/lib/user-block-queries";
 
+const PROFILE_CHECKOUT_COL = "clientsCanPurchaseServicesFromProfile";
+
+const coachCheckoutProfileSelect = {
+  dashboardActivatedAt: true,
+  serviceOfferingsJson: true,
+  hasSignedTOS: true,
+  hasUploadedW9: true,
+  backgroundCheckStatus: true,
+  backgroundCheckClearedAt: true,
+  onboardingTrackCpt: true,
+  onboardingTrackNutrition: true,
+  onboardingTrackSpecialist: true,
+  certificationReviewStatus: true,
+  nutritionistCertificationReviewStatus: true,
+  specialistCertificationReviewStatus: true,
+} as const;
+
 type PageProps = {
-  searchParams: Promise<{ trainer?: string; serviceId?: string; variationId?: string; bundleTierId?: string; canceled?: string }>;
+  searchParams: Promise<{
+    trainer?: string;
+    serviceId?: string;
+    variationId?: string;
+    bundleTierId?: string;
+    canceled?: string;
+    ctx?: string;
+  }>;
 };
 
 export const metadata = {
@@ -23,6 +57,8 @@ export default async function CoachServiceCheckoutPage({ searchParams }: PagePro
   const serviceId = sp.serviceId?.trim();
   const variationId = sp.variationId?.trim() || undefined;
   const bundleTierId = sp.bundleTierId?.trim() || undefined;
+  const checkoutContext = parseCoachServiceCheckoutContext(sp.ctx);
+
   if (!trainerHandle || !serviceId) {
     return (
       <main className="min-h-dvh bg-[#0B0C0F] px-5 py-12 text-white antialiased">
@@ -37,35 +73,40 @@ export default async function CoachServiceCheckoutPage({ searchParams }: PagePro
   let returnPath = `/client/checkout/coach-service?trainer=${encodeURIComponent(trainerHandle)}&serviceId=${encodeURIComponent(serviceId)}`;
   if (variationId) returnPath += `&variationId=${encodeURIComponent(variationId)}`;
   if (bundleTierId) returnPath += `&bundleTierId=${encodeURIComponent(bundleTierId)}`;
+  if (checkoutContext === "chat") returnPath += "&ctx=chat";
   const clientId = await getSessionClientId();
   if (!clientId) {
     redirect(`/client?next=${encodeURIComponent(returnPath)}`);
   }
 
-  const trainer = await prisma.trainer.findUnique({
-    where: { username: trainerHandle },
-    select: {
-      id: true,
-      username: true,
-      deidentifiedAt: true,
-      profile: {
-        select: {
-          dashboardActivatedAt: true,
-          serviceOfferingsJson: true,
-          hasSignedTOS: true,
-          hasUploadedW9: true,
-          backgroundCheckStatus: true,
-          backgroundCheckClearedAt: true,
-          onboardingTrackCpt: true,
-          onboardingTrackNutrition: true,
-          onboardingTrackSpecialist: true,
-          certificationReviewStatus: true,
-          nutritionistCertificationReviewStatus: true,
-          specialistCertificationReviewStatus: true,
+  let trainer;
+  try {
+    trainer = await prisma.trainer.findUnique({
+      where: { username: trainerHandle },
+      select: {
+        id: true,
+        username: true,
+        deidentifiedAt: true,
+        profile: {
+          select: { ...coachCheckoutProfileSelect, clientsCanPurchaseServicesFromProfile: true },
         },
       },
-    },
-  });
+    });
+  } catch (e) {
+    if (isPrismaMissingColumnError(e, PROFILE_CHECKOUT_COL)) {
+      trainer = await prisma.trainer.findUnique({
+        where: { username: trainerHandle },
+        select: {
+          id: true,
+          username: true,
+          deidentifiedAt: true,
+          profile: { select: { ...coachCheckoutProfileSelect } },
+        },
+      });
+    } else {
+      throw e;
+    }
+  }
 
   const profile = trainer?.profile ?? null;
   const published =
@@ -99,9 +140,31 @@ export default async function CoachServiceCheckoutPage({ searchParams }: PagePro
     );
   }
 
+  const convRow = await prisma.trainerClientConversation.findUnique({
+    where: { trainerId_clientId: { trainerId: trainer.id, clientId } },
+    select: { officialChatStartedAt: true },
+  });
+  const profileAllows =
+    PROFILE_CHECKOUT_COL in profile ? profile.clientsCanPurchaseServicesFromProfile !== false : true;
+  const policy = evaluateCoachServiceCheckoutPolicy({
+    checkoutContext,
+    clientsCanPurchaseServicesFromProfile: profileAllows,
+    officialChatStartedAt: convRow?.officialChatStartedAt,
+  });
+  if (!policy.allowed) {
+    return (
+      <main className="min-h-dvh bg-[#0B0C0F] px-5 py-12 text-white antialiased">
+        <p className="text-sm text-white/70">{policy.message}</p>
+        <Link href={`/trainers/${encodeURIComponent(trainer.username)}`} className="mt-6 inline-block text-sm font-semibold text-[#FF7E00] hover:underline">
+          Back to profile
+        </Link>
+      </main>
+    );
+  }
+
   const doc = parseTrainerServiceOfferingsJson(profile.serviceOfferingsJson);
   const line = doc.services.find((s) => s.serviceId === serviceId);
-  if (!line) {
+  if (!line || effectiveSiteVisibility(line) === "hidden" || effectiveClientBookingAvailability(line) === "unavailable") {
     return (
       <main className="min-h-dvh bg-[#0B0C0F] px-5 py-12 text-white antialiased">
         <p className="text-sm text-white/60">That package is not listed for this coach anymore.</p>
@@ -142,6 +205,7 @@ export default async function CoachServiceCheckoutPage({ searchParams }: PagePro
       serviceId={line.serviceId}
       variationId={variationId}
       bundleTierId={bundleTierId}
+      checkoutContext={checkoutContext}
       summaryLine={sku.label}
       serviceSubtotalLabel={serviceSubtotalLabel}
       adminFeeLabel={adminFeeLabel}

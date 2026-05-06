@@ -446,13 +446,13 @@ export const TwoFactorPanel = forwardRef<TwoFactorPanelRef, PanelProps>(function
   return (
     <div className={shell}>
       {props.unstyled ? null : (
-        <>
+        <div className="text-center">
           <h2 className="text-lg font-black tracking-tight text-white">Two-Factor Authentication</h2>
           <p className="mt-2 text-sm leading-relaxed text-white/55">
             Add email addresses or phone numbers and choose how each receives codes (email, text, or call). One verified
             method is your default for signing in. Codes use your configured delivery providers in production.
           </p>
-        </>
+        </div>
       )}
 
       {error ? (

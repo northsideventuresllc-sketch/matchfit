@@ -1,5 +1,7 @@
 import {
   type BillingUnit,
+  billingUnitIsCadencePackBase,
+  serviceOfferingCadenceBillingTemplates,
   serviceOfferingIsDiyTemplate,
   type MatchServiceId,
 } from "@/lib/trainer-match-questionnaire";
@@ -15,7 +17,7 @@ export type BookingPurchaseMeta = {
 /** Derives how a paid checkout affects booking credits and session caps. */
 export function bookingPurchaseMetaFromSku(sku: PublishedPurchaseSku): BookingPurchaseMeta {
   const sid = sku.serviceId as MatchServiceId;
-  if (serviceOfferingIsDiyTemplate(sid)) {
+  if (serviceOfferingIsDiyTemplate(sid) || serviceOfferingCadenceBillingTemplates(sid)) {
     return {
       serviceId: sku.serviceId,
       billingUnit: sku.billingUnit,
@@ -23,7 +25,7 @@ export function bookingPurchaseMetaFromSku(sku: PublishedPurchaseSku): BookingPu
       bookingUnlimitedPurchase: true,
     };
   }
-  if (sku.billingUnit === "per_month") {
+  if (billingUnitIsCadencePackBase(sku.billingUnit)) {
     return {
       serviceId: sku.serviceId,
       billingUnit: sku.billingUnit,
@@ -40,7 +42,7 @@ export function bookingPurchaseMetaFromSku(sku: PublishedPurchaseSku): BookingPu
       bookingUnlimitedPurchase: false,
     };
   }
-  if (sku.billingUnit === "per_session") {
+  if (sku.billingUnit === "per_session" || sku.billingUnit === "per_person") {
     const n = Math.max(1, Math.min(20, Math.floor(sku.bundleQuantity || 1)));
     return {
       serviceId: sku.serviceId,

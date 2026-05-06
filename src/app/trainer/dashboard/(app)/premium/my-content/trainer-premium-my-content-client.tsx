@@ -234,7 +234,7 @@ export function TrainerPremiumMyContentClient(props: MyContentProps) {
                     <button
                       type="button"
                       onClick={() => setDetail(p)}
-                      className="block w-full text-left text-sm font-semibold text-white/85 hover:text-white"
+                      className="block w-full text-center text-sm font-semibold text-white/85 hover:text-white"
                     >
                       {p.caption || p.bodyText || "(Media post)"}
                     </button>

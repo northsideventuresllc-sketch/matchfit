@@ -5,16 +5,64 @@ import { TrainerPublicProfileView } from "@/components/trainer/trainer-public-pr
 import type { TrainerPublicSocialLink } from "@/components/trainer/trainer-public-profile-view";
 import { parseAiMatchProfileForDisplay } from "@/lib/ai-match-profile-parse";
 import { mapMatchProfileBlocksForPublicClientPage } from "@/lib/trainer-public-match-profile-display";
-import { offeringDocumentToDisplayLines, parseTrainerServiceOfferingsJson, publishedPurchaseSkusFromLine } from "@/lib/trainer-service-offerings";
+import {
+  offeringDocumentToDisplayLines,
+  parseTrainerServiceOfferingsJson,
+  publicBrowseableSkuSummaries,
+} from "@/lib/trainer-service-offerings";
 import { parseTrainerOptionalProfileVisibility } from "@/lib/optional-profile-visibility";
 import { getTrainerPublicReviewSummary } from "@/lib/client-trainer-reviews";
 import { prisma } from "@/lib/prisma";
+import { isPrismaMissingColumnError } from "@/lib/prisma-missing-column";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import {
   trainerOffersNutritionServices,
   trainerOffersPersonalTrainingServices,
 } from "@/lib/trainer-service-buckets";
+
+const PROFILE_CHECKOUT_COL = "clientsCanPurchaseServicesFromProfile";
+
+const trainerPublicOuterSelect = {
+  id: true,
+  username: true,
+  firstName: true,
+  lastName: true,
+  preferredName: true,
+  bio: true,
+  pronouns: true,
+  ethnicity: true,
+  languagesSpoken: true,
+  fitnessNiches: true,
+  yearsCoaching: true,
+  genderIdentity: true,
+  profileImageUrl: true,
+  socialInstagram: true,
+  socialTiktok: true,
+  socialFacebook: true,
+  socialLinkedin: true,
+  socialOtherUrl: true,
+  optionalProfileVisibilityJson: true,
+  deidentifiedAt: true,
+} as const;
+
+const trainerPublicProfileSelect = {
+  dashboardActivatedAt: true,
+  hasSignedTOS: true,
+  hasUploadedW9: true,
+  backgroundCheckStatus: true,
+  onboardingTrackCpt: true,
+  onboardingTrackNutrition: true,
+  onboardingTrackSpecialist: true,
+  certificationReviewStatus: true,
+  nutritionistCertificationReviewStatus: true,
+  specialistCertificationReviewStatus: true,
+  matchQuestionnaireStatus: true,
+  aiMatchProfileText: true,
+  serviceOfferingsJson: true,
+  bookingAvailabilityJson: true,
+  bookingTimezone: true,
+} as const;
 
 type Props = {
   params: Promise<{ username: string }>;
@@ -145,50 +193,30 @@ export default async function TrainerPublicProfilePage({ params, searchParams }:
         ? "canceled"
         : null;
 
-  const trainer = await prisma.trainer.findUnique({
-    where: { username: handle },
-    select: {
-      id: true,
-      username: true,
-      firstName: true,
-      lastName: true,
-      preferredName: true,
-      bio: true,
-      pronouns: true,
-      ethnicity: true,
-      languagesSpoken: true,
-      fitnessNiches: true,
-      yearsCoaching: true,
-      genderIdentity: true,
-      profileImageUrl: true,
-      socialInstagram: true,
-      socialTiktok: true,
-      socialFacebook: true,
-      socialLinkedin: true,
-      socialOtherUrl: true,
-      optionalProfileVisibilityJson: true,
-      deidentifiedAt: true,
-      profile: {
-        select: {
-          dashboardActivatedAt: true,
-          hasSignedTOS: true,
-          hasUploadedW9: true,
-          backgroundCheckStatus: true,
-          onboardingTrackCpt: true,
-          onboardingTrackNutrition: true,
-          onboardingTrackSpecialist: true,
-          certificationReviewStatus: true,
-          nutritionistCertificationReviewStatus: true,
-          specialistCertificationReviewStatus: true,
-          matchQuestionnaireStatus: true,
-          aiMatchProfileText: true,
-          serviceOfferingsJson: true,
-          bookingAvailabilityJson: true,
-          bookingTimezone: true,
+  let trainer;
+  try {
+    trainer = await prisma.trainer.findUnique({
+      where: { username: handle },
+      select: {
+        ...trainerPublicOuterSelect,
+        profile: {
+          select: { ...trainerPublicProfileSelect, clientsCanPurchaseServicesFromProfile: true },
         },
       },
-    },
-  });
+    });
+  } catch (e) {
+    if (isPrismaMissingColumnError(e, PROFILE_CHECKOUT_COL)) {
+      trainer = await prisma.trainer.findUnique({
+        where: { username: handle },
+        select: {
+          ...trainerPublicOuterSelect,
+          profile: { select: { ...trainerPublicProfileSelect } },
+        },
+      });
+    } else {
+      throw e;
+    }
+  }
 
   if (!trainer?.profile || trainer.deidentifiedAt) {
     notFound();
@@ -213,22 +241,12 @@ export default async function TrainerPublicProfilePage({ params, searchParams }:
   const legacyRates = servicesBlock && servicesBlock.kind === "list" ? servicesBlock.items : null;
   const servicesRates =
     fromOfferings.length > 0 ? fromOfferings : legacyRates && legacyRates.length > 0 ? legacyRates : null;
-  const purchasableServices =
-    fromOfferings.length > 0
-      ? offeringsDoc.services.flatMap((s) =>
-          publishedPurchaseSkusFromLine(s).map((sku) => ({
-            serviceId: sku.serviceId,
-            variationId: sku.variationId,
-            bundleTierId: sku.bundleTierId,
-            label: sku.label,
-          })),
-        )
-      : null;
-  const coachBlocks = blocks.filter((b) => !(b.kind === "list" && b.title === "Services and Rates"));
-  const { highlightBlocks, idealClientParagraph } = mapMatchProfileBlocksForPublicClientPage(
-    coachBlocks,
-    displayName(trainer),
-  );
+  const profileCheckoutToggle =
+    PROFILE_CHECKOUT_COL in trainer.profile
+      ? trainer.profile.clientsCanPurchaseServicesFromProfile
+      : undefined;
+  const allowProfileCheckout = profileCheckoutToggle !== false;
+  const browseableServices = fromOfferings.length > 0 ? publicBrowseableSkuSummaries(offeringsDoc) : null;
 
   const messagePath = `/client/messages/${encodeURIComponent(trainer.username)}`;
 
@@ -236,13 +254,33 @@ export default async function TrainerPublicProfilePage({ params, searchParams }:
 
   const clientId = await getSessionClientId();
   const sessionTrainerId = await getSessionTrainerId();
+
+  let officialChatStartedAt: Date | null = null;
+  if (clientId) {
+    const conv = await prisma.trainerClientConversation.findUnique({
+      where: { trainerId_clientId: { trainerId: trainer.id, clientId } },
+      select: { officialChatStartedAt: true },
+    });
+    officialChatStartedAt = conv?.officialChatStartedAt ?? null;
+  }
+
+  let checkoutLinkContext: "profile" | "chat" | null = null;
+  const disableClientActions = sessionTrainerId != null && sessionTrainerId === trainer.id;
+  if (browseableServices && browseableServices.length > 0 && clientId && !disableClientActions && officialChatStartedAt) {
+    checkoutLinkContext = allowProfileCheckout ? "profile" : "chat";
+  }
+
+  const coachBlocks = blocks.filter((b) => !(b.kind === "list" && b.title === "Services and Rates"));
+  const { highlightBlocks, idealClientParagraph } = mapMatchProfileBlocksForPublicClientPage(
+    coachBlocks,
+    displayName(trainer),
+  );
+
   const backToDashboardHref = clientId
     ? "/client/dashboard"
     : sessionTrainerId
       ? "/trainer/dashboard"
       : "/client";
-
-  const disableClientActions = sessionTrainerId != null && sessionTrainerId === trainer.id;
 
   const reviewSummary = await getTrainerPublicReviewSummary(trainer.id);
   const showClientReviewPanel = Boolean(clientId) && !disableClientActions;
@@ -270,7 +308,10 @@ export default async function TrainerPublicProfilePage({ params, searchParams }:
       highlightBlocks={highlightBlocks}
       reviewSummary={reviewSummary}
       showClientReviewPanel={showClientReviewPanel}
-      purchasableServices={purchasableServices}
+      browseableServices={browseableServices}
+      servicesCheckoutLinkContext={checkoutLinkContext}
+      officialChatMatched={Boolean(officialChatStartedAt)}
+      trainerAllowsProfileCheckout={allowProfileCheckout}
       clientIsSignedIn={Boolean(clientId)}
       checkoutNotice={checkoutNotice}
       showClientPrivacyMenu={Boolean(clientId) && !disableClientActions}

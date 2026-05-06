@@ -34,6 +34,7 @@ export async function applyConversationAfterServicePurchase(args: {
     data: {
       bookingUnlimitedAfterPurchase: nextUnlimited,
       sessionCreditsPurchased: creditDelta > 0 ? { increment: creditDelta } : undefined,
+      blockFreeSessionBookingUntilRepurchase: false,
       updatedAt: new Date(),
     },
   });

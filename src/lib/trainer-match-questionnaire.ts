@@ -1,7 +1,37 @@
 import { z } from "zod";
 
-export const BILLING_UNITS = ["per_session", "multi_session", "per_hour", "per_month"] as const;
+export const BILLING_UNITS = [
+  "per_session",
+  "multi_session",
+  "per_hour",
+  "per_month",
+  "per_week",
+  "twice_weekly",
+  "per_person",
+] as const;
 export type BillingUnit = (typeof BILLING_UNITS)[number];
+
+/** Bundle math: fixed price × number of cadence periods (same model as monthly). */
+export function billingUnitIsCadencePackBase(unit: BillingUnit): boolean {
+  return unit === "per_month" || unit === "per_week" || unit === "twice_weekly";
+}
+
+/** Coaching sold as recurring weekly / semi-weekly / monthly—not per live session UI. */
+export function serviceOfferingCadenceBillingTemplates(serviceId: MatchServiceId): boolean {
+  return serviceId === "online_program" || serviceId === "nutrition_coaching";
+}
+
+/** Wizard billing choices for the services dashboard (not every `BillingUnit` is selectable). */
+export function wizardSelectableBillingUnits(serviceId: MatchServiceId): BillingUnit[] {
+  if (serviceOfferingCadenceBillingTemplates(serviceId)) {
+    return ["per_week", "twice_weekly", "per_month"];
+  }
+  const base: BillingUnit[] = ["per_session", "per_hour"];
+  if (serviceId === "small_group") {
+    return [...base, "per_person"];
+  }
+  return base;
+}
 
 /** How a published package is delivered (set on the dashboard only). */
 export const SERVICE_DELIVERY_MODES = ["virtual", "in_person", "both"] as const;
@@ -42,7 +72,7 @@ export const MATCH_SERVICE_CATALOG = [
   {
     id: "mobility_recovery",
     label: "Mobility and Recovery Sessions",
-    virtual: true,
+    virtual: false,
     inPerson: true,
   },
   {
@@ -66,18 +96,19 @@ export function serviceOfferingIsDiyTemplate(serviceId: MatchServiceId): boolean
   return serviceId === "online_program";
 }
 
-/** Live virtual or in-person (or hybrid) packages need a scheduled session length, except DIY templates. */
+/** Live session packages need a scheduled length; DIY + cadence program templates omit it in the wizard. */
 export function serviceOfferingNeedsSessionLength(
   serviceId: MatchServiceId,
   delivery: ServiceDeliveryMode,
 ): boolean {
   if (serviceOfferingIsDiyTemplate(serviceId)) return false;
+  if (serviceOfferingCadenceBillingTemplates(serviceId)) return false;
   return delivery === "virtual" || delivery === "in_person" || delivery === "both";
 }
 
-/** “Multiple sessions” billing applies to packaged session offerings, not DIY plan-only listings. */
+/** “multiple_sessions” as a selectable line billing unit is for session-pack templates only. */
 export function matchServiceAllowsMultiSessionBilling(serviceId: MatchServiceId): boolean {
-  return !serviceOfferingIsDiyTemplate(serviceId);
+  return !serviceOfferingIsDiyTemplate(serviceId) && !serviceOfferingCadenceBillingTemplates(serviceId);
 }
 
 /** Catalog entries coaches can add from the nutrition path (requires nutrition onboarding track). */
@@ -187,7 +218,10 @@ export const BILLING_UNIT_LABELS: Record<BillingUnit, string> = {
   per_session: "Per Session",
   multi_session: "Multiple Sessions (Package)",
   per_hour: "Per Hour",
-  per_month: "Per Month (Ongoing Coaching)",
+  per_month: "Per Month",
+  per_week: "Per Week",
+  twice_weekly: "Semi-weekly (twice per week)",
+  per_person: "Per Person",
 };
 
 /**

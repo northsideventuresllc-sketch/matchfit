@@ -157,32 +157,35 @@ export function ClientSettingsPageClient(props: Props) {
   return (
     <main className="min-h-dvh bg-[#0B0C0F] px-5 py-12 pb-32 text-white sm:px-8">
       <div className="mx-auto max-w-2xl space-y-8">
-        <ClientPortalHeader
-          preferredName={props.headerPreferredName}
-          profileImageUrl={props.headerProfileImageUrl}
-          backHref="/client/dashboard"
-          backLabel="← Dashboard"
-        />
+        <div className="space-y-8 text-center">
+          <ClientPortalHeader
+            preferredName={props.headerPreferredName}
+            profileImageUrl={props.headerProfileImageUrl}
+            backHref="/client/dashboard"
+            backLabel="← Dashboard"
+          />
 
-        <div>
-          <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Account Settings</h1>
-          <p className="mt-2 text-sm leading-relaxed text-white/50">
-            Manage your Match Fit profile and security preferences. Expand a section to review or update it.
-          </p>
-          {props.matchPreferencesIncomplete ? (
-            <p className="mt-4 rounded-xl border border-[#FF7E00]/30 bg-[#FF7E00]/10 px-4 py-3 text-sm text-white/80">
-              Update your{" "}
-              <Link
-                href="/client/dashboard/preferences/onboarding"
-                className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline"
-              >
-                Match Preferences
-              </Link>{" "}
-              (onboarding) to unlock the full client dashboard.
+          <div>
+            <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Account Settings</h1>
+            <p className="mt-2 text-sm leading-relaxed text-white/50">
+              Manage your Match Fit profile and security preferences. Expand a section to review or update it.
             </p>
-          ) : null}
+            {props.matchPreferencesIncomplete ? (
+              <p className="mt-4 rounded-xl border border-[#FF7E00]/30 bg-[#FF7E00]/10 px-4 py-3 text-sm text-white/80">
+                Update your{" "}
+                <Link
+                  href="/client/dashboard/preferences/onboarding"
+                  className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline"
+                >
+                  Match Preferences
+                </Link>{" "}
+                (onboarding) to unlock the full client dashboard.
+              </p>
+            ) : null}
+          </div>
         </div>
 
+        <div className="space-y-6 text-left">
         {footerError ? (
           <p
             className="rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]"
@@ -259,6 +262,7 @@ export function ClientSettingsPageClient(props: Props) {
         </CollapsibleSettingsSection>
 
         <ClientPrivacySettingsSection />
+        </div>
 
         <p className="text-center text-sm">
           <button

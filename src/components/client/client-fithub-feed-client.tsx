@@ -165,7 +165,7 @@ export function ClientFitHubFeedClient() {
   }
 
   if (loading && !posts) {
-    return <p className="py-16 text-center text-sm text-white/45">Loading FitHub…</p>;
+    return <p className="py-16 text-left text-sm text-white/45">Loading FitHub…</p>;
   }
 
   if (error) {
@@ -178,7 +178,7 @@ export function ClientFitHubFeedClient() {
 
   if (emptyReason === "SAVED_COACHES_ONLY") {
     return (
-      <div className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/50 px-4 py-10 text-center">
+      <div className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/50 px-4 py-10 text-left">
         <p className="text-sm text-white/60">
           Your feed is set to <span className="text-white/90">saved coaches only</span>, but you have not saved any
           coaches yet. Save coaches from discovery or loosen this filter in{" "}
@@ -192,7 +192,7 @@ export function ClientFitHubFeedClient() {
   }
 
   if (!posts?.length) {
-    return <p className="py-16 text-center text-sm text-white/45">No posts match your filters yet.</p>;
+    return <p className="py-16 text-left text-sm text-white/45">No posts match your filters yet.</p>;
   }
 
   return (
@@ -214,7 +214,7 @@ export function ClientFitHubFeedClient() {
         />
       ) : null}
       {swipeHint ? (
-        <p className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-center text-xs text-emerald-100">
+        <p className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-left text-xs text-emerald-100">
           {swipeHint}
         </p>
       ) : null}
@@ -296,7 +296,7 @@ function FitHubPostCard(props: {
   }
 
   return (
-    <article className="overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/95 shadow-[0_24px_60px_-28px_rgba(0,0,0,0.85)]">
+    <article className="overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/95 text-left shadow-[0_24px_60px_-28px_rgba(0,0,0,0.85)]">
       <div className="border-b border-white/[0.06] px-4 py-3">
         <div className="flex items-center gap-3">
           <Link

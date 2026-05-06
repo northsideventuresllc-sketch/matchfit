@@ -22,6 +22,7 @@ export async function createTrainerServiceSaleStripeCheckoutSession(args: {
   conversationId?: string | null;
   /** When set (e.g. client SKU picker), drives booking credit metadata on the Stripe session. */
   purchaseSku?: PublishedPurchaseSku | null;
+  checkoutContext?: "profile" | "chat";
   successUrl: string;
   cancelUrl: string;
 }): Promise<string> {
@@ -66,6 +67,7 @@ export async function createTrainerServiceSaleStripeCheckoutSession(args: {
   if (args.conversationId) {
     metadata.conversationId = args.conversationId;
   }
+  metadata.checkoutContext = args.checkoutContext === "chat" ? "chat" : "profile";
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",

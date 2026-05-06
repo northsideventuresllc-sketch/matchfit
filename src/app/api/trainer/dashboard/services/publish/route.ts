@@ -19,6 +19,10 @@ import {
   persistTrainerServiceOfferingsWithAi,
   resolvedTrainerServicePublicTitle,
   SESSION_FREQUENCY_KINDS,
+  TRAINER_SERVICE_SESSION_MINUTES_MAX,
+  TRAINER_SERVICE_SESSION_MINUTES_MIN,
+  trainerServiceOfferingAddOnSchema,
+  trainerServiceOfferingBundleTierSchema,
   trainerServiceOfferingVariationSchema,
   type TrainerServiceOfferingLine,
   type TrainerServiceOfferingsDocument,
@@ -33,7 +37,7 @@ const publishBodySchema = z.object({
   priceUsd: z.number().min(15).max(5000),
   billingUnit: z.enum(BILLING_UNITS),
   description: z.string().trim().min(20).max(600),
-  sessionMinutes: z.number().int().min(15).max(120).optional(),
+  sessionMinutes: z.number().int().min(TRAINER_SERVICE_SESSION_MINUTES_MIN).max(TRAINER_SERVICE_SESSION_MINUTES_MAX).optional(),
   sessionsPerWeek: z.number().int().min(1).max(14).optional(),
   sessionFrequencyKind: z.enum(SESSION_FREQUENCY_KINDS).default("none"),
   sessionFrequencyCount: z.number().int().min(1).max(31).optional(),
@@ -42,7 +46,9 @@ const publishBodySchema = z.object({
   inPersonZip: z.string().trim().max(12).optional(),
   inPersonRadiusMiles: z.coerce.number().int().min(1).max(150).optional(),
   variations: z.array(trainerServiceOfferingVariationSchema).max(24).optional(),
+  bundleTiers: z.array(trainerServiceOfferingBundleTierSchema).max(8).optional(),
   priceCheckAiEnabled: z.boolean().optional(),
+  optionalAddOns: z.array(trainerServiceOfferingAddOnSchema).max(12).optional(),
 });
 
 function isMatchServiceId(id: string): id is MatchServiceId {
@@ -180,9 +186,14 @@ export async function POST(req: Request) {
     if (body.variations && body.variations.length > 0) {
       newLine.variations = body.variations;
       newLine.priceUsd = minListPriceUsdOnLine(newLine);
+    } else if (body.bundleTiers && body.bundleTiers.length > 0) {
+      newLine.bundleTiers = body.bundleTiers;
     }
     if (body.priceCheckAiEnabled === false) {
       newLine.priceCheckAiEnabled = false;
+    }
+    if (body.optionalAddOns && body.optionalAddOns.length > 0) {
+      newLine.optionalAddOns = body.optionalAddOns;
     }
 
     const mergedLines = [...doc.services, newLine];

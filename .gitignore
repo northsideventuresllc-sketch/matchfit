@@ -56,3 +56,7 @@ next-env.d.ts
 # trainer-uploaded certifications (keep directory via .gitkeep)
 /public/uploads/trainers/*
 !/public/uploads/trainers/.gitkeep
+
+# trainer → client chat file shares (keep directory via .gitkeep)
+/public/uploads/chat-attachments/**
+!/public/uploads/chat-attachments/.gitkeep

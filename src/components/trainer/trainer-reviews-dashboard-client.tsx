@@ -85,15 +85,15 @@ export function TrainerReviewsDashboardClient() {
     const { row } = props;
     const lowStars = row.stars <= 2;
     return (
-      <li className="rounded-2xl border border-white/[0.08] bg-[#12151C]/90 px-4 py-4">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
+      <li className="rounded-2xl border border-white/[0.08] bg-[#12151C]/90 px-4 py-4 text-left">
+        <div className="flex flex-wrap items-start justify-between gap-2 text-left">
+          <div className="min-w-0 text-left">
             <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#FF7E00]/90">
               {row.stars}★ · @{row.clientUsername}
             </p>
             <p className="mt-1 text-xs text-white/45">{row.clientDisplayName}</p>
           </div>
-          <p className="text-[10px] uppercase tracking-wide text-white/35">
+          <p className="shrink-0 text-[10px] uppercase tracking-wide text-white/35">
             {new Date(row.createdAt).toLocaleDateString()}
           </p>
         </div>
@@ -116,7 +116,7 @@ export function TrainerReviewsDashboardClient() {
             type="button"
             disabled={busyId === row.id || Boolean(row.trainerRemovalRequestedAt)}
             onClick={() => void requestRemoval(row.id)}
-            className="mt-4 w-full rounded-xl border border-white/18 bg-white/[0.05] px-3 py-2 text-[11px] font-black uppercase tracking-[0.1em] text-white/75 transition hover:border-white/30 hover:text-white disabled:opacity-40 sm:w-auto"
+            className="mt-4 inline-flex w-full justify-center rounded-xl border border-white/18 bg-white/[0.05] px-3 py-2 text-[11px] font-black uppercase tracking-[0.1em] text-white/75 transition hover:border-white/30 hover:text-white disabled:opacity-40 sm:w-auto sm:justify-start"
           >
             {busyId === row.id ? "Sending…" : "Ask client to edit or remove"}
           </button>
@@ -126,10 +126,10 @@ export function TrainerReviewsDashboardClient() {
   }
 
   if (loading) {
-    return <p className="text-sm text-white/50">Loading reviews…</p>;
+    return <p className="text-left text-sm text-white/50">Loading reviews…</p>;
   }
   if (err) {
-    return <p className="text-sm text-red-300/95">{err}</p>;
+    return <p className="text-left text-sm text-red-300/95">{err}</p>;
   }
   if (!data) {
     return null;
@@ -137,27 +137,31 @@ export function TrainerReviewsDashboardClient() {
 
   return (
     <div className="space-y-10">
-      <header>
+      <header className="text-center">
         <h1 className="text-2xl font-black uppercase tracking-[0.08em] text-white sm:text-3xl">CLIENT REVIEWS</h1>
-        <p className="mt-2 text-sm leading-relaxed text-white/55">
+        <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-white/55">
           Your public profile shows up to ten recent reviews and a rolling average. Older non-removed reviews stay in
           your archive here. Only clients can delete a review—you can request a change once per one- or two-star review.
         </p>
         {data.profileAverageStars != null && data.profileWindowCount > 0 ? (
-          <p className="mt-4 inline-flex rounded-full border border-[#FFD34E]/35 bg-[#FFD34E]/[0.1] px-4 py-2 text-sm font-black text-[#FFD34E]">
-            {data.profileAverageStars.toFixed(1)}★ trainer · {data.profileWindowCount} in Public Window
-          </p>
+          <div className="mt-4 flex justify-center">
+            <p className="inline-flex rounded-full border border-[#FFD34E]/35 bg-[#FFD34E]/[0.1] px-4 py-2 text-sm font-black text-[#FFD34E]">
+              {data.profileAverageStars.toFixed(1)}★ trainer · {data.profileWindowCount} in Public Window
+            </p>
+          </div>
         ) : (
-          <p className="mt-4 text-sm text-white/45">You do not have published reviews in the ten-review Public Window yet.</p>
+          <p className="mx-auto mt-4 max-w-xl text-sm text-white/45">
+            You do not have published reviews in the ten-review Public Window yet.
+          </p>
         )}
       </header>
 
-      <section>
+      <section className="text-left">
         <h2 className="text-xs font-black uppercase tracking-[0.16em] text-white/40">On your public profile</h2>
         {data.visible.length === 0 ? (
           <p className="mt-3 text-sm text-white/45">No reviews in the current Public Window.</p>
         ) : (
-          <ul className="mt-4 space-y-4">
+          <ul className="mt-4 space-y-4 text-left">
             {data.visible.map((row) => (
               <ReviewCard key={row.id} row={row} showRequestRemoval />
             ))}
@@ -165,7 +169,7 @@ export function TrainerReviewsDashboardClient() {
         )}
       </section>
 
-      <section>
+      <section className="text-left">
         <h2 className="text-xs font-black uppercase tracking-[0.16em] text-white/40">Archived (not on public profile)</h2>
         <p className="mt-2 text-xs text-white/45">
           These are kept for your records once they roll past the latest ten client-visible reviews.
@@ -173,7 +177,7 @@ export function TrainerReviewsDashboardClient() {
         {data.archived.length === 0 ? (
           <p className="mt-3 text-sm text-white/45">No archived reviews yet.</p>
         ) : (
-          <ul className="mt-4 space-y-4">
+          <ul className="mt-4 space-y-4 text-left">
             {data.archived.map((row) => (
               <ReviewCard key={row.id} row={row} showRequestRemoval />
             ))}

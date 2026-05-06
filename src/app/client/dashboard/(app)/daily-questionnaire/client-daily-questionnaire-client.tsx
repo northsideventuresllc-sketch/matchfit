@@ -307,7 +307,7 @@ function QuestionnaireHistoryPanel(props: { entries: DailyQuestionnaireHistoryEn
             >
               <details className="group">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 marker:content-none [&::-webkit-details-marker]:hidden">
-                  <div className="min-w-0 text-left">
+                  <div className="min-w-0 flex-1 text-center">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#FF7E00]/90">Completed</p>
                     <p className="mt-1 text-sm font-medium text-white/90">
                       {new Date(entry.completedAt).toLocaleString(undefined, {

@@ -59,10 +59,15 @@ export type TrainerPublicProfileViewProps = {
   reviewSummary: TrainerPublicReviewSummaryProps;
   /** Logged-in client (not the coach previewing) may rate from this page. */
   showClientReviewPanel?: boolean;
-  /** Structured packages (from dashboard offerings); enables tap → checkout flow. Null when only legacy AI text lines exist. */
-  purchasableServices:
+  /** Structured packages (from dashboard offerings) for browsing; checkout links depend on chat + trainer settings. */
+  browseableServices:
     | { serviceId: string; variationId: string | null; bundleTierId: string | null; label: string }[]
     | null;
+  /** When set, logged-in matched clients tap through to `/client/checkout/coach-service` with this context. */
+  servicesCheckoutLinkContext: "profile" | "chat" | null;
+  /** Viewer has an open chat thread with this coach. */
+  officialChatMatched: boolean;
+  trainerAllowsProfileCheckout: boolean;
   /** Session has a client id (used to route sign-in vs checkout prep page). */
   clientIsSignedIn: boolean;
   /** After Stripe return on coach service payment. */
@@ -147,7 +152,8 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
                 className="mb-5 rounded-xl border border-emerald-500/35 bg-emerald-500/[0.12] px-3 py-2.5 text-center text-[11px] font-semibold leading-relaxed text-emerald-100/95"
                 role="status"
               >
-                Payment received. Thank you — your coach is notified through Match Fit when the purchase completes.
+                Payment received. You’ll get a Billing notification here; email or SMS receipt follows your notification
+                settings when configured.
               </p>
             ) : null}
             <div className="flex flex-col items-center text-center sm:flex-row sm:items-end sm:gap-6 sm:text-left">
@@ -232,14 +238,20 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
                 <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[#FF7E00]">Services and rates</h2>
                 <p className="mt-2 text-xs text-white/45">
                   {preview
-                    ? "Transparent pricing on your live profile. Clients tap a row to review totals and pay."
-                    : props.purchasableServices && props.purchasableServices.length > 0
-                      ? "Tap a package to review totals, then complete payment on Stripe. Message the coach for custom bundles."
+                    ? "Transparent pricing on your live profile. Clients tap a row to review totals and pay when checkout is enabled for them."
+                    : props.browseableServices && props.browseableServices.length > 0
+                      ? !props.clientIsSignedIn
+                        ? "Sign in to message this coach and purchase packages once your chat is open."
+                        : !props.officialChatMatched
+                          ? "Message the coach to connect first. After your chat opens, you can purchase here (or use a checkout link they send in chat)."
+                          : !props.trainerAllowsProfileCheckout
+                            ? "Your chat is open—tap a package to review totals and pay, or use a checkout link your coach sends in Messages."
+                            : "Tap a package to review totals, then complete payment on Stripe. Message the coach for custom bundles."
                       : "Transparent pricing. Tap Message if you want a custom bundle or a payment link from your coach."}
                 </p>
                 <ul className="mt-5 space-y-3">
-                  {(props.purchasableServices && props.purchasableServices.length > 0
-                    ? props.purchasableServices
+                  {(props.browseableServices && props.browseableServices.length > 0
+                    ? props.browseableServices
                     : props.servicesRates.map((label, i) => ({
                         serviceId: `legacy-${i}`,
                         variationId: null as string | null,
@@ -248,15 +260,20 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
                       }))
                   ).map((row, i) => {
                     const canLinkCheckout =
-                      Boolean(props.purchasableServices && props.purchasableServices.length > 0) &&
+                      props.servicesCheckoutLinkContext != null &&
+                      Boolean(props.browseableServices && props.browseableServices.length > 0) &&
                       !preview &&
                       !row.serviceId.startsWith("legacy-");
                     const innerPath = canLinkCheckout
-                      ? `/client/checkout/coach-service?${coachServiceCheckoutSearch(props.username, {
-                          serviceId: row.serviceId,
-                          variationId: row.variationId,
-                          bundleTierId: row.bundleTierId,
-                        })}`
+                      ? `/client/checkout/coach-service?${coachServiceCheckoutSearch(
+                          props.username,
+                          {
+                            serviceId: row.serviceId,
+                            variationId: row.variationId,
+                            bundleTierId: row.bundleTierId,
+                          },
+                          { checkoutContext: props.servicesCheckoutLinkContext! },
+                        )}`
                       : "";
                     const href = canLinkCheckout
                       ? props.clientIsSignedIn
@@ -296,7 +313,7 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
                 </ul>
                 <p className="mt-4 text-center text-[10px] leading-relaxed italic text-white/38 sm:text-left">
                   {preview
-                    ? "Clients who are logged in can open checkout from each row. You are only previewing this screen as the coach."
+                    ? "Clients who are logged in and connected can open checkout from each row when your settings allow."
                     : "Match Fit applies a 20% administrative fee on coach packages at checkout (separate Stripe line, non-refundable), plus payment processing fees. Your $5/month platform subscription is managed under "}
                   {!preview ? (
                     <>
