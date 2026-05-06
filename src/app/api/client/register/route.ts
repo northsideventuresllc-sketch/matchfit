@@ -65,6 +65,7 @@ export async function POST(req: Request) {
         zipCode: body.zipCode,
         dateOfBirth: body.dateOfBirth,
         termsAcceptedAt: new Date(),
+        privacyPolicyAcceptedAt: new Date(),
         status: "AWAITING_PAYMENT",
         twoFactorEnabled: false,
         twoFactorMethod: "NONE",

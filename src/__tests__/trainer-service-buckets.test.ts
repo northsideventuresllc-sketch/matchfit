@@ -6,6 +6,19 @@ import {
 import { defaultClientMatchPreferences, trainerMatchesServiceTypes } from "@/lib/client-match-preferences";
 
 describe("trainer service buckets", () => {
+  it("allows personal training offerings with approved specialist track (no CPT)", () => {
+    expect(
+      trainerOffersPersonalTrainingServices({
+        onboardingTrackCpt: false,
+        onboardingTrackNutrition: false,
+        onboardingTrackSpecialist: true,
+        certificationReviewStatus: "NOT_STARTED",
+        nutritionistCertificationReviewStatus: "NOT_STARTED",
+        specialistCertificationReviewStatus: "APPROVED",
+      }),
+    ).toBe(true);
+  });
+
   it("requires CPT track and APPROVED for personal training offerings", () => {
     expect(
       trainerOffersPersonalTrainingServices({

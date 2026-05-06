@@ -3,6 +3,10 @@ import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { prisma } from "@/lib/prisma";
 
 export const DAILY_QUESTIONNAIRE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+/** Unanswered questionnaires older than this are archived and replaced with a fresh set. */
+export const DAILY_QUESTIONNAIRE_INCOMPLETE_TTL_MS = 72 * 60 * 60 * 1000;
+/** Completed questionnaires remain viewable in-app for this window. */
+export const DAILY_QUESTIONNAIRE_HISTORY_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 
 export type DailyTrainerInterestQuestion = {
   id: "q_trainer_fit";
@@ -39,6 +43,13 @@ export type DailyQuestionnaireQuestions = {
     clientZipPrefix: string;
     summaryLine: string;
   };
+};
+
+export type DailyQuestionnaireHistoryEntry = {
+  id: string;
+  completedAt: string;
+  questions: DailyQuestionnaireQuestions;
+  answers: Record<string, string>;
 };
 
 function coachDisplayName(trainer: {
@@ -127,8 +138,10 @@ async function pickRecentTrainersForClient(clientZip: string, excludeTrainerIds:
             backgroundCheckStatus: true,
             onboardingTrackCpt: true,
             onboardingTrackNutrition: true,
+            onboardingTrackSpecialist: true,
             certificationReviewStatus: true,
             nutritionistCertificationReviewStatus: true,
+            specialistCertificationReviewStatus: true,
           },
         },
       },
@@ -159,8 +172,10 @@ async function pickRecentTrainersForClient(clientZip: string, excludeTrainerIds:
           backgroundCheckStatus: true,
           onboardingTrackCpt: true,
           onboardingTrackNutrition: true,
+          onboardingTrackSpecialist: true,
           certificationReviewStatus: true,
           nutritionistCertificationReviewStatus: true,
+          specialistCertificationReviewStatus: true,
         },
       },
     },
@@ -324,45 +339,66 @@ export async function mergeDailyAnswersIntoClientContext(
   });
 }
 
+export async function listDailyQuestionnaireHistory(clientId: string): Promise<DailyQuestionnaireHistoryEntry[]> {
+  const since = new Date(Date.now() - DAILY_QUESTIONNAIRE_HISTORY_RETENTION_MS);
+  const rows = await prisma.clientDailyQuestionnaire.findMany({
+    where: {
+      clientId,
+      completedAt: { not: null, gte: since },
+      answersJson: { not: null },
+    },
+    orderBy: { completedAt: "desc" },
+    take: 120,
+    select: { id: true, completedAt: true, questionsJson: true, answersJson: true },
+  });
+  const out: DailyQuestionnaireHistoryEntry[] = [];
+  for (const r of rows) {
+    if (!r.completedAt || !r.answersJson?.trim()) continue;
+    try {
+      const questions = JSON.parse(r.questionsJson) as DailyQuestionnaireQuestions;
+      const answers = JSON.parse(r.answersJson) as Record<string, string>;
+      out.push({
+        id: r.id,
+        completedAt: r.completedAt.toISOString(),
+        questions,
+        answers,
+      });
+    } catch {
+      /* skip malformed */
+    }
+  }
+  return out;
+}
+
 export async function resolveDailyQuestionnaireState(clientId: string): Promise<
   | { state: "active"; questionnaire: { id: string; questions: DailyQuestionnaireQuestions; completedAt: string | null } }
   | { state: "cooldown"; nextAvailableAt: string }
 > {
   const now = Date.now();
+
+  await prisma.clientDailyQuestionnaire.updateMany({
+    where: {
+      clientId,
+      archivedAt: null,
+      completedAt: null,
+      windowStartedAt: { lt: new Date(now - DAILY_QUESTIONNAIRE_INCOMPLETE_TTL_MS) },
+    },
+    data: { archivedAt: new Date() },
+  });
+
   const latest = await prisma.clientDailyQuestionnaire.findFirst({
-    where: { clientId },
+    where: { clientId, archivedAt: null },
     orderBy: { windowStartedAt: "desc" },
   });
 
   if (latest) {
     if (!latest.completedAt) {
-      const age = now - latest.windowStartedAt.getTime();
-      if (age < DAILY_QUESTIONNAIRE_COOLDOWN_MS) {
-        const q = JSON.parse(latest.questionsJson) as DailyQuestionnaireQuestions;
-        return {
-          state: "active",
-          questionnaire: {
-            id: latest.id,
-            questions: q,
-            completedAt: null,
-          },
-        };
-      }
-      const payload = await buildDailyQuestionnairePayload(clientId);
-      await prisma.clientDailyQuestionnaire.update({
-        where: { id: latest.id },
-        data: {
-          windowStartedAt: new Date(),
-          questionsJson: JSON.stringify(payload),
-          answersJson: null,
-          completedAt: null,
-        },
-      });
+      const q = JSON.parse(latest.questionsJson) as DailyQuestionnaireQuestions;
       return {
         state: "active",
         questionnaire: {
           id: latest.id,
-          questions: payload,
+          questions: q,
           completedAt: null,
         },
       };

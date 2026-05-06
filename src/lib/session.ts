@@ -1,3 +1,7 @@
+/**
+ * Auth sessions use signed JWTs stored only in **httpOnly** cookies (`mf_client_session`, `mf_trainer_session`)
+ * so scripts cannot read tokens; use `secure` in production.
+ */
 import { SignJWT, jwtVerify } from "jose";
 import type { NextResponse } from "next/server";
 import { cookies } from "next/headers";

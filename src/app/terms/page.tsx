@@ -314,6 +314,11 @@ export default async function TermsPage() {
         <H2 id="trainer-conduct-payouts">12. Trainer Conduct, Communication Policy, Payouts, and Taxes</H2>
         <Ul>
           <Li>
+            <Strong>Off-Platform Payments:</Strong> Any Trainer found soliciting or accepting payments off-platform for
+            clients first discovered through Match Fit agrees to pay a <Strong>$1,000.00 Liquidated Damages Fee</Strong> per
+            occurrence, in addition to other remedies available to Match Fit under these Terms or applicable law.
+          </Li>
+          <Li>
             <Strong>In-App Communication:</Strong> Attempting to circumvent in-app messaging to share phone numbers or
             emails may result in enforcement. For Trainers, a first substantiated offense may lead to a{" "}
             <Strong>ninety (90) day</Strong> deactivation, a second offense up to <Strong>three hundred sixty-five
@@ -384,6 +389,11 @@ export default async function TermsPage() {
 
         <H2 id="prohibited-use">15. Prohibited Use</H2>
         <Ul>
+          <Li>
+            <Strong>Off-Platform Fee Circumvention:</Strong> Trainers must not solicit or accept payment outside Match Fit
+            for relationships that began through the Service. The <Strong>$1,000.00 Liquidated Damages Fee</Strong> described
+            in Section 12 applies per substantiated occurrence.
+          </Li>
           <Li>No unlawful, harassing, discriminatory, fraudulent, or dangerous conduct.</Li>
           <Li>No scraping, security probing, or interference with the Service except as law permits.</Li>
           <Li>No misrepresentation of credentials, availability, or pricing.</Li>

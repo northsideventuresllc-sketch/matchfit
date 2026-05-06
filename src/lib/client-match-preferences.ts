@@ -14,7 +14,7 @@ export const clientMatchPreferencesSchema = z.object({
   deliveryModes: z.array(z.enum(DELIVERY_MODES)).min(1, "Pick at least one way you want to work together."),
   /** Comma-separated or short phrases; normalized to lowercase tokens for matching. */
   fitnessNiches: z.string().max(1000).default(""),
-  /** When searching, also surface coaches slightly outside niche/delivery fit. */
+  /** When searching, also surface coaches slightly outside strict preference fit. */
   allowRelaxedSearchDefault: z.boolean().default(true),
 });
 

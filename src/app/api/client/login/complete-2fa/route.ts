@@ -42,9 +42,6 @@ export async function POST(req: Request) {
     }
     const { clientId, stayLoggedIn } = challengeResult;
     const client = await prisma.client.findUnique({ where: { id: clientId } });
-    if (client?.safetySuspended) {
-      return accountSuspendedResponse();
-    }
 
     const parsed = bodySchema.safeParse(await req.json());
     if (!parsed.success) {
@@ -101,6 +98,14 @@ export async function POST(req: Request) {
         },
         { status: 400 },
       );
+    }
+
+    const suspendedGate = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { safetySuspended: true },
+    });
+    if (suspendedGate?.safetySuspended) {
+      return accountSuspendedResponse();
     }
 
     await prisma.client.update({

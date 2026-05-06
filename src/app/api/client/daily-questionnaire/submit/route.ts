@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     }
 
     const row = await prisma.clientDailyQuestionnaire.findFirst({
-      where: { id: questionnaireId, clientId },
+      where: { id: questionnaireId, clientId, archivedAt: null },
     });
     if (!row) {
       return NextResponse.json({ error: "Questionnaire not found." }, { status: 404 });

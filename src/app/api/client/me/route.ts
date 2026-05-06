@@ -20,9 +20,10 @@ export async function GET() {
         twoFactorMethod: true,
         profileImageUrl: true,
         bio: true,
+        deidentifiedAt: true,
       },
     });
-    if (!client) {
+    if (!client || client.deidentifiedAt) {
       return NextResponse.json({ client: null });
     }
     return NextResponse.json({ client });

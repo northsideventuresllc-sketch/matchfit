@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
-import { isTrainerClientPairBlocked } from "@/lib/user-block-queries";
+import { isTrainerClientInteractionRestricted } from "@/lib/user-block-queries";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -14,6 +14,10 @@ export async function POST(req: Request) {
     const trainer = await prisma.trainer.findUnique({
       where: { id: trainerId },
       select: {
+        username: true,
+        firstName: true,
+        lastName: true,
+        preferredName: true,
         profile: {
           select: {
             dashboardActivatedAt: true,
@@ -22,8 +26,10 @@ export async function POST(req: Request) {
             backgroundCheckStatus: true,
             onboardingTrackCpt: true,
             onboardingTrackNutrition: true,
+            onboardingTrackSpecialist: true,
             certificationReviewStatus: true,
             nutritionistCertificationReviewStatus: true,
+            specialistCertificationReviewStatus: true,
           },
         },
       },
@@ -47,7 +53,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Client not found." }, { status: 404 });
     }
 
-    if (await isTrainerClientPairBlocked(trainerId, client.id)) {
+    if (await isTrainerClientInteractionRestricted(trainerId, client.id)) {
       return NextResponse.json({ error: "You cannot respond to this inquiry." }, { status: 403 });
     }
 
@@ -59,12 +65,27 @@ export async function POST(req: Request) {
     }
 
     const now = new Date();
+    const coachLabel =
+      trainer.preferredName?.trim() ||
+      [trainer.firstName, trainer.lastName].filter(Boolean).join(" ").trim() ||
+      "Your coach";
 
     if (decision === "DECLINE") {
-      await prisma.clientSavedTrainer.update({
-        where: { id: row.id },
-        data: { trainerInquiryStatus: "DECLINED" },
-      });
+      await prisma.$transaction([
+        prisma.clientSavedTrainer.update({
+          where: { id: row.id },
+          data: { trainerInquiryStatus: "DECLINED" },
+        }),
+        prisma.clientNotification.create({
+          data: {
+            clientId: client.id,
+            kind: "SYSTEM",
+            title: "Coach update",
+            body: `${coachLabel} (@${trainer.username}) was not able to take new clients from your inquiry. You can keep browsing Find Coaches.`,
+            linkHref: `/client/dashboard/find-trainers`,
+          },
+        }),
+      ]);
       return NextResponse.json({ ok: true, decision: "DECLINED" });
     }
 
@@ -73,6 +94,8 @@ export async function POST(req: Request) {
         where: { id: row.id },
         data: { trainerInquiryStatus: "ACCEPTED" },
       }),
+      prisma.clientTrainerBrowsePass.deleteMany({ where: { clientId: client.id, trainerId } }),
+      prisma.trainerClientBrowsePass.deleteMany({ where: { trainerId, clientId: client.id } }),
       prisma.trainerClientConversation.upsert({
         where: { trainerId_clientId: { trainerId, clientId: client.id } },
         create: {
@@ -84,7 +107,19 @@ export async function POST(req: Request) {
         update: {
           officialChatStartedAt: now,
           relationshipStage: "POTENTIAL_CLIENT",
+          archivedAt: null,
+          archiveExpiresAt: null,
+          unmatchInitiatedBy: null,
           updatedAt: now,
+        },
+      }),
+      prisma.clientNotification.create({
+        data: {
+          clientId: client.id,
+          kind: "SYSTEM",
+          title: "You're connected",
+          body: `${coachLabel} (@${trainer.username}) accepted your interest. You can message them in Chat.`,
+          linkHref: `/client/messages/${encodeURIComponent(trainer.username)}`,
         },
       }),
     ]);

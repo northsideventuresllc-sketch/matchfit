@@ -8,6 +8,7 @@ import { TrainerPremiumHubSummary } from "@/components/trainer/trainer-premium-h
 import { TrainerMatchAnswersPreview } from "@/components/trainer/trainer-match-answers-preview";
 import { parseAiMatchProfileForDisplay } from "@/lib/ai-match-profile-parse";
 import { prisma } from "@/lib/prisma";
+import { TRAINER_MATCH_QUESTIONNAIRES_PATH } from "@/lib/trainer-match-questionnaires-routes";
 import { trainerPublishedProfilePath } from "@/lib/trainer-public-profile-route";
 import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
 import { getSessionTrainerId } from "@/lib/session";
@@ -95,8 +96,8 @@ export default async function TrainerDashboardHomePage() {
         </p>
       </header>
 
-      <section className="mx-auto flex w-full max-w-md flex-col items-center">
-        <div className="w-full rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 text-center shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:max-w-none sm:p-7">
+      <section className="mx-auto flex w-full max-w-xl flex-col items-center sm:max-w-2xl">
+        <div className="w-full rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 text-center shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-7">
           <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Quick Links</h2>
           <div className="mt-6">
             <TrainerDashboardQuickActions />
@@ -132,7 +133,7 @@ export default async function TrainerDashboardHomePage() {
 
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
         <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-white/40">Profile & visibility</h2>
-        <div className="mx-auto mt-5 max-w-2xl rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4 text-left">
+        <div className="mx-auto mt-5 max-w-2xl rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4 text-center">
           <p className="text-sm font-medium leading-relaxed text-white/85">{trainer.bio?.trim() ? trainer.bio : "—"}</p>
         </div>
         <p className="mx-auto mt-4 max-w-xl text-center text-xs text-white/45">
@@ -212,6 +213,18 @@ export default async function TrainerDashboardHomePage() {
             ) : (
               <p className="text-center text-sm text-white/55">No Onboarding Questionnaire answers on file yet.</p>
             )}
+          </div>
+          <div className="mt-6 border-t border-white/[0.08] pt-4 text-center">
+            <p className="text-[13px] leading-relaxed text-white/55">
+              To change your answers, go to the{" "}
+              <Link
+                href={TRAINER_MATCH_QUESTIONNAIRES_PATH}
+                className="font-semibold text-[#FF7E00] underline-offset-2 transition hover:text-[#FFD34E] hover:underline"
+              >
+                Daily questionnaires
+              </Link>{" "}
+              tab in the navigation and update your questionnaires there.
+            </p>
           </div>
         </details>
       </section>

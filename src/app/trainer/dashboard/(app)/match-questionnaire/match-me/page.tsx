@@ -34,7 +34,7 @@ export default async function TrainerMatchMeQuestionnairePage() {
           href={TRAINER_MATCH_QUESTIONNAIRES_PATH}
           className="text-xs font-medium text-white/45 transition hover:text-white/70"
         >
-          ← Daily questionnaires
+          ← Daily Questionnaires
         </Link>
       </div>
 

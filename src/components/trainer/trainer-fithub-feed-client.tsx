@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   TRAINER_FITHUB_PREFS_STORAGE_KEY,
   defaultTrainerFithubPrefs,
@@ -22,6 +22,69 @@ type FeedPost = {
   counts: { likes: number; comments: number; reposts: number };
   trainer: { id: string; username: string; displayName: string; profileImageUrl: string | null };
 };
+
+function TrainerFithubOtherCoachMenu(props: { otherUsername: string; onMuted: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  async function mute() {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/safety/block", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetUsername: props.otherUsername,
+          targetIsTrainer: true,
+          blockMode: "trainer_fithub_mute",
+        }),
+      });
+      if (res.ok) {
+        setOpen(false);
+        props.onMuted();
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div ref={rootRef} className="relative shrink-0">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => setOpen((o) => !o)}
+        className="rounded-lg border border-white/[0.08] px-1.5 py-0.5 text-xs text-white/35 hover:text-white/60 disabled:opacity-40"
+        aria-expanded={open}
+        title="More"
+      >
+        ···
+      </button>
+      {open ? (
+        <div className="absolute right-0 z-20 mt-1 w-48 rounded-lg border border-white/10 bg-[#12151C] py-1 shadow-xl">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void mute()}
+            className="block w-full px-3 py-2 text-left text-[11px] text-white/70 hover:bg-white/[0.05] disabled:opacity-40"
+          >
+            Hide in my FitHub
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function scorePost(p: FeedPost): number {
   const ageH = (Date.now() - new Date(p.createdAt).getTime()) / 3600000;
@@ -56,17 +119,20 @@ export function TrainerFitHubFeedClient() {
     }
   }, []);
 
+  const [viewerTrainerId, setViewerTrainerId] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/trainer/fithub/feed");
-      const data = (await res.json()) as { posts?: FeedPost[]; error?: string };
+      const data = (await res.json()) as { posts?: FeedPost[]; viewerTrainerId?: string; error?: string };
       if (!res.ok) {
         setError(data.error ?? "Could not load FitHub.");
         setPosts([]);
         return;
       }
+      if (typeof data.viewerTrainerId === "string") setViewerTrainerId(data.viewerTrainerId);
       setPosts(data.posts ?? []);
     } catch {
       setError("Network error.");
@@ -155,6 +221,12 @@ export function TrainerFitHubFeedClient() {
                 </Link>
                 <p className="truncate text-xs text-white/40">@{p.trainer.username}</p>
               </div>
+              {viewerTrainerId && p.trainer.id !== viewerTrainerId ? (
+                <TrainerFithubOtherCoachMenu
+                  otherUsername={p.trainer.username}
+                  onMuted={() => void load()}
+                />
+              ) : null}
               <span className="text-[10px] font-black uppercase tracking-wide text-white/35">{p.postType}</span>
             </div>
           </div>

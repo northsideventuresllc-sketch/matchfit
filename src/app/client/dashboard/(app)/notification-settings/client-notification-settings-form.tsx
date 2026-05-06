@@ -4,10 +4,13 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   type ClientNotificationPrefs,
+  coachPurchaseReceiptDeliveries,
   defaultClientNotificationPrefs,
 } from "@/lib/client-notification-prefs";
 
-const ROWS: { key: keyof ClientNotificationPrefs; label: string; hint: string }[] = [
+type ClientPushNotificationPrefKey = Exclude<keyof ClientNotificationPrefs, "coachPurchaseReceiptDelivery">;
+
+const ROWS: { key: ClientPushNotificationPrefKey; label: string; hint: string }[] = [
   { key: "pushNudge", label: "Coach Nudges", hint: "When a trainer nudges you from discovery." },
   { key: "pushNewMatch", label: "New Fitness Matches", hint: "When you save a coach or a match is suggested." },
   {
@@ -100,6 +103,33 @@ export function ClientNotificationSettingsForm() {
         These toggles control which categories can surface push notifications as Match Fit rolls out native push. In-app
         notifications may still appear for critical billing and safety events.
       </p>
+
+      <div className="rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-3">
+        <p className="text-sm font-semibold text-white/90">Coach package receipts</p>
+        <p className="mt-1 text-xs text-white/45">
+          After you pay a trainer on Match Fit, how (or if) we send a duplicate receipt. You always get an in-app Billing
+          notification.
+        </p>
+        <label className="mt-3 block text-[10px] font-black uppercase tracking-wide text-white/40">
+          Receipt copy
+          <select
+            value={prefs.coachPurchaseReceiptDelivery}
+            onChange={(e) =>
+              setPrefs((p) => ({
+                ...p,
+                coachPurchaseReceiptDelivery: e.target.value as (typeof coachPurchaseReceiptDeliveries)[number],
+              }))
+            }
+            className="mt-1.5 w-full max-w-md rounded-lg border border-white/15 bg-[#0B0C0F] px-3 py-2 text-sm text-white"
+          >
+            {coachPurchaseReceiptDeliveries.map((v) => (
+              <option key={v} value={v}>
+                {v === "EMAIL" ? "Email" : v === "SMS" ? "SMS (Twilio)" : "No email or SMS"}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
       <ul className="space-y-4">
         {ROWS.map((row) => (

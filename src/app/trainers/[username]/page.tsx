@@ -8,8 +8,12 @@ import { mapMatchProfileBlocksForPublicClientPage } from "@/lib/trainer-public-m
 import {
   offeringDocumentToDisplayLines,
   parseTrainerServiceOfferingsJson,
+  publicBrowseableSkuSummaries,
 } from "@/lib/trainer-service-offerings";
+import { parseTrainerOptionalProfileVisibility } from "@/lib/optional-profile-visibility";
+import { getTrainerPublicReviewSummary } from "@/lib/client-trainer-reviews";
 import { prisma } from "@/lib/prisma";
+import { isPrismaMissingColumnError } from "@/lib/prisma-missing-column";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import {
@@ -17,7 +21,53 @@ import {
   trainerOffersPersonalTrainingServices,
 } from "@/lib/trainer-service-buckets";
 
-type Props = { params: Promise<{ username: string }> };
+const PROFILE_CHECKOUT_COL = "clientsCanPurchaseServicesFromProfile";
+
+const trainerPublicOuterSelect = {
+  id: true,
+  username: true,
+  firstName: true,
+  lastName: true,
+  preferredName: true,
+  bio: true,
+  pronouns: true,
+  ethnicity: true,
+  languagesSpoken: true,
+  fitnessNiches: true,
+  yearsCoaching: true,
+  genderIdentity: true,
+  profileImageUrl: true,
+  socialInstagram: true,
+  socialTiktok: true,
+  socialFacebook: true,
+  socialLinkedin: true,
+  socialOtherUrl: true,
+  optionalProfileVisibilityJson: true,
+  deidentifiedAt: true,
+} as const;
+
+const trainerPublicProfileSelect = {
+  dashboardActivatedAt: true,
+  hasSignedTOS: true,
+  hasUploadedW9: true,
+  backgroundCheckStatus: true,
+  onboardingTrackCpt: true,
+  onboardingTrackNutrition: true,
+  onboardingTrackSpecialist: true,
+  certificationReviewStatus: true,
+  nutritionistCertificationReviewStatus: true,
+  specialistCertificationReviewStatus: true,
+  matchQuestionnaireStatus: true,
+  aiMatchProfileText: true,
+  serviceOfferingsJson: true,
+  bookingAvailabilityJson: true,
+  bookingTimezone: true,
+} as const;
+
+type Props = {
+  params: Promise<{ username: string }>;
+  searchParams?: Promise<{ serviceCheckout?: string }>;
+};
 
 function displayName(trainer: {
   preferredName: string | null;
@@ -91,6 +141,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       firstName: true,
       lastName: true,
       bio: true,
+      deidentifiedAt: true,
       profile: {
         select: {
           dashboardActivatedAt: true,
@@ -99,14 +150,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           backgroundCheckStatus: true,
           onboardingTrackCpt: true,
           onboardingTrackNutrition: true,
+          onboardingTrackSpecialist: true,
           certificationReviewStatus: true,
           nutritionistCertificationReviewStatus: true,
+          specialistCertificationReviewStatus: true,
         },
       },
     },
   });
   const published =
-    trainer?.profile?.dashboardActivatedAt != null && isTrainerComplianceComplete(trainer.profile);
+    trainer?.profile?.dashboardActivatedAt != null &&
+    !trainer.deidentifiedAt &&
+    isTrainerComplianceComplete(trainer.profile);
   if (!trainer || !published) {
     return {
       title: `Coach | Match Fit`,
@@ -127,50 +182,43 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function TrainerPublicProfilePage({ params }: Props) {
+export default async function TrainerPublicProfilePage({ params, searchParams }: Props) {
   const { username } = await params;
   const handle = decodeURIComponent(username);
+  const checkoutQuery = searchParams ? await searchParams : {};
+  const checkoutNotice =
+    checkoutQuery.serviceCheckout === "success"
+      ? "success"
+      : checkoutQuery.serviceCheckout === "canceled"
+        ? "canceled"
+        : null;
 
-  const trainer = await prisma.trainer.findUnique({
-    where: { username: handle },
-    select: {
-      id: true,
-      username: true,
-      firstName: true,
-      lastName: true,
-      preferredName: true,
-      bio: true,
-      pronouns: true,
-      ethnicity: true,
-      languagesSpoken: true,
-      fitnessNiches: true,
-      yearsCoaching: true,
-      genderIdentity: true,
-      profileImageUrl: true,
-      socialInstagram: true,
-      socialTiktok: true,
-      socialFacebook: true,
-      socialLinkedin: true,
-      socialOtherUrl: true,
-      profile: {
-        select: {
-          dashboardActivatedAt: true,
-          hasSignedTOS: true,
-          hasUploadedW9: true,
-          backgroundCheckStatus: true,
-          onboardingTrackCpt: true,
-          onboardingTrackNutrition: true,
-          certificationReviewStatus: true,
-          nutritionistCertificationReviewStatus: true,
-          matchQuestionnaireStatus: true,
-          aiMatchProfileText: true,
-          serviceOfferingsJson: true,
+  let trainer;
+  try {
+    trainer = await prisma.trainer.findUnique({
+      where: { username: handle },
+      select: {
+        ...trainerPublicOuterSelect,
+        profile: {
+          select: { ...trainerPublicProfileSelect, clientsCanPurchaseServicesFromProfile: true },
         },
       },
-    },
-  });
+    });
+  } catch (e) {
+    if (isPrismaMissingColumnError(e, PROFILE_CHECKOUT_COL)) {
+      trainer = await prisma.trainer.findUnique({
+        where: { username: handle },
+        select: {
+          ...trainerPublicOuterSelect,
+          profile: { select: { ...trainerPublicProfileSelect } },
+        },
+      });
+    } else {
+      throw e;
+    }
+  }
 
-  if (!trainer?.profile) {
+  if (!trainer?.profile || trainer.deidentifiedAt) {
     notFound();
   }
 
@@ -179,6 +227,8 @@ export default async function TrainerPublicProfilePage({ params }: Props) {
   if (!published) {
     notFound();
   }
+
+  const vis = parseTrainerOptionalProfileVisibility(trainer.optionalProfileVisibilityJson);
 
   const blocks =
     trainer.profile.matchQuestionnaireStatus === "completed" && trainer.profile.aiMatchProfileText
@@ -191,11 +241,12 @@ export default async function TrainerPublicProfilePage({ params }: Props) {
   const legacyRates = servicesBlock && servicesBlock.kind === "list" ? servicesBlock.items : null;
   const servicesRates =
     fromOfferings.length > 0 ? fromOfferings : legacyRates && legacyRates.length > 0 ? legacyRates : null;
-  const coachBlocks = blocks.filter((b) => !(b.kind === "list" && b.title === "Services and Rates"));
-  const { highlightBlocks, idealClientParagraph } = mapMatchProfileBlocksForPublicClientPage(
-    coachBlocks,
-    displayName(trainer),
-  );
+  const profileCheckoutToggle =
+    PROFILE_CHECKOUT_COL in trainer.profile
+      ? trainer.profile.clientsCanPurchaseServicesFromProfile
+      : undefined;
+  const allowProfileCheckout = profileCheckoutToggle !== false;
+  const browseableServices = fromOfferings.length > 0 ? publicBrowseableSkuSummaries(offeringsDoc) : null;
 
   const messagePath = `/client/messages/${encodeURIComponent(trainer.username)}`;
 
@@ -203,13 +254,36 @@ export default async function TrainerPublicProfilePage({ params }: Props) {
 
   const clientId = await getSessionClientId();
   const sessionTrainerId = await getSessionTrainerId();
+
+  let officialChatStartedAt: Date | null = null;
+  if (clientId) {
+    const conv = await prisma.trainerClientConversation.findUnique({
+      where: { trainerId_clientId: { trainerId: trainer.id, clientId } },
+      select: { officialChatStartedAt: true },
+    });
+    officialChatStartedAt = conv?.officialChatStartedAt ?? null;
+  }
+
+  let checkoutLinkContext: "profile" | "chat" | null = null;
+  const disableClientActions = sessionTrainerId != null && sessionTrainerId === trainer.id;
+  if (browseableServices && browseableServices.length > 0 && clientId && !disableClientActions && officialChatStartedAt) {
+    checkoutLinkContext = allowProfileCheckout ? "profile" : "chat";
+  }
+
+  const coachBlocks = blocks.filter((b) => !(b.kind === "list" && b.title === "Services and Rates"));
+  const { highlightBlocks, idealClientParagraph } = mapMatchProfileBlocksForPublicClientPage(
+    coachBlocks,
+    displayName(trainer),
+  );
+
   const backToDashboardHref = clientId
     ? "/client/dashboard"
     : sessionTrainerId
       ? "/trainer/dashboard"
       : "/client";
 
-  const disableClientActions = sessionTrainerId != null && sessionTrainerId === trainer.id;
+  const reviewSummary = await getTrainerPublicReviewSummary(trainer.id);
+  const showClientReviewPanel = Boolean(clientId) && !disableClientActions;
 
   return (
     <TrainerPublicProfileView
@@ -217,12 +291,12 @@ export default async function TrainerPublicProfilePage({ params }: Props) {
       username={trainer.username}
       bio={trainer.bio}
       profileImageUrl={trainer.profileImageUrl}
-      pronouns={trainer.pronouns}
+      pronouns={vis.showPronouns ? trainer.pronouns : null}
       fitnessNiches={trainer.fitnessNiches}
       yearsCoaching={trainer.yearsCoaching}
-      languagesSpoken={trainer.languagesSpoken}
-      genderIdentity={trainer.genderIdentity}
-      ethnicity={trainer.ethnicity}
+      languagesSpoken={vis.showLanguagesSpoken ? trainer.languagesSpoken : null}
+      genderIdentity={vis.showGenderIdentity ? trainer.genderIdentity : null}
+      ethnicity={vis.showEthnicity ? trainer.ethnicity : null}
       certificationBadges={certificationBadges(trainer.profile)}
       socialLinks={socialLinks(trainer)}
       fullProfileUrl={fullProfileUrl}
@@ -232,6 +306,16 @@ export default async function TrainerPublicProfilePage({ params }: Props) {
       servicesRates={servicesRates}
       idealClientParagraph={idealClientParagraph}
       highlightBlocks={highlightBlocks}
+      reviewSummary={reviewSummary}
+      showClientReviewPanel={showClientReviewPanel}
+      browseableServices={browseableServices}
+      servicesCheckoutLinkContext={checkoutLinkContext}
+      officialChatMatched={Boolean(officialChatStartedAt)}
+      trainerAllowsProfileCheckout={allowProfileCheckout}
+      clientIsSignedIn={Boolean(clientId)}
+      checkoutNotice={checkoutNotice}
+      showClientPrivacyMenu={Boolean(clientId) && !disableClientActions}
+      availabilityHref={`/trainers/${encodeURIComponent(trainer.username)}/availability`}
     />
   );
 }

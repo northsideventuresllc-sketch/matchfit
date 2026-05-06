@@ -3,6 +3,7 @@
 import { FormEvent, forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CollapsibleSettingsSection } from "@/components/client/collapsible-settings-section";
+import { TrainerProfileDemographyFields } from "@/components/trainer/trainer-profile-demography-fields";
 import { TrainerSocialUrlFields } from "@/components/trainer/trainer-social-url-fields";
 import { normalizeTrainerSocialFields } from "@/lib/trainer-social-urls";
 import { assertAvatarMime, AVATAR_MAX_BYTES } from "@/lib/validations/client-settings-profile";
@@ -573,83 +574,37 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
           defaultOpen={false}
         >
           <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-2">
-                <label htmlFor="tr-pro" className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                  Pronouns
-                </label>
-                <input
-                  id="tr-pro"
-                  value={pronouns}
-                  onChange={(e) => setPronouns(e.target.value)}
-                  className={inputClass}
-                  disabled={busy}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label htmlFor="tr-eth" className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                  Ethnicity
-                </label>
-                <input
-                  id="tr-eth"
-                  value={ethnicity}
-                  onChange={(e) => setEthnicity(e.target.value)}
-                  className={inputClass}
-                  disabled={busy}
-                />
-              </div>
-            </div>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="tr-lang" className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                Languages Spoken
-              </label>
-              <input
-                id="tr-lang"
-                value={languagesSpoken}
-                onChange={(e) => setLanguagesSpoken(e.target.value)}
-                className={inputClass}
-                disabled={busy}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="tr-niche" className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                Fitness Niches
-              </label>
-              <textarea
-                id="tr-niche"
-                value={fitnessNiches}
-                onChange={(e) => setFitnessNiches(e.target.value)}
-                rows={3}
-                className={`${inputClass} min-h-[5rem] resize-y`}
-                disabled={busy}
-              />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-2">
-                <label htmlFor="tr-years" className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                  Years of Coaching
-                </label>
-                <input
-                  id="tr-years"
-                  value={yearsCoaching}
-                  onChange={(e) => setYearsCoaching(e.target.value)}
-                  className={inputClass}
-                  disabled={busy}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label htmlFor="tr-gen" className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                  Gender Identity
-                </label>
-                <input
-                  id="tr-gen"
-                  value={genderIdentity}
-                  onChange={(e) => setGenderIdentity(e.target.value)}
-                  className={inputClass}
-                  disabled={busy}
-                />
-              </div>
-            </div>
+            <TrainerProfileDemographyFields
+              idPrefix="tr"
+              selectClassName={inputClass}
+              inputClassName={inputClass}
+              pronouns={pronouns}
+              onPronounsChange={setPronouns}
+              ethnicity={ethnicity}
+              onEthnicityChange={setEthnicity}
+              genderIdentity={genderIdentity}
+              onGenderIdentityChange={setGenderIdentity}
+              yearsCoaching={yearsCoaching}
+              onYearsCoachingChange={setYearsCoaching}
+              languagesSpoken={languagesSpoken}
+              onLanguagesSpokenChange={setLanguagesSpoken}
+              disabled={busy}
+              betweenLanguagesAndYears={
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="tr-niche" className="text-xs font-semibold uppercase tracking-wide text-white/50">
+                    Fitness Niches
+                  </label>
+                  <textarea
+                    id="tr-niche"
+                    value={fitnessNiches}
+                    onChange={(e) => setFitnessNiches(e.target.value)}
+                    rows={3}
+                    className={`${inputClass} min-h-[5rem] resize-y`}
+                    disabled={busy}
+                  />
+                </div>
+              }
+            />
             <TrainerSocialUrlFields
               socialInstagram={socialInstagram}
               socialTiktok={socialTiktok}

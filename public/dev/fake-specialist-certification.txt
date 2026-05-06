@@ -1,0 +1,2 @@
+Development-only placeholder file for specialist certification upload URL.
+Not a real credential — used for local QA when dev cert sync is enabled.

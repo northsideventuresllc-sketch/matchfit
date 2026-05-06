@@ -53,7 +53,7 @@ export default async function ClientPreferencesOnboardingPage() {
         <p className="mt-8 text-center text-xs text-white/40">
           Need to sign out?{" "}
           <Link href="/client/settings" className="text-[#FF7E00] underline-offset-2 hover:underline">
-            Account settings
+            Account Settings
           </Link>
         </p>
       </div>

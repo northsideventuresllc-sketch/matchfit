@@ -5,7 +5,7 @@ import { TrainerClientChatThreadClient } from "@/components/trainer/trainer-clie
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
-import { isTrainerClientPairBlocked } from "@/lib/user-block-queries";
+import { isTrainerClientChatBlocked } from "@/lib/user-block-queries";
 
 type Props = { params: Promise<{ clientUsername: string }> };
 
@@ -48,7 +48,7 @@ export default async function TrainerClientMessagesPage({ params }: Props) {
     redirect(staleTrainerSessionInvalidateRedirect("/trainer/dashboard/login"));
   }
 
-  if (await isTrainerClientPairBlocked(trainerId, client.id)) {
+  if (await isTrainerClientChatBlocked(trainerId, client.id)) {
     notFound();
   }
 
@@ -70,7 +70,7 @@ export default async function TrainerClientMessagesPage({ params }: Props) {
         <p className="text-sm text-white/45">@{handle}</p>
       </header>
 
-      <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
+      <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 text-left shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
         <TrainerClientChatThreadClient clientUsername={handle} />
       </section>
     </div>

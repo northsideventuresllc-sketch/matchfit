@@ -15,6 +15,8 @@ import {
   type TrainerProfileSettingsPanelRef,
   type TrainerSettingsProfile,
 } from "./trainer-profile-settings-panel";
+import { TrainerPrivacySettingsSection } from "@/components/trainer/trainer-privacy-settings-section";
+import { PhoneBridgeConsentPanel } from "@/components/shared/phone-bridge-consent-panel";
 
 const TRAINER_SETTINGS_API = "/api/trainer/settings";
 
@@ -25,10 +27,41 @@ type Props = {
   twoFactorMethod: string;
   twoFactorChannels: TwoFactorChannelDTO[];
   initialDefaultChannelId: string | null;
+  clientsCanPurchaseServicesFromProfile: boolean;
 };
 
 export function TrainerSettingsPageClient(props: Props) {
   const router = useRouter();
+  const [profilePurchases, setProfilePurchases] = useState(props.clientsCanPurchaseServicesFromProfile);
+  const [profilePurchasesBusy, setProfilePurchasesBusy] = useState(false);
+  const [profilePurchasesErr, setProfilePurchasesErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    setProfilePurchases(props.clientsCanPurchaseServicesFromProfile);
+  }, [props.clientsCanPurchaseServicesFromProfile]);
+
+  async function updateProfilePurchases(next: boolean) {
+    setProfilePurchasesBusy(true);
+    setProfilePurchasesErr(null);
+    try {
+      const res = await fetch("/api/trainer/settings/service-purchases", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientsCanPurchaseServicesFromProfile: next }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setProfilePurchasesErr(data.error ?? "Could not update this preference.");
+        return;
+      }
+      setProfilePurchases(next);
+      router.refresh();
+    } catch {
+      setProfilePurchasesErr("Network error. Try again.");
+    } finally {
+      setProfilePurchasesBusy(false);
+    }
+  }
   const profileRef = useRef<TrainerProfileSettingsPanelRef>(null);
   const twoFaRef = useRef<TwoFactorPanelRef>(null);
   const [stayLoggedIn, setStayLoggedIn] = useState(props.initialStayLoggedIn);
@@ -151,8 +184,8 @@ export function TrainerSettingsPageClient(props: Props) {
   }
 
   return (
-    <div className="pb-28">
-      <div>
+    <div className="space-y-8 pb-28">
+      <div className="text-center">
         <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Account Settings</h1>
         <p className="mt-2 text-sm leading-relaxed text-white/50">
           Manage your coach profile, session, password, and two-factor authentication—the same flow as the client
@@ -160,7 +193,7 @@ export function TrainerSettingsPageClient(props: Props) {
         </p>
       </div>
 
-      <div className="mt-8 space-y-6">
+      <div className="space-y-6 text-left">
         {footerError ? (
           <p
             className="rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]"
@@ -221,16 +254,50 @@ export function TrainerSettingsPageClient(props: Props) {
           />
         </CollapsibleSettingsSection>
 
-        <p className="text-sm">
-          <button
-            type="button"
-            onClick={() => requestNavigate("/trainer/dashboard")}
-            className="text-[#FF7E00] underline-offset-2 hover:underline"
-          >
-            Back to Dashboard
-          </button>
-        </p>
+        <CollapsibleSettingsSection
+          title="Masked calls & phone privacy"
+          description="Control whether Match Fit may place masked voice calls using the phone number on your profile."
+          defaultOpen={false}
+        >
+          <PhoneBridgeConsentPanel settingsApi="/api/trainer/settings/phone-bridge" />
+        </CollapsibleSettingsSection>
+
+        <CollapsibleSettingsSection
+          title="Service set-up"
+          description="Control whether clients can buy your published coaching packages straight from your public profile (and flows that reuse that catalog)."
+          defaultOpen={false}
+        >
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.08] bg-[#0E1016]/50 p-4">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 shrink-0 accent-[#FF7E00]"
+              checked={profilePurchases}
+              disabled={profilePurchasesBusy}
+              onChange={(e) => void updateProfilePurchases(e.target.checked)}
+            />
+            <span className="text-sm leading-relaxed text-white/80">
+              Let clients purchase services from my profile when a package is visible and available.
+            </span>
+          </label>
+          {profilePurchasesErr ? (
+            <p className="mt-2 text-sm text-rose-300/90" role="alert">
+              {profilePurchasesErr}
+            </p>
+          ) : null}
+        </CollapsibleSettingsSection>
+
+        <TrainerPrivacySettingsSection />
       </div>
+
+      <p className="text-center text-sm">
+        <button
+          type="button"
+          onClick={() => requestNavigate("/trainer/dashboard")}
+          className="text-[#FF7E00] underline-offset-2 hover:underline"
+        >
+          Back to Dashboard
+        </button>
+      </p>
 
       {dirty ? (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#0B0C0F]/95 px-5 py-4 backdrop-blur-md sm:px-8">

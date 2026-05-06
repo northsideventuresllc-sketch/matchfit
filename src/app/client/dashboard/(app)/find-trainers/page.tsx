@@ -15,7 +15,7 @@ export default function ClientFindTrainersPage() {
         <p className="mx-auto max-w-xl text-sm leading-relaxed text-white/50">
           Rankings use your{" "}
           <Link href="/client/dashboard/preferences" className="text-[#FF7E00] underline-offset-2 hover:underline">
-            match preferences
+            Match Preferences
           </Link>
           . Toggle relaxed search to include near matches.
         </p>

@@ -8,7 +8,7 @@ import { z } from "zod";
 
 const bodySchema = z.object({
   devPassword: z.string(),
-  scopes: z.array(z.enum(["cpt", "nutritionist"])).optional(),
+  scopes: z.array(z.enum(["cpt", "nutritionist", "specialist"])).optional(),
 });
 
 export async function POST(req: Request) {
@@ -28,6 +28,7 @@ export async function POST(req: Request) {
       select: {
         onboardingTrackCpt: true,
         onboardingTrackNutrition: true,
+        onboardingTrackSpecialist: true,
       },
     });
     if (!profile) {
@@ -39,18 +40,23 @@ export async function POST(req: Request) {
       scopes = [];
       if (profile.onboardingTrackCpt) scopes.push("cpt");
       if (profile.onboardingTrackNutrition) scopes.push("nutritionist");
+      if (profile.onboardingTrackSpecialist) scopes.push("specialist");
       if (!scopes.length) scopes = ["cpt"];
     }
 
     const data: {
       certificationReviewStatus?: string;
       nutritionistCertificationReviewStatus?: string;
+      specialistCertificationReviewStatus?: string;
     } = {};
     if (scopes.includes("cpt")) {
       data.certificationReviewStatus = "APPROVED";
     }
     if (scopes.includes("nutritionist")) {
       data.nutritionistCertificationReviewStatus = "APPROVED";
+    }
+    if (scopes.includes("specialist")) {
+      data.specialistCertificationReviewStatus = "APPROVED";
     }
 
     await prisma.trainerProfile.update({

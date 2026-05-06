@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { getSessionTrainerId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
-import { isTrainerClientPairBlocked } from "@/lib/user-block-queries";
+import { conversationArchiveMetaForActor, purgeExpiredArchivedConversations } from "@/lib/trainer-client-conversation-archive";
+import { getClientIdsWithChatBlockedForTrainer } from "@/lib/user-block-queries";
 import { NextResponse } from "next/server";
 
 function displayClientName(c: { preferredName: string; firstName: string; lastName: string }): string {
@@ -26,8 +28,10 @@ export async function GET() {
             backgroundCheckStatus: true,
             onboardingTrackCpt: true,
             onboardingTrackNutrition: true,
+            onboardingTrackSpecialist: true,
             certificationReviewStatus: true,
             nutritionistCertificationReviewStatus: true,
+            specialistCertificationReviewStatus: true,
           },
         },
       },
@@ -36,11 +40,21 @@ export async function GET() {
       return NextResponse.json({ error: "Your trainer profile must be live." }, { status: 403 });
     }
 
-    const convs = await prisma.trainerClientConversation.findMany({
+    await purgeExpiredArchivedConversations();
+
+    const [convs, chatBlockedClientIds] = await Promise.all([
+      prisma.trainerClientConversation.findMany({
       where: { trainerId },
       orderBy: { updatedAt: "desc" },
       take: 120,
-      include: {
+      select: {
+        clientId: true,
+        updatedAt: true,
+        relationshipStage: true,
+        officialChatStartedAt: true,
+        archivedAt: true,
+        archiveExpiresAt: true,
+        unmatchInitiatedBy: true,
         client: {
           select: {
             username: true,
@@ -56,13 +70,39 @@ export async function GET() {
           select: { body: true, authorRole: true, createdAt: true },
         },
       },
-    });
+    }),
+      getClientIdsWithChatBlockedForTrainer(trainerId),
+    ]);
 
-    const threads = [];
+    type Row = {
+      clientUsername: string;
+      displayName: string;
+      profileImageUrl: string | null;
+      relationshipStage: string;
+      officialChatStartedAt: string | null;
+      lastMessagePreview: string | null;
+      lastMessageAt: string;
+      archived?: boolean;
+      canRevive?: boolean;
+      archiveExpiresAt?: string | null;
+    };
+
+    const activeThreads: Row[] = [];
+    const archivedThreads: Row[] = [];
+    const now = Date.now();
+
     for (const c of convs) {
-      if (await isTrainerClientPairBlocked(trainerId, c.clientId)) continue;
+      if (chatBlockedClientIds.has(c.clientId)) continue;
       const last = c.messages[0];
-      threads.push({
+      const meta = conversationArchiveMetaForActor({
+        conv: {
+          archivedAt: c.archivedAt,
+          archiveExpiresAt: c.archiveExpiresAt,
+          unmatchInitiatedBy: c.unmatchInitiatedBy,
+        },
+        actor: "TRAINER",
+      });
+      const row: Row = {
         clientUsername: c.client.username,
         displayName: displayClientName(c.client),
         profileImageUrl: c.client.profileImageUrl,
@@ -70,12 +110,25 @@ export async function GET() {
         officialChatStartedAt: c.officialChatStartedAt?.toISOString() ?? null,
         lastMessagePreview: last ? last.body.slice(0, 160) : null,
         lastMessageAt: last?.createdAt.toISOString() ?? c.updatedAt.toISOString(),
-      });
+      };
+
+      if (meta.archived && c.archiveExpiresAt && c.archiveExpiresAt.getTime() > now) {
+        archivedThreads.push({
+          ...row,
+          archived: true,
+          canRevive: meta.canRevive,
+          archiveExpiresAt: meta.archiveExpiresAt,
+        });
+      } else if (!c.archivedAt) {
+        activeThreads.push(row);
+      }
     }
 
-    return NextResponse.json({ threads });
+    return NextResponse.json({ activeThreads, archivedThreads });
   } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: "Could not load conversations." }, { status: 500 });
+    const { message, status } = publicApiErrorFromUnknown(e, "Could not load conversations.", {
+      logLabel: "[api/trainer/conversations]",
+    });
+    return NextResponse.json({ error: message }, { status });
   }
 }

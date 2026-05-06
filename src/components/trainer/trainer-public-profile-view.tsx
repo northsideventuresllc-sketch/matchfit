@@ -1,5 +1,8 @@
 import Link from "next/link";
 import type { AiMatchProfileDisplayBlock } from "@/lib/ai-match-profile-parse";
+import { coachServiceCheckoutSearch } from "@/lib/trainer-service-offerings";
+import { TrainerProfileClientPrivacyMenu } from "@/components/client/trainer-profile-client-privacy-menu";
+import { ClientCoachReviewPanel } from "@/components/client/client-coach-review-panel";
 import { TrainerMatchAnswersPreview } from "@/components/trainer/trainer-match-answers-preview";
 import { TrainerProfileCopyLinkButton } from "@/components/trainer/trainer-profile-copy-link-button";
 import { TrainerSocialBrandIcon } from "@/components/trainer/trainer-social-brand-icons";
@@ -22,6 +25,12 @@ const SOCIAL_PLATFORM_ORDER: Record<TrainerSocialPlatform, number> = {
 function orderedPublicSocialLinks(links: TrainerPublicSocialLink[]): TrainerPublicSocialLink[] {
   return [...links].sort((a, b) => SOCIAL_PLATFORM_ORDER[a.platform] - SOCIAL_PLATFORM_ORDER[b.platform]);
 }
+
+export type TrainerPublicReviewSummaryProps = {
+  averageStars: number | null;
+  windowCount: number;
+  items: { id: string; stars: number; testimonialText: string | null; createdAt: string }[];
+};
 
 export type TrainerPublicProfileViewProps = {
   displayName: string;
@@ -46,6 +55,27 @@ export type TrainerPublicProfileViewProps = {
   /** Human ideal-client copy; questionnaire “levels” are not shown verbatim. */
   idealClientParagraph: string | null;
   highlightBlocks: AiMatchProfileDisplayBlock[];
+  /** Latest client reviews shown on this page (up to ten). */
+  reviewSummary: TrainerPublicReviewSummaryProps;
+  /** Logged-in client (not the coach previewing) may rate from this page. */
+  showClientReviewPanel?: boolean;
+  /** Structured packages (from dashboard offerings) for browsing; checkout links depend on chat + trainer settings. */
+  browseableServices:
+    | { serviceId: string; variationId: string | null; bundleTierId: string | null; label: string }[]
+    | null;
+  /** When set, logged-in matched clients tap through to `/client/checkout/coach-service` with this context. */
+  servicesCheckoutLinkContext: "profile" | "chat" | null;
+  /** Viewer has an open chat thread with this coach. */
+  officialChatMatched: boolean;
+  trainerAllowsProfileCheckout: boolean;
+  /** Session has a client id (used to route sign-in vs checkout prep page). */
+  clientIsSignedIn: boolean;
+  /** After Stripe return on coach service payment. */
+  checkoutNotice?: "success" | "canceled" | null;
+  /** Logged-in client (not previewing own link): discreet feed & privacy controls in the header. */
+  showClientPrivacyMenu?: boolean;
+  /** Public availability summary page (set from the trainer dashboard). */
+  availabilityHref?: string;
 };
 
 function chip(text: string) {
@@ -88,10 +118,15 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
           >
             ← BACK TO DASHBOARD
           </Link>
-          <TrainerProfileCopyLinkButton
-            url={props.fullProfileUrl}
-            className="rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.1em] text-white/75 transition hover:border-white/25 hover:text-white"
-          />
+          <div className="flex shrink-0 items-center gap-2">
+            {props.showClientPrivacyMenu ? (
+              <TrainerProfileClientPrivacyMenu trainerUsername={props.username} />
+            ) : null}
+            <TrainerProfileCopyLinkButton
+              url={props.fullProfileUrl}
+              className="rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.1em] text-white/75 transition hover:border-white/25 hover:text-white"
+            />
+          </div>
         </header>
 
         <div className="overflow-hidden rounded-[1.75rem] border border-white/[0.08] bg-[#0B0C0F] shadow-[0_40px_100px_-48px_rgba(0,0,0,0.95)]">
@@ -112,6 +147,15 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
                 aren&apos;t sent through the client sign-in flow by mistake.
               </p>
             ) : null}
+            {!preview && props.checkoutNotice === "success" ? (
+              <p
+                className="mb-5 rounded-xl border border-emerald-500/35 bg-emerald-500/[0.12] px-3 py-2.5 text-center text-[11px] font-semibold leading-relaxed text-emerald-100/95"
+                role="status"
+              >
+                Payment received. You’ll get a Billing notification here; email or SMS receipt follows your notification
+                settings when configured.
+              </p>
+            ) : null}
             <div className="flex flex-col items-center text-center sm:flex-row sm:items-end sm:gap-6 sm:text-left">
               <div className="relative h-[7.5rem] w-[7.5rem] shrink-0 overflow-hidden rounded-[1.35rem] border-[3px] border-[#0B0C0F] bg-[#12151C] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.9)]">
                 {avatar ? (
@@ -127,6 +171,13 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Coach</p>
                 <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">{props.displayName}</h1>
                 <p className="mt-1 text-sm font-semibold text-white/50">@{props.username}</p>
+                {props.reviewSummary.windowCount > 0 && props.reviewSummary.averageStars != null ? (
+                  <p className="mt-2 inline-flex items-center rounded-full border border-[#FFD34E]/35 bg-[#FFD34E]/[0.1] px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-[#FFD34E]">
+                    {props.reviewSummary.averageStars.toFixed(1)}★ trainer · {props.reviewSummary.windowCount} recent
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm font-semibold text-white/45">No reviews posted yet.</p>
+                )}
                 {props.pronouns?.trim() ? (
                   <p className="mt-1 text-xs text-white/40">{props.pronouns.trim()}</p>
                 ) : null}
@@ -166,11 +217,125 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
                 </Link>
               )}
             </div>
+            {props.availabilityHref && !preview ? (
+              <p className="mt-3 text-center sm:text-left">
+                <Link
+                  href={props.availabilityHref}
+                  className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#FF9A4A] underline-offset-2 hover:underline"
+                >
+                  See availability
+                </Link>
+              </p>
+            ) : null}
             <p className="mt-3 text-center text-[11px] leading-relaxed text-white/40 sm:text-left">
               {preview
                 ? "On your live link, clients tap here to open chat with you. This control is preview-only while you are signed in as the coach."
                 : "Questions about packages or scheduling? Start a conversation—coaches reply here first."}
             </p>
+
+            {props.servicesRates && props.servicesRates.length > 0 ? (
+              <section className="mt-8 border-t border-white/[0.06] pt-8">
+                <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[#FF7E00]">Services and rates</h2>
+                <p className="mt-2 text-xs text-white/45">
+                  {preview
+                    ? "Transparent pricing on your live profile. Clients tap a row to review totals and pay when checkout is enabled for them."
+                    : props.browseableServices && props.browseableServices.length > 0
+                      ? !props.clientIsSignedIn
+                        ? "Sign in to message this coach and purchase packages once your chat is open."
+                        : !props.officialChatMatched
+                          ? "Message the coach to connect first. After your chat opens, you can purchase here (or use a checkout link they send in chat)."
+                          : !props.trainerAllowsProfileCheckout
+                            ? "Your chat is open—tap a package to review totals and pay, or use a checkout link your coach sends in Messages."
+                            : "Tap a package to review totals, then complete payment on Stripe. Message the coach for custom bundles."
+                      : "Transparent pricing. Tap Message if you want a custom bundle or a payment link from your coach."}
+                </p>
+                <ul className="mt-5 space-y-3">
+                  {(props.browseableServices && props.browseableServices.length > 0
+                    ? props.browseableServices
+                    : props.servicesRates.map((label, i) => ({
+                        serviceId: `legacy-${i}`,
+                        variationId: null as string | null,
+                        bundleTierId: null as string | null,
+                        label,
+                      }))
+                  ).map((row, i) => {
+                    const canLinkCheckout =
+                      props.servicesCheckoutLinkContext != null &&
+                      Boolean(props.browseableServices && props.browseableServices.length > 0) &&
+                      !preview &&
+                      !row.serviceId.startsWith("legacy-");
+                    const innerPath = canLinkCheckout
+                      ? `/client/checkout/coach-service?${coachServiceCheckoutSearch(
+                          props.username,
+                          {
+                            serviceId: row.serviceId,
+                            variationId: row.variationId,
+                            bundleTierId: row.bundleTierId,
+                          },
+                          { checkoutContext: props.servicesCheckoutLinkContext! },
+                        )}`
+                      : "";
+                    const href = canLinkCheckout
+                      ? props.clientIsSignedIn
+                        ? innerPath
+                        : `/client?next=${encodeURIComponent(innerPath)}`
+                      : "";
+
+                    const rowClass =
+                      "flex gap-3 rounded-2xl border border-white/[0.07] bg-[linear-gradient(145deg,rgba(255,126,0,0.08)_0%,rgba(14,16,22,0.95)_42%)] px-4 py-3.5 text-sm leading-snug text-white/88" +
+                      (canLinkCheckout ? " transition hover:border-[#FF7E00]/45 hover:bg-[linear-gradient(145deg,rgba(255,126,0,0.14)_0%,rgba(14,16,22,0.95)_42%)]" : "");
+
+                    const rowKey = `${row.serviceId}-${row.variationId ?? ""}-${row.bundleTierId ?? ""}-${i}`;
+
+                    return (
+                      <li key={rowKey}>
+                        {canLinkCheckout ? (
+                          <Link href={href} className={`${rowClass} min-h-[3.25rem] items-center`}>
+                            <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FF7E00]/20 text-[11px] font-black text-[#FFD34E]">
+                              {i + 1}
+                            </span>
+                            <span className="min-w-0 flex-1">{row.label}</span>
+                            <span className="shrink-0 self-center text-[10px] font-black uppercase tracking-[0.12em] text-[#FF7E00]">
+                              Checkout →
+                            </span>
+                          </Link>
+                        ) : (
+                          <div className={rowClass}>
+                            <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FF7E00]/20 text-[11px] font-black text-[#FFD34E]">
+                              {i + 1}
+                            </span>
+                            <span className="min-w-0 flex-1">{row.label}</span>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="mt-4 text-center text-[10px] leading-relaxed italic text-white/38 sm:text-left">
+                  {preview
+                    ? "Clients who are logged in and connected can open checkout from each row when your settings allow."
+                    : "Match Fit applies a 20% administrative fee on coach packages at checkout (separate Stripe line, non-refundable), plus payment processing fees. Your $5/month platform subscription is managed under "}
+                  {!preview ? (
+                    <>
+                      <Link
+                        href={props.clientIsSignedIn ? "/client/dashboard/billing" : `/client?next=${encodeURIComponent("/client/dashboard/billing")}`}
+                        className="font-semibold text-[#FF7E00]/90 underline-offset-2 hover:underline"
+                      >
+                        Billing
+                      </Link>
+                      .
+                    </>
+                  ) : null}
+                </p>
+              </section>
+            ) : (
+              <section className="mt-8 border-t border-white/[0.06] pt-8">
+                <h2 className="text-xs font-black uppercase tracking-[0.18em] text-white/40">Services and rates</h2>
+                <p className="mt-3 text-sm text-white/55">
+                  This coach has not listed packages here yet. Message them for session types and current rates.
+                </p>
+              </section>
+            )}
 
             {(props.yearsCoaching?.trim() || nicheChips.length > 0) && (
               <div className="mt-8 flex flex-wrap justify-center gap-2 border-t border-white/[0.06] pt-8 sm:justify-start">
@@ -188,6 +353,46 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
                 {props.bio?.trim() ? props.bio.trim() : "This coach is finishing their bio—say hello and ask how they can help you reach your goals."}
               </p>
             </section>
+
+            <section className="mt-10 border-t border-white/[0.06] pt-8">
+              <h2 className="text-xs font-black uppercase tracking-[0.18em] text-white/40">Client reviews</h2>
+              {props.reviewSummary.windowCount > 0 && props.reviewSummary.averageStars != null ? (
+                <p className="mt-3 text-sm font-semibold text-white/85">
+                  <span className="text-[#FFD34E]">{props.reviewSummary.averageStars.toFixed(1)}★</span>{" "}
+                  <span className="text-white/50">
+                    average from {props.reviewSummary.windowCount} recent review
+                    {props.reviewSummary.windowCount === 1 ? "" : "s"} (rolling window of up to ten).
+                  </span>
+                </p>
+              ) : (
+                <p className="mt-3 text-sm text-white/50">No reviews posted yet.</p>
+              )}
+              {props.reviewSummary.items.some((it) => it.testimonialText?.trim()) ? (
+                <ul className="mt-5 space-y-4">
+                  {props.reviewSummary.items
+                    .filter((it) => it.testimonialText?.trim())
+                    .map((it) => (
+                      <li
+                        key={it.id}
+                        className="rounded-2xl border border-white/[0.07] bg-[#0E1016]/70 px-4 py-3.5 text-sm leading-relaxed text-white/82"
+                      >
+                        <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#FF7E00]/90">
+                          {it.stars}★ testimonial
+                        </p>
+                        <p className="mt-2 whitespace-pre-wrap">{it.testimonialText!.trim()}</p>
+                      </li>
+                    ))}
+                </ul>
+              ) : props.reviewSummary.windowCount > 0 ? (
+                <p className="mt-4 text-xs text-white/45">Recent ratings are star-only—clients chose not to add written testimonials.</p>
+              ) : null}
+            </section>
+
+            {!preview && props.showClientReviewPanel ? (
+              <section className="mt-10 border-t border-white/[0.06] pt-8">
+                <ClientCoachReviewPanel trainerUsername={props.username} />
+              </section>
+            ) : null}
 
             {(props.languagesSpoken?.trim() ||
               props.genderIdentity?.trim() ||
@@ -214,60 +419,6 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
                     </div>
                   ) : null}
                 </dl>
-              </section>
-            )}
-
-            {props.servicesRates && props.servicesRates.length > 0 ? (
-              <section className="mt-10 border-t border-white/[0.06] pt-8">
-                <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[#FF7E00]">Services &amp; rates</h2>
-                <p className="mt-2 text-xs text-white/45">
-                  {preview
-                    ? "Transparent pricing on your live profile—checkout is for signed-in clients only."
-                    : "Transparent pricing—tap message if you want a custom bundle."}
-                </p>
-                <ul className="mt-5 space-y-3">
-                  {props.servicesRates.map((line, i) => (
-                    <li
-                      key={`${i}-${line.slice(0, 24)}`}
-                      className="flex gap-3 rounded-2xl border border-white/[0.07] bg-[linear-gradient(145deg,rgba(255,126,0,0.08)_0%,rgba(14,16,22,0.95)_42%)] px-4 py-3.5 text-sm leading-snug text-white/88"
-                    >
-                      <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FF7E00]/20 text-[11px] font-black text-[#FFD34E]">
-                        {i + 1}
-                      </span>
-                      <span>{line}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-6">
-                  {preview ? (
-                    <div
-                      role="presentation"
-                      aria-hidden
-                      className="inline-flex min-h-[3.25rem] w-full cursor-not-allowed select-none items-center justify-center rounded-2xl border border-white/[0.12] bg-white/[0.05] px-5 text-sm font-black uppercase tracking-[0.14em] text-white/40"
-                    >
-                      Checkout
-                    </div>
-                  ) : (
-                    <Link
-                      href="/client/subscribe"
-                      className="inline-flex min-h-[3.25rem] w-full items-center justify-center rounded-2xl border border-[#FF7E00]/45 bg-[#FF7E00]/15 px-5 text-sm font-black uppercase tracking-[0.14em] text-white transition hover:border-[#FF7E00]/60 hover:bg-[#FF7E00]/22"
-                    >
-                      CHECKOUT
-                    </Link>
-                  )}
-                  <p className="mt-3 text-center text-[10px] leading-relaxed italic text-white/38 sm:text-left">
-                    {preview
-                      ? "Clients who are logged in will use checkout here. You are only previewing this screen as the coach."
-                      : "Match Fit applies a 20% administrative fee on non-subscription purchases at checkout, plus a transaction fee to cover payment processing (e.g. Stripe). Your platform subscription is billed separately from these add-ons."}
-                  </p>
-                </div>
-              </section>
-            ) : (
-              <section className="mt-10 border-t border-white/[0.06] pt-8">
-                <h2 className="text-xs font-black uppercase tracking-[0.18em] text-white/40">Services &amp; rates</h2>
-                <p className="mt-3 text-sm text-white/55">
-                  This coach hasn&apos;t listed packages here yet. Message them for session types and current rates.
-                </p>
               </section>
             )}
 

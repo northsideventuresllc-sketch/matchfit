@@ -32,6 +32,21 @@ const NAV = [
     match: (p: string) => p.startsWith("/trainer/dashboard/messages"),
   },
   {
+    href: "/trainer/dashboard/bookings",
+    label: "Schedule",
+    match: (p: string) => p.startsWith("/trainer/dashboard/bookings"),
+  },
+  {
+    href: "/trainer/dashboard/video-meetings",
+    label: "Virtual Meetings",
+    match: (p: string) => p.startsWith("/trainer/dashboard/video-meetings"),
+  },
+  {
+    href: "/trainer/dashboard/reviews",
+    label: "Reviews",
+    match: (p: string) => p.startsWith("/trainer/dashboard/reviews"),
+  },
+  {
     href: "/trainer/dashboard/match-questionnaire",
     label: "DAILY QUESTIONNAIRES",
     match: (p: string) => p.startsWith("/trainer/dashboard/match-questionnaire"),
@@ -83,7 +98,7 @@ export function TrainerDashboardShell(props: TrainerDashboardShellProps) {
           })}
         </nav>
 
-        {props.children}
+        <div className="w-full text-center">{props.children}</div>
 
         <footer className="mt-12 space-y-4 border-t border-white/[0.08] pt-6 text-center text-xs leading-relaxed text-white/45">
           <p className="mx-auto max-w-2xl">

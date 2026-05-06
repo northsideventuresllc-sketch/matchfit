@@ -40,12 +40,12 @@ export async function POST(req: Request) {
     if (!client) {
       return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
     }
-    if (client.safetySuspended) {
-      return accountSuspendedResponse();
-    }
     const ok = await verifyPassword(password, client.passwordHash);
     if (!ok) {
       return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
+    }
+    if (client.safetySuspended) {
+      return accountSuspendedResponse();
     }
 
     const otpDelivery = await getLoginOtpDelivery(client.id);

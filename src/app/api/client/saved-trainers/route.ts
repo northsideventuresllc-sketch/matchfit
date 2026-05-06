@@ -40,8 +40,10 @@ export async function GET() {
                 backgroundCheckStatus: true,
                 onboardingTrackCpt: true,
                 onboardingTrackNutrition: true,
+                onboardingTrackSpecialist: true,
                 certificationReviewStatus: true,
                 nutritionistCertificationReviewStatus: true,
+                specialistCertificationReviewStatus: true,
               },
             },
           },
@@ -98,8 +100,10 @@ export async function POST(req: Request) {
             backgroundCheckStatus: true,
             onboardingTrackCpt: true,
             onboardingTrackNutrition: true,
+            onboardingTrackSpecialist: true,
             certificationReviewStatus: true,
             nutritionistCertificationReviewStatus: true,
+            specialistCertificationReviewStatus: true,
           },
         },
       },
@@ -110,11 +114,15 @@ export async function POST(req: Request) {
 
     const prior = await prisma.clientSavedTrainer.findUnique({
       where: { clientId_trainerId: { clientId, trainerId: trainer.id } },
+      select: { id: true, trainerInquiryStatus: true },
     });
 
     const coachName = coachDisplayName(trainer);
 
     await prisma.$transaction(async (tx) => {
+      await tx.clientTrainerBrowsePass.deleteMany({
+        where: { clientId, trainerId: trainer.id },
+      });
       await tx.clientSavedTrainer.upsert({
         where: {
           clientId_trainerId: { clientId, trainerId: trainer.id },
@@ -122,14 +130,26 @@ export async function POST(req: Request) {
         create: { clientId, trainerId: trainer.id, trainerInquiryStatus: "PENDING_TRAINER" },
         update: { trainerInquiryStatus: "PENDING_TRAINER" },
       });
+      const reactivatedInquiry = prior && prior.trainerInquiryStatus !== "PENDING_TRAINER";
       if (!prior) {
         await tx.clientNotification.create({
           data: {
             clientId,
             kind: "NEW_MATCH",
-            title: "NEW FITNESS MATCH",
-            body: `You saved ${coachName} (@${trainer.username}) to your list.`,
-            linkHref: `/trainers/${encodeURIComponent(trainer.username)}`,
+            title: "Coach interest sent",
+            body: `We let ${coachName} (@${trainer.username}) know you're interested. You'll get another notice when they respond.`,
+            linkHref: `/client/dashboard/find-trainers`,
+          },
+        });
+      }
+      if (!prior || reactivatedInquiry) {
+        await tx.trainerNotification.create({
+          data: {
+            trainerId: trainer.id,
+            kind: "INQUIRY",
+            title: "New client interest",
+            body: `A client expressed interest in working with you. Accept or decline from Profile interests.`,
+            linkHref: `/trainer/dashboard/interests`,
           },
         });
       }

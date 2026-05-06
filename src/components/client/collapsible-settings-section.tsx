@@ -20,23 +20,26 @@ export function CollapsibleSettingsSection(props: Props) {
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-start justify-between gap-4 p-6 text-left transition hover:bg-white/[0.03] sm:p-8"
+        className="relative w-full px-6 py-6 text-left transition hover:bg-white/[0.03] sm:px-8 sm:py-8"
       >
-        <div className="min-w-0">
+        <span
+          className="absolute right-6 top-6 shrink-0 rounded-lg border border-white/10 px-2 py-1 text-xs font-black text-white/60"
+          aria-hidden
+        >
+          {open ? "−" : "+"}
+        </span>
+        <div className="mx-auto min-w-0 max-w-xl pr-10 text-center">
           <h2 className="text-lg font-black tracking-tight text-white">{props.title}</h2>
           {props.description ? (
             <p className="mt-2 text-sm leading-relaxed text-white/55">{props.description}</p>
           ) : null}
         </div>
-        <span
-          className="mt-1 shrink-0 rounded-lg border border-white/10 px-2 py-1 text-xs font-black text-white/60"
-          aria-hidden
-        >
-          {open ? "−" : "+"}
-        </span>
       </button>
       {open ? (
-        <div id={panelId} className="border-t border-white/[0.08] px-6 pb-6 pt-2 sm:px-8 sm:pb-8">
+        <div
+          id={panelId}
+          className="border-t border-white/[0.08] px-6 pb-6 pt-2 text-left sm:px-8 sm:pb-8"
+        >
           {props.children}
         </div>
       ) : null}

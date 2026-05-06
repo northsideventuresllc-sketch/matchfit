@@ -102,14 +102,14 @@ export function PasswordChangePanel(props: {
   return (
     <div className={shell}>
       {props.unstyled ? null : (
-        <>
+        <div className="text-center">
           <h2 className="text-lg font-black tracking-tight text-white">Password</h2>
           <p className="mt-2 text-sm leading-relaxed text-white/55">
             {props.twoFactorEnabled
               ? "We will send a verification code to your 2FA method. Enter it here with your new password."
               : "We will email you a secure link. Open it to choose a new password, then sign in again."}
           </p>
-        </>
+        </div>
       )}
 
       {error ? (

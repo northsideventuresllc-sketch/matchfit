@@ -20,7 +20,7 @@ const NAV = [
   },
   {
     href: "/client/dashboard/daily-questionnaire",
-    label: "Daily questionare",
+    label: "Daily questionnaire",
     match: (p: string) => p.startsWith("/client/dashboard/daily-questionnaire"),
   },
   {
@@ -35,13 +35,8 @@ const NAV = [
   },
   {
     href: "/client/dashboard/preferences",
-    label: "Match preferences",
+    label: "Match Preferences",
     match: (p: string) => p === "/client/dashboard/preferences",
-  },
-  {
-    href: "/client/settings",
-    label: "Account settings",
-    match: (p: string) => p.startsWith("/client/settings"),
   },
 ] as const;
 
@@ -88,7 +83,7 @@ export function ClientDashboardShell(props: ClientDashboardShellProps) {
           })}
         </nav>
 
-        {props.children}
+        <div className="w-full text-left">{props.children}</div>
 
         <footer className="mt-12 space-y-4 border-t border-white/[0.08] pt-6 text-xs leading-relaxed text-white/45">
           <p className="text-center">

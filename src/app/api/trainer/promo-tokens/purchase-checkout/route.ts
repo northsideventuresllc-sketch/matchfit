@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAppOriginFromRequest } from "@/lib/app-origin";
+import {
+  adminFeeCentsFromBaseSubtotalCents,
+  ADMIN_FEE_STRIPE_DESCRIPTION,
+  ADMIN_FEE_UI_LABEL,
+} from "@/lib/platform-fees";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { getStripe } from "@/lib/stripe-server";
@@ -43,7 +48,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unknown pack." }, { status: 400 });
     }
     const origin = getAppOriginFromRequest(req);
-    const usd = tier.usdCents / 100;
+    const baseCents = tier.usdCents;
+    const adminCents = adminFeeCentsFromBaseSubtotalCents(baseCents);
+    const totalCents = baseCents + adminCents;
+    const usdBase = baseCents / 100;
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: trainer.email,
@@ -52,10 +60,21 @@ export async function POST(req: Request) {
           quantity: 1,
           price_data: {
             currency: "usd",
-            unit_amount: tier.usdCents,
+            unit_amount: baseCents,
             product_data: {
               name: `Match Fit promotion tokens — ${tier.label} pack`,
-              description: `${tier.tokens} tokens for $${usd.toFixed(2)}. Premium Page coaches only.`,
+              description: `${tier.tokens} tokens — pack subtotal $${usdBase.toFixed(2)} (before Match Fit administrative fee). Premium Page coaches only.`,
+            },
+          },
+        },
+        {
+          quantity: 1,
+          price_data: {
+            currency: "usd",
+            unit_amount: adminCents,
+            product_data: {
+              name: ADMIN_FEE_UI_LABEL,
+              description: ADMIN_FEE_STRIPE_DESCRIPTION,
             },
           },
         },
@@ -65,6 +84,9 @@ export async function POST(req: Request) {
         trainerId,
         packTier: tier.id,
         tokenAmount: String(tier.tokens),
+        baseSubtotalCents: String(baseCents),
+        adminFeeCents: String(adminCents),
+        totalChargedCents: String(totalCents),
       },
       success_url: `${origin}/trainer/dashboard/premium/promo-tokens?checkout=success`,
       cancel_url: `${origin}/trainer/dashboard/premium/promo-tokens?checkout=cancel`,

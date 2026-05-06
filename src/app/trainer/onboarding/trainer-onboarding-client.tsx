@@ -2,17 +2,23 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { TRAINER_ONBOARDING_AGREEMENT_BULLETS } from "@/app/trainer/onboarding/trainer-agreement-bullets";
 import { CREDIBLE_CPT_ORGANIZATIONS } from "@/app/trainer/onboarding/credible-cpt-organizations";
 import { CREDIBLE_NUTRITION_CREDENTIALS } from "@/app/trainer/onboarding/credible-nutrition-credentials";
 import { OnboardingCertStatusLegend } from "@/app/trainer/onboarding/onboarding-cert-status-legend";
+import { TrainerProfileDemographyFields } from "@/components/trainer/trainer-profile-demography-fields";
+import {
+  SPECIALIST_ROLE_OPTIONS,
+  type SpecialistProfessionalRoleId,
+} from "@/lib/trainer-specialist-roles";
 import { TrainerSocialUrlFields } from "@/components/trainer/trainer-social-url-fields";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { verifyTrainerOnboardingDevPassword } from "@/lib/trainer-dev-bypass";
 import { certificationsGatePassed } from "@/lib/trainer-onboarding-cert-gate";
 import { normalizeTrainerSocialFields } from "@/lib/trainer-social-urls";
 import { postTrainerLogout } from "@/lib/trainer-logout";
+import { US_STATE_POSTAL_OPTIONS } from "@/lib/trainer-profile-demography-options";
 import { coerceTrainerBackgroundVendorStatus, coerceTrainerCptStatus } from "@/lib/trainer-onboarding-status";
 
 type TrainerMe = {
@@ -46,8 +52,13 @@ type TrainerMe = {
     nutritionistCertificationUrl: string | null;
     certificationReviewStatus: string;
     nutritionistCertificationReviewStatus: string;
+    specialistCertificationReviewStatus: string;
     onboardingTrackCpt: boolean;
     onboardingTrackNutrition: boolean;
+    onboardingTrackSpecialist: boolean;
+    specialistProfessionalRole: string | null;
+    specialistCertificationUrl: string | null;
+    otherCertificationReviewStatus: string;
     backgroundCheckReviewStatus: string;
     dashboardActivatedAt?: string | null;
     matchQuestionnaireStatus?: string;
@@ -94,6 +105,21 @@ function buildDevW9Autofill(trainer: TrainerMe) {
 
 const AGREEMENT_COUNT = TRAINER_ONBOARDING_AGREEMENT_BULLETS.length;
 
+/** Title case — used for page titles and step-number tooltips. */
+const ONBOARDING_STEP_DISPLAY_TITLES: Record<number, string> = {
+  1: "Acknowledgements",
+  2: "Background Screening",
+  3: "Your Professional Path",
+  4: "Certifications",
+  5: "Tax Information (Form W-9)",
+  6: "Profile Setup",
+};
+
+function fileSig(f: File | null): string | null {
+  if (!f) return null;
+  return `${f.name}|${f.size}|${f.lastModified}`;
+}
+
 export default function TrainerOnboardingClient() {
   const [step, setStep] = useState(1);
   const [loadingMe, setLoadingMe] = useState(true);
@@ -124,10 +150,13 @@ export default function TrainerOnboardingClient() {
   const [certFile, setCertFile] = useState<File | null>(null);
   const [otherCertFile, setOtherCertFile] = useState<File | null>(null);
   const [nutrCertFile, setNutrCertFile] = useState<File | null>(null);
+  const [specialistCertFile, setSpecialistCertFile] = useState<File | null>(null);
   const [certBusy, setCertBusy] = useState(false);
 
   const [pathCpt, setPathCpt] = useState(false);
   const [pathNutrition, setPathNutrition] = useState(false);
+  const [pathSpecialist, setPathSpecialist] = useState(false);
+  const [specialistRole, setSpecialistRole] = useState<SpecialistProfessionalRoleId>("cscs");
   const [pathConfirmAck, setPathConfirmAck] = useState(false);
   const [pathBypassPassword, setPathBypassPassword] = useState("");
 
@@ -149,10 +178,14 @@ export default function TrainerOnboardingClient() {
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [baselineEpoch, setBaselineEpoch] = useState(0);
+  const [lastSyncedSnapshot, setLastSyncedSnapshot] = useState("");
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
 
   const loadMe = useCallback(async () => {
     setMeError(null);
     setLoadingMe(true);
+    let loadedTrainer = false;
     try {
       const res = await fetch("/api/trainer/me", { cache: "no-store", credentials: "include" });
       const data = (await res.json()) as { error?: string; trainer?: TrainerMe };
@@ -162,6 +195,7 @@ export default function TrainerOnboardingClient() {
         return;
       }
       if (data.trainer) {
+        loadedTrainer = true;
         const t = data.trainer;
         setTrainer(t);
         setFirstName(t.firstName);
@@ -180,6 +214,17 @@ export default function TrainerOnboardingClient() {
         setSocialLinkedin(t.socialLinkedin ?? "");
         setSocialOtherUrl(t.socialOtherUrl ?? "");
 
+        const pSync = t.profile;
+        if (pSync) {
+          setPathCpt(pSync.onboardingTrackCpt);
+          setPathNutrition(pSync.onboardingTrackNutrition);
+          setPathSpecialist(pSync.onboardingTrackSpecialist);
+          const r = pSync.specialistProfessionalRole;
+          if (r === "cscs" || r === "corrective_exercise_specialist" || r === "group_fitness_instructor") {
+            setSpecialistRole(r);
+          }
+        }
+
         if (!didBootstrapFromServer.current) {
           didBootstrapFromServer.current = true;
           if (t.profile?.hasSignedTOS) {
@@ -189,8 +234,18 @@ export default function TrainerOnboardingClient() {
           if (p) {
             if (!p.hasSignedTOS) setStep(1);
             else if (p.backgroundCheckStatus !== "APPROVED") setStep(2);
-            else if (!p.onboardingTrackCpt && !p.onboardingTrackNutrition) setStep(3);
-            else if (!certificationsGatePassed(p)) setStep(4);
+            else if (!p.onboardingTrackCpt && !p.onboardingTrackNutrition && !p.onboardingTrackSpecialist) setStep(3);
+            else if (
+              !certificationsGatePassed({
+                onboardingTrackCpt: p.onboardingTrackCpt,
+                onboardingTrackNutrition: p.onboardingTrackNutrition,
+                onboardingTrackSpecialist: p.onboardingTrackSpecialist,
+                certificationReviewStatus: p.certificationReviewStatus,
+                nutritionistCertificationReviewStatus: p.nutritionistCertificationReviewStatus,
+                specialistCertificationReviewStatus: p.specialistCertificationReviewStatus,
+              })
+            )
+              setStep(4);
             else if (!p.hasUploadedW9) setStep(5);
             else setStep(6);
           }
@@ -201,6 +256,9 @@ export default function TrainerOnboardingClient() {
       setTrainer(null);
     } finally {
       setLoadingMe(false);
+      if (loadedTrainer) {
+        setBaselineEpoch((e) => e + 1);
+      }
     }
   }, []);
 
@@ -212,16 +270,135 @@ export default function TrainerOnboardingClient() {
 
   const profile = trainer?.profile;
 
+  const onboardingSnapshotSerialized = useMemo(
+    () =>
+      JSON.stringify({
+        agreementChecks,
+        firstName,
+        lastName,
+        preferredName,
+        bio,
+        pronouns,
+        ethnicity,
+        languagesSpoken,
+        fitnessNiches,
+        yearsCoaching,
+        genderIdentity,
+        socialInstagram,
+        socialTiktok,
+        socialFacebook,
+        socialLinkedin,
+        socialOtherUrl,
+        avatarSig: fileSig(avatarFile),
+        certSig: fileSig(certFile),
+        otherCertSig: fileSig(otherCertFile),
+        nutrCertSig: fileSig(nutrCertFile),
+        specialistCertSig: fileSig(specialistCertFile),
+        pathCpt,
+        pathNutrition,
+        pathSpecialist,
+        specialistRole,
+        pathConfirmAck,
+        w9LegalName,
+        w9BusinessName,
+        w9Classification,
+        w9Address1,
+        w9Address2,
+        w9City,
+        w9State,
+        w9Zip,
+        w9TinType,
+        w9Tin,
+        w9Certify,
+      }),
+    [
+      agreementChecks,
+      firstName,
+      lastName,
+      preferredName,
+      bio,
+      pronouns,
+      ethnicity,
+      languagesSpoken,
+      fitnessNiches,
+      yearsCoaching,
+      genderIdentity,
+      socialInstagram,
+      socialTiktok,
+      socialFacebook,
+      socialLinkedin,
+      socialOtherUrl,
+      avatarFile,
+      certFile,
+      otherCertFile,
+      nutrCertFile,
+      specialistCertFile,
+      pathCpt,
+      pathNutrition,
+      pathSpecialist,
+      specialistRole,
+      pathConfirmAck,
+      w9LegalName,
+      w9BusinessName,
+      w9Classification,
+      w9Address1,
+      w9Address2,
+      w9City,
+      w9State,
+      w9Zip,
+      w9TinType,
+      w9Tin,
+      w9Certify,
+    ],
+  );
+
+  const baselineCaptureRef = useRef("");
+
+  useLayoutEffect(() => {
+    baselineCaptureRef.current = onboardingSnapshotSerialized;
+  }, [onboardingSnapshotSerialized]);
+
+  useLayoutEffect(() => {
+    if (!trainer || loadingMe || baselineEpoch === 0) return;
+    setLastSyncedSnapshot(baselineCaptureRef.current);
+  }, [baselineEpoch, trainer, loadingMe]);
+
+  const isOnboardingDirty =
+    lastSyncedSnapshot !== "" && onboardingSnapshotSerialized !== lastSyncedSnapshot;
+
+  const canReturnToDashboard = profile?.matchQuestionnaireStatus === "completed";
+
   useEffect(() => {
-    if (!profile) return;
-    const cpt = profile.onboardingTrackCpt;
-    const nut = profile.onboardingTrackNutrition;
-    const id = window.setTimeout(() => {
-      setPathCpt(cpt);
-      setPathNutrition(nut);
-    }, 0);
-    return () => window.clearTimeout(id);
-  }, [profile?.onboardingTrackCpt, profile?.onboardingTrackNutrition]);
+    if (!isOnboardingDirty) return;
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [isOnboardingDirty]);
+
+  useEffect(() => {
+    if (!isOnboardingDirty || !canReturnToDashboard) return;
+    function onClickCapture(e: MouseEvent) {
+      const el = (e.target as HTMLElement | null)?.closest?.("a[href]");
+      if (!el) return;
+      const href = el.getAttribute("href");
+      if (!href || href.startsWith("#")) return;
+      let url: URL;
+      try {
+        url = new URL(href, window.location.href);
+      } catch {
+        return;
+      }
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname !== "/trainer/dashboard" && url.pathname !== "/trainer/dashboard/") return;
+      e.preventDefault();
+      e.stopPropagation();
+      setLeaveModalOpen(true);
+    }
+    document.addEventListener("click", onClickCapture, true);
+    return () => document.removeEventListener("click", onClickCapture, true);
+  }, [isOnboardingDirty, canReturnToDashboard]);
 
   const bgVendor = useMemo(() => coerceTrainerBackgroundVendorStatus(profile?.backgroundCheckStatus), [profile?.backgroundCheckStatus]);
   const cptStatus = useMemo(() => coerceTrainerCptStatus(profile?.certificationReviewStatus), [profile?.certificationReviewStatus]);
@@ -229,8 +406,17 @@ export default function TrainerOnboardingClient() {
     () => coerceTrainerCptStatus(profile?.nutritionistCertificationReviewStatus),
     [profile?.nutritionistCertificationReviewStatus],
   );
+  const specialistStatus = useMemo(
+    () => coerceTrainerCptStatus(profile?.specialistCertificationReviewStatus),
+    [profile?.specialistCertificationReviewStatus],
+  );
   const showCptPendingPill = cptStatus === "PENDING" && !!profile?.certificationUrl;
   const showNutritionPendingPill = nutritionStatus === "PENDING" && !!profile?.nutritionistCertificationUrl;
+  const showSpecialistPendingPill = specialistStatus === "PENDING" && !!profile?.specialistCertificationUrl;
+  const specialistRoleLabel = useMemo(() => {
+    const id = profile?.specialistProfessionalRole;
+    return SPECIALIST_ROLE_OPTIONS.find((o) => o.id === id)?.label ?? "Certified specialist credential";
+  }, [profile?.specialistProfessionalRole]);
   const bgNeedsReview = bgVendor === "NEEDS_FURTHER_REVIEW";
 
   const certsComplete = useMemo(() => {
@@ -238,24 +424,226 @@ export default function TrainerOnboardingClient() {
     return certificationsGatePassed({
       onboardingTrackCpt: profile.onboardingTrackCpt,
       onboardingTrackNutrition: profile.onboardingTrackNutrition,
+      onboardingTrackSpecialist: profile.onboardingTrackSpecialist,
       certificationReviewStatus: profile.certificationReviewStatus,
       nutritionistCertificationReviewStatus: profile.nutritionistCertificationReviewStatus,
+      specialistCertificationReviewStatus: profile.specialistCertificationReviewStatus,
     });
   }, [profile]);
 
-  const stepHeading = useMemo(() => {
-    if (step === 1) return "Acknowledgements";
-    if (step === 2) return "Background Screening";
-    if (step === 3) return "Your professional path";
-    if (step === 4) return "Certifications";
-    if (step === 5) return "Tax information (Form W-9)";
-    return "Profile Set Up";
-  }, [step]);
+  const stepHeading = ONBOARDING_STEP_DISPLAY_TITLES[step] ?? "Trainer Onboarding";
+  const stepSubline = step === 1 ? "Fees, Screening, and Platform Policies" : null;
 
-  const stepSubline = useMemo(() => {
-    if (step === 1) return "Fees, screening, and platform policies";
-    return null;
-  }, [step]);
+  function requestDashboardNavigation() {
+    if (!canReturnToDashboard) return;
+    if (isOnboardingDirty) {
+      setLeaveModalOpen(true);
+      return;
+    }
+    navigateWithFullLoad("/trainer/dashboard");
+  }
+
+  async function persistOnboardingForDashboardLeave(): Promise<boolean> {
+    setError(null);
+    if (step === 1) {
+      if (!agreementChecks.every(Boolean)) {
+        setError("Check every acknowledgement before saving.");
+        return false;
+      }
+      setBusy(true);
+      try {
+        const res = await fetch("/api/trainer/onboarding/agreements", {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ acceptedTrainerAgreement: true }),
+        });
+        const data = (await res.json()) as { error?: string };
+        if (!res.ok) {
+          setError(data.error ?? "Could not save acknowledgements.");
+          return false;
+        }
+        await loadMe();
+        return true;
+      } catch {
+        setError("Something went wrong.");
+        return false;
+      } finally {
+        setBusy(false);
+      }
+    }
+    if (step === 2) {
+      return true;
+    }
+    if (step === 3) {
+      if (!pathCpt && !pathNutrition && !pathSpecialist) {
+        setError("Select at least one professional path.");
+        return false;
+      }
+      if (pathCpt && pathSpecialist) {
+        setError("Choose either CPT or another certified specialist path for training—not both.");
+        return false;
+      }
+      if (pathSpecialist && !specialistRole) {
+        setError("Select which certified specialist role applies to you.");
+        return false;
+      }
+      if (!pathConfirmAck) {
+        setError("Confirm that you understand the certification requirements for your selection.");
+        return false;
+      }
+      setBusy(true);
+      try {
+        const res = await fetch("/api/trainer/onboarding/professional-path", {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            trackCpt: pathCpt,
+            trackNutrition: pathNutrition,
+            trackSpecialist: pathSpecialist,
+            specialistRole: pathSpecialist ? specialistRole : null,
+            confirmCredentialRequirements: true,
+          }),
+        });
+        const data = (await res.json()) as { error?: string };
+        if (!res.ok) {
+          setError(data.error ?? "Could not save your selection.");
+          return false;
+        }
+        await loadMe();
+        return true;
+      } catch {
+        setError("Something went wrong.");
+        return false;
+      } finally {
+        setBusy(false);
+      }
+    }
+    if (step === 4) {
+      if (certFile || otherCertFile || nutrCertFile || specialistCertFile) {
+        setError("Upload or clear pending certification files before saving.");
+        return false;
+      }
+      return true;
+    }
+    if (step === 5) {
+      setBusy(true);
+      try {
+        const res = await fetch("/api/trainer/onboarding/w9", {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            legalName: w9LegalName.trim(),
+            businessName: w9BusinessName.trim(),
+            federalTaxClassification: w9Classification,
+            addressLine1: w9Address1.trim(),
+            addressLine2: w9Address2.trim(),
+            city: w9City.trim(),
+            state: w9State.trim().toUpperCase(),
+            zip: w9Zip.trim(),
+            tinType: w9TinType,
+            tin: w9Tin.trim(),
+            certify: w9Certify,
+          }),
+        });
+        const data = (await res.json()) as { error?: string };
+        if (!res.ok) {
+          setError(data.error ?? "Could not save W-9 information.");
+          return false;
+        }
+        await loadMe();
+        return true;
+      } catch {
+        setError("Something went wrong.");
+        return false;
+      } finally {
+        setBusy(false);
+      }
+    }
+    if (step === 6) {
+      const socialNorm = normalizeTrainerSocialFields({
+        socialInstagram,
+        socialTiktok,
+        socialFacebook,
+        socialLinkedin,
+        socialOtherUrl,
+      });
+      if (!socialNorm.ok) {
+        setError(socialNorm.error);
+        return false;
+      }
+      const s = socialNorm.value;
+      setBusy(true);
+      try {
+        const res = await fetch("/api/trainer/onboarding/basic-profile", {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            firstName,
+            lastName,
+            preferredName,
+            bio,
+            pronouns,
+            ethnicity,
+            languagesSpoken,
+            fitnessNiches,
+            yearsCoaching,
+            genderIdentity,
+            socialInstagram: s.socialInstagram ?? "",
+            socialTiktok: s.socialTiktok ?? "",
+            socialFacebook: s.socialFacebook ?? "",
+            socialLinkedin: s.socialLinkedin ?? "",
+            socialOtherUrl: s.socialOtherUrl ?? "",
+          }),
+        });
+        const data = (await res.json()) as { error?: string };
+        if (!res.ok) {
+          setError(data.error ?? "Could not save profile.");
+          return false;
+        }
+        if (avatarFile) {
+          setAvatarBusy(true);
+          try {
+            const fd = new FormData();
+            fd.set("file", avatarFile);
+            const ar = await fetch("/api/trainer/onboarding/profile-image", { method: "POST", credentials: "include", body: fd });
+            const ad = (await ar.json()) as { error?: string };
+            if (!ar.ok) {
+              setError(ad.error ?? "Profile saved, but the photo upload failed.");
+              await loadMe();
+              return false;
+            }
+          } finally {
+            setAvatarBusy(false);
+            setAvatarFile(null);
+          }
+        }
+        await loadMe();
+        return true;
+      } catch {
+        setError("Something went wrong.");
+        return false;
+      } finally {
+        setBusy(false);
+      }
+    }
+    return true;
+  }
+
+  async function handleLeaveSaveAndGoToDashboard() {
+    const ok = await persistOnboardingForDashboardLeave();
+    if (!ok) return;
+    setLeaveModalOpen(false);
+    navigateWithFullLoad("/trainer/dashboard");
+  }
+
+  function handleLeaveDiscardAndGoToDashboard() {
+    setLeaveModalOpen(false);
+    navigateWithFullLoad("/trainer/dashboard");
+  }
 
   async function handleLogout() {
     await postTrainerLogout();
@@ -300,8 +688,16 @@ export default function TrainerOnboardingClient() {
 
   async function handleProfessionalPathContinue() {
     setError(null);
-    if (!pathCpt && !pathNutrition) {
+    if (!pathCpt && !pathNutrition && !pathSpecialist) {
       setError("Select at least one professional path.");
+      return;
+    }
+    if (pathCpt && pathSpecialist) {
+      setError("Choose either CPT or another certified specialist path for training—not both.");
+      return;
+    }
+    if (pathSpecialist && !specialistRole) {
+      setError("Select which certified specialist role applies to you.");
       return;
     }
     if (!pathConfirmAck) {
@@ -317,6 +713,8 @@ export default function TrainerOnboardingClient() {
         body: JSON.stringify({
           trackCpt: pathCpt,
           trackNutrition: pathNutrition,
+          trackSpecialist: pathSpecialist,
+          specialistRole: pathSpecialist ? specialistRole : null,
           confirmCredentialRequirements: true,
         }),
       });
@@ -471,16 +869,25 @@ export default function TrainerOnboardingClient() {
     }
   }
 
-  async function handleCertUpload(kind: "cpt" | "other" | "nutritionist") {
+  async function handleCertUpload(kind: "cpt" | "other" | "nutritionist" | "specialist") {
     setError(null);
-    const file = kind === "cpt" ? certFile : kind === "nutritionist" ? nutrCertFile : otherCertFile;
+    const file =
+      kind === "cpt"
+        ? certFile
+        : kind === "nutritionist"
+          ? nutrCertFile
+          : kind === "specialist"
+            ? specialistCertFile
+            : otherCertFile;
     if (!file) {
       setError(
         kind === "cpt"
           ? "Choose a CPT certification file first."
           : kind === "nutritionist"
-            ? "Choose a nutritionist certification file first."
-            : "Choose an additional certification file first.",
+            ? "Choose a nutrition credential file first."
+            : kind === "specialist"
+              ? "Choose your specialist credential file first."
+              : "Choose an additional certification file first.",
       );
       return;
     }
@@ -488,7 +895,10 @@ export default function TrainerOnboardingClient() {
     try {
       const fd = new FormData();
       fd.set("file", file);
-      fd.set("uploadType", kind === "other" ? "other" : kind === "nutritionist" ? "nutritionist" : "cpt");
+      fd.set(
+        "uploadType",
+        kind === "other" ? "other" : kind === "nutritionist" ? "nutritionist" : kind === "specialist" ? "specialist" : "cpt",
+      );
       const res = await fetch("/api/trainer/onboarding/certification", { method: "POST", credentials: "include", body: fd });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) {
@@ -497,6 +907,7 @@ export default function TrainerOnboardingClient() {
       }
       if (kind === "cpt") setCertFile(null);
       else if (kind === "nutritionist") setNutrCertFile(null);
+      else if (kind === "specialist") setSpecialistCertFile(null);
       else setOtherCertFile(null);
       await loadMe();
     } catch {
@@ -563,9 +974,10 @@ export default function TrainerOnboardingClient() {
     }
     setBusy(true);
     try {
-      const scopes: ("cpt" | "nutritionist")[] = [];
+      const scopes: ("cpt" | "nutritionist" | "specialist")[] = [];
       if (profile?.onboardingTrackCpt) scopes.push("cpt");
       if (profile?.onboardingTrackNutrition) scopes.push("nutritionist");
+      if (profile?.onboardingTrackSpecialist) scopes.push("specialist");
       const res = await fetch("/api/trainer/onboarding/certification/bypass", {
         method: "POST",
         credentials: "include",
@@ -628,13 +1040,24 @@ export default function TrainerOnboardingClient() {
               <p className="text-[11px] font-semibold uppercase tracking-wide text-white/40">Trainer onboarding</p>
             </div>
           </Link>
-          <button
-            type="button"
-            onClick={() => void handleLogout()}
-            className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-white/25 hover:text-white"
-          >
-            Log out
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {canReturnToDashboard ? (
+              <button
+                type="button"
+                onClick={requestDashboardNavigation}
+                className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-white/25 hover:text-white"
+              >
+                Return to Dashboard
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => void handleLogout()}
+              className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/70 transition hover:border-white/25 hover:text-white"
+            >
+              Log out
+            </button>
+          </div>
         </header>
 
         <div className="mt-10 flex flex-wrap items-center gap-2">
@@ -642,6 +1065,7 @@ export default function TrainerOnboardingClient() {
             <button
               key={n}
               type="button"
+              title={ONBOARDING_STEP_DISPLAY_TITLES[n]}
               onClick={() => setStep(n)}
               className={`flex h-9 min-w-[2.25rem] items-center justify-center rounded-full border px-3 text-xs font-black ${
                 step === n ? "border-[#FF7E00]/60 bg-[#FF7E00]/15 text-white" : "border-white/10 text-white/45"
@@ -684,12 +1108,19 @@ export default function TrainerOnboardingClient() {
                 ))}
               </ul>
               <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <Link
-                  href="/trainer/dashboard"
-                  className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold tracking-wide text-white transition hover:border-white/25"
-                >
-                  Back to Dashboard
-                </Link>
+                {canReturnToDashboard ? (
+                  <Link
+                    href="/trainer/dashboard"
+                    onClick={(e) => {
+                      if (!isOnboardingDirty) return;
+                      e.preventDefault();
+                      setLeaveModalOpen(true);
+                    }}
+                    className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold tracking-wide text-white transition hover:border-white/25"
+                  >
+                    Back to Dashboard
+                  </Link>
+                ) : null}
                 <Link
                   href="/terms#trainer-terms"
                   className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold tracking-wide text-white transition hover:border-white/25"
@@ -790,7 +1221,11 @@ export default function TrainerOnboardingClient() {
                   <input
                     type="checkbox"
                     checked={pathCpt}
-                    onChange={(e) => setPathCpt(e.target.checked)}
+                    onChange={(e) => {
+                      const on = e.target.checked;
+                      setPathCpt(on);
+                      if (on) setPathSpecialist(false);
+                    }}
                     className="mt-1 h-4 w-4 shrink-0 accent-[#FF7E00]"
                   />
                   <div>
@@ -814,13 +1249,64 @@ export default function TrainerOnboardingClient() {
                     className="mt-1 h-4 w-4 shrink-0 accent-[#FF7E00]"
                   />
                   <div>
-                    <p className="text-sm font-bold text-white">Nutritionist</p>
+                    <p className="text-sm font-bold text-white">Registered Dietitian Nutritionist (RDN) &amp; credentialed nutrition coaching</p>
                     <p className="mt-2 text-[13px] leading-relaxed text-white/55">
-                      You will provide nutrition coaching, meal guidance, or related education within your scope of
-                      practice. You must upload a nutrition credential that Match Fit can verify (for example RDN/RD,
-                      CNC, or another recognized nutrition certification — examples on the next screen).
+                      For clinical nutrition and MNT-aligned work, the gold-standard credential is the{" "}
+                      <span className="font-semibold text-white/75">Registered Dietitian Nutritionist (RDN)</span>{" "}
+                      issued by the Commission on Dietetic Registration. You may also upload other nationally recognized
+                      nutrition certifications (see examples on the next screen).
                     </p>
                   </div>
+                </label>
+                <label
+                  className={`flex cursor-pointer flex-col gap-3 rounded-2xl border p-4 transition ${
+                    pathSpecialist
+                      ? "border-[#FF7E00]/45 bg-[#FF7E00]/08"
+                      : "border-white/[0.08] bg-[#0E1016]/80 hover:border-white/15"
+                  }`}
+                >
+                  <div className="flex gap-4">
+                    <input
+                      type="checkbox"
+                      checked={pathSpecialist}
+                      onChange={(e) => {
+                        const on = e.target.checked;
+                        setPathSpecialist(on);
+                        if (on) setPathCpt(false);
+                      }}
+                      className="mt-1 h-4 w-4 shrink-0 accent-[#FF7E00]"
+                    />
+                    <div>
+                      <p className="text-sm font-bold text-white">Other certified fitness specialist (not CPT)</p>
+                      <p className="mt-2 text-[13px] leading-relaxed text-white/55">
+                        Choose this if your <span className="font-semibold text-white/75">primary</span> training
+                        credential is something like CSCS, corrective exercise, or an accredited group-fitness
+                        certification instead of a CPT. This path cannot be combined with the CPT checkbox.
+                      </p>
+                    </div>
+                  </div>
+                  {pathSpecialist ? (
+                    <div className="pl-8">
+                      <label className="text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="specialist-role">
+                        Your certified role
+                      </label>
+                      <select
+                        id="specialist-role"
+                        value={specialistRole}
+                        onChange={(e) => setSpecialistRole(e.target.value as SpecialistProfessionalRoleId)}
+                        className="mt-2 w-full max-w-md rounded-xl border border-white/10 bg-[#0B0C0F] px-4 py-3 text-sm text-white outline-none ring-[#FF7E00]/40 focus:border-[#FF7E00]/40 focus:ring-2"
+                      >
+                        {SPECIALIST_ROLE_OPTIONS.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-2 text-[12px] text-white/45">
+                        {SPECIALIST_ROLE_OPTIONS.find((o) => o.id === specialistRole)?.description}
+                      </p>
+                    </div>
+                  ) : null}
                 </label>
               </div>
               <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-4">
@@ -837,8 +1323,8 @@ export default function TrainerOnboardingClient() {
               </label>
               <div className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-4">
                 <p className="text-xs text-amber-50/95">
-                  Testing: bypass this step with the development password (case-sensitive). This will mark both paths
-                  selected so all upload sections appear on the next screen.
+                  Testing: bypass this step with the development password (case-sensitive). This will mark CPT and
+                  nutrition paths (not the specialist path) so both upload sections appear on the next screen.
                 </p>
                 <label className="mt-3 block text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="path-bypass-pw">
                   Development password
@@ -870,7 +1356,12 @@ export default function TrainerOnboardingClient() {
                 </button>
                 <button
                   type="button"
-                  disabled={busy || !pathConfirmAck || (!pathCpt && !pathNutrition)}
+                  disabled={
+                    busy ||
+                    !pathConfirmAck ||
+                    (!pathCpt && !pathNutrition && !pathSpecialist) ||
+                    (pathCpt && pathSpecialist)
+                  }
                   onClick={() => void handleProfessionalPathContinue()}
                   className="group relative isolate flex min-h-[3rem] flex-1 items-center justify-center overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition disabled:opacity-40"
                 >
@@ -889,13 +1380,25 @@ export default function TrainerOnboardingClient() {
                   <span className="font-black tracking-wide">APPROVED</span> for CPT and for nutrition.
                 </p>
               ) : null}
-              {profile?.onboardingTrackCpt && !profile?.onboardingTrackNutrition ? (
+              {profile?.onboardingTrackSpecialist && profile?.onboardingTrackNutrition ? (
+                <p className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-50">
+                  Upload your specialist credential and your nutrition credential. Each selected path must show{" "}
+                  <span className="font-black tracking-wide">APPROVED</span> before you continue.
+                </p>
+              ) : null}
+              {profile?.onboardingTrackCpt && !profile?.onboardingTrackNutrition && !profile?.onboardingTrackSpecialist ? (
                 <p className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-50">
                   Upload your CPT credential. You cannot continue until CPT verification is{" "}
                   <span className="font-black tracking-wide">APPROVED</span>.
                 </p>
               ) : null}
-              {profile?.onboardingTrackNutrition && !profile?.onboardingTrackCpt ? (
+              {profile?.onboardingTrackSpecialist && !profile?.onboardingTrackNutrition ? (
+                <p className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-50">
+                  Upload the credential that matches the specialist role you selected. Verification must be{" "}
+                  <span className="font-black tracking-wide">APPROVED</span> before you continue.
+                </p>
+              ) : null}
+              {profile?.onboardingTrackNutrition && !profile?.onboardingTrackCpt && !profile?.onboardingTrackSpecialist ? (
                 <p className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-50">
                   Upload your nutrition credential. You cannot continue until nutrition verification is{" "}
                   <span className="font-black tracking-wide">APPROVED</span>.
@@ -948,6 +1451,54 @@ export default function TrainerOnboardingClient() {
                 </>
               ) : null}
 
+              {profile?.onboardingTrackSpecialist ? (
+                <>
+                  <div className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/80 px-4 py-4 text-xs text-white/55">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-white/40">
+                      Specialist credential status:
+                    </p>
+                    <p className="mt-2 text-sm font-black tracking-[0.12em] text-white">{specialistStatus}</p>
+                    <p className="mt-2 text-[12px] text-white/50">Selected role: {specialistRoleLabel}</p>
+                    {specialistStatus === "DENIED" ? (
+                      <p className="mt-3 rounded-lg border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-3 py-2 text-[13px] text-[#FFB4B4]">
+                        Your specialist credential was denied. You will receive an email with specific reasons. You
+                        cannot continue until Match Fit staff updates your record or approves a resubmission.
+                      </p>
+                    ) : null}
+                    {showSpecialistPendingPill ? (
+                      <div className="mt-3">
+                        <HumanReviewPill />
+                      </div>
+                    ) : null}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">Specialist certification upload</p>
+                    <p className="mt-1 text-xs leading-relaxed text-white/50">
+                      PDF or image, up to 5 MB. File must match the role you selected ({specialistRoleLabel}).
+                    </p>
+                    <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <input
+                        type="file"
+                        accept=".pdf,image/*"
+                        onChange={(e) => setSpecialistCertFile(e.target.files?.[0] ?? null)}
+                        className="text-sm text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white"
+                      />
+                      <button
+                        type="button"
+                        disabled={certBusy}
+                        onClick={() => void handleCertUpload("specialist")}
+                        className="flex min-h-[3rem] items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:border-white/25 disabled:opacity-50"
+                      >
+                        {certBusy ? "Uploading…" : "Upload specialist credential"}
+                      </button>
+                    </div>
+                    {profile?.specialistCertificationUrl ? (
+                      <p className="mt-2 font-mono text-[11px] text-white/50">{profile.specialistCertificationUrl}</p>
+                    ) : null}
+                  </div>
+                </>
+              ) : null}
+
               {profile?.onboardingTrackNutrition ? (
                 <>
                   <div className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/80 px-4 py-4 text-xs text-white/55">
@@ -968,10 +1519,13 @@ export default function TrainerOnboardingClient() {
                     ) : null}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-white">Nutritionist certification</p>
+                    <p className="text-sm font-semibold text-white">
+                      Registered Dietitian Nutritionist (RDN) &amp; related nutrition credentials
+                    </p>
                     <p className="mt-1 text-xs leading-relaxed text-white/50">
-                      PDF or image, up to 5 MB. Upload a credential from a credible nutrition organization (see examples
-                      below). Match Fit may request scope-of-practice details depending on your jurisdiction.
+                      PDF or image, up to 5 MB. RDN/RD, CNS, CNC, and other nationally recognized nutrition credentials
+                      are accepted (see examples below). Match Fit may request scope-of-practice details depending on your
+                      jurisdiction.
                     </p>
                     <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
                       <input
@@ -986,7 +1540,7 @@ export default function TrainerOnboardingClient() {
                         onClick={() => void handleCertUpload("nutritionist")}
                         className="flex min-h-[3rem] items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:border-white/25 disabled:opacity-50"
                       >
-                        {certBusy ? "Uploading…" : "Upload nutritionist certification"}
+                        {certBusy ? "Uploading…" : "Upload nutrition credential"}
                       </button>
                     </div>
                     {profile?.nutritionistCertificationUrl ? (
@@ -996,10 +1550,13 @@ export default function TrainerOnboardingClient() {
                 </>
               ) : null}
 
-              {profile?.onboardingTrackCpt || profile?.onboardingTrackNutrition ? (
+              {profile?.onboardingTrackCpt || profile?.onboardingTrackNutrition || profile?.onboardingTrackSpecialist ? (
                 <div>
                   <p className="text-sm font-semibold text-white">Other relevant certifications</p>
-                  <p className="mt-1 text-xs text-white/50">Optional — PDF or image, up to 5 MB.</p>
+                  <p className="mt-1 text-xs text-white/50">
+                    Optional — PDF or image, up to 5 MB. Shown on your compliance record with a verified badge after
+                    review.
+                  </p>
                   <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
                     <input
                       type="file"
@@ -1106,6 +1663,17 @@ export default function TrainerOnboardingClient() {
                       </li>
                     ))}
                   </ul>
+                </section>
+              ) : null}
+              {profile?.onboardingTrackSpecialist ? (
+                <section className="mt-6 border-t border-white/10 pt-6">
+                  <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-[#FF7E00]/90">
+                    Specialist credential checklist
+                  </h3>
+                  <p className="mt-2 text-[12px] leading-relaxed text-white/50">
+                    Upload must clearly show your name, issuing organization, and active status for:{" "}
+                    <span className="font-semibold text-white/75">{specialistRoleLabel}</span>.
+                  </p>
                 </section>
               ) : null}
             </div>
@@ -1225,15 +1793,23 @@ export default function TrainerOnboardingClient() {
                   <label className="text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="w9-state">
                     State
                   </label>
-                  <input
+                  <select
                     id="w9-state"
                     required
-                    maxLength={2}
-                    value={w9State}
+                    value={(() => {
+                      const u = w9State.trim().toUpperCase();
+                      return US_STATE_POSTAL_OPTIONS.some((o) => o.value === u) ? u : "";
+                    })()}
                     onChange={(e) => setW9State(e.target.value)}
-                    placeholder="CA"
                     className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 focus:border-[#FF7E00]/40 focus:ring-2"
-                  />
+                  >
+                    <option value="">Select state</option>
+                    {US_STATE_POSTAL_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="flex flex-col gap-2 sm:col-span-2">
                   <label className="text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="w9-zip">
@@ -1343,78 +1919,37 @@ export default function TrainerOnboardingClient() {
                   />
                 </div>
               </div>
-              <div className="grid gap-5 sm:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="onb-pro">
-                    Pronouns
-                  </label>
-                  <input
-                    id="onb-pro"
-                    value={pronouns}
-                    onChange={(e) => setPronouns(e.target.value)}
-                    placeholder="e.g., she/her, he/him, they/them"
-                    className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="onb-eth">
-                    Ethnicity (optional)
-                  </label>
-                  <input
-                    id="onb-eth"
-                    value={ethnicity}
-                    onChange={(e) => setEthnicity(e.target.value)}
-                    className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 focus:border-[#FF7E00]/40 focus:ring-2"
-                  />
-                </div>
-                <div className="flex flex-col gap-2 sm:col-span-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="onb-lang">
-                    Languages spoken
-                  </label>
-                  <input
-                    id="onb-lang"
-                    value={languagesSpoken}
-                    onChange={(e) => setLanguagesSpoken(e.target.value)}
-                    placeholder="e.g., English, Spanish — comma separated"
-                    className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2"
-                  />
-                </div>
-                <div className="flex flex-col gap-2 sm:col-span-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="onb-niche">
-                    Coaching specialties & niches
-                  </label>
-                  <textarea
-                    id="onb-niche"
-                    rows={3}
-                    value={fitnessNiches}
-                    onChange={(e) => setFitnessNiches(e.target.value)}
-                    placeholder="e.g., strength for beginners, pre/postnatal, sport-specific, seniors, body recomposition…"
-                    className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="onb-yrs">
-                    Years of coaching experience (optional)
-                  </label>
-                  <input
-                    id="onb-yrs"
-                    value={yearsCoaching}
-                    onChange={(e) => setYearsCoaching(e.target.value)}
-                    className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 focus:border-[#FF7E00]/40 focus:ring-2"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="onb-gen">
-                    Gender identity (optional)
-                  </label>
-                  <input
-                    id="onb-gen"
-                    value={genderIdentity}
-                    onChange={(e) => setGenderIdentity(e.target.value)}
-                    className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 focus:border-[#FF7E00]/40 focus:ring-2"
-                  />
-                </div>
-              </div>
+              <TrainerProfileDemographyFields
+                idPrefix="onb"
+                selectClassName="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 focus:border-[#FF7E00]/40 focus:ring-2"
+                inputClassName="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2"
+                pronouns={pronouns}
+                onPronounsChange={setPronouns}
+                ethnicity={ethnicity}
+                onEthnicityChange={setEthnicity}
+                genderIdentity={genderIdentity}
+                onGenderIdentityChange={setGenderIdentity}
+                yearsCoaching={yearsCoaching}
+                onYearsCoachingChange={setYearsCoaching}
+                languagesSpoken={languagesSpoken}
+                onLanguagesSpokenChange={setLanguagesSpoken}
+                disabled={busy || avatarBusy}
+                betweenLanguagesAndYears={
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="onb-niche">
+                      Coaching specialties & niches
+                    </label>
+                    <textarea
+                      id="onb-niche"
+                      rows={3}
+                      value={fitnessNiches}
+                      onChange={(e) => setFitnessNiches(e.target.value)}
+                      placeholder="e.g., strength for beginners, pre/postnatal, sport-specific, seniors, body recomposition…"
+                      className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2"
+                    />
+                  </div>
+                }
+              />
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="onb-bio">
                   Bio
@@ -1489,6 +2024,51 @@ export default function TrainerOnboardingClient() {
           ) : null}
         </div>
       </div>
+
+      {leaveModalOpen ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="leave-onboarding-title"
+        >
+          <div className="max-w-md rounded-2xl border border-white/10 bg-[#12151C] p-6 shadow-2xl">
+            <h2 id="leave-onboarding-title" className="text-lg font-black uppercase tracking-wide text-white">
+              Unsaved changes
+            </h2>
+            <p className="mt-3 text-xs font-semibold uppercase leading-relaxed tracking-wide text-white/55 sm:text-sm">
+              Save your progress before returning to the dashboard, or discard changes and continue. Cancel stays on
+              this page.
+            </p>
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              <button
+                type="button"
+                disabled={busy || avatarBusy}
+                onClick={() => void handleLeaveSaveAndGoToDashboard()}
+                className="min-h-[2.75rem] flex-1 rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/15 px-4 text-xs font-black uppercase tracking-wide text-white transition hover:bg-[#FF7E00]/25 disabled:opacity-50 sm:text-sm"
+              >
+                Save &amp; Continue
+              </button>
+              <button
+                type="button"
+                disabled={busy || avatarBusy}
+                onClick={handleLeaveDiscardAndGoToDashboard}
+                className="min-h-[2.75rem] flex-1 rounded-xl border border-white/15 bg-white/[0.06] px-4 text-xs font-black uppercase tracking-wide text-white/90 transition hover:border-white/25 disabled:opacity-50 sm:text-sm"
+              >
+                Don&apos;t Save
+              </button>
+              <button
+                type="button"
+                disabled={busy || avatarBusy}
+                onClick={() => setLeaveModalOpen(false)}
+                className="min-h-[2.75rem] flex-1 rounded-xl border border-white/10 px-4 text-xs font-black uppercase tracking-wide text-white/55 transition hover:text-white/80 disabled:opacity-50 sm:text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

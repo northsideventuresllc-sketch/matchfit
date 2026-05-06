@@ -2,8 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { TRAINER_ONBOARDING_AGREEMENT_BULLETS } from "@/app/trainer/onboarding/trainer-agreement-bullets";
+import { TrainerComplianceCertCarousel } from "@/components/trainer/trainer-compliance-cert-carousel";
+import { TrainerComplianceCertReferenceDetails } from "@/components/trainer/trainer-compliance-cert-reference-details";
+import { TrainerComplianceCertTracksForm } from "@/components/trainer/trainer-compliance-cert-tracks-form";
 import { TrainerComplianceW9EmailSelfService } from "@/components/trainer/trainer-compliance-w9-email-self-service";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import { OFF_PLATFORM_LIQUIDATED_DAMAGES_NOTICE } from "@/lib/tos-off-platform-deterrent";
 import { backgroundCheckStatusLabel, certificationReviewStatusLabel } from "@/lib/trainer-compliance-status-copy";
 import { prisma } from "@/lib/prisma";
 import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
@@ -72,22 +76,41 @@ export default async function TrainerComplianceDetailsPage() {
       hasUploadedW9: true,
       w9Json: true,
       backgroundCheckStatus: true,
+      backgroundCheckClearedAt: true,
       onboardingTrackCpt: true,
       onboardingTrackNutrition: true,
+      onboardingTrackSpecialist: true,
+      specialistProfessionalRole: true,
       certificationReviewStatus: true,
       nutritionistCertificationReviewStatus: true,
+      specialistCertificationReviewStatus: true,
+      otherCertificationReviewStatus: true,
       certificationUrl: true,
       otherCertificationUrl: true,
       nutritionistCertificationUrl: true,
+      specialistCertificationUrl: true,
+      dashboardActivatedAt: true,
     },
   });
 
-  if (!isTrainerComplianceComplete(profile)) {
+  if (!profile) {
+    redirect("/trainer/dashboard");
+  }
+
+  const basicComplianceGate =
+    profile.hasSignedTOS &&
+    profile.hasUploadedW9 &&
+    (profile.backgroundCheckStatus ?? "").trim().toUpperCase() === "APPROVED";
+  const complianceDetailsUnlocked =
+    basicComplianceGate &&
+    (profile.dashboardActivatedAt != null || isTrainerComplianceComplete(profile));
+
+  if (!complianceDetailsUnlocked) {
     redirect("/trainer/dashboard");
   }
 
   let w9: W9Stored | null = null;
-  if (profile?.w9Json?.trim()) {
+  if (profile.w9Json?.trim()) {
     try {
       w9 = JSON.parse(profile.w9Json) as W9Stored;
     } catch {
@@ -95,20 +118,10 @@ export default async function TrainerComplianceDetailsPage() {
     }
   }
 
-  const certFiles: { label: string; href: string }[] = [];
-  if (profile?.certificationUrl) {
-    certFiles.push({ label: "CPT or primary certification", href: profile.certificationUrl });
-  }
-  if (profile?.otherCertificationUrl) {
-    certFiles.push({ label: "Additional certification", href: profile.otherCertificationUrl });
-  }
-  if (profile?.nutritionistCertificationUrl) {
-    certFiles.push({ label: "Nutrition credential", href: profile.nutritionistCertificationUrl });
-  }
-
-  const bgLabel = backgroundCheckStatusLabel(profile?.backgroundCheckStatus);
-  const cptLabel = certificationReviewStatusLabel(profile?.certificationReviewStatus);
-  const nutLabel = certificationReviewStatusLabel(profile?.nutritionistCertificationReviewStatus);
+  const bgLabel = backgroundCheckStatusLabel(profile.backgroundCheckStatus);
+  const cptLabel = certificationReviewStatusLabel(profile.certificationReviewStatus);
+  const nutLabel = certificationReviewStatusLabel(profile.nutritionistCertificationReviewStatus);
+  const specLabel = certificationReviewStatusLabel(profile.specialistCertificationReviewStatus);
 
   return (
     <div className="space-y-10">
@@ -120,6 +133,11 @@ export default async function TrainerComplianceDetailsPage() {
           looks incorrect.
         </p>
       </header>
+
+      <section className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.08] p-5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-200/90">Off-platform payments</p>
+        <p className="mt-2 text-sm leading-relaxed text-white/70">{OFF_PLATFORM_LIQUIDATED_DAMAGES_NOTICE}</p>
+      </section>
 
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
         <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Trainer Terms of Service</h2>
@@ -205,7 +223,7 @@ export default async function TrainerComplianceDetailsPage() {
           Vendor status:{" "}
           <span
             className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black tracking-[0.08em] ${statusPillClass(
-              profile?.backgroundCheckStatus,
+              profile.backgroundCheckStatus,
             )}`}
           >
             {bgLabel.toUpperCase()}
@@ -218,56 +236,88 @@ export default async function TrainerComplianceDetailsPage() {
       </section>
 
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
-        <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Certification Review</h2>
-        <p className="mt-3 text-sm text-white/60">
-          {profile?.onboardingTrackCpt ? (
-            <span className="block">
-              CPT / primary track:{" "}
+        <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Certification uploads</h2>
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/55">
+          Each card matches a credential type: CPT, Registered Dietitian Nutritionist (RDN) and related nutrition
+          credentials, another certified fitness specialist path, or an optional additional certificate. Verified
+          badges appear after Match Fit approves the file.
+        </p>
+        <TrainerComplianceCertTracksForm
+          initialTrackCpt={profile.onboardingTrackCpt}
+          initialTrackNutrition={profile.onboardingTrackNutrition}
+          initialTrackSpecialist={profile.onboardingTrackSpecialist}
+          initialSpecialistRole={profile.specialistProfessionalRole}
+          certificationReviewStatus={profile.certificationReviewStatus}
+          nutritionistCertificationReviewStatus={profile.nutritionistCertificationReviewStatus}
+          specialistCertificationReviewStatus={profile.specialistCertificationReviewStatus}
+        />
+        <div className="mt-4 space-y-2 text-sm text-white/60">
+          {profile.onboardingTrackCpt ? (
+            <p>
+              CPT track:{" "}
               <span
                 className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black tracking-[0.08em] ${statusPillClass(
-                  profile?.certificationReviewStatus,
+                  profile.certificationReviewStatus,
                 )}`}
               >
                 {cptLabel.toUpperCase()}
               </span>
-            </span>
+            </p>
           ) : null}
-          {profile?.onboardingTrackNutrition ? (
-            <span className="mt-1 block">
+          {profile.onboardingTrackNutrition ? (
+            <p>
               Nutrition track:{" "}
               <span
                 className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black tracking-[0.08em] ${statusPillClass(
-                  profile?.nutritionistCertificationReviewStatus,
+                  profile.nutritionistCertificationReviewStatus,
                 )}`}
               >
                 {nutLabel.toUpperCase()}
               </span>
-            </span>
+            </p>
           ) : null}
-          {!profile?.onboardingTrackCpt && !profile?.onboardingTrackNutrition ? (
-            <span
-              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black tracking-[0.08em] ${statusPillClass(
-                profile?.certificationReviewStatus,
-              )}`}
-            >
-              {cptLabel.toUpperCase()}
-            </span>
+          {profile.onboardingTrackSpecialist ? (
+            <p>
+              Specialist track:{" "}
+              <span
+                className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black tracking-[0.08em] ${statusPillClass(
+                  profile.specialistCertificationReviewStatus,
+                )}`}
+              >
+                {specLabel.toUpperCase()}
+              </span>
+            </p>
           ) : null}
-        </p>
-        {certFiles.length ? (
-          <ul className="mt-4 space-y-2">
-            {certFiles.map((f) => (
-              <li key={f.href}>
-                <span className="text-sm text-white/55">{f.label}: </span>
-                <Link href={f.href} target="_blank" rel="noopener noreferrer" className="text-sm text-[#FF7E00] underline-offset-2 hover:underline">
-                  Open file
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-3 text-sm text-white/45">No certification files on record.</p>
-        )}
+          {!profile.onboardingTrackCpt &&
+          !profile.onboardingTrackNutrition &&
+          !profile.onboardingTrackSpecialist ? (
+            <p>
+              Legacy credential status:{" "}
+              <span
+                className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black tracking-[0.08em] ${statusPillClass(
+                  profile.certificationReviewStatus,
+                )}`}
+              >
+                {cptLabel.toUpperCase()}
+              </span>
+            </p>
+          ) : null}
+        </div>
+        <TrainerComplianceCertCarousel
+          onboardingTrackCpt={profile.onboardingTrackCpt}
+          onboardingTrackNutrition={profile.onboardingTrackNutrition}
+          onboardingTrackSpecialist={profile.onboardingTrackSpecialist}
+          specialistProfessionalRole={profile.specialistProfessionalRole}
+          certificationUrl={profile.certificationUrl}
+          nutritionistCertificationUrl={profile.nutritionistCertificationUrl}
+          specialistCertificationUrl={profile.specialistCertificationUrl}
+          otherCertificationUrl={profile.otherCertificationUrl}
+          certificationReviewStatus={profile.certificationReviewStatus}
+          nutritionistCertificationReviewStatus={profile.nutritionistCertificationReviewStatus}
+          specialistCertificationReviewStatus={profile.specialistCertificationReviewStatus}
+          otherCertificationReviewStatus={profile.otherCertificationReviewStatus}
+        />
+        <TrainerComplianceCertReferenceDetails />
       </section>
 
       <p className="text-sm">

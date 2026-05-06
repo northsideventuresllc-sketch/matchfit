@@ -1,6 +1,9 @@
 import { randomUUID } from "crypto";
 import type { Prisma } from "@prisma/client";
+import { deliverCoachServicePurchaseSideEffects } from "@/lib/coach-service-purchase-side-effects";
+import { applyConversationAfterServicePurchase } from "@/lib/trainer-client-booking-credits";
 import { prisma } from "@/lib/prisma";
+import { computeCheckoutLedgerSplits } from "@/lib/financial-ledger-split";
 import { clientZipToPrefix, trainerMatchAnswersToRegionZipPrefix } from "@/lib/featured-region";
 import { isTrainerPremiumStudioActive } from "@/lib/trainer-premium-studio";
 
@@ -21,6 +24,8 @@ export function getPromoPackTierById(id: string): (typeof PROMO_TOKEN_PACK_TIERS
 
 export const WEEKLY_PREMIUM_TRAINER_GRANT = 20;
 export const SALE_COMPLETED_TRAINER_REWARD = 10;
+/** Promo tokens minted to the coach when a client submits a qualifying five-star review (Premium Hub). */
+export const FIVE_STAR_REVIEW_TRAINER_REWARD = 10;
 export const MIN_PROMO_TOKENS_PER_DAY = 20;
 export const MAX_CLIENT_GIFT_TO_TRAINER_PER_WEEK = 100;
 export const MAX_PROMO_DURATION_DAYS = 30;
@@ -33,7 +38,8 @@ export type TrainerTokenLedgerReason =
   | "STRIPE_PURCHASE"
   | "CLIENT_GIFT"
   | "PROMOTION_SPEND"
-  | "ADMIN_ADJUST";
+  | "ADMIN_ADJUST"
+  | "FIVE_STAR_REVIEW";
 
 type Tx = Prisma.TransactionClient;
 
@@ -83,6 +89,36 @@ export async function applyTrainerTokenDelta(
       referenceKey: referenceKey ?? undefined,
       metaJson: metaJson ?? undefined,
     },
+  });
+}
+
+/**
+ * Credits {@link FIVE_STAR_REVIEW_TRAINER_REWARD} when a review is exactly five stars, the coach has Premium Hub,
+ * and tokens were not already granted for this review id.
+ */
+export async function grantFiveStarReviewTokensIfEligibleInTx(
+  tx: Tx,
+  trainerId: string,
+  reviewId: string,
+  stars: number,
+  fiveStarTokensGrantedAt: Date | null,
+): Promise<void> {
+  if (stars !== 5 || fiveStarTokensGrantedAt) return;
+  const premium = await tx.trainerProfile.findUnique({
+    where: { trainerId },
+    select: { premiumStudioEnabledAt: true },
+  });
+  if (!premium?.premiumStudioEnabledAt) return;
+  const ref = `review:${reviewId}`;
+  const dup = await tx.trainerTokenLedgerEntry.findFirst({
+    where: { trainerId, reason: "FIVE_STAR_REVIEW", referenceKey: ref },
+    select: { id: true },
+  });
+  if (dup) return;
+  await applyTrainerTokenDelta(tx, trainerId, FIVE_STAR_REVIEW_TRAINER_REWARD, "FIVE_STAR_REVIEW", ref, null);
+  await tx.clientTrainerReview.update({
+    where: { id: reviewId },
+    data: { fiveStarTokensGrantedAt: new Date() },
   });
 }
 
@@ -487,8 +523,18 @@ export async function recordTrainerServiceTransactionAndReward(args: {
   trainerId: string;
   amountCents: number;
   stripeCheckoutSessionId?: string | null;
+  stripePaymentIntentId?: string | null;
+  totalChargedCents?: number | null;
+  adminFeeCents?: number | null;
   idempotencyKey?: string | null;
   source: "STRIPE_CHECKOUT" | "STAFF_IMPORT";
+  serviceId?: string | null;
+  billingUnit?: string | null;
+  /** Human-readable package line for receipts (Stripe metadata `serviceLabel`). */
+  purchaseLabelSnapshot?: string | null;
+  sessionCreditsGranted?: number | null;
+  bookingUnlimitedPurchase?: boolean | null;
+  conversationId?: string | null;
 }): Promise<{ ok: true; transactionId: string; duplicate?: boolean } | { error: string }> {
   if (args.stripeCheckoutSessionId) {
     const existing = await prisma.trainerClientServiceTransaction.findUnique({
@@ -497,6 +543,7 @@ export async function recordTrainerServiceTransactionAndReward(args: {
     });
     if (existing) {
       await grantSaleTokensForServiceTransaction(existing.id);
+      await deliverCoachServicePurchaseSideEffects(existing.id);
       return { ok: true, transactionId: existing.id, duplicate: true };
     }
   }
@@ -507,10 +554,21 @@ export async function recordTrainerServiceTransactionAndReward(args: {
     });
     if (existing) {
       await grantSaleTokensForServiceTransaction(existing.id);
+      await deliverCoachServicePurchaseSideEffects(existing.id);
       return { ok: true, transactionId: existing.id, duplicate: true };
     }
   }
   try {
+    const ledger = computeCheckoutLedgerSplits({
+      coachSubtotalCents: args.amountCents,
+      totalChargedCents: args.totalChargedCents,
+      adminFeeCents: args.adminFeeCents,
+      sessionCreditsGranted: Math.max(0, args.sessionCreditsGranted ?? 0),
+      billingUnit: args.billingUnit,
+      bookingUnlimitedPurchase: Boolean(args.bookingUnlimitedPurchase),
+      serviceId: args.serviceId,
+    });
+
     const row = await prisma.trainerClientServiceTransaction.create({
       data: {
         clientId: args.clientId,
@@ -519,10 +577,37 @@ export async function recordTrainerServiceTransactionAndReward(args: {
         amountCents: args.amountCents,
         source: args.source,
         stripeCheckoutSessionId: args.stripeCheckoutSessionId ?? undefined,
+        stripePaymentIntentId: args.stripePaymentIntentId?.trim() || undefined,
+        totalChargedCents: args.totalChargedCents ?? undefined,
+        adminFeeCents: args.adminFeeCents ?? undefined,
         idempotencyKey: args.idempotencyKey ?? undefined,
+        serviceId: args.serviceId?.trim() || undefined,
+        billingUnit: args.billingUnit?.trim() || undefined,
+        purchaseLabelSnapshot: args.purchaseLabelSnapshot?.trim()?.slice(0, 500) || undefined,
+        sessionCreditsGranted: Math.max(0, args.sessionCreditsGranted ?? 0),
+        bookingUnlimitedPurchase: Boolean(args.bookingUnlimitedPurchase),
+
+        payoutModel: ledger.payoutModel,
+        ledgerGrossTotalCents: ledger.ledgerGrossTotalCents,
+        ledgerStripeFeeEstimateCents: ledger.ledgerStripeFeeEstimateCents,
+        ledgerNetAfterFeesCents: ledger.ledgerNetAfterFeesCents,
+        ledgerNetServicePoolCents: ledger.ledgerNetServicePoolCents,
+        ledgerNetAddonPoolCents: ledger.ledgerNetAddonPoolCents,
+        ledgerTotalServiceUnits: ledger.ledgerTotalServiceUnits,
+        ledgerTotalAddonUnits: ledger.ledgerTotalAddonUnits,
+        ledgerPerServiceUnitNetCents: ledger.ledgerPerServiceUnitNetCents,
+        ledgerPerAddonUnitNetCents: ledger.ledgerPerAddonUnitNetCents,
       },
     });
+    await applyConversationAfterServicePurchase({
+      trainerId: args.trainerId,
+      clientId: args.clientId,
+      conversationId: args.conversationId ?? null,
+      sessionCreditsGranted: Math.max(0, args.sessionCreditsGranted ?? 0),
+      bookingUnlimitedPurchase: Boolean(args.bookingUnlimitedPurchase),
+    });
     await grantSaleTokensForServiceTransaction(row.id);
+    await deliverCoachServicePurchaseSideEffects(row.id);
     return { ok: true, transactionId: row.id };
   } catch (e) {
     const code = (e as { code?: string })?.code;
@@ -534,6 +619,7 @@ export async function recordTrainerServiceTransactionAndReward(args: {
         });
         if (row) {
           await grantSaleTokensForServiceTransaction(row.id);
+          await deliverCoachServicePurchaseSideEffects(row.id);
           return { ok: true, transactionId: row.id, duplicate: true };
         }
       }
@@ -544,6 +630,7 @@ export async function recordTrainerServiceTransactionAndReward(args: {
         });
         if (row) {
           await grantSaleTokensForServiceTransaction(row.id);
+          await deliverCoachServicePurchaseSideEffects(row.id);
           return { ok: true, transactionId: row.id, duplicate: true };
         }
       }
@@ -589,7 +676,7 @@ export async function listTrainerPromotionsForDashboard(trainerId: string): Prom
   const out: TrainerPromotionDashboardRow[] = [];
   for (const r of rows) {
     const phase = promotionPhase(r.startsAt, r.endsAt, now);
-    let rangeStart = r.startsAt;
+    const rangeStart = r.startsAt;
     let rangeEnd = r.endsAt;
     let statsWindowNote: string;
     if (phase === "scheduled") {

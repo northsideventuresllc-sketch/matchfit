@@ -28,6 +28,7 @@ export async function POST(req: Request) {
 
     const vendor = await mockInitiateTrainerBackgroundCheck({ trainerId });
 
+    const clearedNow = new Date();
     await prisma.trainerProfile.upsert({
       where: { trainerId },
       create: {
@@ -35,11 +36,15 @@ export async function POST(req: Request) {
         hasPaidBackgroundFee: mockBackgroundFeePaid,
         backgroundCheckStatus: "APPROVED",
         backgroundCheckReviewStatus: "APPROVED",
+        backgroundCheckClearedAt: clearedNow,
+        backgroundCheckExpiryWarningSentAt: null,
       },
       update: {
         hasPaidBackgroundFee: mockBackgroundFeePaid,
         backgroundCheckStatus: "APPROVED",
         backgroundCheckReviewStatus: "APPROVED",
+        backgroundCheckClearedAt: clearedNow,
+        backgroundCheckExpiryWarningSentAt: null,
       },
     });
 

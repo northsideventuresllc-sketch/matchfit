@@ -22,6 +22,13 @@ export function publicApiErrorFromUnknown(
     if (e.code === "P2034") {
       return { message: DB_BUSY_USER_MESSAGE, status: 503 };
     }
+    if (e.code === "P2022") {
+      return {
+        message:
+          "The database schema is out of date for this build. From the project root run `npm run db:push` (local SQLite) or apply pending migrations (`npx prisma migrate deploy`), then restart the dev server.",
+        status: 503,
+      };
+    }
   }
 
   if (e instanceof Prisma.PrismaClientInitializationError) {

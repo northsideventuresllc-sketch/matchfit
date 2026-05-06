@@ -16,9 +16,10 @@ function extForMime(mime: string): string | null {
   return null;
 }
 
-function parseUploadType(raw: FormDataEntryValue | null): "cpt" | "other" | "nutritionist" {
+function parseUploadType(raw: FormDataEntryValue | null): "cpt" | "other" | "nutritionist" | "specialist" {
   if (raw === "other") return "other";
   if (raw === "nutritionist") return "nutritionist";
+  if (raw === "specialist") return "specialist";
   return "cpt";
 }
 
@@ -57,6 +58,7 @@ export async function POST(req: Request) {
         certificationUrl: true,
         otherCertificationUrl: true,
         nutritionistCertificationUrl: true,
+        specialistCertificationUrl: true,
       },
     });
     if (!profile) {
@@ -68,14 +70,18 @@ export async function POST(req: Request) {
         ? `/uploads/trainers/${trainerId}-other-cert.${ext}`
         : uploadType === "nutritionist"
           ? `/uploads/trainers/${trainerId}-nutrition-cert.${ext}`
-          : `/uploads/trainers/${trainerId}-cert.${ext}`;
+          : uploadType === "specialist"
+            ? `/uploads/trainers/${trainerId}-specialist-cert.${ext}`
+            : `/uploads/trainers/${trainerId}-cert.${ext}`;
 
     const prevKey =
       uploadType === "other"
         ? profile.otherCertificationUrl
         : uploadType === "nutritionist"
           ? profile.nutritionistCertificationUrl
-          : profile.certificationUrl;
+          : uploadType === "specialist"
+            ? profile.specialistCertificationUrl
+            : profile.certificationUrl;
     const prev = prevKey?.split("?")[0];
     if (prev?.startsWith("/uploads/trainers/")) {
       const oldPath = path.join(process.cwd(), "public", prev.replace(/^\//, ""));
@@ -93,22 +99,33 @@ export async function POST(req: Request) {
       where: { trainerId },
       data:
         uploadType === "other"
-          ? { otherCertificationUrl: relative }
+          ? {
+              otherCertificationUrl: relative,
+              otherCertificationReviewStatus: "PENDING",
+            }
           : uploadType === "nutritionist"
             ? {
                 nutritionistCertificationUrl: relative,
                 nutritionistCertificationReviewStatus: "PENDING",
               }
-            : {
-                certificationUrl: relative,
-                certificationReviewStatus: "PENDING",
-              },
+            : uploadType === "specialist"
+              ? {
+                  specialistCertificationUrl: relative,
+                  specialistCertificationReviewStatus: "PENDING",
+                }
+              : {
+                  certificationUrl: relative,
+                  certificationReviewStatus: "PENDING",
+                },
       select: {
         certificationUrl: true,
         otherCertificationUrl: true,
         nutritionistCertificationUrl: true,
+        specialistCertificationUrl: true,
         certificationReviewStatus: true,
         nutritionistCertificationReviewStatus: true,
+        specialistCertificationReviewStatus: true,
+        otherCertificationReviewStatus: true,
       },
     });
 
@@ -120,8 +137,11 @@ export async function POST(req: Request) {
       certificationUrl: updated.certificationUrl,
       otherCertificationUrl: updated.otherCertificationUrl,
       nutritionistCertificationUrl: updated.nutritionistCertificationUrl,
+      specialistCertificationUrl: updated.specialistCertificationUrl,
       certificationReviewStatus: updated.certificationReviewStatus,
       nutritionistCertificationReviewStatus: updated.nutritionistCertificationReviewStatus,
+      specialistCertificationReviewStatus: updated.specialistCertificationReviewStatus,
+      otherCertificationReviewStatus: updated.otherCertificationReviewStatus,
     });
   } catch (e) {
     const { message, status } = publicApiErrorFromUnknown(e, "Could not upload certification.", {

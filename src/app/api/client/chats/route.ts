@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { getSessionClientId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
-import { isTrainerClientPairBlocked } from "@/lib/user-block-queries";
+import { conversationArchiveMetaForActor, purgeExpiredArchivedConversations } from "@/lib/trainer-client-conversation-archive";
+import { getTrainerIdsWithChatBlockedForClient } from "@/lib/user-block-queries";
 import { NextResponse } from "next/server";
 
 function coachDisplayName(trainer: {
@@ -23,7 +25,9 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    const [nudgeRows, saved, convs] = await Promise.all([
+    await purgeExpiredArchivedConversations();
+
+    const [nudgeRows, saved, convs, chatBlockedTrainerIds] = await Promise.all([
       prisma.trainerClientNudge.findMany({
         where: { clientId },
         orderBy: { createdAt: "desc" },
@@ -44,8 +48,10 @@ export async function GET() {
                   backgroundCheckStatus: true,
                   onboardingTrackCpt: true,
                   onboardingTrackNutrition: true,
+                  onboardingTrackSpecialist: true,
                   certificationReviewStatus: true,
                   nutritionistCertificationReviewStatus: true,
+                  specialistCertificationReviewStatus: true,
                 },
               },
             },
@@ -71,8 +77,10 @@ export async function GET() {
                   backgroundCheckStatus: true,
                   onboardingTrackCpt: true,
                   onboardingTrackNutrition: true,
+                  onboardingTrackSpecialist: true,
                   certificationReviewStatus: true,
                   nutritionistCertificationReviewStatus: true,
+                  specialistCertificationReviewStatus: true,
                 },
               },
             },
@@ -83,7 +91,13 @@ export async function GET() {
         where: { clientId },
         orderBy: { updatedAt: "desc" },
         take: 120,
-        include: {
+        select: {
+          trainerId: true,
+          updatedAt: true,
+          officialChatStartedAt: true,
+          archivedAt: true,
+          archiveExpiresAt: true,
+          unmatchInitiatedBy: true,
           trainer: {
             select: {
               id: true,
@@ -100,8 +114,10 @@ export async function GET() {
                   backgroundCheckStatus: true,
                   onboardingTrackCpt: true,
                   onboardingTrackNutrition: true,
+                  onboardingTrackSpecialist: true,
                   certificationReviewStatus: true,
                   nutritionistCertificationReviewStatus: true,
+                  specialistCertificationReviewStatus: true,
                 },
               },
             },
@@ -113,6 +129,7 @@ export async function GET() {
           },
         },
       }),
+      getTrainerIdsWithChatBlockedForClient(clientId),
     ]);
 
     type Row = {
@@ -123,9 +140,15 @@ export async function GET() {
       source: "nudge" | "saved" | "conversation";
       lastActivityAt: string;
       chatOpen: boolean;
+      archived?: boolean;
+      canRevive?: boolean;
+      archiveExpiresAt?: string | null;
     };
 
-    const byUser = new Map<string, Row>();
+    const convByTrainerId = new Map(convs.map((c) => [c.trainerId, c]));
+
+    const activeByUser = new Map<string, Row>();
+    const archiveByUser = new Map<string, Row>();
 
     const seenTrainer = new Set<string>();
     const nudges: typeof nudgeRows = [];
@@ -137,8 +160,11 @@ export async function GET() {
 
     for (const n of nudges) {
       const t = n.trainer;
+      if (chatBlockedTrainerIds.has(n.trainerId)) continue;
       if (!t.profile || t.profile.dashboardActivatedAt == null || !isTrainerComplianceComplete(t.profile)) continue;
-      byUser.set(t.username, {
+      const conv = convByTrainerId.get(n.trainerId);
+      if (conv?.archivedAt) continue;
+      activeByUser.set(t.username, {
         trainerUsername: t.username,
         displayName: coachDisplayName(t),
         profileImageUrl: t.profileImageUrl,
@@ -151,11 +177,14 @@ export async function GET() {
 
     for (const s of saved) {
       const t = s.trainer;
+      if (chatBlockedTrainerIds.has(s.trainerId)) continue;
       if (!t.profile || t.profile.dashboardActivatedAt == null || !isTrainerComplianceComplete(t.profile)) continue;
-      const existing = byUser.get(t.username);
+      const conv = convByTrainerId.get(s.trainerId);
+      if (conv?.archivedAt) continue;
+      const existing = activeByUser.get(t.username);
       const at = s.createdAt.toISOString();
       if (!existing) {
-        byUser.set(t.username, {
+        activeByUser.set(t.username, {
           trainerUsername: t.username,
           displayName: coachDisplayName(t),
           profileImageUrl: t.profileImageUrl,
@@ -165,7 +194,7 @@ export async function GET() {
           chatOpen: false,
         });
       } else if (at > existing.lastActivityAt) {
-        byUser.set(t.username, {
+        activeByUser.set(t.username, {
           ...existing,
           lastActivityAt: at,
           source: existing.source === "nudge" ? "nudge" : "saved",
@@ -176,13 +205,37 @@ export async function GET() {
     for (const conv of convs) {
       const t = conv.trainer;
       if (!t.profile || t.profile.dashboardActivatedAt == null || !isTrainerComplianceComplete(t.profile)) continue;
-      if (await isTrainerClientPairBlocked(t.id, clientId)) continue;
-      const at =
-        conv.messages[0]?.createdAt.toISOString() ?? conv.updatedAt.toISOString();
+      if (chatBlockedTrainerIds.has(t.id)) continue;
+      const at = conv.messages[0]?.createdAt.toISOString() ?? conv.updatedAt.toISOString();
       const chatOpen = Boolean(conv.officialChatStartedAt);
-      const existing = byUser.get(t.username);
+      const meta = conversationArchiveMetaForActor({
+        conv: {
+          archivedAt: conv.archivedAt,
+          archiveExpiresAt: conv.archiveExpiresAt,
+          unmatchInitiatedBy: conv.unmatchInitiatedBy,
+        },
+        actor: "CLIENT",
+      });
+
+      if (meta.archived && conv.archiveExpiresAt && conv.archiveExpiresAt.getTime() > Date.now()) {
+        archiveByUser.set(t.username, {
+          trainerUsername: t.username,
+          displayName: coachDisplayName(t),
+          profileImageUrl: t.profileImageUrl,
+          href: `/client/messages/${encodeURIComponent(t.username)}`,
+          source: "conversation",
+          lastActivityAt: at,
+          chatOpen: false,
+          archived: true,
+          canRevive: meta.canRevive,
+          archiveExpiresAt: meta.archiveExpiresAt,
+        });
+        continue;
+      }
+
+      const existing = activeByUser.get(t.username);
       if (!existing) {
-        byUser.set(t.username, {
+        activeByUser.set(t.username, {
           trainerUsername: t.username,
           displayName: coachDisplayName(t),
           profileImageUrl: t.profileImageUrl,
@@ -192,7 +245,7 @@ export async function GET() {
           chatOpen,
         });
       } else {
-        byUser.set(t.username, {
+        activeByUser.set(t.username, {
           ...existing,
           lastActivityAt: at > existing.lastActivityAt ? at : existing.lastActivityAt,
           chatOpen: existing.chatOpen || chatOpen,
@@ -200,11 +253,14 @@ export async function GET() {
       }
     }
 
-    const threads = [...byUser.values()].sort((a, b) => (a.lastActivityAt < b.lastActivityAt ? 1 : -1));
+    const activeThreads = [...activeByUser.values()].sort((a, b) => (a.lastActivityAt < b.lastActivityAt ? 1 : -1));
+    const archivedThreads = [...archiveByUser.values()].sort((a, b) => (a.lastActivityAt < b.lastActivityAt ? 1 : -1));
 
-    return NextResponse.json({ threads });
+    return NextResponse.json({ activeThreads, archivedThreads });
   } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: "Could not load chats." }, { status: 500 });
+    const { message, status } = publicApiErrorFromUnknown(e, "Could not load chats.", {
+      logLabel: "[api/client/chats]",
+    });
+    return NextResponse.json({ error: message }, { status });
   }
 }
