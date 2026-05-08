@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import type { CheckInSessionCard } from "@/lib/chat-check-in-thread-snapshot";
-import { FOREGO_PARTIAL_REFUND_NET_SLICE } from "@/lib/session-check-in";
+import {
+  FOREGO_PARTIAL_REFUND_NET_SLICE,
+  isWithinTrainerPunchGeolocationWindow,
+} from "@/lib/session-check-in";
 
 export type CheckInThreadPayload = {
   feeDisclaimer: string;
@@ -92,7 +95,7 @@ export function SessionCheckInPanelClient(props: {
                 <p className="text-[11px] leading-relaxed text-amber-100/85">
                   {phase === "gate_a_open_presession"
                     ? "Gate A opens before start: confirm attendance or revoke before your session begins (revoke is disabled after start)."
-                    : "Post-session Gate A: confirm the outcome. If we do not hear within 24 hours after the booked end time, Gate A closes automatically."}
+                    : "Post-session Gate A: confirm the outcome. If we do not hear within 48 hours after the booked end time, Gate A closes automatically."}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -447,6 +450,16 @@ export function SessionCheckInPanelClient(props: {
   );
 }
 
+function trainerPhaseAllowsPunch(phase: CheckInSessionCard["uiPhase"]): boolean {
+  return (
+    phase === "upcoming" ||
+    phase === "gate_a_open_presession" ||
+    phase === "gate_a_open_postsession" ||
+    phase === "waiting_trainer_gate_b" ||
+    phase === "awaiting_followup"
+  );
+}
+
 export function SessionCheckInPanelTrainer(props: {
   clientUsername: string;
   checkInThread: CheckInThreadPayload;
@@ -455,6 +468,7 @@ export function SessionCheckInPanelTrainer(props: {
   const { checkInThread, clientUsername, onUpdated } = props;
   const [busyId, setBusyId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [punchBusyId, setPunchBusyId] = useState<string | null>(null);
   const [resStart, setResStart] = useState<Record<string, string>>({});
   const [resEnd, setResEnd] = useState<Record<string, string>>({});
 
@@ -498,6 +512,65 @@ export function SessionCheckInPanelTrainer(props: {
               Net ledger (service): <span className="font-semibold text-white/80">${svc}</span> • add-ons:{" "}
               <span className="font-semibold text-white/80">${add}</span>
             </p>
+            {trainerPhaseAllowsPunch(s.uiPhase) && !s.hasTrainerPunchIn ? (
+              <div className="space-y-2 rounded-lg border border-amber-500/25 bg-amber-950/15 px-2 py-2">
+                <p className="text-[10px] leading-relaxed text-amber-100/85">
+                  When you arrive, tap SESSION STARTED and allow the browser to share your location. The button is available
+                  from 15 minutes before start through one hour after the booked end. Missed punch-ins count toward your
+                  consecutive miss streak.
+                </p>
+                {!isWithinTrainerPunchGeolocationWindow(
+                  { scheduledStartAt: new Date(s.startsAt), scheduledEndAt: s.endsAt ? new Date(s.endsAt) : null },
+                  Date.now(),
+                ) ? (
+                  <p className="text-[10px] text-white/45">Check-in opens 15 minutes before this session&apos;s start time.</p>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={
+                    punchBusyId !== null ||
+                    !isWithinTrainerPunchGeolocationWindow(
+                      { scheduledStartAt: new Date(s.startsAt), scheduledEndAt: s.endsAt ? new Date(s.endsAt) : null },
+                      Date.now(),
+                    )
+                  }
+                  onClick={async () => {
+                    setErr(null);
+                    setPunchBusyId(s.bookingId);
+                    try {
+                      if (!navigator.geolocation) {
+                        throw new Error("Location is not available in this browser.");
+                      }
+                      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                          enableHighAccuracy: true,
+                          timeout: 18_000,
+                          maximumAge: 0,
+                        });
+                      });
+                      await post(
+                        `/api/trainer/conversations/${encodeURIComponent(clientUsername)}/bookings/${encodeURIComponent(s.bookingId)}/session-punch-in`,
+                        {
+                          latitude: pos.coords.latitude,
+                          longitude: pos.coords.longitude,
+                          accuracyMeters: pos.coords.accuracy ?? null,
+                        },
+                      );
+                      onUpdated();
+                    } catch (e) {
+                      setErr(e instanceof Error ? e.message : "Could not record punch-in.");
+                    } finally {
+                      setPunchBusyId(null);
+                    }
+                  }}
+                  className="rounded-lg border border-amber-400/45 bg-amber-500/18 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-amber-50"
+                >
+                  {punchBusyId === s.bookingId ? "…" : "Session started (location)"}
+                </button>
+              </div>
+            ) : s.hasTrainerPunchIn ? (
+              <p className="text-[10px] font-semibold text-emerald-200/90">Session punch-in recorded.</p>
+            ) : null}
             {s.uiPhase === "upcoming" ? (
               <p className="text-[10px] text-white/45">Client Gate A unlocks 24h before start.</p>
             ) : null}

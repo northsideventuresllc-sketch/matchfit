@@ -129,6 +129,10 @@ model Client {
   /// Client-authored star reviews + optional testimonials for trainers they worked with.
   clientTrainerReviews ClientTrainerReview[]
 
+  trainerCoachingProfilesAsClient TrainerClientCoachingProfile[] @relation("CoachingProfileClient")
+  trainerGoalsForClient           TrainerClientGoal[]            @relation("GoalClient")
+  trainerSessionSummariesForClient TrainerClientSessionSummary[] @relation("SummaryClient")
+
   /// JSON toggles for optional public-profile fields (see `lib/optional-profile-visibility.ts`).
   optionalProfileVisibilityJson String?
   /// Set when the user deletes their account; row retained for FKs / safety records with PII scrubbed.
@@ -288,7 +292,15 @@ model Trainer {
 
   bookedSessionsTrainer BookedTrainingSession[] @relation("BookedSessionTrainer")
   diyEngagementsTrainer DiyPlanEngagement[]     @relation("DiyEngagementTrainer")
+  sessionTrainerPunchIns SessionTrainerPunchIn[]
   trainerPackageCancellationRequests TrainerPackageCancellationRequest[]
+
+  businessMileageEntries TrainerBusinessMileageEntry[]
+  businessExpenses      TrainerBusinessExpense[]
+
+  coachingProfiles TrainerClientCoachingProfile[] @relation("CoachingProfileTrainer")
+  clientGoalsAuthored TrainerClientGoal[]         @relation("GoalTrainer")
+  sessionSummariesAuthored TrainerClientSessionSummary[] @relation("SummaryTrainer")
 
   clientTrainerReviews ClientTrainerReview[]
 
@@ -699,6 +711,12 @@ model TrainerProfile {
   /// JSON: default virtual meeting length, preferred sync platform, etc. (see `lib/trainer-virtual-meeting-settings.ts`).
   virtualMeetingSettingsJson String?
 
+  /// Consecutive booked sessions where the trainer failed the SESSION STARTED punch-in policy (see Terms).
+  consecutiveMissedSessionPunches Int @default(0)
+
+  /// JSON string array (max 4) of `TrainerDashboardQuickLinkId` keys for the trainer home Quick Links card.
+  dashboardQuickLinkIdsJson String?
+
   @@map("trainer_profiles")
 }
 
@@ -900,7 +918,7 @@ model BookedTrainingSession {
   videoConferenceExternalId  String?
   videoConferenceSyncedAt    DateTime?
 
-  /// NONE | SCHEDULED | CHECK_IN_ACTIVE | AWAITING_CLIENT_FOLLOWUP | COMPLETED_LOCKED | AUTO_COMPLETED | CANCELLED_FOREGONE | CANCELLED_RESCHED_DECLINED_BY_CLIENT | CANCELLED_RESCHED_DECLINED_BY_TRAINER
+  /// NONE | SCHEDULED | CHECK_IN_ACTIVE | AWAITING_CLIENT_FOLLOWUP | COMPLETED_LOCKED | AUTO_COMPLETED | CANCELLED_FOREGONE | CANCELLED_RESCHED_DECLINED_BY_CLIENT | CANCELLED_RESCHED_DECLINED_BY_TRAINER | CANCELLED_TRAINER_SUSPENDED | …
   fulfillmentStatus String @default("NONE")
 
   /// Net service-pool amount for this session after platform + processing fees (per ledger ÷ units × consumption).
@@ -939,11 +957,37 @@ model BookedTrainingSession {
 
   disputeOpenedAt DateTime?
 
+  /// Set when marketplace cron evaluated punch-in compliance for this session (idempotent miss counter).
+  punchMissEvaluatedAt DateTime?
+
+  punchIns SessionTrainerPunchIn[]
+  trainerBusinessMileageEntries TrainerBusinessMileageEntry[]
+
   @@index([status, confirmationDeadlineAt])
   @@index([trainerId, clientId])
   @@index([trainerId, scheduledStartAt])
   @@index([conversationId])
   @@map("booked_training_sessions")
+}
+
+/// Trainer geolocation snapshot at session start (SESSION STARTED). One row per booking.
+model SessionTrainerPunchIn {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  bookedTrainingSessionId String                 @unique
+  bookedTrainingSession   BookedTrainingSession @relation(fields: [bookedTrainingSessionId], references: [id], onDelete: Cascade)
+  trainerId               String
+  trainer                 Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  latitude        Float
+  longitude       Float
+  accuracyMeters  Float?
+  /// WEB_GEOLOCATION | …
+  source String @default("WEB_GEOLOCATION")
+
+  @@index([trainerId, createdAt])
+  @@map("session_trainer_punch_ins")
 }
 
 /// Post–Gate A client dispute: freezes payout until admin resolves.
@@ -1040,6 +1084,21 @@ model DiyPlanEngagement {
   clientReceivableAcknowledgedAt DateTime?
   /// Payout-cycle hold: earliest time funds may release after payment + 14d (effective after handshake).
   cycleFundsReleaseNotBeforeAt DateTime?
+
+  /// Calendar deadline (typically payment / engagement start + 14 days) for first DIY deliverable logging.
+  wallClockDeliverableDueAt DateTime?
+  /// After wall-clock deadline without deliverable: client login attestation (YES_MARK_DONE | NO_NOT_RECEIVED).
+  clientPostDueAttestation   String?
+  clientPostDueAttestedAt    DateTime?
+  /// When client attests NO: trainer must upload within 24h or request extension.
+  trainerUrgentUploadDeadlineAt DateTime?
+
+  extensionHoursRequested      Float?
+  extensionRequestedAt         DateTime?
+  extensionClientDecisionByAt DateTime?
+  /// PENDING | APPROVED | DECLINED | AUTO_APPROVED
+  extensionStatus            String?
+  extendedDeliverableDueAt   DateTime?
 
   sourceServiceTransactionId String?
   sourceServiceTransaction   TrainerClientServiceTransaction? @relation(fields: [sourceServiceTransactionId], references: [id], onDelete: SetNull)
@@ -1336,6 +1395,111 @@ model TrainerClientServiceTransaction {
   @@index([clientId, trainerId, completedAt])
   @@index([stripePaymentIntentId])
   @@map("trainer_client_service_transactions")
+}
+
+/// Trainer-logged business miles (manual entry or linked workflow) for tax estimates on Client Management.
+model TrainerBusinessMileageEntry {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  occurredAt DateTime
+  miles      Float
+  note       String?
+
+  bookedTrainingSessionId String?
+  bookedTrainingSession   BookedTrainingSession? @relation(fields: [bookedTrainingSessionId], references: [id], onDelete: SetNull)
+
+  /// MANUAL | THIRD_PARTY_LINK
+  source String @default("MANUAL")
+
+  @@index([trainerId, occurredAt])
+  @@map("trainer_business_mileage_entries")
+}
+
+/// Trainer business expenses (tax-prep helpers on Client Management).
+model TrainerBusinessExpense {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  spentAt   DateTime
+  amountCents Int
+  category  String
+  description String?
+
+  /// Heuristic flag for UI — not tax advice.
+  likelyTaxDeductible Boolean @default(true)
+
+  @@index([trainerId, spentAt])
+  @@map("trainer_business_expenses")
+}
+
+/// Private trainer notes + medical context for a client (trainer-only write; client sees non-medical subset via goals UI only).
+model TrainerClientCoachingProfile {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainerId String
+  trainer   Trainer @relation("CoachingProfileTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client @relation("CoachingProfileClient", fields: [clientId], references: [id], onDelete: Cascade)
+
+  generalNotes         String?
+  medicalInjuryNotes   String?
+
+  @@unique([trainerId, clientId])
+  @@index([clientId])
+  @@map("trainer_client_coaching_profiles")
+}
+
+/// SHORT | LONG | GENERAL — goals visible to the client on Service Management when synced.
+model TrainerClientGoal {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainerId String
+  trainer   Trainer @relation("GoalTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client @relation("GoalClient", fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// SHORT | LONG | GENERAL
+  horizon              String
+  goalText             String
+  completionCriteria   String
+  completedAt          DateTime?
+
+  @@index([trainerId, clientId])
+  @@index([clientId])
+  @@map("trainer_client_goals")
+}
+
+/// Trainer session diary entries; body emailed to client on request (masked From: trainer@matchfit.com when domain verified).
+model TrainerClientSessionSummary {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainerId String
+  trainer   Trainer @relation("SummaryTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client @relation("SummaryClient", fields: [clientId], references: [id], onDelete: Cascade)
+
+  occurredAt DateTime
+  body       String
+  emailedAt  DateTime?
+
+  @@index([trainerId, clientId, occurredAt])
+  @@index([clientId])
+  @@map("trainer_client_session_summaries")
 }
 
 /// Client → trainer appreciation tokens (platform-minted to trainer). Capped per ISO week (NY) per pair for abuse control.

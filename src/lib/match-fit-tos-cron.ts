@@ -1,10 +1,12 @@
 import { prisma } from "@/lib/prisma";
+import { processDiyExtensionAutoApprovals } from "@/lib/diy-extension-cron";
 import {
   autoSatisfyGateASilenceCron,
   reconcilePayoutBufferDates,
   settleSessionsPastPayoutBuffer,
   syncCheckInActiveFlags,
 } from "@/lib/session-check-in-actions";
+import { processTrainerSessionPunchMisses } from "@/lib/trainer-punch-miss-cron";
 import {
   backgroundCheckExpiresAt,
   shouldSendBackgroundCheckExpiryWarning,
@@ -20,6 +22,8 @@ export type TosCronSummary = {
   payoutBuffersRepaired: number;
   sessionsClearedPastPayoutBuffer: number;
   diyRefundAlerts: number;
+  trainerPunchMissesProcessed: number;
+  diyExtensionsAutoApproved: number;
 };
 
 async function backfillApprovedBackgroundCheckTimestamps(): Promise<number> {
@@ -165,6 +169,18 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   const payoutBuffersRepaired = await reconcilePayoutBufferDates();
   const sessionsClearedPastPayoutBuffer = await settleSessionsPastPayoutBuffer();
   const diyRefundAlerts = await diyMissedDeliveries();
+  let trainerPunchMissesProcessed = 0;
+  let diyExtensionsAutoApproved = 0;
+  try {
+    trainerPunchMissesProcessed = await processTrainerSessionPunchMisses();
+  } catch (e) {
+    console.error("[tos cron] punch miss processor", e);
+  }
+  try {
+    diyExtensionsAutoApproved = await processDiyExtensionAutoApprovals();
+  } catch (e) {
+    console.error("[tos cron] diy extension auto approvals", e);
+  }
   return {
     backgroundCheckClearedBackfill: backfill,
     backgroundCheckWarningsSent: warnings,
@@ -175,5 +191,7 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     payoutBuffersRepaired,
     sessionsClearedPastPayoutBuffer,
     diyRefundAlerts,
+    trainerPunchMissesProcessed,
+    diyExtensionsAutoApproved,
   };
 }

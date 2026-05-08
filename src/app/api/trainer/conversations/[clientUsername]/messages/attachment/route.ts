@@ -4,8 +4,9 @@ import path from "path";
 
 import { runOutboundChatComplianceMonitoring } from "@/lib/chat-compliance-monitor";
 import {
-  assertChatAttachmentMime,
+  assertChatAttachmentForKind,
   type ChatAttachmentPayload,
+  parseChatAttachmentFileKind,
   sanitizeChatAttachmentFilename,
   serializeChatAttachmentPayload,
 } from "@/lib/chat-attachment";
@@ -94,7 +95,16 @@ export async function POST(req: Request, ctx: RouteContext) {
     const form = await req.formData();
     const fileRaw = form.get("file");
     const captionRaw = form.get("caption");
+    const kindRaw = form.get("kind");
     const caption = typeof captionRaw === "string" ? captionRaw.trim().slice(0, MAX_BODY) : "";
+    const kind = parseChatAttachmentFileKind(kindRaw);
+
+    if (!kind) {
+      return NextResponse.json(
+        { error: "Choose a category (Image, Video, Document, or Other) before uploading." },
+        { status: 400 },
+      );
+    }
 
     if (!fileRaw || !(fileRaw instanceof Blob)) {
       return NextResponse.json({ error: "Choose a file to attach." }, { status: 400 });
@@ -103,7 +113,7 @@ export async function POST(req: Request, ctx: RouteContext) {
     let ext: string;
     let mimeType: string;
     try {
-      ({ ext, mimeType } = assertChatAttachmentMime(fileRaw));
+      ({ ext, mimeType } = assertChatAttachmentForKind(fileRaw, kind));
     } catch (e) {
       const message = e instanceof Error ? e.message : "Invalid file.";
       return NextResponse.json({ error: message }, { status: 400 });

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { TrainerChatsHubClient } from "@/components/trainer/trainer-chats-hub-client";
 
 export const metadata: Metadata = {
@@ -14,6 +15,13 @@ export default function TrainerMessagesHubPage() {
         <p className="mx-auto max-w-xl text-sm leading-relaxed text-white/50">
           Every active thread with potential and current clients. Update relationship labels as people move through your
           pipeline.
+        </p>
+        <p className="mx-auto max-w-xl text-xs text-white/45">
+          Checkout links, invites, and meeting links live below each thread. Credits, Gate B, DIY handshake &amp; packages:{" "}
+          <Link href="/trainer/dashboard/client-management" className="text-[#FF9A4A] underline-offset-2 hover:underline">
+            Client Management
+          </Link>
+          .
         </p>
       </header>
       <TrainerChatsHubClient />

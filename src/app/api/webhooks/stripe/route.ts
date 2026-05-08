@@ -65,6 +65,8 @@ export async function POST(req: Request) {
             typeof md.serviceLabel === "string" && md.serviceLabel.trim() ? md.serviceLabel.trim().slice(0, 500) : null;
           const totalChargedCents = Math.max(0, parseInt(String(md.totalChargedCents ?? "0"), 10) || 0);
           const adminFeeCents = Math.max(0, parseInt(String(md.adminFeeCents ?? "0"), 10) || 0);
+          const grossAddonAttributedCents = Math.max(0, parseInt(String(md.grossAddonAttributedCents ?? "0"), 10) || 0);
+          const addonHoursPurchased = Math.max(0, parseInt(String(md.addonHoursPurchased ?? "0"), 10) || 0);
           let stripePaymentIntentId: string | null = null;
           try {
             const full = await stripe.checkout.sessions.retrieve(session.id, { expand: ["payment_intent"] });
@@ -88,6 +90,8 @@ export async function POST(req: Request) {
             sessionCreditsGranted,
             bookingUnlimitedPurchase,
             conversationId,
+            grossAddonAttributedCents: grossAddonAttributedCents || null,
+            addonHoursPurchased: addonHoursPurchased || null,
           });
         }
       }

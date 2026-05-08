@@ -4,7 +4,14 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatAttachmentDisplay } from "@/components/chat/chat-attachment-display";
 import { ChatMessageBody } from "@/components/chat/chat-message-body";
-import type { ChatAttachmentPayload } from "@/lib/chat-attachment";
+import {
+  CHAT_ATTACHMENT_KIND_MENU,
+  CHAT_ATTACHMENT_MAX_BY_KIND,
+  type ChatAttachmentFileKind,
+  type ChatAttachmentPayload,
+  chatAttachmentInputAcceptForKind,
+  formatChatAttachmentMegabytes,
+} from "@/lib/chat-attachment";
 import {
   CONVERSATION_RELATIONSHIP_STAGES,
   CONVERSATION_RELATIONSHIP_STAGE_LABELS,
@@ -14,10 +21,19 @@ import {
 import type { SafetyBlockMode } from "@/lib/safety-block-modes";
 import type { TrainerCheckoutHint } from "@/lib/trainer-chat-checkout-hint";
 import { OFF_PLATFORM_LIQUIDATED_DAMAGES_NOTICE } from "@/lib/tos-off-platform-deterrent";
-import type { CheckInThreadPayload } from "@/components/chat/session-check-in-panels";
-import { SessionCheckInPanelTrainer } from "@/components/chat/session-check-in-panels";
 
 const CHECKOUT_HINT_DISMISS_KEY = "mf_trainer_checkout_hint_dismiss";
+
+/** Generic “social feed” glyph for Premium sharing (FitHub + reviews). */
+function PremiumSocialShareGlyph(props: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={props.className} aria-hidden>
+      <rect x="2.5" y="2.5" width="19" height="19" rx="4" stroke="currentColor" strokeWidth="1.65" />
+      <circle cx="9" cy="9" r="2.25" fill="currentColor" />
+      <path d="M13.5 13.5h6M13.5 16.5h4" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 type Msg = {
   id: string;
@@ -42,6 +58,13 @@ type ShareablePost = {
   createdAt: string;
 };
 
+type ShareableReview = {
+  id: string;
+  stars: number;
+  preview: string;
+  createdAt: string;
+};
+
 type PhoneCallInfo = {
   ready: boolean;
   paid: boolean;
@@ -60,13 +83,6 @@ type PendingBooking = {
   videoConferenceJoinUrl: string | null;
   videoConferenceProvider: string | null;
 };
-type BookingSnapshot = {
-  sessionCreditsPurchased: number;
-  sessionCreditsUsed: number;
-  bookingUnlimitedAfterPurchase: boolean;
-  creditsRemaining: number;
-};
-
 export function TrainerClientChatThreadClient(props: { clientUsername: string }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [official, setOfficial] = useState<string | null>(null);
@@ -80,6 +96,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
   const [reportDetails, setReportDetails] = useState("");
   const [publishedServices, setPublishedServices] = useState<PublishedService[]>([]);
   const [shareableFitHubPosts, setShareableFitHubPosts] = useState<ShareablePost[]>([]);
+  const [shareableReviews, setShareableReviews] = useState<ShareableReview[]>([]);
   const [trainerPremiumStudio, setTrainerPremiumStudio] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [checkoutHint, setCheckoutHint] = useState<TrainerCheckoutHint | null>(null);
@@ -88,6 +105,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
   const [sendingCheckout, setSendingCheckout] = useState(false);
   const [plusOpen, setPlusOpen] = useState(false);
   const [sendingPostId, setSendingPostId] = useState<string | null>(null);
+  const [sendingReviewId, setSendingReviewId] = useState<string | null>(null);
   const [archived, setArchived] = useState(false);
   const [canRevive, setCanRevive] = useState(false);
   const [archiveExpiresAt, setArchiveExpiresAt] = useState<string | null>(null);
@@ -96,11 +114,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
   const [blockMode, setBlockMode] = useState<SafetyBlockMode>("full");
   const [voiceCallEnabled, setVoiceCallEnabled] = useState(false);
   const [phoneCall, setPhoneCall] = useState<PhoneCallInfo | null>(null);
-  const [bookingSnapshot, setBookingSnapshot] = useState<BookingSnapshot | null>(null);
   const [pendingBookings, setPendingBookings] = useState<PendingBooking[]>([]);
-  const [checkInThread, setCheckInThread] = useState<CheckInThreadPayload>(null);
-  const [packageCancelReason, setPackageCancelReason] = useState("");
-  const [packageCancelBusy, setPackageCancelBusy] = useState(false);
   const [videoOAuthProviders, setVideoOAuthProviders] = useState<string[]>([]);
   const [callBusy, setCallBusy] = useState(false);
   const [videoAttachId, setVideoAttachId] = useState<string | null>(null);
@@ -113,7 +127,14 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
   const [inviteSessionDelivery, setInviteSessionDelivery] = useState<"IN_PERSON" | "VIRTUAL">("IN_PERSON");
   const [inviteBusy, setInviteBusy] = useState(false);
   const [uploadBusy, setUploadBusy] = useState(false);
-  const attachInputRef = useRef<HTMLInputElement>(null);
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  const attachFileInputRef = useRef<Record<ChatAttachmentFileKind, HTMLInputElement | null>>({
+    IMAGE: null,
+    VIDEO: null,
+    DOCUMENT: null,
+    OTHER: null,
+  });
+  const attachMenuWrapRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -126,6 +147,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
         relationshipStage?: string;
         publishedServices?: PublishedService[];
         shareableFitHubPosts?: ShareablePost[];
+        shareableReviews?: ShareableReview[];
         trainerPremiumStudio?: boolean;
         checkoutHint?: TrainerCheckoutHint;
         archived?: boolean;
@@ -134,9 +156,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
         unmatchInitiatedBy?: string | null;
         voiceCallEnabled?: boolean;
         phoneCall?: PhoneCallInfo;
-        bookingSnapshot?: BookingSnapshot | null;
         pendingBookings?: PendingBooking[];
-        checkInThread?: CheckInThreadPayload;
         videoOAuthProviders?: string[];
         error?: string;
       };
@@ -154,6 +174,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
       const ps = data.publishedServices ?? [];
       setPublishedServices(ps);
       setShareableFitHubPosts(data.shareableFitHubPosts ?? []);
+      setShareableReviews(data.shareableReviews ?? []);
       setTrainerPremiumStudio(Boolean(data.trainerPremiumStudio));
       const hint = data.checkoutHint ?? null;
       setCheckoutHint(hint);
@@ -173,9 +194,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
       });
       setVoiceCallEnabled(Boolean(data.voiceCallEnabled));
       setPhoneCall(data.phoneCall ?? null);
-      setBookingSnapshot(data.bookingSnapshot ?? null);
       setPendingBookings(data.pendingBookings ?? []);
-      setCheckInThread(data.checkInThread ?? null);
       setVideoOAuthProviders(data.videoOAuthProviders ?? []);
     } catch {
       setErr("Network error.");
@@ -247,31 +266,6 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
       void load();
     } finally {
       setVideoBusy(false);
-    }
-  }
-
-  async function submitPackageCancellation() {
-    const reason = packageCancelReason.trim();
-    if (reason.length < 10) {
-      setErr("Enter a clear reason (at least 10 characters) for Match Fit staff.");
-      return;
-    }
-    setPackageCancelBusy(true);
-    setErr(null);
-    try {
-      const res = await fetch(
-        `/api/trainer/conversations/${encodeURIComponent(props.clientUsername)}/package-cancellation-request`,
-        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason }) },
-      );
-      const data = (await res.json()) as { error?: string };
-      if (!res.ok) {
-        setErr(data.error ?? "Could not submit.");
-        return;
-      }
-      setPackageCancelReason("");
-      window.alert("Request submitted. Match Fit will review payout details and reply through our normal support channel.");
-    } finally {
-      setPackageCancelBusy(false);
     }
   }
 
@@ -352,6 +346,17 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
     return () => window.clearTimeout(t);
   }, [load]);
 
+  useEffect(() => {
+    if (!attachMenuOpen) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      const el = attachMenuWrapRef.current;
+      if (el && e.target instanceof Node && el.contains(e.target)) return;
+      setAttachMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [attachMenuOpen]);
+
   async function send() {
     setErr(null);
     const res = await fetch(`/api/trainer/conversations/${encodeURIComponent(props.clientUsername)}/messages`, {
@@ -369,12 +374,13 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
     void load();
   }
 
-  async function uploadAttachment(file: File) {
+  async function uploadAttachment(file: File, kind: ChatAttachmentFileKind) {
     setUploadBusy(true);
     setErr(null);
     try {
       const fd = new FormData();
       fd.append("file", file);
+      fd.append("kind", kind);
       const cap = text.trim();
       if (cap) fd.append("caption", cap);
       const res = await fetch(
@@ -453,6 +459,31 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
       void load();
     } finally {
       setSendingPostId(null);
+    }
+  }
+
+  async function shareReview(reviewId: string) {
+    setSendingReviewId(reviewId);
+    setErr(null);
+    try {
+      const res = await fetch(
+        `/api/trainer/conversations/${encodeURIComponent(props.clientUsername)}/share-review`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reviewId }),
+        },
+      );
+      const data = (await res.json()) as { error?: string; message?: Msg };
+      if (!res.ok) {
+        setErr(data.error ?? "Could not share review.");
+        return;
+      }
+      if (data.message) setMessages((m) => [...m, data.message!]);
+      setPlusOpen(false);
+      void load();
+    } finally {
+      setSendingReviewId(null);
     }
   }
 
@@ -560,6 +591,17 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
               {archiveBusy ? "Working…" : "Revive chat"}
             </button>
           ) : null}
+        </div>
+      ) : null}
+
+      {!archived ? (
+        <div className="rounded-2xl border border-violet-500/25 bg-violet-950/25 px-4 py-3 text-center">
+          <Link
+            href="/trainer/dashboard/client-management"
+            className="text-[11px] font-bold uppercase tracking-[0.08em] text-violet-100 underline-offset-4 transition hover:underline"
+          >
+            Client Management
+          </Link>
         </div>
       ) : null}
 
@@ -685,7 +727,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
             messages.map((m) => {
               const mine = m.authorRole === "TRAINER";
               return (
-                <div key={m.id} className="flex min-w-0 justify-start">
+                <div key={m.id} className={`flex min-w-0 ${mine ? "justify-end" : "justify-start"}`}>
                   <div
                     className={`min-w-0 max-w-[min(100%,28rem)] overflow-hidden rounded-2xl px-4 py-2.5 text-left shadow-lg ${
                       mine
@@ -713,40 +755,85 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
         <div className="relative border-t border-white/[0.07] bg-[#08090d]/95 px-3 py-2.5 text-left sm:px-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
             {official && !archived ? (
-              <>
-                <input
-                  ref={attachInputRef}
-                  type="file"
-                  className="hidden"
-                  accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    e.target.value = "";
-                    if (f) void uploadAttachment(f);
-                  }}
-                />
+              <div ref={attachMenuWrapRef} className="relative shrink-0">
+                {CHAT_ATTACHMENT_KIND_MENU.map((row) => (
+                  <input
+                    key={row.kind}
+                    ref={(el) => {
+                      attachFileInputRef.current[row.kind] = el;
+                    }}
+                    type="file"
+                    className="hidden"
+                    accept={chatAttachmentInputAcceptForKind(row.kind)}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = "";
+                      if (f) void uploadAttachment(f, row.kind);
+                    }}
+                  />
+                ))}
                 <button
                   type="button"
                   disabled={uploadBusy}
-                  onClick={() => attachInputRef.current?.click()}
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] text-lg leading-none text-white/85 shadow-inner transition hover:border-white/25 disabled:opacity-40"
-                  title="Attach a file (PDF, Word, image, or video — max 50 MB)"
+                  onClick={() => {
+                    setPlusOpen(false);
+                    setAttachMenuOpen((o) => !o);
+                  }}
+                  className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] text-lg leading-none text-white/85 shadow-inner transition hover:border-white/25 disabled:opacity-40"
+                  aria-expanded={attachMenuOpen}
+                  aria-haspopup="true"
+                  aria-label="Attach a file by category"
+                  title="Attach image, video, document, or other file"
                 >
                   {uploadBusy ? "…" : "📎"}
                 </button>
-              </>
+                {attachMenuOpen ? (
+                  <div className="absolute bottom-full left-0 z-30 mb-2 w-[min(100vw-1.5rem,22rem)] rounded-xl border border-white/10 bg-[#151925] p-2 shadow-2xl">
+                    <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white/40">
+                      Choose file type
+                    </p>
+                    <div className="max-h-[min(70vh,22rem)] space-y-0.5 overflow-y-auto">
+                      {CHAT_ATTACHMENT_KIND_MENU.map((row) => {
+                        const maxMb = formatChatAttachmentMegabytes(CHAT_ATTACHMENT_MAX_BY_KIND[row.kind]);
+                        return (
+                          <button
+                            key={row.kind}
+                            type="button"
+                            disabled={uploadBusy}
+                            onClick={() => {
+                              setAttachMenuOpen(false);
+                              attachFileInputRef.current[row.kind]?.click();
+                            }}
+                            className="flex w-full flex-col gap-0.5 rounded-lg px-2 py-2.5 text-left text-xs text-white/85 transition hover:bg-white/[0.06] disabled:opacity-40"
+                          >
+                            <span className="text-[11px] font-bold text-white">{row.title}</span>
+                            <span className="text-[10px] leading-snug text-white/50">{row.typesShort}</span>
+                            <span className="text-[10px] font-semibold tabular-nums text-amber-200/85">
+                              Max {maxMb} MB per upload
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             ) : null}
             {official && !archived && trainerPremiumStudio ? (
               <div className="relative shrink-0">
                 <button
                   type="button"
-                  onClick={() => setPlusOpen((o) => !o)}
-                  className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#FF7E00]/35 bg-[#FF7E00]/15 text-xl font-light leading-none text-white shadow-inner transition hover:border-[#FF7E00]/50"
+                  onClick={() => {
+                    setAttachMenuOpen(false);
+                    setPlusOpen((o) => !o);
+                  }}
+                  className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#FF7E00]/35 bg-[#FF7E00]/15 text-white shadow-inner transition hover:border-[#FF7E00]/50"
                   aria-expanded={plusOpen}
                   aria-haspopup="true"
-                  title="Share from Premium"
+                  aria-label="Share FitHub posts and client reviews"
+                  title="Share FitHub posts and reviews (Premium)"
                 >
-                  +
+                  <PremiumSocialShareGlyph className="h-6 w-6 text-white/95" />
                 </button>
                 {plusOpen ? (
                   <div className="absolute bottom-full left-0 z-20 mb-2 w-72 rounded-xl border border-white/10 bg-[#151925] p-2 shadow-2xl">
@@ -759,7 +846,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
                           <button
                             key={p.id}
                             type="button"
-                            disabled={Boolean(sendingPostId)}
+                            disabled={Boolean(sendingPostId) || Boolean(sendingReviewId)}
                             onClick={() => void shareFitHubPost(p.id)}
                             className="flex w-full flex-col gap-0.5 rounded-lg px-2 py-2 text-left text-xs text-white/80 hover:bg-white/[0.06] disabled:opacity-40"
                           >
@@ -770,14 +857,28 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
                       )}
                     </div>
                     <div className="mt-1 border-t border-white/[0.06] pt-2">
-                      <button
-                        type="button"
-                        disabled
-                        className="w-full rounded-lg px-2 py-2 text-left text-xs text-white/35"
-                        title="Coming soon"
-                      >
-                        Reviews (coming soon)
-                      </button>
+                      <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white/40">Client review</p>
+                      <div className="max-h-40 overflow-y-auto">
+                        {shareableReviews.length === 0 ? (
+                          <p className="px-2 py-2 text-xs text-white/45">No reviews yet.</p>
+                        ) : (
+                          shareableReviews.map((r) => (
+                            <button
+                              key={r.id}
+                              type="button"
+                              disabled={Boolean(sendingPostId) || Boolean(sendingReviewId)}
+                              onClick={() => void shareReview(r.id)}
+                              className="flex w-full flex-col gap-0.5 rounded-lg px-2 py-2 text-left text-xs text-white/80 hover:bg-white/[0.06] disabled:opacity-40"
+                            >
+                              <span className="font-semibold text-amber-200/90">{r.stars}★</span>
+                              <span className="line-clamp-2">{r.preview}</span>
+                              <span className="text-[10px] text-white/35">
+                                {new Date(r.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                              </span>
+                            </button>
+                          ))
+                        )}
+                      </div>
                     </div>
                   </div>
                 ) : null}
@@ -912,45 +1013,11 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
 
       {official &&
       !archived &&
-      (voiceCallEnabled ||
-        bookingSnapshot ||
-        pendingBookings.length > 0 ||
-        checkInThread?.sessions.length ||
-        (phoneCall?.paid && phoneCall.twilioConfigured)) ? (
+      (voiceCallEnabled || pendingBookings.length > 0 || (phoneCall?.paid && phoneCall.twilioConfigured)) ? (
         <div className="space-y-3 rounded-xl border border-white/[0.08] bg-[#0c0d12]/95 px-3 py-3 text-left sm:px-4">
-          <p className="text-center text-[10px] font-black uppercase tracking-[0.14em] text-white/40">Bookings &amp; voice</p>
-          {bookingSnapshot ? (
-            <p className="text-[11px] text-white/55">
-              <span className="font-semibold text-white/75">Client booking credits: </span>
-              {bookingSnapshot.bookingUnlimitedAfterPurchase
-                ? "Unlimited scheduling (monthly / DIY-style purchase on file)."
-                : `${bookingSnapshot.sessionCreditsUsed} of ${bookingSnapshot.sessionCreditsPurchased} session slot(s) used (${bookingSnapshot.creditsRemaining} remaining to invite; pending invites count against remaining).`}
-            </p>
-          ) : null}
-          {checkInThread?.sessions.length ? (
-            <SessionCheckInPanelTrainer clientUsername={props.clientUsername} checkInThread={checkInThread} onUpdated={() => void load()} />
-          ) : null}
-          <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/45">Full package cancellation</p>
-            <p className="mt-1 text-[10px] leading-relaxed text-white/45">
-              To cancel an entire purchased package (not a single session), submit a reason here. Match Fit staff reviews each request and follows up with payout details.
-            </p>
-            <textarea
-              value={packageCancelReason}
-              onChange={(e) => setPackageCancelReason(e.target.value)}
-              rows={3}
-              placeholder="Reason for staff (required, min 10 characters)"
-              className="mt-2 w-full rounded-lg border border-white/10 bg-[#0E1016] px-2 py-2 text-xs text-white placeholder:text-white/30"
-            />
-            <button
-              type="button"
-              disabled={packageCancelBusy}
-              onClick={() => void submitPackageCancellation()}
-              className="mt-2 w-full rounded-lg border border-rose-400/35 bg-rose-500/12 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-rose-100 disabled:opacity-40"
-            >
-              {packageCancelBusy ? "Submitting…" : "Submit for staff review"}
-            </button>
-          </div>
+          <p className="text-center text-[10px] font-black uppercase tracking-[0.14em] text-white/40">
+            Booking invites, virtual links &amp; voice
+          </p>
           {pendingBookings.length > 0 ? (
             <div className="space-y-2 text-left text-[11px] text-white/55">
               <span className="block text-center font-bold uppercase tracking-[0.1em] text-sky-200/85">

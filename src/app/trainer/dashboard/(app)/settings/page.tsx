@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { isPrismaMissingColumnError } from "@/lib/prisma-missing-column";
+import { isPrismaMissingColumnError, isPrismaUnknownModelFieldError } from "@/lib/prisma-missing-column";
 import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
 import { getSessionTrainerId } from "@/lib/session";
 import { TrainerSettingsPageClient } from "./trainer-settings-page-client";
+import {
+  parseTrainerDashboardQuickLinkIdsJson,
+  type TrainerDashboardQuickLinkId,
+} from "@/lib/trainer-dashboard-quick-links";
 
 const PROFILE_CHECKOUT_COL = "clientsCanPurchaseServicesFromProfile";
+const QUICK_LINKS_JSON_COL = "dashboardQuickLinkIdsJson";
 
 const trainerSettingsSelect = {
   firstName: true,
@@ -68,6 +73,19 @@ export default async function TrainerAccountSettingsPage() {
     redirect(staleTrainerSessionInvalidateRedirect("/trainer/dashboard/login"));
   }
 
+  let initialQuickLinkIds: TrainerDashboardQuickLinkId[] = [];
+  try {
+    const prof = await prisma.trainerProfile.findUnique({
+      where: { trainerId },
+      select: { dashboardQuickLinkIdsJson: true },
+    });
+    initialQuickLinkIds = parseTrainerDashboardQuickLinkIdsJson(prof?.dashboardQuickLinkIdsJson ?? null);
+  } catch (e) {
+    if (!isPrismaMissingColumnError(e, QUICK_LINKS_JSON_COL) && !isPrismaUnknownModelFieldError(e, QUICK_LINKS_JSON_COL)) {
+      throw e;
+    }
+  }
+
   const twoFactorChannels = await prisma.trainerTwoFactorChannel.findMany({
     where: { trainerId },
     orderBy: { createdAt: "asc" },
@@ -117,6 +135,7 @@ export default async function TrainerAccountSettingsPage() {
       twoFactorChannels={twoFactorChannels}
       initialDefaultChannelId={initialDefaultChannelId}
       clientsCanPurchaseServicesFromProfile={trainer.profile?.clientsCanPurchaseServicesFromProfile ?? true}
+      initialQuickLinkIds={initialQuickLinkIds}
     />
   );
 }

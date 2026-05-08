@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { isPrismaMissingTableError } from "@/lib/prisma-missing-column";
+import { suspendTrainerForGovernance } from "@/lib/trainer-suspension-marketplace";
 import { deadlineBeforeSession } from "@/lib/trainer-client-booking-service";
 import {
   checkInWindowStartAt,
@@ -70,6 +72,7 @@ export async function clientSatisfiesGateA(args: {
     where: { id: args.bookingId, clientId: args.clientId, status: "CLIENT_CONFIRMED" },
     select: {
       id: true,
+      trainerId: true,
       fulfillmentStatus: true,
       scheduledStartAt: true,
       scheduledEndAt: true,
@@ -111,6 +114,22 @@ export async function clientSatisfiesGateA(args: {
       body: `Match Fit: client confirmed Gate A for this session. The coach still must mark Gate B (“session completed”) before funds move toward payout, then the 48-hour dispute buffer runs.`,
     });
   }
+
+  const clientRow = await prisma.client.findUnique({
+    where: { id: args.clientId },
+    select: { username: true, preferredName: true, firstName: true },
+  });
+  const who =
+    clientRow?.preferredName?.trim() || clientRow?.firstName?.trim() || (clientRow?.username ? `@${clientRow.username}` : "Your client");
+  await prisma.trainerNotification.create({
+    data: {
+      trainerId: row.trainerId,
+      kind: "CHAT",
+      title: "Client confirmed session (Gate A)",
+      body: `${who} confirmed Gate A for an upcoming session. Complete SESSION STARTED punch-in at arrival, then Gate B after the session in Client Management.`,
+      linkHref: "/trainer/dashboard/client-management",
+    },
+  });
 
   return { ok: true };
 }
@@ -217,6 +236,28 @@ export async function trainerCompletesGateB(args: {
   });
   if (!row?.gateASatisfiedAt) return { error: "Client Gate A must be satisfied first." };
   if (row.trainerGateBCompletedAt) return { error: "Already marked complete." };
+
+  let punch: { id: string } | null;
+  try {
+    punch = await prisma.sessionTrainerPunchIn.findUnique({
+      where: { bookedTrainingSessionId: row.id },
+      select: { id: true },
+    });
+  } catch (e) {
+    if (isPrismaMissingTableError(e, "session_trainer_punch_ins")) {
+      return {
+        error:
+          "Session punch-in is unavailable until the database is migrated (session_trainer_punch_ins). Run Prisma migrations, then try again.",
+      };
+    }
+    throw e;
+  }
+  if (!punch) {
+    return {
+      error:
+        "You must tap SESSION STARTED with location sharing enabled before marking Gate B complete. This protects you in disputes.",
+    };
+  }
 
   const now = new Date();
   const payoutBufferEndsAt = payoutBufferEndsAtFromGates({
@@ -368,6 +409,7 @@ export async function createSessionPayoutDispute(args: {
     where: { id: args.bookingId, clientId: args.clientId, status: "CLIENT_CONFIRMED" },
     select: {
       id: true,
+      trainerId: true,
       conversationId: true,
       payoutBufferEndsAt: true,
       gateASatisfiedAt: true,
@@ -410,6 +452,23 @@ export async function createSessionPayoutDispute(args: {
       conversationId: row.conversationId,
       body: `Match Fit: client opened a payout dispute during the buffer window. Funds are frozen until staff review the answers on file.`,
     });
+  }
+
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const disputeCount = await prisma.sessionPayoutDispute.count({
+    where: {
+      createdAt: { gte: since },
+      bookedTrainingSession: { trainerId: row.trainerId },
+    },
+  });
+  if (disputeCount >= 3) {
+    const trainer = await prisma.trainer.findUnique({
+      where: { id: row.trainerId },
+      select: { safetySuspended: true },
+    });
+    if (trainer && !trainer.safetySuspended) {
+      await suspendTrainerForGovernance({ trainerId: row.trainerId, reasonCode: "DISPUTE_VOLUME" });
+    }
   }
 
   return { ok: true, disputeId: d.id };

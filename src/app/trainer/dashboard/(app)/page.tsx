@@ -12,6 +12,11 @@ import { TRAINER_MATCH_QUESTIONNAIRES_PATH } from "@/lib/trainer-match-questionn
 import { trainerPublishedProfilePath } from "@/lib/trainer-public-profile-route";
 import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
 import { getSessionTrainerId } from "@/lib/session";
+import { isPrismaMissingColumnError, isPrismaUnknownModelFieldError } from "@/lib/prisma-missing-column";
+import {
+  parseTrainerDashboardQuickLinkIdsJson,
+  type TrainerDashboardQuickLinkId,
+} from "@/lib/trainer-dashboard-quick-links";
 
 export const metadata: Metadata = {
   title: "Dashboard | Trainer | Match Fit",
@@ -78,12 +83,19 @@ export default async function TrainerDashboardHomePage() {
 
   const premiumActive = Boolean(profile?.premiumStudioEnabledAt);
 
-  const settingsHref = "/trainer/dashboard/settings";
-
-  const matchBlocks =
-    profile?.matchQuestionnaireStatus === "completed" && profile.aiMatchProfileText
-      ? parseAiMatchProfileForDisplay(profile.aiMatchProfileText)
-      : null;
+  const QUICK_LINKS_JSON_COL = "dashboardQuickLinkIdsJson";
+  let dashboardQuickLinkIds: TrainerDashboardQuickLinkId[] = [];
+  try {
+    const prof = await prisma.trainerProfile.findUnique({
+      where: { trainerId },
+      select: { dashboardQuickLinkIdsJson: true },
+    });
+    dashboardQuickLinkIds = parseTrainerDashboardQuickLinkIdsJson(prof?.dashboardQuickLinkIdsJson ?? null);
+  } catch (e) {
+    if (!isPrismaMissingColumnError(e, QUICK_LINKS_JSON_COL) && !isPrismaUnknownModelFieldError(e, QUICK_LINKS_JSON_COL)) {
+      throw e;
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -100,7 +112,7 @@ export default async function TrainerDashboardHomePage() {
         <div className="w-full rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 text-center shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-7">
           <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Quick Links</h2>
           <div className="mt-6">
-            <TrainerDashboardQuickActions />
+            <TrainerDashboardQuickActions quickLinkIds={dashboardQuickLinkIds} />
           </div>
         </div>
       </section>

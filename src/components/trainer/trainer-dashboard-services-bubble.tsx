@@ -349,6 +349,32 @@ export function TrainerDashboardServicesBubble() {
     setSavedDrafts(readStoredDrafts());
   }, [screen]);
 
+  /** Wizard home must never keep a portal overlay (resetFlow used to omit clearing `priceModal`). */
+  useEffect(() => {
+    if (screen !== "home") return;
+    priceModalCancelledRef.current = true;
+    setPriceModal(null);
+    setSetupCancelOpen(false);
+    setListingReviewOpen(false);
+  }, [screen]);
+
+  useEffect(() => {
+    const listingReviewPortalActive =
+      listingReviewOpen && screen === "aiReview" && Boolean(serviceId && delivery && offeringKind);
+    const anyWizardOverlay = setupCancelOpen || priceModal != null || listingReviewPortalActive;
+    if (!anyWizardOverlay) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      priceModalCancelledRef.current = true;
+      setPriceModal(null);
+      setSetupCancelOpen(false);
+      setListingReviewOpen(false);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [setupCancelOpen, priceModal, listingReviewOpen, screen, serviceId, delivery, offeringKind]);
+
   useEffect(() => {
     setVariationPriceUsdText((prev) => {
       const next = { ...prev };
@@ -398,6 +424,8 @@ export function TrainerDashboardServicesBubble() {
   }, [optionalAddOnsSelected]);
 
   function resetFlow() {
+    priceModalCancelledRef.current = true;
+    setPriceModal(null);
     setScreen("home");
     setOfferingKind(null);
     setServiceId(null);
@@ -1370,6 +1398,10 @@ export function TrainerDashboardServicesBubble() {
     );
   }
 
+  const listingReviewPortalActive =
+    listingReviewOpen && screen === "aiReview" && Boolean(serviceId && delivery && offeringKind);
+  const wizardOverlayPortalActive = setupCancelOpen || priceModal != null || listingReviewPortalActive;
+
   return (
     <section className="relative isolate z-20 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
       <div className="text-center">
@@ -1397,9 +1429,9 @@ export function TrainerDashboardServicesBubble() {
             </Link>
             <Link
               href="/trainer/dashboard/notifications"
-              className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] px-4 text-xs font-semibold text-white/80 transition hover:border-white/20"
+              className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] px-4 text-xs font-black uppercase tracking-[0.1em] text-white/80 transition hover:border-white/20"
             >
-              Open notifications
+              OPEN NOTIFICATIONS
             </Link>
           </div>
           <button
@@ -2768,7 +2800,7 @@ export function TrainerDashboardServicesBubble() {
         </div>
       ) : null}
 
-      {portalMounted && typeof document !== "undefined"
+      {portalMounted && typeof document !== "undefined" && wizardOverlayPortalActive
         ? createPortal(
             <>
               {setupCancelOpen ? (

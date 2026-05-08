@@ -76,6 +76,13 @@ export default function ClientChatsHubPage() {
           Active threads, plus Archives for chats you or your coach ended. Archived threads are deleted automatically
           after 90 days unless the person who ended them revives the match.
         </p>
+        <p className="text-xs text-white/45">
+          Payments, booking invites, and virtual join links stay in each thread. Session check-in, credits &amp; disputes:{" "}
+          <Link href="/client/dashboard/service-management" className="text-[#FF9A4A] underline-offset-2 hover:underline">
+            Service Management
+          </Link>
+          .
+        </p>
       </header>
 
       <div className="flex justify-center gap-2">

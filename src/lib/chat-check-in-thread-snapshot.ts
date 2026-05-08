@@ -10,6 +10,8 @@ export type CheckInSessionCard = {
   payoutBufferEndsAt: string | null;
   gateASatisfiedAt: string | null;
   trainerGateBCompletedAt: string | null;
+  /** True when coach recorded SESSION STARTED with geolocation for this booking. */
+  hasTrainerPunchIn: boolean;
   uiPhase: ReturnType<typeof deriveCheckInUiPhase>;
   /** Net service slice + net add-on slice attributed to this session (after platform + estimated processing fees). */
   coachPortionCents: number;
@@ -52,15 +54,18 @@ export async function loadCheckInSessionsForThread(args: {
   trainerId: string;
   clientId: string;
 }): Promise<{ feeDisclaimer: string; sessions: CheckInSessionCard[] }> {
+  const where = {
+    trainerId: args.trainerId,
+    clientId: args.clientId,
+    status: "CLIENT_CONFIRMED" as const,
+    sessionClosedAt: null,
+  };
+  const orderBy = { scheduledStartAt: "asc" as const };
+  const take = 16;
   const rows = await prisma.bookedTrainingSession.findMany({
-    where: {
-      trainerId: args.trainerId,
-      clientId: args.clientId,
-      status: "CLIENT_CONFIRMED",
-      sessionClosedAt: null,
-    },
-    orderBy: { scheduledStartAt: "asc" },
-    take: 16,
+    where,
+    orderBy,
+    take,
     select: {
       id: true,
       fulfillmentStatus: true,
@@ -74,8 +79,9 @@ export async function loadCheckInSessionsForThread(args: {
       payoutBufferEndsAt: true,
       payoutFundsFrozen: true,
       disputeOpenedAt: true,
+      punchIns: { select: { id: true }, take: 1 },
       rescheduleRequests: {
-        where: { status: "PENDING" },
+        where: { status: "PENDING" as const },
         take: 1,
         select: {
           id: true,
@@ -99,6 +105,7 @@ export async function loadCheckInSessionsForThread(args: {
       payoutBufferEndsAt: r.payoutBufferEndsAt?.toISOString() ?? null,
       gateASatisfiedAt: r.gateASatisfiedAt?.toISOString() ?? null,
       trainerGateBCompletedAt: r.trainerGateBCompletedAt?.toISOString() ?? null,
+      hasTrainerPunchIn: (r.punchIns?.length ?? 0) > 0,
       uiPhase: deriveCheckInUiPhase(snap),
       coachPortionCents: Math.max(0, r.allocatedCoachServiceCents),
       addonPortionCents: Math.max(0, r.allocatedNetAddonCents),

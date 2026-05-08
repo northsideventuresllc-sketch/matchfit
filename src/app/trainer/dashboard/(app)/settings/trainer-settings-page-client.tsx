@@ -17,6 +17,12 @@ import {
 } from "./trainer-profile-settings-panel";
 import { TrainerPrivacySettingsSection } from "@/components/trainer/trainer-privacy-settings-section";
 import { PhoneBridgeConsentPanel } from "@/components/shared/phone-bridge-consent-panel";
+import { TrainerQuickLinksSettingsPanel } from "@/components/trainer/trainer-quick-links-settings-panel";
+import {
+  TrainerSettingsCollapsibleBulkBar,
+  TrainerSettingsCollapsibleBulkProvider,
+} from "@/components/trainer/trainer-settings-collapsible-bulk-context";
+import type { TrainerDashboardQuickLinkId } from "@/lib/trainer-dashboard-quick-links";
 
 const TRAINER_SETTINGS_API = "/api/trainer/settings";
 
@@ -28,6 +34,7 @@ type Props = {
   twoFactorChannels: TwoFactorChannelDTO[];
   initialDefaultChannelId: string | null;
   clientsCanPurchaseServicesFromProfile: boolean;
+  initialQuickLinkIds: TrainerDashboardQuickLinkId[];
 };
 
 export function TrainerSettingsPageClient(props: Props) {
@@ -193,7 +200,11 @@ export function TrainerSettingsPageClient(props: Props) {
         </p>
       </div>
 
-      <div className="space-y-6 text-left">
+      <TrainerSettingsCollapsibleBulkProvider>
+        <div className="space-y-6">
+          <TrainerSettingsCollapsibleBulkBar />
+
+          <div className="space-y-6 text-left">
         {footerError ? (
           <p
             className="rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]"
@@ -217,6 +228,7 @@ export function TrainerSettingsPageClient(props: Props) {
         />
 
         <CollapsibleSettingsSection
+          bulkSectionId="trainer-settings-stay-logged-in"
           title="Stay Logged In"
           description="Choose whether this browser keeps you signed in longer between visits."
           defaultOpen={false}
@@ -225,6 +237,7 @@ export function TrainerSettingsPageClient(props: Props) {
         </CollapsibleSettingsSection>
 
         <CollapsibleSettingsSection
+          bulkSectionId="trainer-settings-password"
           title="Password"
           description={
             props.twoFactorEnabled
@@ -236,58 +249,82 @@ export function TrainerSettingsPageClient(props: Props) {
           <PasswordChangePanel twoFactorEnabled={props.twoFactorEnabled} unstyled apiBase={TRAINER_SETTINGS_API} />
         </CollapsibleSettingsSection>
 
-        <CollapsibleSettingsSection
-          title="Two-Factor Authentication"
-          description="Add a verification step when you sign in from a new device."
-          defaultOpen={false}
-        >
-          <TwoFactorPanel
-            ref={twoFaRef}
-            twoFactorEnabled={props.twoFactorEnabled}
-            initialChannels={props.twoFactorChannels}
-            initialDefaultChannelId={props.initialDefaultChannelId}
-            unstyled
-            onDirtyChange={setTwoFaLeaveDirty}
-            onFooterBlockedChange={setTwoFaFooterBlocked}
-            settingsApiBase={TRAINER_SETTINGS_API}
-            dashboardLinkHref="/trainer/dashboard"
-          />
-        </CollapsibleSettingsSection>
-
-        <CollapsibleSettingsSection
-          title="Masked calls & phone privacy"
-          description="Control whether Match Fit may place masked voice calls using the phone number on your profile."
-          defaultOpen={false}
-        >
-          <PhoneBridgeConsentPanel settingsApi="/api/trainer/settings/phone-bridge" />
-        </CollapsibleSettingsSection>
-
-        <CollapsibleSettingsSection
-          title="Service set-up"
-          description="Control whether clients can buy your published coaching packages straight from your public profile (and flows that reuse that catalog)."
-          defaultOpen={false}
-        >
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.08] bg-[#0E1016]/50 p-4">
-            <input
-              type="checkbox"
-              className="mt-1 h-4 w-4 shrink-0 accent-[#FF7E00]"
-              checked={profilePurchases}
-              disabled={profilePurchasesBusy}
-              onChange={(e) => void updateProfilePurchases(e.target.checked)}
+        <div id="trainer-two-factor" className="scroll-mt-24">
+          <CollapsibleSettingsSection
+            bulkSectionId="trainer-settings-two-factor"
+            title="Two-Factor Authentication"
+            description="Add a verification step when you sign in from a new device."
+            defaultOpen={false}
+          >
+            <TwoFactorPanel
+              ref={twoFaRef}
+              twoFactorEnabled={props.twoFactorEnabled}
+              initialChannels={props.twoFactorChannels}
+              initialDefaultChannelId={props.initialDefaultChannelId}
+              unstyled
+              onDirtyChange={setTwoFaLeaveDirty}
+              onFooterBlockedChange={setTwoFaFooterBlocked}
+              settingsApiBase={TRAINER_SETTINGS_API}
+              dashboardLinkHref="/trainer/dashboard"
             />
-            <span className="text-sm leading-relaxed text-white/80">
-              Let clients purchase services from my profile when a package is visible and available.
-            </span>
-          </label>
-          {profilePurchasesErr ? (
-            <p className="mt-2 text-sm text-rose-300/90" role="alert">
-              {profilePurchasesErr}
-            </p>
-          ) : null}
-        </CollapsibleSettingsSection>
+          </CollapsibleSettingsSection>
+        </div>
 
-        <TrainerPrivacySettingsSection />
-      </div>
+        <div id="trainer-enable-phone-number" className="scroll-mt-24">
+          <CollapsibleSettingsSection
+            bulkSectionId="trainer-settings-enable-phone"
+            title="Enable Phone Number"
+            description="Control whether Match Fit may place masked voice calls using the phone number on your profile."
+            defaultOpen={false}
+          >
+            <PhoneBridgeConsentPanel settingsApi="/api/trainer/settings/phone-bridge" />
+          </CollapsibleSettingsSection>
+        </div>
+
+        <div id="trainer-service-settings" className="scroll-mt-24">
+          <CollapsibleSettingsSection
+            bulkSectionId="trainer-settings-service"
+            title="Service Settings"
+            description="Control whether clients can buy your published coaching packages straight from your public profile (and flows that reuse that catalog)."
+            defaultOpen={false}
+          >
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.08] bg-[#0E1016]/50 p-4">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 shrink-0 accent-[#FF7E00]"
+                checked={profilePurchases}
+                disabled={profilePurchasesBusy}
+                onChange={(e) => void updateProfilePurchases(e.target.checked)}
+              />
+              <span className="text-sm leading-relaxed text-white/80">
+                Let clients purchase services from my profile when a package is visible and available.
+              </span>
+            </label>
+            {profilePurchasesErr ? (
+              <p className="mt-2 text-sm text-rose-300/90" role="alert">
+                {profilePurchasesErr}
+              </p>
+            ) : null}
+          </CollapsibleSettingsSection>
+        </div>
+
+        <div id="trainer-quick-links-settings" className="scroll-mt-24">
+          <CollapsibleSettingsSection
+            bulkSectionId="trainer-settings-quick-links"
+            title="Quick Links Settings"
+            description="Choose up to four shortcuts for the Quick Links card on your trainer home (header and account menu destinations, except Dashboard)."
+            defaultOpen={false}
+          >
+            <TrainerQuickLinksSettingsPanel initialIds={props.initialQuickLinkIds} />
+          </CollapsibleSettingsSection>
+        </div>
+
+        <div id="trainer-privacy-settings" className="scroll-mt-24">
+          <TrainerPrivacySettingsSection />
+        </div>
+          </div>
+        </div>
+      </TrainerSettingsCollapsibleBulkProvider>
 
       <p className="text-center text-sm">
         <button
