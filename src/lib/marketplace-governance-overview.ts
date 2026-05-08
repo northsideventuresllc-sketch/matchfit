@@ -1,5 +1,6 @@
 import { loadCheckInSessionsForThread } from "@/lib/chat-check-in-thread-snapshot";
 import type { CheckInSessionCard } from "@/lib/chat-check-in-thread-snapshot";
+/** Import `prisma` from `lib/prisma` (singleton with dev self-heal; see `lib/prisma.ts`). */
 import { prisma } from "@/lib/prisma";
 import { NON_REFUNDABLE_FEES_COPY } from "@/lib/session-check-in";
 import { getConversationBookingSnapshot } from "@/lib/trainer-client-booking-credits";
