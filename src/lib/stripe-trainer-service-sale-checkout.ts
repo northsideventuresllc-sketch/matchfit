@@ -69,6 +69,11 @@ export async function createTrainerServiceSaleStripeCheckoutSession(args: {
   }
   metadata.checkoutContext = args.checkoutContext === "chat" ? "chat" : "profile";
 
+  const grossAddonMeta = Math.max(0, parseInt(String(metadata.grossAddonAttributedCents ?? "0"), 10) || 0);
+  const addonHoursMeta = Math.max(0, parseInt(String(metadata.addonHoursPurchased ?? "0"), 10) || 0);
+  metadata.grossAddonAttributedCents = String(grossAddonMeta);
+  metadata.addonHoursPurchased = String(addonHoursMeta);
+
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer_email: args.clientEmail,

@@ -8,8 +8,7 @@ import {
 import { getSessionTrainerId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { getPhoneCallEligibility } from "@/lib/phone-bridge-eligibility";
-import { loadCheckInSessionsForThread } from "@/lib/chat-check-in-thread-snapshot";
-import { getConversationBookingSnapshot } from "@/lib/trainer-client-booking-credits";
+import { loadChatScopedClientPendingBookings } from "@/lib/marketplace-governance-overview";
 import { canAuthorSendChatMessage } from "@/lib/trainer-client-chat-rules";
 import { computeTrainerCheckoutHint } from "@/lib/trainer-chat-checkout-hint";
 import { BILLING_UNIT_LABELS, type BillingUnit } from "@/lib/trainer-match-questionnaire";
@@ -96,6 +95,21 @@ export async function GET(_req: Request, ctx: RouteContext) {
         })
       : [];
 
+    const shareableReviews = premiumStudio
+      ? await prisma.clientTrainerReview.findMany({
+          where: { trainerId, removedByClientAt: null },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+          select: {
+            id: true,
+            stars: true,
+            testimonialText: true,
+            testimonialModeratedAt: true,
+            createdAt: true,
+          },
+        })
+      : [];
+
     const archive = conversationArchiveMetaForActor({
       conv: conv
         ? {
@@ -137,8 +151,6 @@ export async function GET(_req: Request, ctx: RouteContext) {
     }
     const voiceCallEnabled = phoneCall.ready;
 
-    let bookingSnapshot: Awaited<ReturnType<typeof getConversationBookingSnapshot>> | null = null;
-    let checkInThread: Awaited<ReturnType<typeof loadCheckInSessionsForThread>> | null = null;
     let videoOAuthProviders: { provider: string }[] = [];
     let pendingBookings: {
       id: string;
@@ -151,18 +163,6 @@ export async function GET(_req: Request, ctx: RouteContext) {
       videoConferenceProvider: string | null;
     }[] = [];
     try {
-      bookingSnapshot = conv ? await getConversationBookingSnapshot(trainerId, client.id) : null;
-    } catch (snapErr) {
-      console.error("[Match Fit trainer chat GET] booking snapshot skipped (DB may be behind migrations)", snapErr);
-    }
-    try {
-      if (conv && !archive.archived) {
-        checkInThread = await loadCheckInSessionsForThread({ trainerId, clientId: client.id });
-      }
-    } catch (checkInErr) {
-      console.error("[Match Fit trainer chat GET] check-in snapshot skipped (DB may be behind migrations)", checkInErr);
-    }
-    try {
       videoOAuthProviders = await prisma.trainerVideoConferenceConnection.findMany({
         where: { trainerId, revokedAt: null },
         select: { provider: true },
@@ -172,33 +172,8 @@ export async function GET(_req: Request, ctx: RouteContext) {
     }
     try {
       if (conv && !archive.archived) {
-        const horizon = new Date(Date.now() - 6 * 60 * 60 * 1000);
-        pendingBookings = await prisma.bookedTrainingSession.findMany({
-          where: {
-            trainerId,
-            clientId: client.id,
-            scheduledStartAt: { gte: horizon },
-            OR: [
-              { status: { in: ["INVITED", "PENDING_CONFIRMATION"] } },
-              { status: "CLIENT_CONFIRMED", videoConferenceJoinUrl: { not: null } },
-              {
-                status: "CLIENT_CONFIRMED",
-                fulfillmentStatus: { in: ["NONE", "SCHEDULED", "CHECK_IN_ACTIVE", "AWAITING_CLIENT_FOLLOWUP"] },
-              },
-            ],
-          },
-          orderBy: { scheduledStartAt: "asc" },
-          take: 12,
-          select: {
-            id: true,
-            status: true,
-            sessionDelivery: true,
-            scheduledStartAt: true,
-            scheduledEndAt: true,
-            inviteNote: true,
-            videoConferenceJoinUrl: true,
-            videoConferenceProvider: true,
-          },
+        pendingBookings = await loadChatScopedClientPendingBookings(trainerId, client.id, {
+          trainerIncludePendingConfirmation: true,
         });
       }
     } catch (sessionsErr) {
@@ -221,9 +196,7 @@ export async function GET(_req: Request, ctx: RouteContext) {
         clientOptIn: phoneCall.clientOptIn,
         trainerOptIn: phoneCall.trainerOptIn,
       },
-      bookingSnapshot,
       blockFreeSessionBookingUntilRepurchase: conv?.blockFreeSessionBookingUntilRepurchase ?? false,
-      checkInThread,
       pendingBookings: pendingBookings.map((b) => ({
         id: b.id,
         status: b.status,
@@ -243,6 +216,16 @@ export async function GET(_req: Request, ctx: RouteContext) {
         preview: (p.caption?.trim() || p.bodyText?.trim() || "(No caption)").slice(0, 120),
         createdAt: p.createdAt.toISOString(),
       })),
+      shareableReviews: shareableReviews.map((r) => {
+        const text = r.testimonialText?.trim() ?? "";
+        const hasText = text.length > 0 && r.testimonialModeratedAt == null;
+        return {
+          id: r.id,
+          stars: r.stars,
+          preview: hasText ? text.slice(0, 120) : r.testimonialModeratedAt ? "(Note unavailable)" : "(No written note)",
+          createdAt: r.createdAt.toISOString(),
+        };
+      }),
       checkoutHint,
       videoOAuthProviders: videoOAuthProviders.map((v) => v.provider),
       messages:

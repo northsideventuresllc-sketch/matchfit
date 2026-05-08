@@ -50,8 +50,24 @@ function billingUnitIsCadence(u: string | null | undefined): boolean {
 }
 
 /**
- * First cut: subtract Match Fit admin line + estimated processing from gross charged amount.
- * Net is split Service vs Add-on pools (add-on defaults 0 until checkout metadata exposes an add-on subtotal).
+ * Marketplace ledger (per checkout):
+ *
+ * 1) **Gross card charge** `ledgerGrossTotalCents` = `totalChargedCents` when provided, else coach subtotal + admin line.
+ * 2) **Non-refundable first cut:** subtract `adminFeeCents` (Match Fit administrative line, typically 20% of coach subtotal)
+ *    plus **estimated** card processing (`estimateStripeProcessingFeeCents` on gross) to get `ledgerNetAfterFeesCents`.
+ * 3) **Service vs add-on pools:** the coach-facing subtotal (`coachSubtotalCents`) is split into gross service vs gross add-on
+ *    (`grossAddonAttributedCents`). Each pool receives the same *proportion* of `ledgerNetAfterFeesCents` so that
+ *    `ledgerNetServicePoolCents + ledgerNetAddonPoolCents === ledgerNetAfterFeesCents` (remainder stays on the service line).
+ * 4) **Per-unit trainer accrual rates (net, after fees):**
+ *    - **Per session / multi-session:** `ledgerPerServiceUnitNetCents = floor(ledgerNetServicePoolCents / sessionCreditsGranted)`.
+ *    - **Per hour (main package):** denominators use **purchased hour credits** (`sessionCreditsGranted` = total hours in the package).
+ *    - **Add-ons:** `ledgerPerAddonUnitNetCents = floor(ledgerNetAddonPoolCents / ledgerTotalAddonUnits)` where addon units
+ *      default to purchased session credits when add-on gross > 0; for **hourly add-on bundles** pass `addonHoursPurchased`
+ *      so units = purchased add-on hours.
+ * 5) **DIY / cadence (`CYCLE_DIY`):** service pool is treated as one cycle line; add-on pool still follows add-on rules.
+ *
+ * Trainer payout for a **completed** session/hour/add-on slice is then `perUnitNet × consumedUnits` at booking confirmation
+ * (see `allocationNetCentsForSession`), subject to Gate A/B, dispute buffer, and payout operations.
  */
 export function computeCheckoutLedgerSplits(args: {
   coachSubtotalCents: number;
@@ -63,6 +79,11 @@ export function computeCheckoutLedgerSplits(args: {
   serviceId: string | null | undefined;
   /** Optional cents of gross add-ons (post-discount style); deducted from coach line into add-on pool for split math. Defaults 0. */
   grossAddonAttributedCents?: number | null;
+  /**
+   * When the main purchase is **per_hour** and add-ons are sold as an hour bundle, set total purchased add-on hours so
+   * `ledgerPerAddonUnitNetCents` divides the net add-on pool by hours instead of session credits.
+   */
+  addonHoursPurchased?: number | null;
 }): CheckoutLedgerSplits {
   const coach = Math.max(0, Math.floor(args.coachSubtotalCents));
   const admin = Math.max(0, Math.floor(args.adminFeeCents ?? 0));
@@ -86,9 +107,14 @@ export function computeCheckoutLedgerSplits(args: {
 
   const payoutModel = resolvePayoutModel(args);
   const credits = Math.max(1, Math.floor(Math.max(0, args.sessionCreditsGranted)));
+  const addonHoursRaw = Math.max(0, Number(args.addonHoursPurchased ?? 0));
+  const addonHoursFloored = Number.isFinite(addonHoursRaw) ? Math.floor(addonHoursRaw) : 0;
   /// For hourly / session packages, denomination is “purchased units” used as pool denominator.
-  const ledgerTotalAddonUnits =
+  let ledgerTotalAddonUnits =
     payoutModel === "CYCLE_DIY" ? 1 : addonGrossAttributed > 0 ? Math.max(1, credits) : 0;
+  if (payoutModel === "TIME_UNIT" && addonGrossAttributed > 0 && addonHoursFloored > 0) {
+    ledgerTotalAddonUnits = Math.max(1, addonHoursFloored);
+  }
 
   const ledgerTotalServiceUnits = payoutModel === "TIME_UNIT" ? credits : payoutModel === "CYCLE_DIY" ? 1 : credits;
 

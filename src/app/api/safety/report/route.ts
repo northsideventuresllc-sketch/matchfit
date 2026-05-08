@@ -1,4 +1,5 @@
 import { parseSafetyReportCategory } from "@/lib/safety-constants";
+import { applyTrainerMarketplaceSuspensionSideEffects } from "@/lib/trainer-suspension-marketplace";
 import { createSuspensionRecordForReport } from "@/lib/suspension-lifecycle";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
@@ -66,6 +67,15 @@ export async function POST(req: Request) {
           reportId: report.id,
         }),
       ]);
+
+      try {
+        await applyTrainerMarketplaceSuspensionSideEffects({
+          trainerId: trainer.id,
+          reasonCode: "CLIENT_REPORT",
+        });
+      } catch (e) {
+        console.error("[safety report] marketplace suspension side effects", e);
+      }
 
       return NextResponse.json({
         ok: true,

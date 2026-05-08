@@ -38,10 +38,10 @@ describe("session check-in window", () => {
     expect(w.toISOString()).toBe("2026-05-31T12:00:00.000Z");
   });
 
-  it("Gate A silence deadline is 24h after session end", () => {
+  it("Gate A silence deadline is 48h after session end", () => {
     const start = new Date("2026-06-01T12:00:00.000Z");
     const d = gateAPostSessionDeadlineAt({ scheduledStartAt: start, scheduledEndAt: null });
-    expect(d.toISOString()).toBe("2026-06-02T13:00:00.000Z");
+    expect(d.toISOString()).toBe("2026-06-03T13:00:00.000Z");
   });
 
   it("derive phases for a confirmed session (Gate A UX)", () => {

@@ -1397,9 +1397,9 @@ export function TrainerDashboardServicesBubble() {
             </Link>
             <Link
               href="/trainer/dashboard/notifications"
-              className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] px-4 text-xs font-semibold text-white/80 transition hover:border-white/20"
+              className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] px-4 text-xs font-black uppercase tracking-[0.1em] text-white/80 transition hover:border-white/20"
             >
-              Open notifications
+              OPEN NOTIFICATIONS
             </Link>
           </div>
           <button

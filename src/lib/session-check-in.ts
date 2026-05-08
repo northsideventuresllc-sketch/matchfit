@@ -5,8 +5,8 @@ import { ADMIN_FEE_UI_LABEL } from "@/lib/platform-fees";
 /** Hours before session start when Gate A UI begins. */
 export const CHECK_IN_LEAD_HOURS = 24;
 
-/** Post-session silence window: client Gate A auto-closes without dispute. */
-export const GATE_A_POST_SESSION_SILENCE_HOURS = 24;
+/** Post-session silence window: client Gate A auto-closes without dispute (Terms: forty-eight hours after booked end). */
+export const GATE_A_POST_SESSION_SILENCE_HOURS = 48;
 
 /** Funds sit in payout buffer until this many hours pass after BOTH Gate A and Gate B timestamps. */
 export const PAYOUT_BUFFER_AFTER_BOTH_GATES_HOURS = 48;
@@ -24,6 +24,26 @@ export function defaultSessionEndAt(args: { scheduledStartAt: Date; scheduledEnd
   const d = new Date(args.scheduledStartAt);
   d.setHours(d.getHours() + 1);
   return d;
+}
+
+/** Trainer SESSION STARTED punch-in opens this many ms before `scheduledStartAt`. */
+export const TRAINER_PUNCH_EARLY_MS = 15 * 60 * 1000;
+/** Trainer must punch in by booked end + this grace (see Client Management / compliance). */
+export const TRAINER_PUNCH_LATE_GRACE_MS = 60 * 60 * 1000;
+
+export function trainerPunchWindowStartMs(scheduledStartAt: Date): number {
+  return scheduledStartAt.getTime() - TRAINER_PUNCH_EARLY_MS;
+}
+
+export function trainerPunchWindowEndMs(args: { scheduledStartAt: Date; scheduledEndAt: Date | null }): number {
+  return defaultSessionEndAt(args).getTime() + TRAINER_PUNCH_LATE_GRACE_MS;
+}
+
+export function isWithinTrainerPunchGeolocationWindow(
+  args: { scheduledStartAt: Date; scheduledEndAt: Date | null },
+  nowMs: number = Date.now(),
+): boolean {
+  return nowMs >= trainerPunchWindowStartMs(args.scheduledStartAt) && nowMs <= trainerPunchWindowEndMs(args);
 }
 
 export function checkInWindowStartAt(scheduledStartAt: Date): Date {
@@ -90,6 +110,7 @@ export function deriveSessionClientUiPhase(snapshot: GateSnapshot, nowParam?: Da
     "CANCELLED_RESCHED_DECLINED_BY_CLIENT",
     "CANCELLED_RESCHED_DECLINED_BY_TRAINER",
     "CANCELLED_CLIENT_REVOKE_GATE_A",
+    "CANCELLED_TRAINER_SUSPENDED",
     "SESSION_PAYMENT_ROUTE_CLEARED",
   ]);
   if (fsClosed.has(snapshot.fulfillmentStatus)) {

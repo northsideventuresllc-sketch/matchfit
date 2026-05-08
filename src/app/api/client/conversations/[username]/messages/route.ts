@@ -9,8 +9,7 @@ import { getSessionClientId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { canAuthorSendChatMessage } from "@/lib/trainer-client-chat-rules";
 import { getPhoneCallEligibility } from "@/lib/phone-bridge-eligibility";
-import { loadCheckInSessionsForThread } from "@/lib/chat-check-in-thread-snapshot";
-import { getConversationBookingSnapshot } from "@/lib/trainer-client-booking-credits";
+import { loadChatScopedClientPendingBookings } from "@/lib/marketplace-governance-overview";
 import { buildClientChatTokenTipContext } from "@/lib/trainer-promo-tokens";
 import { isTrainerClientChatBlocked } from "@/lib/user-block-queries";
 import { NextResponse } from "next/server";
@@ -109,8 +108,6 @@ export async function GET(_req: Request, ctx: RouteContext) {
     }
     const voiceCallEnabled = phoneCall.ready;
 
-    let bookingSnapshot: Awaited<ReturnType<typeof getConversationBookingSnapshot>> | null = null;
-    let checkInThread: Awaited<ReturnType<typeof loadCheckInSessionsForThread>> | null = null;
     let pendingBookings: {
       id: string;
       status: string;
@@ -122,46 +119,11 @@ export async function GET(_req: Request, ctx: RouteContext) {
       videoConferenceProvider: string | null;
     }[] = [];
     try {
-      bookingSnapshot = conv ? await getConversationBookingSnapshot(trainer.id, clientId) : null;
       if (conv && !archive.archived) {
-        try {
-          checkInThread = await loadCheckInSessionsForThread({ trainerId: trainer.id, clientId });
-        } catch (checkInErr) {
-          console.error("[Match Fit client chat GET] check-in snapshot skipped (DB may be behind migrations)", checkInErr);
-        }
-      }
-      if (conv && !archive.archived) {
-        const horizon = new Date(Date.now() - 6 * 60 * 60 * 1000);
-        pendingBookings = await prisma.bookedTrainingSession.findMany({
-          where: {
-            trainerId: trainer.id,
-            clientId,
-            scheduledStartAt: { gte: horizon },
-            OR: [
-              { status: "INVITED" },
-              { status: "CLIENT_CONFIRMED", videoConferenceJoinUrl: { not: null } },
-              {
-                status: "CLIENT_CONFIRMED",
-                fulfillmentStatus: { in: ["NONE", "SCHEDULED", "CHECK_IN_ACTIVE", "AWAITING_CLIENT_FOLLOWUP"] },
-              },
-            ],
-          },
-          orderBy: { scheduledStartAt: "asc" },
-          take: 12,
-          select: {
-            id: true,
-            status: true,
-            sessionDelivery: true,
-            scheduledStartAt: true,
-            scheduledEndAt: true,
-            inviteNote: true,
-            videoConferenceJoinUrl: true,
-            videoConferenceProvider: true,
-          },
-        });
+        pendingBookings = await loadChatScopedClientPendingBookings(trainer.id, clientId);
       }
     } catch (bookingErr) {
-      console.error("[Match Fit client chat GET] booking snapshot / sessions skipped (DB may be behind migrations)", bookingErr);
+      console.error("[Match Fit client chat GET] chat-scoped bookings skipped (DB may be behind migrations)", bookingErr);
     }
 
     return NextResponse.json({
@@ -180,9 +142,7 @@ export async function GET(_req: Request, ctx: RouteContext) {
         clientOptIn: phoneCall.clientOptIn,
         trainerOptIn: phoneCall.trainerOptIn,
       },
-      bookingSnapshot,
       blockFreeSessionBookingUntilRepurchase: conv?.blockFreeSessionBookingUntilRepurchase ?? false,
-      checkInThread,
       pendingBookings: pendingBookings.map((b) => ({
         id: b.id,
         status: b.status,

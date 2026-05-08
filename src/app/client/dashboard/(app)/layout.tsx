@@ -6,6 +6,7 @@ import {
   countClientUnreadInboxNotifications,
   runClientNotificationLifecycle,
 } from "@/lib/client-notification-retention";
+import { getClientDiyGovernanceGate } from "@/lib/diy-governance";
 import { prisma } from "@/lib/prisma";
 import { purgeExpiredSuspensionRecords } from "@/lib/suspension-lifecycle";
 import { staleClientSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
@@ -55,6 +56,7 @@ export default async function ClientDashboardAppLayout({
 
   await runClientNotificationLifecycle(clientId);
   const unreadCount = await countClientUnreadInboxNotifications(clientId);
+  const diyGovernanceGate = await getClientDiyGovernanceGate(clientId);
 
   const displayName = client.preferredName?.trim() || "Client";
 
@@ -63,6 +65,7 @@ export default async function ClientDashboardAppLayout({
       preferredName={displayName}
       profileImageUrl={client.profileImageUrl}
       initialUnreadCount={unreadCount}
+      diyGovernanceGate={diyGovernanceGate}
     >
       {children}
     </ClientDashboardShell>

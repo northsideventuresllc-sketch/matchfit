@@ -395,6 +395,7 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
         ) : null}
 
         <CollapsibleSettingsSection
+          bulkSectionId="trainer-settings-profile-coach"
           title="Coach Profile & Sign-Up Details"
           description="What you entered when joining Match Fit—names, photo, bio, and how clients find you."
           defaultOpen
@@ -569,6 +570,7 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
         </CollapsibleSettingsSection>
 
         <CollapsibleSettingsSection
+          bulkSectionId="trainer-settings-profile-background"
           title="Background & Visibility"
           description="Optional details for inclusion and matching. You can update these anytime."
           defaultOpen={false}

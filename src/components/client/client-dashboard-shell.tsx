@@ -3,11 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ClientDashboardAppHeader } from "@/components/client/client-dashboard-app-header";
+import { ClientDiyGovernanceGateBanner } from "@/components/client/client-diy-governance-gate";
+import type { ClientDiyGovernanceGate } from "@/lib/diy-governance";
 
 export type ClientDashboardShellProps = {
   preferredName: string;
   profileImageUrl: string | null;
   initialUnreadCount: number;
+  /** Blocking DIY prompts (extension approval or post-deadline attestation). */
+  diyGovernanceGate?: ClientDiyGovernanceGate | null;
   children: React.ReactNode;
 };
 
@@ -32,6 +36,11 @@ const NAV = [
     href: "/client/dashboard/messages",
     label: "Chats",
     match: (p: string) => p.startsWith("/client/dashboard/messages"),
+  },
+  {
+    href: "/client/dashboard/service-management",
+    label: "Service Management",
+    match: (p: string) => p.startsWith("/client/dashboard/service-management"),
   },
   {
     href: "/client/dashboard/preferences",
@@ -82,6 +91,8 @@ export function ClientDashboardShell(props: ClientDashboardShellProps) {
             );
           })}
         </nav>
+
+        {props.diyGovernanceGate ? <ClientDiyGovernanceGateBanner gate={props.diyGovernanceGate} /> : null}
 
         <div className="w-full text-left">{props.children}</div>
 

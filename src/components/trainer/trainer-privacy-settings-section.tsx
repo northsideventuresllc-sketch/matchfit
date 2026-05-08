@@ -179,6 +179,7 @@ export function TrainerPrivacySettingsSection() {
 
   return (
     <CollapsibleSettingsSection
+      bulkSectionId="trainer-settings-privacy-data"
       title="Privacy & Data"
       description="Choose which optional profile fields appear on your public coach page, review policy acceptance, or delete your account."
       defaultOpen={false}

@@ -171,13 +171,11 @@ export default async function TermsPage() {
           are separate line items subject to the same processing mechanics unless stated otherwise at checkout.
         </P>
         <P>
-          <Strong>Completion Confirmation:</Strong> After the scheduled session date, the Client has a limited window
-          (currently <Strong>twenty-four (24) hours</Strong> where implemented) to confirm whether the session was completed
-          or to report an issue through the flows we provide (for example, marking outcomes such as completed,{" "}
-          <Strong>No Show</Strong>, <Strong>Rescheduled</Strong> with an updated date reflected in the Service, or{" "}
-          <Strong>Cancelled without make-up</Strong>). If the session did not occur and the Client does not report that within
-          the stated window, automated refund paths may not be available; Clients should contact support promptly for
-          exceptional cases.
+          <Strong>Completion Confirmation (Gate A):</Strong> Clients may confirm sessions starting <Strong>twenty-four
+          (24) hours</Strong> before the scheduled start time. After the session, the Client has a limited window (currently{" "}
+          <Strong>forty-eight (48) hours</Strong> after the booked end time where implemented) to confirm completion or open
+          a dispute through the flows we provide. If the Client does not act within the post-session window, Gate A may close
+          automatically as implemented.
         </P>
         <P>
           <Strong>No Show Refunds:</Strong> If the Client marks <Strong>No Show</Strong> for the Trainer in accordance with
@@ -197,6 +195,37 @@ export default async function TermsPage() {
           restrict booking or platform use until the matter is resolved.
         </P>
 
+        <H2 id="governed-marketplace">5A. Governed Marketplace: Ledger, Gates, Punch-In, Suspensions</H2>
+        <P>
+          <Strong>Trainer payout math:</Strong> For each paid purchase, the Service records net ledger pools after the{" "}
+          <Strong>administrative fee</Strong> and <Strong>estimated card processing</Strong> described in Section 3.{" "}
+          <Strong>Coach services and optional add-ons are split into separate pools</Strong> so refunds and disputes can be
+          applied per line item. Per completed unit (session, purchased hour credit, or add-on unit as priced), the
+          Trainer&apos;s accrual is the corresponding net pool divided by the purchased count of that line (with separate
+          denominators for hourly add-on bundles when metadata is provided at checkout).
+        </P>
+        <P>
+          <Strong>Two gates and payout buffer:</Strong> For booked sessions, payout release generally requires{" "}
+          <Strong>both</Strong> (a) client-side completion confirmation or automatic silence after the post-session Gate A
+          window and (b) the Trainer marking the session complete (Gate B). After both are satisfied, a{" "}
+          <Strong>forty-eight (48) hour</Strong> dispute buffer runs; Clients may dispute during that window for human
+          review. Trainers must also record a <Strong>SESSION STARTED</Strong> geolocation punch-in at arrival before Gate B
+          can close, as enforced in-product.
+        </P>
+        <P>
+          <Strong>Punch-in compliance:</Strong> Trainers should allow device location access. The Service may evaluate
+          missed punch-ins after each session window; <Strong>five (5) consecutive missed punch-ins</Strong> may trigger
+          suspension pending review. Separately, <Strong>three (3) payout disputes</Strong> opened against a Trainer in a
+          rolling thirty (30) day window, or a serious <Strong>Client safety report</Strong> that results in suspension, may
+          suspend the Trainer pending review.
+        </P>
+        <P>
+          <Strong>Suspension marketplace effects:</Strong> When a Trainer is suspended under these rules, the Service may
+          cancel upcoming confirmed bookings, notify matched Clients, restrict contactability, and process refunds of net
+          attributed amounts toward the card where Stripe allows (administrative and processing portions may be retained).
+          When a suspension is lifted after review, matched Clients may be notified that the account was restored.
+        </P>
+
         <H2 id="diy-policies">6. DIY Plans and Trial Weeks</H2>
         <P>
           DIY offerings are priced by the Trainer, typically on a monthly basis, with the <Strong>20% administrative fee
@@ -208,7 +237,16 @@ export default async function TermsPage() {
           <Li>
             After the Trainer has the information we require, the Trainer is expected to deliver the first workout within{" "}
             <Strong>five (5) business days</Strong> unless Match Fit or support has approved a different timeline for a
-            larger engagement.
+            larger engagement. Separately, a <Strong>fourteen (14) calendar day</Strong> wall-clock deadline may apply to the
+            first DIY deliverable upload as implemented in Client Management.
+          </Li>
+          <Li>
+            If the calendar deadline passes without an upload, the Client may be prompted on next login to attest whether
+            the DIY was still received. If the Client reports non-delivery, the Trainer may have <Strong>twenty-four
+            (24) hours</Strong> to upload or request a time extension; extensions require Client approval within{" "}
+            <Strong>forty-eight (48) hours</Strong> or they may auto-approve. If the Client declines an extension, the net DIY
+            purchase amount (excluding non-refundable administrative and processing portions) may be refunded and the
+            Trainer forfeits that payout for the engagement.
           </Li>
           <Li>
             The Client has <Strong>forty-eight (48) hours</Strong> after that delivery window to confirm receipt in-product.

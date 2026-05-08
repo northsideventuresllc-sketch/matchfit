@@ -1,4 +1,5 @@
 import { finalizeSuspensionRecordOnLift } from "@/lib/suspension-lifecycle";
+import { notifyClientsTrainerSuspensionLifted } from "@/lib/trainer-suspension-marketplace";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
@@ -28,6 +29,11 @@ export async function POST(req: Request) {
         where: { id: subjectId },
         data: { safetySuspended: false, safetySuspendedAt: null },
       });
+      try {
+        await notifyClientsTrainerSuspensionLifted(subjectId);
+      } catch (e) {
+        console.error("[internal lift] trainer restore notifications", e);
+      }
     } else {
       await prisma.client.update({
         where: { id: subjectId },

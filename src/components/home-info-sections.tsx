@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { HomeCtaLogoutBar } from "@/components/home-cta-logout-bar";
+import { HomeTrainerServiceTypesSection } from "@/components/home-trainer-service-types-section";
 import {
   CLIENT_SIGN_UP_PATH,
   TRAINER_SIGN_UP_PATH,
@@ -239,6 +240,8 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           </p>
         </ServiceCard>
       </div>
+
+      <HomeTrainerServiceTypesSection />
 
       <SectionShell
         id="fithub"

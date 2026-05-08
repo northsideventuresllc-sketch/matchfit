@@ -9,9 +9,6 @@ import type { ChatAttachmentPayload } from "@/lib/chat-attachment";
 import { SAFETY_REPORT_CATEGORIES, formatSafetyReportCategoryLabel } from "@/lib/safety-constants";
 import type { SafetyBlockMode } from "@/lib/safety-block-modes";
 import { OFF_PLATFORM_CLIENT_CHAT_NOTICE } from "@/lib/tos-off-platform-deterrent";
-import type { CheckInThreadPayload } from "@/components/chat/session-check-in-panels";
-import { SessionCheckInPanelClient } from "@/components/chat/session-check-in-panels";
-
 type Msg = {
   id: string;
   authorRole: string;
@@ -46,13 +43,6 @@ type PendingBooking = {
   videoConferenceJoinUrl: string | null;
   videoConferenceProvider: string | null;
 };
-type BookingSnapshot = {
-  sessionCreditsPurchased: number;
-  sessionCreditsUsed: number;
-  bookingUnlimitedAfterPurchase: boolean;
-  creditsRemaining: number;
-};
-
 export function ClientTrainerChatThreadClient(props: { trainerUsername: string }) {
   const searchParams = useSearchParams();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -74,9 +64,7 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
   const [blockMode, setBlockMode] = useState<SafetyBlockMode>("full");
   const [voiceCallEnabled, setVoiceCallEnabled] = useState(false);
   const [phoneCall, setPhoneCall] = useState<PhoneCallInfo | null>(null);
-  const [bookingSnapshot, setBookingSnapshot] = useState<BookingSnapshot | null>(null);
   const [pendingBookings, setPendingBookings] = useState<PendingBooking[]>([]);
-  const [checkInThread, setCheckInThread] = useState<CheckInThreadPayload>(null);
   const [blockFreeRepurchase, setBlockFreeRepurchase] = useState(false);
   const [callBusy, setCallBusy] = useState(false);
 
@@ -95,9 +83,7 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
         unmatchInitiatedBy?: string | null;
         voiceCallEnabled?: boolean;
         phoneCall?: PhoneCallInfo;
-        bookingSnapshot?: BookingSnapshot | null;
         pendingBookings?: PendingBooking[];
-        checkInThread?: CheckInThreadPayload;
         blockFreeSessionBookingUntilRepurchase?: boolean;
         error?: string;
       };
@@ -119,9 +105,7 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
       }
       setVoiceCallEnabled(Boolean(data.voiceCallEnabled));
       setPhoneCall(data.phoneCall ?? null);
-      setBookingSnapshot(data.bookingSnapshot ?? null);
       setPendingBookings(data.pendingBookings ?? []);
-      setCheckInThread(data.checkInThread ?? null);
       setBlockFreeRepurchase(Boolean(data.blockFreeSessionBookingUntilRepurchase));
     } catch {
       setErr("Network error.");
@@ -315,6 +299,17 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
           View full coach profile
         </Link>
       </div>
+
+      {!archived ? (
+        <div className="rounded-2xl border border-sky-500/25 bg-sky-950/20 px-4 py-3 text-center">
+          <Link
+            href="/client/dashboard/service-management"
+            className="text-[11px] font-bold uppercase tracking-[0.08em] text-sky-100 underline-offset-4 transition hover:underline"
+          >
+            Session check-in, payout disputes &amp; credits — Service Management
+          </Link>
+        </div>
+      ) : null}
 
       {archived ? (
         <div className="space-y-3 rounded-2xl border border-amber-500/30 bg-amber-500/[0.08] p-4 text-center text-sm text-amber-50/95">
@@ -528,7 +523,7 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
             messages.map((m) => {
               const mine = m.authorRole === "CLIENT";
               return (
-                <div key={m.id} className="flex min-w-0 justify-start">
+                <div key={m.id} className={`flex min-w-0 ${mine ? "justify-end" : "justify-start"}`}>
                   <div
                     className={`min-w-0 max-w-[min(100%,28rem)] overflow-hidden rounded-2xl px-4 py-2.5 text-left shadow-lg ${
                       mine
@@ -572,30 +567,23 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
       {official &&
       !archived &&
       (voiceCallEnabled ||
-        bookingSnapshot ||
         pendingBookings.length > 0 ||
-        checkInThread?.sessions.length ||
         blockFreeRepurchase ||
         (phoneCall?.paid && phoneCall.twilioConfigured)) ? (
         <div className="space-y-3 rounded-xl border border-white/[0.08] bg-[#0c0d12]/95 px-3 py-3 text-left sm:px-4">
-          <p className="text-center text-[10px] font-black uppercase tracking-[0.14em] text-white/40">Sessions &amp; voice</p>
+          <p className="text-center text-[10px] font-black uppercase tracking-[0.14em] text-white/40">
+            Booking invites, joins &amp; voice
+          </p>
           {blockFreeRepurchase ? (
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-50/95">
               <span className="font-semibold text-amber-200/95">Purchase required. </span>
               A prior reschedule was declined by your coach under Match Fit policy. Complete a new paid checkout in this
-              thread before more sessions can be booked.
+              thread before more sessions can be booked. Credits and check-in tools live under{" "}
+              <Link href="/client/dashboard/service-management" className="text-[#FFD34E] underline-offset-2 hover:underline">
+                Service Management
+              </Link>
+              .
             </div>
-          ) : null}
-          {bookingSnapshot ? (
-            <p className="text-[11px] text-white/55">
-              <span className="font-semibold text-white/75">Booking credits: </span>
-              {bookingSnapshot.bookingUnlimitedAfterPurchase
-                ? "Unlimited scheduling for your current monthly / DIY-style purchase."
-                : `${bookingSnapshot.sessionCreditsUsed} of ${bookingSnapshot.sessionCreditsPurchased} session slot(s) used (${bookingSnapshot.creditsRemaining} remaining to schedule).`}
-            </p>
-          ) : null}
-          {checkInThread?.sessions.length ? (
-            <SessionCheckInPanelClient trainerUsername={props.trainerUsername} checkInThread={checkInThread} onUpdated={() => void load()} />
           ) : null}
           {pendingBookings.length > 0 ? (
             <div className="space-y-2">

@@ -4,6 +4,7 @@ import { deliverCoachServicePurchaseSideEffects } from "@/lib/coach-service-purc
 import { applyConversationAfterServicePurchase } from "@/lib/trainer-client-booking-credits";
 import { prisma } from "@/lib/prisma";
 import { computeCheckoutLedgerSplits } from "@/lib/financial-ledger-split";
+import { createDiyPlanEngagement } from "@/lib/diy-plan-engagement-service";
 import { clientZipToPrefix, trainerMatchAnswersToRegionZipPrefix } from "@/lib/featured-region";
 import { isTrainerPremiumStudioActive } from "@/lib/trainer-premium-studio";
 
@@ -535,6 +536,8 @@ export async function recordTrainerServiceTransactionAndReward(args: {
   sessionCreditsGranted?: number | null;
   bookingUnlimitedPurchase?: boolean | null;
   conversationId?: string | null;
+  grossAddonAttributedCents?: number | null;
+  addonHoursPurchased?: number | null;
 }): Promise<{ ok: true; transactionId: string; duplicate?: boolean } | { error: string }> {
   if (args.stripeCheckoutSessionId) {
     const existing = await prisma.trainerClientServiceTransaction.findUnique({
@@ -567,6 +570,8 @@ export async function recordTrainerServiceTransactionAndReward(args: {
       billingUnit: args.billingUnit,
       bookingUnlimitedPurchase: Boolean(args.bookingUnlimitedPurchase),
       serviceId: args.serviceId,
+      grossAddonAttributedCents: args.grossAddonAttributedCents,
+      addonHoursPurchased: args.addonHoursPurchased,
     });
 
     const row = await prisma.trainerClientServiceTransaction.create({
@@ -606,6 +611,17 @@ export async function recordTrainerServiceTransactionAndReward(args: {
       sessionCreditsGranted: Math.max(0, args.sessionCreditsGranted ?? 0),
       bookingUnlimitedPurchase: Boolean(args.bookingUnlimitedPurchase),
     });
+    if (ledger.payoutModel === "CYCLE_DIY") {
+      try {
+        await createDiyPlanEngagement({
+          trainerId: args.trainerId,
+          clientId: args.clientId,
+          sourceServiceTransactionId: row.id,
+        });
+      } catch (diyErr) {
+        console.error("[recordTrainerServiceTransactionAndReward] DIY engagement create skipped", diyErr);
+      }
+    }
     await grantSaleTokensForServiceTransaction(row.id);
     await deliverCoachServicePurchaseSideEffects(row.id);
     return { ok: true, transactionId: row.id };
