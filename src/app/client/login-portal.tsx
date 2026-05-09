@@ -45,7 +45,7 @@ function ClientPortalInner(props: { defaultNext: string | null }) {
       });
       const data = (await res.json()) as { error?: string; needsTwoFactor?: boolean; next?: string };
       if (!res.ok) {
-        setError(data.error ?? "Could not sign you in.");
+        setError(data.error ?? "Could Not Sign You In.");
         turnstileRef.current?.reset();
         return;
       }
@@ -210,6 +210,13 @@ function ClientPortalInner(props: { defaultNext: string | null }) {
             </div>
 
             <p className="mt-8 text-center text-xs leading-relaxed text-white/35">
+              <Link
+                href="/admin/login"
+                className="text-white/50 underline-offset-4 transition hover:text-white/70 hover:underline"
+              >
+                Administrator Log In
+              </Link>
+              <span className="mx-2 text-white/25">·</span>
               <Link
                 href="/"
                 className="text-white/50 underline-offset-4 transition hover:text-white/70 hover:underline"

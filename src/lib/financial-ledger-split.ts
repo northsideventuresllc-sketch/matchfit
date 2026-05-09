@@ -99,7 +99,7 @@ export function computeCheckoutLedgerSplits(args: {
   const coachNetPortionOfLedger = coach === 0 ? 0 : Math.floor((netAfter * (coach - addonGrossAttributed)) / Math.max(coach, 1));
   const addonPortionFromCoach = coach === 0 ? 0 : Math.floor((netAfter * addonGrossAttributed) / Math.max(coach, 1));
   let netService = coachNetPortionOfLedger;
-  let netAddon = addonPortionFromCoach;
+  const netAddon = addonPortionFromCoach;
   const splitSum = netService + netAddon;
   if (splitSum !== netAfter && netAfter > 0) {
     netService += netAfter - splitSum;

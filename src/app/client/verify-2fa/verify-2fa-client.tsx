@@ -222,6 +222,13 @@ export function Verify2faClient(props: Verify2faClientProps) {
             </div>
 
             <p className="mt-8 text-center text-xs text-white/35">
+              <Link
+                href="/admin/login"
+                className="text-white/50 underline-offset-4 transition hover:text-white/70 hover:underline"
+              >
+                Administrator Log In
+              </Link>
+              <span className="mx-2 text-white/25">·</span>
               Codes expire after 10 minutes. In development, SMS/voice codes are printed in the dev server terminal; email
               may use Resend or the console depending on configuration.
             </p>

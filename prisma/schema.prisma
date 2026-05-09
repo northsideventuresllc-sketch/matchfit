@@ -7,6 +7,42 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// Internal Match Fit staff administrator (separate from client/trainer accounts).
+model Administrator {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Eight-character staff code (letters + digits), unique login identifier.
+  adminCode    String @unique
+  email        String @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  /// ISO date string YYYY-MM-DD (birth date; used to derive admin code at onboarding).
+  dateOfBirth  String
+
+  @@map("administrators")
+}
+
+/// Prospective administrator awaiting approval email action (creates {@link Administrator} when approved).
+model PendingAdministratorRegistration {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  firstName    String
+  lastName     String
+  dateOfBirth  String
+  email        String
+  passwordHash String
+
+  /// PENDING | DENIED (approved rows are deleted after account creation)
+  status String @default("PENDING")
+
+  @@index([email])
+  @@map("pending_administrator_registrations")
+}
+
 model Client {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -117,6 +153,7 @@ model Client {
 
   dailyQuestionnaires ClientDailyQuestionnaire[]
   bugReports         ClientBugReport[]
+  productIdeaSubmissions ProductIdeaSubmission[]
 
   serviceTransactions TrainerClientServiceTransaction[] @relation("TrainerServiceTxClient")
   trainerTokenGifts     ClientTrainerTokenGift[]
@@ -141,6 +178,9 @@ model Client {
   /// Opt-in: allow Match Fit to place Twilio-masked bridge calls using this account’s phone on file (never shown to the other party).
   allowPhoneBridge         Boolean   @default(false)
   allowPhoneBridgeConsentAt DateTime?
+
+  /// JSON array of quick-link ids for the client dashboard home card (see `lib/client-dashboard-quick-links.ts`).
+  dashboardQuickLinkIdsJson String?
 
   @@map("clients")
 }
@@ -311,6 +351,8 @@ model Trainer {
   allowPhoneBridge         Boolean   @default(false)
   allowPhoneBridgeConsentAt DateTime?
 
+  productIdeaSubmissions ProductIdeaSubmission[]
+
   @@map("trainers")
 }
 
@@ -376,6 +418,28 @@ model ClientBugReport {
 
   @@index([clientId, createdAt])
   @@map("client_bug_reports")
+}
+
+/// Product improvement ideas from clients, trainers, or anonymous visitors.
+model ProductIdeaSubmission {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  trainerId String?
+  trainer   Trainer? @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  anonymous     Boolean @default(false)
+  reporterName  String?
+  reporterEmail String?
+  category      String
+  description   String
+
+  @@index([clientId, createdAt])
+  @@index([trainerId, createdAt])
+  @@map("product_idea_submissions")
 }
 
 /// In-app notification feed (nudges, matches, billing, product updates).

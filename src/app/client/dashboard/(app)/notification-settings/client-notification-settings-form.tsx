@@ -105,13 +105,15 @@ export function ClientNotificationSettingsForm() {
       </p>
 
       <div className="rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-3">
-        <p className="text-sm font-semibold text-white/90">Coach package receipts</p>
+        <p className="text-sm font-semibold text-white/90">Coach Package Receipts</p>
         <p className="mt-1 text-xs text-white/45">
           After you pay a trainer on Match Fit, how (or if) we send a duplicate receipt. You always get an in-app Billing
           notification.
         </p>
-        <label className="mt-3 block text-[10px] font-black uppercase tracking-wide text-white/40">
-          Receipt copy
+        <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-10">
+          <div className="min-w-0 shrink-0 pt-0.5 sm:max-w-[11rem]">
+            <p className="text-[10px] font-black uppercase tracking-wide text-white/40">Receipt copy</p>
+          </div>
           <select
             value={prefs.coachPurchaseReceiptDelivery}
             onChange={(e) =>
@@ -120,15 +122,15 @@ export function ClientNotificationSettingsForm() {
                 coachPurchaseReceiptDelivery: e.target.value as (typeof coachPurchaseReceiptDeliveries)[number],
               }))
             }
-            className="mt-1.5 w-full max-w-md rounded-lg border border-white/15 bg-[#0B0C0F] px-3 py-2 text-sm text-white"
+            className="w-full min-w-0 flex-1 rounded-lg border border-white/15 bg-[#0B0C0F] px-4 py-2.5 text-sm text-white sm:max-w-md"
           >
             {coachPurchaseReceiptDeliveries.map((v) => (
               <option key={v} value={v}>
-                {v === "EMAIL" ? "Email" : v === "SMS" ? "SMS (Twilio)" : "No email or SMS"}
+                {v === "EMAIL" ? "Email" : v === "SMS" ? "SMS" : "No email or SMS"}
               </option>
             ))}
           </select>
-        </label>
+        </div>
       </div>
 
       <ul className="space-y-4">

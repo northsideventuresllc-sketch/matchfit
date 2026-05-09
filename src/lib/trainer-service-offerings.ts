@@ -528,7 +528,7 @@ export function parseTrainerServiceOfferingsJson(raw: string | null | undefined)
 export function formatPublishedOfferingLine(line: TrainerServiceOfferingLine): string {
   const name = resolvedTrainerServicePublicTitle(line);
   const modality =
-    line.delivery === "virtual" ? "Virtual" : line.delivery === "in_person" ? "In-Person" : "Virtual and In-Person";
+    line.delivery === "virtual" ? "Virtual" : line.delivery === "in_person" ? "In-Person" : "Combination (Virtual and In-Person)";
   const meta: string[] = [modality];
   if (line.sessionMinutes != null && line.sessionMinutes > 0) {
     meta.push(`${line.sessionMinutes} min sessions`);
@@ -556,7 +556,7 @@ export type PublishedPurchaseSku = {
 export function publishedPurchaseSkusFromLine(line: TrainerServiceOfferingLine): PublishedPurchaseSku[] {
   const baseTitle = resolvedTrainerServicePublicTitle(line);
   const modality =
-    line.delivery === "virtual" ? "Virtual" : line.delivery === "in_person" ? "In-Person" : "Virtual and In-Person";
+    line.delivery === "virtual" ? "Virtual" : line.delivery === "in_person" ? "In-Person" : "Combination (Virtual and In-Person)";
   const desc = line.description?.trim();
 
   if (!line.variations || line.variations.length === 0) {

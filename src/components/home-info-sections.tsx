@@ -98,7 +98,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
             />
             <span>
               <span className="font-semibold text-white/85">Browse the full trainer directory</span> for{" "}
-              <span className="font-bold text-[#FFD34E]">$5.00 per month</span>—explore profiles and find coaches
+              <span className="font-bold text-[#FFD34E]">$10.00 per month</span>—explore profiles and find coaches
               who fit your goals before you book a session.
             </span>
           </li>
@@ -517,6 +517,12 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           className="inline-flex min-h-8 items-center justify-center rounded-lg border border-white/[0.12] bg-white/[0.03] px-3 text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-white/60 transition hover:border-white/[0.22] hover:text-white/85"
         >
           Terms Of Service
+        </Link>
+        <Link
+          href="/share-idea"
+          className="inline-flex min-h-8 items-center justify-center rounded-lg border border-white/[0.12] bg-white/[0.03] px-3 text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-white/60 transition hover:border-white/[0.22] hover:text-white/85"
+        >
+          Share An Idea
         </Link>
         <Link
           href="/report-bug"

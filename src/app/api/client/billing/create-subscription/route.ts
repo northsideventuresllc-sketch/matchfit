@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     }
     if (!priceId) {
       return NextResponse.json(
-        { error: "STRIPE_PRICE_ID is missing or empty. Create a $5/month recurring Price in Stripe and paste its price_… id." },
+        { error: "STRIPE_PRICE_ID is missing or empty. Create a $10/month recurring Price in Stripe and paste its price_… id." },
         { status: 503 },
       );
     }

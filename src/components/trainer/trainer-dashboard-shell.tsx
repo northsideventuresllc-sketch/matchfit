@@ -11,6 +11,7 @@ export type TrainerDashboardShellProps = {
   premiumStudioActive: boolean;
   /** When false, the Compliance nav item is hidden (details page requires completed onboarding). */
   showComplianceInNav?: boolean;
+  supportStrip?: React.ReactNode;
   children: React.ReactNode;
 };
 
@@ -72,6 +73,8 @@ export function TrainerDashboardShell(props: TrainerDashboardShellProps) {
         className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(255,126,0,0.14),transparent_55%)]"
       />
       <div className="relative mx-auto max-w-3xl">
+        {props.supportStrip}
+
         <TrainerDashboardAppHeader
           displayName={props.displayName}
           profileImageUrl={props.profileImageUrl}
@@ -117,14 +120,17 @@ export function TrainerDashboardShell(props: TrainerDashboardShellProps) {
             monitoring tools.
           </p>
           <p className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-[10px] font-bold uppercase tracking-[0.14em]">
-            <Link href="/report-bug" className="text-white/50 underline-offset-2 transition hover:text-white/75 hover:underline">
-              Report a bug
-            </Link>
             <Link href="/privacy" className="text-white/50 underline-offset-2 transition hover:text-white/75 hover:underline">
               Privacy policy
             </Link>
             <Link href="/terms" className="text-white/50 underline-offset-2 transition hover:text-white/75 hover:underline">
               Terms of service
+            </Link>
+            <Link href="/share-idea" className="text-white/50 underline-offset-2 transition hover:text-white/75 hover:underline">
+              Share An Idea
+            </Link>
+            <Link href="/report-bug" className="text-white/50 underline-offset-2 transition hover:text-white/75 hover:underline">
+              Report a bug
             </Link>
           </p>
         </footer>

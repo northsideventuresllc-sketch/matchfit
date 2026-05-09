@@ -17,6 +17,14 @@ function normalizeEmail(s: string): string {
   return s.trim().toLowerCase();
 }
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 /**
  * Sends one transactional email via Resend.
  *
@@ -31,6 +39,7 @@ export async function sendResendEmail(params: {
   to: string;
   /** Ignored in development (always onboarding sender). */
   from?: string;
+  html?: string;
 }): Promise<void> {
   const key = process.env.RESEND_API_KEY;
   if (!key) {
@@ -39,6 +48,7 @@ export async function sendResendEmail(params: {
 
   let to = params.to.trim();
   let text = params.text;
+  let html = params.html;
   let from = (params.from ?? RESEND_ONBOARDING_FROM).trim();
 
   if (process.env.NODE_ENV === "development") {
@@ -47,8 +57,21 @@ export async function sendResendEmail(params: {
     const intended = normalizeEmail(to);
     if (intended !== devInbox) {
       text = `Development safety — intended recipient: ${params.to.trim()}\n\n${text}`;
+      if (html) {
+        html = `<p><strong>Development safety — intended recipient:</strong> ${escapeHtml(params.to.trim())}</p>${html}`;
+      }
       to = RESEND_DEV_INBOX;
     }
+  }
+
+  const payload: Record<string, unknown> = {
+    from,
+    to,
+    subject: params.subject,
+    text,
+  };
+  if (html) {
+    payload.html = html;
   }
 
   const res = await fetch("https://api.resend.com/emails", {
@@ -57,12 +80,7 @@ export async function sendResendEmail(params: {
       Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      from,
-      to,
-      subject: params.subject,
-      text,
-    }),
+    body: JSON.stringify(payload),
   });
   const raw = await res.text();
   if (!res.ok) {

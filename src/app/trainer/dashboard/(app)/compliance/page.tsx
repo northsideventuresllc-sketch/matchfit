@@ -11,7 +11,8 @@ import { OFF_PLATFORM_LIQUIDATED_DAMAGES_NOTICE } from "@/lib/tos-off-platform-d
 import { backgroundCheckStatusLabel, certificationReviewStatusLabel } from "@/lib/trainer-compliance-status-copy";
 import { prisma } from "@/lib/prisma";
 import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
-import { getSessionTrainerId } from "@/lib/session";
+import { getSessionTrainerId, getVerifiedAdminImpersonation } from "@/lib/session";
+import { redactW9SsnForSupportSession } from "@/lib/w9-support-redaction";
 
 export const metadata: Metadata = {
   title: "Compliance Details | Trainer | Match Fit",
@@ -118,6 +119,11 @@ export default async function TrainerComplianceDetailsPage() {
     }
   }
 
+  const adminImp = await getVerifiedAdminImpersonation();
+  if (adminImp?.role === "trainer" && w9) {
+    w9 = redactW9SsnForSupportSession(w9) as W9Stored | null;
+  }
+
   const bgLabel = backgroundCheckStatusLabel(profile.backgroundCheckStatus);
   const cptLabel = certificationReviewStatusLabel(profile.certificationReviewStatus);
   const nutLabel = certificationReviewStatusLabel(profile.nutritionistCertificationReviewStatus);
@@ -188,7 +194,11 @@ export default async function TrainerComplianceDetailsPage() {
               </div>
               <div>
                 <dt className="text-xs font-semibold uppercase tracking-wide text-white/40">TIN (Masked)</dt>
-                <dd className="mt-0.5 font-mono text-white/85">{maskTin(w9.tin)}</dd>
+                <dd className="mt-0.5 font-mono text-white/85">
+                  {adminImp?.role === "trainer" && (w9.tinType ?? "").toUpperCase() === "SSN"
+                    ? "Hidden for Match Fit staff"
+                    : maskTin(w9.tin)}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs font-semibold uppercase tracking-wide text-white/40">Submitted</dt>

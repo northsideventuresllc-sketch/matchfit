@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { ClientSettingsPageClient } from "./client-settings-page-client";
+import { parseClientDashboardQuickLinkIdsJson, type ClientDashboardQuickLinkId } from "@/lib/client-dashboard-quick-links";
 import { prisma } from "@/lib/prisma";
+import { isPrismaMissingColumnError, isPrismaUnknownModelFieldError } from "@/lib/prisma-missing-column";
 import { staleClientSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
 import { getSessionClientId } from "@/lib/session";
 
@@ -16,6 +18,8 @@ export default async function ClientSettingsPage() {
   if (!clientId) {
     redirect("/client");
   }
+
+  const QUICK_LINKS_JSON_COL = "dashboardQuickLinkIdsJson";
   const client = await prisma.client.findUnique({
     where: { id: clientId },
     select: {
@@ -48,6 +52,19 @@ export default async function ClientSettingsPage() {
   }
   if (client.deidentifiedAt) {
     redirect(staleClientSessionInvalidateRedirect("/client"));
+  }
+
+  let initialQuickLinkIds: ClientDashboardQuickLinkId[] = [];
+  try {
+    const qlRow = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { dashboardQuickLinkIdsJson: true },
+    });
+    initialQuickLinkIds = parseClientDashboardQuickLinkIdsJson(qlRow?.dashboardQuickLinkIdsJson ?? null);
+  } catch (e) {
+    if (!isPrismaMissingColumnError(e, QUICK_LINKS_JSON_COL) && !isPrismaUnknownModelFieldError(e, QUICK_LINKS_JSON_COL)) {
+      throw e;
+    }
   }
 
   const twoFactorChannels = await prisma.clientTwoFactorChannel.findMany({
@@ -100,6 +117,7 @@ export default async function ClientSettingsPage() {
       headerPreferredName={client.preferredName}
       headerProfileImageUrl={client.profileImageUrl}
       matchPreferencesIncomplete={!client.matchPreferencesCompletedAt}
+      initialQuickLinkIds={initialQuickLinkIds}
     />
   );
 }

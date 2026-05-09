@@ -2,6 +2,7 @@ import { loadCheckInSessionsForThread } from "@/lib/chat-check-in-thread-snapsho
 import type { CheckInSessionCard } from "@/lib/chat-check-in-thread-snapshot";
 /** Import `prisma` from `lib/prisma` (singleton with dev self-heal; see `lib/prisma.ts`). */
 import { prisma } from "@/lib/prisma";
+import { isPrismaMissingTableError } from "@/lib/prisma-missing-column";
 import { NON_REFUNDABLE_FEES_COPY } from "@/lib/session-check-in";
 import { getConversationBookingSnapshot } from "@/lib/trainer-client-booking-credits";
 import type { ManagementUpcomingBooking } from "@/lib/trainer-client-management-dashboard";
@@ -47,17 +48,44 @@ export type ClientCoachingGoalCard = {
   completedAt: string | null;
 };
 
+export type ClientSessionSummaryCard = {
+  id: string;
+  occurredAt: string;
+  body: string;
+};
+
+export type ClientCoachingProfileCard = {
+  generalNotes: string;
+  medicalInjuryNotes: string;
+};
+
+export type ClientUpcomingBookingRow = {
+  bookingId: string;
+  trainerUsername: string;
+  trainerDisplayName: string;
+  scheduledStartAt: string;
+  scheduledEndAt: string | null;
+  status: string;
+  sessionDelivery: string | null;
+  inviteNote: string | null;
+  videoConferenceJoinUrl: string | null;
+  confirmationDeadlineAt: string | null;
+};
+
 export type ClientPairGovernancePayload = {
   trainerId: string;
   trainerUsername: string;
   trainerDisplayName: string;
   blockFreeSessionBookingUntilRepurchase: boolean;
+  /** Count of `BookedTrainingSession` rows in `INVITED` status (session booking invites awaiting the client). */
   pendingInviteCount: number;
   credits: GovernanceBookingCredits;
   addons: GovernanceAddonSummary | null;
   checkInSessions: CheckInSessionCard[];
   engagements: GovernanceDiyEngagement[];
   coachingGoals: ClientCoachingGoalCard[];
+  coachingProfile: ClientCoachingProfileCard | null;
+  sessionSummaries: ClientSessionSummaryCard[];
 };
 
 export type TrainerPunchHistoryRow = {
@@ -180,52 +208,85 @@ function serializeEngagement(r: {
   };
 }
 
-/** Active, official chats for marketplace governance dashboards. */
-export async function loadClientServiceManagementPairs(clientId: string): Promise<{
-  feeDisclaimer: string;
-  pairs: ClientPairGovernancePayload[];
-}> {
-  const convs = await prisma.trainerClientConversation.findMany({
-    where: {
-      clientId,
-      archivedAt: null,
-      officialChatStartedAt: { not: null },
-    },
-    orderBy: { updatedAt: "desc" },
+const clientServiceMgmtConvSelect = {
+  id: true,
+  trainerId: true,
+  blockFreeSessionBookingUntilRepurchase: true,
+  trainer: {
     select: {
-      id: true,
-      trainerId: true,
-      blockFreeSessionBookingUntilRepurchase: true,
-      trainer: {
-        select: {
-          username: true,
-          preferredName: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
+      username: true,
+      preferredName: true,
+      firstName: true,
+      lastName: true,
     },
-  });
+  },
+} as const;
 
-  const trainerIds = convs.map((c) => c.trainerId);
-  const allGoals =
-    trainerIds.length === 0
-      ? []
-      : await prisma.trainerClientGoal.findMany({
-          where: { clientId, trainerId: { in: trainerIds } },
-          orderBy: { createdAt: "desc" },
-          take: 400,
-          select: {
-            id: true,
-            trainerId: true,
-            horizon: true,
-            goalText: true,
-            completionCriteria: true,
-            completedAt: true,
-          },
-        });
+type ClientServiceMgmtConvRow = {
+  id: string;
+  trainerId: string;
+  blockFreeSessionBookingUntilRepurchase: boolean;
+  trainer: {
+    username: string;
+    preferredName: string | null;
+    firstName: string;
+    lastName: string;
+  };
+};
+
+async function loadClientCoachingExtrasForTrainers(
+  clientId: string,
+  trainerIds: string[],
+): Promise<{
+  goalsByTrainer: Map<string, ClientCoachingGoalCard[]>;
+  profilesByTrainer: Map<string, ClientCoachingProfileCard | null>;
+  summariesByTrainer: Map<string, ClientSessionSummaryCard[]>;
+}> {
   const goalsByTrainer = new Map<string, ClientCoachingGoalCard[]>();
-  for (const tid of trainerIds) goalsByTrainer.set(tid, []);
+  const profilesByTrainer = new Map<string, ClientCoachingProfileCard | null>();
+  const summariesByTrainer = new Map<string, ClientSessionSummaryCard[]>();
+  for (const tid of trainerIds) {
+    goalsByTrainer.set(tid, []);
+    profilesByTrainer.set(tid, null);
+    summariesByTrainer.set(tid, []);
+  }
+  if (!trainerIds.length) {
+    return { goalsByTrainer, profilesByTrainer, summariesByTrainer };
+  }
+
+  let allGoals: {
+    id: string;
+    trainerId: string;
+    horizon: string;
+    goalText: string;
+    completionCriteria: string;
+    completedAt: Date | null;
+  }[] = [];
+  try {
+    allGoals = await prisma.trainerClientGoal.findMany({
+      where: { clientId, trainerId: { in: trainerIds } },
+      orderBy: { createdAt: "desc" },
+      take: 400,
+      select: {
+        id: true,
+        trainerId: true,
+        horizon: true,
+        goalText: true,
+        completionCriteria: true,
+        completedAt: true,
+      },
+    });
+  } catch (e) {
+    if (isPrismaMissingTableError(e, "trainer_client_goals")) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          "[loadClientServiceManagementPairs] trainer_client_goals missing; run `npx prisma migrate dev` or `db push`. Goals hidden until then.",
+        );
+      }
+    } else {
+      throw e;
+    }
+  }
   for (const g of allGoals) {
     const list = goalsByTrainer.get(g.trainerId);
     if (!list || list.length >= 50) continue;
@@ -238,10 +299,66 @@ export async function loadClientServiceManagementPairs(clientId: string): Promis
     });
   }
 
+  try {
+    const profiles = await prisma.trainerClientCoachingProfile.findMany({
+      where: { clientId, trainerId: { in: trainerIds } },
+      select: {
+        trainerId: true,
+        generalNotes: true,
+        medicalInjuryNotes: true,
+      },
+    });
+    for (const p of profiles) {
+      const g = (p.generalNotes ?? "").trim();
+      const m = (p.medicalInjuryNotes ?? "").trim();
+      if (!g && !m) continue;
+      profilesByTrainer.set(p.trainerId, { generalNotes: g, medicalInjuryNotes: m });
+    }
+  } catch (e) {
+    if (!isPrismaMissingTableError(e, "trainer_client_coaching_profiles")) throw e;
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[loadClientServiceManagementPairs] trainer_client_coaching_profiles missing; coaching notes hidden.");
+    }
+  }
+
+  try {
+    const summariesRaw = await prisma.trainerClientSessionSummary.findMany({
+      where: { clientId, trainerId: { in: trainerIds } },
+      orderBy: { occurredAt: "desc" },
+      take: 360,
+      select: { id: true, trainerId: true, occurredAt: true, body: true },
+    });
+    for (const s of summariesRaw) {
+      const list = summariesByTrainer.get(s.trainerId);
+      if (!list || list.length >= 14) continue;
+      list.push({
+        id: s.id,
+        occurredAt: s.occurredAt.toISOString(),
+        body: s.body,
+      });
+    }
+  } catch (e) {
+    if (!isPrismaMissingTableError(e, "trainer_client_session_summaries")) throw e;
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[loadClientServiceManagementPairs] trainer_client_session_summaries missing; session notes hidden.");
+    }
+  }
+
+  return { goalsByTrainer, profilesByTrainer, summariesByTrainer };
+}
+
+async function buildClientPairGovernancePayloads(
+  clientId: string,
+  convs: ClientServiceMgmtConvRow[],
+  goalsByTrainer: Map<string, ClientCoachingGoalCard[]>,
+  profilesByTrainer: Map<string, ClientCoachingProfileCard | null>,
+  summariesByTrainer: Map<string, ClientSessionSummaryCard[]>,
+): Promise<ClientPairGovernancePayload[]> {
   const pairs: ClientPairGovernancePayload[] = [];
   for (const c of convs) {
     const [creditsRaw, invites, engagements, snap] = await Promise.all([
       getConversationBookingSnapshot(c.trainerId, clientId),
+      // Session booking invites awaiting client accept/decline (distinct from chat "threads").
       prisma.bookedTrainingSession.count({
         where: { trainerId: c.trainerId, clientId, status: "INVITED" },
       }),
@@ -288,10 +405,113 @@ export async function loadClientServiceManagementPairs(clientId: string): Promis
       checkInSessions: snap.sessions,
       engagements: engagements.map(serializeEngagement),
       coachingGoals: goalsByTrainer.get(c.trainerId) ?? [],
+      coachingProfile: profilesByTrainer.get(c.trainerId) ?? null,
+      sessionSummaries: summariesByTrainer.get(c.trainerId) ?? [],
     });
   }
+  return pairs;
+}
 
-  return { feeDisclaimer: NON_REFUNDABLE_FEES_COPY, pairs };
+export async function loadClientUpcomingBookingsForServiceManagement(clientId: string): Promise<ClientUpcomingBookingRow[]> {
+  const now = new Date();
+  const horizon = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+  const rows = await prisma.bookedTrainingSession.findMany({
+    where: {
+      clientId,
+      sessionClosedAt: null,
+      scheduledStartAt: { gte: horizon },
+      status: { in: ["INVITED", "CLIENT_CONFIRMED", "PENDING_CONFIRMATION"] },
+    },
+    orderBy: { scheduledStartAt: "asc" },
+    take: 48,
+    select: {
+      id: true,
+      scheduledStartAt: true,
+      scheduledEndAt: true,
+      status: true,
+      sessionDelivery: true,
+      inviteNote: true,
+      videoConferenceJoinUrl: true,
+      confirmationDeadlineAt: true,
+      trainer: {
+        select: {
+          username: true,
+          preferredName: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+    },
+  });
+  return rows.map((r) => ({
+    bookingId: r.id,
+    trainerUsername: r.trainer.username,
+    trainerDisplayName: displayTrainerName(r.trainer),
+    scheduledStartAt: r.scheduledStartAt.toISOString(),
+    scheduledEndAt: r.scheduledEndAt?.toISOString() ?? null,
+    status: r.status,
+    sessionDelivery: r.sessionDelivery,
+    inviteNote: r.inviteNote,
+    videoConferenceJoinUrl: r.videoConferenceJoinUrl,
+    confirmationDeadlineAt: r.confirmationDeadlineAt.toISOString(),
+  }));
+}
+
+/** Active + archived official chats, upcoming bookings, and coaching artifacts for the client Service Management hub. */
+export async function loadClientServiceManagementPairs(clientId: string): Promise<{
+  feeDisclaimer: string;
+  upcomingBookings: ClientUpcomingBookingRow[];
+  activePairs: ClientPairGovernancePayload[];
+  pastPairs: ClientPairGovernancePayload[];
+}> {
+  const [activeConvs, pastConvs] = await Promise.all([
+    prisma.trainerClientConversation.findMany({
+      where: {
+        clientId,
+        archivedAt: null,
+        officialChatStartedAt: { not: null },
+      },
+      orderBy: { updatedAt: "desc" },
+      select: clientServiceMgmtConvSelect,
+    }),
+    prisma.trainerClientConversation.findMany({
+      where: {
+        clientId,
+        archivedAt: { not: null },
+        officialChatStartedAt: { not: null },
+      },
+      orderBy: { archivedAt: "desc" },
+      take: 40,
+      select: clientServiceMgmtConvSelect,
+    }),
+  ]);
+
+  const trainerIdSet = new Set<string>();
+  for (const c of activeConvs) trainerIdSet.add(c.trainerId);
+  for (const c of pastConvs) trainerIdSet.add(c.trainerId);
+  const trainerIds = [...trainerIdSet];
+
+  const extras = await loadClientCoachingExtrasForTrainers(clientId, trainerIds);
+
+  const [activePairs, pastPairs, upcomingBookings] = await Promise.all([
+    buildClientPairGovernancePayloads(
+      clientId,
+      activeConvs as ClientServiceMgmtConvRow[],
+      extras.goalsByTrainer,
+      extras.profilesByTrainer,
+      extras.summariesByTrainer,
+    ),
+    buildClientPairGovernancePayloads(
+      clientId,
+      pastConvs as ClientServiceMgmtConvRow[],
+      extras.goalsByTrainer,
+      extras.profilesByTrainer,
+      extras.summariesByTrainer,
+    ),
+    loadClientUpcomingBookingsForServiceManagement(clientId),
+  ]);
+
+  return { feeDisclaimer: NON_REFUNDABLE_FEES_COPY, upcomingBookings, activePairs, pastPairs };
 }
 
 export async function loadTrainerClientManagementPairs(trainerId: string): Promise<{

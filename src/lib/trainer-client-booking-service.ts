@@ -7,6 +7,7 @@ import {
 import { allocationNetCentsForSession, sessionConsumedBillingUnits } from "@/lib/financial-ledger-split";
 import type { BillingUnit } from "@/lib/trainer-match-questionnaire";
 import { computeAverageCoachServiceCentsPerCredit } from "@/lib/session-check-in";
+import { checkInWindowStartAt } from "@/lib/session-check-in-timing";
 
 export function deadlineBeforeSession(startsAt: Date): Date {
   const d = new Date(startsAt);
@@ -102,7 +103,7 @@ export async function createTrainerBookingInvite(args: {
     `Match Fit booking invite (${deliveryPhrase}): ${startLabel} – ${endLabel}.`,
     args.note?.trim() ? `Note from your coach: ${args.note.trim()}` : null,
     `Booking id: ${booking.id}`,
-    `Reply in this thread if you need a change. To confirm, open your chat booking actions (Confirm) for id ${booking.id}.`,
+    `Reply in this thread if you need a change. Confirmation unlocks 24 hours before the scheduled start (Chat or Service Management) for id ${booking.id}.`,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -141,6 +142,15 @@ export async function clientConfirmBooking(args: {
   });
   if (!row) {
     return { error: "Booking not found or already handled." };
+  }
+
+  const inviteWindowStart = checkInWindowStartAt(row.scheduledStartAt).getTime();
+  const now = Date.now();
+  if (now < inviteWindowStart) {
+    return { error: "Session confirmation opens 24 hours before the scheduled start." };
+  }
+  if (now >= row.scheduledStartAt.getTime()) {
+    return { error: "This invite’s scheduled start has already passed." };
   }
 
   const avgCoachPerCreditFallback = await computeAverageCoachServiceCentsPerCredit({

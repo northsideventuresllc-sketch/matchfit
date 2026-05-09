@@ -1184,7 +1184,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
               <span className="font-bold uppercase tracking-[0.08em] text-amber-200/90">Masked calls </span>
               Both sides must opt in under{" "}
               <Link href="/trainer/dashboard/settings" className="text-[#FF9A4A] underline-offset-2 hover:underline">
-                Account Settings → Masked calls &amp; phone privacy
+                Account Settings → Enable Phone Number
               </Link>
               .
             </div>

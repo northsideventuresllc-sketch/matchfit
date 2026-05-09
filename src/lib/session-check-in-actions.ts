@@ -8,10 +8,9 @@ import {
   FOREGO_PARTIAL_REFUND_NET_SLICE,
   gateAPostSessionDeadlineAt,
   payoutBufferEndsAtFromGates,
-  refundCentsViaStripePaymentIntent,
-  findServiceTransactionForStripeRefund,
-} from "@/lib/session-check-in";
-import type { GateSnapshot } from "@/lib/session-check-in";
+  type GateSnapshot,
+} from "@/lib/session-check-in-timing";
+import { refundCentsViaStripePaymentIntent, findServiceTransactionForStripeRefund } from "@/lib/session-check-in";
 
 async function appendSystemChat(args: { conversationId: string; body: string }): Promise<void> {
   await prisma.trainerClientChatMessage.create({
@@ -826,6 +825,19 @@ export async function settleSessionsPastPayoutBuffer(now = new Date()): Promise<
   return n;
 }
 
+function trainerLabelForNotify(row: {
+  preferredName: string | null;
+  firstName: string;
+  lastName: string;
+  username: string;
+}): string {
+  return (
+    row.preferredName?.trim() ||
+    [row.firstName, row.lastName].filter(Boolean).join(" ").trim() ||
+    `@${row.username}`
+  );
+}
+
 /** Legacy flag flip for UI performance (still used by cron). */
 export async function syncCheckInActiveFlags(now = new Date()): Promise<number> {
   const rows = await prisma.bookedTrainingSession.findMany({
@@ -834,16 +846,47 @@ export async function syncCheckInActiveFlags(now = new Date()): Promise<number> 
       fulfillmentStatus: "SCHEDULED",
       gateASatisfiedAt: null,
     },
-    select: { id: true, scheduledStartAt: true },
+    select: {
+      id: true,
+      scheduledStartAt: true,
+      clientId: true,
+      trainer: {
+        select: {
+          preferredName: true,
+          firstName: true,
+          lastName: true,
+          username: true,
+        },
+      },
+    },
   });
   let n = 0;
   for (const r of rows) {
     const start = checkInWindowStartAt(r.scheduledStartAt);
     if (now.getTime() >= start.getTime()) {
-      await prisma.bookedTrainingSession.update({
-        where: { id: r.id },
-        data: { fulfillmentStatus: "CHECK_IN_ACTIVE", updatedAt: now },
+      const coachName = trainerLabelForNotify(r.trainer);
+      const startLabel = r.scheduledStartAt.toLocaleString(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
       });
+      await prisma.$transaction([
+        prisma.bookedTrainingSession.update({
+          where: { id: r.id },
+          data: { fulfillmentStatus: "CHECK_IN_ACTIVE", updatedAt: now },
+        }),
+        prisma.clientNotification.create({
+          data: {
+            clientId: r.clientId,
+            kind: "SYSTEM",
+            title: "Session check-in is open",
+            body: `Confirm attendance for your session with ${coachName} (${startLabel}). Open Service Management to complete Gate A before your session starts.`,
+            linkHref: "/client/dashboard/service-management",
+          },
+        }),
+      ]);
       n += 1;
     }
   }
