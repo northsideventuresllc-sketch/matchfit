@@ -17,7 +17,11 @@ export default function ClientFindTrainersPage() {
           <Link href="/client/dashboard/preferences" className="text-[#FF7E00] underline-offset-2 hover:underline">
             Match Preferences
           </Link>
-          . Toggle relaxed search to include near matches.
+          . Toggle relaxed search to include near matches. Open{" "}
+          <Link href="/client/dashboard/messages" className="text-[#FF7E00] underline-offset-2 hover:underline">
+            Chats
+          </Link>{" "}
+          anytime to continue conversations.
         </p>
       </header>
       <FindTrainersClient />

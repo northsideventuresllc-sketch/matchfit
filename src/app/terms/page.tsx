@@ -142,7 +142,7 @@ export default async function TermsPage() {
         </P>
         <P>
           <Strong>Subscriptions and Promotions:</Strong> Client Platform subscriptions may be offered at published rates
-          (for example, five U.S. dollars ($5.00) per month) with promotional pricing (for example, two U.S. dollars ($2.00)
+          (for example, ten U.S. dollars ($10.00) per month) with promotional pricing (for example, four U.S. dollars ($4.00)
           per month for an introductory period) when we run such programs. Promotional details, renewal rates, and billing
           cycles are shown in-product and at checkout.
         </P>

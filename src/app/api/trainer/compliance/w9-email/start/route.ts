@@ -2,7 +2,7 @@ import { deliverSignupOtp } from "@/lib/deliver-otp";
 import { generateSixDigitCode, hashOtp } from "@/lib/otp";
 import { prisma } from "@/lib/prisma";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
-import { getSessionTrainerId } from "@/lib/session";
+import { getSessionTrainerId, getVerifiedAdminImpersonation } from "@/lib/session";
 import { NextResponse } from "next/server";
 
 export async function POST() {
@@ -10,6 +10,12 @@ export async function POST() {
     const trainerId = await getSessionTrainerId();
     if (!trainerId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
+    if (await getVerifiedAdminImpersonation()) {
+      return NextResponse.json(
+        { error: "W-9 email self-service is disabled during administrator impersonation." },
+        { status: 403 },
+      );
     }
 
     const trainer = await prisma.trainer.findUnique({

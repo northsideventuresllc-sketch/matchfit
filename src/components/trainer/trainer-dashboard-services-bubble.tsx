@@ -118,7 +118,7 @@ function offeringKindFromServiceId(id: MatchServiceId): OfferingKind {
 const DELIVERY_LABEL: Record<ServiceDeliveryMode, string> = {
   virtual: "Virtual",
   in_person: "In-Person",
-  both: "Virtual and In-Person",
+  both: "Combination (Virtual and In-Person)",
 };
 
 function selectableBilling(serviceId: MatchServiceId | null): BillingUnit[] {
@@ -193,8 +193,8 @@ function deliveryChoicesForService(serviceId: MatchServiceId): { id: ServiceDeli
   if (row.virtual && row.inPerson) {
     out.push({
       id: "both",
-      label: "Virtual and In-Person",
-      hint: "Offer this package either online or on-site.",
+      label: "Combination (Virtual and In-Person)",
+      hint: "Clients choose how each session is delivered: they can mix virtual and in-person sessions across the package based on what you agree together.",
     });
   }
   return out;
@@ -247,6 +247,8 @@ export function TrainerDashboardServicesBubble() {
   const priceModalCancelledRef = useRef(false);
   const [listingReviewOpen, setListingReviewOpen] = useState(false);
   const [aiRecChecked, setAiRecChecked] = useState<Record<string, boolean>>({});
+  /** “New default” in step 2: manual checkout rows only (blank titles until the coach types). */
+  const [manualBaseOfferingsBuild, setManualBaseOfferingsBuild] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoadErr(null);
@@ -453,6 +455,7 @@ export function TrainerDashboardServicesBubble() {
     setOptionalAddOnsSelected([]);
     setListingReviewOpen(false);
     setAiRecChecked({});
+    setManualBaseOfferingsBuild(false);
     setSetupCancelOpen(false);
   }
 
@@ -520,6 +523,7 @@ export function TrainerDashboardServicesBubble() {
   function onPickService(id: MatchServiceId) {
     setServiceId(id);
     setDelivery(null);
+    setManualBaseOfferingsBuild(false);
     setScreen("packageBase");
   }
 
@@ -551,7 +555,7 @@ export function TrainerDashboardServicesBubble() {
       let next = normalizeVariationRow(
         {
           ...v,
-          label: v.label.trim() || catalogTemplateLabel(serviceId),
+          label: v.label.trim(),
           variationDescription: v.variationDescription?.trim()
             ? v.variationDescription.trim().slice(0, 400)
             : undefined,
@@ -635,6 +639,31 @@ export function TrainerDashboardServicesBubble() {
     setVariations((prev) => [...prev, normalizeVariationRow(row, serviceId)]);
   }
 
+  /** Manual “New default” row: no auto-filled title or session length — coach fills fields. */
+  function addVariationManualBlank() {
+    if (!serviceId || !delivery) return;
+    setFormErr(null);
+    const n = parsePriceUsdField();
+    if (n == null || n < 15 || n > 5000) {
+      setFormErr("Enter a valid list price ($15–$5,000) before adding a variation.");
+      return;
+    }
+    const bu = billingUnit === "multi_session" ? "per_session" : billingUnit;
+    const row: TrainerServiceOfferingVariation = {
+      variationId: newVariationId(),
+      label: "",
+      priceUsd: n,
+      billingUnit: bu,
+    };
+    if (variationRequiresSessionCount(serviceId, bu)) {
+      row.sessionCount = 1;
+    }
+    setMainBundleTiers([]);
+    setVariationSessionMinutesText((p) => ({ ...p, [row.variationId]: "" }));
+    setVariationPriceUsdText((p) => ({ ...p, [row.variationId]: formatTrainerServicePriceUsd(n) }));
+    setVariations((prev) => [...prev, normalizeVariationRow(row, serviceId)]);
+  }
+
   function parsePriceUsdField(): number | null {
     const n = parseTrainerServicePriceUsdInput(priceUsd);
     if (n == null || !Number.isFinite(n)) return null;
@@ -684,6 +713,7 @@ export function TrainerDashboardServicesBubble() {
       mainBundleTiers,
       baseSessionMinutes,
       optionalAddOns: optionalAddOnsSelected,
+      manualBaseOfferingsBuild,
     };
   }
 
@@ -734,6 +764,8 @@ export function TrainerDashboardServicesBubble() {
         addRaw.filter((a) => a && typeof (a as TrainerServiceOfferingAddOn).addonId === "string") as TrainerServiceOfferingAddOn[],
       );
     } else setOptionalAddOnsSelected([]);
+
+    setManualBaseOfferingsBuild(raw.manualBaseOfferingsBuild === true);
 
     setFormErr(null);
     setListingReviewOpen(false);
@@ -831,13 +863,11 @@ export function TrainerDashboardServicesBubble() {
       }
       const row: TrainerServiceOfferingAddOn = {
         addonId: preset.addonId,
-        label: preset.label,
+        label: "",
         coachSummary: "",
-        priceUsd: 25,
         billingUnit: "per_session",
         ...(preset.description ? { description: preset.description } : {}),
       };
-      setAddOnPriceUsdText((p) => ({ ...p, [preset.addonId]: formatTrainerServicePriceUsd(25) }));
       return [...prev, row];
     });
   }
@@ -950,6 +980,7 @@ export function TrainerDashboardServicesBubble() {
       for (let i = 0; i < variations.length; i++) {
         const v = variations[i]!;
         if (v.priceUsd < 15 || v.priceUsd > 5000) return `Option ${i + 1}: price must be between $15 and $5,000.`;
+        if (!v.label.trim()) return `Option ${i + 1}: enter a checkout title.`;
         if (!selectableBilling(serviceId).includes(v.billingUnit)) {
           return `Option ${i + 1}: pick a billing option that matches this template.`;
         }
@@ -1329,6 +1360,7 @@ export function TrainerDashboardServicesBubble() {
           ? String(draft.inPersonRadiusMiles)
           : "",
     );
+    setManualBaseOfferingsBuild(false);
     setScreen("packageBase");
   }
 
@@ -1662,7 +1694,7 @@ export function TrainerDashboardServicesBubble() {
         <div className="mx-auto mt-8 max-w-2xl space-y-4">
           <p className="text-center text-sm font-semibold text-white/85">Choose a Match Fit template</p>
           <p className="text-center text-xs text-white/45">
-            Optional public title in step 1; per-row titles (if you add checkout options) are on each card in step 2.
+            Checkout titles and pricing options are configured in step 2 after you choose delivery in step 1.
           </p>
           <div className="grid max-h-[min(28rem,55vh)] auto-rows-fr gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
             {serviceCatalogForKind.map((s) => (
@@ -1687,9 +1719,9 @@ export function TrainerDashboardServicesBubble() {
 
       {screen === "packageBase" && serviceId && offeringKind ? (
         <div className="mx-auto mt-8 max-w-lg space-y-4">
-          <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Step 1 of 4 · Main Package Details</p>
+          <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Step 1 of 4</p>
           <p className="text-center text-sm font-semibold text-white/85">
-            {editingServiceId ? "Edit Package — Shared Details" : "Main Package Details"}
+            {editingServiceId ? "Edit Package — Delivery Method" : "Delivery Method"}
           </p>
           <p className="text-center text-xs text-white/45">
             <span className="font-semibold uppercase tracking-wide text-white/40">Template</span>:{" "}
@@ -1701,7 +1733,8 @@ export function TrainerDashboardServicesBubble() {
             ) : null}
           </p>
           <p className="text-center text-[11px] leading-relaxed text-white/38">
-            Delivery, optional title, and service area apply to this package. Client-facing copy is added in step 3.
+            How sessions are delivered and your in-person service area (when applicable). Checkout title and pricing are in step 2;
+            add-ons and the long service description are in step 3.
           </p>
 
           <div className="space-y-4 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4">
@@ -1728,20 +1761,6 @@ export function TrainerDashboardServicesBubble() {
                   ))}
                 </div>
               )}
-            </div>
-
-            <div>
-              <label className={labelClass}>Public Title (Optional)</label>
-              <input
-                className={`${inputClass} mt-1.5`}
-                value={publicTitle}
-                onChange={(e) => setPublicTitle(e.target.value)}
-                placeholder={MATCH_SERVICE_CATALOG.find((s) => s.id === serviceId)?.label ?? "Your package name"}
-                maxLength={TRAINER_SERVICE_PUBLIC_TITLE_MAX}
-              />
-              <p className="mt-1 text-[10px] leading-relaxed text-white/35">
-                Shown on your profile and in the step 4 AI listing check. Leave blank to use the template name shown above.
-              </p>
             </div>
 
             {delivery && (delivery === "in_person" || delivery === "both") ? (
@@ -1780,6 +1799,7 @@ export function TrainerDashboardServicesBubble() {
                   setFormErr(err);
                   return;
                 }
+                setManualBaseOfferingsBuild(false);
                 setScreen("baseOfferings");
               }}
               className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-[#FF7E00]/45 bg-[#FF7E00]/16 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/60 disabled:opacity-45"
@@ -1810,8 +1830,8 @@ export function TrainerDashboardServicesBubble() {
 
       {screen === "baseOfferings" && serviceId && delivery && offeringKind ? (
         <div className="mx-auto mt-8 max-w-lg space-y-4">
-          <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Step 2 of 4 · Service Offerings</p>
-          <p className="text-center text-sm font-semibold text-white/85">Price, Billing & Checkout Options</p>
+          <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Step 2 of 4</p>
+          <p className="text-center text-sm font-semibold text-white/85">Price, Billing & Checkout Set-Up</p>
           <p className="text-center text-xs text-white/45">
             <span className="font-semibold uppercase tracking-wide text-white/40">Template</span>:{" "}
             {MATCH_SERVICE_CATALOG.find((s) => s.id === serviceId)?.label}
@@ -1822,14 +1842,69 @@ export function TrainerDashboardServicesBubble() {
             ) : null}
           </p>
           <p className="text-center text-[11px] leading-relaxed text-white/38">
-            Set up your main offering with <span className="font-semibold text-white/55">list price</span> and{" "}
-            <span className="font-semibold text-white/55">how it&apos;s billed</span>. Session length below applies when you publish one
-            price with no extra rows and seeds each new checkout option. Bundles live in each option card—or under the single-price setup.
-            Step 3 is client-facing copy.
+            Set up your <span className="font-semibold text-white/55">list price</span>,{" "}
+            <span className="font-semibold text-white/55">billing</span>, and optional{" "}
+            <span className="font-semibold text-white/55">checkout title</span> for a single published price, or use the buttons below to
+            start from catalog presets or a blank default and add checkout rows. Step 3 covers add-ons and the long service description.
           </p>
 
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              disabled={!serviceId || busy}
+              onClick={() => {
+                if (!serviceId) return;
+                if (
+                  variations.length > 0 &&
+                  !globalThis.confirm("Replace your current checkout rows with catalog presets for this template?")
+                ) {
+                  return;
+                }
+                setManualBaseOfferingsBuild(false);
+                const next = templateVariationsForService(serviceId).map((v) => normalizeVariationRow({ ...v }, serviceId));
+                setMainBundleTiers([]);
+                setVariations(next);
+                const px: Record<string, string> = {};
+                const sx: Record<string, string> = {};
+                for (const row of next) {
+                  px[row.variationId] = formatTrainerServicePriceUsd(row.priceUsd);
+                  if (row.sessionMinutes != null && Number.isFinite(row.sessionMinutes)) {
+                    sx[row.variationId] = String(Math.floor(row.sessionMinutes));
+                  }
+                }
+                setVariationPriceUsdText((p) => ({ ...p, ...px }));
+                setVariationSessionMinutesText((p) => ({ ...p, ...sx }));
+              }}
+              className="inline-flex min-h-[2.85rem] flex-1 items-center justify-center rounded-xl border border-white/14 bg-white/[0.06] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-white/95 transition hover:border-[#FF7E00]/40 disabled:opacity-40"
+            >
+              Catalog Presets (Optional)
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                if (
+                  variations.length > 0 &&
+                  !globalThis.confirm(
+                    "Switch to a new default build? This clears checkout rows and bundle tiers so you can add your own variations.",
+                  )
+                ) {
+                  return;
+                }
+                setManualBaseOfferingsBuild(true);
+                setVariations([]);
+                setMainBundleTiers([]);
+                setVariationPriceUsdText({});
+                setVariationSessionMinutesText({});
+              }}
+              className="inline-flex min-h-[2.85rem] flex-1 items-center justify-center rounded-xl border border-[#FF7E00]/45 bg-[#FF7E00]/16 px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-white transition hover:border-[#FF7E00]/58 disabled:opacity-40"
+            >
+              New Default
+            </button>
+          </div>
+
           <div className="space-y-3">
-            <details open className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/50 px-4 py-3">
+            <details className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/50 px-4 py-3">
               <summary className="cursor-pointer list-none text-sm font-semibold text-white/85 [&::-webkit-details-marker]:hidden">
                 <span className="text-[#FF7E00]">▸</span> Service Offering Setup
               </summary>
@@ -1884,42 +1959,44 @@ export function TrainerDashboardServicesBubble() {
                       placeholder="e.g. 60"
                     />
                     <p className="mt-1 text-[10px] text-white/35">
-                      Required when you only publish one price. Also used as the default length when you add a new row below.
+                      Required when you only publish one price. Also used when you add a catalog preset row that shares this length.
                     </p>
                   </div>
                 ) : null}
+                <div>
+                  <label className={labelClass}>Checkout Title (Optional)</label>
+                  <input
+                    className={`${inputClass} mt-1.5`}
+                    value={publicTitle}
+                    onChange={(e) => setPublicTitle(e.target.value)}
+                    placeholder={MATCH_SERVICE_CATALOG.find((s) => s.id === serviceId)?.label ?? "Your package name"}
+                    maxLength={TRAINER_SERVICE_PUBLIC_TITLE_MAX}
+                  />
+                  <p className="mt-1 text-[10px] leading-relaxed text-white/35">
+                    Shown on your profile and checkout when you publish a single list price (no separate checkout rows). Leave blank to
+                    use the template name.
+                  </p>
+                </div>
                 <p className="text-[10px] leading-relaxed text-white/38">
-                  Prefer multiple checkout rows? Add each option below—each opens its own card with optional volume bundles. Single list
-                  price? Configure bundle tiers here.
+                  Multiple checkout rows each get their own card (expand to edit). Bundle tiers live on the main price here or inside each
+                  row.
                 </p>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {manualBaseOfferingsBuild ? (
                   <button
                     type="button"
                     disabled={busy || !serviceId || !delivery}
-                    onClick={() => addVariationFromBaseMetrics()}
+                    onClick={() => addVariationManualBlank()}
                     className="w-full rounded-xl border border-[#FF7E00]/45 bg-[#FF7E00]/16 py-3 text-xs font-black uppercase tracking-[0.1em] text-white transition hover:border-[#FF7E00]/58 disabled:opacity-40"
                   >
                     Add Variation
                   </button>
-                  <button
-                    type="button"
-                    disabled={!serviceId || busy}
-                    onClick={() => {
-                      if (!serviceId) return;
-                      if (
-                        variations.length > 0 &&
-                        !globalThis.confirm("Replace your current checkout rows with catalog starters for this template?")
-                      )
-                        return;
-                      const next = templateVariationsForService(serviceId).map((v) => normalizeVariationRow({ ...v }, serviceId));
-                      setMainBundleTiers([]);
-                      setVariations(next);
-                    }}
-                    className="w-full rounded-xl border border-white/14 bg-white/[0.06] py-3 text-[10px] font-black uppercase tracking-[0.12em] text-white/95 transition hover:border-[#FF7E00]/40 disabled:opacity-40"
-                  >
-                    Catalog Presets (Optional)
-                  </button>
-                </div>
+                ) : variations.length === 0 ? (
+                  <p className="rounded-lg border border-white/[0.06] bg-black/15 px-3 py-2 text-[10px] leading-relaxed text-white/45">
+                    Use <span className="font-semibold text-white/60">Catalog Presets</span> or{" "}
+                    <span className="font-semibold text-white/60">New Default</span> above to add checkout rows—or stay with a single list
+                    price using only this section.
+                  </p>
+                ) : null}
                 {variations.length === 0 ? (
                   <div className="mt-4 space-y-2 rounded-xl border border-white/[0.06] bg-black/20 p-3">
                     <p className="text-[11px] font-bold text-white/80">Bundle Pricing (Optional)</p>
@@ -2106,7 +2183,7 @@ export function TrainerDashboardServicesBubble() {
             ) : null}
 
               {variations.map((v, vi) => (
-                <details key={v.variationId} open className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/50 px-4 py-3">
+                <details key={v.variationId} className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/50 px-4 py-3">
                   <summary className="flex cursor-pointer list-none items-start justify-between gap-2 text-sm font-semibold text-white/85 [&::-webkit-details-marker]:hidden">
                     <span className="min-w-0 flex-1">
                       <span className="text-[#FF7E00]">▸</span> Checkout Option {vi + 1}
@@ -2499,8 +2576,8 @@ export function TrainerDashboardServicesBubble() {
 
       {screen === "copyDetails" && serviceId && delivery && offeringKind ? (
         <div className="mx-auto mt-8 max-w-lg space-y-4">
-          <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Step 3 of 4 · Copy & Descriptions</p>
-          <p className="text-center text-sm font-semibold text-white/85">What Clients Read</p>
+          <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Step 3 of 4</p>
+          <p className="text-center text-sm font-semibold text-white/85">Add Ons & Service Description</p>
           <p className="text-center text-xs text-white/45">
             <span className="font-semibold uppercase tracking-wide text-white/40">Template</span>:{" "}
             {MATCH_SERVICE_CATALOG.find((s) => s.id === serviceId)?.label}
@@ -2511,10 +2588,9 @@ export function TrainerDashboardServicesBubble() {
           </p>
 
           <div className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/50 p-4">
-            <p className="text-[13px] font-semibold tracking-normal text-white/80">Optional Add-Ons</p>
+            <p className={labelClass}>Optional Add-Ons</p>
             <p className="mt-1 text-[10px] leading-relaxed text-white/38">
-              Add presets below, then customize how each one reads and prices on your profile. Billing is either per time you deliver the
-              add-on or per hour.
+              ADD PRESETS BELOW, THEN CUSTOMIZE TITLES AND PRICES. BILLING IS PER TIME OR PER HOUR.
             </p>
             {optionalAddOnPresets.some((pr) => !optionalAddOnsSelected.some((a) => a.addonId === pr.addonId)) ? (
               <div className="mt-4 space-y-2">
@@ -2529,9 +2605,9 @@ export function TrainerDashboardServicesBubble() {
                         type="button"
                         disabled={busy}
                         onClick={() => toggleOptionalAddOnFromPreset(preset)}
-                        className="rounded-lg border border-white/[0.1] bg-black/20 px-3 py-2 text-[11px] font-semibold text-white/85 transition hover:border-[#FF7E00]/40 disabled:opacity-45"
+                        className="rounded-lg border border-white/[0.1] bg-black/20 px-3 py-2 text-[11px] font-black uppercase tracking-wide text-white/85 transition hover:border-[#FF7E00]/40 disabled:opacity-45"
                       >
-                        + {preset.label}
+                        + {preset.label.toUpperCase()}
                       </button>
                     );
                   })}
@@ -2549,7 +2625,7 @@ export function TrainerDashboardServicesBubble() {
                     className="rounded-2xl border border-white/[0.08] bg-black/22 px-4 py-4"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2 border-b border-white/[0.06] pb-3">
-                      <p className="text-[12px] font-bold text-[#FF7E00]/95">Add-On {ai + 1}</p>
+                      <p className="text-[12px] font-black uppercase tracking-wide text-[#FF7E00]/95">Add-On {ai + 1}</p>
                       <button
                         type="button"
                         disabled={busy}
@@ -2612,13 +2688,21 @@ export function TrainerDashboardServicesBubble() {
                             onBlur={() => {
                               const raw = addOnPriceUsdText[a.addonId] ?? "";
                               const n = parseTrainerServicePriceUsdInput(raw);
-                              const next =
-                                n != null && n >= 15 && n <= 5000 ? n : a.priceUsd ?? 25;
-                              patchOptionalAddOn(a.addonId, { priceUsd: next });
-                              setAddOnPriceUsdText((p) => ({
-                                ...p,
-                                [a.addonId]: formatTrainerServicePriceUsd(next),
-                              }));
+                              if (n != null && n >= 15 && n <= 5000) {
+                                patchOptionalAddOn(a.addonId, { priceUsd: n });
+                                setAddOnPriceUsdText((p) => ({
+                                  ...p,
+                                  [a.addonId]: formatTrainerServicePriceUsd(n),
+                                }));
+                              } else if (a.priceUsd != null && a.priceUsd >= 15 && a.priceUsd <= 5000) {
+                                const stablePriceUsd = a.priceUsd;
+                                setAddOnPriceUsdText((p) => ({
+                                  ...p,
+                                  [a.addonId]: formatTrainerServicePriceUsd(stablePriceUsd),
+                                }));
+                              } else {
+                                setAddOnPriceUsdText((p) => ({ ...p, [a.addonId]: "" }));
+                              }
                             }}
                             placeholder="0.00"
                           />
@@ -2636,8 +2720,8 @@ export function TrainerDashboardServicesBubble() {
                               })
                             }
                           >
-                            <option value="per_session">Per time (each add-on)</option>
-                            <option value="per_hour">Per hour</option>
+                            <option value="per_session">PER TIME (EACH ADD-ON)</option>
+                            <option value="per_hour">PER HOUR</option>
                           </select>
                         </div>
                       </div>
@@ -2713,7 +2797,7 @@ export function TrainerDashboardServicesBubble() {
 
       {screen === "aiReview" && serviceId && delivery && offeringKind ? (
         <div className="mx-auto mt-8 max-w-lg space-y-4">
-          <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Step 4 of 4 · Review & Publish</p>
+          <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Step 4 of 4</p>
           <p className="text-center text-sm font-semibold text-white/85">Review & Publish</p>
           <p className="text-center text-xs text-white/45">
             <span className="font-semibold uppercase tracking-wide text-white/40">Template</span>:{" "}

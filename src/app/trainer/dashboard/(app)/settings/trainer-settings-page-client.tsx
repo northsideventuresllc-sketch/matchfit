@@ -23,6 +23,7 @@ import {
   TrainerSettingsCollapsibleBulkProvider,
 } from "@/components/trainer/trainer-settings-collapsible-bulk-context";
 import type { TrainerDashboardQuickLinkId } from "@/lib/trainer-dashboard-quick-links";
+import { TrainerNotificationSettingsForm } from "@/app/trainer/dashboard/(app)/notification-settings/trainer-notification-settings-form";
 
 const TRAINER_SETTINGS_API = "/api/trainer/settings";
 
@@ -267,6 +268,17 @@ export function TrainerSettingsPageClient(props: Props) {
               settingsApiBase={TRAINER_SETTINGS_API}
               dashboardLinkHref="/trainer/dashboard"
             />
+          </CollapsibleSettingsSection>
+        </div>
+
+        <div id="trainer-push-notifications" className="scroll-mt-24">
+          <CollapsibleSettingsSection
+            bulkSectionId="trainer-settings-push-notifications"
+            title="Push Notifications"
+            description="Choose which categories can send push alerts when native push is enabled on your device."
+            defaultOpen={false}
+          >
+            <TrainerNotificationSettingsForm />
           </CollapsibleSettingsSection>
         </div>
 

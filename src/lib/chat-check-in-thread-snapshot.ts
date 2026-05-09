@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import type { GateSnapshot } from "@/lib/session-check-in";
-import { deriveCheckInUiPhase, NON_REFUNDABLE_FEES_COPY } from "@/lib/session-check-in";
+import type { GateSnapshot } from "@/lib/session-check-in-timing";
+import { deriveCheckInUiPhase } from "@/lib/session-check-in-timing";
+import { NON_REFUNDABLE_FEES_COPY } from "@/lib/session-check-in";
 
 export type CheckInSessionCard = {
   bookingId: string;

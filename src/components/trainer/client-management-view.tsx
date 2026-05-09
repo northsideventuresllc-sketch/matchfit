@@ -15,7 +15,7 @@ import type {
 } from "@/lib/trainer-client-management-dashboard";
 import type { CoachingGoalDto, DiyEngagementDto, SessionSummaryDto } from "@/lib/trainer-client-coaching";
 import { trainerPairIsActiveInquiry } from "@/lib/trainer-active-inquiries";
-import { isWithinTrainerPunchGeolocationWindow } from "@/lib/session-check-in";
+import { isWithinTrainerPunchGeolocationWindow } from "@/lib/session-check-in-timing";
 
 function money(cents: number | null | undefined): string {
   if (cents == null || cents <= 0) return "0.00";

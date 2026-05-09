@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ClientDashboardShell } from "@/components/client/client-dashboard-shell";
@@ -9,8 +10,9 @@ import {
 import { getClientDiyGovernanceGate } from "@/lib/diy-governance";
 import { prisma } from "@/lib/prisma";
 import { purgeExpiredSuspensionRecords } from "@/lib/suspension-lifecycle";
+import { AdminImpersonationStrip } from "@/components/admin/admin-impersonation-strip";
 import { staleClientSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
-import { getSessionClientId } from "@/lib/session";
+import { getSessionClientId, getVerifiedAdminImpersonation } from "@/lib/session";
 
 export default async function ClientDashboardAppLayout({
   children,
@@ -60,12 +62,27 @@ export default async function ClientDashboardAppLayout({
 
   const displayName = client.preferredName?.trim() || "Client";
 
+  let supportStrip: ReactNode = null;
+  const adminImp = await getVerifiedAdminImpersonation();
+  if (adminImp?.role === "client") {
+    const subject = await prisma.client.findUnique({
+      where: { id: adminImp.targetId },
+      select: { username: true },
+    });
+    if (subject) {
+      supportStrip = (
+        <AdminImpersonationStrip portalRole="client" username={subject.username} testMode={adminImp.testMode} />
+      );
+    }
+  }
+
   return (
     <ClientDashboardShell
       preferredName={displayName}
       profileImageUrl={client.profileImageUrl}
       initialUnreadCount={unreadCount}
       diyGovernanceGate={diyGovernanceGate}
+      supportStrip={supportStrip}
     >
       {children}
     </ClientDashboardShell>

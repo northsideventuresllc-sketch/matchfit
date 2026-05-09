@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { verifyOtp } from "@/lib/otp";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { RESEND_ONBOARDING_FROM, sendResendEmail } from "@/lib/resend-client";
-import { getSessionTrainerId } from "@/lib/session";
+import { getSessionTrainerId, getVerifiedAdminImpersonation } from "@/lib/session";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -48,6 +48,12 @@ export async function POST(req: Request) {
     const trainerId = await getSessionTrainerId();
     if (!trainerId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
+    if (await getVerifiedAdminImpersonation()) {
+      return NextResponse.json(
+        { error: "W-9 email self-service is disabled during administrator impersonation." },
+        { status: 403 },
+      );
     }
 
     const parsed = bodySchema.safeParse(await req.json());

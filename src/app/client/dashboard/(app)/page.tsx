@@ -3,9 +3,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ClientDashboardLogoutButton } from "@/components/client/client-dashboard-logout-button";
 import { ClientDashboardQuickActions } from "@/components/client/client-dashboard-quick-actions";
+import { ClientDashboardHomeSection } from "@/components/client/client-dashboard-home-section";
 import { getFeaturedTrainersForHomepage } from "@/lib/featured-homepage-data";
 import { clientZipToPrefix } from "@/lib/featured-region";
+import {
+  parseClientDashboardQuickLinkIdsJson,
+  type ClientDashboardQuickLinkId,
+} from "@/lib/client-dashboard-quick-links";
 import { prisma } from "@/lib/prisma";
+import { isPrismaMissingColumnError, isPrismaUnknownModelFieldError } from "@/lib/prisma-missing-column";
 import { staleClientSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
 import { getSessionClientId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
@@ -31,6 +37,21 @@ export default async function ClientDashboardHomePage() {
   if (!clientId) {
     redirect("/client");
   }
+
+  const QUICK_LINKS_JSON_COL = "dashboardQuickLinkIdsJson";
+  let dashboardQuickLinkIds: ClientDashboardQuickLinkId[] = [];
+  try {
+    const row = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { dashboardQuickLinkIdsJson: true },
+    });
+    dashboardQuickLinkIds = parseClientDashboardQuickLinkIdsJson(row?.dashboardQuickLinkIdsJson ?? null);
+  } catch (e) {
+    if (!isPrismaMissingColumnError(e, QUICK_LINKS_JSON_COL) && !isPrismaUnknownModelFieldError(e, QUICK_LINKS_JSON_COL)) {
+      throw e;
+    }
+  }
+
   const client = await prisma.client.findUnique({
     where: { id: clientId },
     select: {
@@ -107,28 +128,25 @@ export default async function ClientDashboardHomePage() {
         <h1 className="text-3xl font-black uppercase tracking-[0.06em] sm:text-4xl">WELCOME BACK</h1>
         <p className="text-lg font-semibold text-white/90">{displayName}</p>
         <p className="mx-auto max-w-xl text-sm leading-relaxed text-white/50">
-          SIGNED IN AS <span className="text-white/75">@{client.username}</span>
+          Signed in as <span className="text-white/75">@{client.username}</span>
         </p>
       </header>
 
-      <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
-        <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-white/40">QUICK ACTIONS</h2>
-        <div className="mt-6">
-          <ClientDashboardQuickActions />
-        </div>
-      </section>
+      <ClientDashboardHomeSection title="Quick Actions">
+        <ClientDashboardQuickActions quickLinkIds={dashboardQuickLinkIds} />
+      </ClientDashboardHomeSection>
 
-      <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
-        <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-[#FF7E00]">RECENT MATCHES</h2>
-        <p className="mx-auto mt-2 max-w-lg text-center text-sm text-white/50">
-          The three coaches you most recently opened an official chat with. Open a thread to pick up where you left off.
-        </p>
+      <ClientDashboardHomeSection
+        title="Recent Matches"
+        titleClassName="text-[#FF7E00]"
+        subtitle="The three coaches you most recently opened an official chat with. Open a thread to pick up where you left off."
+      >
         {recentMatches.length === 0 ? (
-          <p className="mt-8 text-center text-sm text-white/40">
+          <p className="text-center text-sm text-white/40">
             No official chats yet. Save a coach or reply to a nudge to open a conversation.
           </p>
         ) : (
-          <ul className="mt-6 space-y-3">
+          <ul className="mx-auto max-w-xl space-y-3">
             {recentMatches.map((row) => {
               const t = row.trainer;
               const name = coachDisplayName(t);
@@ -137,7 +155,10 @@ export default async function ClientDashboardHomePage() {
               return (
                 <li key={row.id}>
                   <div className="flex items-center gap-4 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-3 transition hover:border-[#FF7E00]/35">
-                    <Link href={chatHref} className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#12151C]">
+                    <Link
+                      href={chatHref}
+                      className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#12151C]"
+                    >
                       {t.profileImageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={t.profileImageUrl.split("?")[0]} alt="" className="h-full w-full object-cover" />
@@ -147,7 +168,7 @@ export default async function ClientDashboardHomePage() {
                         </span>
                       )}
                     </Link>
-                    <div className="min-w-0 flex-1 text-center">
+                    <div className="min-w-0 flex-1 text-left">
                       <Link href={chatHref} className="block truncate text-sm font-semibold text-white/90 hover:underline">
                         {name}
                       </Link>
@@ -161,7 +182,11 @@ export default async function ClientDashboardHomePage() {
                         Open Chat →
                       </Link>
                     </div>
-                    <Link href={chatHref} className="shrink-0 text-white/35 hover:text-white/55" aria-label={`Open chat with ${name}`}>
+                    <Link
+                      href={chatHref}
+                      className="shrink-0 text-white/35 hover:text-white/55"
+                      aria-label={`Open chat with ${name}`}
+                    >
                       →
                     </Link>
                   </div>
@@ -170,25 +195,27 @@ export default async function ClientDashboardHomePage() {
             })}
           </ul>
         )}
-      </section>
+      </ClientDashboardHomeSection>
 
-      <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
-        <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-white/40">FEATURED COACHES IN YOUR AREA</h2>
+      <ClientDashboardHomeSection title="Featured Coaches in Your Area">
         {!zipPrefix ? (
-          <p className="mt-8 text-center text-sm text-white/40">
+          <p className="text-center text-sm text-white/40">
             Add a valid U.S. ZIP code on your account so we can match you to a regional featured pool.
           </p>
         ) : featuredCoaches.length === 0 ? (
-          <p className="mt-8 text-center text-sm text-white/40">No featured coaches are scheduled for your region today.</p>
+          <p className="text-center text-sm text-white/40">No featured coaches are scheduled for your region today.</p>
         ) : (
           <>
-            <ul className="mt-6 space-y-3">
+            <ul className="mx-auto max-w-xl space-y-3">
               {featuredCoaches.map((c) => {
                 const profileHref = `/trainers/${encodeURIComponent(c.username)}`;
                 return (
                   <li key={c.username}>
                     <div className="flex items-center gap-4 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-3 transition hover:border-[#FF7E00]/35">
-                      <Link href={profileHref} className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#12151C]">
+                      <Link
+                        href={profileHref}
+                        className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#12151C]"
+                      >
                         {c.profileImageUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={c.profileImageUrl.split("?")[0]} alt="" className="h-full w-full object-cover" />
@@ -198,7 +225,7 @@ export default async function ClientDashboardHomePage() {
                           </span>
                         )}
                       </Link>
-                      <div className="min-w-0 flex-1 text-center">
+                      <div className="min-w-0 flex-1 text-left">
                         <Link href={profileHref} className="block truncate text-sm font-semibold text-white/90 hover:underline">
                           {c.displayName}
                         </Link>
@@ -227,15 +254,15 @@ export default async function ClientDashboardHomePage() {
             </p>
           </>
         )}
-      </section>
+      </ClientDashboardHomeSection>
 
-      <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
-        <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-[#FF7E00]">COACH NUDGES</h2>
-        <p className="mx-auto mt-2 max-w-lg text-center text-sm text-white/50">
-          Coaches who want to work with you can send you a nudge. Trainers who nudged you will appear here.
-        </p>
+      <ClientDashboardHomeSection
+        title="Coach Nudges"
+        titleClassName="text-[#FF7E00]"
+        subtitle="Coaches who want to work with you can send you a nudge. Trainers who nudged you will appear here."
+      >
         {nudges.length === 0 ? (
-          <p className="mt-8 text-center text-sm text-white/40">
+          <p className="text-center text-sm text-white/40">
             No nudges yet.{" "}
             <Link href="/client/dashboard/preferences" className="text-[#FF7E00] underline-offset-2 hover:underline">
               Update your Match Preferences
@@ -243,7 +270,7 @@ export default async function ClientDashboardHomePage() {
             and browse coaches to get discovered.
           </p>
         ) : (
-          <ul className="mt-6 space-y-3">
+          <ul className="mx-auto max-w-xl space-y-3">
             {nudges.map((n) => {
               const name = coachDisplayName(n.trainer);
               const chatHref = `/client/messages/${encodeURIComponent(n.trainer.username)}`;
@@ -258,7 +285,10 @@ export default async function ClientDashboardHomePage() {
                         : "border-white/[0.06] bg-[#0E1016]/50 hover:border-white/15"
                     }`}
                   >
-                    <Link href={chatHref} className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#12151C]">
+                    <Link
+                      href={chatHref}
+                      className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#12151C]"
+                    >
                       {n.trainer.profileImageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={n.trainer.profileImageUrl.split("?")[0]} alt="" className="h-full w-full object-cover" />
@@ -268,7 +298,7 @@ export default async function ClientDashboardHomePage() {
                         </span>
                       )}
                     </Link>
-                    <div className="min-w-0 flex-1 text-center">
+                    <div className="min-w-0 flex-1 text-left">
                       <Link href={chatHref} className="block truncate text-sm font-semibold text-white/90 hover:underline">
                         {name}
                       </Link>
@@ -286,7 +316,11 @@ export default async function ClientDashboardHomePage() {
                         )}
                       </Link>
                     </div>
-                    <Link href={chatHref} className="shrink-0 text-white/35 hover:text-white/55" aria-label={`Open chat with ${name}`}>
+                    <Link
+                      href={chatHref}
+                      className="shrink-0 text-white/35 hover:text-white/55"
+                      aria-label={`Open chat with ${name}`}
+                    >
                       →
                     </Link>
                   </div>
@@ -295,11 +329,10 @@ export default async function ClientDashboardHomePage() {
             })}
           </ul>
         )}
-      </section>
+      </ClientDashboardHomeSection>
 
-      <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
-        <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-white/40">YOUR BIO</h2>
-        <div className="mx-auto mt-5 max-w-2xl rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4 text-center">
+      <ClientDashboardHomeSection title="Your Bio">
+        <div className="mx-auto max-w-2xl rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4 text-left">
           <p className="text-sm font-medium leading-relaxed text-white/85">{client.bio?.trim() ? client.bio : "—"}</p>
         </div>
         <p className="mx-auto mt-4 max-w-xl text-center text-xs text-white/45">
@@ -309,7 +342,7 @@ export default async function ClientDashboardHomePage() {
           </Link>{" "}
           under Profile. Trainers only see what you place on your public client page.
         </p>
-      </section>
+      </ClientDashboardHomeSection>
 
       <ClientDashboardLogoutButton />
     </div>

@@ -314,7 +314,7 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
                 <p className="mt-4 text-center text-[10px] leading-relaxed italic text-white/38 sm:text-left">
                   {preview
                     ? "Clients who are logged in and connected can open checkout from each row when your settings allow."
-                    : "Match Fit applies a 20% administrative fee on coach packages at checkout (separate Stripe line, non-refundable), plus payment processing fees. Your $5/month platform subscription is managed under "}
+                    : "Match Fit applies a 20% administrative fee on coach packages at checkout (separate Stripe line, non-refundable), plus payment processing fees. Your $10/month platform subscription is managed under "}
                   {!preview ? (
                     <>
                       <Link

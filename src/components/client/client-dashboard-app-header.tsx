@@ -243,7 +243,7 @@ export function ClientDashboardAppHeader(props: Props) {
           {menuOpen ? (
             <div
               role="menu"
-              className="absolute right-0 top-[calc(100%+0.5rem)] z-50 min-w-[14rem] overflow-hidden rounded-xl border border-white/10 bg-[#12151C] py-1 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.85)]"
+              className="absolute right-0 top-[calc(100%+0.5rem)] z-50 min-w-[14rem] overflow-hidden rounded-xl border border-white/10 bg-[#12151C] py-1 text-left shadow-[0_24px_48px_-12px_rgba(0,0,0,0.85)]"
             >
               <Link
                 role="menuitem"

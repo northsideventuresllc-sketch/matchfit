@@ -58,7 +58,7 @@ function SubscribeContent() {
       <div className="relative z-10 mx-auto max-w-lg px-5 py-12 sm:px-8">
         <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Subscription</h1>
         <p className="mt-4 text-sm leading-relaxed text-white/65 sm:text-base">
-          Match Fit is <span className="font-semibold text-white">$5.00 per month</span>. The calendar day you complete
+          Match Fit is <span className="font-semibold text-white">$10.00 per month</span>. The calendar day you complete
           your first successful payment becomes your monthly billing date. If you first subscribe on the 31st of a
           month, your next automatic charge is scheduled for the{" "}
           <span className="font-semibold text-white">1st</span> of the following month (and continues from there).

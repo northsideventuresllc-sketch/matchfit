@@ -9,11 +9,16 @@ export default async function ClientServiceManagementPage() {
   const clientId = await getSessionClientId();
   if (!clientId) redirect("/client");
 
-  const { feeDisclaimer, pairs } = await loadClientServiceManagementPairs(clientId);
+  const { feeDisclaimer, upcomingBookings, activePairs, pastPairs } = await loadClientServiceManagementPairs(clientId);
 
   return (
     <div className="pb-12 text-center">
-      <ServiceManagementView feeDisclaimer={feeDisclaimer} pairs={pairs} />
+      <ServiceManagementView
+        feeDisclaimer={feeDisclaimer}
+        upcomingBookings={upcomingBookings}
+        activePairs={activePairs}
+        pastPairs={pastPairs}
+      />
     </div>
   );
 }

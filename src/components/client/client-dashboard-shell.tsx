@@ -12,6 +12,8 @@ export type ClientDashboardShellProps = {
   initialUnreadCount: number;
   /** Blocking DIY prompts (extension approval or post-deadline attestation). */
   diyGovernanceGate?: ClientDiyGovernanceGate | null;
+  /** Staff impersonation notice (rendered above navigation). */
+  supportStrip?: React.ReactNode;
   children: React.ReactNode;
 };
 
@@ -62,6 +64,8 @@ export function ClientDashboardShell(props: ClientDashboardShellProps) {
         className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(255,126,0,0.14),transparent_55%)]"
       />
       <div className="relative mx-auto max-w-3xl">
+        {props.supportStrip}
+
         <ClientDashboardAppHeader
           preferredName={props.preferredName}
           profileImageUrl={props.profileImageUrl}
@@ -107,6 +111,12 @@ export function ClientDashboardShell(props: ClientDashboardShellProps) {
             </Link>
             <Link href="/terms" className="text-white/50 underline-offset-2 transition hover:text-white/75 hover:underline">
               Terms of service
+            </Link>
+            <Link
+              href="/client/dashboard/share-idea"
+              className="text-white/50 underline-offset-2 transition hover:text-white/75 hover:underline"
+            >
+              Share An Idea
             </Link>
             <Link
               href="/client/dashboard/bug-report"

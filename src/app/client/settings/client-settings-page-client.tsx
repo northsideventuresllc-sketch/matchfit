@@ -16,6 +16,9 @@ import { StayLoggedInPanel } from "./stay-logged-in-panel";
 import { TwoFactorPanel, type TwoFactorChannelDTO, type TwoFactorPanelRef } from "./two-factor-panel";
 import { ClientPrivacySettingsSection } from "@/components/client/client-privacy-settings-section";
 import { PhoneBridgeConsentPanel } from "@/components/shared/phone-bridge-consent-panel";
+import { ClientQuickLinksSettingsPanel } from "@/components/client/client-quick-links-settings-panel";
+import type { ClientDashboardQuickLinkId } from "@/lib/client-dashboard-quick-links";
+import { ClientNotificationSettingsForm } from "@/app/client/dashboard/(app)/notification-settings/client-notification-settings-form";
 
 type Props = {
   initialProfile: ClientSettingsProfile;
@@ -27,6 +30,7 @@ type Props = {
   headerPreferredName: string;
   headerProfileImageUrl: string | null;
   matchPreferencesIncomplete?: boolean;
+  initialQuickLinkIds: ClientDashboardQuickLinkId[];
 };
 
 export function ClientSettingsPageClient(props: Props) {
@@ -254,12 +258,33 @@ export function ClientSettingsPageClient(props: Props) {
         </CollapsibleSettingsSection>
 
         <CollapsibleSettingsSection
-          title="Masked calls & phone privacy"
+          title="Push Notifications"
+          description="Choose which categories can send push alerts when native push is enabled on your device."
+          defaultOpen={false}
+        >
+          <ClientNotificationSettingsForm />
+        </CollapsibleSettingsSection>
+
+        <CollapsibleSettingsSection
+          title="Enable Phone Number"
           description="Control whether Match Fit may place masked voice calls using the phone number on your profile."
           defaultOpen={false}
         >
           <PhoneBridgeConsentPanel settingsApi="/api/client/settings/phone-bridge" />
         </CollapsibleSettingsSection>
+
+        <div id="client-quick-links-settings" className="scroll-mt-24">
+          <CollapsibleSettingsSection
+            title="Quick Links Settings"
+            description="Choose up to four shortcuts for the Quick Links card on your client home (dashboard destinations except Dashboard)."
+            defaultOpen={false}
+          >
+            <ClientQuickLinksSettingsPanel
+              key={JSON.stringify(props.initialQuickLinkIds)}
+              initialIds={props.initialQuickLinkIds}
+            />
+          </CollapsibleSettingsSection>
+        </div>
 
         <ClientPrivacySettingsSection />
         </div>

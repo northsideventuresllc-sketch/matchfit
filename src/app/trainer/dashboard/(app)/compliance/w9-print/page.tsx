@@ -5,7 +5,7 @@ import { TrainerPrintPageButton } from "@/components/trainer/trainer-print-page-
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { prisma } from "@/lib/prisma";
 import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
-import { getSessionTrainerId } from "@/lib/session";
+import { getSessionTrainerId, getVerifiedAdminImpersonation } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: "Print W-9 | Trainer | Match Fit",
@@ -35,6 +35,11 @@ function maskTin(tin: string | undefined): string {
 export default async function TrainerW9PrintPage() {
   const trainerId = await getSessionTrainerId();
   if (!trainerId) redirect("/trainer/dashboard/login");
+
+  const adminImp = await getVerifiedAdminImpersonation();
+  if (adminImp?.role === "trainer") {
+    redirect("/trainer/dashboard/compliance");
+  }
 
   const row = await prisma.trainerProfile.findUnique({
     where: { trainerId },

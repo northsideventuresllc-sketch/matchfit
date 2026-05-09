@@ -63,7 +63,7 @@ export default function TrainerLoginPortal({
         next?: string;
       };
       if (!res.ok) {
-        setError(data.error ?? "Could not sign you in.");
+        setError(data.error ?? "Could Not Sign You In.");
         turnstileRef.current?.reset();
         return;
       }
@@ -231,6 +231,13 @@ export default function TrainerLoginPortal({
             </div>
 
             <p className="mt-8 text-center text-xs leading-relaxed text-white/35">
+              <Link
+                href="/admin/login"
+                className="text-white/50 underline-offset-4 transition hover:text-white/70 hover:underline"
+              >
+                Administrator Log In
+              </Link>
+              {" · "}
               <Link
                 href="/"
                 className="text-white/50 underline-offset-4 transition hover:text-white/70 hover:underline"

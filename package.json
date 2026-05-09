@@ -12,6 +12,7 @@
     "db:locks": "sh scripts/show-sqlite-db-locks.sh",
     "test:watch": "vitest",
     "seed:dashboard-demo": "node --env-file=.env scripts/seed-demo-client-dashboard-showcase.js",
+    "seed:admin": "node --env-file=.env scripts/seed-bootstrap-admin.js",
     "postinstall": "prisma generate"
   },
   "dependencies": {

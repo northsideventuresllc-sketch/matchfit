@@ -5,7 +5,7 @@ import type { CheckInSessionCard } from "@/lib/chat-check-in-thread-snapshot";
 import {
   FOREGO_PARTIAL_REFUND_NET_SLICE,
   isWithinTrainerPunchGeolocationWindow,
-} from "@/lib/session-check-in";
+} from "@/lib/session-check-in-timing";
 
 export type CheckInThreadPayload = {
   feeDisclaimer: string;

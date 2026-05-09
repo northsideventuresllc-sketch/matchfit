@@ -1,10 +1,12 @@
+import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
+import { AdminImpersonationStrip } from "@/components/admin/admin-impersonation-strip";
 import { TrainerDashboardShell } from "@/components/trainer/trainer-dashboard-shell";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { prisma } from "@/lib/prisma";
 import { purgeExpiredSuspensionRecords } from "@/lib/suspension-lifecycle";
 import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
-import { getSessionTrainerId } from "@/lib/session";
+import { getSessionTrainerId, getVerifiedAdminImpersonation } from "@/lib/session";
 
 export default async function TrainerDashboardAppLayout({
   children,
@@ -65,6 +67,20 @@ export default async function TrainerDashboardAppLayout({
 
   const premiumStudioActive = Boolean(trainer.profile?.premiumStudioEnabledAt);
 
+  let supportStrip: ReactNode = null;
+  const adminImp = await getVerifiedAdminImpersonation();
+  if (adminImp?.role === "trainer") {
+    const subject = await prisma.trainer.findUnique({
+      where: { id: adminImp.targetId },
+      select: { username: true },
+    });
+    if (subject) {
+      supportStrip = (
+        <AdminImpersonationStrip portalRole="trainer" username={subject.username} testMode={adminImp.testMode} />
+      );
+    }
+  }
+
   return (
     <TrainerDashboardShell
       displayName={displayName}
@@ -72,6 +88,7 @@ export default async function TrainerDashboardAppLayout({
       initialUnreadCount={unreadCount}
       premiumStudioActive={premiumStudioActive}
       showComplianceInNav={showComplianceInNav}
+      supportStrip={supportStrip}
     >
       {children}
     </TrainerDashboardShell>
