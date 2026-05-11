@@ -3,8 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  /// Pooled URL for the app runtime (Supabase pooler / PgBouncer).
+  url       = env("DATABASE_URL")
+  /// Direct Postgres URL for migrations and `db push` (bypasses pooler; required for DDL on Supabase).
+  directUrl = env("DIRECT_URL")
 }
 
 /// Internal Match Fit staff administrator (separate from client/trainer accounts).
