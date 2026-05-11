@@ -1,10 +1,14 @@
-import path from "node:path";
 import { vi } from "vitest";
 import { testCookieJar } from "./src/test/next-cookie-jar";
 
 /** Isolated DB + secrets for API route tests (see `src/__tests__/login-2fa.integration.test.ts`). */
 process.env.AUTH_SECRET = "devtest-secret-32-chars-minimum!!";
-process.env.DATABASE_URL = "file:" + path.join(process.cwd(), "prisma", "test_login_2fa.db");
+/** Integration tests must opt in with `TEST_DATABASE_URL` so `npm test` never touches `.env` Postgres by accident. */
+delete process.env.DATABASE_URL;
+const testDbUrl = process.env.TEST_DATABASE_URL?.trim();
+if (testDbUrl) {
+  process.env.DATABASE_URL = testDbUrl;
+}
 vi.mock("next/headers", () => ({
   cookies: async () => ({
     get(name: string) {
