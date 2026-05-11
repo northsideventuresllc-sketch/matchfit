@@ -1,9 +1,11 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
   provider  = "postgresql"
+  schemas   = ["public", "auth"]
   /// Pooled URL for the app runtime (Supabase pooler / PgBouncer).
   url       = env("DATABASE_URL")
   /// Direct Postgres URL for migrations and `db push` (bypasses pooler; required for DDL on Supabase).
@@ -26,6 +28,7 @@ model Administrator {
   dateOfBirth  String
 
   @@map("administrators")
+  @@schema("public")
 }
 
 /// Prospective administrator awaiting approval email action (creates {@link Administrator} when approved).
@@ -44,6 +47,7 @@ model PendingAdministratorRegistration {
 
   @@index([email])
   @@map("pending_administrator_registrations")
+  @@schema("public")
 }
 
 model Client {
@@ -186,6 +190,7 @@ model Client {
   dashboardQuickLinkIdsJson String?
 
   @@map("clients")
+  @@schema("public")
 }
 
 /// Destinations for sign-in 2FA (email, SMS, or voice). One verified row should be `isDefaultLogin` for OTP routing.
@@ -215,6 +220,7 @@ model ClientTwoFactorChannel {
 
   @@index([clientId])
   @@map("client_two_factor_channels")
+  @@schema("public")
 }
 
 /// Pre-payment registration only. Deleted after successful billing or when expired / abandoned.
@@ -251,6 +257,7 @@ model PendingClientRegistration {
   @@index([email])
   @@index([username])
   @@map("pending_client_registrations")
+  @@schema("public")
 }
 
 model Trainer {
@@ -357,6 +364,7 @@ model Trainer {
   productIdeaSubmissions ProductIdeaSubmission[]
 
   @@map("trainers")
+  @@schema("public")
 }
 
 /// A trainer tapped “Nudge” on a client’s public profile to start a conversation.
@@ -375,6 +383,7 @@ model TrainerClientNudge {
   @@index([clientId, createdAt])
   @@index([trainerId])
   @@map("trainer_client_nudges")
+  @@schema("public")
 }
 
 /// One generated set of 3 daily matching questions per client. Incomplete instances expire after 72h (archived).
@@ -403,6 +412,7 @@ model ClientDailyQuestionnaire {
   @@index([clientId, windowStartedAt])
   @@index([clientId, archivedAt, completedAt])
   @@map("client_daily_questionnaires")
+  @@schema("public")
 }
 
 /// Product issues/feedback reports (from dashboard or public report page).
@@ -421,6 +431,7 @@ model ClientBugReport {
 
   @@index([clientId, createdAt])
   @@map("client_bug_reports")
+  @@schema("public")
 }
 
 /// Product improvement ideas from clients, trainers, or anonymous visitors.
@@ -443,6 +454,7 @@ model ProductIdeaSubmission {
   @@index([clientId, createdAt])
   @@index([trainerId, createdAt])
   @@map("product_idea_submissions")
+  @@schema("public")
 }
 
 /// In-app notification feed (nudges, matches, billing, product updates).
@@ -466,6 +478,7 @@ model ClientNotification {
   @@index([clientId, createdAt])
   @@index([clientId, archivedAt])
   @@map("client_notifications")
+  @@schema("public")
 }
 
 /// Trainer-authored social post for the client FitHub feed.
@@ -505,6 +518,7 @@ model TrainerFitHubPost {
 
   @@index([trainerId, createdAt])
   @@map("trainer_fit_hub_posts")
+  @@schema("public")
 }
 
 /// One recorded share per client per post (idempotent share action; `shareCount` stays in sync in API).
@@ -521,6 +535,7 @@ model ClientFitHubPostShare {
   @@unique([postId, clientId])
   @@index([clientId])
   @@map("client_fit_hub_post_shares")
+  @@schema("public")
 }
 
 /// Client-reported FitHub post for trust & safety review (does not auto-suspend accounts).
@@ -544,6 +559,7 @@ model TrainerFitHubPostReport {
   @@unique([postId, clientId])
   @@index([status, createdAt])
   @@map("trainer_fit_hub_post_reports")
+  @@schema("public")
 }
 
 model TrainerFitHubPostLike {
@@ -559,6 +575,7 @@ model TrainerFitHubPostLike {
   @@unique([postId, clientId])
   @@index([clientId])
   @@map("trainer_fit_hub_post_likes")
+  @@schema("public")
 }
 
 model TrainerFitHubComment {
@@ -575,6 +592,7 @@ model TrainerFitHubComment {
 
   @@index([postId, createdAt])
   @@map("trainer_fit_hub_comments")
+  @@schema("public")
 }
 
 model ClientFitHubRepost {
@@ -590,6 +608,7 @@ model ClientFitHubRepost {
   @@unique([postId, clientId])
   @@index([clientId])
   @@map("client_fit_hub_reposts")
+  @@schema("public")
 }
 
 /// In-app notification feed for trainers (inquiries, chats, compliance, billing, platform).
@@ -609,6 +628,7 @@ model TrainerNotification {
 
   @@index([trainerId, createdAt])
   @@map("trainer_notifications")
+  @@schema("public")
 }
 
 /// Client saved a trainer from browse (e.g. swipe right) for quick access and chats list.
@@ -628,6 +648,7 @@ model ClientSavedTrainer {
   @@index([clientId])
   @@index([trainerId, trainerInquiryStatus])
   @@map("client_saved_trainers")
+  @@schema("public")
 }
 
 /// Client dismissed a coach in the swipe deck (left swipe). Hidden from swipe only; scroll still lists until matched.
@@ -646,6 +667,7 @@ model ClientTrainerBrowsePass {
   @@unique([clientId, trainerId])
   @@index([clientId])
   @@map("client_trainer_browse_passes")
+  @@schema("public")
 }
 
 /// Trainer dismissed / unmatched this client in discovery (90-day exclusion, mirrors `ClientTrainerBrowsePass`).
@@ -665,6 +687,7 @@ model TrainerClientBrowsePass {
   @@index([trainerId])
   @@index([clientId])
   @@map("trainer_client_browse_passes")
+  @@schema("public")
 }
 
 /// Verified destinations for trainer sign-in 2FA (mirrors `ClientTwoFactorChannel`).
@@ -689,6 +712,7 @@ model TrainerTwoFactorChannel {
 
   @@index([trainerId])
   @@map("trainer_two_factor_channels")
+  @@schema("public")
 }
 
 model TrainerProfile {
@@ -785,6 +809,7 @@ model TrainerProfile {
   dashboardQuickLinkIdsJson String?
 
   @@map("trainer_profiles")
+  @@schema("public")
 }
 
 /// One row per trainer–client pair for on-platform messaging.
@@ -830,6 +855,7 @@ model TrainerClientConversation {
   @@index([clientId, updatedAt])
   @@index([archiveExpiresAt])
   @@map("trainer_client_conversations")
+  @@schema("public")
 }
 
 /// Client star rating (1–5) and optional testimonial for a trainer. Rows are retained when hidden or moderated for coach archive.
@@ -863,6 +889,7 @@ model ClientTrainerReview {
   @@index([trainerId, createdAt])
   @@index([clientId, trainerId])
   @@map("client_trainer_reviews")
+  @@schema("public")
 }
 
 model TrainerClientChatMessage {
@@ -880,6 +907,7 @@ model TrainerClientChatMessage {
 
   @@index([conversationId, createdAt])
   @@map("trainer_client_chat_messages")
+  @@schema("public")
 }
 
 /// Trust & safety queue: suspected off-platform payment leakage or PII in chat (see `lib/chat-leakage-detection.ts`).
@@ -900,6 +928,7 @@ model ChatAdminReviewItem {
 
   @@index([status, createdAt])
   @@map("chat_admin_review_items")
+  @@schema("public")
 }
 
 /// Standard-tier trainer discovery: which client ids were served in a 12-hour UTC bucket (max 10).
@@ -917,6 +946,7 @@ model TrainerDiscoverMatchBatch {
   @@unique([trainerId, bucket])
   @@index([trainerId])
   @@map("trainer_discover_match_batches")
+  @@schema("public")
 }
 
 /// Encrypted OAuth refresh material for trainer-initiated video meetings (Zoom, Google Meet, Microsoft Teams).
@@ -945,6 +975,7 @@ model TrainerVideoConferenceConnection {
   @@unique([trainerId, provider])
   @@index([trainerId])
   @@map("trainer_video_conference_connections")
+  @@schema("public")
 }
 
 /// Booked mobile/virtual session awaiting client confirmation (24h auto-complete when implemented).
@@ -1035,6 +1066,7 @@ model BookedTrainingSession {
   @@index([trainerId, scheduledStartAt])
   @@index([conversationId])
   @@map("booked_training_sessions")
+  @@schema("public")
 }
 
 /// Trainer geolocation snapshot at session start (SESSION STARTED). One row per booking.
@@ -1055,6 +1087,7 @@ model SessionTrainerPunchIn {
 
   @@index([trainerId, createdAt])
   @@map("session_trainer_punch_ins")
+  @@schema("public")
 }
 
 /// Post–Gate A client dispute: freezes payout until admin resolves.
@@ -1078,6 +1111,7 @@ model SessionPayoutDispute {
   @@index([status])
   @@index([bookedTrainingSessionId])
   @@map("session_payout_disputes")
+  @@schema("public")
 }
 
 /// One session at a time: propose new start/end; counterparty accepts or declines (policy-driven refunds).
@@ -1101,6 +1135,7 @@ model SessionRescheduleRequest {
   @@index([bookedTrainingSessionId])
   @@index([status])
   @@map("session_reschedule_requests")
+  @@schema("public")
 }
 
 /// Trainer requests cancellation of an entire purchased package; staff reviews payout (see admin tools).
@@ -1126,6 +1161,7 @@ model TrainerPackageCancellationRequest {
   @@index([status])
   @@index([trainerId])
   @@map("trainer_package_cancellation_requests")
+  @@schema("public")
 }
 
 /// DIY first-delivery SLA (5 business days from engagement start).
@@ -1174,6 +1210,7 @@ model DiyPlanEngagement {
   @@index([status, firstDeliverByAt])
   @@index([trainerId, clientId])
   @@map("diy_plan_engagements")
+  @@schema("public")
 }
 
 /// A block is bidirectional for product purposes but stored from the initiator’s perspective.
@@ -1203,6 +1240,7 @@ model UserBlock {
   @@unique([blockerIsTrainer, blockerId, blockedIsTrainer, blockedId])
   @@index([blockedIsTrainer, blockedId])
   @@map("user_blocks")
+  @@schema("public")
 }
 
 model SafetyReport {
@@ -1226,6 +1264,7 @@ model SafetyReport {
   @@index([subjectIsTrainer, subjectId, createdAt])
   @@index([status, createdAt])
   @@map("safety_reports")
+  @@schema("public")
 }
 
 /// Compliance / audit copy for account suspensions. Housekeeping purges via `purgeAfter` after lift.
@@ -1250,6 +1289,7 @@ model SuspensionRecord {
   @@index([purgeAfter])
   @@index([subjectIsTrainer, subjectId])
   @@map("suspension_records")
+  @@schema("public")
 }
 
 /// Premium trainers enter a daily random draw (weighted tickets) for the public home “featured” carousel.
@@ -1270,6 +1310,7 @@ model FeaturedRaffleEntry {
   @@unique([trainerId, regionZipPrefix, displayDayKey])
   @@index([regionZipPrefix, displayDayKey])
   @@map("featured_raffle_entries")
+  @@schema("public")
 }
 
 /// Paid sponsored slots (top two bids per region per display day). Amounts are in USD cents; billing may be simulated until coach Stripe is connected.
@@ -1293,6 +1334,7 @@ model FeaturedPlacementBid {
   @@unique([trainerId, regionZipPrefix, displayDayKey])
   @@index([regionZipPrefix, displayDayKey])
   @@map("featured_placement_bids")
+  @@schema("public")
 }
 
 /// Materialized winners for a region + display day (resolved after the Eastern midnight cutoff).
@@ -1314,6 +1356,7 @@ model FeaturedDailyAllocation {
   @@unique([regionZipPrefix, displayDayKey, trainerId])
   @@index([regionZipPrefix, displayDayKey, sortOrder])
   @@map("featured_daily_allocations")
+  @@schema("public")
 }
 
 /// Cached trainer token balance (source of truth is `TrainerTokenLedgerEntry`; balance updated in the same DB transaction).
@@ -1325,6 +1368,7 @@ model TrainerTokenBalance {
   updatedAt DateTime @updatedAt
 
   @@map("trainer_token_balances")
+  @@schema("public")
 }
 
 /// Immutable audit log for all trainer token movements.
@@ -1350,6 +1394,7 @@ model TrainerTokenLedgerEntry {
   @@index([trainerId, createdAt])
   @@index([trainerId, reason, referenceKey])
   @@map("trainer_token_ledger_entries")
+  @@schema("public")
 }
 
 /// Time-bounded FitHub post boost paid with tokens (regional scoring in client feed).
@@ -1378,6 +1423,7 @@ model TrainerFitHubPostPromotion {
   @@index([postId, startsAt, endsAt])
   @@index([trainerId, endsAt])
   @@map("trainer_fit_hub_post_promotions")
+  @@schema("public")
 }
 
 /// Idempotent weekly free token drop for premium trainers (America/New_York ISO week key).
@@ -1393,6 +1439,7 @@ model TrainerWeeklyTokenGrant {
 
   @@unique([trainerId, weekKey])
   @@map("trainer_weekly_token_grants")
+  @@schema("public")
 }
 
 /// Completed paid service between client and trainer (drives sale-token rewards + chat tipping eligibility).
@@ -1462,6 +1509,7 @@ model TrainerClientServiceTransaction {
   @@index([clientId, trainerId, completedAt])
   @@index([stripePaymentIntentId])
   @@map("trainer_client_service_transactions")
+  @@schema("public")
 }
 
 /// Trainer-logged business miles (manual entry or linked workflow) for tax estimates on Client Management.
@@ -1485,6 +1533,7 @@ model TrainerBusinessMileageEntry {
 
   @@index([trainerId, occurredAt])
   @@map("trainer_business_mileage_entries")
+  @@schema("public")
 }
 
 /// Trainer business expenses (tax-prep helpers on Client Management).
@@ -1506,6 +1555,7 @@ model TrainerBusinessExpense {
 
   @@index([trainerId, spentAt])
   @@map("trainer_business_expenses")
+  @@schema("public")
 }
 
 /// Private trainer notes + medical context for a client (trainer-only write; client sees non-medical subset via goals UI only).
@@ -1525,6 +1575,7 @@ model TrainerClientCoachingProfile {
   @@unique([trainerId, clientId])
   @@index([clientId])
   @@map("trainer_client_coaching_profiles")
+  @@schema("public")
 }
 
 /// SHORT | LONG | GENERAL — goals visible to the client on Service Management when synced.
@@ -1547,6 +1598,7 @@ model TrainerClientGoal {
   @@index([trainerId, clientId])
   @@index([clientId])
   @@map("trainer_client_goals")
+  @@schema("public")
 }
 
 /// Trainer session diary entries; body emailed to client on request (masked From: trainer@matchfit.com when domain verified).
@@ -1567,6 +1619,7 @@ model TrainerClientSessionSummary {
   @@index([trainerId, clientId, occurredAt])
   @@index([clientId])
   @@map("trainer_client_session_summaries")
+  @@schema("public")
 }
 
 /// Client → trainer appreciation tokens (platform-minted to trainer). Capped per ISO week (NY) per pair for abuse control.
@@ -1584,4 +1637,5 @@ model ClientTrainerTokenGift {
 
   @@index([clientId, trainerId, weekKey])
   @@map("client_trainer_token_gifts")
+  @@schema("public")
 }
