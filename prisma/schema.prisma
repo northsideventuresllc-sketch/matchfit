@@ -5,7 +5,12 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  schemas   = ["public", "auth"]
+  /// Only `public` here so `db push` / Migrate never touch Supabase GoTrue (`auth.*`).
+  /// `@@ignore` does not exclude models from `db push` on Prisma 5 — stub `@@map`
+  /// models to `auth.users` / `auth.identities` / … caused destructive diffs.
+  /// To list `auth` again without DDL on GoTrue tables, upgrade to Prisma 6.13+
+  /// and declare those tables as externally managed in `prisma.config.ts`.
+  schemas   = ["public"]
   /// Pooled URL for the app runtime (Supabase pooler / PgBouncer).
   url       = env("DATABASE_URL")
   /// Direct Postgres URL for migrations and `db push` (bypasses pooler; required for DDL on Supabase).
@@ -1640,191 +1645,12 @@ model ClientTrainerTokenGift {
   @@schema("public")
 }
 
-// -----------------------------------------------------------------------------
-// Supabase `auth` schema (GoTrue). These rows are owned by Supabase Auth — not
-// by Match Fit. Declared with @@ignore so Prisma multi-schema knows the tables
-// exist but will not emit migrations or `db push` DDL for them, and they are
-// excluded from the generated Client (no queries / relations to these models).
-// If you need auth data, use the Supabase client or SQL against `auth.*`.
-// Stubs use minimal PK fields for schema validity only.
-// -----------------------------------------------------------------------------
-
-/// @ignore — `auth.users`
-model AuthUsers {
-  id String @id
-
-  @@map("users")
-  @@schema("auth")
-  @@ignore
-}
-
-/// @ignore — `auth.identities`
-model AuthIdentities {
-  id String @id
-
-  @@map("identities")
-  @@schema("auth")
-  @@ignore
-}
-
-/// @ignore — `auth.sessions`
-model AuthSessions {
-  id String @id
-
-  @@map("sessions")
-  @@schema("auth")
-  @@ignore
-}
-
-/// @ignore — `auth.refresh_tokens`
-model AuthRefreshTokens {
-  id BigInt @id @default(autoincrement())
-
-  @@map("refresh_tokens")
-  @@schema("auth")
-  @@ignore
-}
-
-/// @ignore — `auth.audit_log_entries`
-model AuthAuditLogEntries {
-  id String @id
-
-  @@map("audit_log_entries")
-  @@schema("auth")
-  @@ignore
-}
-
-/// @ignore — `auth.instances`
-model AuthInstances {
-  id String @id
-
-  @@map("instances")
-  @@schema("auth")
-  @@ignore
-}
-
-/// @ignore — GoTrue migration history in `auth` (not Prisma’s `public` migrations).
-model AuthSchemaMigrations {
-  version String @id
-
-  @@map("schema_migrations")
-  @@schema("auth")
-  @@ignore
-}
-
-/// @ignore — `auth.mfa_factors`
-model AuthMfaFactors {
-  id String @id
-
-  @@map("mfa_factors")
-  @@schema("auth")
-  @@ignore
-}
-
-/// @ignore — `auth.mfa_challenges`
-model AuthMfaChallenges {
-  id String @id
-
-  @@map("mfa_challenges")
-  @@schema("auth")
-  @@ignore
-}
-
-/// @ignore — `auth.mfa_amr_claims`
-model AuthMfaAmrClaims {
-  id String @id
-
-  @@map("mfa_amr_claims")
-  @@schema("auth")
-  @@ignore
-}
-
-/// @ignore — `auth.flow_state`
-model AuthFlowState {
-  id String @id
-
-  @@map("flow_state")
-  @@schema("auth")
-  @@ignore
-}
-
-/// @ignore — `auth.saml_providers`
-model AuthSamlProviders {
-  id String @id
-
-  @@map("saml_providers")
-  @@schema("auth")
-  @@ignore
-}
-
-/// @ignore — `auth.saml_relay_states`
-model AuthSamlRelayStates {
-  id String @id
-
-  @@map("saml_relay_states")
-  @@schema("auth")
-  @@ignore
-}
-
-/// @ignore — `auth.sso_providers`
-model AuthSsoProviders {
-  id String @id
-
-  @@map("sso_providers")
-  @@schema("auth")
-  @@ignore
-}
-
-/// @ignore — `auth.sso_domains`
-model AuthSsoDomains {
-  id String @id
-
-  @@map("sso_domains")
-  @@schema("auth")
-  @@ignore
-}
-
-/// @ignore — `auth.one_time_tokens`
-model AuthOneTimeTokens {
-  id String @id
-
-  @@map("one_time_tokens")
-  @@schema("auth")
-  @@ignore
-}
-
-/// @ignore — `auth.oauth_clients`
-model AuthOauthClients {
-  id String @id
-
-  @@map("oauth_clients")
-  @@schema("auth")
-  @@ignore
-}
-
-/// @ignore — `auth.oauth_authorizations`
-model AuthOauthAuthorizations {
-  id String @id
-
-  @@map("oauth_authorizations")
-  @@schema("auth")
-  @@ignore
-}
-
-/// @ignore — `auth.oauth_consents`
-model AuthOauthConsents {
-  id String @id
-
-  @@map("oauth_consents")
-  @@schema("auth")
-  @@ignore
-}
-
-/// @ignore — `auth.oauth_client_states`
-model AuthOauthClientStates {
-  id String @id
-
-  @@map("oauth_client_states")
-  @@schema("auth")
-  @@ignore
-}
+// Supabase GoTrue is `auth.*` — use the Supabase client or SQL, not Prisma.
+// Do not list `auth` in `datasource.schemas` with `@@map` models to GoTrue tables:
+// on Prisma 5, `@@ignore` does not exclude models from `db push`, so minimal stubs
+// can try to alter `auth.identities`, `auth.schema_migrations`, etc.
+// The Supabase template table `public.profiles` (FK → `auth.users`) forces `auth`
+// into `schemas` and blocks public-only push; migration
+// `20260509150000_drop_supabase_template_public_profiles` removes it if you still
+// use that template. For `auth` in `schemas` without DDL on GoTrue, use Prisma
+// 6.13+ externally managed tables (`prisma.config.ts`).
