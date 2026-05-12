@@ -1,3 +1,4 @@
+import { findTrainerEmailChannel, verifyStoredEmailCode } from "@/lib/auth-2fa-email";
 import { verifyOtp } from "@/lib/otp";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
@@ -6,6 +7,7 @@ import {
   TRAINER_LOGIN_CHALLENGE_COOKIE,
   verifyTrainerLoginChallengeToken,
 } from "@/lib/session";
+import { getTrainerLoginOtpDelivery } from "@/lib/trainer-login-two-factor-target";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { verifyTurnstileToken } from "@/lib/turnstile-verify";
 import { NextResponse } from "next/server";
@@ -39,6 +41,109 @@ export async function POST(req: Request) {
     const { code } = parsed.data;
 
     const trainer = await prisma.trainer.findUnique({ where: { id: trainerId } });
+    const delivery = await getTrainerLoginOtpDelivery(trainerId);
+
+    if (delivery?.delivery === "EMAIL") {
+      const ch = await findTrainerEmailChannel(trainerId, delivery.email);
+      const check = verifyStoredEmailCode(
+        { lastCode: ch?.lastCode ?? null, expiresAt: ch?.expiresAt ?? null },
+        code,
+      );
+      if (check.ok === false) {
+        if (check.reason === "missing") {
+          return NextResponse.json(
+            { error: "No active verification code. Request a new code or sign in again.", codeInvalidated: true },
+            { status: 400 },
+          );
+        }
+        if (check.reason === "expired") {
+          return NextResponse.json(
+            { error: "That code has expired. Request a new code or sign in again.", codeInvalidated: true },
+            { status: 400 },
+          );
+        }
+        const prev = trainer?.twoFactorLoginAttempts ?? 0;
+        const attempts = prev + 1;
+        if (attempts >= MAX_ATTEMPTS) {
+          const ops = [
+            prisma.trainer.update({
+              where: { id: trainerId },
+              data: { twoFactorLoginAttempts: 0 },
+            }),
+          ];
+          if (ch) {
+            ops.push(
+              prisma.trainerTwoFactorChannel.update({
+                where: { id: ch.id },
+                data: { lastCode: null, expiresAt: null },
+              }),
+            );
+          }
+          await prisma.$transaction(ops);
+          return NextResponse.json(
+            {
+              error: "Too many incorrect codes. Your verification code has been cancelled. Request a new code.",
+              codeInvalidated: true,
+              tooManyAttempts: true,
+            },
+            { status: 400 },
+          );
+        }
+        await prisma.trainer.update({
+          where: { id: trainerId },
+          data: { twoFactorLoginAttempts: attempts },
+        });
+        const remaining = MAX_ATTEMPTS - attempts;
+        return NextResponse.json(
+          {
+            error: `Invalid verification code. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`,
+            attemptsRemaining: remaining,
+          },
+          { status: 400 },
+        );
+      }
+      if (!ch) {
+        return NextResponse.json(
+          { error: "No active verification code. Request a new code or sign in again.", codeInvalidated: true },
+          { status: 400 },
+        );
+      }
+      const suspendedGateEmail = await prisma.trainer.findUnique({
+        where: { id: trainerId },
+        select: { safetySuspended: true },
+      });
+      if (suspendedGateEmail?.safetySuspended) {
+        return NextResponse.json(
+          {
+            error:
+              "Your trainer account is suspended pending a Match Fit safety review. You will regain access once the review is complete.",
+            code: "ACCOUNT_SUSPENDED",
+          },
+          { status: 403 },
+        );
+      }
+      await prisma.$transaction([
+        prisma.trainerTwoFactorChannel.update({
+          where: { id: ch.id },
+          data: { lastCode: null, expiresAt: null },
+        }),
+        prisma.trainer.update({
+          where: { id: trainerId },
+          data: {
+            twoFactorOtpHash: null,
+            twoFactorOtpExpires: null,
+            twoFactorLoginAttempts: 0,
+            stayLoggedIn,
+          },
+        }),
+      ]);
+      const next = redirectAfter ?? "/trainer/dashboard";
+      const res = NextResponse.json({ ok: true, next });
+      res.cookies.delete(TRAINER_LOGIN_CHALLENGE_COOKIE);
+      await applyTrainerSessionToNextResponse(res, trainerId, stayLoggedIn);
+      return res;
+    }
+
     if (!trainer?.twoFactorOtpHash || !trainer.twoFactorOtpExpires) {
       return NextResponse.json(
         { error: "No active verification code. Request a new code or sign in again.", codeInvalidated: true },

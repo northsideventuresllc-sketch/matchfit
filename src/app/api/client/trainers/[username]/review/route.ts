@@ -15,10 +15,10 @@ import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 
 export const dynamic = "force-dynamic";
 
-type RouteContext = { params: Promise<{ username: string }> };
+type RouteContext = { params: Promise<{ trainerUsername: string }> };
 
-async function resolveTrainer(usernameParam: string) {
-  const handle = decodeURIComponent(usernameParam).trim();
+async function resolveTrainer(trainerUsername: string) {
+  const handle = decodeURIComponent(trainerUsername).trim();
   const trainer = await prisma.trainer.findUnique({
     where: { username: handle },
     select: {
@@ -53,12 +53,12 @@ export async function GET(_req: Request, ctx: RouteContext) {
     if (!clientId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
-    const { username } = await ctx.params;
-    const trainer = await resolveTrainer(username);
+    const { trainerUsername } = await ctx.params;
+    const trainer = await resolveTrainer(trainerUsername);
     if (!trainer) {
       return NextResponse.json({ error: "Coach not found." }, { status: 404 });
     }
-    if (await isTrainerClientInteractionRestricted(trainer.id, clientId)) {
+    if (await isTrainerClientPairBlocked(trainer.id, clientId)) {
       return NextResponse.json({ error: "Unavailable." }, { status: 403 });
     }
     const eligible = await clientMayReviewTrainer(clientId, trainer.id);
@@ -91,12 +91,12 @@ export async function POST(req: Request, ctx: RouteContext) {
     if (!clientId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
-    const { username } = await ctx.params;
-    const trainer = await resolveTrainer(username);
+    const { trainerUsername } = await ctx.params;
+    const trainer = await resolveTrainer(trainerUsername);
     if (!trainer) {
       return NextResponse.json({ error: "Coach not found." }, { status: 404 });
     }
-    if (await isTrainerClientInteractionRestricted(trainer.id, clientId)) {
+    if (await isTrainerClientPairBlocked(trainer.id, clientId)) {
       return NextResponse.json({ error: "Unavailable." }, { status: 403 });
     }
     const json = await req.json();
@@ -128,12 +128,12 @@ export async function DELETE(_req: Request, ctx: RouteContext) {
     if (!clientId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
-    const { username } = await ctx.params;
-    const trainer = await resolveTrainer(username);
+    const { trainerUsername } = await ctx.params;
+    const trainer = await resolveTrainer(trainerUsername);
     if (!trainer) {
       return NextResponse.json({ error: "Coach not found." }, { status: 404 });
     }
-    if (await isTrainerClientInteractionRestricted(trainer.id, clientId)) {
+    if (await isTrainerClientPairBlocked(trainer.id, clientId)) {
       return NextResponse.json({ error: "Unavailable." }, { status: 403 });
     }
     const result = await softRemoveClientTrainerReview({ clientId, trainerId: trainer.id });

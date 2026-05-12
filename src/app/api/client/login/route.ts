@@ -1,3 +1,4 @@
+import { send2FACode } from "@/lib/auth-2fa-email";
 import { findClientByIdentifier } from "@/lib/client-queries";
 import { deliverSignupOtp } from "@/lib/deliver-otp";
 import { getLoginOtpDelivery } from "@/lib/login-two-factor-target";
@@ -50,11 +51,37 @@ export async function POST(req: Request) {
 
     const otpDelivery = await getLoginOtpDelivery(client.id);
     if (client.twoFactorEnabled && otpDelivery) {
+      const prevStay = client.stayLoggedIn;
+      const prevAttempts = client.twoFactorLoginAttempts ?? 0;
+
+      if (otpDelivery.delivery === "EMAIL") {
+        try {
+          await send2FACode(otpDelivery.email, client.id, "CLIENT");
+        } catch (deliverErr) {
+          console.error("[Match Fit login 2FA] Email OTP delivery failed.", deliverErr);
+          throw deliverErr;
+        }
+        await prisma.client.update({
+          where: { id: client.id },
+          data: {
+            stayLoggedIn,
+            twoFactorLoginAttempts: 0,
+            twoFactorMethod: otpDelivery.delivery,
+            twoFactorOtpHash: null,
+            twoFactorOtpExpires: null,
+          },
+        });
+        const token = await signLoginChallengeToken(client.id, { stayLoggedIn });
+        await setLoginChallengeCookie(token);
+        return NextResponse.json({
+          needsTwoFactor: true,
+          next: "/verify-2fa",
+        });
+      }
+
       const code = generateSixDigitCode();
       const otpHash = hashOtp(code);
       const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-      const prevStay = client.stayLoggedIn;
-      const prevAttempts = client.twoFactorLoginAttempts ?? 0;
 
       await prisma.client.update({
         where: { id: client.id },
@@ -90,7 +117,7 @@ export async function POST(req: Request) {
       await setLoginChallengeCookie(token);
       return NextResponse.json({
         needsTwoFactor: true,
-        next: "/client/verify-2fa",
+        next: "/verify-2fa",
         ...(otpDeliveryMeta?.devPhoneMock ? { devPhoneMock: true } : {}),
       });
     }

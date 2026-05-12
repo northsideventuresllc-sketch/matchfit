@@ -1,3 +1,4 @@
+import { assertEmailResendCooldown, findClientEmailChannel, send2FACode } from "@/lib/auth-2fa-email";
 import { deliverSignupOtp } from "@/lib/deliver-otp";
 import { getLoginOtpDelivery } from "@/lib/login-two-factor-target";
 import { generateSixDigitCode, hashOtp } from "@/lib/otp";
@@ -28,6 +29,30 @@ export async function POST() {
     const delivery = await getLoginOtpDelivery(clientId);
     if (!client.twoFactorEnabled || !delivery) {
       return NextResponse.json({ error: "Two-factor authentication is not active for this account." }, { status: 400 });
+    }
+
+    if (delivery.delivery === "EMAIL") {
+      const row = await findClientEmailChannel(clientId, delivery.email);
+      if (row) {
+        const cool = await assertEmailResendCooldown(row.lastEmailResendAt);
+        if (!cool.ok) {
+          return NextResponse.json(
+            { error: `Please wait ${cool.waitSeconds}s before requesting another code.` },
+            { status: 429 },
+          );
+        }
+      }
+      try {
+        await send2FACode(delivery.email, clientId, "CLIENT", { countTowardResendCooldown: true });
+      } catch (deliverErr) {
+        console.error("[Match Fit resend 2FA] Email delivery failed.", deliverErr);
+        throw deliverErr;
+      }
+      await prisma.client.update({
+        where: { id: clientId },
+        data: { twoFactorLoginAttempts: 0 },
+      });
+      return NextResponse.json({ ok: true });
     }
 
     const code = generateSixDigitCode();

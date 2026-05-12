@@ -206,7 +206,6 @@ export async function deidentifyTrainerAccount(trainerId: string): Promise<void>
         passwordChangeOtpExpires: null,
         notificationPrefsJson: null,
         optionalProfileVisibilityJson: null,
-        privacyPolicyAcceptedAt: null,
       },
     });
   });
