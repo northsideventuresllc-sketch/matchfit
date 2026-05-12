@@ -50,7 +50,7 @@ function ClientPortalInner(props: { defaultNext: string | null }) {
         return;
       }
       if (data.needsTwoFactor) {
-        const base = data.next ?? "/client/verify-2fa";
+        const base = data.next ?? "/verify-2fa";
         const q = safeNext ? `?next=${encodeURIComponent(safeNext)}` : "";
         router.push(`${base}${q}`);
         return;

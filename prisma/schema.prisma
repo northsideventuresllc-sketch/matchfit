@@ -220,6 +220,12 @@ model ClientTwoFactorChannel {
   verifyOtpHash    String?
   verifyOtpExpires DateTime?
 
+  lastCode    String?
+  expiresAt   DateTime?
+
+  /// Set when the user taps “Resend code” (login initial send clears this). Used only for the 60s resend throttle.
+  lastEmailResendAt DateTime?
+
   /// Which channel receives login 2FA codes (exactly one verified default per client when 2FA is on).
   isDefaultLogin Boolean @default(false)
 
@@ -712,6 +718,12 @@ model TrainerTwoFactorChannel {
 
   verifyOtpHash    String?
   verifyOtpExpires DateTime?
+
+  lastCode    String?
+  expiresAt   DateTime?
+
+  /// Set when the user taps “Resend code” (login initial send clears this). Used only for the 60s resend throttle.
+  lastEmailResendAt DateTime?
 
   isDefaultLogin Boolean @default(false)
 

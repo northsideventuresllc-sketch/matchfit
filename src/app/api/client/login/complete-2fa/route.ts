@@ -1,3 +1,5 @@
+import { findClientEmailChannel, verifyStoredEmailCode } from "@/lib/auth-2fa-email";
+import { getLoginOtpDelivery } from "@/lib/login-two-factor-target";
 import { verifyOtp } from "@/lib/otp";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
@@ -53,6 +55,100 @@ export async function POST(req: Request) {
     }
     const { code, next: nextRaw } = parsed.data;
     const nextPath = safeInternalNextPath(nextRaw);
+    const delivery = await getLoginOtpDelivery(clientId);
+
+    if (delivery?.delivery === "EMAIL") {
+      const ch = await findClientEmailChannel(clientId, delivery.email);
+      const check = verifyStoredEmailCode(
+        { lastCode: ch?.lastCode ?? null, expiresAt: ch?.expiresAt ?? null },
+        code,
+      );
+      if (check.ok === false) {
+        if (check.reason === "missing") {
+          return NextResponse.json(
+            { error: "No active verification code. Request a new code or sign in again.", codeInvalidated: true },
+            { status: 400 },
+          );
+        }
+        if (check.reason === "expired") {
+          return NextResponse.json(
+            { error: "That code has expired. Request a new code or sign in again.", codeInvalidated: true },
+            { status: 400 },
+          );
+        }
+        const prev = client?.twoFactorLoginAttempts ?? 0;
+        const attempts = prev + 1;
+        if (attempts >= MAX_ATTEMPTS) {
+          const ops = [
+            prisma.client.update({
+              where: { id: clientId },
+              data: { twoFactorLoginAttempts: 0 },
+            }),
+          ];
+          if (ch) {
+            ops.push(
+              prisma.clientTwoFactorChannel.update({
+                where: { id: ch.id },
+                data: { lastCode: null, expiresAt: null },
+              }),
+            );
+          }
+          await prisma.$transaction(ops);
+          return NextResponse.json(
+            {
+              error: "Too many incorrect codes. Your verification code has been cancelled. Request a new code.",
+              codeInvalidated: true,
+              tooManyAttempts: true,
+            },
+            { status: 400 },
+          );
+        }
+        await prisma.client.update({
+          where: { id: clientId },
+          data: { twoFactorLoginAttempts: attempts },
+        });
+        const remaining = MAX_ATTEMPTS - attempts;
+        return NextResponse.json(
+          {
+            error: `Invalid verification code. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`,
+            attemptsRemaining: remaining,
+          },
+          { status: 400 },
+        );
+      }
+      if (!ch) {
+        return NextResponse.json(
+          { error: "No active verification code. Request a new code or sign in again.", codeInvalidated: true },
+          { status: 400 },
+        );
+      }
+      const suspendedGateEmail = await prisma.client.findUnique({
+        where: { id: clientId },
+        select: { safetySuspended: true },
+      });
+      if (suspendedGateEmail?.safetySuspended) {
+        return accountSuspendedResponse();
+      }
+      await prisma.$transaction([
+        prisma.clientTwoFactorChannel.update({
+          where: { id: ch.id },
+          data: { lastCode: null, expiresAt: null },
+        }),
+        prisma.client.update({
+          where: { id: clientId },
+          data: {
+            twoFactorOtpHash: null,
+            twoFactorOtpExpires: null,
+            twoFactorLoginAttempts: 0,
+            stayLoggedIn,
+          },
+        }),
+      ]);
+      await clearLoginChallengeCookie();
+      await setClientSession(clientId, stayLoggedIn);
+      return NextResponse.json({ ok: true, ...(nextPath ? { next: nextPath } : {}) });
+    }
+
     if (!client?.twoFactorOtpHash || !client.twoFactorOtpExpires) {
       return NextResponse.json(
         { error: "No active verification code. Request a new code or sign in again.", codeInvalidated: true },

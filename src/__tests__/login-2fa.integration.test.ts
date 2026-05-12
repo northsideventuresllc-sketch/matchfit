@@ -3,6 +3,53 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 
+const mf2faSend = vi.hoisted(() => ({ n: 0 }));
+
+vi.mock("@/lib/auth-2fa-email", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("@/lib/auth-2fa-email")>();
+  const { prisma } = await import("@/lib/prisma");
+  return {
+    ...mod,
+    send2FACode: vi.fn(
+      async (
+        email: string,
+        userId: string,
+        userType: "CLIENT" | "TRAINER",
+        opts?: { countTowardResendCooldown?: boolean },
+      ) => {
+        mf2faSend.n += 1;
+        const code = mf2faSend.n === 1 ? "111111" : "222222";
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+        const norm = email.trim().toLowerCase();
+        const lastEmailResendAt = opts?.countTowardResendCooldown ? new Date() : null;
+        if (userType !== "CLIENT") return;
+        const existing = await prisma.clientTwoFactorChannel.findFirst({
+          where: { clientId: userId, delivery: "EMAIL" },
+        });
+        if (existing) {
+          await prisma.clientTwoFactorChannel.update({
+            where: { id: existing.id },
+            data: { lastCode: code, expiresAt, email: norm, lastEmailResendAt },
+          });
+        } else {
+          await prisma.clientTwoFactorChannel.create({
+            data: {
+              clientId: userId,
+              delivery: "EMAIL",
+              email: norm,
+              lastCode: code,
+              expiresAt,
+              lastEmailResendAt,
+              verified: false,
+              isDefaultLogin: true,
+            },
+          });
+        }
+      },
+    ),
+  };
+});
+
 vi.mock("@/lib/deliver-otp", () => ({
   deliverSignupOtp: vi.fn(async () => ({})),
 }));
@@ -33,6 +80,7 @@ describe("login 2FA API", () => {
   });
 
   beforeEach(async () => {
+    mf2faSend.n = 0;
     clearTestCookieJar();
     await prisma.client.deleteMany({});
     vi.clearAllMocks();
@@ -81,7 +129,7 @@ describe("login 2FA API", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { needsTwoFactor?: boolean; next?: string };
     expect(body.needsTwoFactor).toBe(true);
-    expect(body.next).toBe("/client/verify-2fa");
+    expect(body.next).toBe("/verify-2fa");
     expect(testCookieJar.get(LOGIN_CHALLENGE_COOKIE)).toBeTruthy();
     expect(testCookieJar.get(CLIENT_SESSION_COOKIE)).toBeUndefined();
   });

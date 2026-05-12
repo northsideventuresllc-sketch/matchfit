@@ -68,7 +68,7 @@ export default function TrainerLoginPortal({
         return;
       }
       if (data.needsTwoFactor) {
-        router.push(data.next ?? "/trainer/verify-2fa");
+        router.push(data.next ?? "/verify-2fa");
         return;
       }
       // Full navigation avoids App Router races; defer so React/Next finish this commit (prevents stuck dark overlay).

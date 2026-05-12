@@ -59,26 +59,16 @@ function scorePost(
   return s;
 }
 
-/** Keep sort order; at most one post per trainer; stop at `limit` posts (used when hideRepeatedTrainers is on). */
-function takeUniqueTrainersInOrder<T extends { trainerId: string }>(posts: T[], limit: number): T[] {
+function dedupeByTrainer<T extends { trainerId: string }>(posts: T[], enabled: boolean): T[] {
+  if (!enabled) return posts;
   const seen = new Set<string>();
   const out: T[] = [];
   for (const p of posts) {
     if (seen.has(p.trainerId)) continue;
     seen.add(p.trainerId);
     out.push(p);
-    if (out.length >= limit) break;
   }
   return out;
-}
-
-function applyFeedLengthCap<T extends { trainerId: string }>(
-  posts: T[],
-  hideRepeatedTrainers: boolean,
-  limit: number,
-): T[] {
-  if (hideRepeatedTrainers) return takeUniqueTrainersInOrder(posts, limit);
-  return posts.slice(0, limit);
 }
 
 export async function GET() {
@@ -138,10 +128,7 @@ export async function GET() {
       });
     }
 
-    // Fetch extra rows when we will dedupe by trainer so we can still return up to `limit` unique trainers.
-    const limit = 60;
-    const takeRaw =
-      prefs.feedStyle === "ALGORITHMIC" || prefs.hideRepeatedTrainers ? 180 : limit;
+    const takeRaw = prefs.feedStyle === "ALGORITHMIC" ? 180 : 60;
     const rows = await prisma.trainerFitHubPost.findMany({
       where,
       take: takeRaw,
@@ -188,15 +175,17 @@ export async function GET() {
     let sorted = [...rows];
     if (prefs.feedStyle === "NEWEST" || prefs.feedStyle === "SAVED_COACHES_ONLY") {
       sorted.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      sorted = sorted.slice(0, 60);
     } else {
       sorted.sort(
         (a, b) =>
           scorePost(b, prefs, savedIds, clientMatchTokens, promotionBoostFor(b.id)) -
           scorePost(a, prefs, savedIds, clientMatchTokens, promotionBoostFor(a.id)),
       );
+      sorted = sorted.slice(0, 60);
     }
 
-    sorted = applyFeedLengthCap(sorted, prefs.hideRepeatedTrainers, limit);
+    sorted = dedupeByTrainer(sorted, prefs.hideRepeatedTrainers);
 
     const postIds = sorted.map((p) => p.id);
     const reportedRows =
