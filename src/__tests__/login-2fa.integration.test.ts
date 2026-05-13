@@ -68,11 +68,28 @@ describe("login 2FA API", () => {
   const email = "twofa_tester@example.test";
 
   beforeAll(() => {
-    execSync("npx prisma db push --skip-generate", {
-      stdio: "inherit",
-      cwd: process.cwd(),
-      env: { ...process.env },
-    });
+    const env = { ...process.env };
+    const allowLoss = env.MATCH_FIT_INTEGRATION_TEST_DB_PUSH_ACCEPT_DATA_LOSS === "1";
+    try {
+      execSync("npx prisma db push --skip-generate", {
+        stdio: "inherit",
+        cwd: process.cwd(),
+        env,
+      });
+    } catch {
+      if (!allowLoss) {
+        throw new Error(
+          "login-2fa integration: `prisma db push` failed (often pending destructive schema sync). " +
+            "Point DATABASE_URL at a disposable database and set MATCH_FIT_INTEGRATION_TEST_DB_PUSH_ACCEPT_DATA_LOSS=1, " +
+            "or run `npx prisma migrate deploy` / repair migration history on this database. Never use data-loss push against production.",
+        );
+      }
+      execSync("npx prisma db push --skip-generate --accept-data-loss", {
+        stdio: "inherit",
+        cwd: process.cwd(),
+        env,
+      });
+    }
   });
 
   afterAll(async () => {

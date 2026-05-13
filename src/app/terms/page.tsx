@@ -1,5 +1,20 @@
 import { LegalPageFooterNav } from "@/components/legal-page-footer-nav";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
+import {
+  CHECK_IN_LEAD_HOURS,
+  GATE_A_POST_SESSION_SILENCE_HOURS,
+  INITIAL_OUTBOUND_MESSAGE_CAP,
+  MATCH_BATCH_WINDOW_HOURS,
+  OFF_PLATFORM_LIQUIDATED_DAMAGES_USD,
+  PAYOUT_BUFFER_AFTER_BOTH_GATES_HOURS,
+  PLATFORM_ADMIN_FEE_PERCENT,
+  STANDARD_MATCH_BATCH_SIZE,
+  TOS_CLIENT_PLATFORM_PROMO_USD,
+  TOS_CLIENT_PLATFORM_SUBSCRIPTION_USD,
+  TOS_PAYOUT_DISPUTE_ROLLING_DAYS,
+  TOS_PAYOUT_DISPUTE_SUSPEND_THRESHOLD,
+  TOS_PUNCH_MISS_SUSPEND_STREAK,
+} from "@/lib/tos-implementation-contract";
 
 /** Legal operator of Match Fit. */
 const OPERATOR_LEGAL_NAME = "Northside Ventures LLC";
@@ -9,7 +24,7 @@ const TERMS_CONTACT_EMAIL = "northside.ventures.llc@gmail.com";
 
 const PHYSICAL_ADDRESS_LINE = "1954 Airport Rd STE 1277, Chamblee, GA 30341, United States";
 
-const TERMS_EFFECTIVE_DATE = "April 29, 2026";
+const TERMS_EFFECTIVE_DATE = "May 13, 2026";
 
 function P({ children }: { children: React.ReactNode }) {
   return <p className="mt-3 text-sm leading-relaxed text-white/60">{children}</p>;
@@ -33,6 +48,15 @@ function Li({ children }: { children: React.ReactNode }) {
 
 function Strong({ children }: { children: React.ReactNode }) {
   return <strong className="text-white/85">{children}</strong>;
+}
+
+function usdCents(n: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n);
 }
 
 export default async function TermsPage() {
@@ -120,9 +144,13 @@ export default async function TermsPage() {
           Platform subscription (for example, per-session bookings, DIY plans, trial weeks, tips where enabled, premium
           trainer content subscriptions offered in-product, trainer-side registration or premium fees, match-boost or token
           purchases, and similar one-time or non-platform-subscription charges) include a{" "}
-          <Strong>twenty percent (20%) administrative fee</Strong> assessed on the applicable transaction. This fee supports
+          <Strong>
+            {PLATFORM_ADMIN_FEE_PERCENT}% administrative fee
+          </Strong>{" "}
+          assessed on the applicable transaction. This fee supports
           platform operations, payments infrastructure, dispute tooling, and marketplace services. Unless a separate refund
-          policy below states otherwise for a specific scenario, <Strong>any portion of the 20% administrative fee that has
+          policy below states otherwise for a specific scenario, <Strong>
+            any portion of the {PLATFORM_ADMIN_FEE_PERCENT}% administrative fee that has
           been collected is non-refundable</Strong> when a refund of the underlying trainer compensation or service price is
           approved (for example, approved no-show or service-not-delivered outcomes described below).
         </P>
@@ -142,8 +170,9 @@ export default async function TermsPage() {
         </P>
         <P>
           <Strong>Subscriptions and Promotions:</Strong> Client Platform subscriptions may be offered at published rates
-          (for example, ten U.S. dollars ($10.00) per month) with promotional pricing (for example, four U.S. dollars ($4.00)
-          per month for an introductory period) when we run such programs. Promotional details, renewal rates, and billing
+          (for example, {usdCents(TOS_CLIENT_PLATFORM_SUBSCRIPTION_USD)} per month) with promotional pricing (for example,{" "}
+          {usdCents(TOS_CLIENT_PLATFORM_PROMO_USD)} per month for an introductory period) when we run such programs.
+          Promotional details, renewal rates, and billing
           cycles are shown in-product and at checkout.
         </P>
         <P>
@@ -171,16 +200,16 @@ export default async function TermsPage() {
           are separate line items subject to the same processing mechanics unless stated otherwise at checkout.
         </P>
         <P>
-          <Strong>Completion Confirmation (Gate A):</Strong> Clients may confirm sessions starting <Strong>twenty-four
-          (24) hours</Strong> before the scheduled start time. After the session, the Client has a limited window (currently{" "}
-          <Strong>forty-eight (48) hours</Strong> after the booked end time where implemented) to confirm completion or open
+          <Strong>Completion Confirmation (Gate A):</Strong> Clients may confirm sessions starting{" "}
+          <Strong>{CHECK_IN_LEAD_HOURS} hours</Strong> before the scheduled start time. After the session, the Client has a limited window (currently{" "}
+          <Strong>{GATE_A_POST_SESSION_SILENCE_HOURS} hours</Strong> after the booked end time where implemented) to confirm completion or open
           a dispute through the flows we provide. If the Client does not act within the post-session window, Gate A may close
           automatically as implemented.
         </P>
         <P>
           <Strong>No Show Refunds:</Strong> If the Client marks <Strong>No Show</Strong> for the Trainer in accordance with
           in-product rules, the Client may be eligible for a refund of the session price paid for the personal training
-          portion, <Strong>excluding the non-refundable 20% administrative fee</Strong> and any non-refundable processing
+          portion, <Strong>excluding the non-refundable {PLATFORM_ADMIN_FEE_PERCENT}% administrative fee</Strong> and any non-refundable processing
           costs we are not able to recover from the processor.
         </P>
         <P>
@@ -208,15 +237,15 @@ export default async function TermsPage() {
           <Strong>Two gates and payout buffer:</Strong> For booked sessions, payout release generally requires{" "}
           <Strong>both</Strong> (a) client-side completion confirmation or automatic silence after the post-session Gate A
           window and (b) the Trainer marking the session complete (Gate B). After both are satisfied, a{" "}
-          <Strong>forty-eight (48) hour</Strong> dispute buffer runs; Clients may dispute during that window for human
+          <Strong>{PAYOUT_BUFFER_AFTER_BOTH_GATES_HOURS} hours</Strong> dispute buffer runs; Clients may dispute during that window for human
           review. Trainers must also record a <Strong>SESSION STARTED</Strong> geolocation punch-in at arrival before Gate B
           can close, as enforced in-product.
         </P>
         <P>
           <Strong>Punch-in compliance:</Strong> Trainers should allow device location access. The Service may evaluate
-          missed punch-ins after each session window; <Strong>five (5) consecutive missed punch-ins</Strong> may trigger
-          suspension pending review. Separately, <Strong>three (3) payout disputes</Strong> opened against a Trainer in a
-          rolling thirty (30) day window, or a serious <Strong>Client safety report</Strong> that results in suspension, may
+          missed punch-ins after each session window; <Strong>{TOS_PUNCH_MISS_SUSPEND_STREAK} consecutive missed punch-ins</Strong> may trigger
+          suspension pending review. Separately, <Strong>{TOS_PAYOUT_DISPUTE_SUSPEND_THRESHOLD} payout disputes</Strong> opened against a Trainer in a
+          rolling <Strong>{TOS_PAYOUT_DISPUTE_ROLLING_DAYS}-day</Strong> window, or a serious <Strong>Client safety report</Strong> that results in suspension, may
           suspend the Trainer pending review.
         </P>
         <P>
@@ -228,7 +257,7 @@ export default async function TermsPage() {
 
         <H2 id="diy-policies">6. DIY Plans and Trial Weeks</H2>
         <P>
-          DIY offerings are priced by the Trainer, typically on a monthly basis, with the <Strong>20% administrative fee
+          DIY offerings are priced by the Trainer, typically on a monthly basis, with the <Strong>{PLATFORM_ADMIN_FEE_PERCENT}% administrative fee
           applied to the monthly price</Strong> at checkout (plus transaction fees under Section 3). Trainers may offer a{" "}
           <Strong>trial week</Strong> priced at approximately one-quarter (¼) of the monthly plan price plus administrative
           and processing fees as shown at checkout.
@@ -259,7 +288,7 @@ export default async function TermsPage() {
           <Li>
             If the workout was never sent within the five-business-day window (absent an approved extension), the Client may
             report it as not sent and may be eligible for a refund of amounts attributable to the undelivered service,{" "}
-            <Strong>excluding the non-refundable 20% administrative fee</Strong> as stated above.
+            <Strong>excluding the non-refundable {PLATFORM_ADMIN_FEE_PERCENT}% administrative fee</Strong> as stated above.
           </Li>
           <Li>
             Dissatisfaction after delivery is handled similarly to sessions: support may offer account credit; refunds are
@@ -290,12 +319,18 @@ export default async function TermsPage() {
         <H2 id="communications-discovery">8. Messaging, Discovery History, and In-App Communication</H2>
         <Ul>
           <Li>
-            Clients may be limited to <Strong>two (2) initial outbound messages</Strong> to a Trainer until that Trainer
-            responds, as implemented to reduce spam.
+            Each party may send up to <Strong>{INITIAL_OUTBOUND_MESSAGE_CAP} initial outbound messages</Strong> in a thread
+            until the other party sends at least one chat message, as implemented to reduce spam.
           </Li>
           <Li>
             You agree to use Service messaging for introductions and coordination where required by product rules. Automated
-            tools may mask or remove phone numbers, email addresses, or similar contact data shared in chat. You acknowledge
+            tools may mask or remove phone numbers, email addresses, or similar contact data shared in chat. The Service may
+            also use automated signals (for example, patterns resembling off-platform payment requests, common peer-payment
+            brand names, or phone-like digit sequences) to flag threads for internal review; flagged content may be withheld or
+            delivered according to policy while staff review when queued.
+          </Li>
+          <Li>
+            You acknowledge
             that off-platform sharing (for example, in person) is outside our control but may violate these Terms or
             Trainer obligations below.
           </Li>
@@ -353,7 +388,7 @@ export default async function TermsPage() {
         <Ul>
           <Li>
             <Strong>Off-Platform Payments:</Strong> Any Trainer found soliciting or accepting payments off-platform for
-            clients first discovered through Match Fit agrees to pay a <Strong>$1,000.00 Liquidated Damages Fee</Strong> per
+            clients first discovered through Match Fit agrees to pay a <Strong>{usdCents(OFF_PLATFORM_LIQUIDATED_DAMAGES_USD)} Liquidated Damages Fee</Strong> per
             occurrence, in addition to other remedies available to Match Fit under these Terms or applicable law.
           </Li>
           <Li>
@@ -399,7 +434,8 @@ export default async function TermsPage() {
 
         <H2 id="trainer-matching-products">13. Trainer Discovery Limits and Optional Purchases</H2>
         <P>
-          Trainers may receive periodic batches of client matches (for example, ten (10) matches every twelve (12) hours) as
+          Trainers may receive periodic batches of client matches (for example,{" "}
+          <Strong>{STANDARD_MATCH_BATCH_SIZE} matches every {MATCH_BATCH_WINDOW_HOURS} hours</Strong>) as
           implemented. Trainers may purchase additional match visibility or related boosts where we offer them. Premium plans
           may include unlimited or expanded matching as described at signup.
         </P>
@@ -429,7 +465,7 @@ export default async function TermsPage() {
         <Ul>
           <Li>
             <Strong>Off-Platform Fee Circumvention:</Strong> Trainers must not solicit or accept payment outside Match Fit
-            for relationships that began through the Service. The <Strong>$1,000.00 Liquidated Damages Fee</Strong> described
+            for relationships that began through the Service. The <Strong>{usdCents(OFF_PLATFORM_LIQUIDATED_DAMAGES_USD)} Liquidated Damages Fee</Strong> described
             in Section 12 applies per substantiated occurrence.
           </Li>
           <Li>No unlawful, harassing, discriminatory, fraudulent, or dangerous conduct.</Li>
@@ -496,6 +532,11 @@ export default async function TermsPage() {
           We may modify the Service or these Terms. Material changes will be communicated by email to the address on file
           and/or through in-product notices, with an updated effective date on this page. Continued use after the effective
           date constitutes acceptance unless we state otherwise for specific changes that require fresh consent.
+        </P>
+        <P>
+          We also run automated engineering checks (for example, weekly in our CI environment) to compare published Terms
+          examples and thresholds against selected implementation constants; those checks do not replace legal review or
+          notice obligations above.
         </P>
 
         <H2 id="governing-law">22. Governing Law and Venue</H2>

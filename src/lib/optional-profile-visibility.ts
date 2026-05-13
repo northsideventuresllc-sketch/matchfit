@@ -29,7 +29,7 @@ const CLIENT_DEFAULT: Required<ClientOptionalProfileVisibility> = {
   showMatchSnapshotOnPublicProfile: true,
 };
 
-function parseJson<T>(raw: string | null | undefined): Record<string, unknown> {
+function parseJson(raw: string | null | undefined): Record<string, unknown> {
   if (!raw?.trim()) return {};
   try {
     const v = JSON.parse(raw) as unknown;

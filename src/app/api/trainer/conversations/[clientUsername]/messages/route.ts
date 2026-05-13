@@ -7,7 +7,6 @@ import {
 } from "@/lib/trainer-client-conversation-archive";
 import { getSessionTrainerId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
-import { getPhoneCallEligibility } from "@/lib/phone-bridge-eligibility";
 import { loadChatScopedClientPendingBookings } from "@/lib/marketplace-governance-overview";
 import { canAuthorSendChatMessage } from "@/lib/trainer-client-chat-rules";
 import { computeTrainerCheckoutHint } from "@/lib/trainer-chat-checkout-hint";
@@ -131,25 +130,7 @@ export async function GET(_req: Request, ctx: RouteContext) {
       lastClientMessageId,
     });
 
-    let phoneCall: Awaited<ReturnType<typeof getPhoneCallEligibility>>;
-    try {
-      phoneCall = await getPhoneCallEligibility({
-        clientId: client.id,
-        trainerId,
-        archived: archive.archived,
-      });
-    } catch (phoneErr) {
-      console.error("[Match Fit trainer chat GET] phone eligibility skipped (DB may be behind migrations)", phoneErr);
-      phoneCall = {
-        paid: false,
-        twilioConfigured: false,
-        clientOptIn: false,
-        trainerOptIn: false,
-        ready: false,
-        archived: archive.archived,
-      };
-    }
-    const voiceCallEnabled = phoneCall.ready;
+    const voiceCallEnabled = false;
 
     let videoOAuthProviders: { provider: string }[] = [];
     let pendingBookings: {
@@ -189,13 +170,6 @@ export async function GET(_req: Request, ctx: RouteContext) {
       archiveExpiresAt: archive.archiveExpiresAt,
       unmatchInitiatedBy: archive.unmatchInitiatedBy,
       voiceCallEnabled,
-      phoneCall: {
-        ready: phoneCall.ready,
-        paid: phoneCall.paid,
-        twilioConfigured: phoneCall.twilioConfigured,
-        clientOptIn: phoneCall.clientOptIn,
-        trainerOptIn: phoneCall.trainerOptIn,
-      },
       blockFreeSessionBookingUntilRepurchase: conv?.blockFreeSessionBookingUntilRepurchase ?? false,
       pendingBookings: pendingBookings.map((b) => ({
         id: b.id,

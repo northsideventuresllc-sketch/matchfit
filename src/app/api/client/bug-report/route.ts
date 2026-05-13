@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
+import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
 import { NextResponse } from "next/server";
 
 const CATEGORIES = new Set([
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
     }
 
-    await prisma.clientBugReport.create({
+    const row = await prisma.clientBugReport.create({
       data: {
         clientId: clientId ?? null,
         anonymous,
@@ -57,6 +58,14 @@ export async function POST(req: Request) {
         description,
       },
     });
+
+    void sendTransactionalEmailIfAllowed({
+      kind: "BUG_REPORT_ACKNOWLEDGMENT",
+      to: email.trim(),
+      audience: "CLIENT",
+      clientId: clientId ?? undefined,
+      variables: { reportId: row.id },
+    }).catch((e) => console.error("[bug-report] ack email failed:", e));
 
     return NextResponse.json({
       ok: true,

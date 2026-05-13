@@ -161,21 +161,18 @@ export async function verify2FAAction(
         const prev = client.twoFactorLoginAttempts ?? 0;
         const attempts = prev + 1;
         if (attempts >= MAX_ATTEMPTS) {
-          const ops = [
-            prisma.client.update({
+          await prisma.$transaction(async (tx) => {
+            await tx.client.update({
               where: { id: clientId },
               data: { twoFactorLoginAttempts: 0 },
-            }),
-          ];
-          if (ch) {
-            ops.push(
-              prisma.clientTwoFactorChannel.update({
+            });
+            if (ch) {
+              await tx.clientTwoFactorChannel.update({
                 where: { id: ch.id },
                 data: { lastCode: null, expiresAt: null },
-              }),
-            );
-          }
-          await prisma.$transaction(ops);
+              });
+            }
+          });
           return {
             ok: false,
             error: "Too many incorrect codes. Request a new code from the sign-in page.",
@@ -316,21 +313,18 @@ export async function verify2FAAction(
         const prev = trainer.twoFactorLoginAttempts ?? 0;
         const attempts = prev + 1;
         if (attempts >= MAX_ATTEMPTS) {
-          const ops = [
-            prisma.trainer.update({
+          await prisma.$transaction(async (tx) => {
+            await tx.trainer.update({
               where: { id: trainerId },
               data: { twoFactorLoginAttempts: 0 },
-            }),
-          ];
-          if (ch) {
-            ops.push(
-              prisma.trainerTwoFactorChannel.update({
+            });
+            if (ch) {
+              await tx.trainerTwoFactorChannel.update({
                 where: { id: ch.id },
                 data: { lastCode: null, expiresAt: null },
-              }),
-            );
-          }
-          await prisma.$transaction(ops);
+              });
+            }
+          });
           return {
             ok: false,
             error: "Too many incorrect codes. Request a new code from the sign-in page.",

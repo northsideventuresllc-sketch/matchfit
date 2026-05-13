@@ -8,7 +8,6 @@ import {
 import { getSessionClientId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { canAuthorSendChatMessage } from "@/lib/trainer-client-chat-rules";
-import { getPhoneCallEligibility } from "@/lib/phone-bridge-eligibility";
 import { loadChatScopedClientPendingBookings } from "@/lib/marketplace-governance-overview";
 import { buildClientChatTokenTipContext } from "@/lib/trainer-promo-tokens";
 import { isTrainerClientChatBlocked } from "@/lib/user-block-queries";
@@ -88,25 +87,7 @@ export async function GET(_req: Request, ctx: RouteContext) {
       actor: "CLIENT",
     });
 
-    let phoneCall: Awaited<ReturnType<typeof getPhoneCallEligibility>>;
-    try {
-      phoneCall = await getPhoneCallEligibility({
-        clientId,
-        trainerId: trainer.id,
-        archived: archive.archived,
-      });
-    } catch (phoneErr) {
-      console.error("[Match Fit client chat GET] phone eligibility skipped (DB may be behind migrations)", phoneErr);
-      phoneCall = {
-        paid: false,
-        twilioConfigured: false,
-        clientOptIn: false,
-        trainerOptIn: false,
-        ready: false,
-        archived: archive.archived,
-      };
-    }
-    const voiceCallEnabled = phoneCall.ready;
+    const voiceCallEnabled = false;
 
     let pendingBookings: {
       id: string;
@@ -135,14 +116,6 @@ export async function GET(_req: Request, ctx: RouteContext) {
       archiveExpiresAt: archive.archiveExpiresAt,
       unmatchInitiatedBy: archive.unmatchInitiatedBy,
       voiceCallEnabled,
-      phoneCall: {
-        ready: phoneCall.ready,
-        paid: phoneCall.paid,
-        twilioConfigured: phoneCall.twilioConfigured,
-        clientOptIn: phoneCall.clientOptIn,
-        trainerOptIn: phoneCall.trainerOptIn,
-      },
-      blockFreeSessionBookingUntilRepurchase: conv?.blockFreeSessionBookingUntilRepurchase ?? false,
       pendingBookings: pendingBookings.map((b) => ({
         id: b.id,
         status: b.status,

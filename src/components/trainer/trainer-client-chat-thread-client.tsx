@@ -65,14 +65,6 @@ type ShareableReview = {
   createdAt: string;
 };
 
-type PhoneCallInfo = {
-  ready: boolean;
-  paid: boolean;
-  twilioConfigured: boolean;
-  clientOptIn: boolean;
-  trainerOptIn: boolean;
-};
-
 type PendingBooking = {
   id: string;
   status: string;
@@ -112,11 +104,8 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
   const [unmatchInitiatedBy, setUnmatchInitiatedBy] = useState<string | null>(null);
   const [archiveBusy, setArchiveBusy] = useState(false);
   const [blockMode, setBlockMode] = useState<SafetyBlockMode>("full");
-  const [voiceCallEnabled, setVoiceCallEnabled] = useState(false);
-  const [phoneCall, setPhoneCall] = useState<PhoneCallInfo | null>(null);
   const [pendingBookings, setPendingBookings] = useState<PendingBooking[]>([]);
   const [videoOAuthProviders, setVideoOAuthProviders] = useState<string[]>([]);
-  const [callBusy, setCallBusy] = useState(false);
   const [videoAttachId, setVideoAttachId] = useState<string | null>(null);
   const [manualVideoUrl, setManualVideoUrl] = useState("");
   const [videoBusy, setVideoBusy] = useState(false);
@@ -154,8 +143,6 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
         canRevive?: boolean;
         archiveExpiresAt?: string | null;
         unmatchInitiatedBy?: string | null;
-        voiceCallEnabled?: boolean;
-        phoneCall?: PhoneCallInfo;
         pendingBookings?: PendingBooking[];
         videoOAuthProviders?: string[];
         error?: string;
@@ -192,8 +179,6 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
         if (!ps.some((s) => s.serviceId === prev)) return ps[0]!.serviceId;
         return prev;
       });
-      setVoiceCallEnabled(Boolean(data.voiceCallEnabled));
-      setPhoneCall(data.phoneCall ?? null);
       setPendingBookings(data.pendingBookings ?? []);
       setVideoOAuthProviders(data.videoOAuthProviders ?? []);
     } catch {
@@ -202,24 +187,6 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
       setLoading(false);
     }
   }, [props.clientUsername]);
-
-  async function startMaskedCallTrainer() {
-    setCallBusy(true);
-    setErr(null);
-    try {
-      const res = await fetch(`/api/trainer/conversations/${encodeURIComponent(props.clientUsername)}/masked-call`, {
-        method: "POST",
-      });
-      const data = (await res.json()) as { error?: string; message?: string };
-      if (!res.ok) {
-        setErr(data.error ?? "Could not start call.");
-        return;
-      }
-      window.alert(data.message ?? "Your phone should ring shortly. Answer to connect.");
-    } finally {
-      setCallBusy(false);
-    }
-  }
 
   async function saveManualVideo(bookingId: string) {
     const url = manualVideoUrl.trim();
@@ -1013,10 +980,10 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
 
       {official &&
       !archived &&
-      (voiceCallEnabled || pendingBookings.length > 0 || (phoneCall?.paid && phoneCall.twilioConfigured)) ? (
+      (pendingBookings.length > 0 || stage !== "POTENTIAL_CLIENT") ? (
         <div className="space-y-3 rounded-xl border border-white/[0.08] bg-[#0c0d12]/95 px-3 py-3 text-left sm:px-4">
           <p className="text-center text-[10px] font-black uppercase tracking-[0.14em] text-white/40">
-            Booking invites, virtual links &amp; voice
+            Booking invites &amp; virtual links
           </p>
           {pendingBookings.length > 0 ? (
             <div className="space-y-2 text-left text-[11px] text-white/55">
@@ -1052,7 +1019,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
                           </a>
                         ) : null}
                       </div>
-                      {phoneCall?.paid && b.sessionDelivery === "VIRTUAL" ? (
+                      {stage !== "POTENTIAL_CLIENT" && b.sessionDelivery === "VIRTUAL" ? (
                         <button
                           type="button"
                           disabled={videoBusy}
@@ -1066,7 +1033,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
                         </button>
                       ) : null}
                     </div>
-                    {videoAttachId === b.id && phoneCall?.paid && b.sessionDelivery === "VIRTUAL" ? (
+                    {videoAttachId === b.id && stage !== "POTENTIAL_CLIENT" && b.sessionDelivery === "VIRTUAL" ? (
                       <div className="mt-2 space-y-2 border-t border-white/[0.06] pt-2">
                         <p className="text-[10px] text-white/45">
                           Add a link or sync from a connected account. Manage accounts under{" "}
@@ -1178,34 +1145,6 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
                 {inviteBusy ? "Sending…" : "Send invite to chat"}
               </button>
             </div>
-          ) : null}
-          {phoneCall?.paid && phoneCall.twilioConfigured && !phoneCall.ready ? (
-            <div className="rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2 text-center text-[11px] leading-relaxed text-amber-50/90">
-              <span className="font-bold uppercase tracking-[0.08em] text-amber-200/90">Masked calls </span>
-              Both sides must opt in under{" "}
-              <Link href="/trainer/dashboard/settings" className="text-[#FF9A4A] underline-offset-2 hover:underline">
-                Account Settings → Enable Phone Number
-              </Link>
-              .
-            </div>
-          ) : null}
-          {phoneCall?.paid && !phoneCall.twilioConfigured ? (
-            <p className="text-center text-[11px] text-white/45">Masked calling is not enabled on this server yet.</p>
-          ) : null}
-          {!phoneCall?.paid && phoneCall?.twilioConfigured ? (
-            <p className="text-center text-[11px] text-white/45">
-              Voice and synced video unlock after this client completes a paid checkout with you.
-            </p>
-          ) : null}
-          {voiceCallEnabled ? (
-            <button
-              type="button"
-              disabled={callBusy}
-              onClick={() => void startMaskedCallTrainer()}
-              className="w-full rounded-lg border border-sky-400/35 bg-sky-500/12 py-2 text-xs font-bold uppercase tracking-[0.08em] text-sky-100 disabled:opacity-40"
-            >
-              {callBusy ? "Calling…" : "Start masked call"}
-            </button>
           ) : null}
         </div>
       ) : null}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FEATURED_RULES_VERSION } from "@/lib/featured-rules-version";
 import { formatFeaturedDisplayDayLabel } from "@/lib/featured-eastern-calendar";
+import { useNowMs } from "@/lib/use-now-ms";
 
 type ListingGet =
   | {
@@ -46,7 +47,7 @@ export function FeaturedListingStudioPanel() {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
-  const [tick, setTick] = useState(0);
+  const nowMs = useNowMs(1000);
 
   const [bidDollars, setBidDollars] = useState("25");
 
@@ -66,18 +67,16 @@ export function FeaturedListingStudioPanel() {
   }, []);
 
   useEffect(() => {
-    void load();
+    const _mfT = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(_mfT);
   }, [load]);
-
-  useEffect(() => {
-    const id = window.setInterval(() => setTick((t) => t + 1), 1000);
-    return () => window.clearInterval(id);
-  }, []);
 
   const msLeft = useMemo(() => {
     if (!data || !("easternCutoffUtcMs" in data)) return 0;
-    return data.easternCutoffUtcMs - Date.now();
-  }, [data, tick]);
+    return data.easternCutoffUtcMs - nowMs;
+  }, [data, nowMs]);
 
   async function enterRaffle() {
     if (!data || !("regionZipPrefix" in data)) return;

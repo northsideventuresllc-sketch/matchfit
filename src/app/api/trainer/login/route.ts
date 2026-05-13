@@ -1,8 +1,6 @@
 import { send2FACode } from "@/lib/auth-2fa-email";
 import { findTrainerByIdentifier } from "@/lib/trainer-queries";
-import { deliverSignupOtp } from "@/lib/deliver-otp";
 import { getTrainerLoginOtpDelivery } from "@/lib/trainer-login-two-factor-target";
-import { generateSixDigitCode, hashOtp } from "@/lib/otp";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
 import {
@@ -50,77 +48,26 @@ export async function POST(req: Request) {
 
     const otpDelivery = await getTrainerLoginOtpDelivery(trainer.id);
     if (trainer.twoFactorEnabled && otpDelivery) {
-      const prevStay = trainer.stayLoggedIn;
-      const prevAttempts = trainer.twoFactorLoginAttempts ?? 0;
-
-      if (otpDelivery.delivery === "EMAIL") {
-        try {
-          await send2FACode(otpDelivery.email, trainer.id, "TRAINER");
-        } catch (deliverErr) {
-          console.error("[Match Fit trainer login 2FA] Email OTP delivery failed.", deliverErr);
-          throw deliverErr;
-        }
-        await prisma.trainer.update({
-          where: { id: trainer.id },
-          data: {
-            stayLoggedIn,
-            twoFactorLoginAttempts: 0,
-            twoFactorMethod: otpDelivery.delivery,
-            twoFactorOtpHash: null,
-            twoFactorOtpExpires: null,
-          },
-        });
-        const token = await signTrainerLoginChallengeToken(trainer.id, { stayLoggedIn, redirectAfterLogin });
-        const res = NextResponse.json({
-          needsTwoFactor: true,
-          next: "/verify-2fa",
-        });
-        applyTrainerLoginChallengeToNextResponse(res, token);
-        return res;
+      try {
+        await send2FACode(otpDelivery.email, trainer.id, "TRAINER");
+      } catch (deliverErr) {
+        console.error("[Match Fit trainer login 2FA] Email OTP delivery failed.", deliverErr);
+        throw deliverErr;
       }
-
-      const code = generateSixDigitCode();
-      const otpHash = hashOtp(code);
-      const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
       await prisma.trainer.update({
         where: { id: trainer.id },
         data: {
-          twoFactorOtpHash: otpHash,
-          twoFactorOtpExpires: otpExpiresAt,
           stayLoggedIn,
           twoFactorLoginAttempts: 0,
-          twoFactorMethod: otpDelivery.delivery,
+          twoFactorMethod: "EMAIL",
+          twoFactorOtpHash: null,
+          twoFactorOtpExpires: null,
         },
       });
-      let otpDeliveryMeta: { devPhoneMock?: boolean } = {};
-      try {
-        otpDeliveryMeta = await deliverSignupOtp(otpDelivery.delivery, {
-          email: otpDelivery.email,
-          phone: otpDelivery.phone,
-          code,
-        });
-      } catch (deliverErr) {
-        console.error(
-          "[Match Fit trainer login 2FA] OTP delivery failed; clearing stored OTP so codes stay consistent.",
-          deliverErr,
-        );
-        await prisma.trainer.update({
-          where: { id: trainer.id },
-          data: {
-            twoFactorOtpHash: null,
-            twoFactorOtpExpires: null,
-            stayLoggedIn: prevStay,
-            twoFactorLoginAttempts: prevAttempts,
-          },
-        });
-        throw deliverErr;
-      }
       const token = await signTrainerLoginChallengeToken(trainer.id, { stayLoggedIn, redirectAfterLogin });
       const res = NextResponse.json({
         needsTwoFactor: true,
         next: "/verify-2fa",
-        ...(otpDeliveryMeta?.devPhoneMock ? { devPhoneMock: true } : {}),
       });
       applyTrainerLoginChallengeToNextResponse(res, token);
       return res;

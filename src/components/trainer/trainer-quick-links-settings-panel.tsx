@@ -21,7 +21,10 @@ export function TrainerQuickLinksSettingsPanel(props: Props) {
   const [ok, setOk] = useState(false);
 
   useEffect(() => {
-    setIds(props.initialIds);
+    const t = window.setTimeout(() => {
+      setIds(props.initialIds);
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [props.initialIds]);
 
   const toggle = useCallback((id: TrainerDashboardQuickLinkId) => {

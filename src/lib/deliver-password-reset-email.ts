@@ -2,7 +2,8 @@
  * Sends a password reset link. Uses Resend when RESEND_API_KEY is set; otherwise logs in development.
  */
 
-import { RESEND_ONBOARDING_FROM, sendResendEmail } from "@/lib/resend-client";
+import { prisma } from "@/lib/prisma";
+import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
 
 export async function deliverPasswordResetEmail(params: { email: string; resetUrl: string }): Promise<void> {
   const { email, resetUrl } = params;
@@ -15,12 +16,18 @@ export async function deliverPasswordResetEmail(params: { email: string; resetUr
     throw new Error("RESEND_API_KEY must be set to send password reset email in production.");
   }
 
-  const text = `We received a request to change the password for your Match Fit account.\n\nOpen this link (valid for 1 hour):\n${resetUrl}\n\nIf you did not request this, you can ignore this email.`;
+  const norm = email.trim().toLowerCase();
+  const [clientRow, trainerRow] = await Promise.all([
+    prisma.client.findFirst({ where: { email: { equals: norm, mode: "insensitive" } }, select: { id: true } }),
+    prisma.trainer.findFirst({ where: { email: { equals: norm, mode: "insensitive" } }, select: { id: true } }),
+  ]);
 
-  await sendResendEmail({
-    from: RESEND_ONBOARDING_FROM,
-    to: email,
-    subject: "Reset your Match Fit password",
-    text,
+  await sendTransactionalEmailIfAllowed({
+    kind: "PASSWORD_RESET",
+    to: email.trim(),
+    audience: clientRow ? "CLIENT" : "TRAINER",
+    clientId: clientRow?.id,
+    trainerId: trainerRow?.id,
+    variables: { resetUrl },
   });
 }

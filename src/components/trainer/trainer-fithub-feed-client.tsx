@@ -8,6 +8,7 @@ import {
   normalizeTrainerFithubPrefs,
   type TrainerFithubPrefs,
 } from "@/lib/trainer-fithub-prefs";
+import { useNowMs } from "@/lib/use-now-ms";
 
 type FeedPost = {
   id: string;
@@ -86,8 +87,8 @@ function TrainerFithubOtherCoachMenu(props: { otherUsername: string; onMuted: ()
   );
 }
 
-function scorePost(p: FeedPost): number {
-  const ageH = (Date.now() - new Date(p.createdAt).getTime()) / 3600000;
+function scorePost(p: FeedPost, nowMs: number): number {
+  const ageH = (nowMs - new Date(p.createdAt).getTime()) / 3600000;
   const engagement = p.counts.likes * 2 + p.counts.comments * 3 + p.counts.reposts * 4 + p.shareCount;
   return engagement + Math.max(0, 72 - ageH);
 }
@@ -105,19 +106,21 @@ function dedupeByTrainer(posts: FeedPost[], enabled: boolean): FeedPost[] {
 }
 
 export function TrainerFitHubFeedClient() {
+  const nowMs = useNowMs(60_000);
   const [posts, setPosts] = useState<FeedPost[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [prefs, setPrefs] = useState<TrainerFithubPrefs>({ ...defaultTrainerFithubPrefs });
-
-  useEffect(() => {
+  const prefsState = useState<TrainerFithubPrefs>(() => {
     try {
-      const raw = window.localStorage.getItem(TRAINER_FITHUB_PREFS_STORAGE_KEY);
-      if (raw) setPrefs(normalizeTrainerFithubPrefs(JSON.parse(raw) as unknown));
+      const raw =
+        typeof window !== "undefined" ? window.localStorage.getItem(TRAINER_FITHUB_PREFS_STORAGE_KEY) : null;
+      if (!raw) return { ...defaultTrainerFithubPrefs };
+      return normalizeTrainerFithubPrefs(JSON.parse(raw) as unknown);
     } catch {
-      /* ignore */
+      return { ...defaultTrainerFithubPrefs };
     }
-  }, []);
+  });
+  const prefs = prefsState[0];
 
   const [viewerTrainerId, setViewerTrainerId] = useState<string | null>(null);
 
@@ -164,10 +167,10 @@ export function TrainerFitHubFeedClient() {
     if (prefs.feedStyle === "NEWEST") {
       sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } else {
-      sorted.sort((a, b) => scorePost(b) - scorePost(a));
+      sorted.sort((a, b) => scorePost(b, nowMs) - scorePost(a, nowMs));
     }
     return dedupeByTrainer(sorted, prefs.hideRepeatedTrainers);
-  }, [posts, prefs]);
+  }, [posts, prefs, nowMs]);
 
   if (loading && !posts) {
     return <p className="py-16 text-center text-sm text-white/45">Loading FitHub…</p>;

@@ -16,6 +16,7 @@ import type {
 import type { CoachingGoalDto, DiyEngagementDto, SessionSummaryDto } from "@/lib/trainer-client-coaching";
 import { trainerPairIsActiveInquiry } from "@/lib/trainer-active-inquiries";
 import { isWithinTrainerPunchGeolocationWindow } from "@/lib/session-check-in-timing";
+import { useNowMs } from "@/lib/use-now-ms";
 
 function money(cents: number | null | undefined): string {
   if (cents == null || cents <= 0) return "0.00";
@@ -98,7 +99,10 @@ function TrainerFinanceStatsPanel(props: { premium: boolean }) {
   }, [customFrom, customTo, preset, props.premium]);
 
   useEffect(() => {
-    void load();
+    const t = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [load]);
 
   if (!props.premium) {
@@ -439,6 +443,7 @@ function PunchInBubble(props: {
   onPunched: () => void;
   punchHistory: TrainerPunchHistoryRow[];
 }) {
+  const nowMs = useNowMs(5000);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [loggedPin, setLoggedPin] = useState<{ lat: number; lng: number; bookingId: string } | null>(null);
@@ -450,13 +455,16 @@ function PunchInBubble(props: {
         scheduledStartAt: new Date(props.next.scheduledStartAt),
         scheduledEndAt: props.next.scheduledEndAt ? new Date(props.next.scheduledEndAt) : null,
       },
-      Date.now(),
+      nowMs,
     );
-  }, [props.next]);
+  }, [props.next, nowMs]);
 
   useEffect(() => {
-    setLoggedPin(null);
-    setErr(null);
+    const t = window.setTimeout(() => {
+      setLoggedPin(null);
+      setErr(null);
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [props.next?.bookingId]);
 
   const punchedThisBooking = loggedPin && props.next && loggedPin.bookingId === props.next.bookingId;
@@ -666,28 +674,32 @@ function RankingsPanel({ premium }: { premium: boolean }) {
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!premium) {
-      setRankings(null);
-      return;
-    }
     let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setErr(null);
-      try {
-        const res = await fetch(`/api/trainer/dashboard/client-management/rankings?scope=${encodeURIComponent(scope)}`);
-        const data = (await res.json()) as TrainerRankingsPayload & { error?: string };
-        if (!res.ok) throw new Error(data.error ?? "Could not load rankings.");
-        if (!cancelled) setRankings(data);
-      } catch (e) {
-        if (!cancelled) setErr(e instanceof Error ? e.message : "Error.");
-        if (!cancelled) setRankings(null);
-      } finally {
-        if (!cancelled) setLoading(false);
+    const t = window.setTimeout(() => {
+      if (cancelled) return;
+      if (!premium) {
+        setRankings(null);
+        return;
       }
-    })();
+      void (async () => {
+        setLoading(true);
+        setErr(null);
+        try {
+          const res = await fetch(`/api/trainer/dashboard/client-management/rankings?scope=${encodeURIComponent(scope)}`);
+          const data = (await res.json()) as TrainerRankingsPayload & { error?: string };
+          if (!res.ok) throw new Error(data.error ?? "Could not load rankings.");
+          if (!cancelled) setRankings(data);
+        } catch (e) {
+          if (!cancelled) setErr(e instanceof Error ? e.message : "Error.");
+          if (!cancelled) setRankings(null);
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      })();
+    }, 0);
     return () => {
       cancelled = true;
+      window.clearTimeout(t);
     };
   }, [premium, scope]);
 
@@ -789,11 +801,15 @@ function PastClientsScroller(props: {
   const [extBusy, setExtBusy] = useState(false);
   const [extHours, setExtHours] = useState("12");
   const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const nowMs = useNowMs(60_000);
 
   useEffect(() => {
     if (!bundle) return;
-    setNotesGen(bundle.profile?.generalNotes ?? "");
-    setNotesMed(bundle.profile?.medicalInjuryNotes ?? "");
+    const t = window.setTimeout(() => {
+      setNotesGen(bundle.profile?.generalNotes ?? "");
+      setNotesMed(bundle.profile?.medicalInjuryNotes ?? "");
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [bundle]);
 
   async function refetchBundle() {
@@ -1161,7 +1177,7 @@ function PastClientsScroller(props: {
                       !latestEng.trainerReceivableLoggedAt &&
                       latestEng.extensionStatus !== "PENDING" &&
                       (!latestEng.trainerUrgentUploadDeadlineAt ||
-                        new Date(latestEng.trainerUrgentUploadDeadlineAt).getTime() > Date.now()) ? (
+                        new Date(latestEng.trainerUrgentUploadDeadlineAt).getTime() > nowMs) ? (
                         <div className="space-y-2 rounded-lg border border-amber-500/30 bg-black/30 px-3 py-3">
                           <p className="text-[10px] text-amber-100/85">
                             Client reported non-delivery after the calendar deadline. Request extra hours (client has 48h to
@@ -1501,31 +1517,35 @@ function CoachingLedgerPeek(props: { clientId: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setErr(null);
-      try {
-        const res = await fetch(
-          `/api/trainer/dashboard/client-management/coaching-bundle?clientId=${encodeURIComponent(props.clientId)}`,
-        );
-        const data = (await res.json()) as {
-          error?: string;
-          transactions: typeof tx;
-          completedSessions: typeof sessions;
-        };
-        if (!res.ok) throw new Error(data.error ?? "Could not load.");
-        if (!cancelled) {
-          setTx(data.transactions ?? []);
-          setSessions(data.completedSessions ?? []);
+    const t = window.setTimeout(() => {
+      if (cancelled) return;
+      void (async () => {
+        setLoading(true);
+        setErr(null);
+        try {
+          const res = await fetch(
+            `/api/trainer/dashboard/client-management/coaching-bundle?clientId=${encodeURIComponent(props.clientId)}`,
+          );
+          const data = (await res.json()) as {
+            error?: string;
+            transactions: typeof tx;
+            completedSessions: typeof sessions;
+          };
+          if (!res.ok) throw new Error(data.error ?? "Could not load.");
+          if (!cancelled) {
+            setTx(data.transactions ?? []);
+            setSessions(data.completedSessions ?? []);
+          }
+        } catch (e) {
+          if (!cancelled) setErr(e instanceof Error ? e.message : "Error.");
+        } finally {
+          if (!cancelled) setLoading(false);
         }
-      } catch (e) {
-        if (!cancelled) setErr(e instanceof Error ? e.message : "Error.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
+      })();
+    }, 0);
     return () => {
       cancelled = true;
+      window.clearTimeout(t);
     };
   }, [props.clientId]);
 
@@ -1586,6 +1606,7 @@ function PairInquiryWorkBody(props: {
   logDiyDeliverable: (clientUsername: string) => void | Promise<void>;
   requestDiyExtension: (clientUsername: string) => void | Promise<void>;
 }) {
+  const nowMs = useNowMs(60_000);
   const latestEng = props.p.engagements[0];
   const checkInPayload: CheckInThreadPayload = { feeDisclaimer: props.feeDisclaimer, sessions: props.p.checkInSessions };
   return (
@@ -1698,7 +1719,7 @@ function PairInquiryWorkBody(props: {
           !latestEng.trainerReceivableLoggedAt &&
           latestEng.extensionStatus !== "PENDING" &&
           (!latestEng.trainerUrgentUploadDeadlineAt ||
-            new Date(latestEng.trainerUrgentUploadDeadlineAt).getTime() > Date.now()) ? (
+            new Date(latestEng.trainerUrgentUploadDeadlineAt).getTime() > nowMs) ? (
             <div className="mx-auto max-w-md space-y-2 rounded-lg border border-amber-500/30 bg-black/30 px-3 py-3 text-left">
               <p className="text-[10px] text-amber-100/85">
                 Client reported non-delivery after the calendar deadline. Request extra hours (client has 48h to approve or it
@@ -1755,7 +1776,8 @@ function ActiveInquiriesSection(props: {
   const [help, setHelp] = useState(false);
 
   useEffect(() => {
-    setHelp(false);
+    const t = window.setTimeout(() => setHelp(false), 0);
+    return () => window.clearTimeout(t);
   }, [open?.clientId]);
 
   if (props.activePairs.length === 0) {

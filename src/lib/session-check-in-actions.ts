@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { isPrismaMissingTableError } from "@/lib/prisma-missing-column";
+import {
+  TOS_PAYOUT_DISPUTE_ROLLING_DAYS,
+  TOS_PAYOUT_DISPUTE_SUSPEND_THRESHOLD,
+} from "@/lib/tos-governance-thresholds";
 import { suspendTrainerForGovernance } from "@/lib/trainer-suspension-marketplace";
 import { deadlineBeforeSession } from "@/lib/trainer-client-booking-service";
 import {
@@ -453,14 +457,14 @@ export async function createSessionPayoutDispute(args: {
     });
   }
 
-  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const since = new Date(Date.now() - TOS_PAYOUT_DISPUTE_ROLLING_DAYS * 24 * 60 * 60 * 1000);
   const disputeCount = await prisma.sessionPayoutDispute.count({
     where: {
       createdAt: { gte: since },
       bookedTrainingSession: { trainerId: row.trainerId },
     },
   });
-  if (disputeCount >= 3) {
+  if (disputeCount >= TOS_PAYOUT_DISPUTE_SUSPEND_THRESHOLD) {
     const trainer = await prisma.trainer.findUnique({
       where: { id: row.trainerId },
       select: { safetySuspended: true },

@@ -1,5 +1,4 @@
-import { deliverSignupOtp, shouldMockSmsVoiceOtp } from "@/lib/deliver-otp";
-import type { OtpChannel } from "@/lib/deliver-otp";
+import { deliverSignupOtp } from "@/lib/deliver-otp";
 import { isPhoneTakenByAnother } from "@/lib/client-queries";
 import { generateSixDigitCode, hashOtp } from "@/lib/otp";
 import { prisma } from "@/lib/prisma";
@@ -9,15 +8,6 @@ import { firstZodErrorMessage, settingsPhoneChangeStartSchema } from "@/lib/vali
 import { NextResponse } from "next/server";
 
 const RESEND_MIN_MS = 90_000;
-
-function shouldSendSmsForPhoneChangeOtp(): boolean {
-  if (shouldMockSmsVoiceOtp()) return true;
-  return Boolean(
-    process.env.TWILIO_ACCOUNT_SID &&
-      process.env.TWILIO_AUTH_TOKEN &&
-      process.env.TWILIO_FROM_NUMBER,
-  );
-}
 
 export async function POST(req: Request) {
   try {
@@ -75,24 +65,19 @@ export async function POST(req: Request) {
       },
     });
 
-    const useSms: OtpChannel = shouldSendSmsForPhoneChangeOtp() ? "SMS" : "EMAIL";
-    const deliveryMeta = await deliverSignupOtp(useSms, {
+    await deliverSignupOtp("EMAIL", {
       email: client.email,
       phone: trimmed,
       code,
+      clientId,
     });
 
-    const devMock = Boolean(deliveryMeta?.devPhoneMock);
     return NextResponse.json({
       ok: true,
-      flow: useSms,
+      flow: "EMAIL" as const,
       pendingPhone: trimmed,
-      devPhoneMock: devMock,
-      message: devMock
-        ? "Development mode: your 6-digit code was printed in the server terminal (SMS not sent). Enter it to confirm your new number."
-        : useSms === "SMS"
-          ? "We sent a 6-digit code to your new phone number by SMS."
-          : "We emailed a 6-digit code to your current email address to confirm this phone change.",
+      message:
+        "We emailed a 6-digit code to your current email address to confirm this phone change. Enter it on the next step.",
     });
   } catch (e) {
     console.error(e);

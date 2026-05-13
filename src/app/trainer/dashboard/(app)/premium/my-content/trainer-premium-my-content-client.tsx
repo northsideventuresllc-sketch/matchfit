@@ -92,7 +92,10 @@ export function TrainerPremiumMyContentClient(props: MyContentProps) {
   }, []);
 
   useEffect(() => {
-    void load();
+    const _mfT = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(_mfT);
   }, [load]);
 
   const openComments = useCallback(async (post: MyPost) => {

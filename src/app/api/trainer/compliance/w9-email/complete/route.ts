@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { verifyOtp } from "@/lib/otp";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
-import { RESEND_ONBOARDING_FROM, sendResendEmail } from "@/lib/resend-client";
 import { getSessionTrainerId, getVerifiedAdminImpersonation } from "@/lib/session";
+import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -103,11 +103,13 @@ export async function POST(req: Request) {
     if (!process.env.RESEND_API_KEY?.trim() && process.env.NODE_ENV === "development") {
       console.info(`[Match Fit][W-9 self-email DEV] to ${to}\n${text}`);
     } else {
-      await sendResendEmail({
-        from: RESEND_ONBOARDING_FROM,
+      const w9Summary = text.length > 1800 ? `${text.slice(0, 1800)}…` : text;
+      await sendTransactionalEmailIfAllowed({
+        kind: "W9_TAX_VERIFICATION",
         to,
-        subject: "Your Match Fit W-9 information on file",
-        text,
+        audience: "TRAINER",
+        trainerId,
+        variables: { w9Summary },
       });
     }
 

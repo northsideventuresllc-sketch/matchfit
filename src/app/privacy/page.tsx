@@ -78,10 +78,13 @@ export default async function PrivacyPage() {
         <P>
           We built Match Fit to connect clients with coaches and to give coaches tools for profiles, discovery, Fit Hub
           content, messaging, and optional premium features. We collect account and profile data needed to run the
-          Service, process subscriptions and certain coach payments through Stripe, send security and transactional
-          messages through email and SMS providers, and store your in-app activity (including chats and social posts) on
-          our systems. We use reasonable technical and organizational measures to protect personal information. We do not
-          sell your personal information as that term is commonly defined in U.S. state privacy laws.
+          Service, record when you accept this Privacy Policy alongside our Terms where the product requires it, process
+          subscriptions and certain coach payments through Stripe, send security and transactional messages through email
+          infrastructure, deliver optional browser Web Push alerts when you opt in, and store your in-app activity (including chats and social posts) on our systems. You may
+          adjust optional visibility of some profile fields and request in-product account deletion, which de-identifies
+          your record while preserving the minimum data we need for trust, safety, and legal compliance. We use reasonable
+          technical and organizational measures to protect personal information. We do not sell your personal information
+          as that term is commonly defined in U.S. state privacy laws.
         </P>
 
         <H2 id="collect">2. Information We Collect</H2>
@@ -96,20 +99,24 @@ export default async function PrivacyPage() {
           <Li>
             <Strong>Credentials and Security:</Strong> password (stored using one-way hashing—we do not store your
             plaintext password), two-factor authentication settings, verification codes (stored as hashes or transient
-            values, not plaintext), session identifiers in HTTP-only cookies, and &quot;stay logged in&quot; preferences.
+            values, not plaintext in our database), session identifiers in HTTP-only cookies, and &quot;stay logged
+            in&quot; preferences. We do not write plaintext one-time codes to routine application logs.
           </Li>
           <Li>
-            <Strong>Terms and Compliance Timestamps:</Strong> records that you accepted applicable terms or completed
-            certain compliance steps where the product requires it.
+            <Strong>Terms, Privacy, and Compliance Timestamps:</Strong> records of when you accepted applicable terms,
+            when you accepted this Privacy Policy (including at client registration, pending registration, or trainer
+            sign-up, and when carried forward at account creation after checkout), and when you complete certain compliance
+            steps where the product requires them.
           </Li>
         </Ul>
 
         <h3 className="mt-6 text-sm font-bold text-white/90">2.2 Client-Specific Data</h3>
         <Ul>
           <Li>
-            <Strong>Profile and preferences:</Strong> public-style bio, profile photo, match and discovery preferences
-            (including goals, service types, interests, and related questionnaire answers), Fit Hub feed preferences, and
-            notification preferences.
+            <Strong>Profile and Preferences:</Strong> public-style bio, profile photo, match and discovery preferences
+            (including goals, service types, interests, and related questionnaire answers), Fit Hub feed preferences,
+            notification preferences, and optional visibility choices that control what appears on your public client
+            profile (for example whether your bio or match snapshot is shown to visitors).
           </Li>
           <Li>
             <Strong>Wellness and Matching Inputs:</Strong> daily matching questionnaire content and answers, and derived
@@ -117,8 +124,10 @@ export default async function PrivacyPage() {
             information you choose to share.
           </Li>
           <Li>
-            <Strong>Mailing Address (Optional):</Strong> if you provide it for your own records; we design the product so
-            trainers do not receive your full private address through routine trainer APIs.
+            <Strong>Mailing Address (Optional):</Strong> if you provide it for your own records. Trainer-facing APIs and
+            discovery surfaces are built so coaches do not receive your full street address; they may see general
+            location information consistent with how you use discovery (for example ZIP or regional pool identifiers), not
+            your complete mailing address.
           </Li>
           <Li>
             <Strong>Billing:</Strong> Stripe customer and subscription identifiers; payment details are collected by
@@ -140,7 +149,8 @@ export default async function PrivacyPage() {
           <Li>
             <Strong>Professional Profile:</Strong> bio, photo, pronouns, demographics you choose to disclose (for
             example ethnicity or gender identity), languages, coaching experience, niches, and links or handles for
-            social profiles you add.
+            social profiles you add, along with optional visibility settings that control whether some of those optional
+            fields appear on your public coach profile.
           </Li>
           <Li>
             <Strong>Compliance and Verification:</Strong> certification and nutrition credential files you upload,
@@ -221,13 +231,22 @@ export default async function PrivacyPage() {
         <P>We use personal information to:</P>
         <Ul>
           <Li>Provide, operate, maintain, and improve Match Fit;</Li>
-          <Li>Create and secure accounts, authenticate users, and send security notices (including OTP and password-reset flows);</Li>
+          <Li>
+            Create and secure accounts, authenticate users, record acceptance of our Terms and this Privacy Policy where the
+            product captures it, and send security notices (including OTP and password-reset flows);
+          </Li>
           <Li>Process payments, subscriptions, token purchases, and advertising-style placements you initiate;</Li>
           <Li>Enable discovery, matching, Fit Hub, chat, notifications, and premium coach tools;</Li>
+          <Li>Honor optional profile visibility settings you choose in account settings;</Li>
           <Li>Verify identity or eligibility where required for coach onboarding, compliance, or risk controls;</Li>
           <Li>Detect, investigate, and prevent fraud, abuse, and violations of our Terms or policies;</Li>
           <Li>Communicate service, billing, and policy updates;</Li>
           <Li>Comply with law, respond to lawful requests, and establish or defend legal claims;</Li>
+          <Li>
+            Process in-product requests to delete your account, which de-identifies personal data on the account record
+            while preserving the minimum information required for safety, billing, or legal obligations as described in
+            Section 7;
+          </Li>
           <Li>
             Analyze usage in aggregated or de-identified form where permitted, to understand product performance and plan
             improvements.
@@ -249,8 +268,8 @@ export default async function PrivacyPage() {
         <Ul>
           <Li>
             <Strong>Other Users</Strong> as needed to operate features you use—for example, profile fields you make
-            visible, Fit Hub posts you publish as public, chat messages within a conversation, or discovery preferences
-            you enable for coaches to find you.
+            visible (including visibility choices for optional public profile data), Fit Hub posts you publish as public,
+            chat messages within a conversation, or discovery preferences you enable for coaches to find you.
           </Li>
           <Li>
             <Strong>Service Providers (Processors)</Strong> who assist us under contract, including:
@@ -263,8 +282,9 @@ export default async function PrivacyPage() {
                 <Strong>Resend</Strong> (or comparable email infrastructure) for transactional and security email;
               </Li>
               <Li>
-                <Strong>Twilio</Strong> (or comparable carriers) for SMS or voice one-time codes when you enable those
-                channels;
+                <Strong>Web Push</Strong> (through your browser and operating system) for optional lock-screen alerts when
+                you enable them in settings—no per-message carrier charges; you can revoke permission in your browser at any
+                time;
               </Li>
               <Li>
                 <Strong>Cloud Hosting, Database, and Infrastructure</Strong> vendors that store or process data on our
@@ -298,20 +318,38 @@ export default async function PrivacyPage() {
           law or legitimate business needs require. When retention periods end, we delete or de-identify information where
           feasible.
         </P>
+        <P>
+          <Strong>Account deletion.</Strong> If you delete your account through in-product settings, we verify your
+          password, cancel active paid subscriptions through Stripe where your account has them, and de-identify personal
+          fields on your user record (for example name, contact information, and profile content stored on that record)
+          so you can no longer sign in. We may replace chat message bodies you authored with a short placeholder, set
+          trainer-authored Fit Hub content to private and strip associated media and captions from public view, and clear
+          certain compliance payloads on coach profiles, while retaining the underlying row identifiers needed for
+          foreign keys and minimum enforcement, trust, or billing audit trails. Deletion is intended to be irreversible;
+          contact us promptly if you delete in error.
+        </P>
 
         <H2 id="security">8. Security</H2>
         <P>
           We implement administrative, technical, and physical safeguards designed to protect personal information,
           including encryption in transit where appropriate for our stack, access controls, and secure handling of
-          secrets. No method of transmission or storage is completely secure; we cannot guarantee absolute security. You
-          are responsible for maintaining the confidentiality of your password and devices.
+          secrets. We avoid writing plaintext one-time verification codes to routine application logs. No method of
+          transmission or storage is completely secure; we cannot guarantee absolute security. You are responsible for
+          maintaining the confidentiality of your password and devices.
         </P>
 
         <H2 id="rights">9. Your Choices and Rights</H2>
         <P>Depending on your location, you may have the right to:</P>
         <Ul>
-          <Li>Access, correct, or update certain profile information through in-product settings;</Li>
-          <Li>Request deletion of your account, subject to legal exceptions;</Li>
+          <Li>
+            Access, correct, or update certain profile information through in-product settings, including optional
+            visibility of selected public profile fields (for example bio or match snapshot visibility for clients, or
+            pronouns, ethnicity, gender identity, and languages spoken for coaches);
+          </Li>
+          <Li>
+            Request deletion of your account through the same settings flow (password required), subject to the
+            retention and de-identification approach described in Section 7 and to legal exceptions;
+          </Li>
           <Li>Object to or restrict certain processing, or request portability of data you provided, where applicable;</Li>
           <Li>Withdraw marketing consent where we rely on consent;</Li>
           <Li>Lodge a complaint with a supervisory authority in your country, where GDPR or similar law applies.</Li>
@@ -376,8 +414,8 @@ export default async function PrivacyPage() {
           <p className="mt-2 text-xs leading-relaxed text-white/55">
             Align the subprocessors list with your executed vendor agreements, bump{" "}
             <code className="rounded bg-white/10 px-1 py-0.5 text-[0.65rem] text-white/70">POLICY_EFFECTIVE_DATE</code> when
-            you ship policy updates, and have qualified counsel review this policy for your jurisdictions, payment flows,
-            and any advertising or analytics tools you add.
+            you ship policy updates, confirm that account-deletion, Stripe cancellation, and log-handling practices match
+            your counsel&apos;s advice for your jurisdictions, and review any advertising or analytics tools you add.
           </p>
         </section>
 

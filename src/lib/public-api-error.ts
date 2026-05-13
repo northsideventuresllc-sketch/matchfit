@@ -7,7 +7,7 @@ const DB_BUSY_USER_MESSAGE =
   "The database is temporarily busy. Close any other terminal running `npm run dev`, Prisma Studio, or tests on this project, wait a few seconds, and try again. Run `npm run db:locks` to see what is using the file.";
 
 /**
- * Maps thrown errors (DB locks, Resend, Twilio) to a safe JSON `error` string and HTTP status.
+ * Maps thrown errors (DB locks, Resend) to a safe JSON `error` string and HTTP status.
  * Logs the original error to the server console.
  */
 export function publicApiErrorFromUnknown(
@@ -45,20 +45,6 @@ export function publicApiErrorFromUnknown(
       return { message, status: st >= 400 && st < 600 ? st : 502 };
     }
 
-    if (/Phone delivery failed/i.test(m)) {
-      return {
-        message: "We could not deliver a code to that phone number. Check the number or try email instead.",
-        status: 502,
-      };
-    }
-
-    if (/TWILIO_ACCOUNT_SID|TWILIO_AUTH_TOKEN|TWILIO_FROM_NUMBER/i.test(m)) {
-      return {
-        message:
-          "SMS or voice delivery is not configured. Add Twilio environment variables or use email codes in development.",
-        status: 503,
-      };
-    }
   }
 
   return { message: fallbackMessage, status: 500 };

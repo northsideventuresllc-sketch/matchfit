@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   TRAINER_FITHUB_PREFS_STORAGE_KEY,
@@ -21,21 +21,18 @@ const FEED_STYLES: { value: TrainerFithubFeedStyle; label: string; hint: string 
 
 export function TrainerFitHubSettingsForm() {
   const router = useRouter();
-  const [prefs, setPrefs] = useState<TrainerFithubPrefs>({ ...defaultTrainerFithubPrefs });
-  const [loading, setLoading] = useState(true);
+  const [prefs, setPrefs] = useState<TrainerFithubPrefs>(() => {
+    try {
+      const raw =
+        typeof window !== "undefined" ? window.localStorage.getItem(TRAINER_FITHUB_PREFS_STORAGE_KEY) : null;
+      if (!raw) return { ...defaultTrainerFithubPrefs };
+      return normalizeTrainerFithubPrefs(JSON.parse(raw) as unknown);
+    } catch {
+      return { ...defaultTrainerFithubPrefs };
+    }
+  });
   const [saving, setSaving] = useState(false);
   const [ok, setOk] = useState<string | null>(null);
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(TRAINER_FITHUB_PREFS_STORAGE_KEY);
-      if (raw) setPrefs(normalizeTrainerFithubPrefs(JSON.parse(raw) as unknown));
-    } catch {
-      /* ignore malformed local storage */
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -50,8 +47,6 @@ export function TrainerFitHubSettingsForm() {
       setSaving(false);
     }
   }
-
-  if (loading) return <p className="text-center text-sm text-white/45">Loading FitHub Settings…</p>;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">

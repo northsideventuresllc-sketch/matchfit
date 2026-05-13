@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
+import { getSupabaseEmailCallbackUrl, isSupabaseConfigured } from "@/lib/supabase/email-callback-url";
+import { tryCreateMatchFitSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
 import { FormEvent, useMemo, useRef, useState } from "react";
 
@@ -68,8 +70,6 @@ function simpleEmailValid(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
-type OtpChannel = "EMAIL" | "SMS" | "VOICE";
-
 export default function ClientSignUpPage() {
   const maxDob = useMemo(() => maxBirthdateForAge18(), []);
   const minDob = useMemo(() => minBirthdate(), []);
@@ -77,7 +77,7 @@ export default function ClientSignUpPage() {
   const [wizardStep, setWizardStep] = useState<1 | 2>(1);
   const [awaitingCode, setAwaitingCode] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [selectedChannel, setSelectedChannel] = useState<OtpChannel | null>(null);
+  const [selectedChannel] = useState<"EMAIL">("EMAIL");
   const [otpCode, setOtpCode] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -95,7 +95,6 @@ export default function ClientSignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [stayLoggedIn, setStayLoggedIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [devPhoneMockTip, setDevPhoneMockTip] = useState(false);
   const turnstileRef = useRef<TurnstileWidgetHandle>(null);
 
   function turnstileField(): { turnstileToken?: string } {
@@ -210,7 +209,6 @@ export default function ClientSignUpPage() {
     setWizardStep(2);
     setAwaitingCode(false);
     setPendingId(null);
-    setSelectedChannel(null);
     setOtpCode("");
     setError(null);
   }
@@ -231,6 +229,22 @@ export default function ClientSignUpPage() {
         turnstileRef.current?.reset();
         return;
       }
+      const em = email.trim().toLowerCase();
+      if (isSupabaseConfigured()) {
+        const supabase = tryCreateMatchFitSupabaseBrowserClient();
+        if (supabase) {
+          void supabase.auth
+            .signUp({
+              email: em,
+              password,
+              options: {
+                emailRedirectTo: getSupabaseEmailCallbackUrl(),
+                data: { match_fit_role: "client", pending_match_fit_profile: false },
+              },
+            })
+            .catch(() => {});
+        }
+      }
       // Full navigation so the httpOnly registration cookie is present before the billing page loads.
       navigateWithFullLoad(data.next ?? "/client/subscribe");
     } catch {
@@ -242,11 +256,6 @@ export default function ClientSignUpPage() {
 
   async function handleSend2fa() {
     setError(null);
-    setDevPhoneMockTip(false);
-    if (!selectedChannel) {
-      setError("Choose how you want to receive your verification code.");
-      return;
-    }
     if (!assertTurnstileOrSetError()) return;
     setBusy(true);
     try {
@@ -259,7 +268,7 @@ export default function ClientSignUpPage() {
           ...turnstileField(),
         }),
       });
-      const data = (await res.json()) as { error?: string; pendingId?: string; devPhoneMock?: boolean };
+      const data = (await res.json()) as { error?: string; pendingId?: string };
       if (!res.ok) {
         setError(data.error ?? "Could not send the verification code.");
         turnstileRef.current?.reset();
@@ -269,7 +278,6 @@ export default function ClientSignUpPage() {
         setPendingId(data.pendingId);
         setAwaitingCode(true);
         setOtpCode("");
-        setDevPhoneMockTip(Boolean(data.devPhoneMock));
       }
     } catch {
       setError("Something went wrong. Try again.");
@@ -298,6 +306,22 @@ export default function ClientSignUpPage() {
         setError(data.error ?? "Verification failed.");
         turnstileRef.current?.reset();
         return;
+      }
+      const em = email.trim().toLowerCase();
+      if (isSupabaseConfigured()) {
+        const supabase = tryCreateMatchFitSupabaseBrowserClient();
+        if (supabase) {
+          void supabase.auth
+            .signUp({
+              email: em,
+              password,
+              options: {
+                emailRedirectTo: getSupabaseEmailCallbackUrl(),
+                data: { match_fit_role: "client", pending_match_fit_profile: false },
+              },
+            })
+            .catch(() => {});
+        }
       }
       navigateWithFullLoad(data.next ?? "/client/subscribe");
     } catch {
@@ -346,7 +370,7 @@ export default function ClientSignUpPage() {
           {wizardStep === 1
             ? "Tell us a bit about yourself. You must be 18 or older to join."
             : awaitingCode
-              ? "Enter the code we sent you to finish creating your account."
+              ? "Check your inbox for a verification email with your code."
               : "Add an extra layer of security, or skip and turn this on later in settings."}
         </p>
 
@@ -598,34 +622,9 @@ export default function ClientSignUpPage() {
               {!awaitingCode ? (
             <div className="flex flex-col gap-6">
               <p className="text-sm leading-relaxed text-white/55">
-                Choose where we should send a one-time code. SMS and voice use the phone number you entered; email uses
-                your account address. In local development, SMS and voice are mocked: the code is printed in the terminal
-                running the app, not sent by Twilio.
+                We will email a one-time code to <span className="font-semibold text-white">{email.trim()}</span> using
+                the address you entered on the previous step.
               </p>
-
-              <div className="flex flex-col gap-3">
-                {(
-                  [
-                    { id: "EMAIL" as const, title: "Email", desc: "Send a code to your email address." },
-                    { id: "SMS" as const, title: "Text message", desc: "Send a code by SMS to your phone." },
-                    { id: "VOICE" as const, title: "Phone call", desc: "Receive a voice call that reads your code." },
-                  ] as const
-                ).map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setSelectedChannel(opt.id)}
-                    className={`rounded-xl border px-4 py-3 text-left transition ${
-                      selectedChannel === opt.id
-                        ? "border-[#FF7E00]/60 bg-[#FF7E00]/10"
-                        : "border-white/10 bg-[#0E1016] hover:border-white/20"
-                    }`}
-                  >
-                    <p className="text-sm font-bold text-white">{opt.title}</p>
-                    <p className="mt-1 text-xs text-white/45">{opt.desc}</p>
-                  </button>
-                ))}
-              </div>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <button
@@ -664,16 +663,18 @@ export default function ClientSignUpPage() {
             </div>
           ) : (
             <form onSubmit={handleVerify2fa} className="flex flex-col gap-5">
-              {devPhoneMockTip ? (
-                <p
-                  className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-3 text-sm leading-relaxed text-emerald-100"
-                  role="status"
-                >
-                  Development mode: your code was not sent by SMS or phone. Check the terminal where{" "}
-                  <span className="font-mono text-emerald-50">npm run dev</span> is running, copy the 6-digit code, and
-                  enter it below. Verification works the same as production.
+              <div
+                className="rounded-2xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-4"
+                role="status"
+                aria-live="polite"
+              >
+                <p className="text-sm font-black uppercase tracking-wide text-emerald-200/95">Verification email sent</p>
+                <p className="mt-2 text-sm leading-relaxed text-emerald-100/85">
+                  We emailed a 6-digit code to <span className="font-semibold text-white">{email.trim()}</span>. Open the
+                  message, copy the code, and paste it below. It may take a minute to arrive; check spam if you do not see
+                  it.
                 </p>
-              ) : null}
+              </div>
               <div className="flex flex-col gap-2">
                 <label htmlFor="su-otp" className={labelClass}>
                   Verification code
@@ -708,11 +709,10 @@ export default function ClientSignUpPage() {
                   setPendingId(null);
                   setOtpCode("");
                   setError(null);
-                  setDevPhoneMockTip(false);
                 }}
                 className="text-center text-xs font-semibold uppercase tracking-wide text-white/40 transition hover:text-white/65"
               >
-                Choose a different method
+                Back to resend code
               </button>
             </form>
               )}

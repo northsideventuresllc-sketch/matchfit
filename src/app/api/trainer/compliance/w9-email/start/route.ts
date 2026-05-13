@@ -47,6 +47,7 @@ export async function POST() {
       email: trainer.email,
       phone: trainer.phone,
       code,
+      trainerId,
     });
 
     return NextResponse.json({ ok: true });

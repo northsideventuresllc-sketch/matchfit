@@ -49,6 +49,7 @@ export async function POST(req: Request) {
           email: trainer.email,
           phone: trainer.phone,
           code,
+          trainerId,
         });
       } catch (deliverErr) {
         console.error("[trainer password-change start] OTP delivery failed; clearing password-change OTP.", deliverErr);

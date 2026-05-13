@@ -1,4 +1,5 @@
 import { finalizeRegistrationAfterPayment } from "@/lib/billing-finalize";
+import { notifyClientSubscriptionStripeEvent } from "@/lib/subscription-email-notify";
 import { syncClientSubscriptionFromStripe } from "@/lib/stripe-sync-client-subscription";
 import { getStripe } from "@/lib/stripe-server";
 import {
@@ -117,6 +118,10 @@ export async function POST(req: Request) {
       const sub = event.data.object as Stripe.Subscription;
       if (sub.id) {
         await syncClientSubscriptionFromStripe(sub.id);
+        void notifyClientSubscriptionStripeEvent({
+          stripeSubscriptionId: sub.id,
+          stripeEventType: event.type,
+        });
       }
     }
   } catch (e) {

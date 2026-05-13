@@ -40,7 +40,8 @@ export async function sendResendEmail(params: {
   /** Ignored in development (always onboarding sender). */
   from?: string;
   html?: string;
-}): Promise<void> {
+  replyTo?: string;
+}): Promise<string | undefined> {
   const key = process.env.RESEND_API_KEY;
   if (!key) {
     throw new Error("RESEND_API_KEY is not set.");
@@ -73,6 +74,9 @@ export async function sendResendEmail(params: {
   if (html) {
     payload.html = html;
   }
+  if (params.replyTo?.trim()) {
+    payload.reply_to = params.replyTo.trim();
+  }
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -85,6 +89,12 @@ export async function sendResendEmail(params: {
   const raw = await res.text();
   if (!res.ok) {
     throw new Error(`Resend HTTP ${res.status}: ${raw}`);
+  }
+  try {
+    const parsed = JSON.parse(raw) as { id?: string };
+    return typeof parsed.id === "string" ? parsed.id : undefined;
+  } catch {
+    return undefined;
   }
 }
 

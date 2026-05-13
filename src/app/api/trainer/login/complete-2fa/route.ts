@@ -43,7 +43,10 @@ export async function POST(req: Request) {
     const trainer = await prisma.trainer.findUnique({ where: { id: trainerId } });
     const delivery = await getTrainerLoginOtpDelivery(trainerId);
 
-    if (delivery?.delivery === "EMAIL") {
+    const usesEmailStoredCode =
+      delivery?.delivery === "EMAIL" || delivery?.delivery === "SMS" || delivery?.delivery === "VOICE";
+
+    if (usesEmailStoredCode) {
       const ch = await findTrainerEmailChannel(trainerId, delivery.email);
       const check = verifyStoredEmailCode(
         { lastCode: ch?.lastCode ?? null, expiresAt: ch?.expiresAt ?? null },
@@ -65,21 +68,18 @@ export async function POST(req: Request) {
         const prev = trainer?.twoFactorLoginAttempts ?? 0;
         const attempts = prev + 1;
         if (attempts >= MAX_ATTEMPTS) {
-          const ops = [
-            prisma.trainer.update({
+          await prisma.$transaction(async (tx) => {
+            await tx.trainer.update({
               where: { id: trainerId },
               data: { twoFactorLoginAttempts: 0 },
-            }),
-          ];
-          if (ch) {
-            ops.push(
-              prisma.trainerTwoFactorChannel.update({
+            });
+            if (ch) {
+              await tx.trainerTwoFactorChannel.update({
                 where: { id: ch.id },
                 data: { lastCode: null, expiresAt: null },
-              }),
-            );
-          }
-          await prisma.$transaction(ops);
+              });
+            }
+          });
           return NextResponse.json(
             {
               error: "Too many incorrect codes. Your verification code has been cancelled. Request a new code.",

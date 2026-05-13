@@ -1,6 +1,6 @@
-import { hashPassword } from "@/lib/password";
-import { prisma } from "@/lib/prisma";
 import { applyTrainerSessionToNextResponse } from "@/lib/session";
+import { sendTrainerWelcomeEmail } from "@/lib/trainer-welcome-email";
+import { createTrainerRecord } from "@/lib/trainer-register-service";
 import { isTrainerEmailTaken, isTrainerUsernameTaken } from "@/lib/trainer-queries";
 import { trainerSignupSchema } from "@/lib/validations/trainer-register";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
@@ -29,37 +29,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "That email is already registered." }, { status: 409 });
     }
 
-    const passwordHash = await hashPassword(body.password);
-
-    const trainer = await prisma.trainer.create({
-      data: {
-        firstName: body.firstName,
-        lastName: body.lastName,
-        username,
-        phone: body.phone.trim(),
-        email,
-        passwordHash,
-        termsAcceptedAt: new Date(),
-        privacyPolicyAcceptedAt: new Date(),
-        profile: {
-          create: {
-            backgroundCheckStatus: "NOT_STARTED",
-            certificationReviewStatus: "NOT_STARTED",
-            nutritionistCertificationReviewStatus: "NOT_STARTED",
-            specialistCertificationReviewStatus: "NOT_STARTED",
-            backgroundCheckReviewStatus: "NOT_STARTED",
-            onboardingTrackCpt: false,
-            onboardingTrackNutrition: false,
-            onboardingTrackSpecialist: false,
-            otherCertificationReviewStatus: "NOT_STARTED",
-          },
-        },
-      },
-      select: { id: true },
-    });
+    const trainer = await createTrainerRecord(body);
 
     const res = NextResponse.json({ ok: true, next: "/trainer/onboarding" });
     await applyTrainerSessionToNextResponse(res, trainer.id, body.stayLoggedIn);
+    void sendTrainerWelcomeEmail({
+      to: email,
+      firstName: body.firstName,
+      trainerId: trainer.id,
+    }).catch((err) => console.error("[trainer register] welcome email failed:", err));
     return res;
   } catch (e) {
     const { message, status } = publicApiErrorFromUnknown(e, "Registration failed. Please try again.", {

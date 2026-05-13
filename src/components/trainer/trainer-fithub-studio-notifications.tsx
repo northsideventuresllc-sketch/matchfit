@@ -73,7 +73,10 @@ export function TrainerFitHubStudioNotifications() {
 
   useEffect(() => {
     if (!open) return;
-    void load(filter);
+    const t = window.setTimeout(() => {
+      void load(filter);
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [open, filter, load]);
 
   useEffect(() => {

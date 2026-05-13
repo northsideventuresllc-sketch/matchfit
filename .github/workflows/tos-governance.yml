@@ -1,0 +1,49 @@
+name: Terms alignment & notify
+
+on:
+  push:
+    paths:
+      - "src/app/terms/**"
+      - "src/lib/tos-*.ts"
+      - "src/lib/session-check-in-timing.ts"
+      - "src/lib/trainer-client-chat-rules.ts"
+      - "src/lib/trainer-discover-match-batch.ts"
+      - "src/lib/platform-fees.ts"
+      - "src/lib/tos-off-platform-deterrent.ts"
+      - "src/lib/tos-governance-thresholds.ts"
+      - "src/lib/session-check-in-actions.ts"
+      - "src/lib/trainer-punch-miss-cron.ts"
+      - "src/app/client/subscribe/**"
+      - "scripts/tos-alignment-check.ts"
+      - "scripts/tos-governance-notify.mjs"
+  schedule:
+    - cron: "0 14 * * 1"
+  workflow_dispatch: {}
+
+jobs:
+  alignment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run tos:alignment
+
+  notify:
+    needs: alignment
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Send summary email
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          ALIGNMENT_JOB_RESULT: ${{ needs.alignment.result }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: node scripts/tos-governance-notify.mjs

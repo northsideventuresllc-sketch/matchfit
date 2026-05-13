@@ -193,7 +193,11 @@ export async function GET(req: Request) {
       served = internal.slice(0, 48);
     }
 
-    const clientsOut = served.map(({ id: _omit, ...rest }) => rest);
+    const clientsOut = served.map((row) => {
+      const { id, ...rest } = row;
+      void id;
+      return rest;
+    });
     if (process.env.NODE_ENV !== "production") {
       for (const row of clientsOut) {
         assertTrainerClientPayloadHasNoAddress(row, "discover-clients");

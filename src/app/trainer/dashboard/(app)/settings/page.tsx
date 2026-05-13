@@ -57,7 +57,9 @@ export default async function TrainerAccountSettingsPage() {
     });
   } catch (e) {
     if (isPrismaMissingColumnError(e, PROFILE_CHECKOUT_COL)) {
-      const { profile: _p, ...scalars } = trainerSettingsSelect;
+      const scalars = Object.fromEntries(
+        Object.entries(trainerSettingsSelect).filter(([key]) => key !== "profile"),
+      ) as Omit<typeof trainerSettingsSelect, "profile">;
       const row = await prisma.trainer.findUnique({
         where: { id: trainerId },
         select: { ...scalars },

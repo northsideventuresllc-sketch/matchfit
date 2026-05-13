@@ -218,12 +218,18 @@ export function TrainerDashboardBookingsClient() {
   }, []);
 
   useEffect(() => {
-    void loadAvailability();
-    void loadConnections();
+    const t = window.setTimeout(() => {
+      void loadAvailability();
+      void loadConnections();
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [loadAvailability, loadConnections]);
 
   useEffect(() => {
-    void refreshBookings();
+    const t = window.setTimeout(() => {
+      void refreshBookings();
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [refreshBookings]);
 
   useEffect(() => {
@@ -1190,9 +1196,9 @@ export function TrainerDashboardBookingsClient() {
                 ) : b.sessionDelivery === "VIRTUAL" ? (
                   <p className="mt-2 text-[10px] text-white/38">
                     Virtual link: use{" "}
-                    <a href="/trainer/dashboard/messages" className="text-[#FF9A4A] underline-offset-2 hover:underline">
+                    <Link href="/trainer/dashboard/messages" className="text-[#FF9A4A] underline-offset-2 hover:underline">
                       Chats
-                    </a>{" "}
+                    </Link>{" "}
                     → client thread → Virtual meetings.
                   </p>
                 ) : null}

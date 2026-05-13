@@ -41,7 +41,10 @@ export function TrainerVirtualMeetingsAllClient() {
   }, [scope]);
 
   useEffect(() => {
-    void load();
+    const _mfT = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(_mfT);
   }, [load]);
 
   return (

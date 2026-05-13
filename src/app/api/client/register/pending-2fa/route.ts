@@ -1,6 +1,5 @@
 import { isEmailTaken, isUsernameTaken } from "@/lib/client-queries";
 import { deliverSignupOtp } from "@/lib/deliver-otp";
-import type { OtpChannel } from "@/lib/deliver-otp";
 import { generateSixDigitCode, hashOtp } from "@/lib/otp";
 import { hashPassword } from "@/lib/password";
 import { purgeExpiredRegistrationHolds } from "@/lib/purge-registration-holds";
@@ -57,7 +56,7 @@ export async function POST(req: Request) {
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
-    const method = body.twoFactorMethod as OtpChannel;
+    const method = "EMAIL" as const;
 
     const pending = await prisma.pendingClientRegistration.create({
       data: {
@@ -82,9 +81,8 @@ export async function POST(req: Request) {
       },
     });
 
-    let deliveryMeta: { devPhoneMock?: boolean } = {};
     try {
-      deliveryMeta = await deliverSignupOtp(method, {
+      await deliverSignupOtp("EMAIL", {
         email,
         phone: body.phone.trim(),
         code,
@@ -98,7 +96,6 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       pendingId: pending.id,
-      ...(deliveryMeta?.devPhoneMock ? { devPhoneMock: true } : {}),
     });
   } catch (e) {
     const { message, status } = publicApiErrorFromUnknown(e, "Could not start verification. Try again.", {

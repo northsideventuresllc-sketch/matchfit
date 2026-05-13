@@ -10,10 +10,6 @@ import { NextResponse } from "next/server";
 
 const MAX_CHANNELS = 8;
 
-function normalizePhoneDigits(phone: string): string {
-  return phone.replace(/\D/g, "");
-}
-
 export async function POST(req: Request) {
   try {
     const trainerId = await getSessionTrainerId();
@@ -68,17 +64,9 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Incorrect password." }, { status: 401 });
       }
 
-      const delivery = body.delivery as OtpChannel;
       const email = body.email?.trim().toLowerCase() ?? "";
-      const phoneRaw = body.phone?.trim() ?? "";
-      const phoneDigits = normalizePhoneDigits(phoneRaw);
-
-      if (delivery === "EMAIL") {
-        if (!email) {
-          return NextResponse.json({ error: "Enter an email address for email delivery." }, { status: 400 });
-        }
-      } else if (!phoneDigits || phoneDigits.length < 10) {
-        return NextResponse.json({ error: "Enter a valid phone number for text or call delivery." }, { status: 400 });
+      if (!email) {
+        return NextResponse.json({ error: "Enter an email address for email delivery." }, { status: 400 });
       }
 
       const count = await prisma.trainerTwoFactorChannel.count({ where: { trainerId } });
@@ -91,14 +79,8 @@ export async function POST(req: Request) {
 
       const existing = await prisma.trainerTwoFactorChannel.findMany({ where: { trainerId } });
       for (const c of existing) {
-        if (c.delivery === "EMAIL" && delivery === "EMAIL" && c.email?.toLowerCase() === email) {
+        if (c.delivery === "EMAIL" && c.email?.toLowerCase() === email) {
           return NextResponse.json({ error: "That email is already added." }, { status: 409 });
-        }
-        if (c.delivery !== "EMAIL" && delivery !== "EMAIL") {
-          const ex = normalizePhoneDigits(c.phone ?? "");
-          if (ex && ex === phoneDigits) {
-            return NextResponse.json({ error: "That phone number is already added." }, { status: 409 });
-          }
         }
       }
 
@@ -109,9 +91,9 @@ export async function POST(req: Request) {
       const row = await prisma.trainerTwoFactorChannel.create({
         data: {
           trainerId,
-          delivery,
-          email: delivery === "EMAIL" ? email : null,
-          phone: delivery !== "EMAIL" ? phoneRaw : null,
+          delivery: "EMAIL",
+          email,
+          phone: null,
           verified: false,
           verifyOtpHash: otpHash,
           verifyOtpExpires: otpExpiresAt,
@@ -119,12 +101,12 @@ export async function POST(req: Request) {
         },
       });
 
-      let addMeta: { devPhoneMock?: boolean } = {};
       try {
-        addMeta = await deliverSignupOtp(delivery, {
-          email: delivery === "EMAIL" ? email : trainer.email,
-          phone: delivery !== "EMAIL" ? phoneRaw : trainer.phone,
+        await deliverSignupOtp("EMAIL", {
+          email,
+          phone: trainer.phone,
           code,
+          trainerId,
         });
       } catch (deliverErr) {
         console.error("[trainer settings 2FA] add-channel delivery failed; removing pending row.", deliverErr);
@@ -135,7 +117,6 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: true,
         channelId: row.id,
-        ...(addMeta?.devPhoneMock ? { devPhoneMock: true } : {}),
       });
     }
 
@@ -157,13 +138,12 @@ export async function POST(req: Request) {
         where: { id: row.id },
         data: { verifyOtpHash: otpHash, verifyOtpExpires: otpExpiresAt },
       });
-      const delivery = row.delivery as OtpChannel;
-      let resendMeta: { devPhoneMock?: boolean } = {};
       try {
-        resendMeta = await deliverSignupOtp(delivery, {
-          email: delivery === "EMAIL" ? (row.email ?? trainer.email) : trainer.email,
-          phone: delivery !== "EMAIL" ? (row.phone ?? trainer.phone) : trainer.phone,
+        await deliverSignupOtp("EMAIL", {
+          email: (row.email ?? trainer.email).trim().toLowerCase(),
+          phone: trainer.phone,
           code,
+          trainerId,
         });
       } catch (deliverErr) {
         console.error("[trainer settings 2FA] resend verify failed; clearing pending OTP.", deliverErr);
@@ -173,7 +153,7 @@ export async function POST(req: Request) {
         });
         throw deliverErr;
       }
-      return NextResponse.json({ ok: true, ...(resendMeta?.devPhoneMock ? { devPhoneMock: true } : {}) });
+      return NextResponse.json({ ok: true });
     }
 
     if (body.action === "confirm_add_channel") {

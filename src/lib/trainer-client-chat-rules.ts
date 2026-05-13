@@ -1,4 +1,5 @@
-const INITIAL_CAP = 2;
+/** Max outbound chat messages per side until the other party replies (Terms §8; API enforcement). */
+export const INITIAL_OUTBOUND_MESSAGE_CAP = 2;
 
 export type ChatRole = "TRAINER" | "CLIENT";
 
@@ -19,15 +20,15 @@ export function canAuthorSendChatMessage(
 ): { ok: true } | { ok: false; reason: string } {
   const { trainer, client } = orderedCounts(messages);
   if (author === "TRAINER") {
-    if (client > 0 || trainer < INITIAL_CAP) return { ok: true };
+    if (client > 0 || trainer < INITIAL_OUTBOUND_MESSAGE_CAP) return { ok: true };
     return {
       ok: false,
-      reason: `You can send up to ${INITIAL_CAP} messages until the client replies.`,
+      reason: `You can send up to ${INITIAL_OUTBOUND_MESSAGE_CAP} messages until the client replies.`,
     };
   }
-  if (trainer > 0 || client < INITIAL_CAP) return { ok: true };
+  if (trainer > 0 || client < INITIAL_OUTBOUND_MESSAGE_CAP) return { ok: true };
   return {
     ok: false,
-    reason: `You can send up to ${INITIAL_CAP} messages until the coach replies.`,
+    reason: `You can send up to ${INITIAL_OUTBOUND_MESSAGE_CAP} messages until the coach replies.`,
   };
 }

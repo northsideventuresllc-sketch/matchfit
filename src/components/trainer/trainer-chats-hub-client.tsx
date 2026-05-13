@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 type Thread = {
@@ -25,6 +26,7 @@ const STAGE_LABEL: Record<string, string> = {
 };
 
 export function TrainerChatsHubClient() {
+  const router = useRouter();
   const [tab, setTab] = useState<"active" | "archive">("active");
   const [activeThreads, setActiveThreads] = useState<Thread[] | null>(null);
   const [archivedThreads, setArchivedThreads] = useState<Thread[] | null>(null);
@@ -74,7 +76,7 @@ export function TrainerChatsHubClient() {
       setError(data.error ?? "Could not revive.");
       return;
     }
-    window.location.href = `/trainer/dashboard/messages/${encodeURIComponent(clientUsername)}`;
+    router.push(`/trainer/dashboard/messages/${encodeURIComponent(clientUsername)}`);
   }
 
   return (
