@@ -2,7 +2,7 @@
 
 **Purpose:** Single downloadable document containing the Next.js API route and related modules that send the branded welcome email (Resend, `support@match-fit.net`).
 
-**How to download:** In Cursor/VS Code, right-click this file → **Reveal in Finder** (macOS) or **Download** if synced from cloud; or use **File → Save As** to export as `.md` or print to PDF.
+**How to download:** With the app running, open `http://localhost:3000/download-send-welcome-analysis` (or the same path on your deployed host) and click **Download .md file** — your browser saves `MATCH-FIT-SEND-WELCOME-CODE-FOR-ANALYSIS.md` locally. You can also right-click this file in the editor → **Reveal in Finder** (macOS), or print to PDF from a Markdown preview.
 
 **Runtime:** Requires `RESEND_API_KEY`. Optional `MATCHFIT_SEND_WELCOME_PREVIEW_SECRET` (production). `NEXT_PUBLIC_APP_URL` for absolute logo and CTA links.
 
