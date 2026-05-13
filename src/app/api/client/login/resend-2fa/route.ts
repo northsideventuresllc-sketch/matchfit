@@ -1,7 +1,5 @@
 import { assertEmailResendCooldown, findClientEmailChannel, send2FACode } from "@/lib/auth-2fa-email";
-import { deliverSignupOtp } from "@/lib/deliver-otp";
 import { getLoginOtpDelivery } from "@/lib/login-two-factor-target";
-import { generateSixDigitCode, hashOtp } from "@/lib/otp";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { LOGIN_CHALLENGE_COOKIE, verifyLoginChallengeToken } from "@/lib/session";
@@ -31,64 +29,27 @@ export async function POST() {
       return NextResponse.json({ error: "Two-factor authentication is not active for this account." }, { status: 400 });
     }
 
-    if (delivery.delivery === "EMAIL") {
-      const row = await findClientEmailChannel(clientId, delivery.email);
-      if (row) {
-        const cool = await assertEmailResendCooldown(row.lastEmailResendAt);
-        if (!cool.ok) {
-          return NextResponse.json(
-            { error: `Please wait ${cool.waitSeconds}s before requesting another code.` },
-            { status: 429 },
-          );
-        }
+    const row = await findClientEmailChannel(clientId, delivery.email);
+    if (row) {
+      const cool = await assertEmailResendCooldown(row.lastEmailResendAt);
+      if (!cool.ok) {
+        return NextResponse.json(
+          { error: `Please wait ${cool.waitSeconds}s before requesting another code.` },
+          { status: 429 },
+        );
       }
-      try {
-        await send2FACode(delivery.email, clientId, "CLIENT", { countTowardResendCooldown: true });
-      } catch (deliverErr) {
-        console.error("[Match Fit resend 2FA] Email delivery failed.", deliverErr);
-        throw deliverErr;
-      }
-      await prisma.client.update({
-        where: { id: clientId },
-        data: { twoFactorLoginAttempts: 0 },
-      });
-      return NextResponse.json({ ok: true });
     }
-
-    const code = generateSixDigitCode();
-    const otpHash = hashOtp(code);
-    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    await prisma.client.update({
-      where: { id: clientId },
-      data: {
-        twoFactorOtpHash: otpHash,
-        twoFactorOtpExpires: otpExpiresAt,
-        twoFactorLoginAttempts: 0,
-      },
-    });
-
-    let deliveryMeta: { devPhoneMock?: boolean } = {};
     try {
-      deliveryMeta = await deliverSignupOtp(delivery.delivery, {
-        email: delivery.email,
-        phone: delivery.phone,
-        code,
-      });
+      await send2FACode(delivery.email, clientId, "CLIENT", { countTowardResendCooldown: true });
     } catch (deliverErr) {
-      console.error("[Match Fit resend 2FA] OTP delivery failed; clearing stored OTP.", deliverErr);
-      await prisma.client.update({
-        where: { id: clientId },
-        data: {
-          twoFactorOtpHash: null,
-          twoFactorOtpExpires: null,
-          twoFactorLoginAttempts: 0,
-        },
-      });
+      console.error("[Match Fit resend 2FA] Email delivery failed.", deliverErr);
       throw deliverErr;
     }
-
-    return NextResponse.json({ ok: true, ...(deliveryMeta?.devPhoneMock ? { devPhoneMock: true } : {}) });
+    await prisma.client.update({
+      where: { id: clientId },
+      data: { twoFactorLoginAttempts: 0, twoFactorMethod: "EMAIL" },
+    });
+    return NextResponse.json({ ok: true });
   } catch (e) {
     const { message, status } = publicApiErrorFromUnknown(e, "Could not resend your code. Please try again.", {
       logLabel: "[Match Fit resend 2FA]",

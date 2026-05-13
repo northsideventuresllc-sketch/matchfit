@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 type Thread = {
@@ -17,6 +18,7 @@ type Thread = {
 };
 
 export default function ClientChatsHubPage() {
+  const router = useRouter();
   const [tab, setTab] = useState<"active" | "archive">("active");
   const [activeThreads, setActiveThreads] = useState<Thread[] | null>(null);
   const [archivedThreads, setArchivedThreads] = useState<Thread[] | null>(null);
@@ -64,7 +66,7 @@ export default function ClientChatsHubPage() {
       setError(data.error ?? "Could not revive.");
       return;
     }
-    window.location.href = `/client/messages/${encodeURIComponent(username)}`;
+    router.replace(`/client/messages/${encodeURIComponent(username)}`);
   }
 
   return (

@@ -54,6 +54,7 @@ export async function deidentifyClientAccount(clientId: string): Promise<void> {
 
   await prisma.$transaction(async (tx) => {
     await tx.clientTwoFactorChannel.deleteMany({ where: { clientId } });
+    await tx.webPushSubscription.deleteMany({ where: { clientId } });
 
     const convIds = await tx.trainerClientConversation.findMany({
       where: { clientId },
@@ -129,6 +130,7 @@ export async function deidentifyTrainerAccount(trainerId: string): Promise<void>
 
   await prisma.$transaction(async (tx) => {
     await tx.trainerTwoFactorChannel.deleteMany({ where: { trainerId } });
+    await tx.webPushSubscription.deleteMany({ where: { trainerId } });
 
     const convIds = await tx.trainerClientConversation.findMany({
       where: { trainerId },

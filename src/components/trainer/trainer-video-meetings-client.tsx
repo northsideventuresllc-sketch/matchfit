@@ -121,8 +121,11 @@ export function TrainerVideoMeetingsClient() {
   }, []);
 
   useEffect(() => {
-    void loadSummary();
-    void loadClients();
+    const t = window.setTimeout(() => {
+      void loadSummary();
+      void loadClients();
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [loadSummary, loadClients]);
 
   function applyDefaultEndFromStart(startLocal: string) {

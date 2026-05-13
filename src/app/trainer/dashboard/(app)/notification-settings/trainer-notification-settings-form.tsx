@@ -6,8 +6,17 @@ import {
   type TrainerNotificationPrefs,
   defaultTrainerNotificationPrefs,
 } from "@/lib/trainer-notification-prefs";
+import { WebPushEnrollmentCard } from "@/components/web-push-enrollment-card";
 
-const ROWS: { key: keyof TrainerNotificationPrefs; label: string; hint: string }[] = [
+type TrainerPushPrefKey =
+  | "pushClientInquiry"
+  | "pushChatMessages"
+  | "pushCertificationUpdates"
+  | "pushComplianceReminders"
+  | "pushBilling"
+  | "pushPlatformUpdates";
+
+const PUSH_ROWS: { key: TrainerPushPrefKey; label: string; hint: string }[] = [
   { key: "pushClientInquiry", label: "Client Inquiries", hint: "When a client requests you or accepts a connection." },
   { key: "pushChatMessages", label: "Chat Messages", hint: "New messages in threads with clients." },
   {
@@ -22,6 +31,48 @@ const ROWS: { key: keyof TrainerNotificationPrefs; label: string; hint: string }
   },
   { key: "pushBilling", label: "Billing & Payouts", hint: "Charges, receipts, failed payments, and payout notices." },
   { key: "pushPlatformUpdates", label: "Platform & Safety", hint: "Product updates, policy changes, and account security." },
+];
+
+type TrainerEmailPrefKey =
+  | "emailWelcome"
+  | "emailPurchases"
+  | "emailPayouts"
+  | "emailBilling"
+  | "emailCompliance"
+  | "emailClientInquiries"
+  | "emailTrustSafety"
+  | "emailProduct";
+
+const EMAIL_ROWS: { key: TrainerEmailPrefKey; label: string; hint: string }[] = [
+  { key: "emailWelcome", label: "Welcome email", hint: "Branded message when your coach account is created." },
+  { key: "emailPurchases", label: "Client package sales", hint: "When a client buys a package from you on Match Fit." },
+  { key: "emailPayouts", label: "Payouts", hint: "Payout initiated and earnings summaries." },
+  { key: "emailBilling", label: "Subscription & billing", hint: "Stripe subscription or invoice-related updates." },
+  {
+    key: "emailCompliance",
+    label: "Tax & credentials",
+    hint: "W-9 copies, certification renewal reminders, and background check updates.",
+  },
+  { key: "emailClientInquiries", label: "New client inquiries", hint: "When a client expresses interest from Find Coaches." },
+  { key: "emailTrustSafety", label: "Trust & safety", hint: "Policy notices, moderation, and serious account alerts." },
+  { key: "emailProduct", label: "Product & support", hint: "Bug acknowledgments and similar messages." },
+];
+
+const BILLING_DELIVERY_ROWS: {
+  key: "billingEmailNotifications" | "billingPushNotifications";
+  label: string;
+  hint: string;
+}[] = [
+  {
+    key: "billingEmailNotifications",
+    label: "Stripe billing email",
+    hint: "Duplicate notices for some Stripe-hosted billing events (separate from Match Fit branded mail).",
+  },
+  {
+    key: "billingPushNotifications",
+    label: "Stripe billing Web Push",
+    hint: "Optional lock-screen alerts for billing when your browser has push enabled.",
+  },
 ];
 
 export function TrainerNotificationSettingsForm() {
@@ -106,7 +157,7 @@ export function TrainerNotificationSettingsForm() {
       </p>
 
       <ul className="space-y-4">
-        {ROWS.map((row) => (
+        {PUSH_ROWS.map((row) => (
           <li
             key={row.key}
             className="flex items-start justify-between gap-4 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-3"
@@ -127,6 +178,61 @@ export function TrainerNotificationSettingsForm() {
           </li>
         ))}
       </ul>
+
+      <div className="rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-3">
+        <p className="text-sm font-semibold text-white/90">Email from Match Fit</p>
+        <p className="mt-1 text-xs text-white/45">
+          Security emails (sign-in codes, password resets) are always sent. Optional Match Fit branded categories can be
+          adjusted below.
+        </p>
+        <ul className="mt-4 space-y-4">
+          {EMAIL_ROWS.map((row) => (
+            <li
+              key={row.key}
+              className="flex items-start justify-between gap-4 rounded-xl border border-white/[0.04] bg-[#0B0C0F]/40 px-3 py-2.5"
+            >
+              <div>
+                <p className="text-sm font-semibold text-white/90">{row.label}</p>
+                <p className="mt-1 text-xs text-white/45">{row.hint}</p>
+              </div>
+              <label className="flex shrink-0 cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={prefs[row.key]}
+                  onChange={(e) => setPrefs((p) => ({ ...p, [row.key]: e.target.checked }))}
+                  className="h-5 w-5 accent-[#FF7E00]"
+                />
+                <span className="text-[10px] font-black uppercase tracking-wide text-white/40">Email</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <ul className="space-y-4">
+        {BILLING_DELIVERY_ROWS.map((row) => (
+          <li
+            key={row.key}
+            className="flex items-start justify-between gap-4 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-3"
+          >
+            <div>
+              <p className="text-sm font-semibold text-white/90">{row.label}</p>
+              <p className="mt-1 text-xs text-white/45">{row.hint}</p>
+            </div>
+            <label className="flex shrink-0 cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                checked={prefs[row.key]}
+                onChange={(e) => setPrefs((p) => ({ ...p, [row.key]: e.target.checked }))}
+                className="h-5 w-5 accent-[#FF7E00]"
+              />
+              <span className="text-[10px] font-black uppercase tracking-wide text-white/40">On</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+
+      <WebPushEnrollmentCard registerUrl="/api/trainer/settings/web-push" roleLabel="coach" />
 
       <button
         type="submit"

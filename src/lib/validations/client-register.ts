@@ -94,7 +94,7 @@ export const registerSkipSchema = registerProfileSchema.extend({
 });
 
 export const registerPending2faSchema = registerProfileSchema.extend({
-  twoFactorMethod: z.enum(["EMAIL", "SMS", "VOICE"]),
+  twoFactorMethod: z.literal("EMAIL"),
   stayLoggedIn: z.boolean().optional().default(true),
   turnstileToken: z.string().optional(),
 });
@@ -120,9 +120,8 @@ export const settings2faSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("request_add_channel"),
     password: z.string().min(1),
-    delivery: z.enum(["EMAIL", "SMS", "VOICE"]),
-    email: z.string().email().optional(),
-    phone: z.string().min(6).optional(),
+    delivery: z.literal("EMAIL"),
+    email: z.string().email(),
   }),
   z.object({
     action: z.literal("confirm_add_channel"),

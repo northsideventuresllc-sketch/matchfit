@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { TrainerPrintPageButton } from "@/components/trainer/trainer-print-page-button";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { prisma } from "@/lib/prisma";
-import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
 import { getSessionTrainerId, getVerifiedAdminImpersonation } from "@/lib/session";
 
 export const metadata: Metadata = {

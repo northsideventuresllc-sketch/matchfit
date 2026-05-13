@@ -4,8 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 
-type Delivery = "EMAIL" | "SMS" | "VOICE";
-
 export type TwoFactorChannelDTO = {
   id: string;
   delivery: string;
@@ -60,6 +58,7 @@ function deliveryLabel(d: string): string {
 }
 
 export const TwoFactorPanel = forwardRef<TwoFactorPanelRef, PanelProps>(function TwoFactorPanel(props, ref) {
+  const { onDirtyChange, onFooterBlockedChange } = props;
   const settingsBase = props.settingsApiBase ?? "/api/client/settings";
   const dashboardHref = props.dashboardLinkHref ?? "/client/dashboard";
   const router = useRouter();
@@ -72,9 +71,7 @@ export const TwoFactorPanel = forwardRef<TwoFactorPanelRef, PanelProps>(function
   const [draftDefaultId, setDraftDefaultId] = useState<string | null>(props.initialDefaultChannelId);
   const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set());
 
-  const [addDelivery, setAddDelivery] = useState<Delivery>("EMAIL");
   const [addEmail, setAddEmail] = useState("");
-  const [addPhone, setAddPhone] = useState("");
   const [addPassword, setAddPassword] = useState("");
   const [addBusy, setAddBusy] = useState(false);
   const [pendingChannelId, setPendingChannelId] = useState<string | null>(null);
@@ -101,7 +98,6 @@ export const TwoFactorPanel = forwardRef<TwoFactorPanelRef, PanelProps>(function
 
   const addFlowRef = useRef({
     addEmail: "",
-    addPhone: "",
     addPassword: "",
     pendingChannelId: null as string | null,
     verifyCode: "",
@@ -114,7 +110,6 @@ export const TwoFactorPanel = forwardRef<TwoFactorPanelRef, PanelProps>(function
     setPendingChannelId(null);
     setVerifyCode("");
     setAddEmail("");
-    setAddPhone("");
     setAddPassword("");
     setFooterPassword("");
     baseline.current = {
@@ -132,7 +127,6 @@ export const TwoFactorPanel = forwardRef<TwoFactorPanelRef, PanelProps>(function
 
   const addFormDirty =
     addEmail.trim().length > 0 ||
-    addPhone.trim().length > 0 ||
     addPassword.trim().length > 0 ||
     pendingChannelId !== null ||
     verifyCode.trim().length > 0;
@@ -151,20 +145,19 @@ export const TwoFactorPanel = forwardRef<TwoFactorPanelRef, PanelProps>(function
 
   addFlowRef.current = {
     addEmail,
-    addPhone,
     addPassword,
     pendingChannelId,
     verifyCode,
   };
 
   useEffect(() => {
-    props.onDirtyChange?.(dirty);
-  }, [dirty, props.onDirtyChange]);
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
 
   useEffect(() => {
     const blocked = footerSectionDirty && !footerPassword.trim();
-    props.onFooterBlockedChange?.(blocked);
-  }, [footerSectionDirty, footerPassword, props.onFooterBlockedChange]);
+    onFooterBlockedChange?.(blocked);
+  }, [footerSectionDirty, footerPassword, onFooterBlockedChange]);
 
   const syncBaselineFromProps = useCallback(() => {
     baseline.current = {
@@ -241,7 +234,6 @@ export const TwoFactorPanel = forwardRef<TwoFactorPanelRef, PanelProps>(function
       setPendingChannelId(null);
       setVerifyCode("");
       setAddEmail("");
-      setAddPhone("");
       setAddPassword("");
       setPendingDeletes(new Set());
       setDraftDefaultId(baseline.current.defaultId);
@@ -253,7 +245,6 @@ export const TwoFactorPanel = forwardRef<TwoFactorPanelRef, PanelProps>(function
       const a = addFlowRef.current;
       return (
         a.addEmail.trim().length > 0 ||
-        a.addPhone.trim().length > 0 ||
         a.addPassword.trim().length > 0 ||
         a.pendingChannelId !== null ||
         a.verifyCode.trim().length > 0
@@ -298,17 +289,16 @@ export const TwoFactorPanel = forwardRef<TwoFactorPanelRef, PanelProps>(function
       const body: Record<string, unknown> = {
         action: "request_add_channel",
         password: addPassword,
-        delivery: addDelivery,
+        delivery: "EMAIL",
+        email: addEmail.trim().toLowerCase(),
       };
-      if (addDelivery === "EMAIL") body.email = addEmail.trim().toLowerCase();
-      else body.phone = addPhone.trim();
 
       const res = await fetch(`${settingsBase}/2fa`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = (await res.json()) as { error?: string; channelId?: string; devPhoneMock?: boolean };
+      const data = (await res.json()) as { error?: string; channelId?: string };
       if (!res.ok) {
         setError(data.error ?? "Could not send a code.");
         return;
@@ -323,20 +313,16 @@ export const TwoFactorPanel = forwardRef<TwoFactorPanelRef, PanelProps>(function
             ...prev,
             {
               id: newId,
-              delivery: addDelivery,
-              email: addDelivery === "EMAIL" ? addEmail.trim().toLowerCase() : null,
-              phone: addDelivery === "EMAIL" ? null : addPhone.trim(),
+              delivery: "EMAIL",
+              email: addEmail.trim().toLowerCase(),
+              phone: null,
               verified: false,
               isDefaultLogin: false,
             },
           ];
         });
       }
-      setOkMsg(
-        data.devPhoneMock
-          ? "Development mode: SMS/voice was not sent. Your 6-digit code is in the terminal running the dev server—enter it below."
-          : "Check your email or phone for a 6-digit code.",
-      );
+      setOkMsg("Check your email for a 6-digit code.");
     } catch {
       setError("Something went wrong. Try again.");
     } finally {
@@ -366,7 +352,6 @@ export const TwoFactorPanel = forwardRef<TwoFactorPanelRef, PanelProps>(function
       setPendingChannelId(null);
       setVerifyCode("");
       setAddEmail("");
-      setAddPhone("");
       setAddPassword("");
       setOkMsg("Sign-in method added.");
       router.refresh();
@@ -413,16 +398,12 @@ export const TwoFactorPanel = forwardRef<TwoFactorPanelRef, PanelProps>(function
           channelId: pendingChannelId,
         }),
       });
-      const data = (await res.json()) as { error?: string; devPhoneMock?: boolean };
+      const data = (await res.json()) as { error?: string };
       if (!res.ok) {
         setError(data.error ?? "Could not resend.");
         return;
       }
-      setOkMsg(
-        data.devPhoneMock
-          ? "Development mode: new code printed in the dev server terminal (SMS/voice not sent)."
-          : "A new code has been sent.",
-      );
+      setOkMsg("A new code has been sent.");
     } catch {
       setError("Something went wrong. Try again.");
     } finally {
@@ -599,63 +580,20 @@ export const TwoFactorPanel = forwardRef<TwoFactorPanelRef, PanelProps>(function
           </form>
         ) : (
           <form onSubmit={handleRequestAdd} className="mt-4 space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-white/50">Delivery</p>
             <div className="flex flex-col gap-2">
-              {(
-                [
-                  { id: "EMAIL" as const, label: "Email" },
-                  { id: "SMS" as const, label: "Text message" },
-                  { id: "VOICE" as const, label: "Phone call" },
-                ] as const
-              ).map((c) => (
-                <label
-                  key={c.id}
-                  className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm ${
-                    addDelivery === c.id ? "border-[#FF7E00]/60 bg-[#FF7E00]/10" : "border-white/10 bg-[#0E1016]"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="addDel"
-                    checked={addDelivery === c.id}
-                    onChange={() => setAddDelivery(c.id)}
-                    className="accent-[#FF7E00]"
-                  />
-                  {c.label}
-                </label>
-              ))}
+              <label htmlFor="add-em" className="text-xs font-semibold uppercase tracking-wide text-white/50">
+                Email address
+              </label>
+              <input
+                id="add-em"
+                type="email"
+                autoComplete="email"
+                value={addEmail}
+                onChange={(e) => setAddEmail(e.target.value)}
+                className={inputClass}
+                placeholder="you@example.com"
+              />
             </div>
-            {addDelivery === "EMAIL" ? (
-              <div className="flex flex-col gap-2">
-                <label htmlFor="add-em" className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                  Email address
-                </label>
-                <input
-                  id="add-em"
-                  type="email"
-                  autoComplete="email"
-                  value={addEmail}
-                  onChange={(e) => setAddEmail(e.target.value)}
-                  className={inputClass}
-                  placeholder="you@example.com"
-                />
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <label htmlFor="add-ph" className="text-xs font-semibold uppercase tracking-wide text-white/50">
-                  Phone number
-                </label>
-                <input
-                  id="add-ph"
-                  type="tel"
-                  autoComplete="tel"
-                  value={addPhone}
-                  onChange={(e) => setAddPhone(e.target.value)}
-                  className={inputClass}
-                  placeholder="+1 mobile number"
-                />
-              </div>
-            )}
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-2">
                 <label htmlFor="add-pw" className="text-xs font-semibold uppercase tracking-wide text-white/50">

@@ -1,34 +1,12 @@
 import { parseClientNotificationPrefsJson } from "@/lib/client-notification-prefs";
-import { deliverTransactionalSms } from "@/lib/deliver-otp";
+import { parseTrainerNotificationPrefsJson } from "@/lib/trainer-notification-prefs";
+import { appBaseUrlForEmail } from "@/lib/match-fit-email-shell";
 import { prisma } from "@/lib/prisma";
-import { sendResendEmail } from "@/lib/resend-client";
-
-async function composeCoachPurchaseReceiptLines(args: {
-  clientLabel: string;
-  trainerUsername: string;
-  serviceLabel: string;
-  amountUsd: string;
-  transactionId: string;
-}): Promise<{ subject: string; body: string; smsBody: string }> {
-  const subject = `Receipt: coach package with @${args.trainerUsername}`;
-  const body = [
-    `Hi ${args.clientLabel},`,
-    ``,
-    `Thanks for your purchase on Match Fit.`,
-    ``,
-    `Coach: @${args.trainerUsername}`,
-    `Package: ${args.serviceLabel}`,
-    `Coach service amount (before card processing fees): ${args.amountUsd}`,
-    `Reference: ${args.transactionId}`,
-    ``,
-    `You’ll also find this purchase in your Match Fit notifications.`,
-  ].join("\n");
-  const smsBody = `Match Fit: Payment received — ${args.serviceLabel} with @${args.trainerUsername} (${args.amountUsd}).`;
-  return { subject, body, smsBody };
-}
+import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
+import { sendWebPushToClient, sendWebPushToTrainer } from "@/lib/web-push-send";
 
 /**
- * Receipt email/SMS plus in-app notifications for client and trainer — runs once per service transaction (Stripe-retries safe).
+ * Receipt email / Web Push plus in-app notifications for client and trainer — runs once per service transaction (Stripe-retries safe).
  */
 export async function deliverCoachServicePurchaseSideEffects(transactionId: string): Promise<void> {
   const snap = await prisma.trainerClientServiceTransaction.findUnique({
@@ -54,14 +32,13 @@ export async function deliverCoachServicePurchaseSideEffects(transactionId: stri
         preferredName: true,
         firstName: true,
         email: true,
-        phone: true,
         deidentifiedAt: true,
         notificationPrefsJson: true,
       },
     }),
     prisma.trainer.findUnique({
       where: { id: snap.trainerId },
-      select: { username: true },
+      select: { username: true, id: true, email: true, notificationPrefsJson: true },
     }),
   ]);
 
@@ -77,15 +54,9 @@ export async function deliverCoachServicePurchaseSideEffects(transactionId: stri
   const amountUsd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
     Math.max(0, snap.amountCents) / 100,
   );
-  const receipt = await composeCoachPurchaseReceiptLines({
-    clientLabel,
-    trainerUsername: trainerRow.username,
-    serviceLabel,
-    amountUsd,
-    transactionId: snap.id,
-  });
 
   const profileHref = `/trainers/${encodeURIComponent(trainerRow.username)}`;
+  const baseUrl = appBaseUrlForEmail();
 
   await prisma.$transaction(async (tx) => {
     const claimed = await tx.trainerClientServiceTransaction.updateMany({
@@ -123,19 +94,60 @@ export async function deliverCoachServicePurchaseSideEffects(transactionId: stri
 
   if (receiptMode === "EMAIL") {
     try {
-      await sendResendEmail({
-        to: clientRow.email.trim(),
-        subject: receipt.subject,
-        text: receipt.body,
-      });
+      if (prefs.emailPurchases) {
+        await sendTransactionalEmailIfAllowed({
+          kind: "PURCHASE_CONFIRMATION",
+          to: clientRow.email.trim(),
+          audience: "CLIENT",
+          clientId: clientRow.id,
+          variables: {
+            dashboardUrl: `${baseUrl}/client`,
+            itemLabel: serviceLabel,
+            amount: amountUsd,
+            trainerUsername: trainerRow.username,
+            referenceId: snap.id,
+          },
+        });
+      }
     } catch (e) {
       console.error("[coach purchase] receipt email failed:", e);
     }
-  } else if (receiptMode === "SMS") {
+  } else if (receiptMode === "PUSH") {
+    if (prefs.pushBilling) {
+      void sendWebPushToClient(clientRow.id, {
+        title: "Coach purchase complete",
+        body: `Payment with @${trainerRow.username} — ${serviceLabel} (${amountUsd}).`,
+        url: profileHref,
+      });
+    }
+  }
+
+  const trainerPrefs = parseTrainerNotificationPrefsJson(trainerRow.notificationPrefsJson);
+  if (trainerPrefs.pushBilling) {
+    void sendWebPushToTrainer(trainerRow.id, {
+      title: "New package sale",
+      body: `${clientLabel} bought ${serviceLabel} (${amountUsd}).`,
+      url: `/trainer/dashboard/messages/${encodeURIComponent(clientRow.username)}`,
+    });
+  }
+
+  if (trainerRow.email?.trim()) {
     try {
-      await deliverTransactionalSms(clientRow.phone?.trim() ?? "", receipt.smsBody);
+      await sendTransactionalEmailIfAllowed({
+        kind: "COACH_PACKAGE_SALE",
+        to: trainerRow.email.trim(),
+        audience: "TRAINER",
+        trainerId: trainerRow.id,
+        variables: {
+          trainerDashboardUrl: `${baseUrl}/trainer/dashboard`,
+          interestsUrl: `${baseUrl}/trainer/dashboard/interests`,
+          clientUsername: clientRow.username,
+          itemLabel: serviceLabel,
+          amount: amountUsd,
+        },
+      });
     } catch (e) {
-      console.error("[coach purchase] receipt SMS failed:", e);
+      console.error("[coach purchase] trainer sale email failed:", e);
     }
   }
 }

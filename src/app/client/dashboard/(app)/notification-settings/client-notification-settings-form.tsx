@@ -7,8 +7,25 @@ import {
   coachPurchaseReceiptDeliveries,
   defaultClientNotificationPrefs,
 } from "@/lib/client-notification-prefs";
+import { WebPushEnrollmentCard } from "@/components/web-push-enrollment-card";
 
-type ClientPushNotificationPrefKey = Exclude<keyof ClientNotificationPrefs, "coachPurchaseReceiptDelivery">;
+type ClientPushNotificationPrefKey = Exclude<
+  keyof ClientNotificationPrefs,
+  "coachPurchaseReceiptDelivery" | "emailWelcome" | "emailPurchases" | "emailBilling" | "emailCompliance" | "emailTrustSafety" | "emailProduct"
+>;
+
+const EMAIL_ROWS: {
+  key: "emailWelcome" | "emailPurchases" | "emailBilling" | "emailCompliance" | "emailTrustSafety" | "emailProduct";
+  label: string;
+  hint: string;
+}[] = [
+  { key: "emailWelcome", label: "Welcome email", hint: "Branded welcome message after your account is created." },
+  { key: "emailPurchases", label: "Purchases & receipts", hint: "Coach package confirmations and related receipts." },
+  { key: "emailBilling", label: "Subscription & billing", hint: "Membership changes, renewals, and payment issues." },
+  { key: "emailCompliance", label: "Compliance & screening", hint: "Background check or verification updates." },
+  { key: "emailTrustSafety", label: "Trust & safety", hint: "Policy reminders, moderation notices, and serious account alerts." },
+  { key: "emailProduct", label: "Product & support", hint: "Bug report acknowledgments and similar messages." },
+];
 
 const ROWS: { key: ClientPushNotificationPrefKey; label: string; hint: string }[] = [
   { key: "pushNudge", label: "Coach Nudges", hint: "When a trainer nudges you from discovery." },
@@ -100,15 +117,15 @@ export function ClientNotificationSettingsForm() {
       ) : null}
 
       <p className="text-sm text-white/55">
-        These toggles control which categories can surface push notifications as Match Fit rolls out native push. In-app
-        notifications may still appear for critical billing and safety events.
+        These toggles control Web Push categories on supported browsers. In-app notifications may still appear for
+        critical billing and safety events.
       </p>
 
       <div className="rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-3">
         <p className="text-sm font-semibold text-white/90">Coach Package Receipts</p>
         <p className="mt-1 text-xs text-white/45">
-          After you pay a trainer on Match Fit, how (or if) we send a duplicate receipt. You always get an in-app Billing
-          notification.
+          After you pay a trainer on Match Fit, how (or if) we send a duplicate receipt by email or Web Push. You always
+          get an in-app Billing notification.
         </p>
         <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-10">
           <div className="min-w-0 shrink-0 pt-0.5 sm:max-w-[11rem]">
@@ -126,11 +143,41 @@ export function ClientNotificationSettingsForm() {
           >
             {coachPurchaseReceiptDeliveries.map((v) => (
               <option key={v} value={v}>
-                {v === "EMAIL" ? "Email" : v === "SMS" ? "SMS" : "No email or SMS"}
+                {v === "EMAIL" ? "Email" : v === "PUSH" ? "Web Push only" : "In-app only (no duplicate receipt)"}
               </option>
             ))}
           </select>
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-3">
+        <p className="text-sm font-semibold text-white/90">Email from Match Fit</p>
+        <p className="mt-1 text-xs text-white/45">
+          Security emails (sign-in codes, password resets, email-change links) are always sent. Optional categories can be
+          turned off below.
+        </p>
+        <ul className="mt-4 space-y-4">
+          {EMAIL_ROWS.map((row) => (
+            <li
+              key={row.key}
+              className="flex items-start justify-between gap-4 rounded-xl border border-white/[0.04] bg-[#0B0C0F]/40 px-3 py-2.5"
+            >
+              <div>
+                <p className="text-sm font-semibold text-white/90">{row.label}</p>
+                <p className="mt-1 text-xs text-white/45">{row.hint}</p>
+              </div>
+              <label className="flex shrink-0 cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={prefs[row.key]}
+                  onChange={(e) => setPrefs((p) => ({ ...p, [row.key]: e.target.checked }))}
+                  className="h-5 w-5 accent-[#FF7E00]"
+                />
+                <span className="text-[10px] font-black uppercase tracking-wide text-white/40">Email</span>
+              </label>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <ul className="space-y-4">
@@ -155,6 +202,8 @@ export function ClientNotificationSettingsForm() {
           </li>
         ))}
       </ul>
+
+      <WebPushEnrollmentCard registerUrl="/api/client/settings/web-push" roleLabel="client" />
 
       <div className="flex justify-center pt-2">
         <button

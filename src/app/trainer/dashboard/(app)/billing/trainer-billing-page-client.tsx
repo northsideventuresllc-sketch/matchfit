@@ -116,13 +116,13 @@ export function TrainerBillingPageClient() {
               />
             </label>
             <label className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-[#12151C]/70 px-4 py-3">
-              <span className="text-sm text-white/85">Text Billing Notifications</span>
+              <span className="text-sm text-white/85">Web Push billing alerts</span>
               <input
                 type="checkbox"
-                checked={prefs.billingTextNotifications}
+                checked={prefs.billingPushNotifications}
                 onChange={(e) => {
                   setPrefsOk(null);
-                  setPrefs((p) => ({ ...p, billingTextNotifications: e.target.checked }));
+                  setPrefs((p) => ({ ...p, billingPushNotifications: e.target.checked }));
                 }}
                 className="h-5 w-5 accent-[#FF7E00]"
               />

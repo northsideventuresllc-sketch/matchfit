@@ -16,7 +16,6 @@ import {
   type TrainerSettingsProfile,
 } from "./trainer-profile-settings-panel";
 import { TrainerPrivacySettingsSection } from "@/components/trainer/trainer-privacy-settings-section";
-import { PhoneBridgeConsentPanel } from "@/components/shared/phone-bridge-consent-panel";
 import { TrainerQuickLinksSettingsPanel } from "@/components/trainer/trainer-quick-links-settings-panel";
 import {
   TrainerSettingsCollapsibleBulkBar,
@@ -45,7 +44,10 @@ export function TrainerSettingsPageClient(props: Props) {
   const [profilePurchasesErr, setProfilePurchasesErr] = useState<string | null>(null);
 
   useEffect(() => {
-    setProfilePurchases(props.clientsCanPurchaseServicesFromProfile);
+    const t = window.setTimeout(() => {
+      setProfilePurchases(props.clientsCanPurchaseServicesFromProfile);
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [props.clientsCanPurchaseServicesFromProfile]);
 
   async function updateProfilePurchases(next: boolean) {
@@ -275,21 +277,10 @@ export function TrainerSettingsPageClient(props: Props) {
           <CollapsibleSettingsSection
             bulkSectionId="trainer-settings-push-notifications"
             title="Push Notifications"
-            description="Choose which categories can send push alerts when native push is enabled on your device."
+            description="Web Push lock-screen alerts and email preferences for your coach account."
             defaultOpen={false}
           >
             <TrainerNotificationSettingsForm />
-          </CollapsibleSettingsSection>
-        </div>
-
-        <div id="trainer-enable-phone-number" className="scroll-mt-24">
-          <CollapsibleSettingsSection
-            bulkSectionId="trainer-settings-enable-phone"
-            title="Enable Phone Number"
-            description="Control whether Match Fit may place masked voice calls using the phone number on your profile."
-            defaultOpen={false}
-          >
-            <PhoneBridgeConsentPanel settingsApi="/api/trainer/settings/phone-bridge" />
           </CollapsibleSettingsSection>
         </div>
 

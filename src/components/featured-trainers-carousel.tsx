@@ -98,7 +98,8 @@ export function FeaturedTrainersCarousel({ trainers }: { trainers?: FeaturedTrai
   const n = useReal ? trainers!.length : PLACEHOLDER_TRAINERS.length;
 
   useEffect(() => {
-    setIndex(0);
+    const t = window.setTimeout(() => setIndex(0), 0);
+    return () => window.clearTimeout(t);
   }, [useReal, trainers]);
 
   useEffect(() => {

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { TrainerMatchQuestionnairesOverviewClient } from "./trainer-match-questionnaires-overview-client";
 import { TRAINER_QUESTIONNAIRES_CATALOG } from "@/lib/trainer-match-questionnaires-catalog";

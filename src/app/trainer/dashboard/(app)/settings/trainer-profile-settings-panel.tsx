@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { FormEvent, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CollapsibleSettingsSection } from "@/components/client/collapsible-settings-section";
 import { TrainerProfileDemographyFields } from "@/components/trainer/trainer-profile-demography-fields";
@@ -200,7 +200,7 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
       onProfileDirtyChange?.(sectionDirty);
     }, [sectionDirty, onProfileDirtyChange]);
 
-    async function persistProfileToApi(): Promise<boolean> {
+    const persistProfileToApi = useCallback(async (): Promise<boolean> => {
       setError(null);
       setOkMsg(null);
       try {
@@ -275,7 +275,23 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
         setError("Something went wrong. Try again.");
         return false;
       }
-    }
+    }, [
+      firstName,
+      lastName,
+      preferredName,
+      bio,
+      pronouns,
+      ethnicity,
+      languagesSpoken,
+      fitnessNiches,
+      yearsCoaching,
+      genderIdentity,
+      socialInstagram,
+      socialTiktok,
+      socialFacebook,
+      socialLinkedin,
+      socialOtherUrl,
+    ]);
 
     useImperativeHandle(
       ref,
@@ -314,7 +330,7 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
           }
         },
       }),
-      [draftSerialized, fieldsDirty, pendingAvatarFile],
+      [persistProfileToApi, fieldsDirty, pendingAvatarFile],
     );
 
     async function handleProfileSave(e: FormEvent) {

@@ -1,10 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { RESEND_ONBOARDING_FROM, sendResendEmail } from "@/lib/resend-client";
-
-export function resendFromEnv(): string {
-  const f = process.env.RESEND_FROM_EMAIL?.trim();
-  return f && f.includes("@") ? f : RESEND_ONBOARDING_FROM;
-}
+import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -133,14 +128,14 @@ export async function send2FACode(
     }
   }
 
-  const from = resendFromEnv();
-  const subject = "Your Match Fit verification code";
-  const text = `Your verification code is: ${code}\n\nIt expires in 10 minutes. If you did not try to sign in, you can ignore this email.`;
-  const html = `<p style="margin:0 0 16px;font-family:system-ui,sans-serif;font-size:15px;color:#111">Your verification code is:</p>
-<p style="margin:0 0 20px;font-family:ui-monospace,monospace;font-size:28px;font-weight:700;letter-spacing:0.2em;color:#111">${code}</p>
-<p style="margin:0;font-family:system-ui,sans-serif;font-size:13px;color:#555">Expires in 10 minutes. If you did not try to sign in, ignore this message.</p>`;
-
-  await sendResendEmail({ from, to: norm, subject, text, html });
+  await sendTransactionalEmailIfAllowed({
+    kind: "OTP_2FA",
+    to: norm,
+    audience: userType === "CLIENT" ? "CLIENT" : "TRAINER",
+    clientId: userType === "CLIENT" ? userId : undefined,
+    trainerId: userType === "TRAINER" ? userId : undefined,
+    variables: { code },
+  });
 }
 
 export const RESEND_COOLDOWN_MS = 60_000;

@@ -1,6 +1,8 @@
+import { getAppOriginFromRequest } from "@/lib/app-origin";
 import { prisma } from "@/lib/prisma";
-import { getSessionClientId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
+import { getSessionClientId } from "@/lib/session";
 import { NextResponse } from "next/server";
 
 function coachDisplayName(trainer: {
@@ -89,6 +91,7 @@ export async function POST(req: Request) {
       select: {
         id: true,
         username: true,
+        email: true,
         firstName: true,
         lastName: true,
         preferredName: true,
@@ -154,6 +157,29 @@ export async function POST(req: Request) {
         });
       }
     });
+
+    const reactivatedInquiry = prior && prior.trainerInquiryStatus !== "PENDING_TRAINER";
+    if (!prior || reactivatedInquiry) {
+      const clientMini = await prisma.client.findUnique({
+        where: { id: clientId },
+        select: { username: true },
+      });
+      const origin = getAppOriginFromRequest(req);
+      if (clientMini?.username?.trim() && trainer.email?.trim()) {
+        void sendTransactionalEmailIfAllowed({
+          kind: "NEW_CLIENT_INQUIRY",
+          to: trainer.email.trim(),
+          audience: "TRAINER",
+          trainerId: trainer.id,
+          variables: {
+            clientUsername: clientMini.username.trim(),
+            trainerDashboardUrl: `${origin}/trainer/dashboard`,
+            interestsUrl: `${origin}/trainer/dashboard/interests`,
+            inquiryNote: "A client expressed interest in working with you from Find Coaches.",
+          },
+        }).catch((e) => console.error("[saved-trainers] inquiry email failed:", e));
+      }
+    }
 
     return NextResponse.json({ ok: true });
   } catch (e) {

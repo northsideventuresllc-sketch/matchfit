@@ -287,7 +287,7 @@ export function AdminDashboardClient(props: {
 
         <footer className="border-t border-white/[0.08] pt-6 text-xs text-white/40">
           <p>
-            Prefer sandbox Stripe keys and Twilio test credentials on staging. Production impersonation is privileged: sign out and
+            Prefer sandbox Stripe keys on staging. Production impersonation is privileged: sign out and
             clear sessions when finished.
           </p>
           <p className="mt-3">

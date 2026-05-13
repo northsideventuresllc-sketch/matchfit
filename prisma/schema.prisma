@@ -149,6 +149,9 @@ model Client {
   /// JSON: per-category push toggles (see `lib/client-notification-prefs.ts`).
   notificationPrefsJson String?
 
+  /// Browser Web Push subscriptions (VAPID); see `lib/web-push-send.ts`.
+  webPushSubscriptions WebPushSubscription[]
+
   /// JSON: FitHub feed & social viewing preferences (see `lib/client-fithub-prefs.ts`).
   fitHubPrefsJson String?
 
@@ -187,10 +190,6 @@ model Client {
   /// Set when the user deletes their account; row retained for FKs / safety records with PII scrubbed.
   deidentifiedAt DateTime?
 
-  /// Opt-in: allow Match Fit to place Twilio-masked bridge calls using this account’s phone on file (never shown to the other party).
-  allowPhoneBridge         Boolean   @default(false)
-  allowPhoneBridgeConsentAt DateTime?
-
   /// JSON array of quick-link ids for the client dashboard home card (see `lib/client-dashboard-quick-links.ts`).
   dashboardQuickLinkIdsJson String?
 
@@ -198,7 +197,31 @@ model Client {
   @@schema("public")
 }
 
-/// Destinations for sign-in 2FA (email, SMS, or voice). One verified row should be `isDefaultLogin` for OTP routing.
+/// End-user browser push subscription (Web Push + VAPID). Exactly one of clientId / trainerId is set.
+model WebPushSubscription {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  endpoint String @unique
+  p256dh   String
+  auth     String
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  trainerId String?
+  trainer   Trainer? @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  userAgent String?
+
+  @@index([clientId])
+  @@index([trainerId])
+  @@map("web_push_subscriptions")
+  @@schema("public")
+}
+
+/// Destinations for sign-in 2FA (email only at runtime; legacy rows may still read SMS | VOICE until migrated).
 /// - **Enrolling a new destination:** `verifyOtpHash` / `verifyOtpExpires` store the 6-digit proof-of-ownership code (see settings 2FA API).
 /// - **Signing in:** the live code lives on `Client.twoFactorOtpHash` (single active login challenge), not on this row.
 model ClientTwoFactorChannel {
@@ -335,6 +358,8 @@ model Trainer {
   /// JSON: per-category push toggles (see `lib/trainer-notification-prefs.ts`).
   notificationPrefsJson String?
 
+  webPushSubscriptions WebPushSubscription[]
+
   notifications TrainerNotification[]
 
   safetySuspended   Boolean   @default(false)
@@ -367,10 +392,6 @@ model Trainer {
 
   /// OAuth-linked accounts used to create Meet / Zoom / Teams links for paid clients’ bookings.
   videoConferenceConnections TrainerVideoConferenceConnection[]
-
-  /// Opt-in: allow Match Fit to place Twilio-masked bridge calls using this account’s phone on file (never shown to the other party).
-  allowPhoneBridge         Boolean   @default(false)
-  allowPhoneBridgeConsentAt DateTime?
 
   productIdeaSubmissions ProductIdeaSubmission[]
 

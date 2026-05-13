@@ -70,8 +70,8 @@ export async function POST(req: Request) {
     const origin = getAppOriginFromRequest(req);
     const confirmUrl = `${origin}/client/settings/confirm-email-change?token=${encodeURIComponent(token)}`;
 
-    await deliverEmailChangeConfirmation({ toEmail: normalized, confirmUrl });
-    await deliverEmailChangeSecurityNotice({ toEmail: client.email, newEmail: normalized });
+    await deliverEmailChangeConfirmation({ toEmail: normalized, confirmUrl, clientId });
+    await deliverEmailChangeSecurityNotice({ toEmail: client.email, newEmail: normalized, clientId });
 
     return NextResponse.json({ ok: true, pendingEmail: normalized });
   } catch (e) {

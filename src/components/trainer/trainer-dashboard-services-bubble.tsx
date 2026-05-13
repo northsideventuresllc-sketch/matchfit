@@ -20,7 +20,6 @@ import { parseTrainerMatchQuestionnaireDraft } from "@/lib/trainer-match-questio
 import type { PriceCheckResult } from "@/lib/trainer-offering-price-suggest";
 import { roundPriceToStep } from "@/lib/trainer-offering-price-suggest";
 import {
-  bundleTierQuantityUnitPhrase,
   bundleTierPriceFromMainOfferingLine,
   bundleTierSuggestLabel,
   clampTrainerServiceSessionMinutes,
@@ -46,7 +45,6 @@ import { serviceAddOnPresetOptions as presetsForServiceAddOns } from "@/lib/trai
 import {
   templateVariationsForService,
   variationCheckoutSetupSummary,
-  variationRowFromBaseMetrics,
 } from "@/lib/trainer-service-variation-presets";
 import {
   formatTrainerServicePriceUsd,
@@ -279,7 +277,10 @@ export function TrainerDashboardServicesBubble() {
   }, []);
 
   useEffect(() => {
-    void refresh();
+    const t = window.setTimeout(() => {
+      void refresh();
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [refresh]);
 
   const draft = useMemo(() => parseTrainerMatchQuestionnaireDraft(q?.answers ?? null), [q?.answers]);
@@ -330,34 +331,49 @@ export function TrainerDashboardServicesBubble() {
   );
 
   useEffect(() => {
-    if (!serviceId) return;
-    const allowed = selectableBilling(serviceId);
-    setBillingUnit((prev) => (allowed.includes(prev) ? prev : allowed[0]!));
+    const t = window.setTimeout(() => {
+      if (!serviceId) return;
+      const allowed = selectableBilling(serviceId);
+      setBillingUnit((prev) => (allowed.includes(prev) ? prev : allowed[0]!));
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [serviceId]);
 
   useEffect(() => {
-    if (!serviceId) return;
-    const row = MATCH_SERVICE_CATALOG.find((s) => s.id === serviceId);
-    if (!row?.inPerson || row.virtual) return;
-    setDelivery((prev) => (prev === "virtual" || prev === "both" ? "in_person" : prev));
+    const t = window.setTimeout(() => {
+      if (!serviceId) return;
+      const row = MATCH_SERVICE_CATALOG.find((s) => s.id === serviceId);
+      if (!row?.inPerson || row.virtual) return;
+      setDelivery((prev) => (prev === "virtual" || prev === "both" ? "in_person" : prev));
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [serviceId]);
 
   useEffect(() => {
-    setPortalMounted(typeof document !== "undefined");
+    const t = window.setTimeout(() => {
+      setPortalMounted(typeof document !== "undefined");
+    }, 0);
+    return () => window.clearTimeout(t);
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    setSavedDrafts(readStoredDrafts());
+    const t = window.setTimeout(() => {
+      if (typeof window === "undefined") return;
+      setSavedDrafts(readStoredDrafts());
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [screen]);
 
   /** Wizard home must never keep a portal overlay (resetFlow used to omit clearing `priceModal`). */
   useEffect(() => {
-    if (screen !== "home") return;
-    priceModalCancelledRef.current = true;
-    setPriceModal(null);
-    setSetupCancelOpen(false);
-    setListingReviewOpen(false);
+    const t = window.setTimeout(() => {
+      if (screen !== "home") return;
+      priceModalCancelledRef.current = true;
+      setPriceModal(null);
+      setSetupCancelOpen(false);
+      setListingReviewOpen(false);
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [screen]);
 
   useEffect(() => {
@@ -378,51 +394,60 @@ export function TrainerDashboardServicesBubble() {
   }, [setupCancelOpen, priceModal, listingReviewOpen, screen, serviceId, delivery, offeringKind]);
 
   useEffect(() => {
-    setVariationPriceUsdText((prev) => {
-      const next = { ...prev };
-      for (const v of variations) {
-        if (next[v.variationId] === undefined) {
-          next[v.variationId] = Number.isFinite(v.priceUsd) ? formatTrainerServicePriceUsd(v.priceUsd) : "";
+    const t = window.setTimeout(() => {
+      setVariationPriceUsdText((prev) => {
+        const next = { ...prev };
+        for (const v of variations) {
+          if (next[v.variationId] === undefined) {
+            next[v.variationId] = Number.isFinite(v.priceUsd) ? formatTrainerServicePriceUsd(v.priceUsd) : "";
+          }
         }
-      }
-      for (const k of Object.keys(next)) {
-        if (!variations.some((x) => x.variationId === k)) delete next[k];
-      }
-      return next;
-    });
+        for (const k of Object.keys(next)) {
+          if (!variations.some((x) => x.variationId === k)) delete next[k];
+        }
+        return next;
+      });
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [variations]);
 
   useEffect(() => {
-    setVariationSessionMinutesText((prev) => {
-      const next = { ...prev };
-      for (const v of variations) {
-        if (next[v.variationId] === undefined) {
-          next[v.variationId] =
-            v.sessionMinutes != null && Number.isFinite(v.sessionMinutes)
-              ? String(Math.floor(v.sessionMinutes))
-              : "";
+    const t = window.setTimeout(() => {
+      setVariationSessionMinutesText((prev) => {
+        const next = { ...prev };
+        for (const v of variations) {
+          if (next[v.variationId] === undefined) {
+            next[v.variationId] =
+              v.sessionMinutes != null && Number.isFinite(v.sessionMinutes)
+                ? String(Math.floor(v.sessionMinutes))
+                : "";
+          }
         }
-      }
-      for (const k of Object.keys(next)) {
-        if (!variations.some((x) => x.variationId === k)) delete next[k];
-      }
-      return next;
-    });
+        for (const k of Object.keys(next)) {
+          if (!variations.some((x) => x.variationId === k)) delete next[k];
+        }
+        return next;
+      });
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [variations]);
 
   useEffect(() => {
-    setAddOnPriceUsdText((prev) => {
-      const next = { ...prev };
-      for (const a of optionalAddOnsSelected) {
-        if (next[a.addonId] === undefined && a.priceUsd != null && Number.isFinite(a.priceUsd)) {
-          next[a.addonId] = formatTrainerServicePriceUsd(a.priceUsd);
+    const t = window.setTimeout(() => {
+      setAddOnPriceUsdText((prev) => {
+        const next = { ...prev };
+        for (const a of optionalAddOnsSelected) {
+          if (next[a.addonId] === undefined && a.priceUsd != null && Number.isFinite(a.priceUsd)) {
+            next[a.addonId] = formatTrainerServicePriceUsd(a.priceUsd);
+          }
         }
-      }
-      for (const k of Object.keys(next)) {
-        if (!optionalAddOnsSelected.some((x) => x.addonId === k)) delete next[k];
-      }
-      return next;
-    });
+        for (const k of Object.keys(next)) {
+          if (!optionalAddOnsSelected.some((x) => x.addonId === k)) delete next[k];
+        }
+        return next;
+      });
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [optionalAddOnsSelected]);
 
   function resetFlow() {
@@ -460,25 +485,31 @@ export function TrainerDashboardServicesBubble() {
   }
 
   useEffect(() => {
-    const o = offeringsDoc ?? defaultTrainerServiceOfferingsDocument();
-    setInPersonZip((o.inPersonServiceZip ?? draft.inPersonZip ?? "").trim());
-    setInPersonRadiusMiles(
-      o.inPersonServiceRadiusMiles != null
-        ? String(o.inPersonServiceRadiusMiles)
-        : draft.inPersonRadiusMiles != null
-          ? String(draft.inPersonRadiusMiles)
-          : "",
-    );
+    const t = window.setTimeout(() => {
+      const o = offeringsDoc ?? defaultTrainerServiceOfferingsDocument();
+      setInPersonZip((o.inPersonServiceZip ?? draft.inPersonZip ?? "").trim());
+      setInPersonRadiusMiles(
+        o.inPersonServiceRadiusMiles != null
+          ? String(o.inPersonServiceRadiusMiles)
+          : draft.inPersonRadiusMiles != null
+            ? String(draft.inPersonRadiusMiles)
+            : "",
+      );
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [draft.inPersonZip, draft.inPersonRadiusMiles, offeringsDoc]);
 
   useEffect(() => {
-    if (priceModal?.loading === false && priceModal.result?.recommendations?.length) {
-      const next: Record<string, boolean> = {};
-      for (const rec of priceModal.result.recommendations) {
-        next[rec.id] = true;
+    const t = window.setTimeout(() => {
+      if (priceModal?.loading === false && priceModal.result?.recommendations?.length) {
+        const next: Record<string, boolean> = {};
+        for (const rec of priceModal.result.recommendations) {
+          next[rec.id] = true;
+        }
+        setAiRecChecked(next);
       }
-      setAiRecChecked(next);
-    }
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [priceModal]);
 
   function startAddFlow() {
@@ -537,13 +568,14 @@ export function TrainerDashboardServicesBubble() {
       const allowed = wizardSelectableBillingUnits(effectiveServiceId);
       bu = allowed.includes(buClean) ? buClean : allowed[0]!;
     }
-    let next: TrainerServiceOfferingVariation = { ...v, billingUnit: bu };
+    const next: TrainerServiceOfferingVariation = { ...v, billingUnit: bu };
     if (!effectiveServiceId) return next;
     /** One session unit per checkout row; pack sizes use bundle tiers (or checkout quantity). */
     if (variationRequiresSessionCount(effectiveServiceId, next.billingUnit)) {
       return { ...next, sessionCount: 1 };
     }
-    const { sessionCount: _sc, ...rest } = next;
+    const { sessionCount, ...rest } = next;
+    void sessionCount;
     return rest as TrainerServiceOfferingVariation;
   }
 
@@ -551,7 +583,7 @@ export function TrainerDashboardServicesBubble() {
   function normalizedVariationsForApi(): TrainerServiceOfferingVariation[] | undefined {
     if (!serviceId || variations.length === 0) return undefined;
     const clampLen = Boolean(delivery && serviceOfferingNeedsSessionLength(serviceId, delivery));
-    return variations.map((v, i) => {
+    return variations.map((v) => {
       let next = normalizeVariationRow(
         {
           ...v,
@@ -590,7 +622,8 @@ export function TrainerDashboardServicesBubble() {
           })),
         };
       } else {
-        const { bundleTiers: _b, ...rest } = next;
+        const { bundleTiers, ...rest } = next;
+        void bundleTiers;
         next = rest as TrainerServiceOfferingVariation;
       }
       return next;
@@ -617,26 +650,6 @@ export function TrainerDashboardServicesBubble() {
     const n = Number(raw);
     if (!Number.isFinite(n)) return undefined;
     return clampTrainerServiceSessionMinutes(n);
-  }
-
-  function addVariationFromBaseMetrics() {
-    if (!serviceId || !delivery) return;
-    setFormErr(null);
-    const n = parsePriceUsdField();
-    if (n == null || n < 15 || n > 5000) {
-      setFormErr("Enter a valid list price ($15–$5,000) before adding a variation.");
-      return;
-    }
-    const row = variationRowFromBaseMetrics({
-      serviceId,
-      delivery,
-      priceUsd: n,
-      billingUnit,
-      rowIndex: variations.length,
-      sessionMinutesOverride: parseMainSessionMinutesField(),
-    });
-    setMainBundleTiers([]);
-    setVariations((prev) => [...prev, normalizeVariationRow(row, serviceId)]);
   }
 
   /** Manual “New default” row: no auto-filled title or session length — coach fills fields. */

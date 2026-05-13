@@ -935,7 +935,8 @@ export async function migrateLegacyQuestionnaireServices(trainerId: string): Pro
       ? Math.floor(obj.inPersonRadiusMiles)
       : null;
 
-  const { services: _removed, ...rest } = obj;
+  const rest = { ...obj };
+  delete rest.services;
 
   if (existing.services.length > 0) {
     try {

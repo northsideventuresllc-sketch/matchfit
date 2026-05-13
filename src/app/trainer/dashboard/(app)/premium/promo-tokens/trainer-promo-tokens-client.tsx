@@ -101,7 +101,10 @@ export function TrainerPromoTokensClient() {
   }, []);
 
   useEffect(() => {
-    void load();
+    const t = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [load]);
 
   const minRequired = useMemo(() => {
@@ -111,7 +114,10 @@ export function TrainerPromoTokensClient() {
 
   useEffect(() => {
     if (!summary?.economics) return;
-    setTokensBudget((t) => Math.max(minRequired, t));
+    const t = window.setTimeout(() => {
+      setTokensBudget((s) => Math.max(minRequired, s));
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [minRequired, summary?.economics]);
 
   const tabPromotions = useMemo(() => promotions.filter((p) => p.phase === promoTab), [promotions, promoTab]);

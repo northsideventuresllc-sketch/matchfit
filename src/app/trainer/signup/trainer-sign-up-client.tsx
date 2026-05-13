@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
+import { getSupabaseEmailCallbackUrl, isSupabaseConfigured } from "@/lib/supabase/email-callback-url";
+import { tryCreateMatchFitSupabaseBrowserClient } from "@/lib/supabase/browser-client";
+import { writeTrainerSignupDraft } from "@/lib/trainer-supabase-signup-draft";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
 import { FormEvent, useRef, useState } from "react";
 
@@ -37,6 +40,7 @@ export default function TrainerSignUpClient() {
   const [stayLoggedIn, setStayLoggedIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [verificationEmailSent, setVerificationEmailSent] = useState(false);
   const turnstileRef = useRef<TurnstileWidgetHandle>(null);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -92,6 +96,78 @@ export default function TrainerSignUpClient() {
     setBusy(true);
     try {
       const turnstileToken = TURNSTILE_SITE_KEY ? turnstileRef.current?.getToken() : undefined;
+      const emailNorm = email.trim().toLowerCase();
+
+      if (isSupabaseConfigured()) {
+        const supabase = tryCreateMatchFitSupabaseBrowserClient();
+        if (!supabase) {
+          setError("Supabase client could not be created. Check environment variables.");
+          setBusy(false);
+          return;
+        }
+
+        const { data: signData, error: signErr } = await supabase.auth.signUp({
+          email: emailNorm,
+          password,
+          options: {
+            emailRedirectTo: getSupabaseEmailCallbackUrl(),
+            data: {
+              match_fit_role: "trainer",
+              pending_match_fit_profile: true,
+            },
+          },
+        });
+
+        if (signErr) {
+          setError(signErr.message || "Could not start email verification.");
+          turnstileRef.current?.reset();
+          setBusy(false);
+          return;
+        }
+
+        if (signData.session) {
+          const res = await fetch("/api/trainer/register", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              firstName: firstName.trim(),
+              lastName: lastName.trim(),
+              username: u,
+              phone: phone.trim(),
+              email: emailNorm,
+              password,
+              agreedToTerms: true,
+              stayLoggedIn,
+              ...(turnstileToken ? { turnstileToken } : {}),
+            }),
+          });
+          const data = (await res.json()) as { error?: string; next?: string };
+          if (!res.ok) {
+            setError(data.error ?? "Could not create your account.");
+            turnstileRef.current?.reset();
+            setBusy(false);
+            return;
+          }
+          navigateWithFullLoad(data.next ?? "/trainer/onboarding");
+          return;
+        }
+
+        writeTrainerSignupDraft({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          username: u,
+          phone: phone.trim(),
+          email: emailNorm,
+          password,
+          agreedToTerms: true,
+          stayLoggedIn,
+        });
+        setVerificationEmailSent(true);
+        setBusy(false);
+        return;
+      }
+
       const res = await fetch("/api/trainer/register", {
         method: "POST",
         credentials: "include",
@@ -101,7 +177,7 @@ export default function TrainerSignUpClient() {
           lastName: lastName.trim(),
           username: u,
           phone: phone.trim(),
-          email: email.trim().toLowerCase(),
+          email: emailNorm,
           password,
           agreedToTerms: true,
           stayLoggedIn,
@@ -167,6 +243,34 @@ export default function TrainerSignUpClient() {
             >
               {error}
             </p>
+          ) : null}
+
+          {verificationEmailSent ? (
+            <div
+              className="mb-6 rounded-2xl border border-emerald-500/35 bg-emerald-500/10 px-5 py-5"
+              role="status"
+              aria-live="polite"
+            >
+              <p className="text-base font-black tracking-tight text-emerald-50">Verification email sent</p>
+              <p className="mt-3 text-sm leading-relaxed text-emerald-100/85">
+                We sent a message to <span className="font-semibold text-white">{email.trim()}</span>. Open it and tap
+                <span className="font-semibold"> Confirm your email</span>. You will return here to finish security check,
+                then we open trainer onboarding.
+              </p>
+              <p className="mt-3 text-xs leading-relaxed text-emerald-100/60">
+                Did not get it? Check spam, or wait a minute and try signing up again — the link expires after a while.
+              </p>
+              <button
+                type="button"
+                className="mt-5 text-xs font-bold uppercase tracking-wide text-[#FF7E00] underline-offset-4 hover:underline"
+                onClick={() => {
+                  setVerificationEmailSent(false);
+                  setError(null);
+                }}
+              >
+                Edit email and try again
+              </button>
+            </div>
           ) : null}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
@@ -334,7 +438,7 @@ export default function TrainerSignUpClient() {
 
             <button
               type="submit"
-              disabled={busy}
+              disabled={busy || verificationEmailSent}
               className="group relative isolate mt-1 flex min-h-[3.25rem] w-full items-center justify-center overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition active:translate-y-px disabled:opacity-50"
             >
               <span
@@ -345,7 +449,9 @@ export default function TrainerSignUpClient() {
                 aria-hidden
                 className="absolute inset-px rounded-[0.65rem] bg-white/10 opacity-0 transition group-hover:opacity-100"
               />
-              <span className="relative">{busy ? "Please wait…" : "Continue to onboarding"}</span>
+              <span className="relative">
+                {busy ? "Please wait…" : verificationEmailSent ? "Check your inbox" : "Continue to onboarding"}
+              </span>
             </button>
           </form>
         </div>

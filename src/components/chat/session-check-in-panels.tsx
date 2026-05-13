@@ -6,6 +6,7 @@ import {
   FOREGO_PARTIAL_REFUND_NET_SLICE,
   isWithinTrainerPunchGeolocationWindow,
 } from "@/lib/session-check-in-timing";
+import { useNowMs } from "@/lib/use-now-ms";
 
 export type CheckInThreadPayload = {
   feeDisclaimer: string;
@@ -466,6 +467,7 @@ export function SessionCheckInPanelTrainer(props: {
   onUpdated: () => void;
 }) {
   const { checkInThread, clientUsername, onUpdated } = props;
+  const nowMs = useNowMs(5000);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [punchBusyId, setPunchBusyId] = useState<string | null>(null);
@@ -521,7 +523,7 @@ export function SessionCheckInPanelTrainer(props: {
                 </p>
                 {!isWithinTrainerPunchGeolocationWindow(
                   { scheduledStartAt: new Date(s.startsAt), scheduledEndAt: s.endsAt ? new Date(s.endsAt) : null },
-                  Date.now(),
+                  nowMs,
                 ) ? (
                   <p className="text-[10px] text-white/45">Check-in opens 15 minutes before this session&apos;s start time.</p>
                 ) : null}
@@ -531,7 +533,7 @@ export function SessionCheckInPanelTrainer(props: {
                     punchBusyId !== null ||
                     !isWithinTrainerPunchGeolocationWindow(
                       { scheduledStartAt: new Date(s.startsAt), scheduledEndAt: s.endsAt ? new Date(s.endsAt) : null },
-                      Date.now(),
+                      nowMs,
                     )
                   }
                   onClick={async () => {

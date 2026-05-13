@@ -7,8 +7,16 @@ export const trainerNotificationPrefsSchema = z.object({
   pushComplianceReminders: z.boolean().default(true),
   pushBilling: z.boolean().default(true),
   billingEmailNotifications: z.boolean().default(true),
-  billingTextNotifications: z.boolean().default(false),
+  billingPushNotifications: z.boolean().default(true),
   pushPlatformUpdates: z.boolean().default(true),
+  emailWelcome: z.boolean().default(true),
+  emailPurchases: z.boolean().default(true),
+  emailPayouts: z.boolean().default(true),
+  emailBilling: z.boolean().default(true),
+  emailCompliance: z.boolean().default(true),
+  emailClientInquiries: z.boolean().default(true),
+  emailTrustSafety: z.boolean().default(true),
+  emailProduct: z.boolean().default(true),
 });
 
 export type TrainerNotificationPrefs = z.infer<typeof trainerNotificationPrefsSchema>;
@@ -20,15 +28,29 @@ export const defaultTrainerNotificationPrefs: TrainerNotificationPrefs = {
   pushComplianceReminders: true,
   pushBilling: true,
   billingEmailNotifications: true,
-  billingTextNotifications: false,
+  billingPushNotifications: true,
   pushPlatformUpdates: true,
+  emailWelcome: true,
+  emailPurchases: true,
+  emailPayouts: true,
+  emailBilling: true,
+  emailCompliance: true,
+  emailClientInquiries: true,
+  emailTrustSafety: true,
+  emailProduct: true,
 };
 
 export function parseTrainerNotificationPrefsJson(raw: string | null | undefined): TrainerNotificationPrefs {
   if (!raw?.trim()) return { ...defaultTrainerNotificationPrefs };
   try {
-    const parsed = trainerNotificationPrefsSchema.safeParse(JSON.parse(raw) as unknown);
-    return parsed.success ? parsed.data : { ...defaultTrainerNotificationPrefs };
+    const obj = JSON.parse(raw) as Record<string, unknown>;
+    if (typeof obj.billingTextNotifications === "boolean" && obj.billingPushNotifications === undefined) {
+      obj.billingPushNotifications = obj.billingTextNotifications;
+    }
+    delete obj.billingTextNotifications;
+    const parsed = trainerNotificationPrefsSchema.safeParse(obj);
+    if (!parsed.success) return { ...defaultTrainerNotificationPrefs };
+    return { ...defaultTrainerNotificationPrefs, ...parsed.data };
   } catch {
     return { ...defaultTrainerNotificationPrefs };
   }

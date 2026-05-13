@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { isPrismaMissingTableError } from "@/lib/prisma-missing-column";
 import { defaultSessionEndAt, TRAINER_PUNCH_LATE_GRACE_MS } from "@/lib/session-check-in";
+import { TOS_PUNCH_MISS_SUSPEND_STREAK } from "@/lib/tos-governance-thresholds";
 import { suspendTrainerForGovernance } from "@/lib/trainer-suspension-marketplace";
 
 /** After session end + grace, sessions without a SESSION STARTED punch increment trainer miss streak (Terms). */
@@ -55,7 +56,7 @@ export async function processTrainerSessionPunchMisses(now = new Date()): Promis
       data: { consecutiveMissedSessionPunches: next },
     });
 
-    if (next >= 5) {
+    if (next >= TOS_PUNCH_MISS_SUSPEND_STREAK) {
       const t = await prisma.trainer.findUnique({
         where: { id: b.trainerId },
         select: { safetySuspended: true },

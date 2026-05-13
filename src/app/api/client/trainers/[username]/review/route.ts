@@ -10,12 +10,12 @@ import { firstZodErrorMessage } from "@/lib/validations/client-register";
 import { clientTrainerReviewUpsertSchema } from "@/lib/validations/client-trainer-review";
 import { getSessionClientId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
-import { isTrainerClientInteractionRestricted } from "@/lib/user-block-queries";
+import { isTrainerClientPairBlocked } from "@/lib/user-block-queries";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 
 export const dynamic = "force-dynamic";
 
-type RouteContext = { params: Promise<{ trainerUsername: string }> };
+type RouteContext = { params: Promise<{ username: string }> };
 
 async function resolveTrainer(trainerUsername: string) {
   const handle = decodeURIComponent(trainerUsername).trim();
@@ -53,8 +53,8 @@ export async function GET(_req: Request, ctx: RouteContext) {
     if (!clientId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
-    const { trainerUsername } = await ctx.params;
-    const trainer = await resolveTrainer(trainerUsername);
+    const { username } = await ctx.params;
+    const trainer = await resolveTrainer(username);
     if (!trainer) {
       return NextResponse.json({ error: "Coach not found." }, { status: 404 });
     }
@@ -91,8 +91,8 @@ export async function POST(req: Request, ctx: RouteContext) {
     if (!clientId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
-    const { trainerUsername } = await ctx.params;
-    const trainer = await resolveTrainer(trainerUsername);
+    const { username } = await ctx.params;
+    const trainer = await resolveTrainer(username);
     if (!trainer) {
       return NextResponse.json({ error: "Coach not found." }, { status: 404 });
     }
@@ -128,8 +128,8 @@ export async function DELETE(_req: Request, ctx: RouteContext) {
     if (!clientId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
-    const { trainerUsername } = await ctx.params;
-    const trainer = await resolveTrainer(trainerUsername);
+    const { username } = await ctx.params;
+    const trainer = await resolveTrainer(username);
     if (!trainer) {
       return NextResponse.json({ error: "Coach not found." }, { status: 404 });
     }

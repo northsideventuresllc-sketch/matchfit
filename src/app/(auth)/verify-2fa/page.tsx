@@ -39,14 +39,12 @@ export default async function Verify2faUnifiedPage({ searchParams }: PageProps) 
       redirect("/client");
     }
     let initialResendCooldown = 0;
-    if (delivery.delivery === "EMAIL") {
-      const row = await findClientEmailChannel(clientCh.clientId, delivery.email);
-      initialResendCooldown = initialResendCooldownSecondsFromLastSend(row?.lastEmailResendAt);
-    }
+    const row = await findClientEmailChannel(clientCh.clientId, delivery.email);
+    initialResendCooldown = initialResendCooldownSecondsFromLastSend(row?.lastEmailResendAt);
     return (
       <Verify2faUnifiedClient
         role="client"
-        deliveryMethod={delivery.delivery}
+        deliveryMethod="EMAIL"
         nextAfterLogin={nextAfterLogin}
         initialResendCooldownSeconds={initialResendCooldown}
         turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
@@ -65,14 +63,12 @@ export default async function Verify2faUnifiedPage({ searchParams }: PageProps) 
       redirect("/trainer");
     }
     let initialResendCooldown = 0;
-    if (delivery.delivery === "EMAIL") {
-      const row = await findTrainerEmailChannel(trainerCh.trainerId, delivery.email);
-      initialResendCooldown = initialResendCooldownSecondsFromLastSend(row?.lastEmailResendAt);
-    }
+    const row = await findTrainerEmailChannel(trainerCh.trainerId, delivery.email);
+    initialResendCooldown = initialResendCooldownSecondsFromLastSend(row?.lastEmailResendAt);
     return (
       <Verify2faUnifiedClient
         role="trainer"
-        deliveryMethod={delivery.delivery}
+        deliveryMethod="EMAIL"
         nextAfterLogin={nextAfterLogin}
         initialResendCooldownSeconds={initialResendCooldown}
         turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}

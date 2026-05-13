@@ -1,0 +1,607 @@
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> match-fit-app@0.1.0 lint
+> eslint
+
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/app/api/trainer/dashboard/discover-clients/route.ts
+  196:42  warning  '_omit' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/app/client/settings/two-factor-panel.tsx
+  154:6  warning  React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect  react-hooks/exhaustive-deps
+  159:6  warning  React Hook useEffect has a missing dependency: 'props'. Either include it or remove the dependency array. However, 'props' will change when *any* prop changes, so the preferred fix is to destructure the 'props' object outside of the useEffect call and refer to those specific props inside useEffect  react-hooks/exhaustive-deps
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/app/trainer/dashboard/(app)/compliance/w9-print/page.tsx
+  7:10  warning  'staleTrainerSessionInvalidateRedirect' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/app/trainer/dashboard/(app)/match-questionnaire/page.tsx
+  2:8  warning  'Link' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/app/trainer/dashboard/(app)/premium/my-content/trainer-premium-my-content-client.tsx
+  95:10  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/app/trainer/dashboard/(app)/premium/my-content/trainer-premium-my-content-client.tsx:95:10
+  93 |
+  94 |   useEffect(() => {
+> 95 |     void load();
+     |          ^^^^ Avoid calling setState() directly within an effect
+  96 |   }, [load]);
+  97 |
+  98 |   const openComments = useCallback(async (post: MyPost) => {  react-hooks/set-state-in-effect
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/app/trainer/dashboard/(app)/premium/promo-tokens/trainer-promo-tokens-client.tsx
+  104:10  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/app/trainer/dashboard/(app)/premium/promo-tokens/trainer-promo-tokens-client.tsx:104:10
+  102 |
+  103 |   useEffect(() => {
+> 104 |     void load();
+      |          ^^^^ Avoid calling setState() directly within an effect
+  105 |   }, [load]);
+  106 |
+  107 |   const minRequired = useMemo(() => {                                                                                                                                                                                     react-hooks/set-state-in-effect
+  114:5   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/app/trainer/dashboard/(app)/premium/promo-tokens/trainer-promo-tokens-client.tsx:114:5
+  112 |   useEffect(() => {
+  113 |     if (!summary?.economics) return;
+> 114 |     setTokensBudget((t) => Math.max(minRequired, t));
+      |     ^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  115 |   }, [minRequired, summary?.economics]);
+  116 |
+  117 |   const tabPromotions = useMemo(() => promotions.filter((p) => p.phase === promoTab), [promotions, promoTab]);  react-hooks/set-state-in-effect
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/app/trainer/dashboard/(app)/settings/page.tsx
+  60:24  warning  '_p' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/app/trainer/dashboard/(app)/settings/trainer-profile-settings-panel.tsx
+  317:7  warning  React Hook useImperativeHandle has a missing dependency: 'persistProfileToApi'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/app/trainer/dashboard/(app)/settings/trainer-settings-page-client.tsx
+  47:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/app/trainer/dashboard/(app)/settings/trainer-settings-page-client.tsx:47:5
+  45 |
+  46 |   useEffect(() => {
+> 47 |     setProfilePurchases(props.clientsCanPurchaseServicesFromProfile);
+     |     ^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  48 |   }, [props.clientsCanPurchaseServicesFromProfile]);
+  49 |
+  50 |   async function updateProfilePurchases(next: boolean) {  react-hooks/set-state-in-effect
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/chat/session-check-in-panels.tsx
+  30:9  warning  'nowMs' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/client/client-privacy-settings-section.tsx
+  84:10  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/client/client-privacy-settings-section.tsx:84:10
+  82 |
+  83 |   useEffect(() => {
+> 84 |     void load();
+     |          ^^^^ Avoid calling setState() directly within an effect
+  85 |   }, [load]);
+  86 |
+  87 |   async function savePatch(patch: ClientOptionalProfileVisibility) {  react-hooks/set-state-in-effect
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/featured-trainers-carousel.tsx
+  101:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/featured-trainers-carousel.tsx:101:5
+   99 |
+  100 |   useEffect(() => {
+> 101 |     setIndex(0);
+      |     ^^^^^^^^ Avoid calling setState() directly within an effect
+  102 |   }, [useReal, trainers]);
+  103 |
+  104 |   useEffect(() => {  react-hooks/set-state-in-effect
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/client-management-view.tsx
+   101:10  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/client-management-view.tsx:101:10
+   99 |
+  100 |   useEffect(() => {
+> 101 |     void load();
+      |          ^^^^ Avoid calling setState() directly within an effect
+  102 |   }, [load]);
+  103 |
+  104 |   if (!props.premium) {                                                                                                                                                                      react-hooks/set-state-in-effect
+   453:7   error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/client-management-view.tsx:453:7
+  451 |         scheduledEndAt: props.next.scheduledEndAt ? new Date(props.next.scheduledEndAt) : null,
+  452 |       },
+> 453 |       Date.now(),
+      |       ^^^^^^^^^^ Cannot call impure function
+  454 |     );
+  455 |   }, [props.next]);
+  456 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    react-hooks/purity
+   458:5   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/client-management-view.tsx:458:5
+  456 |
+  457 |   useEffect(() => {
+> 458 |     setLoggedPin(null);
+      |     ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  459 |     setErr(null);
+  460 |   }, [props.next?.bookingId]);
+  461 |                                                                                                                                                  react-hooks/set-state-in-effect
+   670:7   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/client-management-view.tsx:670:7
+  668 |   useEffect(() => {
+  669 |     if (!premium) {
+> 670 |       setRankings(null);
+      |       ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  671 |       return;
+  672 |     }
+  673 |     let cancelled = false;                                                                                                                              react-hooks/set-state-in-effect
+   795:5   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/client-management-view.tsx:795:5
+  793 |   useEffect(() => {
+  794 |     if (!bundle) return;
+> 795 |     setNotesGen(bundle.profile?.generalNotes ?? "");
+      |     ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  796 |     setNotesMed(bundle.profile?.medicalInjuryNotes ?? "");
+  797 |   }, [bundle]);
+  798 |                                                                   react-hooks/set-state-in-effect
+  1164:87  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/client-management-view.tsx:1164:87
+  1162 |                       latestEng.extensionStatus !== "PENDING" &&
+  1163 |                       (!latestEng.trainerUrgentUploadDeadlineAt ||
+> 1164 |                         new Date(latestEng.trainerUrgentUploadDeadlineAt).getTime() > Date.now()) ? (
+       |                                                                                       ^^^^^^^^^^ Cannot call impure function
+  1165 |                         <div className="space-y-2 rounded-lg border border-amber-500/30 bg-black/30 px-3 py-3">
+  1166 |                           <p className="text-[10px] text-amber-100/85">
+  1167 |                             Client reported non-delivery after the calendar deadline. Request extra hours (client has 48h to  react-hooks/purity
+  1701:75  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/client-management-view.tsx:1701:75
+  1699 |           latestEng.extensionStatus !== "PENDING" &&
+  1700 |           (!latestEng.trainerUrgentUploadDeadlineAt ||
+> 1701 |             new Date(latestEng.trainerUrgentUploadDeadlineAt).getTime() > Date.now()) ? (
+       |                                                                           ^^^^^^^^^^ Cannot call impure function
+  1702 |             <div className="mx-auto max-w-md space-y-2 rounded-lg border border-amber-500/30 bg-black/30 px-3 py-3 text-left">
+  1703 |               <p className="text-[10px] text-amber-100/85">
+  1704 |                 Client reported non-delivery after the calendar deadline. Request extra hours (client has 48h to approve or it                                             react-hooks/purity
+  1758:5   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/client-management-view.tsx:1758:5
+  1756 |
+  1757 |   useEffect(() => {
+> 1758 |     setHelp(false);
+       |     ^^^^^^^ Avoid calling setState() directly within an effect
+  1759 |   }, [open?.clientId]);
+  1760 |
+  1761 |   if (props.activePairs.length === 0) {                                                                                                                                    react-hooks/set-state-in-effect
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/featured-listing-studio-panel.tsx
+  69:10  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/featured-listing-studio-panel.tsx:69:10
+  67 |
+  68 |   useEffect(() => {
+> 69 |     void load();
+     |          ^^^^ Avoid calling setState() directly within an effect
+  70 |   }, [load]);
+  71 |
+  72 |   useEffect(() => {  react-hooks/set-state-in-effect
+  79:38  error    Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/featured-listing-studio-panel.tsx:79:38
+  77 |   const msLeft = useMemo(() => {
+  78 |     if (!data || !("easternCutoffUtcMs" in data)) return 0;
+> 79 |     return data.easternCutoffUtcMs - Date.now();
+     |                                      ^^^^^^^^^^ Cannot call impure function
+  80 |   }, [data, tick]);
+  81 |
+  82 |   async function enterRaffle() {                                                                                                                                                                                                                                               react-hooks/purity
+  80:6   warning  React Hook useMemo has an unnecessary dependency: 'tick'. Either exclude it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react-hooks/exhaustive-deps
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-dashboard-bookings-client.tsx
+   221:10  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-dashboard-bookings-client.tsx:221:10
+  219 |
+  220 |   useEffect(() => {
+> 221 |     void loadAvailability();
+      |          ^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  222 |     void loadConnections();
+  223 |   }, [loadAvailability, loadConnections]);
+  224 |  react-hooks/set-state-in-effect
+   226:10  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-dashboard-bookings-client.tsx:226:10
+  224 |
+  225 |   useEffect(() => {
+> 226 |     void refreshBookings();
+      |          ^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  227 |   }, [refreshBookings]);
+  228 |
+  229 |   useEffect(() => {                              react-hooks/set-state-in-effect
+  1193:21  error  Do not use an `<a>` element to navigate to `/trainer/dashboard/messages/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @next/next/no-html-link-for-pages
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-dashboard-services-bubble.tsx
+   23:3   warning  'bundleTierQuantityUnitPhrase' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+  282:10  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-dashboard-services-bubble.tsx:282:10
+  280 |
+  281 |   useEffect(() => {
+> 282 |     void refresh();
+      |          ^^^^^^^ Avoid calling setState() directly within an effect
+  283 |   }, [refresh]);
+  284 |
+  285 |   const draft = useMemo(() => parseTrainerMatchQuestionnaireDraft(q?.answers ?? null), [q?.answers]);                                                                                                                                    react-hooks/set-state-in-effect
+  335:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-dashboard-services-bubble.tsx:335:5
+  333 |     if (!serviceId) return;
+  334 |     const allowed = selectableBilling(serviceId);
+> 335 |     setBillingUnit((prev) => (allowed.includes(prev) ? prev : allowed[0]!));
+      |     ^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  336 |   }, [serviceId]);
+  337 |
+  338 |   useEffect(() => {                                                                                                react-hooks/set-state-in-effect
+  342:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-dashboard-services-bubble.tsx:342:5
+  340 |     const row = MATCH_SERVICE_CATALOG.find((s) => s.id === serviceId);
+  341 |     if (!row?.inPerson || row.virtual) return;
+> 342 |     setDelivery((prev) => (prev === "virtual" || prev === "both" ? "in_person" : prev));
+      |     ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  343 |   }, [serviceId]);
+  344 |
+  345 |   useEffect(() => {                                               react-hooks/set-state-in-effect
+  346:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-dashboard-services-bubble.tsx:346:5
+  344 |
+  345 |   useEffect(() => {
+> 346 |     setPortalMounted(typeof document !== "undefined");
+      |     ^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  347 |   }, []);
+  348 |
+  349 |   useEffect(() => {                                                                                                                                                                                       react-hooks/set-state-in-effect
+  351:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-dashboard-services-bubble.tsx:351:5
+  349 |   useEffect(() => {
+  350 |     if (typeof window === "undefined") return;
+> 351 |     setSavedDrafts(readStoredDrafts());
+      |     ^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  352 |   }, [screen]);
+  353 |
+  354 |   /** Wizard home must never keep a portal overlay (resetFlow used to omit clearing `priceModal`). */                                                                 react-hooks/set-state-in-effect
+  358:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-dashboard-services-bubble.tsx:358:5
+  356 |     if (screen !== "home") return;
+  357 |     priceModalCancelledRef.current = true;
+> 358 |     setPriceModal(null);
+      |     ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  359 |     setSetupCancelOpen(false);
+  360 |     setListingReviewOpen(false);
+  361 |   }, [screen]);                                                                                                            react-hooks/set-state-in-effect
+  381:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-dashboard-services-bubble.tsx:381:5
+  379 |
+  380 |   useEffect(() => {
+> 381 |     setVariationPriceUsdText((prev) => {
+      |     ^^^^^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  382 |       const next = { ...prev };
+  383 |       for (const v of variations) {
+  384 |         if (next[v.variationId] === undefined) {                                                                                                      react-hooks/set-state-in-effect
+  396:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-dashboard-services-bubble.tsx:396:5
+  394 |
+  395 |   useEffect(() => {
+> 396 |     setVariationSessionMinutesText((prev) => {
+      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  397 |       const next = { ...prev };
+  398 |       for (const v of variations) {
+  399 |         if (next[v.variationId] === undefined) {                                                                                          react-hooks/set-state-in-effect
+  414:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-dashboard-services-bubble.tsx:414:5
+  412 |
+  413 |   useEffect(() => {
+> 414 |     setAddOnPriceUsdText((prev) => {
+      |     ^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  415 |       const next = { ...prev };
+  416 |       for (const a of optionalAddOnsSelected) {
+  417 |         if (next[a.addonId] === undefined && a.priceUsd != null && Number.isFinite(a.priceUsd)) {                                                 react-hooks/set-state-in-effect
+  464:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-dashboard-services-bubble.tsx:464:5
+  462 |   useEffect(() => {
+  463 |     const o = offeringsDoc ?? defaultTrainerServiceOfferingsDocument();
+> 464 |     setInPersonZip((o.inPersonServiceZip ?? draft.inPersonZip ?? "").trim());
+      |     ^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  465 |     setInPersonRadiusMiles(
+  466 |       o.inPersonServiceRadiusMiles != null
+  467 |         ? String(o.inPersonServiceRadiusMiles)  react-hooks/set-state-in-effect
+  480:7   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-dashboard-services-bubble.tsx:480:7
+  478 |         next[rec.id] = true;
+  479 |       }
+> 480 |       setAiRecChecked(next);
+      |       ^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  481 |     }
+  482 |   }, [priceModal]);
+  483 |                                                                                                                                                                                                   react-hooks/set-state-in-effect
+  540:9   error    'next' is never reassigned. Use 'const' instead                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   prefer-const
+  546:27  warning  '_sc' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+  554:31  warning  'i' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+  593:30  warning  '_b' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+  622:12  warning  'addVariationFromBaseMetrics' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-fithub-feed-client.tsx
+  113:17  warning  'setPrefs' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-fithub-studio-notifications.tsx
+  76:10  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-fithub-studio-notifications.tsx:76:10
+  74 |   useEffect(() => {
+  75 |     if (!open) return;
+> 76 |     void load(filter);
+     |          ^^^^ Avoid calling setState() directly within an effect
+  77 |   }, [open, filter, load]);
+  78 |
+  79 |   useEffect(() => {  react-hooks/set-state-in-effect
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-privacy-settings-section.tsx
+  86:10  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-privacy-settings-section.tsx:86:10
+  84 |
+  85 |   useEffect(() => {
+> 86 |     void load();
+     |          ^^^^ Avoid calling setState() directly within an effect
+  87 |   }, [load]);
+  88 |
+  89 |   async function savePatch(patch: TrainerOptionalProfileVisibility) {  react-hooks/set-state-in-effect
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-quick-links-settings-panel.tsx
+  24:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-quick-links-settings-panel.tsx:24:5
+  22 |
+  23 |   useEffect(() => {
+> 24 |     setIds(props.initialIds);
+     |     ^^^^^^ Avoid calling setState() directly within an effect
+  25 |   }, [props.initialIds]);
+  26 |
+  27 |   const toggle = useCallback((id: TrainerDashboardQuickLinkId) => {  react-hooks/set-state-in-effect
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-video-meetings-client.tsx
+  124:10  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-video-meetings-client.tsx:124:10
+  122 |
+  123 |   useEffect(() => {
+> 124 |     void loadSummary();
+      |          ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  125 |     void loadClients();
+  126 |   }, [loadSummary, loadClients]);
+  127 |  react-hooks/set-state-in-effect
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-virtual-meetings-all-client.tsx
+  44:10  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/components/trainer/trainer-virtual-meetings-all-client.tsx:44:10
+  42 |
+  43 |   useEffect(() => {
+> 44 |     void load();
+     |          ^^^^ Avoid calling setState() directly within an effect
+  45 |   }, [load]);
+  46 |
+  47 |   return (  react-hooks/set-state-in-effect
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/lib/optional-profile-visibility.ts
+  32:20  warning  'T' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/lib/trainer-service-offerings.ts
+  938:21  warning  '_removed' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Match Fit/match-fit-app/src/lib/transactional-email-templates.ts
+  392:52  warning  '_kind' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 54 problems (36 errors, 18 warnings)
+  1 error and 0 warnings potentially fixable with the `--fix` option.
+
