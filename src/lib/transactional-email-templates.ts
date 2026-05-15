@@ -1,7 +1,8 @@
 /**
- * Transactional email bodies. Hero headline (big white title) is always ALL CAPS via
- * {@link wrapMatchFitTransactionalHtml}. Subject lines are human-written sentence-style
- * strings; {@link formatTransactionalEmailSubject} only trims and collapses whitespace.
+ * Transactional email bodies. Use {@link wrapMatchFitTransactionalHtml}: orange
+ * {@link matchFitEmailHeroKickerHtml}, white hero title always ALL CAPS via
+ * {@link escapeHtmlEmailHeroTitle}. Subject lines are human-written;
+ * {@link formatTransactionalEmailSubject} only trims and collapses whitespace.
  */
 import type { TransactionalEmailKind } from "@/lib/transactional-email-kinds";
 import { MF_EMAIL_SITE } from "@/lib/match-fit-email-brand";

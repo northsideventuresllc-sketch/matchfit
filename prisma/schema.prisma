@@ -97,6 +97,8 @@ model Client {
   stripeSubscriptionActive Boolean @default(false)
   /// When subscription is inactive and `now` is after this instant, non-billing dashboard routes require renewal (null = no lock).
   subscriptionGraceUntil DateTime?
+  /// Set from Stripe `invoice.payment_succeeded` (and initial signup) for analytics / “recently paid” windows.
+  stripeLastSubscriptionInvoicePaidAt DateTime?
 
   /// Short public-style bio; never expose private address to trainer APIs.
   bio String?
@@ -990,7 +992,8 @@ model TrainerDiscoverMatchBatch {
   @@schema("public")
 }
 
-/// Encrypted OAuth refresh material for trainer-initiated video meetings (Zoom, Google Meet, Microsoft Teams).
+/// Encrypted OAuth material for trainer calendar / meeting providers (Google Calendar, Zoom, Microsoft Graph).
+/// This is the app’s “connected account” store for server-side API calls (Meet, Zoom, Outlook / Teams).
 model TrainerVideoConferenceConnection {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -1010,6 +1013,9 @@ model TrainerVideoConferenceConnection {
 
   /// Non-sensitive hint for UI (e.g. email domain or Zoom login id).
   externalAccountHint String?
+
+  /// How OAuth tokens were issued: `direct` = this app’s authorize/code exchange | `supabase_azure` / `supabase_zoom` = Supabase Auth provider link.
+  oauthGrantSource String @default("direct")
 
   revokedAt DateTime?
 

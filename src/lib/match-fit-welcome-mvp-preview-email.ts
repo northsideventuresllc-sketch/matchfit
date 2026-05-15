@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { MF_EMAIL_SITE, matchFitEmailLogoUrl } from "@/lib/match-fit-email-brand";
+import { matchFitEmailHeroKickerHtml } from "@/lib/match-fit-email-shell";
 import { RESEND_DEV_INBOX } from "@/lib/resend-client";
 
 const FROM_BRANDED = "Match Fit <support@match-fit.net>";
@@ -49,8 +50,7 @@ function buildMvpWelcomeHtml(dashboardHref: string): string {
 <img src="${logoUrl}" alt="Match Fit" width="200" style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;max-width:200px;height:auto;"/>
 </td></tr>
 </table>
-<p style="margin:0 0 14px;font-size:11px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:${s.orange};text-align:center;">THE PERFECT MATCH FOR YOUR FITNESS JOURNEY</p>
-<p style="margin:0 0 28px;font-size:12px;font-weight:700;letter-spacing:0.28em;text-transform:uppercase;color:${s.textMuted};text-align:center;">PRIVATE COACHING MARKETPLACE</p>
+${matchFitEmailHeroKickerHtml()}
 <h1 style="margin:0;font-size:30px;line-height:1.15;font-weight:800;color:${s.textPrimary};letter-spacing:0.06em;text-align:center;text-transform:uppercase;">WELCOME TO MATCH FIT</h1>
 <p style="margin:18px auto 0;max-width:480px;font-size:16px;line-height:1.65;font-weight:400;color:${s.textMuted};text-align:center;">Match Fit connects you with coaches who fit your goals and schedule—then keeps booking and messaging in one focused place.</p>
 <div style="margin:26px auto 0;height:3px;width:100%;max-width:240px;border-radius:999px;background:linear-gradient(90deg,${s.gold},${s.orange},${s.red});"></div>

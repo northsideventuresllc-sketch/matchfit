@@ -8,6 +8,16 @@ import { allocationNetCentsForSession, sessionConsumedBillingUnits } from "@/lib
 import type { BillingUnit } from "@/lib/trainer-match-questionnaire";
 import { computeAverageCoachServiceCentsPerCredit } from "@/lib/session-check-in";
 import { checkInWindowStartAt } from "@/lib/session-check-in-timing";
+import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
+
+function videoConferenceProviderClientLabel(stored: string | null | undefined): string {
+  if (!stored) return "";
+  if (stored === "GOOGLE_MEET") return "Google Meet";
+  if (stored === "ZOOM") return "Zoom";
+  if (stored === "MICROSOFT_TEAMS") return "Microsoft Teams";
+  if (stored === "MANUAL") return "Video link";
+  return stored.replace(/_/g, " ");
+}
 
 export function deadlineBeforeSession(startsAt: Date): Date {
   const d = new Date(startsAt);
@@ -212,6 +222,55 @@ export async function clientConfirmBooking(args: {
       });
     }
   });
+
+  try {
+    const emailCtx = await prisma.bookedTrainingSession.findUnique({
+      where: { id: row.id },
+      select: {
+        sessionDelivery: true,
+        videoConferenceJoinUrl: true,
+        videoConferenceProvider: true,
+        trainer: { select: { username: true, preferredName: true, firstName: true, lastName: true } },
+        client: { select: { email: true, preferredName: true, firstName: true } },
+      },
+    });
+    const to = emailCtx?.client?.email?.trim();
+    if (to && emailCtx?.trainer) {
+      const base = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") || "https://match-fit.net";
+      const coachName =
+        emailCtx.trainer.preferredName?.trim() ||
+        [emailCtx.trainer.firstName, emailCtx.trainer.lastName].filter(Boolean).join(" ").trim() ||
+        `@${emailCtx.trainer.username}`;
+      const clientFirst = emailCtx.client.preferredName?.trim() || emailCtx.client.firstName.trim() || "there";
+      const startLabel = row.scheduledStartAt.toLocaleString(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+      const isVirtual = emailCtx.sessionDelivery === "VIRTUAL";
+      const join = (emailCtx.videoConferenceJoinUrl ?? "").trim();
+      const platform = videoConferenceProviderClientLabel(emailCtx.videoConferenceProvider);
+      await sendTransactionalEmailIfAllowed({
+        kind: "BOOKING_SESSION_CONFIRMED",
+        to,
+        audience: "CLIENT",
+        clientId: args.clientId,
+        variables: {
+          firstName: clientFirst,
+          coachName,
+          startLabel,
+          sessionDelivery: isVirtual ? "VIRTUAL" : "IN_PERSON",
+          videoPlatform: platform,
+          joinUrl: join,
+          messagesThreadUrl: `${base}/client/dashboard/messages/${encodeURIComponent(emailCtx.trainer.username)}`,
+        },
+      });
+    }
+  } catch (e) {
+    console.error("[booking confirm] client confirmation email failed:", e);
+  }
 
   try {
     const clientRow = await prisma.client.findUnique({

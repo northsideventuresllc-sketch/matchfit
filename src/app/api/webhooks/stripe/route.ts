@@ -1,4 +1,5 @@
 import { finalizeRegistrationAfterPayment } from "@/lib/billing-finalize";
+import { prisma } from "@/lib/prisma";
 import { notifyClientSubscriptionStripeEvent } from "@/lib/subscription-email-notify";
 import { syncClientSubscriptionFromStripe } from "@/lib/stripe-sync-client-subscription";
 import { getStripe } from "@/lib/stripe-server";
@@ -107,11 +108,21 @@ export async function POST(req: Request) {
     if (event.type === "invoice.payment_succeeded") {
       const invoice = event.data.object as Stripe.Invoice & {
         subscription?: string | Stripe.Subscription | null;
+        status_transitions?: { paid_at?: number | null };
       };
       const subId = invoice.subscription;
       if (typeof subId === "string") {
         await finalizeRegistrationAfterPayment(subId);
         await syncClientSubscriptionFromStripe(subId);
+        const paidAtUnix = invoice.status_transitions?.paid_at;
+        const paidAt =
+          typeof paidAtUnix === "number" && Number.isFinite(paidAtUnix) && paidAtUnix > 0
+            ? new Date(paidAtUnix * 1000)
+            : new Date();
+        await prisma.client.updateMany({
+          where: { stripeSubscriptionId: subId },
+          data: { stripeLastSubscriptionInvoicePaidAt: paidAt },
+        });
       }
     }
     if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {

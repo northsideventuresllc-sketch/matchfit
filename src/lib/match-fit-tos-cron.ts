@@ -6,6 +6,7 @@ import {
   settleSessionsPastPayoutBuffer,
   syncCheckInActiveFlags,
 } from "@/lib/session-check-in-actions";
+import { refreshTrainerVideoOAuthTokensNearExpiry } from "@/lib/trainer-video-oauth-refresh-cron";
 import { processTrainerSessionPunchMisses } from "@/lib/trainer-punch-miss-cron";
 import {
   backgroundCheckExpiresAt,

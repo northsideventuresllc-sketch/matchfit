@@ -73,9 +73,10 @@ function datetimeLocalToIso(s: string): string | null {
   return d.toISOString();
 }
 
-function providerCalendarLabel(provider: string): string {
-  if (provider === "GOOGLE") return "Google Calendar";
-  if (provider === "MICROSOFT") return "Outlook Calendar";
+/** Labels for linked video accounts (Meet / Zoom / Teams), used in the Booking Calendar Sync menu. */
+function providerVirtualConnectLabel(provider: string): string {
+  if (provider === "GOOGLE") return "Google Meet";
+  if (provider === "MICROSOFT") return "Microsoft Teams";
   if (provider === "ZOOM") return "Zoom";
   return provider;
 }
@@ -124,6 +125,9 @@ export function TrainerDashboardBookingsClient() {
   const [inviteBusy, setInviteBusy] = useState(false);
   const [settingsSectionOpen, setSettingsSectionOpen] = useState(false);
   const [availabilityCalendarOpen, setAvailabilityCalendarOpen] = useState(true);
+  const [videoAttachBookingId, setVideoAttachBookingId] = useState<string | null>(null);
+  const [manualVideoUrl, setManualVideoUrl] = useState("");
+  const [videoBusy, setVideoBusy] = useState(false);
 
   const refreshBookings = useCallback(async () => {
     const { gridStart, gridEnd } = calendarGridBounds(calendarYear, calendarMonthIndex);
@@ -579,7 +583,62 @@ export function TrainerDashboardBookingsClient() {
     }
   }
 
+  async function saveManualVideoForBooking(bookingId: string) {
+    const url = manualVideoUrl.trim();
+    if (!url) {
+      setActionErr("Paste an https meeting link.");
+      return;
+    }
+    setVideoBusy(true);
+    setActionErr(null);
+    try {
+      const res = await fetch(`/api/trainer/dashboard/bookings/${encodeURIComponent(bookingId)}/video`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "manual", joinUrl: url }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setActionErr(data.error ?? "Could not save link.");
+        return;
+      }
+      setManualVideoUrl("");
+      setVideoAttachBookingId(null);
+      void refreshBookings();
+      void loadConnections();
+    } finally {
+      setVideoBusy(false);
+    }
+  }
+
+  async function syncVideoForBooking(bookingId: string, provider: "GOOGLE" | "ZOOM" | "MICROSOFT") {
+    setVideoBusy(true);
+    setActionErr(null);
+    try {
+      const res = await fetch(`/api/trainer/dashboard/bookings/${encodeURIComponent(bookingId)}/video`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sync", provider }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setActionErr(data.error ?? "Could not create meeting.");
+        return;
+      }
+      setVideoAttachBookingId(null);
+      void refreshBookings();
+      void loadConnections();
+    } finally {
+      setVideoBusy(false);
+    }
+  }
+
   const calendarAccounts = useMemo(() => connections.filter((c) => c.provider === "GOOGLE" || c.provider === "MICROSOFT" || c.provider === "ZOOM"), [connections]);
+
+  const videoOAuthProviders = useMemo(
+    () => connections.map((c) => c.provider).filter((p) => p === "GOOGLE" || p === "ZOOM" || p === "MICROSOFT"),
+    [connections],
+  );
 
   const selectedAvailHits = useMemo(() => {
     if (!selectedAvailYmd) return [];
@@ -1082,7 +1141,7 @@ export function TrainerDashboardBookingsClient() {
                           onClick={() => setSyncOpen(false)}
                           className="block px-3 py-2 text-xs text-white/85 hover:bg-white/[0.06]"
                         >
-                          <span className="font-semibold text-white">{providerCalendarLabel(c.provider)}</span>
+                          <span className="font-semibold text-white">{providerVirtualConnectLabel(c.provider)}</span>
                           {c.hint ? <span className="mt-0.5 block text-[10px] text-white/40">{c.hint}</span> : null}
                           <span className="mt-1 block text-[10px] text-[#FF9A4A]/80">Open Virtual Meetings →</span>
                         </Link>
@@ -1193,14 +1252,65 @@ export function TrainerDashboardBookingsClient() {
                   >
                     Virtual meeting ({(b.videoConferenceProvider ?? "LINK").replace(/_/g, " ")})
                   </a>
-                ) : b.sessionDelivery === "VIRTUAL" ? (
-                  <p className="mt-2 text-[10px] text-white/38">
-                    Virtual link: use{" "}
-                    <Link href="/trainer/dashboard/messages" className="text-[#FF9A4A] underline-offset-2 hover:underline">
-                      Chats
-                    </Link>{" "}
-                    → client thread → Virtual meetings.
-                  </p>
+                ) : null}
+                {b.sessionDelivery === "VIRTUAL" ? (
+                  <div className="mt-2 space-y-2">
+                    <button
+                      type="button"
+                      disabled={videoBusy}
+                      onClick={() => {
+                        setVideoAttachBookingId((id) => (id === b.id ? null : b.id));
+                        setManualVideoUrl("");
+                        setActionErr(null);
+                      }}
+                      className="inline-flex rounded-lg border border-white/12 px-2 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-white/70 transition hover:border-[#FF7E00]/40 hover:text-white/90 disabled:opacity-40"
+                    >
+                      {videoAttachBookingId === b.id ? "Close video tools" : "Add / sync Meet, Zoom, or Teams"}
+                    </button>
+                    {videoAttachBookingId === b.id ? (
+                      <div className="mx-auto mt-1 max-w-md space-y-2 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-left">
+                        <p className="text-[10px] text-white/45">
+                          Paste a link or create one from a connected account. Manage accounts on{" "}
+                          <Link href="/trainer/dashboard/video-meetings" className="text-[#FF9A4A] underline-offset-2 hover:underline">
+                            Virtual Meetings
+                          </Link>
+                          .
+                        </p>
+                        <input
+                          value={manualVideoUrl}
+                          onChange={(e) => setManualVideoUrl(e.target.value)}
+                          placeholder="https://… (Meet, Zoom, or Teams)"
+                          className="w-full rounded-lg border border-white/10 bg-[#0E1016] px-2 py-2 text-xs text-white placeholder:text-white/30"
+                        />
+                        <button
+                          type="button"
+                          disabled={videoBusy}
+                          onClick={() => void saveManualVideoForBooking(b.id)}
+                          className="w-full rounded-lg border border-indigo-400/35 bg-indigo-500/12 py-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-indigo-100 disabled:opacity-40"
+                        >
+                          Save manual link
+                        </button>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(["GOOGLE", "ZOOM", "MICROSOFT"] as const).map((p) => {
+                            const connected = videoOAuthProviders.includes(p);
+                            const label = p === "GOOGLE" ? "Meet" : p === "ZOOM" ? "Zoom" : "Teams";
+                            return (
+                              <button
+                                key={p}
+                                type="button"
+                                disabled={videoBusy || !connected}
+                                title={!connected ? `Connect ${label} on Virtual Meetings first` : undefined}
+                                onClick={() => void syncVideoForBooking(b.id, p)}
+                                className="flex-1 rounded-lg border border-[#FF7E00]/30 bg-[#FF7E00]/10 py-1.5 text-[9px] font-black uppercase tracking-[0.08em] text-white/85 disabled:opacity-35"
+                              >
+                                Sync {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
                 ) : null}
               </li>
             ))}

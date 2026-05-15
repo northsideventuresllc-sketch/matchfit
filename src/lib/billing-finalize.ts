@@ -77,6 +77,7 @@ export async function finalizeRegistrationAfterPayment(subscriptionId: string): 
           stripeSubscriptionId: subscriptionId,
           stripeSubscriptionActive: true,
           subscriptionGraceUntil: null,
+          stripeLastSubscriptionInvoicePaidAt: new Date(),
         },
       });
       await tx.pendingClientRegistration.delete({ where: { id: hold.id } });

@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { decryptUtf8, encryptUtf8 } from "@/lib/field-encryption";
 import { clientHasPaidTrainerOnce } from "@/lib/trainer-client-booking-credits";
+import { createMicrosoftMeeting } from "@/lib/microsoft-graph-meeting";
 import {
   createGoogleMeetForWindow,
-  createMicrosoftTeamsMeetingForWindow,
   createZoomMeetingForWindow,
   ensureFreshAccessToken,
   parseOAuthTokenBundle,
@@ -94,6 +94,28 @@ export async function trainerSyncBookingVideoFromOAuth(args: {
   }
   const end = row.scheduledEndAt ?? new Date(row.scheduledStartAt.getTime() + 60 * 60 * 1000);
 
+  const subject = "Match Fit training session";
+
+  if (args.provider === "MICROSOFT") {
+    const created = await createMicrosoftMeeting(args.trainerId, {
+      subject,
+      start: row.scheduledStartAt,
+      end,
+      timeZone: "UTC",
+    });
+    if ("error" in created) return { error: created.error };
+    await prisma.bookedTrainingSession.update({
+      where: { id: row.id },
+      data: {
+        videoConferenceJoinUrl: created.joinUrl,
+        videoConferenceProvider: bookingVideoProviderLabel("MICROSOFT"),
+        videoConferenceExternalId: created.eventId,
+        videoConferenceSyncedAt: new Date(),
+      },
+    });
+    return { ok: true, joinUrl: created.joinUrl };
+  }
+
   const conn = await prisma.trainerVideoConferenceConnection.findFirst({
     where: { trainerId: args.trainerId, provider: args.provider, revokedAt: null },
   });
@@ -113,7 +135,6 @@ export async function trainerSyncBookingVideoFromOAuth(args: {
   const access = bundle.accessToken;
   if (!access) return { error: "No valid access token. Reconnect this provider." };
 
-  const subject = "Match Fit training session";
   if (args.provider === "GOOGLE") {
     const created = await createGoogleMeetForWindow({
       accessToken: access,
@@ -152,21 +173,6 @@ export async function trainerSyncBookingVideoFromOAuth(args: {
     });
     return { ok: true, joinUrl: created.joinUrl };
   }
-  const created = await createMicrosoftTeamsMeetingForWindow({
-    accessToken: access,
-    subject,
-    start: row.scheduledStartAt,
-    end,
-  });
-  if ("error" in created) return { error: created.error };
-  await prisma.bookedTrainingSession.update({
-    where: { id: row.id },
-    data: {
-      videoConferenceJoinUrl: created.joinUrl,
-      videoConferenceProvider: bookingVideoProviderLabel("MICROSOFT"),
-      videoConferenceExternalId: created.meetingId,
-      videoConferenceSyncedAt: new Date(),
-    },
-  });
-  return { ok: true, joinUrl: created.joinUrl };
+  return { error: "Unsupported video provider." };
 }
+
