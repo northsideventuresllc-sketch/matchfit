@@ -1,5 +1,66 @@
 import type { VideoConferenceProviderKey } from "@/lib/trainer-video-oauth-state";
 
+/** Scopes for Microsoft Graph (Outlook calendar + Teams meetings). Used by direct OAuth and must match Supabase Azure provider configuration. */
+export const MICROSOFT_GRAPH_OAUTH_SCOPES =
+  "openid email profile offline_access Calendars.ReadWrite OnlineMeetings.ReadWrite";
+
+/** Zoom User-managed OAuth: profile + meetings. Used by direct authorize URL and must match Supabase Zoom provider configuration. */
+export const TRAINER_ZOOM_SUPABASE_OAUTH_SCOPES = "user:read:user meeting:read meeting:write";
+
+/** Trainer Google OAuth: Calendar events + Meet space creation (refresh token via `access_type=offline` on the authorize URL, not a scope). */
+export const GOOGLE_TRAINER_VIDEO_OAUTH_SCOPES = [
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/meetings.space.created",
+].join(" ");
+
+function microsoftOAuthTenantSegment(): string {
+  const tenant = process.env.MICROSOFT_OAUTH_TENANT_ID?.trim();
+  if (tenant && /^[0-9a-f-]{36}$/i.test(tenant)) return tenant;
+  return "common";
+}
+
+function microsoftAuthorizeEndpoint(): string {
+  return `https://login.microsoftonline.com/${microsoftOAuthTenantSegment()}/oauth2/v2.0/authorize`;
+}
+
+function microsoftTokenEndpoint(): string {
+  return `https://login.microsoftonline.com/${microsoftOAuthTenantSegment()}/oauth2/v2.0/token`;
+}
+
+/** Best-effort JWT `exp` for Zoom access tokens when Zoom returns a JWT (opaque tokens return undefined). */
+export function zoomAccessTokenExpiresAtMs(accessToken: string | undefined | null): number | undefined {
+  if (!accessToken || typeof accessToken !== "string") return undefined;
+  const parts = accessToken.split(".");
+  if (parts.length < 2) return undefined;
+  try {
+    const json = Buffer.from(parts[1].replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
+    const payload = JSON.parse(json) as { exp?: number };
+    if (typeof payload.exp === "number" && Number.isFinite(payload.exp)) {
+      return payload.exp * 1000;
+    }
+  } catch {
+    /* ignore */
+  }
+  return undefined;
+}
+
+/** Best-effort JWT `exp` (seconds) for Microsoft access tokens (opaque if undecodable). */
+export function microsoftAccessTokenExpiresAtMs(accessToken: string | undefined | null): number | undefined {
+  if (!accessToken || typeof accessToken !== "string") return undefined;
+  const parts = accessToken.split(".");
+  if (parts.length < 2) return undefined;
+  try {
+    const json = Buffer.from(parts[1].replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
+    const payload = JSON.parse(json) as { exp?: number };
+    if (typeof payload.exp === "number" && Number.isFinite(payload.exp)) {
+      return payload.exp * 1000;
+    }
+  } catch {
+    /* ignore */
+  }
+  return undefined;
+}
+
 export type OAuthTokenBundle = {
   refreshToken: string;
   accessToken?: string;
@@ -44,15 +105,23 @@ export function googleAuthorizeUrl(state: string): string | null {
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();
   const redirect = googleOAuthRedirectUri();
   if (!clientId || !redirect) return null;
-  const scope = encodeURIComponent("https://www.googleapis.com/auth/calendar.events offline_access");
-  return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&access_type=offline&prompt=consent&scope=${scope}&state=${encodeURIComponent(state)}`;
+  const q = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirect,
+    response_type: "code",
+    access_type: "offline",
+    prompt: "consent",
+    scope: GOOGLE_TRAINER_VIDEO_OAUTH_SCOPES,
+    state,
+  });
+  return `https://accounts.google.com/o/oauth2/v2/auth?${q.toString()}`;
 }
 
 export function zoomAuthorizeUrl(state: string): string | null {
   const clientId = process.env.ZOOM_OAUTH_CLIENT_ID?.trim();
   const redirect = zoomOAuthRedirectUri();
   if (!clientId || !redirect) return null;
-  const scope = encodeURIComponent("user:read:user meeting:write");
+  const scope = encodeURIComponent(TRAINER_ZOOM_SUPABASE_OAUTH_SCOPES);
   return `https://zoom.us/oauth/authorize?response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirect)}&scope=${scope}&state=${encodeURIComponent(state)}`;
 }
 
@@ -60,8 +129,8 @@ export function microsoftAuthorizeUrl(state: string): string | null {
   const clientId = process.env.MICROSOFT_OAUTH_CLIENT_ID?.trim();
   const redirect = microsoftOAuthRedirectUri();
   if (!clientId || !redirect) return null;
-  const scope = encodeURIComponent("offline_access OnlineMeetings.ReadWrite User.Read");
-  return `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${encodeURIComponent(clientId)}&response_type=code&redirect_uri=${encodeURIComponent(redirect)}&response_mode=query&scope=${scope}&state=${encodeURIComponent(state)}`;
+  const scope = encodeURIComponent(MICROSOFT_GRAPH_OAUTH_SCOPES);
+  return `${microsoftAuthorizeEndpoint()}?client_id=${encodeURIComponent(clientId)}&response_type=code&redirect_uri=${encodeURIComponent(redirect)}&response_mode=query&scope=${scope}&state=${encodeURIComponent(state)}`;
 }
 
 export async function googleExchangeCode(code: string): Promise<OAuthTokenBundle | { error: string }> {
@@ -129,7 +198,12 @@ export async function zoomExchangeCode(code: string): Promise<OAuthTokenBundle |
   const access = typeof j?.access_token === "string" ? j.access_token : "";
   if (!refresh || !access) return { error: "Zoom token response was incomplete." };
   const expSec = typeof j?.expires_in === "number" ? j.expires_in : 3600;
-  return { refreshToken: refresh, accessToken: access, expiresAtMs: Date.now() + Math.max(60, expSec) * 1000 };
+  const jwtExp = zoomAccessTokenExpiresAtMs(access);
+  return {
+    refreshToken: refresh,
+    accessToken: access,
+    expiresAtMs: jwtExp ?? Date.now() + Math.max(60, expSec) * 1000,
+  };
 }
 
 export async function microsoftExchangeCode(code: string): Promise<OAuthTokenBundle | { error: string }> {
@@ -144,7 +218,7 @@ export async function microsoftExchangeCode(code: string): Promise<OAuthTokenBun
     code,
     redirect_uri: redirect,
   });
-  const res = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
+  const res = await fetch(microsoftTokenEndpoint(), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
@@ -157,7 +231,12 @@ export async function microsoftExchangeCode(code: string): Promise<OAuthTokenBun
   const access = typeof j?.access_token === "string" ? j.access_token : "";
   if (!refresh || !access) return { error: "Microsoft token response was incomplete." };
   const expSec = typeof j?.expires_in === "number" ? j.expires_in : 3600;
-  return { refreshToken: refresh, accessToken: access, expiresAtMs: Date.now() + Math.max(60, expSec) * 1000 };
+  const jwtExp = microsoftAccessTokenExpiresAtMs(access);
+  return {
+    refreshToken: refresh,
+    accessToken: access,
+    expiresAtMs: jwtExp ?? Date.now() + Math.max(60, expSec) * 1000,
+  };
 }
 
 async function googleRefresh(bundle: OAuthTokenBundle): Promise<OAuthTokenBundle | { error: string }> {
@@ -214,7 +293,12 @@ async function zoomRefresh(bundle: OAuthTokenBundle): Promise<OAuthTokenBundle |
   const refresh = typeof j?.refresh_token === "string" ? j.refresh_token : bundle.refreshToken;
   if (!access) return { error: "Zoom refresh returned no access token." };
   const expSec = typeof j?.expires_in === "number" ? j.expires_in : 3600;
-  return { refreshToken: refresh, accessToken: access, expiresAtMs: Date.now() + Math.max(60, expSec) * 1000 };
+  const jwtExp = zoomAccessTokenExpiresAtMs(access);
+  return {
+    refreshToken: refresh,
+    accessToken: access,
+    expiresAtMs: jwtExp ?? Date.now() + Math.max(60, expSec) * 1000,
+  };
 }
 
 async function microsoftRefresh(bundle: OAuthTokenBundle): Promise<OAuthTokenBundle | { error: string }> {
@@ -227,7 +311,7 @@ async function microsoftRefresh(bundle: OAuthTokenBundle): Promise<OAuthTokenBun
     grant_type: "refresh_token",
     refresh_token: bundle.refreshToken,
   });
-  const res = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
+  const res = await fetch(microsoftTokenEndpoint(), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
@@ -240,7 +324,12 @@ async function microsoftRefresh(bundle: OAuthTokenBundle): Promise<OAuthTokenBun
   const refresh = typeof j?.refresh_token === "string" ? j.refresh_token : bundle.refreshToken;
   if (!access) return { error: "Microsoft refresh returned no access token." };
   const expSec = typeof j?.expires_in === "number" ? j.expires_in : 3600;
-  return { refreshToken: refresh, accessToken: access, expiresAtMs: Date.now() + Math.max(60, expSec) * 1000 };
+  const jwtExp = microsoftAccessTokenExpiresAtMs(access);
+  return {
+    refreshToken: refresh,
+    accessToken: access,
+    expiresAtMs: jwtExp ?? Date.now() + Math.max(60, expSec) * 1000,
+  };
 }
 
 const ACCESS_SKEW_MS = 90_000;

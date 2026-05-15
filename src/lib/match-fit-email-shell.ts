@@ -8,6 +8,17 @@ export function escapeHtmlEmail(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/** Uppercases hero copy for the white headline (`en-US`), then HTML-escapes. */
+export function escapeHtmlEmailHeroTitle(plainTitle: string): string {
+  return escapeHtmlEmail(plainTitle.trim().toLocaleUpperCase("en-US"));
+}
+
+/** Orange “MATCH FIT” kicker — reuse on every branded email hero above the white title. */
+export function matchFitEmailHeroKickerHtml(): string {
+  const s = MF_EMAIL_SITE;
+  return `<p style="margin:16px 0 0;font-size:11px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:${s.orange};text-align:center;">MATCH FIT</p>`;
+}
+
 export function appBaseUrlForEmail(): string {
   const u = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
   if (u) return u;
@@ -26,15 +37,15 @@ export function formatTransactionalEmailSubject(subject: string): string {
 /**
  * Shared Match Fit transactional HTML shell (dark canvas + gold/orange accents).
  *
- * Conventions for new templates: pass `title` in normal sentence case in code; the hero
- * heading is always shown in **ALL CAPS** (white `textPrimary`) with tight tracking. Run
- * final subjects through {@link formatTransactionalEmailSubject} for whitespace only.
+ * Conventions for new templates: pass `title` as plain language; the orange kicker is
+ * {@link matchFitEmailHeroKickerHtml} and the white headline uses {@link escapeHtmlEmailHeroTitle}.
+ * Run final subjects through {@link formatTransactionalEmailSubject} for whitespace only.
  * Match body copy tone to existing templates; use the `bodyParagraphs` pattern in
  * `transactional-email-templates.ts` and MF_EMAIL_SITE tokens for colors.
  */
 export function wrapMatchFitTransactionalHtml(params: {
   preheader: string;
-  /** Shown in the hero as ALL CAPS (write in sentence case in source if you prefer). */
+  /** Plain-language hero title; displayed ALL CAPS in white via {@link escapeHtmlEmailHeroTitle}. */
   title: string;
   bodyHtml: string;
   /** Optional primary button */
@@ -43,7 +54,7 @@ export function wrapMatchFitTransactionalHtml(params: {
 }): string {
   const s = MF_EMAIL_SITE;
   const logoUrl = escapeHtmlEmail(matchFitEmailLogoUrl(appBaseUrlForEmail()));
-  const title = escapeHtmlEmail(params.title.trim().toUpperCase());
+  const title = escapeHtmlEmailHeroTitle(params.title);
   const pre = escapeHtmlEmail(params.preheader);
   const cta =
     params.ctaHref && params.ctaLabel
@@ -59,7 +70,7 @@ export function wrapMatchFitTransactionalHtml(params: {
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;border-radius:16px;overflow:hidden;border:1px solid ${s.border};background-color:${s.panel};">
 <tr><td align="center" style="padding:32px 24px 20px;text-align:center;border-bottom:1px solid ${s.border};">
 <img src="${logoUrl}" alt="Match Fit" width="160" style="display:block;margin:0 auto;border:0;max-width:160px;height:auto;"/>
-<p style="margin:16px 0 0;font-size:11px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:${s.orange};text-align:center;">MATCH FIT</p>
+${matchFitEmailHeroKickerHtml()}
 <h1 style="margin:12px 0 0;font-size:22px;line-height:1.2;font-weight:800;color:${s.textPrimary};text-align:center;letter-spacing:0.06em;text-transform:uppercase;">${title}</h1>
 </td></tr>
 <tr><td align="center" style="padding:24px 24px 28px;text-align:center;">
