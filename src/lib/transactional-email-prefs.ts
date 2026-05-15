@@ -24,6 +24,7 @@ export function clientAllowsTransactionalEmailKind(
     case "CONTENT_MODERATION_NOTICE":
       return prefs.emailTrustSafety;
     case "BUG_REPORT_ACKNOWLEDGMENT":
+    case "BOOKING_SESSION_CONFIRMED":
       return prefs.emailProduct;
     default:
       return true;

@@ -23,6 +23,7 @@ export const TRANSACTIONAL_EMAIL_KINDS = [
   "CONTENT_MODERATION_NOTICE",
   "PAYMENT_FAILED",
   "POLICY_UPDATE",
+  "BOOKING_SESSION_CONFIRMED",
 ] as const;
 
 export type TransactionalEmailKind = (typeof TRANSACTIONAL_EMAIL_KINDS)[number];
@@ -50,6 +51,7 @@ const TRANSACTIONAL_EMAIL_KIND_SAMPLE_LABELS: Record<TransactionalEmailKind, str
   CONTENT_MODERATION_NOTICE: "Content review",
   PAYMENT_FAILED: "Payment issue",
   POLICY_UPDATE: "Policy update",
+  BOOKING_SESSION_CONFIRMED: "Session booking confirmed",
 };
 
 export function transactionalEmailKindSampleLabel(kind: TransactionalEmailKind): string {

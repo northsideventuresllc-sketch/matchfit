@@ -1,7 +1,8 @@
 /**
- * Transactional email bodies. Hero headline (big white title) is always ALL CAPS via
- * {@link wrapMatchFitTransactionalHtml}. Subject lines are human-written sentence-style
- * strings; {@link formatTransactionalEmailSubject} only trims and collapses whitespace.
+ * Transactional email bodies. Use {@link wrapMatchFitTransactionalHtml}: orange
+ * {@link matchFitEmailHeroKickerHtml}, white hero title always ALL CAPS via
+ * {@link escapeHtmlEmailHeroTitle}. Subject lines are human-written;
+ * {@link formatTransactionalEmailSubject} only trims and collapses whitespace.
  */
 import type { TransactionalEmailKind } from "@/lib/transactional-email-kinds";
 import { MF_EMAIL_SITE } from "@/lib/match-fit-email-brand";
@@ -360,6 +361,71 @@ export function buildTransactionalEmail(
       });
       return finalizeTransactional(subject, text, html);
     }
+    case "BOOKING_SESSION_CONFIRMED": {
+      const coachName = c(ctx.coachName, "Jordan Lee");
+      const startLabel = c(ctx.startLabel, "Thu, May 15, 3:00 PM");
+      const sessionDelivery = (c(ctx.sessionDelivery, "VIRTUAL").trim().toUpperCase() === "IN_PERSON" ? "IN_PERSON" : "VIRTUAL") as
+        | "IN_PERSON"
+        | "VIRTUAL";
+      const videoPlatform = c(ctx.videoPlatform, "Google Meet").trim();
+      const joinUrl = (typeof ctx.joinUrl === "string" ? ctx.joinUrl : "").trim();
+      const messagesThreadUrl = c(
+        ctx.messagesThreadUrl,
+        `${appBaseUrlForEmailSample()}/client/dashboard/messages/coachjordan`,
+      );
+
+      const subject = "Your session is confirmed — Match Fit";
+      const textLines = [
+        `Hi ${firstName},`,
+        "",
+        `You confirmed a session with ${coachName} starting ${startLabel}.`,
+        sessionDelivery === "VIRTUAL" ? "Session type: Virtual meeting." : "Session type: In person.",
+      ];
+      if (sessionDelivery === "VIRTUAL") {
+        if (joinUrl) {
+          textLines.push(videoPlatform ? `Video platform: ${videoPlatform}.` : "Video link:");
+          textLines.push(`Join: ${joinUrl}`);
+        } else {
+          textLines.push(
+            "A Google Meet, Zoom, or Microsoft Teams link may still be added in your Match Fit messages before the session.",
+          );
+        }
+      } else {
+        textLines.push("Coordinate location details with your coach in Match Fit messages if needed.");
+      }
+      textLines.push("", `Messages (this coach):`, messagesThreadUrl, "", "— Match Fit");
+      const text = textLines.join("\n");
+
+      const introParas = [
+        `Hi <strong style="color:${s.textPrimary};">${escapeHtmlEmail(firstName)}</strong> — you confirmed a session with <strong style="color:${s.textPrimary};">${escapeHtmlEmail(
+          coachName,
+        )}</strong> starting <strong style="color:${s.textPrimary};">${escapeHtmlEmail(startLabel)}</strong>.`,
+        sessionDelivery === "VIRTUAL"
+          ? "Session type: <strong style=\"color:#7dd3fc;\">Virtual meeting</strong>."
+          : "Session type: <strong style=\"color:#86efac;\">In person</strong>.",
+      ];
+      let extraHtml = "";
+      if (sessionDelivery === "VIRTUAL") {
+        if (joinUrl) {
+          introParas.push(videoPlatform ? `Video platform: <strong style="color:${s.textPrimary};">${escapeHtmlEmail(videoPlatform)}</strong>.` : "");
+          extraHtml = `<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:${s.textMuted};text-align:center;max-width:520px;margin-left:auto;margin-right:auto;">Join link:<br /><a href="${escapeHtmlEmail(joinUrl)}" style="color:${s.gold};word-break:break-all;font-weight:700;">${escapeHtmlEmail(joinUrl)}</a></p>`;
+        } else {
+          introParas.push(
+            "If you do not see a link below yet, your coach can attach Google Meet, Zoom, or Microsoft Teams from your Match Fit messages before the session.",
+          );
+        }
+      } else {
+        introParas.push("Use Messages to coordinate the meeting location with your coach.");
+      }
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: `Confirmed with ${coachName}.`,
+        title: "Session confirmed",
+        bodyHtml: bodyParagraphs(introParas.filter(Boolean)) + extraHtml,
+        ctaHref: messagesThreadUrl,
+        ctaLabel: "Open Messages",
+      });
+      return finalizeTransactional(subject, text, html);
+    }
     case "POLICY_UPDATE": {
       const subject = `Policy update: ${policyName}`;
       const text = `Match Fit posted an update to ${policyName}.\n\nReview it here: ${c(ctx.policyUrl, "https://match-fit.net/terms")}`;
@@ -428,6 +494,12 @@ export function sampleContextForTransactionalEmail(kind: TransactionalEmailKind)
     referenceId: "svc_tx_sample",
     w9Summary: "Legal name: Alex Coach · TIN on file · Address on file (see dashboard for full W-9).",
     interestsUrl: `${appBaseUrlForEmailSample()}/trainer/dashboard/interests`,
+    coachName: "Jordan Lee",
+    startLabel: "Thu, May 15, 2026, 3:00 PM",
+    sessionDelivery: "VIRTUAL",
+    videoPlatform: "Google Meet",
+    joinUrl: "https://meet.google.com/lookup/sample-link",
+    messagesThreadUrl: `${appBaseUrlForEmailSample()}/client/dashboard/messages/coachjordan`,
   };
   return base;
 }

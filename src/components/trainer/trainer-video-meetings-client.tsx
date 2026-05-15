@@ -472,8 +472,10 @@ export function TrainerVideoMeetingsClient() {
               OAuth redirect URLs must be allow-listed as{" "}
               <code className="rounded bg-black/40 px-1 py-0.5 text-[10px] text-white/70">
                 {origin || "(your origin)"}/api/trainer/oauth/&lt;provider&gt;/callback
-              </code>
-              .
+              </code>{" "}
+              in your Supabase project (Authentication → URL configuration). For Zoom and Microsoft, also add
+              Supabase&apos;s Auth callback URL (shown under Authentication → Providers for that provider) to the
+              provider&apos;s developer console redirect allow list.
             </p>
           )}
           <button
@@ -489,7 +491,11 @@ export function TrainerVideoMeetingsClient() {
             <>
           <h3 className="mt-8 text-center text-sm font-bold tracking-tight text-white">Connect Providers</h3>
           <p className="mx-auto mt-2 max-w-md text-[11px] leading-relaxed text-white/45">
-            Link the platforms you use for virtual sessions. Refresh tokens are stored encrypted (AES-256-GCM).
+            Link the platforms you use for virtual sessions. Zoom and Microsoft Teams connect via Supabase OAuth;
+            refresh tokens are stored encrypted (AES-256-GCM). Server-side Zoom API calls still require{" "}
+            <code className="rounded bg-black/40 px-1 py-0.5 text-[10px] text-white/70">ZOOM_OAUTH_CLIENT_ID</code> and{" "}
+            <code className="rounded bg-black/40 px-1 py-0.5 text-[10px] text-white/70">ZOOM_OAUTH_CLIENT_SECRET</code>{" "}
+            in this app (same Zoom app as in Supabase) so tokens can be refreshed.
           </p>
           <div className="mx-auto mt-6 flex max-w-md flex-col items-stretch gap-3">
             {connectPlatforms.map((p) => {

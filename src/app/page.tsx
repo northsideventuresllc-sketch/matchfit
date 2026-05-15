@@ -3,7 +3,9 @@ import { FeaturedTrainersCarousel } from "@/components/featured-trainers-carouse
 import { HomeBrandBanner } from "@/components/home-brand-banner";
 import { HomeInfoSections } from "@/components/home-info-sections";
 import { HomeLoginMenu } from "@/components/home-login-menu";
+import { HomeUserCounter } from "@/components/home-user-counter";
 import { getFeaturedTrainersForHomepage } from "@/lib/featured-homepage-data";
+import { getHomeUserCounts } from "@/lib/home-user-counts";
 import { prisma } from "@/lib/prisma";
 import { redirectStayLoggedInClientToDashboard } from "@/lib/redirect-stay-logged-in-client";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
@@ -31,7 +33,10 @@ export default async function Home({ searchParams }: HomeProps) {
     if (client?.zipCode?.trim()) zipForFeatured = client.zipCode.trim();
   }
 
-  const featuredTrainers = await getFeaturedTrainersForHomepage({ zipInput: zipForFeatured });
+  const [featuredTrainers, homeUserCounts] = await Promise.all([
+    getFeaturedTrainersForHomepage({ zipInput: zipForFeatured }),
+    getHomeUserCounts(),
+  ]);
 
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] text-white antialiased">
@@ -66,6 +71,8 @@ export default async function Home({ searchParams }: HomeProps) {
           </div>
           <HomeLoginMenu homeAuth={homeAuth} />
         </header>
+
+        <HomeUserCounter {...homeUserCounts} />
 
         <HomeBrandBanner />
 

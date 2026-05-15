@@ -6,6 +6,7 @@ import {
   settleSessionsPastPayoutBuffer,
   syncCheckInActiveFlags,
 } from "@/lib/session-check-in-actions";
+import { refreshTrainerVideoOAuthTokensNearExpiry } from "@/lib/trainer-video-oauth-refresh-cron";
 import { processTrainerSessionPunchMisses } from "@/lib/trainer-punch-miss-cron";
 import {
   backgroundCheckExpiresAt,
@@ -24,6 +25,8 @@ export type TosCronSummary = {
   diyRefundAlerts: number;
   trainerPunchMissesProcessed: number;
   diyExtensionsAutoApproved: number;
+  videoOAuthTokensRefreshed: number;
+  videoOAuthTokenRefreshErrors: number;
 };
 
 async function backfillApprovedBackgroundCheckTimestamps(): Promise<number> {
@@ -171,6 +174,8 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   const diyRefundAlerts = await diyMissedDeliveries();
   let trainerPunchMissesProcessed = 0;
   let diyExtensionsAutoApproved = 0;
+  let videoOAuthTokensRefreshed = 0;
+  let videoOAuthTokenRefreshErrors = 0;
   try {
     trainerPunchMissesProcessed = await processTrainerSessionPunchMisses();
   } catch (e) {
@@ -180,6 +185,13 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     diyExtensionsAutoApproved = await processDiyExtensionAutoApprovals();
   } catch (e) {
     console.error("[tos cron] diy extension auto approvals", e);
+  }
+  try {
+    const v = await refreshTrainerVideoOAuthTokensNearExpiry();
+    videoOAuthTokensRefreshed = v.refreshed;
+    videoOAuthTokenRefreshErrors = v.errors;
+  } catch (e) {
+    console.error("[tos cron] video oauth refresh", e);
   }
   return {
     backgroundCheckClearedBackfill: backfill,
@@ -193,5 +205,7 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     diyRefundAlerts,
     trainerPunchMissesProcessed,
     diyExtensionsAutoApproved,
+    videoOAuthTokensRefreshed,
+    videoOAuthTokenRefreshErrors,
   };
 }

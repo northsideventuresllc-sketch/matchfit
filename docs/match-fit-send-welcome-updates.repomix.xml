@@ -1,0 +1,730 @@
+<repomix><file_summary>This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+The content has been processed where content has been formatted for parsing in xml style.<purpose>This file contains a packed representation of a subset of the repository&apos;s contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.</purpose><file_format>The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Repository files, each consisting of:
+  - File path as an attribute
+  - Full contents of the file</file_format><usage_guidelines>- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.</usage_guidelines><notes>- Some files may have been excluded based on .gitignore rules and Repomix&apos;s configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: src/app/api/send-welcome/**/*.ts, src/lib/match-fit-welcome-mvp-preview-email.ts, src/lib/match-fit-email-brand.ts, src/app/api/download-send-welcome-analysis/**/*.ts, src/app/download-send-welcome-analysis/**/*.tsx, docs/MATCH-FIT-SEND-WELCOME-CODE-FOR-ANALYSIS.md
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Content has been formatted for parsing in xml style
+- Files are sorted by Git change count (files with more changes are at the bottom)</notes></file_summary><directory_structure>docs/
+  MATCH-FIT-SEND-WELCOME-CODE-FOR-ANALYSIS.md
+src/
+  app/
+    api/
+      download-send-welcome-analysis/
+        route.ts
+      send-welcome/
+        route.ts
+    download-send-welcome-analysis/
+      page.tsx
+  lib/
+    match-fit-email-brand.ts
+    match-fit-welcome-mvp-preview-email.ts</directory_structure><files>This section contains the contents of the repository&apos;s files.<file path="src/app/api/download-send-welcome-analysis/route.ts">import { readFile } from &quot;fs/promises&quot;;
+import path from &quot;path&quot;;
+import { NextResponse } from &quot;next/server&quot;;
+
+export const dynamic = &quot;force-dynamic&quot;;
+
+const FILENAME = &quot;MATCH-FIT-SEND-WELCOME-CODE-FOR-ANALYSIS.md&quot;;
+
+/**
+ * GET — streams the bundled send-welcome analysis markdown as a file download (Save / Downloads folder).
+ */
+export async function GET() {
+  try {
+    const filePath = path.join(process.cwd(), &quot;docs&quot;, FILENAME);
+    const body = await readFile(filePath, &quot;utf8&quot;);
+    return new NextResponse(body, {
+      status: 200,
+      headers: {
+        &quot;Content-Type&quot;: &quot;text/markdown; charset=utf-8&quot;,
+        &quot;Content-Disposition&quot;: `attachment; filename=&quot;${FILENAME}&quot;`,
+      },
+    });
+  } catch {
+    return NextResponse.json({ error: &quot;Analysis file is not available on this deployment.&quot; }, { status: 404 });
+  }
+}</file><file path="src/app/api/send-welcome/route.ts">import {
+  MVP_WELCOME_TEST_RECIPIENT,
+  sendMatchFitWelcomeMvpPreviewEmail,
+} from &quot;@/lib/match-fit-welcome-mvp-preview-email&quot;;
+import { publicApiErrorFromUnknown } from &quot;@/lib/public-api-error&quot;;
+import { NextResponse } from &quot;next/server&quot;;
+
+export const dynamic = &quot;force-dynamic&quot;;
+
+function isSendWelcomeAllowed(req: Request): boolean {
+  if (process.env.NODE_ENV === &quot;development&quot;) {
+    return true;
+  }
+  const secret = process.env.MATCHFIT_SEND_WELCOME_PREVIEW_SECRET?.trim();
+  if (!secret || secret.length &lt; 16) {
+    return false;
+  }
+  const auth = req.headers.get(&quot;authorization&quot;)?.trim();
+  const bearer = auth?.toLowerCase().startsWith(&quot;bearer &quot;) ? auth.slice(7).trim() : null;
+  return bearer === secret;
+}
+
+/**
+ * POST — sends a branded welcome email from support@match-fit.net (Resend).
+ * Recipient is the configured internal inbox. Local: no auth. Production: set MATCHFIT_SEND_WELCOME_PREVIEW_SECRET and send Authorization: Bearer &amp;lt;secret&amp;gt;.
+ */
+export async function POST(req: Request) {
+  try {
+    if (!isSendWelcomeAllowed(req)) {
+      return NextResponse.json({ error: &quot;Not found.&quot; }, { status: 404 });
+    }
+
+    await sendMatchFitWelcomeMvpPreviewEmail();
+
+    return NextResponse.json({
+      ok: true,
+      to: MVP_WELCOME_TEST_RECIPIENT,
+      message: &quot;Welcome email sent.&quot;,
+    });
+  } catch (e) {
+    const { message, status } = publicApiErrorFromUnknown(e, &quot;Could not send welcome email.&quot;, {
+      logLabel: &quot;[Match Fit send-welcome]&quot;,
+    });
+    return NextResponse.json({ error: message }, { status });
+  }
+}</file><file path="src/app/download-send-welcome-analysis/page.tsx">import Link from &quot;next/link&quot;;
+
+export default function DownloadSendWelcomeAnalysisPage() {
+  return (
+    &lt;main className=&quot;mx-auto flex min-h-[70vh] max-w-lg flex-col justify-center gap-6 px-6 py-16&quot;&gt;
+      &lt;h1 className=&quot;text-2xl font-semibold tracking-tight text-neutral-900&quot;&gt;Download analysis bundle&lt;/h1&gt;
+      &lt;p className=&quot;text-neutral-600&quot;&gt;
+        Saves &lt;code className=&quot;rounded bg-neutral-100 px-1.5 py-0.5 text-sm&quot;&gt;MATCH-FIT-SEND-WELCOME-CODE-FOR-ANALYSIS.md&lt;/code&gt;{&quot; &quot;}
+        to your computer (same content as &lt;code className=&quot;rounded bg-neutral-100 px-1.5 py-0.5 text-sm&quot;&gt;docs/&lt;/code&gt; in the repo).
+      &lt;/p&gt;
+      &lt;p&gt;
+        &lt;a
+          href=&quot;/api/download-send-welcome-analysis&quot;
+          className=&quot;inline-flex rounded-lg bg-neutral-900 px-5 py-3 text-sm font-semibold text-white no-underline hover:bg-neutral-800&quot;
+        &gt;
+          Download .md file
+        &lt;/a&gt;
+      &lt;/p&gt;
+      &lt;p className=&quot;text-sm text-neutral-500&quot;&gt;
+        &lt;Link href=&quot;/&quot; className=&quot;text-neutral-700 underline underline-offset-2 hover:text-neutral-900&quot;&gt;
+          Back to home
+        &lt;/Link&gt;
+      &lt;/p&gt;
+    &lt;/main&gt;
+  );
+}</file><file path="src/lib/match-fit-email-brand.ts">/**
+ * Match Fit transactional email palette — aligned with `public/logo.png`
+ * (navy wordmark, red “Fit”, warm orange / olive in the mark).
+ */
+export const MF_EMAIL_BRAND = {
+  navy: &quot;#333F48&quot;,
+  navyDeep: &quot;#1c2430&quot;,
+  navyHeader: &quot;#252f38&quot;,
+  red: &quot;#E63946&quot;,
+  redDark: &quot;#c62f3a&quot;,
+  orange: &quot;#F4A261&quot;,
+  orangeMid: &quot;#F2994A&quot;,
+  olive: &quot;#606C38&quot;,
+  cream: &quot;#FDF8F3&quot;,
+  mutedOnDark: &quot;#b8c0c8&quot;,
+  borderDark: &quot;#2a3540&quot;,
+} as const;
+
+export function matchFitEmailLogoUrl(baseUrl: string): string {
+  return `${baseUrl.replace(/\/$/, &quot;&quot;)}/logo.png`;
+}
+
+/**
+ * Homepage / app UI — dark canvas, gold → orange → red accents (`src/app/page.tsx`, auth shells).
+ * Use for transactional HTML that should match the live product.
+ */
+export const MF_EMAIL_SITE = {
+  bg: &quot;#0B0C0F&quot;,
+  panel: &quot;#0E1016&quot;,
+  gold: &quot;#FFD34E&quot;,
+  orange: &quot;#FF7E00&quot;,
+  red: &quot;#E32B2B&quot;,
+  textPrimary: &quot;#F4F6FA&quot;,
+  textMatch: &quot;#E8EAEF&quot;,
+  textMuted: &quot;#9CA3AF&quot;,
+  border: &quot;#262a33&quot;,
+  /** Dark burnt-orange into site canvas */
+  outerBgGradient:
+    &quot;linear-gradient(180deg,#5c3014 0%,#3d1f0c 22%,#241308 48%,#120a05 72%,#0B0C0F 100%)&quot;,
+  ctaText: &quot;#0B0C0F&quot;,
+} as const;</file><file path="src/lib/match-fit-welcome-mvp-preview-email.ts">import { Resend } from &quot;resend&quot;;
+import { MF_EMAIL_SITE, matchFitEmailLogoUrl } from &quot;@/lib/match-fit-email-brand&quot;;
+import { RESEND_DEV_INBOX } from &quot;@/lib/resend-client&quot;;
+
+const FROM_BRANDED = &quot;Match Fit &lt;support@match-fit.net&gt;&quot;;
+
+/** Default recipient for internal welcome / Resend checks (see {@link RESEND_DEV_INBOX}). */
+export const MVP_WELCOME_TEST_RECIPIENT = RESEND_DEV_INBOX;
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&amp;/g, &quot;&amp;amp;&quot;)
+    .replace(/&lt;/g, &quot;&amp;lt;&quot;)
+    .replace(/&gt;/g, &quot;&amp;gt;&quot;)
+    .replace(/&quot;/g, &quot;&amp;quot;&quot;);
+}
+
+function appBaseUrl(): string {
+  const u = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, &quot;&quot;);
+  if (u) return u;
+  return &quot;https://match-fit.net&quot;;
+}
+
+function buildMvpWelcomeHtml(dashboardHref: string): string {
+  const href = escapeHtml(dashboardHref);
+  const logoUrl = escapeHtml(matchFitEmailLogoUrl(appBaseUrl()));
+  const s = MF_EMAIL_SITE;
+  return `&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;/&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1&quot;/&gt;
+&lt;meta name=&quot;color-scheme&quot; content=&quot;dark&quot;/&gt;
+&lt;meta name=&quot;supported-color-schemes&quot; content=&quot;dark&quot;/&gt;
+&lt;title&gt;Welcome — Match Fit&lt;/title&gt;
+&lt;/head&gt;
+&lt;body style=&quot;margin:0;padding:0;background-color:${s.bg};font-family:ui-sans-serif,system-ui,-apple-system,&apos;Segoe UI&apos;,Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased;&quot;&gt;
+&lt;span style=&quot;display:none!important;visibility:hidden;mso-hide:all;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;&quot;&gt;Your Match Fit account is ready — open the app to connect with coaches and manage your training.&lt;/span&gt;
+&lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellspacing=&quot;0&quot; cellpadding=&quot;0&quot; style=&quot;background-color:${s.bg};background-image:${s.outerBgGradient};padding:48px 16px 56px;&quot;&gt;
+&lt;tr&gt;&lt;td align=&quot;center&quot;&gt;
+&lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellspacing=&quot;0&quot; cellpadding=&quot;0&quot; style=&quot;max-width:600px;border-radius:16px;overflow:hidden;border:1px solid ${s.border};background-color:${s.panel};box-shadow:0 24px 60px rgba(0,0,0,0.45);&quot;&gt;
+&lt;tr&gt;
+&lt;td align=&quot;center&quot; style=&quot;padding:0;margin:0;background-color:${s.panel};background-image:linear-gradient(180deg,#1a1410 0%,${s.panel} 45%,${s.panel} 100%);border-bottom:1px solid ${s.border};&quot;&gt;
+&lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellspacing=&quot;0&quot; cellpadding=&quot;0&quot;&gt;
+&lt;tr&gt;
+&lt;td align=&quot;center&quot; style=&quot;padding:40px 28px 32px;text-align:center;&quot;&gt;
+&lt;table role=&quot;presentation&quot; cellspacing=&quot;0&quot; cellpadding=&quot;0&quot; style=&quot;margin:0 auto 20px;&quot;&gt;
+&lt;tr&gt;&lt;td align=&quot;center&quot; style=&quot;text-align:center;&quot;&gt;
+&lt;img src=&quot;${logoUrl}&quot; alt=&quot;Match Fit&quot; width=&quot;200&quot; style=&quot;display:block;margin:0 auto;border:0;outline:none;text-decoration:none;max-width:200px;height:auto;&quot;/&gt;
+&lt;/td&gt;&lt;/tr&gt;
+&lt;/table&gt;
+&lt;p style=&quot;margin:0 0 14px;font-size:11px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:${s.orange};text-align:center;&quot;&gt;THE PERFECT MATCH FOR YOUR FITNESS JOURNEY&lt;/p&gt;
+&lt;p style=&quot;margin:0 0 28px;font-size:12px;font-weight:700;letter-spacing:0.28em;text-transform:uppercase;color:${s.textMuted};text-align:center;&quot;&gt;PRIVATE COACHING MARKETPLACE&lt;/p&gt;
+&lt;h1 style=&quot;margin:0;font-size:30px;line-height:1.15;font-weight:800;color:${s.textPrimary};letter-spacing:0.06em;text-align:center;text-transform:uppercase;&quot;&gt;WELCOME TO MATCH FIT&lt;/h1&gt;
+&lt;p style=&quot;margin:18px auto 0;max-width:480px;font-size:16px;line-height:1.65;font-weight:400;color:${s.textMuted};text-align:center;&quot;&gt;Match Fit connects you with coaches who fit your goals and schedule—then keeps booking and messaging in one focused place.&lt;/p&gt;
+&lt;div style=&quot;margin:26px auto 0;height:3px;width:100%;max-width:240px;border-radius:999px;background:linear-gradient(90deg,${s.gold},${s.orange},${s.red});&quot;&gt;&lt;/div&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td align=&quot;center&quot; style=&quot;padding:32px 28px 36px;text-align:center;background-color:${s.panel};&quot;&gt;
+&lt;p style=&quot;margin:0 auto 20px;max-width:480px;font-size:15px;line-height:1.7;color:${s.textMuted};text-align:center;&quot;&gt;Whether you are just getting started or leveling up, you have a clear home base for finding the right coach and staying on track week to week.&lt;/p&gt;
+&lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellspacing=&quot;0&quot; cellpadding=&quot;0&quot; style=&quot;margin:24px 0;border:1px solid ${s.border};background-color:${s.bg};border-radius:12px;&quot;&gt;
+&lt;tr&gt;&lt;td align=&quot;center&quot; style=&quot;padding:22px 20px;text-align:center;&quot;&gt;
+&lt;p style=&quot;margin:0 0 16px;font-size:11px;font-weight:800;letter-spacing:0.22em;text-transform:uppercase;color:${s.orange};text-align:center;&quot;&gt;WHAT YOU CAN DO NEXT&lt;/p&gt;
+&lt;p style=&quot;margin:0 0 12px;font-size:15px;line-height:1.65;color:${s.textPrimary};text-align:center;&quot;&gt;&lt;span style=&quot;color:${s.red};font-weight:800;&quot;&gt;01&lt;/span&gt; Find coaches that align with your goals, availability, and how you like to train.&lt;/p&gt;
+&lt;p style=&quot;margin:0 0 12px;font-size:15px;line-height:1.65;color:${s.textPrimary};text-align:center;&quot;&gt;&lt;span style=&quot;color:${s.red};font-weight:800;&quot;&gt;02&lt;/span&gt; Book sessions and keep your plans organized in one straightforward place.&lt;/p&gt;
+&lt;p style=&quot;margin:0;font-size:15px;line-height:1.65;color:${s.textPrimary};text-align:center;&quot;&gt;&lt;span style=&quot;color:${s.red};font-weight:800;&quot;&gt;03&lt;/span&gt; Message your coach and stay consistent with less friction.&lt;/p&gt;
+&lt;/td&gt;&lt;/tr&gt;
+&lt;/table&gt;
+&lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellspacing=&quot;0&quot; cellpadding=&quot;0&quot; style=&quot;margin:0 0 28px;&quot;&gt;
+&lt;tr&gt;&lt;td align=&quot;center&quot; style=&quot;text-align:center;&quot;&gt;
+&lt;table role=&quot;presentation&quot; cellspacing=&quot;0&quot; cellpadding=&quot;0&quot; align=&quot;center&quot; style=&quot;margin:0 auto;&quot;&gt;
+&lt;tr&gt;
+&lt;td align=&quot;center&quot; style=&quot;border-radius:12px;background:linear-gradient(135deg,${s.gold} 0%,${s.orange} 52%,${s.red} 100%);&quot;&gt;
+&lt;a href=&quot;${href}&quot; style=&quot;display:inline-block;padding:16px 36px;font-size:13px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:${s.ctaText};text-decoration:none;&quot;&gt;OPEN MATCH FIT&lt;/a&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+&lt;/td&gt;&lt;/tr&gt;
+&lt;/table&gt;
+&lt;p style=&quot;margin:0;font-size:13px;line-height:1.65;color:${s.textMuted};text-align:center;&quot;&gt;&lt;span style=&quot;font-weight:800;color:${s.textPrimary};letter-spacing:0.06em;&quot;&gt;DIRECT LINE:&lt;/span&gt; &lt;a href=&quot;mailto:support@match-fit.net&quot; style=&quot;color:${s.orange};text-decoration:none;font-weight:700;&quot;&gt;support@match-fit.net&lt;/a&gt;&lt;/p&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td align=&quot;center&quot; style=&quot;padding:22px 28px 28px;border-top:1px solid ${s.border};background-color:${s.bg};text-align:center;&quot;&gt;
+&lt;p style=&quot;margin:0;font-size:11px;line-height:1.7;color:${s.textMuted};text-align:center;&quot;&gt;© 2026 Northside Ventures Group LLC (DBA: Northside Intellegence).&lt;/p&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+&lt;/td&gt;&lt;/tr&gt;
+&lt;/table&gt;
+&lt;/body&gt;
+&lt;/html&gt;`;
+}
+
+function buildMvpWelcomeText(dashboardHref: string): string {
+  return [
+    &quot;WELCOME TO MATCH FIT&quot;,
+    &quot;&quot;,
+    &quot;PRIVATE COACHING MARKETPLACE&quot;,
+    &quot;&quot;,
+    &quot;Match Fit connects you with coaches who fit your goals and schedule—then keeps booking and messaging in one focused place.&quot;,
+    &quot;&quot;,
+    &quot;WHAT YOU CAN DO NEXT&quot;,
+    &quot;&quot;,
+    &quot;01 · Find coaches that align with your goals, availability, and how you like to train.&quot;,
+    &quot;02 · Book sessions and keep your plans organized in one straightforward place.&quot;,
+    &quot;03 · Message your coach and stay consistent with less friction.&quot;,
+    &quot;&quot;,
+    `OPEN MATCH FIT: ${dashboardHref}`,
+    &quot;&quot;,
+    &quot;DIRECT LINE: support@match-fit.net&quot;,
+    &quot;&quot;,
+    &quot;© 2026 Northside Ventures Group LLC (DBA: Northside Intellegence).&quot;,
+  ].join(&quot;\n&quot;);
+}
+
+/**
+ * Sends a branded welcome email from Match Fit &amp;lt;support@match-fit.net&amp;gt; via Resend (domain must be verified).
+ */
+export async function sendMatchFitWelcomeMvpPreviewEmail(): Promise&lt;void&gt; {
+  const key = process.env.RESEND_API_KEY?.trim();
+  if (!key) {
+    throw new Error(&quot;RESEND_API_KEY is not set.&quot;);
+  }
+
+  const to = MVP_WELCOME_TEST_RECIPIENT;
+  const openHref = appBaseUrl();
+  const dashboardHref = `${openHref}/client`;
+  const subject = &quot;Welcome to Match Fit&quot;;
+
+  const resend = new Resend(key);
+  const { error } = await resend.emails.send({
+    from: FROM_BRANDED,
+    to: [to],
+    subject,
+    html: buildMvpWelcomeHtml(dashboardHref),
+    text: buildMvpWelcomeText(dashboardHref),
+    replyTo: &quot;support@match-fit.net&quot;,
+  });
+
+  if (error) {
+    const msg =
+      typeof error === &quot;object&quot; &amp;&amp; error &amp;&amp; &quot;message&quot; in error &amp;&amp; typeof (error as { message: unknown }).message === &quot;string&quot;
+        ? (error as { message: string }).message
+        : &quot;Resend rejected the email.&quot;;
+    const sc =
+      typeof error === &quot;object&quot; &amp;&amp;
+      error &amp;&amp;
+      &quot;statusCode&quot; in error &amp;&amp;
+      typeof (error as { statusCode: unknown }).statusCode === &quot;number&quot;
+        ? (error as { statusCode: number }).statusCode
+        : 422;
+    throw new Error(`Resend HTTP ${sc}: ${msg}`);
+  }
+}</file><file path="docs/MATCH-FIT-SEND-WELCOME-CODE-FOR-ANALYSIS.md"># Match Fit — `/api/send-welcome` code bundle (for review / analysis)
+
+**Purpose:** Single downloadable document containing the Next.js API route and related modules that send the branded welcome email (Resend, `support@match-fit.net`).
+
+**How to download:** With the app running, open `http://localhost:3000/download-send-welcome-analysis` (or the same path on your deployed host) and click **Download .md file** — your browser saves `MATCH-FIT-SEND-WELCOME-CODE-FOR-ANALYSIS.md` locally. You can also right-click this file in the editor → **Reveal in Finder** (macOS), or print to PDF from a Markdown preview.
+
+**Runtime:** Requires `RESEND_API_KEY`. Optional `MATCHFIT_SEND_WELCOME_PREVIEW_SECRET` (production). `NEXT_PUBLIC_APP_URL` for absolute logo and CTA links.
+
+**Static asset:** Email HTML references `{appBaseUrl}/logo.png` (`public/logo.png`).
+
+---
+
+## 1. `src/app/api/send-welcome/route.ts`
+
+```typescript
+import {
+  MVP_WELCOME_TEST_RECIPIENT,
+  sendMatchFitWelcomeMvpPreviewEmail,
+} from &quot;@/lib/match-fit-welcome-mvp-preview-email&quot;;
+import { publicApiErrorFromUnknown } from &quot;@/lib/public-api-error&quot;;
+import { NextResponse } from &quot;next/server&quot;;
+
+export const dynamic = &quot;force-dynamic&quot;;
+
+function isSendWelcomeAllowed(req: Request): boolean {
+  if (process.env.NODE_ENV === &quot;development&quot;) {
+    return true;
+  }
+  const secret = process.env.MATCHFIT_SEND_WELCOME_PREVIEW_SECRET?.trim();
+  if (!secret || secret.length &lt; 16) {
+    return false;
+  }
+  const auth = req.headers.get(&quot;authorization&quot;)?.trim();
+  const bearer = auth?.toLowerCase().startsWith(&quot;bearer &quot;) ? auth.slice(7).trim() : null;
+  return bearer === secret;
+}
+
+/**
+ * POST — sends a branded welcome email from support@match-fit.net (Resend).
+ * Recipient is the configured internal inbox. Local: no auth. Production: set MATCHFIT_SEND_WELCOME_PREVIEW_SECRET and send Authorization: Bearer &lt;secret&gt;.
+ */
+export async function POST(req: Request) {
+  try {
+    if (!isSendWelcomeAllowed(req)) {
+      return NextResponse.json({ error: &quot;Not found.&quot; }, { status: 404 });
+    }
+
+    await sendMatchFitWelcomeMvpPreviewEmail();
+
+    return NextResponse.json({
+      ok: true,
+      to: MVP_WELCOME_TEST_RECIPIENT,
+      message: &quot;Welcome email sent.&quot;,
+    });
+  } catch (e) {
+    const { message, status } = publicApiErrorFromUnknown(e, &quot;Could not send welcome email.&quot;, {
+      logLabel: &quot;[Match Fit send-welcome]&quot;,
+    });
+    return NextResponse.json({ error: message }, { status });
+  }
+}
+```
+
+---
+
+## 2. `src/lib/match-fit-welcome-mvp-preview-email.ts`
+
+```typescript
+import { Resend } from &quot;resend&quot;;
+import { MF_EMAIL_SITE, matchFitEmailLogoUrl } from &quot;@/lib/match-fit-email-brand&quot;;
+import { RESEND_DEV_INBOX } from &quot;@/lib/resend-client&quot;;
+
+const FROM_BRANDED = &quot;Match Fit &lt;support@match-fit.net&gt;&quot;;
+
+/** Default recipient for internal welcome / Resend checks (see {@link RESEND_DEV_INBOX}). */
+export const MVP_WELCOME_TEST_RECIPIENT = RESEND_DEV_INBOX;
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&amp;/g, &quot;&amp;amp;&quot;)
+    .replace(/&lt;/g, &quot;&amp;lt;&quot;)
+    .replace(/&gt;/g, &quot;&amp;gt;&quot;)
+    .replace(/&quot;/g, &quot;&amp;quot;&quot;);
+}
+
+function appBaseUrl(): string {
+  const u = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, &quot;&quot;);
+  if (u) return u;
+  return &quot;https://match-fit.net&quot;;
+}
+
+function buildMvpWelcomeHtml(dashboardHref: string): string {
+  const href = escapeHtml(dashboardHref);
+  const logoUrl = escapeHtml(matchFitEmailLogoUrl(appBaseUrl()));
+  const s = MF_EMAIL_SITE;
+  return `&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;/&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1&quot;/&gt;
+&lt;meta name=&quot;color-scheme&quot; content=&quot;dark&quot;/&gt;
+&lt;meta name=&quot;supported-color-schemes&quot; content=&quot;dark&quot;/&gt;
+&lt;title&gt;Welcome — Match Fit&lt;/title&gt;
+&lt;/head&gt;
+&lt;body style=&quot;margin:0;padding:0;background-color:${s.bg};font-family:ui-sans-serif,system-ui,-apple-system,&apos;Segoe UI&apos;,Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased;&quot;&gt;
+&lt;span style=&quot;display:none!important;visibility:hidden;mso-hide:all;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;&quot;&gt;Your Match Fit account is ready — open the app to connect with coaches and manage your training.&lt;/span&gt;
+&lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellspacing=&quot;0&quot; cellpadding=&quot;0&quot; style=&quot;background-color:${s.bg};background-image:${s.outerBgGradient};padding:48px 16px 56px;&quot;&gt;
+&lt;tr&gt;&lt;td align=&quot;center&quot;&gt;
+&lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellspacing=&quot;0&quot; cellpadding=&quot;0&quot; style=&quot;max-width:600px;border-radius:16px;overflow:hidden;border:1px solid ${s.border};background-color:${s.panel};box-shadow:0 24px 60px rgba(0,0,0,0.45);&quot;&gt;
+&lt;tr&gt;
+&lt;td align=&quot;center&quot; style=&quot;padding:0;margin:0;background-color:${s.panel};background-image:linear-gradient(180deg,#1a1410 0%,${s.panel} 45%,${s.panel} 100%);border-bottom:1px solid ${s.border};&quot;&gt;
+&lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellspacing=&quot;0&quot; cellpadding=&quot;0&quot;&gt;
+&lt;tr&gt;
+&lt;td align=&quot;center&quot; style=&quot;padding:40px 28px 32px;text-align:center;&quot;&gt;
+&lt;table role=&quot;presentation&quot; cellspacing=&quot;0&quot; cellpadding=&quot;0&quot; style=&quot;margin:0 auto 20px;&quot;&gt;
+&lt;tr&gt;&lt;td align=&quot;center&quot; style=&quot;text-align:center;&quot;&gt;
+&lt;img src=&quot;${logoUrl}&quot; alt=&quot;Match Fit&quot; width=&quot;200&quot; style=&quot;display:block;margin:0 auto;border:0;outline:none;text-decoration:none;max-width:200px;height:auto;&quot;/&gt;
+&lt;/td&gt;&lt;/tr&gt;
+&lt;/table&gt;
+&lt;p style=&quot;margin:0 0 14px;font-size:11px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:${s.orange};text-align:center;&quot;&gt;THE PERFECT MATCH FOR YOUR FITNESS JOURNEY&lt;/p&gt;
+&lt;p style=&quot;margin:0 0 28px;font-size:12px;font-weight:700;letter-spacing:0.28em;text-transform:uppercase;color:${s.textMuted};text-align:center;&quot;&gt;PRIVATE COACHING MARKETPLACE&lt;/p&gt;
+&lt;h1 style=&quot;margin:0;font-size:30px;line-height:1.15;font-weight:800;color:${s.textPrimary};letter-spacing:0.06em;text-align:center;text-transform:uppercase;&quot;&gt;WELCOME TO MATCH FIT&lt;/h1&gt;
+&lt;p style=&quot;margin:18px auto 0;max-width:480px;font-size:16px;line-height:1.65;font-weight:400;color:${s.textMuted};text-align:center;&quot;&gt;Match Fit connects you with coaches who fit your goals and schedule—then keeps booking and messaging in one focused place.&lt;/p&gt;
+&lt;div style=&quot;margin:26px auto 0;height:3px;width:100%;max-width:240px;border-radius:999px;background:linear-gradient(90deg,${s.gold},${s.orange},${s.red});&quot;&gt;&lt;/div&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td align=&quot;center&quot; style=&quot;padding:32px 28px 36px;text-align:center;background-color:${s.panel};&quot;&gt;
+&lt;p style=&quot;margin:0 auto 20px;max-width:480px;font-size:15px;line-height:1.7;color:${s.textMuted};text-align:center;&quot;&gt;Whether you are just getting started or leveling up, you have a clear home base for finding the right coach and staying on track week to week.&lt;/p&gt;
+&lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellspacing=&quot;0&quot; cellpadding=&quot;0&quot; style=&quot;margin:24px 0;border:1px solid ${s.border};background-color:${s.bg};border-radius:12px;&quot;&gt;
+&lt;tr&gt;&lt;td align=&quot;center&quot; style=&quot;padding:22px 20px;text-align:center;&quot;&gt;
+&lt;p style=&quot;margin:0 0 16px;font-size:11px;font-weight:800;letter-spacing:0.22em;text-transform:uppercase;color:${s.orange};text-align:center;&quot;&gt;WHAT YOU CAN DO NEXT&lt;/p&gt;
+&lt;p style=&quot;margin:0 0 12px;font-size:15px;line-height:1.65;color:${s.textPrimary};text-align:center;&quot;&gt;&lt;span style=&quot;color:${s.red};font-weight:800;&quot;&gt;01&lt;/span&gt; Find coaches that align with your goals, availability, and how you like to train.&lt;/p&gt;
+&lt;p style=&quot;margin:0 0 12px;font-size:15px;line-height:1.65;color:${s.textPrimary};text-align:center;&quot;&gt;&lt;span style=&quot;color:${s.red};font-weight:800;&quot;&gt;02&lt;/span&gt; Book sessions and keep your plans organized in one straightforward place.&lt;/p&gt;
+&lt;p style=&quot;margin:0;font-size:15px;line-height:1.65;color:${s.textPrimary};text-align:center;&quot;&gt;&lt;span style=&quot;color:${s.red};font-weight:800;&quot;&gt;03&lt;/span&gt; Message your coach and stay consistent with less friction.&lt;/p&gt;
+&lt;/td&gt;&lt;/tr&gt;
+&lt;/table&gt;
+&lt;table role=&quot;presentation&quot; width=&quot;100%&quot; cellspacing=&quot;0&quot; cellpadding=&quot;0&quot; style=&quot;margin:0 0 28px;&quot;&gt;
+&lt;tr&gt;&lt;td align=&quot;center&quot; style=&quot;text-align:center;&quot;&gt;
+&lt;table role=&quot;presentation&quot; cellspacing=&quot;0&quot; cellpadding=&quot;0&quot; align=&quot;center&quot; style=&quot;margin:0 auto;&quot;&gt;
+&lt;tr&gt;
+&lt;td align=&quot;center&quot; style=&quot;border-radius:12px;background:linear-gradient(135deg,${s.gold} 0%,${s.orange} 52%,${s.red} 100%);&quot;&gt;
+&lt;a href=&quot;${href}&quot; style=&quot;display:inline-block;padding:16px 36px;font-size:13px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:${s.ctaText};text-decoration:none;&quot;&gt;OPEN MATCH FIT&lt;/a&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+&lt;/td&gt;&lt;/tr&gt;
+&lt;/table&gt;
+&lt;p style=&quot;margin:0;font-size:13px;line-height:1.65;color:${s.textMuted};text-align:center;&quot;&gt;&lt;span style=&quot;font-weight:800;color:${s.textPrimary};letter-spacing:0.06em;&quot;&gt;DIRECT LINE:&lt;/span&gt; &lt;a href=&quot;mailto:support@match-fit.net&quot; style=&quot;color:${s.orange};text-decoration:none;font-weight:700;&quot;&gt;support@match-fit.net&lt;/a&gt;&lt;/p&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td align=&quot;center&quot; style=&quot;padding:22px 28px 28px;border-top:1px solid ${s.border};background-color:${s.bg};text-align:center;&quot;&gt;
+&lt;p style=&quot;margin:0;font-size:11px;line-height:1.7;color:${s.textMuted};text-align:center;&quot;&gt;© 2026 Northside Ventures Group LLC (DBA: Northside Intellegence).&lt;/p&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+&lt;/td&gt;&lt;/tr&gt;
+&lt;/table&gt;
+&lt;/body&gt;
+&lt;/html&gt;`;
+}
+
+function buildMvpWelcomeText(dashboardHref: string): string {
+  return [
+    &quot;WELCOME TO MATCH FIT&quot;,
+    &quot;&quot;,
+    &quot;PRIVATE COACHING MARKETPLACE&quot;,
+    &quot;&quot;,
+    &quot;Match Fit connects you with coaches who fit your goals and schedule—then keeps booking and messaging in one focused place.&quot;,
+    &quot;&quot;,
+    &quot;WHAT YOU CAN DO NEXT&quot;,
+    &quot;&quot;,
+    &quot;01 · Find coaches that align with your goals, availability, and how you like to train.&quot;,
+    &quot;02 · Book sessions and keep your plans organized in one straightforward place.&quot;,
+    &quot;03 · Message your coach and stay consistent with less friction.&quot;,
+    &quot;&quot;,
+    `OPEN MATCH FIT: ${dashboardHref}`,
+    &quot;&quot;,
+    &quot;DIRECT LINE: support@match-fit.net&quot;,
+    &quot;&quot;,
+    &quot;© 2026 Northside Ventures Group LLC (DBA: Northside Intellegence).&quot;,
+  ].join(&quot;\n&quot;);
+}
+
+/**
+ * Sends a branded welcome email from Match Fit &amp;lt;support@match-fit.net&amp;gt; via Resend (domain must be verified).
+ */
+export async function sendMatchFitWelcomeMvpPreviewEmail(): Promise&lt;void&gt; {
+  const key = process.env.RESEND_API_KEY?.trim();
+  if (!key) {
+    throw new Error(&quot;RESEND_API_KEY is not set.&quot;);
+  }
+
+  const to = MVP_WELCOME_TEST_RECIPIENT;
+  const openHref = appBaseUrl();
+  const dashboardHref = `${openHref}/client`;
+  const subject = &quot;Welcome to Match Fit&quot;;
+
+  const resend = new Resend(key);
+  const { error } = await resend.emails.send({
+    from: FROM_BRANDED,
+    to: [to],
+    subject,
+    html: buildMvpWelcomeHtml(dashboardHref),
+    text: buildMvpWelcomeText(dashboardHref),
+    replyTo: &quot;support@match-fit.net&quot;,
+  });
+
+  if (error) {
+    const msg =
+      typeof error === &quot;object&quot; &amp;&amp; error &amp;&amp; &quot;message&quot; in error &amp;&amp; typeof (error as { message: unknown }).message === &quot;string&quot;
+        ? (error as { message: string }).message
+        : &quot;Resend rejected the email.&quot;;
+    const sc =
+      typeof error === &quot;object&quot; &amp;&amp;
+      error &amp;&amp;
+      &quot;statusCode&quot; in error &amp;&amp;
+      typeof (error as { statusCode: unknown }).statusCode === &quot;number&quot;
+        ? (error as { statusCode: number }).statusCode
+        : 422;
+    throw new Error(`Resend HTTP ${sc}: ${msg}`);
+  }
+}
+```
+
+---
+
+## 3. `src/lib/match-fit-email-brand.ts`
+
+```typescript
+/**
+ * Match Fit transactional email palette — aligned with `public/logo.png`
+ * (navy wordmark, red “Fit”, warm orange / olive in the mark).
+ */
+export const MF_EMAIL_BRAND = {
+  navy: &quot;#333F48&quot;,
+  navyDeep: &quot;#1c2430&quot;,
+  navyHeader: &quot;#252f38&quot;,
+  red: &quot;#E63946&quot;,
+  redDark: &quot;#c62f3a&quot;,
+  orange: &quot;#F4A261&quot;,
+  orangeMid: &quot;#F2994A&quot;,
+  olive: &quot;#606C38&quot;,
+  cream: &quot;#FDF8F3&quot;,
+  mutedOnDark: &quot;#b8c0c8&quot;,
+  borderDark: &quot;#2a3540&quot;,
+} as const;
+
+export function matchFitEmailLogoUrl(baseUrl: string): string {
+  return `${baseUrl.replace(/\/$/, &quot;&quot;)}/logo.png`;
+}
+
+/**
+ * Homepage / app UI — dark canvas, gold → orange → red accents (`src/app/page.tsx`, auth shells).
+ * Use for transactional HTML that should match the live product.
+ */
+export const MF_EMAIL_SITE = {
+  bg: &quot;#0B0C0F&quot;,
+  panel: &quot;#0E1016&quot;,
+  gold: &quot;#FFD34E&quot;,
+  orange: &quot;#FF7E00&quot;,
+  red: &quot;#E32B2B&quot;,
+  textPrimary: &quot;#F4F6FA&quot;,
+  textMatch: &quot;#E8EAEF&quot;,
+  textMuted: &quot;#9CA3AF&quot;,
+  border: &quot;#262a33&quot;,
+  /** Dark burnt-orange into site canvas */
+  outerBgGradient:
+    &quot;linear-gradient(180deg,#5c3014 0%,#3d1f0c 22%,#241308 48%,#120a05 72%,#0B0C0F 100%)&quot;,
+  ctaText: &quot;#0B0C0F&quot;,
+} as const;
+```
+
+---
+
+## 4. `src/lib/resend-client.ts` (full — shared Resend helpers; welcome uses `RESEND_DEV_INBOX`)
+
+```typescript
+/**
+ * Resend HTTP API helpers. OTP and system mail use Resend&apos;s onboarding sender unless you
+ * verify a custom domain and change this module.
+ */
+
+/** Required sender for unverified domains on Resend free tier. */
+export const RESEND_ONBOARDING_FROM = &quot;onboarding@resend.dev&quot;;
+
+/**
+ * Hard-coded development inbox. In `NODE_ENV === &quot;development&quot;`, all outbound Resend email
+ * is forced To this address so Resend never rejects unverified recipients; the real
+ * intended address is prefixed in the message body.
+ */
+export const RESEND_DEV_INBOX = &quot;northside.ventures.llc@gmail.com&quot;;
+
+function normalizeEmail(s: string): string {
+  return s.trim().toLowerCase();
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&amp;/g, &quot;&amp;amp;&quot;)
+    .replace(/&lt;/g, &quot;&amp;lt;&quot;)
+    .replace(/&gt;/g, &quot;&amp;gt;&quot;)
+    .replace(/&quot;/g, &quot;&amp;quot;&quot;);
+}
+
+/**
+ * Sends one transactional email via Resend.
+ *
+ * Development safety (NODE_ENV === &quot;development&quot; only):
+ * - `from` is always {@link RESEND_ONBOARDING_FROM}
+ * - `to` is always {@link RESEND_DEV_INBOX} unless it already equals that inbox
+ * - If redirected, the body is prefixed with the intended recipient
+ */
+export async function sendResendEmail(params: {
+  subject: string;
+  text: string;
+  to: string;
+  /** Ignored in development (always onboarding sender). */
+  from?: string;
+  html?: string;
+  replyTo?: string;
+}): Promise&lt;string | undefined&gt; {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) {
+    throw new Error(&quot;RESEND_API_KEY is not set.&quot;);
+  }
+
+  let to = params.to.trim();
+  let text = params.text;
+  let html = params.html;
+  let from = (params.from ?? RESEND_ONBOARDING_FROM).trim();
+
+  if (process.env.NODE_ENV === &quot;development&quot;) {
+    from = RESEND_ONBOARDING_FROM;
+    const devInbox = normalizeEmail(RESEND_DEV_INBOX);
+    const intended = normalizeEmail(to);
+    if (intended !== devInbox) {
+      text = `Development safety — intended recipient: ${params.to.trim()}\n\n${text}`;
+      if (html) {
+        html = `&lt;p&gt;&lt;strong&gt;Development safety — intended recipient:&lt;/strong&gt; ${escapeHtml(params.to.trim())}&lt;/p&gt;${html}`;
+      }
+      to = RESEND_DEV_INBOX;
+    }
+  }
+
+  const payload: Record&lt;string, unknown&gt; = {
+    from,
+    to,
+    subject: params.subject,
+    text,
+  };
+  if (html) {
+    payload.html = html;
+  }
+  if (params.replyTo?.trim()) {
+    payload.reply_to = params.replyTo.trim();
+  }
+
+  const res = await fetch(&quot;https://api.resend.com/emails&quot;, {
+    method: &quot;POST&quot;,
+    headers: {
+      Authorization: `Bearer ${key}`,
+      &quot;Content-Type&quot;: &quot;application/json&quot;,
+    },
+    body: JSON.stringify(payload),
+  });
+  const raw = await res.text();
+  if (!res.ok) {
+    throw new Error(`Resend HTTP ${res.status}: ${raw}`);
+  }
+  try {
+    const parsed = JSON.parse(raw) as { id?: string };
+    return typeof parsed.id === &quot;string&quot; ? parsed.id : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Map `Resend HTTP …` errors from {@link sendResendEmail} to an HTTP status for API routes. */
+export function httpStatusFromResendError(message: string): number {
+  const m = message.match(/Resend HTTP (\d+)/);
+  if (!m) return 500;
+  const code = Number(m[1]);
+  if (code === 401 || code === 403) return 403;
+  if (code === 422) return 422;
+  if (code &gt;= 400 &amp;&amp; code &lt; 500) return code;
+  return 500;
+}
+```
+
+---
+
+## 5. Related (error mapping only)
+
+The route imports `publicApiErrorFromUnknown` from `src/lib/public-api-error.ts`, which maps Resend-style errors to HTTP status codes via `httpStatusFromResendError`. Open that file in the repo if you need the full implementation.
+
+---
+
+*This bundle mirrors the repository as a convenience copy; the canonical source of truth remains the `.ts` files under `src/`.*</file></files></repomix>
