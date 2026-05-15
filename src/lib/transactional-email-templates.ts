@@ -73,6 +73,11 @@ export function buildTransactionalEmail(
   const reservedUsername = c(ctx.reservedUsername, "coachalex");
   const slotExpiresLabel = c(ctx.slotExpiresLabel, "June 13, 2026");
   const supportUrl = c(ctx.supportUrl, `${appBaseUrlForEmailSample()}/`);
+  const coachName = c(ctx.coachName, "Coach Jordan");
+  const sessionStartLabel = c(ctx.startLabel, "Mon, Jun 2, 3:00 PM");
+  const sessionDelivery = c(ctx.sessionDelivery, "IN_PERSON");
+  const videoPlatform = c(ctx.videoPlatform, "Google Meet");
+  const messagesThreadUrl = c(ctx.messagesThreadUrl, `${appBaseUrlForEmailSample()}/client/dashboard/messages/coachjordan`);
 
   switch (kind) {
     case "CLIENT_WELCOME": {
@@ -424,6 +429,37 @@ export function buildTransactionalEmail(
       });
       return finalizeTransactional(subject, text, html);
     }
+    case "BOOKING_SESSION_CONFIRMED": {
+      const isVirtual = sessionDelivery === "VIRTUAL";
+      const subject = "Your Match Fit session is confirmed";
+      const joinLine = isVirtual && joinUrl.trim().length > 0 ? `Join link (${videoPlatform}): ${joinUrl}` : null;
+      const text = [
+        `Hi ${firstName},`,
+        "",
+        `Your session with ${coachName} is confirmed for ${sessionStartLabel}.`,
+        isVirtual
+          ? joinLine ?? `This is a virtual session on ${videoPlatform}. Open Match Fit for your join link when it is time.`
+          : "This session is in person. Message your coach in Match Fit if you need to coordinate details.",
+        "",
+        `Messages: ${messagesThreadUrl}`,
+        "",
+        "— Match Fit",
+      ].join("\n");
+      const virtualBody = joinLine
+        ? `Join on <strong style="color:${s.textPrimary};">${escapeHtmlEmail(videoPlatform)}</strong> using your link below.`
+        : `This is a virtual session on <strong style="color:${s.textPrimary};">${escapeHtmlEmail(videoPlatform)}</strong>. Open Match Fit when it is time for your join link.`;
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: `Confirmed with ${coachName}.`,
+        title: "Session confirmed",
+        bodyHtml: bodyParagraphs([
+          `Hi <strong style="color:${s.textPrimary};">${escapeHtmlEmail(firstName)}</strong> — your session with <strong style="color:${s.textPrimary};">${escapeHtmlEmail(coachName)}</strong> is set for <strong style="color:${s.textPrimary};">${escapeHtmlEmail(sessionStartLabel)}</strong>.`,
+          isVirtual ? virtualBody : "This session is in person. Use messages if you need to coordinate arrival or parking.",
+        ]),
+        ctaHref: isVirtual && joinUrl.trim().length > 0 ? joinUrl : messagesThreadUrl,
+        ctaLabel: isVirtual && joinUrl.trim().length > 0 ? "Join session" : "Open messages",
+      });
+      return finalizeTransactional(subject, text, html);
+    }
     case "POLICY_UPDATE": {
       const subject = `Policy update: ${policyName}`;
       const text = `Match Fit posted an update to ${policyName}.\n\nReview it here: ${c(ctx.policyUrl, "https://match-fit.net/terms")}`;
@@ -497,6 +533,11 @@ export function sampleContextForTransactionalEmail(kind: TransactionalEmailKind)
     reservedUsername: "coachalex",
     slotExpiresLabel: "June 13, 2026",
     supportUrl: `${appBaseUrlForEmailSample()}/`,
+    coachName: "Coach Jordan",
+    startLabel: "Mon, Jun 2, 3:00 PM",
+    sessionDelivery: "VIRTUAL",
+    videoPlatform: "Google Meet",
+    messagesThreadUrl: `${appBaseUrlForEmailSample()}/client/dashboard/messages/coachjordan`,
   };
   return base;
 }
