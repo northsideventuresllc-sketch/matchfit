@@ -26,6 +26,8 @@ export type TosCronSummary = {
   diyRefundAlerts: number;
   trainerPunchMissesProcessed: number;
   diyExtensionsAutoApproved: number;
+  videoOAuthTokensRefreshed: number;
+  videoOAuthTokenRefreshErrors: number;
   betaTrainerInvitesExpired: number;
   betaClientInvitesExpired: number;
   betaTrainerInvitesSent: number;
@@ -177,6 +179,8 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   const diyRefundAlerts = await diyMissedDeliveries();
   let trainerPunchMissesProcessed = 0;
   let diyExtensionsAutoApproved = 0;
+  let videoOAuthTokensRefreshed = 0;
+  let videoOAuthTokenRefreshErrors = 0;
   let betaTrainerInvitesExpired = 0;
   let betaClientInvitesExpired = 0;
   let betaTrainerInvitesSent = 0;
@@ -190,6 +194,13 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     diyExtensionsAutoApproved = await processDiyExtensionAutoApprovals();
   } catch (e) {
     console.error("[tos cron] diy extension auto approvals", e);
+  }
+  try {
+    const v = await refreshTrainerVideoOAuthTokensNearExpiry();
+    videoOAuthTokensRefreshed = v.refreshed;
+    videoOAuthTokenRefreshErrors = v.errors;
+  } catch (e) {
+    console.error("[tos cron] video oauth refresh", e);
   }
   try {
     const b = await runBetaWaitlistCronJobs();
@@ -212,6 +223,8 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     diyRefundAlerts,
     trainerPunchMissesProcessed,
     diyExtensionsAutoApproved,
+    videoOAuthTokensRefreshed,
+    videoOAuthTokenRefreshErrors,
     betaTrainerInvitesExpired,
     betaClientInvitesExpired,
     betaTrainerInvitesSent,
