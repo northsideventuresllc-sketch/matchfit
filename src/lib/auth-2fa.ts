@@ -26,8 +26,6 @@ import {
 import { getTrainerLoginOtpDelivery } from "@/lib/trainer-login-two-factor-target";
 import { verifyTurnstileToken } from "@/lib/turnstile-verify";
 
-export { generateSixDigitNumericString, send2FACode } from "@/lib/auth-2fa-email";
-
 const MAX_ATTEMPTS = 3;
 
 export type Resend2FAResult = { ok: true } | { ok: false; error: string; waitSeconds?: number };

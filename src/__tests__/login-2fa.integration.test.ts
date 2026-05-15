@@ -62,7 +62,7 @@ import { POST as complete2faPost } from "@/app/api/client/login/complete-2fa/rou
 import { POST as resend2faPost } from "@/app/api/client/login/resend-2fa/route";
 import { clearTestCookieJar, testCookieJar } from "@/test/next-cookie-jar";
 
-describe("login 2FA API", () => {
+describe.skipIf(!process.env.TEST_DATABASE_URL?.trim())("login 2FA API", () => {
   const passwordPlain = "TestPass1!X";
   const username = "twofa_tester";
   const email = "twofa_tester@example.test";

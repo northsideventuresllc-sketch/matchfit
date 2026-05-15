@@ -14,13 +14,32 @@ export async function findTrainerByIdentifier(identifier: string) {
 export async function isTrainerUsernameTaken(username: string): Promise<boolean> {
   const u = username.trim();
   const existing = await prisma.trainer.findFirst({ where: { username: u, deidentifiedAt: null } });
-  return Boolean(existing);
+  if (existing) return true;
+  const now = new Date();
+  const reserved = await prisma.betaTrainerWaitlistEntry.findFirst({
+    where: {
+      desiredUsername: u,
+      status: "INVITED",
+      slotExpiresAt: { gt: now },
+    },
+    select: { id: true },
+  });
+  return Boolean(reserved);
 }
 
 export async function isTrainerEmailTaken(email: string): Promise<boolean> {
   const e = email.trim().toLowerCase();
   const existing = await prisma.trainer.findFirst({ where: { email: e, deidentifiedAt: null } });
-  return Boolean(existing);
+  if (existing) return true;
+  const wl = await prisma.betaTrainerWaitlistEntry.findFirst({
+    where: {
+      email: e,
+      status: "INVITED",
+      slotExpiresAt: { gt: new Date() },
+    },
+    select: { id: true },
+  });
+  return Boolean(wl);
 }
 
 /** True if another trainer account already uses this username. */
@@ -29,5 +48,15 @@ export async function isTrainerUsernameTakenByAnother(username: string, excludeT
   const other = await prisma.trainer.findFirst({
     where: { username: u, deidentifiedAt: null, NOT: { id: excludeTrainerId } },
   });
-  return Boolean(other);
+  if (other) return true;
+  const now = new Date();
+  const reserved = await prisma.betaTrainerWaitlistEntry.findFirst({
+    where: {
+      desiredUsername: u,
+      status: "INVITED",
+      slotExpiresAt: { gt: now },
+    },
+    select: { id: true },
+  });
+  return Boolean(reserved);
 }

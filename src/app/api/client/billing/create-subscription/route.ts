@@ -19,8 +19,6 @@ function getAppOrigin(req: Request): string {
 }
 
 export async function POST(req: Request) {
-  console.log("Stripe Key Loaded:", !!process.env.STRIPE_SECRET_KEY);
-
   try {
     await purgeExpiredRegistrationHolds();
 

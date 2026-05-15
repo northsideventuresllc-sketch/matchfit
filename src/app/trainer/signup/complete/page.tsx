@@ -60,6 +60,8 @@ export default function TrainerSignupCompletePage() {
             password: draft.password,
             agreedToTerms: draft.agreedToTerms,
             stayLoggedIn: draft.stayLoggedIn,
+            serviceZipCode: draft.serviceZipCode?.trim() ?? "",
+            ...(draft.betaInviteToken ? { betaInviteToken: draft.betaInviteToken } : {}),
           }),
         });
         const data = (await res.json()) as { error?: string; next?: string };
@@ -122,6 +124,8 @@ export default function TrainerSignupCompletePage() {
           password: draft.password,
           agreedToTerms: draft.agreedToTerms,
           stayLoggedIn: draft.stayLoggedIn,
+          serviceZipCode: draft.serviceZipCode?.trim() ?? "",
+          ...(draft.betaInviteToken ? { betaInviteToken: draft.betaInviteToken } : {}),
           turnstileToken,
         }),
       });

@@ -67,6 +67,11 @@ export function buildTransactionalEmail(
   const deviceLine = c(ctx.deviceLine, "Chrome on Windows");
   const loginTime = c(ctx.loginTime, new Date().toISOString());
   const policyName = c(ctx.policyName, "Terms of Service");
+  const queuePosition = c(ctx.queuePosition, "3");
+  const joinUrl = c(ctx.joinUrl, `${appBaseUrlForEmailSample()}/trainer/sign-up?betaInvite=sample`);
+  const reservedUsername = c(ctx.reservedUsername, "coachalex");
+  const slotExpiresLabel = c(ctx.slotExpiresLabel, "June 13, 2026");
+  const supportUrl = c(ctx.supportUrl, `${appBaseUrlForEmailSample()}/`);
 
   switch (kind) {
     case "CLIENT_WELCOME": {
@@ -360,6 +365,64 @@ export function buildTransactionalEmail(
       });
       return finalizeTransactional(subject, text, html);
     }
+    case "BETA_WAITLIST_TRAINER_CONFIRM": {
+      const subject = "You are on the Match Fit trainer waitlist";
+      const text = `Hi ${firstName},\n\nThanks — you are on the Match Fit Atlanta beta trainer waitlist (approx. position ${queuePosition}). We will email you when a coach slot opens.\n\n${supportUrl}\n\n— Match Fit`;
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: "Trainer waitlist confirmed.",
+        title: "You are on the list",
+        bodyHtml: bodyParagraphs([
+          `Hi <strong style="color:${s.textPrimary};">${escapeHtmlEmail(firstName)}</strong> — you are confirmed on the <strong style="color:${s.textPrimary};">trainer waitlist</strong> for the Atlanta beta.`,
+          `Approximate position: <strong style="color:${s.textPrimary};">${escapeHtmlEmail(queuePosition)}</strong> (this can move as invites go out).`,
+          "We will email you again when a slot opens and your reserved username can be claimed.",
+        ]),
+      });
+      return finalizeTransactional(subject, text, html);
+    }
+    case "BETA_WAITLIST_CLIENT_CONFIRM": {
+      const subject = "You are on the Match Fit client waitlist";
+      const text = `Hi ${firstName},\n\nThanks — you are on the Match Fit Atlanta beta client waitlist (approx. position ${queuePosition}). We will email you when a membership slot opens.\n\n${supportUrl}\n\n— Match Fit`;
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: "Client waitlist confirmed.",
+        title: "You are on the list",
+        bodyHtml: bodyParagraphs([
+          `Hi <strong style="color:${s.textPrimary};">${escapeHtmlEmail(firstName)}</strong> — you are confirmed on the <strong style="color:${s.textPrimary};">client waitlist</strong> for the Atlanta beta.`,
+          `Approximate position: <strong style="color:${s.textPrimary};">${escapeHtmlEmail(queuePosition)}</strong> (this can move as invites go out).`,
+          "We will email you again when a slot opens so you can finish signup.",
+        ]),
+      });
+      return finalizeTransactional(subject, text, html);
+    }
+    case "BETA_WAITLIST_TRAINER_INVITE": {
+      const subject = "A Match Fit coach slot is ready for you";
+      const text = `Hi ${firstName},\n\nA trainer slot is open. Complete signup before ${slotExpiresLabel} using this link (username ${reservedUsername} is reserved for you):\n${joinUrl}\n\n— Match Fit`;
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: "Your coach slot is reserved.",
+        title: "You are invited to join",
+        bodyHtml: bodyParagraphs([
+          `Hi <strong style="color:${s.textPrimary};">${escapeHtmlEmail(firstName)}</strong> — a trainer slot opened for the Atlanta beta.`,
+          `Reserved username: <strong style="color:${s.textPrimary};">${escapeHtmlEmail(reservedUsername)}</strong>. Complete signup before <strong style="color:${s.textPrimary};">${escapeHtmlEmail(slotExpiresLabel)}</strong> or the slot may pass to the next person in line.`,
+        ]),
+        ctaHref: joinUrl,
+        ctaLabel: "Complete trainer signup",
+      });
+      return finalizeTransactional(subject, text, html);
+    }
+    case "BETA_WAITLIST_CLIENT_INVITE": {
+      const subject = "A Match Fit client slot is ready for you";
+      const text = `Hi ${firstName},\n\nA client membership slot is open. Complete signup before ${slotExpiresLabel} using this link (username ${reservedUsername} is reserved for you):\n${joinUrl}\n\n— Match Fit`;
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: "Your membership slot is reserved.",
+        title: "You are invited to join",
+        bodyHtml: bodyParagraphs([
+          `Hi <strong style="color:${s.textPrimary};">${escapeHtmlEmail(firstName)}</strong> — a client slot opened for the Atlanta beta.`,
+          `Reserved username: <strong style="color:${s.textPrimary};">${escapeHtmlEmail(reservedUsername)}</strong>. Complete signup before <strong style="color:${s.textPrimary};">${escapeHtmlEmail(slotExpiresLabel)}</strong> or the slot may pass to the next person in line.`,
+        ]),
+        ctaHref: joinUrl,
+        ctaLabel: "Complete client signup",
+      });
+      return finalizeTransactional(subject, text, html);
+    }
     case "POLICY_UPDATE": {
       const subject = `Policy update: ${policyName}`;
       const text = `Match Fit posted an update to ${policyName}.\n\nReview it here: ${c(ctx.policyUrl, "https://match-fit.net/terms")}`;
@@ -428,6 +491,11 @@ export function sampleContextForTransactionalEmail(kind: TransactionalEmailKind)
     referenceId: "svc_tx_sample",
     w9Summary: "Legal name: Alex Coach · TIN on file · Address on file (see dashboard for full W-9).",
     interestsUrl: `${appBaseUrlForEmailSample()}/trainer/dashboard/interests`,
+    queuePosition: "3",
+    joinUrl: `${appBaseUrlForEmailSample()}/trainer/sign-up?betaInvite=sampletoken`,
+    reservedUsername: "coachalex",
+    slotExpiresLabel: "June 13, 2026",
+    supportUrl: `${appBaseUrlForEmailSample()}/`,
   };
   return base;
 }

@@ -11,6 +11,7 @@ import {
   backgroundCheckExpiresAt,
   shouldSendBackgroundCheckExpiryWarning,
 } from "@/lib/trainer-background-check-renewal";
+import { runBetaWaitlistCronJobs } from "@/lib/beta-waitlist-service";
 
 export type TosCronSummary = {
   backgroundCheckWarningsSent: number;
@@ -24,6 +25,10 @@ export type TosCronSummary = {
   diyRefundAlerts: number;
   trainerPunchMissesProcessed: number;
   diyExtensionsAutoApproved: number;
+  betaTrainerInvitesExpired: number;
+  betaClientInvitesExpired: number;
+  betaTrainerInvitesSent: number;
+  betaClientInvitesSent: number;
 };
 
 async function backfillApprovedBackgroundCheckTimestamps(): Promise<number> {
@@ -171,6 +176,10 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   const diyRefundAlerts = await diyMissedDeliveries();
   let trainerPunchMissesProcessed = 0;
   let diyExtensionsAutoApproved = 0;
+  let betaTrainerInvitesExpired = 0;
+  let betaClientInvitesExpired = 0;
+  let betaTrainerInvitesSent = 0;
+  let betaClientInvitesSent = 0;
   try {
     trainerPunchMissesProcessed = await processTrainerSessionPunchMisses();
   } catch (e) {
@@ -180,6 +189,15 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     diyExtensionsAutoApproved = await processDiyExtensionAutoApprovals();
   } catch (e) {
     console.error("[tos cron] diy extension auto approvals", e);
+  }
+  try {
+    const b = await runBetaWaitlistCronJobs();
+    betaTrainerInvitesExpired = b.trainerInvitesExpired;
+    betaClientInvitesExpired = b.clientInvitesExpired;
+    betaTrainerInvitesSent = b.trainerInvitesSent;
+    betaClientInvitesSent = b.clientInvitesSent;
+  } catch (e) {
+    console.error("[tos cron] beta waitlist", e);
   }
   return {
     backgroundCheckClearedBackfill: backfill,
@@ -193,5 +211,9 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     diyRefundAlerts,
     trainerPunchMissesProcessed,
     diyExtensionsAutoApproved,
+    betaTrainerInvitesExpired,
+    betaClientInvitesExpired,
+    betaTrainerInvitesSent,
+    betaClientInvitesSent,
   };
 }

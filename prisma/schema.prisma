@@ -288,6 +288,9 @@ model PendingClientRegistration {
   stripeCustomerId    String?
   stripeSubscriptionId String?
 
+  /// When set, completing checkout marks this beta client waitlist row as REGISTERED.
+  betaClientWaitlistEntryId String?
+
   @@index([email])
   @@index([username])
   @@map("pending_client_registrations")
@@ -1675,6 +1678,63 @@ model ClientTrainerTokenGift {
 
   @@index([clientId, trainerId, weekKey])
   @@map("client_trainer_token_gifts")
+  @@schema("public")
+}
+
+/// Atlanta beta — trainer waitlist when coach cap is reached.
+model BetaTrainerWaitlistEntry {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// QUEUED | INVITED | REGISTERED | EXPIRED | CANCELLED
+  status String @default("QUEUED")
+
+  firstName         String
+  lastName          String
+  email             String
+  phone             String
+  desiredUsername   String
+  /// Home / service ZIP (5 digits) used for metro eligibility.
+  serviceZipCode    String
+
+  inviteToken     String?   @unique
+  invitedAt       DateTime?
+  slotExpiresAt   DateTime?
+
+  registeredTrainerId String? @unique
+
+  @@index([status, createdAt])
+  @@index([email])
+  @@index([desiredUsername])
+  @@map("beta_trainer_waitlist_entries")
+  @@schema("public")
+}
+
+/// Atlanta beta — client waitlist when client cap is reached.
+model BetaClientWaitlistEntry {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  status String @default("QUEUED")
+
+  firstName       String
+  lastName        String
+  email           String
+  phone           String
+  desiredUsername String
+  homeZipCode     String
+
+  inviteToken          String?   @unique
+  invitedAt            DateTime?
+  slotExpiresAt        DateTime?
+  registeredClientId   String?   @unique
+
+  @@index([status, createdAt])
+  @@index([email])
+  @@index([desiredUsername])
+  @@map("beta_client_waitlist_entries")
   @@schema("public")
 }
 
