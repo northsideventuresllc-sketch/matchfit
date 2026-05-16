@@ -15,6 +15,8 @@ import {
 import { isTrainerPremiumStudioActive } from "@/lib/trainer-premium-studio";
 import { isClientHiddenFromTrainerDiscover } from "@/lib/user-block-queries";
 import { assertTrainerClientPayloadHasNoAddress } from "@/lib/trainer-safe-client-profile";
+import { isMatchFitInternalQaTrainerEmail } from "@/lib/match-fit-internal-qa";
+import { refreshInternalQaTrainerSimulationIfNeeded, processInternalQaDeferredOfficialChats } from "@/lib/internal-qa-simulation";
 import { NextResponse } from "next/server";
 
 function displayClientName(c: { preferredName: string; firstName: string; lastName: string }): string {
@@ -49,6 +51,7 @@ export async function GET(req: Request) {
       where: { id: trainerId },
       select: {
         id: true,
+        email: true,
         fitnessNiches: true,
         profile: {
           select: {
@@ -79,6 +82,11 @@ export async function GET(req: Request) {
       );
     }
 
+    await processInternalQaDeferredOfficialChats();
+    if (isMatchFitInternalQaTrainerEmail(trainer.email)) {
+      await refreshInternalQaTrainerSimulationIfNeeded({ trainerId, email: trainer.email });
+    }
+
     const ideal: Parameters<typeof scoreClientForTrainerIdeal>[0] = {
       fitnessNiches: trainer.fitnessNiches,
       aiMatchProfileText: trainer.profile.aiMatchProfileText,
@@ -96,15 +104,17 @@ export async function GET(req: Request) {
     });
     const matchedClientIds = new Set(matchedConvs.map((c) => c.clientId));
 
-    const trainerBrowsePasses = await prisma.trainerClientBrowsePass.findMany({
+    const trainerDiscoverPasses = await prisma.trainerClientBrowsePass.findMany({
       where: { trainerId },
       select: { clientId: true, createdAt: true, lastPassedAt: true },
     });
-    const trainerPassByClientId = new Map(trainerBrowsePasses.map((p) => [p.clientId, p]));
+    const trainerPassByClientId = new Map(trainerDiscoverPasses.map((p) => [p.clientId, p]));
 
+    const qaTrainer = isMatchFitInternalQaTrainerEmail(trainer.email);
     const clients = await prisma.client.findMany({
       where: {
         deidentifiedAt: null,
+        internalQaSyntheticPersona: qaTrainer ? true : false,
         allowTrainerDiscovery: true,
         matchPreferencesCompletedAt: { not: null },
         ...(q

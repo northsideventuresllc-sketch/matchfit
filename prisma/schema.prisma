@@ -172,6 +172,8 @@ model Client {
   bugReports         ClientBugReport[]
   productIdeaSubmissions ProductIdeaSubmission[]
 
+  internalQaDailyCursor InternalQaClientDailyCursor?
+
   serviceTransactions TrainerClientServiceTransaction[] @relation("TrainerServiceTxClient")
   trainerTokenGifts     ClientTrainerTokenGift[]
 
@@ -191,6 +193,9 @@ model Client {
   optionalProfileVisibilityJson String?
   /// Set when the user deletes their account; row retained for FKs / safety records with PII scrubbed.
   deidentifiedAt DateTime?
+
+  /// Internal QA only: synthetic persona rows used for Match Fit owner sandbox (never visible to real users).
+  internalQaSyntheticPersona Boolean @default(false)
 
   /// JSON array of quick-link ids for the client dashboard home card (see `lib/client-dashboard-quick-links.ts`).
   dashboardQuickLinkIdsJson String?
@@ -367,6 +372,9 @@ model Trainer {
   safetySuspended   Boolean   @default(false)
   safetySuspendedAt DateTime?
 
+  /// Internal QA only: synthetic persona rows for trainer-owner sandbox (never visible to real users).
+  internalQaSyntheticPersona Boolean @default(false)
+
   featuredRaffleEntries   FeaturedRaffleEntry[]
   featuredPlacementBids   FeaturedPlacementBid[]
   featuredDailyAllocations FeaturedDailyAllocation[]
@@ -396,6 +404,8 @@ model Trainer {
   videoConferenceConnections TrainerVideoConferenceConnection[]
 
   productIdeaSubmissions ProductIdeaSubmission[]
+
+  internalQaDailyCursor InternalQaTrainerDailyCursor?
 
   @@map("trainers")
   @@schema("public")
@@ -542,6 +552,9 @@ model TrainerFitHubPost {
 
   /// When set, identifies an idempotent demo/QA seed row (`syncFitHubDemoSeedPosts` in `lib/client-fithub-sample-posts.ts`).
   demoSeedKey String? @unique
+
+  /// Internal QA trainer FitHub posts that must never appear in public/client feeds (author-only sandbox).
+  internalQaSandboxPost Boolean @default(false)
 
   likes           TrainerFitHubPostLike[]
   comments        TrainerFitHubComment[]
@@ -890,11 +903,50 @@ model TrainerClientConversation {
   bookedTrainingSessions BookedTrainingSession[]
   packageCancellationRequests TrainerPackageCancellationRequest[]
 
+  internalQaDeferredOfficialChat InternalQaDeferredOfficialChat?
+
   @@unique([trainerId, clientId])
   @@index([trainerId, updatedAt])
   @@index([clientId, updatedAt])
   @@index([archiveExpiresAt])
   @@map("trainer_client_conversations")
+  @@schema("public")
+}
+
+/// Tracks which America/New_York calendar day the internal QA client simulation was last rebuilt for.
+model InternalQaClientDailyCursor {
+  clientId String @id
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  estDayKey String
+  updatedAt DateTime @updatedAt
+
+  @@map("internal_qa_client_daily_cursors")
+  @@schema("public")
+}
+
+/// Tracks which America/New_York calendar day the internal QA trainer simulation was last rebuilt for.
+model InternalQaTrainerDailyCursor {
+  trainerId String @id
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  estDayKey String
+  updatedAt DateTime @updatedAt
+
+  @@map("internal_qa_trainer_daily_cursors")
+  @@schema("public")
+}
+
+/// Delays opening a trainer→synthetic-client chat until `openAt` (internal QA only).
+model InternalQaDeferredOfficialChat {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  conversationId String @unique
+  conversation   TrainerClientConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  openAt         DateTime
+  processedAt    DateTime?
+
+  @@index([openAt, processedAt])
+  @@map("internal_qa_deferred_official_chats")
   @@schema("public")
 }
 

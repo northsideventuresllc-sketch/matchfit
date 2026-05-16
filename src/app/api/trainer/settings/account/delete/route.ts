@@ -1,7 +1,9 @@
 import { deidentifyTrainerAccount } from "@/lib/account-deletion";
+import { resetInternalQaTrainerAccount } from "@/lib/internal-qa-account-reset";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
 import { clearTrainerSession, getSessionTrainerId } from "@/lib/session";
+import { isMatchFitInternalQaTrainerEmail } from "@/lib/match-fit-internal-qa";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -23,7 +25,7 @@ export async function POST(req: Request) {
 
     const trainer = await prisma.trainer.findUnique({
       where: { id: trainerId },
-      select: { passwordHash: true, deidentifiedAt: true },
+      select: { passwordHash: true, deidentifiedAt: true, email: true },
     });
     if (!trainer || trainer.deidentifiedAt) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
@@ -34,7 +36,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Incorrect password." }, { status: 401 });
     }
 
-    await deidentifyTrainerAccount(trainerId);
+    if (isMatchFitInternalQaTrainerEmail(trainer.email)) {
+      await resetInternalQaTrainerAccount(trainerId);
+    } else {
+      await deidentifyTrainerAccount(trainerId);
+    }
     await clearTrainerSession();
     return NextResponse.json({ ok: true });
   } catch (e) {

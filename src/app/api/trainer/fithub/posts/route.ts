@@ -7,6 +7,7 @@ import {
 import { isTrainerPremiumStudioActive } from "@/lib/trainer-premium-studio";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
+import { isMatchFitInternalQaTrainerEmail } from "@/lib/match-fit-internal-qa";
 import { NextResponse } from "next/server";
 
 const TYPES = new Set(["TEXT", "IMAGE", "VIDEO", "CAROUSEL"]);
@@ -35,6 +36,12 @@ export async function POST(req: Request) {
     if (!(await isTrainerPremiumStudioActive(trainerId))) {
       return NextResponse.json({ error: "Premium Page is required to publish to FitHub." }, { status: 403 });
     }
+
+    const author = await prisma.trainer.findUnique({
+      where: { id: trainerId },
+      select: { email: true },
+    });
+    const internalQaSandboxPost = isMatchFitInternalQaTrainerEmail(author?.email);
 
     const json = (await req.json().catch(() => ({}))) as {
       postType?: string;
@@ -112,6 +119,7 @@ export async function POST(req: Request) {
         hashtagsJson,
         scheduledPublishAt,
         visibility,
+        internalQaSandboxPost,
       },
       select: { id: true, createdAt: true, scheduledPublishAt: true },
     });

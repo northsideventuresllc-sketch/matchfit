@@ -13,6 +13,8 @@ import { computeTrainerCheckoutHint } from "@/lib/trainer-chat-checkout-hint";
 import { BILLING_UNIT_LABELS, type BillingUnit } from "@/lib/trainer-match-questionnaire";
 import { parseTrainerServiceOfferingsJson, resolvedTrainerServicePublicTitle } from "@/lib/trainer-service-offerings";
 import { isTrainerClientChatBlocked } from "@/lib/user-block-queries";
+import { isMatchFitInternalQaTrainerEmail } from "@/lib/match-fit-internal-qa";
+import { maybeAppendInternalQaSyntheticChatReply } from "@/lib/internal-qa-chat-reply";
 import { NextResponse } from "next/server";
 
 const MAX_BODY = 4000;
@@ -227,6 +229,7 @@ export async function POST(req: Request, ctx: RouteContext) {
     const trainer = await prisma.trainer.findUnique({
       where: { id: trainerId },
       select: {
+        email: true,
         profile: {
           select: {
             dashboardActivatedAt: true,
@@ -252,7 +255,7 @@ export async function POST(req: Request, ctx: RouteContext) {
     const handle = decodeURIComponent(clientUsername).trim();
     const client = await prisma.client.findUnique({
       where: { username: handle },
-      select: { id: true },
+      select: { id: true, internalQaSyntheticPersona: true },
     });
     if (!client) {
       return NextResponse.json({ error: "Client not found." }, { status: 404 });
@@ -311,6 +314,16 @@ export async function POST(req: Request, ctx: RouteContext) {
       where: { id: conv.id },
       data: { updatedAt: new Date() },
     });
+
+    if (client.internalQaSyntheticPersona && isMatchFitInternalQaTrainerEmail(trainer.email)) {
+      await maybeAppendInternalQaSyntheticChatReply({
+        conversationId: conv.id,
+        trainerIsSynthetic: false,
+        clientIsSynthetic: true,
+        lastAuthorRole: "TRAINER",
+        lastBody: text,
+      });
+    }
 
     return NextResponse.json({
       message: {

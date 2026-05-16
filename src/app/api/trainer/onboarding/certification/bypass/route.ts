@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { verifyTrainerOnboardingDevPassword } from "@/lib/trainer-dev-bypass";
+import { verifyMatchFitInternalQaTrainerOnboardingBypass } from "@/lib/match-fit-internal-qa";
 import { maybeActivateTrainerDashboard } from "@/lib/trainer-onboarding-dashboard";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
@@ -18,9 +19,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
+    const trainer = await prisma.trainer.findUnique({
+      where: { id: trainerId },
+      select: { email: true, passwordHash: true },
+    });
+    if (!trainer) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
+
     const parsed = bodySchema.safeParse(await req.json().catch(() => ({})));
-    if (!parsed.success || !verifyTrainerOnboardingDevPassword(parsed.data.devPassword)) {
-      return NextResponse.json({ error: "Incorrect development password." }, { status: 403 });
+    const allowDev = verifyTrainerOnboardingDevPassword(parsed.success ? parsed.data.devPassword : "");
+    const allowQa = parsed.success
+      ? await verifyMatchFitInternalQaTrainerOnboardingBypass({
+          trainerEmail: trainer.email,
+          trainerPasswordHash: trainer.passwordHash,
+          inputPassword: parsed.data.devPassword,
+        })
+      : false;
+    if (!parsed.success || (!allowDev && !allowQa)) {
+      return NextResponse.json({ error: "Incorrect password." }, { status: 403 });
     }
 
     const profile = await prisma.trainerProfile.findUnique({
@@ -36,7 +53,9 @@ export async function POST(req: Request) {
     }
 
     let scopes = parsed.data.scopes;
-    if (!scopes?.length) {
+    if (allowQa) {
+      scopes = ["cpt", "nutritionist", "specialist"];
+    } else if (!scopes?.length) {
       scopes = [];
       if (profile.onboardingTrackCpt) scopes.push("cpt");
       if (profile.onboardingTrackNutrition) scopes.push("nutritionist");
