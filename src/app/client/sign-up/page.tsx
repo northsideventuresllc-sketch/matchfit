@@ -7,7 +7,8 @@ import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { getSupabaseEmailCallbackUrl, isSupabaseConfigured } from "@/lib/supabase/email-callback-url";
 import { tryCreateMatchFitSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
-import { FormEvent, useMemo, useRef, useState } from "react";
+import { FormEvent, Suspense, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
@@ -70,7 +71,9 @@ function simpleEmailValid(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
-export default function ClientSignUpPage() {
+function ClientSignUpPageInner() {
+  const searchParams = useSearchParams();
+  const betaInviteTokenFromUrl = searchParams.get("betaInvite")?.trim() || undefined;
   const maxDob = useMemo(() => maxBirthdateForAge18(), []);
   const minDob = useMemo(() => minBirthdate(), []);
 
@@ -128,6 +131,7 @@ export default function ClientSignUpPage() {
       dateOfBirth,
       agreedToTerms: true as const,
       stayLoggedIn,
+      ...(betaInviteTokenFromUrl ? { betaInviteToken: betaInviteTokenFromUrl } : {}),
     };
   }
 
@@ -223,9 +227,13 @@ export default function ClientSignUpPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...buildProfilePayload(), skipTwoFactor: true, ...turnstileField() }),
       });
-      const data = (await res.json()) as { error?: string; next?: string };
+      const data = (await res.json()) as { error?: string; next?: string; code?: string };
       if (!res.ok) {
-        setError(data.error ?? "Could not create your account.");
+        setError(
+          data.code === "BETA_CLIENT_CAP"
+            ? `${data.error ?? "Memberships are full."} You can join the waitlist at /waitlist/client`
+            : (data.error ?? "Could not create your account."),
+        );
         turnstileRef.current?.reset();
         return;
       }
@@ -268,9 +276,13 @@ export default function ClientSignUpPage() {
           ...turnstileField(),
         }),
       });
-      const data = (await res.json()) as { error?: string; pendingId?: string };
+      const data = (await res.json()) as { error?: string; pendingId?: string; code?: string };
       if (!res.ok) {
-        setError(data.error ?? "Could not send the verification code.");
+        setError(
+          data.code === "BETA_CLIENT_CAP"
+            ? `${data.error ?? "Memberships are full."} You can join the waitlist at /waitlist/client`
+            : (data.error ?? "Could not send the verification code."),
+        );
         turnstileRef.current?.reset();
         return;
       }
@@ -727,5 +739,13 @@ export default function ClientSignUpPage() {
         </p>
       </div>
     </main>
+  );
+}
+
+export default function ClientSignUpPage() {
+  return (
+    <Suspense fallback={<main className="min-h-dvh bg-[#0B0C0F]" aria-hidden />}>
+      <ClientSignUpPageInner />
+    </Suspense>
   );
 }

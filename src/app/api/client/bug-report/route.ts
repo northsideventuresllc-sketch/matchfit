@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import { getRequestClientIp } from "@/lib/request-client-ip";
 import { getSessionClientId } from "@/lib/session";
+import { simpleRateLimitAllow } from "@/lib/simple-rate-limit";
 import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
 import { NextResponse } from "next/server";
 
@@ -19,6 +21,10 @@ function validEmail(email: string): boolean {
 
 export async function POST(req: Request) {
   try {
+    const ip = getRequestClientIp(req);
+    if (!simpleRateLimitAllow(`bug-report:${ip}`, 6, 15 * 60 * 1000)) {
+      return NextResponse.json({ error: "Too many reports from this network. Try again later." }, { status: 429 });
+    }
     const clientId = await getSessionClientId();
 
     const body = (await req.json().catch(() => ({}))) as {

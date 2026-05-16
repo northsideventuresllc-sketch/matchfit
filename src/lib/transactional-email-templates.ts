@@ -68,6 +68,16 @@ export function buildTransactionalEmail(
   const deviceLine = c(ctx.deviceLine, "Chrome on Windows");
   const loginTime = c(ctx.loginTime, new Date().toISOString());
   const policyName = c(ctx.policyName, "Terms of Service");
+  const queuePosition = c(ctx.queuePosition, "3");
+  const joinUrl = c(ctx.joinUrl, `${appBaseUrlForEmailSample()}/trainer/sign-up?betaInvite=sample`);
+  const reservedUsername = c(ctx.reservedUsername, "coachalex");
+  const slotExpiresLabel = c(ctx.slotExpiresLabel, "June 13, 2026");
+  const supportUrl = c(ctx.supportUrl, `${appBaseUrlForEmailSample()}/`);
+  const coachName = c(ctx.coachName, "Coach Jordan");
+  const sessionStartLabel = c(ctx.startLabel, "Mon, Jun 2, 3:00 PM");
+  const sessionDelivery = c(ctx.sessionDelivery, "IN_PERSON");
+  const videoPlatform = c(ctx.videoPlatform, "Google Meet");
+  const messagesThreadUrl = c(ctx.messagesThreadUrl, `${appBaseUrlForEmailSample()}/client/dashboard/messages/coachjordan`);
 
   switch (kind) {
     case "CLIENT_WELCOME": {
@@ -361,68 +371,92 @@ export function buildTransactionalEmail(
       });
       return finalizeTransactional(subject, text, html);
     }
+    case "BETA_WAITLIST_TRAINER_CONFIRM": {
+      const subject = "You are on the Match Fit trainer waitlist";
+      const text = `Hi ${firstName},\n\nThanks — you are on the Match Fit Atlanta beta trainer waitlist (approx. position ${queuePosition}). We will email you when a coach slot opens.\n\n${supportUrl}\n\n— Match Fit`;
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: "Trainer waitlist confirmed.",
+        title: "You are on the list",
+        bodyHtml: bodyParagraphs([
+          `Hi <strong style="color:${s.textPrimary};">${escapeHtmlEmail(firstName)}</strong> — you are confirmed on the <strong style="color:${s.textPrimary};">trainer waitlist</strong> for the Atlanta beta.`,
+          `Approximate position: <strong style="color:${s.textPrimary};">${escapeHtmlEmail(queuePosition)}</strong> (this can move as invites go out).`,
+          "We will email you again when a slot opens and your reserved username can be claimed.",
+        ]),
+      });
+      return finalizeTransactional(subject, text, html);
+    }
+    case "BETA_WAITLIST_CLIENT_CONFIRM": {
+      const subject = "You are on the Match Fit client waitlist";
+      const text = `Hi ${firstName},\n\nThanks — you are on the Match Fit Atlanta beta client waitlist (approx. position ${queuePosition}). We will email you when a membership slot opens.\n\n${supportUrl}\n\n— Match Fit`;
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: "Client waitlist confirmed.",
+        title: "You are on the list",
+        bodyHtml: bodyParagraphs([
+          `Hi <strong style="color:${s.textPrimary};">${escapeHtmlEmail(firstName)}</strong> — you are confirmed on the <strong style="color:${s.textPrimary};">client waitlist</strong> for the Atlanta beta.`,
+          `Approximate position: <strong style="color:${s.textPrimary};">${escapeHtmlEmail(queuePosition)}</strong> (this can move as invites go out).`,
+          "We will email you again when a slot opens so you can finish signup.",
+        ]),
+      });
+      return finalizeTransactional(subject, text, html);
+    }
+    case "BETA_WAITLIST_TRAINER_INVITE": {
+      const subject = "A Match Fit coach slot is ready for you";
+      const text = `Hi ${firstName},\n\nA trainer slot is open. Complete signup before ${slotExpiresLabel} using this link (username ${reservedUsername} is reserved for you):\n${joinUrl}\n\n— Match Fit`;
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: "Your coach slot is reserved.",
+        title: "You are invited to join",
+        bodyHtml: bodyParagraphs([
+          `Hi <strong style="color:${s.textPrimary};">${escapeHtmlEmail(firstName)}</strong> — a trainer slot opened for the Atlanta beta.`,
+          `Reserved username: <strong style="color:${s.textPrimary};">${escapeHtmlEmail(reservedUsername)}</strong>. Complete signup before <strong style="color:${s.textPrimary};">${escapeHtmlEmail(slotExpiresLabel)}</strong> or the slot may pass to the next person in line.`,
+        ]),
+        ctaHref: joinUrl,
+        ctaLabel: "Complete trainer signup",
+      });
+      return finalizeTransactional(subject, text, html);
+    }
+    case "BETA_WAITLIST_CLIENT_INVITE": {
+      const subject = "A Match Fit client slot is ready for you";
+      const text = `Hi ${firstName},\n\nA client membership slot is open. Complete signup before ${slotExpiresLabel} using this link (username ${reservedUsername} is reserved for you):\n${joinUrl}\n\n— Match Fit`;
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: "Your membership slot is reserved.",
+        title: "You are invited to join",
+        bodyHtml: bodyParagraphs([
+          `Hi <strong style="color:${s.textPrimary};">${escapeHtmlEmail(firstName)}</strong> — a client slot opened for the Atlanta beta.`,
+          `Reserved username: <strong style="color:${s.textPrimary};">${escapeHtmlEmail(reservedUsername)}</strong>. Complete signup before <strong style="color:${s.textPrimary};">${escapeHtmlEmail(slotExpiresLabel)}</strong> or the slot may pass to the next person in line.`,
+        ]),
+        ctaHref: joinUrl,
+        ctaLabel: "Complete client signup",
+      });
+      return finalizeTransactional(subject, text, html);
+    }
     case "BOOKING_SESSION_CONFIRMED": {
-      const coachName = c(ctx.coachName, "Jordan Lee");
-      const startLabel = c(ctx.startLabel, "Thu, May 15, 3:00 PM");
-      const sessionDelivery = (c(ctx.sessionDelivery, "VIRTUAL").trim().toUpperCase() === "IN_PERSON" ? "IN_PERSON" : "VIRTUAL") as
-        | "IN_PERSON"
-        | "VIRTUAL";
-      const videoPlatform = c(ctx.videoPlatform, "Google Meet").trim();
-      const joinUrl = (typeof ctx.joinUrl === "string" ? ctx.joinUrl : "").trim();
-      const messagesThreadUrl = c(
-        ctx.messagesThreadUrl,
-        `${appBaseUrlForEmailSample()}/client/dashboard/messages/coachjordan`,
-      );
-
-      const subject = "Your session is confirmed — Match Fit";
-      const textLines = [
+      const isVirtual = sessionDelivery === "VIRTUAL";
+      const subject = "Your Match Fit session is confirmed";
+      const joinLine = isVirtual && joinUrl.trim().length > 0 ? `Join link (${videoPlatform}): ${joinUrl}` : null;
+      const text = [
         `Hi ${firstName},`,
         "",
-        `You confirmed a session with ${coachName} starting ${startLabel}.`,
-        sessionDelivery === "VIRTUAL" ? "Session type: Virtual meeting." : "Session type: In person.",
-      ];
-      if (sessionDelivery === "VIRTUAL") {
-        if (joinUrl) {
-          textLines.push(videoPlatform ? `Video platform: ${videoPlatform}.` : "Video link:");
-          textLines.push(`Join: ${joinUrl}`);
-        } else {
-          textLines.push(
-            "A Google Meet, Zoom, or Microsoft Teams link may still be added in your Match Fit messages before the session.",
-          );
-        }
-      } else {
-        textLines.push("Coordinate location details with your coach in Match Fit messages if needed.");
-      }
-      textLines.push("", `Messages (this coach):`, messagesThreadUrl, "", "— Match Fit");
-      const text = textLines.join("\n");
-
-      const introParas = [
-        `Hi <strong style="color:${s.textPrimary};">${escapeHtmlEmail(firstName)}</strong> — you confirmed a session with <strong style="color:${s.textPrimary};">${escapeHtmlEmail(
-          coachName,
-        )}</strong> starting <strong style="color:${s.textPrimary};">${escapeHtmlEmail(startLabel)}</strong>.`,
-        sessionDelivery === "VIRTUAL"
-          ? "Session type: <strong style=\"color:#7dd3fc;\">Virtual meeting</strong>."
-          : "Session type: <strong style=\"color:#86efac;\">In person</strong>.",
-      ];
-      let extraHtml = "";
-      if (sessionDelivery === "VIRTUAL") {
-        if (joinUrl) {
-          introParas.push(videoPlatform ? `Video platform: <strong style="color:${s.textPrimary};">${escapeHtmlEmail(videoPlatform)}</strong>.` : "");
-          extraHtml = `<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:${s.textMuted};text-align:center;max-width:520px;margin-left:auto;margin-right:auto;">Join link:<br /><a href="${escapeHtmlEmail(joinUrl)}" style="color:${s.gold};word-break:break-all;font-weight:700;">${escapeHtmlEmail(joinUrl)}</a></p>`;
-        } else {
-          introParas.push(
-            "If you do not see a link below yet, your coach can attach Google Meet, Zoom, or Microsoft Teams from your Match Fit messages before the session.",
-          );
-        }
-      } else {
-        introParas.push("Use Messages to coordinate the meeting location with your coach.");
-      }
+        `Your session with ${coachName} is confirmed for ${sessionStartLabel}.`,
+        isVirtual
+          ? joinLine ?? `This is a virtual session on ${videoPlatform}. Open Match Fit for your join link when it is time.`
+          : "This session is in person. Message your coach in Match Fit if you need to coordinate details.",
+        "",
+        `Messages: ${messagesThreadUrl}`,
+        "",
+        "— Match Fit",
+      ].join("\n");
+      const virtualBody = joinLine
+        ? `Join on <strong style="color:${s.textPrimary};">${escapeHtmlEmail(videoPlatform)}</strong> using your link below.`
+        : `This is a virtual session on <strong style="color:${s.textPrimary};">${escapeHtmlEmail(videoPlatform)}</strong>. Open Match Fit when it is time for your join link.`;
       const html = wrapMatchFitTransactionalHtml({
         preheader: `Confirmed with ${coachName}.`,
         title: "Session confirmed",
-        bodyHtml: bodyParagraphs(introParas.filter(Boolean)) + extraHtml,
-        ctaHref: messagesThreadUrl,
-        ctaLabel: "Open Messages",
+        bodyHtml: bodyParagraphs([
+          `Hi <strong style="color:${s.textPrimary};">${escapeHtmlEmail(firstName)}</strong> — your session with <strong style="color:${s.textPrimary};">${escapeHtmlEmail(coachName)}</strong> is set for <strong style="color:${s.textPrimary};">${escapeHtmlEmail(sessionStartLabel)}</strong>.`,
+          isVirtual ? virtualBody : "This session is in person. Use messages if you need to coordinate arrival or parking.",
+        ]),
+        ctaHref: isVirtual && joinUrl.trim().length > 0 ? joinUrl : messagesThreadUrl,
+        ctaLabel: isVirtual && joinUrl.trim().length > 0 ? "Join session" : "Open messages",
       });
       return finalizeTransactional(subject, text, html);
     }
@@ -494,11 +528,15 @@ export function sampleContextForTransactionalEmail(kind: TransactionalEmailKind)
     referenceId: "svc_tx_sample",
     w9Summary: "Legal name: Alex Coach · TIN on file · Address on file (see dashboard for full W-9).",
     interestsUrl: `${appBaseUrlForEmailSample()}/trainer/dashboard/interests`,
-    coachName: "Jordan Lee",
-    startLabel: "Thu, May 15, 2026, 3:00 PM",
+    queuePosition: "3",
+    joinUrl: `${appBaseUrlForEmailSample()}/trainer/sign-up?betaInvite=sampletoken`,
+    reservedUsername: "coachalex",
+    slotExpiresLabel: "June 13, 2026",
+    supportUrl: `${appBaseUrlForEmailSample()}/`,
+    coachName: "Coach Jordan",
+    startLabel: "Mon, Jun 2, 3:00 PM",
     sessionDelivery: "VIRTUAL",
     videoPlatform: "Google Meet",
-    joinUrl: "https://meet.google.com/lookup/sample-link",
     messagesThreadUrl: `${appBaseUrlForEmailSample()}/client/dashboard/messages/coachjordan`,
   };
   return base;

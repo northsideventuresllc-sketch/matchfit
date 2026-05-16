@@ -2,14 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { getSupabaseEmailCallbackUrl, isSupabaseConfigured } from "@/lib/supabase/email-callback-url";
 import { tryCreateMatchFitSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { writeTrainerSignupDraft } from "@/lib/trainer-supabase-signup-draft";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
@@ -28,6 +28,10 @@ function simpleEmailValid(email: string): boolean {
 
 export default function TrainerSignUpClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const betaInviteFromUrl = searchParams.get("betaInvite")?.trim() || "";
+  const [serviceZipCode, setServiceZipCode] = useState("");
+  const [betaGatesOn, setBetaGatesOn] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
@@ -42,6 +46,13 @@ export default function TrainerSignUpClient() {
   const [busy, setBusy] = useState(false);
   const [verificationEmailSent, setVerificationEmailSent] = useState(false);
   const turnstileRef = useRef<TurnstileWidgetHandle>(null);
+
+  useEffect(() => {
+    void fetch("/api/public/beta-launch-status")
+      .then((r) => r.json())
+      .then((d: { gatesEnabled?: boolean }) => setBetaGatesOn(d.gatesEnabled === true))
+      .catch(() => setBetaGatesOn(false));
+  }, []);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -85,6 +96,13 @@ export default function TrainerSignUpClient() {
       setError("Please agree to the Terms of Service to continue.");
       return;
     }
+    if (betaGatesOn) {
+      const z = serviceZipCode.trim();
+      if (!/^\d{5}(-\d{4})?$/.test(z)) {
+        setError("Enter your primary Atlanta metro ZIP (5 digits).");
+        return;
+      }
+    }
     if (TURNSTILE_SITE_KEY) {
       const token = turnstileRef.current?.getToken();
       if (!token) {
@@ -97,6 +115,19 @@ export default function TrainerSignUpClient() {
     try {
       const turnstileToken = TURNSTILE_SITE_KEY ? turnstileRef.current?.getToken() : undefined;
       const emailNorm = email.trim().toLowerCase();
+      const registerCore = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        username: u,
+        phone: phone.trim(),
+        email: emailNorm,
+        password,
+        agreedToTerms: true,
+        stayLoggedIn,
+        serviceZipCode: serviceZipCode.trim(),
+        ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
+        ...(turnstileToken ? { turnstileToken } : {}),
+      };
 
       if (isSupabaseConfigured()) {
         const supabase = tryCreateMatchFitSupabaseBrowserClient();
@@ -130,21 +161,15 @@ export default function TrainerSignUpClient() {
             method: "POST",
             credentials: "include",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              firstName: firstName.trim(),
-              lastName: lastName.trim(),
-              username: u,
-              phone: phone.trim(),
-              email: emailNorm,
-              password,
-              agreedToTerms: true,
-              stayLoggedIn,
-              ...(turnstileToken ? { turnstileToken } : {}),
-            }),
+            body: JSON.stringify(registerCore),
           });
-          const data = (await res.json()) as { error?: string; next?: string };
+          const data = (await res.json()) as { error?: string; next?: string; code?: string };
           if (!res.ok) {
-            setError(data.error ?? "Could not create your account.");
+            setError(
+              data.code === "BETA_TRAINER_CAP"
+                ? `${data.error ?? "Coach slots are full."} Join the waitlist at /waitlist/trainer`
+                : (data.error ?? "Could not create your account."),
+            );
             turnstileRef.current?.reset();
             setBusy(false);
             return;
@@ -162,6 +187,8 @@ export default function TrainerSignUpClient() {
           password,
           agreedToTerms: true,
           stayLoggedIn,
+          serviceZipCode: serviceZipCode.trim(),
+          ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
         });
         setVerificationEmailSent(true);
         setBusy(false);
@@ -172,21 +199,15 @@ export default function TrainerSignUpClient() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          username: u,
-          phone: phone.trim(),
-          email: emailNorm,
-          password,
-          agreedToTerms: true,
-          stayLoggedIn,
-          ...(turnstileToken ? { turnstileToken } : {}),
-        }),
+        body: JSON.stringify(registerCore),
       });
-      const data = (await res.json()) as { error?: string; next?: string };
+      const data = (await res.json()) as { error?: string; next?: string; code?: string };
       if (!res.ok) {
-        setError(data.error ?? "Could not create your account.");
+        setError(
+          data.code === "BETA_TRAINER_CAP"
+            ? `${data.error ?? "Coach slots are full."} Join the waitlist at /waitlist/trainer`
+            : (data.error ?? "Could not create your account."),
+        );
         turnstileRef.current?.reset();
         return;
       }
@@ -336,6 +357,25 @@ export default function TrainerSignUpClient() {
                 className={inputClass}
               />
             </div>
+
+            {betaGatesOn ? (
+              <div className="flex flex-col gap-2">
+                <label htmlFor="tr-su-zip" className={labelClass}>
+                  Primary service ZIP (Atlanta metro)
+                </label>
+                <input
+                  id="tr-su-zip"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  required
+                  value={serviceZipCode}
+                  onChange={(e) => setServiceZipCode(e.target.value)}
+                  placeholder="30301"
+                  className={inputClass}
+                />
+              </div>
+            ) : null}
 
             <div className="flex flex-col gap-2">
               <label htmlFor="tr-su-email" className={labelClass}>

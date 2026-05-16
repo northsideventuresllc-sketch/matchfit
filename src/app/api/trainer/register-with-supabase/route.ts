@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { applyTrainerSessionToNextResponse } from "@/lib/session";
 import { sendTrainerWelcomeEmail } from "@/lib/trainer-welcome-email";
+import { evaluateBetaTrainerRegistrationGate } from "@/lib/beta-trainer-register-gate";
+import { markTrainerWaitlistRegistered } from "@/lib/beta-waitlist-service";
 import { createTrainerRecord } from "@/lib/trainer-register-service";
 import { isTrainerEmailTaken, isTrainerUsernameTaken } from "@/lib/trainer-queries";
 import { trainerSignupSchema } from "@/lib/validations/trainer-register";
@@ -65,6 +67,17 @@ export async function POST(req: Request) {
     }
 
     const username = body.username.trim();
+
+    const gate = await evaluateBetaTrainerRegistrationGate({
+      serviceZipCode: body.serviceZipCode ?? "",
+      email,
+      username,
+      betaInviteToken: body.betaInviteToken,
+    });
+    if (!gate.ok) {
+      return NextResponse.json({ error: gate.error, code: gate.code }, { status: gate.status });
+    }
+
     if (await isTrainerUsernameTaken(username)) {
       return NextResponse.json({ error: "That username is already taken." }, { status: 409 });
     }
@@ -73,6 +86,10 @@ export async function POST(req: Request) {
     }
 
     const { id: trainerId, email: createdEmail } = await createTrainerRecord(body);
+
+    if (gate.ok && gate.betaInviteEntryId) {
+      await markTrainerWaitlistRegistered(gate.betaInviteEntryId, trainerId);
+    }
 
     const res = NextResponse.json({ ok: true, next: "/trainer/onboarding" });
     await applyTrainerSessionToNextResponse(res, trainerId, body.stayLoggedIn);

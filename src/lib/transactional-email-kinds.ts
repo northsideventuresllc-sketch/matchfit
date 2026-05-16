@@ -20,10 +20,14 @@ export const TRANSACTIONAL_EMAIL_KINDS = [
   "OFF_PLATFORM_VIOLATION_NOTICE",
   "BUG_REPORT_ACKNOWLEDGMENT",
   "NEW_CLIENT_INQUIRY",
+  "BOOKING_SESSION_CONFIRMED",
   "CONTENT_MODERATION_NOTICE",
   "PAYMENT_FAILED",
   "POLICY_UPDATE",
-  "BOOKING_SESSION_CONFIRMED",
+  "BETA_WAITLIST_TRAINER_CONFIRM",
+  "BETA_WAITLIST_CLIENT_CONFIRM",
+  "BETA_WAITLIST_TRAINER_INVITE",
+  "BETA_WAITLIST_CLIENT_INVITE",
 ] as const;
 
 export type TransactionalEmailKind = (typeof TRANSACTIONAL_EMAIL_KINDS)[number];
@@ -48,10 +52,14 @@ const TRANSACTIONAL_EMAIL_KIND_SAMPLE_LABELS: Record<TransactionalEmailKind, str
   OFF_PLATFORM_VIOLATION_NOTICE: "Policy notice",
   BUG_REPORT_ACKNOWLEDGMENT: "Bug report",
   NEW_CLIENT_INQUIRY: "New client inquiry",
+  BOOKING_SESSION_CONFIRMED: "Session confirmed",
   CONTENT_MODERATION_NOTICE: "Content review",
   PAYMENT_FAILED: "Payment issue",
   POLICY_UPDATE: "Policy update",
-  BOOKING_SESSION_CONFIRMED: "Session booking confirmed",
+  BETA_WAITLIST_TRAINER_CONFIRM: "Trainer waitlist confirmation",
+  BETA_WAITLIST_CLIENT_CONFIRM: "Client waitlist confirmation",
+  BETA_WAITLIST_TRAINER_INVITE: "Trainer beta invite",
+  BETA_WAITLIST_CLIENT_INVITE: "Client beta invite",
 };
 
 export function transactionalEmailKindSampleLabel(kind: TransactionalEmailKind): string {
@@ -66,6 +74,10 @@ export const MANDATORY_TRANSACTIONAL_EMAIL_KINDS: ReadonlySet<TransactionalEmail
   "EMAIL_CHANGE_SECURITY",
   "LOGIN_SECURITY_ALERT",
   "ADMIN_REGISTRATION_REQUEST",
+  "BETA_WAITLIST_TRAINER_CONFIRM",
+  "BETA_WAITLIST_CLIENT_CONFIRM",
+  "BETA_WAITLIST_TRAINER_INVITE",
+  "BETA_WAITLIST_CLIENT_INVITE",
 ]);
 
 export function isMandatoryTransactionalEmailKind(kind: TransactionalEmailKind): boolean {

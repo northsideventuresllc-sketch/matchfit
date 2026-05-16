@@ -10,6 +10,9 @@ export type TrainerSupabaseSignupDraft = {
   password: string;
   agreedToTerms: boolean;
   stayLoggedIn: boolean;
+  /** Primary service ZIP when beta geo gates are enabled. */
+  serviceZipCode?: string;
+  betaInviteToken?: string;
   turnstileToken?: string;
 };
 

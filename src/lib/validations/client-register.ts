@@ -18,6 +18,9 @@ export function normalizeRegisterJson(raw: unknown): unknown {
     const v = o.stayLoggedIn;
     next.stayLoggedIn = v === false || v === "false" || v === 0 || v === "0" ? false : true;
   }
+  if (typeof o.betaInviteToken === "string") {
+    next.betaInviteToken = o.betaInviteToken.trim();
+  }
 
   const trimKeys = [
     "firstName",
@@ -91,12 +94,14 @@ export const registerSkipSchema = registerProfileSchema.extend({
   skipTwoFactor: z.literal(true),
   stayLoggedIn: z.boolean().optional().default(true),
   turnstileToken: z.string().optional(),
+  betaInviteToken: z.string().optional(),
 });
 
 export const registerPending2faSchema = registerProfileSchema.extend({
   twoFactorMethod: z.literal("EMAIL"),
   stayLoggedIn: z.boolean().optional().default(true),
   turnstileToken: z.string().optional(),
+  betaInviteToken: z.string().optional(),
 });
 
 export const completePendingSchema = z.object({

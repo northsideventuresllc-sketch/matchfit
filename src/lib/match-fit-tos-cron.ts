@@ -12,6 +12,7 @@ import {
   backgroundCheckExpiresAt,
   shouldSendBackgroundCheckExpiryWarning,
 } from "@/lib/trainer-background-check-renewal";
+import { runBetaWaitlistCronJobs } from "@/lib/beta-waitlist-service";
 
 export type TosCronSummary = {
   backgroundCheckWarningsSent: number;
@@ -27,6 +28,10 @@ export type TosCronSummary = {
   diyExtensionsAutoApproved: number;
   videoOAuthTokensRefreshed: number;
   videoOAuthTokenRefreshErrors: number;
+  betaTrainerInvitesExpired: number;
+  betaClientInvitesExpired: number;
+  betaTrainerInvitesSent: number;
+  betaClientInvitesSent: number;
 };
 
 async function backfillApprovedBackgroundCheckTimestamps(): Promise<number> {
@@ -176,6 +181,10 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   let diyExtensionsAutoApproved = 0;
   let videoOAuthTokensRefreshed = 0;
   let videoOAuthTokenRefreshErrors = 0;
+  let betaTrainerInvitesExpired = 0;
+  let betaClientInvitesExpired = 0;
+  let betaTrainerInvitesSent = 0;
+  let betaClientInvitesSent = 0;
   try {
     trainerPunchMissesProcessed = await processTrainerSessionPunchMisses();
   } catch (e) {
@@ -193,6 +202,15 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   } catch (e) {
     console.error("[tos cron] video oauth refresh", e);
   }
+  try {
+    const b = await runBetaWaitlistCronJobs();
+    betaTrainerInvitesExpired = b.trainerInvitesExpired;
+    betaClientInvitesExpired = b.clientInvitesExpired;
+    betaTrainerInvitesSent = b.trainerInvitesSent;
+    betaClientInvitesSent = b.clientInvitesSent;
+  } catch (e) {
+    console.error("[tos cron] beta waitlist", e);
+  }
   return {
     backgroundCheckClearedBackfill: backfill,
     backgroundCheckWarningsSent: warnings,
@@ -207,5 +225,9 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     diyExtensionsAutoApproved,
     videoOAuthTokensRefreshed,
     videoOAuthTokenRefreshErrors,
+    betaTrainerInvitesExpired,
+    betaClientInvitesExpired,
+    betaTrainerInvitesSent,
+    betaClientInvitesSent,
   };
 }
