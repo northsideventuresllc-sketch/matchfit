@@ -1,3 +1,4 @@
+import { isNextTrainerEligibleForRegistrationWaiver } from "@/lib/match-fit-launch-promotions";
 import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { trainerSignupSchema } from "@/lib/validations/trainer-register";
@@ -13,6 +14,9 @@ export async function createTrainerRecord(body: TrainerSignupParsed): Promise<{ 
   const email = body.email.trim().toLowerCase();
   const passwordHash = await hashPassword(body.password);
 
+  const trainerCountBefore = await prisma.trainer.count();
+  const registrationFeeWaived = isNextTrainerEligibleForRegistrationWaiver(trainerCountBefore);
+
   const trainer = await prisma.trainer.create({
     data: {
       firstName: body.firstName,
@@ -25,6 +29,7 @@ export async function createTrainerRecord(body: TrainerSignupParsed): Promise<{ 
       privacyPolicyAcceptedAt: new Date(),
       profile: {
         create: {
+          registrationFeeWaived,
           backgroundCheckStatus: "NOT_STARTED",
           certificationReviewStatus: "NOT_STARTED",
           nutritionistCertificationReviewStatus: "NOT_STARTED",

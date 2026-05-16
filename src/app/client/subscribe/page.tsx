@@ -58,10 +58,13 @@ function SubscribeContent() {
       <div className="relative z-10 mx-auto max-w-lg px-5 py-12 sm:px-8">
         <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Subscription</h1>
         <p className="mt-4 text-sm leading-relaxed text-white/65 sm:text-base">
-          Match Fit is <span className="font-semibold text-white">$10.00 per month</span>. The calendar day you complete
-          your first successful payment becomes your monthly billing date. If you first subscribe on the 31st of a
-          month, your next automatic charge is scheduled for the{" "}
-          <span className="font-semibold text-white">1st</span> of the following month (and continues from there).
+          Match Fit is <span className="font-semibold text-white">$10.00 per month</span> after any introductory offer.
+          Limited founding offer: while slots remain, the first ten member accounts that complete subscription checkout may
+          receive a <span className="font-semibold text-white">30-day free trial</span> in Stripe before the monthly rate
+          applies (eligibility is determined automatically at checkout). The calendar day your first paid invoice succeeds
+          becomes your monthly billing anchor once the trial ends. If you first subscribe on the 31st of a month, your next
+          automatic charge is scheduled for the <span className="font-semibold text-white">1st</span> of the following
+          month (and continues from there).
         </p>
         <p className="mt-4 text-sm leading-relaxed text-white/55">
           Card numbers are collected by <span className="font-semibold text-white">Stripe</span>, a PCI-compliant
@@ -70,8 +73,9 @@ function SubscribeContent() {
           parties; it is used solely to run your subscription through Stripe.
         </p>
         <p className="mt-3 text-xs leading-relaxed text-white/40">
-          Your profile is only created in our database after your first payment succeeds. If you leave without paying,
-          use &quot;Cancel and delete my sign-up&quot; so your in-progress registration is permanently removed.
+          Your profile is only created in our database after your subscription is active or in a free trial. If you leave
+          without completing checkout, use &quot;Cancel and delete my sign-up&quot; so your in-progress registration is
+          permanently removed.
         </p>
 
         {canceled ? (

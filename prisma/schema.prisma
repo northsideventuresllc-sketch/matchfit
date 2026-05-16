@@ -765,6 +765,8 @@ model TrainerProfile {
 
   hasSignedTOS           Boolean @default(false)
   hasUploadedW9          Boolean @default(false)
+  /// First N trainers (by account creation order) waive the one-time platform registration fee; background check fees still apply.
+  registrationFeeWaived Boolean @default(false)
   hasPaidBackgroundFee   Boolean @default(false)
   /// Vendor pipeline: NOT_STARTED | PENDING | APPROVED | NEEDS_FURTHER_REVIEW | DENIED
   backgroundCheckStatus String @default("NOT_STARTED")
