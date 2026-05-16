@@ -3,6 +3,10 @@ import { syncDevelopmentTestTrainerCertificationsForTrainer } from "@/lib/traine
 import { backfillTrainerOnboardingTracksFromLegacyState } from "@/lib/trainer-onboarding-track-backfill";
 import { getSessionTrainerId } from "@/lib/session";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
+import {
+  isMatchFitInternalQaEnabled,
+  isMatchFitInternalQaTrainerEmail,
+} from "@/lib/match-fit-internal-qa";
 import { NextResponse } from "next/server";
 
 const trainerMeSelect = {
@@ -122,7 +126,12 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ trainer });
+    return NextResponse.json({
+      trainer,
+      onboardingPasswordBypassUi:
+        process.env.NODE_ENV !== "production" ||
+        (isMatchFitInternalQaEnabled() && isMatchFitInternalQaTrainerEmail(trainer.email)),
+    });
   } catch (e) {
     const { message, status } = publicApiErrorFromUnknown(e, "Could not load your account.", {
       logLabel: "[Match Fit trainer me]",

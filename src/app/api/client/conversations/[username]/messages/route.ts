@@ -11,6 +11,8 @@ import { canAuthorSendChatMessage } from "@/lib/trainer-client-chat-rules";
 import { loadChatScopedClientPendingBookings } from "@/lib/marketplace-governance-overview";
 import { buildClientChatTokenTipContext } from "@/lib/trainer-promo-tokens";
 import { isTrainerClientChatBlocked } from "@/lib/user-block-queries";
+import { isMatchFitInternalQaClientEmail } from "@/lib/match-fit-internal-qa";
+import { maybeAppendInternalQaSyntheticChatReply } from "@/lib/internal-qa-chat-reply";
 import { NextResponse } from "next/server";
 
 const MAX_BODY = 4000;
@@ -155,6 +157,7 @@ export async function POST(req: Request, ctx: RouteContext) {
       where: { username: handle },
       select: {
         id: true,
+        internalQaSyntheticPersona: true,
         profile: {
           select: {
             dashboardActivatedAt: true,
@@ -229,6 +232,20 @@ export async function POST(req: Request, ctx: RouteContext) {
       where: { id: conv.id },
       data: { updatedAt: new Date() },
     });
+
+    const me = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { email: true },
+    });
+    if (trainer.internalQaSyntheticPersona && isMatchFitInternalQaClientEmail(me?.email)) {
+      await maybeAppendInternalQaSyntheticChatReply({
+        conversationId: conv.id,
+        trainerIsSynthetic: true,
+        clientIsSynthetic: false,
+        lastAuthorRole: "CLIENT",
+        lastBody: text,
+      });
+    }
 
     return NextResponse.json({
       message: {

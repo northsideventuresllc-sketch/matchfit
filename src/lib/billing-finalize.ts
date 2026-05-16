@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe-server";
+import { isMatchFitInternalQaClientEmail } from "@/lib/match-fit-internal-qa";
 
 export type FinalizeResult =
   | { ok: true; clientId: string; alreadyCompleted?: boolean }
@@ -90,6 +91,76 @@ export async function finalizeRegistrationAfterPayment(subscriptionId: string): 
       if (existing) {
         await prisma.pendingClientRegistration.deleteMany({ where: { id: hold.id } });
         return { ok: true, clientId: existing.id, alreadyCompleted: true };
+      }
+    }
+    console.error(e);
+    return { ok: false, error: "Could not finalize your account." };
+  }
+}
+
+/**
+ * Internal QA only: creates the `Client` row from a pending registration without Stripe when the owner
+ * verifies their account password (see `/api/client/billing/internal-qa-complete-registration`).
+ */
+export async function finalizeInternalQaClientRegistrationFromHold(holdId: string): Promise<FinalizeResult> {
+  const hold = await prisma.pendingClientRegistration.findUnique({
+    where: { id: holdId },
+  });
+  if (!hold) {
+    return { ok: false, error: "This registration is no longer available." };
+  }
+  if (!isMatchFitInternalQaClientEmail(hold.email)) {
+    return { ok: false, error: "This bypass is not available for this account." };
+  }
+  if (hold.status !== "AWAITING_PAYMENT") {
+    return { ok: false, error: "Registration is not awaiting payment." };
+  }
+
+  const existing = await prisma.client.findUnique({ where: { email: hold.email } });
+  if (existing) {
+    await prisma.pendingClientRegistration.deleteMany({ where: { id: hold.id } });
+    return { ok: true, clientId: existing.id, alreadyCompleted: true };
+  }
+
+  const twoFactorEnabled = hold.twoFactorEnabled;
+  const twoFactorMethod = twoFactorEnabled ? hold.twoFactorMethod : "NONE";
+
+  try {
+    const client = await prisma.$transaction(async (tx) => {
+      const c = await tx.client.create({
+        data: {
+          firstName: hold.firstName,
+          lastName: hold.lastName,
+          preferredName: hold.preferredName,
+          username: hold.username,
+          phone: hold.phone,
+          email: hold.email,
+          passwordHash: hold.passwordHash,
+          zipCode: hold.zipCode,
+          dateOfBirth: hold.dateOfBirth,
+          termsAcceptedAt: hold.termsAcceptedAt,
+          privacyPolicyAcceptedAt: hold.privacyPolicyAcceptedAt ?? hold.termsAcceptedAt,
+          twoFactorEnabled,
+          twoFactorMethod,
+          stayLoggedIn: hold.stayLoggedIn,
+          stripeCustomerId: null,
+          stripeSubscriptionId: null,
+          stripeSubscriptionActive: true,
+          subscriptionGraceUntil: null,
+          stripeLastSubscriptionInvoicePaidAt: new Date(),
+        },
+      });
+      await tx.pendingClientRegistration.delete({ where: { id: hold.id } });
+      return c;
+    });
+
+    return { ok: true, clientId: client.id };
+  } catch (e) {
+    if (e && typeof e === "object" && "code" in e && (e as { code?: string }).code === "P2002") {
+      const ex = await prisma.client.findUnique({ where: { email: hold.email } });
+      if (ex) {
+        await prisma.pendingClientRegistration.deleteMany({ where: { id: hold.id } });
+        return { ok: true, clientId: ex.id, alreadyCompleted: true };
       }
     }
     console.error(e);

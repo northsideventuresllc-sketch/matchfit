@@ -1,7 +1,9 @@
 import { deidentifyClientAccount } from "@/lib/account-deletion";
+import { resetInternalQaClientAccount } from "@/lib/internal-qa-account-reset";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
 import { clearClientSession, getSessionClientId } from "@/lib/session";
+import { isMatchFitInternalQaClientEmail } from "@/lib/match-fit-internal-qa";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -23,7 +25,7 @@ export async function POST(req: Request) {
 
     const client = await prisma.client.findUnique({
       where: { id: clientId },
-      select: { passwordHash: true, deidentifiedAt: true },
+      select: { passwordHash: true, deidentifiedAt: true, email: true },
     });
     if (!client || client.deidentifiedAt) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
@@ -34,7 +36,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Incorrect password." }, { status: 401 });
     }
 
-    await deidentifyClientAccount(clientId);
+    if (isMatchFitInternalQaClientEmail(client.email)) {
+      await resetInternalQaClientAccount(clientId);
+    } else {
+      await deidentifyClientAccount(clientId);
+    }
     await clearClientSession();
     return NextResponse.json({ ok: true });
   } catch (e) {

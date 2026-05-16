@@ -12,11 +12,30 @@ function SubscribeContent() {
 
   const [loading, setLoading] = useState(true);
   const [fatal, setFatal] = useState<string | null>(null);
+  const [qaSkip, setQaSkip] = useState(false);
+  const [qaMasked, setQaMasked] = useState<string | null>(null);
+  const [qaPassword, setQaPassword] = useState("");
+  const [qaBusy, setQaBusy] = useState(false);
+  const [qaError, setQaError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
+        const metaRes = await fetch("/api/client/billing/pending-hold-meta", { credentials: "include" });
+        const meta = (await metaRes.json()) as {
+          hasHold?: boolean;
+          internalQaBillingSkipEligible?: boolean;
+          emailMasked?: string;
+        };
+        if (cancelled) return;
+        if (meta.internalQaBillingSkipEligible) {
+          setQaSkip(true);
+          setQaMasked(meta.emailMasked ?? null);
+          setLoading(false);
+          return;
+        }
+
         const res = await fetch("/api/client/billing/create-subscription", { method: "POST" });
         const data = (await res.json()) as { error?: string; url?: string };
         if (cancelled) return;
@@ -42,6 +61,30 @@ function SubscribeContent() {
       cancelled = true;
     };
   }, []);
+
+  async function qaComplete() {
+    setQaError(null);
+    setQaBusy(true);
+    try {
+      const res = await fetch("/api/client/billing/internal-qa-complete-registration", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: qaPassword }),
+      });
+      const data = (await res.json()) as { error?: string; next?: string };
+      if (!res.ok) {
+        setQaError(data.error ?? "Could not complete.");
+        return;
+      }
+      const next = data.next ?? "/client/login?registered=1";
+      navigateWithFullLoad(next);
+    } catch {
+      setQaError("Network error. Try again.");
+    } finally {
+      setQaBusy(false);
+    }
+  }
 
   async function abandon() {
     await fetch("/api/client/registration-hold/abandon", { method: "POST" });
@@ -80,7 +123,38 @@ function SubscribeContent() {
           </p>
         ) : null}
 
-        {loading ? (
+        {qaSkip ? (
+          <div className="mt-10 space-y-4">
+            <p className="rounded-xl border border-amber-400/35 bg-amber-500/10 px-4 py-3 text-sm leading-relaxed text-amber-100/95">
+              Internal QA billing bypass is active for{" "}
+              <span className="font-semibold text-white">{qaMasked ?? "this registration"}</span>. Enter the account
+              password for this sign-up to continue without Stripe checkout.
+            </p>
+            <label className="block text-xs font-bold uppercase tracking-wide text-white/45">
+              Account password
+              <input
+                type="password"
+                autoComplete="current-password"
+                value={qaPassword}
+                onChange={(e) => setQaPassword(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white outline-none ring-0 focus:border-[#FF7E00]/55"
+              />
+            </label>
+            {qaError ? (
+              <p className="rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]" role="alert">
+                {qaError}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              disabled={qaBusy || !qaPassword.trim()}
+              onClick={() => void qaComplete()}
+              className="flex min-h-[3rem] w-full items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] disabled:opacity-45"
+            >
+              {qaBusy ? "Working…" : "Complete without card checkout"}
+            </button>
+          </div>
+        ) : loading ? (
           <p className="mt-10 text-sm text-white/50">Redirecting to secure checkout…</p>
         ) : fatal ? (
           <div className="mt-10 space-y-4">
@@ -104,7 +178,7 @@ function SubscribeContent() {
           <p className="mt-10 text-sm text-white/50">If you were not redirected, refresh this page.</p>
         )}
 
-        {!loading && !fatal ? (
+        {!loading && !fatal && !qaSkip ? (
           <button
             type="button"
             onClick={abandon}

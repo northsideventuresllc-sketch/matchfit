@@ -16,6 +16,7 @@ import {
 } from "@/lib/trainer-promo-tokens";
 import { isTrainerPremiumStudioActive } from "@/lib/trainer-premium-studio";
 import { getSessionTrainerId } from "@/lib/session";
+import { isMatchFitInternalQaEnabled, isMatchFitInternalQaTrainerEmail } from "@/lib/match-fit-internal-qa";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,7 @@ export async function GET() {
     const trainer = await prisma.trainer.findUnique({
       where: { id: trainerId },
       select: {
+        email: true,
         safetySuspended: true,
         profile: { select: { matchQuestionnaireAnswers: true } },
       },
@@ -51,6 +53,8 @@ export async function GET() {
       balance,
       regionZipPrefix,
       regionalBoostConfigured: Boolean(regionZipPrefix),
+      internalQaTokenPurchasePasswordUi:
+        isMatchFitInternalQaEnabled() && isMatchFitInternalQaTrainerEmail(trainer.email),
       packTiers: PROMO_TOKEN_PACK_TIERS.map((t) => ({
         id: t.id,
         label: t.label,

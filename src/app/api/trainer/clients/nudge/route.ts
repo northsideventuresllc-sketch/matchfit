@@ -8,6 +8,7 @@ import {
   PREMIUM_NUDGES_PRODUCT_NOTICE,
   utcDayRange,
 } from "@/lib/trainer-nudge-limits";
+import { isMatchFitInternalQaTrainerEmail } from "@/lib/match-fit-internal-qa";
 import { NextResponse } from "next/server";
 
 const MAX_MESSAGE = 500;
@@ -23,6 +24,7 @@ export async function POST(req: Request) {
       where: { id: trainerId },
       select: {
         id: true,
+        email: true,
         username: true,
         firstName: true,
         lastName: true,
@@ -62,7 +64,7 @@ export async function POST(req: Request) {
 
     const client = await prisma.client.findUnique({
       where: { username: handle },
-      select: { id: true, allowTrainerDiscovery: true, matchPreferencesCompletedAt: true },
+      select: { id: true, allowTrainerDiscovery: true, matchPreferencesCompletedAt: true, internalQaSyntheticPersona: true },
     });
     if (!client) {
       return NextResponse.json({ error: "Client not found." }, { status: 404 });
@@ -110,6 +112,84 @@ export async function POST(req: Request) {
       "A coach";
     const now = new Date();
     const msgLine = message ? ` “${message}”` : "";
+
+    const deferredSyntheticOpen =
+      isMatchFitInternalQaTrainerEmail(trainer.email) && client.internalQaSyntheticPersona;
+
+    if (deferredSyntheticOpen) {
+      const openAt = new Date(now.getTime() + 60_000);
+      const conv = await prisma.$transaction(async (tx) => {
+        await tx.trainerClientNudge.create({
+          data: {
+            trainerId: trainer.id,
+            clientId: client.id,
+            message: message ?? null,
+          },
+        });
+        const c = await tx.trainerClientConversation.upsert({
+          where: { trainerId_clientId: { trainerId: trainer.id, clientId: client.id } },
+          create: {
+            trainerId: trainer.id,
+            clientId: client.id,
+            officialChatStartedAt: null,
+            relationshipStage: "POTENTIAL_CLIENT",
+          },
+          update: {
+            officialChatStartedAt: null,
+            updatedAt: now,
+          },
+        });
+        await tx.internalQaDeferredOfficialChat.upsert({
+          where: { conversationId: c.id },
+          create: {
+            conversationId: c.id,
+            openAt,
+          },
+          update: {
+            openAt,
+            processedAt: null,
+          },
+        });
+        await tx.clientNotification.create({
+          data: {
+            clientId: client.id,
+            kind: "NUDGE",
+            title: "NEW NUDGE",
+            body: `${coachName} wants to work with you.${msgLine}`,
+            linkHref: `/client/messages/${encodeURIComponent(trainer.username)}`,
+          },
+        });
+        return c;
+      });
+
+      if (message) {
+        const leak = scanChatTextForLeakageSignals(message);
+        if (leak.flagged) {
+          await queueChatAdminReview({
+            conversationId: conv.id,
+            authorRole: "TRAINER",
+            signals: leak.signals,
+            body: message,
+          });
+        }
+      }
+
+      if (isPremium) {
+        return NextResponse.json({
+          ok: true,
+          unlimitedNudges: true,
+          internalQaSyntheticMatchOpensAt: openAt.toISOString(),
+        });
+      }
+      return NextResponse.json({
+        ok: true,
+        nudgesUsedToday: nudgesToday + 1,
+        nudgesDailyLimit: FREE_TRAINER_NUDGES_PER_DAY,
+        premiumNotice: PREMIUM_NUDGES_PRODUCT_NOTICE,
+        internalQaSyntheticMatchOpensAt: openAt.toISOString(),
+      });
+    }
+
     await prisma.$transaction([
       prisma.trainerClientNudge.create({
         data: {

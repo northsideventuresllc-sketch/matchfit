@@ -14,6 +14,8 @@ import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
 import { getTrainerIdsHiddenFromClientMatchFeed } from "@/lib/user-block-queries";
+import { isMatchFitInternalQaClientEmail } from "@/lib/match-fit-internal-qa";
+import { refreshInternalQaClientSimulationIfNeeded } from "@/lib/internal-qa-simulation";
 import { NextResponse } from "next/server";
 
 function coachDisplayName(trainer: {
@@ -37,7 +39,7 @@ export async function GET(req: Request) {
 
     const client = await prisma.client.findUnique({
       where: { id: clientId },
-      select: { matchPreferencesJson: true, matchPreferencesCompletedAt: true },
+      select: { matchPreferencesJson: true, matchPreferencesCompletedAt: true, email: true },
     });
     if (!client) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
@@ -54,6 +56,8 @@ export async function GET(req: Request) {
 
     const trainers = await prisma.trainer.findMany({
       where: {
+        deidentifiedAt: null,
+        internalQaSyntheticPersona: false,
         profile: {
           dashboardActivatedAt: { not: null },
         },
@@ -122,6 +126,78 @@ export async function GET(req: Request) {
 
     const filtered = relaxed ? scored : scored.filter((r) => r.match.strictPass);
     let list = (filtered.length ? filtered : scored).sort((a, b) => b.score - a.score);
+
+    if (isMatchFitInternalQaClientEmail(client.email)) {
+      await refreshInternalQaClientSimulationIfNeeded({ clientId, email: client.email });
+      const syntheticRaw = await prisma.trainer.findMany({
+        where: {
+          deidentifiedAt: null,
+          internalQaSyntheticPersona: true,
+          profile: { dashboardActivatedAt: { not: null } },
+        },
+        select: {
+          id: true,
+          username: true,
+          firstName: true,
+          lastName: true,
+          preferredName: true,
+          bio: true,
+          profileImageUrl: true,
+          fitnessNiches: true,
+          profile: {
+            select: {
+              dashboardActivatedAt: true,
+              hasSignedTOS: true,
+              hasUploadedW9: true,
+              backgroundCheckStatus: true,
+              onboardingTrackCpt: true,
+              onboardingTrackNutrition: true,
+              onboardingTrackSpecialist: true,
+              certificationReviewStatus: true,
+              nutritionistCertificationReviewStatus: true,
+              specialistCertificationReviewStatus: true,
+              aiMatchProfileText: true,
+            },
+          },
+        },
+      });
+      const synPublished = syntheticRaw.filter(
+        (t) => t.profile && t.profile.dashboardActivatedAt != null && isTrainerComplianceComplete(t.profile),
+      );
+      const synScored = synPublished.map((t) => {
+        const profile = t.profile!;
+        const metrics = scoreTrainerForClientPrefs(prefs, {
+          fitnessNiches: t.fitnessNiches,
+          aiMatchProfileText: profile.aiMatchProfileText,
+          profile: {
+            onboardingTrackCpt: profile.onboardingTrackCpt,
+            onboardingTrackNutrition: profile.onboardingTrackNutrition,
+            onboardingTrackSpecialist: profile.onboardingTrackSpecialist,
+            certificationReviewStatus: profile.certificationReviewStatus,
+            nutritionistCertificationReviewStatus: profile.nutritionistCertificationReviewStatus,
+            specialistCertificationReviewStatus: profile.specialistCertificationReviewStatus,
+          },
+        });
+        return {
+          id: t.id,
+          username: t.username,
+          displayName: coachDisplayName(t),
+          bio: t.bio,
+          profileImageUrl: t.profileImageUrl,
+          fitnessNiches: t.fitnessNiches,
+          score: metrics.score + 0.001,
+          match: {
+            nicheHits: metrics.nicheHits,
+            serviceOk: metrics.serviceOk,
+            deliveryOk: metrics.deliveryOk,
+            strictPass: trainerPassesStrictBrowse(prefs, metrics),
+          },
+        };
+      });
+      const synFiltered = relaxed ? synScored : synScored.filter((r) => r.match.strictPass);
+      const synList = (synFiltered.length ? synFiltered : synScored).sort((a, b) => b.score - a.score);
+      list = [...synList, ...list];
+    }
 
     const [passRows, savedRows, matchedConvs, matchFeedBlockedTrainerIds] = await Promise.all([
       prisma.clientTrainerBrowsePass.findMany({

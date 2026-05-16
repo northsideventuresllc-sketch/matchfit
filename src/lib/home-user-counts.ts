@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export type HomeUserCounts = {
@@ -14,21 +15,34 @@ type CountRow = {
   clients_active: bigint;
 };
 
-/**
- * Homepage marketing counters. Trainers “active”: dashboard onboarding completed and either
- * activated in the last 60 days or platform activity (messages, sessions, FitHub, punch-ins) in the last 7 days.
- * Clients “active”: billing in good standing (no platform sub, active sub, or grace window) or a subscription
- * invoice paid in the last 14 days (`stripeLastSubscriptionInvoicePaidAt`, maintained by Stripe webhooks).
- */
-export async function getHomeUserCounts(): Promise<HomeUserCounts> {
+function isMissingInternalQaSyntheticPersonaColumn(e: unknown): boolean {
+  if (!(e instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  const m = e.message;
+  return m.includes("internalQaSyntheticPersona") && (m.includes("42703") || m.includes("does not exist"));
+}
+
+async function queryHomeUserCounts(excludeInternalQaSynthetic: boolean): Promise<HomeUserCounts> {
+  const trainerSynthClause = excludeInternalQaSynthetic
+    ? Prisma.sql`AND t."internalQaSyntheticPersona" = false`
+    : Prisma.empty;
+  const clientSynthClause = excludeInternalQaSynthetic
+    ? Prisma.sql`AND c."internalQaSyntheticPersona" = false`
+    : Prisma.empty;
+
   const rows = await prisma.$queryRaw<CountRow[]>`
     SELECT
-      (SELECT COUNT(*)::bigint FROM "trainers" t WHERE t."deidentifiedAt" IS NULL) AS trainers_total,
+      (
+        SELECT COUNT(*)::bigint
+        FROM "trainers" t
+        WHERE t."deidentifiedAt" IS NULL
+          ${trainerSynthClause}
+      ) AS trainers_total,
       (
         SELECT COUNT(*)::bigint
         FROM "trainers" t
         INNER JOIN "trainer_profiles" p ON p."trainerId" = t."id"
         WHERE t."deidentifiedAt" IS NULL
+          ${trainerSynthClause}
           AND p."dashboardActivatedAt" IS NOT NULL
           AND (
             p."dashboardActivatedAt" >= NOW() - INTERVAL '60 days'
@@ -60,11 +74,17 @@ export async function getHomeUserCounts(): Promise<HomeUserCounts> {
             )
           )
       ) AS trainers_active,
-      (SELECT COUNT(*)::bigint FROM "clients" c WHERE c."deidentifiedAt" IS NULL) AS clients_total,
       (
         SELECT COUNT(*)::bigint
         FROM "clients" c
         WHERE c."deidentifiedAt" IS NULL
+          ${clientSynthClause}
+      ) AS clients_total,
+      (
+        SELECT COUNT(*)::bigint
+        FROM "clients" c
+        WHERE c."deidentifiedAt" IS NULL
+          ${clientSynthClause}
           AND (
             c."stripeSubscriptionId" IS NULL
             OR TRIM(c."stripeSubscriptionId") = ''
@@ -89,4 +109,24 @@ export async function getHomeUserCounts(): Promise<HomeUserCounts> {
     clientsTotal: Number(row.clients_total),
     clientsActive: Number(row.clients_active),
   };
+}
+
+/**
+ * Homepage marketing counters. Trainers “active”: dashboard onboarding completed and either
+ * activated in the last 60 days or platform activity (messages, sessions, FitHub, punch-ins) in the last 7 days.
+ * Clients “active”: billing in good standing (no platform sub, active sub, or grace window) or a subscription
+ * invoice paid in the last 14 days (`stripeLastSubscriptionInvoicePaidAt`, maintained by Stripe webhooks).
+ *
+ * If migration `20260515182000_internal_qa_sandbox` is not applied yet, retries without filtering on
+ * `internalQaSyntheticPersona` (equivalent to “no synthetic rows” on an unmigrated DB).
+ */
+export async function getHomeUserCounts(): Promise<HomeUserCounts> {
+  try {
+    return await queryHomeUserCounts(true);
+  } catch (e) {
+    if (isMissingInternalQaSyntheticPersonaColumn(e)) {
+      return queryHomeUserCounts(false);
+    }
+    throw e;
+  }
 }

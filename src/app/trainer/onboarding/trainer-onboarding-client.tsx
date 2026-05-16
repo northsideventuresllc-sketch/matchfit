@@ -125,6 +125,7 @@ export default function TrainerOnboardingClient() {
   const [loadingMe, setLoadingMe] = useState(true);
   const [meError, setMeError] = useState<string | null>(null);
   const [trainer, setTrainer] = useState<TrainerMe | null>(null);
+  const [onboardingPasswordBypassUi, setOnboardingPasswordBypassUi] = useState(false);
   const didBootstrapFromServer = useRef(false);
 
   const [agreementChecks, setAgreementChecks] = useState<boolean[]>(() => Array(AGREEMENT_COUNT).fill(false));
@@ -188,12 +189,14 @@ export default function TrainerOnboardingClient() {
     let loadedTrainer = false;
     try {
       const res = await fetch("/api/trainer/me", { cache: "no-store", credentials: "include" });
-      const data = (await res.json()) as { error?: string; trainer?: TrainerMe };
+      const data = (await res.json()) as { error?: string; trainer?: TrainerMe; onboardingPasswordBypassUi?: boolean };
       if (!res.ok) {
         setMeError(data.error ?? "Could not load your account.");
         setTrainer(null);
+        setOnboardingPasswordBypassUi(false);
         return;
       }
+      setOnboardingPasswordBypassUi(Boolean(data.onboardingPasswordBypassUi));
       if (data.trainer) {
         loadedTrainer = true;
         const t = data.trainer;
@@ -254,6 +257,7 @@ export default function TrainerOnboardingClient() {
     } catch {
       setMeError("Could not load your account.");
       setTrainer(null);
+      setOnboardingPasswordBypassUi(false);
     } finally {
       setLoadingMe(false);
       if (loadedTrainer) {
@@ -734,7 +738,12 @@ export default function TrainerOnboardingClient() {
 
   async function handleProfessionalPathBypass() {
     setError(null);
-    if (!verifyTrainerOnboardingDevPassword(pathBypassPassword)) {
+    if (onboardingPasswordBypassUi) {
+      if (!pathBypassPassword.trim()) {
+        setError("Enter your Match Fit account password to use this testing override.");
+        return;
+      }
+    } else if (!verifyTrainerOnboardingDevPassword(pathBypassPassword)) {
       setError("Incorrect password. It must match exactly and is case-sensitive.");
       return;
     }
@@ -919,7 +928,12 @@ export default function TrainerOnboardingClient() {
 
   function handleW9DevAutofill() {
     setError(null);
-    if (!verifyTrainerOnboardingDevPassword(w9AutofillPassword)) {
+    if (onboardingPasswordBypassUi) {
+      if (!w9AutofillPassword.trim()) {
+        setError("Enter your Match Fit account password to use this testing autofill.");
+        return;
+      }
+    } else if (!verifyTrainerOnboardingDevPassword(w9AutofillPassword)) {
       setError("Incorrect password. It must match exactly and is case-sensitive.");
       return;
     }
@@ -941,8 +955,16 @@ export default function TrainerOnboardingClient() {
 
   async function handleBackgroundTestingOverride() {
     setError(null);
-    if (!bgDevPassword) {
-      setError("Enter the development password to use the testing override.");
+    if (!bgDevPassword.trim()) {
+      setError(
+        onboardingPasswordBypassUi
+          ? "Enter your Match Fit account password to use the testing override."
+          : "Enter the development password to use the testing override.",
+      );
+      return;
+    }
+    if (!onboardingPasswordBypassUi && !verifyTrainerOnboardingDevPassword(bgDevPassword)) {
+      setError("Incorrect password. It must match exactly and is case-sensitive.");
       return;
     }
     setBusy(true);
@@ -968,7 +990,12 @@ export default function TrainerOnboardingClient() {
 
   async function handleCertBypass() {
     setError(null);
-    if (!verifyTrainerOnboardingDevPassword(certBypassPassword)) {
+    if (onboardingPasswordBypassUi) {
+      if (!certBypassPassword.trim()) {
+        setError("Enter your Match Fit account password to use the certification testing override.");
+        return;
+      }
+    } else if (!verifyTrainerOnboardingDevPassword(certBypassPassword)) {
       setError("Incorrect password. It must match exactly and is case-sensitive.");
       return;
     }

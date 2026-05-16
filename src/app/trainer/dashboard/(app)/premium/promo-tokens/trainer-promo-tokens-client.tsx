@@ -9,6 +9,7 @@ type Summary = {
   premium: boolean;
   balance?: number;
   regionalBoostConfigured?: boolean;
+  internalQaTokenPurchasePasswordUi?: boolean;
   packTiers?: PackTier[];
   economics?: {
     tokensPerPack: number;
@@ -65,6 +66,7 @@ export function TrainerPromoTokensClient() {
   const [err, setErr] = useState<string | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [internalQaPackPw, setInternalQaPackPw] = useState("");
 
   const load = useCallback(async () => {
     setErr(null);
@@ -138,14 +140,22 @@ export function TrainerPromoTokensClient() {
     setBusy(true);
     setErr(null);
     try {
+      const payload: { packTier: typeof tierId; internalQaPassword?: string } = { packTier: tierId };
+      if (summary?.internalQaTokenPurchasePasswordUi && internalQaPackPw.trim()) {
+        payload.internalQaPassword = internalQaPackPw.trim();
+      }
       const res = await fetch("/api/trainer/promo-tokens/purchase-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packTier: tierId }),
+        body: JSON.stringify(payload),
       });
-      const data = (await res.json()) as { url?: string; error?: string };
+      const data = (await res.json()) as { url?: string; error?: string; ok?: boolean; credited?: number };
       if (!res.ok) {
         setErr(data.error ?? "Checkout failed.");
+        return;
+      }
+      if (data.ok && typeof data.credited === "number") {
+        await load();
         return;
       }
       if (data.url) window.location.href = data.url;
@@ -282,6 +292,27 @@ export function TrainerPromoTokensClient() {
             </div>
           ))}
         </div>
+        {summary?.internalQaTokenPurchasePasswordUi ? (
+          <div className="mt-6 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-amber-100/90">
+              Internal QA — credit tokens without Stripe
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-white/55">
+              Enter the Match Fit account password for this trainer profile, then tap Buy — the request will credit your
+              token wallet instead of opening Checkout.
+            </p>
+            <label className="mt-3 block text-[10px] font-bold uppercase tracking-wide text-white/40">
+              Account password
+              <input
+                type="password"
+                autoComplete="current-password"
+                value={internalQaPackPw}
+                onChange={(e) => setInternalQaPackPw(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-white/10 bg-[#0E1016] px-3 py-2 text-sm text-white"
+              />
+            </label>
+          </div>
+        ) : null}
       </div>
 
       <div className="rounded-2xl border border-white/[0.08] bg-[#12151C]/90 p-6 space-y-4">

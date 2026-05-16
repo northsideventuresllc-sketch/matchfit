@@ -10,12 +10,14 @@ import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { getStripe } from "@/lib/stripe-server";
 import { isTrainerPremiumStudioActive } from "@/lib/trainer-premium-studio";
-import { getPromoPackTierById } from "@/lib/trainer-promo-tokens";
+import { getPromoPackTierById, creditTokensFromStripePurchase } from "@/lib/trainer-promo-tokens";
+import { verifyMatchFitInternalQaTrainerOnboardingBypass } from "@/lib/match-fit-internal-qa";
 
 export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
   packTier: z.enum(["starter", "growth", "scale"]),
+  internalQaPassword: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -27,17 +29,7 @@ export async function POST(req: Request) {
     if (!(await isTrainerPremiumStudioActive(trainerId))) {
       return NextResponse.json({ error: "Premium Page is required to buy tokens." }, { status: 403 });
     }
-    const trainer = await prisma.trainer.findUnique({
-      where: { id: trainerId },
-      select: { safetySuspended: true, email: true },
-    });
-    if (!trainer || trainer.safetySuspended) {
-      return NextResponse.json({ error: "Unavailable." }, { status: 403 });
-    }
-    const stripe = getStripe();
-    if (!stripe) {
-      return NextResponse.json({ error: "Billing is not configured." }, { status: 503 });
-    }
+
     const json = await req.json().catch(() => null);
     const parsed = bodySchema.safeParse(json);
     if (!parsed.success) {
@@ -47,6 +39,37 @@ export async function POST(req: Request) {
     if (!tier) {
       return NextResponse.json({ error: "Unknown pack." }, { status: 400 });
     }
+
+    const trainer = await prisma.trainer.findUnique({
+      where: { id: trainerId },
+      select: { safetySuspended: true, email: true, passwordHash: true },
+    });
+    if (!trainer || trainer.safetySuspended) {
+      return NextResponse.json({ error: "Unavailable." }, { status: 403 });
+    }
+
+    const qaPw = parsed.data.internalQaPassword?.trim();
+    if (
+      qaPw &&
+      (await verifyMatchFitInternalQaTrainerOnboardingBypass({
+        trainerEmail: trainer.email,
+        trainerPasswordHash: trainer.passwordHash,
+        inputPassword: qaPw,
+      }))
+    ) {
+      const ref = `internal_qa_promo_${tier.id}_${trainerId}_${Date.now()}`;
+      const credited = await creditTokensFromStripePurchase(trainerId, ref, tier.tokens);
+      if ("skipped" in credited) {
+        return NextResponse.json({ error: "Already credited for this request." }, { status: 409 });
+      }
+      return NextResponse.json({ ok: true, tokens: tier.tokens, credited: credited.credited });
+    }
+
+    const stripe = getStripe();
+    if (!stripe) {
+      return NextResponse.json({ error: "Billing is not configured." }, { status: 503 });
+    }
+
     const origin = getAppOriginFromRequest(req);
     const baseCents = tier.usdCents;
     const adminCents = adminFeeCentsFromBaseSubtotalCents(baseCents);
