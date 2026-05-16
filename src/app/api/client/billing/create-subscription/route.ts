@@ -1,3 +1,4 @@
+import { getClientFoundingTrialDays, isNextClientEligibleForFoundingTrial } from "@/lib/match-fit-launch-promotions";
 import { purgeExpiredRegistrationHolds } from "@/lib/purge-registration-holds";
 import { prisma } from "@/lib/prisma";
 import { getRegistrationHoldPendingId } from "@/lib/session";
@@ -68,6 +69,10 @@ export async function POST(req: Request) {
 
     const origin = getAppOrigin(req);
 
+    const existingClientCount = await prisma.client.count();
+    const foundingTrial = isNextClientEligibleForFoundingTrial(existingClientCount);
+    const foundingTrialDays = foundingTrial ? getClientFoundingTrialDays() : 0;
+
     try {
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
@@ -75,9 +80,16 @@ export async function POST(req: Request) {
         line_items: [{ price: priceId, quantity: 1 }],
         success_url: `${origin}/client/subscribe/return?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin}/client/subscribe?canceled=1`,
-        metadata: { holdId: hold.id },
+        metadata: {
+          holdId: hold.id,
+          ...(foundingTrial ? { matchFitFoundingTrial: "1" } : {}),
+        },
         subscription_data: {
-          metadata: { holdId: hold.id },
+          ...(foundingTrial ? { trial_period_days: foundingTrialDays } : {}),
+          metadata: {
+            holdId: hold.id,
+            ...(foundingTrial ? { matchFitFoundingTrial: "1" } : {}),
+          },
         },
       });
 
