@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { TRAINER_ONBOARDING_AGREEMENT_BULLETS } from "@/app/trainer/onboarding/trainer-agreement-bullets";
+import { TRAINER_ONBOARDING_AGREEMENT_COUNT, getTrainerOnboardingAgreementBullets } from "@/app/trainer/onboarding/trainer-agreement-bullets";
 import { CREDIBLE_CPT_ORGANIZATIONS } from "@/app/trainer/onboarding/credible-cpt-organizations";
 import { CREDIBLE_NUTRITION_CREDENTIALS } from "@/app/trainer/onboarding/credible-nutrition-credentials";
 import { OnboardingCertStatusLegend } from "@/app/trainer/onboarding/onboarding-cert-status-legend";
@@ -46,6 +46,7 @@ type TrainerMe = {
     hasSignedTOS: boolean;
     hasUploadedW9: boolean;
     hasPaidBackgroundFee: boolean;
+    registrationFeeWaived: boolean;
     backgroundCheckStatus: string;
     certificationUrl: string | null;
     otherCertificationUrl: string | null;
@@ -103,7 +104,7 @@ function buildDevW9Autofill(trainer: TrainerMe) {
   };
 }
 
-const AGREEMENT_COUNT = TRAINER_ONBOARDING_AGREEMENT_BULLETS.length;
+const AGREEMENT_COUNT = TRAINER_ONBOARDING_AGREEMENT_COUNT;
 
 /** Title case — used for page titles and step-number tooltips. */
 const ONBOARDING_STEP_DISPLAY_TITLES: Record<number, string> = {
@@ -273,6 +274,11 @@ export default function TrainerOnboardingClient() {
   }, [loadMe]);
 
   const profile = trainer?.profile;
+
+  const agreementBullets = useMemo(
+    () => getTrainerOnboardingAgreementBullets(profile?.registrationFeeWaived ?? false),
+    [profile?.registrationFeeWaived],
+  );
 
   const onboardingSnapshotSerialized = useMemo(
     () =>
@@ -1118,8 +1124,18 @@ export default function TrainerOnboardingClient() {
 
           {step === 1 ? (
             <div className="space-y-5 text-sm leading-relaxed text-white/70">
+              {profile?.registrationFeeWaived ? (
+                <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-[13px] leading-relaxed text-emerald-100/95">
+                  <p className="font-semibold text-emerald-50">Founding coach slot</p>
+                  <p className="mt-1 text-emerald-100/85">
+                    Match Fit is waiving the one-time <span className="font-semibold text-white">$100</span> platform
+                    registration fee for your account. You still pay the independent background-check provider when that
+                    step is collected—only the platform registration portion is waived for early coaches.
+                  </p>
+                </div>
+              ) : null}
               <ul className="space-y-3">
-                {TRAINER_ONBOARDING_AGREEMENT_BULLETS.map((text, i) => (
+                {agreementBullets.map((text, i) => (
                   <li key={i} className="flex gap-3 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-3">
                     <input
                       id={`agr-${i}`}

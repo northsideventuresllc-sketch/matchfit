@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { TRAINER_ONBOARDING_AGREEMENT_BULLETS } from "@/app/trainer/onboarding/trainer-agreement-bullets";
+import { getTrainerOnboardingAgreementBullets } from "@/app/trainer/onboarding/trainer-agreement-bullets";
 import { TrainerComplianceCertCarousel } from "@/components/trainer/trainer-compliance-cert-carousel";
 import { TrainerComplianceCertReferenceDetails } from "@/components/trainer/trainer-compliance-cert-reference-details";
 import { TrainerComplianceCertTracksForm } from "@/components/trainer/trainer-compliance-cert-tracks-form";
@@ -74,6 +74,7 @@ export default async function TrainerComplianceDetailsPage() {
     where: { trainerId },
     select: {
       hasSignedTOS: true,
+      registrationFeeWaived: true,
       hasUploadedW9: true,
       w9Json: true,
       backgroundCheckStatus: true,
@@ -129,6 +130,8 @@ export default async function TrainerComplianceDetailsPage() {
   const nutLabel = certificationReviewStatusLabel(profile.nutritionistCertificationReviewStatus);
   const specLabel = certificationReviewStatusLabel(profile.specialistCertificationReviewStatus);
 
+  const agreementBullets = getTrainerOnboardingAgreementBullets(Boolean(profile.registrationFeeWaived));
+
   return (
     <div className="space-y-10">
       <header className="space-y-1">
@@ -164,7 +167,7 @@ export default async function TrainerComplianceDetailsPage() {
         <details className="mt-5 rounded-2xl border border-white/[0.06] bg-[#0E1016]/40 p-4">
           <summary className="cursor-pointer text-sm font-semibold text-white/70">Trainer acknowledgement checklist</summary>
           <ul className="mt-3 list-disc space-y-2 pl-5 text-xs leading-relaxed text-white/50">
-            {TRAINER_ONBOARDING_AGREEMENT_BULLETS.map((b, i) => (
+            {agreementBullets.map((b, i) => (
               <li key={i}>{b}</li>
             ))}
           </ul>

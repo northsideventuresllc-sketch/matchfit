@@ -11,6 +11,7 @@ import {
 } from "@/lib/validations/client-register";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { verifyTurnstileToken } from "@/lib/turnstile-verify";
+import { evaluateBetaClientRegistrationGate } from "@/lib/beta-client-register-gate";
 import { NextResponse } from "next/server";
 
 function isAtLeast18(birthYmd: string): boolean {
@@ -42,6 +43,16 @@ export async function POST(req: Request) {
 
     const username = body.username.trim();
     const email = body.email.trim().toLowerCase();
+
+    const gate = await evaluateBetaClientRegistrationGate({
+      zipCode: body.zipCode,
+      email,
+      username,
+      betaInviteToken: body.betaInviteToken,
+    });
+    if (!gate.ok) {
+      return NextResponse.json({ error: gate.error, code: gate.code }, { status: gate.status });
+    }
 
     if (await isUsernameTaken(username)) {
       return NextResponse.json({ error: "That username is already taken." }, { status: 409 });
@@ -78,6 +89,7 @@ export async function POST(req: Request) {
         otpExpiresAt,
         stayLoggedIn: body.stayLoggedIn,
         expiresAt,
+        betaClientWaitlistEntryId: gate.betaClientWaitlistEntryId ?? undefined,
       },
     });
 

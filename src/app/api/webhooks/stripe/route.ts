@@ -97,11 +97,20 @@ export async function POST(req: Request) {
           });
         }
       }
-      if (session.mode === "subscription" && session.payment_status === "paid") {
-        const sub = session.subscription;
-        const subId = typeof sub === "string" ? sub : sub?.id;
-        if (subId) {
-          await finalizeRegistrationAfterPayment(subId);
+      if (session.mode === "subscription") {
+        const paymentOk =
+          session.payment_status === "paid" ||
+          session.payment_status === "no_payment_required";
+        if (paymentOk) {
+          const sub = session.subscription;
+          const subId = typeof sub === "string" ? sub : sub?.id;
+          if (subId) {
+            const subObj = await stripe.subscriptions.retrieve(subId);
+            const st = String(subObj.status ?? "");
+            if (st === "active" || st === "trialing") {
+              await finalizeRegistrationAfterPayment(subId);
+            }
+          }
         }
       }
     }

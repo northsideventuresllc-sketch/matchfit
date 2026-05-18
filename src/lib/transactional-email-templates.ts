@@ -68,6 +68,16 @@ export function buildTransactionalEmail(
   const deviceLine = c(ctx.deviceLine, "Chrome on Windows");
   const loginTime = c(ctx.loginTime, new Date().toISOString());
   const policyName = c(ctx.policyName, "Terms of Service");
+  const queuePosition = c(ctx.queuePosition, "3");
+  const joinUrl = c(ctx.joinUrl, `${appBaseUrlForEmailSample()}/trainer/sign-up?betaInvite=sample`);
+  const reservedUsername = c(ctx.reservedUsername, "coachalex");
+  const slotExpiresLabel = c(ctx.slotExpiresLabel, "June 13, 2026");
+  const supportUrl = c(ctx.supportUrl, `${appBaseUrlForEmailSample()}/`);
+  const coachName = c(ctx.coachName, "Coach Jordan");
+  const sessionStartLabel = c(ctx.startLabel, "Mon, Jun 2, 3:00 PM");
+  const sessionDelivery = c(ctx.sessionDelivery, "IN_PERSON");
+  const videoPlatform = c(ctx.videoPlatform, "Google Meet");
+  const messagesThreadUrl = c(ctx.messagesThreadUrl, `${appBaseUrlForEmailSample()}/client/dashboard/messages/coachjordan`);
 
   switch (kind) {
     case "CLIENT_WELCOME": {

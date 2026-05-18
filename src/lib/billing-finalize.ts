@@ -54,6 +54,7 @@ export async function finalizeRegistrationAfterPayment(subscriptionId: string): 
 
   const twoFactorEnabled = hold.twoFactorEnabled;
   const twoFactorMethod = twoFactorEnabled ? hold.twoFactorMethod : "NONE";
+  const betaWl = hold.betaClientWaitlistEntryId;
 
   try {
     const client = await prisma.$transaction(async (tx) => {
@@ -81,6 +82,16 @@ export async function finalizeRegistrationAfterPayment(subscriptionId: string): 
         },
       });
       await tx.pendingClientRegistration.delete({ where: { id: hold.id } });
+      if (betaWl) {
+        await tx.betaClientWaitlistEntry.updateMany({
+          where: { id: betaWl, status: "INVITED" },
+          data: {
+            status: "REGISTERED",
+            registeredClientId: c.id,
+            updatedAt: new Date(),
+          },
+        });
+      }
       return c;
     });
 

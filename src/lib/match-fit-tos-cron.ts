@@ -12,6 +12,7 @@ import {
   backgroundCheckExpiresAt,
   shouldSendBackgroundCheckExpiryWarning,
 } from "@/lib/trainer-background-check-renewal";
+import { runBetaWaitlistCronJobs } from "@/lib/beta-waitlist-service";
 
 export type TosCronSummary = {
   backgroundCheckWarningsSent: number;
