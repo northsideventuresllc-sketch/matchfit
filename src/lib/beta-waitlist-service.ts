@@ -317,7 +317,7 @@ export async function runBetaWaitlistCronJobs(): Promise<{
         updatedAt: now,
       },
     });
-    const joinUrl = `${base}/trainer/sign-up?betaInvite=${encodeURIComponent(token)}`;
+    const joinUrl = `${base}/trainer/signup?betaInvite=${encodeURIComponent(token)}`;
     void sendTransactionalEmailIfAllowed({
       kind: "BETA_WAITLIST_TRAINER_INVITE",
       to: next.email,

@@ -43,6 +43,8 @@ export default function TrainerSignUpClient() {
   const [showPassword, setShowPassword] = useState(false);
   const [stayLoggedIn, setStayLoggedIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [betaInviteReserved, setBetaInviteReserved] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [verificationEmailSent, setVerificationEmailSent] = useState(false);
   const turnstileRef = useRef<TurnstileWidgetHandle>(null);
@@ -53,6 +55,24 @@ export default function TrainerSignUpClient() {
       .then((d: { gatesEnabled?: boolean }) => setBetaGatesOn(d.gatesEnabled === true))
       .catch(() => setBetaGatesOn(false));
   }, []);
+
+  useEffect(() => {
+    if (!betaInviteFromUrl) return;
+    let cancelled = false;
+    void fetch(`/api/public/beta-invite?betaInvite=${encodeURIComponent(betaInviteFromUrl)}`)
+      .then((r) => r.json())
+      .then((d: { valid?: boolean; firstName?: string; email?: string; desiredUsername?: string }) => {
+        if (cancelled || !d.valid) return;
+        if (d.firstName?.trim()) setFirstName(d.firstName.trim());
+        if (d.email?.trim()) setEmail(d.email.trim().toLowerCase());
+        if (d.desiredUsername?.trim()) setUsername(d.desiredUsername.trim());
+        setBetaInviteReserved(d.desiredUsername?.trim() ?? null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [betaInviteFromUrl]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -165,9 +185,10 @@ export default function TrainerSignUpClient() {
           });
           const data = (await res.json()) as { error?: string; next?: string; code?: string };
           if (!res.ok) {
+            setErrorCode(data.code ?? null);
             setError(
               data.code === "BETA_TRAINER_CAP"
-                ? `${data.error ?? "Coach slots are full."} Join the waitlist at /waitlist/trainer`
+                ? (data.error ?? "Coach slots are full for this beta.")
                 : (data.error ?? "Could not create your account."),
             );
             turnstileRef.current?.reset();
@@ -203,9 +224,10 @@ export default function TrainerSignUpClient() {
       });
       const data = (await res.json()) as { error?: string; next?: string; code?: string };
       if (!res.ok) {
+        setErrorCode(data.code ?? null);
         setError(
           data.code === "BETA_TRAINER_CAP"
-            ? `${data.error ?? "Coach slots are full."} Join the waitlist at /waitlist/trainer`
+            ? (data.error ?? "Coach slots are full for this beta.")
             : (data.error ?? "Could not create your account."),
         );
         turnstileRef.current?.reset();
@@ -252,9 +274,16 @@ export default function TrainerSignUpClient() {
 
         <h1 className="mt-10 text-2xl font-black tracking-tight sm:mt-12 sm:text-3xl">Create Your Trainer Account</h1>
         <p className="mt-2 text-sm leading-relaxed text-white/55 sm:text-base">
-          You will complete compliance steps after this screen. Use a strong password; you can enable two-factor
-          authentication later just like clients.
+          You will complete compliance steps after this screen. Atlanta metro beta coaches only — use a strong password;
+          you can enable two-factor authentication later just like clients.
         </p>
+
+        {betaInviteReserved ? (
+          <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100/95">
+            Beta invite active — sign up as <span className="font-semibold text-white">@{betaInviteReserved}</span> with
+            the invited email before your reserved slot expires.
+          </p>
+        ) : null}
 
         <div className="mt-8 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
           {error ? (
@@ -263,6 +292,14 @@ export default function TrainerSignUpClient() {
               role="alert"
             >
               {error}
+              {errorCode === "BETA_TRAINER_CAP" ? (
+                <>
+                  {" "}
+                  <Link href="/waitlist/trainer" className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
+                    Join the trainer waitlist
+                  </Link>
+                </>
+              ) : null}
             </p>
           ) : null}
 

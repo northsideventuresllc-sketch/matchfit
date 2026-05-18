@@ -69,7 +69,7 @@ export function buildTransactionalEmail(
   const loginTime = c(ctx.loginTime, new Date().toISOString());
   const policyName = c(ctx.policyName, "Terms of Service");
   const queuePosition = c(ctx.queuePosition, "3");
-  const joinUrl = c(ctx.joinUrl, `${appBaseUrlForEmailSample()}/trainer/sign-up?betaInvite=sample`);
+  const joinUrl = c(ctx.joinUrl, `${appBaseUrlForEmailSample()}/trainer/signup?betaInvite=sample`);
   const reservedUsername = c(ctx.reservedUsername, "coachalex");
   const slotExpiresLabel = c(ctx.slotExpiresLabel, "June 13, 2026");
   const supportUrl = c(ctx.supportUrl, `${appBaseUrlForEmailSample()}/`);

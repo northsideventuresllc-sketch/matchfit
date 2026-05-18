@@ -56,7 +56,14 @@ function ConfirmCheckout({ sessionId }: { sessionId: string }) {
   }, [sessionId, router]);
 
   if (status === "working") {
-    return <p className="mt-6 text-sm text-white/60">Confirming your subscription…</p>;
+    return (
+      <div className="mt-6 space-y-3">
+        <p className="text-sm text-white/70">Confirming your membership…</p>
+        <p className="text-xs text-white/45">
+          Free trials still require a card on file; you are not charged until the trial ends unless you cancel in Stripe.
+        </p>
+      </div>
+    );
   }
 
   return (

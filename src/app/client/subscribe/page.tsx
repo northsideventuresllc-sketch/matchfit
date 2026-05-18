@@ -70,6 +70,11 @@ function SubscribeContent() {
           emailMasked?: string;
         };
         if (cancelled) return;
+        if (!meta.hasHold) {
+          setFatal("Your sign-up session is missing or expired. Please start again from client sign-up.");
+          setLoading(false);
+          return;
+        }
         if (meta.internalQaBillingSkipEligible) {
           setQaSkip(true);
           setQaMasked(meta.emailMasked ?? null);
@@ -162,8 +167,8 @@ function SubscribeContent() {
           ) : (
             <>
               {" "}
-              While founding slots remain, new members add a card first and receive a{" "}
-              <span className="font-semibold text-white">14-day free trial</span> before the first monthly charge.
+              Add your card to activate membership. Founding slots include a free trial before the first $10/month charge
+              (length is set automatically at checkout).
             </>
           )}
         </p>
