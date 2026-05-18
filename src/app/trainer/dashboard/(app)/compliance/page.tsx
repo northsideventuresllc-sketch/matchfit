@@ -6,6 +6,7 @@ import { TrainerComplianceCertCarousel } from "@/components/trainer/trainer-comp
 import { TrainerComplianceCertReferenceDetails } from "@/components/trainer/trainer-compliance-cert-reference-details";
 import { TrainerComplianceCertTracksForm } from "@/components/trainer/trainer-compliance-cert-tracks-form";
 import { TrainerComplianceW9EmailSelfService } from "@/components/trainer/trainer-compliance-w9-email-self-service";
+import { TrainerRegistrationFeePanel } from "@/components/trainer/trainer-registration-fee-panel";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { OFF_PLATFORM_LIQUIDATED_DAMAGES_NOTICE } from "@/lib/tos-off-platform-deterrent";
 import { backgroundCheckStatusLabel, certificationReviewStatusLabel } from "@/lib/trainer-compliance-status-copy";
@@ -75,6 +76,7 @@ export default async function TrainerComplianceDetailsPage() {
     select: {
       hasSignedTOS: true,
       registrationFeeWaived: true,
+      hasPaidRegistrationFee: true,
       hasUploadedW9: true,
       w9Json: true,
       backgroundCheckStatus: true,
@@ -146,6 +148,18 @@ export default async function TrainerComplianceDetailsPage() {
       <section className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.08] p-5">
         <p className="text-xs font-semibold uppercase tracking-wide text-amber-200/90">Off-platform payments</p>
         <p className="mt-2 text-sm leading-relaxed text-white/70">{OFF_PLATFORM_LIQUIDATED_DAMAGES_NOTICE}</p>
+      </section>
+
+      <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
+        <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Platform registration fee</h2>
+        <p className="mt-3 text-sm text-white/55">
+          After your background check clears and certifications are approved, pay the one-time Match Fit registration
+          amount through Stripe. Founding coaches (first 10) pay 20% of the Checkr fee; later coaches pay $100 minus the
+          screening credit.
+        </p>
+        <div className="mt-4">
+          <TrainerRegistrationFeePanel />
+        </div>
       </section>
 
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">

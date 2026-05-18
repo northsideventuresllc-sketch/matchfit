@@ -8,11 +8,9 @@ function defaultSessionEndForHourly(start: Date, end: Date | null): Date {
   return d;
 }
 
-/** Industry-standard Stripe card estimate until balances are synced from Stripe. */
-export function estimateStripeProcessingFeeCents(totalChargedCents: number): number {
-  if (!Number.isFinite(totalChargedCents) || totalChargedCents <= 0) return 0;
-  return Math.round(totalChargedCents * 0.029 + 30);
-}
+import { estimateStripeProcessingFeeCents } from "@/lib/stripe-processing-fee";
+
+export { estimateStripeProcessingFeeCents };
 
 export type PayoutModel = "SERVICE_UNIT" | "TIME_UNIT" | "CYCLE_DIY";
 

@@ -1128,9 +1128,9 @@ export default function TrainerOnboardingClient() {
                 <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-[13px] leading-relaxed text-emerald-100/95">
                   <p className="font-semibold text-emerald-50">Founding coach slot</p>
                   <p className="mt-1 text-emerald-100/85">
-                    Match Fit is waiving the one-time <span className="font-semibold text-white">$100</span> platform
-                    registration fee for your account. You still pay the independent background-check provider when that
-                    step is collected—only the platform registration portion is waived for early coaches.
+                    You are in the first <span className="font-semibold text-white">10 coaches</span>: after screening
+                    clears, Match Fit charges <span className="font-semibold text-white">20%</span> of your verified
+                    Checkr background-check amount (plus processing)—not the full $100 platform fee.
                   </p>
                 </div>
               ) : null}

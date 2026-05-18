@@ -2,8 +2,17 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
+
+type SubscriptionOffer = {
+  foundingSlot: boolean;
+  trialDays: number;
+  foundingTrialDays: number;
+  postCapTrialDays: number;
+  allowPayNow: boolean;
+  allowTrial3d: boolean;
+};
 
 function SubscribeContent() {
   const router = useRouter();
@@ -12,11 +21,43 @@ function SubscribeContent() {
 
   const [loading, setLoading] = useState(true);
   const [fatal, setFatal] = useState<string | null>(null);
+  const [offer, setOffer] = useState<SubscriptionOffer | null>(null);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [qaSkip, setQaSkip] = useState(false);
   const [qaMasked, setQaMasked] = useState<string | null>(null);
   const [qaPassword, setQaPassword] = useState("");
   const [qaBusy, setQaBusy] = useState(false);
   const [qaError, setQaError] = useState<string | null>(null);
+
+  const startCheckout = useCallback(async (billingChoice?: "trial_3d" | "pay_now") => {
+    setCheckoutBusy(true);
+    setFatal(null);
+    try {
+      const res = await fetch("/api/client/billing/create-subscription", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(billingChoice ? { billingChoice } : {}),
+      });
+      const data = (await res.json()) as { error?: string; url?: string; code?: string };
+      if (!res.ok) {
+        setFatal(data.error ?? "Unable to start checkout.");
+        setLoading(false);
+        return;
+      }
+      if (!data.url) {
+        setFatal("Checkout could not be initialized.");
+        setLoading(false);
+        return;
+      }
+      navigateWithFullLoad(data.url);
+    } catch {
+      setFatal("Network error. Try again.");
+      setLoading(false);
+    } finally {
+      setCheckoutBusy(false);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,20 +77,21 @@ function SubscribeContent() {
           return;
         }
 
-        const res = await fetch("/api/client/billing/create-subscription", { method: "POST" });
-        const data = (await res.json()) as { error?: string; url?: string };
+        const offerRes = await fetch("/api/client/billing/subscription-offer", { credentials: "include" });
+        const offerData = (await offerRes.json()) as SubscriptionOffer & { error?: string };
         if (cancelled) return;
-        if (!res.ok) {
-          setFatal(data.error ?? "Unable to start checkout.");
+        if (!offerRes.ok) {
+          setFatal(offerData.error ?? "Could not load membership offer.");
           setLoading(false);
           return;
         }
-        if (!data.url) {
-          setFatal("Checkout could not be initialized.");
-          setLoading(false);
+        setOffer(offerData);
+
+        if (offerData.foundingSlot) {
+          await startCheckout();
           return;
         }
-        navigateWithFullLoad(data.url);
+        setLoading(false);
       } catch {
         if (!cancelled) {
           setFatal("Network error. Try again.");
@@ -60,7 +102,7 @@ function SubscribeContent() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [startCheckout]);
 
   async function qaComplete() {
     setQaError(null);
@@ -92,6 +134,10 @@ function SubscribeContent() {
     router.refresh();
   }
 
+  const foundingCopy = offer?.foundingSlot
+    ? `Founding member offer: add your card now for a ${offer.foundingTrialDays}-day free trial before your first $10/month charge.`
+    : null;
+
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] text-white antialiased">
       <div
@@ -102,28 +148,38 @@ function SubscribeContent() {
         <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Subscription</h1>
         <p className="mt-4 text-sm leading-relaxed text-white/65 sm:text-base">
           Match Fit is <span className="font-semibold text-white">$10.00 per month</span> after any introductory offer.
-          Limited founding offer: while slots remain, the first ten member accounts that complete subscription checkout may
-          receive a <span className="font-semibold text-white">30-day free trial</span> in Stripe before the monthly rate
-          applies (eligibility is determined automatically at checkout). The calendar day your first paid invoice succeeds
-          becomes your monthly billing anchor once the trial ends. If you first subscribe on the 31st of a month, your next
-          automatic charge is scheduled for the <span className="font-semibold text-white">1st</span> of the following
-          month (and continues from there).
+          {foundingCopy ? (
+            <>
+              {" "}
+              {foundingCopy}
+            </>
+          ) : offer && !offer.foundingSlot ? (
+            <>
+              {" "}
+              Choose a <span className="font-semibold text-white">{offer.postCapTrialDays}-day free trial</span> (card
+              required) or pay your first month now.
+            </>
+          ) : (
+            <>
+              {" "}
+              While founding slots remain, new members add a card first and receive a{" "}
+              <span className="font-semibold text-white">14-day free trial</span> before the first monthly charge.
+            </>
+          )}
         </p>
         <p className="mt-4 text-sm leading-relaxed text-white/55">
           Card numbers are collected by <span className="font-semibold text-white">Stripe</span>, a PCI-compliant
           payments processor. Match Fit does not store your full card details on our servers—only Stripe&apos;s secure
-          tokens and subscription references. Your payment information is not sold or shared with unrelated third
-          parties; it is used solely to run your subscription through Stripe.
+          tokens and subscription references.
         </p>
         <p className="mt-3 text-xs leading-relaxed text-white/40">
-          Your profile is only created in our database after your subscription is active or in a free trial. If you leave
-          without completing checkout, use &quot;Cancel and delete my sign-up&quot; so your in-progress registration is
-          permanently removed.
+          Your profile is only created after your subscription is active or in a free trial. Use &quot;Cancel and delete
+          my sign-up&quot; if you leave without finishing checkout.
         </p>
 
         {canceled ? (
           <p className="mt-8 rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white/70" role="status">
-            Checkout was canceled. You can try again below, or leave and delete your sign-up.
+            Checkout was canceled. Choose an option below or delete your sign-up.
           </p>
         ) : null}
 
@@ -158,13 +214,35 @@ function SubscribeContent() {
               {qaBusy ? "Working…" : "Complete without card checkout"}
             </button>
           </div>
-        ) : loading ? (
-          <p className="mt-10 text-sm text-white/50">Redirecting to secure checkout…</p>
+        ) : loading || checkoutBusy ? (
+          <p className="mt-10 text-sm text-white/50">
+            {offer?.foundingSlot || checkoutBusy ? "Redirecting to secure checkout…" : "Loading membership options…"}
+          </p>
         ) : fatal ? (
           <div className="mt-10 space-y-4">
             <p className="rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]" role="alert">
               {fatal}
             </p>
+            {offer && !offer.foundingSlot ? (
+              <div className="flex flex-col gap-3">
+                <button
+                  type="button"
+                  disabled={checkoutBusy}
+                  onClick={() => void startCheckout("trial_3d")}
+                  className="flex min-h-[3rem] w-full items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] px-4 text-sm font-black uppercase tracking-[0.08em] text-white"
+                >
+                  Try {offer.postCapTrialDays}-day free trial
+                </button>
+                <button
+                  type="button"
+                  disabled={checkoutBusy}
+                  onClick={() => void startCheckout("pay_now")}
+                  className="flex min-h-[3rem] w-full items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F]"
+                >
+                  Pay $10.00 now
+                </button>
+              </div>
+            ) : null}
             <button
               type="button"
               onClick={abandon}
@@ -172,11 +250,25 @@ function SubscribeContent() {
             >
               Cancel and delete my sign-up
             </button>
-            <p>
-              <Link href="/" className="text-xs text-white/45 hover:text-white/65">
-                Home
-              </Link>
-            </p>
+          </div>
+        ) : offer && !offer.foundingSlot ? (
+          <div className="mt-10 flex flex-col gap-3">
+            <button
+              type="button"
+              disabled={checkoutBusy}
+              onClick={() => void startCheckout("trial_3d")}
+              className="flex min-h-[3.25rem] w-full items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] px-4 text-sm font-black uppercase tracking-[0.08em] text-white"
+            >
+              {offer.postCapTrialDays}-day free trial (card required)
+            </button>
+            <button
+              type="button"
+              disabled={checkoutBusy}
+              onClick={() => void startCheckout("pay_now")}
+              className="flex min-h-[3.25rem] w-full items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F]"
+            >
+              Pay $10.00 / month now
+            </button>
           </div>
         ) : (
           <p className="mt-10 text-sm text-white/50">If you were not redirected, refresh this page.</p>

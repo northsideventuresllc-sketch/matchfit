@@ -1,33 +1,22 @@
-import type { Prisma } from "@prisma/client";
 import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import {
-  betaExcludeCapCountEmails,
   betaInviteSlotDays,
   betaMaxClients,
   betaMaxTrainers,
   isBetaLaunchGatesEnabled,
 } from "@/lib/beta-launch-config";
+import { countLaunchClients, countLaunchTrainers } from "@/lib/launch-account-counts";
 import { isZipInBetaAtlantaMetroArea } from "@/lib/beta-atlanta-metro-zips";
 import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
 import { appBaseUrlForEmail } from "@/lib/match-fit-email-shell";
 
 export async function countTrainersForBetaCap(): Promise<number> {
-  const ex = [...betaExcludeCapCountEmails()].map((e) => e.toLowerCase());
-  const where: Prisma.TrainerWhereInput = { deidentifiedAt: null };
-  if (ex.length > 0) {
-    where.NOT = { email: { in: ex } };
-  }
-  return prisma.trainer.count({ where });
+  return countLaunchTrainers();
 }
 
 export async function countClientsForBetaCap(): Promise<number> {
-  const ex = [...betaExcludeCapCountEmails()].map((e) => e.toLowerCase());
-  const where: Prisma.ClientWhereInput = { deidentifiedAt: null };
-  if (ex.length > 0) {
-    where.NOT = { email: { in: ex } };
-  }
-  return prisma.client.count({ where });
+  return countLaunchClients();
 }
 
 export async function isTrainerBetaCapReached(): Promise<boolean> {
@@ -394,4 +383,14 @@ export async function runBetaWaitlistCronJobs(): Promise<{
   }
 
   return { trainerInvitesExpired, clientInvitesExpired, trainerInvitesSent, clientInvitesSent };
+}
+
+/** Run waitlist expiry + fill open beta slots (safe to call after account removal or on a schedule). */
+export async function promoteBetaWaitlistIfCapacity(): Promise<{
+  trainerInvitesExpired: number;
+  clientInvitesExpired: number;
+  trainerInvitesSent: number;
+  clientInvitesSent: number;
+}> {
+  return runBetaWaitlistCronJobs();
 }

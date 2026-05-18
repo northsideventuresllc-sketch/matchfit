@@ -1,6 +1,20 @@
+import { trainerServiceZipToPrefix } from "@/lib/trainer-service-zip";
+
 /**
  * Regional pool for featured placement: first three digits of the trainer’s
- * in-person US ZIP from the Onboarding Questionnaire (virtual-only coaches cannot join this pool).
+ * in-person US ZIP from signup `serviceZipCode` or the Onboarding Questionnaire.
+ */
+export function resolveTrainerRegionZipPrefix(args: {
+  serviceZipCode?: string | null;
+  matchQuestionnaireAnswers?: string | null;
+}): string | null {
+  const fromSignup = trainerServiceZipToPrefix(args.serviceZipCode);
+  if (fromSignup) return fromSignup;
+  return trainerMatchAnswersToRegionZipPrefix(args.matchQuestionnaireAnswers ?? null);
+}
+
+/**
+ * Regional pool from questionnaire only (legacy).
  */
 export function trainerMatchAnswersToRegionZipPrefix(answersJson: string | null): string | null {
   if (!answersJson?.trim()) return null;

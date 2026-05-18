@@ -1,6 +1,8 @@
-import { isNextTrainerEligibleForRegistrationWaiver } from "@/lib/match-fit-launch-promotions";
+import { countLaunchTrainers } from "@/lib/launch-account-counts";
 import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
+import { trainerRegistrationPricingModeForNewTrainer } from "@/lib/trainer-registration-fee";
+import { normalizeTrainerServiceZip } from "@/lib/trainer-service-zip";
 import { trainerSignupSchema } from "@/lib/validations/trainer-register";
 import type { z } from "zod";
 
@@ -14,8 +16,11 @@ export async function createTrainerRecord(body: TrainerSignupParsed): Promise<{ 
   const email = body.email.trim().toLowerCase();
   const passwordHash = await hashPassword(body.password);
 
-  const trainerCountBefore = await prisma.trainer.count();
-  const registrationFeeWaived = isNextTrainerEligibleForRegistrationWaiver(trainerCountBefore);
+  const trainerCountBefore = await countLaunchTrainers();
+  const registrationFeePricingMode = trainerRegistrationPricingModeForNewTrainer(trainerCountBefore);
+  /** Legacy UI flag: true for founding tier (20% of Checkr BG), not a full $100 waiver. */
+  const registrationFeeWaived = registrationFeePricingMode === "FOUNDING_BG_SURCHARGE_20PCT";
+  const serviceZipCode = normalizeTrainerServiceZip(body.serviceZipCode);
 
   const trainer = await prisma.trainer.create({
     data: {
@@ -30,6 +35,8 @@ export async function createTrainerRecord(body: TrainerSignupParsed): Promise<{ 
       profile: {
         create: {
           registrationFeeWaived,
+          registrationFeePricingMode,
+          ...(serviceZipCode ? { serviceZipCode } : {}),
           backgroundCheckStatus: "NOT_STARTED",
           certificationReviewStatus: "NOT_STARTED",
           nutritionistCertificationReviewStatus: "NOT_STARTED",
