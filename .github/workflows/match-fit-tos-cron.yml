@@ -1,0 +1,29 @@
+# Runs Match Fit scheduled jobs (waitlist promotion, TOS/session crons) every 15 minutes.
+# Vercel Hobby cannot deploy vercel.json crons more often than once per day (see vercel.link/3Fpeeb1).
+# On Vercel Pro you may merge vercel.cron.pro.example.json into vercel.json and disable this workflow.
+
+name: Match Fit scheduled jobs
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  match-fit-tos-jobs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke production cron endpoint
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ secrets.MATCH_FIT_APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$APP_URL" ]; then
+            echo "Skipping: set repository secrets CRON_SECRET and MATCH_FIT_APP_URL (e.g. https://match-fit.net)."
+            exit 0
+          fi
+          URL="${APP_URL%/}/api/cron/match-fit-tos-jobs"
+          echo "GET $URL"
+          curl -fsS -X GET \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "$URL"

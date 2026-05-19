@@ -32,6 +32,13 @@ The local dev database uses `postgresql://matchfit:matchfit@localhost:5432/match
 | Beta launch local setup | `npm run beta:setup` (creates `.env`, enables gates, `db push`) |
 | Beta production env check | `npm run beta:preflight:production` (after Stripe/Resend keys in `.env`) |
 | Push beta env to Vercel | `npm run beta:vercel-env` (after `npx vercel link`) |
+
+### Scheduled jobs (waitlist + TOS cron)
+
+`vercel.json` intentionally has **no** `crons` entry: Vercel **Hobby** rejects deploys when a cron runs more than once per day (`*/15 * * * *` fails at deploy time).
+
+- **Hobby / default:** GitHub Actions workflow `.github/workflows/match-fit-tos-cron.yml` calls `GET /api/cron/match-fit-tos-jobs` every 15 minutes. Set repo secrets `CRON_SECRET` and `MATCH_FIT_APP_URL` (production URL, no trailing slash).
+- **Vercel Pro:** You may copy `vercel.cron.pro.example.json` into `vercel.json` instead and rely on Vercel Cron.
 | Seed admin | `MATCH_FIT_BOOTSTRAP_ADMIN_PASSWORD='<12+ chars>' node --env-file=.env scripts/seed-bootstrap-admin.js` |
 
 ### Environment variables
