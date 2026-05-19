@@ -1,7 +1,8 @@
 import { isEmailTaken, isUsernameTaken } from "@/lib/client-queries";
 import { deliverSignupOtp } from "@/lib/deliver-otp";
 import { generateSixDigitCode, hashOtp } from "@/lib/otp";
-import { hashPassword } from "@/lib/password";
+import { BetaCapExceededError } from "@/lib/beta-cap-enforcement";
+import { createClientRegistrationHold } from "@/lib/client-registration-hold";
 import { purgeExpiredRegistrationHolds } from "@/lib/purge-registration-holds";
 import { prisma } from "@/lib/prisma";
 import {
@@ -61,7 +62,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "That email is already registered." }, { status: 409 });
     }
 
-    const passwordHash = await hashPassword(body.password);
     const code = generateSixDigitCode();
     const otpHash = hashOtp(code);
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -69,28 +69,14 @@ export async function POST(req: Request) {
 
     const method = "EMAIL" as const;
 
-    const pending = await prisma.pendingClientRegistration.create({
-      data: {
-        firstName: body.firstName,
-        lastName: body.lastName,
-        preferredName: body.preferredName,
-        username,
-        phone: body.phone.trim(),
-        email,
-        passwordHash,
-        zipCode: body.zipCode,
-        dateOfBirth: body.dateOfBirth,
-        termsAcceptedAt: new Date(),
-        privacyPolicyAcceptedAt: new Date(),
-        status: "PENDING_2FA",
-        twoFactorEnabled: true,
-        twoFactorMethod: method,
-        otpHash,
-        otpExpiresAt,
-        stayLoggedIn: body.stayLoggedIn,
-        expiresAt,
-        betaClientWaitlistEntryId: gate.betaClientWaitlistEntryId ?? undefined,
-      },
+    const pending = await createClientRegistrationHold(body, {
+      betaClientWaitlistEntryId: gate.betaClientWaitlistEntryId,
+      status: "PENDING_2FA",
+      twoFactorEnabled: true,
+      twoFactorMethod: method,
+      otpHash,
+      otpExpiresAt,
+      expiresAt,
     });
 
     try {
@@ -110,6 +96,9 @@ export async function POST(req: Request) {
       pendingId: pending.id,
     });
   } catch (e) {
+    if (e instanceof BetaCapExceededError) {
+      return NextResponse.json({ error: e.message, code: e.code }, { status: 403 });
+    }
     const { message, status } = publicApiErrorFromUnknown(e, "Could not start verification. Try again.", {
       logLabel: "[Match Fit register pending-2FA]",
     });

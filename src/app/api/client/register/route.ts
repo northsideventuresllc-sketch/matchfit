@@ -1,7 +1,7 @@
 import { isEmailTaken, isUsernameTaken } from "@/lib/client-queries";
-import { hashPassword } from "@/lib/password";
+import { BetaCapExceededError } from "@/lib/beta-cap-enforcement";
+import { createClientRegistrationHold } from "@/lib/client-registration-hold";
 import { purgeExpiredRegistrationHolds } from "@/lib/purge-registration-holds";
-import { prisma } from "@/lib/prisma";
 import { setRegistrationHoldCookie } from "@/lib/session";
 import {
   firstZodErrorMessage,
@@ -21,8 +21,6 @@ function isAtLeast18(birthYmd: string): boolean {
   cutoff.setFullYear(cutoff.getFullYear() - 18);
   return birth <= cutoff;
 }
-
-const HOLD_TTL_MS = 72 * 60 * 60 * 1000;
 
 export async function POST(req: Request) {
   try {
@@ -62,35 +60,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "That email is already registered." }, { status: 409 });
     }
 
-    const passwordHash = await hashPassword(body.password);
-
-    const pending = await prisma.pendingClientRegistration.create({
-      data: {
-        firstName: body.firstName,
-        lastName: body.lastName,
-        preferredName: body.preferredName,
-        username,
-        phone: body.phone.trim(),
-        email,
-        passwordHash,
-        zipCode: body.zipCode,
-        dateOfBirth: body.dateOfBirth,
-        termsAcceptedAt: new Date(),
-        privacyPolicyAcceptedAt: new Date(),
-        status: "AWAITING_PAYMENT",
-        twoFactorEnabled: false,
-        twoFactorMethod: "NONE",
-        otpHash: null,
-        otpExpiresAt: null,
-        stayLoggedIn: body.stayLoggedIn,
-        expiresAt: new Date(Date.now() + HOLD_TTL_MS),
-        betaClientWaitlistEntryId: gate.betaClientWaitlistEntryId ?? undefined,
-      },
+    const pending = await createClientRegistrationHold(body, {
+      betaClientWaitlistEntryId: gate.betaClientWaitlistEntryId,
+      status: "AWAITING_PAYMENT",
+      twoFactorEnabled: false,
+      twoFactorMethod: "NONE",
+      otpHash: null,
+      otpExpiresAt: null,
     });
 
     await setRegistrationHoldCookie(pending.id);
     return NextResponse.json({ ok: true, pendingId: pending.id, next: "/client/subscribe" });
   } catch (e) {
+    if (e instanceof BetaCapExceededError) {
+      return NextResponse.json({ error: e.message, code: e.code }, { status: 403 });
+    }
     const { message, status } = publicApiErrorFromUnknown(e, "Registration failed. Please try again.", {
       logLabel: "[Match Fit register]",
     });

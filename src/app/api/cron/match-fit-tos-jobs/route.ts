@@ -12,8 +12,7 @@ function authorize(req: Request): boolean {
   return q === secret;
 }
 
-/** Scheduled jobs: background-check renewal notices, session auto-complete, DIY refund alerts. */
-export async function POST(req: Request) {
+async function runCron(req: Request) {
   if (!authorize(req)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
@@ -24,4 +23,14 @@ export async function POST(req: Request) {
     console.error("[cron match-fit-tos-jobs]", e);
     return NextResponse.json({ error: "Cron failed." }, { status: 500 });
   }
+}
+
+/** Vercel Cron invokes GET; manual ops may use POST with the same Bearer secret. */
+export async function GET(req: Request) {
+  return runCron(req);
+}
+
+/** Scheduled jobs: background-check renewal, session auto-complete, DIY alerts, beta waitlist promotion. */
+export async function POST(req: Request) {
+  return runCron(req);
 }

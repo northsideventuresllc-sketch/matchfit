@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 
 /** Default mock Checkr charge when vendor is not wired (cents). */
@@ -15,6 +16,28 @@ export type CheckrReportPaidPayload = {
   /** Amount the trainer paid Checkr in cents (from invoice or report object). */
   vendorPaidCents: number;
 };
+
+/**
+ * Verify Checkr webhook HMAC-SHA256 (hex) against the raw request body.
+ * @see https://github.com/checkr/webhook-verification-examples
+ */
+export function verifyCheckrWebhookSignature(
+  rawBody: string,
+  signatureHeader: string | null,
+  secret: string,
+): boolean {
+  const signature = signatureHeader?.trim();
+  if (!signature || !secret.trim()) return false;
+  const computed = createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
+  try {
+    const a = Buffer.from(computed, "utf8");
+    const b = Buffer.from(signature, "utf8");
+    if (a.length !== b.length) return false;
+    return timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
 
 export async function recordCheckrBackgroundCheckPaid(payload: CheckrReportPaidPayload): Promise<void> {
   const cents = Math.max(1, Math.floor(payload.vendorPaidCents));

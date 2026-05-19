@@ -1,20 +1,23 @@
-import { NextResponse } from "next/server";
-import { parseCheckrWebhookPaidCents, recordCheckrBackgroundCheckPaid } from "@/lib/checkr";
+import { parseCheckrWebhookPaidCents, recordCheckrBackgroundCheckPaid, verifyCheckrWebhookSignature } from "@/lib/checkr";
 import { prisma } from "@/lib/prisma";
 import { maybeActivateTrainerDashboard } from "@/lib/trainer-onboarding-dashboard";
+import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-function verifyCheckrSignature(): boolean {
+function checkrWebhookAuthorized(req: Request, rawBody: string): boolean {
   const secret = process.env.CHECKR_WEBHOOK_SECRET?.trim();
   if (!secret) return process.env.NODE_ENV !== "production";
-  // Checkr signs webhooks — wire HMAC verification when secret is configured.
-  return true;
+  const signature =
+    req.headers.get("x-checkr-signature") ??
+    req.headers.get("X-Checkr-Signature") ??
+    req.headers.get("x-checkr-signature-256");
+  return verifyCheckrWebhookSignature(rawBody, signature, secret);
 }
 
 export async function POST(req: Request) {
   const raw = await req.text();
-  if (!verifyCheckrSignature()) {
+  if (!checkrWebhookAuthorized(req, raw)) {
     return NextResponse.json({ error: "Invalid signature." }, { status: 401 });
   }
 

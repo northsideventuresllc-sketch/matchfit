@@ -1,7 +1,6 @@
-import { isBetaLaunchGatesEnabled } from "@/lib/beta-launch-config";
+import { BetaCapExceededError, assertClientBetaSlotForFinalize } from "@/lib/beta-cap-enforcement";
 import { notifyClientMembershipTrialStarted } from "@/lib/client-membership-email-notify";
 import { getClientFoundingTrialDays } from "@/lib/match-fit-launch-promotions";
-import { isClientBetaCapReached } from "@/lib/beta-waitlist-service";
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe-server";
 import { isMatchFitInternalQaClientEmail } from "@/lib/match-fit-internal-qa";
@@ -60,15 +59,9 @@ export async function finalizeRegistrationAfterPayment(subscriptionId: string): 
   const twoFactorMethod = twoFactorEnabled ? hold.twoFactorMethod : "NONE";
   const betaWl = hold.betaClientWaitlistEntryId;
 
-  if (isBetaLaunchGatesEnabled() && !betaWl && (await isClientBetaCapReached())) {
-    return {
-      ok: false,
-      error: "Client memberships are full for this beta. Join the waitlist and use your invite when a slot opens.",
-    };
-  }
-
   try {
     const client = await prisma.$transaction(async (tx) => {
+      await assertClientBetaSlotForFinalize(tx, betaWl);
       const c = await tx.client.create({
         data: {
           firstName: hold.firstName,
@@ -104,7 +97,7 @@ export async function finalizeRegistrationAfterPayment(subscriptionId: string): 
         });
       }
       return c;
-    });
+    }, { isolationLevel: "Serializable" });
 
     if (sub.status === "trialing") {
       const trialEndUnix = sub.trial_end;
@@ -129,6 +122,9 @@ export async function finalizeRegistrationAfterPayment(subscriptionId: string): 
 
     return { ok: true, clientId: client.id };
   } catch (e) {
+    if (e instanceof BetaCapExceededError) {
+      return { ok: false, error: e.message };
+    }
     if (e && typeof e === "object" && "code" in e && (e as { code?: string }).code === "P2002") {
       const existing = await prisma.client.findUnique({ where: { email: hold.email } });
       if (existing) {
