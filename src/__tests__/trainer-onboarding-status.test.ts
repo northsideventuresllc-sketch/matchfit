@@ -1,20 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { verifyTrainerOnboardingDevPassword } from "@/lib/trainer-dev-bypass";
 import { coerceTrainerBackgroundVendorStatus, coerceTrainerCptStatus } from "@/lib/trainer-onboarding-status";
 
 describe("verifyTrainerOnboardingDevPassword", () => {
-  const prevEnv = process.env.MATCH_FIT_TRAINER_ONBOARDING_DEV_PASSWORD;
-  const prevNodeEnv = process.env.NODE_ENV;
-
   beforeEach(() => {
-    process.env.MATCH_FIT_TRAINER_ONBOARDING_DEV_PASSWORD = "Crumpet99!";
-    process.env.NODE_ENV = "development";
+    vi.stubEnv("MATCH_FIT_TRAINER_ONBOARDING_DEV_PASSWORD", "Crumpet99!");
+    vi.stubEnv("NODE_ENV", "development");
   });
 
   afterEach(() => {
-    if (prevEnv === undefined) delete process.env.MATCH_FIT_TRAINER_ONBOARDING_DEV_PASSWORD;
-    else process.env.MATCH_FIT_TRAINER_ONBOARDING_DEV_PASSWORD = prevEnv;
-    process.env.NODE_ENV = prevNodeEnv;
+    vi.unstubAllEnvs();
   });
 
   it("accepts the exact case-sensitive password", () => {
