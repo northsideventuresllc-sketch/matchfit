@@ -33,6 +33,7 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
+.beta-launch-secrets.local
 # Explicit: Next.js local secrets (.env* already covers this)
 .env.local
 

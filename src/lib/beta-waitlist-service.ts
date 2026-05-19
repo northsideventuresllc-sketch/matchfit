@@ -1,43 +1,65 @@
-import type { Prisma } from "@prisma/client";
 import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import {
-  betaExcludeCapCountEmails,
   betaInviteSlotDays,
   betaMaxClients,
   betaMaxTrainers,
   isBetaLaunchGatesEnabled,
 } from "@/lib/beta-launch-config";
+import { countLaunchClients, countLaunchTrainers } from "@/lib/launch-account-counts";
 import { isZipInBetaAtlantaMetroArea } from "@/lib/beta-atlanta-metro-zips";
 import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
 import { appBaseUrlForEmail } from "@/lib/match-fit-email-shell";
 
+import type { Prisma } from "@prisma/client";
+
+type BetaCapDb = Prisma.TransactionClient | typeof prisma;
+
 export async function countTrainersForBetaCap(): Promise<number> {
-  const ex = [...betaExcludeCapCountEmails()].map((e) => e.toLowerCase());
-  const where: Prisma.TrainerWhereInput = { deidentifiedAt: null };
-  if (ex.length > 0) {
-    where.NOT = { email: { in: ex } };
-  }
-  return prisma.trainer.count({ where });
+  return countLaunchTrainers();
 }
 
 export async function countClientsForBetaCap(): Promise<number> {
-  const ex = [...betaExcludeCapCountEmails()].map((e) => e.toLowerCase());
-  const where: Prisma.ClientWhereInput = { deidentifiedAt: null };
-  if (ex.length > 0) {
-    where.NOT = { email: { in: ex } };
-  }
-  return prisma.client.count({ where });
+  return countLaunchClients();
+}
+
+/** Non-expired waitlist invites reserve a beta slot until signup or expiry. */
+export async function countActiveTrainerBetaInvites(db: BetaCapDb = prisma): Promise<number> {
+  return db.betaTrainerWaitlistEntry.count({
+    where: { status: "INVITED", slotExpiresAt: { gt: new Date() } },
+  });
+}
+
+export async function countActiveClientBetaInvites(db: BetaCapDb = prisma): Promise<number> {
+  return db.betaClientWaitlistEntry.count({
+    where: { status: "INVITED", slotExpiresAt: { gt: new Date() } },
+  });
+}
+
+export async function trainerBetaSlotsUsed(db: BetaCapDb = prisma): Promise<number> {
+  const [registered, invited] = await Promise.all([
+    countTrainersForBetaCap(),
+    countActiveTrainerBetaInvites(db),
+  ]);
+  return registered + invited;
+}
+
+export async function clientBetaSlotsUsed(db: BetaCapDb = prisma): Promise<number> {
+  const [registered, invited] = await Promise.all([
+    countClientsForBetaCap(),
+    countActiveClientBetaInvites(db),
+  ]);
+  return registered + invited;
 }
 
 export async function isTrainerBetaCapReached(): Promise<boolean> {
   if (!isBetaLaunchGatesEnabled()) return false;
-  return (await countTrainersForBetaCap()) >= betaMaxTrainers();
+  return (await trainerBetaSlotsUsed()) >= betaMaxTrainers();
 }
 
 export async function isClientBetaCapReached(): Promise<boolean> {
   if (!isBetaLaunchGatesEnabled()) return false;
-  return (await countClientsForBetaCap()) >= betaMaxClients();
+  return (await clientBetaSlotsUsed()) >= betaMaxClients();
 }
 
 function newInviteToken(): string {
@@ -66,6 +88,9 @@ export async function joinBetaTrainerWaitlist(args: {
 }): Promise<{ ok: true; id: string } | { error: string }> {
   if (!isBetaLaunchGatesEnabled()) {
     return { error: "Waitlist is not open." };
+  }
+  if (!(await isTrainerBetaCapReached())) {
+    return { error: "Trainer slots are still available — sign up instead of joining the waitlist." };
   }
   if (!isZipInBetaAtlantaMetroArea(args.serviceZipCode)) {
     return { error: "That ZIP is outside the Atlanta metro beta area." };
@@ -126,6 +151,9 @@ export async function joinBetaClientWaitlist(args: {
 }): Promise<{ ok: true; id: string } | { error: string }> {
   if (!isBetaLaunchGatesEnabled()) {
     return { error: "Waitlist is not open." };
+  }
+  if (!(await isClientBetaCapReached())) {
+    return { error: "Client memberships are still available — sign up instead of joining the waitlist." };
   }
   if (!isZipInBetaAtlantaMetroArea(args.homeZipCode)) {
     return { error: "That ZIP is outside the Atlanta metro beta area." };
@@ -293,7 +321,7 @@ export async function runBetaWaitlistCronJobs(): Promise<{
   const slotMs = betaInviteSlotDays() * 24 * 60 * 60 * 1000;
   const base = appBaseUrlForEmail().replace(/\/$/, "");
 
-  while ((await countTrainersForBetaCap()) < betaMaxTrainers()) {
+  while ((await trainerBetaSlotsUsed()) < betaMaxTrainers()) {
     const next = await prisma.betaTrainerWaitlistEntry.findFirst({
       where: { status: "QUEUED" },
       orderBy: { createdAt: "asc" },
@@ -328,7 +356,7 @@ export async function runBetaWaitlistCronJobs(): Promise<{
         updatedAt: now,
       },
     });
-    const joinUrl = `${base}/trainer/sign-up?betaInvite=${encodeURIComponent(token)}`;
+    const joinUrl = `${base}/trainer/signup?betaInvite=${encodeURIComponent(token)}`;
     void sendTransactionalEmailIfAllowed({
       kind: "BETA_WAITLIST_TRAINER_INVITE",
       to: next.email,
@@ -343,7 +371,7 @@ export async function runBetaWaitlistCronJobs(): Promise<{
     trainerInvitesSent += 1;
   }
 
-  while ((await countClientsForBetaCap()) < betaMaxClients()) {
+  while ((await clientBetaSlotsUsed()) < betaMaxClients()) {
     const next = await prisma.betaClientWaitlistEntry.findFirst({
       where: { status: "QUEUED" },
       orderBy: { createdAt: "asc" },
@@ -394,4 +422,14 @@ export async function runBetaWaitlistCronJobs(): Promise<{
   }
 
   return { trainerInvitesExpired, clientInvitesExpired, trainerInvitesSent, clientInvitesSent };
+}
+
+/** Run waitlist expiry + fill open beta slots (safe to call after account removal or on a schedule). */
+export async function promoteBetaWaitlistIfCapacity(): Promise<{
+  trainerInvitesExpired: number;
+  clientInvitesExpired: number;
+  trainerInvitesSent: number;
+  clientInvitesSent: number;
+}> {
+  return runBetaWaitlistCronJobs();
 }

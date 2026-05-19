@@ -1,5 +1,6 @@
 import { applyTrainerSessionToNextResponse } from "@/lib/session";
 import { sendTrainerWelcomeEmail } from "@/lib/trainer-welcome-email";
+import { BetaCapExceededError } from "@/lib/beta-cap-enforcement";
 import { createTrainerRecord } from "@/lib/trainer-register-service";
 import { evaluateBetaTrainerRegistrationGate } from "@/lib/beta-trainer-register-gate";
 import { markTrainerWaitlistRegistered } from "@/lib/beta-waitlist-service";
@@ -41,7 +42,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "That email is already registered." }, { status: 409 });
     }
 
-    const trainer = await createTrainerRecord(body);
+    const trainer = await createTrainerRecord(body, {
+      betaInviteEntryId: gate.ok ? gate.betaInviteEntryId : null,
+    });
 
     if (gate.ok && gate.betaInviteEntryId) {
       await markTrainerWaitlistRegistered(gate.betaInviteEntryId, trainer.id);
@@ -56,6 +59,9 @@ export async function POST(req: Request) {
     }).catch((err) => console.error("[trainer register] welcome email failed:", err));
     return res;
   } catch (e) {
+    if (e instanceof BetaCapExceededError) {
+      return NextResponse.json({ error: e.message, code: e.code }, { status: 403 });
+    }
     const { message, status } = publicApiErrorFromUnknown(e, "Registration failed. Please try again.", {
       logLabel: "[Match Fit trainer register]",
     });

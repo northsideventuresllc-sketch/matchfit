@@ -1,4 +1,8 @@
 import { finalizeRegistrationAfterPayment } from "@/lib/billing-finalize";
+import {
+  notifyClientMembershipTrialEnding,
+  notifyTrainerRegistrationFeeReceipt,
+} from "@/lib/client-membership-email-notify";
 import { prisma } from "@/lib/prisma";
 import { notifyClientSubscriptionStripeEvent } from "@/lib/subscription-email-notify";
 import { syncClientSubscriptionFromStripe } from "@/lib/stripe-sync-client-subscription";
@@ -41,6 +45,32 @@ export async function POST(req: Request) {
       const session = event.data.object as Stripe.Checkout.Session;
       const md = session.metadata ?? {};
       if (session.mode === "payment" && session.payment_status === "paid") {
+        if (md.purpose === "trainer_registration_fee" && md.trainerId) {
+          const trainerId = String(md.trainerId).trim();
+          const totalChargedCents = Math.max(0, parseInt(String(md.totalChargedCents ?? "0"), 10) || 0);
+          const baseCents = Math.max(0, parseInt(String(md.baseCents ?? "0"), 10) || 0);
+          const paidCents = totalChargedCents || baseCents;
+          await prisma.trainerProfile.updateMany({
+            where: { trainerId },
+            data: {
+              hasPaidRegistrationFee: true,
+              registrationFeePaidCents: paidCents > 0 ? paidCents : undefined,
+              updatedAt: new Date(),
+            },
+          });
+          const trainer = await prisma.trainer.findUnique({
+            where: { id: trainerId },
+            select: { email: true },
+          });
+          if (trainer?.email) {
+            const dollars = (paidCents / 100).toFixed(2);
+            void notifyTrainerRegistrationFeeReceipt({
+              trainerId,
+              email: trainer.email,
+              amountLabel: `$${dollars}`,
+            });
+          }
+        }
         if (md.purpose === "trainer_promo_tokens" && md.trainerId) {
           const tier = getPromoPackTierById(String(md.packTier ?? md.tier ?? "").trim());
           let tokens = tier?.tokens ?? 0;
@@ -132,6 +162,13 @@ export async function POST(req: Request) {
           where: { stripeSubscriptionId: subId },
           data: { stripeLastSubscriptionInvoicePaidAt: paidAt },
         });
+      }
+    }
+    if (event.type === "customer.subscription.trial_will_end") {
+      const sub = event.data.object as Stripe.Subscription;
+      if (sub.id && sub.trial_end) {
+        const trialEndLabel = new Date(sub.trial_end * 1000).toLocaleDateString("en-US", { dateStyle: "long" });
+        void notifyClientMembershipTrialEnding({ stripeSubscriptionId: sub.id, trialEndLabel });
       }
     }
     if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {

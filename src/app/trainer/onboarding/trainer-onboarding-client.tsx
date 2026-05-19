@@ -411,6 +411,7 @@ export default function TrainerOnboardingClient() {
   }, [isOnboardingDirty, canReturnToDashboard]);
 
   const bgVendor = useMemo(() => coerceTrainerBackgroundVendorStatus(profile?.backgroundCheckStatus), [profile?.backgroundCheckStatus]);
+  const showBackgroundCheckDevOverride = process.env.NODE_ENV !== "production";
   const cptStatus = useMemo(() => coerceTrainerCptStatus(profile?.certificationReviewStatus), [profile?.certificationReviewStatus]);
   const nutritionStatus = useMemo(
     () => coerceTrainerCptStatus(profile?.nutritionistCertificationReviewStatus),
@@ -1128,9 +1129,9 @@ export default function TrainerOnboardingClient() {
                 <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-[13px] leading-relaxed text-emerald-100/95">
                   <p className="font-semibold text-emerald-50">Founding coach slot</p>
                   <p className="mt-1 text-emerald-100/85">
-                    Match Fit is waiving the one-time <span className="font-semibold text-white">$100</span> platform
-                    registration fee for your account. You still pay the independent background-check provider when that
-                    step is collected—only the platform registration portion is waived for early coaches.
+                    You are in the first <span className="font-semibold text-white">10 coaches</span>: after screening
+                    clears, Match Fit charges <span className="font-semibold text-white">20%</span> of your verified
+                    Checkr background-check amount (plus processing)—not the full $100 platform fee.
                   </p>
                 </div>
               ) : null}
@@ -1187,8 +1188,9 @@ export default function TrainerOnboardingClient() {
             <div className="space-y-5 text-sm leading-relaxed text-white/70">
               <div className="space-y-3 text-[13px] leading-relaxed text-white/65">
                 <p>
-                  After you acknowledge Match Fit&apos;s policies, you complete background screening through our future
-                  third-party vendor. <span className="font-semibold text-white/90">NOT STARTED</span> means you have not
+                  After you acknowledge Match Fit&apos;s policies, you complete background screening through Checkr.
+                  When your coach account is connected, you will start screening from a secure link on this step.{" "}
+                  <span className="font-semibold text-white/90">NOT STARTED</span> means you have not
                   yet submitted screening with the vendor. <span className="font-semibold text-white/90">PENDING</span>{" "}
                   means the vendor has received your screening and a result is not final.{" "}
                   <span className="font-semibold text-white/90">APPROVED</span> means you cleared screening at the
@@ -1209,28 +1211,37 @@ export default function TrainerOnboardingClient() {
                   </div>
                 ) : null}
               </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="bg-dev-pw">
-                  Development password (required for testing override)
-                </label>
-                <input
-                  id="bg-dev-pw"
-                  type="password"
-                  autoComplete="off"
-                  value={bgDevPassword}
-                  onChange={(e) => setBgDevPassword(e.target.value)}
-                  placeholder="Enter password"
-                  className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 focus:border-[#FF7E00]/40 focus:ring-2"
-                />
-              </div>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void handleBackgroundTestingOverride()}
-                className="flex min-h-[3rem] w-full items-center justify-center rounded-xl border border-amber-400/35 bg-amber-400/10 px-4 text-xs font-black uppercase tracking-[0.12em] text-amber-100 transition hover:border-amber-400/55 disabled:opacity-50"
-              >
-                Override for testing
-              </button>
+              {showBackgroundCheckDevOverride ? (
+                <>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="bg-dev-pw">
+                      Development password (local testing only)
+                    </label>
+                    <input
+                      id="bg-dev-pw"
+                      type="password"
+                      autoComplete="off"
+                      value={bgDevPassword}
+                      onChange={(e) => setBgDevPassword(e.target.value)}
+                      placeholder="Enter password"
+                      className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 focus:border-[#FF7E00]/40 focus:ring-2"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void handleBackgroundTestingOverride()}
+                    className="flex min-h-[3rem] w-full items-center justify-center rounded-xl border border-amber-400/35 bg-amber-400/10 px-4 text-xs font-black uppercase tracking-[0.12em] text-amber-100 transition hover:border-amber-400/55 disabled:opacity-50"
+                  >
+                    Override for testing
+                  </button>
+                </>
+              ) : bgVendor !== "APPROVED" ? (
+                <p className="rounded-xl border border-white/[0.08] bg-[#0E1016]/80 px-4 py-3 text-sm text-white/60">
+                  Background screening opens here once Checkr is connected to your account. If you received a Checkr email
+                  invitation, complete it first — this page will update when your report clears.
+                </p>
+              ) : null}
               <button
                 type="button"
                 disabled={bgVendor !== "APPROVED"}

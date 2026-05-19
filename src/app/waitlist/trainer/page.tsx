@@ -6,6 +6,9 @@ import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnst
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
+const inputClass =
+  "w-full rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 transition placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2";
+
 export default function TrainerWaitlistPage() {
   const turnstileRef = useRef<TurnstileWidgetHandle>(null);
   const [busy, setBusy] = useState(false);
@@ -77,14 +80,17 @@ export default function TrainerWaitlistPage() {
         </p>
         {gatesOn === false ? (
           <p className="mt-6 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-50">
-            Trainer waitlist is not open right now (beta gates may be off or slots are still available).
+            Trainer waitlist is not open right now.{" "}
+            <Link href="/trainer/signup" className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
+              Try signing up
+            </Link>
           </p>
         ) : null}
         {done ? (
           <p className="mt-6 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-50" role="status">
             You are on the list. Check your email for confirmation.
           </p>
-        ) : (
+        ) : gatesOn ? (
           <form onSubmit={(ev) => void onSubmit(ev)} className="mt-8 flex flex-col gap-4">
             {error ? (
               <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-100" role="alert">
@@ -93,14 +99,14 @@ export default function TrainerWaitlistPage() {
             ) : null}
             <input
               required
-              className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-sm"
+              className={inputClass}
               placeholder="First name"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
             />
             <input
               required
-              className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-sm"
+              className={inputClass}
               placeholder="Last name"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
@@ -108,28 +114,28 @@ export default function TrainerWaitlistPage() {
             <input
               required
               type="email"
-              className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-sm"
+              className={inputClass}
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
             <input
               required
-              className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-sm"
+              className={inputClass}
               placeholder="Phone"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
             <input
               required
-              className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-sm"
+              className={inputClass}
               placeholder="Desired username"
               value={desiredUsername}
               onChange={(e) => setDesiredUsername(e.target.value)}
             />
             <input
               required
-              className="rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-sm"
+              className={inputClass}
               placeholder="Service ZIP (Atlanta metro)"
               value={serviceZipCode}
               onChange={(e) => setServiceZipCode(e.target.value)}
@@ -138,12 +144,14 @@ export default function TrainerWaitlistPage() {
             <button
               type="submit"
               disabled={busy || gatesOn !== true}
-              className="rounded-xl bg-gradient-to-r from-cyan-400 to-indigo-500 py-3 text-sm font-black uppercase tracking-wide text-[#050608] disabled:opacity-40"
+              className="mt-2 flex min-h-[3.25rem] items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] disabled:opacity-50"
             >
               {busy ? "Submitting…" : "Join waitlist"}
             </button>
           </form>
-        )}
+        ) : gatesOn === null ? (
+          <p className="mt-8 text-sm text-white/50">Loading…</p>
+        ) : null}
       </div>
     </main>
   );

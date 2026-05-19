@@ -4,7 +4,8 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  const token = new URL(req.url).searchParams.get("token")?.trim();
+  const q = new URL(req.url).searchParams;
+  const token = (q.get("token") ?? q.get("betaInvite"))?.trim();
   const inv = await getValidBetaInvite(token);
   if (!inv) {
     return NextResponse.json({ valid: false }, { status: 404 });

@@ -1,4 +1,5 @@
 import { randomBytes } from "crypto";
+import { promoteBetaWaitlistIfCapacity } from "@/lib/beta-waitlist-service";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/password";
 import { getStripe } from "@/lib/stripe-server";
@@ -118,6 +119,8 @@ export async function deidentifyClientAccount(clientId: string): Promise<void> {
       },
     });
   });
+
+  void promoteBetaWaitlistIfCapacity().catch((e) => console.error("[account deletion] beta waitlist promote", e));
 }
 
 /**
@@ -212,4 +215,6 @@ export async function deidentifyTrainerAccount(trainerId: string): Promise<void>
       },
     });
   });
+
+  void promoteBetaWaitlistIfCapacity().catch((e) => console.error("[account deletion] beta waitlist promote", e));
 }

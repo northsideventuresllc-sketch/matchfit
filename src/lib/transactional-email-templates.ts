@@ -69,15 +69,10 @@ export function buildTransactionalEmail(
   const loginTime = c(ctx.loginTime, new Date().toISOString());
   const policyName = c(ctx.policyName, "Terms of Service");
   const queuePosition = c(ctx.queuePosition, "3");
-  const joinUrl = c(ctx.joinUrl, `${appBaseUrlForEmailSample()}/trainer/sign-up?betaInvite=sample`);
+  const joinUrl = c(ctx.joinUrl, `${appBaseUrlForEmailSample()}/trainer/signup?betaInvite=sample`);
   const reservedUsername = c(ctx.reservedUsername, "coachalex");
   const slotExpiresLabel = c(ctx.slotExpiresLabel, "June 13, 2026");
   const supportUrl = c(ctx.supportUrl, `${appBaseUrlForEmailSample()}/`);
-  const coachName = c(ctx.coachName, "Coach Jordan");
-  const sessionStartLabel = c(ctx.startLabel, "Mon, Jun 2, 3:00 PM");
-  const sessionDelivery = c(ctx.sessionDelivery, "IN_PERSON");
-  const videoPlatform = c(ctx.videoPlatform, "Google Meet");
-  const messagesThreadUrl = c(ctx.messagesThreadUrl, `${appBaseUrlForEmailSample()}/client/dashboard/messages/coachjordan`);
 
   switch (kind) {
     case "CLIENT_WELCOME": {
@@ -448,6 +443,95 @@ export function buildTransactionalEmail(
         ]),
         ctaHref: c(ctx.policyUrl, "https://match-fit.net/terms"),
         ctaLabel: "Read policy",
+      });
+      return finalizeTransactional(subject, text, html);
+    }
+    case "BETA_WAITLIST_TRAINER_CONFIRM":
+    case "BETA_WAITLIST_CLIENT_CONFIRM": {
+      const isTrainer = kind === "BETA_WAITLIST_TRAINER_CONFIRM";
+      const subject = isTrainer ? "You're on the Match Fit coach waitlist" : "You're on the Match Fit member waitlist";
+      const text = `Hi ${firstName},\n\nThanks for joining the Match Fit beta waitlist. You're #${queuePosition} in line. We'll email you when a slot opens.\n\n— Match Fit`;
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: `Queue position ${queuePosition}.`,
+        title: "Waitlist confirmed",
+        bodyHtml: bodyParagraphs([
+          `Hi <strong style="color:${s.textPrimary};">${escapeHtmlEmail(firstName)}</strong> — you're on the ${isTrainer ? "coach" : "member"} waitlist.`,
+          `Your place in line: <strong style="color:${s.textPrimary};">#${escapeHtmlEmail(queuePosition)}</strong>. We'll send a secure invite link when capacity opens.`,
+        ]),
+        ctaHref: supportUrl,
+        ctaLabel: "Visit Match Fit",
+      });
+      return finalizeTransactional(subject, text, html);
+    }
+    case "BETA_WAITLIST_TRAINER_INVITE":
+    case "BETA_WAITLIST_CLIENT_INVITE": {
+      const isTrainer = kind === "BETA_WAITLIST_TRAINER_INVITE";
+      const subject = isTrainer ? "Your Match Fit coach invite is ready" : "Your Match Fit member invite is ready";
+      const text = `Hi ${firstName},\n\nA slot opened. Complete sign-up before ${slotExpiresLabel}:\n${joinUrl}\n\nReserved username: @${reservedUsername}\n\n— Match Fit`;
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: `Complete sign-up before ${slotExpiresLabel}.`,
+        title: "Your invite is ready",
+        bodyHtml: bodyParagraphs([
+          `Hi <strong style="color:${s.textPrimary};">${escapeHtmlEmail(firstName)}</strong> — a ${isTrainer ? "coach" : "member"} slot is reserved for you.`,
+          `Username <strong style="color:${s.textPrimary};">@${escapeHtmlEmail(reservedUsername)}</strong> is held until <strong style="color:${s.textPrimary};">${escapeHtmlEmail(slotExpiresLabel)}</strong>.`,
+        ]),
+        ctaHref: joinUrl,
+        ctaLabel: "Complete sign-up",
+      });
+      return finalizeTransactional(subject, text, html);
+    }
+    case "CLIENT_MEMBERSHIP_TRIAL_STARTED": {
+      const trialDays = c(ctx.trialDays, "14");
+      const trialEndLabel = c(ctx.trialEndLabel, "your trial end date");
+      const monthlyUsd = c(ctx.monthlyUsd, "10.00");
+      const founding = ctx.foundingSlot === "1";
+      const subject = founding
+        ? `Your ${trialDays}-day Match Fit membership trial started`
+        : `Your Match Fit free trial started`;
+      const text = `Your Match Fit membership is active with a ${trialDays}-day trial. Your card is on file; the first $${monthlyUsd}/month charge is scheduled for ${trialEndLabel} unless you cancel before then.\n\nManage billing: ${dashboardUrl}\n\n— Match Fit`;
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: `${trialDays}-day trial — billing starts ${trialEndLabel}.`,
+        title: "Trial started",
+        bodyHtml: bodyParagraphs([
+          founding
+            ? `You're in a <strong style="color:${s.textPrimary};">founding member</strong> slot: <strong style="color:${s.textPrimary};">${escapeHtmlEmail(trialDays)} days</strong> free before your first $${escapeHtmlEmail(monthlyUsd)}/month invoice.`
+            : `Your <strong style="color:${s.textPrimary};">${escapeHtmlEmail(trialDays)}-day</strong> trial is active. Your card is on file for when billing begins.`,
+          `First paid month is scheduled for <strong style="color:${s.textPrimary};">${escapeHtmlEmail(trialEndLabel)}</strong> unless you cancel in Stripe beforehand.`,
+        ]),
+        ctaHref: dashboardUrl,
+        ctaLabel: "Manage membership",
+      });
+      return finalizeTransactional(subject, text, html);
+    }
+    case "CLIENT_MEMBERSHIP_TRIAL_ENDING": {
+      const trialEndLabel = c(ctx.trialEndLabel, "soon");
+      const monthlyUsd = c(ctx.monthlyUsd, "10.00");
+      const subject = "Your Match Fit trial ends soon";
+      const text = `Your free trial ends on ${trialEndLabel}. Unless you cancel, Match Fit will charge $${monthlyUsd}/month on that date.\n\nManage billing: ${dashboardUrl}\n\n— Match Fit`;
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: `Billing begins ${trialEndLabel}.`,
+        title: "Trial ending soon",
+        bodyHtml: bodyParagraphs([
+          `Your free trial ends on <strong style="color:${s.textPrimary};">${escapeHtmlEmail(trialEndLabel)}</strong>.`,
+          `Unless you cancel, your card on file will be charged <strong style="color:${s.textPrimary};">$${escapeHtmlEmail(monthlyUsd)}/month</strong> on that date.`,
+        ]),
+        ctaHref: dashboardUrl,
+        ctaLabel: "Manage membership",
+      });
+      return finalizeTransactional(subject, text, html);
+    }
+    case "TRAINER_REGISTRATION_FEE_RECEIPT": {
+      const subject = "Match Fit trainer registration — payment received";
+      const text = `We received your trainer registration payment of ${amount}.\n\nView compliance: ${trainerDashboardUrl}\n\n— Match Fit`;
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: `Paid ${amount}.`,
+        title: "Payment received",
+        bodyHtml: bodyParagraphs([
+          `Thank you — we received your trainer registration payment of <strong style="color:${s.textPrimary};">${escapeHtmlEmail(amount)}</strong>.`,
+          "Your compliance record is updated. Keep your certifications and background check current to stay active.",
+        ]),
+        ctaHref: trainerDashboardUrl,
+        ctaLabel: "Compliance dashboard",
       });
       return finalizeTransactional(subject, text, html);
     }

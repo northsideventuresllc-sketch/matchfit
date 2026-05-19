@@ -26,9 +26,12 @@ export async function POST(req: Request) {
       expand: ["subscription"],
     });
 
-    if (session.payment_status !== "paid") {
+    const paymentOk =
+      session.payment_status === "paid" ||
+      (session.mode === "subscription" && session.payment_status === "no_payment_required");
+    if (!paymentOk) {
       return NextResponse.json(
-        { error: `Payment not completed (status: ${session.payment_status ?? "unknown"}).` },
+        { error: `Checkout not completed (status: ${session.payment_status ?? "unknown"}).` },
         { status: 400 },
       );
     }

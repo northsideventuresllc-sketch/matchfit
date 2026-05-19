@@ -29,6 +29,9 @@ The local dev database uses `postgresql://matchfit:matchfit@localhost:5432/match
 | Lint | `npm run lint` |
 | Tests | `npm run test` |
 | Push schema | `npm run db:push` |
+| Beta launch local setup | `npm run beta:setup` (creates `.env`, enables gates, `db push`) |
+| Beta production env check | `npm run beta:preflight:production` (after Stripe/Resend keys in `.env`) |
+| Push beta env to Vercel | `npm run beta:vercel-env` (after `npx vercel link`) |
 | Seed admin | `MATCH_FIT_BOOTSTRAP_ADMIN_PASSWORD='<12+ chars>' node --env-file=.env scripts/seed-bootstrap-admin.js` |
 
 ### Environment variables

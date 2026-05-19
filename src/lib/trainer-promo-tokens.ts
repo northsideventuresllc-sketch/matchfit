@@ -5,7 +5,7 @@ import { applyConversationAfterServicePurchase } from "@/lib/trainer-client-book
 import { prisma } from "@/lib/prisma";
 import { computeCheckoutLedgerSplits } from "@/lib/financial-ledger-split";
 import { createDiyPlanEngagement } from "@/lib/diy-plan-engagement-service";
-import { clientZipToPrefix, trainerMatchAnswersToRegionZipPrefix } from "@/lib/featured-region";
+import { clientZipToPrefix, resolveTrainerRegionZipPrefix } from "@/lib/featured-region";
 import { isTrainerPremiumStudioActive } from "@/lib/trainer-premium-studio";
 
 export const TOKENS_PER_USD_PACK = 20;
@@ -304,10 +304,13 @@ export async function createVideoPromotion(args: {
   const trainer = await prisma.trainer.findUnique({
     where: { id: trainerId },
     select: {
-      profile: { select: { matchQuestionnaireAnswers: true } },
+      profile: { select: { matchQuestionnaireAnswers: true, serviceZipCode: true } },
     },
   });
-  const region = trainerMatchAnswersToRegionZipPrefix(trainer?.profile?.matchQuestionnaireAnswers ?? null);
+  const region = resolveTrainerRegionZipPrefix({
+    serviceZipCode: trainer?.profile?.serviceZipCode,
+    matchQuestionnaireAnswers: trainer?.profile?.matchQuestionnaireAnswers ?? null,
+  });
   if (!region) {
     return {
       error:

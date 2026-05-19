@@ -28,6 +28,12 @@ export type TosCronSummary = {
   diyExtensionsAutoApproved: number;
   videoOAuthTokensRefreshed: number;
   videoOAuthTokenRefreshErrors: number;
+  betaWaitlist: {
+    trainerInvitesExpired: number;
+    clientInvitesExpired: number;
+    trainerInvitesSent: number;
+    clientInvitesSent: number;
+  };
 };
 
 async function backfillApprovedBackgroundCheckTimestamps(): Promise<number> {
@@ -194,6 +200,17 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   } catch (e) {
     console.error("[tos cron] video oauth refresh", e);
   }
+  let betaWaitlist: Awaited<ReturnType<typeof runBetaWaitlistCronJobs>> = {
+    trainerInvitesExpired: 0,
+    clientInvitesExpired: 0,
+    trainerInvitesSent: 0,
+    clientInvitesSent: 0,
+  };
+  try {
+    betaWaitlist = await runBetaWaitlistCronJobs();
+  } catch (e) {
+    console.error("[tos cron] beta waitlist", e);
+  }
   return {
     backgroundCheckClearedBackfill: backfill,
     backgroundCheckWarningsSent: warnings,
@@ -208,5 +225,6 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     diyExtensionsAutoApproved,
     videoOAuthTokensRefreshed,
     videoOAuthTokenRefreshErrors,
+    betaWaitlist,
   };
 }

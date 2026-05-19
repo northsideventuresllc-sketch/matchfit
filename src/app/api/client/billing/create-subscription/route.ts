@@ -1,9 +1,18 @@
-import { getClientFoundingTrialDays, isNextClientEligibleForFoundingTrial } from "@/lib/match-fit-launch-promotions";
+import {
+  resolveClientSubscriptionBilling,
+  type ClientSubscriptionBillingChoice,
+} from "@/lib/match-fit-launch-promotions";
+import { estimateStripeProcessingFeeCents } from "@/lib/stripe-processing-fee";
 import { purgeExpiredRegistrationHolds } from "@/lib/purge-registration-holds";
 import { prisma } from "@/lib/prisma";
 import { getRegistrationHoldPendingId } from "@/lib/session";
 import { getStripe } from "@/lib/stripe-server";
 import { NextResponse } from "next/server";
+import { z } from "zod";
+
+const bodySchema = z.object({
+  billingChoice: z.enum(["trial_3d", "pay_now"]).optional(),
+});
 
 function errorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -65,29 +74,48 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "This account is not ready for billing." }, { status: 400 });
     }
 
-    const origin = getAppOrigin(req);
+    const json = await req.json().catch(() => ({}));
+    const parsed = bodySchema.safeParse(json);
+    const billingChoice: ClientSubscriptionBillingChoice | undefined = parsed.success
+      ? parsed.data.billingChoice
+      : undefined;
 
-    const existingClientCount = await prisma.client.count();
-    const foundingTrial = isNextClientEligibleForFoundingTrial(existingClientCount);
-    const foundingTrialDays = foundingTrial ? getClientFoundingTrialDays() : 0;
+    const billing = await resolveClientSubscriptionBilling({ billingChoice });
+    if (!billing.foundingSlot && !billingChoice) {
+      return NextResponse.json(
+        { error: "Choose a membership option: 3-day free trial or pay now.", code: "BILLING_CHOICE_REQUIRED" },
+        { status: 400 },
+      );
+    }
+
+    const origin = getAppOrigin(req);
+    const monthlyCents = 1000;
+    const processingCents =
+      billing.choice === "pay_now" ? estimateStripeProcessingFeeCents(monthlyCents) : 0;
+
+    const subscriptionMetadata: Record<string, string> = {
+      holdId: hold.id,
+      matchFitBillingChoice: billing.choice,
+      ...(billing.foundingSlot ? { matchFitFoundingTrial: "1" } : {}),
+    };
 
     try {
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
         customer_email: hold.email,
+        payment_method_collection: "always",
         line_items: [{ price: priceId, quantity: 1 }],
         success_url: `${origin}/client/subscribe/return?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin}/client/subscribe?canceled=1`,
         metadata: {
           holdId: hold.id,
-          ...(foundingTrial ? { matchFitFoundingTrial: "1" } : {}),
+          matchFitBillingChoice: billing.choice,
+          ...(billing.foundingSlot ? { matchFitFoundingTrial: "1" } : {}),
+          ...(processingCents > 0 ? { estimatedFirstInvoiceProcessingCents: String(processingCents) } : {}),
         },
         subscription_data: {
-          ...(foundingTrial ? { trial_period_days: foundingTrialDays } : {}),
-          metadata: {
-            holdId: hold.id,
-            ...(foundingTrial ? { matchFitFoundingTrial: "1" } : {}),
-          },
+          ...(billing.trialDays > 0 ? { trial_period_days: billing.trialDays } : {}),
+          metadata: subscriptionMetadata,
         },
       });
 
@@ -98,7 +126,12 @@ export async function POST(req: Request) {
         );
       }
 
-      return NextResponse.json({ url: session.url });
+      return NextResponse.json({
+        url: session.url,
+        foundingSlot: billing.foundingSlot,
+        trialDays: billing.trialDays,
+        choice: billing.choice,
+      });
     } catch (e) {
       console.error("[create-subscription] Stripe Checkout error:", e);
       return NextResponse.json({ error: `Stripe error: ${errorMessage(e)}` }, { status: 502 });

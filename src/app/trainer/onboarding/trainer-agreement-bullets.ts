@@ -23,15 +23,15 @@ const TRAINER_ONBOARDING_AGREEMENT_BULLETS_STANDARD = [
   "By checking each box in this list, you confirm that you have read, understood, and agree to every statement above and to the basic Trainer Terms of Service that govern your use of Match Fit.",
 ] as const;
 
-/** Same length as {@link getTrainerOnboardingAgreementBullets}; indices 0, 3, and 6 differ when the registration fee is waived. */
+/** Same length as {@link getTrainerOnboardingAgreementBullets}; indices 0, 3, and 6 differ for founding coaches (first 10). */
 const TRAINER_ONBOARDING_AGREEMENT_BULLETS_REGISTRATION_WAIVED = [
-  "The standard trainer registration fee is $100.00, but your account is in a limited founding-coach window: Match Fit waives that one-time platform registration fee for you. You are still responsible for the independent background-check provider’s fee when screening is collected, plus any provider processing charges.",
+  "The standard trainer registration fee is $100.00, but your account is in a limited founding-coach window: after your background check clears, Match Fit charges you 20% of the amount you paid the independent screening provider (as verified on your Checkr report), plus an estimated card processing fee—not the full $100.00 platform fee.",
   "The background check is administered and priced by an independent third-party screening company that Match Fit will integrate with in a future release; you are responsible for paying the background check provider according to its instructions.",
   "Match Fit does not refund background-check fees; any refund eligibility is determined solely by the background-check provider, not Match Fit.",
-  "Because your founding-coach slot waives the platform registration fee, Match Fit will not charge you the $100.00 registration fee after your background check clears and your CPT certification is verified. Other compliance and activation steps still apply before your profile can go live.",
+  "Because your founding-coach slot uses the 20% background-check surcharge, Match Fit will collect only that reduced platform amount (plus processing) after your background check clears and your CPT certification is verified—not $100.00 minus the screening fee. Other compliance and activation steps still apply before your profile can go live.",
   "Your account cannot be updated further until your background check has returned as cleared under our screening policy.",
   "If your background check returns a warning or flag, a Match Fit representative will have a confidential one-on-one conversation with you, and you will be contacted by email to schedule a phone call only when there is a flag on your background check.",
-  "The waived registration fee is a promotional benefit; Match Fit does not owe a cash refund for that waived amount because it is not charged for your founding slot. Other fees you actually pay (for example, to a screening vendor) remain subject to the provider’s refund rules.",
+  "The founding-coach registration pricing is a promotional benefit tied to your signup order; Match Fit does not refund amounts you already paid to the screening vendor. Platform registration and processing fees are non-refundable once collected.",
   "If your onboarding does not progress for 30 consecutive days, your username and associated onboarding data may be automatically deleted; if you choose to pursue becoming a trainer later, you may start again from the beginning.",
   "Your username is reserved for you during this 30-day activity window; if the window expires without sufficient progress, the username may become available to another applicant.",
   "If your background check clears and you choose to proceed, the 30-day activity window resets automatically.",
@@ -55,10 +55,12 @@ if (TRAINER_ONBOARDING_AGREEMENT_BULLETS_REGISTRATION_WAIVED.length !== TRAINER_
 
 /**
  * Acknowledgement lines shown during trainer onboarding (and compliance review).
- * When `registrationFeeWaived` is true, fee-related lines describe the founding-coach promotion.
+ * When `foundingCoachPricing` is true, fee-related lines describe the first-10 coaches (20% of Checkr) promotion.
  */
-export function getTrainerOnboardingAgreementBullets(registrationFeeWaived: boolean): readonly string[] {
-  return registrationFeeWaived ? TRAINER_ONBOARDING_AGREEMENT_BULLETS_REGISTRATION_WAIVED : TRAINER_ONBOARDING_AGREEMENT_BULLETS_STANDARD;
+export function getTrainerOnboardingAgreementBullets(foundingCoachPricing: boolean): readonly string[] {
+  return foundingCoachPricing
+    ? TRAINER_ONBOARDING_AGREEMENT_BULLETS_REGISTRATION_WAIVED
+    : TRAINER_ONBOARDING_AGREEMENT_BULLETS_STANDARD;
 }
 
 /** @deprecated Use {@link getTrainerOnboardingAgreementBullets}(false) for static standard copy. */

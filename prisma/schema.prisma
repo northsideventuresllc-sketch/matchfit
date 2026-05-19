@@ -781,9 +781,19 @@ model TrainerProfile {
 
   hasSignedTOS           Boolean @default(false)
   hasUploadedW9          Boolean @default(false)
-  /// First N trainers (by account creation order) waive the one-time platform registration fee; background check fees still apply.
+  /// Legacy UI flag: founding tier uses reduced registration pricing (20% of Checkr), not a full waiver.
   registrationFeeWaived Boolean @default(false)
   hasPaidBackgroundFee   Boolean @default(false)
+  /// Amount paid to Checkr/vendor for background screening (cents), from webhook or mock.
+  backgroundCheckVendorPaidCents Int?
+  checkrCandidateId String?
+  checkrReportId    String?
+  /// FOUNDING_BG_SURCHARGE_20PCT | STANDARD_100_MINUS_BG — set at trainer signup from launch slot.
+  registrationFeePricingMode String @default("FOUNDING_BG_SURCHARGE_20PCT")
+  hasPaidRegistrationFee Boolean @default(false)
+  registrationFeePaidCents Int?
+  /// Primary service ZIP (Atlanta beta); used for matching and display.
+  serviceZipCode String?
   /// Vendor pipeline: NOT_STARTED | PENDING | APPROVED | NEEDS_FURTHER_REVIEW | DENIED
   backgroundCheckStatus String @default("NOT_STARTED")
 
