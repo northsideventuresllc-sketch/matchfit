@@ -7,6 +7,8 @@ import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { getSupabaseEmailCallbackUrl, isSupabaseConfigured } from "@/lib/supabase/email-callback-url";
 import { tryCreateMatchFitSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
+import { BetaCapFullSignupNotice } from "@/components/beta-cap-full-signup-notice";
+import { useBetaLaunchStatus } from "@/hooks/use-beta-launch-status";
 import { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -74,6 +76,11 @@ function simpleEmailValid(email: string): boolean {
 function ClientSignUpPageInner() {
   const searchParams = useSearchParams();
   const betaInviteTokenFromUrl = searchParams.get("betaInvite")?.trim() || undefined;
+  const { status: betaStatus, loading: betaStatusLoading } = useBetaLaunchStatus();
+  const clientCapFull =
+    betaStatus?.gatesEnabled === true &&
+    betaStatus.clientWaitlistOpen === true &&
+    !betaInviteTokenFromUrl;
   const maxDob = useMemo(() => maxBirthdateForAge18(), []);
   const minDob = useMemo(() => minBirthdate(), []);
 
@@ -418,24 +425,38 @@ function ClientSignUpPageInner() {
         ) : null}
 
         <div className="mt-8 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
-          {error ? (
-            <p
-              className="mb-5 rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]"
-              role="alert"
-            >
-              {error}
-              {errorCode === "BETA_CLIENT_CAP" ? (
-                <>
-                  {" "}
-                  <Link href="/waitlist/client" className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
-                    Join the client waitlist
-                  </Link>
-                </>
+          {betaStatusLoading ? (
+            <p className="text-sm text-white/50">Checking availability…</p>
+          ) : clientCapFull ? (
+            <BetaCapFullSignupNotice
+              role="client"
+              waitlistHref="/waitlist/client"
+              cap={betaStatus?.clientCap ?? null}
+              count={betaStatus?.clientCount ?? null}
+            />
+          ) : (
+            <>
+              {error ? (
+                <p
+                  className="mb-5 rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]"
+                  role="alert"
+                >
+                  {error}
+                  {errorCode === "BETA_CLIENT_CAP" ? (
+                    <>
+                      {" "}
+                      <Link
+                        href="/waitlist/client"
+                        className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline"
+                      >
+                        Join the client waitlist
+                      </Link>
+                    </>
+                  ) : null}
+                </p>
               ) : null}
-            </p>
-          ) : null}
 
-          {wizardStep === 1 ? (
+              {wizardStep === 1 ? (
             <form onSubmit={handleStep1Next} className="flex flex-col gap-5" noValidate>
               <div className="grid gap-5 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
@@ -767,6 +788,8 @@ function ClientSignUpPageInner() {
               </button>
             </form>
               )}
+            </>
+          )}
             </>
           )}
         </div>

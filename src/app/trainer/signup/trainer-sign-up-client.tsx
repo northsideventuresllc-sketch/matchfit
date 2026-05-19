@@ -9,6 +9,8 @@ import { getSupabaseEmailCallbackUrl, isSupabaseConfigured } from "@/lib/supabas
 import { tryCreateMatchFitSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { writeTrainerSignupDraft } from "@/lib/trainer-supabase-signup-draft";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
+import { BetaCapFullSignupNotice } from "@/components/beta-cap-full-signup-notice";
+import { useBetaLaunchStatus } from "@/hooks/use-beta-launch-status";
 import { FormEvent, useEffect, useRef, useState } from "react";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
@@ -31,7 +33,12 @@ export default function TrainerSignUpClient() {
   const searchParams = useSearchParams();
   const betaInviteFromUrl = searchParams.get("betaInvite")?.trim() || "";
   const [serviceZipCode, setServiceZipCode] = useState("");
-  const [betaGatesOn, setBetaGatesOn] = useState(false);
+  const { status: betaStatus, loading: betaStatusLoading } = useBetaLaunchStatus();
+  const betaGatesOn = betaStatus?.gatesEnabled === true;
+  const trainerCapFull =
+    betaStatus?.gatesEnabled === true &&
+    betaStatus.trainerWaitlistOpen === true &&
+    !betaInviteFromUrl;
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
@@ -48,13 +55,6 @@ export default function TrainerSignUpClient() {
   const [busy, setBusy] = useState(false);
   const [verificationEmailSent, setVerificationEmailSent] = useState(false);
   const turnstileRef = useRef<TurnstileWidgetHandle>(null);
-
-  useEffect(() => {
-    void fetch("/api/public/beta-launch-status")
-      .then((r) => r.json())
-      .then((d: { gatesEnabled?: boolean }) => setBetaGatesOn(d.gatesEnabled === true))
-      .catch(() => setBetaGatesOn(false));
-  }, []);
 
   useEffect(() => {
     if (!betaInviteFromUrl) return;
@@ -286,6 +286,17 @@ export default function TrainerSignUpClient() {
         ) : null}
 
         <div className="mt-8 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
+          {betaStatusLoading ? (
+            <p className="text-sm text-white/50">Checking availability…</p>
+          ) : trainerCapFull ? (
+            <BetaCapFullSignupNotice
+              role="trainer"
+              waitlistHref="/waitlist/trainer"
+              cap={betaStatus?.trainerCap ?? null}
+              count={betaStatus?.trainerCount ?? null}
+            />
+          ) : (
+            <>
           {error ? (
             <p
               className="mb-5 rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]"
@@ -531,6 +542,8 @@ export default function TrainerSignUpClient() {
               </span>
             </button>
           </form>
+            </>
+          )}
         </div>
 
         <p className="mt-8 text-center text-xs text-white/40">

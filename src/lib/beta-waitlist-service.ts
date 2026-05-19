@@ -56,6 +56,9 @@ export async function joinBetaTrainerWaitlist(args: {
   if (!isBetaLaunchGatesEnabled()) {
     return { error: "Waitlist is not open." };
   }
+  if (!(await isTrainerBetaCapReached())) {
+    return { error: "Trainer slots are still available — sign up instead of joining the waitlist." };
+  }
   if (!isZipInBetaAtlantaMetroArea(args.serviceZipCode)) {
     return { error: "That ZIP is outside the Atlanta metro beta area." };
   }
@@ -115,6 +118,9 @@ export async function joinBetaClientWaitlist(args: {
 }): Promise<{ ok: true; id: string } | { error: string }> {
   if (!isBetaLaunchGatesEnabled()) {
     return { error: "Waitlist is not open." };
+  }
+  if (!(await isClientBetaCapReached())) {
+    return { error: "Client memberships are still available — sign up instead of joining the waitlist." };
   }
   if (!isZipInBetaAtlantaMetroArea(args.homeZipCode)) {
     return { error: "That ZIP is outside the Atlanta metro beta area." };

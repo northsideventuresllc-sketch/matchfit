@@ -90,7 +90,7 @@ export default function TrainerWaitlistPage() {
           <p className="mt-6 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-50" role="status">
             You are on the list. Check your email for confirmation.
           </p>
-        ) : (
+        ) : gatesOn ? (
           <form onSubmit={(ev) => void onSubmit(ev)} className="mt-8 flex flex-col gap-4">
             {error ? (
               <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-100" role="alert">
@@ -149,7 +149,9 @@ export default function TrainerWaitlistPage() {
               {busy ? "Submitting…" : "Join waitlist"}
             </button>
           </form>
-        )}
+        ) : gatesOn === null ? (
+          <p className="mt-8 text-sm text-white/50">Loading…</p>
+        ) : null}
       </div>
     </main>
   );
