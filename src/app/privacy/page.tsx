@@ -1,20 +1,11 @@
 import { LegalPageFooterNav } from "@/components/legal-page-footer-nav";
+import {
+  MATCH_FIT_OPERATOR_LEGAL_NAME,
+  MATCH_FIT_PHYSICAL_ADDRESS_LINE,
+  MATCH_FIT_POLICY_EFFECTIVE_DATE,
+  MATCH_FIT_SUPPORT_INBOX,
+} from "@/lib/match-fit-legal";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
-
-/** Legal operator of Match Fit. */
-const OPERATOR_LEGAL_NAME = "Northside Ventures LLC";
-
-/** Privacy and data-rights requests. */
-const PRIVACY_CONTACT_EMAIL = "northside.ventures.llc@gmail.com";
-
-/** Postal address for written privacy requests and official notices where applicable. */
-const PHYSICAL_ADDRESS_LINE = "1954 Airport Rd STE 1277, Chamblee, GA 30341, United States";
-
-/**
- * Version in force for this posted policy. Update this string to the publication date whenever
- * you deploy a materially revised Privacy Policy so users can see which version applies.
- */
-const POLICY_EFFECTIVE_DATE = "April 29, 2026";
 
 function P({ children }: { children: React.ReactNode }) {
   return <p className="mt-3 text-sm leading-relaxed text-white/60">{children}</p>;
@@ -50,13 +41,13 @@ export default async function PrivacyPage() {
       <div className="mx-auto max-w-2xl">
         <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Privacy Policy</h1>
         <p className="mt-4 text-xs uppercase tracking-wide text-white/45">
-          Effective Date: {POLICY_EFFECTIVE_DATE}
+          Effective Date: {MATCH_FIT_POLICY_EFFECTIVE_DATE}
         </p>
         <p className="mt-2 text-xs leading-relaxed text-white/45">
           Whenever we publish an updated policy, we change this effective date to match the version you are reading.
         </p>
         <P>
-          Match Fit (&quot;Match Fit,&quot; the &quot;Service&quot;) is operated by <Strong>{OPERATOR_LEGAL_NAME}</Strong>{" "}
+          Match Fit (&quot;Match Fit,&quot; the &quot;Service&quot;) is operated by <Strong>{MATCH_FIT_OPERATOR_LEGAL_NAME}</Strong>{" "}
           (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;). This Privacy Policy describes how we collect, use,
           disclose, and safeguard information when you use our websites, applications, and related services that link to
           this policy.
@@ -69,8 +60,8 @@ export default async function PrivacyPage() {
         <section className="mt-8 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
           <h2 className="text-base font-black tracking-tight">Contact Us</h2>
           <P>
-            For privacy questions or requests: <Strong>{PRIVACY_CONTACT_EMAIL}</Strong>, or write to us at{" "}
-            <Strong>{PHYSICAL_ADDRESS_LINE}</Strong>.
+            For privacy questions or requests: <Strong>{MATCH_FIT_SUPPORT_INBOX}</Strong>, or write to us at{" "}
+            <Strong>{MATCH_FIT_PHYSICAL_ADDRESS_LINE}</Strong>.
           </P>
         </section>
 
@@ -362,7 +353,7 @@ export default async function PrivacyPage() {
           law, we will provide a compliant opt-out mechanism and update this policy.
         </P>
         <P>
-          To exercise rights, email <Strong>{PRIVACY_CONTACT_EMAIL}</Strong>. We may need to verify your identity before
+          To exercise rights, email <Strong>{MATCH_FIT_SUPPORT_INBOX}</Strong>. We may need to verify your identity before
           responding. You may designate an authorized agent where permitted by law, with proof of authorization.
         </P>
 

@@ -183,7 +183,7 @@ export function ClientFitHubFeedClient() {
           Your feed is set to <span className="text-white/90">saved coaches only</span>, but you have not saved any
           coaches yet. Save coaches from discovery or loosen this filter in{" "}
           <Link href="/client/dashboard/fithub-settings" className="text-[#FF7E00] underline-offset-2 hover:underline">
-            FitHub settings
+            FITHUB SETTINGS
           </Link>
           .
         </p>

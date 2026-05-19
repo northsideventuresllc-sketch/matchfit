@@ -11,7 +11,10 @@ export const RESEND_ONBOARDING_FROM = "onboarding@resend.dev";
  * is forced To this address so Resend never rejects unverified recipients; the real
  * intended address is prefixed in the message body.
  */
-export const RESEND_DEV_INBOX = "northside.ventures.llc@gmail.com";
+import { MATCH_FIT_SUPPORT_INBOX } from "@/lib/match-fit-support-inbox-constant";
+
+/** Development redirect for outbound email (override with RESEND_DEV_INBOX in .env). */
+export const RESEND_DEV_INBOX = process.env.RESEND_DEV_INBOX?.trim() || MATCH_FIT_SUPPORT_INBOX;
 
 function normalizeEmail(s: string): string {
   return s.trim().toLowerCase();

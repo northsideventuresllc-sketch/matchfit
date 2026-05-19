@@ -3,7 +3,7 @@ import { TRAINER_CERTIFICATION_POSITIONS_REFERENCE } from "@/lib/trainer-certifi
 export function TrainerComplianceCertReferenceDetails() {
   return (
     <details className="mt-6 rounded-2xl border border-white/[0.06] bg-[#0E1016]/40 px-4 py-3">
-      <summary className="cursor-pointer list-none text-center text-xs font-semibold text-[#FF7E00] underline-offset-2 transition hover:text-[#FFD34E] [&::-webkit-details-marker]:hidden">
+      <summary className="cursor-pointer list-none text-left text-xs font-semibold text-[#FF7E00] underline-offset-2 transition hover:text-[#FFD34E] [&::-webkit-details-marker]:hidden">
         <span className="underline">Credentials you can upload &amp; widely accepted accrediting organizations</span>
       </summary>
       <div className="mt-4 space-y-8 border-t border-white/[0.06] pt-5 text-left">

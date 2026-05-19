@@ -6,6 +6,7 @@ import { TrainerComplianceCertCarousel } from "@/components/trainer/trainer-comp
 import { TrainerComplianceCertReferenceDetails } from "@/components/trainer/trainer-compliance-cert-reference-details";
 import { TrainerComplianceCertTracksForm } from "@/components/trainer/trainer-compliance-cert-tracks-form";
 import { TrainerComplianceW9EmailSelfService } from "@/components/trainer/trainer-compliance-w9-email-self-service";
+import { MATCH_FIT_SUPPORT_INBOX } from "@/lib/match-fit-support-inbox";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { OFF_PLATFORM_LIQUIDATED_DAMAGES_NOTICE } from "@/lib/tos-off-platform-deterrent";
 import { backgroundCheckStatusLabel, certificationReviewStatusLabel } from "@/lib/trainer-compliance-status-copy";
@@ -54,6 +55,25 @@ function maskTin(tin: string | undefined): string {
   if (!raw) return "—";
   if (raw.length <= 4) return "••••";
   return `${"•".repeat(Math.max(0, raw.length - 4))}${raw.slice(-4)}`;
+}
+
+function ComplianceReviewStatusRow(props: {
+  title: string;
+  status: string | null | undefined;
+  statusLabel: string;
+}) {
+  return (
+    <div className="flex flex-col items-start gap-2 rounded-xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <span className="text-sm font-medium text-white/80">{props.title}</span>
+      <span
+        className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-[11px] font-black tracking-[0.08em] ${statusPillClass(
+          props.status,
+        )}`}
+      >
+        {props.statusLabel.toUpperCase()}
+      </span>
+    </div>
+  );
 }
 
 export default async function TrainerComplianceDetailsPage() {
@@ -131,12 +151,15 @@ export default async function TrainerComplianceDetailsPage() {
 
   return (
     <div className="space-y-10">
-      <header className="space-y-1">
+      <header className="mx-auto max-w-xl space-y-1 text-center">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Compliance</p>
         <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Compliance Details</h1>
-        <p className="max-w-xl text-sm leading-relaxed text-white/50">
-          Review your agreements, tax information, screening result, and uploaded credentials. Contact support if anything
-          looks incorrect.
+        <p className="text-sm leading-relaxed text-white/50">
+          Review your agreements, tax information, screening result, and uploaded credentials. Contact{" "}
+          <a href={`mailto:${MATCH_FIT_SUPPORT_INBOX}`} className="font-semibold text-[#FF7E00] hover:underline">
+            {MATCH_FIT_SUPPORT_INBOX}
+          </a>{" "}
+          if anything looks incorrect.
         </p>
       </header>
 
@@ -145,13 +168,14 @@ export default async function TrainerComplianceDetailsPage() {
         <p className="mt-2 text-sm leading-relaxed text-white/70">{OFF_PLATFORM_LIQUIDATED_DAMAGES_NOTICE}</p>
       </section>
 
+      <div className="space-y-10 text-left">
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
         <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Trainer Terms of Service</h2>
-        <p className="mt-3 text-sm text-white/55">
+        <p className="mt-3 text-sm leading-relaxed text-white/55">
           You agreed to the platform terms during onboarding. The public Terms of Service page is always available for
           review.
         </p>
-        <div className="mt-4 flex flex-wrap gap-3">
+        <div className="mt-4 flex flex-wrap justify-start gap-3">
           <Link
             href="/terms"
             target="_blank"
@@ -161,8 +185,10 @@ export default async function TrainerComplianceDetailsPage() {
             Open Terms of Service
           </Link>
         </div>
-        <details className="mt-5 rounded-2xl border border-white/[0.06] bg-[#0E1016]/40 p-4">
-          <summary className="cursor-pointer text-sm font-semibold text-white/70">Trainer acknowledgement checklist</summary>
+        <details className="mt-5 rounded-2xl border border-white/[0.06] bg-[#0E1016]/40 p-4 text-left">
+          <summary className="cursor-pointer list-none text-sm font-semibold text-white/70 [&::-webkit-details-marker]:hidden">
+            Trainer acknowledgement checklist
+          </summary>
           <ul className="mt-3 list-disc space-y-2 pl-5 text-xs leading-relaxed text-white/50">
             {TRAINER_ONBOARDING_AGREEMENT_BULLETS.map((b, i) => (
               <li key={i}>{b}</li>
@@ -209,7 +235,7 @@ export default async function TrainerComplianceDetailsPage() {
             </dl>
             <div className="mt-6 space-y-4 border-t border-white/[0.06] pt-6">
               <p className="text-xs font-semibold uppercase tracking-wide text-white/45">Download or Email</p>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap justify-start gap-3">
                 <Link
                   href="/trainer/dashboard/compliance/w9-print"
                   target="_blank"
@@ -229,20 +255,17 @@ export default async function TrainerComplianceDetailsPage() {
 
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
         <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Background Check</h2>
-        <p className="mt-3 text-sm text-white/75">
-          Vendor status:{" "}
-          <span
-            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black tracking-[0.08em] ${statusPillClass(
-              profile.backgroundCheckStatus,
-            )}`}
-          >
-            {bgLabel.toUpperCase()}
-          </span>
-        </p>
-        <p className="mt-2 text-xs text-white/45">
-          Detailed reports are maintained by the screening provider. Contact Match Fit support if you have questions
-          about your result.
-        </p>
+        <div className="mt-4 space-y-3">
+          <ComplianceReviewStatusRow
+            title="Vendor status"
+            status={profile.backgroundCheckStatus}
+            statusLabel={bgLabel}
+          />
+          <p className="text-xs leading-relaxed text-white/45">
+            Detailed reports are maintained by the screening provider. Contact Match Fit support if you have questions
+            about your result.
+          </p>
+        </div>
       </section>
 
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
@@ -261,56 +284,33 @@ export default async function TrainerComplianceDetailsPage() {
           nutritionistCertificationReviewStatus={profile.nutritionistCertificationReviewStatus}
           specialistCertificationReviewStatus={profile.specialistCertificationReviewStatus}
         />
-        <div className="mt-4 space-y-2 text-sm text-white/60">
+        <div className="mt-6 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/40">Review status by track</p>
           {profile.onboardingTrackCpt ? (
-            <p>
-              CPT track:{" "}
-              <span
-                className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black tracking-[0.08em] ${statusPillClass(
-                  profile.certificationReviewStatus,
-                )}`}
-              >
-                {cptLabel.toUpperCase()}
-              </span>
-            </p>
+            <ComplianceReviewStatusRow title="CPT track" status={profile.certificationReviewStatus} statusLabel={cptLabel} />
           ) : null}
           {profile.onboardingTrackNutrition ? (
-            <p>
-              Nutrition track:{" "}
-              <span
-                className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black tracking-[0.08em] ${statusPillClass(
-                  profile.nutritionistCertificationReviewStatus,
-                )}`}
-              >
-                {nutLabel.toUpperCase()}
-              </span>
-            </p>
+            <ComplianceReviewStatusRow
+              title="Nutrition track"
+              status={profile.nutritionistCertificationReviewStatus}
+              statusLabel={nutLabel}
+            />
           ) : null}
           {profile.onboardingTrackSpecialist ? (
-            <p>
-              Specialist track:{" "}
-              <span
-                className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black tracking-[0.08em] ${statusPillClass(
-                  profile.specialistCertificationReviewStatus,
-                )}`}
-              >
-                {specLabel.toUpperCase()}
-              </span>
-            </p>
+            <ComplianceReviewStatusRow
+              title="Specialist track"
+              status={profile.specialistCertificationReviewStatus}
+              statusLabel={specLabel}
+            />
           ) : null}
           {!profile.onboardingTrackCpt &&
           !profile.onboardingTrackNutrition &&
           !profile.onboardingTrackSpecialist ? (
-            <p>
-              Legacy credential status:{" "}
-              <span
-                className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black tracking-[0.08em] ${statusPillClass(
-                  profile.certificationReviewStatus,
-                )}`}
-              >
-                {cptLabel.toUpperCase()}
-              </span>
-            </p>
+            <ComplianceReviewStatusRow
+              title="Legacy credential"
+              status={profile.certificationReviewStatus}
+              statusLabel={cptLabel}
+            />
           ) : null}
         </div>
         <TrainerComplianceCertCarousel
@@ -335,6 +335,7 @@ export default async function TrainerComplianceDetailsPage() {
           ← Back to Dashboard
         </Link>
       </p>
+      </div>
     </div>
   );
 }

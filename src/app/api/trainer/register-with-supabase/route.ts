@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { applyTrainerSessionToNextResponse } from "@/lib/session";
 import { sendTrainerWelcomeEmail } from "@/lib/trainer-welcome-email";
 import { createTrainerRecord } from "@/lib/trainer-register-service";
+import { isTrainerEmailBlockedFromRegistration } from "@/lib/trainer-background-check-deny";
 import { isTrainerEmailTaken, isTrainerUsernameTaken } from "@/lib/trainer-queries";
 import { trainerSignupSchema } from "@/lib/validations/trainer-register";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
@@ -70,6 +71,15 @@ export async function POST(req: Request) {
     }
     if (await isTrainerEmailTaken(email)) {
       return NextResponse.json({ error: "That email is already registered." }, { status: 409 });
+    }
+    if (await isTrainerEmailBlockedFromRegistration(email)) {
+      return NextResponse.json(
+        {
+          error:
+            "This email cannot register a new trainer account. Contact support@match-fit.net if you believe this is an error.",
+        },
+        { status: 403 },
+      );
     }
 
     const { id: trainerId, email: createdEmail } = await createTrainerRecord(body);

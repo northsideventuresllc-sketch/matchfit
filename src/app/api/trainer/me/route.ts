@@ -3,6 +3,7 @@ import { syncDevelopmentTestTrainerCertificationsForTrainer } from "@/lib/traine
 import { backfillTrainerOnboardingTracksFromLegacyState } from "@/lib/trainer-onboarding-track-backfill";
 import { getSessionTrainerId } from "@/lib/session";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
+import { ensureInternalQaTrainerFullCompliance } from "@/lib/internal-qa-trainer-compliance";
 import {
   isMatchFitInternalQaEnabled,
   isMatchFitInternalQaTrainerEmail,
@@ -12,6 +13,7 @@ import { NextResponse } from "next/server";
 const trainerMeSelect = {
   id: true,
   deidentifiedAt: true,
+  launchCohortMember: true,
   firstName: true,
   lastName: true,
   username: true,
@@ -36,6 +38,8 @@ const trainerMeSelect = {
       hasSignedTOS: true,
       hasUploadedW9: true,
       hasPaidBackgroundFee: true,
+      backgroundCheckPaidCents: true,
+      signupFeeBalancePaidAt: true,
       backgroundCheckStatus: true,
       backgroundCheckClearedAt: true,
       backgroundCheckExpiryWarningSentAt: true,
@@ -102,6 +106,9 @@ export async function GET() {
     }
 
     await backfillTrainerOnboardingTracksFromLegacyState(trainerId);
+    if (isMatchFitInternalQaEnabled() && isMatchFitInternalQaTrainerEmail(trainer.email)) {
+      await ensureInternalQaTrainerFullCompliance(trainerId);
+    }
     trainer = await prisma.trainer.findUnique({
       where: { id: trainerId },
       select: trainerMeSelect,

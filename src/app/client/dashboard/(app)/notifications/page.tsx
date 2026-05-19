@@ -18,7 +18,7 @@ export default function ClientNotificationsCenterPage() {
           to empty the archive.
         </p>
         <p className="text-xs text-white/40">
-          <Link href="/client/dashboard/notification-settings" className="text-[#FF7E00] underline-offset-2 hover:underline">
+          <Link href="/client/settings#client-notification-settings" className="text-[#FF7E00] underline-offset-2 hover:underline">
             Notification Settings
           </Link>
         </p>

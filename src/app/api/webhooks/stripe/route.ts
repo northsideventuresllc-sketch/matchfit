@@ -1,4 +1,5 @@
 import { finalizeRegistrationAfterPayment } from "@/lib/billing-finalize";
+import { handleTrainerOnboardingCheckoutCompleted } from "@/lib/trainer-onboarding-stripe";
 import { prisma } from "@/lib/prisma";
 import { notifyClientSubscriptionStripeEvent } from "@/lib/subscription-email-notify";
 import { syncClientSubscriptionFromStripe } from "@/lib/stripe-sync-client-subscription";
@@ -41,6 +42,9 @@ export async function POST(req: Request) {
       const session = event.data.object as Stripe.Checkout.Session;
       const md = session.metadata ?? {};
       if (session.mode === "payment" && session.payment_status === "paid") {
+        if (md.purpose === "trainer_background_check" || md.purpose === "trainer_signup_balance") {
+          await handleTrainerOnboardingCheckoutCompleted(session);
+        }
         if (md.purpose === "trainer_promo_tokens" && md.trainerId) {
           const tier = getPromoPackTierById(String(md.packTier ?? md.tier ?? "").trim());
           let tokens = tier?.tokens ?? 0;
@@ -97,10 +101,12 @@ export async function POST(req: Request) {
           });
         }
       }
-      if (session.mode === "subscription" && session.payment_status === "paid") {
+      if (session.mode === "subscription") {
+        const paidOrTrialStart =
+          session.payment_status === "paid" || session.payment_status === "no_payment_required";
         const sub = session.subscription;
         const subId = typeof sub === "string" ? sub : sub?.id;
-        if (subId) {
+        if (subId && paidOrTrialStart) {
           await finalizeRegistrationAfterPayment(subId);
         }
       }

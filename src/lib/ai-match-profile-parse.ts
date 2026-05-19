@@ -105,7 +105,7 @@ export function parseAiMatchProfileForDisplay(raw: string): AiMatchProfileDispla
 
   const goals = takeLine("Primary client goals:");
   if (goals != null) {
-    blocks.push({ kind: "kv", title: "Primary client goals", value: goals });
+    blocks.push({ kind: "kv", title: "Primary Client Goals", value: goals });
   }
 
   const langs = takeLine("Languages:");
@@ -132,7 +132,7 @@ export function parseAiMatchProfileForDisplay(raw: string): AiMatchProfileDispla
   }
 
   if (blocks.length === 0 && remainder.trim()) {
-    blocks.push({ kind: "prose", title: "Onboarding Questionnaire answers", body: remainder.trim() });
+    blocks.push({ kind: "prose", title: "ONBOARDING QUESTIONNAIRE ANSWERS", body: remainder.trim() });
   }
 
   if (pulledServiceItems && pulledServiceItems.length > 0) {

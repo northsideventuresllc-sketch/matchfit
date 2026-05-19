@@ -17,7 +17,7 @@ import { TwoFactorPanel, type TwoFactorChannelDTO, type TwoFactorPanelRef } from
 import { ClientPrivacySettingsSection } from "@/components/client/client-privacy-settings-section";
 import { ClientQuickLinksSettingsPanel } from "@/components/client/client-quick-links-settings-panel";
 import type { ClientDashboardQuickLinkId } from "@/lib/client-dashboard-quick-links";
-import { ClientNotificationSettingsForm } from "@/app/client/dashboard/(app)/notification-settings/client-notification-settings-form";
+import { ClientNotificationSettingsForm } from "@/components/client/client-notification-settings-form";
 
 type Props = {
   initialProfile: ClientSettingsProfile;
@@ -256,13 +256,15 @@ export function ClientSettingsPageClient(props: Props) {
           />
         </CollapsibleSettingsSection>
 
-        <CollapsibleSettingsSection
-          title="Push Notifications"
-          description="Web Push lock-screen alerts and email preferences for your client account."
-          defaultOpen={false}
-        >
-          <ClientNotificationSettingsForm />
-        </CollapsibleSettingsSection>
+        <div id="client-notification-settings" className="scroll-mt-24">
+          <CollapsibleSettingsSection
+            title="Notification Settings"
+            description="Push and in-app notification preferences. Transactional emails (receipts, security) follow your selections below."
+            defaultOpen={false}
+          >
+            <ClientNotificationSettingsForm />
+          </CollapsibleSettingsSection>
+        </div>
 
         <div id="client-quick-links-settings" className="scroll-mt-24">
           <CollapsibleSettingsSection

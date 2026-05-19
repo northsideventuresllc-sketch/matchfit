@@ -7,6 +7,11 @@ import {
   TRAINER_SIGN_UP_PATH,
   type HomePageAuth,
 } from "@/lib/home-page-auth";
+import {
+  CLIENT_PLATFORM_SUBSCRIPTION_FEE_DISCLOSURE_SHORT,
+  formatClientPlatformSubscriptionUsd,
+} from "@/lib/client-platform-subscription-pricing";
+import { PLATFORM_ADMIN_FEE_PERCENT } from "@/lib/tos-implementation-contract";
 
 function SectionShell({
   id,
@@ -98,8 +103,9 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
             />
             <span>
               <span className="font-semibold text-white/85">Browse the full trainer directory</span> for{" "}
-              <span className="font-bold text-[#FFD34E]">$10.00 per month</span>—explore profiles and find coaches
-              who fit your goals before you book a session.
+              <span className="font-bold text-[#FFD34E]">{formatClientPlatformSubscriptionUsd()} per month</span>
+              —explore profiles and find coaches who fit your goals before you book a session.{" "}
+              {CLIENT_PLATFORM_SUBSCRIPTION_FEE_DISCLOSURE_SHORT}
             </span>
           </li>
           <li className="flex gap-3">
@@ -108,10 +114,11 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
               aria-hidden
             />
             <span>
-              <span className="font-semibold text-white/85">Trainers set their own rates.</span> Each purchase
-              includes a <span className="font-bold text-[#FF7E00]">20% service charge</span> plus applicable{" "}
-              <span className="font-bold text-[#FF7E00]">transaction fees</span>, so pricing stays transparent
-              and coaches stay in control of their brand.
+              <span className="font-semibold text-white/85">Trainers set their own rates on coach packages.</span>{" "}
+              Those purchases add Match Fit&apos;s{" "}
+              <span className="font-bold text-[#FF7E00]">{PLATFORM_ADMIN_FEE_PERCENT}% administrative fee</span> plus
+              applicable <span className="font-bold text-[#FF7E00]">card processing costs</span> at checkout—separate from
+              your monthly platform subscription.
             </span>
           </li>
         </ul>

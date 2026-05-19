@@ -2157,7 +2157,7 @@ export function ClientManagementView(props: {
           <p>No official client chats yet.</p>
           <p className="mt-2">
             <Link href="/trainer/dashboard/interests" className="text-[#FF9A4A] underline-offset-4 hover:underline">
-              Review inquiries →
+              REVIEW INQUIRIES →
             </Link>
           </p>
         </div>

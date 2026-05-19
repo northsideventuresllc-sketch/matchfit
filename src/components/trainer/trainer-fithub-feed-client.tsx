@@ -173,7 +173,7 @@ export function TrainerFitHubFeedClient() {
   }, [posts, prefs, nowMs]);
 
   if (loading && !posts) {
-    return <p className="py-16 text-center text-sm text-white/45">Loading FitHub…</p>;
+    return <p className="py-16 text-left text-sm text-white/45">Loading FitHub…</p>;
   }
   if (error) {
     return (
@@ -184,11 +184,11 @@ export function TrainerFitHubFeedClient() {
   }
   if (!visiblePosts.length) {
     return (
-      <div className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/50 px-4 py-10 text-center">
+      <div className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/50 px-4 py-10 text-left">
         <p className="text-sm text-white/60">
           No posts match your filters. Adjust your{" "}
           <Link href="/trainer/dashboard/fit-hub-settings" className="text-[#FF7E00] underline-offset-2 hover:underline">
-            FitHub Settings
+            FITHUB SETTINGS
           </Link>
           .
         </p>
@@ -201,7 +201,7 @@ export function TrainerFitHubFeedClient() {
       {visiblePosts.map((p) => (
         <article
           key={p.id}
-          className="overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/95 shadow-[0_24px_60px_-28px_rgba(0,0,0,0.85)]"
+          className="overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/95 text-left shadow-[0_24px_60px_-28px_rgba(0,0,0,0.85)]"
         >
           <div className="border-b border-white/[0.06] px-4 py-3">
             <div className="flex items-center gap-3">

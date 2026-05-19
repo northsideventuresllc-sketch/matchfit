@@ -20,9 +20,17 @@ import { normalizeTrainerSocialFields } from "@/lib/trainer-social-urls";
 import { postTrainerLogout } from "@/lib/trainer-logout";
 import { US_STATE_POSTAL_OPTIONS } from "@/lib/trainer-profile-demography-options";
 import { coerceTrainerBackgroundVendorStatus, coerceTrainerCptStatus } from "@/lib/trainer-onboarding-status";
+import {
+  formatUsdFromCents,
+  trainerBackgroundCheckFeeCents,
+  trainerLaunchCohortSignupBalanceCents,
+  trainerOnboardingFeeSummaryCopy,
+  trainerSignupFeeBalanceDueCents,
+} from "@/lib/trainer-onboarding-fees";
 
 type TrainerMe = {
   id: string;
+  launchCohortMember?: boolean;
   firstName: string;
   lastName: string;
   username: string;
@@ -46,6 +54,8 @@ type TrainerMe = {
     hasSignedTOS: boolean;
     hasUploadedW9: boolean;
     hasPaidBackgroundFee: boolean;
+    backgroundCheckPaidCents?: number | null;
+    signupFeeBalancePaidAt?: string | null;
     backgroundCheckStatus: string;
     certificationUrl: string | null;
     otherCertificationUrl: string | null;
@@ -422,6 +432,9 @@ export default function TrainerOnboardingClient() {
     return SPECIALIST_ROLE_OPTIONS.find((o) => o.id === id)?.label ?? "Certified specialist credential";
   }, [profile?.specialistProfessionalRole]);
   const bgNeedsReview = bgVendor === "NEEDS_FURTHER_REVIEW";
+  const bgDenied = bgVendor === "DENIED";
+  const bgApproved = bgVendor === "APPROVED";
+  const launchCohort = Boolean(trainer?.launchCohortMember);
 
   const certsComplete = useMemo(() => {
     if (!profile) return false;
@@ -434,6 +447,37 @@ export default function TrainerOnboardingClient() {
       specialistCertificationReviewStatus: profile.specialistCertificationReviewStatus,
     });
   }, [profile]);
+
+  const feeSummary = useMemo(
+    () =>
+      trainerOnboardingFeeSummaryCopy({
+        launchCohort,
+        backgroundCheckPaidCents: profile?.backgroundCheckPaidCents ?? 0,
+      }),
+    [launchCohort, profile?.backgroundCheckPaidCents],
+  );
+  const signupBalanceDueCents = useMemo(
+    () =>
+      trainerSignupFeeBalanceDueCents({
+        backgroundCheckPaidCents: profile?.backgroundCheckPaidCents ?? 0,
+        launchCohort,
+      }),
+    [launchCohort, profile?.backgroundCheckPaidCents],
+  );
+  const showSignupBalanceCheckout =
+    bgApproved &&
+    certsComplete &&
+    !profile?.signupFeeBalancePaidAt &&
+    signupBalanceDueCents > 0 &&
+    profile?.hasPaidBackgroundFee;
+
+  useEffect(() => {
+    if (step !== 2 || bgVendor !== "PENDING" || !profile?.hasPaidBackgroundFee) return;
+    const id = window.setInterval(() => {
+      void loadMe();
+    }, 12_000);
+    return () => window.clearInterval(id);
+  }, [step, bgVendor, profile?.hasPaidBackgroundFee, loadMe]);
 
   const stepHeading = ONBOARDING_STEP_DISPLAY_TITLES[step] ?? "Trainer Onboarding";
   const stepSubline = step === 1 ? "Fees, Screening, and Platform Policies" : null;
@@ -477,6 +521,10 @@ export default function TrainerOnboardingClient() {
       }
     }
     if (step === 2) {
+      if (bgVendor !== "APPROVED") {
+        setError("Complete background screening before continuing.");
+        return false;
+      }
       return true;
     }
     if (step === 3) {
@@ -953,6 +1001,56 @@ export default function TrainerOnboardingClient() {
     setW9AutofillPassword("");
   }
 
+  async function handlePayBackgroundCheck() {
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/trainer/onboarding/background-check/checkout", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = (await res.json()) as { error?: string; url?: string };
+      if (!res.ok || !data.url) {
+        setError(data.error ?? "Could not start background check checkout.");
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      setError("Something went wrong.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handlePaySignupBalance() {
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/trainer/onboarding/signup-fee/checkout", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = (await res.json()) as { error?: string; url?: string; waived?: boolean };
+      if (!res.ok) {
+        setError(data.error ?? "Could not start registration fee checkout.");
+        return;
+      }
+      if (data.waived) {
+        await loadMe();
+        return;
+      }
+      if (!data.url) {
+        setError("Checkout could not be initialized.");
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      setError("Something went wrong.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleBackgroundTestingOverride() {
     setError(null);
     if (!bgDevPassword.trim()) {
@@ -1169,10 +1267,25 @@ export default function TrainerOnboardingClient() {
 
           {step === 2 ? (
             <div className="space-y-5 text-sm leading-relaxed text-white/70">
+              <p className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/80 px-4 py-3 text-[13px] leading-relaxed text-white/60">
+                {feeSummary}
+              </p>
+              {bgDenied ? (
+                <p className="rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+                  Your background screening was not approved. Contact support@match-fit.net with questions.
+                </p>
+              ) : null}
+              {profile?.hasPaidBackgroundFee && bgVendor === "PENDING" ? (
+                <p className="rounded-xl border border-sky-400/25 bg-sky-400/10 px-4 py-3 text-sm text-sky-100">
+                  Payment received — Checkr is processing your report. Status refreshes automatically.
+                </p>
+              ) : null}
               <div className="space-y-3 text-[13px] leading-relaxed text-white/65">
                 <p>
-                  After you acknowledge Match Fit&apos;s policies, you complete background screening through our future
-                  third-party vendor. <span className="font-semibold text-white/90">NOT STARTED</span> means you have not
+                  Pay for your background check through secure checkout. The amount (excluding tax) is credited toward the
+                  $100.00 trainer registration fee. Launch coaches pay only the background check plus Match Fit
+                  administrative and card processing fees. <span className="font-semibold text-white/90">NOT STARTED</span>{" "}
+                  means you have not
                   yet submitted screening with the vendor. <span className="font-semibold text-white/90">PENDING</span>{" "}
                   means the vendor has received your screening and a result is not final.{" "}
                   <span className="font-semibold text-white/90">APPROVED</span> means you cleared screening at the
@@ -1193,6 +1306,28 @@ export default function TrainerOnboardingClient() {
                   </div>
                 ) : null}
               </div>
+              {!profile?.hasPaidBackgroundFee && !bgDenied ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void handlePayBackgroundCheck()}
+                  className="flex min-h-[3rem] w-full items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] transition disabled:opacity-50"
+                >
+                  {busy ? "Starting checkout…" : "Pay background check fee"}
+                </button>
+              ) : null}
+              {showSignupBalanceCheckout ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void handlePaySignupBalance()}
+                  className="flex min-h-[3rem] w-full items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/10 px-4 text-sm font-black uppercase tracking-[0.08em] text-[#FFD34E] transition disabled:opacity-50"
+                >
+                  {busy
+                    ? "Starting checkout…"
+                    : `Pay registration balance (${formatUsdFromCents(signupBalanceDueCents)} + processing)`}
+                </button>
+              ) : null}
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="bg-dev-pw">
                   Development password (required for testing override)

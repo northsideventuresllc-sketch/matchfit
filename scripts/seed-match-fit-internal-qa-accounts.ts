@@ -24,6 +24,7 @@ import {
   ensureInternalQaSyntheticClientPool,
   ensureInternalQaSyntheticTrainerPool,
 } from "../src/lib/internal-qa-simulation";
+import { ensureInternalQaTrainerFullCompliance } from "../src/lib/internal-qa-trainer-compliance";
 import {
   isMatchFitInternalQaClientEmail,
   isMatchFitInternalQaEnabled,
@@ -47,8 +48,8 @@ void (async () => {
     process.exit(1);
   }
 
-  const clientEmail = req("MATCH_FIT_INTERNAL_QA_SEED_CLIENT_EMAIL");
-  const trainerEmail = req("MATCH_FIT_INTERNAL_QA_SEED_TRAINER_EMAIL");
+  const clientEmail = req("MATCH_FIT_INTERNAL_QA_SEED_CLIENT_EMAIL").toLowerCase();
+  const trainerEmail = req("MATCH_FIT_INTERNAL_QA_SEED_TRAINER_EMAIL").toLowerCase();
   if (!isMatchFitInternalQaClientEmail(clientEmail) || !isMatchFitInternalQaTrainerEmail(trainerEmail)) {
     console.error(
       "Seed emails must be listed in MATCH_FIT_INTERNAL_QA_CLIENT_EMAILS / MATCH_FIT_INTERNAL_QA_TRAINER_EMAILS.",
@@ -65,12 +66,15 @@ void (async () => {
   const trainerHash = await hashPassword(trainerPassword);
   const now = new Date();
 
-  const existingClient = await prisma.client.findUnique({ where: { email: clientEmail } });
+  const existingClient = await prisma.client.findFirst({
+    where: { email: { equals: clientEmail, mode: "insensitive" } },
+  });
   if (existingClient) {
     await prisma.client.update({
       where: { id: existingClient.id },
       data: {
         username: clientUsername,
+        email: clientEmail,
         passwordHash: clientHash,
         twoFactorEnabled: false,
         twoFactorMethod: "NONE",
@@ -102,12 +106,15 @@ void (async () => {
     console.log("Created QA client:", clientEmail);
   }
 
-  const existingTrainer = await prisma.trainer.findUnique({ where: { email: trainerEmail } });
+  const existingTrainer = await prisma.trainer.findFirst({
+    where: { email: { equals: trainerEmail, mode: "insensitive" } },
+  });
   if (existingTrainer) {
     await prisma.trainer.update({
       where: { id: existingTrainer.id },
       data: {
         username: trainerUsername,
+        email: trainerEmail,
         passwordHash: trainerHash,
         twoFactorEnabled: false,
         twoFactorMethod: "NONE",
@@ -128,6 +135,7 @@ void (async () => {
         premiumStudioEnabledAt: now,
       },
     });
+    await ensureInternalQaTrainerFullCompliance(existingTrainer.id);
     console.log("Updated existing QA trainer:", trainerEmail);
   } else {
     const t = await prisma.trainer.create({
@@ -158,6 +166,7 @@ void (async () => {
         aiMatchProfileText: "Internal QA trainer seed profile.",
       },
     });
+    await ensureInternalQaTrainerFullCompliance(t.id);
     console.log("Created QA trainer:", trainerEmail);
   }
 

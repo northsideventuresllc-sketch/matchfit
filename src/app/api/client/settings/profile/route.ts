@@ -93,10 +93,14 @@ export async function PATCH(req: Request) {
       "addressPostal",
       "addressCountry",
     ] as const;
+    const addrTouched = addrKeys.some((k) => body[k] !== undefined);
     for (const k of addrKeys) {
       if (body[k] !== undefined) {
         data[k] = blankToNull(body[k]) ?? null;
       }
+    }
+    if (addrTouched) {
+      data.addressCountry = "United States";
     }
 
     if (Object.keys(data).length === 0) {

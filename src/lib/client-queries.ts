@@ -8,7 +8,12 @@ export async function findClientByIdentifier(identifier: string) {
   return prisma.client.findFirst({
     where: {
       deidentifiedAt: null,
-      OR: [{ username: raw }, { phone: raw }, { email: raw.toLowerCase() }],
+      OR: [
+        { username: raw },
+        { phone: raw },
+        // Case-insensitive so logins work when the DB row predates normalized lowercase emails (e.g. QA seeds).
+        { email: { equals: raw, mode: "insensitive" } },
+      ],
     },
   });
 }

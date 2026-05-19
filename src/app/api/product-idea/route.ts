@@ -1,3 +1,4 @@
+import { notifyMatchFitSupportInbox } from "@/lib/match-fit-support-inbox";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 import { NextResponse } from "next/server";
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
     const clientId = clientIdSession ?? null;
     const trainerId = clientId ? null : trainerIdSession ?? null;
 
-    await prisma.productIdeaSubmission.create({
+    const row = await prisma.productIdeaSubmission.create({
       data: {
         clientId,
         trainerId,
@@ -63,6 +64,24 @@ export async function POST(req: Request) {
         description,
       },
     });
+
+    const audience = clientId ? "client" : trainerId ? "trainer" : "public";
+    void notifyMatchFitSupportInbox({
+      subject: `[Product idea] ${category} · ${row.id}`,
+      text: [
+        `Submission ID: ${row.id}`,
+        `Category: ${category}`,
+        `Audience: ${audience}`,
+        `Client ID: ${clientId ?? "—"}`,
+        `Trainer ID: ${trainerId ?? "—"}`,
+        `Anonymous: ${anonymous}`,
+        `Reporter: ${anonymous ? "(anonymous)" : name}`,
+        `Email: ${email}`,
+        "",
+        description,
+      ].join("\n"),
+      replyTo: email,
+    }).catch((e) => console.error("[product-idea] support inbox failed:", e));
 
     return NextResponse.json({
       ok: true,

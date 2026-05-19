@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CollapsibleSettingsSection } from "@/components/client/collapsible-settings-section";
 import { TrainerProfileDemographyFields } from "@/components/trainer/trainer-profile-demography-fields";
 import { TrainerSocialUrlFields } from "@/components/trainer/trainer-social-url-fields";
+import { MATCH_FIT_SUPPORT_INBOX } from "@/lib/match-fit-support-inbox";
 import { normalizeTrainerSocialFields } from "@/lib/trainer-social-urls";
 import { assertAvatarMime, AVATAR_MAX_BYTES } from "@/lib/validations/client-settings-profile";
 
@@ -516,12 +517,24 @@ export const TrainerProfileSettingsPanel = forwardRef<TrainerProfileSettingsPane
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-white/45">Email</p>
                     <p className="mt-1 text-sm text-white/80">{profile.email}</p>
-                    <p className="mt-1 text-xs text-white/40">Contact support to change your sign-in email.</p>
+                    <p className="mt-1 text-xs text-white/40">
+                      Contact{" "}
+                      <a href={`mailto:${MATCH_FIT_SUPPORT_INBOX}`} className="text-[#FF7E00] hover:underline">
+                        {MATCH_FIT_SUPPORT_INBOX}
+                      </a>{" "}
+                      to change your sign-in email.
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-white/45">Phone</p>
                     <p className="mt-1 text-sm text-white/80">{profile.phone}</p>
-                    <p className="mt-1 text-xs text-white/40">Contact support to change your phone on file.</p>
+                    <p className="mt-1 text-xs text-white/40">
+                      Contact{" "}
+                      <a href={`mailto:${MATCH_FIT_SUPPORT_INBOX}`} className="text-[#FF7E00] hover:underline">
+                        {MATCH_FIT_SUPPORT_INBOX}
+                      </a>{" "}
+                      to change your phone on file.
+                    </p>
                   </div>
                 </div>
               </div>

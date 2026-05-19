@@ -6,7 +6,11 @@ export async function findTrainerByIdentifier(identifier: string) {
   return prisma.trainer.findFirst({
     where: {
       deidentifiedAt: null,
-      OR: [{ username: raw }, { phone: raw }, { email: raw.toLowerCase() }],
+      OR: [
+        { username: { equals: raw, mode: "insensitive" } },
+        { phone: raw },
+        { email: { equals: raw, mode: "insensitive" } },
+      ],
     },
   });
 }

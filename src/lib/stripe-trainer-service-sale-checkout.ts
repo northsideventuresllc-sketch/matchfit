@@ -1,7 +1,6 @@
 import {
-  adminFeeCentsFromBaseSubtotalCents,
-  ADMIN_FEE_STRIPE_DESCRIPTION,
-  ADMIN_FEE_UI_LABEL,
+  buildMarketplaceCheckoutTotals,
+  stripeLineItemsFromMarketplaceTotals,
 } from "@/lib/platform-fees";
 import { bookingPurchaseMetaFromSku } from "@/lib/trainer-booking-purchase-meta";
 import type { TrainerServiceOfferingLine } from "@/lib/trainer-service-offerings";
@@ -37,8 +36,8 @@ export async function createTrainerServiceSaleStripeCheckoutSession(args: {
     throw new Error("Service price is not valid for checkout.");
   }
 
-  const adminCents = adminFeeCentsFromBaseSubtotalCents(baseCents);
-  const totalCents = baseCents + adminCents;
+  const totals = buildMarketplaceCheckoutTotals(baseCents, { includeAdminFee: true });
+  const { adminCents, processingCents, totalCents } = totals;
   const catalogTitle = resolvedTrainerServicePublicTitle(args.line);
   const displayTitle = (args.checkoutTitle ?? catalogTitle).trim().slice(0, 120);
   const serviceLabel = displayTitle.slice(0, 240);
@@ -53,6 +52,7 @@ export async function createTrainerServiceSaleStripeCheckoutSession(args: {
     amountCents: String(baseCents),
     totalChargedCents: String(totalCents),
     adminFeeCents: String(adminCents),
+    processingFeeCents: String(processingCents),
     serviceId: bookingMeta.serviceId,
     billingUnit: bookingMeta.billingUnit,
     sessionCreditsGranted: String(bookingMeta.sessionCreditsGranted),
@@ -74,33 +74,19 @@ export async function createTrainerServiceSaleStripeCheckoutSession(args: {
   metadata.grossAddonAttributedCents = String(grossAddonMeta);
   metadata.addonHoursPurchased = String(addonHoursMeta);
 
+  const line_items = stripeLineItemsFromMarketplaceTotals({
+    totals,
+    includeAdminFee: true,
+    baseLine: {
+      name: `Coach service — ${displayTitle}`,
+      description: `Match Fit platform checkout for services with @${args.trainerUsername}. Service subtotal before fees.`,
+    },
+  });
+
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer_email: args.clientEmail,
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: baseCents,
-          product_data: {
-            name: `Coach service — ${displayTitle}`,
-            description: `Match Fit platform checkout for services with @${args.trainerUsername}. Service subtotal before Match Fit administrative fee.`,
-          },
-        },
-      },
-      {
-        quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: adminCents,
-          product_data: {
-            name: ADMIN_FEE_UI_LABEL,
-            description: ADMIN_FEE_STRIPE_DESCRIPTION,
-          },
-        },
-      },
-    ],
+    line_items,
     metadata,
     success_url: args.successUrl,
     cancel_url: args.cancelUrl,

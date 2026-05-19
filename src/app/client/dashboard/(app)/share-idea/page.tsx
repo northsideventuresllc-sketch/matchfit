@@ -10,7 +10,7 @@ export default function ClientShareIdeaPage() {
     <div className="space-y-8">
       <header className="space-y-2 text-center">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Product Feedback</p>
-        <h1 className="text-3xl font-black tracking-[0.04em] text-white sm:text-4xl">Share An Idea</h1>
+        <h1 className="text-3xl font-black uppercase tracking-[0.06em] text-white sm:text-4xl">SHARE AN IDEA</h1>
         <p className="mx-auto max-w-xl text-sm leading-relaxed text-white/50">
           Tell us what would make Match Fit better for you or your clients. You can include your name or submit
           anonymously. We read every submission.

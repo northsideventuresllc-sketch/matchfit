@@ -3,7 +3,10 @@
 import { FormEvent, forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CollapsibleSettingsSection } from "@/components/client/collapsible-settings-section";
+import { US_STATE_OPTIONS } from "@/lib/us-states";
 import { assertAvatarMime, AVATAR_MAX_BYTES } from "@/lib/validations/client-settings-profile";
+
+const CLIENT_MAILING_COUNTRY = "United States";
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 transition placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2";
@@ -62,7 +65,7 @@ function serializeProfileDraft(p: {
     addressCity: p.addressCity.trim(),
     addressState: p.addressState.trim(),
     addressPostal: p.addressPostal.trim(),
-    addressCountry: p.addressCountry.trim(),
+    addressCountry: CLIENT_MAILING_COUNTRY,
   });
 }
 
@@ -123,7 +126,6 @@ export const ProfileSettingsPanel = forwardRef<ProfileSettingsPanelRef, PanelPro
   const [addressCity, setAddressCity] = useState(profile.addressCity ?? "");
   const [addressState, setAddressState] = useState(profile.addressState ?? "");
   const [addressPostal, setAddressPostal] = useState(profile.addressPostal ?? "");
-  const [addressCountry, setAddressCountry] = useState(profile.addressCountry ?? "");
 
   const [profileBaselineStr, setProfileBaselineStr] = useState(() =>
     serializeProfileDraft({
@@ -136,7 +138,7 @@ export const ProfileSettingsPanel = forwardRef<ProfileSettingsPanelRef, PanelPro
       addressCity: profile.addressCity ?? "",
       addressState: profile.addressState ?? "",
       addressPostal: profile.addressPostal ?? "",
-      addressCountry: profile.addressCountry ?? "",
+      addressCountry: CLIENT_MAILING_COUNTRY,
     }),
   );
 
@@ -201,7 +203,6 @@ export const ProfileSettingsPanel = forwardRef<ProfileSettingsPanelRef, PanelPro
     addressCity,
     addressState,
     addressPostal,
-    addressCountry,
   });
 
   const profileFieldsDirty = draftSerialized !== profileBaselineStr;
@@ -230,7 +231,6 @@ export const ProfileSettingsPanel = forwardRef<ProfileSettingsPanelRef, PanelPro
       setAddressCity(data.profile.addressCity ?? "");
       setAddressState(data.profile.addressState ?? "");
       setAddressPostal(data.profile.addressPostal ?? "");
-      setAddressCountry(data.profile.addressCountry ?? "");
       setProfileBaselineStr(
         serializeProfileDraft({
           firstName: data.profile.firstName,
@@ -242,7 +242,7 @@ export const ProfileSettingsPanel = forwardRef<ProfileSettingsPanelRef, PanelPro
           addressCity: data.profile.addressCity ?? "",
           addressState: data.profile.addressState ?? "",
           addressPostal: data.profile.addressPostal ?? "",
-          addressCountry: data.profile.addressCountry ?? "",
+          addressCountry: CLIENT_MAILING_COUNTRY,
         }),
       );
     }
@@ -265,7 +265,7 @@ export const ProfileSettingsPanel = forwardRef<ProfileSettingsPanelRef, PanelPro
           addressCity: addressCity.trim() === "" ? null : addressCity,
           addressState: addressState.trim() === "" ? null : addressState,
           addressPostal: addressPostal.trim() === "" ? null : addressPostal,
-          addressCountry: addressCountry.trim() === "" ? null : addressCountry,
+          addressCountry: CLIENT_MAILING_COUNTRY,
         }),
       });
       const data = (await res.json()) as { error?: string; profile?: ClientSettingsProfile };
@@ -287,7 +287,7 @@ export const ProfileSettingsPanel = forwardRef<ProfileSettingsPanelRef, PanelPro
             addressCity: data.profile.addressCity ?? "",
             addressState: data.profile.addressState ?? "",
             addressPostal: data.profile.addressPostal ?? "",
-            addressCountry: data.profile.addressCountry ?? "",
+            addressCountry: CLIENT_MAILING_COUNTRY,
           }),
         );
       }
@@ -600,24 +600,29 @@ export const ProfileSettingsPanel = forwardRef<ProfileSettingsPanelRef, PanelPro
                   <input value={addressCity} onChange={(e) => setAddressCity(e.target.value)} className={inputClass} />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-white/50">State / region</label>
-                  <input value={addressState} onChange={(e) => setAddressState(e.target.value)} className={inputClass} />
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-white/50">Postal code</label>
-                  <input value={addressPostal} onChange={(e) => setAddressPostal(e.target.value)} className={inputClass} />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-white/50">Country</label>
-                  <input
-                    value={addressCountry}
-                    onChange={(e) => setAddressCountry(e.target.value)}
+                  <label htmlFor="address-state" className="text-xs font-semibold uppercase tracking-wide text-white/50">
+                    State
+                  </label>
+                  <select
+                    id="address-state"
+                    value={addressState}
+                    onChange={(e) => setAddressState(e.target.value)}
                     className={inputClass}
-                  />
+                  >
+                    <option value="">Select state</option>
+                    {US_STATE_OPTIONS.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
+              <div className="flex max-w-xs flex-col gap-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-white/50">Postal code</label>
+                <input value={addressPostal} onChange={(e) => setAddressPostal(e.target.value)} className={inputClass} />
+              </div>
+              <p className="text-xs text-white/40">Mailing address must be in the United States.</p>
             </div>
           </div>
 
@@ -715,7 +720,7 @@ export const ProfileSettingsPanel = forwardRef<ProfileSettingsPanelRef, PanelPro
 
       <CollapsibleSettingsSection
         title="Phone"
-        description="Update the phone number tied to your account for sign-in and verification messages."
+        description="Optional number for masked voice calls in chat only—not used for SMS sign-in or two-factor codes."
         defaultOpen={false}
       >
         <p className="text-sm text-white/55">
@@ -789,8 +794,8 @@ export const ProfileSettingsPanel = forwardRef<ProfileSettingsPanelRef, PanelPro
           </form>
         )}
         <p className="mt-3 text-xs text-white/40">
-          With SMS configured, the code goes to your new number; otherwise it is emailed to your current address for the same
-          level of confirmation.
+          We email a confirmation code to your current address when you change this number. Two-factor sign-in uses email (and
+          push when enabled), not SMS.
         </p>
       </CollapsibleSettingsSection>
     </div>

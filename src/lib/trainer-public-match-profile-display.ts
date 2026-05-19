@@ -59,7 +59,7 @@ export function mapMatchProfileBlocksForPublicClientPage(
 ): PublicCoachMatchProfileResult {
   let idealRaw: string | null = null;
   const filtered = blocks.filter((b) => {
-    if (b.kind === "kv" && b.title === "Primary client goals") return false;
+    if (b.kind === "kv" && (b.title === "Primary Client Goals" || b.title === "Primary client goals")) return false;
     if (b.kind === "kv" && b.title === "Ideal Client Profile") {
       idealRaw = b.value;
       return false;

@@ -96,7 +96,7 @@ export function TrainerComplianceCertCarousel(props: {
   }
 
   return (
-    <div className="mt-5">
+    <div className="mt-5 text-left">
       <p className="text-xs text-white/45">Swipe horizontally on small screens to review each upload.</p>
       <div className="mt-3 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2">
         {slides.map((s) => {

@@ -1,15 +1,16 @@
 import { prisma } from "@/lib/prisma";
-import { getSessionTrainerId } from "@/lib/session";
+import { requireTrainerOnboardingMutation } from "@/lib/trainer-onboarding-api";
 import { trainerAgreementsSchema } from "@/lib/validations/trainer-register";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
 
 export async function PATCH(req: Request) {
   try {
-    const trainerId = await getSessionTrainerId();
-    if (!trainerId) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    const session = await requireTrainerOnboardingMutation();
+    if ("error" in session) {
+      return NextResponse.json({ error: session.error }, { status: session.status });
     }
+    const { trainerId } = session;
 
     const parsed = trainerAgreementsSchema.safeParse(await req.json());
     if (!parsed.success) {

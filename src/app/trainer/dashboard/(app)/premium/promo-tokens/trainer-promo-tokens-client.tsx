@@ -429,7 +429,7 @@ export function TrainerPromoTokensClient() {
                 {tabPromotions.map((p) => (
                   <li
                     key={p.id}
-                    className="overflow-hidden rounded-2xl border border-white/[0.12] bg-black/30 p-4 shadow-[0_12px_40px_-28px_rgba(0,0,0,0.75)]"
+                    className="overflow-hidden rounded-2xl border border-white/[0.12] bg-black/30 p-4 text-left shadow-[0_12px_40px_-28px_rgba(0,0,0,0.75)]"
                   >
                     <div className="flex flex-col gap-3 sm:flex-row">
                       <div className="h-24 w-full shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black/30 sm:h-28 sm:w-40">

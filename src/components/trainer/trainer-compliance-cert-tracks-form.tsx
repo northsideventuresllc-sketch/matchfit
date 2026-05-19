@@ -166,7 +166,7 @@ export function TrainerComplianceCertTracksForm(props: Props) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-6 rounded-2xl border border-white/[0.08] bg-[#0E1016]/50 p-5 sm:p-6">
+    <form onSubmit={onSubmit} className="mt-6 rounded-2xl border border-white/[0.08] bg-[#0E1016]/50 p-5 text-left sm:p-6">
       <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-white/45">Credential paths on file</h3>
       <p className="mt-2 text-xs leading-relaxed text-white/50">
         Opt in to each credential type Match Fit should verify for your account. CPT and the certified specialist path

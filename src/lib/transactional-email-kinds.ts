@@ -13,6 +13,7 @@ export const TRANSACTIONAL_EMAIL_KINDS = [
   "CERTIFICATION_RENEWAL_REMINDER",
   "BACKGROUND_CHECK_UPDATE",
   "ADMIN_REGISTRATION_REQUEST",
+  "TRAINER_BACKGROUND_CHECK_REVIEW",
   "PURCHASE_CONFIRMATION",
   "COACH_PACKAGE_SALE",
   "TRAINER_PAYOUT",
@@ -41,6 +42,7 @@ const TRANSACTIONAL_EMAIL_KIND_SAMPLE_LABELS: Record<TransactionalEmailKind, str
   CERTIFICATION_RENEWAL_REMINDER: "Certification renewal",
   BACKGROUND_CHECK_UPDATE: "Background check",
   ADMIN_REGISTRATION_REQUEST: "Administrator request",
+  TRAINER_BACKGROUND_CHECK_REVIEW: "Trainer background check review",
   PURCHASE_CONFIRMATION: "Purchase confirmation",
   COACH_PACKAGE_SALE: "New package sale",
   TRAINER_PAYOUT: "Trainer payout",
@@ -66,6 +68,7 @@ export const MANDATORY_TRANSACTIONAL_EMAIL_KINDS: ReadonlySet<TransactionalEmail
   "EMAIL_CHANGE_SECURITY",
   "LOGIN_SECURITY_ALERT",
   "ADMIN_REGISTRATION_REQUEST",
+  "TRAINER_BACKGROUND_CHECK_REVIEW",
 ]);
 
 export function isMandatoryTransactionalEmailKind(kind: TransactionalEmailKind): boolean {

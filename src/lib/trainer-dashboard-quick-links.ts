@@ -13,7 +13,7 @@ export const TRAINER_DASHBOARD_QUICK_LINK_OPTIONS = [
     id: "notification_settings",
     label: "Notification Settings",
     settingsLabel: "Notification Settings",
-    href: "/trainer/dashboard/notification-settings",
+    href: "/trainer/dashboard/settings#trainer-notification-settings",
   },
   {
     id: "account_settings",

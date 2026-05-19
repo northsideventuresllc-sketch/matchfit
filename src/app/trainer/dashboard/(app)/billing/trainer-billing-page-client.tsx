@@ -104,7 +104,7 @@ export function TrainerBillingPageClient() {
           </p>
           <div className="mt-4 space-y-3">
             <label className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-[#12151C]/70 px-4 py-3">
-              <span className="text-sm text-white/85">Email Billing Notifications</span>
+              <span className="text-sm text-white/85">Email billing notifications</span>
               <input
                 type="checkbox"
                 checked={prefs.billingEmailNotifications}
@@ -116,7 +116,7 @@ export function TrainerBillingPageClient() {
               />
             </label>
             <label className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-[#12151C]/70 px-4 py-3">
-              <span className="text-sm text-white/85">Web Push billing alerts</span>
+              <span className="text-sm text-white/85">Web push billing notifications</span>
               <input
                 type="checkbox"
                 checked={prefs.billingPushNotifications}

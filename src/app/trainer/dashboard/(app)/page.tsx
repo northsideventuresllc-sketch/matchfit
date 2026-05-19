@@ -5,10 +5,12 @@ import { TrainerDashboardLogoutLink } from "@/components/trainer/trainer-dashboa
 import { TrainerDashboardServicesBubble } from "@/components/trainer/trainer-dashboard-services-bubble";
 import { TrainerDashboardQuickActions } from "@/components/trainer/trainer-dashboard-quick-actions";
 import { TrainerPremiumHubSummary } from "@/components/trainer/trainer-premium-hub-summary";
-import { TrainerMatchAnswersPreview } from "@/components/trainer/trainer-match-answers-preview";
-import { parseAiMatchProfileForDisplay } from "@/lib/ai-match-profile-parse";
+import { TrainerDashboardOnboardingQuestionnaireEditor } from "@/components/trainer/trainer-dashboard-onboarding-questionnaire-editor";
+import {
+  defaultTrainerMatchQuestionnaireDraft,
+  parseTrainerMatchQuestionnaireDraft,
+} from "@/lib/trainer-match-questionnaire-draft";
 import { prisma } from "@/lib/prisma";
-import { TRAINER_MATCH_QUESTIONNAIRES_PATH } from "@/lib/trainer-match-questionnaires-routes";
 import { trainerPublishedProfilePath } from "@/lib/trainer-public-profile-route";
 import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
 import { getSessionTrainerId } from "@/lib/session";
@@ -58,7 +60,8 @@ export default async function TrainerDashboardHomePage() {
           onboardingTrackNutrition: true,
           dashboardActivatedAt: true,
           matchQuestionnaireStatus: true,
-          aiMatchProfileText: true,
+          matchQuestionnaireAnswers: true,
+          matchQuestionnaireCompletedAt: true,
           premiumStudioEnabledAt: true,
         },
       },
@@ -76,10 +79,17 @@ export default async function TrainerDashboardHomePage() {
 
   const settingsHref = "/trainer/dashboard/settings";
 
-  const matchBlocks =
-    profile?.matchQuestionnaireStatus === "completed" && profile.aiMatchProfileText
-      ? parseAiMatchProfileForDisplay(profile.aiMatchProfileText)
-      : null;
+  let questionnaireDraft = defaultTrainerMatchQuestionnaireDraft();
+  const rawAnswers = profile?.matchQuestionnaireAnswers;
+  if (rawAnswers) {
+    try {
+      questionnaireDraft = parseTrainerMatchQuestionnaireDraft(JSON.parse(rawAnswers) as unknown);
+    } catch {
+      /* keep defaults */
+    }
+  }
+  const questionnaireStatus = profile?.matchQuestionnaireStatus ?? "not_started";
+  const questionnaireCompletedAtIso = profile?.matchQuestionnaireCompletedAt?.toISOString() ?? null;
 
   const premiumActive = Boolean(profile?.premiumStudioEnabledAt);
 
@@ -213,32 +223,16 @@ export default async function TrainerDashboardHomePage() {
 
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
         <h2 className="text-center text-xs font-bold uppercase tracking-[0.18em] text-[#FF7E00]">
-          Onboarding Questionnaire answers
+          ONBOARDING QUESTIONNAIRE ANSWERS
         </h2>
-        <details className="mt-5 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-3">
-          <summary className="cursor-pointer list-none text-center text-sm font-semibold tracking-wide text-[#FF7E00]">
-            SHOW ANSWERS
-          </summary>
-          <div className="mt-4">
-            {matchBlocks ? (
-              <TrainerMatchAnswersPreview blocks={matchBlocks} />
-            ) : (
-              <p className="text-center text-sm text-white/55">No Onboarding Questionnaire answers on file yet.</p>
-            )}
-          </div>
-          <div className="mt-6 border-t border-white/[0.08] pt-4 text-center">
-            <p className="text-[13px] leading-relaxed text-white/55">
-              To change your answers, go to the{" "}
-              <Link
-                href={TRAINER_MATCH_QUESTIONNAIRES_PATH}
-                className="font-semibold text-[#FF7E00] underline-offset-2 transition hover:text-[#FFD34E] hover:underline"
-              >
-                Daily questionnaires
-              </Link>{" "}
-              tab in the navigation and update your questionnaires there.
-            </p>
-          </div>
-        </details>
+        <div className="mt-5">
+          <TrainerDashboardOnboardingQuestionnaireEditor
+            key={rawAnswers ?? "empty"}
+            initialDraft={questionnaireDraft}
+            status={questionnaireStatus}
+            completedAtIso={questionnaireCompletedAtIso}
+          />
+        </div>
       </section>
 
       <TrainerDashboardLogoutLink />

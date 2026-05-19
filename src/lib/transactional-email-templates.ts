@@ -208,6 +208,34 @@ export function buildTransactionalEmail(
       });
       return finalizeTransactional(subject, text, html);
     }
+    case "TRAINER_BACKGROUND_CHECK_REVIEW": {
+      const subject = `[Match Fit] Trainer background check review — ${c(ctx.trainerName, "Trainer")}`;
+      const approveUrl = c(ctx.approveUrl, "https://match-fit.net/api/trainer/background-check-review/decision?token=sample");
+      const denyUrl = c(ctx.denyUrl, "https://match-fit.net/api/trainer/background-check-review/decision?token=sampledeny");
+      const reportLink = c(ctx.reportLink, "https://dashboard.checkr.com");
+      const trainerEmail = c(ctx.trainerEmail, "trainer@example.com");
+      const trainerUsername = c(ctx.trainerUsername, "coach");
+      const text = [
+        "A trainer background check needs human review.",
+        "",
+        `Name: ${c(ctx.trainerName, "Trainer")}`,
+        `Email: ${trainerEmail}`,
+        `Username: @${trainerUsername}`,
+        `Report: ${reportLink}`,
+        "",
+        `Approve: ${approveUrl}`,
+        `Deny: ${denyUrl}`,
+      ].join("\n");
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: "Flagged background check — approve or deny.",
+        title: "Background check review",
+        bodyHtml: `${bodyParagraphs([
+          `Trainer: <strong style="color:${s.textPrimary};">${escapeHtmlEmail(c(ctx.trainerName, "Trainer"))}</strong> (${escapeHtmlEmail(trainerEmail)}) · @${escapeHtmlEmail(trainerUsername)}`,
+          `Checkr report: <a href="${escapeHtmlEmail(reportLink)}" style="color:${s.orange};">${escapeHtmlEmail(reportLink)}</a>`,
+        ])}<table role="presentation" cellspacing="0" cellpadding="0" align="center" style="margin:20px auto 0;"><tr><td style="padding:0 8px;"><a href="${escapeHtmlEmail(approveUrl)}" style="display:inline-block;padding:12px 18px;border-radius:10px;background:${s.orange};color:${s.bg};font-weight:800;text-decoration:none;font-size:13px;">Approve</a></td><td style="padding:0 8px;"><a href="${escapeHtmlEmail(denyUrl)}" style="display:inline-block;padding:12px 18px;border-radius:10px;background:${s.red};color:#fff;font-weight:800;text-decoration:none;font-size:13px;">Deny</a></td></tr></table>`,
+      });
+      return finalizeTransactional(subject, text, html);
+    }
     case "ADMIN_REGISTRATION_REQUEST": {
       const subject = `[Match Fit] Administrator approval — ${adminName}`;
       const approveUrl = c(ctx.approveUrl, "https://match-fit.net/api/admin/pending-decision?token=sample");

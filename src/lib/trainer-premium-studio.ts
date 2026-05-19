@@ -1,9 +1,17 @@
 import { prisma } from "@/lib/prisma";
 
 export async function isTrainerPremiumStudioActive(trainerId: string): Promise<boolean> {
-  const profile = await prisma.trainerProfile.findUnique({
+  const row = await prisma.trainerProfile.findUnique({
     where: { trainerId },
-    select: { premiumStudioEnabledAt: true },
+    select: {
+      premiumStudioEnabledAt: true,
+      launchPremiumEndsAt: true,
+      trainer: { select: { launchCohortMember: true } },
+    },
   });
-  return Boolean(profile?.premiumStudioEnabledAt);
+  if (!row?.premiumStudioEnabledAt) return false;
+  if (row.trainer.launchCohortMember && row.launchPremiumEndsAt) {
+    return row.launchPremiumEndsAt.getTime() > Date.now();
+  }
+  return true;
 }

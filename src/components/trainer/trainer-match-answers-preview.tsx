@@ -1,5 +1,11 @@
 import type { AiMatchProfileDisplayBlock } from "@/lib/ai-match-profile-parse";
 
+function displayBlockTitle(title: string): string {
+  if (title === "Primary client goals") return "Primary Client Goals";
+  if (title === "Onboarding Questionnaire answers") return "ONBOARDING QUESTIONNAIRE ANSWERS";
+  return title;
+}
+
 export function TrainerMatchAnswersPreview(props: {
   blocks: AiMatchProfileDisplayBlock[];
   /** Public coach profile: calmer “bio” styling for long text (no faux input scroll box). */
@@ -13,15 +19,16 @@ export function TrainerMatchAnswersPreview(props: {
   const titleClass = "text-xs font-semibold text-[#FF7E00]/95";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 text-left">
       {props.blocks.map((b, idx) => {
+        const title = displayBlockTitle(b.title);
         if (b.kind === "kv") {
           return (
             <div
               key={`${b.title}-${idx}`}
               className="rounded-2xl border border-white/[0.07] bg-[linear-gradient(145deg,rgba(255,211,78,0.06)_0%,rgba(18,21,28,0.92)_38%,rgba(14,16,22,0.98)_100%)] p-4 sm:p-5"
             >
-              <p className={titleClass}>{b.title}</p>
+              <p className={titleClass}>{title}</p>
               <p className="mt-2 text-sm leading-relaxed text-white/88">{b.value}</p>
             </div>
           );
@@ -32,7 +39,7 @@ export function TrainerMatchAnswersPreview(props: {
               key={`${b.title}-${idx}`}
               className="rounded-2xl border border-white/[0.07] bg-[#0E1016]/75 p-4 sm:p-5"
             >
-              <p className={titleClass}>{b.title}</p>
+              <p className={titleClass}>{title}</p>
               <ul className="mt-3 space-y-2.5">
                 {b.items.map((item, j) => (
                   <li key={j} className="flex gap-2.5 text-sm leading-snug text-white/85">
@@ -47,7 +54,7 @@ export function TrainerMatchAnswersPreview(props: {
         if (variant === "public") {
           return (
             <div key={`${b.title}-${idx}`} className="pt-1">
-              <h3 className={titleClass}>{b.title}</h3>
+              <h3 className={titleClass}>{title}</h3>
               <p className="mt-3 whitespace-pre-wrap text-sm leading-[1.75] text-white/85">{b.body}</p>
             </div>
           );
@@ -57,7 +64,7 @@ export function TrainerMatchAnswersPreview(props: {
             key={`${b.title}-${idx}`}
             className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/60 p-4 sm:p-6"
           >
-            <p className={titleClass}>{b.title}</p>
+            <p className={titleClass}>{title}</p>
             <div className="mt-3 max-h-[min(24rem,55vh)] overflow-y-auto rounded-xl border border-white/[0.05] bg-[#07080C]/80 p-4">
               <p className="whitespace-pre-wrap text-sm leading-[1.65] text-white/82">{b.body}</p>
             </div>

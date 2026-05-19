@@ -190,7 +190,7 @@ export function TrainerPremiumMyContentClient(props: MyContentProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-left">
       {!embedded ? (
         <p className="text-center text-xs text-white/45">
           <Link href="/trainer/dashboard/premium/fit-hub-content" className="text-[#FF7E00] underline-offset-2 hover:underline">
@@ -212,10 +212,10 @@ export function TrainerPremiumMyContentClient(props: MyContentProps) {
             return (
               <li
                 key={p.id}
-                className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0E1016]/60 shadow-[0_16px_40px_-28px_rgba(0,0,0,0.85)]"
+                className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0E1016]/60 text-left shadow-[0_16px_40px_-28px_rgba(0,0,0,0.85)]"
               >
                 <div
-                  className={`flex flex-col gap-3 p-3 ${showPreview ? "sm:flex-row sm:items-stretch" : ""}`}
+                  className={`flex flex-col gap-3 p-3 text-left ${showPreview ? "sm:flex-row sm:items-stretch" : ""}`}
                 >
                   {showPreview && thumb ? (
                     <div className="relative h-28 w-full shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black/30 sm:h-auto sm:w-36">
@@ -237,7 +237,7 @@ export function TrainerPremiumMyContentClient(props: MyContentProps) {
                     <button
                       type="button"
                       onClick={() => setDetail(p)}
-                      className="block w-full text-center text-sm font-semibold text-white/85 hover:text-white"
+                      className="block w-full text-left text-sm font-semibold text-white/85 hover:text-white"
                     >
                       {p.caption || p.bodyText || "(Media post)"}
                     </button>
@@ -283,7 +283,7 @@ export function TrainerPremiumMyContentClient(props: MyContentProps) {
           }}
         >
           <div
-            className="max-h-[min(85vh,32rem)] w-full max-w-lg overflow-hidden rounded-2xl border border-white/[0.1] bg-[#12151C] shadow-[0_24px_80px_-20px_rgba(0,0,0,0.9)]"
+            className="max-h-[min(85vh,32rem)] w-full max-w-lg overflow-hidden rounded-2xl border border-white/[0.1] bg-[#12151C] text-left shadow-[0_24px_80px_-20px_rgba(0,0,0,0.9)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-2 border-b border-white/[0.06] px-4 py-3">
@@ -328,7 +328,7 @@ export function TrainerPremiumMyContentClient(props: MyContentProps) {
           }}
         >
           <div
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/[0.1] bg-[#12151C] p-5"
+            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/[0.1] bg-[#12151C] p-5 text-left"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-2">

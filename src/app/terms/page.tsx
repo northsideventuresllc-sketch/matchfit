@@ -11,20 +11,18 @@ import {
   STANDARD_MATCH_BATCH_SIZE,
   TOS_CLIENT_PLATFORM_PROMO_USD,
   TOS_CLIENT_PLATFORM_SUBSCRIPTION_USD,
+  TOS_TRAINER_SIGNUP_FEE_USD,
   TOS_PAYOUT_DISPUTE_ROLLING_DAYS,
   TOS_PAYOUT_DISPUTE_SUSPEND_THRESHOLD,
   TOS_PUNCH_MISS_SUSPEND_STREAK,
 } from "@/lib/tos-implementation-contract";
 
-/** Legal operator of Match Fit. */
-const OPERATOR_LEGAL_NAME = "Northside Ventures LLC";
-
-/** General and billing inquiries. */
-const TERMS_CONTACT_EMAIL = "northside.ventures.llc@gmail.com";
-
-const PHYSICAL_ADDRESS_LINE = "1954 Airport Rd STE 1277, Chamblee, GA 30341, United States";
-
-const TERMS_EFFECTIVE_DATE = "May 13, 2026";
+import {
+  MATCH_FIT_OPERATOR_LEGAL_NAME,
+  MATCH_FIT_PHYSICAL_ADDRESS_LINE,
+  MATCH_FIT_POLICY_EFFECTIVE_DATE,
+  MATCH_FIT_SUPPORT_INBOX,
+} from "@/lib/match-fit-legal";
 
 function P({ children }: { children: React.ReactNode }) {
   return <p className="mt-3 text-sm leading-relaxed text-white/60">{children}</p>;
@@ -69,13 +67,13 @@ export default async function TermsPage() {
       <div className="mx-auto max-w-2xl">
         <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Terms of Service</h1>
         <p className="mt-4 text-xs uppercase tracking-wide text-white/45">
-          Effective Date: {TERMS_EFFECTIVE_DATE}
+          Effective Date: {MATCH_FIT_POLICY_EFFECTIVE_DATE}
         </p>
         <p className="mt-2 text-xs leading-relaxed text-white/45">
           Whenever we publish an updated version, we change this effective date to match the version you are reading.
         </p>
         <P>
-          Match Fit (&quot;Match Fit,&quot; the &quot;Service&quot;) is operated by <Strong>{OPERATOR_LEGAL_NAME}</Strong>{" "}
+          Match Fit (&quot;Match Fit,&quot; the &quot;Service&quot;) is operated by <Strong>{MATCH_FIT_OPERATOR_LEGAL_NAME}</Strong>{" "}
           (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;). These Terms of Service (&quot;Terms&quot;) govern your access
           to and use of our websites, applications, and related services that link to these Terms. By creating an account,
           checking boxes at sign-up or onboarding, paying through the Service, or otherwise using the Service, you agree to
@@ -91,8 +89,8 @@ export default async function TermsPage() {
         <section className="mt-8 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
           <h2 className="text-base font-black tracking-tight">Contact Us</h2>
           <P>
-            For questions about these Terms: <Strong>{TERMS_CONTACT_EMAIL}</Strong>, or write to us at{" "}
-            <Strong>{PHYSICAL_ADDRESS_LINE}</Strong>.
+            For questions about these Terms: <Strong>{MATCH_FIT_SUPPORT_INBOX}</Strong>, or write to us at{" "}
+            <Strong>{MATCH_FIT_PHYSICAL_ADDRESS_LINE}</Strong>.
           </P>
         </section>
 
@@ -140,28 +138,36 @@ export default async function TermsPage() {
 
         <H2 id="fees-and-payments">3. Fees, Administrative Charges, and Payment Processing</H2>
         <P>
-          <Strong>Administrative Fee (Non-Subscription Purchases):</Strong> For Clients, purchases other than the recurring
-          Platform subscription (for example, per-session bookings, DIY plans, trial weeks, tips where enabled, premium
-          trainer content subscriptions offered in-product, trainer-side registration or premium fees, match-boost or token
-          purchases, and similar one-time or non-platform-subscription charges) include a{" "}
-          <Strong>
-            {PLATFORM_ADMIN_FEE_PERCENT}% administrative fee
+          <Strong>Administrative Fee (Coach Services and Other Non-Subscription Purchases):</Strong> Match Fit&apos;s{" "}
+          <Strong>{PLATFORM_ADMIN_FEE_PERCENT}% administrative fee</Strong> applies to{" "}
+          <Strong>coach services and packages of every type and category</Strong> sold through the Service, and to other
+          one-time in-app purchases (for example, promotion tokens, match-boost products, and similar add-ons). It does{" "}
+          <Strong>not</Strong> apply to the recurring Client Platform subscription. The administrative fee supports platform
+          operations, payments infrastructure, dispute tooling, and marketplace services. Unless a separate refund policy below
+          states otherwise, <Strong>
+            any portion of the {PLATFORM_ADMIN_FEE_PERCENT}% administrative fee that has been collected is
+            non-refundable
           </Strong>{" "}
-          assessed on the applicable transaction. This fee supports
-          platform operations, payments infrastructure, dispute tooling, and marketplace services. Unless a separate refund
-          policy below states otherwise for a specific scenario, <Strong>
-            any portion of the {PLATFORM_ADMIN_FEE_PERCENT}% administrative fee that has
-          been collected is non-refundable</Strong> when a refund of the underlying trainer compensation or service price is
-          approved (for example, approved no-show or service-not-delivered outcomes described below).
+          when a refund of the underlying coach compensation or service price is approved.
         </P>
         <P>
           <Strong>Transaction (Processing) Fee:</Strong>{" "}
-          <Strong>All charges processed through our payment processor (currently Stripe, Inc. and its affiliates)</Strong> may
-          include a separate <Strong>transaction or processing fee</Strong> calculated to cover payment network and
-          processor costs (for example, card-brand interchange and Stripe&apos;s percentage and fixed per-transaction
-          components). The processor&apos;s own terms and privacy policy apply when you pay through their flows. We display fee
-          components at or before checkout where the Service implements itemized pricing; you agree not to misrepresent total
-          pricing when arranging services off-platform.
+          <Strong>
+            Every charge processed through our payment processor (currently Stripe, Inc. and its affiliates)—including
+            Platform subscriptions, coach purchases, trainer onboarding payments, and other one-time charges—includes a
+            separate transaction or processing fee
+          </Strong>{" "}
+          calculated to cover payment network and processor costs (for example, card-brand interchange and Stripe&apos;s
+          percentage and fixed per-transaction components). The processor&apos;s own terms and privacy policy apply when you pay
+          through their flows. We display fee components at or before checkout where the Service implements itemized pricing;
+          you agree not to misrepresent total pricing when arranging services off-platform.
+        </P>
+        <P>
+          <Strong>Trainer registration:</Strong> The trainer registration fee is {usdCents(TOS_TRAINER_SIGNUP_FEE_USD)}. The
+          background-check amount you pay through Match Fit (excluding tax) is credited toward that registration fee. Any
+          remaining balance is due only after your background check clears and required certifications are verified. Launch
+          coaches in the first ten non-test trainer accounts pay only the background check plus administrative and processing
+          fees as described at checkout.
         </P>
         <P>
           <Strong>Trainer Premium Subscription:</Strong> Where we offer a Trainer premium plan at a stated monthly price
@@ -172,8 +178,10 @@ export default async function TermsPage() {
           <Strong>Subscriptions and Promotions:</Strong> Client Platform subscriptions may be offered at published rates
           (for example, {usdCents(TOS_CLIENT_PLATFORM_SUBSCRIPTION_USD)} per month) with promotional pricing (for example,{" "}
           {usdCents(TOS_CLIENT_PLATFORM_PROMO_USD)} per month for an introductory period) when we run such programs.
-          Promotional details, renewal rates, and billing
-          cycles are shown in-product and at checkout.
+          Promotional details, renewal rates, and billing cycles are shown in-product and at checkout. The published
+          Platform subscription price does <Strong>not</Strong> include the {PLATFORM_ADMIN_FEE_PERCENT}% administrative fee
+          described above (that fee applies to non-subscription coach purchases). The subscription amount charged includes
+          applicable payment processing costs as shown at checkout.
         </P>
         <P>
           Taxes, if any, may be collected as required by law and shown at checkout.
@@ -301,6 +309,12 @@ export default async function TermsPage() {
 
         <H2 id="subscriptions-billing">7. Client Platform Subscription, Pause, and Failed Payments</H2>
         <Ul>
+          <Li>
+            New Clients may start with a free trial (for example, seven (7) days for launch cohort members or seventy-two
+            (72) hours for standard sign-up) by placing a valid payment method on file; billing begins when the trial ends
+            unless you cancel or pay early in Billing settings. Launch cohort members receive email reminders at forty-eight
+            (48) and twenty-four (24) hours before the first charge; standard trials receive a twenty-four (24) hour notice.
+          </Li>
           <Li>
             Platform subscriptions renew according to the plan you select until canceled in accordance with in-product
             controls and processor billing portals where linked.

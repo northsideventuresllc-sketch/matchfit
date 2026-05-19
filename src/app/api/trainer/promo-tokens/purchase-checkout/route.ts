@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAppOriginFromRequest } from "@/lib/app-origin";
-import {
-  adminFeeCentsFromBaseSubtotalCents,
-  ADMIN_FEE_STRIPE_DESCRIPTION,
-  ADMIN_FEE_UI_LABEL,
-} from "@/lib/platform-fees";
+import { buildMarketplaceCheckoutTotals, stripeLineItemsFromMarketplaceTotals } from "@/lib/platform-fees";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { getStripe } from "@/lib/stripe-server";
@@ -72,44 +68,29 @@ export async function POST(req: Request) {
 
     const origin = getAppOriginFromRequest(req);
     const baseCents = tier.usdCents;
-    const adminCents = adminFeeCentsFromBaseSubtotalCents(baseCents);
-    const totalCents = baseCents + adminCents;
+    const totals = buildMarketplaceCheckoutTotals(baseCents, { includeAdminFee: true });
     const usdBase = baseCents / 100;
+    const line_items = stripeLineItemsFromMarketplaceTotals({
+      totals,
+      includeAdminFee: true,
+      baseLine: {
+        name: `Match Fit promotion tokens — ${tier.label} pack`,
+        description: `${tier.tokens} tokens — pack subtotal $${usdBase.toFixed(2)} (before fees). Premium Page coaches only.`,
+      },
+    });
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: trainer.email,
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: "usd",
-            unit_amount: baseCents,
-            product_data: {
-              name: `Match Fit promotion tokens — ${tier.label} pack`,
-              description: `${tier.tokens} tokens — pack subtotal $${usdBase.toFixed(2)} (before Match Fit administrative fee). Premium Page coaches only.`,
-            },
-          },
-        },
-        {
-          quantity: 1,
-          price_data: {
-            currency: "usd",
-            unit_amount: adminCents,
-            product_data: {
-              name: ADMIN_FEE_UI_LABEL,
-              description: ADMIN_FEE_STRIPE_DESCRIPTION,
-            },
-          },
-        },
-      ],
+      line_items,
       metadata: {
         purpose: "trainer_promo_tokens",
         trainerId,
         packTier: tier.id,
         tokenAmount: String(tier.tokens),
         baseSubtotalCents: String(baseCents),
-        adminFeeCents: String(adminCents),
-        totalChargedCents: String(totalCents),
+        adminFeeCents: String(totals.adminCents),
+        processingFeeCents: String(totals.processingCents),
+        totalChargedCents: String(totals.totalCents),
       },
       success_url: `${origin}/trainer/dashboard/premium/promo-tokens?checkout=success`,
       cancel_url: `${origin}/trainer/dashboard/premium/promo-tokens?checkout=cancel`,

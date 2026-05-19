@@ -7,6 +7,7 @@ import {
   syncCheckInActiveFlags,
 } from "@/lib/session-check-in-actions";
 import { refreshTrainerVideoOAuthTokensNearExpiry } from "@/lib/trainer-video-oauth-refresh-cron";
+import { runClientTrialReminderCron } from "@/lib/client-trial-reminder-cron";
 import { processTrainerSessionPunchMisses } from "@/lib/trainer-punch-miss-cron";
 import {
   backgroundCheckExpiresAt,
@@ -27,6 +28,9 @@ export type TosCronSummary = {
   diyExtensionsAutoApproved: number;
   videoOAuthTokensRefreshed: number;
   videoOAuthTokenRefreshErrors: number;
+  clientTrialEmails48h: number;
+  clientTrialEmails24h: number;
+  clientTrialInApp24h: number;
 };
 
 async function backfillApprovedBackgroundCheckTimestamps(): Promise<number> {
@@ -193,6 +197,17 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   } catch (e) {
     console.error("[tos cron] video oauth refresh", e);
   }
+  let clientTrialEmails48h = 0;
+  let clientTrialEmails24h = 0;
+  let clientTrialInApp24h = 0;
+  try {
+    const trial = await runClientTrialReminderCron();
+    clientTrialEmails48h = trial.emails48h;
+    clientTrialEmails24h = trial.emails24h;
+    clientTrialInApp24h = trial.inApp24h;
+  } catch (e) {
+    console.error("[tos cron] client trial reminders", e);
+  }
   return {
     backgroundCheckClearedBackfill: backfill,
     backgroundCheckWarningsSent: warnings,
@@ -207,5 +222,8 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     diyExtensionsAutoApproved,
     videoOAuthTokensRefreshed,
     videoOAuthTokenRefreshErrors,
+    clientTrialEmails48h,
+    clientTrialEmails24h,
+    clientTrialInApp24h,
   };
 }

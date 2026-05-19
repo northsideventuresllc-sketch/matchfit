@@ -1,9 +1,10 @@
 /** Checkbox copy for step 1 — trainer fees, screening, account lifecycle, and platform policies. */
 export const TRAINER_ONBOARDING_AGREEMENT_BULLETS: readonly string[] = [
-  "The trainer registration fee is $100.00, and a separate transaction processing fee will be added to this amount when you are charged.",
-  "The background check is administered and priced by an independent third-party screening company that Match Fit will integrate with in a future release; you are responsible for paying the background check provider according to its instructions.",
-  "Match Fit does not refund background-check fees; any refund eligibility is determined solely by the background-check provider, not Match Fit.",
-  "Match Fit will not collect the trainer registration fee until your background check has cleared and your CPT certification has been verified.",
+  "The trainer registration fee is $100.00. When you pay for your background check through Match Fit, the background-check amount (excluding tax) is credited toward that $100.00 fee. A separate card processing fee is added to every charge.",
+  "The background check is administered through Match Fit checkout; the list price is shown before you pay. Match Fit adds a 20% administrative fee and card processing fee on that charge.",
+  "Match Fit does not refund background-check fees once collected; any refund eligibility from the screening vendor is separate from Match Fit.",
+  "Match Fit will not collect any remaining registration balance until your background check has cleared and your required certification(s) have been verified.",
+  "Launch coaches (the first ten non-test trainers) pay only the background check plus administrative and processing fees—no separate $100.00 registration balance—and receive complimentary Premium Page access for fourteen (14) days from sign-up.",
   "Your account cannot be updated further until your background check has returned as cleared under our screening policy.",
   "If your background check returns a warning or flag, a Match Fit representative will have a confidential one-on-one conversation with you, and you will be contacted by email to schedule a phone call only when there is a flag on your background check.",
   "Once the registration fee is collected, it is non-refundable.",

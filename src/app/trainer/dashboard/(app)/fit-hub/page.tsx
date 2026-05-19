@@ -22,7 +22,7 @@ export default async function TrainerFitHubPage() {
         </p>
         <p className="text-xs text-white/40">
           <Link href="/trainer/dashboard/fit-hub-settings" className="text-[#FF7E00] underline-offset-2 hover:underline">
-            FitHub Settings
+            FITHUB SETTINGS
           </Link>
         </p>
       </header>

@@ -535,7 +535,9 @@ export function ServiceManagementView(props: {
   return (
     <div className="mx-auto w-full max-w-2xl space-y-8 text-left">
       <header className="space-y-3 text-center">
-        <h1 className="text-balance text-2xl font-semibold text-white sm:text-3xl">Service Management</h1>
+        <h1 className="text-balance text-2xl font-black uppercase tracking-[0.06em] text-white sm:text-3xl">
+          SERVICE MANAGEMENT
+        </h1>
         <p className="mx-auto max-w-lg text-sm leading-relaxed text-white/55">
           View and accept session booking invites, run session check-ins, track credits, read coach notes and goals, and manage DIY
           acknowledgements. Virtual joins also stay in Messages.
@@ -565,7 +567,7 @@ export function ServiceManagementView(props: {
           <p>No official coach chats yet.</p>
           <p className="mt-2">
             <Link href="/client/dashboard/find-trainers" className="text-[#FF9A4A] underline-offset-4 hover:underline">
-              Discover coaches →
+              DISCOVER COACHES →
             </Link>
           </p>
         </div>

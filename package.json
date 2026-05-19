@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "seed:dashboard-demo": "node --env-file=.env scripts/seed-demo-client-dashboard-showcase.js",
     "seed:admin": "node --env-file=.env scripts/seed-bootstrap-admin.js",
+    "seed:internal-qa": "tsx --env-file=.env scripts/seed-match-fit-internal-qa-accounts.ts",
     "tos:alignment": "tsx scripts/tos-alignment-check.ts",
     "postinstall": "prisma generate"
   },

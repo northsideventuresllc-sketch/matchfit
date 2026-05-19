@@ -36,6 +36,11 @@ export default async function TrainerNotificationsPage() {
         <p className="mx-auto max-w-xl text-sm leading-relaxed text-white/50">
           Review every trainer alert in one place.
         </p>
+        <p className="text-xs text-white/40">
+          <Link href="/trainer/dashboard/settings#trainer-notification-settings" className="text-[#FF7E00] underline-offset-2 hover:underline">
+            Notification Settings
+          </Link>
+        </p>
       </header>
 
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">

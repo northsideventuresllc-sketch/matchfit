@@ -60,6 +60,7 @@ function deliveryLabel(d: string): string {
 export const TwoFactorPanel = forwardRef<TwoFactorPanelRef, PanelProps>(function TwoFactorPanel(props, ref) {
   const { onDirtyChange, onFooterBlockedChange } = props;
   const settingsBase = props.settingsApiBase ?? "/api/client/settings";
+  const isClientAccount = settingsBase.startsWith("/api/client");
   const dashboardHref = props.dashboardLinkHref ?? "/client/dashboard";
   const router = useRouter();
   const baseline = useRef({
@@ -430,8 +431,9 @@ export const TwoFactorPanel = forwardRef<TwoFactorPanelRef, PanelProps>(function
         <div className="text-center">
           <h2 className="text-lg font-black tracking-tight text-white">Two-Factor Authentication</h2>
           <p className="mt-2 text-sm leading-relaxed text-white/55">
-            Add email addresses or phone numbers and choose how each receives codes (email, text, or call). One verified
-            method is your default for signing in. Codes use your configured delivery providers in production.
+            {isClientAccount
+              ? "Add verified email addresses for sign-in codes. Match Fit clients use email (and web push when enabled)—not SMS or voice—for two-factor authentication."
+              : "Add email addresses or phone numbers and choose how each receives codes (email, text, or call). One verified method is your default for signing in."}
           </p>
         </div>
       )}

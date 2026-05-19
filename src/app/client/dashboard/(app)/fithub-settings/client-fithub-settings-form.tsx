@@ -82,7 +82,7 @@ export function ClientFitHubSettingsForm() {
   }
 
   if (loading) {
-    return <p className="text-center text-sm text-white/45">Loading FitHub settings…</p>;
+    return <p className="text-sm text-white/45">Loading FitHub settings…</p>;
   }
 
   return (

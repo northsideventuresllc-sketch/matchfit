@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { CLIENT_PLATFORM_SUBSCRIPTION_FEE_DISCLOSURE } from "@/lib/client-platform-subscription-pricing";
 
 type Summary = {
   hasStripeCustomer: boolean;
@@ -13,6 +14,8 @@ type Summary = {
   cancelAtPeriodEnd: boolean;
   defaultPaymentSummary: string | null;
   paymentMethodCount: number;
+  subscriptionTrialEndsAt: string | null;
+  clientTrialPlan: string | null;
 };
 
 export function ClientBillingPageClient() {
@@ -57,6 +60,26 @@ export function ClientBillingPageClient() {
         return;
       }
       window.location.href = data.url;
+    } catch {
+      setError("Network error.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function endTrialNow() {
+    if (!window.confirm("Start your paid subscription now? Your card on file will be charged.")) return;
+    setBusy("trial");
+    setError(null);
+    try {
+      const res = await fetch("/api/client/billing/end-trial-now", { method: "POST" });
+      const data = (await res.json()) as { error?: string; message?: string };
+      if (!res.ok) {
+        setError(data.error ?? "Could not start billing.");
+        return;
+      }
+      await load();
+      router.refresh();
     } catch {
       setError("Network error.");
     } finally {
@@ -110,6 +133,15 @@ export function ClientBillingPageClient() {
                 ? `STATUS: ${(summary.subscriptionStatus ?? "UNKNOWN").toUpperCase().replace(/_/g, " ")}`
                 : "NO ACTIVE STRIPE SUBSCRIPTION ON THIS ACCOUNT (DEVELOPMENT OR LEGACY)."}
             </p>
+            {summary.subscriptionTrialEndsAt && summary.subscriptionStatus === "trialing" ? (
+              <p className="text-xs text-amber-200/90">
+                FREE ACCESS ENDS / FIRST CHARGE:{" "}
+                {new Date(summary.subscriptionTrialEndsAt).toLocaleString(undefined, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              </p>
+            ) : null}
             {summary.nextBillingDate ? (
               <p className="text-xs text-white/50">
                 NEXT BILLING DATE:{" "}
@@ -135,6 +167,7 @@ export function ClientBillingPageClient() {
             {summary.cancelAtPeriodEnd ? (
               <p className="text-xs font-semibold text-amber-200/90">CANCEL AT PERIOD END IS SCHEDULED.</p>
             ) : null}
+            <p className="mt-3 text-left text-xs leading-relaxed text-white/45">{CLIENT_PLATFORM_SUBSCRIPTION_FEE_DISCLOSURE}</p>
           </div>
 
           <div className="rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 p-4">
@@ -143,8 +176,8 @@ export function ClientBillingPageClient() {
               {summary.defaultPaymentSummary ?? "NO DEFAULT CARD RETURNED — OPEN THE PORTAL TO ADD ONE."}
             </p>
             <p className="mt-2 text-xs text-white/45">
-              Manage up to four saved cards in the secure Stripe billing portal (Match Fit never stores full card
-              numbers on our servers).
+              Manage up to four saved cards in the secure billing portal (Match Fit never stores full card numbers on our
+              servers).
             </p>
             <p className="mt-1 text-xs text-white/35">
               PAYMENT METHODS ON FILE: {summary.paymentMethodCount}
@@ -152,6 +185,16 @@ export function ClientBillingPageClient() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+            {summary.subscriptionStatus === "trialing" ? (
+              <button
+                type="button"
+                disabled={busy !== null}
+                onClick={() => void endTrialNow()}
+                className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-[#FFD34E]/35 bg-[#FFD34E]/12 px-4 text-xs font-black uppercase tracking-[0.08em] text-[#FFD34E] transition hover:border-[#FFD34E]/50 disabled:opacity-40 sm:max-w-xs"
+              >
+                {busy === "trial" ? "WORKING…" : "PAY NOW"}
+              </button>
+            ) : null}
             <button
               type="button"
               disabled={busy !== null || !summary.hasStripeCustomer}

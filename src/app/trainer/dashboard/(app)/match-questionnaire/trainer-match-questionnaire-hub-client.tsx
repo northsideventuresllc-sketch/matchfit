@@ -23,7 +23,7 @@ export function TrainerMatchQuestionnaireHubClient(props: Props) {
           {props.completedAtIso
             ? ` (submitted ${new Date(props.completedAtIso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })})`
             : ""}
-          . Open any section below to edit; save from that page returns you to your dashboard.
+          . Open any section below to edit; saving returns you to Daily Questionnaires.
         </p>
       ) : (
         <p className="rounded-xl border border-white/[0.08] bg-[#0E1016]/80 px-4 py-3 text-center text-sm text-white/55">

@@ -3,32 +3,13 @@ import type { TrainerNotificationPrefs } from "@/lib/trainer-notification-prefs"
 import type { TransactionalEmailKind } from "@/lib/transactional-email-kinds";
 import { isMandatoryTransactionalEmailKind } from "@/lib/transactional-email-kinds";
 
-/** Whether a client account should receive this optional transactional email. */
+/** Clients always receive required transactional email; category toggles are not exposed in settings. */
 export function clientAllowsTransactionalEmailKind(
-  prefs: ClientNotificationPrefs,
-  kind: TransactionalEmailKind,
+  _prefs: ClientNotificationPrefs,
+  _kind: TransactionalEmailKind,
 ): boolean {
-  if (isMandatoryTransactionalEmailKind(kind)) return true;
-  switch (kind) {
-    case "CLIENT_WELCOME":
-      return prefs.emailWelcome;
-    case "PURCHASE_CONFIRMATION":
-    case "PAYMENT_FAILED":
-      return prefs.emailPurchases;
-    case "SUBSCRIPTION_MANAGEMENT_UPDATE":
-    case "POLICY_UPDATE":
-      return prefs.emailBilling;
-    case "BACKGROUND_CHECK_UPDATE":
-      return prefs.emailCompliance;
-    case "OFF_PLATFORM_VIOLATION_NOTICE":
-    case "CONTENT_MODERATION_NOTICE":
-      return prefs.emailTrustSafety;
-    case "BUG_REPORT_ACKNOWLEDGMENT":
-    case "BOOKING_SESSION_CONFIRMED":
-      return prefs.emailProduct;
-    default:
-      return true;
-  }
+  if (isMandatoryTransactionalEmailKind(_kind)) return true;
+  return true;
 }
 
 /** Whether a trainer account should receive this optional transactional email. */

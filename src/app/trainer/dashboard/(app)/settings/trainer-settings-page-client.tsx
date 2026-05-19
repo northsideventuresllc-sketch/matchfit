@@ -22,7 +22,7 @@ import {
   TrainerSettingsCollapsibleBulkProvider,
 } from "@/components/trainer/trainer-settings-collapsible-bulk-context";
 import type { TrainerDashboardQuickLinkId } from "@/lib/trainer-dashboard-quick-links";
-import { TrainerNotificationSettingsForm } from "@/app/trainer/dashboard/(app)/notification-settings/trainer-notification-settings-form";
+import { TrainerNotificationSettingsForm } from "@/components/trainer/trainer-notification-settings-form";
 
 const TRAINER_SETTINGS_API = "/api/trainer/settings";
 
@@ -273,11 +273,11 @@ export function TrainerSettingsPageClient(props: Props) {
           </CollapsibleSettingsSection>
         </div>
 
-        <div id="trainer-push-notifications" className="scroll-mt-24">
+        <div id="trainer-notification-settings" className="scroll-mt-24">
           <CollapsibleSettingsSection
-            bulkSectionId="trainer-settings-push-notifications"
-            title="Push Notifications"
-            description="Web Push lock-screen alerts and email preferences for your coach account."
+            bulkSectionId="trainer-settings-notification-settings"
+            title="Notification Settings"
+            description="Push and email notification preferences for your coach account."
             defaultOpen={false}
           >
             <TrainerNotificationSettingsForm />

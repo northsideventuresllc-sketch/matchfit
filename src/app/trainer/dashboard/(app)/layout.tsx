@@ -2,7 +2,12 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { AdminImpersonationStrip } from "@/components/admin/admin-impersonation-strip";
 import { TrainerDashboardShell } from "@/components/trainer/trainer-dashboard-shell";
+import { ensureInternalQaTrainerFullCompliance } from "@/lib/internal-qa-trainer-compliance";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import {
+  isMatchFitInternalQaEnabled,
+  isMatchFitInternalQaTrainerEmail,
+} from "@/lib/match-fit-internal-qa";
 import { prisma } from "@/lib/prisma";
 import { purgeExpiredSuspensionRecords } from "@/lib/suspension-lifecycle";
 import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
@@ -26,6 +31,7 @@ export default async function TrainerDashboardAppLayout({
       lastName: true,
       preferredName: true,
       username: true,
+      email: true,
       profileImageUrl: true,
       safetySuspended: true,
       deidentifiedAt: true,
@@ -34,6 +40,7 @@ export default async function TrainerDashboardAppLayout({
           hasSignedTOS: true,
           hasUploadedW9: true,
           backgroundCheckStatus: true,
+          backgroundCheckClearedAt: true,
           onboardingTrackCpt: true,
           onboardingTrackNutrition: true,
           onboardingTrackSpecialist: true,
@@ -41,6 +48,7 @@ export default async function TrainerDashboardAppLayout({
           nutritionistCertificationReviewStatus: true,
           specialistCertificationReviewStatus: true,
           premiumStudioEnabledAt: true,
+          dashboardActivatedAt: true,
         },
       },
     },
@@ -54,6 +62,41 @@ export default async function TrainerDashboardAppLayout({
   if (trainer.safetySuspended) {
     redirect("/trainer/account-suspended");
   }
+
+  if (isMatchFitInternalQaEnabled() && isMatchFitInternalQaTrainerEmail(trainer.email)) {
+    await ensureInternalQaTrainerFullCompliance(trainerId);
+    const refreshed = await prisma.trainer.findUnique({
+      where: { id: trainerId },
+      select: {
+        firstName: true,
+        lastName: true,
+        preferredName: true,
+        username: true,
+        email: true,
+        profileImageUrl: true,
+        profile: {
+          select: {
+            hasSignedTOS: true,
+            hasUploadedW9: true,
+            backgroundCheckStatus: true,
+            backgroundCheckClearedAt: true,
+            onboardingTrackCpt: true,
+            onboardingTrackNutrition: true,
+            onboardingTrackSpecialist: true,
+            certificationReviewStatus: true,
+            nutritionistCertificationReviewStatus: true,
+            specialistCertificationReviewStatus: true,
+            premiumStudioEnabledAt: true,
+            dashboardActivatedAt: true,
+          },
+        },
+      },
+    });
+    if (refreshed) {
+      Object.assign(trainer, refreshed);
+    }
+  }
+
   const displayName =
     trainer.preferredName?.trim() ||
     [trainer.firstName, trainer.lastName].filter(Boolean).join(" ").trim() ||

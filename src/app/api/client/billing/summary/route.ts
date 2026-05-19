@@ -17,6 +17,8 @@ export async function GET() {
         stripeSubscriptionId: true,
         stripeSubscriptionActive: true,
         subscriptionGraceUntil: true,
+        subscriptionTrialEndsAt: true,
+        clientTrialPlan: true,
       },
     });
     if (!client) {
@@ -34,12 +36,15 @@ export async function GET() {
       try {
         const sub = (await stripe.subscriptions.retrieve(client.stripeSubscriptionId, {
           expand: ["default_payment_method"],
-        })) as Stripe.Subscription & { current_period_end?: number };
+        })) as Stripe.Subscription & { current_period_end?: number; trial_end?: number | null };
         subscriptionStatus = sub.status;
         cancelAtPeriodEnd = sub.cancel_at_period_end;
-        const periodEnd = sub.current_period_end;
-        if (periodEnd) {
-          nextBillingDate = new Date(periodEnd * 1000).toISOString();
+        const billAt =
+          sub.status === "trialing" && sub.trial_end
+            ? sub.trial_end
+            : sub.current_period_end;
+        if (billAt) {
+          nextBillingDate = new Date(billAt * 1000).toISOString();
         }
         const pm = sub.default_payment_method as Stripe.PaymentMethod | string | null | undefined;
         if (typeof pm === "object" && pm && pm.type === "card" && pm.card) {
@@ -67,6 +72,8 @@ export async function GET() {
       hasSubscription: Boolean(client.stripeSubscriptionId),
       stripeSubscriptionActive: client.stripeSubscriptionActive,
       subscriptionGraceUntil: client.subscriptionGraceUntil?.toISOString() ?? null,
+      subscriptionTrialEndsAt: client.subscriptionTrialEndsAt?.toISOString() ?? null,
+      clientTrialPlan: client.clientTrialPlan,
       nextBillingDate,
       subscriptionStatus,
       cancelAtPeriodEnd,

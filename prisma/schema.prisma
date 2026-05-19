@@ -100,6 +100,15 @@ model Client {
   /// Set from Stripe `invoice.payment_succeeded` (and initial signup) for analytics / “recently paid” windows.
   stripeLastSubscriptionInvoicePaidAt DateTime?
 
+  /// First 50 non-test clients in the launch cohort (7-day trial with card on file).
+  launchCohortMember Boolean @default(false)
+  /// LAUNCH_7D | STANDARD_72H | NONE — how platform access billing started.
+  clientTrialPlan String?
+  /// Stripe trial end (UTC); used for reminders and “pay now”.
+  subscriptionTrialEndsAt DateTime?
+  trialEnding48hEmailSentAt DateTime?
+  trialEnding24hEmailSentAt DateTime?
+
   /// Short public-style bio; never expose private address to trainer APIs.
   bio String?
 
@@ -295,6 +304,10 @@ model PendingClientRegistration {
   stripeCustomerId    String?
   stripeSubscriptionId String?
 
+  /// LAUNCH_7D | STANDARD_72H | PAY_NOW — chosen at subscribe checkout.
+  clientTrialPlan String?
+  launchCohortMember Boolean @default(false)
+
   @@index([email])
   @@index([username])
   @@map("pending_client_registrations")
@@ -375,6 +388,9 @@ model Trainer {
   /// Internal QA only: synthetic persona rows for trainer-owner sandbox (never visible to real users).
   internalQaSyntheticPersona Boolean @default(false)
 
+  /// First 10 non-test trainers in the launch cohort (background-check-only onboarding fee path).
+  launchCohortMember Boolean @default(false)
+
   featuredRaffleEntries   FeaturedRaffleEntry[]
   featuredPlacementBids   FeaturedPlacementBid[]
   featuredDailyAllocations FeaturedDailyAllocation[]
@@ -407,7 +423,23 @@ model Trainer {
 
   internalQaDailyCursor InternalQaTrainerDailyCursor?
 
+  onboardingDenial TrainerOnboardingDenial?
+
   @@map("trainers")
+  @@schema("public")
+}
+
+/// Blocks re-registration after a denied background check (email is normalized lowercase).
+model TrainerOnboardingDenial {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  email     String @unique
+  trainerId String? @unique
+  trainer   Trainer? @relation(fields: [trainerId], references: [id], onDelete: SetNull)
+  reason    String?
+
+  @@map("trainer_onboarding_denials")
   @@schema("public")
 }
 
@@ -840,6 +872,18 @@ model TrainerProfile {
 
   /// When set, trainer completed Premium Page signup and can use Premium Hub (social-style creator tools).
   premiumStudioEnabledAt DateTime?
+  /// Launch cohort: complimentary Premium Page through this instant (then paid plan required).
+  launchPremiumEndsAt DateTime?
+  /// Background check amount paid through Match Fit checkout (cents, ex tax); credited toward signup fee.
+  backgroundCheckPaidCents Int?
+  /// When the remaining trainer registration balance was paid after screening + cert verification.
+  signupFeeBalancePaidAt DateTime?
+  /// Checkr report id (non-PII reference; sensitive vendor payload lives in Supabase vault).
+  checkrReportId String?
+  /// Checkr invitation id while the trainer completes the vendor flow.
+  checkrInvitationId String?
+  /// When Match Fit emailed operators for human review of a flagged report.
+  backgroundCheckHumanReviewRequestedAt DateTime?
   /// Last time the trainer opened FitHub studio activity in Premium (unread counts vs main notification digest).
   fitHubStudioActivitySeenAt DateTime?
   /// JSON string array of studio activity item ids marked read individually (`like-*`, `comment-*`, `repost-*`, `share-*`).

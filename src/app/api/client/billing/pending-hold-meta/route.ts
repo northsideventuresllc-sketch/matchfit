@@ -1,3 +1,4 @@
+import { canReserveLaunchClientSlot } from "@/lib/match-fit-launch-cohort";
 import { prisma } from "@/lib/prisma";
 import { getRegistrationHoldPendingId } from "@/lib/session";
 import { isMatchFitInternalQaClientEmail } from "@/lib/match-fit-internal-qa";
@@ -25,11 +26,13 @@ export async function GET() {
     }
     const internalQaBillingSkipEligible =
       hold.status === "AWAITING_PAYMENT" && isMatchFitInternalQaClientEmail(hold.email);
+    const launchCohortEligible = await canReserveLaunchClientSlot(hold.email);
     return NextResponse.json({
       hasHold: true,
       holdStatus: hold.status,
       emailMasked: maskEmail(hold.email),
       internalQaBillingSkipEligible,
+      launchCohortEligible,
     });
   } catch (e) {
     console.error(e);

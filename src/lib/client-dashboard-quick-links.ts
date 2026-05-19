@@ -6,11 +6,11 @@ export const CLIENT_DASHBOARD_QUICK_LINK_OPTIONS = [
   { id: "fithub", label: "FitHub", settingsLabel: "FitHub", href: "/client/dashboard/fithub" },
   {
     id: "daily_questionnaire",
-    label: "Daily questionnaire",
-    settingsLabel: "Daily questionnaire",
+    label: "Daily Questionnaire",
+    settingsLabel: "Daily Questionnaire",
     href: "/client/dashboard/daily-questionnaire",
   },
-  { id: "find_coaches", label: "Find coaches", settingsLabel: "Find coaches", href: "/client/dashboard/find-trainers" },
+  { id: "find_coaches", label: "Find Coaches", settingsLabel: "Find Coaches", href: "/client/dashboard/find-trainers" },
   { id: "chats", label: "Chats", settingsLabel: "Chats", href: "/client/dashboard/messages" },
   {
     id: "service_management",
@@ -34,7 +34,7 @@ export const CLIENT_DASHBOARD_QUICK_LINK_OPTIONS = [
     id: "notification_settings",
     label: "Notification Settings",
     settingsLabel: "Notification Settings",
-    href: "/client/dashboard/notification-settings",
+    href: "/client/settings#client-notification-settings",
   },
   {
     id: "billing",

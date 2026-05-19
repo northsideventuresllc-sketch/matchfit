@@ -26,6 +26,11 @@ export async function resetInternalQaClientAccount(clientId: string): Promise<vo
     await tx.client.update({
       where: { id: clientId },
       data: {
+        twoFactorEnabled: false,
+        twoFactorMethod: "NONE",
+        twoFactorOtpHash: null,
+        twoFactorOtpExpires: null,
+        twoFactorLoginAttempts: 0,
         stripeCustomerId: null,
         stripeSubscriptionId: null,
         stripeSubscriptionActive: false,
@@ -106,6 +111,11 @@ export async function resetInternalQaTrainerAccount(trainerId: string): Promise<
     await tx.trainer.update({
       where: { id: trainerId },
       data: {
+        twoFactorEnabled: false,
+        twoFactorMethod: "NONE",
+        twoFactorOtpHash: null,
+        twoFactorOtpExpires: null,
+        twoFactorLoginAttempts: 0,
         bio: null,
         profileImageUrl: null,
         fitnessNiches: null,

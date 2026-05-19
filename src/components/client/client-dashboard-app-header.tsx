@@ -212,7 +212,7 @@ export function ClientDashboardAppHeader(props: Props) {
                   Notifications Center
                 </Link>
                 <Link
-                  href="/client/dashboard/notification-settings"
+                  href="/client/settings#client-notification-settings"
                   className="block text-center text-xs font-semibold text-white/50 underline-offset-2 transition hover:text-white/80 hover:underline"
                   onClick={() => setNotifOpen(false)}
                 >
@@ -279,7 +279,7 @@ export function ClientDashboardAppHeader(props: Props) {
               </Link>
               <Link
                 role="menuitem"
-                href="/client/dashboard/notification-settings"
+                href="/client/settings#client-notification-settings"
                 className="block px-4 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/[0.06]"
                 onClick={() => setMenuOpen(false)}
               >

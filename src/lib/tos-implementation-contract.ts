@@ -23,6 +23,9 @@ export const TOS_CLIENT_PLATFORM_SUBSCRIPTION_USD = 10;
 /** Intro promo example in Terms §3 when we run such programs. */
 export const TOS_CLIENT_PLATFORM_PROMO_USD = 4;
 
+/** Trainer registration fee before background-check credit (Terms / onboarding). */
+export const TOS_TRAINER_SIGNUP_FEE_USD = 100;
+
 export const MATCH_BATCH_WINDOW_HOURS = MATCH_BATCH_WINDOW_MS / (60 * 60 * 1000);
 
 export const PLATFORM_ADMIN_FEE_PERCENT = Math.round(PLATFORM_ADMIN_FEE_RATE * 100);

@@ -1,3 +1,4 @@
+import { notifyMatchFitSupportInbox } from "@/lib/match-fit-support-inbox";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
 import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
@@ -66,6 +67,21 @@ export async function POST(req: Request) {
       clientId: clientId ?? undefined,
       variables: { reportId: row.id },
     }).catch((e) => console.error("[bug-report] ack email failed:", e));
+
+    void notifyMatchFitSupportInbox({
+      subject: `[Bug report] ${category} · ${row.id}`,
+      text: [
+        `Report ID: ${row.id}`,
+        `Category: ${category}`,
+        `Client ID: ${clientId ?? "(signed out)"}`,
+        `Anonymous: ${anonymous}`,
+        `Reporter: ${anonymous ? "(anonymous)" : name}`,
+        `Email: ${email}`,
+        "",
+        description,
+      ].join("\n"),
+      replyTo: email,
+    }).catch((e) => console.error("[bug-report] support inbox failed:", e));
 
     return NextResponse.json({
       ok: true,

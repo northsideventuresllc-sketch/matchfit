@@ -13,6 +13,7 @@ type Props = {
   summaryLine: string;
   serviceSubtotalLabel: string;
   adminFeeLabel: string;
+  processingFeeLabel: string;
   totalLabel: string;
   canceled?: boolean;
 };
@@ -57,7 +58,7 @@ export function CoachServiceCheckoutClient(props: Props) {
         <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Confirm your purchase</h1>
         <p className="mt-3 text-sm leading-relaxed text-white/55">
           You&apos;ll finish payment on Stripe&apos;s hosted page. The total includes the coach&apos;s package price plus
-          Match Fit&apos;s administrative fee (shown as a separate line in Stripe).
+          Match Fit&apos;s administrative and card processing fees (shown as separate lines in Stripe).
         </p>
 
         {props.canceled ? (
@@ -83,6 +84,10 @@ export function CoachServiceCheckoutClient(props: Props) {
             <div className="mt-2 flex justify-between gap-3">
               <span>Administrative fee (20%)</span>
               <span className="font-semibold text-white">{props.adminFeeLabel}</span>
+            </div>
+            <div className="mt-2 flex justify-between gap-3">
+              <span>Card processing fee</span>
+              <span className="font-semibold text-white">{props.processingFeeLabel}</span>
             </div>
             <div className="mt-3 flex justify-between gap-3 border-t border-white/[0.06] pt-3 text-base font-black text-white">
               <span>Total</span>

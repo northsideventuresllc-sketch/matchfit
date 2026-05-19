@@ -169,7 +169,7 @@ export function ClientDailyQuestionnaireClient() {
           href="/client/dashboard"
           className="mt-6 inline-block text-sm font-semibold text-[#FF7E00] underline-offset-2 hover:underline"
         >
-          Back to dashboard
+          BACK TO DASHBOARD
         </Link>
       </div>
     );
@@ -287,7 +287,7 @@ function QuestionnaireHistoryPanel(props: { entries: DailyQuestionnaireHistoryEn
         className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-[#FF7E00]/35 to-transparent"
       />
       <div className="relative text-center">
-        <h2 className="text-base font-bold tracking-tight text-white sm:text-lg">Past questionnaires</h2>
+        <h2 className="text-base font-bold tracking-tight text-white sm:text-lg">Past Questionnaires</h2>
         <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-white/50">
           Revisit what you shared—helpful context as your goals evolve.
         </p>

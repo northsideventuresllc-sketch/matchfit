@@ -64,7 +64,9 @@ export default async function TrainerPremiumFitHubContentPage() {
             controls, or open comments to read the thread.
           </p>
         </div>
-        <TrainerPremiumMyContentClient embedded />
+        <div className="text-left">
+          <TrainerPremiumMyContentClient embedded />
+        </div>
       </section>
 
       <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-[10px] font-black uppercase tracking-[0.14em] text-white/45">

@@ -73,7 +73,7 @@ export function TrainerComplianceW9EmailSelfService() {
           value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
           placeholder="000000"
-          className="w-full max-w-[12rem] rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-center text-lg tracking-[0.35em] text-white outline-none ring-[#FF7E00]/40 focus:border-[#FF7E00]/40 focus:ring-2"
+          className="w-full max-w-[12rem] rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-left text-lg tracking-[0.35em] text-white outline-none ring-[#FF7E00]/40 focus:border-[#FF7E00]/40 focus:ring-2"
           disabled={busy}
         />
         {error ? <p className="text-xs text-[#FFB4B4]">{error}</p> : null}

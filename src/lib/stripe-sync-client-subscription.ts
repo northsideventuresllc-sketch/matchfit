@@ -1,3 +1,4 @@
+import { subscriptionTrialEndFromStripe } from "@/lib/client-subscription-trial";
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe-server";
 import type Stripe from "stripe";
@@ -32,11 +33,14 @@ export async function syncClientSubscriptionFromStripe(subscriptionId: string): 
       ? existingGrace
       : new Date(now + GRACE_MS);
 
+  const trialEnd = subscriptionTrialEndFromStripe(sub);
+
   await prisma.client.update({
     where: { id: client.id },
     data: {
       stripeSubscriptionActive: ok,
       subscriptionGraceUntil: graceUntil,
+      subscriptionTrialEndsAt: ok && trialEnd ? trialEnd : null,
     },
   });
 }

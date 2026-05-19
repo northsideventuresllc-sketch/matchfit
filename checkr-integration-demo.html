@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Match Fit × Checkr — Integration Demo</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #07080C;
+    --surface1:  #0E1016;
+    --surface2:  #12151C;
+    --surface3:  #181C26;
+    --border:    rgba(255,255,255,0.08);
+    --border2:   rgba(255,255,255,0.05);
+    --orange:    #FF7E00;
+    --orange-dim: rgba(255,126,0,0.14);
+    --orange-soft: rgba(255,126,0,0.10);
+    --text:      #ffffff;
+    --text-85:   rgba(255,255,255,0.85);
+    --text-60:   rgba(255,255,255,0.60);
+    --text-45:   rgba(255,255,255,0.45);
+    --text-30:   rgba(255,255,255,0.30);
+    --emerald-bg: rgba(52,211,153,0.12);
+    --emerald-border: rgba(52,211,153,0.35);
+    --emerald-text: #6ee7b7;
+    --amber-bg:   rgba(251,191,36,0.12);
+    --amber-border: rgba(251,191,36,0.35);
+    --amber-text: #fde68a;
+    --blue-bg:    rgba(96,165,250,0.12);
+    --blue-border: rgba(96,165,250,0.35);
+    --blue-text:  #93c5fd;
+    --rose-bg:    rgba(248,113,113,0.12);
+    --rose-border: rgba(248,113,113,0.35);
+    --rose-text:  #fca5a5;
+    --checkr-blue: #1E5EFF;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Radial glow ── */
+  .glow {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse 80% 50% at 50% -5%, rgba(255,126,0,0.13) 0%, transparent 60%);
+    z-index: 0;
+  }
+
+  /* ── Shell ── */
+  .shell {
+    position: relative;
+    z-index: 1;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+  }
+
+  /* ── App header ── */
+  .app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+  }
+  .wordmark {
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-85);
+  }
+  .wordmark span { color: var(--orange); }
+  .avatar-ring {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,126,0,0.45);
+    background: linear-gradient(135deg, rgba(255,126,0,0.2), rgba(255,211,78,0.15));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 900; color: var(--orange);
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Nav tabs ── */
+  .nav-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(14,16,22,0.6);
+    padding: 6px;
+    backdrop-filter: blur(12px);
+    margin-bottom: 36px;
+  }
+  .nav-tab {
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-45);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    transition: color 0.2s, background 0.2s;
+  }
+  .nav-tab:hover { color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.04); }
+  .nav-tab.active {
+    color: var(--text);
+    background: linear-gradient(135deg, rgba(255,211,78,0.18), rgba(255,126,0,0.16), rgba(227,43,43,0.10));
+    box-shadow: 0 8px 24px -12px rgba(255,126,0,0.35);
+  }
+
+  /* ── Demo progress bar ── */
+  .demo-progress {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 32px;
+  }
+  .demo-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    flex: 1;
+    max-width: 200px;
+  }
+  .step-dot-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+  .step-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+    transition: background 0.4s;
+  }
+  .step-line.filled { background: var(--orange); }
+  .step-dot {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: var(--surface1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 900;
+    color: var(--text-45);
+    flex-shrink: 0;
+    transition: all 0.3s;
+  }
+  .step-dot.active {
+    border-color: var(--orange);
+    background: rgba(255,126,0,0.15);
+    color: var(--orange);
+    box-shadow: 0 0 0 4px rgba(255,126,0,0.1);
+  }
+  .step-dot.done {
+    border-color: var(--emerald-border);
+    background: var(--emerald-bg);
+    color: var(--emerald-text);
+  }
+  .step-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-30);
+    text-align: center;
+    transition: color 0.3s;
+    white-space: nowrap;
+  }
+  .step-label.active { color: var(--orange); }
+  .step-label.done { color: var(--emerald-text); }
+
+  /* ── Card ── */
+  .card {
+    border-radius: 24px;
+    border: 1px solid var(--border);
+    background: rgba(18,21,28,0.92);
+    padding: 28px;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 30px 80px -40px rgba(0,0,0,0.85);
+    margin-bottom: 20px;
+  }
+  .card-inner {
+    border-radius: 16px;
+    border: 1px solid var(--border2);
+    background: rgba(14,16,22,0.7);
+    padding: 16px 18px;
+    margin-bottom: 10px;
+  }
+  .card-inner:last-child { margin-bottom: 0; }
+
+  /* ── Section label ── */
+  .section-label {
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-45);
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .section-desc {
+    font-size: 13px;
+    color: var(--text-60);
+    text-align: center;
+    line-height: 1.6;
+    margin-bottom: 24px;
+  }
+  .section-desc a { color: var(--orange); text-decoration: none; }
+
+  /* ── Job header ── */
+  .job-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .job-logo {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(255,126,0,0.2), rgba(255,211,78,0.12));
+    border: 1px solid rgba(255,126,0,0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .job-title { font-size: 17px; font-weight: 800; color: var(--text); line-height: 1.25; }
+  .job-meta { font-size: 12px; color: var(--text-45); margin-top: 3px; }
+
+  /* ── Row field ── */
+  .row-field {
+    border-radius: 12px;
+    border: 1px solid var(--border2);
+    background: rgba(14,16,22,0.5);
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    display: grid;
+    grid-template-columns: minmax(130px, 160px) 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .row-field:last-child { margin-bottom: 0; }
+  .row-label { font-size: 10px; font-weight: 700; color: var(--text-30); letter-spacing: 0.06em; text-transform: uppercase; padding-top: 1px; }
+  .row-value { font-size: 13px; color: var(--text-85); }
+
+  /* ── Pill ── */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 99px;
+    border: 1px solid;
+    padding: 3px 10px;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .pill-emerald { background: var(--emerald-bg); border-color: var(--emerald-border); color: var(--emerald-text); }
+  .pill-amber   { background: var(--amber-bg);   border-color: var(--amber-border);   color: var(--amber-text); }
+  .pill-blue    { background: var(--blue-bg);     border-color: var(--blue-border);    color: var(--blue-text); }
+  .pill-rose    { background: var(--rose-bg);     border-color: var(--rose-border);    color: var(--rose-text); }
+  .pill-dim     { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.12); color: var(--text-60); }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border-radius: 12px;
+    padding: 11px 22px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #FF9A00, #FF7E00, #E82B2B);
+    color: #fff;
+    box-shadow: 0 8px 28px -8px rgba(255,126,0,0.5);
+  }
+  .btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  .btn-ghost {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    color: var(--text-60);
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,0.09); color: var(--text-85); }
+  .btn-checkr {
+    background: var(--checkr-blue);
+    color: #fff;
+    box-shadow: 0 8px 24px -8px rgba(30,94,255,0.45);
+  }
+  .btn-checkr:hover { filter: brightness(1.1); }
+  .btn-sm { padding: 8px 16px; font-size: 11px; }
+
+  /* ── Selection cards (packages / nodes / locations) ── */
+  .select-grid {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .select-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .select-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  @media (max-width: 540px) {
+    .select-grid.cols-2, .select-grid.cols-3 { grid-template-columns: 1fr; }
+  }
+  .select-card {
+    border-radius: 16px;
+    border: 1.5px solid var(--border);
+    background: rgba(14,16,22,0.6);
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .select-card:hover { border-color: rgba(255,126,0,0.3); background: rgba(14,16,22,0.9); }
+  .select-card.selected {
+    border-color: var(--orange);
+    background: rgba(255,126,0,0.08);
+    box-shadow: 0 0 0 3px rgba(255,126,0,0.12), 0 8px 24px -8px rgba(255,126,0,0.2);
+  }
+  .select-card-check {
+    position: absolute;
+    top: 12px; right: 12px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    background: var(--surface1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    transition: all 0.2s;
+  }
+  .select-card.selected .select-card-check {
+    border-color: var(--orange);
+    background: var(--orange);
+    color: #fff;
+  }
+  .select-card-title { font-size: 13px; font-weight: 800; color: var(--text); margin-bottom: 4px; padding-right: 26px; }
+  .select-card-sub   { font-size: 11px; color: var(--text-45); line-height: 1.5; }
+  .select-card-badge {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 99px;
+    background: var(--orange-soft);
+    border: 1px solid rgba(255,126,0,0.25);
+    color: var(--orange);
+  }
+  .select-card-checks { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+  .select-card-check-item { font-size: 11px; color: var(--text-60); display: flex; align-items: center; gap: 6px; }
+  .select-card-check-item::before { content: '✓'; color: var(--emerald-text); font-weight: 900; font-size: 10px; }
+
+  /* ── Inline tag chips ── */
+  .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .tag {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; padding: 4px 10px;
+    border-radius: 99px;
+    border: 1px solid var(--border);
+    color: var(--text-60);
+    background: rgba(255,255,255,0.04);
+  }
+
+  /* ── Divider ── */
+  .divider { height: 1px; background: var(--border2); margin: 20px 0; }
+
+  /* ── Screen transitions ── */
+  .screen { display: none; }
+  .screen.active { display: block; animation: fadeUp 0.35s ease both; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Order sub-steps ── */
+  .substep { display: none; }
+  .substep.active { display: block; animation: fadeUp 0.3s ease both; }
+
+  /* ── Sub-step breadcrumb ── */
+  .substep-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+  }
+  .substep-crumb {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-30);
+    padding: 5px 12px;
+    border-radius: 99px;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+  }
+  .substep-crumb.active { color: var(--orange); border-color: rgba(255,126,0,0.3); background: rgba(255,126,0,0.07); }
+  .substep-crumb.done   { color: var(--emerald-text); }
+  .substep-arrow { color: var(--text-30); font-size: 11px; }
+
+  /* ── Monitor status card ── */
+  .monitor-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .monitor-name { font-size: 18px; font-weight: 900; color: var(--text); }
+  .monitor-sub  { font-size: 12px; color: var(--text-45); margin-top: 3px; }
+
+  .status-timeline { display: flex; flex-direction: column; gap: 0; }
+  .timeline-item {
+    display: flex;
+    gap: 16px;
+    position: relative;
+  }
+  .timeline-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 11px;
+    top: 28px;
+    bottom: -12px;
+    width: 1px;
+    background: var(--border2);
+  }
+  .timeline-dot {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    margin-top: 2px;
+  }
+  .timeline-dot.done    { background: var(--emerald-bg); border: 1.5px solid var(--emerald-border); color: var(--emerald-text); }
+  .timeline-dot.active  { background: var(--amber-bg);   border: 1.5px solid var(--amber-border);   color: var(--amber-text); }
+  .timeline-dot.pending { background: rgba(255,255,255,0.04); border: 1.5px solid var(--border); color: var(--text-30); }
+  .timeline-body { padding-bottom: 20px; flex: 1; }
+  .timeline-title { font-size: 13px; font-weight: 700; color: var(--text-85); }
+  .timeline-time  { font-size: 11px; color: var(--text-30); margin-top: 2px; }
+  .timeline-note  { font-size: 11px; color: var(--text-45); margin-top: 4px; line-height: 1.5; }
+
+  /* ── Checkr dashboard link box ── */
+  .checkr-link-box {
+    border-radius: 16px;
+    border: 1px solid rgba(30,94,255,0.3);
+    background: rgba(30,94,255,0.07);
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+  .checkr-link-box-left { display: flex; align-items: center; gap: 12px; }
+  .checkr-logo-badge {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--checkr-blue);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 900; color: #fff;
+    letter-spacing: -0.02em;
+    flex-shrink: 0;
+  }
+  .checkr-link-title { font-size: 13px; font-weight: 700; color: var(--text-85); }
+  .checkr-link-sub   { font-size: 11px; color: var(--blue-text); margin-top: 2px; }
+
+  /* ── Summary confirm box ── */
+  .confirm-box {
+    border-radius: 16px;
+    border: 1px solid rgba(255,126,0,0.25);
+    background: rgba(255,126,0,0.06);
+    padding: 18px 20px;
+    margin-bottom: 20px;
+  }
+  .confirm-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .confirm-row:last-child { border-bottom: none; }
+  .confirm-key { font-size: 11px; font-weight: 600; color: var(--text-45); }
+  .confirm-val { font-size: 12px; font-weight: 800; color: var(--text-85); }
+
+  /* ── Input field style ── */
+  .fake-select {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(14,16,22,0.8);
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--text-85);
+    cursor: pointer;
+    margin-bottom: 12px;
+    transition: border-color 0.2s;
+  }
+  .fake-select:hover { border-color: rgba(255,126,0,0.35); }
+  .fake-select-arrow { color: var(--text-30); font-size: 11px; }
+
+  /* ── Notice ── */
+  .notice {
+    border-radius: 12px;
+    border: 1px solid var(--amber-border);
+    background: var(--amber-bg);
+    padding: 12px 16px;
+    font-size: 12px;
+    color: var(--amber-text);
+    line-height: 1.55;
+    margin-bottom: 16px;
+  }
+  .notice strong { font-weight: 800; }
+
+  /* ── Footer nav ── */
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+
+  /* ── Page meta label ── */
+  .page-meta {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-30);
+    text-align: center;
+    margin-bottom: 6px;
+  }
+
+  /* ── Animated pulse dot ── */
+  .pulse {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--amber-text);
+    box-shadow: 0 0 0 0 rgba(251,191,36,0.5);
+    animation: pulse 1.8s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(251,191,36,0.5); }
+    50%  { box-shadow: 0 0 0 6px rgba(251,191,36,0); }
+    100% { box-shadow: 0 0 0 0 rgba(251,191,36,0); }
+  }
+  .pulse.green { background: var(--emerald-text); animation-name: pulseGreen; }
+  @keyframes pulseGreen {
+    0%   { box-shadow: 0 0 0 0 rgba(52,211,153,0.5); }
+    50%  { box-shadow: 0 0 0 6px rgba(52,211,153,0); }
+    100% { box-shadow: 0 0 0 0 rgba(52,211,153,0); }
+  }
+
+  /* ── Demo watermark ── */
+  .demo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 99px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.04);
+    padding: 4px 12px;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-30);
+    margin-bottom: 20px;
+  }
+
+  /* ── Tooltip annotation ── */
+  .annotation {
+    border-radius: 12px;
+    border: 1px dashed rgba(255,126,0,0.35);
+    background: rgba(255,126,0,0.05);
+    padding: 10px 14px;
+    font-size: 11px;
+    color: rgba(255,200,100,0.85);
+    line-height: 1.5;
+    margin-top: 12px;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .annotation-icon { font-size: 13px; flex-shrink: 0; margin-top: -1px; }
+</style>
+</head>
+<body>
+<div class="glow"></div>
+
+<div class="shell">
+
+  <!-- App header -->
+  <header class="app-header">
+    <div class="wordmark">Match <span>Fit</span></div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="demo-badge">× Checkr Integration Demo</span>
+      <div class="avatar-ring">JB</div>
+    </div>
+  </header>
+
+  <!-- Dashboard nav (decorative, mirrors real app) -->
+  <nav class="nav-tabs">
+    <button class="nav-tab">Dashboard</button>
+    <button class="nav-tab">Discover Clients</button>
+    <button class="nav-tab">Inquiries</button>
+    <button class="nav-tab">Chats</button>
+    <button class="nav-tab active">Compliance</button>
+    <button class="nav-tab">Schedule</button>
+    <button class="nav-tab">Reviews</button>
+  </nav>
+
+  <!-- Demo progress tracker -->
+  <div class="demo-progress" id="demoProgress">
+    <div class="demo-step" onclick="goTo(0)">
+      <div class="step-dot-row">
+        <div class="step-line" id="line0L" style="visibility:hidden"></div>
+        <div class="step-dot active" id="dot0">1</div>
+        <div class="step-line" id="line0R"></div>
+      </div>
+      <div class="step-label active" id="lbl0">Job Setup</div>
+    </div>
+    <div class="demo-step" onclick="goTo(1)">
+      <div class="step-dot-row">
+        <div class="step-line" id="line1L"></div>
+        <div class="step-dot" id="dot1">2</div>
+        <div class="step-line" id="line1R"></div>
+      </div>
+      <div class="step-label" id="lbl1">Order Check</div>
+    </div>
+    <div class="demo-step" onclick="goTo(2)">
+      <div class="step-dot-row">
+        <div class="step-line" id="line2L"></div>
+        <div class="step-dot" id="dot2">3</div>
+        <div class="step-line" id="line2R" style="visibility:hidden"></div>
+      </div>
+      <div class="step-label" id="lbl2">Monitor</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ -->
+  <!-- SCREEN 1 — Job Setup                          -->
+  <!-- ══════════════════════════════════════════════ -->
+  <div class="screen active" id="screen0">
+
+    <div class="page-meta">Step 1 of 3 — Background Check Job Association</div>
+
+    <!-- Job card -->
+    <div class="card">
+      <div class="job-header">
+        <div class="job-logo">🏋️</div>
+        <div>
+          <div class="job-title">Personal Trainer — In-Home &amp; Studio</div>
+          <div class="job-meta">Match Fit Platform · Posted May 18, 2026</div>
+        </div>
+      </div>
+
+      <div class="row-field">
+        <div class="row-label">Role type</div>
+        <div class="row-value">Independent Contractor</div>
+      </div>
+      <div class="row-field">
+        <div class="row-label">Work location</div>
+        <div class="row-value">New York, NY &amp; Client Homes (5-mile radius)</div>
+      </div>
+      <div class="row-field">
+        <div class="row-label">Services offered</div>
+        <div class="row-value">
+          <div class="tag-row">
+            <span class="tag">1:1 Training</span>
+            <span class="tag">Nutrition Coaching</span>
+            <span class="tag">Online Sessions</span>
+          </div>
+        </div>
+      </div>
+      <div class="row-field">
+        <div class="row-label">Compliance status</div>
+        <div class="row-value"><span class="pill pill-amber">⚑ Background Check Required</span></div>
+      </div>
+    </div>
+
+    <!-- Background check association card -->
+    <div class="card">
+      <div class="section-label">Background Check Association</div>
+      <p class="section-desc">
+        Require applicants to complete a Checkr background check before they can be matched with clients on this role.
+      </p>
+
+      <div class="annotation">
+        <span class="annotation-icon">💡</span>
+        Match Fit uses <strong>Checkr</strong> as its background check partner. Associating a check to this job ensures every matched trainer is automatically screened before client introductions are made.
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="section-label" style="text-align:left;margin-bottom:14px;">Choose requirement level</div>
+
+      <div class="select-grid cols-2" id="jobPkgGrid">
+        <div class="select-card selected" onclick="selectJobPkg(this, 'standard')">
+          <div class="select-card-check">✓</div>
+          <div class="select-card-title">Standard Check</div>
+          <div class="select-card-sub">Recommended for in-person trainer roles. Covers criminal history and sex offender registry.</div>
+          <div class="select-card-checks">
+            <div class="select-card-check-item">SSN Trace</div>
+            <div class="select-card-check-item">National Criminal Search</div>
+            <div class="select-card-check-item">Sex Offender Registry</div>
+            <div class="select-card-check-item">County Criminal (7 yr)</div>
+          </div>
+        </div>
+        <div class="select-card" onclick="selectJobPkg(this, 'pro')">
+          <div class="select-card-check"></div>
+          <div class="select-card-title">Pro Check</div>
+          <div class="select-card-sub">Full screening for trainers handling minors or high-trust clientele.</div>
+          <div class="select-card-badge">Recommended for minors</div>
+          <div class="select-card-checks">
+            <div class="select-card-check-item">Everything in Standard</div>
+            <div class="select-card-check-item">Employment Verification</div>
+            <div class="select-card-check-item">Education Verification</div>
+            <div class="select-card-check-item">Federal Criminal Search</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-60);">Selected package</div>
+          <div style="font-size:15px;font-weight:900;color:var(--text);margin-top:3px;" id="selectedPkgLabel">Standard Check</div>
+        </div>
+        <span class="pill pill-emerald">✓ Association saved</span>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost btn-sm">Edit job details</button>
+        <button class="btn btn-primary" onclick="goTo(1)">
+          Order background check →
+        </button>
+      </div>
+    </div>
+
+  </div><!-- /screen0 -->
+
+
+  <!-- ══════════════════════════════════════════════ -->
+  <!-- SCREEN 2 — Order Background Check             -->
+  <!-- ══════════════════════════════════════════════ -->
+  <div class="screen" id="screen1">
+
+    <div class="page-meta">Step 2 of 3 — Order Background Check</div>
+
+    <!-- Sub-step breadcrumb -->
+    <div class="substep-bar">
+      <span class="substep-crumb active" id="crumb0">Package</span>
+      <span class="substep-arrow">›</span>
+      <span class="substep-crumb" id="crumb1">Node</span>
+      <span class="substep-arrow">›</span>
+      <span class="substep-crumb" id="crumb2">Work Location</span>
+      <span class="substep-arrow">›</span>
+      <span class="substep-crumb" id="crumb3">Confirm</span>
+    </div>
+
+    <!-- ── Sub-step A: Package ── -->
+    <div class="substep active" id="sub0">
+      <div class="card">
+        <div class="section-label">Select Package</div>
+        <p class="section-desc">Choose the screening package that matches this role's risk level and compliance requirements.</p>
+
+        <div class="select-grid" id="pkgGrid">
+          <div class="select-card" onclick="selectPkg(this,'basic')">
+            <div class="select-card-check"></div>
+            <div class="select-card-title">Basic</div>
+            <div class="select-card-sub">SSN Trace + National Criminal Search. Entry-level screening for low-risk roles.</div>
+            <div class="select-card-checks">
+              <div class="select-card-check-item">SSN Trace</div>
+              <div class="select-card-check-item">National Criminal Search</div>
+            </div>
+          </div>
+          <div class="select-card selected" onclick="selectPkg(this,'standard')">
+            <div class="select-card-check">✓</div>
+            <div class="select-card-title">Standard <span class="select-card-badge">Pre-selected for this job</span></div>
+            <div class="select-card-sub">Recommended for in-person personal trainer roles with adult clients.</div>
+            <div class="select-card-checks">
+              <div class="select-card-check-item">SSN Trace</div>
+              <div class="select-card-check-item">National Criminal Search</div>
+              <div class="select-card-check-item">Sex Offender Registry</div>
+              <div class="select-card-check-item">County Criminal (7 yr)</div>
+            </div>
+          </div>
+          <div class="select-card" onclick="selectPkg(this,'pro')">
+            <div class="select-card-check"></div>
+            <div class="select-card-title">Pro</div>
+            <div class="select-card-sub">Comprehensive check for high-trust, minor-facing, or facility-based trainers.</div>
+            <div class="select-card-checks">
+              <div class="select-card-check-item">Everything in Standard</div>
+              <div class="select-card-check-item">Employment Verification</div>
+              <div class="select-card-check-item">Education Verification</div>
+              <div class="select-card-check-item">Federal Criminal Search</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-ghost btn-sm" onclick="goTo(0)">← Back to job</button>
+          <button class="btn btn-primary" onclick="nextSub(1)">Next: Choose Node →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Sub-step B: Node ── -->
+    <div class="substep" id="sub1">
+      <div class="card">
+        <div class="section-label">Select Node</div>
+        <p class="section-desc">
+          Nodes represent the business segment or compliance context for this check.
+          This determines how the report is tagged and routed in Checkr.
+        </p>
+
+        <div class="annotation">
+          <span class="annotation-icon">🔗</span>
+          Nodes are configured by your Checkr account admin. Each node can have different adverse action workflows and report routing rules.
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="select-grid" id="nodeGrid" style="margin-top:4px;">
+          <div class="select-card selected" onclick="selectNode(this,'platform')">
+            <div class="select-card-check">✓</div>
+            <div class="select-card-title">Match Fit Platform — Default</div>
+            <div class="select-card-sub">Standard node for all in-person trainer roles on the Match Fit marketplace. Routes to Match Fit compliance team.</div>
+            <div class="tag-row" style="margin-top:8px;">
+              <span class="tag">In-Person</span>
+              <span class="tag">Adult Clients</span>
+            </div>
+          </div>
+          <div class="select-card" onclick="selectNode(this,'minors')">
+            <div class="select-card-check"></div>
+            <div class="select-card-title">Match Fit — Minors Program</div>
+            <div class="select-card-sub">Elevated screening node for trainers working with clients under 18. Includes enhanced adverse action review.</div>
+            <div class="tag-row" style="margin-top:8px;">
+              <span class="tag">Minors</span>
+              <span class="tag">Enhanced Review</span>
+            </div>
+          </div>
+          <div class="select-card" onclick="selectNode(this,'studio')">
+            <div class="select-card-check"></div>
+            <div class="select-card-title">Studio / Gym Partnerships</div>
+            <div class="select-card-sub">For trainers placed within partner gym facilities. May require facility-specific adverse action rules.</div>
+            <div class="tag-row" style="margin-top:8px;">
+              <span class="tag">Facility-Based</span>
+              <span class="tag">B2B</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-ghost btn-sm" onclick="nextSub(0)">← Package</button>
+          <button class="btn btn-primary" onclick="nextSub(2)">Next: Work Location →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Sub-step C: Work Location ── -->
+    <div class="substep" id="sub2">
+      <div class="card">
+        <div class="section-label">Work Location</div>
+        <p class="section-desc">
+          Select the state and city where the trainer will primarily work. This determines which county-level criminal searches are run.
+        </p>
+
+        <div class="notice">
+          <strong>Why this matters:</strong> Checkr runs county criminal searches based on the work location jurisdiction. Selecting the correct location ensures the report meets local compliance requirements.
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-size:10px;font-weight:700;color:var(--text-45);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">State</div>
+          <div class="select-grid cols-3" id="stateGrid">
+            <div class="select-card selected" onclick="selectState(this,'NY')">
+              <div class="select-card-check">✓</div>
+              <div class="select-card-title">New York</div>
+              <div class="select-card-sub">NY</div>
+            </div>
+            <div class="select-card" onclick="selectState(this,'CA')">
+              <div class="select-card-check"></div>
+              <div class="select-card-title">California</div>
+              <div class="select-card-sub">CA</div>
+            </div>
+            <div class="select-card" onclick="selectState(this,'TX')">
+              <div class="select-card-check"></div>
+              <div class="select-card-title">Texas</div>
+              <div class="select-card-sub">TX</div>
+            </div>
+            <div class="select-card" onclick="selectState(this,'FL')">
+              <div class="select-card-check"></div>
+              <div class="select-card-title">Florida</div>
+              <div class="select-card-sub">FL</div>
+            </div>
+            <div class="select-card" onclick="selectState(this,'IL')">
+              <div class="select-card-check"></div>
+              <div class="select-card-title">Illinois</div>
+              <div class="select-card-sub">IL</div>
+            </div>
+            <div class="select-card" onclick="selectState(this,'WA')">
+              <div class="select-card-check"></div>
+              <div class="select-card-title">Washington</div>
+              <div class="select-card-sub">WA</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-size:10px;font-weight:700;color:var(--text-45);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">City / Metro area</div>
+          <div class="fake-select" onclick="cycleCities(this)">
+            <span id="cityLabel">New York City (5 Boroughs)</span>
+            <span class="fake-select-arrow">▾</span>
+          </div>
+        </div>
+
+        <div class="card-inner">
+          <div style="font-size:10px;font-weight:700;color:var(--text-30);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;">Counties to be searched</div>
+          <div class="tag-row" id="countyTags">
+            <span class="tag">New York County</span>
+            <span class="tag">Kings County</span>
+            <span class="tag">Queens County</span>
+            <span class="tag">Bronx County</span>
+            <span class="tag">Richmond County</span>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-ghost btn-sm" onclick="nextSub(1)">← Node</button>
+          <button class="btn btn-primary" onclick="nextSub(3)">Review &amp; Confirm →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Sub-step D: Confirm ── -->
+    <div class="substep" id="sub3">
+      <div class="card">
+        <div class="section-label">Review &amp; Submit</div>
+        <p class="section-desc">Confirm the details below. Once submitted, Checkr will send an invitation to the applicant to complete their background check.</p>
+
+        <div class="confirm-box">
+          <div class="confirm-row">
+            <span class="confirm-key">Applicant</span>
+            <span class="confirm-val">Marcus T. (Trainer ID #2847)</span>
+          </div>
+          <div class="confirm-row">
+            <span class="confirm-key">Package</span>
+            <span class="confirm-val" id="confirmPkg">Standard Check</span>
+          </div>
+          <div class="confirm-row">
+            <span class="confirm-key">Node</span>
+            <span class="confirm-val" id="confirmNode">Match Fit Platform — Default</span>
+          </div>
+          <div class="confirm-row">
+            <span class="confirm-key">Work Location</span>
+            <span class="confirm-val" id="confirmLoc">New York, NY (5 Counties)</span>
+          </div>
+          <div class="confirm-row">
+            <span class="confirm-key">Invitation method</span>
+            <span class="confirm-val">Email (via Checkr)</span>
+          </div>
+          <div class="confirm-row">
+            <span class="confirm-key">Est. turnaround</span>
+            <span class="confirm-val">1–3 business days</span>
+          </div>
+        </div>
+
+        <div class="notice">
+          <strong>Candidate consent:</strong> Checkr will send Marcus a FCRA-compliant disclosure and authorization form. The check begins only after they provide consent.
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-ghost btn-sm" onclick="nextSub(2)">← Edit location</button>
+          <button class="btn btn-primary" onclick="submitOrder()">Submit Background Check →</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /screen1 -->
+
+
+  <!-- ══════════════════════════════════════════════ -->
+  <!-- SCREEN 3 — Monitor Background Check           -->
+  <!-- ══════════════════════════════════════════════ -->
+  <div class="screen" id="screen2">
+
+    <div class="page-meta">Step 3 of 3 — Monitor Background Check</div>
+
+    <div class="card">
+      <div class="monitor-header">
+        <div>
+          <div class="monitor-name">Marcus T.</div>
+          <div class="monitor-sub">Personal Trainer · Trainer ID #2847 · Ordered May 19, 2026</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="pulse"></span>
+          <span class="pill pill-amber">In Progress</span>
+        </div>
+      </div>
+
+      <!-- Summary row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px;">
+        <div class="card-inner" style="margin-bottom:0;text-align:center;">
+          <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-30);margin-bottom:6px;">Package</div>
+          <div style="font-size:12px;font-weight:800;color:var(--text-85);">Standard</div>
+        </div>
+        <div class="card-inner" style="margin-bottom:0;text-align:center;">
+          <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-30);margin-bottom:6px;">Node</div>
+          <div style="font-size:12px;font-weight:800;color:var(--text-85);">MF Default</div>
+        </div>
+        <div class="card-inner" style="margin-bottom:0;text-align:center;">
+          <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-30);margin-bottom:6px;">Location</div>
+          <div style="font-size:12px;font-weight:800;color:var(--text-85);">New York, NY</div>
+        </div>
+      </div>
+
+      <!-- Report components -->
+      <div style="font-size:10px;font-weight:900;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-45);margin-bottom:12px;">Report Components</div>
+      <div class="card-inner" style="padding:0;overflow:hidden;margin-bottom:20px;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border2);">
+              <th style="text-align:left;padding:10px 16px;font-size:9px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-30);">Check</th>
+              <th style="text-align:left;padding:10px 16px;font-size:9px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-30);">Status</th>
+              <th style="text-align:left;padding:10px 16px;font-size:9px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-30);">Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--border2);">
+              <td style="padding:12px 16px;font-size:12px;color:var(--text-85);">SSN Trace</td>
+              <td style="padding:12px 16px;"><span class="pill pill-emerald">Complete</span></td>
+              <td style="padding:12px 16px;font-size:12px;color:var(--emerald-text);">✓ Clear</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border2);">
+              <td style="padding:12px 16px;font-size:12px;color:var(--text-85);">National Criminal Search</td>
+              <td style="padding:12px 16px;"><span class="pill pill-emerald">Complete</span></td>
+              <td style="padding:12px 16px;font-size:12px;color:var(--emerald-text);">✓ Clear</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border2);">
+              <td style="padding:12px 16px;font-size:12px;color:var(--text-85);">Sex Offender Registry</td>
+              <td style="padding:12px 16px;"><span class="pill pill-emerald">Complete</span></td>
+              <td style="padding:12px 16px;font-size:12px;color:var(--emerald-text);">✓ Clear</td>
+            </tr>
+            <tr>
+              <td style="padding:12px 16px;font-size:12px;color:var(--text-85);">County Criminal (7 yr)</td>
+              <td style="padding:12px 16px;"><span class="pill pill-amber">Pending</span></td>
+              <td style="padding:12px 16px;font-size:12px;color:var(--text-30);">—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Status timeline -->
+      <div style="font-size:10px;font-weight:900;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-45);margin-bottom:14px;">Activity Timeline</div>
+      <div class="status-timeline">
+        <div class="timeline-item">
+          <div class="timeline-dot done">✓</div>
+          <div class="timeline-body">
+            <div class="timeline-title">Check ordered</div>
+            <div class="timeline-time">May 19, 2026 · 9:14 AM</div>
+            <div class="timeline-note">Invitation sent to Marcus via Checkr email.</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot done">✓</div>
+          <div class="timeline-body">
+            <div class="timeline-title">Candidate authorized</div>
+            <div class="timeline-time">May 19, 2026 · 10:02 AM</div>
+            <div class="timeline-note">Marcus completed FCRA disclosure &amp; consent form.</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot done">✓</div>
+          <div class="timeline-body">
+            <div class="timeline-title">Initial components returned</div>
+            <div class="timeline-time">May 19, 2026 · 11:47 AM</div>
+            <div class="timeline-note">SSN Trace, National Criminal &amp; Sex Offender checks complete — all clear.</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot active">⋯</div>
+          <div class="timeline-body">
+            <div class="timeline-title">County criminal search in progress</div>
+            <div class="timeline-time">Est. completion: May 20–21, 2026</div>
+            <div class="timeline-note">New York County courts are being searched. This step can take 1–2 business days.</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot pending"></div>
+          <div class="timeline-body">
+            <div class="timeline-title">Report finalized</div>
+            <div class="timeline-time">Pending</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Checkr dashboard link -->
+      <div style="font-size:10px;font-weight:900;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-45);margin-bottom:12px;">Full Report</div>
+      <div class="checkr-link-box">
+        <div class="checkr-link-box-left">
+          <div class="checkr-logo-badge">Ch</div>
+          <div>
+            <div class="checkr-link-title">View in Checkr Dashboard</div>
+            <div class="checkr-link-sub">Report ID: chk_8f3k2mzx91 · Standard Package · NY</div>
+          </div>
+        </div>
+        <button class="btn btn-checkr btn-sm" onclick="openCheckr()">
+          Open Checkr ↗
+        </button>
+      </div>
+
+      <div class="annotation" style="margin-top:14px;">
+        <span class="annotation-icon">🔒</span>
+        Full report details, adverse action tools, and dispute management are available in the Checkr dashboard. Match Fit will automatically update the trainer's compliance status once the report is finalized.
+      </div>
+
+      <div class="btn-row" style="margin-top:20px;">
+        <button class="btn btn-ghost btn-sm" onclick="goTo(1)">← Order details</button>
+        <button class="btn btn-primary btn-sm" onclick="showComplete()">
+          Mark as reviewed ✓
+        </button>
+      </div>
+    </div>
+
+    <!-- Completion card (hidden until marked reviewed) -->
+    <div class="card" id="completeCard" style="display:none;border-color:rgba(52,211,153,0.25);background:rgba(52,211,153,0.04);">
+      <div style="text-align:center;padding:12px 0;">
+        <div style="font-size:32px;margin-bottom:10px;">✅</div>
+        <div style="font-size:16px;font-weight:900;color:var(--emerald-text);margin-bottom:6px;">Review Complete</div>
+        <div style="font-size:13px;color:var(--text-60);line-height:1.6;max-width:400px;margin:0 auto;">
+          Marcus's background check has been marked as reviewed. Once the county search returns clear, his Match Fit compliance status will update automatically.
+        </div>
+        <div style="margin-top:20px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" onclick="resetDemo()">↺ Restart demo</button>
+          <button class="btn btn-checkr btn-sm" onclick="openCheckr()">Open Checkr dashboard ↗</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /screen2 -->
+
+</div><!-- /shell -->
+
+<script>
+// ── State ──────────────────────────────────────────────
+let currentScreen = 0;
+let currentSub    = 0;
+
+const pkgLabels = { basic:'Basic', standard:'Standard Check', pro:'Pro Check' };
+const nodeLabels = {
+  platform: 'Match Fit Platform — Default',
+  minors:   'Match Fit — Minors Program',
+  studio:   'Studio / Gym Partnerships',
+};
+
+let selectedPkg  = 'standard';
+let selectedNode = 'platform';
+let selectedState = 'NY';
+
+// ── Navigation ─────────────────────────────────────────
+function goTo(n) {
+  document.getElementById('screen' + currentScreen).classList.remove('active');
+  currentScreen = n;
+  currentSub = 0;
+  document.getElementById('screen' + n).classList.add('active');
+  updateProgress();
+  if (n === 1) showSub(0);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function nextSub(n) {
+  document.getElementById('sub' + currentSub).classList.remove('active');
+  currentSub = n;
+  document.getElementById('sub' + n).classList.add('active');
+  updateSubCrumbs();
+  if (n === 3) updateConfirm();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showSub(n) {
+  document.querySelectorAll('.substep').forEach(s => s.classList.remove('active'));
+  currentSub = n;
+  document.getElementById('sub' + n).classList.add('active');
+  updateSubCrumbs();
+}
+
+// ── Progress dots ──────────────────────────────────────
+function updateProgress() {
+  for (let i = 0; i < 3; i++) {
+    const dot = document.getElementById('dot' + i);
+    const lbl = document.getElementById('lbl' + i);
+    dot.className = 'step-dot';
+    lbl.className = 'step-label';
+    if (i < currentScreen) {
+      dot.className += ' done'; dot.textContent = '✓';
+      lbl.className += ' done';
+    } else if (i === currentScreen) {
+      dot.className += ' active'; dot.textContent = i + 1;
+      lbl.className += ' active';
+    } else {
+      dot.textContent = i + 1;
+    }
+  }
+  // Lines
+  const l0r = document.getElementById('line0R');
+  const l1l = document.getElementById('line1L');
+  const l1r = document.getElementById('line1R');
+  const l2l = document.getElementById('line2L');
+  if (currentScreen >= 1) { l0r.classList.add('filled'); l1l.classList.add('filled'); }
+  else { l0r.classList.remove('filled'); l1l.classList.remove('filled'); }
+  if (currentScreen >= 2) { l1r.classList.add('filled'); l2l.classList.add('filled'); }
+  else { l1r.classList.remove('filled'); l2l.classList.remove('filled'); }
+}
+
+// ── Sub-step crumbs ────────────────────────────────────
+function updateSubCrumbs() {
+  ['crumb0','crumb1','crumb2','crumb3'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.className = 'substep-crumb';
+    if (i < currentSub) el.classList.add('done');
+    else if (i === currentSub) el.classList.add('active');
+  });
+}
+
+// ── Selection helpers ──────────────────────────────────
+function selectJobPkg(el, key) {
+  document.querySelectorAll('#jobPkgGrid .select-card').forEach(c => {
+    c.classList.remove('selected');
+    c.querySelector('.select-card-check').textContent = '';
+  });
+  el.classList.add('selected');
+  el.querySelector('.select-card-check').textContent = '✓';
+  document.getElementById('selectedPkgLabel').textContent = pkgLabels[key];
+}
+
+function selectPkg(el, key) {
+  selectedPkg = key;
+  document.querySelectorAll('#pkgGrid .select-card').forEach(c => {
+    c.classList.remove('selected');
+    c.querySelector('.select-card-check').textContent = '';
+  });
+  el.classList.add('selected');
+  el.querySelector('.select-card-check').textContent = '✓';
+}
+
+function selectNode(el, key) {
+  selectedNode = key;
+  document.querySelectorAll('#nodeGrid .select-card').forEach(c => {
+    c.classList.remove('selected');
+    c.querySelector('.select-card-check').textContent = '';
+  });
+  el.classList.add('selected');
+  el.querySelector('.select-card-check').textContent = '✓';
+}
+
+const stateCounties = {
+  NY: { city: 'New York City (5 Boroughs)', counties: ['New York County','Kings County','Queens County','Bronx County','Richmond County'] },
+  CA: { city: 'Los Angeles Metro', counties: ['Los Angeles County','Orange County','San Bernardino County'] },
+  TX: { city: 'Dallas–Fort Worth', counties: ['Dallas County','Tarrant County','Collin County'] },
+  FL: { city: 'Miami-Dade Metro', counties: ['Miami-Dade County','Broward County','Palm Beach County'] },
+  IL: { city: 'Chicago Metro', counties: ['Cook County','DuPage County','Lake County'] },
+  WA: { city: 'Seattle Metro', counties: ['King County','Snohomish County','Pierce County'] },
+};
+
+function selectState(el, key) {
+  selectedState = key;
+  document.querySelectorAll('#stateGrid .select-card').forEach(c => {
+    c.classList.remove('selected');
+    c.querySelector('.select-card-check').textContent = '';
+  });
+  el.classList.add('selected');
+  el.querySelector('.select-card-check').textContent = '✓';
+  const data = stateCounties[key];
+  document.getElementById('cityLabel').textContent = data.city;
+  const tags = data.counties.map(c => `<span class="tag">${c}</span>`).join('');
+  document.getElementById('countyTags').innerHTML = tags;
+}
+
+function cycleCities(el) {
+  // Just a visual affordance — state selection drives city
+  el.style.borderColor = 'rgba(255,126,0,0.4)';
+  setTimeout(() => el.style.borderColor = '', 300);
+}
+
+function updateConfirm() {
+  document.getElementById('confirmPkg').textContent  = pkgLabels[selectedPkg] || 'Standard Check';
+  document.getElementById('confirmNode').textContent = nodeLabels[selectedNode] || 'Match Fit Platform — Default';
+  const data = stateCounties[selectedState];
+  document.getElementById('confirmLoc').textContent  = data ? `${data.city} (${data.counties.length} Counties)` : 'New York, NY';
+}
+
+function submitOrder() {
+  goTo(2);
+}
+
+function openCheckr() {
+  // In the real integration this would open the Checkr dashboard URL
+  const box = document.querySelector('.checkr-link-box');
+  box.style.borderColor = 'rgba(30,94,255,0.6)';
+  box.style.background  = 'rgba(30,94,255,0.12)';
+  setTimeout(() => {
+    box.style.borderColor = '';
+    box.style.background  = '';
+  }, 600);
+  // Simulate opening
+  alert('In the live app, this opens the Checkr dashboard report at:\nhttps://dashboard.checkr.com/reports/chk_8f3k2mzx91');
+}
+
+function showComplete() {
+  document.getElementById('completeCard').style.display = 'block';
+  document.getElementById('completeCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function resetDemo() {
+  document.getElementById('completeCard').style.display = 'none';
+  currentScreen = 0;
+  currentSub = 0;
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen0').classList.add('active');
+  updateProgress();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>

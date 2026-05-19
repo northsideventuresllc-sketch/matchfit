@@ -1,8 +1,14 @@
 import { purgeExpiredRegistrationHolds } from "@/lib/purge-registration-holds";
+import { stripeTrialConfigForPlan } from "@/lib/client-subscription-trial";
+import {
+  canReserveLaunchClientSlot,
+  resolveClientTrialPlanForCheckout,
+} from "@/lib/match-fit-launch-cohort";
 import { prisma } from "@/lib/prisma";
 import { getRegistrationHoldPendingId } from "@/lib/session";
 import { getStripe } from "@/lib/stripe-server";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
 function errorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -17,6 +23,10 @@ function getAppOrigin(req: Request): string {
   if (fromEnv) return fromEnv;
   return new URL(req.url).origin;
 }
+
+const bodySchema = z.object({
+  trialPlan: z.enum(["STANDARD_72H", "PAY_NOW", "LAUNCH_7D"]).optional(),
+});
 
 export async function POST(req: Request) {
   console.log("Stripe Key Loaded:", !!process.env.STRIPE_SECRET_KEY);
@@ -66,6 +76,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "This account is not ready for billing." }, { status: 400 });
     }
 
+    const json = await req.json().catch(() => ({}));
+    const parsed = bodySchema.safeParse(json);
+    const launchEligible = await canReserveLaunchClientSlot(hold.email);
+    const trialPlan = resolveClientTrialPlanForCheckout({
+      launchCohortEligible: launchEligible,
+      requestedPlan: parsed.success ? parsed.data.trialPlan : null,
+    });
+    const launchCohortMember = trialPlan === "LAUNCH_7D";
+    const trialConfig = stripeTrialConfigForPlan(trialPlan);
+
+    await prisma.pendingClientRegistration.update({
+      where: { id: hold.id },
+      data: { clientTrialPlan: trialPlan, launchCohortMember },
+    });
+
     const origin = getAppOrigin(req);
 
     try {
@@ -73,11 +98,16 @@ export async function POST(req: Request) {
         mode: "subscription",
         customer_email: hold.email,
         line_items: [{ price: priceId, quantity: 1 }],
+        payment_method_collection: "always",
         success_url: `${origin}/client/subscribe/return?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin}/client/subscribe?canceled=1`,
-        metadata: { holdId: hold.id },
+        metadata: { holdId: hold.id, clientTrialPlan: trialPlan },
         subscription_data: {
-          metadata: { holdId: hold.id },
+          metadata: { holdId: hold.id, clientTrialPlan: trialPlan },
+          ...trialConfig,
+          trial_settings: trialConfig.trial_period_days
+            ? { end_behavior: { missing_payment_method: "cancel" as const } }
+            : undefined,
         },
       });
 
@@ -88,7 +118,7 @@ export async function POST(req: Request) {
         );
       }
 
-      return NextResponse.json({ url: session.url });
+      return NextResponse.json({ url: session.url, trialPlan });
     } catch (e) {
       console.error("[create-subscription] Stripe Checkout error:", e);
       return NextResponse.json({ error: `Stripe error: ${errorMessage(e)}` }, { status: 502 });

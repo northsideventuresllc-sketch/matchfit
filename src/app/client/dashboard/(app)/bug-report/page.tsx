@@ -10,7 +10,7 @@ export default function ClientBugReportPage() {
     <div className="space-y-8">
       <header className="space-y-2 text-center">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Support</p>
-        <h1 className="text-3xl font-black tracking-[0.04em] text-white sm:text-4xl">Report a Bug</h1>
+        <h1 className="text-3xl font-black uppercase tracking-[0.06em] text-white sm:text-4xl">REPORT A BUG</h1>
         <p className="mx-auto max-w-xl text-sm leading-relaxed text-white/50">
           Tell us what is going wrong. You can include your name or submit anonymously. We use these reports to improve
           Match Fit reliability and product quality.

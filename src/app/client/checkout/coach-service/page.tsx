@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CoachServiceCheckoutClient } from "./coach-service-checkout-client";
-import { adminFeeCentsFromBaseSubtotalCents } from "@/lib/platform-fees";
+import { buildMarketplaceCheckoutTotals } from "@/lib/platform-fees";
 import { prisma } from "@/lib/prisma";
 import { isPrismaMissingColumnError } from "@/lib/prisma-missing-column";
 import { getSessionClientId } from "@/lib/session";
@@ -194,10 +194,11 @@ export default async function CoachServiceCheckoutPage({ searchParams }: PagePro
   }
   const sku = resolved.sku;
   const baseCents = Math.round(sku.priceUsd * 100);
-  const adminCents = adminFeeCentsFromBaseSubtotalCents(baseCents);
+  const totals = buildMarketplaceCheckoutTotals(baseCents, { includeAdminFee: true });
   const serviceSubtotalLabel = formatTrainerServicePriceUsd(sku.priceUsd);
-  const adminFeeLabel = formatTrainerServicePriceUsd(adminCents / 100);
-  const totalLabel = formatTrainerServicePriceUsd((baseCents + adminCents) / 100);
+  const adminFeeLabel = formatTrainerServicePriceUsd(totals.adminCents / 100);
+  const processingFeeLabel = formatTrainerServicePriceUsd(totals.processingCents / 100);
+  const totalLabel = formatTrainerServicePriceUsd(totals.totalCents / 100);
 
   return (
     <CoachServiceCheckoutClient
@@ -209,6 +210,7 @@ export default async function CoachServiceCheckoutPage({ searchParams }: PagePro
       summaryLine={sku.label}
       serviceSubtotalLabel={serviceSubtotalLabel}
       adminFeeLabel={adminFeeLabel}
+      processingFeeLabel={processingFeeLabel}
       totalLabel={totalLabel}
       canceled={sp.canceled === "1"}
     />

@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import {
+  CLIENT_PLATFORM_SUBSCRIPTION_FEE_DISCLOSURE,
+  formatClientPlatformSubscriptionUsd,
+} from "@/lib/client-platform-subscription-pricing";
+import { LAUNCH_CLIENT_TRIAL_DAYS } from "@/lib/match-fit-launch-cohort";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
+
+type TrialChoice = "STANDARD_72H" | "PAY_NOW";
 
 function SubscribeContent() {
   const router = useRouter();
@@ -12,6 +19,9 @@ function SubscribeContent() {
 
   const [loading, setLoading] = useState(true);
   const [fatal, setFatal] = useState<string | null>(null);
+  const [launchCohortEligible, setLaunchCohortEligible] = useState(false);
+  const [trialChoice, setTrialChoice] = useState<TrialChoice>("STANDARD_72H");
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [qaSkip, setQaSkip] = useState(false);
   const [qaMasked, setQaMasked] = useState<string | null>(null);
   const [qaPassword, setQaPassword] = useState("");
@@ -27,6 +37,7 @@ function SubscribeContent() {
           hasHold?: boolean;
           internalQaBillingSkipEligible?: boolean;
           emailMasked?: string;
+          launchCohortEligible?: boolean;
         };
         if (cancelled) return;
         if (meta.internalQaBillingSkipEligible) {
@@ -35,21 +46,8 @@ function SubscribeContent() {
           setLoading(false);
           return;
         }
-
-        const res = await fetch("/api/client/billing/create-subscription", { method: "POST" });
-        const data = (await res.json()) as { error?: string; url?: string };
-        if (cancelled) return;
-        if (!res.ok) {
-          setFatal(data.error ?? "Unable to start checkout.");
-          setLoading(false);
-          return;
-        }
-        if (!data.url) {
-          setFatal("Checkout could not be initialized.");
-          setLoading(false);
-          return;
-        }
-        navigateWithFullLoad(data.url);
+        setLaunchCohortEligible(Boolean(meta.launchCohortEligible));
+        setLoading(false);
       } catch {
         if (!cancelled) {
           setFatal("Network error. Try again.");
@@ -61,6 +59,35 @@ function SubscribeContent() {
       cancelled = true;
     };
   }, []);
+
+  async function startCheckout() {
+    setCheckoutBusy(true);
+    setFatal(null);
+    try {
+      const res = await fetch("/api/client/billing/create-subscription", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          trialPlan: launchCohortEligible ? undefined : trialChoice,
+        }),
+      });
+      const data = (await res.json()) as { error?: string; url?: string };
+      if (!res.ok) {
+        setFatal(data.error ?? "Unable to start checkout.");
+        return;
+      }
+      if (!data.url) {
+        setFatal("Checkout could not be initialized.");
+        return;
+      }
+      navigateWithFullLoad(data.url);
+    } catch {
+      setFatal("Network error. Try again.");
+    } finally {
+      setCheckoutBusy(false);
+    }
+  }
 
   async function qaComplete() {
     setQaError(null);
@@ -92,6 +119,8 @@ function SubscribeContent() {
     router.refresh();
   }
 
+  const monthly = formatClientPlatformSubscriptionUsd();
+
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] text-white antialiased">
       <div
@@ -101,20 +130,56 @@ function SubscribeContent() {
       <div className="relative z-10 mx-auto max-w-lg px-5 py-12 sm:px-8">
         <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Subscription</h1>
         <p className="mt-4 text-sm leading-relaxed text-white/65 sm:text-base">
-          Match Fit is <span className="font-semibold text-white">$10.00 per month</span>. The calendar day you complete
-          your first successful payment becomes your monthly billing date. If you first subscribe on the 31st of a
-          month, your next automatic charge is scheduled for the{" "}
-          <span className="font-semibold text-white">1st</span> of the following month (and continues from there).
+          Match Fit is <span className="font-semibold text-white">{monthly} per month</span> for full client access. A
+          valid card is required on file before you can use the app.
         </p>
+        <p className="mt-4 rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-sm leading-relaxed text-white/55">
+          {CLIENT_PLATFORM_SUBSCRIPTION_FEE_DISCLOSURE}
+        </p>
+        {launchCohortEligible ? (
+          <p className="mt-4 rounded-xl border border-[#FFD34E]/30 bg-[#FFD34E]/10 px-4 py-3 text-sm leading-relaxed text-[#FFE9A8]">
+            <span className="font-semibold text-white">Launch offer:</span> your first{" "}
+            <span className="font-semibold text-white">{LAUNCH_CLIENT_TRIAL_DAYS} days</span> are free with a card on
+            file. We email you 48 hours and 24 hours before your first {monthly} charge.
+          </p>
+        ) : (
+          <div className="mt-6 space-y-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-white/45">Choose how to start</p>
+            <label className="flex cursor-pointer gap-3 rounded-xl border border-white/15 bg-white/5 p-4">
+              <input
+                type="radio"
+                name="trial"
+                checked={trialChoice === "STANDARD_72H"}
+                onChange={() => setTrialChoice("STANDARD_72H")}
+                className="mt-1"
+              />
+              <span className="text-sm text-white/75">
+                <span className="font-semibold text-white">72 hours free</span> — card required now; first {monthly}{" "}
+                charge after 72 hours unless you cancel. We notify you 24 hours before billing.
+              </span>
+            </label>
+            <label className="flex cursor-pointer gap-3 rounded-xl border border-white/15 bg-white/5 p-4">
+              <input
+                type="radio"
+                name="trial"
+                checked={trialChoice === "PAY_NOW"}
+                onChange={() => setTrialChoice("PAY_NOW")}
+                className="mt-1"
+              />
+              <span className="text-sm text-white/75">
+                <span className="font-semibold text-white">Pay now</span> — start your {monthly} subscription immediately.
+              </span>
+            </label>
+          </div>
+        )}
         <p className="mt-4 text-sm leading-relaxed text-white/55">
-          Card numbers are collected by <span className="font-semibold text-white">Stripe</span>, a PCI-compliant
-          payments processor. Match Fit does not store your full card details on our servers—only Stripe&apos;s secure
-          tokens and subscription references. Your payment information is not sold or shared with unrelated third
-          parties; it is used solely to run your subscription through Stripe.
+          Card numbers are collected by our PCI-compliant payment processor. Match Fit does not store your full card
+          details—only secure tokens and subscription references.
         </p>
         <p className="mt-3 text-xs leading-relaxed text-white/40">
-          Your profile is only created in our database after your first payment succeeds. If you leave without paying,
-          use &quot;Cancel and delete my sign-up&quot; so your in-progress registration is permanently removed.
+          Your profile is created after checkout succeeds (including free-trial starts with a card on file). If you
+          leave without completing checkout, use &quot;Cancel and delete my sign-up&quot; to remove your in-progress
+          registration.
         </p>
 
         {canceled ? (
@@ -128,7 +193,7 @@ function SubscribeContent() {
             <p className="rounded-xl border border-amber-400/35 bg-amber-500/10 px-4 py-3 text-sm leading-relaxed text-amber-100/95">
               Internal QA billing bypass is active for{" "}
               <span className="font-semibold text-white">{qaMasked ?? "this registration"}</span>. Enter the account
-              password for this sign-up to continue without Stripe checkout.
+              password for this sign-up to continue without card checkout.
             </p>
             <label className="block text-xs font-bold uppercase tracking-wide text-white/45">
               Account password
@@ -155,38 +220,31 @@ function SubscribeContent() {
             </button>
           </div>
         ) : loading ? (
-          <p className="mt-10 text-sm text-white/50">Redirecting to secure checkout…</p>
-        ) : fatal ? (
+          <p className="mt-10 text-sm text-white/50">Loading checkout options…</p>
+        ) : (
           <div className="mt-10 space-y-4">
-            <p className="rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]" role="alert">
-              {fatal}
-            </p>
+            {fatal ? (
+              <p className="rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]" role="alert">
+                {fatal}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              disabled={checkoutBusy}
+              onClick={() => void startCheckout()}
+              className="flex min-h-[3rem] w-full items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] disabled:opacity-45"
+            >
+              {checkoutBusy ? "Redirecting…" : "Continue to secure checkout"}
+            </button>
             <button
               type="button"
               onClick={abandon}
-              className="text-sm font-semibold text-[#FF7E00] underline-offset-2 hover:underline"
+              className="w-full text-center text-xs font-semibold uppercase tracking-wide text-white/40 transition hover:text-white/65"
             >
               Cancel and delete my sign-up
             </button>
-            <p>
-              <Link href="/" className="text-xs text-white/45 hover:text-white/65">
-                Home
-              </Link>
-            </p>
           </div>
-        ) : (
-          <p className="mt-10 text-sm text-white/50">If you were not redirected, refresh this page.</p>
         )}
-
-        {!loading && !fatal && !qaSkip ? (
-          <button
-            type="button"
-            onClick={abandon}
-            className="mt-8 w-full text-center text-xs font-semibold uppercase tracking-wide text-white/40 transition hover:text-white/65"
-          >
-            Cancel and delete my sign-up
-          </button>
-        ) : null}
 
         <p className="mt-10 text-xs text-white/35">
           <Link href="/terms" className="underline-offset-2 hover:text-white/55 hover:underline">

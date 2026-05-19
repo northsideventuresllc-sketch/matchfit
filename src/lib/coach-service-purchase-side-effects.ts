@@ -45,7 +45,8 @@ export async function deliverCoachServicePurchaseSideEffects(transactionId: stri
   if (!clientRow?.email?.trim() || clientRow.deidentifiedAt || !trainerRow) return;
 
   const prefs = parseClientNotificationPrefsJson(clientRow.notificationPrefsJson);
-  const receiptMode = prefs.coachPurchaseReceiptDelivery;
+  const receiptEmail = prefs.coachPurchaseReceiptEmail;
+  const receiptPush = prefs.coachPurchaseReceiptPush;
 
   const clientLabel = clientRow.preferredName?.trim() || clientRow.firstName.trim() || "there";
   const serviceLabel =
@@ -92,34 +93,31 @@ export async function deliverCoachServicePurchaseSideEffects(transactionId: stri
   });
   if (!claimedRow?.purchaseSideEffectsAt) return;
 
-  if (receiptMode === "EMAIL") {
+  if (receiptEmail) {
     try {
-      if (prefs.emailPurchases) {
-        await sendTransactionalEmailIfAllowed({
-          kind: "PURCHASE_CONFIRMATION",
-          to: clientRow.email.trim(),
-          audience: "CLIENT",
-          clientId: clientRow.id,
-          variables: {
-            dashboardUrl: `${baseUrl}/client`,
-            itemLabel: serviceLabel,
-            amount: amountUsd,
-            trainerUsername: trainerRow.username,
-            referenceId: snap.id,
-          },
-        });
-      }
+      await sendTransactionalEmailIfAllowed({
+        kind: "PURCHASE_CONFIRMATION",
+        to: clientRow.email.trim(),
+        audience: "CLIENT",
+        clientId: clientRow.id,
+        variables: {
+          dashboardUrl: `${baseUrl}/client`,
+          itemLabel: serviceLabel,
+          amount: amountUsd,
+          trainerUsername: trainerRow.username,
+          referenceId: snap.id,
+        },
+      });
     } catch (e) {
       console.error("[coach purchase] receipt email failed:", e);
     }
-  } else if (receiptMode === "PUSH") {
-    if (prefs.pushBilling) {
-      void sendWebPushToClient(clientRow.id, {
-        title: "Coach purchase complete",
-        body: `Payment with @${trainerRow.username} — ${serviceLabel} (${amountUsd}).`,
-        url: profileHref,
-      });
-    }
+  }
+  if (receiptPush && prefs.pushBilling) {
+    void sendWebPushToClient(clientRow.id, {
+      title: "Coach purchase complete",
+      body: `Payment with @${trainerRow.username} — ${serviceLabel} (${amountUsd}).`,
+      url: profileHref,
+    });
   }
 
   const trainerPrefs = parseTrainerNotificationPrefsJson(trainerRow.notificationPrefsJson);

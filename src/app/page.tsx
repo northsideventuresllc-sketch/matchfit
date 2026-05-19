@@ -67,6 +67,7 @@ export default async function Home({ searchParams }: HomeProps) {
                 <span className="text-[#E8EAEF]">Match</span>{" "}
                 <span className="text-[#E32B2B]">Fit</span>
               </p>
+              <p className="mt-1 text-[0.6rem] font-bold uppercase tracking-[0.18em] text-[#FFD34E]/90">Beta</p>
             </div>
           </div>
           <HomeLoginMenu homeAuth={homeAuth} />
@@ -104,6 +105,9 @@ export default async function Home({ searchParams }: HomeProps) {
             <span className="text-[#F4F6FA]">for Your Fitness Journey.</span>
           </p>
 
+          <p className="mt-4 inline-flex items-center justify-center rounded-full border border-[#FFD34E]/35 bg-[#FFD34E]/10 px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-[#FFD34E]">
+            Public beta
+          </p>
           <p className="mt-6 max-w-xl text-pretty text-base leading-relaxed text-white/60 sm:text-lg">
             The fitness matchmaking platform that connects clients with the right coaches—and gives trainers
             the tools to grow their brands and client base without the usual friction.
@@ -119,7 +123,7 @@ export default async function Home({ searchParams }: HomeProps) {
           </p>
         </section>
 
-        <FeaturedTrainersCarousel trainers={featuredTrainers} />
+        <FeaturedTrainersCarousel trainers={featuredTrainers} zipInput={zipForFeatured} />
 
         <HomeInfoSections homeAuth={homeAuth} />
       </div>

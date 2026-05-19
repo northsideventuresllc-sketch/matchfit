@@ -1,4 +1,7 @@
+import { subscriptionTrialEndFromStripe } from "@/lib/client-subscription-trial";
+import type { ClientTrialPlan } from "@/lib/match-fit-launch-cohort";
 import { prisma } from "@/lib/prisma";
+import { syncClientSubscriptionFromStripe } from "@/lib/stripe-sync-client-subscription";
 import { getStripe } from "@/lib/stripe-server";
 import { isMatchFitInternalQaClientEmail } from "@/lib/match-fit-internal-qa";
 
@@ -54,6 +57,11 @@ export async function finalizeRegistrationAfterPayment(subscriptionId: string): 
 
   const twoFactorEnabled = hold.twoFactorEnabled;
   const twoFactorMethod = twoFactorEnabled ? hold.twoFactorMethod : "NONE";
+  const trialPlan = (hold.clientTrialPlan ?? sub.metadata?.clientTrialPlan ?? "NONE") as ClientTrialPlan;
+  const launchCohortMember = hold.launchCohortMember || trialPlan === "LAUNCH_7D";
+  const subscriptionTrialEndsAt = subscriptionTrialEndFromStripe(sub);
+  const paidAt =
+    sub.status === "active" && !subscriptionTrialEndsAt ? new Date() : null;
 
   try {
     const client = await prisma.$transaction(async (tx) => {
@@ -77,19 +85,24 @@ export async function finalizeRegistrationAfterPayment(subscriptionId: string): 
           stripeSubscriptionId: subscriptionId,
           stripeSubscriptionActive: true,
           subscriptionGraceUntil: null,
-          stripeLastSubscriptionInvoicePaidAt: new Date(),
+          stripeLastSubscriptionInvoicePaidAt: paidAt,
+          launchCohortMember,
+          clientTrialPlan: trialPlan,
+          subscriptionTrialEndsAt,
         },
       });
       await tx.pendingClientRegistration.delete({ where: { id: hold.id } });
       return c;
     });
 
+    await syncClientSubscriptionFromStripe(subscriptionId);
     return { ok: true, clientId: client.id };
   } catch (e) {
     if (e && typeof e === "object" && "code" in e && (e as { code?: string }).code === "P2002") {
       const existing = await prisma.client.findUnique({ where: { email: hold.email } });
       if (existing) {
         await prisma.pendingClientRegistration.deleteMany({ where: { id: hold.id } });
+        await syncClientSubscriptionFromStripe(subscriptionId);
         return { ok: true, clientId: existing.id, alreadyCompleted: true };
       }
     }
