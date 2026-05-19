@@ -21,15 +21,22 @@ export const TRANSACTIONAL_EMAIL_KINDS = [
   "OFF_PLATFORM_VIOLATION_NOTICE",
   "BUG_REPORT_ACKNOWLEDGMENT",
   "NEW_CLIENT_INQUIRY",
+  "BOOKING_SESSION_CONFIRMED",
   "CONTENT_MODERATION_NOTICE",
   "PAYMENT_FAILED",
   "POLICY_UPDATE",
   "BOOKING_SESSION_CONFIRMED",
+  "BETA_WAITLIST_TRAINER_CONFIRM",
+  "BETA_WAITLIST_CLIENT_CONFIRM",
+  "BETA_WAITLIST_TRAINER_INVITE",
+  "BETA_WAITLIST_CLIENT_INVITE",
+  "CLIENT_MEMBERSHIP_TRIAL_STARTED",
+  "CLIENT_MEMBERSHIP_TRIAL_ENDING",
+  "TRAINER_REGISTRATION_FEE_RECEIPT",
 ] as const;
 
 export type TransactionalEmailKind = (typeof TRANSACTIONAL_EMAIL_KINDS)[number];
 
-/** Short human phrase for internal sample sends — never use raw kind enum strings in subjects. */
 const TRANSACTIONAL_EMAIL_KIND_SAMPLE_LABELS: Record<TransactionalEmailKind, string> = {
   CLIENT_WELCOME: "Client welcome",
   TRAINER_WELCOME: "Trainer welcome",
@@ -50,17 +57,24 @@ const TRANSACTIONAL_EMAIL_KIND_SAMPLE_LABELS: Record<TransactionalEmailKind, str
   OFF_PLATFORM_VIOLATION_NOTICE: "Policy notice",
   BUG_REPORT_ACKNOWLEDGMENT: "Bug report",
   NEW_CLIENT_INQUIRY: "New client inquiry",
+  BOOKING_SESSION_CONFIRMED: "Session confirmed",
   CONTENT_MODERATION_NOTICE: "Content review",
   PAYMENT_FAILED: "Payment issue",
   POLICY_UPDATE: "Policy update",
   BOOKING_SESSION_CONFIRMED: "Session booking confirmed",
+  BETA_WAITLIST_TRAINER_CONFIRM: "Trainer waitlist confirmation",
+  BETA_WAITLIST_CLIENT_CONFIRM: "Client waitlist confirmation",
+  BETA_WAITLIST_TRAINER_INVITE: "Trainer beta invite",
+  BETA_WAITLIST_CLIENT_INVITE: "Client beta invite",
+  CLIENT_MEMBERSHIP_TRIAL_STARTED: "Membership trial started",
+  CLIENT_MEMBERSHIP_TRIAL_ENDING: "Membership trial ending",
+  TRAINER_REGISTRATION_FEE_RECEIPT: "Trainer registration receipt",
 };
 
 export function transactionalEmailKindSampleLabel(kind: TransactionalEmailKind): string {
   return TRANSACTIONAL_EMAIL_KIND_SAMPLE_LABELS[kind];
 }
 
-/** Kinds that are always sent when triggered, regardless of dashboard email toggles. */
 export const MANDATORY_TRANSACTIONAL_EMAIL_KINDS: ReadonlySet<TransactionalEmailKind> = new Set([
   "OTP_2FA",
   "PASSWORD_RESET",
@@ -69,6 +83,12 @@ export const MANDATORY_TRANSACTIONAL_EMAIL_KINDS: ReadonlySet<TransactionalEmail
   "LOGIN_SECURITY_ALERT",
   "ADMIN_REGISTRATION_REQUEST",
   "TRAINER_BACKGROUND_CHECK_REVIEW",
+  "BETA_WAITLIST_TRAINER_CONFIRM",
+  "BETA_WAITLIST_CLIENT_CONFIRM",
+  "BETA_WAITLIST_TRAINER_INVITE",
+  "BETA_WAITLIST_CLIENT_INVITE",
+  "CLIENT_MEMBERSHIP_TRIAL_STARTED",
+  "TRAINER_REGISTRATION_FEE_RECEIPT",
 ]);
 
 export function isMandatoryTransactionalEmailKind(kind: TransactionalEmailKind): boolean {

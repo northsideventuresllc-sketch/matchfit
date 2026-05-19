@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { TRAINER_ONBOARDING_AGREEMENT_BULLETS } from "@/app/trainer/onboarding/trainer-agreement-bullets";
+import { getTrainerOnboardingAgreementBullets } from "@/app/trainer/onboarding/trainer-agreement-bullets";
 import { TrainerComplianceCertCarousel } from "@/components/trainer/trainer-compliance-cert-carousel";
 import { TrainerComplianceCertReferenceDetails } from "@/components/trainer/trainer-compliance-cert-reference-details";
 import { TrainerComplianceCertTracksForm } from "@/components/trainer/trainer-compliance-cert-tracks-form";
 import { TrainerComplianceW9EmailSelfService } from "@/components/trainer/trainer-compliance-w9-email-self-service";
 import { MATCH_FIT_SUPPORT_INBOX } from "@/lib/match-fit-support-inbox";
+import { TrainerRegistrationFeePanel } from "@/components/trainer/trainer-registration-fee-panel";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { OFF_PLATFORM_LIQUIDATED_DAMAGES_NOTICE } from "@/lib/tos-off-platform-deterrent";
 import { backgroundCheckStatusLabel, certificationReviewStatusLabel } from "@/lib/trainer-compliance-status-copy";
@@ -94,6 +95,8 @@ export default async function TrainerComplianceDetailsPage() {
     where: { trainerId },
     select: {
       hasSignedTOS: true,
+      registrationFeeWaived: true,
+      hasPaidRegistrationFee: true,
       hasUploadedW9: true,
       w9Json: true,
       backgroundCheckStatus: true,
@@ -149,6 +152,8 @@ export default async function TrainerComplianceDetailsPage() {
   const nutLabel = certificationReviewStatusLabel(profile.nutritionistCertificationReviewStatus);
   const specLabel = certificationReviewStatusLabel(profile.specialistCertificationReviewStatus);
 
+  const agreementBullets = getTrainerOnboardingAgreementBullets(Boolean(profile.registrationFeeWaived));
+
   return (
     <div className="space-y-10">
       <header className="mx-auto max-w-xl space-y-1 text-center">
@@ -170,6 +175,18 @@ export default async function TrainerComplianceDetailsPage() {
 
       <div className="space-y-10 text-left">
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
+        <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Platform registration fee</h2>
+        <p className="mt-3 text-sm text-white/55">
+          After your background check clears and certifications are approved, pay the one-time Match Fit registration
+          amount through Stripe. Founding coaches (first 10) pay 20% of the Checkr fee; later coaches pay $100 minus the
+          screening credit.
+        </p>
+        <div className="mt-4">
+          <TrainerRegistrationFeePanel />
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
         <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Trainer Terms of Service</h2>
         <p className="mt-3 text-sm leading-relaxed text-white/55">
           You agreed to the platform terms during onboarding. The public Terms of Service page is always available for
@@ -190,7 +207,7 @@ export default async function TrainerComplianceDetailsPage() {
             Trainer acknowledgement checklist
           </summary>
           <ul className="mt-3 list-disc space-y-2 pl-5 text-xs leading-relaxed text-white/50">
-            {TRAINER_ONBOARDING_AGREEMENT_BULLETS.map((b, i) => (
+            {agreementBullets.map((b, i) => (
               <li key={i}>{b}</li>
             ))}
           </ul>

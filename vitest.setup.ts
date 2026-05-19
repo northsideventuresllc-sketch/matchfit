@@ -8,6 +8,7 @@ delete process.env.DATABASE_URL;
 const testDbUrl = process.env.TEST_DATABASE_URL?.trim();
 if (testDbUrl) {
   process.env.DATABASE_URL = testDbUrl;
+  process.env.DIRECT_URL = testDbUrl;
 }
 vi.mock("next/headers", () => ({
   cookies: async () => ({

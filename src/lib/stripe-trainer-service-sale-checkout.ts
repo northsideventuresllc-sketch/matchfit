@@ -3,6 +3,11 @@ import {
   stripeLineItemsFromMarketplaceTotals,
 } from "@/lib/platform-fees";
 import { bookingPurchaseMetaFromSku } from "@/lib/trainer-booking-purchase-meta";
+import {
+  computeCheckoutFeeBreakdown,
+  feeMetadataFromBreakdown,
+  stripeCheckoutLineItemsFromBreakdown,
+} from "@/lib/stripe-checkout-line-items";
 import type { TrainerServiceOfferingLine } from "@/lib/trainer-service-offerings";
 import { publishedPurchaseSkusFromLine, resolvedTrainerServicePublicTitle, type PublishedPurchaseSku } from "@/lib/trainer-service-offerings";
 import { getStripe } from "@/lib/stripe-server";
@@ -13,13 +18,10 @@ export async function createTrainerServiceSaleStripeCheckoutSession(args: {
   clientId: string;
   clientEmail: string;
   line: TrainerServiceOfferingLine;
-  /** When set, overrides `line.priceUsd` for the coach-service subtotal (e.g. a selected variation or bundle tier). */
   overridePriceUsd?: number;
-  /** Primary line item title in Stripe (keep short). */
   checkoutTitle?: string;
   extraMetadata?: Record<string, string>;
   conversationId?: string | null;
-  /** When set (e.g. client SKU picker), drives booking credit metadata on the Stripe session. */
   purchaseSku?: PublishedPurchaseSku | null;
   checkoutContext?: "profile" | "chat";
   successUrl: string;
@@ -38,6 +40,7 @@ export async function createTrainerServiceSaleStripeCheckoutSession(args: {
 
   const totals = buildMarketplaceCheckoutTotals(baseCents, { includeAdminFee: true });
   const { adminCents, processingCents, totalCents } = totals;
+  const breakdown = computeCheckoutFeeBreakdown({ baseCents, includeAdminFee: true, includeProcessingFee: true });
   const catalogTitle = resolvedTrainerServicePublicTitle(args.line);
   const displayTitle = (args.checkoutTitle ?? catalogTitle).trim().slice(0, 120);
   const serviceLabel = displayTitle.slice(0, 240);
@@ -53,6 +56,8 @@ export async function createTrainerServiceSaleStripeCheckoutSession(args: {
     totalChargedCents: String(totalCents),
     adminFeeCents: String(adminCents),
     processingFeeCents: String(processingCents),
+    amountCents: String(breakdown.baseCents),
+    ...feeMetadataFromBreakdown(breakdown),
     serviceId: bookingMeta.serviceId,
     billingUnit: bookingMeta.billingUnit,
     sessionCreditsGranted: String(bookingMeta.sessionCreditsGranted),
@@ -87,6 +92,13 @@ export async function createTrainerServiceSaleStripeCheckoutSession(args: {
     mode: "payment",
     customer_email: args.clientEmail,
     line_items,
+    line_items: stripeCheckoutLineItemsFromBreakdown({
+      breakdown,
+      baseName: `Coach service — ${displayTitle}`,
+      baseDescription: `Match Fit checkout for services with @${args.trainerUsername}.`,
+      includeAdminFee: true,
+      includeProcessingFee: true,
+    }),
     metadata,
     success_url: args.successUrl,
     cancel_url: args.cancelUrl,

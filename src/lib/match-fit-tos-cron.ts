@@ -13,6 +13,7 @@ import {
   backgroundCheckExpiresAt,
   shouldSendBackgroundCheckExpiryWarning,
 } from "@/lib/trainer-background-check-renewal";
+import { runBetaWaitlistCronJobs } from "@/lib/beta-waitlist-service";
 
 export type TosCronSummary = {
   backgroundCheckWarningsSent: number;
@@ -31,6 +32,12 @@ export type TosCronSummary = {
   clientTrialEmails48h: number;
   clientTrialEmails24h: number;
   clientTrialInApp24h: number;
+  betaWaitlist: {
+    trainerInvitesExpired: number;
+    clientInvitesExpired: number;
+    trainerInvitesSent: number;
+    clientInvitesSent: number;
+  };
 };
 
 async function backfillApprovedBackgroundCheckTimestamps(): Promise<number> {
@@ -207,6 +214,16 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     clientTrialInApp24h = trial.inApp24h;
   } catch (e) {
     console.error("[tos cron] client trial reminders", e);
+  let betaWaitlist: Awaited<ReturnType<typeof runBetaWaitlistCronJobs>> = {
+    trainerInvitesExpired: 0,
+    clientInvitesExpired: 0,
+    trainerInvitesSent: 0,
+    clientInvitesSent: 0,
+  };
+  try {
+    betaWaitlist = await runBetaWaitlistCronJobs();
+  } catch (e) {
+    console.error("[tos cron] beta waitlist", e);
   }
   return {
     backgroundCheckClearedBackfill: backfill,
@@ -225,5 +242,6 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     clientTrialEmails48h,
     clientTrialEmails24h,
     clientTrialInApp24h,
+    betaWaitlist,
   };
 }

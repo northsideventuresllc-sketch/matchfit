@@ -29,7 +29,17 @@ export async function isUsernameTaken(username: string): Promise<boolean> {
       status: { in: [...ACTIVE_HOLD_STATUSES] },
     },
   });
-  return Boolean(pending);
+  if (pending) return true;
+  const now = new Date();
+  const reserved = await prisma.betaClientWaitlistEntry.findFirst({
+    where: {
+      desiredUsername: u,
+      status: "INVITED",
+      slotExpiresAt: { gt: now },
+    },
+    select: { id: true },
+  });
+  return Boolean(reserved);
 }
 
 export async function isEmailTaken(email: string): Promise<boolean> {
@@ -43,7 +53,17 @@ export async function isEmailTaken(email: string): Promise<boolean> {
       status: { in: [...ACTIVE_HOLD_STATUSES] },
     },
   });
-  return Boolean(pending);
+  if (pending) return true;
+  const now = new Date();
+  const wl = await prisma.betaClientWaitlistEntry.findFirst({
+    where: {
+      email: e,
+      status: "INVITED",
+      slotExpiresAt: { gt: now },
+    },
+    select: { id: true },
+  });
+  return Boolean(wl);
 }
 
 /** True if another account (or pending registration) already uses this email. */
@@ -64,7 +84,16 @@ export async function isEmailTakenByAnother(email: string, excludeClientId: stri
       status: { in: [...ACTIVE_HOLD_STATUSES] },
     },
   });
-  return Boolean(pending);
+  if (pending) return true;
+  const wl = await prisma.betaClientWaitlistEntry.findFirst({
+    where: {
+      email: e,
+      status: "INVITED",
+      slotExpiresAt: { gt: new Date() },
+    },
+    select: { id: true },
+  });
+  return Boolean(wl);
 }
 
 /** True if another account (or pending registration) already uses this phone. */
@@ -98,5 +127,15 @@ export async function isUsernameTakenByAnother(username: string, excludeClientId
       status: { in: [...ACTIVE_HOLD_STATUSES] },
     },
   });
-  return Boolean(pending);
+  if (pending) return true;
+  const now = new Date();
+  const reserved = await prisma.betaClientWaitlistEntry.findFirst({
+    where: {
+      desiredUsername: u,
+      status: "INVITED",
+      slotExpiresAt: { gt: now },
+    },
+    select: { id: true },
+  });
+  return Boolean(reserved);
 }

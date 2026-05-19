@@ -1,5 +1,8 @@
 import { subscriptionTrialEndFromStripe } from "@/lib/client-subscription-trial";
 import type { ClientTrialPlan } from "@/lib/match-fit-launch-cohort";
+import { BetaCapExceededError, assertClientBetaSlotForFinalize } from "@/lib/beta-cap-enforcement";
+import { notifyClientMembershipTrialStarted } from "@/lib/client-membership-email-notify";
+import { getClientFoundingTrialDays } from "@/lib/match-fit-launch-promotions";
 import { prisma } from "@/lib/prisma";
 import { syncClientSubscriptionFromStripe } from "@/lib/stripe-sync-client-subscription";
 import { getStripe } from "@/lib/stripe-server";
@@ -62,9 +65,11 @@ export async function finalizeRegistrationAfterPayment(subscriptionId: string): 
   const subscriptionTrialEndsAt = subscriptionTrialEndFromStripe(sub);
   const paidAt =
     sub.status === "active" && !subscriptionTrialEndsAt ? new Date() : null;
+  const betaWl = hold.betaClientWaitlistEntryId;
 
   try {
     const client = await prisma.$transaction(async (tx) => {
+      await assertClientBetaSlotForFinalize(tx, betaWl);
       const c = await tx.client.create({
         data: {
           firstName: hold.firstName,
@@ -89,15 +94,50 @@ export async function finalizeRegistrationAfterPayment(subscriptionId: string): 
           launchCohortMember,
           clientTrialPlan: trialPlan,
           subscriptionTrialEndsAt,
+          stripeLastSubscriptionInvoicePaidAt: new Date(),
         },
       });
       await tx.pendingClientRegistration.delete({ where: { id: hold.id } });
+      if (betaWl) {
+        await tx.betaClientWaitlistEntry.updateMany({
+          where: { id: betaWl, status: "INVITED" },
+          data: {
+            status: "REGISTERED",
+            registeredClientId: c.id,
+            updatedAt: new Date(),
+          },
+        });
+      }
       return c;
-    });
+    }, { isolationLevel: "Serializable" });
+
+    if (sub.status === "trialing") {
+      const trialEndUnix = sub.trial_end;
+      const trialEnd =
+        typeof trialEndUnix === "number" && trialEndUnix > 0 ? new Date(trialEndUnix * 1000) : null;
+      const founding =
+        sub.metadata?.matchFitFoundingTrial === "1" || sub.metadata?.matchFitBillingChoice === "founding_trial_14d";
+      const trialDays =
+        founding && trialEnd
+          ? Math.max(1, Math.round((trialEnd.getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
+          : getClientFoundingTrialDays();
+      void notifyClientMembershipTrialStarted({
+        clientId: client.id,
+        email: hold.email,
+        trialDays,
+        trialEndLabel: trialEnd
+          ? trialEnd.toLocaleDateString("en-US", { dateStyle: "long" })
+          : "when your trial ends",
+        foundingSlot: founding,
+      });
+    }
 
     await syncClientSubscriptionFromStripe(subscriptionId);
     return { ok: true, clientId: client.id };
   } catch (e) {
+    if (e instanceof BetaCapExceededError) {
+      return { ok: false, error: e.message };
+    }
     if (e && typeof e === "object" && "code" in e && (e as { code?: string }).code === "P2002") {
       const existing = await prisma.client.findUnique({ where: { email: hold.email } });
       if (existing) {

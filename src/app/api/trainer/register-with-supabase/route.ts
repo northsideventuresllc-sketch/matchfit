@@ -1,6 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { applyTrainerSessionToNextResponse } from "@/lib/session";
 import { sendTrainerWelcomeEmail } from "@/lib/trainer-welcome-email";
+import { evaluateBetaTrainerRegistrationGate } from "@/lib/beta-trainer-register-gate";
+import { markTrainerWaitlistRegistered } from "@/lib/beta-waitlist-service";
+import { BetaCapExceededError } from "@/lib/beta-cap-enforcement";
 import { createTrainerRecord } from "@/lib/trainer-register-service";
 import { isTrainerEmailBlockedFromRegistration } from "@/lib/trainer-background-check-deny";
 import { isTrainerEmailTaken, isTrainerUsernameTaken } from "@/lib/trainer-queries";
@@ -66,6 +69,17 @@ export async function POST(req: Request) {
     }
 
     const username = body.username.trim();
+
+    const gate = await evaluateBetaTrainerRegistrationGate({
+      serviceZipCode: body.serviceZipCode ?? "",
+      email,
+      username,
+      betaInviteToken: body.betaInviteToken,
+    });
+    if (!gate.ok) {
+      return NextResponse.json({ error: gate.error, code: gate.code }, { status: gate.status });
+    }
+
     if (await isTrainerUsernameTaken(username)) {
       return NextResponse.json({ error: "That username is already taken." }, { status: 409 });
     }
@@ -82,7 +96,13 @@ export async function POST(req: Request) {
       );
     }
 
-    const { id: trainerId, email: createdEmail } = await createTrainerRecord(body);
+    const { id: trainerId, email: createdEmail } = await createTrainerRecord(body, {
+      betaInviteEntryId: gate.betaInviteEntryId,
+    });
+
+    if (gate.ok && gate.betaInviteEntryId) {
+      await markTrainerWaitlistRegistered(gate.betaInviteEntryId, trainerId);
+    }
 
     const res = NextResponse.json({ ok: true, next: "/trainer/onboarding" });
     await applyTrainerSessionToNextResponse(res, trainerId, body.stayLoggedIn);
@@ -93,6 +113,9 @@ export async function POST(req: Request) {
     }).catch((err) => console.error("[trainer register-with-supabase] welcome email failed:", err));
     return res;
   } catch (e) {
+    if (e instanceof BetaCapExceededError) {
+      return NextResponse.json({ error: e.message, code: e.code }, { status: 403 });
+    }
     const { message, status } = publicApiErrorFromUnknown(e, "Registration failed. Please try again.", {
       logLabel: "[Match Fit trainer register-with-supabase]",
     });

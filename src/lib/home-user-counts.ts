@@ -28,6 +28,12 @@ function isMissingInternalQaSyntheticPersonaColumn(e: unknown): boolean {
 async function queryHomeUserCounts(excludeInternalQaSynthetic: boolean): Promise<HomeUserCounts> {
   const trainerMember = homeUserCountTrainerWhereSql({ excludeInternalQaSynthetic });
   const clientMember = homeUserCountClientWhereSql({ excludeInternalQaSynthetic });
+  const trainerSynthClause = excludeInternalQaSynthetic
+    ? Prisma.sql`AND t."internalQaSyntheticPersona" = false`
+    : Prisma.empty;
+  const clientSynthClause = excludeInternalQaSynthetic
+    ? Prisma.sql`AND c."internalQaSyntheticPersona" = false`
+    : Prisma.empty;
 
   const rows = await prisma.$queryRaw<CountRow[]>`
     SELECT
@@ -36,6 +42,7 @@ async function queryHomeUserCounts(excludeInternalQaSynthetic: boolean): Promise
         FROM "trainers" t
         WHERE t."deidentifiedAt" IS NULL
           ${trainerMember}
+          ${trainerSynthClause}
       ) AS trainers_total,
       (
         SELECT COUNT(*)::bigint
@@ -43,6 +50,7 @@ async function queryHomeUserCounts(excludeInternalQaSynthetic: boolean): Promise
         INNER JOIN "trainer_profiles" p ON p."trainerId" = t."id"
         WHERE t."deidentifiedAt" IS NULL
           ${trainerMember}
+          ${trainerSynthClause}
           AND p."dashboardActivatedAt" IS NOT NULL
           AND (
             p."dashboardActivatedAt" >= NOW() - INTERVAL '60 days'
@@ -51,6 +59,8 @@ async function queryHomeUserCounts(excludeInternalQaSynthetic: boolean): Promise
               FROM "trainer_client_chat_messages" m
               INNER JOIN "trainer_client_conversations" conv ON conv."id" = m."conversationId"
               WHERE conv."trainerId" = t."id"
+              INNER JOIN "trainer_client_conversations" c ON c."id" = m."conversationId"
+              WHERE c."trainerId" = t."id"
                 AND m."authorRole" = 'TRAINER'
                 AND m."createdAt" >= NOW() - INTERVAL '7 days'
             )
@@ -79,12 +89,14 @@ async function queryHomeUserCounts(excludeInternalQaSynthetic: boolean): Promise
         FROM "clients" c
         WHERE c."deidentifiedAt" IS NULL
           ${clientMember}
+          ${clientSynthClause}
       ) AS clients_total,
       (
         SELECT COUNT(*)::bigint
         FROM "clients" c
         WHERE c."deidentifiedAt" IS NULL
           ${clientMember}
+          ${clientSynthClause}
           AND (
             c."stripeSubscriptionId" IS NULL
             OR TRIM(c."stripeSubscriptionId") = ''
@@ -113,6 +125,13 @@ async function queryHomeUserCounts(excludeInternalQaSynthetic: boolean): Promise
 
 /**
  * Homepage marketing counters — real members only (excludes internal QA, demo seeds, and synthetic personas).
+ * Homepage marketing counters. Trainers “active”: dashboard onboarding completed and either
+ * activated in the last 60 days or platform activity (messages, sessions, FitHub, punch-ins) in the last 7 days.
+ * Clients “active”: billing in good standing (no platform sub, active sub, or grace window) or a subscription
+ * invoice paid in the last 14 days (`stripeLastSubscriptionInvoicePaidAt`, maintained by Stripe webhooks).
+ *
+ * If migration `20260515182000_internal_qa_sandbox` is not applied yet, retries without filtering on
+ * `internalQaSyntheticPersona` (equivalent to “no synthetic rows” on an unmigrated DB).
  */
 export async function getHomeUserCounts(): Promise<HomeUserCounts> {
   try {

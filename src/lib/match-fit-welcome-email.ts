@@ -5,8 +5,9 @@ import {
   formatTransactionalEmailSubject,
   matchFitEmailHeroKickerHtml,
 } from "@/lib/match-fit-email-shell";
+import { appBaseUrlForEmail, formatTransactionalEmailSubject } from "@/lib/match-fit-email-shell";
 import { prisma } from "@/lib/prisma";
-import { RESEND_DEV_INBOX, RESEND_ONBOARDING_FROM } from "@/lib/resend-client";
+import { buildTransactionalEmail } from "@/lib/transactional-email-templates";
 import { clientAllowsTransactionalEmailKind } from "@/lib/transactional-email-prefs";
 import { parseClientNotificationPrefsJson } from "@/lib/client-notification-prefs";
 
@@ -138,8 +139,7 @@ export type SendWelcomeEmailInput = {
 };
 
 /**
- * Sends the new-user welcome email via the Resend SDK.
- * In development, mirrors {@link sendResendEmail}: From onboarding sender, To dev inbox when needed.
+ * Sends the new-user welcome email via the shared CLIENT_WELCOME transactional template.
  */
 export async function sendMatchFitWelcomeEmail(input: SendWelcomeEmailInput): Promise<void> {
   const key = process.env.RESEND_API_KEY?.trim();
@@ -150,8 +150,6 @@ export async function sendMatchFitWelcomeEmail(input: SendWelcomeEmailInput): Pr
   let to = input.to.trim();
   const devInbox = normalizeEmail(RESEND_DEV_INBOX);
   const intended = normalizeEmail(to);
-  let intendedToNote: string | null = null;
-  let intendedLine: string | null = null;
 
   try {
     const clientRow = await prisma.client.findFirst({
@@ -168,9 +166,17 @@ export async function sendMatchFitWelcomeEmail(input: SendWelcomeEmailInput): Pr
     console.error("[Match Fit welcome email] preference check failed:", e);
   }
 
+  const base = appBaseUrlForEmail();
+  const dashboardUrl = `${base.replace(/\/$/, "")}/client`;
+  const firstName = input.firstName?.trim() ? input.firstName.trim().slice(0, 80) : "there";
+
+  const { subject: subj, text, html } = buildTransactionalEmail("CLIENT_WELCOME", {
+    firstName,
+    dashboardUrl,
+  });
+  const subject = formatTransactionalEmailSubject(subj);
+
   if (process.env.NODE_ENV === "development" && intended !== devInbox) {
-    intendedToNote = `<strong>Development</strong> — intended recipient: <code style="font-size:12px">${escapeHtml(input.to.trim())}</code>`;
-    intendedLine = `Development — intended recipient: ${input.to.trim()}`;
     to = RESEND_DEV_INBOX;
   }
 
@@ -191,27 +197,15 @@ export async function sendMatchFitWelcomeEmail(input: SendWelcomeEmailInput): Pr
   });
 
   const resend = new Resend(key);
-  const { error } = await resend.emails.send({
+  const sent = await resend.emails.send({
     from,
     to: [to],
     subject,
-    html,
     text,
+    html,
     replyTo: process.env.NODE_ENV === "development" ? undefined : "support@match-fit.net",
   });
-
-  if (error) {
-    const msg =
-      typeof error === "object" && error && "message" in error && typeof (error as { message: unknown }).message === "string"
-        ? (error as { message: string }).message
-        : "Resend rejected the email.";
-    const sc =
-      typeof error === "object" &&
-      error &&
-      "statusCode" in error &&
-      typeof (error as { statusCode: unknown }).statusCode === "number"
-        ? (error as { statusCode: number }).statusCode
-        : 422;
-    throw new Error(`Resend HTTP ${sc}: ${msg}`);
+  if (sent.error) {
+    throw new Error(sent.error.message);
   }
 }

@@ -2,14 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { getSupabaseEmailCallbackUrl, isSupabaseConfigured } from "@/lib/supabase/email-callback-url";
 import { tryCreateMatchFitSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { writeTrainerSignupDraft } from "@/lib/trainer-supabase-signup-draft";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
-import { FormEvent, useRef, useState } from "react";
+import { BetaCapFullSignupNotice } from "@/components/beta-cap-full-signup-notice";
+import { useBetaLaunchStatus } from "@/hooks/use-beta-launch-status";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
@@ -28,6 +30,15 @@ function simpleEmailValid(email: string): boolean {
 
 export default function TrainerSignUpClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const betaInviteFromUrl = searchParams.get("betaInvite")?.trim() || "";
+  const [serviceZipCode, setServiceZipCode] = useState("");
+  const { status: betaStatus, loading: betaStatusLoading } = useBetaLaunchStatus();
+  const betaGatesOn = betaStatus?.gatesEnabled === true;
+  const trainerCapFull =
+    betaStatus?.gatesEnabled === true &&
+    betaStatus.trainerWaitlistOpen === true &&
+    !betaInviteFromUrl;
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
@@ -39,9 +50,29 @@ export default function TrainerSignUpClient() {
   const [showPassword, setShowPassword] = useState(false);
   const [stayLoggedIn, setStayLoggedIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [betaInviteReserved, setBetaInviteReserved] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [verificationEmailSent, setVerificationEmailSent] = useState(false);
   const turnstileRef = useRef<TurnstileWidgetHandle>(null);
+
+  useEffect(() => {
+    if (!betaInviteFromUrl) return;
+    let cancelled = false;
+    void fetch(`/api/public/beta-invite?betaInvite=${encodeURIComponent(betaInviteFromUrl)}`)
+      .then((r) => r.json())
+      .then((d: { valid?: boolean; firstName?: string; email?: string; desiredUsername?: string }) => {
+        if (cancelled || !d.valid) return;
+        if (d.firstName?.trim()) setFirstName(d.firstName.trim());
+        if (d.email?.trim()) setEmail(d.email.trim().toLowerCase());
+        if (d.desiredUsername?.trim()) setUsername(d.desiredUsername.trim());
+        setBetaInviteReserved(d.desiredUsername?.trim() ?? null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [betaInviteFromUrl]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -85,6 +116,13 @@ export default function TrainerSignUpClient() {
       setError("Please agree to the Terms of Service to continue.");
       return;
     }
+    if (betaGatesOn) {
+      const z = serviceZipCode.trim();
+      if (!/^\d{5}(-\d{4})?$/.test(z)) {
+        setError("Enter your primary Atlanta metro ZIP (5 digits).");
+        return;
+      }
+    }
     if (TURNSTILE_SITE_KEY) {
       const token = turnstileRef.current?.getToken();
       if (!token) {
@@ -97,6 +135,19 @@ export default function TrainerSignUpClient() {
     try {
       const turnstileToken = TURNSTILE_SITE_KEY ? turnstileRef.current?.getToken() : undefined;
       const emailNorm = email.trim().toLowerCase();
+      const registerCore = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        username: u,
+        phone: phone.trim(),
+        email: emailNorm,
+        password,
+        agreedToTerms: true,
+        stayLoggedIn,
+        serviceZipCode: serviceZipCode.trim(),
+        ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
+        ...(turnstileToken ? { turnstileToken } : {}),
+      };
 
       if (isSupabaseConfigured()) {
         const supabase = tryCreateMatchFitSupabaseBrowserClient();
@@ -130,21 +181,16 @@ export default function TrainerSignUpClient() {
             method: "POST",
             credentials: "include",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              firstName: firstName.trim(),
-              lastName: lastName.trim(),
-              username: u,
-              phone: phone.trim(),
-              email: emailNorm,
-              password,
-              agreedToTerms: true,
-              stayLoggedIn,
-              ...(turnstileToken ? { turnstileToken } : {}),
-            }),
+            body: JSON.stringify(registerCore),
           });
-          const data = (await res.json()) as { error?: string; next?: string };
+          const data = (await res.json()) as { error?: string; next?: string; code?: string };
           if (!res.ok) {
-            setError(data.error ?? "Could not create your account.");
+            setErrorCode(data.code ?? null);
+            setError(
+              data.code === "BETA_TRAINER_CAP"
+                ? (data.error ?? "Coach slots are full for this beta.")
+                : (data.error ?? "Could not create your account."),
+            );
             turnstileRef.current?.reset();
             setBusy(false);
             return;
@@ -162,6 +208,8 @@ export default function TrainerSignUpClient() {
           password,
           agreedToTerms: true,
           stayLoggedIn,
+          serviceZipCode: serviceZipCode.trim(),
+          ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
         });
         setVerificationEmailSent(true);
         setBusy(false);
@@ -172,21 +220,16 @@ export default function TrainerSignUpClient() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          username: u,
-          phone: phone.trim(),
-          email: emailNorm,
-          password,
-          agreedToTerms: true,
-          stayLoggedIn,
-          ...(turnstileToken ? { turnstileToken } : {}),
-        }),
+        body: JSON.stringify(registerCore),
       });
-      const data = (await res.json()) as { error?: string; next?: string };
+      const data = (await res.json()) as { error?: string; next?: string; code?: string };
       if (!res.ok) {
-        setError(data.error ?? "Could not create your account.");
+        setErrorCode(data.code ?? null);
+        setError(
+          data.code === "BETA_TRAINER_CAP"
+            ? (data.error ?? "Coach slots are full for this beta.")
+            : (data.error ?? "Could not create your account."),
+        );
         turnstileRef.current?.reset();
         return;
       }
@@ -231,17 +274,43 @@ export default function TrainerSignUpClient() {
 
         <h1 className="mt-10 text-2xl font-black tracking-tight sm:mt-12 sm:text-3xl">Create Your Trainer Account</h1>
         <p className="mt-2 text-sm leading-relaxed text-white/55 sm:text-base">
-          You will complete compliance steps after this screen. Use a strong password; you can enable two-factor
-          authentication later just like clients.
+          You will complete compliance steps after this screen. Atlanta metro beta coaches only — use a strong password;
+          you can enable two-factor authentication later just like clients.
         </p>
 
+        {betaInviteReserved ? (
+          <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100/95">
+            Beta invite active — sign up as <span className="font-semibold text-white">@{betaInviteReserved}</span> with
+            the invited email before your reserved slot expires.
+          </p>
+        ) : null}
+
         <div className="mt-8 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
+          {betaStatusLoading ? (
+            <p className="text-sm text-white/50">Checking availability…</p>
+          ) : trainerCapFull ? (
+            <BetaCapFullSignupNotice
+              role="trainer"
+              waitlistHref="/waitlist/trainer"
+              cap={betaStatus?.trainerCap ?? null}
+              count={betaStatus?.trainerCount ?? null}
+            />
+          ) : (
+            <>
           {error ? (
             <p
               className="mb-5 rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]"
               role="alert"
             >
               {error}
+              {errorCode === "BETA_TRAINER_CAP" ? (
+                <>
+                  {" "}
+                  <Link href="/waitlist/trainer" className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
+                    Join the trainer waitlist
+                  </Link>
+                </>
+              ) : null}
             </p>
           ) : null}
 
@@ -336,6 +405,25 @@ export default function TrainerSignUpClient() {
                 className={inputClass}
               />
             </div>
+
+            {betaGatesOn ? (
+              <div className="flex flex-col gap-2">
+                <label htmlFor="tr-su-zip" className={labelClass}>
+                  Primary service ZIP (Atlanta metro)
+                </label>
+                <input
+                  id="tr-su-zip"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  required
+                  value={serviceZipCode}
+                  onChange={(e) => setServiceZipCode(e.target.value)}
+                  placeholder="30301"
+                  className={inputClass}
+                />
+              </div>
+            ) : null}
 
             <div className="flex flex-col gap-2">
               <label htmlFor="tr-su-email" className={labelClass}>
@@ -454,6 +542,8 @@ export default function TrainerSignUpClient() {
               </span>
             </button>
           </form>
+            </>
+          )}
         </div>
 
         <p className="mt-8 text-center text-xs text-white/40">

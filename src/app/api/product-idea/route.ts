@@ -1,6 +1,8 @@
 import { notifyMatchFitSupportInbox } from "@/lib/match-fit-support-inbox";
 import { prisma } from "@/lib/prisma";
+import { getRequestClientIp } from "@/lib/request-client-ip";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
+import { simpleRateLimitAllow } from "@/lib/simple-rate-limit";
 import { NextResponse } from "next/server";
 
 const CATEGORIES = new Set([
@@ -21,6 +23,10 @@ function validEmail(email: string): boolean {
 
 export async function POST(req: Request) {
   try {
+    const ip = getRequestClientIp(req);
+    if (!simpleRateLimitAllow(`product-idea:${ip}`, 8, 15 * 60 * 1000)) {
+      return NextResponse.json({ error: "Too many submissions. Try again later." }, { status: 429 });
+    }
     const [clientIdSession, trainerIdSession] = await Promise.all([getSessionClientId(), getSessionTrainerId()]);
 
     const body = (await req.json().catch(() => ({}))) as {

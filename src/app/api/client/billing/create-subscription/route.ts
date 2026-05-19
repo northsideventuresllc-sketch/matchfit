@@ -1,3 +1,8 @@
+import {
+  resolveClientSubscriptionBilling,
+  type ClientSubscriptionBillingChoice,
+} from "@/lib/match-fit-launch-promotions";
+import { estimateStripeProcessingFeeCents } from "@/lib/stripe-processing-fee";
 import { purgeExpiredRegistrationHolds } from "@/lib/purge-registration-holds";
 import { stripeTrialConfigForPlan } from "@/lib/client-subscription-trial";
 import {
@@ -9,6 +14,10 @@ import { getRegistrationHoldPendingId } from "@/lib/session";
 import { getStripe } from "@/lib/stripe-server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+
+const bodySchema = z.object({
+  billingChoice: z.enum(["trial_3d", "pay_now"]).optional(),
+});
 
 function errorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -29,8 +38,6 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: Request) {
-  console.log("Stripe Key Loaded:", !!process.env.STRIPE_SECRET_KEY);
-
   try {
     await purgeExpiredRegistrationHolds();
 
@@ -90,13 +97,34 @@ export async function POST(req: Request) {
       where: { id: hold.id },
       data: { clientTrialPlan: trialPlan, launchCohortMember },
     });
+    const billingChoice: ClientSubscriptionBillingChoice | undefined = parsed.success
+      ? parsed.data.billingChoice
+      : undefined;
+
+    const billing = await resolveClientSubscriptionBilling({ billingChoice });
+    if (!billing.foundingSlot && !billingChoice) {
+      return NextResponse.json(
+        { error: "Choose a membership option: 3-day free trial or pay now.", code: "BILLING_CHOICE_REQUIRED" },
+        { status: 400 },
+      );
+    }
 
     const origin = getAppOrigin(req);
+    const monthlyCents = 1000;
+    const processingCents =
+      billing.choice === "pay_now" ? estimateStripeProcessingFeeCents(monthlyCents) : 0;
+
+    const subscriptionMetadata: Record<string, string> = {
+      holdId: hold.id,
+      matchFitBillingChoice: billing.choice,
+      ...(billing.foundingSlot ? { matchFitFoundingTrial: "1" } : {}),
+    };
 
     try {
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
         customer_email: hold.email,
+        payment_method_collection: "always",
         line_items: [{ price: priceId, quantity: 1 }],
         payment_method_collection: "always",
         success_url: `${origin}/client/subscribe/return?session_id={CHECKOUT_SESSION_ID}`,
@@ -108,6 +136,15 @@ export async function POST(req: Request) {
           trial_settings: trialConfig.trial_period_days
             ? { end_behavior: { missing_payment_method: "cancel" as const } }
             : undefined,
+        metadata: {
+          holdId: hold.id,
+          matchFitBillingChoice: billing.choice,
+          ...(billing.foundingSlot ? { matchFitFoundingTrial: "1" } : {}),
+          ...(processingCents > 0 ? { estimatedFirstInvoiceProcessingCents: String(processingCents) } : {}),
+        },
+        subscription_data: {
+          ...(billing.trialDays > 0 ? { trial_period_days: billing.trialDays } : {}),
+          metadata: subscriptionMetadata,
         },
       });
 
@@ -119,6 +156,12 @@ export async function POST(req: Request) {
       }
 
       return NextResponse.json({ url: session.url, trialPlan });
+      return NextResponse.json({
+        url: session.url,
+        foundingSlot: billing.foundingSlot,
+        trialDays: billing.trialDays,
+        choice: billing.choice,
+      });
     } catch (e) {
       console.error("[create-subscription] Stripe Checkout error:", e);
       return NextResponse.json({ error: `Stripe error: ${errorMessage(e)}` }, { status: 502 });

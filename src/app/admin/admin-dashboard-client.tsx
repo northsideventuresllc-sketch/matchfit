@@ -193,13 +193,13 @@ export function AdminDashboardClient(props: {
             <h1 className="mt-1 text-3xl font-black tracking-tight">Administrator Portal</h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/55">
               <span className="mb-3 block rounded-xl border border-amber-400/30 bg-amber-500/[0.07] px-3 py-2.5 text-xs leading-relaxed text-amber-50/95 sm:text-sm">
-                <span className="font-semibold text-amber-100">First beta.</span> The Administrator Portal is not yet final in this
-                release; complete administrative tooling will be rolled in when Match Fit version 1.0 launches. Until then, capabilities
-                here may be partial or change as we prepare for go-live.
+                <span className="font-semibold text-amber-100">Beta.</span> Tools here may change as we approach public launch.
               </span>
-              Search clients and trainers, then open their dashboards in a secure impersonation session. Use{" "}
-              <strong className="text-white/80">test mode</strong> as a visible reminder while you exercise product flows; it does not
-              disable Stripe or other third parties unless those environments are already in sandbox.
+              Search clients and trainers, then open their dashboards in a secure impersonation session.{" "}
+              <Link href="/admin/beta-waitlists" className="text-cyan-300/90 underline-offset-4 hover:underline">
+                Beta waitlists
+              </Link>
+              . Use <strong className="text-white/80">test mode</strong> as a visible reminder while you exercise product flows.
             </p>
           </div>
           <button

@@ -1,7 +1,8 @@
 import { isEmailTaken, isUsernameTaken } from "@/lib/client-queries";
 import { deliverSignupOtp } from "@/lib/deliver-otp";
 import { generateSixDigitCode, hashOtp } from "@/lib/otp";
-import { hashPassword } from "@/lib/password";
+import { BetaCapExceededError } from "@/lib/beta-cap-enforcement";
+import { createClientRegistrationHold } from "@/lib/client-registration-hold";
 import { purgeExpiredRegistrationHolds } from "@/lib/purge-registration-holds";
 import { prisma } from "@/lib/prisma";
 import {
@@ -11,6 +12,7 @@ import {
 } from "@/lib/validations/client-register";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { verifyTurnstileToken } from "@/lib/turnstile-verify";
+import { evaluateBetaClientRegistrationGate } from "@/lib/beta-client-register-gate";
 import { NextResponse } from "next/server";
 
 function isAtLeast18(birthYmd: string): boolean {
@@ -43,6 +45,16 @@ export async function POST(req: Request) {
     const username = body.username.trim();
     const email = body.email.trim().toLowerCase();
 
+    const gate = await evaluateBetaClientRegistrationGate({
+      zipCode: body.zipCode,
+      email,
+      username,
+      betaInviteToken: body.betaInviteToken,
+    });
+    if (!gate.ok) {
+      return NextResponse.json({ error: gate.error, code: gate.code }, { status: gate.status });
+    }
+
     if (await isUsernameTaken(username)) {
       return NextResponse.json({ error: "That username is already taken." }, { status: 409 });
     }
@@ -50,7 +62,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "That email is already registered." }, { status: 409 });
     }
 
-    const passwordHash = await hashPassword(body.password);
     const code = generateSixDigitCode();
     const otpHash = hashOtp(code);
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -58,27 +69,14 @@ export async function POST(req: Request) {
 
     const method = "EMAIL" as const;
 
-    const pending = await prisma.pendingClientRegistration.create({
-      data: {
-        firstName: body.firstName,
-        lastName: body.lastName,
-        preferredName: body.preferredName,
-        username,
-        phone: body.phone.trim(),
-        email,
-        passwordHash,
-        zipCode: body.zipCode,
-        dateOfBirth: body.dateOfBirth,
-        termsAcceptedAt: new Date(),
-        privacyPolicyAcceptedAt: new Date(),
-        status: "PENDING_2FA",
-        twoFactorEnabled: true,
-        twoFactorMethod: method,
-        otpHash,
-        otpExpiresAt,
-        stayLoggedIn: body.stayLoggedIn,
-        expiresAt,
-      },
+    const pending = await createClientRegistrationHold(body, {
+      betaClientWaitlistEntryId: gate.betaClientWaitlistEntryId,
+      status: "PENDING_2FA",
+      twoFactorEnabled: true,
+      twoFactorMethod: method,
+      otpHash,
+      otpExpiresAt,
+      expiresAt,
     });
 
     try {
@@ -98,6 +96,9 @@ export async function POST(req: Request) {
       pendingId: pending.id,
     });
   } catch (e) {
+    if (e instanceof BetaCapExceededError) {
+      return NextResponse.json({ error: e.message, code: e.code }, { status: 403 });
+    }
     const { message, status } = publicApiErrorFromUnknown(e, "Could not start verification. Try again.", {
       logLabel: "[Match Fit register pending-2FA]",
     });

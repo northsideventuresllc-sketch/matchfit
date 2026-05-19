@@ -50,6 +50,8 @@ void (async () => {
 
   const clientEmail = req("MATCH_FIT_INTERNAL_QA_SEED_CLIENT_EMAIL").toLowerCase();
   const trainerEmail = req("MATCH_FIT_INTERNAL_QA_SEED_TRAINER_EMAIL").toLowerCase();
+  const clientEmail = req("MATCH_FIT_INTERNAL_QA_SEED_CLIENT_EMAIL");
+  const trainerEmail = req("MATCH_FIT_INTERNAL_QA_SEED_TRAINER_EMAIL");
   if (!isMatchFitInternalQaClientEmail(clientEmail) || !isMatchFitInternalQaTrainerEmail(trainerEmail)) {
     console.error(
       "Seed emails must be listed in MATCH_FIT_INTERNAL_QA_CLIENT_EMAILS / MATCH_FIT_INTERNAL_QA_TRAINER_EMAILS.",
@@ -66,9 +68,7 @@ void (async () => {
   const trainerHash = await hashPassword(trainerPassword);
   const now = new Date();
 
-  const existingClient = await prisma.client.findFirst({
-    where: { email: { equals: clientEmail, mode: "insensitive" } },
-  });
+  const existingClient = await prisma.client.findUnique({ where: { email: clientEmail } });
   if (existingClient) {
     await prisma.client.update({
       where: { id: existingClient.id },

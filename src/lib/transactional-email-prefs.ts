@@ -10,6 +10,27 @@ export function clientAllowsTransactionalEmailKind(
 ): boolean {
   if (isMandatoryTransactionalEmailKind(_kind)) return true;
   return true;
+  if (isMandatoryTransactionalEmailKind(kind)) return true;
+  switch (kind) {
+    case "CLIENT_WELCOME":
+      return prefs.emailWelcome;
+    case "PURCHASE_CONFIRMATION":
+    case "PAYMENT_FAILED":
+      return prefs.emailPurchases;
+    case "SUBSCRIPTION_MANAGEMENT_UPDATE":
+    case "POLICY_UPDATE":
+      return prefs.emailBilling;
+    case "BACKGROUND_CHECK_UPDATE":
+      return prefs.emailCompliance;
+    case "OFF_PLATFORM_VIOLATION_NOTICE":
+    case "CONTENT_MODERATION_NOTICE":
+      return prefs.emailTrustSafety;
+    case "BUG_REPORT_ACKNOWLEDGMENT":
+    case "BOOKING_SESSION_CONFIRMED":
+      return prefs.emailProduct;
+    default:
+      return true;
+  }
 }
 
 /** Whether a trainer account should receive this optional transactional email. */

@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAppOriginFromRequest } from "@/lib/app-origin";
 import { buildMarketplaceCheckoutTotals, stripeLineItemsFromMarketplaceTotals } from "@/lib/platform-fees";
+import {
+  computeCheckoutFeeBreakdown,
+  feeMetadataFromBreakdown,
+  stripeCheckoutLineItemsFromBreakdown,
+} from "@/lib/stripe-checkout-line-items";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { getStripe } from "@/lib/stripe-server";
@@ -82,6 +87,22 @@ export async function POST(req: Request) {
       mode: "payment",
       customer_email: trainer.email,
       line_items,
+    const breakdown = computeCheckoutFeeBreakdown({
+      baseCents: tier.usdCents,
+      includeAdminFee: true,
+      includeProcessingFee: true,
+    });
+    const usdBase = breakdown.baseCents / 100;
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      customer_email: trainer.email,
+      line_items: stripeCheckoutLineItemsFromBreakdown({
+        breakdown,
+        baseName: `Match Fit promotion tokens — ${tier.label} pack`,
+        baseDescription: `${tier.tokens} tokens — pack subtotal $${usdBase.toFixed(2)} (before fees). Premium Page coaches only.`,
+        includeAdminFee: true,
+        includeProcessingFee: true,
+      }),
       metadata: {
         purpose: "trainer_promo_tokens",
         trainerId,
@@ -91,6 +112,7 @@ export async function POST(req: Request) {
         adminFeeCents: String(totals.adminCents),
         processingFeeCents: String(totals.processingCents),
         totalChargedCents: String(totals.totalCents),
+        ...feeMetadataFromBreakdown(breakdown),
       },
       success_url: `${origin}/trainer/dashboard/premium/promo-tokens?checkout=success`,
       cancel_url: `${origin}/trainer/dashboard/premium/promo-tokens?checkout=cancel`,

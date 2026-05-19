@@ -1,3 +1,4 @@
+import { defaultBackgroundCheckVendorPaidCents } from "@/lib/checkr";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { verifyTrainerOnboardingDevPassword } from "@/lib/trainer-dev-bypass";
@@ -47,11 +48,13 @@ export async function POST(req: Request) {
     const vendor = await mockInitiateTrainerBackgroundCheck({ trainerId });
 
     const clearedNow = new Date();
+    const vendorPaidCents = feePaid ? defaultBackgroundCheckVendorPaidCents() : null;
     await prisma.trainerProfile.upsert({
       where: { trainerId },
       create: {
         trainerId,
         hasPaidBackgroundFee: feePaid,
+        ...(vendorPaidCents != null ? { backgroundCheckVendorPaidCents: vendorPaidCents } : {}),
         backgroundCheckStatus: "APPROVED",
         backgroundCheckReviewStatus: "APPROVED",
         backgroundCheckClearedAt: clearedNow,
@@ -59,6 +62,7 @@ export async function POST(req: Request) {
       },
       update: {
         hasPaidBackgroundFee: feePaid,
+        ...(vendorPaidCents != null ? { backgroundCheckVendorPaidCents: vendorPaidCents } : {}),
         backgroundCheckStatus: "APPROVED",
         backgroundCheckReviewStatus: "APPROVED",
         backgroundCheckClearedAt: clearedNow,

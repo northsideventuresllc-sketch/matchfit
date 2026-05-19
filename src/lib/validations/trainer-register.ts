@@ -30,6 +30,9 @@ export const trainerSignupSchema = z
     agreedToTerms: z.boolean(),
     stayLoggedIn: z.boolean().optional().default(true),
     turnstileToken: z.string().optional(),
+    /** Required when Match Fit beta geo gates are enabled. */
+    serviceZipCode: z.string().trim().max(12).optional().default(""),
+    betaInviteToken: z.string().optional(),
   })
   .refine((d) => d.agreedToTerms === true, {
     message: "You must accept the Terms of Service.",

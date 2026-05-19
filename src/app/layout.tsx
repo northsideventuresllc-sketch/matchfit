@@ -17,6 +17,8 @@ export const metadata: Metadata = {
   title: "Match Fit | The Perfect Match for Your Fitness Journey",
   description:
     "Match Fit connects clients with certified coaches for in-person, virtual, DIY, and nutrition support—browse, match, and train on your terms.",
+  title: "Match Fit",
+  description: "Find coaches who fit your goals — Atlanta beta.",
 };
 
 export default function RootLayout({
