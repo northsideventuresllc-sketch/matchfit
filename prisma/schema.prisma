@@ -816,6 +816,7 @@ model TrainerProfile {
   /// Amount paid to Checkr/vendor for background screening (cents), from webhook or mock.
   backgroundCheckVendorPaidCents Int?
   checkrCandidateId String?
+  /// Checkr report id (non-PII reference; sensitive vendor payload lives in Supabase vault).
   checkrReportId    String?
   /// FOUNDING_BG_SURCHARGE_20PCT | STANDARD_100_MINUS_BG — set at trainer signup from launch slot.
   registrationFeePricingMode String @default("FOUNDING_BG_SURCHARGE_20PCT")
@@ -890,8 +891,6 @@ model TrainerProfile {
   backgroundCheckPaidCents Int?
   /// When the remaining trainer registration balance was paid after screening + cert verification.
   signupFeeBalancePaidAt DateTime?
-  /// Checkr report id (non-PII reference; sensitive vendor payload lives in Supabase vault).
-  checkrReportId String?
   /// Checkr invitation id while the trainer completes the vendor flow.
   checkrInvitationId String?
   /// When Match Fit emailed operators for human review of a flagged report.
