@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { parseClientNotificationPrefsJson } from "@/lib/client-notification-prefs";
 import { parseTrainerNotificationPrefsJson } from "@/lib/trainer-notification-prefs";
 import { sendMatchFitBrandedEmail } from "@/lib/match-fit-branded-email";
+import { MATCH_FIT_REPLY_TO } from "@/lib/resend-client";
 import { buildTransactionalEmail } from "@/lib/transactional-email-templates";
 import type { TransactionalEmailKind } from "@/lib/transactional-email-kinds";
 import { isMandatoryTransactionalEmailKind } from "@/lib/transactional-email-kinds";
@@ -60,7 +61,7 @@ export async function sendTransactionalEmailIfAllowed(params: SendTransactionalE
     subject,
     text,
     html,
-    replyTo: params.audience === "STAFF" ? undefined : "support@match-fit.net",
+    replyTo: params.audience === "STAFF" ? undefined : MATCH_FIT_REPLY_TO,
   });
   return { sent: true };
 }

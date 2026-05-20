@@ -4,9 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { buildTransactionalEmail } from "@/lib/transactional-email-templates";
 import { clientAllowsTransactionalEmailKind } from "@/lib/transactional-email-prefs";
 import { parseClientNotificationPrefsJson } from "@/lib/client-notification-prefs";
-import { RESEND_DEV_INBOX, RESEND_ONBOARDING_FROM } from "@/lib/resend-client";
-
-const WELCOME_FROM_PRODUCTION = "Match Fit <support@match-fit.net>";
+import {
+  MATCH_FIT_REPLY_TO,
+  RESEND_DEV_INBOX,
+  RESEND_ONBOARDING_FROM,
+  matchFitProductionFromHeader,
+} from "@/lib/resend-client";
 
 function normalizeEmail(s: string): string {
   return s.trim().toLowerCase();
@@ -60,7 +63,7 @@ export async function sendMatchFitWelcomeEmail(input: SendWelcomeEmailInput): Pr
     to = RESEND_DEV_INBOX;
   }
 
-  const from = process.env.NODE_ENV === "development" ? RESEND_ONBOARDING_FROM : WELCOME_FROM_PRODUCTION;
+  const from = process.env.NODE_ENV === "development" ? RESEND_ONBOARDING_FROM : matchFitProductionFromHeader();
 
   const resend = new Resend(key);
   const sent = await resend.emails.send({
@@ -69,7 +72,7 @@ export async function sendMatchFitWelcomeEmail(input: SendWelcomeEmailInput): Pr
     subject,
     text,
     html,
-    replyTo: process.env.NODE_ENV === "development" ? undefined : "support@match-fit.net",
+    replyTo: process.env.NODE_ENV === "development" ? undefined : MATCH_FIT_REPLY_TO,
   });
   if (sent.error) {
     throw new Error(sent.error.message);
