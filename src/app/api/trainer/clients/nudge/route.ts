@@ -1,5 +1,5 @@
 import { queueChatAdminReview } from "@/lib/chat-admin-review-queue";
-import { scanChatTextForLeakageSignals } from "@/lib/chat-leakage-detection";
+import { getChatContactLeakageBlockReason, scanChatTextForLeakageSignals } from "@/lib/chat-leakage-detection";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
@@ -60,6 +60,12 @@ export async function POST(req: Request) {
       typeof body.message === "string" ? body.message.trim().slice(0, MAX_MESSAGE) : null;
     if (message === "") {
       return NextResponse.json({ error: "Message cannot be empty when provided." }, { status: 400 });
+    }
+    if (message) {
+      const contactBlock = getChatContactLeakageBlockReason(message);
+      if (contactBlock) {
+        return NextResponse.json({ error: contactBlock, code: "CHAT_CONTACT_BLOCKED" }, { status: 400 });
+      }
     }
 
     const client = await prisma.client.findUnique({

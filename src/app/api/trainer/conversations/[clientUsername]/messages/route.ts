@@ -1,5 +1,6 @@
 import { parseChatAttachmentJson } from "@/lib/chat-attachment";
 import { runOutboundChatComplianceMonitoring } from "@/lib/chat-compliance-monitor";
+import { getChatContactLeakageBlockReason } from "@/lib/chat-leakage-detection";
 import { prisma } from "@/lib/prisma";
 import {
   conversationArchiveMetaForActor,
@@ -295,6 +296,11 @@ export async function POST(req: Request, ctx: RouteContext) {
     const gate = canAuthorSendChatMessage(prior, "TRAINER");
     if (!gate.ok) {
       return NextResponse.json({ error: gate.reason }, { status: 429 });
+    }
+
+    const contactBlock = getChatContactLeakageBlockReason(text);
+    if (contactBlock) {
+      return NextResponse.json({ error: contactBlock, code: "CHAT_CONTACT_BLOCKED" }, { status: 400 });
     }
 
     await runOutboundChatComplianceMonitoring({
