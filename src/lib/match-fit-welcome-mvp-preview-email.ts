@@ -1,9 +1,12 @@
 import { Resend } from "resend";
 import { MF_EMAIL_SITE, matchFitEmailLogoUrl } from "@/lib/match-fit-email-brand";
 import { matchFitEmailHeroKickerHtml } from "@/lib/match-fit-email-shell";
-import { RESEND_DEV_INBOX } from "@/lib/resend-client";
-
-const FROM_BRANDED = "Match Fit <support@match-fit.net>";
+import {
+  MATCH_FIT_REPLY_TO,
+  RESEND_DEV_INBOX,
+  RESEND_ONBOARDING_FROM,
+  matchFitProductionFromHeader,
+} from "@/lib/resend-client";
 
 /** Default recipient for internal welcome / Resend checks (see {@link RESEND_DEV_INBOX}). */
 export const MVP_WELCOME_TEST_RECIPIENT = RESEND_DEV_INBOX;
@@ -119,7 +122,7 @@ function buildMvpWelcomeText(dashboardHref: string): string {
 }
 
 /**
- * Sends a branded welcome email from Match Fit &lt;support@match-fit.net&gt; via Resend (domain must be verified).
+ * Sends a branded welcome email from the verified Match Fit domain via Resend.
  */
 export async function sendMatchFitWelcomeMvpPreviewEmail(): Promise<void> {
   const key = process.env.RESEND_API_KEY?.trim();
@@ -133,13 +136,16 @@ export async function sendMatchFitWelcomeMvpPreviewEmail(): Promise<void> {
   const subject = "Welcome to Match Fit";
 
   const resend = new Resend(key);
+  const from =
+    process.env.NODE_ENV === "development" ? RESEND_ONBOARDING_FROM : matchFitProductionFromHeader();
+
   const { error } = await resend.emails.send({
-    from: FROM_BRANDED,
+    from,
     to: [to],
     subject,
     html: buildMvpWelcomeHtml(dashboardHref),
     text: buildMvpWelcomeText(dashboardHref),
-    replyTo: "support@match-fit.net",
+    replyTo: MATCH_FIT_REPLY_TO,
   });
 
   if (error) {

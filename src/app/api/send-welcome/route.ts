@@ -21,7 +21,7 @@ function isSendWelcomeAllowed(req: Request): boolean {
 }
 
 /**
- * POST — sends a branded welcome email from support@match-fit.net (Resend).
+ * POST — sends a branded welcome email from the verified Match Fit domain (Resend).
  * Recipient is the configured internal inbox. Local: no auth. Production: set MATCHFIT_SEND_WELCOME_PREVIEW_SECRET and send Authorization: Bearer &lt;secret&gt;.
  */
 export async function POST(req: Request) {
