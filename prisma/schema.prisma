@@ -1808,6 +1808,25 @@ model BetaClientWaitlistEntry {
   @@schema("public")
 }
 
+/// Stripe Connect sample — maps a demo seller to a V2 connected account (`acct_...`).
+model StripeConnectDemoSeller {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  displayName     String
+  contactEmail    String
+  stripeAccountId String @unique
+
+  /// Platform subscription billed to the connected account (V2 `customer_account` Checkout).
+  platformSubscriptionId     String?
+  platformSubscriptionStatus String?
+
+  @@index([contactEmail])
+  @@map("stripe_connect_demo_sellers")
+  @@schema("public")
+}
+
 // Supabase GoTrue is `auth.*` — use the Supabase client or SQL, not Prisma.
 // Do not list `auth` in `datasource.schemas` with `@@map` models to GoTrue tables:
 // on Prisma 5, `@@ignore` does not exclude models from `db push`, so minimal stubs
