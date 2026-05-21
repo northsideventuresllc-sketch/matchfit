@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 import { deliverCoachServicePurchaseSideEffects } from "@/lib/coach-service-purchase-side-effects";
 import { applyConversationAfterServicePurchase } from "@/lib/trainer-client-booking-credits";
 import { prisma } from "@/lib/prisma";

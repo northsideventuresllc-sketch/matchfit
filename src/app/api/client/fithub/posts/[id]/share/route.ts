@@ -2,7 +2,7 @@ import { isFitHubPostPubliclyInteractable } from "@/lib/fithub-public-feed";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 
 type Ctx = { params: Promise<{ id: string }> };
 

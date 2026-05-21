@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 import { ensureClientFitHubSamplePosts } from "@/lib/client-fithub-sample-posts";
 import { parseClientFithubPrefsJson } from "@/lib/client-fithub-prefs";
 import { clientPreferenceSearchTokens, parseClientMatchPreferencesJson } from "@/lib/client-match-preferences";

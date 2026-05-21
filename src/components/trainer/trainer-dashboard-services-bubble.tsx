@@ -40,7 +40,7 @@ import {
   type TrainerServiceOfferingLine,
   type TrainerServiceOfferingVariation,
   type TrainerServiceOfferingsDocument,
-} from "@/lib/trainer-service-offerings";
+} from "@/lib/trainer-service-offerings-document";
 import { serviceAddOnPresetOptions as presetsForServiceAddOns } from "@/lib/trainer-service-add-on-presets";
 import {
   templateVariationsForService,

@@ -5,8 +5,6 @@
  * Usage (from repo root, DATABASE_URL set):
  *   node scripts/backfill-trainer-fully-approved.js coachshitthead22
  */
-const { PrismaClient } = require("@prisma/client");
-
 const CPT = "/dev/fake-cpt-certification.txt";
 const NUT = "/dev/fake-nutrition-certification.txt";
 
@@ -16,7 +14,8 @@ async function main() {
     console.error("Usage: node scripts/backfill-trainer-fully-approved.js <username>");
     process.exit(1);
   }
-  const prisma = new PrismaClient();
+  const { createPrismaClient } = await import("./create-prisma-client.mjs");
+  const prisma = createPrismaClient();
   try {
     const trainer = await prisma.trainer.findFirst({
       where: { username: { equals: username, mode: "insensitive" } },

@@ -10,7 +10,7 @@ import {
   countActiveTrainerBetaInvites,
   trainerBetaSlotsUsed,
 } from "@/lib/beta-waitlist-service";
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 
 export class BetaCapExceededError extends Error {
   readonly code: "BETA_TRAINER_CAP" | "BETA_CLIENT_CAP";

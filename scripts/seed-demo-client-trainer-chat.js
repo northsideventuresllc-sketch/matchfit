@@ -9,7 +9,6 @@
  *
  * Client match is case-insensitive username or exact email (same as dev shortcut identifier).
  */
-const { PrismaClient, Prisma } = require("@prisma/client");
 
 const DEFAULT_TRAINER = "coachshitthead22";
 
@@ -53,6 +52,7 @@ const DEMO_MESSAGES = [
 async function resolveClient(prisma, hint) {
   const h = hint.trim();
   if (!h) return null;
+  const { Prisma } = await import("../src/generated/prisma/client.ts");
   const rows = await prisma.$queryRaw(
     Prisma.sql`SELECT id, username, email FROM clients WHERE lower(username) = lower(${h}) OR lower(email) = lower(${h}) LIMIT 1`,
   );
@@ -63,6 +63,7 @@ async function resolveClient(prisma, hint) {
 async function resolveTrainer(prisma, username) {
   const u = username.trim();
   if (!u) return null;
+  const { Prisma } = await import("../src/generated/prisma/client.ts");
   const rows = await prisma.$queryRaw(
     Prisma.sql`SELECT id, username FROM trainers WHERE lower(username) = lower(${u}) LIMIT 1`,
   );
@@ -82,7 +83,8 @@ async function main() {
     process.exit(1);
   }
 
-  const prisma = new PrismaClient();
+  const { createPrismaClient } = await import("./create-prisma-client.mjs");
+  const prisma = createPrismaClient();
   try {
     const client = await resolveClient(prisma, clientHint);
     if (!client) {

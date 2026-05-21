@@ -1,6 +1,8 @@
 import { vi } from "vitest";
 import { testCookieJar } from "./src/test/next-cookie-jar";
 
+vi.mock("server-only", () => ({}));
+
 /** Isolated DB + secrets for API route tests (see `src/__tests__/login-2fa.integration.test.ts`). */
 process.env.AUTH_SECRET = "devtest-secret-32-chars-minimum!!";
 /** Integration tests must opt in with `TEST_DATABASE_URL` so `npm test` never touches `.env` Postgres by accident. */
@@ -9,6 +11,10 @@ const testDbUrl = process.env.TEST_DATABASE_URL?.trim();
 if (testDbUrl) {
   process.env.DATABASE_URL = testDbUrl;
   process.env.DIRECT_URL = testDbUrl;
+} else {
+  // Prisma v7 constructs the pg adapter at import time; unit tests use mocks, not a live DB.
+  process.env.DATABASE_URL = "postgresql://vitest:vitest@127.0.0.1:1/vitest_unreachable";
+  process.env.DIRECT_URL = process.env.DATABASE_URL;
 }
 vi.mock("next/headers", () => ({
   cookies: async () => ({

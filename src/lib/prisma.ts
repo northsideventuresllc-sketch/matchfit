@@ -1,13 +1,9 @@
+import "server-only";
 import "./ensure-database-url";
-import { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "@/generated/prisma/client";
+import { createPrismaClient } from "@/lib/create-prisma-client";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
-
-function createPrisma(): PrismaClient {
-  return new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-  });
-}
 
 /**
  * Delegates that were added in later schema drops. A cached PrismaClient from an older
@@ -52,7 +48,7 @@ function obtainPrismaClient(): PrismaClient {
     globalForPrisma.prisma = undefined;
   }
 
-  const next = createPrisma();
+  const next = createPrismaClient();
   globalForPrisma.prisma = next;
   return next;
 }

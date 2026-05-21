@@ -11,7 +11,7 @@ import {
   variationRequiresSessionCount,
   type TrainerServiceOfferingBundleTier,
   type TrainerServiceOfferingVariation,
-} from "@/lib/trainer-service-offerings";
+} from "@/lib/trainer-service-offerings-document";
 
 function vid(): string {
   const c = globalThis.crypto;
