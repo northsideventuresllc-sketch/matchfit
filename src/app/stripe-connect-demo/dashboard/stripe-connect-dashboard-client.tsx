@@ -70,6 +70,8 @@ export function StripeConnectDashboardClient(props: {
         return;
       }
       window.location.href = data.url;
+    } catch {
+      setErr("Network error.");
     } finally {
       setBusy(null);
     }
@@ -101,6 +103,8 @@ export function StripeConnectDashboardClient(props: {
       setProductMsg("Product created.");
       setProductName("");
       setProductDesc("");
+    } catch {
+      setProductMsg("Network error.");
     } finally {
       setBusy(null);
     }
@@ -108,6 +112,7 @@ export function StripeConnectDashboardClient(props: {
 
   async function startPlatformSubscription() {
     setBusy("sub");
+    setErr(null);
     try {
       const res = await fetch(
         `/api/stripe-connect-demo/sellers/${encodeURIComponent(accountId)}/subscription/checkout`,
@@ -119,6 +124,8 @@ export function StripeConnectDashboardClient(props: {
         return;
       }
       window.location.href = data.url;
+    } catch {
+      setErr("Network error.");
     } finally {
       setBusy(null);
     }
@@ -126,6 +133,7 @@ export function StripeConnectDashboardClient(props: {
 
   async function openBillingPortal() {
     setBusy("portal");
+    setErr(null);
     try {
       const res = await fetch(
         `/api/stripe-connect-demo/sellers/${encodeURIComponent(accountId)}/billing-portal`,
@@ -137,6 +145,8 @@ export function StripeConnectDashboardClient(props: {
         return;
       }
       window.location.href = data.url;
+    } catch {
+      setErr("Network error.");
     } finally {
       setBusy(null);
     }

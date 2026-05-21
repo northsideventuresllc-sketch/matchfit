@@ -58,6 +58,8 @@ export function StripeConnectStorefrontClient({ accountId }: { accountId: string
         return;
       }
       window.location.href = data.url;
+    } catch {
+      setErr("Network error.");
     } finally {
       setBusyId(null);
     }

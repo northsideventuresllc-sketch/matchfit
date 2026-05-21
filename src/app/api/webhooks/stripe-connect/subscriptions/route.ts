@@ -24,12 +24,19 @@ const HANDLED_TYPES = new Set([
  * Configure in Dashboard → Webhooks → your platform endpoint (not thin).
  */
 export async function POST(req: Request) {
-  const stripeClient = getStripeConnectClient();
   let secret: string;
   try {
     secret = requireStripeConnectSubscriptionWebhookSecret();
   } catch (e) {
     const msg = e instanceof StripeConnectConfigError ? e.message : "Subscription webhooks not configured.";
+    return NextResponse.json({ error: msg }, { status: 503 });
+  }
+
+  let stripeClient;
+  try {
+    stripeClient = getStripeConnectClient();
+  } catch (e) {
+    const msg = e instanceof StripeConnectConfigError ? e.message : "Stripe not configured.";
     return NextResponse.json({ error: msg }, { status: 503 });
   }
 
