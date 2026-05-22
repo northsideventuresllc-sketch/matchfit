@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchConnectAccountStatus } from "@/lib/stripe-connect/account-status";
+import { fetchConnectAccountStatus, isValidConnectAccountId } from "@/lib/stripe-connect/account-status";
 import { stripeConnectApiError } from "@/lib/stripe-connect/api-error";
 import { findConnectDemoSellerByAccountId } from "@/lib/stripe-connect/sellers-db";
 
@@ -13,7 +13,7 @@ type RouteContext = { params: Promise<{ accountId: string }> };
 export async function GET(_req: Request, ctx: RouteContext) {
   try {
     const { accountId } = await ctx.params;
-    if (!accountId?.startsWith("acct_")) {
+    if (!isValidConnectAccountId(accountId)) {
       return NextResponse.json({ error: "Invalid connected account id." }, { status: 400 });
     }
 
