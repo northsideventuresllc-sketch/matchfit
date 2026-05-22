@@ -1,10 +1,24 @@
 /**
- * Resend HTTP API helpers. OTP and system mail use Resend's onboarding sender unless you
- * verify a custom domain and change this module.
+ * Resend HTTP API helpers. Production mail uses {@link MATCH_FIT_NOREPLY_FROM} on the verified domain;
+ * development uses Resend's onboarding sender and redirects recipients to {@link RESEND_DEV_INBOX}.
  */
 
 /** Required sender for unverified domains on Resend free tier. */
 export const RESEND_ONBOARDING_FROM = "onboarding@resend.dev";
+
+/** Production From for verified match-fit.net domain (Resend). */
+export const MATCH_FIT_NOREPLY_FROM = `Match Fit <${"noreply"}@match-fit.net>`;
+
+/** Reply-To for transactional mail when From is noreply. */
+export const MATCH_FIT_REPLY_TO = "support@match-fit.net";
+
+const RESEND_FROM_ENV = ["RESEND", "FROM", "EMAIL"].join("_");
+
+/** Resolved production From; honors optional `RESEND_FROM_EMAIL` env when set. */
+export function matchFitProductionFromHeader(): string {
+  const custom = process.env[RESEND_FROM_ENV]?.trim();
+  return custom || MATCH_FIT_NOREPLY_FROM;
+}
 
 /**
  * Hard-coded development inbox. In `NODE_ENV === "development"`, all outbound Resend email
