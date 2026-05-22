@@ -185,6 +185,9 @@ model Client {
   optionalProfileVisibilityJson String?
   /// Set when the user deletes their account; row retained for FKs / safety records with PII scrubbed.
   deidentifiedAt DateTime?
+  /// When the user requested deletion; permanent scrub runs at `accountDeletionFinalizeAt`.
+  accountDeletionRequestedAt DateTime?
+  accountDeletionFinalizeAt  DateTime?
 
   /// Internal QA only: synthetic persona rows used for Match Fit owner sandbox (never visible to real users).
   internalQaSyntheticPersona Boolean @default(false)
@@ -343,6 +346,8 @@ model Trainer {
 
   optionalProfileVisibilityJson String?
   deidentifiedAt DateTime?
+  accountDeletionRequestedAt DateTime?
+  accountDeletionFinalizeAt  DateTime?
 
   profile           TrainerProfile?
   twoFactorChannels TrainerTwoFactorChannel[]

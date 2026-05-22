@@ -1,4 +1,4 @@
-import { deidentifyTrainerAccount } from "@/lib/account-deletion";
+import { scheduleTrainerAccountDeletion } from "@/lib/account-deletion-grace";
 import { resetInternalQaTrainerAccount } from "@/lib/internal-qa-account-reset";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
@@ -25,10 +25,18 @@ export async function POST(req: Request) {
 
     const trainer = await prisma.trainer.findUnique({
       where: { id: trainerId },
-      select: { passwordHash: true, deidentifiedAt: true, email: true },
+      select: {
+        passwordHash: true,
+        deidentifiedAt: true,
+        accountDeletionFinalizeAt: true,
+        email: true,
+      },
     });
     if (!trainer || trainer.deidentifiedAt) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
+    if (trainer.accountDeletionFinalizeAt && trainer.accountDeletionFinalizeAt.getTime() > Date.now()) {
+      return NextResponse.json({ error: "Account deletion is already scheduled." }, { status: 409 });
     }
 
     const ok = await verifyPassword(parsed.data.password, trainer.passwordHash);
@@ -38,11 +46,17 @@ export async function POST(req: Request) {
 
     if (isMatchFitInternalQaTrainerEmail(trainer.email)) {
       await resetInternalQaTrainerAccount(trainerId);
-    } else {
-      await deidentifyTrainerAccount(trainerId);
+      await clearTrainerSession();
+      return NextResponse.json({ ok: true, immediate: true });
     }
+
+    const finalizeAt = await scheduleTrainerAccountDeletion(trainerId);
     await clearTrainerSession();
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({
+      ok: true,
+      scheduled: true,
+      finalizeAt: finalizeAt.toISOString(),
+    });
   } catch (e) {
     const { message, status } = publicApiErrorFromUnknown(e, "Could not delete account.", {
       logLabel: "[trainer account delete]",

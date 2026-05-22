@@ -42,10 +42,11 @@ export default async function ClientPublicProfilePage({ params }: Props) {
       matchPreferencesJson: true,
       optionalProfileVisibilityJson: true,
       deidentifiedAt: true,
+      accountDeletionFinalizeAt: true,
     },
   });
 
-  if (!client || client.deidentifiedAt) {
+  if (!client || client.deidentifiedAt || client.accountDeletionFinalizeAt) {
     notFound();
   }
 

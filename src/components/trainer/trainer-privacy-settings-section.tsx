@@ -184,7 +184,7 @@ export function TrainerPrivacySettingsSection() {
     <CollapsibleSettingsSection
       bulkSectionId="trainer-settings-privacy-data"
       title="Privacy & Data"
-      description="Choose which optional profile fields appear on your public coach page, review policy acceptance, or delete your account."
+      description="Choose which optional profile fields appear on your public coach page, review policy acceptance, or schedule account deletion (30-day grace to cancel by signing in again)."
       defaultOpen={false}
     >
       <div className="space-y-4">
@@ -291,8 +291,10 @@ export function TrainerPrivacySettingsSection() {
         <div className="mt-8 rounded-2xl border border-[#E32B2B]/25 bg-[#E32B2B]/[0.06] p-5">
           <h3 className="text-sm font-black uppercase tracking-[0.12em] text-[#FFB4B4]/90">Delete Account</h3>
           <p className="mt-2 text-xs leading-relaxed text-white/50">
-            Removes personal data from Match Fit and signs you out. Fit Hub posts are made private. Safety audit
-            records may be retained as required by law.
+            Schedules permanent removal in 30 days. Your profile is hidden and you are signed out; sign in again before the
+            deadline and choose <span className="font-semibold text-white/70">Keep my account</span> to cancel. After 30 days
+            without canceling, we de-identify your record and make Fit Hub posts private. Safety audit records may be retained
+            as required by law.
           </p>
           <input
             type="password"
@@ -313,7 +315,7 @@ export function TrainerPrivacySettingsSection() {
             onClick={() => void deleteAccount()}
             className="mt-4 w-full rounded-xl border border-[#E32B2B]/40 bg-[#E32B2B]/15 px-4 py-3 text-sm font-black uppercase tracking-[0.08em] text-[#FFB4B4] transition hover:bg-[#E32B2B]/25 disabled:opacity-50"
           >
-            {delBusy ? "Deleting…" : "Delete My Account"}
+            {delBusy ? "Scheduling…" : "Schedule Account Deletion"}
           </button>
         </div>
       </div>

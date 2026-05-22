@@ -369,13 +369,15 @@ export default async function PrivacyPage() {
         </P>
         <P>
           <Strong>Account deletion.</Strong> If you delete your account through in-product settings, we verify your
-          password, cancel active paid subscriptions through Stripe where your account has them, and de-identify personal
+          password and schedule permanent removal for <Strong>thirty (30) days</Strong> later. During that grace period you
+          may sign in and cancel the scheduled deletion to restore access. When the grace period ends (or if you do not
+          cancel), we cancel active paid subscriptions through Stripe where your account has them and de-identify personal
           fields on your user record (for example name, contact information, and profile content stored on that record)
           so you can no longer sign in. We may replace chat message bodies you authored with a short placeholder, set
           trainer-authored Fit Hub content to private and strip associated media and captions from public view, and clear
           certain compliance payloads on coach profiles, while retaining the underlying row identifiers needed for
-          foreign keys and minimum enforcement, trust, or billing audit trails. Deletion is intended to be irreversible;
-          contact us promptly if you delete in error.
+          foreign keys and minimum enforcement, trust, or billing audit trails. After finalization, deletion is intended to
+          be irreversible.
         </P>
 
         <H2 id="security">8. Security</H2>
