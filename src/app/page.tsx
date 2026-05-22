@@ -67,6 +67,9 @@ export default async function Home({ searchParams }: HomeProps) {
                 <span className="text-[#E8EAEF]">Match</span>{" "}
                 <span className="text-[#E32B2B]">Fit</span>
               </p>
+              <p className="mt-0.5 text-[0.6rem] font-bold uppercase tracking-[0.18em] text-[#FF7E00]/80">
+                Version BETA 1.0.0
+              </p>
             </div>
           </div>
           <HomeLoginMenu homeAuth={homeAuth} />
