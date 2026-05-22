@@ -21,10 +21,6 @@
  *   node --env-file=.env npx tsx scripts/seed-match-fit-internal-qa-accounts.ts
  */
 import {
-  ensureInternalQaSyntheticClientPool,
-  ensureInternalQaSyntheticTrainerPool,
-} from "../src/lib/internal-qa-simulation";
-import {
   isMatchFitInternalQaClientEmail,
   isMatchFitInternalQaEnabled,
   isMatchFitInternalQaTrainerEmail,
@@ -161,7 +157,7 @@ void (async () => {
     console.log("Created QA trainer:", trainerEmail);
   }
 
-  await ensureInternalQaSyntheticTrainerPool();
-  await ensureInternalQaSyntheticClientPool();
-  console.log("Synthetic pools ensured.");
+  console.log(
+    "Done. Synthetic QA pools are created on demand when internal QA users browse — not at seed time — so launch counters stay at zero for real signups.",
+  );
 })();

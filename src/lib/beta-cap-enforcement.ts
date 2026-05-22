@@ -1,9 +1,12 @@
 import {
-  betaExcludeCapCountEmails,
   betaMaxClients,
   betaMaxTrainers,
   isBetaLaunchGatesEnabled,
 } from "@/lib/beta-launch-config";
+import {
+  countLaunchClientsInTx,
+  countLaunchTrainersInTx,
+} from "@/lib/launch-account-counts";
 import {
   clientBetaSlotsUsed,
   countActiveClientBetaInvites,
@@ -11,6 +14,8 @@ import {
   trainerBetaSlotsUsed,
 } from "@/lib/beta-waitlist-service";
 import type { Prisma } from "@/generated/prisma/client";
+
+export { countLaunchTrainersInTx, countLaunchClientsInTx } from "@/lib/launch-account-counts";
 
 export class BetaCapExceededError extends Error {
   readonly code: "BETA_TRAINER_CAP" | "BETA_CLIENT_CAP";
@@ -20,26 +25,6 @@ export class BetaCapExceededError extends Error {
     this.name = "BetaCapExceededError";
     this.code = code;
   }
-}
-
-export async function countLaunchTrainersInTx(tx: Prisma.TransactionClient): Promise<number> {
-  const ex = [...betaExcludeCapCountEmails()].map((e) => e.toLowerCase());
-  return tx.trainer.count({
-    where: {
-      deidentifiedAt: null,
-      ...(ex.length > 0 ? { NOT: { email: { in: ex } } } : {}),
-    },
-  });
-}
-
-async function countLaunchClientsInTx(tx: Prisma.TransactionClient): Promise<number> {
-  const ex = [...betaExcludeCapCountEmails()].map((e) => e.toLowerCase());
-  return tx.client.count({
-    where: {
-      deidentifiedAt: null,
-      ...(ex.length > 0 ? { NOT: { email: { in: ex } } } : {}),
-    },
-  });
 }
 
 async function trainerSlotsUsedInTx(tx: Prisma.TransactionClient): Promise<number> {

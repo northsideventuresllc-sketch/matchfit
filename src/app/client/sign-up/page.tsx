@@ -433,6 +433,7 @@ function ClientSignUpPageInner() {
               waitlistHref="/waitlist/client"
               cap={betaStatus?.clientCap ?? null}
               count={betaStatus?.clientCount ?? null}
+              slotsUsed={betaStatus?.clientSlotsUsed ?? null}
             />
           ) : (
             <>

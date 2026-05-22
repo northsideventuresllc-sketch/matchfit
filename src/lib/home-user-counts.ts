@@ -1,6 +1,9 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { betaExcludeCapCountEmails } from "@/lib/beta-launch-config";
+import {
+  INTERNAL_SYNTHETIC_EMAIL_SUFFIX,
+  getLaunchExcludeEmails,
+} from "@/lib/launch-account-counts";
 
 export type HomeUserCounts = {
   trainersTotal: number;
@@ -23,13 +26,27 @@ function isMissingInternalQaSyntheticPersonaColumn(e: unknown): boolean {
 }
 
 function buildEmailExcludeClause(emails: string[]): Prisma.Sql {
-  if (emails.length === 0) return Prisma.empty;
-  return Prisma.sql`AND LOWER(t."email") NOT IN (${Prisma.join(emails.map((e) => Prisma.sql`${e}`))})`;
+  const parts: Prisma.Sql[] = [
+    Prisma.sql`AND LOWER(t."email") NOT LIKE ${`%${INTERNAL_SYNTHETIC_EMAIL_SUFFIX}`}`,
+  ];
+  if (emails.length > 0) {
+    parts.push(
+      Prisma.sql`AND LOWER(t."email") NOT IN (${Prisma.join(emails.map((e) => Prisma.sql`${e}`))})`,
+    );
+  }
+  return Prisma.join(parts, " ");
 }
 
 function buildClientEmailExcludeClause(emails: string[]): Prisma.Sql {
-  if (emails.length === 0) return Prisma.empty;
-  return Prisma.sql`AND LOWER(c."email") NOT IN (${Prisma.join(emails.map((e) => Prisma.sql`${e}`))})`;
+  const parts: Prisma.Sql[] = [
+    Prisma.sql`AND LOWER(c."email") NOT LIKE ${`%${INTERNAL_SYNTHETIC_EMAIL_SUFFIX}`}`,
+  ];
+  if (emails.length > 0) {
+    parts.push(
+      Prisma.sql`AND LOWER(c."email") NOT IN (${Prisma.join(emails.map((e) => Prisma.sql`${e}`))})`,
+    );
+  }
+  return Prisma.join(parts, " ");
 }
 
 async function queryHomeUserCounts(
@@ -137,17 +154,22 @@ async function queryHomeUserCounts(
  * Clients "active": billing in good standing (no platform sub, active sub, or grace window) or a subscription
  * invoice paid in the last 14 days (`stripeLastSubscriptionInvoicePaidAt`, maintained by Stripe webhooks).
  *
- * Excludes internal QA synthetic personas and any emails listed in MATCH_FIT_BETA_EXCLUDE_CAP_COUNT_EMAILS.
+ * Excludes internal QA synthetic personas, @internal.match-fit.invalid personas, internal QA seed emails,
+ * and MATCH_FIT_BETA_EXCLUDE_CAP_COUNT_EMAILS.
  * If migration `20260515182000_internal_qa_sandbox` is not applied yet, retries without filtering on
  * `internalQaSyntheticPersona` (equivalent to "no synthetic rows" on an unmigrated DB).
  */
 export async function getHomeUserCounts(): Promise<HomeUserCounts> {
-  const excludeEmails = [...betaExcludeCapCountEmails()].map((e) => e.toLowerCase());
+  const excludeEmails = [
+    ...getLaunchExcludeEmails("trainer"),
+    ...getLaunchExcludeEmails("client"),
+  ];
+  const uniqueExclude = [...new Set(excludeEmails.map((e) => e.toLowerCase()))];
   try {
-    return await queryHomeUserCounts(true, excludeEmails);
+    return await queryHomeUserCounts(true, uniqueExclude);
   } catch (e) {
     if (isMissingInternalQaSyntheticPersonaColumn(e)) {
-      return queryHomeUserCounts(false, excludeEmails);
+      return queryHomeUserCounts(false, uniqueExclude);
     }
     throw e;
   }

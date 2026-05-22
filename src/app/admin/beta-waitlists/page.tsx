@@ -24,6 +24,10 @@ type CapStatus = {
   clientCap?: number;
   trainerCount?: number;
   clientCount?: number;
+  trainerSlotsUsed?: number;
+  clientSlotsUsed?: number;
+  trainerSlotsRemaining?: number;
+  clientSlotsRemaining?: number;
 };
 
 function statusClass(status: string): string {
@@ -111,14 +115,21 @@ export default function AdminBetaWaitlistsPage() {
             <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 px-4 py-3">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">Trainers</p>
               <p className="mt-1 text-lg font-black text-white">
-                {caps.trainerCount ?? "—"} / {caps.trainerCap ?? "—"} active
+                {caps.trainerCount ?? "—"} signed up · {caps.trainerSlotsUsed ?? "—"} / {caps.trainerCap ?? "—"} slots
+                used
               </p>
+              {typeof caps.trainerSlotsRemaining === "number" ? (
+                <p className="mt-1 text-xs text-white/45">{caps.trainerSlotsRemaining} coach slots left</p>
+              ) : null}
             </div>
             <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 px-4 py-3">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">Clients</p>
               <p className="mt-1 text-lg font-black text-white">
-                {caps.clientCount ?? "—"} / {caps.clientCap ?? "—"} active
+                {caps.clientCount ?? "—"} signed up · {caps.clientSlotsUsed ?? "—"} / {caps.clientCap ?? "—"} slots used
               </p>
+              {typeof caps.clientSlotsRemaining === "number" ? (
+                <p className="mt-1 text-xs text-white/45">{caps.clientSlotsRemaining} member slots left</p>
+              ) : null}
             </div>
           </div>
         ) : (
