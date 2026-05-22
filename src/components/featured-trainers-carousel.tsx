@@ -49,6 +49,8 @@ function initialsFromName(name: string): string {
 }
 
 function FeaturedComingSoon() {
+  const [expanded, setExpanded] = useState(false);
+
   return (
     <section className="mt-16 sm:mt-20" aria-labelledby="featured-trainers-heading">
       <div className="text-center">
@@ -97,43 +99,66 @@ function FeaturedComingSoon() {
               No coaches have claimed featured spots in this area yet. Check back as trainers join Match Fit and unlock Premium.
             </p>
 
-            <div className="mt-6 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-5 text-left">
-              <p className="text-[0.65rem] font-bold uppercase tracking-[0.2em] text-[#FFD34E]">
-                What are featured trainers?
-              </p>
-              <p className="mt-3 text-sm leading-relaxed text-white/60">
-                Featured trainers are verified Match Fit coaches who appear in this carousel so new clients can discover
-                them at a glance. Two types of spots are available — both require an active{" "}
-                <span className="font-semibold text-white/75">Premium subscription</span>:
-              </p>
-              <ul className="mt-4 space-y-3 text-sm leading-relaxed text-white/60">
-                <li className="flex gap-2.5">
-                  <span
-                    className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#FFD34E]"
-                    aria-hidden
-                  />
-                  <span>
-                    <span className="font-semibold text-white/80">Sponsored spots</span> — Premium trainers can bid
-                    for guaranteed featured placement in their ZIP area. Sponsored coaches appear first.
-                  </span>
-                </li>
-                <li className="flex gap-2.5">
-                  <span
-                    className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#FF7E00]"
-                    aria-hidden
-                  />
-                  <span>
-                    <span className="font-semibold text-white/80">Raffle spots</span> — Premium trainers are
-                    automatically entered into a daily raffle for free featured placement. Spots refresh every day at
-                    midnight ET — no bidding required.
-                  </span>
-                </li>
-              </ul>
-              <p className="mt-4 text-xs text-white/35">
-                Placement is matched to your ZIP code. Sign in or enter your ZIP to see coaches in your area once they
-                become available.
-              </p>
-            </div>
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              aria-expanded={expanded}
+              className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-[#FF7E00]/80 transition hover:text-[#FF7E00]"
+            >
+              {expanded ? "Hide details" : "How does featured placement work?"}
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={`h-3.5 w-3.5 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+                aria-hidden
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+
+            {expanded && (
+              <div className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-5 text-left">
+                <p className="text-[0.65rem] font-bold uppercase tracking-[0.2em] text-[#FFD34E]">
+                  What are featured trainers?
+                </p>
+                <p className="mt-3 text-sm leading-relaxed text-white/60">
+                  Featured trainers are verified Match Fit coaches who appear in this carousel so new clients can discover
+                  them at a glance. Two types of spots are available — both require an active{" "}
+                  <span className="font-semibold text-white/75">Premium subscription</span>:
+                </p>
+                <ul className="mt-4 space-y-3 text-sm leading-relaxed text-white/60">
+                  <li className="flex gap-2.5">
+                    <span
+                      className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#FFD34E]"
+                      aria-hidden
+                    />
+                    <span>
+                      <span className="font-semibold text-white/80">Sponsored spots</span> — Premium trainers can bid
+                      for guaranteed featured placement in their ZIP area. Sponsored coaches appear first.
+                    </span>
+                  </li>
+                  <li className="flex gap-2.5">
+                    <span
+                      className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#FF7E00]"
+                      aria-hidden
+                    />
+                    <span>
+                      <span className="font-semibold text-white/80">Raffle spots</span> — Premium trainers are
+                      automatically entered into a daily raffle for free featured placement. Spots refresh every day at
+                      midnight ET — no bidding required.
+                    </span>
+                  </li>
+                </ul>
+                <p className="mt-4 text-xs text-white/35">
+                  Placement is matched to your ZIP code. Sign in or enter your ZIP to see coaches in your area once they
+                  become available.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
