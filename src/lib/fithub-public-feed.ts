@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 
 /** Posts visible on client and trainer discovery FitHub feeds. */
 export function fithubPublicFeedVisibilityWhere(): Prisma.TrainerFitHubPostWhereInput {

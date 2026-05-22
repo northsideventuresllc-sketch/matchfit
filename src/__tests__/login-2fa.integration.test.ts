@@ -71,7 +71,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL?.trim())("login 2FA API", () => {
     const env = { ...process.env };
     const allowLoss = env.MATCH_FIT_INTEGRATION_TEST_DB_PUSH_ACCEPT_DATA_LOSS === "1";
     try {
-      execSync("npx prisma db push --skip-generate", {
+      execSync("npx prisma generate && npx prisma db push", {
         stdio: "inherit",
         cwd: process.cwd(),
         env,
@@ -84,7 +84,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL?.trim())("login 2FA API", () => {
             "or run `npx prisma migrate deploy` / repair migration history on this database. Never use data-loss push against production.",
         );
       }
-      execSync("npx prisma db push --skip-generate --accept-data-loss", {
+      execSync("npx prisma generate && npx prisma db push --accept-data-loss", {
         stdio: "inherit",
         cwd: process.cwd(),
         env,
