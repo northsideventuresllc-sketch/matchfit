@@ -93,10 +93,9 @@ describe("Home page", () => {
     expect(mockRedirectStayLoggedInClientToDashboard).toHaveBeenCalledTimes(1);
     expect(mockGetFeaturedTrainersForHomepage).toHaveBeenCalledWith({ zipInput: "30303" });
     expect(mockFindClientById).not.toHaveBeenCalled();
-    expect(mockHomeLoginMenu).toHaveBeenCalledWith(
-      { homeAuth: { clientLoggedIn: false, trainerLoggedIn: false } },
-      undefined,
-    );
+    expect(mockHomeLoginMenu).toHaveBeenCalledWith({
+      homeAuth: { clientLoggedIn: false, trainerLoggedIn: false },
+    });
   });
 
   it("prefers the logged-in client zip over the query zip", async () => {
