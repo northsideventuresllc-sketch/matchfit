@@ -38,10 +38,10 @@ export async function handleConnectSubscriptionWebhookEvent(event: Stripe.Event)
         (typeof invoice.customer === "string" ? invoice.customer : null);
 
       if (accountId?.startsWith("acct_")) {
+        const subId = invoice.parent?.subscription_details?.subscription;
         await updateConnectDemoSellerSubscription({
           stripeAccountId: accountId,
-          subscriptionId:
-            typeof invoice.subscription === "string" ? invoice.subscription : null,
+          subscriptionId: typeof subId === "string" ? subId : null,
           status: "active",
         });
       }
@@ -55,10 +55,10 @@ export async function handleConnectSubscriptionWebhookEvent(event: Stripe.Event)
         (typeof invoice.customer === "string" ? invoice.customer : null);
 
       if (accountId?.startsWith("acct_")) {
+        const subId = invoice.parent?.subscription_details?.subscription;
         await updateConnectDemoSellerSubscription({
           stripeAccountId: accountId,
-          subscriptionId:
-            typeof invoice.subscription === "string" ? invoice.subscription : null,
+          subscriptionId: typeof subId === "string" ? subId : null,
           status: "past_due",
         });
       }
