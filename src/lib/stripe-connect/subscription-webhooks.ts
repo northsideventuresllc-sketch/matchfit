@@ -38,8 +38,10 @@ export async function handleConnectSubscriptionWebhookEvent(event: Stripe.Event)
         (typeof invoice.customer === "string" ? invoice.customer : null);
 
       if (accountId?.startsWith("acct_")) {
+        const subId = invoice.parent?.subscription_details?.subscription;
         await updateConnectDemoSellerSubscription({
           stripeAccountId: accountId,
+          subscriptionId: typeof subId === "string" ? subId : null,
           subscriptionId:
             typeof invoice.parent?.subscription_details?.subscription === "string"
               ? invoice.parent.subscription_details.subscription
@@ -57,8 +59,10 @@ export async function handleConnectSubscriptionWebhookEvent(event: Stripe.Event)
         (typeof invoice.customer === "string" ? invoice.customer : null);
 
       if (accountId?.startsWith("acct_")) {
+        const subId = invoice.parent?.subscription_details?.subscription;
         await updateConnectDemoSellerSubscription({
           stripeAccountId: accountId,
+          subscriptionId: typeof subId === "string" ? subId : null,
           subscriptionId:
             typeof invoice.parent?.subscription_details?.subscription === "string"
               ? invoice.parent.subscription_details.subscription

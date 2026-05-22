@@ -7,23 +7,25 @@ function excludeEmailNotClause(): { email: { in: string[] } } | undefined {
   return { email: { in: ex } };
 }
 
-/** Active clients counted for beta cap and founding membership offers (excludes test/staff emails). */
+/** Active clients counted for beta cap and founding membership offers (excludes test/staff emails and internal QA synthetic personas). */
 export async function countLaunchClients(): Promise<number> {
   const excluded = excludeEmailNotClause();
   return prisma.client.count({
     where: {
       deidentifiedAt: null,
+      internalQaSyntheticPersona: false,
       ...(excluded ? { NOT: excluded } : {}),
     },
   });
 }
 
-/** Active trainers counted for beta cap and founding registration pricing (excludes test/staff emails). */
+/** Active trainers counted for beta cap and founding registration pricing (excludes test/staff emails and internal QA synthetic personas). */
 export async function countLaunchTrainers(): Promise<number> {
   const excluded = excludeEmailNotClause();
   return prisma.trainer.count({
     where: {
       deidentifiedAt: null,
+      internalQaSyntheticPersona: false,
       ...(excluded ? { NOT: excluded } : {}),
     },
   });
