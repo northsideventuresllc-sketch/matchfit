@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const prismaPgCtor = vi.fn((options: { connectionString: string }) => ({
-  kind: "adapter",
-  options,
-}));
-const prismaClientCtor = vi.fn((options: { adapter: unknown; log: string[] }) => ({
-  kind: "client",
-  options,
+const { prismaPgCtor, prismaClientCtor } = vi.hoisted(() => ({
+  prismaPgCtor: vi.fn((options: { connectionString: string }) => ({
+    kind: "adapter",
+    options,
+  })),
+  prismaClientCtor: vi.fn((options: { adapter: unknown; log: string[] }) => ({
+    kind: "client",
+    options,
+  })),
 }));
 
 vi.mock("@prisma/adapter-pg", () => ({
