@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { FeaturedTrainersCarousel } from "@/components/featured-trainers-carousel";
 import { HomeBrandBanner } from "@/components/home-brand-banner";
 import { HomeInfoSections } from "@/components/home-info-sections";
@@ -91,6 +92,27 @@ export default async function Home({ searchParams }: HomeProps) {
           </div>
           <HomeLoginMenu homeAuth={homeAuth} />
         </header>
+
+        <div className="mt-3">
+          <Link
+            href="/promos"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#FF7E00]/35 bg-[#FF7E00]/10 px-3 py-1 text-[0.7rem] font-bold uppercase tracking-[0.1em] text-[#FF7E00] transition hover:border-[#FF7E00]/55 hover:bg-[#FF7E00]/20"
+          >
+            Current Promos
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-3 w-3"
+              aria-hidden
+            >
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </Link>
+        </div>
 
         <HomeUserCounter {...homeUserCounts} />
 
