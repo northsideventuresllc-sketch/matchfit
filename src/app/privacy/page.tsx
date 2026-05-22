@@ -5,7 +5,7 @@ import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 const OPERATOR_LEGAL_NAME = "Northside Ventures LLC";
 
 /** Privacy and data-rights requests. */
-const PRIVACY_CONTACT_EMAIL = "northside.ventures.llc@gmail.com";
+const PRIVACY_CONTACT_EMAIL = "support@match-fit.net";
 
 /** Postal address for written privacy requests and official notices where applicable. */
 const PHYSICAL_ADDRESS_LINE = "1954 Airport Rd STE 1277, Chamblee, GA 30341, United States";
@@ -121,7 +121,8 @@ export default async function PrivacyPage() {
           <Li>
             <Strong>Wellness and Matching Inputs:</Strong> daily matching questionnaire content and answers, and derived
             algorithm context we compute to personalize prompts or matching. Treat this as sensitive wellness-related
-            information you choose to share.
+            information you choose to share. The Service is a fitness and coaching marketplace, does not collect or
+            process protected health information (PHI) under HIPAA, and does not provide medical advice.
           </Li>
           <Li>
             <Strong>Mailing Address (Optional):</Strong> if you provide it for your own records. Trainer-facing APIs and
@@ -287,8 +288,8 @@ export default async function PrivacyPage() {
                 time;
               </Li>
               <Li>
-                <Strong>Cloud Hosting, Database, and Infrastructure</Strong> vendors that store or process data on our
-                behalf.
+                <Strong>Cloud Hosting, Database, and AI Infrastructure</Strong> vendors (such as Vercel and Supabase) that
+                store or process data on our behalf to operate the Service.
               </Li>
             </Ul>
           </Li>
@@ -359,7 +360,9 @@ export default async function PrivacyPage() {
           personal information collected, to request deletion or correction, and to opt out of &quot;sale&quot; or{" "}
           &quot;sharing&quot; for cross-context behavioral advertising. We do not sell personal information for monetary
           consideration. If we ever use personal information in ways that constitute &quot;sharing&quot; under California
-          law, we will provide a compliant opt-out mechanism and update this policy.
+          law, we will provide a compliant opt-out mechanism and update this policy. Our website responds to Global Privacy
+          Control (GPC) signals to restrict tracking where technically supported by your browser, but we do not otherwise
+          alter our data collection practices in response to generic &quot;Do Not Track&quot; browser headers.
         </P>
         <P>
           To exercise rights, email <Strong>{PRIVACY_CONTACT_EMAIL}</Strong>. We may need to verify your identity before
@@ -408,16 +411,6 @@ export default async function PrivacyPage() {
           To the fullest extent permitted by law, this Policy does not create rights enforceable by third parties. Nothing
           in this Policy limits any non-waivable rights you may have under applicable law.
         </P>
-
-        <section className="mt-12 rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-200/90">Legal Review</p>
-          <p className="mt-2 text-xs leading-relaxed text-white/55">
-            Align the subprocessors list with your executed vendor agreements, bump{" "}
-            <code className="rounded bg-white/10 px-1 py-0.5 text-[0.65rem] text-white/70">POLICY_EFFECTIVE_DATE</code> when
-            you ship policy updates, confirm that account-deletion, Stripe cancellation, and log-handling practices match
-            your counsel&apos;s advice for your jurisdictions, and review any advertising or analytics tools you add.
-          </p>
-        </section>
 
         <LegalPageFooterNav role={role} />
       </div>
