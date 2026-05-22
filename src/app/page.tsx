@@ -4,16 +4,28 @@ import { HomeBrandBanner } from "@/components/home-brand-banner";
 import { HomeInfoSections } from "@/components/home-info-sections";
 import { HomeLoginMenu } from "@/components/home-login-menu";
 import { HomeUserCounter } from "@/components/home-user-counter";
+import type { FeaturedTrainerCard } from "@/lib/featured-homepage-data";
 import { getFeaturedTrainersForHomepage } from "@/lib/featured-homepage-data";
-import { getHomeUserCounts } from "@/lib/home-user-counts";
+import { getHomeUserCounts, type HomeUserCounts } from "@/lib/home-user-counts";
 import { prisma } from "@/lib/prisma";
 import { redirectStayLoggedInClientToDashboard } from "@/lib/redirect-stay-logged-in-client";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 
 type HomeProps = { searchParams?: Promise<{ zip?: string }> };
 
+const EMPTY_USER_COUNTS: HomeUserCounts = {
+  trainersTotal: 0,
+  trainersActive: 0,
+  clientsTotal: 0,
+  clientsActive: 0,
+};
+
 export default async function Home({ searchParams }: HomeProps) {
-  await redirectStayLoggedInClientToDashboard();
+  // DATABASE_URL is required for all DB calls. Preview deployments may omit it;
+  // skip DB-dependent work so the page still renders rather than returning 500.
+  const hasDb = Boolean(process.env.DATABASE_URL);
+
+  if (hasDb) await redirectStayLoggedInClientToDashboard();
 
   const sp = searchParams ? await searchParams : {};
   const zipFromQuery = typeof sp.zip === "string" && sp.zip.trim() ? sp.zip.trim() : null;
@@ -24,19 +36,24 @@ export default async function Home({ searchParams }: HomeProps) {
     trainerLoggedIn: Boolean(trainerId),
   };
 
-  let zipForFeatured = zipFromQuery;
-  if (clientId) {
-    const client = await prisma.client.findUnique({
-      where: { id: clientId },
-      select: { zipCode: true },
-    });
-    if (client?.zipCode?.trim()) zipForFeatured = client.zipCode.trim();
-  }
+  let featuredTrainers: FeaturedTrainerCard[] = [];
+  let homeUserCounts: HomeUserCounts = EMPTY_USER_COUNTS;
 
-  const [featuredTrainers, homeUserCounts] = await Promise.all([
-    getFeaturedTrainersForHomepage({ zipInput: zipForFeatured }),
-    getHomeUserCounts(),
-  ]);
+  if (hasDb) {
+    let zipForFeatured = zipFromQuery;
+    if (clientId) {
+      const client = await prisma.client.findUnique({
+        where: { id: clientId },
+        select: { zipCode: true },
+      });
+      if (client?.zipCode?.trim()) zipForFeatured = client.zipCode.trim();
+    }
+
+    [featuredTrainers, homeUserCounts] = await Promise.all([
+      getFeaturedTrainersForHomepage({ zipInput: zipForFeatured }),
+      getHomeUserCounts(),
+    ]);
+  }
 
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] text-white antialiased">
