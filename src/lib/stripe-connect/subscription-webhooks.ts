@@ -28,12 +28,12 @@ export async function handleConnectSubscriptionWebhookEvent(event: Stripe.Event)
       const sub = event.data.object as Stripe.Subscription;
       const accountId =
         (sub as Stripe.Subscription & { customer_account?: string | null }).customer_account ??
-        (typeof sub.customer === "string" ? sub.customer : null);
+        null;
 
       if (!accountId?.startsWith("acct_")) {
         console.warn(
-          "[stripe-connect-demo] subscription webhook without acct_ customer_account — TODO: map legacy customer id to account",
-          { subscriptionId: sub.id },
+          "[stripe-connect-demo] subscription webhook missing customer_account (V2 connected account)",
+          { subscriptionId: sub.id, customerAccount: accountId },
         );
         return;
       }
@@ -50,7 +50,7 @@ export async function handleConnectSubscriptionWebhookEvent(event: Stripe.Event)
       const invoice = event.data.object as Stripe.Invoice;
       const accountId =
         (invoice as Stripe.Invoice & { customer_account?: string | null }).customer_account ??
-        (typeof invoice.customer === "string" ? invoice.customer : null);
+        null;
 
       if (accountId?.startsWith("acct_")) {
         const subId = invoice.parent?.subscription_details?.subscription;
@@ -67,7 +67,7 @@ export async function handleConnectSubscriptionWebhookEvent(event: Stripe.Event)
       const invoice = event.data.object as Stripe.Invoice;
       const accountId =
         (invoice as Stripe.Invoice & { customer_account?: string | null }).customer_account ??
-        (typeof invoice.customer === "string" ? invoice.customer : null);
+        null;
 
       if (accountId?.startsWith("acct_")) {
         const subId = invoice.parent?.subscription_details?.subscription;
