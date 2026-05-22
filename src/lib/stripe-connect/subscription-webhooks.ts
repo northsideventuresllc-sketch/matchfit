@@ -42,10 +42,6 @@ export async function handleConnectSubscriptionWebhookEvent(event: Stripe.Event)
         await updateConnectDemoSellerSubscription({
           stripeAccountId: accountId,
           subscriptionId: typeof subId === "string" ? subId : null,
-          subscriptionId:
-            typeof invoice.parent?.subscription_details?.subscription === "string"
-              ? invoice.parent.subscription_details.subscription
-              : null,
           status: "active",
         });
       }
@@ -63,10 +59,6 @@ export async function handleConnectSubscriptionWebhookEvent(event: Stripe.Event)
         await updateConnectDemoSellerSubscription({
           stripeAccountId: accountId,
           subscriptionId: typeof subId === "string" ? subId : null,
-          subscriptionId:
-            typeof invoice.parent?.subscription_details?.subscription === "string"
-              ? invoice.parent.subscription_details.subscription
-              : null,
           status: "past_due",
         });
       }
