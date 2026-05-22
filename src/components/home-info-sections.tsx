@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { HomeCtaLogoutBar } from "@/components/home-cta-logout-bar";
+import { HomeBetaSlotWarning } from "@/components/home-beta-slot-warning";
 import { HomeTrainerServiceTypesSection } from "@/components/home-trainer-service-types-section";
 import {
   CLIENT_SIGN_UP_PATH,
@@ -541,10 +542,9 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           <HomeCtaLogoutBar />
         </div>
       ) : (
-        <div
-          id="cta"
-          className="mx-auto flex w-full max-w-xl flex-col gap-4 sm:flex-row sm:justify-center"
-        >
+        <div id="cta" className="mx-auto w-full max-w-xl space-y-4">
+          <HomeBetaSlotWarning />
+          <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
           <Link
             href={CLIENT_SIGN_UP_PATH}
             title="Client sign up"
@@ -577,10 +577,23 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
               </span>
             </span>
           </Link>
+          </div>
         </div>
       )}
 
       <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-center gap-1.5 pt-1 sm:gap-2">
+        <Link
+          href="/promos"
+          className="inline-flex min-h-8 items-center justify-center rounded-lg border border-[#FF7E00]/30 bg-[#FF7E00]/[0.07] px-3 text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-[#FF7E00]/90 transition hover:border-[#FF7E00]/55 hover:text-[#FFD34E]"
+        >
+          Current Promos
+        </Link>
+        <Link
+          href="/#what-is-match-fit"
+          className="inline-flex min-h-8 items-center justify-center rounded-lg border border-white/[0.12] bg-white/[0.03] px-3 text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-white/60 transition hover:border-white/[0.22] hover:text-white/85"
+        >
+          Pricing
+        </Link>
         <Link
           href="/privacy"
           className="inline-flex min-h-8 items-center justify-center rounded-lg border border-white/[0.12] bg-white/[0.03] px-3 text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-white/60 transition hover:border-white/[0.22] hover:text-white/85"
