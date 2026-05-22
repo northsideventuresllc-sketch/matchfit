@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type Stripe from "stripe";
 import { handleConnectSubscriptionWebhookEvent } from "@/lib/stripe-connect/subscription-webhooks";
 
-const updateConnectDemoSellerSubscriptionMock = vi.fn();
+const { updateConnectDemoSellerSubscriptionMock } = vi.hoisted(() => ({
+  updateConnectDemoSellerSubscriptionMock: vi.fn(),
+}));
 
 vi.mock("@/lib/stripe-connect/sellers-db", () => ({
   updateConnectDemoSellerSubscription: updateConnectDemoSellerSubscriptionMock,

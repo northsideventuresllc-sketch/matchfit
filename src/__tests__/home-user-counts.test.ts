@@ -1,9 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getHomeUserCounts } from "@/lib/home-user-counts";
 
-const queryRawMock = vi.fn();
-
-class MockKnownRequestError extends Error {}
+const { queryRawMock, MockKnownRequestError } = vi.hoisted(() => {
+  class HoistedKnownRequestError extends Error {}
+  return {
+    queryRawMock: vi.fn(),
+    MockKnownRequestError: HoistedKnownRequestError,
+  };
+});
 
 vi.mock("@/generated/prisma/client", () => ({
   Prisma: {

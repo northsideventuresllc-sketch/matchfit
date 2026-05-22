@@ -5,9 +5,11 @@ import {
   countPendingClientRegistrations,
 } from "@/lib/launch-account-counts";
 
-const clientCountMock = vi.fn();
-const trainerCountMock = vi.fn();
-const pendingCountMock = vi.fn();
+const { clientCountMock, trainerCountMock, pendingCountMock } = vi.hoisted(() => ({
+  clientCountMock: vi.fn(),
+  trainerCountMock: vi.fn(),
+  pendingCountMock: vi.fn(),
+}));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
