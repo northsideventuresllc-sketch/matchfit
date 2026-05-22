@@ -22,15 +22,23 @@ vi.mock("next/image", () => ({
   default: ({
     src,
     alt,
-    fill: _fill,
-    priority: _priority,
+    fill,
+    priority,
     ...props
   }: {
     src: string;
     alt: string;
     fill?: boolean;
     priority?: boolean;
-  }) => <img src={src} alt={alt} {...props} />,
+  }) => (
+    <div
+      data-next-image-src={src}
+      data-next-image-alt={alt}
+      data-next-image-fill={fill ? "true" : undefined}
+      data-next-image-priority={priority ? "true" : undefined}
+      {...props}
+    />
+  ),
 }));
 
 vi.mock("@/components/featured-trainers-carousel", () => ({
