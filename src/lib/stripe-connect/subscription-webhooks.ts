@@ -1,6 +1,11 @@
 import type Stripe from "stripe";
 import { updateConnectDemoSellerSubscription } from "./sellers-db";
 
+type ConnectInvoice = Stripe.Invoice & {
+  customer_account?: string | null;
+  subscription?: string | Stripe.Subscription | null;
+};
+
 /**
  * Snapshot subscription webhooks — persist status on our demo seller row.
  * For V2 connected accounts use `subscription.customer_account` (not `.customer`).
@@ -32,16 +37,17 @@ export async function handleConnectSubscriptionWebhookEvent(event: Stripe.Event)
     }
 
     case "invoice.payment_succeeded": {
-      const invoice = event.data.object as Stripe.Invoice;
+      const invoice = event.data.object as ConnectInvoice;
+      const subscriptionId =
+        typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription?.id ?? null;
       const accountId =
-        (invoice as Stripe.Invoice & { customer_account?: string | null }).customer_account ??
+        invoice.customer_account ??
         (typeof invoice.customer === "string" ? invoice.customer : null);
 
       if (accountId?.startsWith("acct_")) {
         await updateConnectDemoSellerSubscription({
           stripeAccountId: accountId,
-          subscriptionId:
-            typeof invoice.subscription === "string" ? invoice.subscription : null,
+          subscriptionId,
           status: "active",
         });
       }
@@ -49,16 +55,17 @@ export async function handleConnectSubscriptionWebhookEvent(event: Stripe.Event)
     }
 
     case "invoice.payment_failed": {
-      const invoice = event.data.object as Stripe.Invoice;
+      const invoice = event.data.object as ConnectInvoice;
+      const subscriptionId =
+        typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription?.id ?? null;
       const accountId =
-        (invoice as Stripe.Invoice & { customer_account?: string | null }).customer_account ??
+        invoice.customer_account ??
         (typeof invoice.customer === "string" ? invoice.customer : null);
 
       if (accountId?.startsWith("acct_")) {
         await updateConnectDemoSellerSubscription({
           stripeAccountId: accountId,
-          subscriptionId:
-            typeof invoice.subscription === "string" ? invoice.subscription : null,
+          subscriptionId,
           status: "past_due",
         });
       }
