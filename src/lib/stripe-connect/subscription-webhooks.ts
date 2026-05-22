@@ -1,6 +1,21 @@
 import type Stripe from "stripe";
 import { updateConnectDemoSellerSubscription } from "./sellers-db";
 
+/** Event types processed by {@link handleConnectSubscriptionWebhookEvent}. */
+export const CONNECT_SUBSCRIPTION_HANDLED_WEBHOOK_TYPES = [
+  "customer.subscription.created",
+  "customer.subscription.updated",
+  "customer.subscription.deleted",
+  "invoice.payment_succeeded",
+  "invoice.payment_failed",
+] as const;
+
+const HANDLED_TYPE_SET = new Set<string>(CONNECT_SUBSCRIPTION_HANDLED_WEBHOOK_TYPES);
+
+export function isConnectSubscriptionHandledWebhookType(eventType: string): boolean {
+  return HANDLED_TYPE_SET.has(eventType);
+}
+
 /**
  * Snapshot subscription webhooks — persist status on our demo seller row.
  * For V2 connected accounts use `subscription.customer_account` (not `.customer`).
@@ -42,10 +57,6 @@ export async function handleConnectSubscriptionWebhookEvent(event: Stripe.Event)
         await updateConnectDemoSellerSubscription({
           stripeAccountId: accountId,
           subscriptionId: typeof subId === "string" ? subId : null,
-          subscriptionId:
-            typeof invoice.parent?.subscription_details?.subscription === "string"
-              ? invoice.parent.subscription_details.subscription
-              : null,
           status: "active",
         });
       }
@@ -63,10 +74,6 @@ export async function handleConnectSubscriptionWebhookEvent(event: Stripe.Event)
         await updateConnectDemoSellerSubscription({
           stripeAccountId: accountId,
           subscriptionId: typeof subId === "string" ? subId : null,
-          subscriptionId:
-            typeof invoice.parent?.subscription_details?.subscription === "string"
-              ? invoice.parent.subscription_details.subscription
-              : null,
           status: "past_due",
         });
       }

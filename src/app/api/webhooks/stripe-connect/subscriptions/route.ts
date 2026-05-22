@@ -4,20 +4,12 @@ import {
   requireStripeConnectSubscriptionWebhookSecret,
   StripeConnectConfigError,
 } from "@/lib/stripe-connect/config";
-import { handleConnectSubscriptionWebhookEvent } from "@/lib/stripe-connect/subscription-webhooks";
+import {
+  handleConnectSubscriptionWebhookEvent,
+  isConnectSubscriptionHandledWebhookType,
+} from "@/lib/stripe-connect/subscription-webhooks";
 
 export const dynamic = "force-dynamic";
-
-const HANDLED_TYPES = new Set([
-  "customer.subscription.created",
-  "customer.subscription.updated",
-  "customer.subscription.deleted",
-  "invoice.payment_succeeded",
-  "invoice.payment_failed",
-  "payment_method.attached",
-  "payment_method.detached",
-  "customer.updated",
-]);
 
 /**
  * Standard (snapshot) webhooks for platform subscriptions on connected accounts.
@@ -56,7 +48,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    if (HANDLED_TYPES.has(event.type)) {
+    if (isConnectSubscriptionHandledWebhookType(event.type)) {
       await handleConnectSubscriptionWebhookEvent(event);
     }
     return NextResponse.json({ received: true, type: event.type });

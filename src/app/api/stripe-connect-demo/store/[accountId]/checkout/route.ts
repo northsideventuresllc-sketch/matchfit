@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getAppOriginFromRequest } from "@/lib/app-origin";
-import { connectAccountRequestOptions } from "@/lib/stripe-connect/account-status";
+import {
+  connectAccountRequestOptions,
+  isValidConnectAccountId,
+} from "@/lib/stripe-connect/account-status";
 import {
   computeApplicationFeeCents,
   stripeConnectApplicationFeeBps,
@@ -18,6 +21,10 @@ type RouteContext = { params: Promise<{ accountId: string }> };
 export async function POST(req: Request, ctx: RouteContext) {
   try {
     const { accountId } = await ctx.params;
+    if (!isValidConnectAccountId(accountId)) {
+      return NextResponse.json({ error: "Invalid connected account id." }, { status: 400 });
+    }
+
     const body = (await req.json()) as {
       productId?: string;
       quantity?: number;
