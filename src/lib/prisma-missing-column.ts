@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 
 /** True when Prisma reports a missing DB column (P2022), e.g. before `migrate deploy` / `db:push`. */
 export function isPrismaMissingColumnError(e: unknown, columnNeedle: string): boolean {

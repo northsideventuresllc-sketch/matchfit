@@ -24,7 +24,7 @@ const TERMS_CONTACT_EMAIL = "northside.ventures.llc@gmail.com";
 
 const PHYSICAL_ADDRESS_LINE = "1954 Airport Rd STE 1277, Chamblee, GA 30341, United States";
 
-const TERMS_EFFECTIVE_DATE = "May 13, 2026";
+const TERMS_EFFECTIVE_DATE = "May 21, 2026";
 
 function P({ children }: { children: React.ReactNode }) {
   return <p className="mt-3 text-sm leading-relaxed text-white/60">{children}</p>;

@@ -1,20 +1,12 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["multiSchema"]
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
   /// Only `public` here so `db push` / Migrate never touch Supabase GoTrue (`auth.*`).
-  /// `@@ignore` does not exclude models from `db push` on Prisma 5 — stub `@@map`
-  /// models to `auth.users` / `auth.identities` / … caused destructive diffs.
-  /// To list `auth` again without DDL on GoTrue tables, upgrade to Prisma 6.13+
-  /// and declare those tables as externally managed in `prisma.config.ts`.
-  schemas   = ["public"]
-  /// Pooled URL for the app runtime (Supabase pooler / PgBouncer).
-  url       = env("DATABASE_URL")
-  /// Direct Postgres URL for migrations and `db push` (bypasses pooler; required for DDL on Supabase).
-  directUrl = env("DIRECT_URL")
+  schemas  = ["public"]
 }
 
 /// Internal Match Fit staff administrator (separate from client/trainer accounts).
