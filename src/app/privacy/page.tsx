@@ -14,7 +14,7 @@ const PHYSICAL_ADDRESS_LINE = "1954 Airport Rd STE 1277, Chamblee, GA 30341, Uni
  * Version in force for this posted policy. Update this string to the publication date whenever
  * you deploy a materially revised Privacy Policy so users can see which version applies.
  */
-const POLICY_EFFECTIVE_DATE = "April 29, 2026";
+const POLICY_EFFECTIVE_DATE = "May 21, 2026";
 
 function P({ children }: { children: React.ReactNode }) {
   return <p className="mt-3 text-sm leading-relaxed text-white/60">{children}</p>;
