@@ -57,7 +57,7 @@ export function StripeConnectStorefrontClient({ accountId }: { accountId: string
         setErr(data.error ?? "Could not start checkout.");
         return;
       }
-      window.location.href = data.url;
+      window.location.assign(data.url);
     } catch {
       setErr("Network error.");
     } finally {
