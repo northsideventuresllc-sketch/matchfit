@@ -18,6 +18,7 @@ export default async function ClientAccountDeletionScheduledPage() {
     where: { id: clientId },
     select: {
       deidentifiedAt: true,
+      accountDeletionRequestedAt: true,
       accountDeletionFinalizeAt: true,
     },
   });

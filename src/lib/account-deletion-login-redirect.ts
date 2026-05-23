@@ -13,7 +13,7 @@ export async function clientLoginDeletionRedirect(
   }
   const row = await prisma.client.findUnique({
     where: { id: clientId },
-    select: { accountDeletionFinalizeAt: true, deidentifiedAt: true },
+    select: { accountDeletionRequestedAt: true, accountDeletionFinalizeAt: true, deidentifiedAt: true },
   });
   if (!row || row.deidentifiedAt || !isAccountDeletionGraceActive(row)) return null;
   return {
@@ -30,7 +30,7 @@ export async function trainerLoginDeletionRedirect(
   }
   const row = await prisma.trainer.findUnique({
     where: { id: trainerId },
-    select: { accountDeletionFinalizeAt: true, deidentifiedAt: true },
+    select: { accountDeletionRequestedAt: true, accountDeletionFinalizeAt: true, deidentifiedAt: true },
   });
   if (!row || row.deidentifiedAt || !isAccountDeletionGraceActive(row)) return null;
   return {

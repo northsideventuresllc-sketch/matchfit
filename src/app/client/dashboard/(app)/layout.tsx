@@ -35,6 +35,7 @@ export default async function ClientDashboardAppLayout({
       stripeSubscriptionActive: true,
       subscriptionGraceUntil: true,
       deidentifiedAt: true,
+      accountDeletionRequestedAt: true,
       accountDeletionFinalizeAt: true,
     },
   });
