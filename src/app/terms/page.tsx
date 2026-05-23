@@ -1,5 +1,13 @@
 import { LegalPageFooterNav } from "@/components/legal-page-footer-nav";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
+import { betaInviteSlotDays, betaMaxClients, betaMaxTrainers } from "@/lib/beta-launch-config";
+import { LEGAL_EFFECTIVE_DATE_DISPLAY } from "@/lib/legal-effective-date";
+import {
+  getClientFoundingTrialDays,
+  getClientFoundingTrialMaxClients,
+  getClientPostCapTrialDays,
+  getTrainerFoundingBgPercentMax,
+} from "@/lib/match-fit-launch-promotions";
 import {
   CHECK_IN_LEAD_HOURS,
   GATE_A_POST_SESSION_SILENCE_HOURS,
@@ -24,7 +32,14 @@ const TERMS_CONTACT_EMAIL = "northside.ventures.llc@gmail.com";
 
 const PHYSICAL_ADDRESS_LINE = "1954 Airport Rd STE 1277, Chamblee, GA 30341, United States";
 
-const TERMS_EFFECTIVE_DATE = "May 21, 2026";
+const TERMS_EFFECTIVE_DATE = LEGAL_EFFECTIVE_DATE_DISPLAY;
+const BETA_MAX_TRAINERS = betaMaxTrainers();
+const BETA_MAX_CLIENTS = betaMaxClients();
+const BETA_INVITE_SLOT_DAYS = betaInviteSlotDays();
+const FOUNDING_TRAINER_CAP = getTrainerFoundingBgPercentMax();
+const FOUNDING_CLIENT_CAP = getClientFoundingTrialMaxClients();
+const FOUNDING_CLIENT_TRIAL_DAYS = getClientFoundingTrialDays();
+const POST_CAP_CLIENT_TRIAL_DAYS = getClientPostCapTrialDays();
 
 function P({ children }: { children: React.ReactNode }) {
   return <p className="mt-3 text-sm leading-relaxed text-white/60">{children}</p>;
@@ -138,6 +153,32 @@ export default async function TermsPage() {
           </Li>
         </Ul>
 
+        <H2 id="beta-launch">2A. Beta Launch, Service Area, Waitlist, and Capacity</H2>
+        <P>
+          Match Fit may operate in a limited <Strong>beta</Strong> phase. During beta we may cap how many Trainers and
+          Clients can register (for example, up to <Strong>{BETA_MAX_TRAINERS} Trainers</Strong> and{" "}
+          <Strong>{BETA_MAX_CLIENTS} Clients</Strong> when those gates are enabled in production). When caps are full, you
+          may join a <Strong>waitlist</Strong> with your email and ZIP code; we may email time-limited invites when capacity
+          opens. Invited users typically have on the order of <Strong>{BETA_INVITE_SLOT_DAYS} days</Strong> to complete
+          sign-up before the reserved slot may be released to the next waitlisted person.
+        </P>
+        <P>
+          <Strong>Geographic service area:</Strong> During the Atlanta metro beta, Trainer and Client sign-up and waitlist
+          flows may require a ZIP code inside the published Atlanta metropolitan service area (approximately fifteen to
+          twenty road miles from downtown Atlanta, as implemented in our ZIP allowlist). We may expand to additional regions
+          over time and will describe availability in-product.
+        </P>
+        <P>
+          <Strong>Founding promotions (while caps last):</Strong> The first{" "}
+          <Strong>{FOUNDING_TRAINER_CAP} Trainers</Strong> who complete registration may pay a reduced one-time platform
+          registration amount equal to <Strong>twenty percent (20%)</Strong> of the background-check fee they paid to the
+          independent screening provider (plus transaction fees), instead of the standard one hundred U.S. dollar ($100.00)
+          registration model described in Section 11. The first <Strong>{FOUNDING_CLIENT_CAP} Clients</Strong> may receive a{" "}
+          <Strong>{FOUNDING_CLIENT_TRIAL_DAYS}-day</Strong> platform subscription trial (card on file; billing begins after the
+          trial unless canceled). After founding client slots fill, new Clients may see a shorter trial (currently{" "}
+          <Strong>{POST_CAP_CLIENT_TRIAL_DAYS} days</Strong>) or pay immediately, as shown at checkout.
+        </P>
+
         <H2 id="fees-and-payments">3. Fees, Administrative Charges, and Payment Processing</H2>
         <P>
           <Strong>Administrative Fee (Non-Subscription Purchases):</Strong> For Clients, purchases other than the recurring
@@ -192,7 +233,9 @@ export default async function TermsPage() {
           <Strong>Location and Tools:</Strong> For <Strong>mobile (in-person)</Strong> sessions, the Client and Trainer agree
           on place and time. Match Fit does not monitor or control where training occurs. For <Strong>virtual</Strong>{" "}
           sessions, Trainers may connect third-party meeting tools (such as Zoom, Google Meet, or Microsoft Teams) as offered
-          in-product; those providers&apos; terms apply to the video session itself.
+          in-product; those providers&apos; terms apply to the video session itself. Clients must use meeting links Trainers
+          share in Match Fit chat (Zoom, Microsoft Teams, or Google Meet as offered)—not personal FaceTime invites, private
+          phone numbers, or off-platform email meeting links for virtual coaching arranged through the Service.
         </P>
         <P>
           <Strong>Compensation:</Strong> Sessions are generally compensated on a per-session basis at the Trainer&apos;s
@@ -303,7 +346,9 @@ export default async function TermsPage() {
         <Ul>
           <Li>
             Platform subscriptions renew according to the plan you select until canceled in accordance with in-product
-            controls and processor billing portals where linked.
+            controls and processor billing portals where linked. Founding Clients in the first {FOUNDING_CLIENT_CAP} slots may
+            receive a {FOUNDING_CLIENT_TRIAL_DAYS}-day trial before the first subscription invoice, subject to a valid payment
+            method on file; details appear at checkout.
           </Li>
           <Li>
             If you pause your subscription after a bill date as allowed in-product, you may lose access to the trainer
@@ -330,9 +375,13 @@ export default async function TermsPage() {
             delivered according to policy while staff review when queued.
           </Li>
           <Li>
-            You acknowledge
-            that off-platform sharing (for example, in person) is outside our control but may violate these Terms or
-            Trainer obligations below.
+            The Service may run automated trust-and-safety checks on chat (pattern detection for contact or payment
+            leakage, policy heuristics, and optional machine-assisted review when configured). Flagged messages may be
+            queued for staff review or handled according to policy while review is pending.
+          </Li>
+          <Li>
+            You acknowledge that off-platform sharing (for example, in person) is outside our control but may violate these
+            Terms or Trainer obligations below.
           </Li>
           <Li>
             Discovery history features (for example, storing left swipes for a limited period and recording right swipes) run
@@ -362,8 +411,13 @@ export default async function TermsPage() {
         <H2 id="trainer-terms">11. Trainer Registration, Compliance, and Public Profile</H2>
         <Ul>
           <Li>
-            Trainer registration may require a <Strong>one-time registration fee</Strong> (for example, one hundred U.S.
-            dollars ($100.00)) plus applicable transaction fees, as shown at checkout.
+            Trainer registration may require a <Strong>one-time registration fee</Strong> plus applicable transaction fees,
+            as shown at checkout. <Strong>Standard pricing:</Strong> one hundred U.S. dollars ($100.00) minus the amount you
+            paid the independent background-check provider (when verified), plus processing fees.{" "}
+            <Strong>Founding-coach pricing (first {FOUNDING_TRAINER_CAP} Trainers):</Strong> twenty percent (20%) of the
+            verified background-check fee plus processing fees—not the full $100.00 model. Match Fit generally collects the
+            registration fee only after background screening clears and primary certification is approved, as implemented in
+            onboarding.
           </Li>
           <Li>
             To appear publicly, Trainers may need to complete tax documentation (such as IRS Form W-9 or successor forms),
@@ -523,8 +577,10 @@ export default async function TermsPage() {
           with heightened monitoring; Match Fit may still permanently ban individuals when warranted.
         </P>
         <P>
-          Trainers may close accounts as provided in-product. After deletion, we may offer a reactivation window (for example,{" "}
-          <Strong>thirty (30) days</Strong>) before residual data is disposed of in accordance with policy and law.
+          You may request account deletion through in-product privacy settings (password verification required). Deletion
+          de-identifies personal data on your account record, cancels active Client subscriptions through Stripe where
+          applicable, and is intended to be <Strong>irreversible</Strong>, as described in our Privacy Policy. We retain
+          minimum records needed for trust, safety, billing audit, and legal compliance.
         </P>
 
         <H2 id="changes">21. Changes to the Service and These Terms</H2>
@@ -572,7 +628,7 @@ export default async function TermsPage() {
           <p className="text-xs font-semibold uppercase tracking-wide text-amber-200/90">Legal Review</p>
           <p className="mt-2 text-xs leading-relaxed text-white/55">
             Bump{" "}
-            <code className="rounded bg-white/10 px-1 py-0.5 text-[0.65rem] text-white/70">TERMS_EFFECTIVE_DATE</code> when
+            <code className="rounded bg-white/10 px-1 py-0.5 text-[0.65rem] text-white/70">LEGAL_EFFECTIVE_DATE_DISPLAY</code> when
             you ship material updates, and have qualified counsel review these Terms for your jurisdictions, payment flows,
             and promotional programs.
           </p>
