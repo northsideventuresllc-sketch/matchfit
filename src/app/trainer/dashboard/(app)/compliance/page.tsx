@@ -6,6 +6,7 @@ import { TrainerComplianceCertCarousel } from "@/components/trainer/trainer-comp
 import { TrainerComplianceCertReferenceDetails } from "@/components/trainer/trainer-compliance-cert-reference-details";
 import { TrainerComplianceCertTracksForm } from "@/components/trainer/trainer-compliance-cert-tracks-form";
 import { TrainerComplianceW9EmailSelfService } from "@/components/trainer/trainer-compliance-w9-email-self-service";
+import { TrainerComplianceW9DownloadButton } from "@/components/trainer/trainer-compliance-w9-download-button";
 import { TrainerRegistrationFeePanel } from "@/components/trainer/trainer-registration-fee-panel";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { OFF_PLATFORM_LIQUIDATED_DAMAGES_NOTICE } from "@/lib/tos-off-platform-deterrent";
@@ -235,6 +236,7 @@ export default async function TrainerComplianceDetailsPage() {
                 >
                   Open Printable W-9
                 </Link>
+                <TrainerComplianceW9DownloadButton />
               </div>
               <TrainerComplianceW9EmailSelfService />
             </div>

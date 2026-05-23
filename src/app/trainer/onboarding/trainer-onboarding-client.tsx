@@ -1737,8 +1737,9 @@ export default function TrainerOnboardingClient() {
             <form onSubmit={handleW9Submit} className="flex flex-col gap-5">
               <p className="text-sm text-white/60">
                 Your personal information is protected in line with our security practices. After you finish, your W-9
-                will be available from your dashboard under <span className="font-semibold text-white">Documents</span>{" "}
-                (download or email to an address you configure there — coming soon).
+                will be accessible from the{" "}
+                <span className="font-semibold text-white">Compliance</span> section of your dashboard, where you can
+                download a summary or email it to your account email address.
               </p>
               <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-4">
                 <p className="text-xs leading-relaxed text-amber-50/95">
