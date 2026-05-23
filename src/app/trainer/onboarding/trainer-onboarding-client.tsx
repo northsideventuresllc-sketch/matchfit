@@ -371,22 +371,24 @@ export default function TrainerOnboardingClient() {
     }
   }, [onboardingLoaded, loadingMe, onboardingSnapshotSerialized]);
 
-  const isOnboardingDirty =
-    initialSnapshotRef.current !== null && onboardingSnapshotSerialized !== initialSnapshotRef.current;
+  const hasOnboardingChanges = useCallback(
+    () => initialSnapshotRef.current !== null && onboardingSnapshotSerialized !== initialSnapshotRef.current,
+    [onboardingSnapshotSerialized],
+  );
 
   const canReturnToDashboard = profile?.matchQuestionnaireStatus === "completed";
 
   useEffect(() => {
-    if (!isOnboardingDirty) return;
+    if (!hasOnboardingChanges()) return;
     function onBeforeUnload(e: BeforeUnloadEvent) {
       e.preventDefault();
     }
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [isOnboardingDirty]);
+  }, [hasOnboardingChanges]);
 
   useEffect(() => {
-    if (!isOnboardingDirty || !canReturnToDashboard) return;
+    if (!hasOnboardingChanges() || !canReturnToDashboard) return;
     function onClickCapture(e: MouseEvent) {
       const el = (e.target as HTMLElement | null)?.closest?.("a[href]");
       if (!el) return;
@@ -406,7 +408,7 @@ export default function TrainerOnboardingClient() {
     }
     document.addEventListener("click", onClickCapture, true);
     return () => document.removeEventListener("click", onClickCapture, true);
-  }, [isOnboardingDirty, canReturnToDashboard]);
+  }, [hasOnboardingChanges, canReturnToDashboard]);
 
   const bgVendor = useMemo(() => coerceTrainerBackgroundVendorStatus(profile?.backgroundCheckStatus), [profile?.backgroundCheckStatus]);
   const showBackgroundCheckDevOverride = process.env.NODE_ENV !== "production";
@@ -445,7 +447,7 @@ export default function TrainerOnboardingClient() {
 
   function requestDashboardNavigation() {
     if (!canReturnToDashboard) return;
-    if (isOnboardingDirty) {
+    if (hasOnboardingChanges()) {
       setLeaveModalOpen(true);
       return;
     }
@@ -1154,7 +1156,7 @@ export default function TrainerOnboardingClient() {
                   <Link
                     href="/trainer/dashboard"
                     onClick={(e) => {
-                      if (!isOnboardingDirty) return;
+                      if (!hasOnboardingChanges()) return;
                       e.preventDefault();
                       setLeaveModalOpen(true);
                     }}
