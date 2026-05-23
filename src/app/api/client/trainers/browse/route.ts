@@ -11,6 +11,7 @@ import {
   isWithinNotInterestedHistoryWindow,
 } from "@/lib/client-trainer-browse";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import { marketplaceActiveTrainerWhere } from "@/lib/account-deletion-grace";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
 import { getTrainerIdsHiddenFromClientMatchFeed } from "@/lib/user-block-queries";
@@ -56,7 +57,7 @@ export async function GET(req: Request) {
 
     const trainers = await prisma.trainer.findMany({
       where: {
-        deidentifiedAt: null,
+        ...marketplaceActiveTrainerWhere,
         internalQaSyntheticPersona: false,
         profile: {
           dashboardActivatedAt: { not: null },
@@ -131,7 +132,7 @@ export async function GET(req: Request) {
       await refreshInternalQaClientSimulationIfNeeded({ clientId, email: client.email });
       const syntheticRaw = await prisma.trainer.findMany({
         where: {
-          deidentifiedAt: null,
+          ...marketplaceActiveTrainerWhere,
           internalQaSyntheticPersona: true,
           profile: { dashboardActivatedAt: { not: null } },
         },

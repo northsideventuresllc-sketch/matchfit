@@ -591,10 +591,12 @@ export default async function TermsPage() {
           with heightened monitoring; Match Fit may still permanently ban individuals when warranted.
         </P>
         <P>
-          You may request account deletion through in-product privacy settings (password verification required). Deletion
-          de-identifies personal data on your account record, cancels active Client subscriptions through Stripe where
-          applicable, and is intended to be <Strong>irreversible</Strong>, as described in our Privacy Policy. We retain
-          minimum records needed for trust, safety, billing audit, and legal compliance.
+          You may request account deletion through in-product privacy settings (password verification required). We schedule
+          permanent removal for <Strong>thirty (30) days</Strong> after your request. During that window you may sign in and
+          cancel the scheduled deletion to keep your account. If you do not cancel, we de-identify personal data on your
+          account record, cancel active Client subscriptions through Stripe where applicable, and treat the removal as{" "}
+          <Strong>irreversible</Strong>, as described in our Privacy Policy. We retain minimum records needed for trust,
+          safety, billing audit, and legal compliance.
         </P>
 
         <H2 id="changes">21. Changes to the Service and These Terms</H2>

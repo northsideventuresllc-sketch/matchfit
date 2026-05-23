@@ -1,3 +1,4 @@
+import { trainerLoginDeletionRedirect } from "@/lib/account-deletion-login-redirect";
 import { findTrainerEmailChannel, verifyStoredEmailCode } from "@/lib/auth-2fa-email";
 import { verifyOtp } from "@/lib/otp";
 import { prisma } from "@/lib/prisma";
@@ -137,8 +138,13 @@ export async function POST(req: Request) {
           },
         }),
       ]);
-      const next = redirectAfter ?? "/trainer/dashboard";
-      const res = NextResponse.json({ ok: true, next });
+      const deletionRedirect = await trainerLoginDeletionRedirect(trainerId);
+      const next = deletionRedirect?.next ?? redirectAfter ?? "/trainer/dashboard";
+      const res = NextResponse.json({
+        ok: true,
+        next,
+        ...(deletionRedirect ? { finalizeAt: deletionRedirect.finalizeAt } : {}),
+      });
       res.cookies.delete(TRAINER_LOGIN_CHALLENGE_COOKIE);
       await applyTrainerSessionToNextResponse(res, trainerId, stayLoggedIn);
       return res;
@@ -215,8 +221,13 @@ export async function POST(req: Request) {
         stayLoggedIn,
       },
     });
-    const next = redirectAfter ?? "/trainer/dashboard";
-    const res = NextResponse.json({ ok: true, next });
+    const deletionRedirect = await trainerLoginDeletionRedirect(trainerId);
+    const next = deletionRedirect?.next ?? redirectAfter ?? "/trainer/dashboard";
+    const res = NextResponse.json({
+      ok: true,
+      next,
+      ...(deletionRedirect ? { finalizeAt: deletionRedirect.finalizeAt } : {}),
+    });
     res.cookies.delete(TRAINER_LOGIN_CHALLENGE_COOKIE);
     await applyTrainerSessionToNextResponse(res, trainerId, stayLoggedIn);
     return res;

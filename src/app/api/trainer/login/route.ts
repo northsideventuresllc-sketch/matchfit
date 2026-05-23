@@ -1,3 +1,4 @@
+import { trainerLoginDeletionRedirect } from "@/lib/account-deletion-login-redirect";
 import { send2FACode } from "@/lib/auth-2fa-email";
 import { findTrainerByIdentifier } from "@/lib/trainer-queries";
 import { getTrainerLoginOtpDelivery } from "@/lib/trainer-login-two-factor-target";
@@ -77,7 +78,12 @@ export async function POST(req: Request) {
       where: { id: trainer.id },
       data: { stayLoggedIn },
     });
-    const res = NextResponse.json({ ok: true, next: redirectAfterLogin });
+    const deletionRedirect = await trainerLoginDeletionRedirect(trainer.id);
+    const res = NextResponse.json({
+      ok: true,
+      next: deletionRedirect?.next ?? redirectAfterLogin,
+      ...(deletionRedirect ? { finalizeAt: deletionRedirect.finalizeAt } : {}),
+    });
     await applyTrainerSessionToNextResponse(res, trainer.id, stayLoggedIn);
     return res;
   } catch (e) {

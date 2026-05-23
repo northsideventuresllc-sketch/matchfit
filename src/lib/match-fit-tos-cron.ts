@@ -12,6 +12,7 @@ import {
   backgroundCheckExpiresAt,
   shouldSendBackgroundCheckExpiryWarning,
 } from "@/lib/trainer-background-check-renewal";
+import { finalizeDueAccountDeletions } from "@/lib/account-deletion-grace";
 import { runBetaWaitlistCronJobs } from "@/lib/beta-waitlist-service";
 
 export type TosCronSummary = {
@@ -33,6 +34,10 @@ export type TosCronSummary = {
     clientInvitesExpired: number;
     trainerInvitesSent: number;
     clientInvitesSent: number;
+  };
+  accountDeletions: {
+    clientsFinalized: number;
+    trainersFinalized: number;
   };
 };
 
@@ -211,6 +216,12 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   } catch (e) {
     console.error("[tos cron] beta waitlist", e);
   }
+  let accountDeletions = { clientsFinalized: 0, trainersFinalized: 0 };
+  try {
+    accountDeletions = await finalizeDueAccountDeletions();
+  } catch (e) {
+    console.error("[tos cron] account deletion finalize", e);
+  }
   return {
     backgroundCheckClearedBackfill: backfill,
     backgroundCheckWarningsSent: warnings,
@@ -226,5 +237,6 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     videoOAuthTokensRefreshed,
     videoOAuthTokenRefreshErrors,
     betaWaitlist,
+    accountDeletions,
   };
 }

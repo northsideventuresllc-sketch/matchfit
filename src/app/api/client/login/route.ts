@@ -1,3 +1,4 @@
+import { clientLoginDeletionRedirect } from "@/lib/account-deletion-login-redirect";
 import { send2FACode } from "@/lib/auth-2fa-email";
 import { findClientByIdentifier } from "@/lib/client-queries";
 import { getLoginOtpDelivery } from "@/lib/login-two-factor-target";
@@ -78,6 +79,10 @@ export async function POST(req: Request) {
       data: { stayLoggedIn },
     });
     await setClientSession(client.id, stayLoggedIn);
+    const deletionRedirect = await clientLoginDeletionRedirect(client.id);
+    if (deletionRedirect) {
+      return NextResponse.json({ ok: true, ...deletionRedirect });
+    }
     return NextResponse.json({ ok: true });
   } catch (e) {
     const { message, status } = publicApiErrorFromUnknown(e, "Sign-in failed. Please try again.", {

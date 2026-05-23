@@ -72,6 +72,8 @@ export async function deidentifyClientAccount(clientId: string): Promise<void> {
       where: { id: clientId },
       data: {
         deidentifiedAt: new Date(),
+        accountDeletionRequestedAt: null,
+        accountDeletionFinalizeAt: null,
         firstName: "Former",
         lastName: "Member",
         preferredName: "Former member",
@@ -181,6 +183,8 @@ export async function deidentifyTrainerAccount(trainerId: string): Promise<void>
       where: { id: trainerId },
       data: {
         deidentifiedAt: new Date(),
+        accountDeletionRequestedAt: null,
+        accountDeletionFinalizeAt: null,
         firstName: "Former",
         lastName: "Coach",
         preferredName: "Former coach",

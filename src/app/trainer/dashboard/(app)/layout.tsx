@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { AdminImpersonationStrip } from "@/components/admin/admin-impersonation-strip";
 import { TrainerDashboardShell } from "@/components/trainer/trainer-dashboard-shell";
+import { isAccountDeletionGraceActive } from "@/lib/account-deletion-grace";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { prisma } from "@/lib/prisma";
 import { purgeExpiredSuspensionRecords } from "@/lib/suspension-lifecycle";
@@ -29,6 +30,7 @@ export default async function TrainerDashboardAppLayout({
       profileImageUrl: true,
       safetySuspended: true,
       deidentifiedAt: true,
+      accountDeletionFinalizeAt: true,
       profile: {
         select: {
           hasSignedTOS: true,
@@ -50,6 +52,9 @@ export default async function TrainerDashboardAppLayout({
   }
   if (trainer.deidentifiedAt) {
     redirect(staleTrainerSessionInvalidateRedirect("/trainer/dashboard/login"));
+  }
+  if (isAccountDeletionGraceActive(trainer)) {
+    redirect("/trainer/account-deletion-scheduled");
   }
   if (trainer.safetySuspended) {
     redirect("/trainer/account-suspended");
