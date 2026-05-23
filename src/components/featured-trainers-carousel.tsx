@@ -178,8 +178,9 @@ export function FeaturedTrainersCarousel({ trainers }: { trainers?: FeaturedTrai
   const n = useReal ? trainers!.length : 1;
 
   useEffect(() => {
-    const t = window.setTimeout(() => setIndex(0), 0);
-    return () => window.clearTimeout(t);
+    queueMicrotask(() => {
+      setIndex(0);
+    });
   }, [useReal, trainers]);
 
   useEffect(() => {
