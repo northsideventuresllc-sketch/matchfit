@@ -143,6 +143,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       lastName: true,
       bio: true,
       deidentifiedAt: true,
+      accountDeletionFinalizeAt: true,
       profile: {
         select: {
           dashboardActivatedAt: true,

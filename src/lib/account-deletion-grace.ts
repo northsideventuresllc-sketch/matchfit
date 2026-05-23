@@ -90,6 +90,7 @@ export async function cancelScheduledClientAccountDeletion(clientId: string): Pr
     where: { id: clientId },
     select: {
       deidentifiedAt: true,
+      accountDeletionRequestedAt: true,
       accountDeletionFinalizeAt: true,
     },
   });
@@ -114,7 +115,7 @@ export async function finalizeScheduledDeletionIfOverdue(args: {
   if (args.role === "client") {
     const row = await prisma.client.findUnique({
       where: { id: args.id },
-      select: { deidentifiedAt: true, accountDeletionFinalizeAt: true },
+      select: { deidentifiedAt: true, accountDeletionRequestedAt: true, accountDeletionFinalizeAt: true },
     });
     if (!row || row.deidentifiedAt || !isAccountDeletionOverdue(row)) return false;
     await deidentifyClientAccount(args.id);
@@ -122,7 +123,7 @@ export async function finalizeScheduledDeletionIfOverdue(args: {
   }
   const row = await prisma.trainer.findUnique({
     where: { id: args.id },
-    select: { deidentifiedAt: true, accountDeletionFinalizeAt: true },
+    select: { deidentifiedAt: true, accountDeletionRequestedAt: true, accountDeletionFinalizeAt: true },
   });
   if (!row || row.deidentifiedAt || !isAccountDeletionOverdue(row)) return false;
   await deidentifyTrainerAccount(args.id);
@@ -134,6 +135,7 @@ export async function cancelScheduledTrainerAccountDeletion(trainerId: string): 
     where: { id: trainerId },
     select: {
       deidentifiedAt: true,
+      accountDeletionRequestedAt: true,
       accountDeletionFinalizeAt: true,
     },
   });

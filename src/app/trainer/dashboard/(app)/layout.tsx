@@ -30,6 +30,7 @@ export default async function TrainerDashboardAppLayout({
       profileImageUrl: true,
       safetySuspended: true,
       deidentifiedAt: true,
+      accountDeletionRequestedAt: true,
       accountDeletionFinalizeAt: true,
       profile: {
         select: {

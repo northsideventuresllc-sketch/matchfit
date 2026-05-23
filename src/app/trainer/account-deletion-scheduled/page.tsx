@@ -18,6 +18,7 @@ export default async function TrainerAccountDeletionScheduledPage() {
     where: { id: trainerId },
     select: {
       deidentifiedAt: true,
+      accountDeletionRequestedAt: true,
       accountDeletionFinalizeAt: true,
     },
   });
