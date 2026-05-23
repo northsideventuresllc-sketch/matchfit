@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Prisma } from "@/generated/prisma/client";
 
-const queryRawMock = vi.fn();
-const betaExcludeCapCountEmailsMock = vi.fn<() => Set<string>>();
+const { queryRawMock, betaExcludeCapCountEmailsMock } = vi.hoisted(() => ({
+  queryRawMock: vi.fn(),
+  betaExcludeCapCountEmailsMock: vi.fn<() => Set<string>>(),
+}));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
