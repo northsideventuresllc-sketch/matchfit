@@ -1,5 +1,10 @@
 import { getStripeConnectClient } from "./client";
 
+/** Stripe Connect V2 account ids always use the `acct_` prefix. */
+export function isValidConnectAccountId(accountId: string | null | undefined): boolean {
+  return !!accountId?.startsWith("acct_");
+}
+
 export type ConnectAccountStatus = {
   accountId: string;
   displayName: string | null;
