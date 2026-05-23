@@ -28,7 +28,7 @@ import {
 const OPERATOR_LEGAL_NAME = "Northside Ventures LLC";
 
 /** General and billing inquiries. */
-const TERMS_CONTACT_EMAIL = "northside.ventures.llc@gmail.com";
+const TERMS_CONTACT_EMAIL = "legal@match-fit.net";
 
 const PHYSICAL_ADDRESS_LINE = "1954 Airport Rd STE 1277, Chamblee, GA 30341, United States";
 
@@ -550,6 +550,20 @@ export default async function TermsPage() {
           their businesses.
         </P>
 
+        <section className="mt-8 rounded-2xl border border-amber-500/30 bg-amber-500/[0.08] p-6">
+          <h2 id="physical-waiver" className="scroll-mt-24 text-base font-black tracking-tight text-amber-100">
+            17A. Physical Activity Waiver and Release of Liability
+          </h2>
+          <p className="mt-4 text-sm font-semibold uppercase leading-relaxed tracking-wide text-white/75">
+            FITNESS TRAINING INVOLVES INHERENT RISKS OF INJURY, ILLNESS, OR DEATH. MATCH FIT FACILITATES MARKETPLACE
+            CONNECTIONS AND IS NOT A TRAINER OR MEDICAL PROVIDER. TO THE MAXIMUM EXTENT PERMITTED BY LAW, CLIENTS
+            VOLUNTARILY ASSUME ALL RISKS ASSOCIATED WITH BOTH MOBILE (IN-PERSON) AND VIRTUAL SESSIONS. YOU EXPLICITLY
+            RELEASE, WAIVE, AND DISCHARGE NORTHSIDE VENTURES LLC, ITS AFFILIATES, AND ITS OFFICERS FROM ANY AND ALL CLAIMS
+            FOR PERSONAL INJURY, PROPERTY DAMAGE, MEDICAL EMERGENCY, ACCIDENT, OR WRONGFUL DEATH ARISING FROM OR RELATED TO
+            SERVICES FACILITATED THROUGH THE PLATFORM.
+          </p>
+        </section>
+
         <H2 id="limitation-liability">18. Limitation of Liability</H2>
         <P>
           To the maximum extent permitted by law, Match Fit and its affiliates, officers, directors, employees, and agents
@@ -589,17 +603,14 @@ export default async function TermsPage() {
           and/or through in-product notices, with an updated effective date on this page. Continued use after the effective
           date constitutes acceptance unless we state otherwise for specific changes that require fresh consent.
         </P>
+        <H2 id="governing-law">22. Governing Law, Mandatory Arbitration, and Class Action Waiver</H2>
         <P>
-          We also run automated engineering checks (for example, weekly in our CI environment) to compare published Terms
-          examples and thresholds against selected implementation constants; those checks do not replace legal review or
-          notice obligations above.
-        </P>
-
-        <H2 id="governing-law">22. Governing Law and Venue</H2>
-        <P>
-          These Terms are governed by the laws of the State of Georgia, excluding conflict-of-law rules. Subject to applicable
-          law, exclusive jurisdiction and venue for disputes will be the state and federal courts located in Georgia; you
-          consent to personal jurisdiction there.
+          These Terms are governed by the laws of the State of Georgia, without regard to conflict-of-law principles. ANY
+          DISPUTE ARISING OUT OF OR RELATING TO THESE TERMS OR THE SERVICE WILL BE RESOLVED EXCLUSIVELY THROUGH BINDING,
+          INDIVIDUAL ARBITRATION IN GEORGIA, RATHER THAN IN COURT. YOU AND MATCH FIT AGREE THAT EACH MAY BRING CLAIMS
+          AGAINST THE OTHER ONLY IN AN INDIVIDUAL CAPACITY, AND NOT AS A PLAINTIFF OR CLASS MEMBER IN ANY PURPORTED CLASS OR
+          REPRESENTATIVE PROCEEDING. If any part of this arbitration agreement is found unenforceable, the exclusive
+          jurisdiction and venue for disputes will be the state and federal courts located in Georgia.
         </P>
 
         <H2 id="general">23. General</H2>
@@ -623,16 +634,6 @@ export default async function TermsPage() {
             governing law) survive termination.
           </Li>
         </Ul>
-
-        <section className="mt-12 rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-200/90">Legal Review</p>
-          <p className="mt-2 text-xs leading-relaxed text-white/55">
-            Bump{" "}
-            <code className="rounded bg-white/10 px-1 py-0.5 text-[0.65rem] text-white/70">LEGAL_EFFECTIVE_DATE_DISPLAY</code> when
-            you ship material updates, and have qualified counsel review these Terms for your jurisdictions, payment flows,
-            and promotional programs.
-          </p>
-        </section>
 
         <LegalPageFooterNav role={role} />
       </div>
