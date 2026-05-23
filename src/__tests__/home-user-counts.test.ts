@@ -1,0 +1,89 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Prisma } from "@/generated/prisma/client";
+
+const queryRawMock = vi.fn();
+const betaExcludeCapCountEmailsMock = vi.fn<() => Set<string>>();
+
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    $queryRaw: queryRawMock,
+  },
+}));
+
+vi.mock("@/lib/beta-launch-config", () => ({
+  betaExcludeCapCountEmails: betaExcludeCapCountEmailsMock,
+}));
+
+import { getHomeUserCounts } from "@/lib/home-user-counts";
+
+function missingInternalQaColumnError() {
+  return new Prisma.PrismaClientKnownRequestError(
+    'column "internalQaSyntheticPersona" does not exist (42703)',
+    { code: "P2010", clientVersion: "unit-test" },
+  );
+}
+
+describe("getHomeUserCounts", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    betaExcludeCapCountEmailsMock.mockReturnValue(new Set());
+  });
+
+  it("maps bigint query rows into numeric counters", async () => {
+    queryRawMock.mockResolvedValue([
+      {
+        trainers_total: 11n,
+        trainers_active: 8n,
+        clients_total: 22n,
+        clients_active: 13n,
+      },
+    ]);
+
+    await expect(getHomeUserCounts()).resolves.toEqual({
+      trainersTotal: 11,
+      trainersActive: 8,
+      clientsTotal: 22,
+      clientsActive: 13,
+    });
+    expect(queryRawMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns zeros when the aggregate query yields no row", async () => {
+    queryRawMock.mockResolvedValue([]);
+
+    await expect(getHomeUserCounts()).resolves.toEqual({
+      trainersTotal: 0,
+      trainersActive: 0,
+      clientsTotal: 0,
+      clientsActive: 0,
+    });
+  });
+
+  it("retries without internalQaSyntheticPersona filter when that column is missing", async () => {
+    queryRawMock
+      .mockRejectedValueOnce(missingInternalQaColumnError())
+      .mockResolvedValueOnce([
+        {
+          trainers_total: 3n,
+          trainers_active: 2n,
+          clients_total: 5n,
+          clients_active: 4n,
+        },
+      ]);
+
+    await expect(getHomeUserCounts()).resolves.toEqual({
+      trainersTotal: 3,
+      trainersActive: 2,
+      clientsTotal: 5,
+      clientsActive: 4,
+    });
+    expect(queryRawMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("rethrows non-Prisma errors instead of retrying", async () => {
+    queryRawMock.mockRejectedValue(new Error("database timeout"));
+
+    await expect(getHomeUserCounts()).rejects.toThrow("database timeout");
+    expect(queryRawMock).toHaveBeenCalledTimes(1);
+  });
+});
