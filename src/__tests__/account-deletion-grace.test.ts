@@ -21,12 +21,49 @@ describe("account-deletion-grace", () => {
   });
 
   it("detects active grace, overdue, and pending states", () => {
+    const requested = new Date(Date.now() - 120_000);
     const future = new Date(Date.now() + 60_000);
     const past = new Date(Date.now() - 60_000);
-    expect(isAccountPendingDeletion({ accountDeletionFinalizeAt: future })).toBe(true);
-    expect(isAccountDeletionGraceActive({ accountDeletionFinalizeAt: future })).toBe(true);
-    expect(isAccountDeletionOverdue({ accountDeletionFinalizeAt: past })).toBe(true);
-    expect(isAccountDeletionGraceActive({ accountDeletionFinalizeAt: past })).toBe(false);
-    expect(isAccountPendingDeletion({ accountDeletionFinalizeAt: null })).toBe(false);
+
+    expect(
+      isAccountPendingDeletion({
+        accountDeletionRequestedAt: requested,
+        accountDeletionFinalizeAt: future,
+      }),
+    ).toBe(true);
+    expect(
+      isAccountDeletionGraceActive({
+        accountDeletionRequestedAt: requested,
+        accountDeletionFinalizeAt: future,
+      }),
+    ).toBe(true);
+    expect(
+      isAccountDeletionOverdue({
+        accountDeletionRequestedAt: requested,
+        accountDeletionFinalizeAt: past,
+      }),
+    ).toBe(true);
+    expect(
+      isAccountDeletionGraceActive({
+        accountDeletionRequestedAt: requested,
+        accountDeletionFinalizeAt: past,
+      }),
+    ).toBe(false);
+    expect(
+      isAccountPendingDeletion({
+        accountDeletionRequestedAt: null,
+        accountDeletionFinalizeAt: null,
+      }),
+    ).toBe(false);
+    expect(
+      isAccountPendingDeletion({
+        accountDeletionRequestedAt: requested,
+        accountDeletionFinalizeAt: future,
+        deidentifiedAt: new Date(),
+      } as {
+        accountDeletionRequestedAt: Date | null;
+        accountDeletionFinalizeAt: Date | null;
+      }),
+    ).toBe(false);
   });
 });
