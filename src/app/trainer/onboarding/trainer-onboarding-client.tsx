@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TRAINER_ONBOARDING_AGREEMENT_COUNT, getTrainerOnboardingAgreementBullets } from "@/app/trainer/onboarding/trainer-agreement-bullets";
 import { CREDIBLE_CPT_ORGANIZATIONS } from "@/app/trainer/onboarding/credible-cpt-organizations";
 import { CREDIBLE_NUTRITION_CREDENTIALS } from "@/app/trainer/onboarding/credible-nutrition-credentials";
@@ -180,8 +180,7 @@ export default function TrainerOnboardingClient() {
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [baselineEpoch, setBaselineEpoch] = useState(0);
-  const [lastSyncedSnapshot, setLastSyncedSnapshot] = useState("");
+  const [onboardingLoaded, setOnboardingLoaded] = useState(false);
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
 
   const loadMe = useCallback(async () => {
@@ -261,9 +260,7 @@ export default function TrainerOnboardingClient() {
       setOnboardingPasswordBypassUi(false);
     } finally {
       setLoadingMe(false);
-      if (loadedTrainer) {
-        setBaselineEpoch((e) => e + 1);
-      }
+      if (loadedTrainer) setOnboardingLoaded(true);
     }
   }, []);
 
@@ -362,19 +359,20 @@ export default function TrainerOnboardingClient() {
     ],
   );
 
-  const baselineCaptureRef = useRef("");
-
-  useLayoutEffect(() => {
-    baselineCaptureRef.current = onboardingSnapshotSerialized;
-  }, [onboardingSnapshotSerialized]);
-
-  useLayoutEffect(() => {
-    if (!trainer || loadingMe || baselineEpoch === 0) return;
-    setLastSyncedSnapshot(baselineCaptureRef.current);
-  }, [baselineEpoch, trainer, loadingMe]);
+  /**
+   * Capture the initial state of the form after the trainer data is first loaded.
+   * Using a Ref for the baseline snapshot prevents cascading renders and ensures
+   * we only track "dirty" status relative to the server's last known state.
+   */
+  const initialSnapshotRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (onboardingLoaded && !loadingMe && initialSnapshotRef.current === null) {
+      initialSnapshotRef.current = onboardingSnapshotSerialized;
+    }
+  }, [onboardingLoaded, loadingMe, onboardingSnapshotSerialized]);
 
   const isOnboardingDirty =
-    lastSyncedSnapshot !== "" && onboardingSnapshotSerialized !== lastSyncedSnapshot;
+    initialSnapshotRef.current !== null && onboardingSnapshotSerialized !== initialSnapshotRef.current;
 
   const canReturnToDashboard = profile?.matchQuestionnaireStatus === "completed";
 

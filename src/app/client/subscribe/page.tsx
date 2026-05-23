@@ -70,11 +70,13 @@ function SubscribeContent() {
           emailMasked?: string;
         };
         if (cancelled) return;
+
         if (!meta.hasHold) {
           setFatal("Your sign-up session is missing or expired. Please start again from client sign-up.");
           setLoading(false);
           return;
         }
+
         if (meta.internalQaBillingSkipEligible) {
           setQaSkip(true);
           setQaMasked(meta.emailMasked ?? null);
@@ -85,11 +87,13 @@ function SubscribeContent() {
         const offerRes = await fetch("/api/client/billing/subscription-offer", { credentials: "include" });
         const offerData = (await offerRes.json()) as SubscriptionOffer & { error?: string };
         if (cancelled) return;
+
         if (!offerRes.ok) {
           setFatal(offerData.error ?? "Could not load membership offer.");
           setLoading(false);
           return;
         }
+
         setOffer(offerData);
 
         if (offerData.foundingSlot) {
