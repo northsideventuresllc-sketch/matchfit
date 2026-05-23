@@ -5,6 +5,33 @@
   --foreground: #171717;
 }
 
+/* ── PWA / Standalone mode ── */
+
+/* Ensure the app fills the full screen including notch/home bar areas */
+html {
+  height: 100%;
+  /* Opt in to safe-area padding so env() vars are available */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  padding: 0; /* reset — let individual elements handle safe areas */
+}
+
+/* Status bar overlap fix when launched in standalone (iOS) */
+@media (display-mode: standalone) {
+  body {
+    /* Prevent content from sliding behind the iOS status bar */
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* Prevent iOS rubber-band scroll on the body in standalone mode */
+@media (display-mode: standalone) {
+  html,
+  body {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 @keyframes mf-trainer-fade {
   from {
     opacity: 0;

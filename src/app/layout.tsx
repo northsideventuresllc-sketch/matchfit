@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { DevAccountShortcuts } from "@/components/dev-account-shortcuts";
 import "./globals.css";
@@ -16,6 +16,29 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Match Fit",
   description: "Find coaches who fit your goals — Atlanta beta.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Match Fit",
+  },
+  icons: {
+    apple: [{ url: "/icons/icon-180.png", sizes: "180x180", type: "image/png" }],
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#FF7E00",
+  width: "device-width",
+  initialScale: 1,
+  minimumScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
