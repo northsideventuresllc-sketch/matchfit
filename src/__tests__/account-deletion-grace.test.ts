@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   ACCOUNT_DELETION_GRACE_DAYS,
+  accountDeletionScheduledLoginNext,
   accountDeletionGraceMs,
   computeAccountDeletionFinalizeAt,
+  isAccountDeidentified,
   isAccountDeletionGraceActive,
   isAccountDeletionOverdue,
   isAccountPendingDeletion,
@@ -65,5 +67,22 @@ describe("account-deletion-grace", () => {
         accountDeletionFinalizeAt: Date | null;
       }),
     ).toBe(false);
+  });
+
+  it("treats deidentified accounts as no longer pending deletion", () => {
+    expect(isAccountDeidentified(new Date("2026-05-21T00:00:00.000Z"))).toBe(true);
+    expect(isAccountDeidentified(null)).toBe(false);
+    expect(
+      isAccountPendingDeletion({
+        accountDeletionRequestedAt: new Date("2026-05-20T00:00:00.000Z"),
+        accountDeletionFinalizeAt: new Date("2026-05-25T00:00:00.000Z"),
+        deidentifiedAt: new Date("2026-05-22T00:00:00.000Z"),
+      }),
+    ).toBe(false);
+  });
+
+  it("returns the role-specific account deletion status page", () => {
+    expect(accountDeletionScheduledLoginNext("client")).toBe("/client/account-deletion-scheduled");
+    expect(accountDeletionScheduledLoginNext("trainer")).toBe("/trainer/account-deletion-scheduled");
   });
 });
