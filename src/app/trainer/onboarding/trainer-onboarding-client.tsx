@@ -361,18 +361,19 @@ export default function TrainerOnboardingClient() {
 
   /**
    * Capture the initial state of the form after the trainer data is first loaded.
-   * Using a Ref for the baseline snapshot prevents cascading renders and ensures
+   * Storing the baseline snapshot in state keeps render-time reads hook-safe and ensures
    * we only track "dirty" status relative to the server's last known state.
    */
-  const initialSnapshotRef = useRef<string | null>(null);
+  const [initialSnapshot, setInitialSnapshot] = useState<string | null>(null);
   useEffect(() => {
-    if (onboardingLoaded && !loadingMe && initialSnapshotRef.current === null) {
-      initialSnapshotRef.current = onboardingSnapshotSerialized;
-    }
-  }, [onboardingLoaded, loadingMe, onboardingSnapshotSerialized]);
+    if (!onboardingLoaded || loadingMe || initialSnapshot !== null) return;
+    queueMicrotask(() => {
+      setInitialSnapshot(onboardingSnapshotSerialized);
+    });
+  }, [onboardingLoaded, loadingMe, onboardingSnapshotSerialized, initialSnapshot]);
 
   const isOnboardingDirty =
-    initialSnapshotRef.current !== null && onboardingSnapshotSerialized !== initialSnapshotRef.current;
+    initialSnapshot !== null && onboardingSnapshotSerialized !== initialSnapshot;
 
   const canReturnToDashboard = profile?.matchQuestionnaireStatus === "completed";
 

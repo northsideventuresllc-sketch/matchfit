@@ -109,7 +109,9 @@ export function TrainerPromoTokensClient() {
   }, []);
 
   useEffect(() => {
-    void load();
+    queueMicrotask(() => {
+      void load();
+    });
   }, [load]);
 
   /**
