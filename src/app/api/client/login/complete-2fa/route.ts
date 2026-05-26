@@ -1,3 +1,4 @@
+import { clientLoginDeletionRedirect } from "@/lib/account-deletion-login-redirect";
 import { findClientEmailChannel, verifyStoredEmailCode } from "@/lib/auth-2fa-email";
 import { getLoginOtpDelivery } from "@/lib/login-two-factor-target";
 import { verifyOtp } from "@/lib/otp";
@@ -146,6 +147,10 @@ export async function POST(req: Request) {
       ]);
       await clearLoginChallengeCookie();
       await setClientSession(clientId, stayLoggedIn);
+      const deletionRedirect = await clientLoginDeletionRedirect(clientId);
+      if (deletionRedirect) {
+        return NextResponse.json({ ok: true, ...deletionRedirect });
+      }
       return NextResponse.json({ ok: true, ...(nextPath ? { next: nextPath } : {}) });
     }
 
@@ -215,6 +220,10 @@ export async function POST(req: Request) {
     });
     await clearLoginChallengeCookie();
     await setClientSession(clientId, stayLoggedIn);
+    const deletionRedirect = await clientLoginDeletionRedirect(clientId);
+    if (deletionRedirect) {
+      return NextResponse.json({ ok: true, ...deletionRedirect });
+    }
     return NextResponse.json({ ok: true, ...(nextPath ? { next: nextPath } : {}) });
   } catch (e) {
     const { message, status } = publicApiErrorFromUnknown(e, "Verification could not be completed. Try again.", {

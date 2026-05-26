@@ -56,7 +56,7 @@ function ClientPortalInner(props: { defaultNext: string | null }) {
         router.push(`${base}${q}`);
         return;
       }
-      navigateWithFullLoad(safeNext ?? "/client/dashboard");
+      navigateWithFullLoad(data.next ?? safeNext ?? "/client/dashboard");
     } catch {
       setError("Something went wrong. Try again.");
     } finally {

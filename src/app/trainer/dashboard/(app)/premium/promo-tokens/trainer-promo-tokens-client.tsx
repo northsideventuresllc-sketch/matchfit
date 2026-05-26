@@ -84,6 +84,12 @@ export function TrainerPromoTokensClient() {
         return;
       }
       setSummary(sJson);
+      // Initialize the budget based on the minimum tokens per day defined in economics
+      if (sJson.economics) {
+        const m = sJson.economics.minTokensPerDay ?? 20;
+        setTokensBudget((prev) => Math.max(m, prev));
+      }
+
       const pData = (await pRes.json()) as { posts?: MyPost[]; error?: string };
       if (pRes.ok) {
         const vids = (pData.posts ?? []).filter((x) => x.postType === "VIDEO" && x.visibility === "PUBLIC");
@@ -103,24 +109,17 @@ export function TrainerPromoTokensClient() {
   }, []);
 
   useEffect(() => {
-    const t = window.setTimeout(() => {
+    queueMicrotask(() => {
       void load();
-    }, 0);
-    return () => window.clearTimeout(t);
+    });
   }, [load]);
 
-  const minRequired = useMemo(() => {
-    const m = summary?.economics?.minTokensPerDay ?? 20;
-    return m * durationDays;
-  }, [summary, durationDays]);
-
-  useEffect(() => {
-    if (!summary?.economics) return;
-    const t = window.setTimeout(() => {
-      setTokensBudget((s) => Math.max(minRequired, s));
-    }, 0);
-    return () => window.clearTimeout(t);
-  }, [minRequired, summary?.economics]);
+  /**
+   * Calculate the minimum required tokens dynamically. 
+   * Deriving this from existing state instead of synchronizing it into a separate state
+   * via useEffect avoids cascading renders and ensures the UI is always in sync.
+   */
+  const minRequired = (summary?.economics?.minTokensPerDay ?? 20) * durationDays;
 
   const tabPromotions = useMemo(() => promotions.filter((p) => p.phase === promoTab), [promotions, promoTab]);
 
@@ -348,9 +347,12 @@ export function TrainerPromoTokensClient() {
                 min={1}
                 max={eco?.maxPromotionDays ?? 30}
                 value={durationDays}
-                onChange={(e) =>
-                  setDurationDays(Math.max(1, Math.min(eco?.maxPromotionDays ?? 30, parseInt(e.target.value, 10) || 1)))
-                }
+                onChange={(e) => {
+                  const nextDays = Math.max(1, Math.min(eco?.maxPromotionDays ?? 30, parseInt(e.target.value, 10) || 1));
+                  setDurationDays(nextDays);
+                  // Immediately sync the budget if the new duration requires a higher minimum
+                  setTokensBudget((prev) => Math.max((eco?.minTokensPerDay ?? 20) * nextDays, prev));
+                }}
                 className="mt-2 w-full rounded-xl border border-white/10 bg-[#0E1016] px-3 py-2 text-sm text-white"
               />
             </label>

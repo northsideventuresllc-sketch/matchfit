@@ -185,6 +185,9 @@ model Client {
   optionalProfileVisibilityJson String?
   /// Set when the user deletes their account; row retained for FKs / safety records with PII scrubbed.
   deidentifiedAt DateTime?
+  /// When the user requested deletion; permanent scrub runs at `accountDeletionFinalizeAt`.
+  accountDeletionRequestedAt DateTime?
+  accountDeletionFinalizeAt  DateTime?
 
   /// Internal QA only: synthetic persona rows used for Match Fit owner sandbox (never visible to real users).
   internalQaSyntheticPersona Boolean @default(false)
@@ -343,6 +346,8 @@ model Trainer {
 
   optionalProfileVisibilityJson String?
   deidentifiedAt DateTime?
+  accountDeletionRequestedAt DateTime?
+  accountDeletionFinalizeAt  DateTime?
 
   profile           TrainerProfile?
   twoFactorChannels TrainerTwoFactorChannel[]
@@ -1797,25 +1802,6 @@ model BetaClientWaitlistEntry {
   @@index([email])
   @@index([desiredUsername])
   @@map("beta_client_waitlist_entries")
-  @@schema("public")
-}
-
-/// Stripe Connect sample — maps a demo seller to a V2 connected account (`acct_...`).
-model StripeConnectDemoSeller {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  displayName     String
-  contactEmail    String
-  stripeAccountId String @unique
-
-  /// Platform subscription billed to the connected account (V2 `customer_account` Checkout).
-  platformSubscriptionId     String?
-  platformSubscriptionStatus String?
-
-  @@index([contactEmail])
-  @@map("stripe_connect_demo_sellers")
   @@schema("public")
 }
 

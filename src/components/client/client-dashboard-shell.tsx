@@ -51,6 +51,63 @@ const NAV = [
   },
 ] as const;
 
+// 5 primary tabs shown in the mobile bottom bar
+const BOTTOM_NAV = [
+  {
+    href: "/client/dashboard",
+    label: "Home",
+    match: (p: string) => p === "/client/dashboard",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+      </svg>
+    ),
+  },
+  {
+    href: "/client/dashboard/find-trainers",
+    label: "Find",
+    match: (p: string) => p.startsWith("/client/dashboard/find-trainers"),
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+    ),
+  },
+  {
+    href: "/client/dashboard/messages",
+    label: "Chats",
+    match: (p: string) => p.startsWith("/client/dashboard/messages"),
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+    ),
+  },
+  {
+    href: "/client/dashboard/fithub",
+    label: "FitHub",
+    match: (p: string) => p.startsWith("/client/dashboard/fithub"),
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+        <path d="M18 20V10M12 20V4M6 20v-6" />
+      </svg>
+    ),
+  },
+  {
+    href: "/client/dashboard/preferences",
+    label: "Profile",
+    match: (p: string) => p.startsWith("/client/dashboard/preferences") || p.startsWith("/client/dashboard/profile"),
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+    ),
+  },
+] as const;
+
 export function ClientDashboardShell(props: ClientDashboardShellProps) {
   const pathname = usePathname();
   const isHome = pathname === "/client/dashboard";
@@ -58,7 +115,7 @@ export function ClientDashboardShell(props: ClientDashboardShellProps) {
   const backLabel = !isHome ? "← Dashboard" : undefined;
 
   return (
-    <main className="relative min-h-dvh overflow-x-hidden bg-[#07080C] px-5 py-10 text-white sm:px-8 sm:py-12">
+    <main className="relative min-h-dvh overflow-x-hidden bg-[#07080C] px-5 pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-10 text-white sm:px-8 sm:pb-12 sm:pt-12">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(255,126,0,0.14),transparent_55%)]"
@@ -74,9 +131,10 @@ export function ClientDashboardShell(props: ClientDashboardShellProps) {
           initialUnreadCount={props.initialUnreadCount}
         />
 
+        {/* Desktop horizontal nav — hidden on mobile */}
         <nav
           aria-label="Client Dashboard"
-          className="mb-8 flex flex-wrap justify-center gap-2 rounded-2xl border border-white/[0.07] bg-[#0E1016]/60 p-1.5 backdrop-blur-md"
+          className="mb-8 hidden flex-wrap justify-center gap-2 rounded-2xl border border-white/[0.07] bg-[#0E1016]/60 p-1.5 backdrop-blur-md sm:flex"
         >
           {NAV.map((item) => {
             const active = item.match(pathname);
@@ -127,6 +185,34 @@ export function ClientDashboardShell(props: ClientDashboardShellProps) {
           </p>
         </footer>
       </div>
+
+      {/* Mobile bottom tab bar — visible only on mobile */}
+      <nav
+        aria-label="Client Navigation"
+        className="fixed inset-x-0 bottom-0 z-50 flex items-stretch border-t border-white/[0.08] bg-[#07080C]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl sm:hidden"
+      >
+        {BOTTOM_NAV.map((item) => {
+          const active = item.match(pathname);
+          const hasUnread = item.href.includes("/messages") && props.initialUnreadCount > 0;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] font-bold uppercase tracking-[0.08em] transition-colors ${
+                active ? "text-[#FF7E00]" : "text-white/40"
+              }`}
+            >
+              <span className="relative">
+                {item.icon}
+                {hasUnread && (
+                  <span className="absolute -right-1 -top-1 flex h-2 w-2 items-center justify-center rounded-full bg-[#E32B2B]" />
+                )}
+              </span>
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </main>
   );
 }

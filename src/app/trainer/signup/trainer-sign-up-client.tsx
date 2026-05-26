@@ -294,6 +294,7 @@ export default function TrainerSignUpClient() {
               waitlistHref="/waitlist/trainer"
               cap={betaStatus?.trainerCap ?? null}
               count={betaStatus?.trainerCount ?? null}
+              slotsUsed={betaStatus?.trainerSlotsUsed ?? null}
             />
           ) : (
             <>
