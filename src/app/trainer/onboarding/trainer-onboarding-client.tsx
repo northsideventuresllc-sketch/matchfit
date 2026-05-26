@@ -17,6 +17,7 @@ import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { verifyTrainerOnboardingDevPassword } from "@/lib/trainer-dev-bypass";
 import { certificationsGatePassed } from "@/lib/trainer-onboarding-cert-gate";
 import { normalizeTrainerSocialFields } from "@/lib/trainer-social-urls";
+import { TrainerBackgroundCheckStripePayment } from "@/components/trainer/trainer-background-check-stripe-payment";
 import { postTrainerLogout } from "@/lib/trainer-logout";
 import { US_STATE_POSTAL_OPTIONS } from "@/lib/trainer-profile-demography-options";
 import { coerceTrainerBackgroundVendorStatus, coerceTrainerCptStatus } from "@/lib/trainer-onboarding-status";
@@ -429,6 +430,17 @@ export default function TrainerOnboardingClient() {
     return SPECIALIST_ROLE_OPTIONS.find((o) => o.id === id)?.label ?? "Certified specialist credential";
   }, [profile?.specialistProfessionalRole]);
   const bgNeedsReview = bgVendor === "NEEDS_FURTHER_REVIEW";
+  const backgroundCheckFeeLabel = useMemo(() => {
+    const usd = process.env.NEXT_PUBLIC_TRAINER_BACKGROUND_CHECK_FEE_USD?.trim();
+    const n = usd ? Number.parseFloat(usd) : 49;
+    const v = Number.isFinite(n) && n > 0 ? n : 49;
+    return `$${v.toFixed(2)}`;
+  }, []);
+
+  const handleBackgroundPaymentSuccess = useCallback(async () => {
+    setError(null);
+    await loadMe();
+  }, [loadMe]);
 
   const certsComplete = useMemo(() => {
     if (!profile) return false;
@@ -1211,6 +1223,18 @@ export default function TrainerOnboardingClient() {
                   </div>
                 ) : null}
               </div>
+              {profile?.hasPaidBackgroundFee ? (
+                <p className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100/95">
+                  Background check fee paid. Complete Checkr screening if you have not already — vendor status above
+                  updates when your report clears.
+                </p>
+              ) : (
+                <TrainerBackgroundCheckStripePayment
+                  amountLabel={backgroundCheckFeeLabel}
+                  onPaid={handleBackgroundPaymentSuccess}
+                  onError={(msg) => setError(msg || null)}
+                />
+              )}
               {showBackgroundCheckDevOverride ? (
                 <>
                   <div className="flex flex-col gap-2">
