@@ -8,6 +8,8 @@ import {
   isAccountDeletionGraceActive,
   isAccountDeletionOverdue,
   isAccountPendingDeletion,
+  marketplaceActiveClientWhere,
+  marketplaceActiveTrainerWhere,
 } from "@/lib/account-deletion-grace";
 
 describe("account-deletion-grace", () => {
@@ -84,5 +86,16 @@ describe("account-deletion-grace", () => {
   it("returns the role-specific account deletion status page", () => {
     expect(accountDeletionScheduledLoginNext("client")).toBe("/client/account-deletion-scheduled");
     expect(accountDeletionScheduledLoginNext("trainer")).toBe("/trainer/account-deletion-scheduled");
+  });
+
+  it("exports marketplace filters that exclude pending/deidentified accounts", () => {
+    expect(marketplaceActiveClientWhere).toEqual({
+      deidentifiedAt: null,
+      accountDeletionFinalizeAt: null,
+    });
+    expect(marketplaceActiveTrainerWhere).toEqual({
+      deidentifiedAt: null,
+      accountDeletionFinalizeAt: null,
+    });
   });
 });
