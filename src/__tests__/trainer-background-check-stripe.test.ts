@@ -4,7 +4,11 @@ import {
   isTrainerBackgroundCheckPaymentIntent,
   trainerBackgroundCheckAmountCents,
 } from "@/lib/trainer-background-check-stripe";
-import { getStripePublishableKey, requireStripePublishableKey } from "@/lib/stripe-publishable";
+import {
+  getStripePublishableKey,
+  isStripePublishableConfigured,
+  requireStripePublishableKey,
+} from "@/lib/stripe-publishable";
 import type Stripe from "stripe";
 
 describe("stripe-publishable", () => {
@@ -19,11 +23,13 @@ describe("stripe-publishable", () => {
     delete process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
     expect(() => requireStripePublishableKey()).toThrow(/NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY/);
     expect(getStripePublishableKey()).toBeNull();
+    expect(isStripePublishableConfigured()).toBe(false);
   });
 
   it("returns trimmed publishable key", () => {
     process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = " pk_test_abc ";
     expect(requireStripePublishableKey()).toBe("pk_test_abc");
+    expect(isStripePublishableConfigured()).toBe(true);
   });
 });
 
