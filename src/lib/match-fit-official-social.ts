@@ -19,6 +19,11 @@ export const MATCH_FIT_OFFICIAL_SOCIAL_LINKS: readonly MatchFitOfficialSocialLin
     href: "https://www.threads.com/@theofficialmatchfit",
   },
   {
+    platform: "tiktok",
+    label: "TikTok",
+    href: "https://www.tiktok.com/@theofficialmatchfit",
+  },
+  {
     platform: "facebook",
     label: "Facebook",
     href: "https://www.facebook.com/1162533296938793",
@@ -27,5 +32,8 @@ export const MATCH_FIT_OFFICIAL_SOCIAL_LINKS: readonly MatchFitOfficialSocialLin
     platform: "tiktok",
     label: "TikTok",
     href: "https://www.tiktok.com/@theofficialmatchfit",
+    platform: "instagram",
+    label: "Instagram",
+    href: "https://www.instagram.com/theofficialmatchfit/",
   },
 ] as const;

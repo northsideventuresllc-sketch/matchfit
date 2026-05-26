@@ -14,13 +14,6 @@ import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 
 type HomeProps = { searchParams?: Promise<{ zip?: string }> };
 
-const EMPTY_USER_COUNTS: HomeUserCounts = {
-  trainersTotal: 0,
-  trainersActive: 0,
-  clientsTotal: 0,
-  clientsActive: 0,
-};
-
 export default async function Home({ searchParams }: HomeProps) {
   // DATABASE_URL is required for all DB calls. Preview deployments may omit it;
   // skip DB-dependent work so the page still renders rather than returning 500.
@@ -38,7 +31,6 @@ export default async function Home({ searchParams }: HomeProps) {
   };
 
   let featuredTrainers: FeaturedTrainerCard[] = [];
-  let homeUserCounts: HomeUserCounts = EMPTY_USER_COUNTS;
 
   if (hasDb) {
     let zipForFeatured = zipFromQuery;
@@ -50,10 +42,7 @@ export default async function Home({ searchParams }: HomeProps) {
       if (client?.zipCode?.trim()) zipForFeatured = client.zipCode.trim();
     }
 
-    [featuredTrainers, homeUserCounts] = await Promise.all([
-      getFeaturedTrainersForHomepage({ zipInput: zipForFeatured }),
-      getHomeUserCounts(),
-    ]);
+    featuredTrainers = await getFeaturedTrainersForHomepage({ zipInput: zipForFeatured });
   }
 
   return (

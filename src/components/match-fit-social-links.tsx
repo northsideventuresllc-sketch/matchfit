@@ -28,6 +28,8 @@ function SocialIcon({ platform, className }: { platform: MatchFitOfficialSocialP
     />
   );
 }
+import { MatchFitOfficialSocialIcon } from "@/components/match-fit-official-social-icons";
+import { MATCH_FIT_OFFICIAL_SOCIAL_LINKS } from "@/lib/match-fit-official-social";
 
 type Props = {
   /** Visual density for footers vs auth pages. */
@@ -67,6 +69,7 @@ export function MatchFitSocialLinks({ variant = "footer", className = "" }: Prop
               title={`Match Fit on ${item.label}`}
             >
               <SocialIcon platform={item.platform} className={iconSize} />
+              <MatchFitOfficialSocialIcon platform={item.platform} className={iconSize} />
               <span className="sr-only">{item.label}</span>
             </Link>
           </li>
