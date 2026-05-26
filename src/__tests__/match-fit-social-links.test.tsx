@@ -2,10 +2,6 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { trainerSocialBrandIconMock } = vi.hoisted(() => ({
-  trainerSocialBrandIconMock: vi.fn<(props: { platform: string; className?: string }) => void>(),
-}));
-
 vi.mock("next/link", () => ({
   default: ({
     href,
@@ -15,13 +11,6 @@ vi.mock("next/link", () => ({
     href: unknown;
     children: ReactNode;
   } & Record<string, unknown>) => <a href={typeof href === "string" ? href : String(href)} {...props}>{children}</a>,
-}));
-
-vi.mock("@/components/trainer/trainer-social-brand-icons", () => ({
-  TrainerSocialBrandIcon: (props: { platform: string; className?: string }) => {
-    trainerSocialBrandIconMock(props);
-    return <svg data-platform={props.platform} className={props.className} aria-hidden />;
-  },
 }));
 
 import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
@@ -48,23 +37,16 @@ describe("MatchFitSocialLinks", () => {
     const html = renderToStaticMarkup(<MatchFitSocialLinks variant="compact" />);
     const expectedIconClass = "h-5 w-5";
 
-    expect(html).toContain(expectedIconClass);
+    expect((html.match(/class="h-5 w-5"/g) ?? []).length).toBe(MATCH_FIT_OFFICIAL_SOCIAL_LINKS.length);
     expect(html).not.toContain("sm:gap-4");
-    const nonThreadsCount = MATCH_FIT_OFFICIAL_SOCIAL_LINKS.filter((item) => item.platform !== "threads").length;
-    expect(trainerSocialBrandIconMock).toHaveBeenCalledTimes(nonThreadsCount);
-    for (const [call] of trainerSocialBrandIconMock.mock.calls) {
-      expect(call.className).toBe(expectedIconClass);
-    }
+    expect(html).toContain(expectedIconClass);
   });
 
-  it("uses the dedicated Threads icon instead of the shared trainer icon map", () => {
+  it("renders the official threads icon in the footer variant", () => {
     const html = renderToStaticMarkup(<MatchFitSocialLinks variant="footer" />);
 
     expect(html).toContain("h-6 w-6");
     expect(html).toContain("sm:gap-4");
-    expect(html).toContain('fill="#101010"');
-    expect(
-      trainerSocialBrandIconMock.mock.calls.some(([call]) => call.platform === "threads"),
-    ).toBe(false);
+    expect(html).toContain('fill="#000000"');
   });
 });
