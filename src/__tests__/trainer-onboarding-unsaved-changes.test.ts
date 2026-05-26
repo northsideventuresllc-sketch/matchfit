@@ -28,6 +28,9 @@ describe("trainer onboarding unsaved changes", () => {
       expect(
         shouldInterceptDashboardNavigation("https://matchfit.test/trainer/dashboard?tab=profile", currentLocationHref),
       ).toBe(true);
+      expect(
+        shouldInterceptDashboardNavigation("https://matchfit.test/trainer/dashboard/#summary", currentLocationHref),
+      ).toBe(true);
     });
 
     it("ignores hash-only and missing links", () => {
@@ -38,6 +41,7 @@ describe("trainer onboarding unsaved changes", () => {
 
     it("ignores non-dashboard paths", () => {
       expect(shouldInterceptDashboardNavigation("/trainer/dashboard/settings", currentLocationHref)).toBe(false);
+      expect(shouldInterceptDashboardNavigation("/trainer/dashboarding", currentLocationHref)).toBe(false);
       expect(shouldInterceptDashboardNavigation("/trainer/onboarding", currentLocationHref)).toBe(false);
     });
 
@@ -47,6 +51,10 @@ describe("trainer onboarding unsaved changes", () => {
 
     it("fails closed for malformed location inputs", () => {
       expect(shouldInterceptDashboardNavigation("https://matchfit.test/trainer/dashboard", "not-a-valid-url")).toBe(false);
+    });
+
+    it("fails closed for malformed target href values", () => {
+      expect(shouldInterceptDashboardNavigation("https://%zz/trainer/dashboard", currentLocationHref)).toBe(false);
     });
   });
 });
