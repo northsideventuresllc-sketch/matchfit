@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { queuePromoTokensLoad } from "@/lib/trainer-promo-token-load";
 
 type PackTier = { id: string; label: string; tokens: number; priceUsd: number };
 
@@ -109,9 +110,7 @@ export function TrainerPromoTokensClient() {
   }, []);
 
   useEffect(() => {
-    queueMicrotask(() => {
-      void load();
-    });
+    queuePromoTokensLoad(load);
   }, [load]);
 
   /**

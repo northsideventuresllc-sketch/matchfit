@@ -20,6 +20,7 @@ import { normalizeTrainerSocialFields } from "@/lib/trainer-social-urls";
 import { postTrainerLogout } from "@/lib/trainer-logout";
 import { US_STATE_POSTAL_OPTIONS } from "@/lib/trainer-profile-demography-options";
 import { coerceTrainerBackgroundVendorStatus, coerceTrainerCptStatus } from "@/lib/trainer-onboarding-status";
+import { hasOnboardingSnapshotChanges, shouldInterceptDashboardNavigation } from "@/lib/trainer-onboarding-unsaved-changes";
 
 type TrainerMe = {
   id: string;
@@ -372,7 +373,7 @@ export default function TrainerOnboardingClient() {
   }, [onboardingLoaded, loadingMe, onboardingSnapshotSerialized]);
 
   const hasOnboardingChanges = useCallback(
-    () => initialSnapshotRef.current !== null && onboardingSnapshotSerialized !== initialSnapshotRef.current,
+    () => hasOnboardingSnapshotChanges(initialSnapshotRef.current, onboardingSnapshotSerialized),
     [onboardingSnapshotSerialized],
   );
 
@@ -393,15 +394,9 @@ export default function TrainerOnboardingClient() {
       const el = (e.target as HTMLElement | null)?.closest?.("a[href]");
       if (!el) return;
       const href = el.getAttribute("href");
-      if (!href || href.startsWith("#")) return;
-      let url: URL;
-      try {
-        url = new URL(href, window.location.href);
-      } catch {
+      if (!shouldInterceptDashboardNavigation(href, window.location.href)) {
         return;
       }
-      if (url.origin !== window.location.origin) return;
-      if (url.pathname !== "/trainer/dashboard" && url.pathname !== "/trainer/dashboard/") return;
       e.preventDefault();
       e.stopPropagation();
       setLeaveModalOpen(true);
