@@ -3,14 +3,12 @@ import type { ReactNode } from "react";
 import { HomeCtaLogoutBar } from "@/components/home-cta-logout-bar";
 import { HomeBetaSlotWarning } from "@/components/home-beta-slot-warning";
 import { HomeTrainerServiceTypesSection } from "@/components/home-trainer-service-types-section";
-import { HomeUserCounter } from "@/components/home-user-counter";
 import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
 import {
   CLIENT_SIGN_UP_PATH,
   TRAINER_SIGN_UP_PATH,
   type HomePageAuth,
 } from "@/lib/home-page-auth";
-import type { HomeUserCounts } from "@/lib/home-user-counts";
 import { MATCH_FIT_PRODUCT_VERSION_ANNOUNCE } from "@/lib/match-fit-product-version";
 
 function SectionShell({
@@ -74,13 +72,7 @@ function ServiceCard({
   );
 }
 
-export function HomeInfoSections({
-  homeAuth,
-  homeUserCounts,
-}: {
-  homeAuth: HomePageAuth;
-  homeUserCounts: HomeUserCounts;
-}) {
+export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
   const loggedIn = homeAuth.clientLoggedIn || homeAuth.trainerLoggedIn;
 
   return (
@@ -145,10 +137,6 @@ export function HomeInfoSections({
               </span>
             </li>
           </ul>
-        </div>
-
-        <div className="mt-2">
-          <HomeUserCounter {...homeUserCounts} />
         </div>
 
         <p>

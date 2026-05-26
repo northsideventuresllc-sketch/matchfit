@@ -6,20 +6,12 @@ import { HomeInfoSections } from "@/components/home-info-sections";
 import { HomeLoginMenu } from "@/components/home-login-menu";
 import type { FeaturedTrainerCard } from "@/lib/featured-homepage-data";
 import { getFeaturedTrainersForHomepage } from "@/lib/featured-homepage-data";
-import { getHomeUserCounts, type HomeUserCounts } from "@/lib/home-user-counts";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
 import { prisma } from "@/lib/prisma";
 import { redirectStayLoggedInClientToDashboard } from "@/lib/redirect-stay-logged-in-client";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 
 type HomeProps = { searchParams?: Promise<{ zip?: string }> };
-
-const EMPTY_USER_COUNTS: HomeUserCounts = {
-  trainersTotal: 0,
-  trainersActive: 0,
-  clientsTotal: 0,
-  clientsActive: 0,
-};
 
 export default async function Home({ searchParams }: HomeProps) {
   // DATABASE_URL is required for all DB calls. Preview deployments may omit it;
@@ -38,7 +30,6 @@ export default async function Home({ searchParams }: HomeProps) {
   };
 
   let featuredTrainers: FeaturedTrainerCard[] = [];
-  let homeUserCounts: HomeUserCounts = EMPTY_USER_COUNTS;
 
   if (hasDb) {
     let zipForFeatured = zipFromQuery;
@@ -50,10 +41,7 @@ export default async function Home({ searchParams }: HomeProps) {
       if (client?.zipCode?.trim()) zipForFeatured = client.zipCode.trim();
     }
 
-    [featuredTrainers, homeUserCounts] = await Promise.all([
-      getFeaturedTrainersForHomepage({ zipInput: zipForFeatured }),
-      getHomeUserCounts(),
-    ]);
+    featuredTrainers = await getFeaturedTrainersForHomepage({ zipInput: zipForFeatured });
   }
 
   return (
@@ -161,7 +149,7 @@ export default async function Home({ searchParams }: HomeProps) {
 
         <FeaturedTrainersCarousel trainers={featuredTrainers} />
 
-        <HomeInfoSections homeAuth={homeAuth} homeUserCounts={homeUserCounts} />
+        <HomeInfoSections homeAuth={homeAuth} />
       </div>
     </main>
   );
