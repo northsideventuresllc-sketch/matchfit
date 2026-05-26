@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useRef, useState } from "react";
+import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import type { TrainerPostAuthPath } from "@/lib/trainer-post-auth-redirect";
@@ -230,7 +231,9 @@ export default function TrainerLoginPortal({
               </Link>
             </div>
 
-            <p className="mt-8 text-center text-xs leading-relaxed text-white/35">
+            <MatchFitSocialLinks variant="compact" className="mt-8" />
+
+            <p className="mt-6 text-center text-xs leading-relaxed text-white/35">
               <Link
                 href="/admin/login"
                 className="text-white/50 underline-offset-4 transition hover:text-white/70 hover:underline"

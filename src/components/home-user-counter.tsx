@@ -38,7 +38,7 @@ export function HomeUserCounter({
   return (
     <section
       aria-labelledby="home-user-counter-heading"
-      className="relative z-10 mt-8 w-full sm:mt-10"
+      className="relative z-10 w-full"
     >
       <div className="rounded-3xl border border-white/[0.08] bg-[#0E1016]/90 p-5 shadow-[0_24px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-md sm:p-6">
         <h2 id="home-user-counter-heading" className="sr-only">

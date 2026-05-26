@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
@@ -139,6 +140,8 @@ export default function TrainerWaitlistPage() {
             Waitlist users receive standard pricing when their slot opens.
           </p>
         </div>
+
+        <MatchFitSocialLinks variant="compact" className="mt-6" />
 
         {/* Gates-closed banner */}
         {gatesOn === false ? (

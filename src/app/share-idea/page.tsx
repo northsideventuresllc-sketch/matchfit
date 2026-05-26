@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ProductIdeaForm } from "@/app/client/dashboard/(app)/share-idea/product-idea-form";
+import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 
 export const metadata: Metadata = {
@@ -25,6 +26,7 @@ export default async function PublicShareIdeaPage() {
         <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
           <ProductIdeaForm />
         </section>
+        <MatchFitSocialLinks variant="compact" />
         <p className="text-center text-sm">
           <Link href={backHref} className="text-[#FF7E00] underline-offset-2 hover:underline">
             {backLabel}
