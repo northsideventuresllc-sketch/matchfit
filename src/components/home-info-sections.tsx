@@ -2,11 +2,15 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { HomeCtaLogoutBar } from "@/components/home-cta-logout-bar";
 import { HomeTrainerServiceTypesSection } from "@/components/home-trainer-service-types-section";
+import { HomeUserCounter } from "@/components/home-user-counter";
+import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
 import {
   CLIENT_SIGN_UP_PATH,
   TRAINER_SIGN_UP_PATH,
   type HomePageAuth,
 } from "@/lib/home-page-auth";
+import type { HomeUserCounts } from "@/lib/home-user-counts";
+import { MATCH_FIT_PRODUCT_VERSION_ANNOUNCE } from "@/lib/match-fit-product-version";
 
 function SectionShell({
   id,
@@ -69,7 +73,13 @@ function ServiceCard({
   );
 }
 
-export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
+export function HomeInfoSections({
+  homeAuth,
+  homeUserCounts,
+}: {
+  homeAuth: HomePageAuth;
+  homeUserCounts: HomeUserCounts;
+}) {
   const loggedIn = homeAuth.clientLoggedIn || homeAuth.trainerLoggedIn;
 
   return (
@@ -79,7 +89,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
         id="beta-welcome"
         eyebrow="Welcome to Match Fit"
         eyebrowClass="text-[#FF7E00]"
-        title="We are live — Version 1.0.0-BETA"
+        title={`We are live — Version ${MATCH_FIT_PRODUCT_VERSION_ANNOUNCE}`}
         accent="left"
       >
         <p>
@@ -88,7 +98,8 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
         </p>
         <p>
           As of <span className="font-semibold text-white/85">May 21st, 2026</span>, Match Fit is{" "}
-          <span className="font-bold text-[#FFD34E]">LIVE!</span> In Version 1.0.0-BETA, we are rolling out
+          <span className="font-bold text-[#FFD34E]">LIVE!</span> In Version {MATCH_FIT_PRODUCT_VERSION_ANNOUNCE}, we are
+          rolling out
           the foundation of all the amazing features that this platform offers. Please know that there will be
           bugs and we encourage you to{" "}
           <Link
@@ -133,6 +144,10 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
               </span>
             </li>
           </ul>
+        </div>
+
+        <div className="mt-2">
+          <HomeUserCounter {...homeUserCounts} />
         </div>
 
         <p>
@@ -580,7 +595,9 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
         </div>
       )}
 
-      <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-center gap-1.5 pt-1 sm:gap-2">
+      <MatchFitSocialLinks variant="footer" className="mx-auto w-full max-w-3xl pt-2" />
+
+      <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-center gap-1.5 pt-4 sm:gap-2">
         <Link
           href="/privacy"
           className="inline-flex min-h-8 items-center justify-center rounded-lg border border-white/[0.12] bg-white/[0.03] px-3 text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-white/60 transition hover:border-white/[0.22] hover:text-white/85"

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
@@ -84,6 +85,7 @@ export default function ClientWaitlistPage() {
           Atlanta metro beta — join the list when memberships are full. You will get a confirmation email, then an invite
           link when a slot opens (typically within 30 days to complete sign-up).
         </p>
+        <MatchFitSocialLinks variant="compact" className="mt-6" />
         {gatesOn === false ? (
           <p className="mt-6 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-50">
             The client waitlist is not open right now — slots may still be available.{" "}
