@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
 
 export type LegalPageFooterRole = "client" | "trainer" | "guest";
 
@@ -44,16 +45,19 @@ export function LegalPageFooterNav(props: { role: LegalPageFooterRole }) {
   }
 
   return (
-    <nav className={navClass} aria-label="Leave this page">
-      <Link href="/" className={linkClass}>
-        Back to Home
-      </Link>
-      <Link href="/client/sign-up" className={linkClass}>
-        Client sign up
-      </Link>
-      <Link href="/trainer/signup" className={linkClass}>
-        Trainer sign up
-      </Link>
-    </nav>
+    <div className="mt-10 space-y-8">
+      <MatchFitSocialLinks variant="compact" />
+      <nav className={`${navClass} mt-0`} aria-label="Leave this page">
+        <Link href="/" className={linkClass}>
+          Back to Home
+        </Link>
+        <Link href="/client/sign-up" className={linkClass}>
+          Client sign up
+        </Link>
+        <Link href="/trainer/signup" className={linkClass}>
+          Trainer sign up
+        </Link>
+      </nav>
+    </div>
   );
 }

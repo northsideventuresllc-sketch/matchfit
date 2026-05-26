@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useRef, useState } from "react";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { safeInternalNextPath } from "@/lib/safe-internal-next-path";
 
@@ -209,7 +210,9 @@ function ClientPortalInner(props: { defaultNext: string | null }) {
               </Link>
             </div>
 
-            <p className="mt-8 text-center text-xs leading-relaxed text-white/35">
+            <MatchFitSocialLinks variant="compact" className="mt-8" />
+
+            <p className="mt-6 text-center text-xs leading-relaxed text-white/35">
               <Link
                 href="/admin/login"
                 className="text-white/50 underline-offset-4 transition hover:text-white/70 hover:underline"

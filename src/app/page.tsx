@@ -4,10 +4,10 @@ import { FeaturedTrainersCarousel } from "@/components/featured-trainers-carouse
 import { HomeBrandBanner } from "@/components/home-brand-banner";
 import { HomeInfoSections } from "@/components/home-info-sections";
 import { HomeLoginMenu } from "@/components/home-login-menu";
-import { HomeUserCounter } from "@/components/home-user-counter";
 import type { FeaturedTrainerCard } from "@/lib/featured-homepage-data";
 import { getFeaturedTrainersForHomepage } from "@/lib/featured-homepage-data";
 import { getHomeUserCounts, type HomeUserCounts } from "@/lib/home-user-counts";
+import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
 import { prisma } from "@/lib/prisma";
 import { redirectStayLoggedInClientToDashboard } from "@/lib/redirect-stay-logged-in-client";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
@@ -86,7 +86,7 @@ export default async function Home({ searchParams }: HomeProps) {
                 <span className="text-[#E32B2B]">Fit</span>
               </p>
               <p className="mt-0.5 text-[0.6rem] font-bold uppercase tracking-[0.18em] text-[#FF7E00]/80">
-                Version BETA 1.0.0
+                Version {MATCH_FIT_PRODUCT_VERSION_LABEL}
               </p>
             </div>
           </div>
@@ -113,8 +113,6 @@ export default async function Home({ searchParams }: HomeProps) {
             </svg>
           </Link>
         </div>
-
-        <HomeUserCounter {...homeUserCounts} />
 
         <HomeBrandBanner />
 
@@ -163,7 +161,7 @@ export default async function Home({ searchParams }: HomeProps) {
 
         <FeaturedTrainersCarousel trainers={featuredTrainers} />
 
-        <HomeInfoSections homeAuth={homeAuth} />
+        <HomeInfoSections homeAuth={homeAuth} homeUserCounts={homeUserCounts} />
       </div>
     </main>
   );
