@@ -1,33 +1,6 @@
 import Link from "next/link";
-import {
-  MATCH_FIT_OFFICIAL_SOCIAL_LINKS,
-  type MatchFitOfficialSocialPlatform,
-} from "@/lib/match-fit-official-social";
-import { TrainerSocialBrandIcon } from "@/components/trainer/trainer-social-brand-icons";
-
-function ThreadsIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden>
-      <rect x="2" y="2" width="20" height="20" rx="6" fill="#101010" />
-      <path
-        fill="white"
-        d="M12 6.2c1.35 0 2.45 1.04 2.45 2.32 0 .5-.16.96-.43 1.34.58.35.97.98.97 1.71 0 1.1-.9 1.99-2.01 1.99-.55 0-1.05-.22-1.42-.58-.37.36-.87.58-1.42.58-1.11 0-2.01-.89-2.01-1.99 0-.73.39-1.36.97-1.71a2.28 2.28 0 0 1-.43-1.34c0-1.28 1.1-2.32 2.45-2.32Zm0 8.9c2.35 0 4.55-.52 6.05-1.42.28 1.05.45 2.18.45 3.32H5.5c0-1.14.17-2.27.45-3.32 1.5.9 3.7 1.42 6.05 1.42Z"
-      />
-    </svg>
-  );
-}
-
-function SocialIcon({ platform, className }: { platform: MatchFitOfficialSocialPlatform; className?: string }) {
-  if (platform === "threads") {
-    return <ThreadsIcon className={className} />;
-  }
-  return (
-    <TrainerSocialBrandIcon
-      platform={platform}
-      className={className}
-    />
-  );
-}
+import { MatchFitOfficialSocialIcon } from "@/components/match-fit-official-social-icons";
+import { MATCH_FIT_OFFICIAL_SOCIAL_LINKS } from "@/lib/match-fit-official-social";
 
 type Props = {
   /** Visual density for footers vs auth pages. */
@@ -66,7 +39,7 @@ export function MatchFitSocialLinks({ variant = "footer", className = "" }: Prop
               className={buttonClass}
               title={`Match Fit on ${item.label}`}
             >
-              <SocialIcon platform={item.platform} className={iconSize} />
+              <MatchFitOfficialSocialIcon platform={item.platform} className={iconSize} />
               <span className="sr-only">{item.label}</span>
             </Link>
           </li>
