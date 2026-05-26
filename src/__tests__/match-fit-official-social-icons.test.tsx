@@ -10,7 +10,7 @@ const PLATFORM_MARKERS: Record<MatchFitOfficialSocialPlatform, readonly string[]
   threads: ['fill="#000000"', "M12.35 5.5"],
   tiktok: ['fill="#25F4EE"', 'fill="#FE2C55"'],
   facebook: ['fill="#1877F2"', "M13.2 20.5"],
-  instagram: ["<linearGradient", 'stopColor="#FEDA75"'],
+  instagram: ["<linearGradient", 'stop-color="#FEDA75"'],
 };
 
 describe("MatchFitOfficialSocialIcon", () => {
