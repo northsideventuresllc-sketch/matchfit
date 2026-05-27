@@ -75,7 +75,7 @@ export function useTurnstileGate() {
   return {
     enabled,
     siteKey,
-    ref,
+    widgetRef: ref,
     ready,
     widgetError,
     onTurnstileReady,

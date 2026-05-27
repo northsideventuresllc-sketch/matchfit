@@ -5,6 +5,7 @@ import {
   getMatchFitInternalQaClientEmails,
   getMatchFitInternalQaTrainerEmails,
 } from "@/lib/match-fit-internal-qa";
+import { getMatchFitTestTrainerEmails } from "@/lib/match-fit-test-trainer-compliance";
 
 /** Auto-generated internal QA personas (see `internal-qa-simulation.ts`). */
 export const INTERNAL_SYNTHETIC_EMAIL_SUFFIX = "@internal.match-fit.invalid";
@@ -14,11 +15,29 @@ export function isInternalSyntheticMatchFitEmail(email: string | null | undefine
   return email.trim().toLowerCase().endsWith(INTERNAL_SYNTHETIC_EMAIL_SUFFIX);
 }
 
+function launchExcludeIdentEmail(raw: string | undefined): string | null {
+  const v = raw?.trim().toLowerCase();
+  if (!v || !v.includes("@")) return null;
+  return v;
+}
+
 /** Emails that must never count toward beta caps, founding promos, or public signup totals. */
 export function getLaunchExcludeEmails(role: "client" | "trainer"): string[] {
   const ex = new Set<string>([...betaExcludeCapCountEmails()].map((e) => e.toLowerCase()));
   const qa = role === "client" ? getMatchFitInternalQaClientEmails() : getMatchFitInternalQaTrainerEmails();
   for (const e of qa) ex.add(e.toLowerCase());
+
+  if (role === "trainer") {
+    for (const e of getMatchFitTestTrainerEmails()) ex.add(e);
+    const devTrainer = launchExcludeIdentEmail(process.env.MATCH_FIT_DEV_TRAINER_IDENTIFIER);
+    if (devTrainer) ex.add(devTrainer);
+  }
+
+  if (role === "client") {
+    const devClient = launchExcludeIdentEmail(process.env.MATCH_FIT_DEV_CLIENT_IDENTIFIER);
+    if (devClient) ex.add(devClient);
+  }
+
   return [...ex];
 }
 

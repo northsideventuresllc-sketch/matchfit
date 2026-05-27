@@ -62,6 +62,17 @@ describe("launch account count exclusions", () => {
     );
   });
 
+  it("excludes owner dev/test identifiers and MATCH_FIT_TEST_TRAINER_EMAILS from launch counts", () => {
+    process.env.MATCH_FIT_DEV_TRAINER_IDENTIFIER = "Coach@Dev.com";
+    process.env.MATCH_FIT_DEV_CLIENT_IDENTIFIER = "Member@Dev.com";
+    process.env.MATCH_FIT_TEST_TRAINER_EMAILS = "qa-coach@example.com";
+
+    expect(getLaunchExcludeEmails("trainer")).toEqual(
+      expect.arrayContaining(["coach@dev.com", "qa-coach@example.com"]),
+    );
+    expect(getLaunchExcludeEmails("client")).toEqual(expect.arrayContaining(["member@dev.com"]));
+  });
+
   it("launch count filters exclude synthetic personas and internal emails", () => {
     process.env.MATCH_FIT_INTERNAL_QA_TRAINER_EMAILS = "qa-coach@example.com";
 
