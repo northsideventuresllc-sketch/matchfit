@@ -1,3 +1,7 @@
+import {
+  applyMatchFitTestTrainerCompliance,
+  isMatchFitTestTrainerEmail,
+} from "@/lib/match-fit-test-trainer-compliance";
 import { prisma } from "@/lib/prisma";
 import {
   TRAINER_DEV_FAKE_CPT_CERTIFICATION_PATH,
@@ -34,6 +38,7 @@ export function shouldSyncDevelopmentTestTrainerCertifications(trainer: {
   email: string;
   phone: string;
 }): boolean {
+  if (isMatchFitTestTrainerEmail(trainer.email)) return true;
   if (process.env.NODE_ENV !== "development") return false;
   if (shouldDevApproveAllTrainerCerts()) return true;
   const usernames = parseTestTrainerUsernameList();
@@ -51,8 +56,13 @@ export async function syncDevelopmentTestTrainerCertificationsForTrainer(trainer
   email: string;
   phone: string;
 }): Promise<boolean> {
-  if (process.env.NODE_ENV !== "development") return false;
   if (!shouldSyncDevelopmentTestTrainerCertifications(trainer)) return false;
+
+  if (isMatchFitTestTrainerEmail(trainer.email)) {
+    return applyMatchFitTestTrainerCompliance(trainer.id);
+  }
+
+  if (process.env.NODE_ENV !== "development") return false;
 
   const trainerId = trainer.id;
   const before = await prisma.trainerProfile.findUnique({
