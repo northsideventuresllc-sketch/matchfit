@@ -38,6 +38,7 @@ function buildClientUsernameExcludeClause(): Prisma.Sql {
 function buildEmailExcludeClause(emails: string[]): Prisma.Sql {
   const parts: Prisma.Sql[] = [
     Prisma.sql`AND LOWER(t."email") NOT LIKE ${`%${INTERNAL_SYNTHETIC_EMAIL_SUFFIX}`}`,
+    Prisma.sql`AND LOWER(t."email") NOT LIKE '%.invalid'`,
     buildTrainerUsernameExcludeClause(),
   ];
   if (emails.length > 0) {
@@ -51,6 +52,7 @@ function buildEmailExcludeClause(emails: string[]): Prisma.Sql {
 function buildClientEmailExcludeClause(emails: string[]): Prisma.Sql {
   const parts: Prisma.Sql[] = [
     Prisma.sql`AND LOWER(c."email") NOT LIKE ${`%${INTERNAL_SYNTHETIC_EMAIL_SUFFIX}`}`,
+    Prisma.sql`AND LOWER(c."email") NOT LIKE '%.invalid'`,
     buildClientUsernameExcludeClause(),
   ];
   if (emails.length > 0) {

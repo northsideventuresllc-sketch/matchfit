@@ -13,24 +13,46 @@ function clientIpFromRequest(req: Request): string | undefined {
   return undefined;
 }
 
+function turnstileSiteKeyConfigured(): boolean {
+  return Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim());
+}
+
+function turnstileStrictMode(): boolean {
+  const v = process.env.MATCH_FIT_TURNSTILE_STRICT?.trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
+}
+
 /**
  * Verifies a Turnstile widget token from sign-in or sign-up.
- * In production, `TURNSTILE_SECRET_KEY` must be set or all checks fail closed.
- * In non-production, missing configuration skips verification so local work does not require keys.
+ *
+ * - No site key and no secret → verification skipped (local / unset env).
+ * - Site key without secret → skipped by default so sign-in is not fully blocked by a
+ *   half-configured deployment; set `MATCH_FIT_TURNSTILE_STRICT=1` to fail closed instead.
+ * - Secret present → token required and verified with Cloudflare.
  */
 export async function verifyTurnstileToken(
   token: string | undefined,
   req?: Request,
 ): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
   const secret = process.env.TURNSTILE_SECRET_KEY?.trim();
+  const siteKey = turnstileSiteKeyConfigured();
+
   if (!secret) {
-    if (process.env.NODE_ENV === "production") {
-      console.error("[Turnstile] TURNSTILE_SECRET_KEY is required in production.");
+    if (siteKey && turnstileStrictMode()) {
+      console.error(
+        "[Turnstile] NEXT_PUBLIC_TURNSTILE_SITE_KEY is set but TURNSTILE_SECRET_KEY is missing (strict mode).",
+      );
       return {
         ok: false,
-        error: "Account access is temporarily unavailable. Please try again later.",
+        error:
+          "Sign-in security is not fully configured yet. Add TURNSTILE_SECRET_KEY in Vercel (Turnstile secret for this site), or contact support@match-fit.net.",
         status: 503,
       };
+    }
+    if (siteKey) {
+      console.warn(
+        "[Turnstile] Site key is set but TURNSTILE_SECRET_KEY is missing — skipping server verification. Set the secret key and MATCH_FIT_TURNSTILE_STRICT=1 for full protection.",
+      );
     }
     return { ok: true };
   }
