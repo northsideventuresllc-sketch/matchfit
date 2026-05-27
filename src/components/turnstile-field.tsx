@@ -11,7 +11,7 @@ export function TurnstileField({ gate, className }: { gate: TurnstileGate; class
   return (
     <div className={className ?? "flex flex-col items-center gap-2 py-1"}>
       <TurnstileWidget
-        ref={gate.ref}
+        ref={gate.setWidgetHandle}
         siteKey={gate.siteKey}
         onReady={gate.onTurnstileReady}
         onError={gate.onTurnstileError}

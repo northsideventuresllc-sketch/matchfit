@@ -7,7 +7,7 @@ import { TURNSTILE_SITE_KEY_PUBLIC } from "@/lib/turnstile-config";
 export function useTurnstileGate() {
   const enabled = TURNSTILE_SITE_KEY_PUBLIC.length > 0;
   const siteKey = TURNSTILE_SITE_KEY_PUBLIC;
-  const ref = useRef<TurnstileWidgetHandle>(null);
+  const widgetHandleRef = useRef<TurnstileWidgetHandle>(null);
   const [ready, setReady] = useState(!enabled);
   const [widgetError, setWidgetError] = useState(false);
 
@@ -23,13 +23,17 @@ export function useTurnstileGate() {
 
   const onTurnstileExpire = useCallback(() => {
     setReady(false);
-    ref.current?.reset();
+    widgetHandleRef.current?.reset();
   }, []);
 
-  const getToken = useCallback(() => ref.current?.getToken(), []);
+  const setWidgetHandle = useCallback((handle: TurnstileWidgetHandle | null) => {
+    widgetHandleRef.current = handle;
+  }, []);
+
+  const getToken = useCallback(() => widgetHandleRef.current?.getToken(), []);
 
   const reset = useCallback(() => {
-    ref.current?.reset();
+    widgetHandleRef.current?.reset();
     setReady(false);
   }, []);
 
@@ -60,7 +64,7 @@ export function useTurnstileGate() {
   return {
     enabled,
     siteKey,
-    ref,
+    setWidgetHandle,
     ready,
     widgetError,
     onTurnstileReady,
