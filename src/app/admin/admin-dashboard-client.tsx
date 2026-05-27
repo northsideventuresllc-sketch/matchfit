@@ -3,12 +3,11 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
-import {
-  formatUsdFromCents,
-  type AdminFeaturedSnapshot,
-  type AdminPortalOverview,
-  type AdminSignupRow,
-  type AdminUserStats,
+import type {
+  AdminFeaturedSnapshot,
+  AdminPortalOverview,
+  AdminSignupRow,
+  AdminUserStats,
 } from "@/lib/admin-portal-data";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
@@ -38,6 +37,15 @@ function formatSignupDate(iso: string) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(iso));
+}
+
+function formatUsdFromCents(cents: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(cents / 100);
 }
 
 function statsSummary(kind: "client" | "trainer", stats: AdminUserStats) {
