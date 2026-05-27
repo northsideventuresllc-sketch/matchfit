@@ -27,7 +27,7 @@ vi.mock("next/image", () => ({
     const imageProps = { ...props };
     delete imageProps.fill;
     delete imageProps.priority;
-    return <img {...imageProps} />;
+    return <span data-next-image={String(imageProps.src ?? "")} />;
   },
 }));
 

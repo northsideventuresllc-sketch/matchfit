@@ -1,4 +1,3 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -8,9 +7,6 @@ const {
   mockClientUpdateMany,
   mockTrainerProfileUpdateMany,
   mockTrainerFindUnique,
-  mockTrainerProfileUpdateMany,
-  mockTrainerFindUnique,
-  mockClientUpdateMany,
   mockNotifyClientSubscriptionStripeEvent,
   mockSyncClientSubscriptionFromStripe,
   mockApplyTrainerBackgroundCheckStripePayment,
@@ -20,11 +16,6 @@ const {
   mockCreditTokensFromStripePurchase,
   mockGetPromoPackTierById,
   mockRecordTrainerServiceTransactionAndReward,
-  mockCreditTokensFromStripePurchase,
-  mockGetPromoPackTierById,
-  mockRecordTrainerServiceTransactionAndReward,
-  mockGetStripe,
-  mockConstructEvent,
   mockCheckoutSessionRetrieve,
   mockStripeSubscriptionRetrieve,
 } = vi.hoisted(() => ({
@@ -34,9 +25,6 @@ const {
   mockClientUpdateMany: vi.fn(),
   mockTrainerProfileUpdateMany: vi.fn(),
   mockTrainerFindUnique: vi.fn(),
-  mockTrainerProfileUpdateMany: vi.fn(),
-  mockTrainerFindUnique: vi.fn(),
-  mockClientUpdateMany: vi.fn(),
   mockNotifyClientSubscriptionStripeEvent: vi.fn(),
   mockSyncClientSubscriptionFromStripe: vi.fn(),
   mockApplyTrainerBackgroundCheckStripePayment: vi.fn(),
@@ -46,11 +34,6 @@ const {
   mockCreditTokensFromStripePurchase: vi.fn(),
   mockGetPromoPackTierById: vi.fn(),
   mockRecordTrainerServiceTransactionAndReward: vi.fn(),
-  mockCreditTokensFromStripePurchase: vi.fn(),
-  mockGetPromoPackTierById: vi.fn(),
-  mockRecordTrainerServiceTransactionAndReward: vi.fn(),
-  mockGetStripe: vi.fn(),
-  mockConstructEvent: vi.fn(),
   mockCheckoutSessionRetrieve: vi.fn(),
   mockStripeSubscriptionRetrieve: vi.fn(),
 }));
@@ -69,15 +52,6 @@ vi.mock("@/lib/prisma", () => ({
     client: { updateMany: mockClientUpdateMany },
     trainerProfile: { updateMany: mockTrainerProfileUpdateMany },
     trainer: { findUnique: mockTrainerFindUnique },
-    trainerProfile: {
-      updateMany: mockTrainerProfileUpdateMany,
-    },
-    trainer: {
-      findUnique: mockTrainerFindUnique,
-    },
-    client: {
-      updateMany: mockClientUpdateMany,
-    },
   },
 }));
 
@@ -102,89 +76,46 @@ vi.mock("@/lib/trainer-promo-tokens", () => ({
   creditTokensFromStripePurchase: mockCreditTokensFromStripePurchase,
   getPromoPackTierById: mockGetPromoPackTierById,
   recordTrainerServiceTransactionAndReward: mockRecordTrainerServiceTransactionAndReward,
-  TOKENS_PER_USD_PACK: 500,
   TOKENS_PER_USD_PACK: 50,
 }));
 
 import { POST, dynamic } from "@/app/api/webhooks/stripe/route";
 
-function webhookRequest(signature = "sig_123", body = '{"id":"evt_1"}'): Request {
+function webhookRequest(body = '{"id":"evt_1"}', signature = "sig_test"): Request {
   const headers = new Headers();
   if (signature) {
     headers.set("stripe-signature", signature);
   }
-  return new Request("https://matchfit.test/api/webhooks/stripe", {
-    method: "POST",
-    headers,
-function webhookRequest(body: string, signature = "sig_test"): Request {
   return new Request("https://example.test/api/webhooks/stripe", {
     method: "POST",
-    headers: { "stripe-signature": signature },
+    headers,
     body,
   });
 }
 
-describe("POST /api/webhooks/stripe background-check branch", () => {
-  const previousWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_123";
-    mockConstructEvent.mockReturnValue({
-      type: "payment_intent.succeeded",
-      data: {
-        object: {
-          id: "pi_success",
-          amount_received: 5300,
-          metadata: {
-            trainerId: "trainer_1",
-            vendorPaidCents: "5300",
-          },
-        },
-      },
-    });
-    mockIsTrainerBackgroundCheckPaymentIntent.mockReturnValue(true);
-    mockApplyTrainerBackgroundCheckStripePayment.mockResolvedValue(undefined);
-    mockGetStripe.mockReturnValue({
-      webhooks: { constructEvent: mockConstructEvent },
-    });
-    mockFinalizeRegistrationAfterPayment.mockResolvedValue(undefined);
-    mockNotifyClientMembershipTrialEnding.mockResolvedValue(undefined);
-    mockNotifyTrainerRegistrationFeeReceipt.mockResolvedValue(undefined);
-    mockSyncClientSubscriptionFromStripe.mockResolvedValue(undefined);
-    mockNotifyClientSubscriptionStripeEvent.mockResolvedValue(undefined);
-    mockCreditTokensFromStripePurchase.mockResolvedValue(undefined);
-    mockGetPromoPackTierById.mockReturnValue(null);
-    mockRecordTrainerServiceTransactionAndReward.mockResolvedValue(undefined);
-    mockClientUpdateMany.mockResolvedValue({ count: 0 });
-    mockTrainerProfileUpdateMany.mockResolvedValue({ count: 0 });
-    mockTrainerFindUnique.mockResolvedValue(null);
-  });
-
-  afterEach(() => {
-    if (previousWebhookSecret === undefined) {
-      delete process.env.STRIPE_WEBHOOK_SECRET;
-      return;
-    }
-    process.env.STRIPE_WEBHOOK_SECRET = previousWebhookSecret;
 describe("POST /api/webhooks/stripe (background check payment intents)", () => {
   const previousSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
-    mockGetStripe.mockReturnValue({
-      webhooks: {
-        constructEvent: mockConstructEvent,
-      },
-      checkout: {
-        sessions: {
-          retrieve: mockCheckoutSessionRetrieve,
+    mockConstructEvent.mockReturnValue({
+      type: "payment_intent.succeeded",
+      data: {
+        object: {
+          id: "pi_background_1",
+          metadata: {
+            trainerId: "trainer_1",
+            vendorPaidCents: "4900",
+          },
+          amount_received: 5200,
         },
       },
-      subscriptions: {
-        retrieve: mockStripeSubscriptionRetrieve,
-      },
+    });
+    mockGetStripe.mockReturnValue({
+      webhooks: { constructEvent: mockConstructEvent },
+      checkout: { sessions: { retrieve: mockCheckoutSessionRetrieve } },
+      subscriptions: { retrieve: mockStripeSubscriptionRetrieve },
     });
     mockIsTrainerBackgroundCheckPaymentIntent.mockReturnValue(true);
     mockApplyTrainerBackgroundCheckStripePayment.mockResolvedValue(undefined);
@@ -202,75 +133,24 @@ describe("POST /api/webhooks/stripe (background check payment intents)", () => {
     expect(dynamic).toBe("force-dynamic");
   });
 
-  it("returns 503 when webhook configuration is missing", async () => {
+  it("returns 503 when webhooks are not configured", async () => {
     mockGetStripe.mockReturnValueOnce(undefined);
-
     const noStripeResponse = await POST(webhookRequest());
     expect(noStripeResponse.status).toBe(503);
-    await expect(noStripeResponse.json()).resolves.toEqual({
-      error: "Webhooks not configured.",
-    });
+    await expect(noStripeResponse.json()).resolves.toEqual({ error: "Webhooks not configured." });
 
     delete process.env.STRIPE_WEBHOOK_SECRET;
     const noSecretResponse = await POST(webhookRequest());
     expect(noSecretResponse.status).toBe(503);
+    await expect(noSecretResponse.json()).resolves.toEqual({ error: "Webhooks not configured." });
   });
 
   it("returns 400 when signature is missing", async () => {
-    const response = await POST(webhookRequest(""));
+    const response = await POST(webhookRequest('{"id":"evt_no_sig"}', ""));
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "Missing signature." });
     expect(mockConstructEvent).not.toHaveBeenCalled();
-  });
-
-  it("returns 400 when Stripe signature verification fails", async () => {
-    mockConstructEvent.mockImplementationOnce(() => {
-      throw new Error("bad signature");
-    });
-
-    const response = await POST(webhookRequest("sig_bad"));
-
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({ error: "Invalid signature." });
-  });
-
-  it("applies trainer background payment from amount_received", async () => {
-    const response = await POST(webhookRequest());
-
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ received: true });
-    expect(mockIsTrainerBackgroundCheckPaymentIntent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        amount_received: 5300,
-      }),
-    );
-    expect(mockApplyTrainerBackgroundCheckStripePayment).toHaveBeenCalledWith({
-      trainerId: "trainer_1",
-      vendorPaidCents: 5300,
-    });
-  });
-
-  it("falls back to metadata vendorPaidCents when amount_received is absent", async () => {
-  it("returns 503 when webhooks are not configured", async () => {
-    mockGetStripe.mockReturnValueOnce(null);
-
-    const res = await POST(webhookRequest("{}"));
-
-    expect(res.status).toBe(503);
-    await expect(res.json()).resolves.toEqual({ error: "Webhooks not configured." });
-  });
-
-  it("returns 400 when signature header is missing", async () => {
-    const res = await POST(
-      new Request("https://example.test/api/webhooks/stripe", {
-        method: "POST",
-        body: "{}",
-      }),
-    );
-
-    expect(res.status).toBe(400);
-    await expect(res.json()).resolves.toEqual({ error: "Missing signature." });
   });
 
   it("returns 400 for invalid webhook signatures", async () => {
@@ -278,32 +158,21 @@ describe("POST /api/webhooks/stripe (background check payment intents)", () => {
       throw new Error("invalid signature");
     });
 
-    const res = await POST(webhookRequest("{\"id\":\"evt_1\"}"));
+    const response = await POST(webhookRequest('{"id":"evt_bad_sig"}'));
 
-    expect(res.status).toBe(400);
-    await expect(res.json()).resolves.toEqual({ error: "Invalid signature." });
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid signature." });
   });
 
-  it("applies trainer background payment from payment_intent.succeeded amount_received", async () => {
-    mockConstructEvent.mockReturnValueOnce({
-      type: "payment_intent.succeeded",
-      data: {
-        object: {
-          metadata: { trainerId: "trainer_1", vendorPaidCents: "4900" },
-          amount_received: 5200,
-        },
-      },
-    });
+  it("applies trainer background payment from amount_received", async () => {
+    const response = await POST(webhookRequest('{"id":"evt_paid"}'));
 
-    const res = await POST(webhookRequest("{\"id\":\"evt_background_paid\"}"));
-
-    expect(mockIsTrainerBackgroundCheckPaymentIntent).toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ received: true });
     expect(mockApplyTrainerBackgroundCheckStripePayment).toHaveBeenCalledWith({
       trainerId: "trainer_1",
       vendorPaidCents: 5200,
     });
-    expect(res.status).toBe(200);
-    await expect(res.json()).resolves.toEqual({ received: true });
   });
 
   it("falls back to metadata vendorPaidCents when amount_received is not positive", async () => {
@@ -311,114 +180,63 @@ describe("POST /api/webhooks/stripe (background check payment intents)", () => {
       type: "payment_intent.succeeded",
       data: {
         object: {
-          id: "pi_metadata_amount",
-          amount_received: 0,
+          id: "pi_metadata_fallback",
           metadata: {
             trainerId: "trainer_1",
             vendorPaidCents: "4900",
           },
-        },
-      },
-    });
-
-    const response = await POST(webhookRequest());
-
-    expect(response.status).toBe(200);
-          metadata: { trainerId: "trainer_1", vendorPaidCents: "4900" },
           amount_received: 0,
         },
       },
     });
 
-    await POST(webhookRequest("{\"id\":\"evt_background_meta_fallback\"}"));
+    const response = await POST(webhookRequest('{"id":"evt_metadata_fallback"}'));
 
+    expect(response.status).toBe(200);
     expect(mockApplyTrainerBackgroundCheckStripePayment).toHaveBeenCalledWith({
       trainerId: "trainer_1",
       vendorPaidCents: 4900,
     });
   });
 
-  it("does not apply payment when trainerId is blank or amount is invalid", async () => {
-  it("skips applying payment when event is not background-check purpose or trainer id is missing", async () => {
+  it("skips background payment writes when event is not eligible", async () => {
     mockIsTrainerBackgroundCheckPaymentIntent.mockReturnValueOnce(false);
+    await POST(webhookRequest('{"id":"evt_not_background"}'));
+    expect(mockApplyTrainerBackgroundCheckStripePayment).not.toHaveBeenCalled();
+
     mockConstructEvent.mockReturnValueOnce({
       type: "payment_intent.succeeded",
       data: {
         object: {
-          id: "pi_blank_trainer",
-          amount_received: 5300,
-          metadata: {
-            trainerId: "   ",
-            vendorPaidCents: "5300",
-          },
-        },
-      },
-    });
-
-    const blankTrainerResponse = await POST(webhookRequest());
-    expect(blankTrainerResponse.status).toBe(200);
-    expect(mockApplyTrainerBackgroundCheckStripePayment).not.toHaveBeenCalled();
-          metadata: { trainerId: "trainer_1" },
+          id: "pi_missing_trainer",
+          metadata: { trainerId: "  ", vendorPaidCents: "4900" },
           amount_received: 4900,
         },
       },
     });
-
-    await POST(webhookRequest("{\"id\":\"evt_non_bg\"}"));
+    await POST(webhookRequest('{"id":"evt_blank_trainer"}'));
+    expect(mockApplyTrainerBackgroundCheckStripePayment).not.toHaveBeenCalled();
 
     mockConstructEvent.mockReturnValueOnce({
       type: "payment_intent.succeeded",
       data: {
         object: {
           id: "pi_zero_amount",
-          amount_received: 0,
-          metadata: {
-            trainerId: "trainer_1",
-            vendorPaidCents: "0",
-          },
-        },
-      },
-    });
-    const invalidAmountResponse = await POST(webhookRequest());
-    expect(invalidAmountResponse.status).toBe(200);
-    expect(mockApplyTrainerBackgroundCheckStripePayment).not.toHaveBeenCalled();
-  });
-
-  it("returns 500 when handler branch throws unexpectedly", async () => {
-    mockApplyTrainerBackgroundCheckStripePayment.mockRejectedValueOnce(new Error("write failed"));
-
-    const response = await POST(webhookRequest());
-
-    expect(response.status).toBe(500);
-    await expect(response.json()).resolves.toEqual({
-      error: "Webhook handler failed.",
-    });
-          metadata: { trainerId: "   ", vendorPaidCents: "4900" },
+          metadata: { trainerId: "trainer_1", vendorPaidCents: "0" },
           amount_received: 0,
         },
       },
     });
-
-    await POST(webhookRequest("{\"id\":\"evt_missing_trainer\"}"));
-
+    await POST(webhookRequest('{"id":"evt_zero_amount"}'));
     expect(mockApplyTrainerBackgroundCheckStripePayment).not.toHaveBeenCalled();
   });
 
-  it("returns 500 when applying trainer background payment throws", async () => {
-    mockConstructEvent.mockReturnValueOnce({
-      type: "payment_intent.succeeded",
-      data: {
-        object: {
-          metadata: { trainerId: "trainer_1", vendorPaidCents: "4900" },
-          amount_received: 4900,
-        },
-      },
-    });
+  it("returns 500 when background payment apply throws", async () => {
     mockApplyTrainerBackgroundCheckStripePayment.mockRejectedValueOnce(new Error("db failed"));
 
-    const res = await POST(webhookRequest("{\"id\":\"evt_apply_error\"}"));
+    const response = await POST(webhookRequest('{"id":"evt_apply_error"}'));
 
-    expect(res.status).toBe(500);
-    await expect(res.json()).resolves.toEqual({ error: "Webhook handler failed." });
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({ error: "Webhook handler failed." });
   });
 });
