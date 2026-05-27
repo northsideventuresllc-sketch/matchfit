@@ -24,6 +24,12 @@ const {
 
 vi.mock("next/image", () => ({
   default: () => <div data-next-image />,
+  default: (props: Record<string, unknown>) => {
+    const imageProps = { ...props };
+    delete imageProps.fill;
+    delete imageProps.priority;
+    return <img {...imageProps} />;
+  },
 }));
 
 vi.mock("next/link", () => ({
