@@ -7,9 +7,6 @@ import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnst
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
-/** In development the API often skips Turnstile when `TURNSTILE_SECRET_KEY` is unset; don’t block submit if the widget is slow. */
-const TURNSTILE_CLIENT_REQUIRED =
-  Boolean(TURNSTILE_SITE_KEY) && process.env.NODE_ENV !== "development";
 
 export default function AdminLoginPortal() {
   const [adminCode, setAdminCode] = useState("");
@@ -23,7 +20,7 @@ export default function AdminLoginPortal() {
   async function handleLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    if (TURNSTILE_CLIENT_REQUIRED) {
+    if (TURNSTILE_SITE_KEY) {
       const token = turnstileRef.current?.getToken();
       if (!token) {
         setError("Please wait for the security check to finish, then try again.");
@@ -112,9 +109,13 @@ export default function AdminLoginPortal() {
                     id="admin-code"
                     autoComplete="username"
                     value={adminCode}
-                    onChange={(e) => setAdminCode(e.target.value)}
+                    onChange={(e) => setAdminCode(e.target.value.toLowerCase())}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    maxLength={24}
                     className="rounded-xl border border-white/[0.1] bg-[#07080c] px-4 py-3 font-mono text-sm tracking-wide text-white outline-none ring-cyan-400/40 placeholder:text-white/25 focus:border-cyan-400/35 focus:ring-2"
-                    placeholder="e.g. jobo0602"
+                    placeholder="8-character code"
                   />
                 </div>
 

@@ -1,12 +1,20 @@
+import type { Prisma } from "@/generated/prisma/client";
+import { normalizeLoginIdentifier } from "@/lib/login-identifier";
 import { prisma } from "@/lib/prisma";
 
 export async function findTrainerByIdentifier(identifier: string) {
-  const raw = identifier.trim();
-  if (!raw) return null;
+  const parts = normalizeLoginIdentifier(identifier);
+  const or: Prisma.TrainerWhereInput[] = [];
+  if (parts.email) or.push({ email: parts.email });
+  if (parts.phone) or.push({ phone: parts.phone });
+  if (parts.username) {
+    or.push({ username: { equals: parts.username, mode: "insensitive" } });
+  }
+  if (or.length === 0) return null;
   return prisma.trainer.findFirst({
     where: {
       deidentifiedAt: null,
-      OR: [{ username: raw }, { phone: raw }, { email: raw.toLowerCase() }],
+      OR: or,
     },
   });
 }

@@ -1,38 +1,52 @@
 /**
  * Deidentifies internal QA / synthetic accounts so launch counters and browse show zero real users.
  *
+ * Only targets clearly synthetic rows (persona flag, internal email suffix, or mfqst_/mfqsc_ usernames).
+ * QA email allowlists used for cap exclusion are NOT purged — those may be real owner test accounts.
+ *
  * Dry run: `node --env-file=.env npx tsx scripts/purge-launch-test-accounts.ts`
  * Apply:    `node --env-file=.env npx tsx scripts/purge-launch-test-accounts.ts --apply`
  */
 import { deidentifyClientAccount, deidentifyTrainerAccount } from "../src/lib/account-deletion";
 import {
   INTERNAL_SYNTHETIC_EMAIL_SUFFIX,
-  getLaunchExcludeEmails,
+  SYNTHETIC_CLIENT_USERNAME_PREFIX,
+  SYNTHETIC_TRAINER_USERNAME_PREFIX,
 } from "../src/lib/launch-account-counts";
 import { prisma } from "../src/lib/prisma";
 
 const APPLY = process.argv.includes("--apply");
 
-function buildOr(role: "client" | "trainer") {
-  const emails = getLaunchExcludeEmails(role);
-  const or = [
-    { internalQaSyntheticPersona: true },
-    { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" as const } },
-  ];
-  if (emails.length > 0) {
-    or.push({ email: { in: emails } });
-  }
-  return or;
+function syntheticTrainerWhere() {
+  return {
+    deidentifiedAt: null,
+    OR: [
+      { internalQaSyntheticPersona: true },
+      { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" as const } },
+      { username: { startsWith: SYNTHETIC_TRAINER_USERNAME_PREFIX, mode: "insensitive" as const } },
+    ],
+  };
+}
+
+function syntheticClientWhere() {
+  return {
+    deidentifiedAt: null,
+    OR: [
+      { internalQaSyntheticPersona: true },
+      { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" as const } },
+      { username: { startsWith: SYNTHETIC_CLIENT_USERNAME_PREFIX, mode: "insensitive" as const } },
+    ],
+  };
 }
 
 async function main() {
   const [trainers, clients] = await Promise.all([
     prisma.trainer.findMany({
-      where: { deidentifiedAt: null, OR: buildOr("trainer") },
+      where: syntheticTrainerWhere(),
       select: { id: true, email: true, username: true },
     }),
     prisma.client.findMany({
-      where: { deidentifiedAt: null, OR: buildOr("client") },
+      where: syntheticClientWhere(),
       select: { id: true, email: true, username: true },
     }),
   ]);
@@ -59,6 +73,7 @@ async function main() {
       OR: [
         { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" } },
         { internalQaSyntheticPersona: true },
+        { username: { startsWith: SYNTHETIC_TRAINER_USERNAME_PREFIX, mode: "insensitive" } },
       ],
     },
     data: { internalQaSyntheticPersona: true },
@@ -69,6 +84,7 @@ async function main() {
       OR: [
         { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" } },
         { internalQaSyntheticPersona: true },
+        { username: { startsWith: SYNTHETIC_CLIENT_USERNAME_PREFIX, mode: "insensitive" } },
       ],
     },
     data: { internalQaSyntheticPersona: true },
