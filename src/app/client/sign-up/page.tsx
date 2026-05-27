@@ -11,7 +11,7 @@ import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
 import { BetaCapFullSignupNotice } from "@/components/beta-cap-full-signup-notice";
 import { useBetaLaunchStatus } from "@/hooks/use-beta-launch-status";
-import { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 const inputClass =
