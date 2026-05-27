@@ -95,7 +95,7 @@ describe("verifyTurnstileToken", () => {
     await verifyTurnstileToken("token-abc", req);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const firstCall = fetchMock.mock.calls[0] as [unknown, RequestInit?] | undefined;
+    const firstCall = fetchMock.mock.calls[0] as unknown as [unknown, RequestInit?] | undefined;
     const init = firstCall?.[1];
     expect(readBodyValue(init?.body, "secret")).toBe("test-secret");
     expect(readBodyValue(init?.body, "response")).toBe("token-abc");
@@ -117,7 +117,7 @@ describe("verifyTurnstileToken", () => {
     });
     await verifyTurnstileToken("token-abc", req);
 
-    const firstCall = fetchMock.mock.calls[0] as [unknown, RequestInit?] | undefined;
+    const firstCall = fetchMock.mock.calls[0] as unknown as [unknown, RequestInit?] | undefined;
     const init = firstCall?.[1];
     expect(readBodyValue(init?.body, "remoteip")).toBe("198.51.100.4");
   });
