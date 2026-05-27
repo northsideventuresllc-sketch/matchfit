@@ -37,6 +37,7 @@ function ClientPortalInner(props: { defaultNext: string | null }) {
     try {
       const res = await fetch("/api/client/login", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identifier, password, stayLoggedIn, ...turnstile.turnstileField() }),
       });
@@ -173,7 +174,7 @@ function ClientPortalInner(props: { defaultNext: string | null }) {
 
                 <button
                   type="submit"
-                  disabled={busy || (turnstile.enabled && !turnstile.ready)}
+                  disabled={busy}
                   className="group relative isolate mt-1 flex min-h-[3.25rem] w-full items-center justify-center overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition active:translate-y-px disabled:opacity-50"
                 >
                   <span

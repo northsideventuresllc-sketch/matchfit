@@ -97,8 +97,11 @@ export const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidget
             sitekey: siteKey,
             theme: "dark",
             retry: "auto",
-            callback: () => {
+            callback: (token: string) => {
               readyRef.current = true;
+              if (token && widgetIdRef.current && window.turnstile) {
+                /* Token is available; callback may fire before getResponse is readable in edge cases. */
+              }
               onReady?.();
             },
             "error-callback": () => {

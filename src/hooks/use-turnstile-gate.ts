@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { TurnstileWidgetHandle } from "@/components/turnstile-widget";
 import { TURNSTILE_SITE_KEY_PUBLIC } from "@/lib/turnstile-config";
 
@@ -11,10 +11,19 @@ export function useTurnstileGate() {
   const [ready, setReady] = useState(!enabled);
   const [widgetError, setWidgetError] = useState(false);
 
-  const onTurnstileReady = useCallback(() => {
-    setReady(true);
-    setWidgetError(false);
+  const syncTokenState = useCallback(() => {
+    const token = ref.current?.getToken();
+    if (token) {
+      setReady(true);
+      setWidgetError(false);
+      return true;
+    }
+    return false;
   }, []);
+
+  const onTurnstileReady = useCallback(() => {
+    syncTokenState();
+  }, [syncTokenState]);
 
   const onTurnstileError = useCallback(() => {
     setReady(false);
@@ -33,20 +42,26 @@ export function useTurnstileGate() {
     setReady(false);
   }, []);
 
+  /** Poll for token — Managed widgets sometimes have a token before `callback` fires. */
+  useEffect(() => {
+    if (!enabled) return;
+    if (syncTokenState()) return;
+    const id = window.setInterval(() => {
+      if (syncTokenState()) window.clearInterval(id);
+    }, 400);
+    return () => window.clearInterval(id);
+  }, [enabled, syncTokenState]);
+
   /** Returns null if OK, or a user-facing error string. */
   const validateBeforeSubmit = useCallback((): string | null => {
     if (!enabled) return null;
+    const token = getToken();
+    if (token) return null;
     if (widgetError) {
-      return "Security check failed to load. Refresh the page or disable ad blockers, then try again.";
+      return "Security check failed to load. Refresh the page or allow challenges.cloudflare.com, then try again.";
     }
-    if (!ready) {
-      return "Please wait for the security check to finish, then try again.";
-    }
-    if (!getToken()) {
-      return "Please complete the security check before continuing.";
-    }
-    return null;
-  }, [enabled, widgetError, ready, getToken]);
+    return "Please complete the security check before continuing.";
+  }, [enabled, widgetError, getToken]);
 
   const turnstileField = useCallback((): { turnstileToken?: string } => {
     if (!enabled) return {};

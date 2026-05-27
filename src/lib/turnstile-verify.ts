@@ -118,11 +118,14 @@ export async function verifyTurnstileToken(
     });
     const data = (await res.json()) as SiteverifyJson;
     if (data.success) return { ok: true };
-    const codes = data["error-codes"]?.join(", ") ?? "unknown";
-    console.warn("[Turnstile] siteverify failed:", codes);
+    const codes = data["error-codes"] ?? [];
+    console.warn("[Turnstile] siteverify failed:", codes.join(", ") || "unknown");
+    const expired = codes.includes("timeout-or-duplicate");
     return {
       ok: false,
-      error: "Security verification failed. Refresh the page and try again.",
+      error: expired
+        ? "Security check expired. Complete the check again and submit right away."
+        : "Security verification failed. Refresh the page and try again.",
       status: 400,
     };
   } catch (e) {

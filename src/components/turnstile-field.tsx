@@ -21,9 +21,9 @@ export function TurnstileField({ gate, className }: { gate: TurnstileGate; class
         <p className="text-center text-xs text-amber-200/90" role="status">
           Security check could not load. Refresh the page or allow challenges.cloudflare.com.
         </p>
-      ) : !gate.ready ? (
+      ) : !gate.ready && !gate.widgetError ? (
         <p className="text-center text-xs text-white/40" role="status">
-          Loading security check…
+          Complete the security check below, then sign in.
         </p>
       ) : null}
     </div>

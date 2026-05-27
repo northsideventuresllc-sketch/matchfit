@@ -39,7 +39,12 @@ export default function AdminLoginPortal() {
       });
       const data = (await res.json()) as { error?: string; next?: string };
       if (!res.ok) {
-        setError(data.error ?? "Could Not Sign You In.");
+        const msg = data.error ?? "Could Not Sign You In.";
+        setError(
+          res.status === 401
+            ? `${msg} Check your administrator code and password. If this account was removed during testing, it must be recreated.`
+            : msg,
+        );
         turnstile.reset();
         return;
       }
@@ -152,7 +157,7 @@ export default function AdminLoginPortal() {
 
                 <button
                   type="submit"
-                  disabled={busy || (turnstile.enabled && !turnstile.ready)}
+                  disabled={busy}
                   className="group relative isolate mt-1 flex min-h-[3.25rem] w-full items-center justify-center overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-[0.08em] text-[#050608] shadow-[0_20px_50px_-18px_rgba(34,211,238,0.35)] transition active:translate-y-px disabled:opacity-50"
                 >
                   <span
