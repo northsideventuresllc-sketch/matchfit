@@ -1,9 +1,19 @@
+import {
+  getTurnstileSecretKey,
+  isTurnstileClientEnabled,
+  isTurnstileFullyConfigured,
+  isTurnstileStrictMode,
+  isTurnstileServerVerificationEnabled,
+} from "@/lib/turnstile-config";
+
 const VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
 type SiteverifyJson = {
   success?: boolean;
   "error-codes"?: string[];
 };
+
+export type TurnstileSecretProbe = "missing" | "invalid" | "ok";
 
 function clientIpFromRequest(req: Request): string | undefined {
   const cf = req.headers.get("cf-connecting-ip");
@@ -13,48 +23,69 @@ function clientIpFromRequest(req: Request): string | undefined {
   return undefined;
 }
 
-function turnstileSiteKeyConfigured(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim());
-}
+/** Calls siteverify with a dummy token to confirm the secret key is accepted by Cloudflare. */
+export async function probeTurnstileSecretKey(): Promise<TurnstileSecretProbe> {
+  const secret = getTurnstileSecretKey();
+  if (!secret) return "missing";
 
-function turnstileStrictMode(): boolean {
-  const v = process.env.MATCH_FIT_TURNSTILE_STRICT?.trim().toLowerCase();
-  return v === "1" || v === "true" || v === "yes";
+  const body = new URLSearchParams();
+  body.set("secret", secret);
+  body.set("response", "match-fit-turnstile-probe");
+
+  try {
+    const res = await fetch(VERIFY_URL, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body,
+    });
+    const data = (await res.json()) as SiteverifyJson;
+    const codes = data["error-codes"] ?? [];
+    if (codes.includes("invalid-secret")) return "invalid";
+    // invalid-input-response / missing-input-response => secret recognized
+    return "ok";
+  } catch {
+    return "invalid";
+  }
 }
 
 /**
  * Verifies a Turnstile widget token from sign-in or sign-up.
  *
- * - No site key and no secret → verification skipped (local / unset env).
- * - Site key without secret → skipped by default so sign-in is not fully blocked by a
- *   half-configured deployment; set `MATCH_FIT_TURNSTILE_STRICT=1` to fail closed instead.
- * - Secret present → token required and verified with Cloudflare.
+ * - Fully configured (site + secret) → token required; verified with Cloudflare.
+ * - Site key only, no secret → skipped unless `MATCH_FIT_TURNSTILE_STRICT=1`.
+ * - Neither key → skipped (local dev).
  */
 export async function verifyTurnstileToken(
   token: string | undefined,
   req?: Request,
 ): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
-  const secret = process.env.TURNSTILE_SECRET_KEY?.trim();
-  const siteKey = turnstileSiteKeyConfigured();
+  const secret = getTurnstileSecretKey();
+  const siteKey = isTurnstileClientEnabled();
 
   if (!secret) {
-    if (siteKey && turnstileStrictMode()) {
+    if (siteKey && isTurnstileStrictMode()) {
       console.error(
         "[Turnstile] NEXT_PUBLIC_TURNSTILE_SITE_KEY is set but TURNSTILE_SECRET_KEY is missing (strict mode).",
       );
       return {
         ok: false,
         error:
-          "Sign-in security is not fully configured yet. Add TURNSTILE_SECRET_KEY in Vercel (Turnstile secret for this site), or contact support@match-fit.net.",
+          "Sign-in security is not fully configured yet. Add TURNSTILE_SECRET_KEY in Vercel (Turnstile secret for this site), then redeploy.",
         status: 503,
       };
     }
     if (siteKey) {
       console.warn(
-        "[Turnstile] Site key is set but TURNSTILE_SECRET_KEY is missing — skipping server verification. Set the secret key and MATCH_FIT_TURNSTILE_STRICT=1 for full protection.",
+        "[Turnstile] Site key is set but TURNSTILE_SECRET_KEY is missing — skipping server verification. Add the secret and redeploy.",
       );
     }
     return { ok: true };
+  }
+
+  if (!siteKey) {
+    console.warn(
+      "[Turnstile] TURNSTILE_SECRET_KEY is set but NEXT_PUBLIC_TURNSTILE_SITE_KEY is missing — widgets will not render until you set the public key and redeploy.",
+    );
   }
 
   if (!token?.trim()) {
@@ -96,4 +127,18 @@ export async function verifyTurnstileToken(
       status: 503,
     };
   }
+}
+
+export function getTurnstileRuntimeStatus(): {
+  clientWidgetEnabled: boolean;
+  serverVerificationEnabled: boolean;
+  fullyConfigured: boolean;
+  strictMode: boolean;
+} {
+  return {
+    clientWidgetEnabled: isTurnstileClientEnabled(),
+    serverVerificationEnabled: isTurnstileServerVerificationEnabled(),
+    fullyConfigured: isTurnstileFullyConfigured(),
+    strictMode: isTurnstileStrictMode(),
+  };
 }

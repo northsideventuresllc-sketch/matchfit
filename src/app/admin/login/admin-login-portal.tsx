@@ -2,34 +2,30 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { FormEvent, useRef, useState } from "react";
-import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import { FormEvent, useState } from "react";
+import { TurnstileField } from "@/components/turnstile-field";
+import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 
-const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
-
 export default function AdminLoginPortal() {
+  const turnstile = useTurnstileGate();
   const [adminCode, setAdminCode] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [stayLoggedIn, setStayLoggedIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
 
   async function handleLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    if (TURNSTILE_SITE_KEY) {
-      const token = turnstileRef.current?.getToken();
-      if (!token) {
-        setError("Please wait for the security check to finish, then try again.");
-        return;
-      }
+    const tsErr = turnstile.validateBeforeSubmit();
+    if (tsErr) {
+      setError(tsErr);
+      return;
     }
     setBusy(true);
     try {
-      const turnstileToken = TURNSTILE_SITE_KEY ? turnstileRef.current?.getToken() : undefined;
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -38,13 +34,13 @@ export default function AdminLoginPortal() {
           adminCode: adminCode.trim(),
           password,
           stayLoggedIn,
-          ...(turnstileToken ? { turnstileToken } : {}),
+          ...turnstile.turnstileField(),
         }),
       });
       const data = (await res.json()) as { error?: string; next?: string };
       if (!res.ok) {
         setError(data.error ?? "Could Not Sign You In.");
-        turnstileRef.current?.reset();
+        turnstile.reset();
         return;
       }
       navigateWithFullLoad(data.next ?? "/admin");
@@ -152,15 +148,11 @@ export default function AdminLoginPortal() {
                   Stay signed in on this device
                 </label>
 
-                {TURNSTILE_SITE_KEY ? (
-                  <div className="flex justify-center py-1">
-                    <TurnstileWidget ref={turnstileRef} siteKey={TURNSTILE_SITE_KEY} />
-                  </div>
-                ) : null}
+                <TurnstileField gate={turnstile} />
 
                 <button
                   type="submit"
-                  disabled={busy}
+                  disabled={busy || (turnstile.enabled && !turnstile.ready)}
                   className="group relative isolate mt-1 flex min-h-[3.25rem] w-full items-center justify-center overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-[0.08em] text-[#050608] shadow-[0_20px_50px_-18px_rgba(34,211,238,0.35)] transition active:translate-y-px disabled:opacity-50"
                 >
                   <span
