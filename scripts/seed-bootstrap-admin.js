@@ -18,7 +18,7 @@ async function main() {
   }
 
   const adminCode = "jobo0602";
-  const email = "northside.ventures.llc@gmail.com";
+  const email = "jb@match-fit.net";
   const passwordHash = await bcrypt.hash(password, 12);
 
   await prisma.administrator.upsert({
