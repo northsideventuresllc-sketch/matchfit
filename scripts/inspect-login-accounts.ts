@@ -8,12 +8,15 @@
  *   npx tsx --env-file=.env.local scripts/inspect-login-accounts.ts client:@username
  */
 import { createPrismaClient } from "./create-prisma-client.mjs";
+import { pathToFileURL } from "node:url";
 
-function normalizeAdminCode(raw: string): string {
+export function normalizeAdminCode(raw: string): string {
   return raw.trim().toLowerCase();
 }
 
-function normalizeLoginIdentifier(raw: string): { email?: string; username?: string; phone?: string } {
+export type LoginIdentifierParts = { email?: string; username?: string; phone?: string };
+
+export function normalizeLoginIdentifier(raw: string): LoginIdentifierParts {
   const trimmed = raw.trim();
   if (!trimmed) return {};
   const withoutAt = trimmed.startsWith("@") ? trimmed.slice(1).trim() : trimmed;
@@ -26,6 +29,17 @@ function normalizeLoginIdentifier(raw: string): { email?: string; username?: str
     return { phone: trimmed };
   }
   return { username: withoutAt };
+}
+
+export function buildLookupOrFilters(rawIdentifier: string): Array<Record<string, unknown>> {
+  const parts = normalizeLoginIdentifier(rawIdentifier);
+  const or: Array<Record<string, unknown>> = [];
+  if (parts.email) or.push({ email: parts.email });
+  if (parts.phone) or.push({ phone: parts.phone });
+  if (parts.username) {
+    or.push({ username: { equals: parts.username, mode: "insensitive" } });
+  }
+  return or;
 }
 
 async function main() {
@@ -55,13 +69,7 @@ async function main() {
       continue;
     }
     if (role === "trainer" || role === "client") {
-      const parts = normalizeLoginIdentifier(ident);
-      const or: Array<Record<string, unknown>> = [];
-      if (parts.email) or.push({ email: parts.email });
-      if (parts.phone) or.push({ phone: parts.phone });
-      if (parts.username) {
-        or.push({ username: { equals: parts.username, mode: "insensitive" } });
-      }
+      const or = buildLookupOrFilters(ident);
       if (or.length === 0) {
         console.log(`\n${role}:${ident} invalid identifier`);
         continue;
@@ -86,8 +94,11 @@ async function main() {
   }
 }
 
-void main()
-  .catch((e) => {
+const isMainModule = process.argv[1] ? import.meta.url === pathToFileURL(process.argv[1]).href : false;
+
+if (isMainModule) {
+  void main().catch((e) => {
     console.error(e);
     process.exit(1);
   });
+}
