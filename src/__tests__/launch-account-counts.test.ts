@@ -71,6 +71,7 @@ describe("launch account count exclusions", () => {
     expect(trainerWhere.NOT).toEqual({
       OR: expect.arrayContaining([
         { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" } },
+        { email: { endsWith: ".invalid", mode: "insensitive" } },
         { email: { in: ["qa-coach@example.com"] } },
       ]),
     });
@@ -78,7 +79,10 @@ describe("launch account count exclusions", () => {
     const clientWhere = launchClientCountWhere();
     expect(clientWhere.internalQaSyntheticPersona).toBe(false);
     expect(clientWhere.NOT).toEqual({
-      OR: [{ email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" } }],
+      OR: expect.arrayContaining([
+        { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" } },
+        { email: { endsWith: ".invalid", mode: "insensitive" } },
+      ]),
     });
   });
 });

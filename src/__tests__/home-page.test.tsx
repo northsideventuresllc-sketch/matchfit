@@ -27,7 +27,8 @@ vi.mock("next/image", () => ({
     const imageProps = { ...props };
     delete imageProps.fill;
     delete imageProps.priority;
-    return <img {...imageProps} />;
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img {...(imageProps as React.ImgHTMLAttributes<HTMLImageElement>)} alt={(imageProps.alt as string) ?? ""} />;
   },
 }));
 
