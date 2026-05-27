@@ -27,6 +27,6 @@ describe("GoogleAdsGtag", () => {
 
     expect(html).toContain(`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ADS_ID}`);
     expect(html).toContain('data-script-id="google-ads-gtag"');
-    expect(html).toContain(`gtag(&#x27;config&#x27;, &#x27;${GOOGLE_ADS_ID}&#x27;);`);
+    expect(html).toContain(`gtag('config', '${GOOGLE_ADS_ID}');`);
   });
 });
