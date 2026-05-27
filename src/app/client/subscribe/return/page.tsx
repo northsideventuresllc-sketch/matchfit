@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { trackGoogleAdsConversion } from "@/lib/google-ads";
 
 function MissingSession() {
   return (
@@ -40,6 +41,7 @@ function ConfirmCheckout({ sessionId }: { sessionId: string }) {
           setMessage(data.error ?? "Could not confirm your payment.");
           return;
         }
+        trackGoogleAdsConversion("client_signup");
         router.push("/client/dashboard");
         router.refresh();
       } catch {

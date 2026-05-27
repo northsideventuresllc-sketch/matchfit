@@ -3,15 +3,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, Suspense, useRef, useState } from "react";
-import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import { FormEvent, Suspense, useState } from "react";
+import { TurnstileField } from "@/components/turnstile-field";
 import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
+import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { safeInternalNextPath } from "@/lib/safe-internal-next-path";
 
-const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
-
 function ClientPortalInner(props: { defaultNext: string | null }) {
+  const turnstile = useTurnstileGate();
   const router = useRouter();
   const searchParams = useSearchParams();
   const showPasswordResetBanner = searchParams.get("passwordReset") === "1";
@@ -24,30 +24,27 @@ function ClientPortalInner(props: { defaultNext: string | null }) {
   const [stayLoggedIn, setStayLoggedIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
 
   async function handleLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    if (TURNSTILE_SITE_KEY) {
-      const token = turnstileRef.current?.getToken();
-      if (!token) {
-        setError("Please wait for the security check to finish, then try again.");
-        return;
-      }
+    const tsErr = turnstile.validateBeforeSubmit();
+    if (tsErr) {
+      setError(tsErr);
+      return;
     }
     setBusy(true);
     try {
-      const turnstileToken = TURNSTILE_SITE_KEY ? turnstileRef.current?.getToken() : undefined;
       const res = await fetch("/api/client/login", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier, password, stayLoggedIn, ...(turnstileToken ? { turnstileToken } : {}) }),
+        body: JSON.stringify({ identifier, password, stayLoggedIn, ...turnstile.turnstileField() }),
       });
       const data = (await res.json()) as { error?: string; needsTwoFactor?: boolean; next?: string };
       if (!res.ok) {
         setError(data.error ?? "Could Not Sign You In.");
-        turnstileRef.current?.reset();
+        turnstile.reset();
         return;
       }
       if (data.needsTwoFactor) {
@@ -173,11 +170,7 @@ function ClientPortalInner(props: { defaultNext: string | null }) {
                   </span>
                 </label>
 
-                {TURNSTILE_SITE_KEY ? (
-                  <div className="flex justify-center pt-1">
-                    <TurnstileWidget ref={turnstileRef} siteKey={TURNSTILE_SITE_KEY} />
-                  </div>
-                ) : null}
+                <TurnstileField gate={turnstile} className="flex justify-center pt-1" />
 
                 <button
                   type="submit"

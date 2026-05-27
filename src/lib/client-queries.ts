@@ -1,14 +1,22 @@
+import type { Prisma } from "@/generated/prisma/client";
+import { normalizeLoginIdentifier } from "@/lib/login-identifier";
 import { prisma } from "@/lib/prisma";
 
 const ACTIVE_HOLD_STATUSES = ["PENDING_2FA", "AWAITING_PAYMENT"] as const;
 
 export async function findClientByIdentifier(identifier: string) {
-  const raw = identifier.trim();
-  if (!raw) return null;
+  const parts = normalizeLoginIdentifier(identifier);
+  const or: Prisma.ClientWhereInput[] = [];
+  if (parts.email) or.push({ email: parts.email });
+  if (parts.phone) or.push({ phone: parts.phone });
+  if (parts.username) {
+    or.push({ username: { equals: parts.username, mode: "insensitive" } });
+  }
+  if (or.length === 0) return null;
   return prisma.client.findFirst({
     where: {
       deidentifiedAt: null,
-      OR: [{ username: raw }, { phone: raw }, { email: raw.toLowerCase() }],
+      OR: or,
     },
   });
 }

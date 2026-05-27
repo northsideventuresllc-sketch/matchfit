@@ -2,6 +2,8 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   INTERNAL_SYNTHETIC_EMAIL_SUFFIX,
+  SYNTHETIC_CLIENT_USERNAME_PREFIX,
+  SYNTHETIC_TRAINER_USERNAME_PREFIX,
   getLaunchExcludeEmails,
 } from "@/lib/launch-account-counts";
 
@@ -25,9 +27,19 @@ function isMissingInternalQaSyntheticPersonaColumn(e: unknown): boolean {
   return m.includes("internalQaSyntheticPersona") && (m.includes("42703") || m.includes("does not exist"));
 }
 
+function buildTrainerUsernameExcludeClause(): Prisma.Sql {
+  return Prisma.sql`AND LOWER(t."username") NOT LIKE ${`${SYNTHETIC_TRAINER_USERNAME_PREFIX.toLowerCase()}%`}`;
+}
+
+function buildClientUsernameExcludeClause(): Prisma.Sql {
+  return Prisma.sql`AND LOWER(c."username") NOT LIKE ${`${SYNTHETIC_CLIENT_USERNAME_PREFIX.toLowerCase()}%`}`;
+}
+
 function buildEmailExcludeClause(emails: string[]): Prisma.Sql {
   const parts: Prisma.Sql[] = [
     Prisma.sql`AND LOWER(t."email") NOT LIKE ${`%${INTERNAL_SYNTHETIC_EMAIL_SUFFIX}`}`,
+    Prisma.sql`AND LOWER(t."email") NOT LIKE '%.invalid'`,
+    buildTrainerUsernameExcludeClause(),
   ];
   if (emails.length > 0) {
     parts.push(
@@ -40,6 +52,8 @@ function buildEmailExcludeClause(emails: string[]): Prisma.Sql {
 function buildClientEmailExcludeClause(emails: string[]): Prisma.Sql {
   const parts: Prisma.Sql[] = [
     Prisma.sql`AND LOWER(c."email") NOT LIKE ${`%${INTERNAL_SYNTHETIC_EMAIL_SUFFIX}`}`,
+    Prisma.sql`AND LOWER(c."email") NOT LIKE '%.invalid'`,
+    buildClientUsernameExcludeClause(),
   ];
   if (emails.length > 0) {
     parts.push(
@@ -48,6 +62,24 @@ function buildClientEmailExcludeClause(emails: string[]): Prisma.Sql {
   }
   return Prisma.join(parts, " ");
 }
+
+function isDatabaseUnavailable(e: unknown): boolean {
+  if (e instanceof Prisma.PrismaClientInitializationError) return true;
+  if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P1001") return true;
+  const msg = e instanceof Error ? e.message : String(e);
+  return (
+    msg.includes("Can't reach database server") ||
+    msg.includes("tenant/user") ||
+    msg.includes("ENOTFOUND")
+  );
+}
+
+const EMPTY_HOME_USER_COUNTS: HomeUserCounts = {
+  trainersTotal: 0,
+  trainersActive: 0,
+  clientsTotal: 0,
+  clientsActive: 0,
+};
 
 async function queryHomeUserCounts(
   excludeInternalQaSynthetic: boolean,
@@ -170,6 +202,10 @@ export async function getHomeUserCounts(): Promise<HomeUserCounts> {
   } catch (e) {
     if (isMissingInternalQaSyntheticPersonaColumn(e)) {
       return queryHomeUserCounts(false, uniqueExclude);
+    }
+    if (process.env.NODE_ENV === "development" && isDatabaseUnavailable(e)) {
+      console.warn("[getHomeUserCounts] database unavailable; showing zero counters", e);
+      return EMPTY_HOME_USER_COUNTS;
     }
     throw e;
   }

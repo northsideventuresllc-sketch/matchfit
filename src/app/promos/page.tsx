@@ -1,19 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
-import { betaMaxClients, betaMaxTrainers, isBetaLaunchGatesEnabled } from "@/lib/beta-launch-config";
-import {
-  getClientFoundingTrialDays,
-  getClientFoundingTrialMaxClients,
-  getTrainerFoundingBgPercentMax,
-} from "@/lib/match-fit-launch-promotions";
-import { countClientsForBetaCap, countTrainersForBetaCap } from "@/lib/beta-waitlist-service";
+import { getLaunchPromoStats } from "@/lib/launch-promo-stats";
+import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
+import { getClientFoundingTrialDays } from "@/lib/match-fit-launch-promotions";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Current Promos | Match Fit" };
 
 function ProgressBar({ value, max }: { value: number; max: number }) {
-  const pct = Math.min(100, Math.round((value / max) * 100));
+  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
   return (
     <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-white/[0.08]">
       <div
@@ -25,30 +21,28 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
 }
 
 export default async function PromosPage() {
-  const gatesEnabled = isBetaLaunchGatesEnabled();
-
-  const trainerPromoMax = getTrainerFoundingBgPercentMax();
-  const clientPromoMax = getClientFoundingTrialMaxClients();
+  const stats = await getLaunchPromoStats();
   const trialDays = getClientFoundingTrialDays();
-  const betaTrainerCap = betaMaxTrainers();
-  const betaClientCap = betaMaxClients();
 
-  let trainerCount = 0;
-  let clientCount = 0;
+  const {
+    trainerCount,
+    clientCount,
+    trainerFoundingMax,
+    clientFoundingMax,
+    trainerFoundingRemaining,
+    clientFoundingRemaining,
+    trainerFoundingActive,
+    clientFoundingActive,
+    trainerBetaCap,
+    clientBetaCap,
+    trainerBetaSlotsRemaining,
+    clientBetaSlotsRemaining,
+    trainerWaitlistOpen,
+    clientWaitlistOpen,
+  } = stats;
 
-  if (gatesEnabled) {
-    [trainerCount, clientCount] = await Promise.all([
-      countTrainersForBetaCap(),
-      countClientsForBetaCap(),
-    ]);
-  }
-
-  const trainerPromoActive = trainerCount < trainerPromoMax;
-  const clientPromoActive = clientCount < clientPromoMax;
-  const trainerSlotsLeft = Math.max(0, betaTrainerCap - trainerCount);
-  const clientSlotsLeft = Math.max(0, betaClientCap - clientCount);
-  const trainerCapFull = trainerSlotsLeft === 0;
-  const clientCapFull = clientSlotsLeft === 0;
+  const trainerCapFull = trainerWaitlistOpen;
+  const clientCapFull = clientWaitlistOpen;
 
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] text-white antialiased">
@@ -58,7 +52,6 @@ export default async function PromosPage() {
       />
 
       <div className="relative z-10 mx-auto max-w-3xl px-5 pb-20 pt-10 sm:px-8 sm:pt-14 lg:px-10">
-        {/* Header */}
         <header className="flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-3">
             <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl">
@@ -70,7 +63,7 @@ export default async function PromosPage() {
                 <span className="text-[#E32B2B]">Fit</span>
               </p>
               <p className="mt-0.5 text-[0.6rem] font-bold uppercase tracking-[0.18em] text-[#FF7E00]/80">
-                Version BETA 1.0.0
+                Version {MATCH_FIT_PRODUCT_VERSION_LABEL}
               </p>
             </div>
           </Link>
@@ -82,7 +75,6 @@ export default async function PromosPage() {
           </Link>
         </header>
 
-        {/* Page title */}
         <div className="mt-12 text-center">
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF7E00]">
             Limited-time offers
@@ -99,10 +91,7 @@ export default async function PromosPage() {
           </p>
         </div>
 
-        {/* Promo cards */}
         <div className="mt-10 space-y-6">
-
-          {/* Trainer promo */}
           <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/75 p-7 shadow-[0_34px_90px_-50px_rgba(255,126,0,0.35)] backdrop-blur-xl sm:p-9">
             <div
               aria-hidden
@@ -120,54 +109,49 @@ export default async function PromosPage() {
                 </div>
                 <span
                   className={`shrink-0 rounded-full px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.12em] ${
-                    trainerPromoActive
+                    trainerFoundingActive
                       ? "bg-emerald-500/20 text-emerald-300"
                       : "bg-white/10 text-white/50"
                   }`}
                 >
-                  {trainerPromoActive ? "Active" : "Ended"}
+                  {trainerFoundingActive ? "Active" : "Ended"}
                 </span>
               </div>
 
               <p className="mt-5 text-pretty text-[15px] leading-relaxed text-white/65 sm:text-base">
                 The first{" "}
-                <span className="font-bold text-[#FFD34E]">{trainerPromoMax} fitness professionals</span> to
-                join Match Fit pay only{" "}
-                <span className="font-bold text-[#FFD34E]">20% of their background check cost</span> as the
-                one-time onboarding fee — instead of the standard fee of{" "}
-                <span className="font-semibold text-white/75">$100.00 minus the background check amount</span>.
+                <span className="font-bold text-[#FFD34E]">{trainerFoundingMax} fitness professionals</span>{" "}
+                to join Match Fit pay only{" "}
+                <span className="font-bold text-[#FFD34E]">20% of their background check cost</span> for
+                onboarding (instead of the usual $100.00 platform fee minus the screening amount).
               </p>
 
-              <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-semibold text-white/75">Standard fee</span>
-                  <span className="text-white/55">$100.00 minus background check</span>
+              <div className="mt-6 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-white/50">Founding spots claimed</span>
+                  <span className="font-bold text-white/80">
+                    {trainerCount} / {trainerFoundingMax}
+                  </span>
                 </div>
-                <div className="mt-2 flex items-center justify-between text-sm">
-                  <span className="font-bold text-[#FFD34E]">Founding fee</span>
-                  <span className="font-bold text-[#FFD34E]">20% of background check only</span>
-                </div>
+                <ProgressBar value={trainerCount} max={trainerFoundingMax} />
+                {trainerFoundingActive ? (
+                  <p className="text-xs text-[#FFD34E]">
+                    {trainerFoundingRemaining} founding{" "}
+                    {trainerFoundingRemaining === 1 ? "spot" : "spots"} remaining
+                  </p>
+                ) : (
+                  <p className="text-xs text-white/40">Founding spots are full. Standard pricing now applies.</p>
+                )}
               </div>
 
-              {gatesEnabled && (
-                <div className="mt-6 space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-white/50">Founding spots claimed</span>
-                    <span className="font-bold text-white/80">
-                      {trainerCount} / {trainerPromoMax}
-                    </span>
-                  </div>
-                  <ProgressBar value={trainerCount} max={trainerPromoMax} />
-                  {trainerPromoActive ? (
-                    <p className="text-xs text-[#FFD34E]">
-                      {trainerPromoMax - trainerCount} founding{" "}
-                      {trainerPromoMax - trainerCount === 1 ? "spot" : "spots"} remaining
-                    </p>
-                  ) : (
-                    <p className="text-xs text-white/40">Founding spots are full. Standard pricing now applies.</p>
-                  )}
-                </div>
-              )}
+              {stats.gatesEnabled ? (
+                <p className="mt-4 text-[11px] text-white/40">
+                  Beta membership capacity: {stats.trainerBetaSlotsUsed} / {trainerBetaCap} slots used
+                  {trainerBetaSlotsRemaining > 0
+                    ? ` (${trainerBetaSlotsRemaining} open)`
+                    : " (full — waitlist open)"}
+                </p>
+              ) : null}
 
               <div className="mt-6">
                 {trainerCapFull ? (
@@ -189,7 +173,6 @@ export default async function PromosPage() {
             </div>
           </div>
 
-          {/* Client promo */}
           <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/75 p-7 shadow-[0_34px_90px_-50px_rgba(227,43,43,0.35)] backdrop-blur-xl sm:p-9">
             <div
               aria-hidden
@@ -207,18 +190,18 @@ export default async function PromosPage() {
                 </div>
                 <span
                   className={`shrink-0 rounded-full px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.12em] ${
-                    clientPromoActive
+                    clientFoundingActive
                       ? "bg-emerald-500/20 text-emerald-300"
                       : "bg-white/10 text-white/50"
                   }`}
                 >
-                  {clientPromoActive ? "Active" : "Ended"}
+                  {clientFoundingActive ? "Active" : "Ended"}
                 </span>
               </div>
 
               <p className="mt-5 text-pretty text-[15px] leading-relaxed text-white/65 sm:text-base">
                 The first{" "}
-                <span className="font-bold text-[#FFD34E]">{clientPromoMax} clients</span> to join Match Fit
+                <span className="font-bold text-[#FFD34E]">{clientFoundingMax} clients</span> to join Match Fit
                 receive a{" "}
                 <span className="font-bold text-[#FFD34E]">{trialDays}-day free trial</span> before their
                 first billing cycle — so you can experience the platform fully before making a commitment. A
@@ -240,25 +223,32 @@ export default async function PromosPage() {
                 </div>
               </div>
 
-              {gatesEnabled && (
-                <div className="mt-6 space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-white/50">Founding spots claimed</span>
-                    <span className="font-bold text-white/80">
-                      {clientCount} / {clientPromoMax}
-                    </span>
-                  </div>
-                  <ProgressBar value={clientCount} max={clientPromoMax} />
-                  {clientPromoActive ? (
-                    <p className="text-xs text-[#FFD34E]">
-                      {clientPromoMax - clientCount} founding{" "}
-                      {clientPromoMax - clientCount === 1 ? "spot" : "spots"} remaining
-                    </p>
-                  ) : (
-                    <p className="text-xs text-white/40">Founding spots are full. Standard pricing now applies.</p>
-                  )}
+              <div className="mt-6 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-white/50">Founding spots claimed</span>
+                  <span className="font-bold text-white/80">
+                    {clientCount} / {clientFoundingMax}
+                  </span>
                 </div>
-              )}
+                <ProgressBar value={clientCount} max={clientFoundingMax} />
+                {clientFoundingActive ? (
+                  <p className="text-xs text-[#FFD34E]">
+                    {clientFoundingRemaining} founding{" "}
+                    {clientFoundingRemaining === 1 ? "spot" : "spots"} remaining
+                  </p>
+                ) : (
+                  <p className="text-xs text-white/40">Founding spots are full. Standard pricing now applies.</p>
+                )}
+              </div>
+
+              {stats.gatesEnabled ? (
+                <p className="mt-4 text-[11px] text-white/40">
+                  Beta membership capacity: {stats.clientBetaSlotsUsed} / {clientBetaCap} slots used
+                  {clientBetaSlotsRemaining > 0
+                    ? ` (${clientBetaSlotsRemaining} open)`
+                    : " (full — waitlist open)"}
+                </p>
+              ) : null}
 
               <div className="mt-6">
                 {clientCapFull ? (
@@ -281,7 +271,6 @@ export default async function PromosPage() {
           </div>
         </div>
 
-        {/* Standard pricing note */}
         <div className="mt-8 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 text-sm leading-relaxed text-white/45">
           <p className="font-semibold text-white/60">After the founding caps are reached:</p>
           <ul className="mt-3 space-y-1.5">

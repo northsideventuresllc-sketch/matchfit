@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
+import { trackGoogleAdsConversion } from "@/lib/google-ads";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 
 type SubscriptionOffer = {
@@ -128,6 +129,7 @@ function SubscribeContent() {
         setQaError(data.error ?? "Could not complete.");
         return;
       }
+      trackGoogleAdsConversion("client_signup");
       const next = data.next ?? "/client/login?registered=1";
       navigateWithFullLoad(next);
     } catch {

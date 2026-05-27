@@ -3,20 +3,21 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import { useEffect, useState } from "react";
+import { TurnstileField } from "@/components/turnstile-field";
+import { trackGoogleAdsConversion } from "@/lib/google-ads";
+import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
+import { isTurnstileClientEnabled } from "@/lib/turnstile-config";
 import { tryCreateMatchFitSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { clearTrainerSignupDraft, readTrainerSignupDraft } from "@/lib/trainer-supabase-signup-draft";
 
-const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
-
 export default function TrainerSignupCompletePage() {
   const router = useRouter();
+  const turnstile = useTurnstileGate();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
-  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
 
   useEffect(() => {
     const draft = readTrainerSignupDraft();
@@ -40,7 +41,7 @@ export default function TrainerSignupCompletePage() {
       }
       if (!cancelled) setSessionReady(true);
 
-      if (TURNSTILE_SITE_KEY || cancelled) return;
+      if (isTurnstileClientEnabled() || cancelled) return;
 
       setBusy(true);
       try {
@@ -72,6 +73,7 @@ export default function TrainerSignupCompletePage() {
           return;
         }
         clearTrainerSignupDraft();
+        trackGoogleAdsConversion("trainer_signup");
         navigateWithFullLoad(data.next ?? "/trainer/onboarding");
       } catch {
         if (!cancelled) {
@@ -101,11 +103,12 @@ export default function TrainerSignupCompletePage() {
       setError("Session expired. Open the link from your verification email again.");
       return;
     }
-    const turnstileToken = turnstileRef.current?.getToken();
-    if (!turnstileToken) {
-      setError("Please complete the security check first.");
+    const tsErr = turnstile.validateBeforeSubmit();
+    if (tsErr) {
+      setError(tsErr);
       return;
     }
+    const turnstileToken = turnstile.getCaptchaToken();
     setBusy(true);
     try {
       const res = await fetch("/api/trainer/register-with-supabase", {
@@ -132,11 +135,12 @@ export default function TrainerSignupCompletePage() {
       const data = (await res.json()) as { error?: string; next?: string };
       if (!res.ok) {
         setError(data.error ?? "Could not finish creating your account.");
-        turnstileRef.current?.reset();
+        turnstile.reset();
         setBusy(false);
         return;
       }
       clearTrainerSignupDraft();
+      trackGoogleAdsConversion("trainer_signup");
       navigateWithFullLoad(data.next ?? "/trainer/onboarding");
     } catch {
       setError("Something went wrong. Try again.");
@@ -159,7 +163,7 @@ export default function TrainerSignupCompletePage() {
         <h1 className="text-2xl font-black tracking-tight">Finish creating your trainer account</h1>
         <p className="mt-3 text-sm leading-relaxed text-white/55">
           Your email is verified.{" "}
-          {TURNSTILE_SITE_KEY
+          {turnstile.enabled
             ? "Complete the security check, then create your Match Fit profile."
             : "We are creating your Match Fit profile now."}
         </p>
@@ -173,19 +177,19 @@ export default function TrainerSignupCompletePage() {
           </p>
         ) : null}
 
-        {sessionReady && TURNSTILE_SITE_KEY ? (
+        {sessionReady && turnstile.enabled ? (
           <div className="mt-8 flex flex-col items-center gap-6">
-            <TurnstileWidget ref={turnstileRef} siteKey={TURNSTILE_SITE_KEY} />
+            <TurnstileField gate={turnstile} />
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || !turnstile.ready}
               onClick={() => void finishWithTurnstile()}
               className="min-h-[3rem] w-full max-w-sm rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] disabled:opacity-50"
             >
               {busy ? "Working…" : "Create my account"}
             </button>
           </div>
-        ) : sessionReady && !TURNSTILE_SITE_KEY && busy ? (
+        ) : sessionReady && !turnstile.enabled && busy ? (
           <p className="mt-8 text-sm text-white/50">Creating your account…</p>
         ) : null}
 

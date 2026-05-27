@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { TrainerDashboardAppHeader } from "@/components/trainer/trainer-dashboard-app-header";
+import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
 
 export type TrainerDashboardShellProps = {
   displayName: string;
@@ -195,6 +196,9 @@ export function TrainerDashboardShell(props: TrainerDashboardShellProps) {
             <Link href="/report-bug" className="text-white/50 underline-offset-2 transition hover:text-white/75 hover:underline">
               Report a bug
             </Link>
+          </p>
+          <p className="text-center text-[9px] font-bold uppercase tracking-[0.18em] text-[#FF7E00]/50">
+            Version {MATCH_FIT_PRODUCT_VERSION_LABEL}
           </p>
         </footer>
       </div>

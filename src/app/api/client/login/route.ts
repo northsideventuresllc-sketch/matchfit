@@ -5,8 +5,8 @@ import { getLoginOtpDelivery } from "@/lib/login-two-factor-target";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
 import {
-  setClientSession,
-  setLoginChallengeCookie,
+  applyClientSessionToNextResponse,
+  applyLoginChallengeToNextResponse,
   signLoginChallengeToken,
 } from "@/lib/session";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
@@ -67,23 +67,24 @@ export async function POST(req: Request) {
         },
       });
       const token = await signLoginChallengeToken(client.id, { stayLoggedIn });
-      await setLoginChallengeCookie(token);
-      return NextResponse.json({
+      const res = NextResponse.json({
         needsTwoFactor: true,
         next: "/verify-2fa",
       });
+      applyLoginChallengeToNextResponse(res, token);
+      return res;
     }
 
     await prisma.client.update({
       where: { id: client.id },
       data: { stayLoggedIn },
     });
-    await setClientSession(client.id, stayLoggedIn);
     const deletionRedirect = await clientLoginDeletionRedirect(client.id);
-    if (deletionRedirect) {
-      return NextResponse.json({ ok: true, ...deletionRedirect });
-    }
-    return NextResponse.json({ ok: true });
+    const res = NextResponse.json(
+      deletionRedirect ? { ok: true, ...deletionRedirect } : { ok: true },
+    );
+    await applyClientSessionToNextResponse(res, client.id, stayLoggedIn);
+    return res;
   } catch (e) {
     const { message, status } = publicApiErrorFromUnknown(e, "Sign-in failed. Please try again.", {
       logLabel: "[Match Fit login]",

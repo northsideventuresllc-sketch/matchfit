@@ -3,13 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useState } from "react";
 import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
-import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import { TurnstileField } from "@/components/turnstile-field";
+import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import type { TrainerPostAuthPath } from "@/lib/trainer-post-auth-redirect";
-
-const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
 export type TrainerLoginPortalProps = {
   redirectAfterLogin: TrainerPostAuthPath;
@@ -24,6 +23,7 @@ export default function TrainerLoginPortal({
   variant = "onboarding",
   passwordResetSuccess = false,
 }: TrainerLoginPortalProps) {
+  const turnstile = useTurnstileGate();
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -31,21 +31,17 @@ export default function TrainerLoginPortal({
   const [stayLoggedIn, setStayLoggedIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
 
   async function handleLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    if (TURNSTILE_SITE_KEY) {
-      const token = turnstileRef.current?.getToken();
-      if (!token) {
-        setError("Please wait for the security check to finish, then try again.");
-        return;
-      }
+    const tsErr = turnstile.validateBeforeSubmit();
+    if (tsErr) {
+      setError(tsErr);
+      return;
     }
     setBusy(true);
     try {
-      const turnstileToken = TURNSTILE_SITE_KEY ? turnstileRef.current?.getToken() : undefined;
       const res = await fetch("/api/trainer/login", {
         method: "POST",
         credentials: "include",
@@ -55,7 +51,7 @@ export default function TrainerLoginPortal({
           password,
           stayLoggedIn,
           redirectAfterLogin,
-          ...(turnstileToken ? { turnstileToken } : {}),
+          ...turnstile.turnstileField(),
         }),
       });
       const data = (await res.json()) as {
@@ -65,7 +61,7 @@ export default function TrainerLoginPortal({
       };
       if (!res.ok) {
         setError(data.error ?? "Could Not Sign You In.");
-        turnstileRef.current?.reset();
+        turnstile.reset();
         return;
       }
       if (data.needsTwoFactor) {
@@ -194,11 +190,7 @@ export default function TrainerLoginPortal({
                   </span>
                 </label>
 
-                {TURNSTILE_SITE_KEY ? (
-                  <div className="flex justify-center pt-1">
-                    <TurnstileWidget ref={turnstileRef} siteKey={TURNSTILE_SITE_KEY} />
-                  </div>
-                ) : null}
+                <TurnstileField gate={turnstile} className="flex justify-center pt-1" />
 
                 <button
                   type="submit"

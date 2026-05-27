@@ -2,37 +2,30 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { FormEvent, useRef, useState } from "react";
-import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import { FormEvent, useState } from "react";
+import { TurnstileField } from "@/components/turnstile-field";
+import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 
-const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
-/** In development the API often skips Turnstile when `TURNSTILE_SECRET_KEY` is unset; don’t block submit if the widget is slow. */
-const TURNSTILE_CLIENT_REQUIRED =
-  Boolean(TURNSTILE_SITE_KEY) && process.env.NODE_ENV !== "development";
-
 export default function AdminLoginPortal() {
+  const turnstile = useTurnstileGate();
   const [adminCode, setAdminCode] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [stayLoggedIn, setStayLoggedIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
 
   async function handleLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    if (TURNSTILE_CLIENT_REQUIRED) {
-      const token = turnstileRef.current?.getToken();
-      if (!token) {
-        setError("Please wait for the security check to finish, then try again.");
-        return;
-      }
+    const tsErr = turnstile.validateBeforeSubmit();
+    if (tsErr) {
+      setError(tsErr);
+      return;
     }
     setBusy(true);
     try {
-      const turnstileToken = TURNSTILE_SITE_KEY ? turnstileRef.current?.getToken() : undefined;
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -41,13 +34,18 @@ export default function AdminLoginPortal() {
           adminCode: adminCode.trim(),
           password,
           stayLoggedIn,
-          ...(turnstileToken ? { turnstileToken } : {}),
+          ...turnstile.turnstileField(),
         }),
       });
       const data = (await res.json()) as { error?: string; next?: string };
       if (!res.ok) {
-        setError(data.error ?? "Could Not Sign You In.");
-        turnstileRef.current?.reset();
+        const msg = data.error ?? "Could Not Sign You In.";
+        setError(
+          res.status === 401
+            ? `${msg} Check your administrator code and password. If this account was removed during testing, it must be recreated.`
+            : msg,
+        );
+        turnstile.reset();
         return;
       }
       navigateWithFullLoad(data.next ?? "/admin");
@@ -112,9 +110,13 @@ export default function AdminLoginPortal() {
                     id="admin-code"
                     autoComplete="username"
                     value={adminCode}
-                    onChange={(e) => setAdminCode(e.target.value)}
+                    onChange={(e) => setAdminCode(e.target.value.toLowerCase())}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    maxLength={24}
                     className="rounded-xl border border-white/[0.1] bg-[#07080c] px-4 py-3 font-mono text-sm tracking-wide text-white outline-none ring-cyan-400/40 placeholder:text-white/25 focus:border-cyan-400/35 focus:ring-2"
-                    placeholder="e.g. jobo0602"
+                    placeholder="8-character code"
                   />
                 </div>
 
@@ -151,11 +153,7 @@ export default function AdminLoginPortal() {
                   Stay signed in on this device
                 </label>
 
-                {TURNSTILE_SITE_KEY ? (
-                  <div className="flex justify-center py-1">
-                    <TurnstileWidget ref={turnstileRef} siteKey={TURNSTILE_SITE_KEY} />
-                  </div>
-                ) : null}
+                <TurnstileField gate={turnstile} />
 
                 <button
                   type="submit"

@@ -1,40 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-
-type BetaStatus = {
-  gatesEnabled: boolean;
-  trainerCap: number | null;
-  clientCap: number | null;
-  trainerCount: number | null;
-  clientCount: number | null;
-  trainerWaitlistOpen: boolean;
-  clientWaitlistOpen: boolean;
-};
+import { useBetaLaunchStatus } from "@/hooks/use-beta-launch-status";
 
 export function HomeBetaSlotWarning() {
-  const [status, setStatus] = useState<BetaStatus | null>(null);
-
-  useEffect(() => {
-    void fetch("/api/public/beta-launch-status")
-      .then((r) => r.json())
-      .then((d: BetaStatus) => setStatus(d))
-      .catch(() => null);
-  }, []);
+  const { status } = useBetaLaunchStatus();
 
   if (!status?.gatesEnabled) return null;
 
   const trainerFull = status.trainerWaitlistOpen;
   const clientFull = status.clientWaitlistOpen;
-  const trainerLeft =
-    status.trainerCap !== null && status.trainerCount !== null
-      ? Math.max(0, status.trainerCap - status.trainerCount)
-      : null;
-  const clientLeft =
-    status.clientCap !== null && status.clientCount !== null
-      ? Math.max(0, status.clientCap - status.clientCount)
-      : null;
+  const trainerLeft = status.trainerFoundingRemaining;
+  const clientLeft = status.clientFoundingRemaining;
 
   const bothFull = trainerFull && clientFull;
   const anyFull = trainerFull || clientFull;
@@ -68,8 +45,13 @@ export function HomeBetaSlotWarning() {
           <Link href="/waitlist/trainer" className="font-semibold text-[#FFD34E] underline-offset-2 hover:underline">
             join the waitlist
           </Link>{" "}
-          to reserve your username.{clientLeft !== null && clientLeft <= 5 && clientLeft > 0 ? (
-            <> Only <span className="font-bold text-[#FFD34E]">{clientLeft}</span> client {clientLeft === 1 ? "spot" : "spots"} remaining!</>
+          to reserve your username.
+          {clientLeft !== null && clientLeft <= 5 && clientLeft > 0 ? (
+            <>
+              {" "}
+              Only <span className="font-bold text-[#FFD34E]">{clientLeft}</span> client{" "}
+              {clientLeft === 1 ? "spot" : "spots"} remaining!
+            </>
           ) : null}
         </>
       ) : clientFull ? (
@@ -78,8 +60,13 @@ export function HomeBetaSlotWarning() {
           <Link href="/waitlist/client" className="font-semibold text-[#FFD34E] underline-offset-2 hover:underline">
             join the waitlist
           </Link>{" "}
-          to reserve your username.{trainerLeft !== null && trainerLeft <= 3 && trainerLeft > 0 ? (
-            <> Only <span className="font-bold text-[#FFD34E]">{trainerLeft}</span> trainer {trainerLeft === 1 ? "spot" : "spots"} remaining!</>
+          to reserve your username.
+          {trainerLeft !== null && trainerLeft <= 3 && trainerLeft > 0 ? (
+            <>
+              {" "}
+              Only <span className="font-bold text-[#FFD34E]">{trainerLeft}</span> trainer{" "}
+              {trainerLeft === 1 ? "spot" : "spots"} remaining!
+            </>
           ) : null}
         </>
       ) : (
@@ -97,8 +84,8 @@ export function HomeBetaSlotWarning() {
               <span className="font-bold text-[#FFD34E]">{clientLeft}</span> client{" "}
               {clientLeft === 1 ? "spot" : "spots"}
             </>
-          )}
-          {" "}remaining with founding promos active.{" "}
+          )}{" "}
+          remaining with founding promos active.{" "}
           <Link href="/promos" className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
             View promos
           </Link>

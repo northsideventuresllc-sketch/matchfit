@@ -1,19 +1,12 @@
 import { NextResponse } from "next/server";
-import {
-  clientBetaSlotsUsed,
-  countClientsForBetaCap,
-  countTrainersForBetaCap,
-  isClientBetaCapReached,
-  isTrainerBetaCapReached,
-  trainerBetaSlotsUsed,
-} from "@/lib/beta-waitlist-service";
-import { betaMaxClients, betaMaxTrainers, isBetaLaunchGatesEnabled } from "@/lib/beta-launch-config";
+import { getLaunchPromoStats } from "@/lib/launch-promo-stats";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const gates = isBetaLaunchGatesEnabled();
-  if (!gates) {
+  const stats = await getLaunchPromoStats();
+
+  if (!stats.gatesEnabled) {
     return NextResponse.json({
       gatesEnabled: false,
       trainerCap: null,
@@ -24,34 +17,30 @@ export async function GET() {
       clientSlotsUsed: null,
       trainerSlotsRemaining: null,
       clientSlotsRemaining: null,
+      trainerFoundingMax: null,
+      clientFoundingMax: null,
+      trainerFoundingRemaining: null,
+      clientFoundingRemaining: null,
       trainerWaitlistOpen: false,
       clientWaitlistOpen: false,
     });
   }
 
-  const trainerCap = betaMaxTrainers();
-  const clientCap = betaMaxClients();
-
-  const [trainerCount, clientCount, trainerUsed, clientUsed, tFull, cFull] = await Promise.all([
-    countTrainersForBetaCap(),
-    countClientsForBetaCap(),
-    trainerBetaSlotsUsed(),
-    clientBetaSlotsUsed(),
-    isTrainerBetaCapReached(),
-    isClientBetaCapReached(),
-  ]);
-
   return NextResponse.json({
     gatesEnabled: true,
-    trainerCap,
-    clientCap,
-    trainerCount,
-    clientCount,
-    trainerSlotsUsed: trainerUsed,
-    clientSlotsUsed: clientUsed,
-    trainerSlotsRemaining: Math.max(0, trainerCap - trainerUsed),
-    clientSlotsRemaining: Math.max(0, clientCap - clientUsed),
-    trainerWaitlistOpen: tFull,
-    clientWaitlistOpen: cFull,
+    trainerCap: stats.trainerBetaCap,
+    clientCap: stats.clientBetaCap,
+    trainerCount: stats.trainerCount,
+    clientCount: stats.clientCount,
+    trainerSlotsUsed: stats.trainerBetaSlotsUsed,
+    clientSlotsUsed: stats.clientBetaSlotsUsed,
+    trainerSlotsRemaining: stats.trainerBetaSlotsRemaining,
+    clientSlotsRemaining: stats.clientBetaSlotsRemaining,
+    trainerFoundingMax: stats.trainerFoundingMax,
+    clientFoundingMax: stats.clientFoundingMax,
+    trainerFoundingRemaining: stats.trainerFoundingRemaining,
+    clientFoundingRemaining: stats.clientFoundingRemaining,
+    trainerWaitlistOpen: stats.trainerWaitlistOpen,
+    clientWaitlistOpen: stats.clientWaitlistOpen,
   });
 }

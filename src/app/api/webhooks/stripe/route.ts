@@ -6,13 +6,26 @@ import {
 import { prisma } from "@/lib/prisma";
 import { notifyClientSubscriptionStripeEvent } from "@/lib/subscription-email-notify";
 import { syncClientSubscriptionFromStripe } from "@/lib/stripe-sync-client-subscription";
+import {
+  applyTrainerBackgroundCheckStripePayment,
+  isTrainerBackgroundCheckPaymentIntent,
+} from "@/lib/trainer-background-check-stripe";
 import { getStripe } from "@/lib/stripe-server";
+import {
+  oneTimePurchaseRevenueProfit,
+  oneTimePurchaseRevenueProfitFromTotalCharged,
+} from "@/lib/platform-revenue-accounting";
+import {
+  recordClientSubscriptionInvoiceEvent,
+  recordPlatformRevenueEvent,
+} from "@/lib/platform-revenue-events";
 import {
   creditTokensFromStripePurchase,
   getPromoPackTierById,
   recordTrainerServiceTransactionAndReward,
   TOKENS_PER_USD_PACK,
 } from "@/lib/trainer-promo-tokens";
+import { computeCheckoutFeeBreakdown } from "@/lib/stripe-checkout-line-items";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 
@@ -41,6 +54,21 @@ export async function POST(req: Request) {
   }
 
   try {
+    if (event.type === "payment_intent.succeeded") {
+      const pi = event.data.object as Stripe.PaymentIntent;
+      if (isTrainerBackgroundCheckPaymentIntent(pi)) {
+        const trainerId = String(pi.metadata?.trainerId ?? "").trim();
+        if (trainerId) {
+          const cents =
+            typeof pi.amount_received === "number" && pi.amount_received > 0
+              ? pi.amount_received
+              : Math.max(0, parseInt(String(pi.metadata?.vendorPaidCents ?? "0"), 10) || 0);
+          if (cents > 0) {
+            await applyTrainerBackgroundCheckStripePayment({ trainerId, vendorPaidCents: cents });
+          }
+        }
+      }
+    }
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       const md = session.metadata ?? {};
@@ -70,6 +98,25 @@ export async function POST(req: Request) {
               amountLabel: `$${dollars}`,
             });
           }
+          const baseCentsMeta = Math.max(0, parseInt(String(md.baseCents ?? "0"), 10) || 0);
+          const processingMeta = Math.max(0, parseInt(String(md.processingFeeCents ?? "0"), 10) || 0);
+          const regBreakdown =
+            baseCentsMeta > 0 && paidCents > 0
+              ? oneTimePurchaseRevenueProfit({
+                  baseCents: baseCentsMeta,
+                  adminCents: 0,
+                  processingCents: processingMeta,
+                  totalChargedCents: paidCents,
+                })
+              : oneTimePurchaseRevenueProfitFromTotalCharged(paidCents);
+          void recordPlatformRevenueEvent({
+            category: "ONE_TIME_PURCHASE",
+            idempotencyKey: `registration_checkout:${session.id}`,
+            revenueCents: regBreakdown.revenueCents,
+            grossProfitCents: regBreakdown.grossProfitCents,
+            trainerId,
+            metaJson: JSON.stringify({ purpose: "trainer_registration_fee" }),
+          });
         }
         if (md.purpose === "trainer_promo_tokens" && md.trainerId) {
           const tier = getPromoPackTierById(String(md.packTier ?? md.tier ?? "").trim());
@@ -85,6 +132,35 @@ export async function POST(req: Request) {
             tokens = packCount * TOKENS_PER_USD_PACK;
           }
           await creditTokensFromStripePurchase(md.trainerId, session.id, tokens);
+          const baseCentsMeta = Math.max(0, parseInt(String(md.baseCents ?? "0"), 10) || 0);
+          const adminMeta = Math.max(0, parseInt(String(md.adminFeeCents ?? "0"), 10) || 0);
+          const processingMeta = Math.max(0, parseInt(String(md.processingFeeCents ?? "0"), 10) || 0);
+          const totalMeta = Math.max(0, parseInt(String(md.totalChargedCents ?? "0"), 10) || 0);
+          const promoBreakdown =
+            baseCentsMeta > 0 && totalMeta > 0
+              ? oneTimePurchaseRevenueProfit({
+                  baseCents: baseCentsMeta,
+                  adminCents: adminMeta,
+                  processingCents: processingMeta,
+                  totalChargedCents: totalMeta,
+                })
+              : tier
+                ? oneTimePurchaseRevenueProfit(
+                    computeCheckoutFeeBreakdown({
+                      baseCents: tier.usdCents,
+                      includeAdminFee: true,
+                      includeProcessingFee: true,
+                    }),
+                  )
+                : oneTimePurchaseRevenueProfitFromTotalCharged(totalMeta);
+          void recordPlatformRevenueEvent({
+            category: "ONE_TIME_PURCHASE",
+            idempotencyKey: `promo_tokens:${session.id}`,
+            revenueCents: promoBreakdown.revenueCents,
+            grossProfitCents: promoBreakdown.grossProfitCents,
+            trainerId: md.trainerId,
+            metaJson: JSON.stringify({ purpose: "trainer_promo_tokens", packTier: tier?.id ?? null, tokens }),
+          });
         }
         if (md.purpose === "trainer_service_sale" && md.trainerId && md.clientId) {
           const amountCents = Math.max(0, parseInt(String(md.amountCents ?? "0"), 10) || 0);
@@ -162,6 +238,17 @@ export async function POST(req: Request) {
           where: { stripeSubscriptionId: subId },
           data: { stripeLastSubscriptionInvoicePaidAt: paidAt },
         });
+        const client = await prisma.client.findFirst({
+          where: { stripeSubscriptionId: subId },
+          select: { id: true },
+        });
+        if (client) {
+          void recordClientSubscriptionInvoiceEvent({
+            stripeInvoiceId: invoice.id,
+            clientId: client.id,
+            occurredAt: paidAt,
+          });
+        }
       }
     }
     if (event.type === "customer.subscription.trial_will_end") {
