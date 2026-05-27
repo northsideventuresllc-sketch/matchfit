@@ -114,7 +114,7 @@ export default function AdminLoginPortal() {
                     value={adminCode}
                     onChange={(e) => setAdminCode(e.target.value)}
                     className="rounded-xl border border-white/[0.1] bg-[#07080c] px-4 py-3 font-mono text-sm tracking-wide text-white outline-none ring-cyan-400/40 placeholder:text-white/25 focus:border-cyan-400/35 focus:ring-2"
-                    placeholder="e.g. jobo0602"
+                    placeholder="8-character code"
                   />
                 </div>
 

@@ -16,6 +16,8 @@ import { TrainerSocialUrlFields } from "@/components/trainer/trainer-social-url-
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { verifyTrainerOnboardingDevPassword } from "@/lib/trainer-dev-bypass";
 import { certificationsGatePassed } from "@/lib/trainer-onboarding-cert-gate";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { normalizeTrainerSocialFields } from "@/lib/trainer-social-urls";
 import { postTrainerLogout } from "@/lib/trainer-logout";
 import { US_STATE_POSTAL_OPTIONS } from "@/lib/trainer-profile-demography-options";
@@ -65,6 +67,8 @@ type TrainerMe = {
     matchQuestionnaireStatus?: string;
   } | null;
 };
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 function HumanReviewPill() {
   return (
@@ -119,6 +123,50 @@ const ONBOARDING_STEP_DISPLAY_TITLES: Record<number, string> = {
 function fileSig(f: File | null): string | null {
   if (!f) return null;
   return `${f.name}|${f.size}|${f.lastModified}`;
+}
+
+function StripeCheckoutForm({ onParamsSuccess }: { onParamsSuccess: () => void }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+
+    setIsProcessing(true);
+    setErrorMessage(null);
+
+    const { error } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: window.location.href,
+      },
+      redirect: "if_required",
+    });
+
+    if (error) {
+      setErrorMessage(error.message ?? "An unknown error occurred.");
+      setIsProcessing(false);
+    } else {
+      onParamsSuccess();
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <PaymentElement />
+      {errorMessage && <p className="text-sm text-red-500">{errorMessage}</p>}
+      <button
+        disabled={isProcessing || !stripe || !elements}
+        className="group relative isolate flex min-h-[3rem] w-full items-center justify-center overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition disabled:opacity-50"
+      >
+        <span aria-hidden className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]" />
+        <span className="relative">{isProcessing ? "Processing..." : "Pay and Continue"}</span>
+      </button>
+    </form>
+  );
 }
 
 export default function TrainerOnboardingClient() {
@@ -178,6 +226,7 @@ export default function TrainerOnboardingClient() {
   const [w9Certify, setW9Certify] = useState(false);
   const [w9AutofillPassword, setW9AutofillPassword] = useState("");
 
+  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [onboardingLoaded, setOnboardingLoaded] = useState(false);
@@ -359,34 +408,32 @@ export default function TrainerOnboardingClient() {
     ],
   );
 
-  /**
-   * Capture the initial state of the form after the trainer data is first loaded.
-   * Using a Ref for the baseline snapshot prevents cascading renders and ensures
-   * we only track "dirty" status relative to the server's last known state.
-   */
-  const initialSnapshotRef = useRef<string | null>(null);
+  /** Baseline form snapshot after first load (ref: not read during render). */
+  const baselineSnapshotRef = useRef<string | null>(null);
   useEffect(() => {
-    if (onboardingLoaded && !loadingMe && initialSnapshotRef.current === null) {
-      initialSnapshotRef.current = onboardingSnapshotSerialized;
+    if (onboardingLoaded && !loadingMe && baselineSnapshotRef.current === null) {
+      baselineSnapshotRef.current = onboardingSnapshotSerialized;
     }
   }, [onboardingLoaded, loadingMe, onboardingSnapshotSerialized]);
 
-  const isOnboardingDirty =
-    initialSnapshotRef.current !== null && onboardingSnapshotSerialized !== initialSnapshotRef.current;
+  const isOnboardingDirty = useCallback((): boolean => {
+    const baseline = baselineSnapshotRef.current;
+    return baseline !== null && onboardingSnapshotSerialized !== baseline;
+  }, [onboardingSnapshotSerialized]);
 
   const canReturnToDashboard = profile?.matchQuestionnaireStatus === "completed";
 
   useEffect(() => {
-    if (!isOnboardingDirty) return;
+    if (!isOnboardingDirty()) return;
     function onBeforeUnload(e: BeforeUnloadEvent) {
       e.preventDefault();
     }
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [isOnboardingDirty]);
+  }, [isOnboardingDirty, onboardingLoaded, loadingMe]);
 
   useEffect(() => {
-    if (!isOnboardingDirty || !canReturnToDashboard) return;
+    if (!isOnboardingDirty() || !canReturnToDashboard) return;
     function onClickCapture(e: MouseEvent) {
       const el = (e.target as HTMLElement | null)?.closest?.("a[href]");
       if (!el) return;
@@ -445,7 +492,7 @@ export default function TrainerOnboardingClient() {
 
   function requestDashboardNavigation() {
     if (!canReturnToDashboard) return;
-    if (isOnboardingDirty) {
+    if (isOnboardingDirty()) {
       setLeaveModalOpen(true);
       return;
     }
@@ -1033,6 +1080,34 @@ export default function TrainerOnboardingClient() {
     }
   }
 
+  async function handleInitiatePayment() {
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/trainer/onboarding/create-payment-intent", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Could not initiate payment.");
+        return;
+      }
+      setStripeClientSecret(data.clientSecret);
+    } catch {
+      setError("Something went wrong initializing payment.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handlePaymentSuccess() {
+    setStripeClientSecret(null);
+    await loadMe();
+    setStep(2); // Refresh step 2 logic
+  }
+
   if (loadingMe) {
     return (
       <main className="flex min-h-dvh items-center justify-center bg-[#0B0C0F] px-5 text-sm text-white/55">
@@ -1154,7 +1229,7 @@ export default function TrainerOnboardingClient() {
                   <Link
                     href="/trainer/dashboard"
                     onClick={(e) => {
-                      if (!isOnboardingDirty) return;
+                      if (!isOnboardingDirty()) return;
                       e.preventDefault();
                       setLeaveModalOpen(true);
                     }}
@@ -1185,6 +1260,38 @@ export default function TrainerOnboardingClient() {
           {step === 2 ? (
             <div className="space-y-5 text-sm leading-relaxed text-white/70">
               <div className="space-y-3 text-[13px] leading-relaxed text-white/65">
+                {profile?.hasPaidBackgroundFee === false ? (
+                  <div className="mb-6 rounded-2xl border border-[#FF7E00]/20 bg-[#FF7E00]/5 p-6">
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">Payment Required</h3>
+                    <p className="mt-2 text-white/70">
+                      To proceed with your background check, a processing fee is required.
+                    </p>
+                    
+                    {stripeClientSecret ? (
+                      <div className="mt-6">
+                        <Elements 
+                          stripe={stripePromise} 
+                          options={{ 
+                            clientSecret: stripeClientSecret,
+                            appearance: { theme: 'night', variables: { colorPrimary: '#FF7E00' } }
+                          }}
+                        >
+                          <StripeCheckoutForm onParamsSuccess={handlePaymentSuccess} />
+                        </Elements>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleInitiatePayment}
+                        disabled={busy}
+                        className="mt-6 group relative isolate flex min-h-[3rem] w-full items-center justify-center overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition disabled:opacity-50"
+                      >
+                        <span aria-hidden className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]" />
+                        <span className="relative">{busy ? "Loading..." : "Pay Background Check Fee"}</span>
+                      </button>
+                    )}
+                  </div>
+                ) : (
                 <p>
                   After you acknowledge Match Fit&apos;s policies, you complete background screening through Checkr.
                   When your coach account is connected, you will start screening from a secure link on this step.{" "}
@@ -1199,6 +1306,7 @@ export default function TrainerOnboardingClient() {
                   and you may not continue; related records are retained so that a repeated application within five years
                   can be automatically denied, after which you may apply again and prior denial markers are removed.
                 </p>
+                )}
               </div>
               <div className="rounded-2xl border border-white/[0.08] bg-[#0E1016]/80 px-4 py-4 text-xs text-white/55">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-white/40">Current vendor status:</p>
@@ -1242,7 +1350,7 @@ export default function TrainerOnboardingClient() {
               ) : null}
               <button
                 type="button"
-                disabled={bgVendor !== "APPROVED"}
+                disabled={bgVendor !== "APPROVED" || profile?.hasPaidBackgroundFee === false}
                 onClick={() => setStep(3)}
                 className="flex min-h-[3rem] w-full items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-black uppercase tracking-[0.1em] text-white transition enabled:hover:border-white/25 disabled:cursor-not-allowed disabled:opacity-35"
               >

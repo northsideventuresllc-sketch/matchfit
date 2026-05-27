@@ -5,6 +5,7 @@ import { applyConversationAfterServicePurchase } from "@/lib/trainer-client-book
 import { prisma } from "@/lib/prisma";
 import { computeCheckoutLedgerSplits } from "@/lib/financial-ledger-split";
 import { createDiyPlanEngagement } from "@/lib/diy-plan-engagement-service";
+import { recordServiceCheckoutRevenueEvent } from "@/lib/platform-revenue-events";
 import { clientZipToPrefix, resolveTrainerRegionZipPrefix } from "@/lib/featured-region";
 import { isTrainerPremiumStudioActive } from "@/lib/trainer-premium-studio";
 
@@ -627,6 +628,16 @@ export async function recordTrainerServiceTransactionAndReward(args: {
     }
     await grantSaleTokensForServiceTransaction(row.id);
     await deliverCoachServicePurchaseSideEffects(row.id);
+    void recordServiceCheckoutRevenueEvent({
+      transactionId: row.id,
+      clientId: args.clientId,
+      trainerId: args.trainerId,
+      amountCents: args.amountCents,
+      totalChargedCents: args.totalChargedCents,
+      adminFeeCents: args.adminFeeCents,
+      ledgerGrossTotalCents: ledger.ledgerGrossTotalCents,
+      completedAt: row.completedAt,
+    });
     return { ok: true, transactionId: row.id };
   } catch (e) {
     const code = (e as { code?: string })?.code;

@@ -24,7 +24,7 @@ const TERMS_CONTACT_EMAIL = "northside.ventures.llc@gmail.com";
 
 const PHYSICAL_ADDRESS_LINE = "1954 Airport Rd STE 1277, Chamblee, GA 30341, United States";
 
-const TERMS_EFFECTIVE_DATE = "May 13, 2026";
+const TERMS_EFFECTIVE_DATE = "May 27, 2026";
 
 function P({ children }: { children: React.ReactNode }) {
   return <p className="mt-3 text-sm leading-relaxed text-white/60">{children}</p>;
@@ -461,7 +461,37 @@ export default async function TermsPage() {
           advertising laws.
         </P>
 
-        <H2 id="prohibited-use">15. Prohibited Use</H2>
+        <H2 id="platform-administration">15. Platform Administration and Account Access</H2>
+        <P>
+          Match Fit operates an internal Administrator Portal for authorized personnel. By using the Service, you
+          acknowledge and agree that Match Fit may access information associated with your account and, when reasonably
+          necessary for customer support, trust and safety, fraud prevention, billing investigation, bug reproduction,
+          compliance, or general site management, may sign into your client or trainer account through supervised
+          in-product impersonation tools that display the Service substantially as you would see it while logged in.
+        </P>
+        <Ul>
+          <Li>
+            Administrative access is limited to personnel with a legitimate business need and is subject to
+            confidentiality and security policies.
+          </Li>
+          <Li>
+            We may review signup records, usage metadata, payment status, safety flags, and related account data without
+            providing advance notice for each review, except where applicable law requires otherwise.
+          </Li>
+          <Li>
+            Impersonation is not a license for Match Fit to provide training, medical, or professional services on your
+            behalf; it is a technical support and governance mechanism only.
+          </Li>
+        </Ul>
+        <P>
+          Details about how we handle personal information in administrative contexts appear in our{" "}
+          <a href="/privacy#platform-administration" className="text-[#FF7E00] underline-offset-2 hover:underline">
+            Privacy Policy
+          </a>
+          .
+        </P>
+
+        <H2 id="prohibited-use">16. Prohibited Use</H2>
         <Ul>
           <Li>
             <Strong>Off-Platform Fee Circumvention:</Strong> Trainers must not solicit or accept payment outside Match Fit
@@ -475,14 +505,14 @@ export default async function TermsPage() {
             such circumvention violates additional policies we post.</Li>
         </Ul>
 
-        <H2 id="ip-and-content">16. Intellectual Property and License</H2>
+        <H2 id="ip-and-content">17. Intellectual Property and License</H2>
         <P>
           Match Fit and its licensors own the Service, branding, and software. You retain rights in content you upload; you
           grant Match Fit a non-exclusive license to host, display, distribute, and adapt that content as needed to operate,
           promote, and improve the Service, including moderation and safety review.
         </P>
 
-        <H2 id="disclaimers">17. Disclaimers</H2>
+        <H2 id="disclaimers">18. Disclaimers</H2>
         <P>
           The Service is provided &quot;as is&quot; and &quot;as available.&quot; To the maximum extent permitted by law,
           Match Fit disclaims all warranties, whether express, implied, or statutory, including implied warranties of
@@ -496,7 +526,7 @@ export default async function TermsPage() {
           their businesses.
         </P>
 
-        <H2 id="limitation-liability">18. Limitation of Liability</H2>
+        <H2 id="limitation-liability">19. Limitation of Liability</H2>
         <P>
           To the maximum extent permitted by law, Match Fit and its affiliates, officers, directors, employees, and agents
           will not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of
@@ -508,14 +538,14 @@ export default async function TermsPage() {
           allowed.
         </P>
 
-        <H2 id="indemnity">19. Indemnity</H2>
+        <H2 id="indemnity">20. Indemnity</H2>
         <P>
           You will defend, indemnify, and hold harmless Match Fit and its affiliates from claims, damages, losses, and expenses
           (including reasonable attorneys&apos; fees) arising from your content, your services as a Trainer, your use of
           trainer services as a Client, your violation of these Terms, or your violation of third-party rights.
         </P>
 
-        <H2 id="termination">20. Suspension, Termination, and Reinstatement</H2>
+        <H2 id="termination">21. Suspension, Termination, and Reinstatement</H2>
         <P>
           We may suspend or terminate access for violations of these Terms, risk to users, fraud, or legal requirements.
           Serious violations, egregious conduct, or risk to Match Fit&apos;s brand or operations may result in termination and
@@ -527,7 +557,7 @@ export default async function TermsPage() {
           <Strong>thirty (30) days</Strong>) before residual data is disposed of in accordance with policy and law.
         </P>
 
-        <H2 id="changes">21. Changes to the Service and These Terms</H2>
+        <H2 id="changes">22. Changes to the Service and These Terms</H2>
         <P>
           We may modify the Service or these Terms. Material changes will be communicated by email to the address on file
           and/or through in-product notices, with an updated effective date on this page. Continued use after the effective
@@ -539,14 +569,14 @@ export default async function TermsPage() {
           notice obligations above.
         </P>
 
-        <H2 id="governing-law">22. Governing Law and Venue</H2>
+        <H2 id="governing-law">23. Governing Law and Venue</H2>
         <P>
           These Terms are governed by the laws of the State of Georgia, excluding conflict-of-law rules. Subject to applicable
           law, exclusive jurisdiction and venue for disputes will be the state and federal courts located in Georgia; you
           consent to personal jurisdiction there.
         </P>
 
-        <H2 id="general">23. General</H2>
+        <H2 id="general">24. General</H2>
         <Ul>
           <Li>
             <Strong>Entire Agreement:</Strong> These Terms and policies linked from the Service (including the Privacy Policy)

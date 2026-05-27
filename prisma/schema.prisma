@@ -32,7 +32,61 @@ model Administrator {
   /// ISO date string YYYY-MM-DD (birth date; used to derive admin code at onboarding).
   dateOfBirth  String
 
+  auditLogs AdministratorAuditLog[]
+
   @@map("administrators")
+  @@schema("public")
+}
+
+/// Staff actions in the Administrator Portal (impersonation, etc.).
+model AdministratorAuditLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  administratorId String
+  administrator   Administrator @relation(fields: [administratorId], references: [id], onDelete: Cascade)
+
+  /// IMPERSONATION_START | IMPERSONATION_END
+  action String
+
+  /// client | trainer
+  targetRole String
+  targetId   String
+  targetUsername String?
+
+  ipAddress String?
+  userAgent String?
+
+  @@index([administratorId, createdAt])
+  @@index([targetRole, targetId, createdAt])
+  @@map("administrator_audit_logs")
+  @@schema("public")
+}
+
+/// Idempotent ledger of platform gross revenue and gross profit (admin reporting).
+model PlatformRevenueEvent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  /// SERVICE_CHECKOUT | CLIENT_PLATFORM_SUBSCRIPTION | TRAINER_PREMIUM_SUBSCRIPTION | ONE_TIME_PURCHASE
+  category String
+
+  /// Total amount collected from the payer (includes pass-through fees where applicable).
+  revenueCents Int
+  /// Match Fit gross profit for this event (before operating costs; not net income).
+  grossProfitCents Int
+
+  /// Unique idempotency key (Stripe session/invoice id or internal composite).
+  idempotencyKey String @unique
+
+  clientId  String?
+  trainerId String?
+
+  /// Optional JSON snapshot (fee breakdown, invoice id, etc.).
+  metaJson String?
+
+  @@index([category, createdAt])
+  @@map("platform_revenue_events")
   @@schema("public")
 }
 

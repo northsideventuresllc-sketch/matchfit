@@ -14,7 +14,7 @@ const PHYSICAL_ADDRESS_LINE = "1954 Airport Rd STE 1277, Chamblee, GA 30341, Uni
  * Version in force for this posted policy. Update this string to the publication date whenever
  * you deploy a materially revised Privacy Policy so users can see which version applies.
  */
-const POLICY_EFFECTIVE_DATE = "April 29, 2026";
+const POLICY_EFFECTIVE_DATE = "May 27, 2026";
 
 function P({ children }: { children: React.ReactNode }) {
   return <p className="mt-3 text-sm leading-relaxed text-white/60">{children}</p>;
@@ -83,8 +83,10 @@ export default async function PrivacyPage() {
           infrastructure, deliver optional browser Web Push alerts when you opt in, and store your in-app activity (including chats and social posts) on our systems. You may
           adjust optional visibility of some profile fields and request in-product account deletion, which de-identifies
           your record while preserving the minimum data we need for trust, safety, and legal compliance. We use reasonable
-          technical and organizational measures to protect personal information. We do not sell your personal information
-          as that term is commonly defined in U.S. state privacy laws.
+          technical and organizational measures to protect personal information. Authorized Match Fit administrators may
+          access account information and, where necessary for support, trust and safety, billing review, and general site
+          management, sign into your account through supervised in-product tools (see Section 6). We do not sell your
+          personal information as that term is commonly defined in U.S. state privacy laws.
         </P>
 
         <H2 id="collect">2. Information We Collect</H2>
@@ -303,11 +305,31 @@ export default async function PrivacyPage() {
             <Strong>Business Transfers:</Strong> in connection with a merger, acquisition, financing, or sale of assets,
             subject to appropriate confidentiality and continuity commitments.
           </Li>
+          <Li>
+            <Strong>Authorized Platform Staff:</Strong> employees and contractors who need access to operate, secure, and
+            improve the Service. This includes our Administrator Portal, where authorized personnel may search member
+            records, review signup and billing metadata, and—when required for legitimate operational purposes such as
+            customer support, fraud investigation, trust and safety review, bug reproduction, or compliance—open your
+            account in a supervised impersonation session that presents the Service substantially as you would see it
+            while signed in. We limit this access to personnel with a business need, require confidentiality obligations,
+            and do not use impersonation for unrelated personal browsing.
+          </Li>
         </Ul>
         <P>
           We require subprocessors to use personal information only for the purposes we specify and to implement appropriate
           security measures. Their own policies also apply where they interact directly with you (for example Stripe&apos;s
           checkout flows).
+        </P>
+
+        <H2 id="platform-administration">6A. Platform Administration and Account Access</H2>
+        <P>
+          Match Fit maintains internal tools for authorized administrators to monitor platform health, review signups,
+          investigate reported issues, and perform account-level checks. When you create a client or trainer account, you
+          acknowledge that Match Fit personnel with appropriate credentials may access information associated with your
+          account and may temporarily use in-product impersonation to view your dashboard, messages, and settings as needed
+          for the purposes described in this Policy. Where feasible, we apply access controls, audit logging, and training
+          requirements for staff who use these tools. If you have questions about how we use administrative access, contact{" "}
+          <Strong>{PRIVACY_CONTACT_EMAIL}</Strong>.
         </P>
 
         <H2 id="retention">7. Retention</H2>

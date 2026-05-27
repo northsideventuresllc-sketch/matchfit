@@ -68,9 +68,11 @@ export function TrainerPromoTokensClient() {
   const [busy, setBusy] = useState(false);
   const [internalQaPackPw, setInternalQaPackPw] = useState("");
 
-  const load = useCallback(async () => {
-    setErr(null);
-    setLoadErr(null);
+  const load = useCallback(async (opts?: { clearErrors?: boolean }) => {
+    if (opts?.clearErrors) {
+      setErr(null);
+      setLoadErr(null);
+    }
     try {
       const [sRes, pRes, prRes] = await Promise.all([
         fetch("/api/trainer/promo-tokens/summary"),
@@ -109,8 +111,49 @@ export function TrainerPromoTokensClient() {
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [sRes, pRes, prRes] = await Promise.all([
+          fetch("/api/trainer/promo-tokens/summary"),
+          fetch("/api/trainer/fithub/my-posts"),
+          fetch("/api/trainer/promo-tokens/promotions"),
+        ]);
+        if (cancelled) return;
+        const sJson = (await sRes.json().catch(() => ({}))) as Summary & { error?: string };
+        if (!sRes.ok) {
+          setSummary(null);
+          setLoadErr(sJson.error ?? `Could not load token summary (${sRes.status}).`);
+          return;
+        }
+        setSummary(sJson);
+        if (sJson.economics) {
+          const m = sJson.economics.minTokensPerDay ?? 20;
+          setTokensBudget((prev) => Math.max(m, prev));
+        }
+        const pData = (await pRes.json()) as { posts?: MyPost[]; error?: string };
+        if (pRes.ok) {
+          const vids = (pData.posts ?? []).filter((x) => x.postType === "VIDEO" && x.visibility === "PUBLIC");
+          setPosts(vids);
+          setPostId((prev) => (prev && vids.some((v) => v.id === prev) ? prev : vids[0]?.id ?? ""));
+        }
+        const prData = (await prRes.json()) as { promotions?: PromotionRow[]; error?: string };
+        if (prRes.ok) {
+          setPromotions(prData.promotions ?? []);
+        } else {
+          setPromotions([]);
+        }
+      } catch {
+        if (!cancelled) {
+          setSummary(null);
+          setLoadErr("Could not load. Check your connection and try again.");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /**
    * Calculate the minimum required tokens dynamically. 
@@ -152,7 +195,7 @@ export function TrainerPromoTokensClient() {
         return;
       }
       if (data.ok && typeof data.credited === "number") {
-        await load();
+        await load({ clearErrors: true });
         return;
       }
       if (data.url) window.location.href = data.url;
@@ -188,7 +231,7 @@ export function TrainerPromoTokensClient() {
         return;
       }
       setScheduleLocal("");
-      await load();
+      await load({ clearErrors: true });
     } finally {
       setBusy(false);
     }
@@ -204,7 +247,7 @@ export function TrainerPromoTokensClient() {
         {loadErr}
         <button
           type="button"
-          onClick={() => void load()}
+          onClick={() => void load({ clearErrors: true })}
           className="mt-4 w-full rounded-xl border border-white/20 py-2 text-xs font-black uppercase tracking-wide text-white/90 hover:bg-white/[0.06]"
         >
           Retry

@@ -10,6 +10,7 @@ import {
   TRAINER_SESSION_COOKIE,
   verifyAdminSessionToken,
 } from "@/lib/session";
+import { logAdministratorAuditEvent } from "@/lib/administrator-audit-log";
 import { verifyTurnstileToken } from "@/lib/turnstile-verify";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -48,23 +49,26 @@ export async function POST(req: Request) {
     }
 
     const { role, userId } = parsed.data;
+    let targetUsername: string | null = null;
 
     if (role === "client") {
       const client = await prisma.client.findUnique({
         where: { id: userId },
-        select: { id: true, deidentifiedAt: true },
+        select: { id: true, username: true, deidentifiedAt: true },
       });
       if (!client || client.deidentifiedAt) {
         return NextResponse.json({ error: "Client not found." }, { status: 404 });
       }
+      targetUsername = client.username;
     } else {
       const trainer = await prisma.trainer.findUnique({
         where: { id: userId },
-        select: { id: true, deidentifiedAt: true },
+        select: { id: true, username: true, deidentifiedAt: true },
       });
       if (!trainer || trainer.deidentifiedAt) {
         return NextResponse.json({ error: "Trainer not found." }, { status: 404 });
       }
+      targetUsername = trainer.username;
     }
 
     const impTok = await signAdminImpersonationToken({
@@ -80,6 +84,15 @@ export async function POST(req: Request) {
 
     const res = NextResponse.json({ ok: true, next });
     applyAdminImpersonationToNextResponse(res, impTok);
+
+    void logAdministratorAuditEvent({
+      administratorId: sess.adminId,
+      action: "IMPERSONATION_START",
+      targetRole: role,
+      targetId: userId,
+      targetUsername,
+      req,
+    });
 
     res.cookies.delete(CLIENT_SESSION_COOKIE);
     res.cookies.delete(TRAINER_SESSION_COOKIE);

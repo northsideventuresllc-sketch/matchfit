@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { getAdminPortalOverview, type AdminPortalOverview } from "@/lib/admin-portal-data";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/session";
 import { AdminDashboardClient } from "./admin-dashboard-client";
@@ -20,12 +21,40 @@ export default async function AdminHomePage() {
     redirect("/admin/login");
   }
 
-  const [clientCount, trainerCount] = await Promise.all([
-    prisma.client.count({ where: { deidentifiedAt: null } }),
-    prisma.trainer.count({ where: { deidentifiedAt: null } }),
-  ]);
+  let overview: AdminPortalOverview | null = null;
+  let loadError: string | null = null;
 
-  return (
-    <AdminDashboardClient initialStats={{ clientCount, trainerCount }} initialTestMode={sess.testMode} />
-  );
+  try {
+    overview = await getAdminPortalOverview();
+  } catch (e) {
+    console.error("[admin home]", e);
+    loadError =
+      e instanceof Error && e.message.includes("platform_revenue_events")
+        ? "Administrator reporting tables are missing. Run `npm run db:push` (or apply the latest migration) and reload."
+        : "Could not load the administrator dashboard. Check database connectivity and server logs.";
+  }
+
+  if (loadError) {
+    return (
+      <main className="min-h-dvh bg-[#050608] px-5 py-16 text-white">
+        <div className="mx-auto max-w-lg rounded-2xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 p-6">
+          <h1 className="text-lg font-black">Administrator Portal unavailable</h1>
+          <p className="mt-3 text-sm text-[#FFB4B4]">{loadError}</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!overview) {
+    return (
+      <main className="min-h-dvh bg-[#050608] px-5 py-16 text-white">
+        <div className="mx-auto max-w-lg rounded-2xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 p-6">
+          <h1 className="text-lg font-black">Administrator Portal unavailable</h1>
+          <p className="mt-3 text-sm text-[#FFB4B4]">Could not load dashboard data.</p>
+        </div>
+      </main>
+    );
+  }
+
+  return <AdminDashboardClient initialOverview={overview} initialTestMode={sess.testMode} />;
 }
