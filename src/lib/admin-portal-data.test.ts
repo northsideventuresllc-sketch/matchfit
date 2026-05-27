@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatUsdFromCents } from "@/lib/admin-portal-data";
+import { formatUsdFromCents } from "@/lib/admin-portal-types";
 
 describe("formatUsdFromCents", () => {
   it("formats whole dollars", () => {
