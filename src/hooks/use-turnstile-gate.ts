@@ -54,6 +54,9 @@ export function useTurnstileGate() {
     return token ? { turnstileToken: token } : {};
   }, [enabled, getToken]);
 
+  /** Token for `supabase.auth.signUp({ options: { captchaToken } })`. */
+  const getCaptchaToken = useCallback((): string | undefined => getToken(), [getToken]);
+
   return {
     enabled,
     siteKey,
@@ -65,6 +68,7 @@ export function useTurnstileGate() {
     onTurnstileExpire,
     validateBeforeSubmit,
     turnstileField,
+    getCaptchaToken,
     reset,
   };
 }

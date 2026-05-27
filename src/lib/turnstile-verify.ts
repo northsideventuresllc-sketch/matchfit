@@ -1,6 +1,7 @@
 import {
   getTurnstileSecretKey,
   isTurnstileClientEnabled,
+  isTurnstileDummyKeyPair,
   isTurnstileFullyConfigured,
   isTurnstileStrictMode,
   isTurnstileServerVerificationEnabled,
@@ -27,6 +28,7 @@ function clientIpFromRequest(req: Request): string | undefined {
 export async function probeTurnstileSecretKey(): Promise<TurnstileSecretProbe> {
   const secret = getTurnstileSecretKey();
   if (!secret) return "missing";
+  if (isTurnstileDummyKeyPair()) return "ok";
 
   const body = new URLSearchParams();
   body.set("secret", secret);
@@ -96,6 +98,10 @@ export async function verifyTurnstileToken(
     };
   }
 
+  if (isTurnstileDummyKeyPair()) {
+    return { ok: true };
+  }
+
   const body = new URLSearchParams();
   body.set("secret", secret);
   body.set("response", token.trim());
@@ -134,11 +140,13 @@ export function getTurnstileRuntimeStatus(): {
   serverVerificationEnabled: boolean;
   fullyConfigured: boolean;
   strictMode: boolean;
+  usingDummyKeys: boolean;
 } {
   return {
     clientWidgetEnabled: isTurnstileClientEnabled(),
     serverVerificationEnabled: isTurnstileServerVerificationEnabled(),
     fullyConfigured: isTurnstileFullyConfigured(),
     strictMode: isTurnstileStrictMode(),
+    usingDummyKeys: isTurnstileDummyKeyPair(),
   };
 }

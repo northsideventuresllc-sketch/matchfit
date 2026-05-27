@@ -31,6 +31,14 @@ describe("verifyTurnstileToken", () => {
     }
   });
 
+  it("accepts any token when Cloudflare dummy key pair is configured", async () => {
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "1x00000000000000000000AA";
+    process.env.TURNSTILE_SECRET_KEY = "1x0000000000000000000000000000000AA";
+
+    const { verifyTurnstileToken } = await import("@/lib/turnstile-verify");
+    await expect(verifyTurnstileToken("dummy-token")).resolves.toEqual({ ok: true });
+  });
+
   it("requires a token when secret is configured", async () => {
     process.env.TURNSTILE_SECRET_KEY = "test-secret";
     process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "site-key";
