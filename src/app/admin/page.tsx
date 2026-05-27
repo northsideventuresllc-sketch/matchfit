@@ -29,7 +29,8 @@ export default async function AdminHomePage() {
   } catch (e) {
     console.error("[admin home]", e);
     loadError =
-      e instanceof Error && e.message.includes("platform_revenue_events")
+      e instanceof Error &&
+      (e.message.includes("platform_revenue_events") || e.message.includes("site_analytics_events"))
         ? "Administrator reporting tables are missing. Run `npm run db:push` (or apply the latest migration) and reload."
         : "Could not load the administrator dashboard. Check database connectivity and server logs.";
   }
