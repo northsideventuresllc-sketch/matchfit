@@ -14,6 +14,10 @@ export type BetaLaunchStatus = {
   clientSlotsUsed: number | null;
   trainerSlotsRemaining: number | null;
   clientSlotsRemaining: number | null;
+  trainerFoundingMax: number | null;
+  clientFoundingMax: number | null;
+  trainerFoundingRemaining: number | null;
+  clientFoundingRemaining: number | null;
   trainerWaitlistOpen: boolean;
   clientWaitlistOpen: boolean;
 };
@@ -41,6 +45,10 @@ export function useBetaLaunchStatus(): { status: BetaLaunchStatus | null; loadin
             clientSlotsUsed: null,
             trainerSlotsRemaining: null,
             clientSlotsRemaining: null,
+            trainerFoundingMax: null,
+            clientFoundingMax: null,
+            trainerFoundingRemaining: null,
+            clientFoundingRemaining: null,
             trainerWaitlistOpen: false,
             clientWaitlistOpen: false,
           });

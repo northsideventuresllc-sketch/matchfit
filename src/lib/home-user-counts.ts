@@ -2,6 +2,8 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   INTERNAL_SYNTHETIC_EMAIL_SUFFIX,
+  SYNTHETIC_CLIENT_USERNAME_PREFIX,
+  SYNTHETIC_TRAINER_USERNAME_PREFIX,
   getLaunchExcludeEmails,
 } from "@/lib/launch-account-counts";
 
@@ -25,9 +27,18 @@ function isMissingInternalQaSyntheticPersonaColumn(e: unknown): boolean {
   return m.includes("internalQaSyntheticPersona") && (m.includes("42703") || m.includes("does not exist"));
 }
 
+function buildTrainerUsernameExcludeClause(): Prisma.Sql {
+  return Prisma.sql`AND LOWER(t."username") NOT LIKE ${`${SYNTHETIC_TRAINER_USERNAME_PREFIX.toLowerCase()}%`}`;
+}
+
+function buildClientUsernameExcludeClause(): Prisma.Sql {
+  return Prisma.sql`AND LOWER(c."username") NOT LIKE ${`${SYNTHETIC_CLIENT_USERNAME_PREFIX.toLowerCase()}%`}`;
+}
+
 function buildEmailExcludeClause(emails: string[]): Prisma.Sql {
   const parts: Prisma.Sql[] = [
     Prisma.sql`AND LOWER(t."email") NOT LIKE ${`%${INTERNAL_SYNTHETIC_EMAIL_SUFFIX}`}`,
+    buildTrainerUsernameExcludeClause(),
   ];
   if (emails.length > 0) {
     parts.push(
@@ -40,6 +51,7 @@ function buildEmailExcludeClause(emails: string[]): Prisma.Sql {
 function buildClientEmailExcludeClause(emails: string[]): Prisma.Sql {
   const parts: Prisma.Sql[] = [
     Prisma.sql`AND LOWER(c."email") NOT LIKE ${`%${INTERNAL_SYNTHETIC_EMAIL_SUFFIX}`}`,
+    buildClientUsernameExcludeClause(),
   ];
   if (emails.length > 0) {
     parts.push(

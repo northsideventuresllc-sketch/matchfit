@@ -1,0 +1,72 @@
+import { betaMaxClients, betaMaxTrainers, isBetaLaunchGatesEnabled } from "@/lib/beta-launch-config";
+import {
+  clientBetaSlotsUsed,
+  trainerBetaSlotsUsed,
+} from "@/lib/beta-waitlist-service";
+import {
+  countLaunchClients,
+  countLaunchTrainers,
+} from "@/lib/launch-account-counts";
+import {
+  getClientFoundingTrialMaxClients,
+  getTrainerFoundingBgPercentMax,
+} from "@/lib/match-fit-launch-promotions";
+
+export type LaunchPromoStats = {
+  gatesEnabled: boolean;
+  trainerCount: number;
+  clientCount: number;
+  trainerFoundingMax: number;
+  clientFoundingMax: number;
+  trainerFoundingRemaining: number;
+  clientFoundingRemaining: number;
+  trainerFoundingActive: boolean;
+  clientFoundingActive: boolean;
+  trainerBetaCap: number;
+  clientBetaCap: number;
+  trainerBetaSlotsUsed: number;
+  clientBetaSlotsUsed: number;
+  trainerBetaSlotsRemaining: number;
+  clientBetaSlotsRemaining: number;
+  trainerWaitlistOpen: boolean;
+  clientWaitlistOpen: boolean;
+};
+
+/** Single source for founding promo + beta cap counters (excludes test / synthetic accounts). */
+export async function getLaunchPromoStats(): Promise<LaunchPromoStats> {
+  const gatesEnabled = isBetaLaunchGatesEnabled();
+  const trainerFoundingMax = getTrainerFoundingBgPercentMax();
+  const clientFoundingMax = getClientFoundingTrialMaxClients();
+  const trainerBetaCap = betaMaxTrainers();
+  const clientBetaCap = betaMaxClients();
+
+  const [trainerCount, clientCount, trainerUsed, clientUsed] = await Promise.all([
+    countLaunchTrainers(),
+    countLaunchClients(),
+    gatesEnabled ? trainerBetaSlotsUsed() : Promise.resolve(0),
+    gatesEnabled ? clientBetaSlotsUsed() : Promise.resolve(0),
+  ]);
+
+  const trainerFoundingRemaining = Math.max(0, trainerFoundingMax - trainerCount);
+  const clientFoundingRemaining = Math.max(0, clientFoundingMax - clientCount);
+
+  return {
+    gatesEnabled,
+    trainerCount,
+    clientCount,
+    trainerFoundingMax,
+    clientFoundingMax,
+    trainerFoundingRemaining,
+    clientFoundingRemaining,
+    trainerFoundingActive: trainerCount < trainerFoundingMax,
+    clientFoundingActive: clientCount < clientFoundingMax,
+    trainerBetaCap,
+    clientBetaCap,
+    trainerBetaSlotsUsed: trainerUsed,
+    clientBetaSlotsUsed: clientUsed,
+    trainerBetaSlotsRemaining: Math.max(0, trainerBetaCap - trainerUsed),
+    clientBetaSlotsRemaining: Math.max(0, clientBetaCap - clientUsed),
+    trainerWaitlistOpen: gatesEnabled && trainerUsed >= trainerBetaCap,
+    clientWaitlistOpen: gatesEnabled && clientUsed >= clientBetaCap,
+  };
+}

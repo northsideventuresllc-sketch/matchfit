@@ -33,12 +33,20 @@ function launchCountNotClause(role: "client" | "trainer") {
   return { OR: or };
 }
 
+export const SYNTHETIC_TRAINER_USERNAME_PREFIX = "mfqst_";
+export const SYNTHETIC_CLIENT_USERNAME_PREFIX = "mfqsc_";
+
 /** Prisma filter for real launch signups (trainers). */
 export function launchTrainerCountWhere(): Prisma.TrainerWhereInput {
   return {
     deidentifiedAt: null,
     internalQaSyntheticPersona: false,
-    NOT: launchCountNotClause("trainer"),
+    NOT: {
+      OR: [
+        ...launchCountNotClause("trainer").OR,
+        { username: { startsWith: SYNTHETIC_TRAINER_USERNAME_PREFIX, mode: "insensitive" } },
+      ],
+    },
   };
 }
 
@@ -47,7 +55,12 @@ export function launchClientCountWhere(): Prisma.ClientWhereInput {
   return {
     deidentifiedAt: null,
     internalQaSyntheticPersona: false,
-    NOT: launchCountNotClause("client"),
+    NOT: {
+      OR: [
+        ...launchCountNotClause("client").OR,
+        { username: { startsWith: SYNTHETIC_CLIENT_USERNAME_PREFIX, mode: "insensitive" } },
+      ],
+    },
   };
 }
 
