@@ -193,8 +193,7 @@ async function queryHomeUserCounts(
  */
 export async function getHomeUserCounts(): Promise<HomeUserCounts> {
   const excludeEmails = [
-    ...getLaunchExcludeEmails("trainer"),
-    ...getLaunchExcludeEmails("client"),
+    ...getLaunchExcludeEmails(),
   ];
   const uniqueExclude = [...new Set(excludeEmails.map((e) => e.toLowerCase()))];
   try {
