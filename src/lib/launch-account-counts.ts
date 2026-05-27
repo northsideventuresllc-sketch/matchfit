@@ -26,6 +26,8 @@ function launchCountNotClause(role: "client" | "trainer") {
   const excluded = getLaunchExcludeEmails(role);
   const or = [
     { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" as const } },
+    // Exclude all RFC 6761 .invalid TLD emails (test/demo/seed accounts)
+    { email: { endsWith: ".invalid", mode: "insensitive" as const } },
     ...(excluded.length > 0 ? [{ email: { in: excluded } }] : []),
   ];
   return { OR: or };

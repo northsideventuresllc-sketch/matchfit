@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ClientDashboardAppHeader } from "@/components/client/client-dashboard-app-header";
 import { ClientDiyGovernanceGateBanner } from "@/components/client/client-diy-governance-gate";
 import type { ClientDiyGovernanceGate } from "@/lib/diy-governance";
+import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
 
 export type ClientDashboardShellProps = {
   preferredName: string;
@@ -182,6 +183,9 @@ export function ClientDashboardShell(props: ClientDashboardShellProps) {
             >
               Report a bug
             </Link>
+          </p>
+          <p className="text-center text-[9px] font-bold uppercase tracking-[0.18em] text-[#FF7E00]/50">
+            Version {MATCH_FIT_PRODUCT_VERSION_LABEL}
           </p>
         </footer>
       </div>
