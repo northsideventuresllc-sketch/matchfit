@@ -27,7 +27,9 @@ vi.mock("next/image", () => ({
     const imageProps = { ...props };
     delete imageProps.fill;
     delete imageProps.priority;
-    return <img {...imageProps} />;
+    const altText = typeof imageProps.alt === "string" ? imageProps.alt : "mocked next image";
+    delete imageProps.alt;
+    return <div role="img" aria-label={altText} {...imageProps} />;
   },
 }));
 
