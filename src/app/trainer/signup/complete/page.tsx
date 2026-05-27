@@ -179,7 +179,16 @@ export default function TrainerSignupCompletePage() {
 
         {sessionReady && turnstile.enabled ? (
           <div className="mt-8 flex flex-col items-center gap-6">
-            <TurnstileField gate={turnstile} />
+            <TurnstileField
+              enabled={turnstile.enabled}
+              siteKey={turnstile.siteKey}
+              widgetRef={turnstile.widgetRef}
+              ready={turnstile.ready}
+              widgetError={turnstile.widgetError}
+              onTurnstileReady={turnstile.onTurnstileReady}
+              onTurnstileError={turnstile.onTurnstileError}
+              onTurnstileExpire={turnstile.onTurnstileExpire}
+            />
             <button
               type="button"
               disabled={busy || !turnstile.ready}

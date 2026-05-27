@@ -190,7 +190,17 @@ export default function TrainerLoginPortal({
                   </span>
                 </label>
 
-                <TurnstileField gate={turnstile} className="flex justify-center pt-1" />
+                <TurnstileField
+                  enabled={turnstile.enabled}
+                  siteKey={turnstile.siteKey}
+                  widgetRef={turnstile.widgetRef}
+                  ready={turnstile.ready}
+                  widgetError={turnstile.widgetError}
+                  onTurnstileReady={turnstile.onTurnstileReady}
+                  onTurnstileError={turnstile.onTurnstileError}
+                  onTurnstileExpire={turnstile.onTurnstileExpire}
+                  className="flex justify-center pt-1"
+                />
 
                 <button
                   type="submit"

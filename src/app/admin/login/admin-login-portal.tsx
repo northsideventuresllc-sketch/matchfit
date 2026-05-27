@@ -148,7 +148,16 @@ export default function AdminLoginPortal() {
                   Stay signed in on this device
                 </label>
 
-                <TurnstileField gate={turnstile} />
+                <TurnstileField
+                  enabled={turnstile.enabled}
+                  siteKey={turnstile.siteKey}
+                  widgetRef={turnstile.widgetRef}
+                  ready={turnstile.ready}
+                  widgetError={turnstile.widgetError}
+                  onTurnstileReady={turnstile.onTurnstileReady}
+                  onTurnstileError={turnstile.onTurnstileError}
+                  onTurnstileExpire={turnstile.onTurnstileExpire}
+                />
 
                 <button
                   type="submit"
