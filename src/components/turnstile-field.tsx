@@ -1,27 +1,48 @@
 "use client";
 
 import { TurnstileWidget } from "@/components/turnstile-widget";
-import type { useTurnstileGate } from "@/hooks/use-turnstile-gate";
+import type { TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import type { Ref } from "react";
 
-type TurnstileGate = ReturnType<typeof useTurnstileGate>;
+type TurnstileFieldProps = {
+  enabled: boolean;
+  widgetRef: Ref<TurnstileWidgetHandle>;
+  siteKey: string;
+  onReady: () => void;
+  onError: () => void;
+  onExpire: () => void;
+  widgetError: boolean;
+  ready: boolean;
+  className?: string;
+};
 
-export function TurnstileField({ gate, className }: { gate: TurnstileGate; className?: string }) {
-  if (!gate.enabled) return null;
+export function TurnstileField({
+  enabled,
+  widgetRef,
+  siteKey,
+  onReady,
+  onError,
+  onExpire,
+  widgetError,
+  ready,
+  className,
+}: TurnstileFieldProps) {
+  if (!enabled) return null;
 
   return (
     <div className={className ?? "flex flex-col items-center gap-2 py-1"}>
       <TurnstileWidget
-        ref={gate.ref}
-        siteKey={gate.siteKey}
-        onReady={gate.onTurnstileReady}
-        onError={gate.onTurnstileError}
-        onExpire={gate.onTurnstileExpire}
+        ref={widgetRef}
+        siteKey={siteKey}
+        onReady={onReady}
+        onError={onError}
+        onExpire={onExpire}
       />
-      {gate.widgetError ? (
+      {widgetError ? (
         <p className="text-center text-xs text-amber-200/90" role="status">
           Security check could not load. Refresh the page or allow challenges.cloudflare.com.
         </p>
-      ) : !gate.ready ? (
+      ) : !ready ? (
         <p className="text-center text-xs text-white/40" role="status">
           Loading security check…
         </p>

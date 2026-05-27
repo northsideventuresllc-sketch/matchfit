@@ -521,7 +521,17 @@ export default function TrainerSignUpClient() {
               </label>
             </div>
 
-            <TurnstileField gate={turnstile} className="flex justify-center pt-1" />
+            <TurnstileField
+              enabled={turnstile.enabled}
+              widgetRef={turnstile.ref}
+              siteKey={turnstile.siteKey}
+              onReady={turnstile.onTurnstileReady}
+              onError={turnstile.onTurnstileError}
+              onExpire={turnstile.onTurnstileExpire}
+              widgetError={turnstile.widgetError}
+              ready={turnstile.ready}
+              className="flex justify-center pt-1"
+            />
 
             <button
               type="submit"

@@ -11,7 +11,7 @@ import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
 import { BetaCapFullSignupNotice } from "@/components/beta-cap-full-signup-notice";
 import { useBetaLaunchStatus } from "@/hooks/use-beta-launch-status";
-import { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 const inputClass =
@@ -685,7 +685,17 @@ function ClientSignUpPageInner() {
             </form>
           ) : (
             <>
-              <TurnstileField gate={turnstile} className="mb-6 flex justify-center" />
+              <TurnstileField
+                enabled={turnstile.enabled}
+                widgetRef={turnstile.ref}
+                siteKey={turnstile.siteKey}
+                onReady={turnstile.onTurnstileReady}
+                onError={turnstile.onTurnstileError}
+                onExpire={turnstile.onTurnstileExpire}
+                widgetError={turnstile.widgetError}
+                ready={turnstile.ready}
+                className="mb-6 flex justify-center"
+              />
               {!awaitingCode ? (
             <div className="flex flex-col gap-6">
               <p className="text-sm leading-relaxed text-white/55">
