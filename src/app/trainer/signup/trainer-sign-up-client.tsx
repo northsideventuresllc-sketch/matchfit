@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import { trackGoogleAdsConversion } from "@/lib/google-ads";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { getSupabaseEmailCallbackUrl, isSupabaseConfigured } from "@/lib/supabase/email-callback-url";
 import { tryCreateMatchFitSupabaseBrowserClient } from "@/lib/supabase/browser-client";
@@ -195,6 +196,7 @@ export default function TrainerSignUpClient() {
             setBusy(false);
             return;
           }
+          trackGoogleAdsConversion("trainer_signup");
           navigateWithFullLoad(data.next ?? "/trainer/onboarding");
           return;
         }
@@ -233,6 +235,7 @@ export default function TrainerSignUpClient() {
         turnstileRef.current?.reset();
         return;
       }
+      trackGoogleAdsConversion("trainer_signup");
       navigateWithFullLoad(data.next ?? "/trainer/onboarding");
     } catch {
       setError("Something went wrong. Try again.");

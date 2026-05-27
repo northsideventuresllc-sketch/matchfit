@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import { trackGoogleAdsConversion } from "@/lib/google-ads";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { tryCreateMatchFitSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { clearTrainerSignupDraft, readTrainerSignupDraft } from "@/lib/trainer-supabase-signup-draft";
@@ -72,6 +73,7 @@ export default function TrainerSignupCompletePage() {
           return;
         }
         clearTrainerSignupDraft();
+        trackGoogleAdsConversion("trainer_signup");
         navigateWithFullLoad(data.next ?? "/trainer/onboarding");
       } catch {
         if (!cancelled) {
@@ -137,6 +139,7 @@ export default function TrainerSignupCompletePage() {
         return;
       }
       clearTrainerSignupDraft();
+      trackGoogleAdsConversion("trainer_signup");
       navigateWithFullLoad(data.next ?? "/trainer/onboarding");
     } catch {
       setError("Something went wrong. Try again.");
