@@ -132,6 +132,31 @@ describe.skipIf(!process.env.TEST_DATABASE_URL?.trim())("login 2FA API", () => {
     return `${LOGIN_CHALLENGE_COOKIE}=${v}`;
   }
 
+  function applyResponseCookiesToJar(res: Response): void {
+    const headers = res.headers as Headers & { getSetCookie?: () => string[] };
+    const setCookieValues =
+      typeof headers.getSetCookie === "function"
+        ? headers.getSetCookie()
+        : (() => {
+            const single = headers.get("set-cookie");
+            return single ? [single] : [];
+          })();
+
+    for (const value of setCookieValues) {
+      const cookiePair = value.split(";")[0];
+      const separator = cookiePair.indexOf("=");
+      if (separator <= 0) continue;
+
+      const name = cookiePair.slice(0, separator).trim();
+      const cookieValue = cookiePair.slice(separator + 1);
+      if (!cookieValue) {
+        testCookieJar.delete(name);
+        continue;
+      }
+      testCookieJar.set(name, cookieValue);
+    }
+  }
+
   it("returns needsTwoFactor and stores challenge cookie but not session cookie", async () => {
     const req = new NextRequest("http://localhost/api/client/login", {
       method: "POST",
@@ -143,6 +168,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL?.trim())("login 2FA API", () => {
       headers: { "content-type": "application/json" },
     });
     const res = await loginPost(req);
+    applyResponseCookiesToJar(res);
     expect(res.status).toBe(200);
     const body = (await res.json()) as { needsTwoFactor?: boolean; next?: string };
     expect(body.needsTwoFactor).toBe(true);
@@ -162,6 +188,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL?.trim())("login 2FA API", () => {
       headers: { "content-type": "application/json" },
     });
     const loginRes = await loginPost(loginReq);
+    applyResponseCookiesToJar(loginRes);
     expect(loginRes.status).toBe(200);
 
     const completeReq = new NextRequest("http://localhost/api/client/login/complete-2fa", {
@@ -173,6 +200,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL?.trim())("login 2FA API", () => {
       body: JSON.stringify({ code: "111111" }),
     });
     const completeRes = await complete2faPost(completeReq);
+    applyResponseCookiesToJar(completeRes);
     expect(completeRes.status).toBe(200);
     expect(testCookieJar.get(CLIENT_SESSION_COOKIE)).toBeTruthy();
     expect(testCookieJar.get(LOGIN_CHALLENGE_COOKIE)).toBeUndefined();
@@ -191,6 +219,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL?.trim())("login 2FA API", () => {
       headers: { "content-type": "application/json" },
     });
     const loginRes = await loginPost(loginReq);
+    applyResponseCookiesToJar(loginRes);
     expect(loginRes.status).toBe(200);
     const cookieHeader = challengeCookieHeader();
 
@@ -220,6 +249,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL?.trim())("login 2FA API", () => {
       body: JSON.stringify({ code: "222222" }),
     });
     const okRes = await complete2faPost(okReq);
+    applyResponseCookiesToJar(okRes);
     expect(okRes.status).toBe(200);
     expect(testCookieJar.get(CLIENT_SESSION_COOKIE)).toBeTruthy();
   });
