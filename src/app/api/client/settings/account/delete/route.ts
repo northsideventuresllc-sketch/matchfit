@@ -1,4 +1,4 @@
-import { deidentifyClientAccount } from "@/lib/account-deletion";
+import { scheduleClientAccountDeletion } from "@/lib/account-deletion-grace";
 import { resetInternalQaClientAccount } from "@/lib/internal-qa-account-reset";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
@@ -25,10 +25,18 @@ export async function POST(req: Request) {
 
     const client = await prisma.client.findUnique({
       where: { id: clientId },
-      select: { passwordHash: true, deidentifiedAt: true, email: true },
+      select: {
+        passwordHash: true,
+        deidentifiedAt: true,
+        accountDeletionFinalizeAt: true,
+        email: true,
+      },
     });
     if (!client || client.deidentifiedAt) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
+    if (client.accountDeletionFinalizeAt && client.accountDeletionFinalizeAt.getTime() > Date.now()) {
+      return NextResponse.json({ error: "Account deletion is already scheduled." }, { status: 409 });
     }
 
     const ok = await verifyPassword(parsed.data.password, client.passwordHash);
@@ -38,11 +46,17 @@ export async function POST(req: Request) {
 
     if (isMatchFitInternalQaClientEmail(client.email)) {
       await resetInternalQaClientAccount(clientId);
-    } else {
-      await deidentifyClientAccount(clientId);
+      await clearClientSession();
+      return NextResponse.json({ ok: true, immediate: true });
     }
+
+    const finalizeAt = await scheduleClientAccountDeletion(clientId);
     await clearClientSession();
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({
+      ok: true,
+      scheduled: true,
+      finalizeAt: finalizeAt.toISOString(),
+    });
   } catch (e) {
     const { message, status } = publicApiErrorFromUnknown(e, "Could not delete account.", {
       logLabel: "[client account delete]",

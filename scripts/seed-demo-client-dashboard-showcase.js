@@ -8,7 +8,6 @@
  *
  * Uses stable usernames `mf_demo_feat_<3digitPrefix>_<1-5>` so re-runs update the same coaches.
  */
-const { PrismaClient, Prisma } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
 
 function homepageDisplayDayKey(d = new Date()) {
@@ -29,6 +28,7 @@ function zipPrefix(zip) {
 async function resolveClient(prisma, hint) {
   const h = hint.trim();
   if (!h) return null;
+  const { Prisma } = await import("../src/generated/prisma/client.ts");
   const rows = await prisma.$queryRaw(
     Prisma.sql`SELECT id, username, email, zipCode FROM clients WHERE lower(username) = lower(${h}) OR lower(email) = lower(${h}) LIMIT 1`,
   );
@@ -119,7 +119,8 @@ async function main() {
     process.exit(1);
   }
 
-  const prisma = new PrismaClient();
+  const { createPrismaClient } = await import("./create-prisma-client.mjs");
+  const prisma = createPrismaClient();
   try {
     const client = await resolveClient(prisma, clientHint);
     if (!client) {

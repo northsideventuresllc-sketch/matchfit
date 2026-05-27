@@ -2,17 +2,17 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import { TurnstileField } from "@/components/turnstile-field";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { getSupabaseEmailCallbackUrl, isSupabaseConfigured } from "@/lib/supabase/email-callback-url";
+import { buildSupabaseSignUpOptions } from "@/lib/supabase/sign-up-options";
 import { tryCreateMatchFitSupabaseBrowserClient } from "@/lib/supabase/browser-client";
+import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
 import { BetaCapFullSignupNotice } from "@/components/beta-cap-full-signup-notice";
 import { useBetaLaunchStatus } from "@/hooks/use-beta-launch-status";
 import { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-
-const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 transition placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2";
@@ -107,7 +107,7 @@ function ClientSignUpPageInner() {
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [betaInviteReserved, setBetaInviteReserved] = useState<string | null>(null);
-  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
+  const turnstile = useTurnstileGate();
 
   useEffect(() => {
     if (!betaInviteTokenFromUrl) return;
@@ -127,16 +127,10 @@ function ClientSignUpPageInner() {
     };
   }, [betaInviteTokenFromUrl]);
 
-  function turnstileField(): { turnstileToken?: string } {
-    if (!TURNSTILE_SITE_KEY) return {};
-    const token = turnstileRef.current?.getToken();
-    return token ? { turnstileToken: token } : {};
-  }
-
   function assertTurnstileOrSetError(): boolean {
-    if (!TURNSTILE_SITE_KEY) return true;
-    if (!turnstileRef.current?.getToken()) {
-      setError("Please wait for the security check to finish, then try again.");
+    const tsErr = turnstile.validateBeforeSubmit();
+    if (tsErr) {
+      setError(tsErr);
       return false;
     }
     return true;
@@ -253,7 +247,7 @@ function ClientSignUpPageInner() {
       const res = await fetch("/api/client/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...buildProfilePayload(), skipTwoFactor: true, ...turnstileField() }),
+        body: JSON.stringify({ ...buildProfilePayload(), skipTwoFactor: true, ...turnstile.turnstileField() }),
       });
       const data = (await res.json()) as { error?: string; next?: string; code?: string };
       if (!res.ok) {
@@ -263,10 +257,11 @@ function ClientSignUpPageInner() {
             ? (data.error ?? "Memberships are full for this beta.")
             : (data.error ?? "Could not create your account."),
         );
-        turnstileRef.current?.reset();
+        turnstile.reset();
         return;
       }
       const em = email.trim().toLowerCase();
+      const captchaToken = turnstile.getCaptchaToken();
       if (isSupabaseConfigured()) {
         const supabase = tryCreateMatchFitSupabaseBrowserClient();
         if (supabase) {
@@ -274,10 +269,11 @@ function ClientSignUpPageInner() {
             .signUp({
               email: em,
               password,
-              options: {
+              options: buildSupabaseSignUpOptions({
                 emailRedirectTo: getSupabaseEmailCallbackUrl(),
+                turnstileToken: captchaToken,
                 data: { match_fit_role: "client", pending_match_fit_profile: false },
-              },
+              }),
             })
             .catch(() => {});
         }
@@ -302,7 +298,7 @@ function ClientSignUpPageInner() {
         body: JSON.stringify({
           ...buildProfilePayload(),
           twoFactorMethod: selectedChannel,
-          ...turnstileField(),
+          ...turnstile.turnstileField(),
         }),
       });
       const data = (await res.json()) as { error?: string; pendingId?: string; code?: string };
@@ -313,7 +309,7 @@ function ClientSignUpPageInner() {
             ? (data.error ?? "Memberships are full for this beta.")
             : (data.error ?? "Could not send the verification code."),
         );
-        turnstileRef.current?.reset();
+        turnstile.reset();
         return;
       }
       if (data.pendingId) {
@@ -341,15 +337,16 @@ function ClientSignUpPageInner() {
       const res = await fetch("/api/client/register/complete-pending", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pendingId, code: otpCode, ...turnstileField() }),
+        body: JSON.stringify({ pendingId, code: otpCode, ...turnstile.turnstileField() }),
       });
       const data = (await res.json()) as { error?: string; next?: string };
       if (!res.ok) {
         setError(data.error ?? "Verification failed.");
-        turnstileRef.current?.reset();
+        turnstile.reset();
         return;
       }
       const em = email.trim().toLowerCase();
+      const captchaToken = turnstile.getCaptchaToken();
       if (isSupabaseConfigured()) {
         const supabase = tryCreateMatchFitSupabaseBrowserClient();
         if (supabase) {
@@ -357,10 +354,11 @@ function ClientSignUpPageInner() {
             .signUp({
               email: em,
               password,
-              options: {
+              options: buildSupabaseSignUpOptions({
                 emailRedirectTo: getSupabaseEmailCallbackUrl(),
+                turnstileToken: captchaToken,
                 data: { match_fit_role: "client", pending_match_fit_profile: false },
-              },
+              }),
             })
             .catch(() => {});
         }
@@ -433,6 +431,7 @@ function ClientSignUpPageInner() {
               waitlistHref="/waitlist/client"
               cap={betaStatus?.clientCap ?? null}
               count={betaStatus?.clientCount ?? null}
+              slotsUsed={betaStatus?.clientSlotsUsed ?? null}
             />
           ) : (
             <>
@@ -686,11 +685,7 @@ function ClientSignUpPageInner() {
             </form>
           ) : (
             <>
-              {TURNSTILE_SITE_KEY ? (
-                <div className="mb-6 flex justify-center">
-                  <TurnstileWidget ref={turnstileRef} siteKey={TURNSTILE_SITE_KEY} />
-                </div>
-              ) : null}
+              <TurnstileField gate={turnstile} className="mb-6 flex justify-center" />
               {!awaitingCode ? (
             <div className="flex flex-col gap-6">
               <p className="text-sm leading-relaxed text-white/55">

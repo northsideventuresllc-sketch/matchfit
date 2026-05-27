@@ -33,9 +33,13 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
+!.env.local.example
 .beta-launch-secrets.local
 # Explicit: Next.js local secrets (.env* already covers this)
 .env.local
+
+# Prisma v7 generated client
+/src/generated/prisma
 
 # local sqlite
 /prisma/dev.db

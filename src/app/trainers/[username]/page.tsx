@@ -44,6 +44,7 @@ const trainerPublicOuterSelect = {
   socialOtherUrl: true,
   optionalProfileVisibilityJson: true,
   deidentifiedAt: true,
+  accountDeletionFinalizeAt: true,
 } as const;
 
 const trainerPublicProfileSelect = {
@@ -142,6 +143,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       lastName: true,
       bio: true,
       deidentifiedAt: true,
+      accountDeletionFinalizeAt: true,
       profile: {
         select: {
           dashboardActivatedAt: true,
@@ -161,6 +163,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const published =
     trainer?.profile?.dashboardActivatedAt != null &&
     !trainer.deidentifiedAt &&
+    !trainer.accountDeletionFinalizeAt &&
     isTrainerComplianceComplete(trainer.profile);
   if (!trainer || !published) {
     return {
@@ -218,7 +221,7 @@ export default async function TrainerPublicProfilePage({ params, searchParams }:
     }
   }
 
-  if (!trainer?.profile || trainer.deidentifiedAt) {
+  if (!trainer?.profile || trainer.deidentifiedAt || trainer.accountDeletionFinalizeAt) {
     notFound();
   }
 

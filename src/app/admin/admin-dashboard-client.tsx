@@ -11,6 +11,7 @@ import {
   type AdminUserStats,
 } from "@/lib/admin-portal-data";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
+import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
@@ -316,6 +317,9 @@ export function AdminDashboardClient(props: {
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-cyan-300/85">Match Fit</p>
             <h1 className="mt-1 text-3xl font-black tracking-tight">Administrator Portal</h1>
+            <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-[#FF7E00]/60">
+              Version {MATCH_FIT_PRODUCT_VERSION_LABEL}
+            </p>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/55">
               Platform overview, signup activity, member search, and secure account access for operations and trust &
               safety.{" "}

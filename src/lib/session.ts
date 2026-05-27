@@ -373,6 +373,17 @@ export async function setLoginChallengeCookie(token: string): Promise<void> {
   });
 }
 
+/** Prefer this from Route Handlers so the login challenge cookie is on the returned response. */
+export function applyLoginChallengeToNextResponse(res: NextResponse, token: string): void {
+  res.cookies.set(LOGIN_CHALLENGE_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: sessionCookieSecure(),
+    path: "/",
+    maxAge: 60 * 10,
+  });
+}
+
 export async function clearLoginChallengeCookie(): Promise<void> {
   const store = await cookies();
   store.delete(LOGIN_CHALLENGE_COOKIE);

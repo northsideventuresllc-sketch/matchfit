@@ -3,7 +3,7 @@ import {
   MATCH_SERVICE_IDS_PT_OFFERING,
   type MatchServiceId,
 } from "@/lib/trainer-match-questionnaire";
-import type { TrainerServiceOfferingAddOn } from "@/lib/trainer-service-offerings";
+import type { TrainerServiceOfferingAddOn } from "@/lib/trainer-service-offerings-document";
 
 export type ServiceAddOnPreset = Pick<TrainerServiceOfferingAddOn, "addonId" | "label"> & {
   description?: string;

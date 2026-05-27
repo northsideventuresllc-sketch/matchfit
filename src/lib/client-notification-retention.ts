@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 
 /** Inbox notifications auto-archive this long after they were created (if still in inbox). */
 export const CLIENT_NOTIFICATION_AUTO_ARCHIVE_MS = 30 * 24 * 60 * 60 * 1000;

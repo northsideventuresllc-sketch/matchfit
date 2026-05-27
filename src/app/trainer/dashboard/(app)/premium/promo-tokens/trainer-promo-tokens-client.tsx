@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { queuePromoTokensLoad } from "@/lib/trainer-promo-token-load";
 
 type PackTier = { id: string; label: string; tokens: number; priceUsd: number };
 
@@ -111,49 +112,8 @@ export function TrainerPromoTokensClient() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const [sRes, pRes, prRes] = await Promise.all([
-          fetch("/api/trainer/promo-tokens/summary"),
-          fetch("/api/trainer/fithub/my-posts"),
-          fetch("/api/trainer/promo-tokens/promotions"),
-        ]);
-        if (cancelled) return;
-        const sJson = (await sRes.json().catch(() => ({}))) as Summary & { error?: string };
-        if (!sRes.ok) {
-          setSummary(null);
-          setLoadErr(sJson.error ?? `Could not load token summary (${sRes.status}).`);
-          return;
-        }
-        setSummary(sJson);
-        if (sJson.economics) {
-          const m = sJson.economics.minTokensPerDay ?? 20;
-          setTokensBudget((prev) => Math.max(m, prev));
-        }
-        const pData = (await pRes.json()) as { posts?: MyPost[]; error?: string };
-        if (pRes.ok) {
-          const vids = (pData.posts ?? []).filter((x) => x.postType === "VIDEO" && x.visibility === "PUBLIC");
-          setPosts(vids);
-          setPostId((prev) => (prev && vids.some((v) => v.id === prev) ? prev : vids[0]?.id ?? ""));
-        }
-        const prData = (await prRes.json()) as { promotions?: PromotionRow[]; error?: string };
-        if (prRes.ok) {
-          setPromotions(prData.promotions ?? []);
-        } else {
-          setPromotions([]);
-        }
-      } catch {
-        if (!cancelled) {
-          setSummary(null);
-          setLoadErr("Could not load. Check your connection and try again.");
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    queuePromoTokensLoad(load);
+  }, [load]);
 
   /**
    * Calculate the minimum required tokens dynamically. 

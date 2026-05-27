@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { AiMatchProfileDisplayBlock } from "@/lib/ai-match-profile-parse";
-import { coachServiceCheckoutSearch } from "@/lib/trainer-service-offerings";
+import { coachServiceCheckoutSearch } from "@/lib/trainer-service-offerings-document";
 import { TrainerProfileClientPrivacyMenu } from "@/components/client/trainer-profile-client-privacy-menu";
 import { ClientCoachReviewPanel } from "@/components/client/client-coach-review-panel";
 import { TrainerMatchAnswersPreview } from "@/components/trainer/trainer-match-answers-preview";

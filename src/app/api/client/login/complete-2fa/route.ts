@@ -1,12 +1,13 @@
+import { clientLoginDeletionRedirect } from "@/lib/account-deletion-login-redirect";
 import { findClientEmailChannel, verifyStoredEmailCode } from "@/lib/auth-2fa-email";
 import { getLoginOtpDelivery } from "@/lib/login-two-factor-target";
 import { verifyOtp } from "@/lib/otp";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import {
+  applyClientSessionToNextResponse,
   clearLoginChallengeCookie,
   LOGIN_CHALLENGE_COOKIE,
-  setClientSession,
   verifyLoginChallengeToken,
 } from "@/lib/session";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
@@ -145,8 +146,14 @@ export async function POST(req: Request) {
         }),
       ]);
       await clearLoginChallengeCookie();
-      await setClientSession(clientId, stayLoggedIn);
-      return NextResponse.json({ ok: true, ...(nextPath ? { next: nextPath } : {}) });
+      const deletionRedirectEmail = await clientLoginDeletionRedirect(clientId);
+      const resEmail = NextResponse.json(
+        deletionRedirectEmail
+          ? { ok: true, ...deletionRedirectEmail }
+          : { ok: true, ...(nextPath ? { next: nextPath } : {}) },
+      );
+      await applyClientSessionToNextResponse(resEmail, clientId, stayLoggedIn);
+      return resEmail;
     }
 
     if (!client?.twoFactorOtpHash || !client.twoFactorOtpExpires) {
@@ -214,8 +221,12 @@ export async function POST(req: Request) {
       },
     });
     await clearLoginChallengeCookie();
-    await setClientSession(clientId, stayLoggedIn);
-    return NextResponse.json({ ok: true, ...(nextPath ? { next: nextPath } : {}) });
+    const deletionRedirect = await clientLoginDeletionRedirect(clientId);
+    const res = NextResponse.json(
+      deletionRedirect ? { ok: true, ...deletionRedirect } : { ok: true, ...(nextPath ? { next: nextPath } : {}) },
+    );
+    await applyClientSessionToNextResponse(res, clientId, stayLoggedIn);
+    return res;
   } catch (e) {
     const { message, status } = publicApiErrorFromUnknown(e, "Verification could not be completed. Try again.", {
       logLabel: "[Match Fit complete 2FA]",

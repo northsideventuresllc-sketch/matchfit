@@ -18,7 +18,13 @@ The update script does NOT start PostgreSQL. Before running the dev server or in
 sudo pg_ctlcluster 16 main start
 ```
 
-The local dev database uses `postgresql://matchfit:matchfit@localhost:5432/matchfit`. After starting Postgres, apply the schema with `npx prisma db push`.
+The local dev database uses `postgresql://matchfit:matchfit@localhost:5432/matchfit`. After starting Postgres, apply the schema with `npm run db:push` (runs `prisma generate` then `prisma db push`).
+
+### Prisma ORM v7
+
+- Client is generated to `src/generated/prisma` (`provider = "prisma-client"` in `prisma/schema.prisma`). CLI connection URLs live in `prisma.config.ts` (`DIRECT_URL` preferred, then `DATABASE_URL`).
+- Runtime uses Direct TCP via `@prisma/adapter-pg` — import `prisma` only from server code (`@/lib/prisma`). Pure offering/questionnaire helpers live in `@/lib/trainer-service-offerings-document` (safe for `"use client"` modules).
+- `npm run build` / `postinstall` run `prisma generate`. Builds without `DATABASE_URL` use a placeholder connection string during page-data collection only.
 
 ### Key commands
 

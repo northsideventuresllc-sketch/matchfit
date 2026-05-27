@@ -3,11 +3,11 @@ import { canonicalAdministratorCode, deriveAdministratorCode } from "@/lib/admin
 
 describe("administrator code", () => {
   it("derives letters and MMDD from ISO birth date", () => {
-    expect(deriveAdministratorCode("Jonny", "Booth", "1990-06-02")).toBe("JOBO0602");
-    expect(canonicalAdministratorCode("Jonny", "Booth", "1990-06-02")).toBe("jobo0602");
+    expect(deriveAdministratorCode("Alice", "Sample", "2001-01-01")).toBe("ALSA0101");
+    expect(canonicalAdministratorCode("Alice", "Sample", "2001-01-01")).toBe("alsa0101");
   });
 
   it("strips non-letters from names", () => {
-    expect(deriveAdministratorCode("Jo-ny", "Bo!", "2000-12-31")).toBe("JOBO1231");
+    expect(deriveAdministratorCode("Al-ice", "Sa!", "2000-12-31")).toBe("ALSA1231");
   });
 });

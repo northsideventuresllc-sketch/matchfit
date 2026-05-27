@@ -54,17 +54,22 @@ function loadTurnstileScript(): Promise<void> {
 export type TurnstileWidgetHandle = {
   getToken: () => string | undefined;
   reset: () => void;
+  isReady: () => boolean;
 };
 
 type TurnstileWidgetProps = {
   siteKey: string;
   className?: string;
+  onReady?: () => void;
+  onError?: () => void;
+  onExpire?: () => void;
 };
 
 export const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
-  function TurnstileWidget({ siteKey, className }, ref) {
+  function TurnstileWidget({ siteKey, className, onReady, onError, onExpire }, ref) {
     const containerRef = useRef<HTMLDivElement>(null);
     const widgetIdRef = useRef<string | null>(null);
+    const readyRef = useRef(false);
 
     useImperativeHandle(ref, () => ({
       getToken: () => {
@@ -73,14 +78,17 @@ export const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidget
         return window.turnstile.getResponse(id) || undefined;
       },
       reset: () => {
+        readyRef.current = false;
         const id = widgetIdRef.current;
         if (id && window.turnstile) window.turnstile.reset(id);
       },
+      isReady: () => readyRef.current && Boolean(widgetIdRef.current?.length),
     }));
 
     useEffect(() => {
       if (!siteKey) return;
       let cancelled = false;
+      readyRef.current = false;
 
       void loadTurnstileScript()
         .then(() => {
@@ -88,14 +96,28 @@ export const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidget
           widgetIdRef.current = window.turnstile.render(containerRef.current, {
             sitekey: siteKey,
             theme: "dark",
+            retry: "auto",
+            callback: () => {
+              readyRef.current = true;
+              onReady?.();
+            },
+            "error-callback": () => {
+              readyRef.current = false;
+              onError?.();
+            },
+            "expired-callback": () => {
+              readyRef.current = false;
+              onExpire?.();
+            },
           });
         })
         .catch(() => {
-          /* non-fatal: submit will fail server-side or user retries */
+          onError?.();
         });
 
       return () => {
         cancelled = true;
+        readyRef.current = false;
         const id = widgetIdRef.current;
         widgetIdRef.current = null;
         if (id && window.turnstile) {
@@ -106,8 +128,8 @@ export const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidget
           }
         }
       };
-    }, [siteKey]);
+    }, [siteKey, onReady, onError, onExpire]);
 
-    return <div ref={containerRef} className={className} />;
+    return <div ref={containerRef} className={className} aria-label="Security verification" />;
   },
 );

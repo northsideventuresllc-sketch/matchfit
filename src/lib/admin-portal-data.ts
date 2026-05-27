@@ -120,7 +120,7 @@ async function countSignupUnionTotal(): Promise<number> {
       SELECT t.id FROM trainers t WHERE t."deidentifiedAt" IS NULL ${TRAINER_SIGNUP_EXCLUDE_SYNTH}
     ) combined
   `;
-  return Number(rows[0]?.total ?? 0n);
+  return Number(rows[0]?.total ?? BigInt(0));
 }
 
 async function loadStatsForSignups(rows: SignupUnionRow[]): Promise<Map<string, AdminUserStats>> {
@@ -285,7 +285,7 @@ async function getAdminSignupLogWithoutSyntheticFilter(opts: {
   const stats = await loadStatsForSignups(unionRows);
   return {
     rows: unionRowsToSignupRows(unionRows, stats),
-    total: Number(totalRows[0]?.total ?? 0n),
+    total: Number(totalRows[0]?.total ?? BigInt(0)),
   };
 }
 

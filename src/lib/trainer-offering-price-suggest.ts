@@ -7,7 +7,7 @@ import {
   type ServiceDeliveryMode,
 } from "@/lib/trainer-match-questionnaire";
 import { formatTrainerServicePriceUsd } from "@/lib/trainer-service-price-display";
-import type { PublishedPurchaseSku } from "@/lib/trainer-service-offerings";
+import type { PublishedPurchaseSku } from "@/lib/trainer-service-offerings-document";
 
 export type PriceVerdict = "too_low" | "fair" | "too_high";
 

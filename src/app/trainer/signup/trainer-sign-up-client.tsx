@@ -3,18 +3,18 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import { TurnstileField } from "@/components/turnstile-field";
 import { trackGoogleAdsConversion } from "@/lib/google-ads";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { getSupabaseEmailCallbackUrl, isSupabaseConfigured } from "@/lib/supabase/email-callback-url";
+import { buildSupabaseSignUpOptions } from "@/lib/supabase/sign-up-options";
 import { tryCreateMatchFitSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { writeTrainerSignupDraft } from "@/lib/trainer-supabase-signup-draft";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
 import { BetaCapFullSignupNotice } from "@/components/beta-cap-full-signup-notice";
 import { useBetaLaunchStatus } from "@/hooks/use-beta-launch-status";
-import { FormEvent, useEffect, useRef, useState } from "react";
-
-const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
+import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
+import { FormEvent, useEffect, useState } from "react";
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 transition placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2";
@@ -55,7 +55,7 @@ export default function TrainerSignUpClient() {
   const [betaInviteReserved, setBetaInviteReserved] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [verificationEmailSent, setVerificationEmailSent] = useState(false);
-  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
+  const turnstile = useTurnstileGate();
 
   useEffect(() => {
     if (!betaInviteFromUrl) return;
@@ -124,17 +124,15 @@ export default function TrainerSignUpClient() {
         return;
       }
     }
-    if (TURNSTILE_SITE_KEY) {
-      const token = turnstileRef.current?.getToken();
-      if (!token) {
-        setError("Please wait for the security check to finish, then try again.");
-        return;
-      }
+    const tsErr = turnstile.validateBeforeSubmit();
+    if (tsErr) {
+      setError(tsErr);
+      return;
     }
 
     setBusy(true);
     try {
-      const turnstileToken = TURNSTILE_SITE_KEY ? turnstileRef.current?.getToken() : undefined;
+      const turnstileToken = turnstile.getCaptchaToken();
       const emailNorm = email.trim().toLowerCase();
       const registerCore = {
         firstName: firstName.trim(),
@@ -161,18 +159,19 @@ export default function TrainerSignUpClient() {
         const { data: signData, error: signErr } = await supabase.auth.signUp({
           email: emailNorm,
           password,
-          options: {
+          options: buildSupabaseSignUpOptions({
             emailRedirectTo: getSupabaseEmailCallbackUrl(),
+            turnstileToken,
             data: {
               match_fit_role: "trainer",
               pending_match_fit_profile: true,
             },
-          },
+          }),
         });
 
         if (signErr) {
           setError(signErr.message || "Could not start email verification.");
-          turnstileRef.current?.reset();
+          turnstile.reset();
           setBusy(false);
           return;
         }
@@ -192,7 +191,7 @@ export default function TrainerSignUpClient() {
                 ? (data.error ?? "Coach slots are full for this beta.")
                 : (data.error ?? "Could not create your account."),
             );
-            turnstileRef.current?.reset();
+            turnstile.reset();
             setBusy(false);
             return;
           }
@@ -232,7 +231,7 @@ export default function TrainerSignUpClient() {
             ? (data.error ?? "Coach slots are full for this beta.")
             : (data.error ?? "Could not create your account."),
         );
-        turnstileRef.current?.reset();
+        turnstile.reset();
         return;
       }
       trackGoogleAdsConversion("trainer_signup");
@@ -297,6 +296,7 @@ export default function TrainerSignUpClient() {
               waitlistHref="/waitlist/trainer"
               cap={betaStatus?.trainerCap ?? null}
               count={betaStatus?.trainerCount ?? null}
+              slotsUsed={betaStatus?.trainerSlotsUsed ?? null}
             />
           ) : (
             <>
@@ -521,15 +521,11 @@ export default function TrainerSignUpClient() {
               </label>
             </div>
 
-            {TURNSTILE_SITE_KEY ? (
-              <div className="flex justify-center pt-1">
-                <TurnstileWidget ref={turnstileRef} siteKey={TURNSTILE_SITE_KEY} />
-              </div>
-            ) : null}
+            <TurnstileField gate={turnstile} className="flex justify-center pt-1" />
 
             <button
               type="submit"
-              disabled={busy || verificationEmailSent}
+              disabled={busy || verificationEmailSent || (turnstile.enabled && !turnstile.ready)}
               className="group relative isolate mt-1 flex min-h-[3.25rem] w-full items-center justify-center overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition active:translate-y-px disabled:opacity-50"
             >
               <span

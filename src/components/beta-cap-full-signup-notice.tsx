@@ -5,9 +5,10 @@ type BetaCapFullSignupNoticeProps = {
   waitlistHref: string;
   cap: number | null;
   count: number | null;
+  slotsUsed?: number | null;
 };
 
-export function BetaCapFullSignupNotice({ role, waitlistHref, cap, count }: BetaCapFullSignupNoticeProps) {
+export function BetaCapFullSignupNotice({ role, waitlistHref, cap, count, slotsUsed }: BetaCapFullSignupNoticeProps) {
   const isClient = role === "client";
   const title = isClient ? "Memberships are full for this beta" : "Coach slots are full for this beta";
   const body = isClient
@@ -18,6 +19,9 @@ export function BetaCapFullSignupNotice({ role, waitlistHref, cap, count }: Beta
     cap != null && count != null ? (
       <p className="mt-3 text-xs text-white/45">
         {isClient ? "Clients" : "Trainers"} signed up: {count} / {cap}
+        {slotsUsed != null && slotsUsed !== count
+          ? ` (${slotsUsed} slots reserved including pending invites)`
+          : null}
       </p>
     ) : null;
 

@@ -6,6 +6,10 @@ import {
 import { prisma } from "@/lib/prisma";
 import { notifyClientSubscriptionStripeEvent } from "@/lib/subscription-email-notify";
 import { syncClientSubscriptionFromStripe } from "@/lib/stripe-sync-client-subscription";
+import {
+  applyTrainerBackgroundCheckStripePayment,
+  isTrainerBackgroundCheckPaymentIntent,
+} from "@/lib/trainer-background-check-stripe";
 import { getStripe } from "@/lib/stripe-server";
 import {
   oneTimePurchaseRevenueProfit,
@@ -50,6 +54,21 @@ export async function POST(req: Request) {
   }
 
   try {
+    if (event.type === "payment_intent.succeeded") {
+      const pi = event.data.object as Stripe.PaymentIntent;
+      if (isTrainerBackgroundCheckPaymentIntent(pi)) {
+        const trainerId = String(pi.metadata?.trainerId ?? "").trim();
+        if (trainerId) {
+          const cents =
+            typeof pi.amount_received === "number" && pi.amount_received > 0
+              ? pi.amount_received
+              : Math.max(0, parseInt(String(pi.metadata?.vendorPaidCents ?? "0"), 10) || 0);
+          if (cents > 0) {
+            await applyTrainerBackgroundCheckStripePayment({ trainerId, vendorPaidCents: cents });
+          }
+        }
+      }
+    }
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       const md = session.metadata ?? {};

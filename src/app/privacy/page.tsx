@@ -1,11 +1,12 @@
 import { LegalPageFooterNav } from "@/components/legal-page-footer-nav";
+import { LEGAL_EFFECTIVE_DATE_DISPLAY } from "@/lib/legal-effective-date";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 
 /** Legal operator of Match Fit. */
 const OPERATOR_LEGAL_NAME = "Northside Ventures LLC";
 
 /** Privacy and data-rights requests. */
-const PRIVACY_CONTACT_EMAIL = "northside.ventures.llc@gmail.com";
+const PRIVACY_CONTACT_EMAIL = "support@match-fit.net";
 
 /** Postal address for written privacy requests and official notices where applicable. */
 const PHYSICAL_ADDRESS_LINE = "1954 Airport Rd STE 1277, Chamblee, GA 30341, United States";
@@ -14,7 +15,7 @@ const PHYSICAL_ADDRESS_LINE = "1954 Airport Rd STE 1277, Chamblee, GA 30341, Uni
  * Version in force for this posted policy. Update this string to the publication date whenever
  * you deploy a materially revised Privacy Policy so users can see which version applies.
  */
-const POLICY_EFFECTIVE_DATE = "May 27, 2026";
+const POLICY_EFFECTIVE_DATE = LEGAL_EFFECTIVE_DATE_DISPLAY;
 
 function P({ children }: { children: React.ReactNode }) {
   return <p className="mt-3 text-sm leading-relaxed text-white/60">{children}</p>;
@@ -102,7 +103,10 @@ export default async function PrivacyPage() {
             <Strong>Credentials and Security:</Strong> password (stored using one-way hashing—we do not store your
             plaintext password), two-factor authentication settings, verification codes (stored as hashes or transient
             values, not plaintext in our database), session identifiers in HTTP-only cookies, and &quot;stay logged
-            in&quot; preferences. We do not write plaintext one-time codes to routine application logs.
+            in&quot; preferences. We do not write plaintext one-time codes to routine application logs. Some Trainer sign-up
+            and email-verification flows may use <Strong>Supabase Auth</Strong> (hosted authentication) before your Match Fit
+            account is created; Supabase processes credentials and confirmation links under its own policies when you use
+            those flows.
           </Li>
           <Li>
             <Strong>Terms, Privacy, and Compliance Timestamps:</Strong> records of when you accepted applicable terms,
@@ -123,7 +127,8 @@ export default async function PrivacyPage() {
           <Li>
             <Strong>Wellness and Matching Inputs:</Strong> daily matching questionnaire content and answers, and derived
             algorithm context we compute to personalize prompts or matching. Treat this as sensitive wellness-related
-            information you choose to share.
+            information you choose to share. The Service is a fitness and coaching marketplace, does not collect or
+            process protected health information (PHI) under HIPAA, and does not provide medical advice.
           </Li>
           <Li>
             <Strong>Mailing Address (Optional):</Strong> if you provide it for your own records. Trainer-facing APIs and
@@ -182,9 +187,30 @@ export default async function PrivacyPage() {
             <Strong>Billing (Where Connected):</Strong> Stripe-related identifiers for coach billing, invoices, or
             purchases as implemented in the product.
           </Li>
+          <Li>
+            <Strong>Session Punch-In (Geolocation):</Strong> when you record a SESSION STARTED punch-in for a booked
+            session, we store latitude, longitude, and timestamps tied to that booking for compliance, payout gates, and
+            fraud prevention.
+          </Li>
+          <Li>
+            <Strong>Video Meeting OAuth (Optional):</Strong> if you connect Zoom, Google Meet, or Microsoft Teams for
+            virtual sessions, we store OAuth tokens needed to create or manage meetings.             Refresh tokens may be encrypted at rest in production.
+          </Li>
         </Ul>
 
-        <h3 className="mt-6 text-sm font-bold text-white/90">2.4 Trust, Safety, and Support</h3>
+        <h3 className="mt-6 text-sm font-bold text-white/90">2.4 Beta Waitlist and Launch Gates</h3>
+        <Ul>
+          <Li>
+            <Strong>Waitlist:</Strong> email address, ZIP code, and status if you join a Trainer or Client waitlist when beta
+            capacity is full.
+          </Li>
+          <Li>
+            <Strong>Invite tokens:</Strong> time-limited signup links and slot reservation timestamps when we invite you from
+            the waitlist.
+          </Li>
+        </Ul>
+
+        <h3 className="mt-6 text-sm font-bold text-white/90">2.5 Trust, Safety, and Support</h3>
         <Ul>
           <Li>
             <Strong>Blocks and Safety Reports:</Strong> who blocked whom, optional reasons, and reports you file about
@@ -200,7 +226,7 @@ export default async function PrivacyPage() {
           </Li>
         </Ul>
 
-        <h3 className="mt-6 text-sm font-bold text-white/90">2.5 Technical and Usage Data</h3>
+        <h3 className="mt-6 text-sm font-bold text-white/90">2.6 Technical and Usage Data</h3>
         <Ul>
           <Li>
             <Strong>Device and Log Data:</Strong> IP address, browser type, app version where applicable, dates and
@@ -210,6 +236,15 @@ export default async function PrivacyPage() {
           <Li>
             <Strong>Cookies and Similar Technologies:</Strong> cookies that maintain your session and security flows. We
             may use essential cookies even if optional marketing cookies are not present.
+          </Li>
+          <Li>
+            <Strong>Bot Protection:</Strong> when enabled, <Strong>Cloudflare Turnstile</Strong> tokens on sign-up, sign-in,
+            waitlist, and related forms to distinguish humans from automated abuse.
+          </Li>
+          <Li>
+            <Strong>In-App Chat Monitoring:</Strong> message bodies may be scanned with automated heuristics (for example
+            off-platform contact or payment patterns) and, when configured, optional machine-assisted classifiers to flag
+            content for internal trust-and-safety review. Flagged or reviewed messages may be retained in admin tooling.
           </Li>
         </Ul>
 
@@ -241,6 +276,9 @@ export default async function PrivacyPage() {
           <Li>Enable discovery, matching, Fit Hub, chat, notifications, and premium coach tools;</Li>
           <Li>Honor optional profile visibility settings you choose in account settings;</Li>
           <Li>Verify identity or eligibility where required for coach onboarding, compliance, or risk controls;</Li>
+          <Li>
+            Operate beta capacity limits, waitlists, founding promotions, and geographic eligibility during limited launches;
+          </Li>
           <Li>Detect, investigate, and prevent fraud, abuse, and violations of our Terms or policies;</Li>
           <Li>Communicate service, billing, and policy updates;</Li>
           <Li>Comply with law, respond to lawful requests, and establish or defend legal claims;</Li>
@@ -281,6 +319,17 @@ export default async function PrivacyPage() {
                 tooling;
               </Li>
               <Li>
+                <Strong>Supabase</Strong> for hosted authentication on certain Trainer sign-up and OAuth callback flows when
+                enabled;
+              </Li>
+              <Li>
+                <Strong>Cloudflare Turnstile</Strong> for bot protection on authentication and waitlist forms when enabled;
+              </Li>
+              <Li>
+                <Strong>OpenAI</Strong> (or comparable providers), when configured, for optional chat trust-and-safety
+                classification and certain trainer dashboard pricing-assist features;
+              </Li>
+              <Li>
                 <Strong>Resend</Strong> (or comparable email infrastructure) for transactional and security email;
               </Li>
               <Li>
@@ -289,8 +338,8 @@ export default async function PrivacyPage() {
                 time;
               </Li>
               <Li>
-                <Strong>Cloud Hosting, Database, and Infrastructure</Strong> vendors that store or process data on our
-                behalf.
+                <Strong>Cloud Hosting, Database, and AI Infrastructure</Strong> vendors (such as Vercel and Supabase) that
+                store or process data on our behalf to operate the Service.
               </Li>
             </Ul>
           </Li>
@@ -342,13 +391,15 @@ export default async function PrivacyPage() {
         </P>
         <P>
           <Strong>Account deletion.</Strong> If you delete your account through in-product settings, we verify your
-          password, cancel active paid subscriptions through Stripe where your account has them, and de-identify personal
+          password and schedule permanent removal for <Strong>thirty (30) days</Strong> later. During that grace period you
+          may sign in and cancel the scheduled deletion to restore access. When the grace period ends (or if you do not
+          cancel), we cancel active paid subscriptions through Stripe where your account has them and de-identify personal
           fields on your user record (for example name, contact information, and profile content stored on that record)
           so you can no longer sign in. We may replace chat message bodies you authored with a short placeholder, set
           trainer-authored Fit Hub content to private and strip associated media and captions from public view, and clear
           certain compliance payloads on coach profiles, while retaining the underlying row identifiers needed for
-          foreign keys and minimum enforcement, trust, or billing audit trails. Deletion is intended to be irreversible;
-          contact us promptly if you delete in error.
+          foreign keys and minimum enforcement, trust, or billing audit trails. After finalization, deletion is intended to
+          be irreversible.
         </P>
 
         <H2 id="security">8. Security</H2>
@@ -381,7 +432,9 @@ export default async function PrivacyPage() {
           personal information collected, to request deletion or correction, and to opt out of &quot;sale&quot; or{" "}
           &quot;sharing&quot; for cross-context behavioral advertising. We do not sell personal information for monetary
           consideration. If we ever use personal information in ways that constitute &quot;sharing&quot; under California
-          law, we will provide a compliant opt-out mechanism and update this policy.
+          law, we will provide a compliant opt-out mechanism and update this policy. Our website responds to Global Privacy
+          Control (GPC) signals to restrict tracking where technically supported by your browser, but we do not otherwise
+          alter our data collection practices in response to generic &quot;Do Not Track&quot; browser headers.
         </P>
         <P>
           To exercise rights, email <Strong>{PRIVACY_CONTACT_EMAIL}</Strong>. We may need to verify your identity before
@@ -412,7 +465,8 @@ export default async function PrivacyPage() {
         <H2 id="ai">13. Automated Processing and Matching</H2>
         <P>
           We may use algorithms and, where product features enable it, machine-assisted processing to rank or suggest
-          coaches, personalize questionnaires, or generate trainer-facing match profile text from questionnaire answers.
+          coaches, personalize questionnaires, generate trainer-facing match profile text from questionnaire answers, flag
+          chat messages for trust-and-safety review, and assist trainers with optional pricing guidance in the dashboard.
           These processes use information you or trainers provide in the Service. They are not used for decisions that
           produce legal or similarly significant effects solely by automated means beyond what is inherent to operating a
           fitness marketplace, unless we disclose otherwise in-product and provide any rights required by law.
@@ -430,16 +484,6 @@ export default async function PrivacyPage() {
           To the fullest extent permitted by law, this Policy does not create rights enforceable by third parties. Nothing
           in this Policy limits any non-waivable rights you may have under applicable law.
         </P>
-
-        <section className="mt-12 rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-200/90">Legal Review</p>
-          <p className="mt-2 text-xs leading-relaxed text-white/55">
-            Align the subprocessors list with your executed vendor agreements, bump{" "}
-            <code className="rounded bg-white/10 px-1 py-0.5 text-[0.65rem] text-white/70">POLICY_EFFECTIVE_DATE</code> when
-            you ship policy updates, confirm that account-deletion, Stripe cancellation, and log-handling practices match
-            your counsel&apos;s advice for your jurisdictions, and review any advertising or analytics tools you add.
-          </p>
-        </section>
 
         <LegalPageFooterNav role={role} />
       </div>

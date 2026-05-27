@@ -7,6 +7,7 @@ import {
   countClientUnreadInboxNotifications,
   runClientNotificationLifecycle,
 } from "@/lib/client-notification-retention";
+import { isAccountDeletionGraceActive } from "@/lib/account-deletion-grace";
 import { getClientDiyGovernanceGate } from "@/lib/diy-governance";
 import { prisma } from "@/lib/prisma";
 import { purgeExpiredSuspensionRecords } from "@/lib/suspension-lifecycle";
@@ -34,6 +35,8 @@ export default async function ClientDashboardAppLayout({
       stripeSubscriptionActive: true,
       subscriptionGraceUntil: true,
       deidentifiedAt: true,
+      accountDeletionRequestedAt: true,
+      accountDeletionFinalizeAt: true,
     },
   });
   if (!client) {
@@ -41,6 +44,9 @@ export default async function ClientDashboardAppLayout({
   }
   if (client.deidentifiedAt) {
     redirect(staleClientSessionInvalidateRedirect("/client"));
+  }
+  if (isAccountDeletionGraceActive(client)) {
+    redirect("/client/account-deletion-scheduled");
   }
 
   if (client.safetySuspended) {

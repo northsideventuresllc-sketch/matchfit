@@ -4,14 +4,13 @@
  * Usage:
  *   MATCH_FIT_BOOTSTRAP_ADMIN_PASSWORD='your-secure-password' node --env-file=.env scripts/seed-bootstrap-admin.js
  *
- * Requires: prisma migrate applied (administrator tables), bcryptjs, @prisma/client.
+ * Requires: prisma migrate applied (administrator tables), bcryptjs, generated Prisma client.
  */
-const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
 
-const prisma = new PrismaClient();
-
 async function main() {
+  const { createPrismaClient } = await import("./create-prisma-client.mjs");
+  const prisma = createPrismaClient();
   const password = process.env.MATCH_FIT_BOOTSTRAP_ADMIN_PASSWORD?.trim();
   if (!password || password.length < 12) {
     console.error("Set MATCH_FIT_BOOTSTRAP_ADMIN_PASSWORD (12+ characters) before running this script.");

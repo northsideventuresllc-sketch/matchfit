@@ -6,8 +6,18 @@ export type BetaLaunchStatus = {
   gatesEnabled: boolean;
   trainerCap: number | null;
   clientCap: number | null;
+  /** Registered real signups (excludes test / synthetic accounts). */
   trainerCount: number | null;
   clientCount: number | null;
+  /** Registered + active waitlist invites (drives cap / waitlist). */
+  trainerSlotsUsed: number | null;
+  clientSlotsUsed: number | null;
+  trainerSlotsRemaining: number | null;
+  clientSlotsRemaining: number | null;
+  trainerFoundingMax: number | null;
+  clientFoundingMax: number | null;
+  trainerFoundingRemaining: number | null;
+  clientFoundingRemaining: number | null;
   trainerWaitlistOpen: boolean;
   clientWaitlistOpen: boolean;
 };
@@ -31,6 +41,14 @@ export function useBetaLaunchStatus(): { status: BetaLaunchStatus | null; loadin
             clientCap: null,
             trainerCount: null,
             clientCount: null,
+            trainerSlotsUsed: null,
+            clientSlotsUsed: null,
+            trainerSlotsRemaining: null,
+            clientSlotsRemaining: null,
+            trainerFoundingMax: null,
+            clientFoundingMax: null,
+            trainerFoundingRemaining: null,
+            clientFoundingRemaining: null,
             trainerWaitlistOpen: false,
             clientWaitlistOpen: false,
           });

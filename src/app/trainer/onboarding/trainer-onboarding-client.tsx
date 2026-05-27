@@ -19,9 +19,11 @@ import { certificationsGatePassed } from "@/lib/trainer-onboarding-cert-gate";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { normalizeTrainerSocialFields } from "@/lib/trainer-social-urls";
+import { TrainerBackgroundCheckStripePayment } from "@/components/trainer/trainer-background-check-stripe-payment";
 import { postTrainerLogout } from "@/lib/trainer-logout";
 import { US_STATE_POSTAL_OPTIONS } from "@/lib/trainer-profile-demography-options";
 import { coerceTrainerBackgroundVendorStatus, coerceTrainerCptStatus } from "@/lib/trainer-onboarding-status";
+import { hasOnboardingSnapshotChanges, shouldInterceptDashboardNavigation } from "@/lib/trainer-onboarding-unsaved-changes";
 
 type TrainerMe = {
   id: string;
@@ -408,52 +410,50 @@ export default function TrainerOnboardingClient() {
     ],
   );
 
-  /** Baseline form snapshot after first load (ref: not read during render). */
-  const baselineSnapshotRef = useRef<string | null>(null);
+  /**
+   * Capture the initial state of the form after the trainer data is first loaded.
+   * Using a Ref for the baseline snapshot prevents cascading renders and ensures
+   * we only track "dirty" status relative to the server's last known state.
+   */
+  const initialSnapshotRef = useRef<string | null>(null);
   useEffect(() => {
-    if (onboardingLoaded && !loadingMe && baselineSnapshotRef.current === null) {
-      baselineSnapshotRef.current = onboardingSnapshotSerialized;
+    if (onboardingLoaded && !loadingMe && initialSnapshotRef.current === null) {
+      initialSnapshotRef.current = onboardingSnapshotSerialized;
     }
   }, [onboardingLoaded, loadingMe, onboardingSnapshotSerialized]);
 
-  const isOnboardingDirty = useCallback((): boolean => {
-    const baseline = baselineSnapshotRef.current;
-    return baseline !== null && onboardingSnapshotSerialized !== baseline;
-  }, [onboardingSnapshotSerialized]);
+  const hasOnboardingChanges = useCallback(
+    () => hasOnboardingSnapshotChanges(initialSnapshotRef.current, onboardingSnapshotSerialized),
+    [onboardingSnapshotSerialized],
+  );
 
   const canReturnToDashboard = profile?.matchQuestionnaireStatus === "completed";
 
   useEffect(() => {
-    if (!isOnboardingDirty()) return;
+    if (!hasOnboardingChanges()) return;
     function onBeforeUnload(e: BeforeUnloadEvent) {
       e.preventDefault();
     }
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [isOnboardingDirty, onboardingLoaded, loadingMe]);
+  }, [hasOnboardingChanges, onboardingLoaded, loadingMe]);
 
   useEffect(() => {
-    if (!isOnboardingDirty() || !canReturnToDashboard) return;
+    if (!hasOnboardingChanges() || !canReturnToDashboard) return;
     function onClickCapture(e: MouseEvent) {
       const el = (e.target as HTMLElement | null)?.closest?.("a[href]");
       if (!el) return;
       const href = el.getAttribute("href");
-      if (!href || href.startsWith("#")) return;
-      let url: URL;
-      try {
-        url = new URL(href, window.location.href);
-      } catch {
+      if (!shouldInterceptDashboardNavigation(href, window.location.href)) {
         return;
       }
-      if (url.origin !== window.location.origin) return;
-      if (url.pathname !== "/trainer/dashboard" && url.pathname !== "/trainer/dashboard/") return;
       e.preventDefault();
       e.stopPropagation();
       setLeaveModalOpen(true);
     }
     document.addEventListener("click", onClickCapture, true);
     return () => document.removeEventListener("click", onClickCapture, true);
-  }, [isOnboardingDirty, canReturnToDashboard]);
+  }, [hasOnboardingChanges, canReturnToDashboard]);
 
   const bgVendor = useMemo(() => coerceTrainerBackgroundVendorStatus(profile?.backgroundCheckStatus), [profile?.backgroundCheckStatus]);
   const showBackgroundCheckDevOverride = process.env.NODE_ENV !== "production";
@@ -474,6 +474,17 @@ export default function TrainerOnboardingClient() {
     return SPECIALIST_ROLE_OPTIONS.find((o) => o.id === id)?.label ?? "Certified specialist credential";
   }, [profile?.specialistProfessionalRole]);
   const bgNeedsReview = bgVendor === "NEEDS_FURTHER_REVIEW";
+  const backgroundCheckFeeLabel = useMemo(() => {
+    const usd = process.env.NEXT_PUBLIC_TRAINER_BACKGROUND_CHECK_FEE_USD?.trim();
+    const n = usd ? Number.parseFloat(usd) : 49;
+    const v = Number.isFinite(n) && n > 0 ? n : 49;
+    return `$${v.toFixed(2)}`;
+  }, []);
+
+  const handleBackgroundPaymentSuccess = useCallback(async () => {
+    setError(null);
+    await loadMe();
+  }, [loadMe]);
 
   const certsComplete = useMemo(() => {
     if (!profile) return false;
@@ -492,7 +503,7 @@ export default function TrainerOnboardingClient() {
 
   function requestDashboardNavigation() {
     if (!canReturnToDashboard) return;
-    if (isOnboardingDirty()) {
+    if (hasOnboardingChanges()) {
       setLeaveModalOpen(true);
       return;
     }
@@ -1229,7 +1240,7 @@ export default function TrainerOnboardingClient() {
                   <Link
                     href="/trainer/dashboard"
                     onClick={(e) => {
-                      if (!isOnboardingDirty()) return;
+                      if (!hasOnboardingChanges()) return;
                       e.preventDefault();
                       setLeaveModalOpen(true);
                     }}
@@ -1317,6 +1328,18 @@ export default function TrainerOnboardingClient() {
                   </div>
                 ) : null}
               </div>
+              {profile?.hasPaidBackgroundFee ? (
+                <p className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100/95">
+                  Background check fee paid. Complete Checkr screening if you have not already — vendor status above
+                  updates when your report clears.
+                </p>
+              ) : (
+                <TrainerBackgroundCheckStripePayment
+                  amountLabel={backgroundCheckFeeLabel}
+                  onPaid={handleBackgroundPaymentSuccess}
+                  onError={(msg) => setError(msg || null)}
+                />
+              )}
               {showBackgroundCheckDevOverride ? (
                 <>
                   <div className="flex flex-col gap-2">
@@ -1843,8 +1866,9 @@ export default function TrainerOnboardingClient() {
             <form onSubmit={handleW9Submit} className="flex flex-col gap-5">
               <p className="text-sm text-white/60">
                 Your personal information is protected in line with our security practices. After you finish, your W-9
-                will be available from your dashboard under <span className="font-semibold text-white">Documents</span>{" "}
-                (download or email to an address you configure there — coming soon).
+                will be accessible from the{" "}
+                <span className="font-semibold text-white">Compliance</span> section of your dashboard, where you can
+                download a summary or email it to your account email address.
               </p>
               <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-4">
                 <p className="text-xs leading-relaxed text-amber-50/95">
