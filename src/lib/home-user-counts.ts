@@ -63,6 +63,24 @@ function buildClientEmailExcludeClause(emails: string[]): Prisma.Sql {
   return Prisma.join(parts, " ");
 }
 
+function isDatabaseUnavailable(e: unknown): boolean {
+  if (e instanceof Prisma.PrismaClientInitializationError) return true;
+  if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P1001") return true;
+  const msg = e instanceof Error ? e.message : String(e);
+  return (
+    msg.includes("Can't reach database server") ||
+    msg.includes("tenant/user") ||
+    msg.includes("ENOTFOUND")
+  );
+}
+
+const EMPTY_HOME_USER_COUNTS: HomeUserCounts = {
+  trainersTotal: 0,
+  trainersActive: 0,
+  clientsTotal: 0,
+  clientsActive: 0,
+};
+
 async function queryHomeUserCounts(
   excludeInternalQaSynthetic: boolean,
   excludeEmails: string[],
@@ -184,6 +202,10 @@ export async function getHomeUserCounts(): Promise<HomeUserCounts> {
   } catch (e) {
     if (isMissingInternalQaSyntheticPersonaColumn(e)) {
       return queryHomeUserCounts(false, uniqueExclude);
+    }
+    if (process.env.NODE_ENV === "development" && isDatabaseUnavailable(e)) {
+      console.warn("[getHomeUserCounts] database unavailable; showing zero counters", e);
+      return EMPTY_HOME_USER_COUNTS;
     }
     throw e;
   }
