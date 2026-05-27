@@ -10,8 +10,8 @@ import type {
 } from "@/lib/admin-portal-types";
 import { prisma } from "@/lib/prisma";
 import { formatFeaturedDisplayDayLabel } from "@/lib/featured-eastern-calendar";
-import { getHomeUserCounts, type HomeUserCounts } from "@/lib/home-user-counts";
-import { getPlatformRevenueTotals, type PlatformRevenueTotals } from "@/lib/platform-revenue-events";
+import { getHomeUserCounts } from "@/lib/home-user-counts";
+import { getPlatformRevenueTotals } from "@/lib/platform-revenue-events";
 import { getAdminSiteTrafficSnapshot } from "@/lib/site-analytics";
 
 export type {
