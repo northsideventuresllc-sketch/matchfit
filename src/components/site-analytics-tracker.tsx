@@ -10,26 +10,26 @@ import {
 
 const VISITOR_MAX_AGE_DAYS = 400;
 
-function readCookie(name: string): string | null {
+export function readCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
   const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
   return match?.[1] ? decodeURIComponent(match[1]) : null;
 }
 
-function writeCookie(name: string, value: string) {
+export function writeCookie(name: string, value: string) {
   const maxAge = VISITOR_MAX_AGE_DAYS * 24 * 60 * 60;
   const secure = typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
   document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`;
 }
 
-function randomId(): string {
+export function randomId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID().replace(/-/g, "");
   }
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
 }
 
-function getVisitorId(): string {
+export function getVisitorId(): string {
   const existing = readCookie(SITE_ANALYTICS_VISITOR_COOKIE);
   if (existing && existing.length >= 8) return existing;
   const next = randomId();
@@ -37,7 +37,7 @@ function getVisitorId(): string {
   return next;
 }
 
-function getSessionId(): string {
+export function getSessionId(): string {
   try {
     const existing = sessionStorage.getItem(SITE_ANALYTICS_SESSION_KEY);
     if (existing && existing.length >= 8) return existing;
@@ -49,19 +49,19 @@ function getSessionId(): string {
   }
 }
 
-function currentPath(pathname: string): string {
+export function currentPath(pathname: string): string {
   const base = pathname.startsWith("/") ? pathname : `/${pathname}`;
   return base.split("?")[0]?.split("#")[0] ?? base;
 }
 
-function shouldTrackPath(path: string): boolean {
+export function shouldTrackPath(path: string): boolean {
   if (!path.startsWith("/")) return false;
   if (path.startsWith("/admin")) return false;
   if (path.startsWith("/api/")) return false;
   return true;
 }
 
-function linkLabelFromAnchor(anchor: HTMLAnchorElement): string | null {
+export function linkLabelFromAnchor(anchor: HTMLAnchorElement): string | null {
   const aria = anchor.getAttribute("aria-label")?.trim();
   if (aria) return aria.slice(0, 200);
   const text = anchor.textContent?.replace(/\s+/g, " ").trim();
@@ -70,7 +70,7 @@ function linkLabelFromAnchor(anchor: HTMLAnchorElement): string | null {
   return title ? title.slice(0, 200) : null;
 }
 
-async function sendEvent(payload: {
+export async function sendEvent(payload: {
   kind: SiteAnalyticsKind;
   path: string;
   targetPath?: string;
