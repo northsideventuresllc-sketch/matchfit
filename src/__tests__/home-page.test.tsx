@@ -23,13 +23,22 @@ const {
 }));
 
 vi.mock("next/image", () => ({
-  default: () => <div data-next-image />,
-  default: (props: Record<string, unknown>) => {
-    const imageProps = { ...props };
-    delete imageProps.fill;
-    delete imageProps.priority;
-    return <img {...imageProps} />;
-  },
+  default: ({
+    alt,
+    className,
+    src,
+  }: {
+    alt?: string;
+    className?: string;
+    src?: string;
+  }) => (
+    <div
+      aria-label={alt ?? ""}
+      className={className}
+      data-next-image={typeof src === "string" ? src : ""}
+      role="img"
+    />
+  ),
 }));
 
 vi.mock("next/link", () => ({
