@@ -49,7 +49,7 @@ function getSessionId(): string {
   }
 }
 
-function currentPath(pathname: string, searchParams: URLSearchParams | null): string {
+function currentPath(pathname: string): string {
   const base = pathname.startsWith("/") ? pathname : `/${pathname}`;
   return base.split("?")[0]?.split("#")[0] ?? base;
 }
@@ -103,7 +103,7 @@ export function SiteAnalyticsTracker() {
   const lastPageKey = useRef<string | null>(null);
 
   useEffect(() => {
-    const path = currentPath(pathname ?? "/", searchParams);
+    const path = currentPath(pathname ?? "/");
     if (!shouldTrackPath(path)) return;
 
     const pageKey = path;
@@ -127,7 +127,7 @@ export function SiteAnalyticsTracker() {
       }
       if (href.startsWith("javascript:")) return;
 
-      const path = currentPath(pathname ?? "/", searchParams);
+      const path = currentPath(pathname ?? "/");
       if (!shouldTrackPath(path)) return;
 
       let targetPath: string | undefined;
