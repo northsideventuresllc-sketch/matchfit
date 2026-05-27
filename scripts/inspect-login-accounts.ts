@@ -3,16 +3,33 @@
  * Does not print password hashes.
  *
  * Usage:
- *   node --env-file=.env npx tsx scripts/inspect-login-accounts.ts admin:jobo0602
- *   node --env-file=.env npx tsx scripts/inspect-login-accounts.ts trainer:you@email.com
- *   node --env-file=.env npx tsx scripts/inspect-login-accounts.ts client:@username
+ *   npx tsx --env-file=.env.local scripts/inspect-login-accounts.ts admin:jobo0602
+ *   npx tsx --env-file=.env.local scripts/inspect-login-accounts.ts trainer:you@email.com
+ *   npx tsx --env-file=.env.local scripts/inspect-login-accounts.ts client:@username
  */
-import { findClientByIdentifier } from "../src/lib/client-queries";
-import { findTrainerByIdentifier } from "../src/lib/trainer-queries";
-import { normalizeAdministratorCodeInput } from "../src/lib/admin-code";
-import { prisma } from "../src/lib/prisma";
+import { createPrismaClient } from "./create-prisma-client.mjs";
+
+function normalizeAdminCode(raw: string): string {
+  return raw.trim().toLowerCase();
+}
+
+function normalizeLoginIdentifier(raw: string): { email?: string; username?: string; phone?: string } {
+  const trimmed = raw.trim();
+  if (!trimmed) return {};
+  const withoutAt = trimmed.startsWith("@") ? trimmed.slice(1).trim() : trimmed;
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+    return { email: trimmed.toLowerCase() };
+  }
+  const digitsOnly = trimmed.replace(/\D/g, "");
+  const compact = trimmed.replace(/\s/g, "");
+  if (digitsOnly.length >= 10 && digitsOnly.length >= compact.length * 0.6) {
+    return { phone: trimmed };
+  }
+  return { username: withoutAt };
+}
 
 async function main() {
+  const prisma = createPrismaClient();
   const args = process.argv.slice(2);
   if (args.length === 0) {
     console.log("Pass one or more identifiers: admin:CODE trainer:EMAIL client:USER");
@@ -29,7 +46,7 @@ async function main() {
       continue;
     }
     if (role === "admin") {
-      const code = normalizeAdministratorCodeInput(ident);
+      const code = normalizeAdminCode(ident);
       const row = await prisma.administrator.findUnique({
         where: { adminCode: code },
         select: { id: true, email: true, adminCode: true, firstName: true, lastName: true },
@@ -37,18 +54,30 @@ async function main() {
       console.log(`\nadmin:${code}`, row ? `FOUND (${row.email})` : "NOT FOUND");
       continue;
     }
-    if (role === "trainer") {
-      const row = await findTrainerByIdentifier(ident);
+    if (role === "trainer" || role === "client") {
+      const parts = normalizeLoginIdentifier(ident);
+      const or: Array<Record<string, unknown>> = [];
+      if (parts.email) or.push({ email: parts.email });
+      if (parts.phone) or.push({ phone: parts.phone });
+      if (parts.username) {
+        or.push({ username: { equals: parts.username, mode: "insensitive" } });
+      }
+      if (or.length === 0) {
+        console.log(`\n${role}:${ident} invalid identifier`);
+        continue;
+      }
+      const row =
+        role === "trainer"
+          ? await prisma.trainer.findFirst({
+              where: { deidentifiedAt: null, OR: or },
+              select: { id: true, username: true, email: true, deidentifiedAt: true },
+            })
+          : await prisma.client.findFirst({
+              where: { deidentifiedAt: null, OR: or },
+              select: { id: true, username: true, email: true, deidentifiedAt: true },
+            });
       console.log(
-        `\ntrainer:${ident}`,
-        row ? `FOUND id=${row.id} user=${row.username} email=${row.email}` : "NOT FOUND (wrong id or deidentified)",
-      );
-      continue;
-    }
-    if (role === "client") {
-      const row = await findClientByIdentifier(ident);
-      console.log(
-        `\nclient:${ident}`,
+        `\n${role}:${ident}`,
         row ? `FOUND id=${row.id} user=${row.username} email=${row.email}` : "NOT FOUND (wrong id or deidentified)",
       );
       continue;
@@ -61,5 +90,4 @@ void main()
   .catch((e) => {
     console.error(e);
     process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+  });
