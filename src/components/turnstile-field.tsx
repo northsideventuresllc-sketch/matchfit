@@ -6,22 +6,33 @@ import type { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 type TurnstileGate = ReturnType<typeof useTurnstileGate>;
 
 export function TurnstileField({ gate, className }: { gate: TurnstileGate; className?: string }) {
-  if (!gate.enabled) return null;
+  const {
+    enabled,
+    ref: widgetRef,
+    siteKey,
+    onTurnstileReady,
+    onTurnstileError,
+    onTurnstileExpire,
+    widgetError,
+    ready,
+  } = gate;
+
+  if (!enabled) return null;
 
   return (
     <div className={className ?? "flex flex-col items-center gap-2 py-1"}>
       <TurnstileWidget
-        ref={gate.ref}
-        siteKey={gate.siteKey}
-        onReady={gate.onTurnstileReady}
-        onError={gate.onTurnstileError}
-        onExpire={gate.onTurnstileExpire}
+        ref={widgetRef}
+        siteKey={siteKey}
+        onReady={onTurnstileReady}
+        onError={onTurnstileError}
+        onExpire={onTurnstileExpire}
       />
-      {gate.widgetError ? (
+      {widgetError ? (
         <p className="text-center text-xs text-amber-200/90" role="status">
           Security check could not load. Refresh the page or allow challenges.cloudflare.com.
         </p>
-      ) : !gate.ready && !gate.widgetError ? (
+      ) : !ready ? (
         <p className="text-center text-xs text-white/40" role="status">
           Complete the security check below, then sign in.
         </p>
