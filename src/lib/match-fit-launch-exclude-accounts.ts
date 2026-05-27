@@ -9,13 +9,17 @@ import { TRAINER_DEV_FAKE_CPT_CERTIFICATION_PATH } from "@/lib/trainer-dev-cert-
  * Owner / seed QA accounts — always excluded from founding & beta counters without relying on Vercel env.
  * Keep in sync with `scripts/seed-match-fit-dev-test-accounts.js`.
  */
+/** Integration-test fixture domain (see `login-2fa.integration.test.ts`). */
+export const MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX = "@example.test";
+
 export const MATCH_FIT_BUILTIN_LAUNCH_EXCLUDE_EMAILS = [
   "jonnybooth22@gmail.com",
   "jb@northsideventuresgroup.com",
   "jb@match-fit.net",
+  "twofa_tester@example.test",
 ] as const;
 
-export const MATCH_FIT_BUILTIN_LAUNCH_EXCLUDE_CLIENT_USERNAMES = ["jbfitness6299"] as const;
+export const MATCH_FIT_BUILTIN_LAUNCH_EXCLUDE_CLIENT_USERNAMES = ["jbfitness6299", "twofa_tester"] as const;
 
 export const MATCH_FIT_BUILTIN_LAUNCH_EXCLUDE_TRAINER_USERNAMES = ["coachjonny22"] as const;
 

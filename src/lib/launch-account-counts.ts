@@ -6,6 +6,7 @@ import {
   getMatchFitLaunchExcludeClientUsernames,
   getMatchFitLaunchExcludeEmails,
   getMatchFitLaunchExcludeTrainerUsernames,
+  MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX,
 } from "@/lib/match-fit-launch-exclude-accounts";
 
 /** Auto-generated internal QA personas (see `internal-qa-simulation.ts`). */
@@ -28,6 +29,7 @@ function launchEmailExcludeOr(): Prisma.TrainerWhereInput["OR"] {
   return [
     { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" } },
     { email: { endsWith: ".invalid", mode: "insensitive" } },
+    { email: { endsWith: MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX, mode: "insensitive" } },
     ...(excluded.length > 0 ? [{ email: { in: excluded } }] : []),
   ];
 }

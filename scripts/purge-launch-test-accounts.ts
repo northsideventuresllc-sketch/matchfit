@@ -12,6 +12,7 @@ import {
   getMatchFitLaunchExcludeClientUsernames,
   getMatchFitLaunchExcludeEmails,
   getMatchFitLaunchExcludeTrainerUsernames,
+  MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX,
 } from "../src/lib/match-fit-launch-exclude-accounts";
 import {
   INTERNAL_SYNTHETIC_EMAIL_SUFFIX,
@@ -31,6 +32,7 @@ function syntheticTrainerWhere() {
       { internalQaSyntheticPersona: true },
       { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" as const } },
       { email: { endsWith: ".invalid", mode: "insensitive" as const } },
+      { email: { endsWith: MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX, mode: "insensitive" as const } },
       ...(excludeEmails.length > 0
         ? [{ email: { in: excludeEmails, mode: "insensitive" as const } }]
         : []),
@@ -51,6 +53,7 @@ function syntheticClientWhere() {
       { internalQaSyntheticPersona: true },
       { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" as const } },
       { email: { endsWith: ".invalid", mode: "insensitive" as const } },
+      { email: { endsWith: MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX, mode: "insensitive" as const } },
       ...(excludeEmails.length > 0
         ? [{ email: { in: excludeEmails, mode: "insensitive" as const } }]
         : []),
