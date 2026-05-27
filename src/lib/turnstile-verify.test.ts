@@ -80,7 +80,7 @@ describe("verifyTurnstileToken", () => {
     process.env.TURNSTILE_SECRET_KEY = "test-secret";
     process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "site-key";
 
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = vi.fn(async (..._args: Parameters<typeof fetch>) => ({
       json: async () => ({ success: true }),
     }));
     vi.stubGlobal("fetch", fetchMock);
@@ -95,7 +95,8 @@ describe("verifyTurnstileToken", () => {
     await verifyTurnstileToken("token-abc", req);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [, init] = fetchMock.mock.calls[0] ?? [];
+    const firstCall = fetchMock.mock.calls[0] as Parameters<typeof fetch> | undefined;
+    const init = firstCall?.[1];
     expect(readBodyValue(init?.body, "secret")).toBe("test-secret");
     expect(readBodyValue(init?.body, "response")).toBe("token-abc");
     expect(readBodyValue(init?.body, "remoteip")).toBe("203.0.113.1");
@@ -105,7 +106,7 @@ describe("verifyTurnstileToken", () => {
     process.env.TURNSTILE_SECRET_KEY = "test-secret";
     process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "site-key";
 
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = vi.fn(async (..._args: Parameters<typeof fetch>) => ({
       json: async () => ({ success: true }),
     }));
     vi.stubGlobal("fetch", fetchMock);
@@ -116,7 +117,8 @@ describe("verifyTurnstileToken", () => {
     });
     await verifyTurnstileToken("token-abc", req);
 
-    const [, init] = fetchMock.mock.calls[0] ?? [];
+    const firstCall = fetchMock.mock.calls[0] as Parameters<typeof fetch> | undefined;
+    const init = firstCall?.[1];
     expect(readBodyValue(init?.body, "remoteip")).toBe("198.51.100.4");
   });
 
