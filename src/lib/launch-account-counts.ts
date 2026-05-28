@@ -6,8 +6,11 @@ import {
   getMatchFitLaunchExcludeClientUsernames,
   getMatchFitLaunchExcludeEmails,
   getMatchFitLaunchExcludeTrainerUsernames,
-  MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX,
 } from "@/lib/match-fit-launch-exclude-accounts";
+import {
+  getMatchFitInternalQaClientEmails,
+  getMatchFitInternalQaTrainerEmails,
+} from "@/lib/match-fit-internal-qa";
 
 /** Auto-generated internal QA personas (see `internal-qa-simulation.ts`). */
 export const INTERNAL_SYNTHETIC_EMAIL_SUFFIX = "@internal.match-fit.invalid";
@@ -18,39 +21,55 @@ export function isInternalSyntheticMatchFitEmail(email: string | null | undefine
 }
 
 /** Emails that must never count toward beta caps, founding promos, or public signup totals. */
-export function getLaunchExcludeEmails(role: "client" | "trainer"): string[] {
+export function getLaunchExcludeEmails(role?: "client" | "trainer"): string[] {
   const ex = new Set<string>([...betaExcludeCapCountEmails()].map((e) => e.toLowerCase()));
-  const builtin =
-    role === "client" ? BUILTIN_LAUNCH_EXCLUDE_CLIENT_EMAILS : BUILTIN_LAUNCH_EXCLUDE_TRAINER_EMAILS;
-  for (const e of builtin) ex.add(e.toLowerCase());
-  const qa = role === "client" ? getMatchFitInternalQaClientEmails() : getMatchFitInternalQaTrainerEmails();
-  for (const e of qa) ex.add(e.toLowerCase());
+  for (const e of getMatchFitLaunchExcludeEmails()) ex.add(e.toLowerCase());
+
+  if (role === "client") {
+    for (const e of BUILTIN_LAUNCH_EXCLUDE_CLIENT_EMAILS) ex.add(e.toLowerCase());
+    for (const e of getMatchFitInternalQaClientEmails()) ex.add(e.toLowerCase());
+  } else if (role === "trainer") {
+    for (const e of BUILTIN_LAUNCH_EXCLUDE_TRAINER_EMAILS) ex.add(e.toLowerCase());
+    for (const e of getMatchFitInternalQaTrainerEmails()) ex.add(e.toLowerCase());
+  } else {
+    for (const e of BUILTIN_LAUNCH_EXCLUDE_CLIENT_EMAILS) ex.add(e.toLowerCase());
+    for (const e of BUILTIN_LAUNCH_EXCLUDE_TRAINER_EMAILS) ex.add(e.toLowerCase());
+    for (const e of getMatchFitInternalQaClientEmails()) ex.add(e.toLowerCase());
+    for (const e of getMatchFitInternalQaTrainerEmails()) ex.add(e.toLowerCase());
+  }
   return [...ex];
 }
 
-function launchCountNotClause(role: "client" | "trainer") {
-  const excludedEmails = getLaunchExcludeEmails(role);
-  const excludedUsernames = getLaunchExcludeUsernames(role);
-  const or = [
+type EmailExcludeClause =
+  | { email: { endsWith: string; mode: "insensitive" } }
+  | { email: { in: string[] } };
+type UsernameStartsWithExcludeClause = { username: { startsWith: string; mode: "insensitive" } };
+type UsernameExactExcludeClause = { username: { in: string[]; mode: "insensitive" } };
+
+function launchEmailExcludeOr(): EmailExcludeClause[] {
+  const excluded = getLaunchExcludeEmails();
+  return [
     { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" as const } },
     // Exclude all RFC 6761 .invalid TLD emails (test/demo/seed accounts)
     { email: { endsWith: ".invalid", mode: "insensitive" as const } },
-    ...(excludedEmails.length > 0 ? [{ email: { in: excludedEmails } }] : []),
-    ...(excludedUsernames.length > 0
-      ? [{ username: { in: excludedUsernames, mode: "insensitive" as const } }]
-      : []),
+    ...(excluded.length > 0 ? [{ email: { in: excluded } }] : []),
   ];
 }
 
-function launchUsernameExcludeOr(prefixes: readonly string[]): Prisma.TrainerWhereInput["OR"] {
+function launchUsernameExcludeOr(prefixes: readonly string[]): UsernameStartsWithExcludeClause[] {
   return prefixes.map((prefix) => ({
     username: { startsWith: prefix, mode: "insensitive" as const },
   }));
 }
 
+function launchUsernameExactExcludeOr(role: "client" | "trainer"): UsernameExactExcludeClause[] {
+  const excluded = getLaunchExcludeUsernames(role);
+  return excluded.length > 0 ? [{ username: { in: excluded, mode: "insensitive" as const } }] : [];
+}
+
 const DEV_CERT_PREFIXES = getMatchFitDevPlaceholderCertPathPrefixes();
 
-function launchDevCertExcludeOr(): Prisma.TrainerWhereInput["OR"] {
+function launchDevCertExcludeOr(): Prisma.TrainerWhereInput[] {
   return DEV_CERT_PREFIXES.flatMap((prefix) => [
     { profile: { is: { certificationUrl: { startsWith: prefix, mode: "insensitive" } } } },
     { profile: { is: { nutritionistCertificationUrl: { startsWith: prefix, mode: "insensitive" } } } },
@@ -70,9 +89,13 @@ const BUILTIN_LAUNCH_EXCLUDE_TRAINER_EMAILS = ["jb@northsideventuresgroup.com"] 
 /** Usernames that must never count toward beta caps, founding promos, or public signup totals. */
 export function getLaunchExcludeUsernames(role: "client" | "trainer"): string[] {
   const ex = new Set<string>([...betaExcludeCapCountUsernames()].map((u) => u.toLowerCase()));
-  const builtin =
-    role === "client" ? BUILTIN_LAUNCH_EXCLUDE_CLIENT_USERNAMES : BUILTIN_LAUNCH_EXCLUDE_TRAINER_USERNAMES;
-  for (const u of builtin) ex.add(u.toLowerCase());
+  if (role === "client") {
+    for (const u of BUILTIN_LAUNCH_EXCLUDE_CLIENT_USERNAMES) ex.add(u.toLowerCase());
+    for (const u of getMatchFitLaunchExcludeClientUsernames()) ex.add(u.toLowerCase());
+  } else {
+    for (const u of BUILTIN_LAUNCH_EXCLUDE_TRAINER_USERNAMES) ex.add(u.toLowerCase());
+    for (const u of getMatchFitLaunchExcludeTrainerUsernames()) ex.add(u.toLowerCase());
+  }
   return [...ex];
 }
 
@@ -90,6 +113,7 @@ export function launchTrainerCountWhere(): Prisma.TrainerWhereInput {
       OR: [
         ...launchEmailExcludeOr(),
         ...launchUsernameExcludeOr(usernameExcludes),
+        ...launchUsernameExactExcludeOr("trainer"),
         ...launchDevCertExcludeOr(),
       ],
     },
@@ -107,7 +131,11 @@ export function launchClientCountWhere(): Prisma.ClientWhereInput {
     deidentifiedAt: null,
     internalQaSyntheticPersona: false,
     NOT: {
-      OR: [...launchEmailExcludeOr(), ...launchUsernameExcludeOr(usernameExcludes)],
+      OR: [
+        ...launchEmailExcludeOr(),
+        ...launchUsernameExcludeOr(usernameExcludes),
+        ...launchUsernameExactExcludeOr("client"),
+      ],
     },
   };
 }

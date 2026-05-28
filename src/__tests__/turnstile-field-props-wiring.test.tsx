@@ -10,7 +10,13 @@ const { turnstileFieldSpy, useRouterMock, useSearchParamsMock, useTurnstileGateM
 }));
 
 vi.mock("next/image", () => ({
-  default: (props: Record<string, unknown>) => <img alt={String(props.alt ?? "")} {...props} />,
+  default: (props: Record<string, unknown>) => (
+    <span
+      aria-label={String(props.alt ?? "")}
+      data-component="next-image"
+      data-src={String(props.src ?? "")}
+    />
+  ),
 }));
 
 vi.mock("next/link", () => ({
@@ -56,7 +62,7 @@ import TrainerSignUpClient from "@/app/trainer/signup/trainer-sign-up-client";
 function createTurnstileGateState() {
   return {
     enabled: true,
-    ref: { current: null },
+    widgetRef: { current: null },
     siteKey: "site-key",
     onTurnstileReady: vi.fn(),
     onTurnstileError: vi.fn(),
@@ -93,7 +99,7 @@ describe("TurnstileField explicit props wiring", () => {
     expect(turnstileFieldSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         enabled: turnstile.enabled,
-        widgetRef: turnstile.ref,
+        widgetRef: turnstile.widgetRef,
         siteKey: turnstile.siteKey,
         onReady: turnstile.onTurnstileReady,
         onError: turnstile.onTurnstileError,
@@ -114,7 +120,7 @@ describe("TurnstileField explicit props wiring", () => {
     expect(turnstileFieldSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         enabled: turnstile.enabled,
-        widgetRef: turnstile.ref,
+        widgetRef: turnstile.widgetRef,
         siteKey: turnstile.siteKey,
         onReady: turnstile.onTurnstileReady,
         onError: turnstile.onTurnstileError,
@@ -136,7 +142,7 @@ describe("TurnstileField explicit props wiring", () => {
     expect(turnstileFieldSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         enabled: turnstile.enabled,
-        widgetRef: turnstile.ref,
+        widgetRef: turnstile.widgetRef,
         siteKey: turnstile.siteKey,
         onReady: turnstile.onTurnstileReady,
         onError: turnstile.onTurnstileError,
@@ -158,7 +164,7 @@ describe("TurnstileField explicit props wiring", () => {
     expect(turnstileFieldSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         enabled: turnstile.enabled,
-        widgetRef: turnstile.ref,
+        widgetRef: turnstile.widgetRef,
         siteKey: turnstile.siteKey,
         onReady: turnstile.onTurnstileReady,
         onError: turnstile.onTurnstileError,
