@@ -1,6 +1,7 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider   = "prisma-client"
+  output     = "../src/generated/prisma"
+  engineType = "binary"
 }
 
 datasource db {
@@ -82,6 +83,37 @@ model PlatformRevenueEvent {
   @@schema("public")
 }
 
+/// Anonymous first-party traffic (page views and outbound/internal link clicks) for admin reporting.
+model SiteAnalyticsEvent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  /// PAGE_VIEW | LINK_CLICK
+  kind String
+
+  /// Path on matchfit.app where the event occurred (no query string).
+  path String
+
+  /// Same-origin destination path for link clicks (internal navigation).
+  targetPath String?
+  /// External URL for link clicks (truncated).
+  targetUrl String?
+  /// Anchor text or aria-label when available.
+  linkLabel String?
+
+  /// Random cookie id — not tied to client/trainer accounts.
+  visitorId String
+  /// Per-tab session id (sessionStorage).
+  sessionId String
+
+  @@index([createdAt])
+  @@index([kind, createdAt])
+  @@index([path, createdAt])
+  @@index([visitorId, createdAt])
+  @@map("site_analytics_events")
+  @@schema("public")
+}
+
 /// Prospective administrator awaiting approval email action (creates {@link Administrator} when approved).
 model PendingAdministratorRegistration {
   id        String   @id @default(cuid())
@@ -141,6 +173,8 @@ model Client {
   stripeSubscriptionId String?
   /// Mirrors Stripe subscription status for dashboard access control.
   stripeSubscriptionActive Boolean @default(false)
+  /// Set from Stripe `livemode` on subscription sync (admin metrics count only `true`).
+  stripeBillingLiveMode Boolean?
   /// When subscription is inactive and `now` is after this instant, non-billing dashboard routes require renewal (null = no lock).
   subscriptionGraceUntil DateTime?
   /// Set from Stripe `invoice.payment_succeeded` (and initial signup) for analytics / “recently paid” windows.

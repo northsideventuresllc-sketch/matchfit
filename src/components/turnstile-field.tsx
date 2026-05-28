@@ -1,9 +1,20 @@
 "use client";
 
 import { TurnstileWidget } from "@/components/turnstile-widget";
-import type { useTurnstileGate } from "@/hooks/use-turnstile-gate";
+import type { TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import type { Ref } from "react";
 
-type TurnstileGate = ReturnType<typeof useTurnstileGate>;
+type TurnstileFieldProps = {
+  enabled: boolean;
+  widgetRef: Ref<TurnstileWidgetHandle>;
+  siteKey: string;
+  onReady: () => void;
+  onError: () => void;
+  onExpire: () => void;
+  widgetError: boolean;
+  ready: boolean;
+  className?: string;
+};
 
 export function TurnstileField({ gate, className }: { gate: TurnstileGate; className?: string }) {
   const {

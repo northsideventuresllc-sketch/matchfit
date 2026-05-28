@@ -1,55 +1,29 @@
+import "server-only";
+
 import { Prisma } from "@/generated/prisma/client";
+import type {
+  AdminFeaturedSnapshot,
+  AdminPortalOverview,
+  AdminRevenueSnapshot,
+  AdminSignupRow,
+  AdminUserStats,
+} from "@/lib/admin-portal-types";
+import { ensureAdminReportingSchema } from "@/lib/ensure-admin-reporting-schema";
 import { prisma } from "@/lib/prisma";
 import { formatFeaturedDisplayDayLabel } from "@/lib/featured-eastern-calendar";
-import { getHomeUserCounts, type HomeUserCounts } from "@/lib/home-user-counts";
-import { getPlatformRevenueTotals, type PlatformRevenueTotals } from "@/lib/platform-revenue-events";
+import { getHomeUserCounts } from "@/lib/home-user-counts";
+import { getPlatformRevenueTotals } from "@/lib/platform-revenue-events";
+import { getAdminSiteTrafficSnapshot } from "@/lib/site-analytics";
 
-export type AdminUserStats = {
-  completedPurchases: number;
-  /** Client: total charged as buyer; trainer: gross from completed service checkouts. */
-  grossVolumeCents: number;
-  subscriptionActive: boolean | null;
-  dashboardActivated: boolean | null;
-  backgroundCheckStatus: string | null;
-  premiumStudio: boolean | null;
-  safetySuspended: boolean;
-};
-
-export type AdminSignupRow = {
-  kind: "client" | "trainer";
-  id: string;
-  username: string;
-  email: string;
-  displayName: string;
-  createdAt: string;
-  stats: AdminUserStats;
-};
-
-export type AdminFeaturedSnapshot = {
-  displayDayKey: string;
-  displayDayLabel: string;
-  regionZipPrefix: string;
-  source: "PAID_BID" | "RAFFLE";
-  trainerId: string;
-  username: string;
-  displayName: string;
-};
-
-export type AdminRevenueSnapshot = {
-  revenueCents: number;
-  grossProfitCents: number;
-  eventCount: number;
-  byCategory: PlatformRevenueTotals["byCategory"];
-  activePlatformSubscribers: number;
-  activeTrainerPremiumSubscribers: number;
-};
-
-export type AdminPortalOverview = {
-  userCounts: HomeUserCounts;
-  revenue: AdminRevenueSnapshot;
-  recentSignups: AdminSignupRow[];
-  recentFeatured: AdminFeaturedSnapshot[];
-};
+export type {
+  AdminFeaturedSnapshot,
+  AdminPortalOverview,
+  AdminRevenueSnapshot,
+  AdminSignupRow,
+  AdminTrafficSnapshot,
+  AdminUserStats,
+} from "@/lib/admin-portal-types";
+export { formatUsdFromCents } from "@/lib/admin-portal-types";
 
 type SignupUnionRow = {
   kind: "client" | "trainer";
@@ -346,7 +320,14 @@ export async function getAdminRecentFeatured(limit = 6): Promise<AdminFeaturedSn
 }
 
 export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
-  const [userCounts, revenue, recentSignupsResult, recentFeatured] = await Promise.all([
+  try {
+    await ensureAdminReportingSchema();
+  } catch (e) {
+    console.error("[admin portal] ensureAdminReportingSchema", e);
+  }
+
+  const [traffic, userCounts, revenue, recentSignupsResult, recentFeatured] = await Promise.all([
+    getAdminSiteTrafficSnapshot(7),
     getHomeUserCounts(),
     getAdminRevenueSnapshot(),
     getAdminSignupLog({ limit: 8, offset: 0 }),
@@ -354,18 +335,10 @@ export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
   ]);
 
   return {
+    traffic,
     userCounts,
     revenue,
     recentSignups: recentSignupsResult.rows,
     recentFeatured,
   };
-}
-
-export function formatUsdFromCents(cents: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
 }

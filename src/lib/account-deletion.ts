@@ -109,6 +109,7 @@ export async function deidentifyClientAccount(clientId: string): Promise<void> {
         stripeCustomerId: null,
         stripeSubscriptionId: null,
         stripeSubscriptionActive: false,
+        stripeBillingLiveMode: false,
         subscriptionGraceUntil: null,
         stripeLastSubscriptionInvoicePaidAt: null,
         matchPreferencesJson: null,

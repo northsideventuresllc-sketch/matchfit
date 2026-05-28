@@ -29,6 +29,7 @@ export async function resetInternalQaClientAccount(clientId: string): Promise<vo
         stripeCustomerId: null,
         stripeSubscriptionId: null,
         stripeSubscriptionActive: false,
+        stripeBillingLiveMode: false,
         subscriptionGraceUntil: null,
         stripeLastSubscriptionInvoicePaidAt: null,
         matchPreferencesJson: null,

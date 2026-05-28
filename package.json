@@ -13,6 +13,7 @@
     "lint": "eslint --max-warnings 0",
     "test": "vitest run",
     "db:push": "prisma generate && prisma db push",
+    "db:migrate": "prisma generate && prisma migrate deploy",
     "generate": "prisma generate",
     "beta:setup": "node scripts/beta-launch-setup.mjs --db-push",
     "beta:preflight": "node --env-file=.env scripts/beta-launch-setup.mjs --preflight",

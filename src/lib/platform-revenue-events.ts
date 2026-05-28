@@ -1,4 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
+import { isMissingAdminReportingTableError } from "@/lib/ensure-admin-reporting-schema";
+import { countLaunchPlatformSubscribers } from "@/lib/launch-account-counts";
 import { prisma } from "@/lib/prisma";
 import {
   CLIENT_PLATFORM_SUBSCRIPTION_PROFIT_CENTS,
@@ -32,8 +34,7 @@ const EMPTY_BY_CATEGORY = (): PlatformRevenueTotals["byCategory"] => ({
 });
 
 function isMissingPlatformRevenueTable(e: unknown): boolean {
-  if (!(e instanceof Prisma.PrismaClientKnownRequestError)) return false;
-  return e.code === "P2021" || (e.meta as { table?: string })?.table === "public.platform_revenue_events";
+  return isMissingAdminReportingTableError(e);
 }
 
 export async function recordPlatformRevenueEvent(args: {
@@ -243,7 +244,7 @@ export async function getPlatformRevenueTotals(): Promise<PlatformRevenueTotals>
   await ensurePlatformRevenueBackfill();
 
   const [activeClientSubscribers, activeTrainerPremiumSubscribers] = await Promise.all([
-    prisma.client.count({ where: { deidentifiedAt: null, stripeSubscriptionActive: true } }),
+    countLaunchPlatformSubscribers(),
     prisma.trainerProfile.count({
       where: { premiumStudioEnabledAt: { not: null }, trainer: { deidentifiedAt: null } },
     }),

@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   INTERNAL_SYNTHETIC_EMAIL_SUFFIX,
   getLaunchExcludeEmails,
+  getLaunchExcludeUsernames,
   isInternalSyntheticMatchFitEmail,
   launchClientCountWhere,
+  launchPlatformSubscriberCountWhere,
   launchTrainerCountWhere,
   countLaunchClients,
   countLaunchTrainers,
@@ -47,6 +49,32 @@ describe("launch account count exclusions", () => {
   it("detects internal synthetic email domain", () => {
     expect(isInternalSyntheticMatchFitEmail(`mfqa.trainer.abc@internal.match-fit.invalid`)).toBe(true);
     expect(isInternalSyntheticMatchFitEmail("real@example.com")).toBe(false);
+  });
+
+  it("platform subscriber filter requires live Stripe billing and excludes test clients", () => {
+    const where = launchPlatformSubscriberCountWhere();
+    expect(where.stripeSubscriptionActive).toBe(true);
+    expect(where.stripeBillingLiveMode).toBe(true);
+    expect(where.stripeSubscriptionId).toEqual({ not: null });
+    expect(where.internalQaSyntheticPersona).toBe(false);
+    expect(where.NOT?.OR).toEqual(
+      expect.arrayContaining([
+        { username: { in: expect.arrayContaining(["jbfitness6299"]), mode: "insensitive" } },
+      ]),
+    );
+  });
+
+  it("always excludes owner dev/test client jbfitness6299 from launch counts", () => {
+    expect(getLaunchExcludeUsernames("client")).toContain("jbfitness6299");
+    expect(getLaunchExcludeEmails("client")).toContain("jonnybooth22@gmail.com");
+
+    const clientWhere = launchClientCountWhere();
+    expect(clientWhere.NOT).toEqual({
+      OR: expect.arrayContaining([
+        { username: { in: expect.arrayContaining(["jbfitness6299"]), mode: "insensitive" } },
+        { email: { in: expect.arrayContaining(["jonnybooth22@gmail.com"]) } },
+      ]),
+    });
   });
 
   it("merges beta exclude list with internal QA emails", () => {

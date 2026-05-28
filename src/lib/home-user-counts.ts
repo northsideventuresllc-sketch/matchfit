@@ -5,6 +5,7 @@ import {
   SYNTHETIC_CLIENT_USERNAME_PREFIX,
   SYNTHETIC_TRAINER_USERNAME_PREFIX,
   getLaunchExcludeEmails,
+  getLaunchExcludeUsernames,
 } from "@/lib/launch-account-counts";
 import { MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX } from "@/lib/match-fit-launch-exclude-accounts";
 
@@ -28,15 +29,31 @@ function isMissingInternalQaSyntheticPersonaColumn(e: unknown): boolean {
   return m.includes("internalQaSyntheticPersona") && (m.includes("42703") || m.includes("does not exist"));
 }
 
-function buildTrainerUsernameExcludeClause(): Prisma.Sql {
-  return Prisma.sql`AND LOWER(t."username") NOT LIKE ${`${SYNTHETIC_TRAINER_USERNAME_PREFIX.toLowerCase()}%`}`;
+function buildTrainerUsernameExcludeClause(excludedUsernames: string[]): Prisma.Sql {
+  const parts: Prisma.Sql[] = [
+    Prisma.sql`AND LOWER(t."username") NOT LIKE ${`${SYNTHETIC_TRAINER_USERNAME_PREFIX.toLowerCase()}%`}`,
+  ];
+  if (excludedUsernames.length > 0) {
+    parts.push(
+      Prisma.sql`AND LOWER(t."username") NOT IN (${Prisma.join(excludedUsernames.map((u) => Prisma.sql`${u}`))})`,
+    );
+  }
+  return Prisma.join(parts, " ");
 }
 
-function buildClientUsernameExcludeClause(): Prisma.Sql {
-  return Prisma.sql`AND LOWER(c."username") NOT LIKE ${`${SYNTHETIC_CLIENT_USERNAME_PREFIX.toLowerCase()}%`}`;
+function buildClientUsernameExcludeClause(excludedUsernames: string[]): Prisma.Sql {
+  const parts: Prisma.Sql[] = [
+    Prisma.sql`AND LOWER(c."username") NOT LIKE ${`${SYNTHETIC_CLIENT_USERNAME_PREFIX.toLowerCase()}%`}`,
+  ];
+  if (excludedUsernames.length > 0) {
+    parts.push(
+      Prisma.sql`AND LOWER(c."username") NOT IN (${Prisma.join(excludedUsernames.map((u) => Prisma.sql`${u}`))})`,
+    );
+  }
+  return Prisma.join(parts, " ");
 }
 
-function buildEmailExcludeClause(emails: string[]): Prisma.Sql {
+function buildEmailExcludeClause(emails: string[], excludedUsernames: string[]): Prisma.Sql {
   const parts: Prisma.Sql[] = [
     Prisma.sql`AND LOWER(t."email") NOT LIKE ${`%${INTERNAL_SYNTHETIC_EMAIL_SUFFIX}`}`,
     Prisma.sql`AND LOWER(t."email") NOT LIKE '%.invalid'`,
@@ -51,7 +68,7 @@ function buildEmailExcludeClause(emails: string[]): Prisma.Sql {
   return Prisma.join(parts, " ");
 }
 
-function buildClientEmailExcludeClause(emails: string[]): Prisma.Sql {
+function buildClientEmailExcludeClause(emails: string[], excludedUsernames: string[]): Prisma.Sql {
   const parts: Prisma.Sql[] = [
     Prisma.sql`AND LOWER(c."email") NOT LIKE ${`%${INTERNAL_SYNTHETIC_EMAIL_SUFFIX}`}`,
     Prisma.sql`AND LOWER(c."email") NOT LIKE '%.invalid'`,
@@ -86,7 +103,10 @@ const EMPTY_HOME_USER_COUNTS: HomeUserCounts = {
 
 async function queryHomeUserCounts(
   excludeInternalQaSynthetic: boolean,
-  excludeEmails: string[],
+  excludeTrainerEmails: string[],
+  excludeClientEmails: string[],
+  excludeTrainerUsernames: string[],
+  excludeClientUsernames: string[],
 ): Promise<HomeUserCounts> {
   const trainerSynthClause = excludeInternalQaSynthetic
     ? Prisma.sql`AND t."internalQaSyntheticPersona" = false`
@@ -94,8 +114,8 @@ async function queryHomeUserCounts(
   const clientSynthClause = excludeInternalQaSynthetic
     ? Prisma.sql`AND c."internalQaSyntheticPersona" = false`
     : Prisma.empty;
-  const trainerEmailClause = buildEmailExcludeClause(excludeEmails);
-  const clientEmailClause = buildClientEmailExcludeClause(excludeEmails);
+  const trainerEmailClause = buildEmailExcludeClause(excludeTrainerEmails, excludeTrainerUsernames);
+  const clientEmailClause = buildClientEmailExcludeClause(excludeClientEmails, excludeClientUsernames);
 
   const rows = await prisma.$queryRaw<CountRow[]>`
     SELECT
@@ -195,15 +215,27 @@ async function queryHomeUserCounts(
  * `internalQaSyntheticPersona` (equivalent to "no synthetic rows" on an unmigrated DB).
  */
 export async function getHomeUserCounts(): Promise<HomeUserCounts> {
-  const excludeEmails = [
-    ...getLaunchExcludeEmails(),
-  ];
-  const uniqueExclude = [...new Set(excludeEmails.map((e) => e.toLowerCase()))];
+  const excludeTrainerEmails = getLaunchExcludeEmails("trainer");
+  const excludeClientEmails = getLaunchExcludeEmails("client");
+  const excludeTrainerUsernames = getLaunchExcludeUsernames("trainer");
+  const excludeClientUsernames = getLaunchExcludeUsernames("client");
   try {
-    return await queryHomeUserCounts(true, uniqueExclude);
+    return await queryHomeUserCounts(
+      true,
+      excludeTrainerEmails,
+      excludeClientEmails,
+      excludeTrainerUsernames,
+      excludeClientUsernames,
+    );
   } catch (e) {
     if (isMissingInternalQaSyntheticPersonaColumn(e)) {
-      return queryHomeUserCounts(false, uniqueExclude);
+      return queryHomeUserCounts(
+        false,
+        excludeTrainerEmails,
+        excludeClientEmails,
+        excludeTrainerUsernames,
+        excludeClientUsernames,
+      );
     }
     if (process.env.NODE_ENV === "development" && isDatabaseUnavailable(e)) {
       console.warn("[getHomeUserCounts] database unavailable; showing zero counters", e);

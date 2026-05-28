@@ -8,7 +8,7 @@ import type {
   AdminPortalOverview,
   AdminSignupRow,
   AdminUserStats,
-} from "@/lib/admin-portal-data";
+} from "@/lib/admin-portal-types";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
 
