@@ -56,7 +56,7 @@ import TrainerSignUpClient from "@/app/trainer/signup/trainer-sign-up-client";
 function createTurnstileGateState() {
   return {
     enabled: true,
-    ref: { current: null },
+    widgetRef: { current: null },
     siteKey: "site-key",
     onTurnstileReady: vi.fn(),
     onTurnstileError: vi.fn(),
@@ -93,7 +93,7 @@ describe("TurnstileField explicit props wiring", () => {
     expect(turnstileFieldSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         enabled: turnstile.enabled,
-        widgetRef: turnstile.ref,
+        widgetRef: turnstile.widgetRef,
         siteKey: turnstile.siteKey,
         onReady: turnstile.onTurnstileReady,
         onError: turnstile.onTurnstileError,
@@ -114,7 +114,7 @@ describe("TurnstileField explicit props wiring", () => {
     expect(turnstileFieldSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         enabled: turnstile.enabled,
-        widgetRef: turnstile.ref,
+        widgetRef: turnstile.widgetRef,
         siteKey: turnstile.siteKey,
         onReady: turnstile.onTurnstileReady,
         onError: turnstile.onTurnstileError,
@@ -136,7 +136,7 @@ describe("TurnstileField explicit props wiring", () => {
     expect(turnstileFieldSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         enabled: turnstile.enabled,
-        widgetRef: turnstile.ref,
+        widgetRef: turnstile.widgetRef,
         siteKey: turnstile.siteKey,
         onReady: turnstile.onTurnstileReady,
         onError: turnstile.onTurnstileError,
@@ -158,7 +158,7 @@ describe("TurnstileField explicit props wiring", () => {
     expect(turnstileFieldSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         enabled: turnstile.enabled,
-        widgetRef: turnstile.ref,
+        widgetRef: turnstile.widgetRef,
         siteKey: turnstile.siteKey,
         onReady: turnstile.onTurnstileReady,
         onError: turnstile.onTurnstileError,

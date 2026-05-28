@@ -192,7 +192,7 @@ export default function TrainerLoginPortal({
 
                 <TurnstileField
                   enabled={turnstile.enabled}
-                  widgetRef={turnstile.ref}
+                  widgetRef={turnstile.widgetRef}
                   siteKey={turnstile.siteKey}
                   onReady={turnstile.onTurnstileReady}
                   onError={turnstile.onTurnstileError}

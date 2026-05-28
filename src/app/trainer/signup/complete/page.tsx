@@ -181,7 +181,7 @@ export default function TrainerSignupCompletePage() {
           <div className="mt-8 flex flex-col items-center gap-6">
             <TurnstileField
               enabled={turnstile.enabled}
-              widgetRef={turnstile.ref}
+              widgetRef={turnstile.widgetRef}
               siteKey={turnstile.siteKey}
               onReady={turnstile.onTurnstileReady}
               onError={turnstile.onTurnstileError}
