@@ -71,6 +71,76 @@ describe("site-analytics ingest", () => {
       targetUrl: "https://instagram.com/matchfit",
     });
   });
+
+  it("normalizes kind casing, strips query/hash from paths, and trims labels", () => {
+    expect(
+      parseSiteAnalyticsIngestBody({
+        kind: "link_click",
+        path: " /trainer/signup?utm=nav#hero ",
+        targetPath: "/client/login?source=home",
+        linkLabel: "  Become a coach  ",
+        visitorId: "visitor12345678",
+        sessionId: "session12345678",
+      }),
+    ).toEqual({
+      kind: "LINK_CLICK",
+      path: "/trainer/signup",
+      targetPath: "/client/login",
+      targetUrl: null,
+      linkLabel: "Become a coach",
+      visitorId: "visitor12345678",
+      sessionId: "session12345678",
+    });
+  });
+
+  it("rejects malformed identifiers and blocked link targets", () => {
+    expect(
+      parseSiteAnalyticsIngestBody({
+        kind: "page_view",
+        path: "/",
+        visitorId: "short",
+        sessionId: "session12345678",
+      }),
+    ).toBeNull();
+
+    expect(
+      parseSiteAnalyticsIngestBody({
+        kind: "link_click",
+        path: "/",
+        targetPath: "/admin/login",
+        visitorId: "visitor12345678",
+        sessionId: "session12345678",
+      }),
+    ).toBeNull();
+
+    expect(
+      parseSiteAnalyticsIngestBody({
+        kind: "link_click",
+        path: "/",
+        targetUrl: "ftp://example.com/file",
+        visitorId: "visitor12345678",
+        sessionId: "session12345678",
+      }),
+    ).toBeNull();
+  });
+
+  it("truncates long labels and external URLs to configured maximum sizes", () => {
+    const longLabel = "x".repeat(300);
+    const longExternalUrl = `https://example.com/${"a".repeat(700)}`;
+
+    const payload = parseSiteAnalyticsIngestBody({
+      kind: "link_click",
+      path: "/",
+      targetUrl: longExternalUrl,
+      linkLabel: longLabel,
+      visitorId: "visitor12345678",
+      sessionId: "session12345678",
+    });
+
+    expect(payload).not.toBeNull();
+    expect(payload?.targetUrl?.length).toBe(500);
+    expect(payload?.linkLabel?.length).toBe(200);
+  });
 });
 
 describe("isSiteAnalyticsBotUserAgent", () => {
