@@ -8,6 +8,16 @@ export function isPrismaMissingColumnError(e: unknown, columnNeedle: string): bo
 
 /** True when Prisma reports a missing table (P2021), e.g. before pending migrations are applied. */
 export function isPrismaMissingTableError(e: unknown, tableNeedle: string): boolean {
+  const message = e instanceof Error ? e.message : String(e);
+  if (message.includes(tableNeedle)) {
+    if (
+      message.includes("does not exist") ||
+      message.includes("42P01") ||
+      message.includes("P2021")
+    ) {
+      return true;
+    }
+  }
   if (!(e instanceof Prisma.PrismaClientKnownRequestError)) return false;
   return e.code === "P2021" && e.message.includes(tableNeedle);
 }
