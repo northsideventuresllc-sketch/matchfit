@@ -1,8 +1,15 @@
 import { Prisma } from "@/generated/prisma/client";
-import { prisma } from "@/lib/prisma";
+import {
+  buildAdminPortalClientSqlFilter,
+  buildAdminPortalClientSqlFilterLegacy,
+  buildAdminPortalTrainerSqlFilter,
+  buildAdminPortalTrainerSqlFilterLegacy,
+  redactEmailForAdminPortal,
+} from "@/lib/admin-portal-list-filters";
 import { formatFeaturedDisplayDayLabel } from "@/lib/featured-eastern-calendar";
 import { getHomeUserCounts, type HomeUserCounts } from "@/lib/home-user-counts";
 import { getPlatformRevenueTotals, type PlatformRevenueTotals } from "@/lib/platform-revenue-events";
+import { prisma } from "@/lib/prisma";
 
 export type AdminUserStats = {
   completedPurchases: number;
@@ -62,8 +69,10 @@ type SignupUnionRow = {
   created_at: Date;
 };
 
-const CLIENT_SIGNUP_EXCLUDE_SYNTH = Prisma.sql`AND COALESCE(c."internalQaSyntheticPersona", false) = false`;
-const TRAINER_SIGNUP_EXCLUDE_SYNTH = Prisma.sql`AND COALESCE(t."internalQaSyntheticPersona", false) = false`;
+const CLIENT_SIGNUP_FILTER = buildAdminPortalClientSqlFilter();
+const TRAINER_SIGNUP_FILTER = buildAdminPortalTrainerSqlFilter();
+const CLIENT_SIGNUP_FILTER_LEGACY = buildAdminPortalClientSqlFilterLegacy();
+const TRAINER_SIGNUP_FILTER_LEGACY = buildAdminPortalTrainerSqlFilterLegacy();
 
 function displayNameFromParts(row: SignupUnionRow): string {
   const preferred = row.preferred_name?.trim();
@@ -90,7 +99,7 @@ async function fetchSignupUnionRows(opts: { limit: number; offset: number }): Pr
         c."createdAt" AS created_at
       FROM clients c
       WHERE c."deidentifiedAt" IS NULL
-        ${CLIENT_SIGNUP_EXCLUDE_SYNTH}
+        ${CLIENT_SIGNUP_FILTER}
       UNION ALL
       SELECT
         'trainer'::text,
@@ -103,7 +112,7 @@ async function fetchSignupUnionRows(opts: { limit: number; offset: number }): Pr
         t."createdAt"
       FROM trainers t
       WHERE t."deidentifiedAt" IS NULL
-        ${TRAINER_SIGNUP_EXCLUDE_SYNTH}
+        ${TRAINER_SIGNUP_FILTER}
     ) combined
     ORDER BY created_at DESC
     LIMIT ${opts.limit}
@@ -115,9 +124,9 @@ async function countSignupUnionTotal(): Promise<number> {
   const rows = await prisma.$queryRaw<{ total: bigint }[]>`
     SELECT COUNT(*)::bigint AS total
     FROM (
-      SELECT c.id FROM clients c WHERE c."deidentifiedAt" IS NULL ${CLIENT_SIGNUP_EXCLUDE_SYNTH}
+      SELECT c.id FROM clients c WHERE c."deidentifiedAt" IS NULL ${CLIENT_SIGNUP_FILTER}
       UNION ALL
-      SELECT t.id FROM trainers t WHERE t."deidentifiedAt" IS NULL ${TRAINER_SIGNUP_EXCLUDE_SYNTH}
+      SELECT t.id FROM trainers t WHERE t."deidentifiedAt" IS NULL ${TRAINER_SIGNUP_FILTER}
     ) combined
   `;
   return Number(rows[0]?.total ?? 0);
@@ -221,7 +230,7 @@ function unionRowsToSignupRows(rows: SignupUnionRow[], stats: Map<string, AdminU
       kind: row.kind,
       id: row.id,
       username: row.username,
-      email: row.email,
+      email: redactEmailForAdminPortal(row.email, row.username, row.kind),
       displayName: displayNameFromParts(row),
       createdAt: row.created_at.toISOString(),
       stats: stats.get(key) ?? {
@@ -266,10 +275,10 @@ async function getAdminSignupLogWithoutSyntheticFilter(opts: {
     FROM (
       SELECT 'client'::text AS kind, c.id, c.username, c.email, c."preferredName" AS preferred_name,
         NULL::text AS first_name, NULL::text AS last_name, c."createdAt" AS created_at
-      FROM clients c WHERE c."deidentifiedAt" IS NULL
+      FROM clients c WHERE c."deidentifiedAt" IS NULL ${CLIENT_SIGNUP_FILTER_LEGACY}
       UNION ALL
       SELECT 'trainer'::text, t.id, t.username, t.email, t."preferredName", t."firstName", t."lastName", t."createdAt"
-      FROM trainers t WHERE t."deidentifiedAt" IS NULL
+      FROM trainers t WHERE t."deidentifiedAt" IS NULL ${TRAINER_SIGNUP_FILTER_LEGACY}
     ) combined
     ORDER BY created_at DESC
     LIMIT ${opts.limit}
@@ -277,9 +286,9 @@ async function getAdminSignupLogWithoutSyntheticFilter(opts: {
   `;
   const totalRows = await prisma.$queryRaw<{ total: bigint }[]>`
     SELECT COUNT(*)::bigint AS total FROM (
-      SELECT id FROM clients WHERE "deidentifiedAt" IS NULL
+      SELECT c.id FROM clients c WHERE c."deidentifiedAt" IS NULL ${CLIENT_SIGNUP_FILTER_LEGACY}
       UNION ALL
-      SELECT id FROM trainers WHERE "deidentifiedAt" IS NULL
+      SELECT t.id FROM trainers t WHERE t."deidentifiedAt" IS NULL ${TRAINER_SIGNUP_FILTER_LEGACY}
     ) combined
   `;
   const stats = await loadStatsForSignups(unionRows);
