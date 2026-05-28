@@ -8,6 +8,7 @@ import type {
   AdminSignupRow,
   AdminUserStats,
 } from "@/lib/admin-portal-types";
+import { ensureAdminReportingSchema } from "@/lib/ensure-admin-reporting-schema";
 import { prisma } from "@/lib/prisma";
 import { formatFeaturedDisplayDayLabel } from "@/lib/featured-eastern-calendar";
 import { getHomeUserCounts } from "@/lib/home-user-counts";
@@ -319,6 +320,12 @@ export async function getAdminRecentFeatured(limit = 6): Promise<AdminFeaturedSn
 }
 
 export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
+  try {
+    await ensureAdminReportingSchema();
+  } catch (e) {
+    console.error("[admin portal] ensureAdminReportingSchema", e);
+  }
+
   const [traffic, userCounts, revenue, recentSignupsResult, recentFeatured] = await Promise.all([
     getAdminSiteTrafficSnapshot(7),
     getHomeUserCounts(),

@@ -2,7 +2,7 @@ import { BetaCapExceededError, assertClientBetaSlotForFinalize } from "@/lib/bet
 import { notifyClientMembershipTrialStarted } from "@/lib/client-membership-email-notify";
 import { getClientFoundingTrialDays } from "@/lib/match-fit-launch-promotions";
 import { prisma } from "@/lib/prisma";
-import { getStripe } from "@/lib/stripe-server";
+import { getStripe, stripeObjectIsLiveBilling } from "@/lib/stripe-server";
 import { isMatchFitInternalQaClientEmail } from "@/lib/match-fit-internal-qa";
 
 export type FinalizeResult =
@@ -81,6 +81,7 @@ export async function finalizeRegistrationAfterPayment(subscriptionId: string): 
           stripeCustomerId: customerId,
           stripeSubscriptionId: subscriptionId,
           stripeSubscriptionActive: true,
+          stripeBillingLiveMode: stripeObjectIsLiveBilling(sub.livemode),
           subscriptionGraceUntil: null,
           stripeLastSubscriptionInvoicePaidAt: new Date(),
         },
