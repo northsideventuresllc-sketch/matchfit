@@ -86,6 +86,23 @@ export function launchClientCountWhere(): Prisma.ClientWhereInput {
   };
 }
 
+/**
+ * Active platform subscribers for admin metrics: real (non-test) clients with a live Stripe
+ * subscription (`stripeBillingLiveMode`), not sandbox/test billing.
+ */
+export function launchPlatformSubscriberCountWhere(): Prisma.ClientWhereInput {
+  return {
+    ...launchClientCountWhere(),
+    stripeSubscriptionActive: true,
+    stripeSubscriptionId: { not: null },
+    stripeBillingLiveMode: true,
+  };
+}
+
+export async function countLaunchPlatformSubscribers(): Promise<number> {
+  return prisma.client.count({ where: launchPlatformSubscriberCountWhere() });
+}
+
 /** Active clients counted for beta cap and founding membership offers. */
 export async function countLaunchClients(): Promise<number> {
   return prisma.client.count({ where: launchClientCountWhere() });

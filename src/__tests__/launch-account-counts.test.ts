@@ -5,6 +5,7 @@ import {
   getLaunchExcludeUsernames,
   isInternalSyntheticMatchFitEmail,
   launchClientCountWhere,
+  launchPlatformSubscriberCountWhere,
   launchTrainerCountWhere,
   countLaunchClients,
   countLaunchTrainers,
@@ -48,6 +49,19 @@ describe("launch account count exclusions", () => {
   it("detects internal synthetic email domain", () => {
     expect(isInternalSyntheticMatchFitEmail(`mfqa.trainer.abc@internal.match-fit.invalid`)).toBe(true);
     expect(isInternalSyntheticMatchFitEmail("real@example.com")).toBe(false);
+  });
+
+  it("platform subscriber filter requires live Stripe billing and excludes test clients", () => {
+    const where = launchPlatformSubscriberCountWhere();
+    expect(where.stripeSubscriptionActive).toBe(true);
+    expect(where.stripeBillingLiveMode).toBe(true);
+    expect(where.stripeSubscriptionId).toEqual({ not: null });
+    expect(where.internalQaSyntheticPersona).toBe(false);
+    expect(where.NOT?.OR).toEqual(
+      expect.arrayContaining([
+        { username: { in: expect.arrayContaining(["jbfitness6299"]), mode: "insensitive" } },
+      ]),
+    );
   });
 
   it("always excludes owner dev/test client jbfitness6299 from launch counts", () => {

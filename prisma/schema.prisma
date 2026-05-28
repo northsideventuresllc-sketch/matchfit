@@ -173,6 +173,8 @@ model Client {
   stripeSubscriptionId String?
   /// Mirrors Stripe subscription status for dashboard access control.
   stripeSubscriptionActive Boolean @default(false)
+  /// Set from Stripe `livemode` on subscription sync (admin metrics count only `true`).
+  stripeBillingLiveMode Boolean?
   /// When subscription is inactive and `now` is after this instant, non-billing dashboard routes require renewal (null = no lock).
   subscriptionGraceUntil DateTime?
   /// Set from Stripe `invoice.payment_succeeded` (and initial signup) for analytics / “recently paid” windows.
