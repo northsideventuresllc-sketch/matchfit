@@ -132,6 +132,7 @@ describe("account-deletion deidentify helpers", () => {
         email: string;
         deidentifiedAt: Date;
         passwordHash: string;
+        stripeBillingLiveMode: boolean;
         accountDeletionRequestedAt: null;
         accountDeletionFinalizeAt: null;
       };
@@ -142,6 +143,7 @@ describe("account-deletion deidentify helpers", () => {
     expect(updateArgs.data.username).toMatch(/^delc_[a-f0-9]+$/);
     expect(updateArgs.data.username.length).toBeLessThanOrEqual(32);
     expect(updateArgs.data.email).toMatch(/^removed\.client\.[a-z0-9]+\.[a-f0-9]{8}@account-removed\.invalid$/);
+    expect(updateArgs.data.stripeBillingLiveMode).toBe(false);
     expect(updateArgs.data.accountDeletionRequestedAt).toBeNull();
     expect(updateArgs.data.accountDeletionFinalizeAt).toBeNull();
 
