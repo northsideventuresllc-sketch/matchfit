@@ -8,13 +8,13 @@ import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 
 export default function AdminLoginPortal() {
-  const turnstile = useTurnstileGate();
+  const turnstile = useTurnstileGate()
   const [adminCode, setAdminCode] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [stayLoggedIn, setStayLoggedIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(false)
 
   async function handleLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -153,16 +153,7 @@ export default function AdminLoginPortal() {
                   Stay signed in on this device
                 </label>
 
-                <TurnstileField
-                  enabled={turnstile.enabled}
-                  widgetRef={turnstile.ref}
-                  siteKey={turnstile.siteKey}
-                  onReady={turnstile.onTurnstileReady}
-                  onError={turnstile.onTurnstileError}
-                  onExpire={turnstile.onTurnstileExpire}
-                  widgetError={turnstile.widgetError}
-                  ready={turnstile.ready}
-                />
+                <TurnstileField gate={turnstile} />
 
                 <button
                   type="submit"
