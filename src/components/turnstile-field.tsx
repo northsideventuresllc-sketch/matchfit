@@ -16,18 +16,17 @@ type TurnstileFieldProps = {
   className?: string;
 };
 
-export function TurnstileField({ gate, className }: { gate: TurnstileGate; className?: string }) {
-  const {
-    enabled,
-    siteKey,
-    widgetRef,
-    onTurnstileReady,
-    onTurnstileError,
-    onTurnstileExpire,
-    widgetError,
-    ready,
-  } = gate;
-
+export function TurnstileField({
+  enabled,
+  widgetRef,
+  siteKey,
+  onReady,
+  onError,
+  onExpire,
+  widgetError,
+  ready,
+  className,
+}: TurnstileFieldProps) {
   if (!enabled) return null;
 
   return (
@@ -35,9 +34,9 @@ export function TurnstileField({ gate, className }: { gate: TurnstileGate; class
       <TurnstileWidget
         ref={widgetRef}
         siteKey={siteKey}
-        onReady={onTurnstileReady}
-        onError={onTurnstileError}
-        onExpire={onTurnstileExpire}
+        onReady={onReady}
+        onError={onError}
+        onExpire={onExpire}
       />
       {widgetError ? (
         <p className="text-center text-xs text-amber-200/90" role="status">
