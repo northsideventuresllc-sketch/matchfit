@@ -7,6 +7,7 @@ import {
   getLaunchExcludeEmails,
   getLaunchExcludeUsernames,
 } from "@/lib/launch-account-counts";
+import { MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX } from "@/lib/match-fit-launch-exclude-accounts";
 
 export type HomeUserCounts = {
   trainersTotal: number;
@@ -56,7 +57,8 @@ function buildEmailExcludeClause(emails: string[], excludedUsernames: string[]):
   const parts: Prisma.Sql[] = [
     Prisma.sql`AND LOWER(t."email") NOT LIKE ${`%${INTERNAL_SYNTHETIC_EMAIL_SUFFIX}`}`,
     Prisma.sql`AND LOWER(t."email") NOT LIKE '%.invalid'`,
-    buildTrainerUsernameExcludeClause(excludedUsernames),
+    Prisma.sql`AND LOWER(t."email") NOT LIKE ${`%${MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX}`}`,
+    buildTrainerUsernameExcludeClause(),
   ];
   if (emails.length > 0) {
     parts.push(
@@ -70,7 +72,8 @@ function buildClientEmailExcludeClause(emails: string[], excludedUsernames: stri
   const parts: Prisma.Sql[] = [
     Prisma.sql`AND LOWER(c."email") NOT LIKE ${`%${INTERNAL_SYNTHETIC_EMAIL_SUFFIX}`}`,
     Prisma.sql`AND LOWER(c."email") NOT LIKE '%.invalid'`,
-    buildClientUsernameExcludeClause(excludedUsernames),
+    Prisma.sql`AND LOWER(c."email") NOT LIKE ${`%${MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX}`}`,
+    buildClientUsernameExcludeClause(),
   ];
   if (emails.length > 0) {
     parts.push(

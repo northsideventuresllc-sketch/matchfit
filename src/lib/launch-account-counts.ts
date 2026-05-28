@@ -2,9 +2,12 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { betaExcludeCapCountEmails, betaExcludeCapCountUsernames } from "@/lib/beta-launch-config";
 import {
-  getMatchFitInternalQaClientEmails,
-  getMatchFitInternalQaTrainerEmails,
-} from "@/lib/match-fit-internal-qa";
+  getMatchFitDevPlaceholderCertPathPrefixes,
+  getMatchFitLaunchExcludeClientUsernames,
+  getMatchFitLaunchExcludeEmails,
+  getMatchFitLaunchExcludeTrainerUsernames,
+  MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX,
+} from "@/lib/match-fit-launch-exclude-accounts";
 
 /** Auto-generated internal QA personas (see `internal-qa-simulation.ts`). */
 export const INTERNAL_SYNTHETIC_EMAIL_SUFFIX = "@internal.match-fit.invalid";
@@ -37,7 +40,22 @@ function launchCountNotClause(role: "client" | "trainer") {
       ? [{ username: { in: excludedUsernames, mode: "insensitive" as const } }]
       : []),
   ];
-  return { OR: or };
+}
+
+function launchUsernameExcludeOr(prefixes: readonly string[]): Prisma.TrainerWhereInput["OR"] {
+  return prefixes.map((prefix) => ({
+    username: { startsWith: prefix, mode: "insensitive" as const },
+  }));
+}
+
+const DEV_CERT_PREFIXES = getMatchFitDevPlaceholderCertPathPrefixes();
+
+function launchDevCertExcludeOr(): Prisma.TrainerWhereInput["OR"] {
+  return DEV_CERT_PREFIXES.flatMap((prefix) => [
+    { profile: { is: { certificationUrl: { startsWith: prefix, mode: "insensitive" } } } },
+    { profile: { is: { nutritionistCertificationUrl: { startsWith: prefix, mode: "insensitive" } } } },
+    { profile: { is: { specialistCertificationUrl: { startsWith: prefix, mode: "insensitive" } } } },
+  ]);
 }
 
 export const SYNTHETIC_TRAINER_USERNAME_PREFIX = "mfqst_";
@@ -60,13 +78,19 @@ export function getLaunchExcludeUsernames(role: "client" | "trainer"): string[] 
 
 /** Prisma filter for real launch signups (trainers). */
 export function launchTrainerCountWhere(): Prisma.TrainerWhereInput {
+  const usernameExcludes = [
+    SYNTHETIC_TRAINER_USERNAME_PREFIX,
+    ...getMatchFitLaunchExcludeTrainerUsernames(),
+  ];
+
   return {
     deidentifiedAt: null,
     internalQaSyntheticPersona: false,
     NOT: {
       OR: [
-        ...launchCountNotClause("trainer").OR,
-        { username: { startsWith: SYNTHETIC_TRAINER_USERNAME_PREFIX, mode: "insensitive" } },
+        ...launchEmailExcludeOr(),
+        ...launchUsernameExcludeOr(usernameExcludes),
+        ...launchDevCertExcludeOr(),
       ],
     },
   };
@@ -74,14 +98,16 @@ export function launchTrainerCountWhere(): Prisma.TrainerWhereInput {
 
 /** Prisma filter for real launch signups (clients). */
 export function launchClientCountWhere(): Prisma.ClientWhereInput {
+  const usernameExcludes = [
+    SYNTHETIC_CLIENT_USERNAME_PREFIX,
+    ...getMatchFitLaunchExcludeClientUsernames(),
+  ];
+
   return {
     deidentifiedAt: null,
     internalQaSyntheticPersona: false,
     NOT: {
-      OR: [
-        ...launchCountNotClause("client").OR,
-        { username: { startsWith: SYNTHETIC_CLIENT_USERNAME_PREFIX, mode: "insensitive" } },
-      ],
+      OR: [...launchEmailExcludeOr(), ...launchUsernameExcludeOr(usernameExcludes)],
     },
   };
 }
