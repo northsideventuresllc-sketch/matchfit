@@ -58,7 +58,7 @@ function buildEmailExcludeClause(emails: string[], excludedUsernames: string[]):
     Prisma.sql`AND LOWER(t."email") NOT LIKE ${`%${INTERNAL_SYNTHETIC_EMAIL_SUFFIX}`}`,
     Prisma.sql`AND LOWER(t."email") NOT LIKE '%.invalid'`,
     Prisma.sql`AND LOWER(t."email") NOT LIKE ${`%${MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX}`}`,
-    buildTrainerUsernameExcludeClause(),
+    buildTrainerUsernameExcludeClause(excludedUsernames),
   ];
   if (emails.length > 0) {
     parts.push(
@@ -73,7 +73,7 @@ function buildClientEmailExcludeClause(emails: string[], excludedUsernames: stri
     Prisma.sql`AND LOWER(c."email") NOT LIKE ${`%${INTERNAL_SYNTHETIC_EMAIL_SUFFIX}`}`,
     Prisma.sql`AND LOWER(c."email") NOT LIKE '%.invalid'`,
     Prisma.sql`AND LOWER(c."email") NOT LIKE ${`%${MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX}`}`,
-    buildClientUsernameExcludeClause(),
+    buildClientUsernameExcludeClause(excludedUsernames),
   ];
   if (emails.length > 0) {
     parts.push(

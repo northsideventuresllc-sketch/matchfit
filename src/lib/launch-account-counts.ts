@@ -4,9 +4,7 @@ import { betaExcludeCapCountEmails, betaExcludeCapCountUsernames } from "@/lib/b
 import {
   getMatchFitDevPlaceholderCertPathPrefixes,
   getMatchFitLaunchExcludeClientUsernames,
-  getMatchFitLaunchExcludeEmails,
   getMatchFitLaunchExcludeTrainerUsernames,
-  MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX,
 } from "@/lib/match-fit-launch-exclude-accounts";
 
 /** Auto-generated internal QA personas (see `internal-qa-simulation.ts`). */
@@ -26,20 +24,6 @@ export function getLaunchExcludeEmails(role: "client" | "trainer"): string[] {
   const qa = role === "client" ? getMatchFitInternalQaClientEmails() : getMatchFitInternalQaTrainerEmails();
   for (const e of qa) ex.add(e.toLowerCase());
   return [...ex];
-}
-
-function launchCountNotClause(role: "client" | "trainer") {
-  const excludedEmails = getLaunchExcludeEmails(role);
-  const excludedUsernames = getLaunchExcludeUsernames(role);
-  const or = [
-    { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" as const } },
-    // Exclude all RFC 6761 .invalid TLD emails (test/demo/seed accounts)
-    { email: { endsWith: ".invalid", mode: "insensitive" as const } },
-    ...(excludedEmails.length > 0 ? [{ email: { in: excludedEmails } }] : []),
-    ...(excludedUsernames.length > 0
-      ? [{ username: { in: excludedUsernames, mode: "insensitive" as const } }]
-      : []),
-  ];
 }
 
 function launchUsernameExcludeOr(prefixes: readonly string[]): Prisma.TrainerWhereInput["OR"] {
