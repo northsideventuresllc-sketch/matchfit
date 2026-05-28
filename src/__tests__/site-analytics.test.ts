@@ -71,11 +71,95 @@ describe("site-analytics ingest", () => {
       targetUrl: "https://instagram.com/matchfit",
     });
   });
+
+  it("normalizes paths and trims labels", () => {
+    const payload = parseSiteAnalyticsIngestBody({
+      kind: "link_click",
+      path: "   /waitlist/client?utm_source=ads#top  ",
+      targetPath: "/trainer/signup?ref=footer#cta",
+      linkLabel: "  Join as trainer  ",
+      visitorId: "visitor12345678",
+      sessionId: "session12345678",
+    });
+
+    expect(payload).toEqual({
+      kind: "LINK_CLICK",
+      path: "/waitlist/client",
+      targetPath: "/trainer/signup",
+      targetUrl: null,
+      linkLabel: "Join as trainer",
+      visitorId: "visitor12345678",
+      sessionId: "session12345678",
+    });
+  });
+
+  it("rejects invalid IDs and non-http external urls", () => {
+    expect(
+      parseSiteAnalyticsIngestBody({
+        kind: "page_view",
+        path: "/",
+        visitorId: "short",
+        sessionId: "session12345678",
+      }),
+    ).toBeNull();
+
+    expect(
+      parseSiteAnalyticsIngestBody({
+        kind: "link_click",
+        path: "/",
+        targetUrl: "ftp://example.com/invalid",
+        visitorId: "visitor12345678",
+        sessionId: "session12345678",
+      }),
+    ).toBeNull();
+  });
+
+  it("rejects internal and API target paths for link clicks", () => {
+    expect(
+      parseSiteAnalyticsIngestBody({
+        kind: "link_click",
+        path: "/",
+        targetPath: "/admin/users",
+        visitorId: "visitor12345678",
+        sessionId: "session12345678",
+      }),
+    ).toBeNull();
+
+    expect(
+      parseSiteAnalyticsIngestBody({
+        kind: "link_click",
+        path: "/",
+        targetPath: "/api/public/site-analytics",
+        visitorId: "visitor12345678",
+        sessionId: "session12345678",
+      }),
+    ).toBeNull();
+  });
+
+  it("truncates long values to storage-safe lengths", () => {
+    const payload = parseSiteAnalyticsIngestBody({
+      kind: "link_click",
+      path: `/${"a".repeat(550)}`,
+      targetUrl: `https://example.com/${"x".repeat(600)}`,
+      linkLabel: "L".repeat(260),
+      visitorId: "visitor12345678",
+      sessionId: "session12345678",
+    });
+
+    expect(payload?.path.length).toBe(500);
+    expect(payload?.targetUrl?.length).toBe(500);
+    expect(payload?.linkLabel?.length).toBe(200);
+  });
 });
 
 describe("isSiteAnalyticsBotUserAgent", () => {
   it("flags common crawlers", () => {
     expect(isSiteAnalyticsBotUserAgent("Mozilla/5.0 (compatible; Googlebot/2.1)")).toBe(true);
     expect(isSiteAnalyticsBotUserAgent("Mozilla/5.0 Chrome/120")).toBe(false);
+  });
+
+  it("returns false for blank or missing user-agent values", () => {
+    expect(isSiteAnalyticsBotUserAgent(null)).toBe(false);
+    expect(isSiteAnalyticsBotUserAgent("   ")).toBe(false);
   });
 });
