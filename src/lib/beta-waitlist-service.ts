@@ -155,9 +155,6 @@ export async function joinBetaClientWaitlist(args: {
   if (!(await isClientBetaCapReached())) {
     return { error: "Client memberships are still available — sign up instead of joining the waitlist." };
   }
-  if (!isZipInBetaAtlantaMetroArea(args.homeZipCode)) {
-    return { error: "That ZIP is outside the Atlanta metro beta area." };
-  }
   const email = args.email.trim().toLowerCase();
   const desiredUsername = args.desiredUsername.trim();
   const taken = await isClientWaitlistUsernameConflict(desiredUsername);

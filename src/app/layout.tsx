@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Match Fit",
-  description: "Find coaches who fit your goals — Atlanta beta.",
+  description: "Find coaches who fit your goals — U.S. beta signup. In-person sessions launch first in Atlanta.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,

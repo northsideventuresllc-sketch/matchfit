@@ -408,7 +408,7 @@ function ClientSignUpPageInner() {
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-white/55 sm:text-base">
           {wizardStep === 1
-            ? "Tell us a bit about yourself. Atlanta metro beta — you must be 18 or older to join."
+            ? "Tell us a bit about yourself. U.S. beta — anyone in the United States can sign up. You must be 18 or older. In-person sessions launch first in the Atlanta metro area."
             : awaitingCode
               ? "Check your inbox for a verification email with your code."
               : "Add an extra layer of security, or skip and turn this on later in settings."}
@@ -602,7 +602,7 @@ function ClientSignUpPageInner() {
               <div className="grid gap-5 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
                   <label htmlFor="su-zip" className={labelClass}>
-                    Home ZIP (Atlanta metro beta)
+                    Home ZIP (United States)
                   </label>
                   <input
                     id="su-zip"
@@ -612,7 +612,7 @@ function ClientSignUpPageInner() {
                     required
                     value={zipCode}
                     onChange={(e) => setZipCode(e.target.value)}
-                    placeholder="30301 or 30062"
+                    placeholder="90210 or 30301"
                     pattern="[0-9]{5}(-[0-9]{4})?"
                     title="Enter a valid US ZIP code"
                     className={inputClass}

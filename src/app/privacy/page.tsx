@@ -200,7 +200,8 @@ export default async function PrivacyPage() {
         <Ul>
           <Li>
             <Strong>Waitlist:</Strong> email address, ZIP code, and status if you join a Trainer or Client waitlist when beta
-            capacity is full.
+            capacity is full. Client waitlist sign-up is open to U.S. ZIP codes; trainer waitlist sign-up may require a
+            service ZIP in our Atlanta metro in-person launch area.
           </Li>
           <Li>
             <Strong>Invite tokens:</Strong> time-limited signup links and slot reservation timestamps when we invite you from
@@ -275,7 +276,8 @@ export default async function PrivacyPage() {
           <Li>Honor optional profile visibility settings you choose in account settings;</Li>
           <Li>Verify identity or eligibility where required for coach onboarding, compliance, or risk controls;</Li>
           <Li>
-            Operate beta capacity limits, waitlists, founding promotions, and geographic eligibility during limited launches;
+            Operate beta capacity limits, waitlists, founding promotions, and geographic eligibility for in-person
+            services and trainer onboarding during limited launches;
           </Li>
           <Li>Detect, investigate, and prevent fraud, abuse, and violations of our Terms or policies;</Li>
           <Li>Communicate service, billing, and policy updates;</Li>

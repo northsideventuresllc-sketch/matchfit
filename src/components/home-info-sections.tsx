@@ -146,10 +146,12 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
         </p>
 
         <p className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-xs leading-relaxed text-white/45 sm:text-[13px]">
-          <span className="font-semibold text-[#FF7E00]/90">Service area:</span> We are currently serving the{" "}
-          <span className="font-semibold text-white/60">Atlanta metro area</span> (within approximately 15–20
-          miles of downtown Atlanta) to start. We will be working hard to expand to more cities and regions as
-          soon as possible.
+          <span className="font-semibold text-[#FF7E00]/90">Beta rollout:</span> Anyone in the{" "}
+          <span className="font-semibold text-white/60">United States</span> can create a client account during
+          beta. <span className="font-semibold text-white/60">In-person sessions</span> with coaches are launching
+          first in the <span className="font-semibold text-white/60">Atlanta metro area</span> (within approximately
+          15–20 miles of downtown Atlanta). Virtual coaching and nationwide discovery are available wherever the
+          product supports them.
         </p>
       </SectionShell>
 
