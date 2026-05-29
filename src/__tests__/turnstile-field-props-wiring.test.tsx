@@ -10,7 +10,9 @@ const { turnstileFieldSpy, useRouterMock, useSearchParamsMock, useTurnstileGateM
 }));
 
 vi.mock("next/image", () => ({
-  default: (props: Record<string, unknown>) => <img alt={String(props.alt ?? "")} {...props} />,
+  default: ({ alt, ...rest }: Record<string, unknown>) => (
+    <div data-next-image="" data-alt={String(alt ?? "")} {...rest} />
+  ),
 }));
 
 vi.mock("next/link", () => ({
@@ -54,9 +56,11 @@ import TrainerLoginPortal from "@/app/trainer/login/trainer-login-portal";
 import TrainerSignUpClient from "@/app/trainer/signup/trainer-sign-up-client";
 
 function createTurnstileGateState() {
+  const ref = { current: null };
   return {
     enabled: true,
-    ref: { current: null },
+    ref,
+    widgetRef: ref,
     siteKey: "site-key",
     onTurnstileReady: vi.fn(),
     onTurnstileError: vi.fn(),
@@ -93,7 +97,7 @@ describe("TurnstileField explicit props wiring", () => {
     expect(turnstileFieldSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         enabled: turnstile.enabled,
-        widgetRef: turnstile.ref,
+        widgetRef: turnstile.widgetRef,
         siteKey: turnstile.siteKey,
         onReady: turnstile.onTurnstileReady,
         onError: turnstile.onTurnstileError,
@@ -114,7 +118,7 @@ describe("TurnstileField explicit props wiring", () => {
     expect(turnstileFieldSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         enabled: turnstile.enabled,
-        widgetRef: turnstile.ref,
+        widgetRef: turnstile.widgetRef,
         siteKey: turnstile.siteKey,
         onReady: turnstile.onTurnstileReady,
         onError: turnstile.onTurnstileError,
@@ -136,7 +140,7 @@ describe("TurnstileField explicit props wiring", () => {
     expect(turnstileFieldSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         enabled: turnstile.enabled,
-        widgetRef: turnstile.ref,
+        widgetRef: turnstile.widgetRef,
         siteKey: turnstile.siteKey,
         onReady: turnstile.onTurnstileReady,
         onError: turnstile.onTurnstileError,
@@ -158,7 +162,7 @@ describe("TurnstileField explicit props wiring", () => {
     expect(turnstileFieldSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         enabled: turnstile.enabled,
-        widgetRef: turnstile.ref,
+        widgetRef: turnstile.widgetRef,
         siteKey: turnstile.siteKey,
         onReady: turnstile.onTurnstileReady,
         onError: turnstile.onTurnstileError,

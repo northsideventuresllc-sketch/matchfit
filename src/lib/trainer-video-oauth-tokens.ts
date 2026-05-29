@@ -1,16 +1,16 @@
 import type { VideoConferenceProviderKey } from "@/lib/trainer-video-oauth-state";
 
-/** Scopes for Microsoft Graph (Outlook calendar + Teams meetings). Used by direct OAuth and must match Supabase Azure provider configuration. */
+/** Delegated Graph scopes for Teams via Outlook calendar events (`/me/events` + isOnlineMeeting). */
 export const MICROSOFT_GRAPH_OAUTH_SCOPES =
-  "openid email profile offline_access Calendars.ReadWrite OnlineMeetings.ReadWrite";
+  "openid email profile offline_access Calendars.ReadWrite";
 
 /** Zoom User-managed OAuth: profile + meetings. Used by direct authorize URL and must match Supabase Zoom provider configuration. */
 export const TRAINER_ZOOM_SUPABASE_OAUTH_SCOPES = "user:read:user meeting:read meeting:write";
 
-/** Trainer Google OAuth: Calendar events + Meet space creation (refresh token via `access_type=offline` on the authorize URL, not a scope). */
+/** Trainer Google OAuth: Calendar events (Meet links via conferenceData on insert). Offline refresh via access_type=offline on authorize URL. */
 export const GOOGLE_TRAINER_VIDEO_OAUTH_SCOPES = [
   "https://www.googleapis.com/auth/calendar.events",
-  "https://www.googleapis.com/auth/meetings.space.created",
+  "https://www.googleapis.com/auth/userinfo.email",
 ].join(" ");
 
 function microsoftOAuthTenantSegment(): string {
@@ -130,7 +130,7 @@ export function microsoftAuthorizeUrl(state: string): string | null {
   const redirect = microsoftOAuthRedirectUri();
   if (!clientId || !redirect) return null;
   const scope = encodeURIComponent(MICROSOFT_GRAPH_OAUTH_SCOPES);
-  return `${microsoftAuthorizeEndpoint()}?client_id=${encodeURIComponent(clientId)}&response_type=code&redirect_uri=${encodeURIComponent(redirect)}&response_mode=query&scope=${scope}&state=${encodeURIComponent(state)}`;
+  return `${microsoftAuthorizeEndpoint()}?client_id=${encodeURIComponent(clientId)}&response_type=code&redirect_uri=${encodeURIComponent(redirect)}&response_mode=query&scope=${scope}&state=${encodeURIComponent(state)}&prompt=consent`;
 }
 
 export async function googleExchangeCode(code: string): Promise<OAuthTokenBundle | { error: string }> {
@@ -153,6 +153,11 @@ export async function googleExchangeCode(code: string): Promise<OAuthTokenBundle
   const j = (await res.json().catch(() => null)) as Record<string, unknown> | null;
   if (!res.ok) {
     const msg = typeof j?.error_description === "string" ? j.error_description : String(j?.error ?? "token_error");
+    if (String(j?.error) === "redirect_uri_mismatch" && redirect) {
+      return {
+        error: `Google redirect URI mismatch. In Google Cloud Console, add this exact authorized redirect URI: ${redirect}`,
+      };
+    }
     return { error: msg };
   }
   const refresh = typeof j?.refresh_token === "string" ? j.refresh_token : "";
@@ -192,7 +197,13 @@ export async function zoomExchangeCode(code: string): Promise<OAuthTokenBundle |
   });
   const j = (await res.json().catch(() => null)) as Record<string, unknown> | null;
   if (!res.ok) {
-    return { error: typeof j?.reason === "string" ? j.reason : String(j?.error ?? "zoom_token_error") };
+    const reason = typeof j?.reason === "string" ? j.reason : String(j?.error ?? "zoom_token_error");
+    if (/redirect uri/i.test(reason) && redirect) {
+      return {
+        error: `Zoom redirect URI mismatch. In Zoom Marketplace, add this exact redirect URL: ${redirect}`,
+      };
+    }
+    return { error: reason };
   }
   const refresh = typeof j?.refresh_token === "string" ? j.refresh_token : "";
   const access = typeof j?.access_token === "string" ? j.access_token : "";
@@ -225,7 +236,13 @@ export async function microsoftExchangeCode(code: string): Promise<OAuthTokenBun
   });
   const j = (await res.json().catch(() => null)) as Record<string, unknown> | null;
   if (!res.ok) {
-    return { error: typeof j?.error_description === "string" ? j.error_description : String(j?.error ?? "ms_token_error") };
+    const msg = typeof j?.error_description === "string" ? j.error_description : String(j?.error ?? "ms_token_error");
+    if (/redirect uri/i.test(msg) && redirect) {
+      return {
+        error: `Microsoft redirect URI mismatch. In Azure Entra, add this exact redirect URI: ${redirect}`,
+      };
+    }
+    return { error: msg };
   }
   const refresh = typeof j?.refresh_token === "string" ? j.refresh_token : "";
   const access = typeof j?.access_token === "string" ? j.access_token : "";

@@ -88,90 +88,99 @@ async function persistZoomConnection(args: {
 }
 
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const oauthErr = url.searchParams.get("error");
-  if (oauthErr) {
-    return redirectBack(req, `oauthError=${encodeURIComponent(oauthErr)}`);
-  }
-  const code = url.searchParams.get("code");
-  if (!code?.trim()) {
-    return redirectBack(req, "oauthError=missing_code");
-  }
-
-  const cookieStore = await cookies();
-  const linkCookie = cookieStore.get(TRAINER_ZOOM_SUPABASE_LINK_COOKIE)?.value;
-  const link = linkCookie ? await verifyTrainerZoomSupabaseLinkState(linkCookie) : null;
-
-  const origin =
-    process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") || new URL(req.url).origin;
-  const response = NextResponse.redirect(`${origin}/trainer/dashboard/video-meetings?connected=zoom`);
-
-  if (link) {
-    const { supabase, error } = createSupabaseServerClientForTrainerZoomOAuth({
-      requestCookies: cookieStore,
-      responseCookies: response.cookies,
-    });
-    if (error || !supabase) {
-      return redirectBack(req, "oauthError=supabase_not_configured");
+  try {
+    const url = new URL(req.url);
+    const oauthErr = url.searchParams.get("error");
+    if (oauthErr) {
+      return redirectBack(req, `oauthError=${encodeURIComponent(oauthErr)}`);
+    }
+    const code = url.searchParams.get("code");
+    if (!code?.trim()) {
+      return redirectBack(req, "oauthError=missing_code");
     }
 
-    const { error: xErr } = await supabase.auth.exchangeCodeForSession(code);
-    if (xErr) {
-      console.error("[trainer oauth zoom callback] exchangeCodeForSession", xErr);
-      return redirectBack(req, `oauthError=${encodeURIComponent(xErr.message)}`);
+    const cookieStore = await cookies();
+    const linkCookie = cookieStore.get(TRAINER_ZOOM_SUPABASE_LINK_COOKIE)?.value;
+    const link = linkCookie ? await verifyTrainerZoomSupabaseLinkState(linkCookie) : null;
+
+    const origin =
+      process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") || new URL(req.url).origin;
+    const response = NextResponse.redirect(`${origin}/trainer/dashboard/video-meetings?connected=zoom`);
+
+    if (link) {
+      const { supabase, error } = createSupabaseServerClientForTrainerZoomOAuth({
+        requestCookies: cookieStore,
+        responseCookies: response.cookies,
+      });
+      if (error || !supabase) {
+        return redirectBack(req, "oauthError=supabase_not_configured");
+      }
+
+      const { error: xErr } = await supabase.auth.exchangeCodeForSession(code);
+      if (xErr) {
+        console.error("[trainer oauth zoom callback] exchangeCodeForSession", xErr);
+        return redirectBack(req, `oauthError=${encodeURIComponent(xErr.message)}`);
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        return redirectBack(req, "oauthError=no_session_after_exchange");
+      }
+
+      const bundle = sessionToZoomBundle(session);
+      if ("error" in bundle) {
+        return redirectBack(req, `oauthError=${encodeURIComponent(bundle.error)}`);
+      }
+
+      let hint: string | null = null;
+      if (bundle.accessToken) {
+        hint = await zoomAccountHint(bundle.accessToken);
+      }
+
+      await persistZoomConnection({
+        trainerId: link.trainerId,
+        exchanged: bundle,
+        hint,
+        oauthGrantSource: "supabase_zoom",
+      });
+
+      await supabase.auth.signOut();
+      response.cookies.delete(TRAINER_ZOOM_SUPABASE_LINK_COOKIE);
+      return response;
     }
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) {
-      return redirectBack(req, "oauthError=no_session_after_exchange");
+    const state = url.searchParams.get("state");
+    if (!state?.trim()) {
+      return redirectBack(req, "oauthError=invalid_state");
+    }
+    const st = await verifyVideoOAuthState(state);
+    if (!st || st.provider !== "ZOOM") {
+      return redirectBack(req, "oauthError=invalid_state");
     }
 
-    const bundle = sessionToZoomBundle(session);
-    if ("error" in bundle) {
-      return redirectBack(req, `oauthError=${encodeURIComponent(bundle.error)}`);
+    const exchanged = await zoomExchangeCode(code);
+    if ("error" in exchanged) {
+      return redirectBack(req, `oauthError=${encodeURIComponent(exchanged.error)}`);
     }
-
     let hint: string | null = null;
-    if (bundle.accessToken) {
-      hint = await zoomAccountHint(bundle.accessToken);
+    if (exchanged.accessToken) {
+      hint = await zoomAccountHint(exchanged.accessToken);
     }
-
     await persistZoomConnection({
-      trainerId: link.trainerId,
-      exchanged: bundle,
+      trainerId: st.trainerId,
+      exchanged,
       hint,
-      oauthGrantSource: "supabase_zoom",
+      oauthGrantSource: "direct",
     });
-
-    await supabase.auth.signOut();
-    response.cookies.delete(TRAINER_ZOOM_SUPABASE_LINK_COOKIE);
-    return response;
+    return redirectBack(req, "connected=zoom");
+  } catch (e) {
+    console.error("[trainer oauth zoom callback]", e);
+    const msg =
+      e instanceof Error && e.message.trim()
+        ? e.message.trim()
+        : "Could not save Zoom connection. Try again or contact support.";
+    return redirectBack(req, `oauthError=${encodeURIComponent(msg)}`);
   }
-
-  const state = url.searchParams.get("state");
-  if (!state?.trim()) {
-    return redirectBack(req, "oauthError=invalid_state");
-  }
-  const st = await verifyVideoOAuthState(state);
-  if (!st || st.provider !== "ZOOM") {
-    return redirectBack(req, "oauthError=invalid_state");
-  }
-
-  const exchanged = await zoomExchangeCode(code);
-  if ("error" in exchanged) {
-    return redirectBack(req, `oauthError=${encodeURIComponent(exchanged.error)}`);
-  }
-  let hint: string | null = null;
-  if (exchanged.accessToken) {
-    hint = await zoomAccountHint(exchanged.accessToken);
-  }
-  await persistZoomConnection({
-    trainerId: st.trainerId,
-    exchanged,
-    hint,
-    oauthGrantSource: "direct",
-  });
-  return redirectBack(req, "connected=zoom");
 }

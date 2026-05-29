@@ -13,55 +13,64 @@ function redirectBack(req: Request, query: string) {
 }
 
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const oauthErr = url.searchParams.get("error");
-  if (oauthErr) {
-    return redirectBack(req, `oauthError=${encodeURIComponent(oauthErr)}`);
-  }
-  const code = url.searchParams.get("code");
-  const state = url.searchParams.get("state");
-  if (!code?.trim() || !state?.trim()) {
-    return redirectBack(req, "oauthError=missing_code");
-  }
-  const st = await verifyVideoOAuthState(state);
-  if (!st || st.provider !== "GOOGLE") {
-    return redirectBack(req, "oauthError=invalid_state");
-  }
-  const exchanged = await googleExchangeCode(code);
-  if ("error" in exchanged) {
-    return redirectBack(req, `oauthError=${encodeURIComponent(exchanged.error)}`);
-  }
-  let hint: string | null = null;
-  if (exchanged.accessToken) {
-    try {
-      const r = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
-        headers: { Authorization: `Bearer ${exchanged.accessToken}` },
-      });
-      const j = (await r.json().catch(() => null)) as { email?: string } | null;
-      if (j?.email && typeof j.email === "string") {
-        const [u, d] = j.email.split("@");
-        if (u && d) hint = `${u.slice(0, 2)}…@${d}`;
-      }
-    } catch {
-      /* non-fatal */
+  try {
+    const url = new URL(req.url);
+    const oauthErr = url.searchParams.get("error");
+    if (oauthErr) {
+      return redirectBack(req, `oauthError=${encodeURIComponent(oauthErr)}`);
     }
+    const code = url.searchParams.get("code");
+    const state = url.searchParams.get("state");
+    if (!code?.trim() || !state?.trim()) {
+      return redirectBack(req, "oauthError=missing_code");
+    }
+    const st = await verifyVideoOAuthState(state);
+    if (!st || st.provider !== "GOOGLE") {
+      return redirectBack(req, "oauthError=invalid_state");
+    }
+    const exchanged = await googleExchangeCode(code);
+    if ("error" in exchanged) {
+      return redirectBack(req, `oauthError=${encodeURIComponent(exchanged.error)}`);
+    }
+    let hint: string | null = null;
+    if (exchanged.accessToken) {
+      try {
+        const r = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+          headers: { Authorization: `Bearer ${exchanged.accessToken}` },
+        });
+        const j = (await r.json().catch(() => null)) as { email?: string } | null;
+        if (j?.email && typeof j.email === "string") {
+          const [u, d] = j.email.split("@");
+          if (u && d) hint = `${u.slice(0, 2)}…@${d}`;
+        }
+      } catch {
+        /* non-fatal */
+      }
+    }
+    await prisma.trainerVideoConferenceConnection.upsert({
+      where: { trainerId_provider: { trainerId: st.trainerId, provider: "GOOGLE" } },
+      create: {
+        trainerId: st.trainerId,
+        provider: "GOOGLE",
+        encryptedOAuthBundle: encryptUtf8(stringifyOAuthTokenBundle(exchanged)),
+        accessTokenExpiresAt: exchanged.expiresAtMs ? new Date(exchanged.expiresAtMs) : null,
+        externalAccountHint: hint,
+      },
+      update: {
+        encryptedOAuthBundle: encryptUtf8(stringifyOAuthTokenBundle(exchanged)),
+        accessTokenExpiresAt: exchanged.expiresAtMs ? new Date(exchanged.expiresAtMs) : null,
+        externalAccountHint: hint ?? undefined,
+        revokedAt: null,
+        updatedAt: new Date(),
+      },
+    });
+    return redirectBack(req, "connected=google");
+  } catch (e) {
+    console.error("[trainer oauth google callback]", e);
+    const msg =
+      e instanceof Error && e.message.trim()
+        ? e.message.trim()
+        : "Could not save Google connection. Try again or contact support.";
+    return redirectBack(req, `oauthError=${encodeURIComponent(msg)}`);
   }
-  await prisma.trainerVideoConferenceConnection.upsert({
-    where: { trainerId_provider: { trainerId: st.trainerId, provider: "GOOGLE" } },
-    create: {
-      trainerId: st.trainerId,
-      provider: "GOOGLE",
-      encryptedOAuthBundle: encryptUtf8(stringifyOAuthTokenBundle(exchanged)),
-      accessTokenExpiresAt: exchanged.expiresAtMs ? new Date(exchanged.expiresAtMs) : null,
-      externalAccountHint: hint,
-    },
-    update: {
-      encryptedOAuthBundle: encryptUtf8(stringifyOAuthTokenBundle(exchanged)),
-      accessTokenExpiresAt: exchanged.expiresAtMs ? new Date(exchanged.expiresAtMs) : null,
-      externalAccountHint: hint ?? undefined,
-      revokedAt: null,
-      updatedAt: new Date(),
-    },
-  });
-  return redirectBack(req, "connected=google");
 }

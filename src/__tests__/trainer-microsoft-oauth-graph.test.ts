@@ -6,14 +6,16 @@ import {
 import {
   MICROSOFT_GRAPH_OAUTH_SCOPES,
   microsoftAccessTokenExpiresAtMs,
+  microsoftAuthorizeUrl,
+  microsoftOAuthRedirectUri,
 } from "@/lib/trainer-video-oauth-tokens";
 
 describe("Microsoft Graph OAuth helpers", () => {
-  it("requests the required delegated scopes (space-separated)", () => {
+  it("requests delegated calendar scopes for Teams via Outlook events (not OnlineMeetings REST)", () => {
     expect(MICROSOFT_GRAPH_OAUTH_SCOPES).toContain("openid");
     expect(MICROSOFT_GRAPH_OAUTH_SCOPES).toContain("offline_access");
     expect(MICROSOFT_GRAPH_OAUTH_SCOPES).toContain("Calendars.ReadWrite");
-    expect(MICROSOFT_GRAPH_OAUTH_SCOPES).toContain("OnlineMeetings.ReadWrite");
+    expect(MICROSOFT_GRAPH_OAUTH_SCOPES).not.toContain("OnlineMeetings.ReadWrite");
     expect(MICROSOFT_GRAPH_OAUTH_SCOPES).not.toContain(",");
   });
 
@@ -28,6 +30,25 @@ describe("Microsoft Graph OAuth helpers", () => {
   it("returns undefined for non-JWT access tokens", () => {
     expect(microsoftAccessTokenExpiresAtMs(undefined)).toBeUndefined();
     expect(microsoftAccessTokenExpiresAtMs("not-a-jwt")).toBeUndefined();
+  });
+
+  it("builds direct authorize URL with consent prompt and calendar scopes", () => {
+    const prevId = process.env.MICROSOFT_OAUTH_CLIENT_ID;
+    const prevApp = process.env.NEXT_PUBLIC_APP_URL;
+    process.env.MICROSOFT_OAUTH_CLIENT_ID = "ms-client-id";
+    process.env.NEXT_PUBLIC_APP_URL = "https://example.test";
+    try {
+      const url = microsoftAuthorizeUrl("state-abc");
+      expect(url).toBeTruthy();
+      const u = new URL(url!);
+      expect(u.searchParams.get("prompt")).toBe("consent");
+      expect(u.searchParams.get("redirect_uri")).toBe(microsoftOAuthRedirectUri());
+      expect(decodeURIComponent(u.searchParams.get("scope") ?? "")).toContain("Calendars.ReadWrite");
+      expect(decodeURIComponent(u.searchParams.get("scope") ?? "")).not.toContain("OnlineMeetings");
+    } finally {
+      process.env.MICROSOFT_OAUTH_CLIENT_ID = prevId;
+      process.env.NEXT_PUBLIC_APP_URL = prevApp;
+    }
   });
 });
 
