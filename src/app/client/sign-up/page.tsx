@@ -685,17 +685,7 @@ function ClientSignUpPageInner() {
             </form>
           ) : (
             <>
-              <TurnstileField
-                enabled={turnstile.enabled}
-                widgetRef={turnstile.ref}
-                siteKey={turnstile.siteKey}
-                onReady={turnstile.onTurnstileReady}
-                onError={turnstile.onTurnstileError}
-                onExpire={turnstile.onTurnstileExpire}
-                widgetError={turnstile.widgetError}
-                ready={turnstile.ready}
-                className="mb-6 flex justify-center"
-              />
+              <TurnstileField gate={turnstile} className="mb-6 flex justify-center" />
               {!awaitingCode ? (
             <div className="flex flex-col gap-6">
               <p className="text-sm leading-relaxed text-white/55">

@@ -18,27 +18,29 @@ export function isInternalSyntheticMatchFitEmail(email: string | null | undefine
 }
 
 /** Emails that must never count toward beta caps, founding promos, or public signup totals. */
-export function getLaunchExcludeEmails(role: "client" | "trainer"): string[] {
+export function getLaunchExcludeEmails(role?: "client" | "trainer"): string[] {
   const ex = new Set<string>([...betaExcludeCapCountEmails()].map((e) => e.toLowerCase()));
-  const builtin =
-    role === "client" ? BUILTIN_LAUNCH_EXCLUDE_CLIENT_EMAILS : BUILTIN_LAUNCH_EXCLUDE_TRAINER_EMAILS;
-  for (const e of builtin) ex.add(e.toLowerCase());
-  const qa = role === "client" ? getMatchFitInternalQaClientEmails() : getMatchFitInternalQaTrainerEmails();
-  for (const e of qa) ex.add(e.toLowerCase());
+  for (const email of getMatchFitLaunchExcludeEmails()) ex.add(email.toLowerCase());
+
+  if (role === "client" || !role) {
+    for (const email of BUILTIN_LAUNCH_EXCLUDE_CLIENT_EMAILS) ex.add(email.toLowerCase());
+  }
+  if (role === "trainer" || !role) {
+    for (const email of BUILTIN_LAUNCH_EXCLUDE_TRAINER_EMAILS) ex.add(email.toLowerCase());
+  }
+
   return [...ex];
 }
 
-function launchCountNotClause(role: "client" | "trainer") {
+function launchEmailExcludeOr(role: "client" | "trainer") {
   const excludedEmails = getLaunchExcludeEmails(role);
-  const excludedUsernames = getLaunchExcludeUsernames(role);
-  const or = [
+  return [
     { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" as const } },
     // Exclude all RFC 6761 .invalid TLD emails (test/demo/seed accounts)
     { email: { endsWith: ".invalid", mode: "insensitive" as const } },
+    // Exclude all integration-test fixture emails.
+    { email: { endsWith: MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX, mode: "insensitive" as const } },
     ...(excludedEmails.length > 0 ? [{ email: { in: excludedEmails } }] : []),
-    ...(excludedUsernames.length > 0
-      ? [{ username: { in: excludedUsernames, mode: "insensitive" as const } }]
-      : []),
   ];
 }
 
@@ -88,7 +90,7 @@ export function launchTrainerCountWhere(): Prisma.TrainerWhereInput {
     internalQaSyntheticPersona: false,
     NOT: {
       OR: [
-        ...launchEmailExcludeOr(),
+        ...launchEmailExcludeOr("trainer"),
         ...launchUsernameExcludeOr(usernameExcludes),
         ...launchDevCertExcludeOr(),
       ],
@@ -107,7 +109,7 @@ export function launchClientCountWhere(): Prisma.ClientWhereInput {
     deidentifiedAt: null,
     internalQaSyntheticPersona: false,
     NOT: {
-      OR: [...launchEmailExcludeOr(), ...launchUsernameExcludeOr(usernameExcludes)],
+      OR: [...launchEmailExcludeOr("client"), ...launchUsernameExcludeOr(usernameExcludes)],
     },
   };
 }

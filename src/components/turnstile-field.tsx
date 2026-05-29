@@ -4,16 +4,15 @@ import { TurnstileWidget } from "@/components/turnstile-widget";
 import type { TurnstileWidgetHandle } from "@/components/turnstile-widget";
 import type { Ref } from "react";
 
-type TurnstileFieldProps = {
+type TurnstileGate = {
   enabled: boolean;
   widgetRef: Ref<TurnstileWidgetHandle>;
   siteKey: string;
-  onReady: () => void;
-  onError: () => void;
-  onExpire: () => void;
+  onTurnstileReady: () => void;
+  onTurnstileError: () => void;
+  onTurnstileExpire: () => void;
   widgetError: boolean;
   ready: boolean;
-  className?: string;
 };
 
 export function TurnstileField({ gate, className }: { gate: TurnstileGate; className?: string }) {
