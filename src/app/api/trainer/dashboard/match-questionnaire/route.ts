@@ -1,3 +1,4 @@
+import { isBetaLaunchGatesEnabled } from "@/lib/beta-launch-config";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import {
@@ -13,9 +14,29 @@ import {
   migrateLegacyQuestionnaireServices,
   parseTrainerServiceOfferingsJson,
 } from "@/lib/trainer-service-offerings";
+import {
+  BETA_IN_PERSON_TRAINER_SLOT_REQUIRED_MESSAGE,
+  validateBetaInPersonServiceZip,
+} from "@/lib/beta-in-person-service-area";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+
+async function trainerMaySetQuestionnaireInPerson(trainerId: string, offersInPerson: boolean): Promise<boolean> {
+  if (!offersInPerson || !isBetaLaunchGatesEnabled()) return true;
+  const profile = await prisma.trainerProfile.findUnique({
+    where: { trainerId },
+    select: { betaSlotInPersonHeld: true },
+  });
+  return profile?.betaSlotInPersonHeld === true;
+}
+
+function validateQuestionnaireInPersonPayload(payload: TrainerMatchQuestionnairePayload): string | null {
+  if (!payload.offersInPerson) return null;
+  const zipCheck = validateBetaInPersonServiceZip(payload.inPersonZip);
+  if (!zipCheck.ok) return zipCheck.error;
+  return null;
+}
 
 export async function GET() {
   try {
@@ -76,6 +97,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: msg, issues: parsed.error.issues }, { status: 400 });
     }
     const payload: TrainerMatchQuestionnairePayload = parsed.data;
+
+    if (!(await trainerMaySetQuestionnaireInPerson(trainerId, payload.offersInPerson))) {
+      return NextResponse.json({ error: BETA_IN_PERSON_TRAINER_SLOT_REQUIRED_MESSAGE }, { status: 403 });
+    }
+    const inPersonErr = validateQuestionnaireInPersonPayload(payload);
+    if (inPersonErr) {
+      return NextResponse.json({ error: inPersonErr }, { status: 400 });
+    }
 
     const existing = await prisma.trainerProfile.findUnique({
       where: { trainerId },
@@ -139,6 +168,9 @@ export async function PATCH(req: Request) {
     await migrateLegacyQuestionnaireServices(trainerId);
 
     const incoming = parseTrainerMatchQuestionnaireDraft(answers);
+    if (!(await trainerMaySetQuestionnaireInPerson(trainerId, incoming.offersInPerson))) {
+      return NextResponse.json({ error: BETA_IN_PERSON_TRAINER_SLOT_REQUIRED_MESSAGE }, { status: 403 });
+    }
     const stepErr = validateTrainerMatchQuestionnaireStep(incoming, step);
     if (stepErr) {
       return NextResponse.json({ error: stepErr }, { status: 400 });
@@ -148,6 +180,17 @@ export async function PATCH(req: Request) {
     if (incoming.certifyAccurate === true) {
       const strict = trainerMatchQuestionnaireSchema.safeParse({ ...incoming, certifyAccurate: true as const });
       if (strict.success) payload = strict.data;
+    }
+    if (payload) {
+      const inPersonErr = validateQuestionnaireInPersonPayload(payload);
+      if (inPersonErr) {
+        return NextResponse.json({ error: inPersonErr }, { status: 400 });
+      }
+    } else if (incoming.offersInPerson && incoming.inPersonZip?.trim()) {
+      const zipCheck = validateBetaInPersonServiceZip(incoming.inPersonZip);
+      if (!zipCheck.ok) {
+        return NextResponse.json({ error: zipCheck.error }, { status: 400 });
+      }
     }
 
     const row = await prisma.trainerProfile.findUnique({

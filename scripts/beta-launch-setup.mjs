@@ -91,8 +91,10 @@ function mergeLaunchDefaults(map, { local }) {
   }
 
   map.set("MATCH_FIT_BETA_GATES_ENABLED", "1");
-  if (!map.get("MATCH_FIT_BETA_MAX_TRAINERS")) map.set("MATCH_FIT_BETA_MAX_TRAINERS", "10");
-  if (!map.get("MATCH_FIT_BETA_MAX_CLIENTS")) map.set("MATCH_FIT_BETA_MAX_CLIENTS", "50");
+  if (!map.get("MATCH_FIT_BETA_MAX_TRAINERS")) map.set("MATCH_FIT_BETA_MAX_TRAINERS", "30");
+  if (!map.get("MATCH_FIT_BETA_MAX_VIRTUAL_TRAINERS")) map.set("MATCH_FIT_BETA_MAX_VIRTUAL_TRAINERS", "20");
+  if (!map.get("MATCH_FIT_BETA_MAX_IN_PERSON_TRAINERS")) map.set("MATCH_FIT_BETA_MAX_IN_PERSON_TRAINERS", "10");
+  if (!map.get("MATCH_FIT_BETA_MAX_CLIENTS")) map.set("MATCH_FIT_BETA_MAX_CLIENTS", "150");
 
   return map;
 }

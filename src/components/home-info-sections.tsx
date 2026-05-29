@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { HomeCtaLogoutBar } from "@/components/home-cta-logout-bar";
 import { HomeBetaSlotWarning } from "@/components/home-beta-slot-warning";
+import { BetaInPersonRolloutDisclaimer } from "@/components/beta-in-person-rollout-disclaimer";
 import { HomeTrainerServiceTypesSection } from "@/components/home-trainer-service-types-section";
 import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
 import {
@@ -145,12 +146,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           open up the app to more people.
         </p>
 
-        <p className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-xs leading-relaxed text-white/45 sm:text-[13px]">
-          <span className="font-semibold text-[#FF7E00]/90">Service area:</span> We are currently serving the{" "}
-          <span className="font-semibold text-white/60">Atlanta metro area</span> (within approximately 15–20
-          miles of downtown Atlanta) to start. We will be working hard to expand to more cities and regions as
-          soon as possible.
-        </p>
+        <BetaInPersonRolloutDisclaimer variant="inline" className="mt-2" />
       </SectionShell>
 
       {/* 1 — Value first: why the product exists + economics (retention: answer "why stay" early) */}
@@ -284,11 +280,19 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
             the session and train together from wherever you are.
           </p>
           <p className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-xs leading-relaxed text-white/45 sm:text-[13px]">
-            <span className="font-semibold text-[#FF7E00]/90">Important:</span> Clients cannot send{" "}
+            <span className="font-semibold text-[#FF7E00]/90">For your safety:</span> Keep virtual sessions on the
+            approved links shared in chat—do not send{" "}
             <span className="font-semibold text-white/60">FaceTime</span> requests or meeting invites that rely on
             personal <span className="font-semibold text-white/60">phone numbers</span> or{" "}
-            <span className="font-semibold text-white/60">email addresses</span> outside Match Fit. Keep virtual
-            sessions on the approved links shared in chat so everyone stays protected and on-platform.
+            <span className="font-semibold text-white/60">email addresses</span> outside Match Fit. See our{" "}
+            <Link href="/terms" className="font-semibold text-[#FF9A4A] underline-offset-2 hover:underline">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="font-semibold text-[#FF9A4A] underline-offset-2 hover:underline">
+              Privacy Policy
+            </Link>
+            .
           </p>
         </ServiceCard>
 

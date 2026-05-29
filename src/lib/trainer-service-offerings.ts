@@ -5,6 +5,11 @@ export * from "@/lib/trainer-service-offerings-document";
 import { prisma } from "@/lib/prisma";
 import { parseTrainerMatchQuestionnaireDraft } from "@/lib/trainer-match-questionnaire-draft";
 import {
+  BETA_IN_PERSON_TRAINER_SLOT_REQUIRED_MESSAGE,
+  validateBetaInPersonServiceZip,
+} from "@/lib/beta-in-person-service-area";
+import { isBetaLaunchGatesEnabled } from "@/lib/beta-launch-config";
+import {
   MATCH_SERVICE_CATALOG,
   trainerMatchQuestionnaireSchema,
   type BillingUnit,
@@ -218,6 +223,25 @@ export async function persistTrainerServiceOfferingsWithAi(
   if (!validated.success) {
     const msg = validated.error.issues[0]?.message ?? "Could not validate service package.";
     return { ok: false, error: msg, status: 400 };
+  }
+
+  const needsInPerson = validated.data.services.some(
+    (s) => s.delivery === "in_person" || s.delivery === "both",
+  );
+  if (needsInPerson && isBetaLaunchGatesEnabled()) {
+    const profile = await prisma.trainerProfile.findUnique({
+      where: { trainerId },
+      select: { betaSlotInPersonHeld: true, serviceZipCode: true },
+    });
+    if (profile?.betaSlotInPersonHeld !== true) {
+      return { ok: false, error: BETA_IN_PERSON_TRAINER_SLOT_REQUIRED_MESSAGE, status: 403 };
+    }
+    const zipCheck = validateBetaInPersonServiceZip(
+      validated.data.inPersonServiceZip ?? profile.serviceZipCode ?? null,
+    );
+    if (!zipCheck.ok) {
+      return { ok: false, error: zipCheck.error, status: 400 };
+    }
   }
 
   const refreshed = await loadTrainerProfileAnswersAndOfferings(trainerId);

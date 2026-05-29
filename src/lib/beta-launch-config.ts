@@ -24,12 +24,28 @@ export function isBetaLaunchGatesEnabled(): boolean {
   return truthyEnv(process.env.MATCH_FIT_BETA_GATES_ENABLED);
 }
 
+/** Hard cap on founding beta trainers (virtual + in-person buckets combined). */
+export function betaMaxTotalTrainers(): number {
+  return parsePositiveInt(process.env.MATCH_FIT_BETA_MAX_TRAINERS, 30);
+}
+
+/** @deprecated Alias for {@link betaMaxTotalTrainers}. */
 export function betaMaxTrainers(): number {
-  return parsePositiveInt(process.env.MATCH_FIT_BETA_MAX_TRAINERS, 10);
+  return betaMaxTotalTrainers();
+}
+
+/** Base virtual / DIY / nutrition-remote coach cap before unused in-person slots reallocate. */
+export function betaMaxVirtualTrainersBase(): number {
+  return parsePositiveInt(process.env.MATCH_FIT_BETA_MAX_VIRTUAL_TRAINERS, 20);
+}
+
+/** In-person coach cap within the Atlanta metro geo-circle. */
+export function betaMaxInPersonTrainers(): number {
+  return parsePositiveInt(process.env.MATCH_FIT_BETA_MAX_IN_PERSON_TRAINERS, 10);
 }
 
 export function betaMaxClients(): number {
-  return parsePositiveInt(process.env.MATCH_FIT_BETA_MAX_CLIENTS, 50);
+  return parsePositiveInt(process.env.MATCH_FIT_BETA_MAX_CLIENTS, 150);
 }
 
 /** Days an invited user has to complete signup before the slot is released. */

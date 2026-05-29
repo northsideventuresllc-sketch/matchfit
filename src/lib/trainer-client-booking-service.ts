@@ -1,3 +1,8 @@
+import {
+  BETA_IN_PERSON_TRAINER_SLOT_REQUIRED_MESSAGE,
+  validateBetaInPersonParticipantZips,
+} from "@/lib/beta-in-person-service-area";
+import { isBetaLaunchGatesEnabled } from "@/lib/beta-launch-config";
 import { prisma } from "@/lib/prisma";
 import { runOutboundChatComplianceMonitoring } from "@/lib/chat-compliance-monitor";
 import {
@@ -8,6 +13,7 @@ import { allocationNetCentsForSession, sessionConsumedBillingUnits } from "@/lib
 import type { BillingUnit } from "@/lib/trainer-match-questionnaire";
 import { computeAverageCoachServiceCentsPerCredit } from "@/lib/session-check-in";
 import { checkInWindowStartAt } from "@/lib/session-check-in-timing";
+import { parseTrainerServiceOfferingsJson } from "@/lib/trainer-service-offerings-document";
 import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
 
 function videoConferenceProviderClientLabel(stored: string | null | undefined): string {
@@ -47,6 +53,32 @@ export async function createTrainerBookingInvite(args: {
   }
   if (args.endsAt.getTime() - args.startsAt.getTime() > 12 * 60 * 60 * 1000) {
     return { error: "Booking window cannot exceed 12 hours." };
+  }
+
+  const delivery = args.sessionDelivery ?? "IN_PERSON";
+  if (delivery === "IN_PERSON") {
+    const [clientRow, trainerProfile] = await Promise.all([
+      prisma.client.findUnique({
+        where: { id: args.clientId },
+        select: { zipCode: true },
+      }),
+      prisma.trainerProfile.findUnique({
+        where: { trainerId: args.trainerId },
+        select: { serviceZipCode: true, betaSlotInPersonHeld: true, serviceOfferingsJson: true },
+      }),
+    ]);
+    if (isBetaLaunchGatesEnabled() && trainerProfile?.betaSlotInPersonHeld !== true) {
+      return { error: BETA_IN_PERSON_TRAINER_SLOT_REQUIRED_MESSAGE };
+    }
+    const offerings = parseTrainerServiceOfferingsJson(trainerProfile?.serviceOfferingsJson);
+    const trainerZip = offerings.inPersonServiceZip ?? trainerProfile?.serviceZipCode ?? null;
+    const geoCheck = validateBetaInPersonParticipantZips({
+      clientZip: clientRow?.zipCode ?? null,
+      trainerServiceZip: trainerZip,
+    });
+    if (!geoCheck.ok) {
+      return { error: geoCheck.error };
+    }
   }
 
   const conv = await prisma.trainerClientConversation.findUnique({

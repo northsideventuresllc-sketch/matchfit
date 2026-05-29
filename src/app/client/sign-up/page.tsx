@@ -10,6 +10,7 @@ import { tryCreateMatchFitSupabaseBrowserClient } from "@/lib/supabase/browser-c
 import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
 import { BetaCapFullSignupNotice } from "@/components/beta-cap-full-signup-notice";
+import { BetaInPersonRolloutDisclaimer } from "@/components/beta-in-person-rollout-disclaimer";
 import { useBetaLaunchStatus } from "@/hooks/use-beta-launch-status";
 import { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -408,7 +409,7 @@ function ClientSignUpPageInner() {
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-white/55 sm:text-base">
           {wizardStep === 1
-            ? "Tell us a bit about yourself. Atlanta metro beta — you must be 18 or older to join."
+            ? "Tell us a bit about yourself. Beta is open to clients anywhere in the United States — you must be 18 or older to join."
             : awaitingCode
               ? "Check your inbox for a verification email with your code."
               : "Add an extra layer of security, or skip and turn this on later in settings."}
@@ -421,6 +422,8 @@ function ClientSignUpPageInner() {
             expires.
           </p>
         ) : null}
+
+        {wizardStep === 1 && !clientCapFull ? <BetaInPersonRolloutDisclaimer variant="signup" className="mt-4" /> : null}
 
         <div className="mt-8 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
           {betaStatusLoading ? (
@@ -602,7 +605,7 @@ function ClientSignUpPageInner() {
               <div className="grid gap-5 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
                   <label htmlFor="su-zip" className={labelClass}>
-                    Home ZIP (Atlanta metro beta)
+                    Home ZIP (United States)
                   </label>
                   <input
                     id="su-zip"
@@ -612,7 +615,7 @@ function ClientSignUpPageInner() {
                     required
                     value={zipCode}
                     onChange={(e) => setZipCode(e.target.value)}
-                    placeholder="30301 or 30062"
+                    placeholder="90210 or 30301"
                     pattern="[0-9]{5}(-[0-9]{4})?"
                     title="Enter a valid US ZIP code"
                     className={inputClass}

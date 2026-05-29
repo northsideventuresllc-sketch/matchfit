@@ -163,3 +163,21 @@ export function isZipInBetaAtlantaMetroArea(zip: string): boolean {
   if (BETA_ATLANTA_METRO_ZIP_SET.has(z)) return true;
   return extraBetaAtlantaZipsFromEnv().has(z);
 }
+
+/** Sorted 5-digit ZIP codes in the Atlanta metro beta in-person service area. */
+export function listBetaAtlantaMetroZipCodes(): string[] {
+  const merged = new Set<string>(BETA_ATLANTA_METRO_ZIP_SET);
+  for (const z of extraBetaAtlantaZipsFromEnv()) merged.add(z);
+  return [...merged].sort((a, b) => Number(a) - Number(b));
+}
+
+/** Human-readable summary for inline UI copy (full list available via {@link listBetaAtlantaMetroZipCodes}). */
+export function summarizeBetaAtlantaMetroZipCoverage(): string {
+  const zips = listBetaAtlantaMetroZipCodes();
+  const intown = zips.filter((z) => z.startsWith("303"));
+  const otp = zips.filter((z) => !z.startsWith("303"));
+  const intownRange =
+    intown.length >= 2 ? `${intown[0]}–${intown[intown.length - 1]}` : intown.join(", ");
+  if (!otp.length) return intownRange;
+  return `${intownRange}; plus ${otp.join(", ")}`;
+}
