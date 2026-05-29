@@ -12,8 +12,8 @@ export function BetaCapFullSignupNotice({ role, waitlistHref, cap, count, slotsU
   const isClient = role === "client";
   const title = isClient ? "Memberships are full for this beta" : "Coach slots are full for this beta";
   const body = isClient
-    ? "All client membership slots for the Atlanta metro beta are taken. Join the waitlist and we will email you a secure invite when a slot opens — usually within 30 days to complete sign-up."
-    : "All trainer slots for the Atlanta metro beta are taken. Join the waitlist and we will email you when a coach slot opens.";
+    ? "All client membership slots for this beta are taken. Join the waitlist and we will email you a secure invite when a slot opens — usually within 30 days to complete sign-up. Clients anywhere in the United States can join the waitlist."
+    : "All coach beta slots are taken (virtual, in-person, and total capacity). Join the waitlist and we will email you when a matching coach slot opens. Virtual / DIY coaches may sign up nationwide; in-person offerings require an Atlanta metro service ZIP.";
   const cta = isClient ? "Join the client waitlist" : "Join the trainer waitlist";
   const capLine =
     cap != null && count != null ? (

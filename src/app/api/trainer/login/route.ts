@@ -76,7 +76,7 @@ export async function POST(req: Request) {
 
     await prisma.trainer.update({
       where: { id: trainer.id },
-      data: { stayLoggedIn },
+      data: { stayLoggedIn, lastLoginAt: new Date() },
     });
     const deletionRedirect = await trainerLoginDeletionRedirect(trainer.id);
     const res = NextResponse.json({

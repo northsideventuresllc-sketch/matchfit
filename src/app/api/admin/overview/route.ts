@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { getAdminPortalOverview } from "@/lib/admin-portal-data";
+import { getAdminPortalDashboard } from "@/lib/admin-portal-data";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/session";
 import { NextResponse } from "next/server";
@@ -21,8 +21,8 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    const overview = await getAdminPortalOverview();
-    return NextResponse.json(overview);
+    const dashboard = await getAdminPortalDashboard();
+    return NextResponse.json(dashboard);
   } catch (e) {
     console.error("[admin overview]", e);
     return NextResponse.json({ error: "Could not load overview." }, { status: 500 });

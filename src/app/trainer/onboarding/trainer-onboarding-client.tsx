@@ -14,8 +14,13 @@ import {
 } from "@/lib/trainer-specialist-roles";
 import { TrainerSocialUrlFields } from "@/components/trainer/trainer-social-url-fields";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
-import { verifyTrainerOnboardingDevPassword } from "@/lib/trainer-dev-bypass";
+import { DEFAULT_TRAINER_FOUNDING_BG_PERCENT_MAX } from "@/lib/match-fit-launch-promotions";
 import { certificationsGatePassed } from "@/lib/trainer-onboarding-cert-gate";
+import { trainerBackgroundCheckAmountCents } from "@/lib/trainer-background-check-stripe";
+import {
+  describeStandardTrainerRegistrationBreakdown,
+  formatTrainerRegistrationUsd,
+} from "@/lib/trainer-registration-fee";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { normalizeTrainerSocialFields } from "@/lib/trainer-social-urls";
@@ -323,9 +328,11 @@ export default function TrainerOnboardingClient() {
 
   const profile = trainer?.profile;
 
+  const backgroundCheckCents = useMemo(() => trainerBackgroundCheckAmountCents(), []);
+
   const agreementBullets = useMemo(
-    () => getTrainerOnboardingAgreementBullets(profile?.registrationFeeWaived ?? false),
-    [profile?.registrationFeeWaived],
+    () => getTrainerOnboardingAgreementBullets(profile?.registrationFeeWaived ?? false, backgroundCheckCents),
+    [profile?.registrationFeeWaived, backgroundCheckCents],
   );
 
   const onboardingSnapshotSerialized = useMemo(
@@ -474,12 +481,10 @@ export default function TrainerOnboardingClient() {
     return SPECIALIST_ROLE_OPTIONS.find((o) => o.id === id)?.label ?? "Certified specialist credential";
   }, [profile?.specialistProfessionalRole]);
   const bgNeedsReview = bgVendor === "NEEDS_FURTHER_REVIEW";
-  const backgroundCheckFeeLabel = useMemo(() => {
-    const usd = process.env.NEXT_PUBLIC_TRAINER_BACKGROUND_CHECK_FEE_USD?.trim();
-    const n = usd ? Number.parseFloat(usd) : 49;
-    const v = Number.isFinite(n) && n > 0 ? n : 49;
-    return `$${v.toFixed(2)}`;
-  }, []);
+  const backgroundCheckFeeLabel = useMemo(
+    () => formatTrainerRegistrationUsd(backgroundCheckCents),
+    [backgroundCheckCents],
+  );
 
   const handleBackgroundPaymentSuccess = useCallback(async () => {
     setError(null);
@@ -1213,12 +1218,27 @@ export default function TrainerOnboardingClient() {
                 <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-[13px] leading-relaxed text-emerald-100/95">
                   <p className="font-semibold text-emerald-50">Founding coach slot</p>
                   <p className="mt-1 text-emerald-100/85">
-                    You are in the first <span className="font-semibold text-white">10 coaches</span>: after screening
+                    You are in the first{" "}
+                    <span className="font-semibold text-white">
+                      {DEFAULT_TRAINER_FOUNDING_BG_PERCENT_MAX} coaches
+                    </span>
+                    : after screening
                     clears, Match Fit charges <span className="font-semibold text-white">20%</span> of your verified
                     Checkr background-check amount (plus processing)—not the full $100 platform fee.
                   </p>
                 </div>
-              ) : null}
+              ) : (
+                <div className="rounded-xl border border-white/[0.08] bg-[#0E1016]/80 px-4 py-3 text-[13px] leading-relaxed text-white/70">
+                  <p className="font-semibold text-white/90">General information</p>
+                  <p className="mt-1">
+                    Standard trainer onboarding is{" "}
+                    <span className="font-semibold text-white">
+                      {describeStandardTrainerRegistrationBreakdown(backgroundCheckCents)}
+                    </span>
+                    . Card processing fees are added separately when you pay.
+                  </p>
+                </div>
+              )}
               <ul className="space-y-3">
                 {agreementBullets.map((text, i) => (
                   <li key={i} className="flex gap-3 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-3">
@@ -1270,12 +1290,26 @@ export default function TrainerOnboardingClient() {
 
           {step === 2 ? (
             <div className="space-y-5 text-sm leading-relaxed text-white/70">
+              {!profile?.registrationFeeWaived ? (
+                <div className="rounded-xl border border-white/[0.08] bg-[#0E1016]/80 px-4 py-3 text-[13px] leading-relaxed text-white/70">
+                  <p className="font-semibold text-white/90">Standard onboarding fee</p>
+                  <p className="mt-1">
+                    <span className="font-semibold text-white">
+                      {describeStandardTrainerRegistrationBreakdown(backgroundCheckCents)}
+                    </span>
+                    . You pay the background check first; the Match Fit platform sign-up fee is collected after
+                    screening clears.
+                  </p>
+                </div>
+              ) : null}
               <div className="space-y-3 text-[13px] leading-relaxed text-white/65">
                 {profile?.hasPaidBackgroundFee === false ? (
                   <div className="mb-6 rounded-2xl border border-[#FF7E00]/20 bg-[#FF7E00]/5 p-6">
                     <h3 className="text-sm font-bold text-white uppercase tracking-wider">Payment Required</h3>
                     <p className="mt-2 text-white/70">
-                      To proceed with your background check, a processing fee is required.
+                      To proceed with your background check, pay{" "}
+                      <span className="font-semibold text-white">{backgroundCheckFeeLabel}</span> (background check fee).
+                      Card processing fees are added at checkout.
                     </p>
                     
                     {stripeClientSecret ? (

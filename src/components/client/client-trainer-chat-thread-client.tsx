@@ -8,7 +8,7 @@ import { ChatMessageBody } from "@/components/chat/chat-message-body";
 import type { ChatAttachmentPayload } from "@/lib/chat-attachment";
 import { SAFETY_REPORT_CATEGORIES, formatSafetyReportCategoryLabel } from "@/lib/safety-constants";
 import type { SafetyBlockMode } from "@/lib/safety-block-modes";
-import { OFF_PLATFORM_CLIENT_CHAT_NOTICE } from "@/lib/tos-off-platform-deterrent";
+import { InAppCommunicationSafetyNotice } from "@/components/in-app-communication-safety-notice";
 import { clientInviteConfirmationWindow } from "@/lib/session-check-in-timing";
 type Msg = {
   id: string;
@@ -664,11 +664,7 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
         </button>
       </div>
 
-      {official && !archived ? (
-        <div className="mt-2 rounded-xl border border-white/[0.07] bg-[#08090d]/90 px-3 py-2.5 text-center text-[9px] leading-snug text-white/38 sm:px-4 sm:text-[10px] sm:leading-relaxed">
-          <span className="break-words">{OFF_PLATFORM_CLIENT_CHAT_NOTICE}</span>
-        </div>
-      ) : null}
+      {official && !archived ? <InAppCommunicationSafetyNotice audience="client" variant="footer" /> : null}
     </div>
   );
 }

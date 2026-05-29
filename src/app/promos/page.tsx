@@ -2,7 +2,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { getLaunchPromoStats } from "@/lib/launch-promo-stats";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
-import { getClientFoundingTrialDays } from "@/lib/match-fit-launch-promotions";
+import {
+  getClientFoundingTrialDays,
+  getFoundingTrainerSalesBonusMaxSales,
+  getFoundingTrainerSalesBonusMaxTrainers,
+  getFoundingTrainerSalesBonusPercent,
+} from "@/lib/match-fit-launch-promotions";
+import { describeStandardTrainerRegistrationBreakdown } from "@/lib/trainer-registration-fee";
+import { trainerBackgroundCheckAmountCents } from "@/lib/trainer-background-check-stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +30,9 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
 export default async function PromosPage() {
   const stats = await getLaunchPromoStats();
   const trialDays = getClientFoundingTrialDays();
+  const foundingSalesBonusMaxTrainers = getFoundingTrainerSalesBonusMaxTrainers();
+  const foundingSalesBonusMaxSales = getFoundingTrainerSalesBonusMaxSales();
+  const foundingSalesBonusPercent = getFoundingTrainerSalesBonusPercent();
 
   const {
     trainerCount,
@@ -37,12 +47,23 @@ export default async function PromosPage() {
     clientBetaCap,
     trainerBetaSlotsRemaining,
     clientBetaSlotsRemaining,
+    trainerTotalCapFull,
     trainerWaitlistOpen,
     clientWaitlistOpen,
+    trainerVirtualSlotsUsed,
+    trainerVirtualSlotsMax,
+    trainerVirtualSlotsRemaining,
+    trainerInPersonSlotsUsed,
+    trainerInPersonSlotsMax,
+    trainerInPersonSlotsRemaining,
+    trainerVirtualBaseMax,
   } = stats;
 
-  const trainerCapFull = trainerWaitlistOpen;
+  const trainerSignupClosed = trainerTotalCapFull;
   const clientCapFull = clientWaitlistOpen;
+  const standardTrainerOnboardingFee = describeStandardTrainerRegistrationBreakdown(
+    trainerBackgroundCheckAmountCents(),
+  );
 
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] text-white antialiased">
@@ -123,7 +144,18 @@ export default async function PromosPage() {
                 <span className="font-bold text-[#FFD34E]">{trainerFoundingMax} fitness professionals</span>{" "}
                 to join Match Fit pay only{" "}
                 <span className="font-bold text-[#FFD34E]">20% of their background check cost</span> for
-                onboarding (instead of the usual $100.00 platform fee minus the screening amount).
+                onboarding (instead of the usual {standardTrainerOnboardingFee}).
+              </p>
+
+              <p className="mt-4 text-pretty text-[15px] leading-relaxed text-white/65 sm:text-base">
+                Founding coaches in the first{" "}
+                <span className="font-bold text-[#FFD34E]">{foundingSalesBonusMaxTrainers} trainer spots</span>{" "}
+                also earn{" "}
+                <span className="font-bold text-[#FFD34E]">{foundingSalesBonusPercent}% back</span> on the total
+                charged for their first{" "}
+                <span className="font-bold text-[#FFD34E]">{foundingSalesBonusMaxSales} client package sales</span>{" "}
+                through the Match Fit app for the remainder of 2026 — credited to your payout ledger on each
+                qualifying checkout.
               </p>
 
               <div className="mt-6 space-y-2">
@@ -136,8 +168,11 @@ export default async function PromosPage() {
                 <ProgressBar value={trainerCount} max={trainerFoundingMax} />
                 {trainerFoundingActive ? (
                   <p className="text-xs text-[#FFD34E]">
-                    {trainerFoundingRemaining} founding{" "}
-                    {trainerFoundingRemaining === 1 ? "spot" : "spots"} remaining
+                    {trainerFoundingRemaining} founding registration{" "}
+                    {trainerFoundingRemaining === 1 ? "spot" : "spots"} remaining ·{" "}
+                    {Math.max(0, foundingSalesBonusMaxTrainers - trainerCount)} sales-bonus{" "}
+                    {Math.max(0, foundingSalesBonusMaxTrainers - trainerCount) === 1 ? "spot" : "spots"}{" "}
+                    remaining
                   </p>
                 ) : (
                   <p className="text-xs text-white/40">Founding spots are full. Standard pricing now applies.</p>
@@ -145,16 +180,27 @@ export default async function PromosPage() {
               </div>
 
               {stats.gatesEnabled ? (
-                <p className="mt-4 text-[11px] text-white/40">
-                  Beta membership capacity: {stats.trainerBetaSlotsUsed} / {trainerBetaCap} slots used
-                  {trainerBetaSlotsRemaining > 0
-                    ? ` (${trainerBetaSlotsRemaining} open)`
-                    : " (full — waitlist open)"}
-                </p>
+                <div className="mt-4 space-y-1 text-[11px] leading-relaxed text-white/40">
+                  <p>
+                    Beta coach capacity: {stats.trainerBetaSlotsUsed} / {trainerBetaCap} total slots used
+                    {trainerBetaSlotsRemaining > 0
+                      ? ` (${trainerBetaSlotsRemaining} open)`
+                      : " (full — waitlist open)"}
+                  </p>
+                  <p>
+                    Virtual / DIY coaches: {trainerVirtualSlotsUsed} / {trainerVirtualSlotsMax} (base{" "}
+                    {trainerVirtualBaseMax}; unused in-person slots may reallocate one at a time up to{" "}
+                    {trainerBetaCap} total). In-person Atlanta coaches: {trainerInPersonSlotsUsed} /{" "}
+                    {trainerInPersonSlotsMax}
+                    {trainerInPersonSlotsRemaining > 0
+                      ? ` (${trainerInPersonSlotsRemaining} open)`
+                      : " (full — in-person waitlist open)"}
+                  </p>
+                </div>
               ) : null}
 
-              <div className="mt-6">
-                {trainerCapFull ? (
+              <div className="mt-6 flex flex-wrap gap-3">
+                {trainerSignupClosed ? (
                   <Link
                     href="/waitlist/trainer"
                     className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/15 px-6 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/60"
@@ -169,6 +215,14 @@ export default async function PromosPage() {
                     Sign Up as a Trainer
                   </Link>
                 )}
+                {trainerWaitlistOpen && !trainerSignupClosed ? (
+                  <Link
+                    href="/waitlist/trainer"
+                    className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-white/[0.12] bg-white/[0.03] px-6 text-sm font-semibold text-white/70 transition hover:border-white/[0.22] hover:text-white"
+                  >
+                    Join waitlist for full buckets
+                  </Link>
+                ) : null}
               </div>
             </div>
           </div>
@@ -276,7 +330,7 @@ export default async function PromosPage() {
           <ul className="mt-3 space-y-1.5">
             <li className="flex gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />
-              <span>Trainers pay the standard onboarding fee ($100.00 minus their background check amount).</span>
+              <span>Trainers pay the standard onboarding fee ({standardTrainerOnboardingFee}).</span>
             </li>
             <li className="flex gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />

@@ -1,4 +1,7 @@
 import { assertTrainerBetaSlotInTransaction, countLaunchTrainersInTx } from "@/lib/beta-cap-enforcement";
+import { refreshBetaTrainerDynamicVirtualCapacity } from "@/lib/beta-trainer-capacity-notify";
+import { trainerOfferingPrefsFromSignup } from "@/lib/beta-trainer-slot-caps";
+import { foundingTrainerSignupRankForNewTrainer } from "@/lib/founding-trainer-sales-bonus";
 import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { trainerRegistrationPricingModeForNewTrainer } from "@/lib/trainer-registration-fee";
@@ -19,14 +22,19 @@ export async function createTrainerRecord(
   const email = body.email.trim().toLowerCase();
   const passwordHash = await hashPassword(body.password);
   const serviceZipCode = normalizeTrainerServiceZip(body.serviceZipCode);
+  const offeringPrefs = trainerOfferingPrefsFromSignup({
+    wantsVirtual: true,
+    wantsInPerson: body.wantsInPerson,
+  });
 
-  return prisma.$transaction(
+  const result = await prisma.$transaction(
     async (tx) => {
-      await assertTrainerBetaSlotInTransaction(tx, options?.betaInviteEntryId ?? null);
+      await assertTrainerBetaSlotInTransaction(tx, options?.betaInviteEntryId ?? null, offeringPrefs);
       const trainerCountBefore = await countLaunchTrainersInTx(tx);
       const registrationFeePricingMode = trainerRegistrationPricingModeForNewTrainer(trainerCountBefore);
       /** Legacy UI flag: true for founding tier (20% of Checkr BG), not a full $100 waiver. */
       const registrationFeeWaived = registrationFeePricingMode === "FOUNDING_BG_SURCHARGE_20PCT";
+      const foundingTrainerSignupRank = foundingTrainerSignupRankForNewTrainer(trainerCountBefore);
 
       const trainer = await tx.trainer.create({
         data: {
@@ -36,6 +44,7 @@ export async function createTrainerRecord(
           phone: body.phone.trim(),
           email,
           passwordHash,
+          foundingTrainerSignupRank,
           termsAcceptedAt: new Date(),
           privacyPolicyAcceptedAt: new Date(),
           profile: {
@@ -43,6 +52,8 @@ export async function createTrainerRecord(
               registrationFeeWaived,
               registrationFeePricingMode,
               ...(serviceZipCode ? { serviceZipCode } : {}),
+              betaSlotVirtualHeld: offeringPrefs.wantsVirtual,
+              betaSlotInPersonHeld: offeringPrefs.wantsInPerson,
               backgroundCheckStatus: "NOT_STARTED",
               certificationReviewStatus: "NOT_STARTED",
               nutritionistCertificationReviewStatus: "NOT_STARTED",
@@ -62,4 +73,10 @@ export async function createTrainerRecord(
     },
     { isolationLevel: "Serializable" },
   );
+
+  void refreshBetaTrainerDynamicVirtualCapacity().catch((err) =>
+    console.error("[trainer register] beta capacity notify failed:", err),
+  );
+
+  return result;
 }

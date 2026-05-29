@@ -3,12 +3,23 @@ import {
   getClientFoundingTrialDays,
   getClientFoundingTrialMaxClients,
   getClientPostCapTrialDays,
+  getFoundingTrainerSalesBonusMaxSales,
+  getFoundingTrainerSalesBonusMaxTrainers,
+  getFoundingTrainerSalesBonusPercent,
   getTrainerFoundingBgPercentMax,
   getTrainerFoundingRegistrationWaiverMax,
+  isFoundingTrainerBySignupRank,
+  isFoundingTrainerSalesBonusEligibleDate,
   isNextClientEligibleForFoundingTrial,
   isTrainerFoundingBgPercentTier,
 } from "@/lib/match-fit-launch-promotions";
-import { computeTrainerRegistrationDueCents } from "@/lib/trainer-registration-fee";
+import {
+  computeStandardTrainerRegistrationBreakdown,
+  computeTrainerRegistrationDueCents,
+  describeStandardTrainerRegistrationBreakdown,
+  formatTrainerRegistrationUsd,
+  TRAINER_PLATFORM_REGISTRATION_FEE_CENTS,
+} from "@/lib/trainer-registration-fee";
 
 describe("match-fit-launch-promotions", () => {
   const prev = { ...process.env };
@@ -26,12 +37,12 @@ describe("match-fit-launch-promotions", () => {
   });
 
   it("uses defaults for client trial caps", () => {
-    expect(getClientFoundingTrialMaxClients()).toBe(50);
+    expect(getClientFoundingTrialMaxClients()).toBe(150);
     expect(getClientFoundingTrialDays()).toBe(14);
     expect(getClientPostCapTrialDays()).toBe(3);
     expect(isNextClientEligibleForFoundingTrial(0)).toBe(true);
-    expect(isNextClientEligibleForFoundingTrial(49)).toBe(true);
-    expect(isNextClientEligibleForFoundingTrial(50)).toBe(false);
+    expect(isNextClientEligibleForFoundingTrial(149)).toBe(true);
+    expect(isNextClientEligibleForFoundingTrial(150)).toBe(false);
   });
 
   it("respects MATCH_FIT_CLIENT_FOUNDING_TRIAL_MAX_CLIENTS", () => {
@@ -47,11 +58,21 @@ describe("match-fit-launch-promotions", () => {
   });
 
   it("uses defaults for trainer founding BG tier", () => {
-    expect(getTrainerFoundingBgPercentMax()).toBe(10);
-    expect(getTrainerFoundingRegistrationWaiverMax()).toBe(10);
+    expect(getTrainerFoundingBgPercentMax()).toBe(30);
+    expect(getTrainerFoundingRegistrationWaiverMax()).toBe(30);
     expect(isTrainerFoundingBgPercentTier(0)).toBe(true);
-    expect(isTrainerFoundingBgPercentTier(9)).toBe(true);
-    expect(isTrainerFoundingBgPercentTier(10)).toBe(false);
+    expect(isTrainerFoundingBgPercentTier(29)).toBe(true);
+    expect(isTrainerFoundingBgPercentTier(30)).toBe(false);
+  });
+
+  it("uses defaults for founding sales bonus caps", () => {
+    expect(getFoundingTrainerSalesBonusMaxTrainers()).toBe(30);
+    expect(getFoundingTrainerSalesBonusMaxSales()).toBe(5);
+    expect(getFoundingTrainerSalesBonusPercent()).toBe(5);
+    expect(isFoundingTrainerBySignupRank(29)).toBe(true);
+    expect(isFoundingTrainerBySignupRank(30)).toBe(false);
+    expect(isFoundingTrainerSalesBonusEligibleDate(new Date("2026-06-01T12:00:00Z"))).toBe(true);
+    expect(isFoundingTrainerSalesBonusEligibleDate(new Date("2027-01-02T12:00:00Z"))).toBe(false);
   });
 });
 
@@ -65,11 +86,23 @@ describe("trainer-registration-fee", () => {
     expect(r.error).toBeUndefined();
   });
 
-  it("standard tier charges $100 minus background check", () => {
+  it("standard tier charges platform portion of $100 total", () => {
     const r = computeTrainerRegistrationDueCents({
       pricingMode: "STANDARD_100_MINUS_BG",
       backgroundCheckVendorPaidCents: 4900,
     });
     expect(r.dueCents).toBe(5100);
+  });
+
+  it("standard breakdown splits $100 between background check and platform fee", () => {
+    const breakdown = computeStandardTrainerRegistrationBreakdown(4900);
+    expect(breakdown.totalCents).toBe(TRAINER_PLATFORM_REGISTRATION_FEE_CENTS);
+    expect(breakdown.backgroundCheckCents).toBe(4900);
+    expect(breakdown.platformCents).toBe(5100);
+    expect(breakdown.backgroundCheckCents + breakdown.platformCents).toBe(breakdown.totalCents);
+    expect(describeStandardTrainerRegistrationBreakdown(4900)).toBe(
+      "$49.00 background check + $51.00 Match Fit platform sign-up fee = $100.00 total (USD)",
+    );
+    expect(formatTrainerRegistrationUsd(5100)).toBe("$51.00");
   });
 });

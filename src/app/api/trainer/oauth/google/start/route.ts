@@ -14,7 +14,7 @@ export async function GET() {
   const url = googleAuthorizeUrl(state);
   if (!url) {
     return NextResponse.json(
-      { error: "Google OAuth is not configured. Set GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, and NEXT_PUBLIC_APP_URL." },
+      { error: "Google OAuth is not configured. Set GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET (or AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET), and NEXT_PUBLIC_APP_URL." },
       { status: 503 },
     );
   }

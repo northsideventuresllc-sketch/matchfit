@@ -9,7 +9,10 @@ import { TrainerComplianceW9EmailSelfService } from "@/components/trainer/traine
 import { TrainerComplianceW9DownloadButton } from "@/components/trainer/trainer-compliance-w9-download-button";
 import { TrainerRegistrationFeePanel } from "@/components/trainer/trainer-registration-fee-panel";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
-import { OFF_PLATFORM_LIQUIDATED_DAMAGES_NOTICE } from "@/lib/tos-off-platform-deterrent";
+import { InAppCommunicationSafetyNotice } from "@/components/in-app-communication-safety-notice";
+import { getTrainerFoundingBgPercentMax } from "@/lib/match-fit-launch-promotions";
+import { describeStandardTrainerRegistrationBreakdown } from "@/lib/trainer-registration-fee";
+import { trainerBackgroundCheckAmountCents } from "@/lib/trainer-background-check-stripe";
 import { backgroundCheckStatusLabel, certificationReviewStatusLabel } from "@/lib/trainer-compliance-status-copy";
 import { prisma } from "@/lib/prisma";
 import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
@@ -60,6 +63,7 @@ function maskTin(tin: string | undefined): string {
 
 export default async function TrainerComplianceDetailsPage() {
   const trainerId = await getSessionTrainerId();
+  const trainerFoundingMax = getTrainerFoundingBgPercentMax();
   if (!trainerId) {
     redirect("/trainer/dashboard/login");
   }
@@ -134,6 +138,9 @@ export default async function TrainerComplianceDetailsPage() {
   const specLabel = certificationReviewStatusLabel(profile.specialistCertificationReviewStatus);
 
   const agreementBullets = getTrainerOnboardingAgreementBullets(Boolean(profile.registrationFeeWaived));
+  const standardOnboardingFeeSummary = describeStandardTrainerRegistrationBreakdown(
+    trainerBackgroundCheckAmountCents(),
+  );
 
   return (
     <div className="space-y-10">
@@ -147,16 +154,18 @@ export default async function TrainerComplianceDetailsPage() {
       </header>
 
       <section className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.08] p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-amber-200/90">Off-platform payments</p>
-        <p className="mt-2 text-sm leading-relaxed text-white/70">{OFF_PLATFORM_LIQUIDATED_DAMAGES_NOTICE}</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-200/90">For your safety</p>
+        <div className="mt-2">
+          <InAppCommunicationSafetyNotice audience="trainer" />
+        </div>
       </section>
 
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
         <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Platform registration fee</h2>
         <p className="mt-3 text-sm text-white/55">
           After your background check clears and certifications are approved, pay the one-time Match Fit registration
-          amount through Stripe. Founding coaches (first 10) pay 20% of the Checkr fee; later coaches pay $100 minus the
-          screening credit.
+          amount through Stripe. Founding coaches (first {trainerFoundingMax}) pay 20% of the Checkr fee; later coaches pay standard
+          pricing ({standardOnboardingFeeSummary}).
         </p>
         <div className="mt-4">
           <TrainerRegistrationFeePanel />

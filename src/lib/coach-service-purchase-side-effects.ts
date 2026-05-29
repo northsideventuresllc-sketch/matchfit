@@ -1,4 +1,5 @@
 import { parseClientNotificationPrefsJson } from "@/lib/client-notification-prefs";
+import { formatFoundingSalesBonusUsd } from "@/lib/founding-trainer-sales-bonus";
 import { parseTrainerNotificationPrefsJson } from "@/lib/trainer-notification-prefs";
 import { appBaseUrlForEmail } from "@/lib/match-fit-email-shell";
 import { prisma } from "@/lib/prisma";
@@ -17,6 +18,7 @@ export async function deliverCoachServicePurchaseSideEffects(transactionId: stri
       clientId: true,
       trainerId: true,
       amountCents: true,
+      foundingSalesBonusCents: true,
       serviceId: true,
       purchaseLabelSnapshot: true,
     },
@@ -54,6 +56,13 @@ export async function deliverCoachServicePurchaseSideEffects(transactionId: stri
   const amountUsd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
     Math.max(0, snap.amountCents) / 100,
   );
+  const foundingBonusUsd =
+    snap.foundingSalesBonusCents && snap.foundingSalesBonusCents > 0
+      ? formatFoundingSalesBonusUsd(snap.foundingSalesBonusCents)
+      : null;
+  const trainerSaleBodySuffix = foundingBonusUsd
+    ? ` Founding coach bonus: +${foundingBonusUsd} credited to your payout ledger.`
+    : "";
 
   const profileHref = `/trainers/${encodeURIComponent(trainerRow.username)}`;
   const baseUrl = appBaseUrlForEmail();
@@ -80,7 +89,7 @@ export async function deliverCoachServicePurchaseSideEffects(transactionId: stri
         trainerId: snap.trainerId,
         kind: "BILLING",
         title: "New client package sale",
-        body: `${clientLabel} (${clientRow.username}) bought: ${serviceLabel} (${amountUsd} package before processing fees).`,
+        body: `${clientLabel} (${clientRow.username}) bought: ${serviceLabel} (${amountUsd} package before processing fees).${trainerSaleBodySuffix}`,
         linkHref: `/trainer/dashboard/messages/${encodeURIComponent(clientRow.username)}`,
       },
     });
@@ -126,7 +135,7 @@ export async function deliverCoachServicePurchaseSideEffects(transactionId: stri
   if (trainerPrefs.pushBilling) {
     void sendWebPushToTrainer(trainerRow.id, {
       title: "New package sale",
-      body: `${clientLabel} bought ${serviceLabel} (${amountUsd}).`,
+      body: `${clientLabel} bought ${serviceLabel} (${amountUsd}).${foundingBonusUsd ? ` Bonus ${foundingBonusUsd}.` : ""}`,
       url: `/trainer/dashboard/messages/${encodeURIComponent(clientRow.username)}`,
     });
   }

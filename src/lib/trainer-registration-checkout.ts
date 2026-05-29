@@ -3,7 +3,11 @@ import {
   feeMetadataFromBreakdown,
   stripeCheckoutLineItemsFromBreakdown,
 } from "@/lib/stripe-checkout-line-items";
-import { computeTrainerRegistrationDueCents } from "@/lib/trainer-registration-fee";
+import {
+  computeStandardTrainerRegistrationBreakdown,
+  computeTrainerRegistrationDueCents,
+  formatTrainerRegistrationUsd,
+} from "@/lib/trainer-registration-fee";
 import type { TrainerRegistrationPricingMode } from "@/lib/match-fit-launch-promotions";
 import { getStripe } from "@/lib/stripe-server";
 
@@ -34,10 +38,20 @@ export async function createTrainerRegistrationFeeCheckoutSession(args: {
     includeProcessingFee: true,
   });
 
+  const standardPlatformFeeLabel =
+    args.pricingMode === "STANDARD_100_MINUS_BG"
+      ? (() => {
+          const { platformCents } = computeStandardTrainerRegistrationBreakdown(
+            args.backgroundCheckVendorPaidCents,
+          );
+          return `Match Fit platform sign-up fee (${formatTrainerRegistrationUsd(platformCents)})`;
+        })()
+      : null;
+
   const modeLabel =
     args.pricingMode === "FOUNDING_BG_SURCHARGE_20PCT"
       ? "Founding coach — 20% of background check"
-      : "Platform registration (after background check credit)";
+      : (standardPlatformFeeLabel ?? "Match Fit platform sign-up fee");
 
   const metadata: Record<string, string> = {
     purpose: "trainer_registration_fee",

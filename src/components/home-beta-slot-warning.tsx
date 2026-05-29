@@ -8,13 +8,16 @@ export function HomeBetaSlotWarning() {
 
   if (!status?.gatesEnabled) return null;
 
-  const trainerFull = status.trainerWaitlistOpen;
+  const trainerTotalFull = status.trainerTotalCapFull === true;
   const clientFull = status.clientWaitlistOpen;
-  const trainerLeft = status.trainerFoundingRemaining;
-  const clientLeft = status.clientFoundingRemaining;
+  const trainerBetaLeft = status.trainerSlotsRemaining;
+  const clientBetaLeft = status.clientSlotsRemaining;
+  const trainerFoundingLeft = status.trainerFoundingRemaining;
+  const clientFoundingLeft = status.clientFoundingRemaining;
+  const inPersonFull = status.trainerInPersonCapFull === true && !trainerTotalFull;
 
-  const bothFull = trainerFull && clientFull;
-  const anyFull = trainerFull || clientFull;
+  const bothFull = trainerTotalFull && clientFull;
+  const anyFull = trainerTotalFull || clientFull;
 
   return (
     <div
@@ -39,56 +42,83 @@ export function HomeBetaSlotWarning() {
           </Link>{" "}
           — you will be notified when new spots open.
         </>
-      ) : trainerFull ? (
+      ) : trainerTotalFull ? (
         <>
-          <span className="font-bold text-amber-300">Trainer spots are full.</span> Trainers:{" "}
+          <span className="font-bold text-amber-300">Coach beta slots are full.</span> Trainers:{" "}
           <Link href="/waitlist/trainer" className="font-semibold text-[#FFD34E] underline-offset-2 hover:underline">
             join the waitlist
           </Link>{" "}
           to reserve your username.
-          {clientLeft !== null && clientLeft <= 5 && clientLeft > 0 ? (
+          {clientBetaLeft !== null && clientBetaLeft <= 5 && clientBetaLeft > 0 ? (
             <>
               {" "}
-              Only <span className="font-bold text-[#FFD34E]">{clientLeft}</span> client{" "}
-              {clientLeft === 1 ? "spot" : "spots"} remaining!
+              Only <span className="font-bold text-[#FFD34E]">{clientBetaLeft}</span> client beta{" "}
+              {clientBetaLeft === 1 ? "slot" : "slots"} remaining!
             </>
           ) : null}
         </>
       ) : clientFull ? (
         <>
-          <span className="font-bold text-amber-300">Client spots are full.</span> Clients:{" "}
+          <span className="font-bold text-amber-300">Client beta slots are full.</span> Clients:{" "}
           <Link href="/waitlist/client" className="font-semibold text-[#FFD34E] underline-offset-2 hover:underline">
             join the waitlist
           </Link>{" "}
           to reserve your username.
-          {trainerLeft !== null && trainerLeft <= 3 && trainerLeft > 0 ? (
+          {trainerBetaLeft !== null && trainerBetaLeft <= 5 && trainerBetaLeft > 0 ? (
             <>
               {" "}
-              Only <span className="font-bold text-[#FFD34E]">{trainerLeft}</span> trainer{" "}
-              {trainerLeft === 1 ? "spot" : "spots"} remaining!
+              Only <span className="font-bold text-[#FFD34E]">{trainerBetaLeft}</span> coach beta{" "}
+              {trainerBetaLeft === 1 ? "slot" : "slots"} remaining!
             </>
           ) : null}
         </>
       ) : (
         <>
-          <span className="font-semibold text-white/85">Beta is live</span> with limited founding slots.{" "}
-          {trainerLeft !== null && (
+          <span className="font-semibold text-white/85">Beta is live</span> with limited capacity. Clients can sign up
+          anywhere in the U.S.; in-person coaching launches first in the Atlanta metro geocircle.{" "}
+          {trainerBetaLeft !== null && (
             <>
-              <span className="font-bold text-[#FFD34E]">{trainerLeft}</span> trainer{" "}
-              {trainerLeft === 1 ? "spot" : "spots"}
+              <span className="font-bold text-[#FFD34E]">{trainerBetaLeft}</span> coach beta{" "}
+              {trainerBetaLeft === 1 ? "slot" : "slots"}
             </>
           )}
-          {trainerLeft !== null && clientLeft !== null && " and "}
-          {clientLeft !== null && (
+          {trainerBetaLeft !== null && clientBetaLeft !== null && " and "}
+          {clientBetaLeft !== null && (
             <>
-              <span className="font-bold text-[#FFD34E]">{clientLeft}</span> client{" "}
-              {clientLeft === 1 ? "spot" : "spots"}
+              <span className="font-bold text-[#FFD34E]">{clientBetaLeft}</span> client beta{" "}
+              {clientBetaLeft === 1 ? "slot" : "slots"}
             </>
           )}{" "}
-          remaining with founding promos active.{" "}
+          open.
+          {trainerFoundingLeft !== null && trainerFoundingLeft > 0 ? (
+            <>
+              {" "}
+              Founding coach registration pricing ({trainerFoundingLeft} left) and client trial promos (
+              {clientFoundingLeft ?? 0} left) still apply for early signups.
+            </>
+          ) : null}{" "}
           <Link href="/promos" className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
             View promos
           </Link>
+          {inPersonFull ? (
+            <>
+              {" "}
+              · Atlanta in-person coach spots are full —{" "}
+              <Link href="/waitlist/trainer" className="font-semibold text-[#FFD34E] underline-offset-2 hover:underline">
+                join the in-person waitlist
+              </Link>{" "}
+              or sign up for virtual / DIY coaching.
+            </>
+          ) : status.trainerWaitlistOpen ? (
+            <>
+              {" "}
+              · Some coach buckets are full —{" "}
+              <Link href="/waitlist/trainer" className="font-semibold text-[#FFD34E] underline-offset-2 hover:underline">
+                trainer waitlist
+              </Link>{" "}
+              open for matching offerings.
+            </>
+          ) : null}
         </>
       )}
     </div>

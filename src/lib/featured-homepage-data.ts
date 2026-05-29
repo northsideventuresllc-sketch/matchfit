@@ -31,35 +31,20 @@ function specialtyLine(trainer: { fitnessNiches: string | null; bio: string | nu
   return "Personal training";
 }
 
-export async function getFeaturedTrainersForHomepage(opts: {
-  /** Client profile ZIP or marketing `?zip=` (US). */
-  zipInput?: string | null;
-}): Promise<FeaturedTrainerCard[]> {
-  const prefix = clientZipToPrefix(opts.zipInput ?? null);
-  if (!prefix) return [];
-
-  const displayDay = homepageDisplayDayKey();
-  await ensureFeaturedAllocationsResolved(prefix, displayDay);
-
-  const allocations = await prisma.featuredDailyAllocation.findMany({
-    where: { regionZipPrefix: prefix, displayDayKey: displayDay },
-    orderBy: { sortOrder: "asc" },
-    select: {
-      source: true,
-      trainer: {
-        select: {
-          username: true,
-          firstName: true,
-          lastName: true,
-          preferredName: true,
-          fitnessNiches: true,
-          bio: true,
-          profileImageUrl: true,
-        },
-      },
-    },
-  });
-
+function mapFeaturedAllocationRows(
+  allocations: Array<{
+    source: string;
+    trainer: {
+      username: string;
+      firstName: string;
+      lastName: string;
+      preferredName: string | null;
+      fitnessNiches: string | null;
+      bio: string | null;
+      profileImageUrl: string | null;
+    };
+  }>,
+): FeaturedTrainerCard[] {
   return allocations.map((a) => ({
     username: a.trainer.username,
     displayName: coachDisplayName(a.trainer),
@@ -67,4 +52,57 @@ export async function getFeaturedTrainersForHomepage(opts: {
     profileImageUrl: a.trainer.profileImageUrl,
     source: a.source as "PAID_BID" | "RAFFLE",
   }));
+}
+
+const featuredTrainerSelect = {
+  source: true,
+  trainer: {
+    select: {
+      username: true,
+      firstName: true,
+      lastName: true,
+      preferredName: true,
+      fitnessNiches: true,
+      bio: true,
+      profileImageUrl: true,
+    },
+  },
+} as const;
+
+export async function getFeaturedTrainersForHomepage(opts: {
+  /** Client profile ZIP or marketing `?zip=` (US). */
+  zipInput?: string | null;
+  /** Virtual/DIY-only clients: show featured coaches nationwide, not just their ZIP prefix pool. */
+  nationwide?: boolean;
+}): Promise<FeaturedTrainerCard[]> {
+  const displayDay = homepageDisplayDayKey();
+
+  if (opts.nationwide) {
+    const allocations = await prisma.featuredDailyAllocation.findMany({
+      where: { displayDayKey: displayDay },
+      orderBy: [{ source: "asc" }, { sortOrder: "asc" }],
+      take: 40,
+      select: featuredTrainerSelect,
+    });
+    const seen = new Set<string>();
+    const deduped = allocations.filter((a) => {
+      if (seen.has(a.trainer.username)) return false;
+      seen.add(a.trainer.username);
+      return true;
+    });
+    return mapFeaturedAllocationRows(deduped.slice(0, 8));
+  }
+
+  const prefix = clientZipToPrefix(opts.zipInput ?? null);
+  if (!prefix) return [];
+
+  await ensureFeaturedAllocationsResolved(prefix, displayDay);
+
+  const allocations = await prisma.featuredDailyAllocation.findMany({
+    where: { regionZipPrefix: prefix, displayDayKey: displayDay },
+    orderBy: { sortOrder: "asc" },
+    select: featuredTrainerSelect,
+  });
+
+  return mapFeaturedAllocationRows(allocations);
 }

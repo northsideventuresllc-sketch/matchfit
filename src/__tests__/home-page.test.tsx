@@ -48,8 +48,14 @@ vi.mock("next/link", () => ({
 }));
 
 vi.mock("@/components/featured-trainers-carousel", () => ({
-  FeaturedTrainersCarousel: ({ trainers }: { trainers: unknown[] }) => {
-    featuredCarouselPropsMock({ trainers });
+  FeaturedTrainersCarousel: ({
+    trainers,
+    nationwide,
+  }: {
+    trainers: unknown[];
+    nationwide?: boolean;
+  }) => {
+    featuredCarouselPropsMock({ trainers, nationwide });
     return <div data-featured-count={trainers.length} />;
   },
 }));
@@ -94,6 +100,10 @@ vi.mock("@/lib/session", () => ({
 }));
 
 import Home from "@/app/page";
+import {
+  defaultClientMatchPreferences,
+  serializeClientMatchPreferences,
+} from "@/lib/client-match-preferences";
 
 const originalEnv = { ...process.env };
 
@@ -127,7 +137,7 @@ describe("app/page Home component", () => {
     expect(redirectStayLoggedInClientToDashboardMock).not.toHaveBeenCalled();
     expect(clientFindUniqueMock).not.toHaveBeenCalled();
     expect(getFeaturedTrainersForHomepageMock).not.toHaveBeenCalled();
-    expect(featuredCarouselPropsMock).toHaveBeenCalledWith({ trainers: [] });
+    expect(featuredCarouselPropsMock).toHaveBeenCalledWith({ trainers: [], nationwide: false });
     expect(homeLoginMenuPropsMock).toHaveBeenCalledWith({
       homeAuth: { clientLoggedIn: false, trainerLoggedIn: true },
     });
@@ -141,7 +151,13 @@ describe("app/page Home component", () => {
 
     const featuredRows = [{ id: "trainer-1" }];
     getSessionClientIdMock.mockResolvedValue("client-1");
-    clientFindUniqueMock.mockResolvedValue({ zipCode: " 30324 " });
+    clientFindUniqueMock.mockResolvedValue({
+      zipCode: " 30324 ",
+      matchPreferencesJson: serializeClientMatchPreferences({
+        ...defaultClientMatchPreferences,
+        deliveryModes: ["in_person"],
+      }),
+    });
     getFeaturedTrainersForHomepageMock.mockResolvedValue(featuredRows);
 
     await renderHome(Promise.resolve({ zip: " 30301 " }));
@@ -149,10 +165,10 @@ describe("app/page Home component", () => {
     expect(redirectStayLoggedInClientToDashboardMock).toHaveBeenCalledTimes(1);
     expect(clientFindUniqueMock).toHaveBeenCalledWith({
       where: { id: "client-1" },
-      select: { zipCode: true },
+      select: { zipCode: true, matchPreferencesJson: true },
     });
-    expect(getFeaturedTrainersForHomepageMock).toHaveBeenCalledWith({ zipInput: "30324" });
-    expect(featuredCarouselPropsMock).toHaveBeenCalledWith({ trainers: featuredRows });
+    expect(getFeaturedTrainersForHomepageMock).toHaveBeenCalledWith({ zipInput: "30324", nationwide: false });
+    expect(featuredCarouselPropsMock).toHaveBeenCalledWith({ trainers: featuredRows, nationwide: false });
     expect(homeLoginMenuPropsMock).toHaveBeenCalledWith({
       homeAuth: { clientLoggedIn: true, trainerLoggedIn: false },
     });
@@ -167,17 +183,71 @@ describe("app/page Home component", () => {
     await renderHome(Promise.resolve({ zip: " 30318 " }));
 
     expect(clientFindUniqueMock).not.toHaveBeenCalled();
-    expect(getFeaturedTrainersForHomepageMock).toHaveBeenCalledWith({ zipInput: "30318" });
+    expect(getFeaturedTrainersForHomepageMock).toHaveBeenCalledWith({ zipInput: "30318", nationwide: false });
   });
 
   it("passes null zip to featured trainer lookup when neither query nor profile zip are valid", async () => {
     process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test";
 
     getSessionClientIdMock.mockResolvedValue("client-2");
-    clientFindUniqueMock.mockResolvedValue({ zipCode: "    " });
+    clientFindUniqueMock.mockResolvedValue({
+      zipCode: "    ",
+      matchPreferencesJson: serializeClientMatchPreferences({
+        ...defaultClientMatchPreferences,
+        deliveryModes: ["in_person"],
+      }),
+    });
 
     await renderHome(Promise.resolve({ zip: "   " }));
 
-    expect(getFeaturedTrainersForHomepageMock).toHaveBeenCalledWith({ zipInput: null });
+    expect(getFeaturedTrainersForHomepageMock).toHaveBeenCalledWith({ zipInput: null, nationwide: false });
+  });
+
+  it("loads nationwide featured coaches for virtual-only clients in Atlanta", async () => {
+    process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test";
+
+    getSessionClientIdMock.mockResolvedValue("client-atl");
+    clientFindUniqueMock.mockResolvedValue({
+      zipCode: "30301",
+      matchPreferencesJson: serializeClientMatchPreferences({
+        ...defaultClientMatchPreferences,
+        deliveryModes: ["virtual"],
+      }),
+    });
+
+    await renderHome();
+
+    expect(getFeaturedTrainersForHomepageMock).toHaveBeenCalledWith({
+      zipInput: "30301",
+      nationwide: true,
+    });
+    expect(featuredCarouselPropsMock).toHaveBeenCalledWith({
+      trainers: [],
+      nationwide: true,
+    });
+  });
+
+  it("loads nationwide featured coaches for diy-only clients in Atlanta", async () => {
+    process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test";
+
+    getSessionClientIdMock.mockResolvedValue("client-atl-diy");
+    clientFindUniqueMock.mockResolvedValue({
+      zipCode: "30301",
+      matchPreferencesJson: serializeClientMatchPreferences({
+        ...defaultClientMatchPreferences,
+        deliveryModes: ["diy"],
+      }),
+    });
+
+    await renderHome();
+
+    expect(getFeaturedTrainersForHomepageMock).toHaveBeenCalledWith({
+      zipInput: "30301",
+      nationwide: true,
+    });
+    expect(featuredCarouselPropsMock).toHaveBeenCalledWith({
+      trainers: [],
+      nationwide: true,
+    });
   });
 });

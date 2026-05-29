@@ -447,19 +447,56 @@ export function buildTransactionalEmail(
       return finalizeTransactional(subject, text, html);
     }
     case "BETA_WAITLIST_TRAINER_CONFIRM":
+    case "BETA_WAITLIST_TRAINER_VIRTUAL_CONFIRM":
+    case "BETA_WAITLIST_TRAINER_IN_PERSON_CONFIRM":
     case "BETA_WAITLIST_CLIENT_CONFIRM": {
-      const isTrainer = kind === "BETA_WAITLIST_TRAINER_CONFIRM";
-      const subject = isTrainer ? "You're on the Match Fit coach waitlist" : "You're on the Match Fit member waitlist";
-      const text = `Hi ${firstName},\n\nThanks for joining the Match Fit beta waitlist. You're #${queuePosition} in line. We'll email you when a slot opens.\n\n— Match Fit`;
+      const isClient = kind === "BETA_WAITLIST_CLIENT_CONFIRM";
+      const isVirtualOnly = kind === "BETA_WAITLIST_TRAINER_VIRTUAL_CONFIRM";
+      const isInPersonOnly = kind === "BETA_WAITLIST_TRAINER_IN_PERSON_CONFIRM";
+      const subject = isClient
+        ? "You're on the Match Fit member waitlist"
+        : isVirtualOnly
+          ? "You're on the Match Fit virtual coach waitlist"
+          : isInPersonOnly
+            ? "You're on the Match Fit in-person coach waitlist"
+            : "You're on the Match Fit coach waitlist";
+      const waitlistLabel = isClient
+        ? "member"
+        : isVirtualOnly
+          ? "virtual coach"
+          : isInPersonOnly
+            ? "in-person coach"
+            : "coach";
+      const text = `Hi ${firstName},\n\nThanks for joining the Match Fit beta waitlist. You're #${queuePosition} in line for ${waitlistLabel} capacity. We'll email you when a slot opens.\n\n— Match Fit`;
       const html = wrapMatchFitTransactionalHtml({
         preheader: `Queue position ${queuePosition}.`,
         title: "Waitlist confirmed",
         bodyHtml: bodyParagraphs([
-          `Hi <strong style="color:${s.textPrimary};">${escapeHtmlEmail(firstName)}</strong> — you're on the ${isTrainer ? "coach" : "member"} waitlist.`,
+          `Hi <strong style="color:${s.textPrimary};">${escapeHtmlEmail(firstName)}</strong> — you're on the ${waitlistLabel} waitlist.`,
           `Your place in line: <strong style="color:${s.textPrimary};">#${escapeHtmlEmail(queuePosition)}</strong>. We'll send a secure invite link when capacity opens.`,
         ]),
         ctaHref: supportUrl,
         ctaLabel: "Visit Match Fit",
+      });
+      return finalizeTransactional(subject, text, html);
+    }
+    case "BETA_WAITLIST_TRAINER_VIRTUAL_CAPACITY":
+    case "BETA_WAITLIST_TRAINER_IN_PERSON_CAPACITY": {
+      const signupUrl = c(ctx.signupUrl, "https://match-fit.net/trainer/signup");
+      const isVirtual = kind === "BETA_WAITLIST_TRAINER_VIRTUAL_CAPACITY";
+      const subject = isVirtual
+        ? "Match Fit virtual coach slots just opened"
+        : "Match Fit in-person coach slots just opened";
+      const text = `Hi ${firstName},\n\nGood news — ${isVirtual ? "virtual / DIY coach" : "in-person coach"} capacity expanded for the Match Fit beta. You can sign up now or keep your waitlist spot:\n${signupUrl}\n\n— Match Fit`;
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: isVirtual ? "Virtual coach capacity expanded." : "In-person coach capacity expanded.",
+        title: "Coach capacity expanded",
+        bodyHtml: bodyParagraphs([
+          `Hi <strong style="color:${s.textPrimary};">${escapeHtmlEmail(firstName)}</strong> — ${isVirtual ? "virtual, DIY, and remote nutrition coach" : "in-person coach"} capacity just increased.`,
+          "If you are still queued, you may sign up directly while slots last or wait for your invite email.",
+        ]),
+        ctaHref: signupUrl,
+        ctaLabel: "Start coach sign-up",
       });
       return finalizeTransactional(subject, text, html);
     }

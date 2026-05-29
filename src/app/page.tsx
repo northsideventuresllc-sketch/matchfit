@@ -4,6 +4,8 @@ import { FeaturedTrainersCarousel } from "@/components/featured-trainers-carouse
 import { HomeBrandBanner } from "@/components/home-brand-banner";
 import { HomeInfoSections } from "@/components/home-info-sections";
 import { HomeLoginMenu } from "@/components/home-login-menu";
+import { clientDiscoveryBypassesRegionalPools } from "@/lib/client-geographic-filter";
+import { parseClientMatchPreferencesJson } from "@/lib/client-match-preferences";
 import type { FeaturedTrainerCard } from "@/lib/featured-homepage-data";
 import { getFeaturedTrainersForHomepage } from "@/lib/featured-homepage-data";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
@@ -30,18 +32,24 @@ export default async function Home({ searchParams }: HomeProps) {
   };
 
   let featuredTrainers: FeaturedTrainerCard[] = [];
+  let nationwideFeatured = false;
 
   if (hasDb) {
     let zipForFeatured = zipFromQuery;
     if (clientId) {
       const client = await prisma.client.findUnique({
         where: { id: clientId },
-        select: { zipCode: true },
+        select: { zipCode: true, matchPreferencesJson: true },
       });
       if (client?.zipCode?.trim()) zipForFeatured = client.zipCode.trim();
+      const prefs = parseClientMatchPreferencesJson(client?.matchPreferencesJson);
+      nationwideFeatured = clientDiscoveryBypassesRegionalPools(prefs);
     }
 
-    featuredTrainers = await getFeaturedTrainersForHomepage({ zipInput: zipForFeatured });
+    featuredTrainers = await getFeaturedTrainersForHomepage({
+      zipInput: zipForFeatured,
+      nationwide: nationwideFeatured,
+    });
   }
 
   return (
@@ -147,7 +155,7 @@ export default async function Home({ searchParams }: HomeProps) {
           </p>
         </section>
 
-        <FeaturedTrainersCarousel trainers={featuredTrainers} />
+        <FeaturedTrainersCarousel trainers={featuredTrainers} nationwide={nationwideFeatured} />
 
         <HomeInfoSections homeAuth={homeAuth} />
       </div>

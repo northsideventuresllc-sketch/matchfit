@@ -162,6 +162,8 @@ model Client {
 
   /// When true, session cookies use a longer lifetime; when false, shorter (see session helpers).
   stayLoggedIn Boolean @default(true)
+  /// Updated on successful password login and 2FA completion (excludes synthetic QA personas in admin metrics).
+  lastLoginAt DateTime?
 
   /// One-time nonce for email password-reset link (paired with signed JWT).
   passwordChangeNonce    String?
@@ -424,6 +426,8 @@ model Trainer {
   twoFactorLoginAttempts Int      @default(0)
 
   stayLoggedIn Boolean @default(true)
+  /// Updated on successful password login and 2FA completion (excludes synthetic QA personas in admin metrics).
+  lastLoginAt DateTime?
 
   passwordChangeNonce      String?
   passwordChangeExpires    DateTime?
@@ -460,6 +464,9 @@ model Trainer {
 
   /// Internal QA only: synthetic persona rows for trainer-owner sandbox (never visible to real users).
   internalQaSyntheticPersona Boolean @default(false)
+
+  /// 1–30 for the first founding trainers at signup (sales bonus eligibility); null otherwise.
+  foundingTrainerSignupRank Int?
 
   featuredRaffleEntries   FeaturedRaffleEntry[]
   featuredPlacementBids   FeaturedPlacementBid[]
@@ -877,6 +884,10 @@ model TrainerProfile {
   registrationFeePaidCents Int?
   /// Primary service ZIP (Atlanta beta); used for matching and display.
   serviceZipCode String?
+  /// Beta cap bucket: virtual / DIY / remote nutrition offerings.
+  betaSlotVirtualHeld Boolean @default(true)
+  /// Beta cap bucket: in-person offerings (Atlanta metro geo-circle only).
+  betaSlotInPersonHeld Boolean @default(false)
   /// Vendor pipeline: NOT_STARTED | PENDING | APPROVED | NEEDS_FURTHER_REVIEW | DENIED
   backgroundCheckStatus String @default("NOT_STARTED")
 
@@ -1670,6 +1681,11 @@ model TrainerClientServiceTransaction {
   /// When sale-token reward was applied (idempotent).
   trainerSaleTokensGrantedAt DateTime?
 
+  /// Founding-coach rebate (5% of coach subtotal on qualifying sales); credited to trainer ledger pool.
+  foundingSalesBonusCents Int?
+  /// When founding sales bonus was applied (idempotent).
+  foundingSalesBonusGrantedAt DateTime?
+
   serviceId     String?
   billingUnit   String?
   /// Stripe / checkout label snapshot for receipts (e.g. tier title).
@@ -1851,6 +1867,11 @@ model BetaTrainerWaitlistEntry {
   /// Home / service ZIP (5 digits) used for metro eligibility.
   serviceZipCode    String
 
+  /// Waitlist intent: virtual / DIY / remote nutrition offerings.
+  desiredOfferingVirtual   Boolean @default(true)
+  /// Waitlist intent: in-person offerings (Atlanta metro geo-circle).
+  desiredOfferingInPerson  Boolean @default(false)
+
   inviteToken     String?   @unique
   invitedAt       DateTime?
   slotExpiresAt   DateTime?
@@ -1888,6 +1909,18 @@ model BetaClientWaitlistEntry {
   @@index([email])
   @@index([desiredUsername])
   @@map("beta_client_waitlist_entries")
+  @@schema("public")
+}
+
+/// Tracks last-notified beta trainer bucket caps so waitlist users can be emailed when capacity expands.
+model BetaTrainerCapacityNotifyState {
+  id String @id @default("singleton")
+
+  lastEffectiveVirtualMax Int @default(20)
+  lastInPersonMax         Int @default(10)
+  updatedAt               DateTime @updatedAt
+
+  @@map("beta_trainer_capacity_notify_state")
   @@schema("public")
 }
 

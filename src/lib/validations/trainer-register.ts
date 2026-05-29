@@ -33,6 +33,8 @@ export const trainerSignupSchema = z
     /** Required when Match Fit beta geo gates are enabled. */
     serviceZipCode: z.string().trim().max(12).optional().default(""),
     betaInviteToken: z.string().optional(),
+    /** Opt in to in-person offerings (Atlanta metro geo-circle only). Virtual/DIY is always included. */
+    wantsInPerson: z.boolean().optional().default(false),
   })
   .refine((d) => d.agreedToTerms === true, {
     message: "You must accept the Terms of Service.",

@@ -1,8 +1,9 @@
 import "server-only";
 
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import type {
   AdminFeaturedSnapshot,
+  AdminPortalDashboard,
   AdminPortalOverview,
   AdminRevenueSnapshot,
   AdminSignupRow,
@@ -13,14 +14,27 @@ import { formatFeaturedDisplayDayLabel } from "@/lib/featured-eastern-calendar";
 import { getHomeUserCounts } from "@/lib/home-user-counts";
 import { getPlatformRevenueTotals } from "@/lib/platform-revenue-events";
 import { getAdminSiteTrafficSnapshot } from "@/lib/site-analytics";
+import {
+  getAdminAlertsPanel,
+  getAdminFinancesPanel,
+  getAdminPlatformSummaryPanel,
+  getAdminTrafficFunnelPanel,
+  getAdminTrainerPipelinePanel,
+} from "@/lib/admin-portal-metrics";
 
 export type {
   AdminFeaturedSnapshot,
+  AdminPortalDashboard,
   AdminPortalOverview,
   AdminRevenueSnapshot,
   AdminSignupRow,
   AdminTrafficSnapshot,
   AdminUserStats,
+  AdminAlertsPanel,
+  AdminFinancesPanel,
+  AdminPlatformSummaryPanel,
+  AdminTrafficFunnelPanel,
+  AdminTrainerPipelinePanel,
 } from "@/lib/admin-portal-types";
 export { formatUsdFromCents } from "@/lib/admin-portal-types";
 
@@ -318,8 +332,24 @@ export async function getAdminRecentFeatured(limit = 6): Promise<AdminFeaturedSn
   });
 }
 
-export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
-  const [traffic, userCounts, revenue, recentSignupsResult, recentFeatured] = await Promise.all([
+export async function getAdminPortalDashboard(): Promise<AdminPortalDashboard> {
+  const [
+    trafficFunnel,
+    trainerPipeline,
+    finances,
+    alerts,
+    platformSummary,
+    traffic,
+    userCounts,
+    revenue,
+    recentSignupsResult,
+    recentFeatured,
+  ] = await Promise.all([
+    getAdminTrafficFunnelPanel(),
+    getAdminTrainerPipelinePanel(),
+    getAdminFinancesPanel(),
+    getAdminAlertsPanel(),
+    getAdminPlatformSummaryPanel(),
     getAdminSiteTrafficSnapshot(7),
     getHomeUserCounts(),
     getAdminRevenueSnapshot(),
@@ -328,11 +358,27 @@ export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
   ]);
 
   return {
+    trafficFunnel,
+    trainerPipeline,
+    finances,
+    alerts,
+    platformSummary,
     traffic,
     userCounts,
     revenue,
     recentSignups: recentSignupsResult.rows,
     recentFeatured,
+  };
+}
+
+export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
+  const dashboard = await getAdminPortalDashboard();
+  return {
+    traffic: dashboard.traffic,
+    userCounts: dashboard.userCounts,
+    revenue: dashboard.revenue,
+    recentSignups: dashboard.recentSignups,
+    recentFeatured: dashboard.recentFeatured,
   };
 }
 

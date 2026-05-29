@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  computeStandardTrainerRegistrationBreakdown,
+  formatTrainerRegistrationUsd,
+} from "@/lib/trainer-registration-fee";
 
 type Summary = {
   hasPaidRegistrationFee: boolean;
@@ -13,7 +17,7 @@ type Summary = {
 };
 
 function formatUsd(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
+  return formatTrainerRegistrationUsd(cents);
 }
 
 export function TrainerRegistrationFeePanel() {
@@ -84,22 +88,38 @@ export function TrainerRegistrationFeePanel() {
   }
 
   const bgLabel = formatUsd(summary.backgroundCheckPaidCents);
+  const standardBreakdown = summary.foundingPricing
+    ? null
+    : computeStandardTrainerRegistrationBreakdown(summary.backgroundCheckPaidCents);
 
   return (
     <div className="space-y-3">
-      <p className="text-sm leading-relaxed text-white/65">
-        {summary.foundingPricing ? (
-          <>
+      {summary.foundingPricing ? (
+        <>
+          <p className="text-sm leading-relaxed text-white/65">
             Founding coach pricing: pay <span className="font-semibold text-white">20%</span> of your verified background
             check amount ({bgLabel} paid to Checkr) plus an estimated card processing fee.
-          </>
-        ) : (
-          <>
-            Standard pricing: <span className="font-semibold text-white">$100.00</span> minus your background check
-            credit ({bgLabel}) plus an estimated card processing fee.
-          </>
-        )}
-      </p>
+          </p>
+          <p className="text-xs leading-relaxed text-white/50">
+            Founding coaches among the first eligible trainer signups may also earn a promotional sales bonus (see Terms
+            and the Promos page) on qualifying client package sales through Match Fit checkout.
+          </p>
+        </>
+      ) : standardBreakdown ? (
+        <div className="space-y-2 text-sm leading-relaxed text-white/65">
+          <p>
+            Standard pricing:{" "}
+            <span className="font-semibold text-white">{bgLabel}</span> background check +{" "}
+            <span className="font-semibold text-white">{formatUsd(standardBreakdown.platformCents)}</span> Match Fit
+            platform sign-up fee ={" "}
+            <span className="font-semibold text-white">{formatUsd(standardBreakdown.totalCents)}</span> total (USD).
+          </p>
+          <p className="text-white/55">
+            Background check is paid to Checkr; the platform sign-up fee is collected after screening clears. Each card
+            payment also includes an estimated processing fee at checkout.
+          </p>
+        </div>
+      ) : null}
       {summary.dueCents > 0 ? (
         <p className="text-sm text-white/80">
           Amount due now: <span className="font-semibold text-[#FFD34E]">{formatUsd(summary.dueCents)}</span> (before
