@@ -5,7 +5,8 @@ import {
 import { US_BOOKING_TIMEZONE_OPTIONS, normalizeUsBookingTimezone } from "@/lib/us-booking-timezones";
 
 export function clientPrefersVirtualOrDiy(prefs: ClientMatchPreferences): boolean {
-  return prefs.deliveryModes.includes("virtual") || prefs.deliveryModes.includes("diy");
+  const deliveryModes = prefs.deliveryModes ?? [];
+  return deliveryModes.includes("virtual") || deliveryModes.includes("diy");
 }
 
 export function clientHasActiveFeedTimezoneFilter(prefs: ClientMatchPreferences): boolean {

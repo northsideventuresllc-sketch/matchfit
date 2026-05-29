@@ -1,4 +1,3 @@
-import { isZipInBetaAtlantaMetroArea } from "@/lib/beta-atlanta-metro-zips";
 import { isBetaLaunchGatesEnabled } from "@/lib/beta-launch-config";
 import { getValidBetaInvite, isClientBetaCapReached } from "@/lib/beta-waitlist-service";
 
@@ -14,14 +13,6 @@ export async function evaluateBetaClientRegistrationGate(args: {
 }): Promise<BetaClientRegisterGateResult> {
   if (!isBetaLaunchGatesEnabled()) {
     return { ok: true, betaClientWaitlistEntryId: null };
-  }
-  if (!isZipInBetaAtlantaMetroArea(args.zipCode)) {
-    return {
-      ok: false,
-      status: 400,
-      code: "BETA_OUTSIDE_SERVICE_AREA",
-      error: "Match Fit beta is limited to the Atlanta metro area. Check your ZIP code.",
-    };
   }
   if (!(await isClientBetaCapReached())) {
     return { ok: true, betaClientWaitlistEntryId: null };
