@@ -59,7 +59,7 @@ describe("launch account count exclusions", () => {
     expect(where.internalQaSyntheticPersona).toBe(false);
     expect(where.NOT?.OR).toEqual(
       expect.arrayContaining([
-        { username: { in: expect.arrayContaining(["jbfitness6299"]), mode: "insensitive" } },
+        { username: { startsWith: "jbfitness6299", mode: "insensitive" } },
       ]),
     );
   });
@@ -71,7 +71,7 @@ describe("launch account count exclusions", () => {
     const clientWhere = launchClientCountWhere();
     expect(clientWhere.NOT).toEqual({
       OR: expect.arrayContaining([
-        { username: { in: expect.arrayContaining(["jbfitness6299"]), mode: "insensitive" } },
+        { username: { startsWith: "jbfitness6299", mode: "insensitive" } },
         { email: { in: expect.arrayContaining(["jonnybooth22@gmail.com"]) } },
       ]),
     });
