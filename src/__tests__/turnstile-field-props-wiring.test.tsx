@@ -10,7 +10,9 @@ const { turnstileFieldSpy, useRouterMock, useSearchParamsMock, useTurnstileGateM
 }));
 
 vi.mock("next/image", () => ({
-  default: (props: Record<string, unknown>) => <img alt={String(props.alt ?? "")} {...props} />,
+  default: (props: Record<string, unknown>) => (
+    <span data-next-image-mock-alt={String(props.alt ?? "")} data-next-image-mock />
+  ),
 }));
 
 vi.mock("next/link", () => ({
