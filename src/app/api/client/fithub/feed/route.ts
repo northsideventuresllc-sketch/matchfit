@@ -1,7 +1,13 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { ensureClientFitHubSamplePosts } from "@/lib/client-fithub-sample-posts";
 import { parseClientFithubPrefsJson } from "@/lib/client-fithub-prefs";
+import { clientDiscoveryBypassesRegionalPools } from "@/lib/client-geographic-filter";
 import { clientPreferenceSearchTokens, parseClientMatchPreferencesJson } from "@/lib/client-match-preferences";
+import {
+  clientHasActiveFeedTimezoneFilter,
+  formatClientFeedTimezonePreferenceSummary,
+  trainerBookingTimezoneMatchesClientFeedFilter,
+} from "@/lib/client-feed-timezone-preference";
 import { clientZipToPrefix } from "@/lib/featured-region";
 import { fithubPublicFeedVisibilityWhere } from "@/lib/fithub-public-feed";
 import { parseStoredHashtagsJson } from "@/lib/trainer-fithub-hashtags";
@@ -142,6 +148,9 @@ export async function GET() {
             lastName: true,
             preferredName: true,
             profileImageUrl: true,
+            profile: {
+              select: { bookingTimezone: true },
+            },
           },
         },
         likes: { where: { clientId }, select: { id: true } },
@@ -157,7 +166,8 @@ export async function GET() {
       },
     });
 
-    const clientZipPrefix = clientZipToPrefix(client.zipCode);
+    const bypassRegionalPools = clientDiscoveryBypassesRegionalPools(matchPrefs);
+    const clientZipPrefix = bypassRegionalPools ? null : clientZipToPrefix(client.zipCode);
     const promotionMap = await loadActivePromotionsForPosts(
       rows.map((r) => r.id),
     );
@@ -169,10 +179,16 @@ export async function GET() {
         pr.durationDays,
         pr.regionZipPrefix,
         clientZipPrefix,
+        { nationwide: bypassRegionalPools },
       );
     }
 
     let sorted = [...rows];
+    if (clientHasActiveFeedTimezoneFilter(matchPrefs)) {
+      sorted = sorted.filter((row) =>
+        trainerBookingTimezoneMatchesClientFeedFilter(row.trainer.profile?.bookingTimezone, matchPrefs),
+      );
+    }
     if (prefs.feedStyle === "NEWEST" || prefs.feedStyle === "SAVED_COACHES_ONLY") {
       sorted.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       sorted = sorted.slice(0, 60);
@@ -200,6 +216,10 @@ export async function GET() {
     return NextResponse.json({
       feedEmptyReason: null as string | null,
       preferences: prefs,
+      feedTimezoneFilterActive: clientHasActiveFeedTimezoneFilter(matchPrefs),
+      feedTimezoneSummary: clientHasActiveFeedTimezoneFilter(matchPrefs)
+        ? formatClientFeedTimezonePreferenceSummary(matchPrefs)
+        : null,
       posts: sorted.map((p) => ({
         id: p.id,
         createdAt: p.createdAt.toISOString(),

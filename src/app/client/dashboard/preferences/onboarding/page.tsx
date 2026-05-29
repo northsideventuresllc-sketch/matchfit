@@ -44,7 +44,8 @@ export default async function ClientPreferencesOnboardingPage() {
           <h1 className="text-2xl font-black uppercase tracking-[0.06em] sm:text-3xl">Match preferences</h1>
           <p className="text-sm leading-relaxed text-white/50">
             Tell Match Fit what you are looking for so we can rank coaches, power search, and (optionally) let verified
-            trainers discover your public profile.
+            trainers discover your public profile. If you choose virtual or DIY coaching, you can also limit scroll and
+            swipe feeds to coach time zones that work for you.
           </p>
         </header>
         <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">

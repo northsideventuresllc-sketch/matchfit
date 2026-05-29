@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
+  DailyFeedTimezoneQuestion,
   DailyFreeTextQuestion,
   DailyInterestPickQuestion,
   DailyQuestionnaireHistoryEntry,
   DailyQuestionnaireQuestions,
   DailyTrainerInterestQuestion,
 } from "@/lib/client-daily-questionnaire";
+import { parseFeedTimezoneQuestionAnswer } from "@/lib/client-feed-timezone-preference";
 
 type ActivePayload = {
   state: "active";
@@ -61,6 +63,7 @@ export function ClientDailyQuestionnaireClient() {
           const init: Record<string, string> = {};
           for (const q of payload.questionnaire.questions.questions) {
             if (q.kind === "trainer_interest_scale") init[q.id] = "3";
+            if (q.kind === "feed_timezone_preference") init[q.id] = "no_preference";
           }
           setAnswers(init);
           setCurrentStep(0);
@@ -87,7 +90,11 @@ export function ClientDailyQuestionnaireClient() {
   const stepIndex = Math.max(0, Math.min(currentStep, Math.max(0, totalSteps - 1)));
   const currentQuestion = questionList[stepIndex] ?? null;
   const currentAnswer = currentQuestion ? (answers[currentQuestion.id] ?? "") : "";
-  const canMoveNext = currentQuestion ? currentAnswer.trim().length > 0 : false;
+  const canMoveNext = currentQuestion
+    ? currentQuestion.kind === "feed_timezone_preference"
+      ? currentAnswer.trim().length > 0
+      : currentAnswer.trim().length > 0
+    : false;
 
   const cooldownLabel = useMemo(() => {
     if (data?.state !== "cooldown") return "";
@@ -219,6 +226,13 @@ export function ClientDailyQuestionnaireClient() {
             onChange={(v) => setAnswers((a) => ({ ...a, [currentQuestion.id]: v }))}
           />
         ) : null}
+        {currentQuestion?.kind === "feed_timezone_preference" ? (
+          <FeedTimezoneBlock
+            q={currentQuestion}
+            value={answers[currentQuestion.id] ?? ""}
+            onChange={(v) => setAnswers((a) => ({ ...a, [currentQuestion.id]: v }))}
+          />
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-3">
@@ -260,7 +274,7 @@ export function ClientDailyQuestionnaireClient() {
 }
 
 function formatHistoryAnswer(
-  q: DailyTrainerInterestQuestion | DailyInterestPickQuestion | DailyFreeTextQuestion,
+  q: DailyTrainerInterestQuestion | DailyInterestPickQuestion | DailyFreeTextQuestion | DailyFeedTimezoneQuestion,
   raw: string,
 ): string {
   const v = raw?.trim() ?? "";
@@ -271,6 +285,13 @@ function formatHistoryAnswer(
   if (q.kind === "single_choice") {
     const opt = q.options.find((o) => o.value === v);
     return opt ? titleCaseAnswerLabel(opt.label) : v;
+  }
+  if (q.kind === "feed_timezone_preference") {
+    const parsed = parseFeedTimezoneQuestionAnswer(v);
+    if (parsed.feedTimezoneMode === "no_preference") return q.noPreferenceLabel;
+    return parsed.feedTimezones
+      .map((tz) => q.timezoneOptions.find((o) => o.value === tz)?.label ?? tz)
+      .join(", ");
   }
   return v;
 }
@@ -451,6 +472,62 @@ function FreeTextBlock(props: {
       <p className="text-right text-[10px] text-white/35">
         {props.value.length}/{props.q.maxLength}
       </p>
+    </div>
+  );
+}
+
+function FeedTimezoneBlock(props: {
+  q: DailyFeedTimezoneQuestion;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const parsed = parseFeedTimezoneQuestionAnswer(props.value || "no_preference");
+  const selected = new Set(parsed.feedTimezones);
+
+  function setNoPreference() {
+    props.onChange("no_preference");
+  }
+
+  function toggleTimezone(tz: string) {
+    const next = new Set(selected);
+    if (next.has(tz)) next.delete(tz);
+    else next.add(tz);
+    if (!next.size) {
+      setNoPreference();
+      return;
+    }
+    props.onChange([...next].join(","));
+  }
+
+  return (
+    <div className="mt-3 space-y-3">
+      <p className="text-sm font-semibold text-white/90">{props.q.prompt}</p>
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-[#12151C]/40 px-3 py-2.5">
+        <input
+          type="radio"
+          name={props.q.id}
+          checked={parsed.feedTimezoneMode === "no_preference"}
+          onChange={setNoPreference}
+          className="mt-1 accent-[#FF7E00]"
+        />
+        <span className="text-sm text-white/85">{props.q.noPreferenceLabel}</span>
+      </label>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {props.q.timezoneOptions.map((o) => (
+          <label
+            key={o.value}
+            className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/[0.06] bg-[#12151C]/40 px-3 py-2.5"
+          >
+            <input
+              type="checkbox"
+              checked={selected.has(o.value)}
+              onChange={() => toggleTimezone(o.value)}
+              className="accent-[#FF7E00]"
+            />
+            <span className="text-sm text-white/85">{o.label}</span>
+          </label>
+        ))}
+      </div>
     </div>
   );
 }

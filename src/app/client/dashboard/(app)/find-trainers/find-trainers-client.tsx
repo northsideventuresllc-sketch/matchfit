@@ -29,6 +29,8 @@ export function FindTrainersClient() {
   const [tabCounts, setTabCounts] = useState<{ new: number; interested: number; passed: number } | null>(null);
   const [passCooldownDays, setPassCooldownDays] = useState(90);
   const [notInterestedHistoryDays, setNotInterestedHistoryDays] = useState(7);
+  const [feedTimezoneFilterActive, setFeedTimezoneFilterActive] = useState(false);
+  const [feedTimezoneSummary, setFeedTimezoneSummary] = useState<string | null>(null);
 
   const load = useCallback(async (r: boolean, feed: "swipe" | "scroll", tab: ScrollTab) => {
     setLoading(true);
@@ -47,6 +49,8 @@ export function FindTrainersClient() {
         scrollTabCounts?: { new: number; interested: number; passed: number };
         passCooldownDays?: number;
         notInterestedHistoryDays?: number;
+        feedTimezoneFilterActive?: boolean;
+        feedTimezoneSummary?: string | null;
       };
       if (!res.ok) {
         setError(data.error ?? "Could not load coaches.");
@@ -63,6 +67,8 @@ export function FindTrainersClient() {
       if (typeof data.notInterestedHistoryDays === "number") {
         setNotInterestedHistoryDays(data.notInterestedHistoryDays);
       }
+      setFeedTimezoneFilterActive(Boolean(data.feedTimezoneFilterActive));
+      setFeedTimezoneSummary(data.feedTimezoneSummary ?? null);
       setIndex(0);
     } catch {
       setError("Network error.");
@@ -177,6 +183,17 @@ export function FindTrainersClient() {
           ? `Swipe right to show interest, left if you are not interested. Coaches you match with leave this list and move to Chat. Passed coaches stay out of your New deck for ${passCooldownDays} days.`
           : `Scroll is organized into tabs: coaches you have not contacted yet, coaches you expressed interest in (awaiting their response), and coaches you passed recently (${notInterestedHistoryDays}-day history).`}
       </p>
+
+      {feedTimezoneFilterActive && feedTimezoneSummary ? (
+        <p className="mx-auto max-w-lg rounded-xl border border-[#FF7E00]/25 bg-[#FF7E00]/10 px-4 py-3 text-center text-xs text-white/70">
+          Showing coaches in your selected time zones only:{" "}
+          <span className="font-semibold text-white/90">{feedTimezoneSummary}</span>. Update this in{" "}
+          <Link href="/client/dashboard/preferences" className="text-[#FF7E00] underline-offset-2 hover:underline">
+            Match preferences
+          </Link>
+          .
+        </p>
+      ) : null}
 
       <label className="flex cursor-pointer items-center justify-center gap-3 text-sm text-white/70">
         <input

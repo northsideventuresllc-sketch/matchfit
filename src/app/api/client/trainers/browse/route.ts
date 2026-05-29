@@ -4,6 +4,11 @@ import {
   trainerPassesStrictBrowse,
 } from "@/lib/client-match-preferences";
 import {
+  clientHasActiveFeedTimezoneFilter,
+  formatClientFeedTimezonePreferenceSummary,
+  trainerBookingTimezoneMatchesClientFeedFilter,
+} from "@/lib/client-feed-timezone-preference";
+import {
   CLIENT_TRAINER_NOT_INTERESTED_UI_HISTORY_DAYS,
   CLIENT_TRAINER_PASS_COOLDOWN_DAYS,
   effectiveBrowsePassAt,
@@ -85,13 +90,18 @@ export async function GET(req: Request) {
             nutritionistCertificationReviewStatus: true,
             specialistCertificationReviewStatus: true,
             aiMatchProfileText: true,
+            bookingTimezone: true,
           },
         },
       },
     });
 
     const published = trainers.filter(
-      (t) => t.profile && t.profile.dashboardActivatedAt != null && isTrainerComplianceComplete(t.profile),
+      (t) =>
+        t.profile &&
+        t.profile.dashboardActivatedAt != null &&
+        isTrainerComplianceComplete(t.profile) &&
+        trainerBookingTimezoneMatchesClientFeedFilter(t.profile.bookingTimezone, prefs),
     );
 
     const scored = published.map((t) => {
@@ -158,12 +168,17 @@ export async function GET(req: Request) {
               nutritionistCertificationReviewStatus: true,
               specialistCertificationReviewStatus: true,
               aiMatchProfileText: true,
+              bookingTimezone: true,
             },
           },
         },
       });
       const synPublished = syntheticRaw.filter(
-        (t) => t.profile && t.profile.dashboardActivatedAt != null && isTrainerComplianceComplete(t.profile),
+        (t) =>
+          t.profile &&
+          t.profile.dashboardActivatedAt != null &&
+          isTrainerComplianceComplete(t.profile) &&
+          trainerBookingTimezoneMatchesClientFeedFilter(t.profile.bookingTimezone, prefs),
       );
       const synScored = synPublished.map((t) => {
         const profile = t.profile!;
@@ -312,6 +327,10 @@ export async function GET(req: Request) {
       notInterestedHistoryDays: CLIENT_TRAINER_NOT_INTERESTED_UI_HISTORY_DAYS,
       relaxed: relaxed || (filtered.length === 0 && scored.length > 0),
       preferencesComplete: Boolean(client.matchPreferencesCompletedAt),
+      feedTimezoneFilterActive: clientHasActiveFeedTimezoneFilter(prefs),
+      feedTimezoneSummary: clientHasActiveFeedTimezoneFilter(prefs)
+        ? formatClientFeedTimezonePreferenceSummary(prefs)
+        : null,
     });
   } catch (e) {
     console.error(e);

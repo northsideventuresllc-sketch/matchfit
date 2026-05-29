@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { clientPublishedProfilePath } from "@/lib/client-public-profile-route";
 import { parseClientMatchPreferencesJson } from "@/lib/client-match-preferences";
+import { formatClientFeedTimezonePreferenceSummary } from "@/lib/client-feed-timezone-preference";
 import { prisma } from "@/lib/prisma";
 import { staleClientSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
 import { getSessionClientId } from "@/lib/session";
@@ -92,6 +93,10 @@ export default async function ClientDashboardProfilePreviewPage() {
           <p>
             <span className="text-white/40">Niches: </span>
             {prefs.fitnessNiches.trim() || "—"}
+          </p>
+          <p>
+            <span className="text-white/40">Scroll &amp; swipe feed time zones: </span>
+            {formatClientFeedTimezonePreferenceSummary(prefs)}
           </p>
         </div>
       </section>

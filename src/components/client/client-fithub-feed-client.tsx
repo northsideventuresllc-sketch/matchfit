@@ -39,6 +39,8 @@ export function ClientFitHubFeedClient() {
   const [prefs, setPrefs] = useState<ClientFithubPrefs | null>(null);
   const [posts, setPosts] = useState<FeedPost[] | null>(null);
   const [emptyReason, setEmptyReason] = useState<string | null>(null);
+  const [feedTimezoneFilterActive, setFeedTimezoneFilterActive] = useState(false);
+  const [feedTimezoneSummary, setFeedTimezoneSummary] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
@@ -55,6 +57,8 @@ export function ClientFitHubFeedClient() {
         posts?: FeedPost[];
         preferences?: ClientFithubPrefs;
         feedEmptyReason?: string | null;
+        feedTimezoneFilterActive?: boolean;
+        feedTimezoneSummary?: string | null;
         error?: string;
       };
       if (!res.ok) {
@@ -65,6 +69,8 @@ export function ClientFitHubFeedClient() {
       setPrefs(data.preferences ?? null);
       setPosts(data.posts ?? []);
       setEmptyReason(data.feedEmptyReason ?? null);
+      setFeedTimezoneFilterActive(Boolean(data.feedTimezoneFilterActive));
+      setFeedTimezoneSummary(data.feedTimezoneSummary ?? null);
     } catch {
       setError("Network error.");
       setPosts([]);
@@ -197,6 +203,16 @@ export function ClientFitHubFeedClient() {
 
   return (
     <div className="space-y-8">
+      {feedTimezoneFilterActive && feedTimezoneSummary ? (
+        <p className="rounded-xl border border-[#FF7E00]/25 bg-[#FF7E00]/10 px-4 py-3 text-sm text-white/70">
+          Showing posts from coaches in your selected time zones only:{" "}
+          <span className="font-semibold text-white/90">{feedTimezoneSummary}</span>. Change this in{" "}
+          <Link href="/client/dashboard/fithub-settings" className="text-[#FF7E00] underline-offset-2 hover:underline">
+            FitHub settings
+          </Link>
+          .
+        </p>
+      ) : null}
       {reportTarget ? (
         <FitHubReportModal
           post={reportTarget}

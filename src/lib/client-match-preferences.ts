@@ -4,19 +4,53 @@ import {
   trainerOffersPersonalTrainingServices,
   type TrainerServiceBucketProfile,
 } from "@/lib/trainer-service-buckets";
+import { US_BOOKING_TIMEZONE_OPTIONS, normalizeUsBookingTimezone } from "@/lib/us-booking-timezones";
 
 export const SERVICE_TYPES = ["personal_training", "nutrition"] as const;
 export const DELIVERY_MODES = ["in_person", "mobile", "virtual", "diy", "nutrition_planning"] as const;
+export const FEED_TIMEZONE_MODES = ["no_preference", "selected"] as const;
 
-export const clientMatchPreferencesSchema = z.object({
-  goals: z.string().max(2000).default(""),
-  serviceTypes: z.array(z.enum(SERVICE_TYPES)).min(1, "Pick at least one service type."),
-  deliveryModes: z.array(z.enum(DELIVERY_MODES)).min(1, "Pick at least one way you want to work together."),
-  /** Comma-separated or short phrases; normalized to lowercase tokens for matching. */
-  fitnessNiches: z.string().max(1000).default(""),
-  /** When searching, also surface coaches slightly outside strict preference fit. */
-  allowRelaxedSearchDefault: z.boolean().default(true),
-});
+const allowedFeedTimezoneValues = new Set(US_BOOKING_TIMEZONE_OPTIONS.map((o) => o.value));
+
+export function normalizeClientFeedTimezones(raw: string[] | null | undefined): string[] {
+  if (!raw?.length) return [];
+  const out: string[] = [];
+  for (const value of raw) {
+    const normalized = normalizeUsBookingTimezone(value);
+    if (!allowedFeedTimezoneValues.has(normalized)) continue;
+    if (!out.includes(normalized)) out.push(normalized);
+  }
+  return out;
+}
+
+export const clientMatchPreferencesSchema = z
+  .object({
+    goals: z.string().max(2000).default(""),
+    serviceTypes: z.array(z.enum(SERVICE_TYPES)).min(1, "Pick at least one service type."),
+    deliveryModes: z.array(z.enum(DELIVERY_MODES)).min(1, "Pick at least one way you want to work together."),
+    /** Comma-separated or short phrases; normalized to lowercase tokens for matching. */
+    fitnessNiches: z.string().max(1000).default(""),
+    /** When searching, also surface coaches slightly outside strict preference fit. */
+    allowRelaxedSearchDefault: z.boolean().default(true),
+    /** Scroll/swipe feed timezone filter — only applies when virtual and/or DIY is selected. */
+    feedTimezoneMode: z.enum(FEED_TIMEZONE_MODES).default("no_preference"),
+    feedTimezones: z.array(z.string()).default([]),
+  })
+  .superRefine((data, ctx) => {
+    const normalized = normalizeClientFeedTimezones(data.feedTimezones);
+    if (data.feedTimezoneMode === "selected" && normalized.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Pick at least one timezone or choose No preference.",
+        path: ["feedTimezones"],
+      });
+    }
+  })
+  .transform((data) => ({
+    ...data,
+    feedTimezones:
+      data.feedTimezoneMode === "no_preference" ? [] : normalizeClientFeedTimezones(data.feedTimezones),
+  }));
 
 export type ClientMatchPreferences = z.infer<typeof clientMatchPreferencesSchema>;
 
@@ -26,6 +60,8 @@ export const defaultClientMatchPreferences: ClientMatchPreferences = {
   deliveryModes: ["virtual"],
   fitnessNiches: "",
   allowRelaxedSearchDefault: true,
+  feedTimezoneMode: "no_preference",
+  feedTimezones: [],
 };
 
 export function parseClientMatchPreferencesJson(raw: string | null | undefined): ClientMatchPreferences {

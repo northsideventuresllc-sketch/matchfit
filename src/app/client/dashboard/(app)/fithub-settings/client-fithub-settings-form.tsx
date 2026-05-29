@@ -1,7 +1,13 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ClientFeedTimezonePreferenceFields } from "@/components/client/client-feed-timezone-preference-fields";
+import {
+  type ClientMatchPreferences,
+  defaultClientMatchPreferences,
+} from "@/lib/client-match-preferences";
 import {
   type ClientFithubFeedStyle,
   type ClientFithubPrefs,
@@ -25,6 +31,7 @@ const FEED_STYLES: { value: ClientFithubFeedStyle; label: string; hint: string }
 export function ClientFitHubSettingsForm() {
   const router = useRouter();
   const [prefs, setPrefs] = useState<ClientFithubPrefs>({ ...defaultClientFithubPrefs });
+  const [matchPrefs, setMatchPrefs] = useState<ClientMatchPreferences>({ ...defaultClientMatchPreferences });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,14 +42,21 @@ export function ClientFitHubSettingsForm() {
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
-          const res = await fetch("/api/client/fithub-prefs");
-          const data = (await res.json()) as { preferences?: ClientFithubPrefs; error?: string };
+          const [fithubRes, matchRes] = await Promise.all([
+            fetch("/api/client/fithub-prefs"),
+            fetch("/api/client/preferences"),
+          ]);
+          const fithubData = (await fithubRes.json()) as { preferences?: ClientFithubPrefs; error?: string };
+          const matchData = (await matchRes.json()) as { preferences?: ClientMatchPreferences; error?: string };
           if (cancelled) return;
-          if (!res.ok) {
-            setError(data.error ?? "Could not load settings.");
+          if (!fithubRes.ok) {
+            setError(fithubData.error ?? "Could not load settings.");
             return;
           }
-          if (data.preferences) setPrefs({ ...defaultClientFithubPrefs, ...data.preferences });
+          if (fithubData.preferences) setPrefs({ ...defaultClientFithubPrefs, ...fithubData.preferences });
+          if (matchRes.ok && matchData.preferences) {
+            setMatchPrefs({ ...defaultClientMatchPreferences, ...matchData.preferences });
+          }
         } catch {
           if (!cancelled) setError("Could not load settings.");
         } finally {
@@ -62,14 +76,26 @@ export function ClientFitHubSettingsForm() {
     setError(null);
     setOk(null);
     try {
-      const res = await fetch("/api/client/fithub-prefs", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ preferences: prefs }),
-      });
-      const data = (await res.json()) as { error?: string };
-      if (!res.ok) {
-        setError(data.error ?? "Could not save.");
+      const [fithubRes, matchRes] = await Promise.all([
+        fetch("/api/client/fithub-prefs", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ preferences: prefs }),
+        }),
+        fetch("/api/client/preferences", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ preferences: matchPrefs }),
+        }),
+      ]);
+      const fithubData = (await fithubRes.json()) as { error?: string };
+      const matchData = (await matchRes.json()) as { error?: string };
+      if (!fithubRes.ok) {
+        setError(fithubData.error ?? "Could not save FitHub settings.");
+        return;
+      }
+      if (!matchRes.ok) {
+        setError(matchData.error ?? "Could not save feed time zone preferences.");
         return;
       }
       setOk("FitHub preferences saved.");
@@ -166,6 +192,16 @@ export function ClientFitHubSettingsForm() {
           </li>
         </ul>
       </section>
+
+      <ClientFeedTimezonePreferenceFields prefs={matchPrefs} onChange={setMatchPrefs} />
+
+      <p className="text-center text-xs text-white/40">
+        Scroll and swipe coach discovery also respect these time zones. You can update delivery modes in{" "}
+        <Link href="/client/dashboard/preferences" className="text-[#FF7E00] underline-offset-2 hover:underline">
+          Match preferences
+        </Link>
+        .
+      </p>
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-white/90">Content Types</h2>

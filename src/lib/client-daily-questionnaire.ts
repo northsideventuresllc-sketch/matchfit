@@ -1,4 +1,13 @@
-import { parseClientMatchPreferencesJson } from "@/lib/client-match-preferences";
+import { clientDiscoveryBypassesRegionalPools } from "@/lib/client-geographic-filter";
+import {
+  clientPrefersVirtualOrDiy,
+  parseFeedTimezoneQuestionAnswer,
+} from "@/lib/client-feed-timezone-preference";
+import {
+  parseClientMatchPreferencesJson,
+  serializeClientMatchPreferences,
+} from "@/lib/client-match-preferences";
+import { US_BOOKING_TIMEZONE_OPTIONS } from "@/lib/us-booking-timezones";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { prisma } from "@/lib/prisma";
 
@@ -36,12 +45,28 @@ export type DailyFreeTextQuestion = {
   maxLength: number;
 };
 
+export type DailyFeedTimezoneQuestion = {
+  id: "q_feed_timezones";
+  kind: "feed_timezone_preference";
+  prompt: string;
+  noPreferenceLabel: string;
+  timezoneOptions: { value: string; label: string }[];
+};
+
+export type DailyQuestion =
+  | DailyTrainerInterestQuestion
+  | DailyInterestPickQuestion
+  | DailyFreeTextQuestion
+  | DailyFeedTimezoneQuestion;
+
 export type DailyQuestionnaireQuestions = {
   version: 1;
-  questions: [DailyTrainerInterestQuestion, DailyInterestPickQuestion, DailyFreeTextQuestion];
+  questions: DailyQuestion[];
   context: {
     clientZipPrefix: string;
     summaryLine: string;
+    /** Virtual/DIY-only clients see coaches nationwide, not just their ZIP prefix pool. */
+    discoveryNationwide?: boolean;
   };
 };
 
@@ -196,6 +221,7 @@ export async function buildDailyQuestionnairePayload(clientId: string): Promise<
     throw new Error("Client not found.");
   }
   const prefs = parseClientMatchPreferencesJson(client.matchPreferencesJson);
+  const discoveryNationwide = clientDiscoveryBypassesRegionalPools(prefs);
   const saved = await prisma.clientSavedTrainer.findMany({
     where: { clientId },
     select: { trainerId: true },
@@ -209,7 +235,9 @@ export async function buildDailyQuestionnairePayload(clientId: string): Promise<
     ? {
         id: "q_trainer_fit",
         kind: "trainer_interest_scale",
-        prompt: `A coach near your region (ZIP prefix ${zp}) recently joined Match Fit. How interested would you be in exploring a fit with them?`,
+        prompt: discoveryNationwide
+          ? "A coach from anywhere in the U.S. recently joined Match Fit. How interested would you be in exploring a fit with them?"
+          : `A coach near your region (ZIP prefix ${zp}) recently joined Match Fit. How interested would you be in exploring a fit with them?`,
         trainerUsername: primary.username,
         trainerDisplayName: coachDisplayName(primary),
         focusBlurb: buildFocusBlurb(primary),
@@ -221,11 +249,14 @@ export async function buildDailyQuestionnairePayload(clientId: string): Promise<
     : {
         id: "q_trainer_fit",
         kind: "trainer_interest_scale",
-        prompt:
-          "New coaches are joining Match Fit every week in your area. How open are you right now to being matched with someone who just onboarded?",
+        prompt: discoveryNationwide
+          ? "New coaches are joining Match Fit every week across the country. How open are you right now to being matched with someone who just onboarded?"
+          : "New coaches are joining Match Fit every week in your area. How open are you right now to being matched with someone who just onboarded?",
         trainerUsername: "_platform",
         trainerDisplayName: "New coaches on Match Fit",
-        focusBlurb: "We will prioritize introductions that respect your match preferences.",
+        focusBlurb: discoveryNationwide
+          ? "We will prioritize virtual and DIY introductions that respect your match preferences nationwide."
+          : "We will prioritize introductions that respect your match preferences.",
         scaleMin: 1,
         scaleMax: 5,
         lowLabel: "Prefer Established Coaches",
@@ -248,12 +279,28 @@ export async function buildDailyQuestionnairePayload(clientId: string): Promise<
     maxLength: 800,
   };
 
+  const questions: DailyQuestion[] = [q1, q2, q3];
+  if (clientPrefersVirtualOrDiy(prefs)) {
+    const q4: DailyFeedTimezoneQuestion = {
+      id: "q_feed_timezones",
+      kind: "feed_timezone_preference",
+      prompt:
+        "For virtual or DIY coaching, which coach time zones should appear in your scroll and swipe discovery feeds?",
+      noPreferenceLabel: "No preference — show coaches in all US time zones",
+      timezoneOptions: US_BOOKING_TIMEZONE_OPTIONS,
+    };
+    questions.push(q4);
+  }
+
   return {
     version: 1,
-    questions: [q1, q2, q3],
+    questions,
     context: {
       clientZipPrefix: zp,
-      summaryLine: `Generated for ZIP prefix ${zp} using your saved preferences and recent coach signups.`,
+      discoveryNationwide,
+      summaryLine: discoveryNationwide
+        ? "Generated for nationwide virtual/DIY discovery using your saved preferences and recent coach signups."
+        : `Generated for ZIP prefix ${zp} using your saved preferences and recent coach signups.`,
     },
   };
 }
@@ -293,37 +340,44 @@ export async function mergeDailyAnswersIntoClientContext(
 ): Promise<void> {
   const client = await prisma.client.findUnique({
     where: { id: clientId },
-    select: { dailyAlgorithmContextJson: true },
+    select: { dailyAlgorithmContextJson: true, matchPreferencesJson: true },
   });
   const ctx = parseAlgorithmContext(client?.dailyAlgorithmContextJson);
   const at = new Date().toISOString();
 
-  const [q1, q2, q3] = questions.questions;
-  const a1 = answers[q1.id]?.trim();
-  const a2 = answers[q2.id]?.trim();
-  const a3 = answers[q3.id]?.trim();
+  const q1 = questions.questions.find((q) => q.id === "q_trainer_fit" && q.kind === "trainer_interest_scale");
+  const q2 = questions.questions.find((q) => q.id === "q_week_focus" && q.kind === "single_choice");
+  const q3 = questions.questions.find((q) => q.id === "q_open_signal" && q.kind === "free_text");
+  const q4 = questions.questions.find((q) => q.id === "q_feed_timezones" && q.kind === "feed_timezone_preference");
 
-  const rating = a1 ? Number.parseInt(a1, 10) : NaN;
-  if (q1.trainerUsername !== "_platform" && Number.isFinite(rating) && rating >= 1 && rating <= 5) {
-    ctx.trainerInterest = [
-      ...(ctx.trainerInterest ?? []),
-      {
-        username: q1.trainerUsername,
-        displayName: q1.trainerDisplayName,
-        rating1to5: rating,
-        at,
-      },
-    ];
-  } else if (Number.isFinite(rating) && rating >= 1 && rating <= 5) {
-    ctx.trainerInterest = [
-      ...(ctx.trainerInterest ?? []),
-      {
-        username: "_platform",
-        displayName: q1.trainerDisplayName,
-        rating1to5: rating,
-        at,
-      },
-    ];
+  const a1 = q1 ? answers[q1.id]?.trim() : "";
+  const a2 = q2 ? answers[q2.id]?.trim() : "";
+  const a3 = q3 ? answers[q3.id]?.trim() : "";
+  const a4 = q4 ? answers[q4.id]?.trim() : "";
+
+  if (q1) {
+    const rating = a1 ? Number.parseInt(a1, 10) : NaN;
+    if (q1.trainerUsername !== "_platform" && Number.isFinite(rating) && rating >= 1 && rating <= 5) {
+      ctx.trainerInterest = [
+        ...(ctx.trainerInterest ?? []),
+        {
+          username: q1.trainerUsername,
+          displayName: q1.trainerDisplayName,
+          rating1to5: rating,
+          at,
+        },
+      ];
+    } else if (Number.isFinite(rating) && rating >= 1 && rating <= 5) {
+      ctx.trainerInterest = [
+        ...(ctx.trainerInterest ?? []),
+        {
+          username: "_platform",
+          displayName: q1.trainerDisplayName,
+          rating1to5: rating,
+          at,
+        },
+      ];
+    }
   }
 
   if (a2) {
@@ -333,9 +387,22 @@ export async function mergeDailyAnswersIntoClientContext(
     ctx.openSignals = [...(ctx.openSignals ?? []), { text: a3.slice(0, 800), at }];
   }
 
+  const data: { dailyAlgorithmContextJson: string; matchPreferencesJson?: string } = {
+    dailyAlgorithmContextJson: serializeAlgorithmContext(ctx),
+  };
+
+  if (q4 && a4) {
+    const prefs = parseClientMatchPreferencesJson(client?.matchPreferencesJson);
+    const tzPatch = parseFeedTimezoneQuestionAnswer(a4);
+    data.matchPreferencesJson = serializeClientMatchPreferences({
+      ...prefs,
+      ...tzPatch,
+    });
+  }
+
   await prisma.client.update({
     where: { id: clientId },
-    data: { dailyAlgorithmContextJson: serializeAlgorithmContext(ctx) },
+    data,
   });
 }
 
@@ -454,6 +521,19 @@ export function validateAnswers(
       const allowed = new Set(q.options.map((o) => o.value));
       if (!allowed.has(v)) {
         return { ok: false, error: "Pick one of the listed options." };
+      }
+    }
+    if (q.kind === "feed_timezone_preference") {
+      if (v === "no_preference") continue;
+      const allowed = new Set(q.timezoneOptions.map((o) => o.value));
+      const selected = v.split(",").map((part) => part.trim()).filter(Boolean);
+      if (!selected.length) {
+        return { ok: false, error: "Choose No preference or at least one time zone." };
+      }
+      for (const tz of selected) {
+        if (!allowed.has(tz)) {
+          return { ok: false, error: "Pick valid US time zones from the list." };
+        }
       }
     }
   }

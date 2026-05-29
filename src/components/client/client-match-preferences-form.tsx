@@ -4,6 +4,9 @@ import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SERVICE_TYPES, type ClientMatchPreferences, defaultClientMatchPreferences } from "@/lib/client-match-preferences";
+import { ClientFeedTimezonePreferenceFields } from "@/components/client/client-feed-timezone-preference-fields";
+import { BetaInPersonRolloutDisclaimer } from "@/components/beta-in-person-rollout-disclaimer";
+import { clientDeliveryModesRequireGeographicFilter } from "@/lib/client-geographic-filter";
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 transition placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2";
@@ -66,7 +69,15 @@ export function ClientMatchPreferencesForm(props: Props) {
     setPrefs((p) => {
       const has = p.deliveryModes.includes(d);
       const next = has ? p.deliveryModes.filter((x) => x !== d) : [...p.deliveryModes, d];
-      return { ...p, deliveryModes: next.length ? next : [d] };
+      const deliveryModes = next.length ? next : [d];
+      const stillVirtualOrDiy = deliveryModes.includes("virtual") || deliveryModes.includes("diy");
+      return {
+        ...p,
+        deliveryModes,
+        ...(stillVirtualOrDiy
+          ? {}
+          : { feedTimezoneMode: "no_preference" as const, feedTimezones: [] }),
+      };
     });
   }
 
@@ -177,7 +188,12 @@ export function ClientMatchPreferencesForm(props: Props) {
             </label>
           ))}
         </div>
+        {clientDeliveryModesRequireGeographicFilter(prefs.deliveryModes) ? (
+          <BetaInPersonRolloutDisclaimer variant="match-settings" />
+        ) : null}
       </section>
+
+      <ClientFeedTimezonePreferenceFields prefs={prefs} onChange={setPrefs} />
 
       <section className="space-y-3">
         <label className={labelClass} htmlFor="niches">

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TrainerClientNudgePanel } from "@/components/client/trainer-client-nudge-panel";
 import { parseClientMatchPreferencesJson } from "@/lib/client-match-preferences";
+import { formatClientFeedTimezonePreferenceSummary } from "@/lib/client-feed-timezone-preference";
 import { parseClientOptionalProfileVisibility } from "@/lib/optional-profile-visibility";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
@@ -130,6 +131,10 @@ export default async function ClientPublicProfilePage({ params }: Props) {
                 <div>
                   <dt className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/35">Niches</dt>
                   <dd className="mt-1">{prefs.fitnessNiches.trim() || "—"}</dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/35">Scroll &amp; swipe feed time zones</dt>
+                  <dd className="mt-1">{formatClientFeedTimezonePreferenceSummary(prefs)}</dd>
                 </div>
               </dl>
             </div>
