@@ -19,6 +19,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Match Fit",
   description: "Find coaches who fit your goals — U.S. beta signup. In-person sessions launch first in Atlanta.",
+  other: {
+    "zoom-domain-verification": "ZOOM_verify_f46c3e32cc204793875cdb2735cc818c",
+  },
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
