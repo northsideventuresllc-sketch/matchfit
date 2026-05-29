@@ -9,7 +9,6 @@ import {
   MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX,
 } from "@/lib/match-fit-launch-exclude-accounts";
 
-/** Auto-generated internal QA personas (see `internal-qa-simulation.ts`). */
 export const INTERNAL_SYNTHETIC_EMAIL_SUFFIX = "@internal.match-fit.invalid";
 
 export function isInternalSyntheticMatchFitEmail(email: string | null | undefined): boolean {
@@ -17,66 +16,60 @@ export function isInternalSyntheticMatchFitEmail(email: string | null | undefine
   return email.trim().toLowerCase().endsWith(INTERNAL_SYNTHETIC_EMAIL_SUFFIX);
 }
 
-/** Emails that must never count toward beta caps, founding promos, or public signup totals. */
 export function getLaunchExcludeEmails(role?: "client" | "trainer"): string[] {
   const ex = new Set<string>([...betaExcludeCapCountEmails()].map((e) => e.toLowerCase()));
   for (const e of getMatchFitLaunchExcludeEmails()) ex.add(e.toLowerCase());
-
   if (!role || role === "client") {
     for (const e of BUILTIN_LAUNCH_EXCLUDE_CLIENT_EMAILS) ex.add(e.toLowerCase());
   }
   if (!role || role === "trainer") {
     for (const e of BUILTIN_LAUNCH_EXCLUDE_TRAINER_EMAILS) ex.add(e.toLowerCase());
   }
-
   return [...ex];
 }
 
-function launchEmailExcludeOr(role: "client" | "trainer"): NonNullable<Prisma.TrainerWhereInput["OR"]> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyWhereOrItem = Record<string, any>;
+
+function launchEmailExcludeOr(role: "client" | "trainer"): AnyWhereOrItem[] {
   const excludedEmails = getLaunchExcludeEmails(role);
   return [
-    { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" as const } },
-    // Exclude all RFC 6761 .invalid TLD emails (test/demo/seed accounts)
-    { email: { endsWith: ".invalid", mode: "insensitive" as const } },
-    { email: { endsWith: MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX, mode: "insensitive" as const } },
+    { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" } },
+    { email: { endsWith: ".invalid", mode: "insensitive" } },
+    { email: { endsWith: MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX, mode: "insensitive" } },
     ...(excludedEmails.length > 0 ? [{ email: { in: excludedEmails } }] : []),
   ];
 }
 
-function launchUsernamePrefixExcludeOr(prefixes: readonly string[]): NonNullable<Prisma.TrainerWhereInput["OR"]> {
-  return prefixes.map((prefix) => ({
-    username: { startsWith: prefix, mode: "insensitive" as const },
-  }));
+function launchUsernamePrefixExcludeOr(prefixes: readonly string[]): AnyWhereOrItem[] {
+  return prefixes.map((prefix) => ({ username: { startsWith: prefix, mode: "insensitive" } }));
 }
 
-function launchUsernameInExcludeOr(usernames: string[]): NonNullable<Prisma.TrainerWhereInput["OR"]> {
+function launchUsernameInExcludeOr(usernames: string[]): AnyWhereOrItem[] {
   if (usernames.length === 0) return [];
-  return [{ username: { in: usernames, mode: "insensitive" as const } }];
+  return [{ username: { in: usernames, mode: "insensitive" } }];
 }
 
 const DEV_CERT_PREFIXES = getMatchFitDevPlaceholderCertPathPrefixes();
 
-function launchDevCertExcludeOr(): NonNullable<Prisma.TrainerWhereInput["OR"]> {
+function launchDevCertExcludeOr(): AnyWhereOrItem[] {
   return DEV_CERT_PREFIXES.flatMap((prefix) => [
-    { profile: { is: { certificationUrl: { startsWith: prefix, mode: "insensitive" as const } } } },
-    { profile: { is: { nutritionistCertificationUrl: { startsWith: prefix, mode: "insensitive" as const } } } },
-    { profile: { is: { specialistCertificationUrl: { startsWith: prefix, mode: "insensitive" as const } } } },
+    { profile: { is: { certificationUrl: { startsWith: prefix, mode: "insensitive" } } } },
+    { profile: { is: { nutritionistCertificationUrl: { startsWith: prefix, mode: "insensitive" } } } },
+    { profile: { is: { specialistCertificationUrl: { startsWith: prefix, mode: "insensitive" } } } },
   ]);
 }
 
 export const SYNTHETIC_TRAINER_USERNAME_PREFIX = "mfqst_";
 export const SYNTHETIC_CLIENT_USERNAME_PREFIX = "mfqsc_";
 
-/** Owner dev/test accounts from `scripts/seed-match-fit-dev-test-accounts.js` (never public launch totals). */
 const BUILTIN_LAUNCH_EXCLUDE_CLIENT_USERNAMES = ["jbfitness6299"] as const;
 const BUILTIN_LAUNCH_EXCLUDE_CLIENT_EMAILS = ["jonnybooth22@gmail.com"] as const;
 const BUILTIN_LAUNCH_EXCLUDE_TRAINER_USERNAMES = ["coachjonny22"] as const;
 const BUILTIN_LAUNCH_EXCLUDE_TRAINER_EMAILS = ["jb@northsideventuresgroup.com"] as const;
 
-/** Usernames that must never count toward beta caps, founding promos, or public signup totals. */
 export function getLaunchExcludeUsernames(role?: "client" | "trainer"): string[] {
   const ex = new Set<string>([...betaExcludeCapCountUsernames()].map((u) => u.toLowerCase()));
-
   if (!role || role === "client") {
     for (const u of BUILTIN_LAUNCH_EXCLUDE_CLIENT_USERNAMES) ex.add(u.toLowerCase());
     for (const u of getMatchFitLaunchExcludeClientUsernames()) ex.add(u.toLowerCase());
@@ -85,18 +78,12 @@ export function getLaunchExcludeUsernames(role?: "client" | "trainer"): string[]
     for (const u of BUILTIN_LAUNCH_EXCLUDE_TRAINER_USERNAMES) ex.add(u.toLowerCase());
     for (const u of getMatchFitLaunchExcludeTrainerUsernames()) ex.add(u.toLowerCase());
   }
-
   return [...ex];
 }
 
-/** Prisma filter for real launch signups (trainers). */
 export function launchTrainerCountWhere(): Prisma.TrainerWhereInput {
-  const usernameExcludes = [
-    SYNTHETIC_TRAINER_USERNAME_PREFIX,
-    ...getMatchFitLaunchExcludeTrainerUsernames(),
-  ];
+  const usernameExcludes = [SYNTHETIC_TRAINER_USERNAME_PREFIX, ...getMatchFitLaunchExcludeTrainerUsernames()];
   const exactUsernameExcludes = getLaunchExcludeUsernames("trainer");
-
   return {
     deidentifiedAt: null,
     internalQaSyntheticPersona: false,
@@ -106,19 +93,14 @@ export function launchTrainerCountWhere(): Prisma.TrainerWhereInput {
         ...launchUsernamePrefixExcludeOr(usernameExcludes),
         ...launchUsernameInExcludeOr(exactUsernameExcludes),
         ...launchDevCertExcludeOr(),
-      ],
+      ] as Prisma.TrainerWhereInput[],
     },
   };
 }
 
-/** Prisma filter for real launch signups (clients). */
 export function launchClientCountWhere(): Prisma.ClientWhereInput {
-  const usernameExcludes = [
-    SYNTHETIC_CLIENT_USERNAME_PREFIX,
-    ...getMatchFitLaunchExcludeClientUsernames(),
-  ];
+  const usernameExcludes = [SYNTHETIC_CLIENT_USERNAME_PREFIX, ...getMatchFitLaunchExcludeClientUsernames()];
   const exactUsernameExcludes = getLaunchExcludeUsernames("client");
-
   return {
     deidentifiedAt: null,
     internalQaSyntheticPersona: false,
@@ -127,15 +109,11 @@ export function launchClientCountWhere(): Prisma.ClientWhereInput {
         ...launchEmailExcludeOr("client"),
         ...launchUsernamePrefixExcludeOr(usernameExcludes),
         ...launchUsernameInExcludeOr(exactUsernameExcludes),
-      ],
+      ] as Prisma.ClientWhereInput[],
     },
   };
 }
 
-/**
- * Active platform subscribers for admin metrics: real (non-test) clients with a live Stripe
- * subscription (`stripeBillingLiveMode`), not sandbox/test billing.
- */
 export function launchPlatformSubscriberCountWhere(): Prisma.ClientWhereInput {
   return {
     ...launchClientCountWhere(),
@@ -149,12 +127,10 @@ export async function countLaunchPlatformSubscribers(): Promise<number> {
   return prisma.client.count({ where: launchPlatformSubscriberCountWhere() });
 }
 
-/** Active clients counted for beta cap and founding membership offers. */
 export async function countLaunchClients(): Promise<number> {
   return prisma.client.count({ where: launchClientCountWhere() });
 }
 
-/** Active trainers counted for beta cap and founding registration pricing. */
 export async function countLaunchTrainers(): Promise<number> {
   return prisma.trainer.count({ where: launchTrainerCountWhere() });
 }
@@ -167,7 +143,6 @@ export async function countLaunchClientsInTx(tx: Prisma.TransactionClient): Prom
   return tx.client.count({ where: launchClientCountWhere() });
 }
 
-/** Pending registrations awaiting payment (not yet active clients). */
 export async function countPendingClientRegistrations(): Promise<number> {
   return prisma.pendingClientRegistration.count({
     where: {
