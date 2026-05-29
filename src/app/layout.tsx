@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { DevAccountShortcuts } from "@/components/dev-account-shortcuts";
 import { GoogleAdsGtag } from "@/components/google-ads-gtag";
 import { SiteAnalyticsTrackerBoundary } from "@/components/site-analytics-tracker-boundary";
@@ -58,6 +59,7 @@ export default function RootLayout({
         <SiteAnalyticsTrackerBoundary />
         {children}
         {process.env.NODE_ENV === "development" ? <DevAccountShortcuts /> : null}
+        <Analytics />
       </body>
     </html>
   );
