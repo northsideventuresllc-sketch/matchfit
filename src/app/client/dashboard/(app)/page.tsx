@@ -4,8 +4,6 @@ import { redirect } from "next/navigation";
 import { ClientDashboardLogoutButton } from "@/components/client/client-dashboard-logout-button";
 import { ClientDashboardQuickActions } from "@/components/client/client-dashboard-quick-actions";
 import { ClientDashboardHomeSection } from "@/components/client/client-dashboard-home-section";
-import { clientDiscoveryBypassesRegionalPools } from "@/lib/client-geographic-filter";
-import { parseClientMatchPreferencesJson } from "@/lib/client-match-preferences";
 import { getFeaturedTrainersForHomepage } from "@/lib/featured-homepage-data";
 import { clientZipToPrefix } from "@/lib/featured-region";
 import {
@@ -61,7 +59,6 @@ export default async function ClientDashboardHomePage() {
       username: true,
       bio: true,
       zipCode: true,
-      matchPreferencesJson: true,
       trainerNudges: {
         orderBy: { createdAt: "desc" },
         take: 12,
@@ -86,16 +83,8 @@ export default async function ClientDashboardHomePage() {
   const displayName = client.preferredName?.trim() || "there";
   const nudges = client.trainerNudges;
 
-  const matchPrefs = parseClientMatchPreferencesJson(client.matchPreferencesJson);
-  const nationwideFeatured = clientDiscoveryBypassesRegionalPools(matchPrefs);
   const zipPrefix = clientZipToPrefix(client.zipCode);
-  const featuredCoaches =
-    nationwideFeatured || zipPrefix
-      ? await getFeaturedTrainersForHomepage({
-          zipInput: client.zipCode,
-          nationwide: nationwideFeatured,
-        })
-      : [];
+  const featuredCoaches = zipPrefix ? await getFeaturedTrainersForHomepage({ zipInput: client.zipCode }) : [];
 
   const recentMatchRows = await prisma.trainerClientConversation.findMany({
     where: { clientId, officialChatStartedAt: { not: null } },
@@ -208,19 +197,13 @@ export default async function ClientDashboardHomePage() {
         )}
       </ClientDashboardHomeSection>
 
-      <ClientDashboardHomeSection
-        title={nationwideFeatured ? "Featured Coaches Nationwide" : "Featured Coaches in Your Area"}
-      >
-        {!nationwideFeatured && !zipPrefix ? (
+      <ClientDashboardHomeSection title="Featured Coaches in Your Area">
+        {!zipPrefix ? (
           <p className="text-center text-sm text-white/40">
             Add a valid U.S. ZIP code on your account so we can match you to a regional featured pool.
           </p>
         ) : featuredCoaches.length === 0 ? (
-          <p className="text-center text-sm text-white/40">
-            {nationwideFeatured
-              ? "No featured coaches are scheduled today."
-              : "No featured coaches are scheduled for your region today."}
-          </p>
+          <p className="text-center text-sm text-white/40">No featured coaches are scheduled for your region today.</p>
         ) : (
           <>
             <ul className="mx-auto max-w-xl space-y-3">

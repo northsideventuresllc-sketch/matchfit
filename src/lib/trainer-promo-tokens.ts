@@ -2,11 +2,6 @@ import { randomUUID } from "crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { deliverCoachServicePurchaseSideEffects } from "@/lib/coach-service-purchase-side-effects";
 import { applyConversationAfterServicePurchase } from "@/lib/trainer-client-booking-credits";
-import {
-  applyFoundingSalesBonusToLedger,
-  notifyFoundingSalesBonusGranted,
-  resolveFoundingSalesBonusForPurchase,
-} from "@/lib/founding-trainer-sales-bonus";
 import { prisma } from "@/lib/prisma";
 import { computeCheckoutLedgerSplits } from "@/lib/financial-ledger-split";
 import { createDiyPlanEngagement } from "@/lib/diy-plan-engagement-service";
@@ -220,9 +215,8 @@ export function promotionRegionalFeedBoost(
   durationDays: number,
   promoRegionPrefix: string,
   clientZipPrefix: string | null,
-  opts?: { nationwide?: boolean },
 ): number {
-  if (!opts?.nationwide && (!clientZipPrefix || promoRegionPrefix !== clientZipPrefix)) return 0;
+  if (!clientZipPrefix || promoRegionPrefix !== clientZipPrefix) return 0;
   const perDay = tokensSpent / Math.max(1, durationDays);
   return Math.min(160, Math.floor(perDay * 1.4 + tokensSpent * 0.035));
 }
@@ -572,36 +566,24 @@ export async function recordTrainerServiceTransactionAndReward(args: {
     }
   }
   try {
-    const completedAt = new Date();
-    const bonusPlan = await resolveFoundingSalesBonusForPurchase({
-      trainerId: args.trainerId,
-      amountCents: args.amountCents,
+    const ledger = computeCheckoutLedgerSplits({
+      coachSubtotalCents: args.amountCents,
       totalChargedCents: args.totalChargedCents,
       adminFeeCents: args.adminFeeCents,
-      completedAt,
+      sessionCreditsGranted: Math.max(0, args.sessionCreditsGranted ?? 0),
+      billingUnit: args.billingUnit,
+      bookingUnlimitedPurchase: Boolean(args.bookingUnlimitedPurchase),
+      serviceId: args.serviceId,
+      grossAddonAttributedCents: args.grossAddonAttributedCents,
+      addonHoursPurchased: args.addonHoursPurchased,
     });
-
-    const ledger = applyFoundingSalesBonusToLedger(
-      computeCheckoutLedgerSplits({
-        coachSubtotalCents: args.amountCents,
-        totalChargedCents: args.totalChargedCents,
-        adminFeeCents: args.adminFeeCents,
-        sessionCreditsGranted: Math.max(0, args.sessionCreditsGranted ?? 0),
-        billingUnit: args.billingUnit,
-        bookingUnlimitedPurchase: Boolean(args.bookingUnlimitedPurchase),
-        serviceId: args.serviceId,
-        grossAddonAttributedCents: args.grossAddonAttributedCents,
-        addonHoursPurchased: args.addonHoursPurchased,
-      }),
-      bonusPlan.bonusCents,
-    );
 
     const row = await prisma.trainerClientServiceTransaction.create({
       data: {
         clientId: args.clientId,
         trainerId: args.trainerId,
-        completedAt,
-        amountCents: args.amountCents + bonusPlan.bonusCents,
+        completedAt: new Date(),
+        amountCents: args.amountCents,
         source: args.source,
         stripeCheckoutSessionId: args.stripeCheckoutSessionId ?? undefined,
         stripePaymentIntentId: args.stripePaymentIntentId?.trim() || undefined,
@@ -613,8 +595,6 @@ export async function recordTrainerServiceTransactionAndReward(args: {
         purchaseLabelSnapshot: args.purchaseLabelSnapshot?.trim()?.slice(0, 500) || undefined,
         sessionCreditsGranted: Math.max(0, args.sessionCreditsGranted ?? 0),
         bookingUnlimitedPurchase: Boolean(args.bookingUnlimitedPurchase),
-        foundingSalesBonusCents: bonusPlan.bonusCents > 0 ? bonusPlan.bonusCents : undefined,
-        foundingSalesBonusGrantedAt: bonusPlan.bonusCents > 0 ? completedAt : undefined,
 
         payoutModel: ledger.payoutModel,
         ledgerGrossTotalCents: ledger.ledgerGrossTotalCents,
@@ -644,17 +624,6 @@ export async function recordTrainerServiceTransactionAndReward(args: {
         });
       } catch (diyErr) {
         console.error("[recordTrainerServiceTransactionAndReward] DIY engagement create skipped", diyErr);
-      }
-    }
-    if (bonusPlan.bonusCents > 0 && bonusPlan.saleNumber != null) {
-      try {
-        await notifyFoundingSalesBonusGranted({
-          trainerId: args.trainerId,
-          bonusCents: bonusPlan.bonusCents,
-          saleNumber: bonusPlan.saleNumber,
-        });
-      } catch (notifyErr) {
-        console.error("[recordTrainerServiceTransactionAndReward] founding bonus notify failed", notifyErr);
       }
     }
     await grantSaleTokensForServiceTransaction(row.id);

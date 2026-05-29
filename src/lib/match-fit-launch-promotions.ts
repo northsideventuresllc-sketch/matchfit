@@ -1,6 +1,6 @@
 /**
  * Launch pricing: client membership trials and trainer registration fee tiers.
- * Beta caps (30 trainers / 150 clients) live in `beta-launch-config.ts`.
+ * Beta caps (10 trainers / 50 clients) live in `beta-launch-config.ts`.
  */
 
 import { countLaunchClients, countLaunchTrainers } from "@/lib/launch-account-counts";
@@ -13,35 +13,21 @@ function parsePositiveInt(raw: string | undefined, fallback: number, max: number
 
 export type TrainerRegistrationPricingMode = "FOUNDING_BG_SURCHARGE_20PCT" | "STANDARD_100_MINUS_BG";
 
-/** First N trainers pay 20% of Checkr background fee (not $100 minus BG). Default 30. */
-export const DEFAULT_TRAINER_FOUNDING_BG_PERCENT_MAX = 30;
-
-/** First N clients: card required up front, 14-day trial before first invoice. Default 150. */
-export const DEFAULT_CLIENT_FOUNDING_TRIAL_MAX_CLIENTS = 150;
-
-/** First N trainers pay 20% of Checkr background fee (not $100 minus BG). Default 30. */
+/** First N trainers pay 20% of Checkr background fee (not $100 minus BG). Default 10. */
 export function getTrainerFoundingBgPercentMax(): number {
-  return parsePositiveInt(
-    process.env.MATCH_FIT_TRAINER_FOUNDING_BG_PERCENT_MAX,
-    DEFAULT_TRAINER_FOUNDING_BG_PERCENT_MAX,
-    1_000_000,
-  );
+  return parsePositiveInt(process.env.MATCH_FIT_TRAINER_FOUNDING_BG_PERCENT_MAX, 10, 1_000_000);
 }
 
 /** @deprecated Use getTrainerFoundingBgPercentMax — kept for env migration. */
 export function getTrainerFoundingRegistrationWaiverMax(): number {
   const legacy = process.env.MATCH_FIT_TRAINER_FOUNDING_REGISTRATION_WAIVER_MAX?.trim();
-  if (legacy) return parsePositiveInt(legacy, DEFAULT_TRAINER_FOUNDING_BG_PERCENT_MAX, 1_000_000);
+  if (legacy) return parsePositiveInt(legacy, 10, 1_000_000);
   return getTrainerFoundingBgPercentMax();
 }
 
-/** First N clients: card required up front, 14-day trial before first invoice. Default 150. */
+/** First N clients: card required up front, 14-day trial before first invoice. Default 50. */
 export function getClientFoundingTrialMaxClients(): number {
-  return parsePositiveInt(
-    process.env.MATCH_FIT_CLIENT_FOUNDING_TRIAL_MAX_CLIENTS,
-    DEFAULT_CLIENT_FOUNDING_TRIAL_MAX_CLIENTS,
-    1_000_000,
-  );
+  return parsePositiveInt(process.env.MATCH_FIT_CLIENT_FOUNDING_TRIAL_MAX_CLIENTS, 50, 1_000_000);
 }
 
 /** Founding trial length (days). Default 14. */
@@ -80,68 +66,6 @@ export function isNextClientEligibleForFoundingTrial(clientCount: number): boole
 
 export function isTrainerFoundingBgPercentTier(trainerCountBeforeInsert: number): boolean {
   return trainerCountBeforeInsert < getTrainerFoundingBgPercentMax();
-}
-
-/** First N trainers eligible for the founding sales bonus (5% back on first 5 sales). Default 30. */
-export function getFoundingTrainerSalesBonusMaxTrainers(): number {
-  return parsePositiveInt(process.env.MATCH_FIT_FOUNDING_TRAINER_SALES_BONUS_MAX_TRAINERS, 30, 1_000_000);
-}
-
-/** Percent of gross checkout returned to founding trainers per qualifying sale. Default 5. */
-export function getFoundingTrainerSalesBonusPercent(): number {
-  const n = parseInt(String(process.env.MATCH_FIT_FOUNDING_TRAINER_SALES_BONUS_PERCENT ?? "5").trim(), 10);
-  if (!Number.isFinite(n) || n < 1) return 5;
-  return Math.min(100, n);
-}
-
-/** Max qualifying sales per founding trainer. Default 5. */
-export function getFoundingTrainerSalesBonusMaxSales(): number {
-  return parsePositiveInt(process.env.MATCH_FIT_FOUNDING_TRAINER_SALES_BONUS_MAX_SALES, 5, 1_000_000);
-}
-
-/** Last calendar day (America/New_York) eligible for the founding sales bonus. Default 2026-12-31. */
-export function getFoundingTrainerSalesBonusEndsAtDateKey(): string {
-  const raw = process.env.MATCH_FIT_FOUNDING_TRAINER_SALES_BONUS_ENDS_DATE?.trim();
-  if (raw && /^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-  return "2026-12-31";
-}
-
-export function isFoundingTrainerSalesBonusEligibleDate(completedAt: Date): boolean {
-  const day = completedAt.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-  return day <= getFoundingTrainerSalesBonusEndsAtDateKey();
-}
-
-export function isFoundingTrainerBySignupRank(trainerCountBefore: number): boolean {
-  return trainerCountBefore < getFoundingTrainerSalesBonusMaxTrainers();
-}
-
-/** @deprecated Use getFoundingTrainerSalesBonusMaxTrainers */
-export function getTrainerFoundingSalesBonusMax(): number {
-  return getFoundingTrainerSalesBonusMaxTrainers();
-}
-
-/** @deprecated Use getFoundingTrainerSalesBonusMaxSales */
-export function getFoundingSalesBonusMaxSales(): number {
-  return getFoundingTrainerSalesBonusMaxSales();
-}
-
-/** @deprecated Use getFoundingTrainerSalesBonusPercent / 100 */
-export function getFoundingSalesBonusRate(): number {
-  return getFoundingTrainerSalesBonusPercent() / 100;
-}
-
-/** @deprecated Use isFoundingTrainerSalesBonusEligibleDate */
-export function isFoundingSalesBonusPromoActive(at: Date = new Date()): boolean {
-  return isFoundingTrainerSalesBonusEligibleDate(at);
-}
-
-/** @deprecated Use getFoundingTrainerSalesBonusEndsAtDateKey via isFoundingTrainerSalesBonusEligibleDate */
-export function foundingSalesBonusPromoEndExclusive(): Date {
-  const raw = process.env.MATCH_FIT_FOUNDING_TRAINER_SALES_BONUS_ENDS_DATE?.trim();
-  if (raw && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-    return new Date(`${raw}T23:59:59.999-05:00`);
-  }
-  return new Date("2027-01-01T04:59:59.999Z");
 }
 
 /** @deprecated Use isTrainerFoundingBgPercentTier */

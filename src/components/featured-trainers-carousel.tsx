@@ -166,14 +166,7 @@ function FeaturedComingSoon() {
   );
 }
 
-export function FeaturedTrainersCarousel({
-  trainers,
-  nationwide = false,
-}: {
-  trainers?: FeaturedTrainerCard[];
-  /** Virtual/DIY-only clients: coaches are shown from all US regions, not just local ZIP prefix. */
-  nationwide?: boolean;
-}) {
+export function FeaturedTrainersCarousel({ trainers }: { trainers?: FeaturedTrainerCard[] }) {
   const [index, setIndex] = useState(0);
   const reduceMotion = useSyncExternalStore(
     subscribeReducedMotion,
@@ -217,28 +210,18 @@ export function FeaturedTrainersCarousel({
     >
       <div className="text-center">
         <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF7E00]">
-          {nationwide ? "Nationwide" : "Near you"}
+          Near you
         </p>
         <h2
           id="featured-trainers-heading"
           className="mt-2 text-balance text-xl font-black uppercase tracking-wide text-white sm:text-2xl"
         >
-          {nationwide ? "Featured coaches nationwide" : "Featured trainers in your area"}
+          Featured trainers in your area
         </h2>
         <p className="mx-auto mt-3 max-w-2xl text-pretty text-sm leading-relaxed text-white/55 sm:text-base">
-          {nationwide ? (
-            <>
-              Coaches from across the U.S. eligible for virtual and DIY services.{" "}
-              <span className="text-white/70">Sponsored</span> and{" "}
-              <span className="text-white/70">raffle</span> spots refresh daily using an America/New_York cutoff.{" "}
-            </>
-          ) : (
-            <>
-              Coaches in your ZIP area (first three digits).{" "}
-              <span className="text-white/70">Sponsored</span> and{" "}
-              <span className="text-white/70">raffle</span> spots refresh daily using an America/New_York cutoff.{" "}
-            </>
-          )}
+          Coaches in your ZIP area (first three digits).{" "}
+          <span className="text-white/70">Sponsored</span> and{" "}
+          <span className="text-white/70">raffle</span> spots refresh daily using an America/New_York cutoff.{" "}
           <Link href="/terms#featured-placement" className="font-semibold text-[#FF7E00] underline-offset-4 hover:underline">
             How placement works
           </Link>

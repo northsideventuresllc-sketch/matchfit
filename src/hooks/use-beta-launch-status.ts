@@ -18,22 +18,8 @@ export type BetaLaunchStatus = {
   clientFoundingMax: number | null;
   trainerFoundingRemaining: number | null;
   clientFoundingRemaining: number | null;
-  /** All beta coach slots taken — blocks trainer signup without invite. */
-  trainerTotalCapFull?: boolean;
-  /** Virtual, in-person, or total bucket full — waitlist accepts joins. */
   trainerWaitlistOpen: boolean;
   clientWaitlistOpen: boolean;
-  /** Whether in-person coach opt-in is still available. */
-  inPersonOfferingAvailable?: boolean;
-  trainerVirtualSlotsUsed?: number | null;
-  trainerVirtualSlotsMax?: number | null;
-  trainerVirtualSlotsRemaining?: number | null;
-  trainerVirtualCapFull?: boolean;
-  trainerInPersonSlotsUsed?: number | null;
-  trainerInPersonSlotsMax?: number | null;
-  trainerInPersonSlotsRemaining?: number | null;
-  trainerInPersonCapFull?: boolean;
-  trainerVirtualBaseMax?: number | null;
 };
 
 export function useBetaLaunchStatus(): { status: BetaLaunchStatus | null; loading: boolean } {
@@ -63,7 +49,6 @@ export function useBetaLaunchStatus(): { status: BetaLaunchStatus | null; loadin
             clientFoundingMax: null,
             trainerFoundingRemaining: null,
             clientFoundingRemaining: null,
-            trainerTotalCapFull: false,
             trainerWaitlistOpen: false,
             clientWaitlistOpen: false,
           });

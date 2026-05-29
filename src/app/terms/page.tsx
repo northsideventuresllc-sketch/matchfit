@@ -1,14 +1,11 @@
 import { LegalPageFooterNav } from "@/components/legal-page-footer-nav";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
-import { betaInviteSlotDays, betaMaxClients, betaMaxInPersonTrainers, betaMaxTotalTrainers, betaMaxVirtualTrainersBase } from "@/lib/beta-launch-config";
+import { betaInviteSlotDays, betaMaxClients, betaMaxTrainers } from "@/lib/beta-launch-config";
 import { LEGAL_EFFECTIVE_DATE_DISPLAY } from "@/lib/legal-effective-date";
 import {
   getClientFoundingTrialDays,
   getClientFoundingTrialMaxClients,
   getClientPostCapTrialDays,
-  getFoundingTrainerSalesBonusMaxSales,
-  getFoundingTrainerSalesBonusMaxTrainers,
-  getFoundingTrainerSalesBonusPercent,
   getTrainerFoundingBgPercentMax,
 } from "@/lib/match-fit-launch-promotions";
 import {
@@ -36,15 +33,10 @@ const TERMS_CONTACT_EMAIL = "legal@match-fit.net";
 const PHYSICAL_ADDRESS_LINE = "1954 Airport Rd STE 1277, Chamblee, GA 30341, United States";
 
 const TERMS_EFFECTIVE_DATE = LEGAL_EFFECTIVE_DATE_DISPLAY;
-const BETA_MAX_TRAINERS = betaMaxTotalTrainers();
-const BETA_MAX_VIRTUAL_TRAINERS = betaMaxVirtualTrainersBase();
-const BETA_MAX_IN_PERSON_TRAINERS = betaMaxInPersonTrainers();
+const BETA_MAX_TRAINERS = betaMaxTrainers();
 const BETA_MAX_CLIENTS = betaMaxClients();
 const BETA_INVITE_SLOT_DAYS = betaInviteSlotDays();
 const FOUNDING_TRAINER_CAP = getTrainerFoundingBgPercentMax();
-const FOUNDING_SALES_BONUS_TRAINER_CAP = getFoundingTrainerSalesBonusMaxTrainers();
-const FOUNDING_SALES_BONUS_MAX_SALES = getFoundingTrainerSalesBonusMaxSales();
-const FOUNDING_SALES_BONUS_PERCENT = getFoundingTrainerSalesBonusPercent();
 const FOUNDING_CLIENT_CAP = getClientFoundingTrialMaxClients();
 const FOUNDING_CLIENT_TRIAL_DAYS = getClientFoundingTrialDays();
 const POST_CAP_CLIENT_TRIAL_DAYS = getClientPostCapTrialDays();
@@ -165,36 +157,23 @@ export default async function TermsPage() {
         <P>
           Match Fit may operate in a limited <Strong>beta</Strong> phase. During beta we may cap how many Trainers and
           Clients can register (for example, up to <Strong>{BETA_MAX_TRAINERS} Trainers</Strong> and{" "}
-          <Strong>{BETA_MAX_CLIENTS} Clients</Strong> when those gates are enabled in production). Coach capacity is split
-          into <Strong>{BETA_MAX_VIRTUAL_TRAINERS} virtual / DIY / remote-nutrition slots</Strong> and{" "}
-          <Strong>{BETA_MAX_IN_PERSON_TRAINERS} in-person slots</Strong> within the Atlanta metro geocircle. If in-person
-          slots are unused, we may reallocate them to virtual capacity one slot at a time (for example, when all{" "}
-          {BETA_MAX_VIRTUAL_TRAINERS} base virtual seats fill but in-person seats remain open, the effective virtual cap may
-          increase up to the {BETA_MAX_TRAINERS}-coach total). When caps are full for your offering type, you may join a{" "}
-          <Strong>waitlist</Strong> with your email and ZIP code; we may email time-limited invites when capacity opens.
-          Invited users typically have on the order of <Strong>{BETA_INVITE_SLOT_DAYS} days</Strong> to complete sign-up
-          before the reserved slot may be released to the next waitlisted person.
+          <Strong>{BETA_MAX_CLIENTS} Clients</Strong> when those gates are enabled in production). When caps are full, you
+          may join a <Strong>waitlist</Strong> with your email and ZIP code; we may email time-limited invites when capacity
+          opens. Invited users typically have on the order of <Strong>{BETA_INVITE_SLOT_DAYS} days</Strong> to complete
+          sign-up before the reserved slot may be released to the next waitlisted person.
         </P>
         <P>
-          <Strong>Geographic availability during beta:</Strong> Client sign-up and the client waitlist are open to anyone
-          with a valid United States ZIP code. Trainer sign-up and the trainer waitlist accept any valid U.S. ZIP for
-          virtual, DIY, and remote nutrition offerings. Trainers who opt into <Strong>in-person</Strong> offerings must
-          provide a ZIP inside the published Atlanta metropolitan geocircle (approximately fifteen to twenty road miles from
-          downtown Atlanta, as implemented in our ZIP allowlist). During beta, <Strong>in-person coaching services</Strong>{" "}
-          launch only within that Atlanta geocircle; virtual and remote offerings are available nationwide. We may expand
-          in-person coverage to additional regions over time and will describe availability in-product.
+          <Strong>Geographic service area:</Strong> During the Atlanta metro beta, Trainer and Client sign-up and waitlist
+          flows may require a ZIP code inside the published Atlanta metropolitan service area (approximately fifteen to
+          twenty road miles from downtown Atlanta, as implemented in our ZIP allowlist). We may expand to additional regions
+          over time and will describe availability in-product.
         </P>
         <P>
           <Strong>Founding promotions (while caps last):</Strong> The first{" "}
           <Strong>{FOUNDING_TRAINER_CAP} Trainers</Strong> who complete registration may pay a reduced one-time platform
           registration amount equal to <Strong>twenty percent (20%)</Strong> of the background-check fee they paid to the
           independent screening provider (plus transaction fees), instead of the standard one hundred U.S. dollar ($100.00)
-          registration model described in Section 11. Separately, the first{" "}
-          <Strong>{FOUNDING_SALES_BONUS_TRAINER_CAP} Trainers</Strong> to complete registration (by signup order recorded at
-          account creation) may receive a <Strong>{FOUNDING_SALES_BONUS_PERCENT}%</Strong> credit on gross checkout for each
-          of their first <Strong>{FOUNDING_SALES_BONUS_MAX_SALES} qualifying client package sales</Strong> processed through
-          the Service through December 31, 2026 (America/New_York), applied to the Trainer&apos;s payout ledger as
-          implemented in-product. The first <Strong>{FOUNDING_CLIENT_CAP} Clients</Strong> may receive a{" "}
+          registration model described in Section 11. The first <Strong>{FOUNDING_CLIENT_CAP} Clients</Strong> may receive a{" "}
           <Strong>{FOUNDING_CLIENT_TRIAL_DAYS}-day</Strong> platform subscription trial (card on file; billing begins after the
           trial unless canceled). After founding client slots fill, new Clients may see a shorter trial (currently{" "}
           <Strong>{POST_CAP_CLIENT_TRIAL_DAYS} days</Strong>) or pay immediately, as shown at checkout.
@@ -244,10 +223,9 @@ export default async function TermsPage() {
         <H2 id="client-services">4. Client Services and Marketplace Rules</H2>
         <P>
           Subject to these Terms and feature availability in the Service, Clients may use discovery tools (including
-          swipe-style and list-style browsing), match preferences, optional U.S. timezone filters for virtual / DIY
-          discovery and Fit Hub feeds, questionnaires, goal-setting features, messaging, session booking, DIY offerings,
-          Fit Hub content feeds, ratings or testimonials where enabled, bug and feedback submissions, and account settings
-          (including subscription pause where available).
+          swipe-style and list-style browsing), match preferences, questionnaires, goal-setting features, messaging, session
+          booking, DIY offerings, Fit Hub content feeds, ratings or testimonials where enabled, bug and feedback submissions,
+          and account settings (including subscription pause where available).
         </P>
 
         <H2 id="session-policies">5. Mobile and Virtual Sessions</H2>
@@ -434,23 +412,12 @@ export default async function TermsPage() {
         <Ul>
           <Li>
             Trainer registration may require a <Strong>one-time registration fee</Strong> plus applicable transaction fees,
-            as shown at checkout. <Strong>Standard pricing:</Strong> forty-nine U.S. dollars ($49.00) for the independent
-            background check plus fifty-one U.S. dollars ($51.00) for the Match Fit platform sign-up fee, for one hundred
-            U.S. dollars ($100.00) total (USD), plus processing fees on each card payment. Amounts may adjust if the
-            verified background-check fee differs.{" "}
+            as shown at checkout. <Strong>Standard pricing:</Strong> one hundred U.S. dollars ($100.00) minus the amount you
+            paid the independent background-check provider (when verified), plus processing fees.{" "}
             <Strong>Founding-coach pricing (first {FOUNDING_TRAINER_CAP} Trainers):</Strong> twenty percent (20%) of the
             verified background-check fee plus processing fees—not the full $100.00 model. Match Fit generally collects the
             registration fee only after background screening clears and primary certification is approved, as implemented in
             onboarding.
-          </Li>
-          <Li>
-            <Strong>Founding-coach sales bonus (first {FOUNDING_SALES_BONUS_TRAINER_CAP} Trainers):</Strong> Trainers who
-            sign up among the first {FOUNDING_SALES_BONUS_TRAINER_CAP} may receive a promotional rebate of{" "}
-            {FOUNDING_SALES_BONUS_PERCENT}% of the gross checkout total on each of their first{" "}
-            {FOUNDING_SALES_BONUS_MAX_SALES} qualifying client package sales completed through the Match Fit checkout flow
-            through December 31, 2026 (America/New_York). Rebates are credited to the trainer payout ledger as implemented
-            in the product and do not reduce amounts charged to clients. Match Fit may modify or end this promotion for new
-            qualifying sales after that date.
           </Li>
           <Li>
             To appear publicly, Trainers may need to complete tax documentation (such as IRS Form W-9 or successor forms),

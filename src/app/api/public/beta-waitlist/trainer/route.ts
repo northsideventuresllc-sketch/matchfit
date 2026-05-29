@@ -19,8 +19,6 @@ const bodySchema = z.object({
     .max(32)
     .regex(/^[a-zA-Z0-9_]+$/),
   serviceZipCode: z.string().trim().regex(/^\d{5}(-\d{4})?$/),
-  desiredOfferingVirtual: z.boolean().optional().default(true),
-  desiredOfferingInPerson: z.boolean().optional().default(false),
   turnstileToken: z.string().optional(),
 });
 

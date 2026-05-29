@@ -120,10 +120,9 @@ export default async function PrivacyPage() {
         <Ul>
           <Li>
             <Strong>Profile and Preferences:</Strong> public-style bio, profile photo, match and discovery preferences
-            (including goals, service types, interests, optional U.S. timezone filters for virtual / DIY discovery and Fit
-            Hub feeds, and related questionnaire answers), Fit Hub feed preferences, notification preferences, and optional
-            visibility choices that control what appears on your public client profile (for example whether your bio or match
-            snapshot is shown to visitors).
+            (including goals, service types, interests, and related questionnaire answers), Fit Hub feed preferences,
+            notification preferences, and optional visibility choices that control what appears on your public client
+            profile (for example whether your bio or match snapshot is shown to visitors).
           </Li>
           <Li>
             <Strong>Wellness and Matching Inputs:</Strong> daily matching questionnaire content and answers, and derived
@@ -182,8 +181,7 @@ export default async function PrivacyPage() {
           </Li>
           <Li>
             <Strong>Tokens and Rewards:</Strong> token balances, ledger entries, weekly grants, purchases through Stripe
-            Checkout where enabled, rewards tied to documented client service transactions, and promotional payout credits
-            (such as founding-coach sales bonuses credited to your ledger when eligible).
+            Checkout where enabled, and rewards tied to documented client service transactions.
           </Li>
           <Li>
             <Strong>Billing (Where Connected):</Strong> Stripe-related identifiers for coach billing, invoices, or
@@ -203,23 +201,14 @@ export default async function PrivacyPage() {
         <h3 className="mt-6 text-sm font-bold text-white/90">2.4 Beta Waitlist and Launch Gates</h3>
         <Ul>
           <Li>
-            <Strong>Waitlist:</Strong> email address, ZIP code, desired offering types (virtual / DIY vs in-person where
-            applicable), and status if you join a Trainer or Client waitlist when beta capacity is full. Client waitlist
-            entries may use any valid U.S. ZIP; trainer waitlist entries for in-person offerings require a ZIP in the
-            Atlanta metro geocircle during beta.
+            <Strong>Waitlist:</Strong> email address, ZIP code, and status if you join a Trainer or Client waitlist when beta
+            capacity is full.
           </Li>
           <Li>
             <Strong>Invite tokens:</Strong> time-limited signup links and slot reservation timestamps when we invite you from
             the waitlist.
           </Li>
         </Ul>
-        <P>
-          During beta, <Strong>client accounts</Strong> may be created from anywhere in the United States using a valid U.S.
-          ZIP code. <Strong>In-person coaching</Strong> is offered only within the Atlanta metropolitan geocircle during this
-          phase; other service types may be available nationwide depending on trainer offerings. Coach beta capacity is
-          managed in virtual / DIY and in-person buckets as described in our Terms; unused in-person capacity may
-          reallocate to virtual slots as implemented in-product.
-        </P>
 
         <h3 className="mt-6 text-sm font-bold text-white/90">2.5 Trust, Safety, and Support</h3>
         <Ul>
@@ -284,13 +273,11 @@ export default async function PrivacyPage() {
             product captures it, and send security notices (including OTP and password-reset flows);
           </Li>
           <Li>Process payments, subscriptions, token purchases, and advertising-style placements you initiate;</Li>
-          <Li>Enable discovery, matching, Fit Hub, chat, notifications, and premium coach tools (including optional timezone-based filtering for virtual / DIY client discovery when you enable it);</Li>
+          <Li>Enable discovery, matching, Fit Hub, chat, notifications, and premium coach tools;</Li>
           <Li>Honor optional profile visibility settings you choose in account settings;</Li>
           <Li>Verify identity or eligibility where required for coach onboarding, compliance, or risk controls;</Li>
           <Li>
-            Operate beta capacity limits, waitlists, founding promotions (including registration-fee tiers and sales-bonus
-            ledger credits for eligible coaches), and geographic eligibility during limited launches (including nationwide
-            client sign-up and Atlanta geocircle restrictions for in-person trainer offerings during beta);
+            Operate beta capacity limits, waitlists, founding promotions, and geographic eligibility during limited launches;
           </Li>
           <Li>Detect, investigate, and prevent fraud, abuse, and violations of our Terms or policies;</Li>
           <Li>Communicate service, billing, and policy updates;</Li>

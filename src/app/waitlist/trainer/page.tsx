@@ -5,7 +5,6 @@ import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
-import { DEFAULT_TRAINER_FOUNDING_BG_PERCENT_MAX } from "@/lib/match-fit-launch-promotions";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
@@ -27,31 +26,15 @@ export default function TrainerWaitlistPage() {
   const [phone, setPhone] = useState("");
   const [desiredUsername, setDesiredUsername] = useState("");
   const [serviceZipCode, setServiceZipCode] = useState("");
-  const [desiredOfferingVirtual, setDesiredOfferingVirtual] = useState(true);
-  const [desiredOfferingInPerson, setDesiredOfferingInPerson] = useState(false);
   const [gatesOn, setGatesOn] = useState<boolean | null>(null);
-  const [inPersonOfferingAvailable, setInPersonOfferingAvailable] = useState(true);
-  const [inPersonSlotsMax, setInPersonSlotsMax] = useState(10);
 
   useEffect(() => {
     void fetch("/api/public/beta-launch-status")
       .then((r) => r.json())
-      .then(
-        (d: {
-          gatesEnabled?: boolean;
-          inPersonOfferingAvailable?: boolean;
-          trainerInPersonSlotsMax?: number | null;
-        }) => {
-        setGatesOn(d.gatesEnabled === true);
-        setInPersonOfferingAvailable(d.inPersonOfferingAvailable !== false);
-        if (typeof d.trainerInPersonSlotsMax === "number" && d.trainerInPersonSlotsMax > 0) {
-          setInPersonSlotsMax(d.trainerInPersonSlotsMax);
-        }
+      .then((d: { gatesEnabled?: boolean; trainerWaitlistOpen?: boolean }) => {
+        setGatesOn(d.gatesEnabled === true && d.trainerWaitlistOpen === true);
       })
-      .catch(() => {
-        setGatesOn(false);
-        setInPersonOfferingAvailable(true);
-      });
+      .catch(() => setGatesOn(false));
   }, []);
 
   async function onSubmit(e: FormEvent) {
@@ -73,8 +56,6 @@ export default function TrainerWaitlistPage() {
           phone: phone.trim(),
           desiredUsername: desiredUsername.trim(),
           serviceZipCode: serviceZipCode.trim(),
-          desiredOfferingVirtual,
-          desiredOfferingInPerson,
           ...(TURNSTILE_SITE_KEY ? { turnstileToken: turnstileRef.current?.getToken() } : {}),
         }),
       });
@@ -146,8 +127,9 @@ export default function TrainerWaitlistPage() {
             </span>
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-white/60">
-            Reserve your username when virtual / DIY coach spots, in-person coach spots, or total beta capacity is full.
-            You will be notified by email when matching capacity opens.
+            All beta slots are currently full. Reserve your username now — you will be notified by
+            email when a slot opens. You will have 30 days to complete your account setup once
+            invited.
           </p>
         </div>
 
@@ -155,8 +137,7 @@ export default function TrainerWaitlistPage() {
         <div className="mt-4 rounded-2xl border border-[#FF7E00]/20 bg-[#12151C]/75 px-4 py-3 backdrop-blur-xl">
           <p className="text-xs leading-relaxed text-white/55">
             <span className="font-semibold text-[#FF7E00]">Note:</span> Founding member promos (20%
-            BG fee / 14-day free trial) apply only to the first {DEFAULT_TRAINER_FOUNDING_BG_PERCENT_MAX}{" "}
-            trainers who sign up directly.
+            BG fee / 14-day free trial) apply only to the first 10 trainers who sign up directly.
             Waitlist users receive standard pricing when their slot opens.
           </p>
         </div>
@@ -223,34 +204,6 @@ export default function TrainerWaitlistPage() {
                 </p>
               ) : null}
 
-              <fieldset className="flex flex-col gap-3 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-4">
-                <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-white/50">
-                  What do you want to offer?
-                </legend>
-                <label className="flex cursor-pointer items-start gap-3 text-sm text-white/70">
-                  <input
-                    type="checkbox"
-                    checked={desiredOfferingVirtual}
-                    onChange={(e) => setDesiredOfferingVirtual(e.target.checked)}
-                    className="mt-1 h-4 w-4 accent-[#FF7E00]"
-                  />
-                  <span>Virtual, DIY, and remote nutrition coaching (nationwide during beta)</span>
-                </label>
-                <label className="flex cursor-pointer items-start gap-3 text-sm text-white/70">
-                  <input
-                    type="checkbox"
-                    checked={desiredOfferingInPerson}
-                    disabled={!inPersonOfferingAvailable}
-                    onChange={(e) => setDesiredOfferingInPerson(e.target.checked)}
-                    className="mt-1 h-4 w-4 accent-[#FF7E00] disabled:opacity-40"
-                  />
-                  <span>In-person coaching in the Atlanta metro area (limited to {inPersonSlotsMax} coaches during beta)</span>
-                </label>
-                {!inPersonOfferingAvailable ? (
-                  <p className="text-xs text-amber-200/85">In-person spots are full — you can still join for virtual / DIY capacity.</p>
-                ) : null}
-              </fieldset>
-
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="flex flex-col gap-2">
                   <span className={labelClass}>First name</span>
@@ -316,15 +269,14 @@ export default function TrainerWaitlistPage() {
               </div>
 
               <label className="flex flex-col gap-2">
-                <span className={labelClass}>Service ZIP</span>
+                <span className={labelClass}>Service ZIP (Atlanta metro)</span>
                 <input
                   required
                   className={inputClass}
-                  placeholder="30301 or your US ZIP"
+                  placeholder="30301"
                   value={serviceZipCode}
                   onChange={(e) => setServiceZipCode(e.target.value)}
                 />
-                <p className="text-xs text-white/40">Atlanta metro ZIP required only if you selected in-person offerings.</p>
               </label>
 
               {TURNSTILE_SITE_KEY ? (

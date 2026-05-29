@@ -74,7 +74,6 @@ export async function POST(req: Request) {
       email,
       username,
       betaInviteToken: body.betaInviteToken,
-      wantsInPerson: body.wantsInPerson,
     });
     if (!gate.ok) {
       return NextResponse.json({ error: gate.error, code: gate.code }, { status: gate.status });

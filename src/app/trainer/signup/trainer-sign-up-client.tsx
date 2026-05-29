@@ -34,15 +34,11 @@ export default function TrainerSignUpClient() {
   const searchParams = useSearchParams();
   const betaInviteFromUrl = searchParams.get("betaInvite")?.trim() || "";
   const [serviceZipCode, setServiceZipCode] = useState("");
-  const [wantsInPerson, setWantsInPerson] = useState(false);
-  const [inPersonZipEligible, setInPersonZipEligible] = useState(false);
   const { status: betaStatus, loading: betaStatusLoading } = useBetaLaunchStatus();
   const betaGatesOn = betaStatus?.gatesEnabled === true;
-  const inPersonOfferingAvailable = betaStatus?.inPersonOfferingAvailable !== false;
-  const inPersonSlotsMax = betaStatus?.trainerInPersonSlotsMax ?? 10;
   const trainerCapFull =
     betaStatus?.gatesEnabled === true &&
-    betaStatus.trainerTotalCapFull === true &&
+    betaStatus.trainerWaitlistOpen === true &&
     !betaInviteFromUrl;
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -78,30 +74,6 @@ export default function TrainerSignUpClient() {
       cancelled = true;
     };
   }, [betaInviteFromUrl]);
-
-  useEffect(() => {
-    const z = serviceZipCode.trim();
-    if (!betaGatesOn || !/^\d{5}(-\d{4})?$/.test(z)) {
-      setInPersonZipEligible(false);
-      setWantsInPerson(false);
-      return;
-    }
-    let cancelled = false;
-    void fetch(`/api/public/beta-trainer-service-area?zip=${encodeURIComponent(z)}`)
-      .then((r) => r.json())
-      .then((d: { inPersonEligible?: boolean }) => {
-        if (cancelled) return;
-        const eligible = d.inPersonEligible === true;
-        setInPersonZipEligible(eligible);
-        if (!eligible) setWantsInPerson(false);
-      })
-      .catch(() => {
-        if (!cancelled) setInPersonZipEligible(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [betaGatesOn, serviceZipCode]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -148,13 +120,9 @@ export default function TrainerSignUpClient() {
     if (betaGatesOn) {
       const z = serviceZipCode.trim();
       if (!/^\d{5}(-\d{4})?$/.test(z)) {
-        setError("Enter your primary service ZIP (5 digits).");
+        setError("Enter your primary Atlanta metro ZIP (5 digits).");
         return;
       }
-    }
-    if (wantsInPerson && !inPersonOfferingAvailable) {
-      setError("In-person coach spots are full. Uncheck in-person offerings or join the waitlist.");
-      return;
     }
     const tsErr = turnstile.validateBeforeSubmit();
     if (tsErr) {
@@ -176,7 +144,6 @@ export default function TrainerSignUpClient() {
         agreedToTerms: true,
         stayLoggedIn,
         serviceZipCode: serviceZipCode.trim(),
-        wantsInPerson: wantsInPerson && inPersonZipEligible && inPersonOfferingAvailable,
         ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
         ...(turnstileToken ? { turnstileToken } : {}),
       };
@@ -243,7 +210,6 @@ export default function TrainerSignUpClient() {
           agreedToTerms: true,
           stayLoggedIn,
           serviceZipCode: serviceZipCode.trim(),
-          wantsInPerson: wantsInPerson && inPersonZipEligible && inPersonOfferingAvailable,
           ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
         });
         setVerificationEmailSent(true);
@@ -310,9 +276,8 @@ export default function TrainerSignUpClient() {
 
         <h1 className="mt-10 text-2xl font-black tracking-tight sm:mt-12 sm:text-3xl">Create Your Trainer Account</h1>
         <p className="mt-2 text-sm leading-relaxed text-white/55 sm:text-base">
-          You will complete compliance steps after this screen. Use a strong password; you can enable two-factor
-          authentication later just like clients. Virtual, DIY, and remote nutrition offerings are open nationwide during
-          the beta; in-person offerings are limited to the Atlanta metro area.
+          You will complete compliance steps after this screen. Atlanta metro beta coaches only — use a strong password;
+          you can enable two-factor authentication later just like clients.
         </p>
 
         {betaInviteReserved ? (
@@ -341,18 +306,11 @@ export default function TrainerSignUpClient() {
               role="alert"
             >
               {error}
-              {errorCode === "BETA_TRAINER_CAP" || errorCode === "BETA_TRAINER_VIRTUAL_CAP" ? (
+              {errorCode === "BETA_TRAINER_CAP" ? (
                 <>
                   {" "}
                   <Link href="/waitlist/trainer" className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
                     Join the trainer waitlist
-                  </Link>
-                </>
-              ) : errorCode === "BETA_TRAINER_IN_PERSON_CAP" ? (
-                <>
-                  {" "}
-                  <Link href="/waitlist/trainer" className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
-                    Join the in-person waitlist
                   </Link>
                 </>
               ) : null}
@@ -454,7 +412,7 @@ export default function TrainerSignUpClient() {
             {betaGatesOn ? (
               <div className="flex flex-col gap-2">
                 <label htmlFor="tr-su-zip" className={labelClass}>
-                  Primary service ZIP
+                  Primary service ZIP (Atlanta metro)
                 </label>
                 <input
                   id="tr-su-zip"
@@ -467,37 +425,6 @@ export default function TrainerSignUpClient() {
                   placeholder="30301"
                   className={inputClass}
                 />
-                <p className="text-xs leading-relaxed text-white/40">
-                  Any valid US ZIP works for virtual / DIY coaching. Atlanta metro ZIPs can opt in to in-person offerings
-                  below.
-                </p>
-              </div>
-            ) : null}
-
-            {betaGatesOn && inPersonZipEligible ? (
-              <div className="flex flex-col gap-3 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-4">
-                <label className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed text-white/70">
-                  <input
-                    type="checkbox"
-                    checked={wantsInPerson}
-                    disabled={!inPersonOfferingAvailable}
-                    onChange={(e) => setWantsInPerson(e.target.checked)}
-                    className="mt-1 h-4 w-4 shrink-0 accent-[#FF7E00] focus:ring-2 focus:ring-[#FF7E00]/40 focus:ring-offset-0 disabled:opacity-40"
-                  />
-                  <span>
-                    I want to offer <span className="font-semibold text-white/85">in-person</span> training and related
-                    services in the Atlanta metro area.
-                  </span>
-                </label>
-                {!inPersonOfferingAvailable ? (
-                  <p className="text-xs leading-relaxed text-amber-200/85">
-                    All {inPersonSlotsMax} in-person coach spots are filled.{" "}
-                    <Link href="/waitlist/trainer" className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
-                      Join the in-person waitlist
-                    </Link>{" "}
-                    or continue with virtual / DIY offerings only.
-                  </p>
-                ) : null}
               </div>
             ) : null}
 

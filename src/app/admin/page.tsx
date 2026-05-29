@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getAdminPortalDashboard, type AdminPortalDashboard } from "@/lib/admin-portal-data";
+import { getAdminPortalOverview, type AdminPortalOverview } from "@/lib/admin-portal-data";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/session";
 import { AdminDashboardClient } from "./admin-dashboard-client";
@@ -21,11 +21,11 @@ export default async function AdminHomePage() {
     redirect("/admin/login");
   }
 
-  let dashboard: AdminPortalDashboard | null = null;
+  let overview: AdminPortalOverview | null = null;
   let loadError: string | null = null;
 
   try {
-    dashboard = await getAdminPortalDashboard();
+    overview = await getAdminPortalOverview();
   } catch (e) {
     console.error("[admin home]", e);
     loadError =
@@ -46,7 +46,7 @@ export default async function AdminHomePage() {
     );
   }
 
-  if (!dashboard) {
+  if (!overview) {
     return (
       <main className="min-h-dvh bg-[#050608] px-5 py-16 text-white">
         <div className="mx-auto max-w-lg rounded-2xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 p-6">
@@ -57,5 +57,5 @@ export default async function AdminHomePage() {
     );
   }
 
-  return <AdminDashboardClient initialDashboard={dashboard} initialTestMode={sess.testMode} />;
+  return <AdminDashboardClient initialOverview={overview} initialTestMode={sess.testMode} />;
 }

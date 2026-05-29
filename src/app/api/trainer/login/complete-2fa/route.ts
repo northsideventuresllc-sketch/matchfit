@@ -135,7 +135,6 @@ export async function POST(req: Request) {
             twoFactorOtpExpires: null,
             twoFactorLoginAttempts: 0,
             stayLoggedIn,
-            lastLoginAt: new Date(),
           },
         }),
       ]);
@@ -220,7 +219,6 @@ export async function POST(req: Request) {
         twoFactorOtpExpires: null,
         twoFactorLoginAttempts: 0,
         stayLoggedIn,
-        lastLoginAt: new Date(),
       },
     });
     const deletionRedirect = await trainerLoginDeletionRedirect(trainerId);

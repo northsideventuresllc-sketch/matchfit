@@ -1,4 +1,4 @@
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   CLIENT_PLATFORM_SUBSCRIPTION_PROFIT_CENTS,

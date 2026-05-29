@@ -3,20 +3,11 @@ import { prisma } from "@/lib/prisma";
 import {
   betaInviteSlotDays,
   betaMaxClients,
-  betaMaxTotalTrainers,
+  betaMaxTrainers,
   isBetaLaunchGatesEnabled,
 } from "@/lib/beta-launch-config";
-import { notifyBetaTrainerCapacityExpansionIfNeeded } from "@/lib/beta-trainer-capacity-notify";
-import {
-  canReserveTrainerBetaSlots,
-  getTrainerBetaSlotSnapshot,
-  trainerBetaSlotPrefsFromWaitlistEntry,
-  trainerOfferingPrefsFromSignup,
-  type TrainerBetaOfferingPrefs,
-  type TrainerBetaSlotSnapshot,
-} from "@/lib/beta-trainer-slot-caps";
-import { isZipInBetaAtlantaMetroArea } from "@/lib/beta-atlanta-metro-zips";
 import { countLaunchClients, countLaunchTrainers } from "@/lib/launch-account-counts";
+import { isZipInBetaAtlantaMetroArea } from "@/lib/beta-atlanta-metro-zips";
 import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
 import { appBaseUrlForEmail } from "@/lib/match-fit-email-shell";
 
@@ -45,13 +36,12 @@ export async function countActiveClientBetaInvites(db: BetaCapDb = prisma): Prom
   });
 }
 
-export async function getTrainerBetaSlotSnapshotInTx(tx: Prisma.TransactionClient): Promise<TrainerBetaSlotSnapshot> {
-  return getTrainerBetaSlotSnapshot(tx);
-}
-
 export async function trainerBetaSlotsUsed(db: BetaCapDb = prisma): Promise<number> {
-  const snapshot = await getTrainerBetaSlotSnapshot(db);
-  return snapshot.totalUsed;
+  const [registered, invited] = await Promise.all([
+    countTrainersForBetaCap(),
+    countActiveTrainerBetaInvites(db),
+  ]);
+  return registered + invited;
 }
 
 export async function clientBetaSlotsUsed(db: BetaCapDb = prisma): Promise<number> {
@@ -62,23 +52,9 @@ export async function clientBetaSlotsUsed(db: BetaCapDb = prisma): Promise<numbe
   return registered + invited;
 }
 
-/** Total founding coach cap (30) reached — blocks new signups without invite. */
 export async function isTrainerBetaCapReached(): Promise<boolean> {
   if (!isBetaLaunchGatesEnabled()) return false;
-  const snapshot = await getTrainerBetaSlotSnapshot();
-  return snapshot.totalRemaining <= 0;
-}
-
-export async function isTrainerVirtualBetaCapReached(): Promise<boolean> {
-  if (!isBetaLaunchGatesEnabled()) return false;
-  const snapshot = await getTrainerBetaSlotSnapshot();
-  return snapshot.virtualRemaining <= 0;
-}
-
-export async function isTrainerInPersonBetaCapReached(): Promise<boolean> {
-  if (!isBetaLaunchGatesEnabled()) return false;
-  const snapshot = await getTrainerBetaSlotSnapshot();
-  return snapshot.inPersonRemaining <= 0;
+  return (await trainerBetaSlotsUsed()) >= betaMaxTrainers();
 }
 
 export async function isClientBetaCapReached(): Promise<boolean> {
@@ -90,22 +66,16 @@ function newInviteToken(): string {
   return randomBytes(24).toString("hex");
 }
 
-async function queuePositionTrainer(where: Prisma.BetaTrainerWaitlistEntryWhereInput): Promise<number> {
-  return prisma.betaTrainerWaitlistEntry.count({ where });
+async function queuePositionTrainer(): Promise<number> {
+  return prisma.betaTrainerWaitlistEntry.count({
+    where: { status: "QUEUED" },
+  });
 }
 
 async function queuePositionClient(): Promise<number> {
   return prisma.betaClientWaitlistEntry.count({
     where: { status: "QUEUED" },
   });
-}
-
-function waitlistConfirmKind(
-  prefs: TrainerBetaOfferingPrefs,
-): "BETA_WAITLIST_TRAINER_CONFIRM" | "BETA_WAITLIST_TRAINER_IN_PERSON_CONFIRM" | "BETA_WAITLIST_TRAINER_VIRTUAL_CONFIRM" {
-  if (prefs.wantsInPerson && !prefs.wantsVirtual) return "BETA_WAITLIST_TRAINER_IN_PERSON_CONFIRM";
-  if (prefs.wantsVirtual && !prefs.wantsInPerson) return "BETA_WAITLIST_TRAINER_VIRTUAL_CONFIRM";
-  return "BETA_WAITLIST_TRAINER_CONFIRM";
 }
 
 export async function joinBetaTrainerWaitlist(args: {
@@ -115,34 +85,16 @@ export async function joinBetaTrainerWaitlist(args: {
   phone: string;
   desiredUsername: string;
   serviceZipCode: string;
-  desiredOfferingVirtual?: boolean;
-  desiredOfferingInPerson?: boolean;
 }): Promise<{ ok: true; id: string } | { error: string }> {
   if (!isBetaLaunchGatesEnabled()) {
     return { error: "Waitlist is not open." };
   }
-
-  const prefs = trainerOfferingPrefsFromSignup({
-    wantsVirtual: args.desiredOfferingVirtual,
-    wantsInPerson: args.desiredOfferingInPerson,
-  });
-  if (!prefs.wantsVirtual && !prefs.wantsInPerson) {
-    return { error: "Select at least one offering type for the waitlist." };
-  }
-
-  const snapshot = await getTrainerBetaSlotSnapshot();
-  const needsVirtualWaitlist = prefs.wantsVirtual && snapshot.virtualRemaining <= 0;
-  const needsInPersonWaitlist = prefs.wantsInPerson && snapshot.inPersonRemaining <= 0;
-  const needsTotalWaitlist = snapshot.totalRemaining <= 0;
-
-  if (!needsVirtualWaitlist && !needsInPersonWaitlist && !needsTotalWaitlist) {
+  if (!(await isTrainerBetaCapReached())) {
     return { error: "Trainer slots are still available — sign up instead of joining the waitlist." };
   }
-
-  if (prefs.wantsInPerson && !isZipInBetaAtlantaMetroArea(args.serviceZipCode)) {
-    return { error: "In-person waitlist entries require a ZIP inside the Atlanta metro beta area." };
+  if (!isZipInBetaAtlantaMetroArea(args.serviceZipCode)) {
+    return { error: "That ZIP is outside the Atlanta metro beta area." };
   }
-
   const email = args.email.trim().toLowerCase();
   const desiredUsername = args.desiredUsername.trim();
   const taken = await isTrainerWaitlistUsernameConflict(desiredUsername);
@@ -169,16 +121,14 @@ export async function joinBetaTrainerWaitlist(args: {
       phone: args.phone.trim(),
       desiredUsername,
       serviceZipCode: args.serviceZipCode.trim(),
-      desiredOfferingVirtual: prefs.wantsVirtual,
-      desiredOfferingInPerson: prefs.wantsInPerson,
       updatedAt: new Date(),
     },
   });
 
-  const pos = await queuePositionTrainer({ status: "QUEUED" });
+  const pos = await queuePositionTrainer();
   const base = appBaseUrlForEmail();
   void sendTransactionalEmailIfAllowed({
-    kind: waitlistConfirmKind(prefs),
+    kind: "BETA_WAITLIST_TRAINER_CONFIRM",
     to: email,
     audience: "TRAINER",
     variables: {
@@ -204,6 +154,9 @@ export async function joinBetaClientWaitlist(args: {
   }
   if (!(await isClientBetaCapReached())) {
     return { error: "Client memberships are still available — sign up instead of joining the waitlist." };
+  }
+  if (!isZipInBetaAtlantaMetroArea(args.homeZipCode)) {
+    return { error: "That ZIP is outside the Atlanta metro beta area." };
   }
   const email = args.email.trim().toLowerCase();
   const desiredUsername = args.desiredUsername.trim();
@@ -258,7 +211,10 @@ export async function isTrainerWaitlistUsernameConflict(username: string): Promi
   const w = await prisma.betaTrainerWaitlistEntry.findFirst({
     where: {
       desiredUsername: u,
-      OR: [{ status: "QUEUED" }, { status: "INVITED", slotExpiresAt: { gt: now } }],
+      OR: [
+        { status: "QUEUED" },
+        { status: "INVITED", slotExpiresAt: { gt: now } },
+      ],
     },
     select: { id: true },
   });
@@ -271,7 +227,10 @@ export async function isClientWaitlistUsernameConflict(username: string): Promis
   const w = await prisma.betaClientWaitlistEntry.findFirst({
     where: {
       desiredUsername: u,
-      OR: [{ status: "QUEUED" }, { status: "INVITED", slotExpiresAt: { gt: now } }],
+      OR: [
+        { status: "QUEUED" },
+        { status: "INVITED", slotExpiresAt: { gt: now } },
+      ],
     },
     select: { id: true },
   });
@@ -279,15 +238,7 @@ export async function isClientWaitlistUsernameConflict(username: string): Promis
 }
 
 export type BetaInvitePayload =
-  | {
-      role: "trainer";
-      entryId: string;
-      email: string;
-      desiredUsername: string;
-      firstName: string;
-      desiredOfferingVirtual: boolean;
-      desiredOfferingInPerson: boolean;
-    }
+  | { role: "trainer"; entryId: string; email: string; desiredUsername: string; firstName: string }
   | { role: "client"; entryId: string; email: string; desiredUsername: string; firstName: string };
 
 export async function getValidBetaInvite(token: string | undefined): Promise<BetaInvitePayload | null> {
@@ -299,25 +250,10 @@ export async function getValidBetaInvite(token: string | undefined): Promise<Bet
       status: "INVITED",
       slotExpiresAt: { gt: new Date() },
     },
-    select: {
-      id: true,
-      email: true,
-      desiredUsername: true,
-      firstName: true,
-      desiredOfferingVirtual: true,
-      desiredOfferingInPerson: true,
-    },
+    select: { id: true, email: true, desiredUsername: true, firstName: true },
   });
   if (tr) {
-    return {
-      role: "trainer",
-      entryId: tr.id,
-      email: tr.email,
-      desiredUsername: tr.desiredUsername,
-      firstName: tr.firstName,
-      desiredOfferingVirtual: tr.desiredOfferingVirtual,
-      desiredOfferingInPerson: tr.desiredOfferingInPerson,
-    };
+    return { role: "trainer", entryId: tr.id, email: tr.email, desiredUsername: tr.desiredUsername, firstName: tr.firstName };
   }
   const cl = await prisma.betaClientWaitlistEntry.findFirst({
     where: {
@@ -355,24 +291,44 @@ export async function markClientWaitlistRegistered(entryId: string, clientId: st
   });
 }
 
-async function promoteNextTrainerInvite(now: Date, slotMs: number, base: string): Promise<boolean> {
-  const snapshot = await getTrainerBetaSlotSnapshot();
-  if (snapshot.totalRemaining <= 0) return false;
+export async function runBetaWaitlistCronJobs(): Promise<{
+  trainerInvitesExpired: number;
+  clientInvitesExpired: number;
+  trainerInvitesSent: number;
+  clientInvitesSent: number;
+}> {
+  if (!isBetaLaunchGatesEnabled()) {
+    return { trainerInvitesExpired: 0, clientInvitesExpired: 0, trainerInvitesSent: 0, clientInvitesSent: 0 };
+  }
+  const now = new Date();
+  let trainerInvitesExpired = 0;
+  let clientInvitesExpired = 0;
 
-  const queued = await prisma.betaTrainerWaitlistEntry.findMany({
-    where: { status: "QUEUED" },
-    orderBy: { createdAt: "asc" },
-    take: 25,
+  const exTr = await prisma.betaTrainerWaitlistEntry.updateMany({
+    where: { status: "INVITED", slotExpiresAt: { lte: now } },
+    data: { status: "EXPIRED", updatedAt: now, inviteToken: null },
   });
-  for (const next of queued) {
-    const prefs = trainerBetaSlotPrefsFromWaitlistEntry(next);
-    if (!canReserveTrainerBetaSlots(snapshot, prefs).ok) continue;
+  trainerInvitesExpired = exTr.count;
 
-    const u = next.desiredUsername.trim();
-    const takenTrainer = await prisma.trainer.findFirst({
-      where: { username: u, deidentifiedAt: null },
-      select: { id: true },
+  const exCl = await prisma.betaClientWaitlistEntry.updateMany({
+    where: { status: "INVITED", slotExpiresAt: { lte: now } },
+    data: { status: "EXPIRED", updatedAt: now, inviteToken: null },
+  });
+  clientInvitesExpired = exCl.count;
+
+  let trainerInvitesSent = 0;
+  let clientInvitesSent = 0;
+  const slotMs = betaInviteSlotDays() * 24 * 60 * 60 * 1000;
+  const base = appBaseUrlForEmail().replace(/\/$/, "");
+
+  while ((await trainerBetaSlotsUsed()) < betaMaxTrainers()) {
+    const next = await prisma.betaTrainerWaitlistEntry.findFirst({
+      where: { status: "QUEUED" },
+      orderBy: { createdAt: "asc" },
     });
+    if (!next) break;
+    const u = next.desiredUsername.trim();
+    const takenTrainer = await prisma.trainer.findFirst({ where: { username: u, deidentifiedAt: null }, select: { id: true } });
     const otherWait = await prisma.betaTrainerWaitlistEntry.findFirst({
       where: {
         desiredUsername: u,
@@ -388,7 +344,6 @@ async function promoteNextTrainerInvite(now: Date, slotMs: number, base: string)
       });
       continue;
     }
-
     const token = newInviteToken();
     const slotExpiresAt = new Date(Date.now() + slotMs);
     await prisma.betaTrainerWaitlistEntry.update({
@@ -413,53 +368,6 @@ async function promoteNextTrainerInvite(now: Date, slotMs: number, base: string)
         slotExpiresLabel: slotExpiresAt.toLocaleDateString("en-US", { dateStyle: "long" }),
       },
     }).catch((e) => console.error("[beta trainer invite email]", e));
-    return true;
-  }
-  return false;
-}
-
-export async function runBetaWaitlistCronJobs(): Promise<{
-  trainerInvitesExpired: number;
-  clientInvitesExpired: number;
-  trainerInvitesSent: number;
-  clientInvitesSent: number;
-  virtualCapacityEmailsSent: number;
-  inPersonCapacityEmailsSent: number;
-}> {
-  if (!isBetaLaunchGatesEnabled()) {
-    return {
-      trainerInvitesExpired: 0,
-      clientInvitesExpired: 0,
-      trainerInvitesSent: 0,
-      clientInvitesSent: 0,
-      virtualCapacityEmailsSent: 0,
-      inPersonCapacityEmailsSent: 0,
-    };
-  }
-  const now = new Date();
-  let trainerInvitesExpired = 0;
-  let clientInvitesExpired = 0;
-
-  const exTr = await prisma.betaTrainerWaitlistEntry.updateMany({
-    where: { status: "INVITED", slotExpiresAt: { lte: now } },
-    data: { status: "EXPIRED", updatedAt: now, inviteToken: null },
-  });
-  trainerInvitesExpired = exTr.count;
-
-  const exCl = await prisma.betaClientWaitlistEntry.updateMany({
-    where: { status: "INVITED", slotExpiresAt: { lte: now } },
-    data: { status: "EXPIRED", updatedAt: now, inviteToken: null },
-  });
-  clientInvitesExpired = exCl.count;
-
-  let trainerInvitesSent = 0;
-  let clientInvitesSent = 0;
-  const slotMs = betaInviteSlotDays() * 24 * 60 * 60 * 1000;
-  const base = appBaseUrlForEmail().replace(/\/$/, "");
-
-  while ((await getTrainerBetaSlotSnapshot()).totalUsed < betaMaxTotalTrainers()) {
-    const promoted = await promoteNextTrainerInvite(now, slotMs, base);
-    if (!promoted) break;
     trainerInvitesSent += 1;
   }
 
@@ -513,16 +421,7 @@ export async function runBetaWaitlistCronJobs(): Promise<{
     clientInvitesSent += 1;
   }
 
-  const capacityNotify = await notifyBetaTrainerCapacityExpansionIfNeeded();
-
-  return {
-    trainerInvitesExpired,
-    clientInvitesExpired,
-    trainerInvitesSent,
-    clientInvitesSent,
-    virtualCapacityEmailsSent: capacityNotify.virtualCapacityEmailsSent,
-    inPersonCapacityEmailsSent: capacityNotify.inPersonCapacityEmailsSent,
-  };
+  return { trainerInvitesExpired, clientInvitesExpired, trainerInvitesSent, clientInvitesSent };
 }
 
 /** Run waitlist expiry + fill open beta slots (safe to call after account removal or on a schedule). */
@@ -531,8 +430,6 @@ export async function promoteBetaWaitlistIfCapacity(): Promise<{
   clientInvitesExpired: number;
   trainerInvitesSent: number;
   clientInvitesSent: number;
-  virtualCapacityEmailsSent: number;
-  inPersonCapacityEmailsSent: number;
 }> {
   return runBetaWaitlistCronJobs();
 }

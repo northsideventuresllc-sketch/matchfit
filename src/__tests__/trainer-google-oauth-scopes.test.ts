@@ -33,28 +33,5 @@ describe("Google trainer video OAuth", () => {
       expect(scope).toContain("https://www.googleapis.com/auth/calendar.events");
       expect(scope).toContain("https://www.googleapis.com/auth/meetings.space.created");
     });
-    it("accepts AUTH_GOOGLE_* fallback env names", () => {
-      const prevId = process.env.GOOGLE_OAUTH_CLIENT_ID;
-      const prevSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
-      const prevAuthId = process.env.AUTH_GOOGLE_ID;
-      const prevAuthSecret = process.env.AUTH_GOOGLE_SECRET;
-      delete process.env.GOOGLE_OAUTH_CLIENT_ID;
-      delete process.env.GOOGLE_OAUTH_CLIENT_SECRET;
-      process.env.AUTH_GOOGLE_ID = "auth-google-id.apps.googleusercontent.com";
-      process.env.AUTH_GOOGLE_SECRET = "auth-google-secret";
-      process.env.NEXT_PUBLIC_APP_URL = "https://example.test";
-
-      const url = googleAuthorizeUrl("signed-state-token");
-      expect(url).toBeTruthy();
-      const u = new URL(url!);
-      expect(u.searchParams.get("client_id")).toBe("auth-google-id.apps.googleusercontent.com");
-
-      process.env.GOOGLE_OAUTH_CLIENT_ID = prevId;
-      process.env.GOOGLE_OAUTH_CLIENT_SECRET = prevSecret;
-      if (prevAuthId === undefined) delete process.env.AUTH_GOOGLE_ID;
-      else process.env.AUTH_GOOGLE_ID = prevAuthId;
-      if (prevAuthSecret === undefined) delete process.env.AUTH_GOOGLE_SECRET;
-      else process.env.AUTH_GOOGLE_SECRET = prevAuthSecret;
-    });
   });
 });

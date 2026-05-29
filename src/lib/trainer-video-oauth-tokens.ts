@@ -13,17 +13,8 @@ export const GOOGLE_TRAINER_VIDEO_OAUTH_SCOPES = [
   "https://www.googleapis.com/auth/meetings.space.created",
 ].join(" ");
 
-/** Resolve OAuth credentials; accepts legacy `AUTH_*` names set in Vercel alongside canonical `*_OAUTH_*` keys. */
-function oauthEnv(primary: string, ...fallbacks: string[]): string | undefined {
-  for (const key of [primary, ...fallbacks]) {
-    const v = process.env[key]?.trim();
-    if (v) return v;
-  }
-  return undefined;
-}
-
 function microsoftOAuthTenantSegment(): string {
-  const tenant = oauthEnv("MICROSOFT_OAUTH_TENANT_ID", "AUTH_MICROSOFT_ENTRA_ID_TENANT");
+  const tenant = process.env.MICROSOFT_OAUTH_TENANT_ID?.trim();
   if (tenant && /^[0-9a-f-]{36}$/i.test(tenant)) return tenant;
   return "common";
 }
@@ -111,7 +102,7 @@ export function microsoftOAuthRedirectUri(): string | null {
 }
 
 export function googleAuthorizeUrl(state: string): string | null {
-  const clientId = oauthEnv("GOOGLE_OAUTH_CLIENT_ID", "AUTH_GOOGLE_ID");
+  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();
   const redirect = googleOAuthRedirectUri();
   if (!clientId || !redirect) return null;
   const q = new URLSearchParams({
@@ -127,7 +118,7 @@ export function googleAuthorizeUrl(state: string): string | null {
 }
 
 export function zoomAuthorizeUrl(state: string): string | null {
-  const clientId = oauthEnv("ZOOM_OAUTH_CLIENT_ID", "AUTH_ZOOM_ID");
+  const clientId = process.env.ZOOM_OAUTH_CLIENT_ID?.trim();
   const redirect = zoomOAuthRedirectUri();
   if (!clientId || !redirect) return null;
   const scope = encodeURIComponent(TRAINER_ZOOM_SUPABASE_OAUTH_SCOPES);
@@ -135,7 +126,7 @@ export function zoomAuthorizeUrl(state: string): string | null {
 }
 
 export function microsoftAuthorizeUrl(state: string): string | null {
-  const clientId = oauthEnv("MICROSOFT_OAUTH_CLIENT_ID", "AUTH_MICROSOFT_ENTRA_ID_ID");
+  const clientId = process.env.MICROSOFT_OAUTH_CLIENT_ID?.trim();
   const redirect = microsoftOAuthRedirectUri();
   if (!clientId || !redirect) return null;
   const scope = encodeURIComponent(MICROSOFT_GRAPH_OAUTH_SCOPES);
@@ -143,8 +134,8 @@ export function microsoftAuthorizeUrl(state: string): string | null {
 }
 
 export async function googleExchangeCode(code: string): Promise<OAuthTokenBundle | { error: string }> {
-  const clientId = oauthEnv("GOOGLE_OAUTH_CLIENT_ID", "AUTH_GOOGLE_ID");
-  const clientSecret = oauthEnv("GOOGLE_OAUTH_CLIENT_SECRET", "AUTH_GOOGLE_SECRET");
+  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim();
   const redirect = googleOAuthRedirectUri();
   if (!clientId || !clientSecret || !redirect) return { error: "Google OAuth is not configured on this server." };
   const body = new URLSearchParams({
@@ -181,8 +172,8 @@ export async function googleExchangeCode(code: string): Promise<OAuthTokenBundle
 }
 
 export async function zoomExchangeCode(code: string): Promise<OAuthTokenBundle | { error: string }> {
-  const clientId = oauthEnv("ZOOM_OAUTH_CLIENT_ID", "AUTH_ZOOM_ID");
-  const clientSecret = oauthEnv("ZOOM_OAUTH_CLIENT_SECRET", "AUTH_ZOOM_SECRET");
+  const clientId = process.env.ZOOM_OAUTH_CLIENT_ID?.trim();
+  const clientSecret = process.env.ZOOM_OAUTH_CLIENT_SECRET?.trim();
   const redirect = zoomOAuthRedirectUri();
   if (!clientId || !clientSecret || !redirect) return { error: "Zoom OAuth is not configured on this server." };
   const auth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
@@ -216,8 +207,8 @@ export async function zoomExchangeCode(code: string): Promise<OAuthTokenBundle |
 }
 
 export async function microsoftExchangeCode(code: string): Promise<OAuthTokenBundle | { error: string }> {
-  const clientId = oauthEnv("MICROSOFT_OAUTH_CLIENT_ID", "AUTH_MICROSOFT_ENTRA_ID_ID");
-  const clientSecret = oauthEnv("MICROSOFT_OAUTH_CLIENT_SECRET", "AUTH_MICROSOFT_ENTRA_ID_SECRET");
+  const clientId = process.env.MICROSOFT_OAUTH_CLIENT_ID?.trim();
+  const clientSecret = process.env.MICROSOFT_OAUTH_CLIENT_SECRET?.trim();
   const redirect = microsoftOAuthRedirectUri();
   if (!clientId || !clientSecret || !redirect) return { error: "Microsoft OAuth is not configured on this server." };
   const body = new URLSearchParams({
@@ -249,8 +240,8 @@ export async function microsoftExchangeCode(code: string): Promise<OAuthTokenBun
 }
 
 async function googleRefresh(bundle: OAuthTokenBundle): Promise<OAuthTokenBundle | { error: string }> {
-  const clientId = oauthEnv("GOOGLE_OAUTH_CLIENT_ID", "AUTH_GOOGLE_ID");
-  const clientSecret = oauthEnv("GOOGLE_OAUTH_CLIENT_SECRET", "AUTH_GOOGLE_SECRET");
+  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim();
   if (!clientId || !clientSecret) return { error: "Google OAuth is not configured." };
   const body = new URLSearchParams({
     refresh_token: bundle.refreshToken,
@@ -278,8 +269,8 @@ async function googleRefresh(bundle: OAuthTokenBundle): Promise<OAuthTokenBundle
 }
 
 async function zoomRefresh(bundle: OAuthTokenBundle): Promise<OAuthTokenBundle | { error: string }> {
-  const clientId = oauthEnv("ZOOM_OAUTH_CLIENT_ID", "AUTH_ZOOM_ID");
-  const clientSecret = oauthEnv("ZOOM_OAUTH_CLIENT_SECRET", "AUTH_ZOOM_SECRET");
+  const clientId = process.env.ZOOM_OAUTH_CLIENT_ID?.trim();
+  const clientSecret = process.env.ZOOM_OAUTH_CLIENT_SECRET?.trim();
   if (!clientId || !clientSecret) return { error: "Zoom OAuth is not configured." };
   const auth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
   const body = new URLSearchParams({
@@ -311,8 +302,8 @@ async function zoomRefresh(bundle: OAuthTokenBundle): Promise<OAuthTokenBundle |
 }
 
 async function microsoftRefresh(bundle: OAuthTokenBundle): Promise<OAuthTokenBundle | { error: string }> {
-  const clientId = oauthEnv("MICROSOFT_OAUTH_CLIENT_ID", "AUTH_MICROSOFT_ENTRA_ID_ID");
-  const clientSecret = oauthEnv("MICROSOFT_OAUTH_CLIENT_SECRET", "AUTH_MICROSOFT_ENTRA_ID_SECRET");
+  const clientId = process.env.MICROSOFT_OAUTH_CLIENT_ID?.trim();
+  const clientSecret = process.env.MICROSOFT_OAUTH_CLIENT_SECRET?.trim();
   if (!clientId || !clientSecret) return { error: "Microsoft OAuth is not configured." };
   const body = new URLSearchParams({
     client_id: clientId,

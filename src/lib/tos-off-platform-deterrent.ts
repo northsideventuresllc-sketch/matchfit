@@ -1,10 +1,9 @@
-/** Legal amount — Terms of Service and Privacy Policy only; do not surface in product UI warnings. */
+/** Shown in trainer onboarding, compliance, and chat surfaces — aligns with Terms §12 / §15. */
 export const OFF_PLATFORM_LIQUIDATED_DAMAGES_USD = 1000;
 
-/** Trainer-facing in-app reminder copy (no dollar amounts). Pair with Terms / Privacy links in UI. */
-export const TRAINER_IN_APP_SAFETY_NOTICE =
-  "For your safety, keep payments, scheduling, and personal contact details inside Match Fit chat. Sharing phone numbers, email addresses, or off-platform payment instructions can put you and your clients at risk.";
+export const OFF_PLATFORM_LIQUIDATED_DAMAGES_NOTICE =
+  "Any Trainer found soliciting or accepting payments off-platform for clients first discovered through Match Fit agrees to pay a $1,000.00 Liquidated Damages Fee per occurrence.";
 
-/** Client-facing in-app reminder copy (no dollar amounts). Pair with Terms / Privacy links in UI. */
-export const CLIENT_IN_APP_SAFETY_NOTICE =
-  "For your safety, keep payments and scheduling on Match Fit. Do not share personal phone numbers, email addresses, or off-platform meeting links in chat.";
+/** Client-facing chat reminder (trainers see the liquidated-damages line). */
+export const OFF_PLATFORM_CLIENT_CHAT_NOTICE =
+  "Keep payments and scheduling on Match Fit. Messages that look like off-platform payment requests or hidden contact info may be flagged for review.";
