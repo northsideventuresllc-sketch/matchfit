@@ -9,7 +9,7 @@ import { TrainerComplianceW9EmailSelfService } from "@/components/trainer/traine
 import { TrainerComplianceW9DownloadButton } from "@/components/trainer/trainer-compliance-w9-download-button";
 import { TrainerRegistrationFeePanel } from "@/components/trainer/trainer-registration-fee-panel";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
-import { OFF_PLATFORM_LIQUIDATED_DAMAGES_NOTICE } from "@/lib/tos-off-platform-deterrent";
+import { InAppCommunicationSafetyNotice } from "@/components/in-app-communication-safety-notice";
 import { backgroundCheckStatusLabel, certificationReviewStatusLabel } from "@/lib/trainer-compliance-status-copy";
 import { prisma } from "@/lib/prisma";
 import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
@@ -147,8 +147,10 @@ export default async function TrainerComplianceDetailsPage() {
       </header>
 
       <section className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.08] p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-amber-200/90">Off-platform payments</p>
-        <p className="mt-2 text-sm leading-relaxed text-white/70">{OFF_PLATFORM_LIQUIDATED_DAMAGES_NOTICE}</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-200/90">For your safety</p>
+        <div className="mt-2">
+          <InAppCommunicationSafetyNotice audience="trainer" />
+        </div>
       </section>
 
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
