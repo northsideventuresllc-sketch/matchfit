@@ -1,14 +1,14 @@
-/**
- * Placeholders for third-party background screening (Checkr, Sterling, etc.).
- * Replace the body with real API calls when credentials are available.
- */
+import { initiateTrainerBackgroundCheck } from "@/lib/trainer-background-check-initiate";
+
+/** Dev/QA shortcut — delegates to the real jurisdiction-aware Checkr initiation path. */
 export async function mockInitiateTrainerBackgroundCheck(input: {
   trainerId: string;
-}): Promise<{ externalReference: string; status: string }> {
-  void input;
+}): Promise<{ externalReference: string; status: string; screeningState: string }> {
+  const result = await initiateTrainerBackgroundCheck({ trainerId: input.trainerId });
   return {
-    externalReference: `mock-bg-${Date.now().toString(36)}`,
-    status: "submitted",
+    externalReference: result.externalReference,
+    status: result.status,
+    screeningState: result.screeningState,
   };
 }
 

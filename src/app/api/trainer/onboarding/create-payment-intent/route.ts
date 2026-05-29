@@ -23,7 +23,12 @@ export async function POST() {
 
     const profile = await prisma.trainerProfile.findUnique({
       where: { trainerId },
-      select: { hasPaidBackgroundFee: true },
+      select: {
+        hasPaidBackgroundFee: true,
+        serviceZipCode: true,
+        w9Json: true,
+        betaSlotInPersonHeld: true,
+      },
     });
     if (profile?.hasPaidBackgroundFee) {
       return NextResponse.json({ error: "Background check fee already paid." }, { status: 400 });

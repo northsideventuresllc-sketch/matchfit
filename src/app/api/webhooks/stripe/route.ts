@@ -10,6 +10,7 @@ import {
   applyTrainerBackgroundCheckStripePayment,
   isTrainerBackgroundCheckPaymentIntent,
 } from "@/lib/trainer-background-check-stripe";
+import { initiateTrainerBackgroundCheck } from "@/lib/trainer-background-check-initiate";
 import { getStripe } from "@/lib/stripe-server";
 import {
   oneTimePurchaseRevenueProfit,
@@ -65,6 +66,9 @@ export async function POST(req: Request) {
               : Math.max(0, parseInt(String(pi.metadata?.vendorPaidCents ?? "0"), 10) || 0);
           if (cents > 0) {
             await applyTrainerBackgroundCheckStripePayment({ trainerId, vendorPaidCents: cents });
+            await initiateTrainerBackgroundCheck({ trainerId }).catch((err) =>
+              console.error("[Stripe webhook] trainer background check initiation failed:", err),
+            );
           }
         }
       }

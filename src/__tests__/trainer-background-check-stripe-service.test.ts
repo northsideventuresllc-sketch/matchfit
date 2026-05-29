@@ -2,22 +2,31 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   mockTrainerProfileUpsert,
+  mockTrainerProfileFindUnique,
   mockPaymentIntentsCreate,
   mockPaymentIntentsRetrieve,
   mockGetStripe,
+  mockInitiateTrainerBackgroundCheck,
 } = vi.hoisted(() => ({
   mockTrainerProfileUpsert: vi.fn(),
+  mockTrainerProfileFindUnique: vi.fn(),
   mockPaymentIntentsCreate: vi.fn(),
   mockPaymentIntentsRetrieve: vi.fn(),
   mockGetStripe: vi.fn(),
+  mockInitiateTrainerBackgroundCheck: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     trainerProfile: {
       upsert: mockTrainerProfileUpsert,
+      findUnique: mockTrainerProfileFindUnique,
     },
   },
+}));
+
+vi.mock("@/lib/trainer-background-check-initiate", () => ({
+  initiateTrainerBackgroundCheck: mockInitiateTrainerBackgroundCheck,
 }));
 
 vi.mock("@/lib/stripe-server", () => ({
@@ -48,6 +57,16 @@ describe("trainer background check Stripe service", () => {
       client_secret: "cs_test_123",
     });
     mockTrainerProfileUpsert.mockResolvedValue(undefined);
+    mockTrainerProfileFindUnique.mockResolvedValue({
+      serviceZipCode: "90210",
+      w9Json: null,
+      betaSlotInPersonHeld: false,
+    });
+    mockInitiateTrainerBackgroundCheck.mockResolvedValue({
+      externalReference: "mock-bg-abc",
+      status: "submitted",
+      screeningState: "CA",
+    });
   });
 
   afterAll(() => {
@@ -110,6 +129,8 @@ describe("trainer background check Stripe service", () => {
         purpose: TRAINER_BACKGROUND_CHECK_STRIPE_PURPOSE,
         trainerId: "trainer_1",
         vendorPaidCents: "4999",
+        screeningState: "CA",
+        screeningZip: "90210",
       },
     });
     expect(result).toEqual({
@@ -236,6 +257,7 @@ describe("trainer background check Stripe service", () => {
         }),
       }),
     );
+    expect(mockInitiateTrainerBackgroundCheck).toHaveBeenCalledWith({ trainerId: "trainer_1" });
   });
 
   it("falls back to configured fee amount when Stripe amount_received is not positive", async () => {

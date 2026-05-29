@@ -65,7 +65,12 @@ describe("trainer onboarding background check payment routes", () => {
       email: "trainer@example.com",
       deidentifiedAt: null,
     });
-    mockTrainerProfileFindUnique.mockResolvedValue({ hasPaidBackgroundFee: false });
+    mockTrainerProfileFindUnique.mockResolvedValue({
+      hasPaidBackgroundFee: false,
+      serviceZipCode: "90210",
+      w9Json: null,
+      betaSlotInPersonHeld: false,
+    });
     mockCreateTrainerBackgroundCheckPaymentIntent.mockResolvedValue({
       clientSecret: "cs_test_123",
       paymentIntentId: "pi_123",

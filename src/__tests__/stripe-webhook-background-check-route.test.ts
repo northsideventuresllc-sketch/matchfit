@@ -11,6 +11,7 @@ const {
   mockSyncClientSubscriptionFromStripe,
   mockApplyTrainerBackgroundCheckStripePayment,
   mockIsTrainerBackgroundCheckPaymentIntent,
+  mockInitiateTrainerBackgroundCheck,
   mockCreditTokensFromStripePurchase,
   mockGetPromoPackTierById,
   mockRecordTrainerServiceTransactionAndReward,
@@ -29,6 +30,7 @@ const {
   mockSyncClientSubscriptionFromStripe: vi.fn(),
   mockApplyTrainerBackgroundCheckStripePayment: vi.fn(),
   mockIsTrainerBackgroundCheckPaymentIntent: vi.fn(),
+  mockInitiateTrainerBackgroundCheck: vi.fn(),
   mockCreditTokensFromStripePurchase: vi.fn(),
   mockGetPromoPackTierById: vi.fn(),
   mockRecordTrainerServiceTransactionAndReward: vi.fn(),
@@ -74,6 +76,10 @@ vi.mock("@/lib/trainer-background-check-stripe", () => ({
   isTrainerBackgroundCheckPaymentIntent: mockIsTrainerBackgroundCheckPaymentIntent,
 }));
 
+vi.mock("@/lib/trainer-background-check-initiate", () => ({
+  initiateTrainerBackgroundCheck: mockInitiateTrainerBackgroundCheck,
+}));
+
 vi.mock("@/lib/stripe-server", () => ({
   getStripe: mockGetStripe,
 }));
@@ -116,6 +122,7 @@ describe("POST /api/webhooks/stripe (background check payment intents)", () => {
     });
     mockIsTrainerBackgroundCheckPaymentIntent.mockReturnValue(true);
     mockApplyTrainerBackgroundCheckStripePayment.mockResolvedValue(undefined);
+    mockInitiateTrainerBackgroundCheck.mockResolvedValue(undefined);
   });
 
   afterAll(() => {
@@ -180,6 +187,7 @@ describe("POST /api/webhooks/stripe (background check payment intents)", () => {
       trainerId: "trainer_1",
       vendorPaidCents: 5200,
     });
+    expect(mockInitiateTrainerBackgroundCheck).toHaveBeenCalledWith({ trainerId: "trainer_1" });
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ received: true });
   });

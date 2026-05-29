@@ -1,5 +1,7 @@
 import { defaultBackgroundCheckVendorPaidCents } from "@/lib/checkr";
 import { prisma } from "@/lib/prisma";
+import { resolveTrainerBackgroundCheckJurisdiction } from "@/lib/trainer-background-check-jurisdiction";
+import { initiateTrainerBackgroundCheck } from "@/lib/trainer-background-check-initiate";
 import { getStripe } from "@/lib/stripe-server";
 import type Stripe from "stripe";
 
@@ -48,6 +50,19 @@ export async function createTrainerBackgroundCheckPaymentIntent(args: {
     throw new Error("STRIPE_SECRET_KEY is not configured.");
   }
 
+  const profile = await prisma.trainerProfile.findUnique({
+    where: { trainerId: args.trainerId },
+    select: {
+      serviceZipCode: true,
+      w9Json: true,
+      betaSlotInPersonHeld: true,
+    },
+  });
+  const jurisdiction = resolveTrainerBackgroundCheckJurisdiction(profile ?? {});
+  if ("error" in jurisdiction) {
+    throw new Error(jurisdiction.error);
+  }
+
   const amount = trainerBackgroundCheckAmountCents();
   const pi = await stripe.paymentIntents.create({
     amount,
@@ -58,6 +73,8 @@ export async function createTrainerBackgroundCheckPaymentIntent(args: {
       purpose: TRAINER_BACKGROUND_CHECK_STRIPE_PURPOSE,
       trainerId: args.trainerId,
       vendorPaidCents: String(amount),
+      screeningState: jurisdiction.state,
+      screeningZip: jurisdiction.zip,
     },
   });
 
@@ -97,4 +114,6 @@ export async function confirmTrainerBackgroundCheckPaymentIntent(args: {
     trainerId: args.trainerId,
     vendorPaidCents: cents,
   });
+
+  await initiateTrainerBackgroundCheck({ trainerId: args.trainerId });
 }
