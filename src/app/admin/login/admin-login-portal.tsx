@@ -155,7 +155,7 @@ export default function AdminLoginPortal() {
 
                 <TurnstileField
                 enabled={turnstile.enabled}
-                widgetRef={turnstile.widgetRef}
+                widgetRef={turnstile.ref}
                 siteKey={turnstile.siteKey}
                 onReady={turnstile.onTurnstileReady}
                 onError={turnstile.onTurnstileError}
