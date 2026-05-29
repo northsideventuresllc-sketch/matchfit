@@ -43,6 +43,7 @@ export async function GET(request: Request) {
       options: {
         redirectTo,
         scopes: TRAINER_ZOOM_SUPABASE_OAUTH_SCOPES,
+        queryParams: { prompt: "consent" },
       },
     });
 
