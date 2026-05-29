@@ -7,10 +7,10 @@ export const MICROSOFT_GRAPH_OAUTH_SCOPES =
 /** Zoom User-managed OAuth: profile + meetings. Used by direct authorize URL and must match Supabase Zoom provider configuration. */
 export const TRAINER_ZOOM_SUPABASE_OAUTH_SCOPES = "user:read:user meeting:read meeting:write";
 
-/** Trainer Google OAuth: Calendar events + Meet space creation (refresh token via `access_type=offline` on the authorize URL, not a scope). */
+/** Trainer Google OAuth: Calendar events (Meet links via conferenceData on insert). Offline refresh via access_type=offline on authorize URL. */
 export const GOOGLE_TRAINER_VIDEO_OAUTH_SCOPES = [
   "https://www.googleapis.com/auth/calendar.events",
-  "https://www.googleapis.com/auth/meetings.space.created",
+  "https://www.googleapis.com/auth/userinfo.email",
 ].join(" ");
 
 function microsoftOAuthTenantSegment(): string {
@@ -153,6 +153,11 @@ export async function googleExchangeCode(code: string): Promise<OAuthTokenBundle
   const j = (await res.json().catch(() => null)) as Record<string, unknown> | null;
   if (!res.ok) {
     const msg = typeof j?.error_description === "string" ? j.error_description : String(j?.error ?? "token_error");
+    if (String(j?.error) === "redirect_uri_mismatch" && redirect) {
+      return {
+        error: `Google redirect URI mismatch. In Google Cloud Console, add this exact authorized redirect URI: ${redirect}`,
+      };
+    }
     return { error: msg };
   }
   const refresh = typeof j?.refresh_token === "string" ? j.refresh_token : "";

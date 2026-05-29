@@ -1,10 +1,15 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { GOOGLE_TRAINER_VIDEO_OAUTH_SCOPES, googleAuthorizeUrl } from "@/lib/trainer-video-oauth-tokens";
+import {
+  GOOGLE_TRAINER_VIDEO_OAUTH_SCOPES,
+  googleAuthorizeUrl,
+  googleOAuthRedirectUri,
+} from "@/lib/trainer-video-oauth-tokens";
 
 describe("Google trainer video OAuth", () => {
-  it("requests Calendar events + Meet space scopes (space-separated, no commas)", () => {
+  it("requests Calendar events + email (Meet links use Calendar conferenceData, not Meet REST API)", () => {
     expect(GOOGLE_TRAINER_VIDEO_OAUTH_SCOPES).toContain("https://www.googleapis.com/auth/calendar.events");
-    expect(GOOGLE_TRAINER_VIDEO_OAUTH_SCOPES).toContain("https://www.googleapis.com/auth/meetings.space.created");
+    expect(GOOGLE_TRAINER_VIDEO_OAUTH_SCOPES).toContain("https://www.googleapis.com/auth/userinfo.email");
+    expect(GOOGLE_TRAINER_VIDEO_OAUTH_SCOPES).not.toContain("meetings.space.created");
     expect(GOOGLE_TRAINER_VIDEO_OAUTH_SCOPES).not.toContain(",");
   });
 
@@ -31,7 +36,9 @@ describe("Google trainer video OAuth", () => {
       expect(u.searchParams.get("response_type")).toBe("code");
       const scope = u.searchParams.get("scope") ?? "";
       expect(scope).toContain("https://www.googleapis.com/auth/calendar.events");
-      expect(scope).toContain("https://www.googleapis.com/auth/meetings.space.created");
+      expect(scope).toContain("https://www.googleapis.com/auth/userinfo.email");
+      expect(scope).not.toContain("meetings.space.created");
+      expect(u.searchParams.get("redirect_uri")).toBe(googleOAuthRedirectUri());
     });
   });
 });
