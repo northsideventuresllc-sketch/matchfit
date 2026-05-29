@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import packageJson from "../../package.json";
 import {
   MATCH_FIT_PRODUCT_VERSION_ANNOUNCE,
   MATCH_FIT_PRODUCT_VERSION_LABEL,
@@ -19,5 +20,11 @@ describe("match-fit-product-version constants", () => {
 
     expect(longVersion).toBeTruthy();
     expect(shortVersion).toBe(longVersion);
+  });
+
+  it("derives labels from package.json version", () => {
+    const core = packageJson.version.split("-")[0];
+    expect(MATCH_FIT_PRODUCT_VERSION_LABEL).toBe(`BETA ${core}`);
+    expect(MATCH_FIT_PRODUCT_VERSION_ANNOUNCE).toBe(`${core}-BETA`);
   });
 });
