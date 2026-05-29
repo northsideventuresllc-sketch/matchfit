@@ -129,8 +129,8 @@ describe("promos page", () => {
     expect(html).toContain("Join Client Waitlist");
     expect(html).toContain("Beta membership capacity: 3 / 10 slots used (full — waitlist open)");
     expect(html).toContain("Beta membership capacity: 12 / 50 slots used (full — waitlist open)");
-    expect(html).not.toContain('href="/trainer/signup"');
-    expect(html).not.toContain('href="/client/sign-up"');
+    expect(html).not.toContain("Sign Up as a Trainer");
+    expect(html).not.toContain("Sign Up as a Client");
   });
 
   it("shows founding-ended messaging when founding slots are full", async () => {
