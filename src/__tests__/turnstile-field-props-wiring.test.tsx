@@ -92,14 +92,16 @@ describe("TurnstileField explicit props wiring", () => {
     expect(turnstileFieldSpy).toHaveBeenCalledTimes(1);
     expect(turnstileFieldSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        enabled: turnstile.enabled,
-        widgetRef: turnstile.ref,
-        siteKey: turnstile.siteKey,
-        onReady: turnstile.onTurnstileReady,
-        onError: turnstile.onTurnstileError,
-        onExpire: turnstile.onTurnstileExpire,
-        widgetError: turnstile.widgetError,
-        ready: turnstile.ready,
+        gate: expect.objectContaining({
+          enabled: turnstile.enabled,
+          ref: turnstile.ref,
+          siteKey: turnstile.siteKey,
+          onTurnstileReady: turnstile.onTurnstileReady,
+          onTurnstileError: turnstile.onTurnstileError,
+          onTurnstileExpire: turnstile.onTurnstileExpire,
+          widgetError: turnstile.widgetError,
+          ready: turnstile.ready,
+        }),
       }),
     );
   });
