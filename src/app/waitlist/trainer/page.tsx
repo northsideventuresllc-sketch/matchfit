@@ -5,7 +5,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
-import { getTrainerFoundingBgPercentMax } from "@/lib/match-fit-launch-promotions";
+import { getTrainerFoundingBgPercentMax } from "@/lib/match-fit-launch-promotion-caps";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
 
 const TRAINER_FOUNDING_CAP = getTrainerFoundingBgPercentMax();

@@ -12,7 +12,7 @@ import {
 import {
   getClientFoundingTrialMaxClients,
   getTrainerFoundingBgPercentMax,
-} from "@/lib/match-fit-launch-promotions";
+} from "@/lib/match-fit-launch-promotion-caps";
 import { MATCH_FIT_PRODUCT_VERSION_ANNOUNCE } from "@/lib/match-fit-product-version";
 
 function SectionShell({

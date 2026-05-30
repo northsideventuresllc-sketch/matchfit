@@ -5,7 +5,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
-import { getClientFoundingTrialMaxClients } from "@/lib/match-fit-launch-promotions";
+import { getClientFoundingTrialMaxClients } from "@/lib/match-fit-launch-promotion-caps";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
 
 const CLIENT_FOUNDING_CAP = getClientFoundingTrialMaxClients();
