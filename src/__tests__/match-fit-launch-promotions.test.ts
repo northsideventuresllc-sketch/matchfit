@@ -26,12 +26,12 @@ describe("match-fit-launch-promotions", () => {
   });
 
   it("uses defaults for client trial caps", () => {
-    expect(getClientFoundingTrialMaxClients()).toBe(50);
+    expect(getClientFoundingTrialMaxClients()).toBe(150);
     expect(getClientFoundingTrialDays()).toBe(14);
     expect(getClientPostCapTrialDays()).toBe(3);
     expect(isNextClientEligibleForFoundingTrial(0)).toBe(true);
-    expect(isNextClientEligibleForFoundingTrial(49)).toBe(true);
-    expect(isNextClientEligibleForFoundingTrial(50)).toBe(false);
+    expect(isNextClientEligibleForFoundingTrial(149)).toBe(true);
+    expect(isNextClientEligibleForFoundingTrial(150)).toBe(false);
   });
 
   it("respects MATCH_FIT_CLIENT_FOUNDING_TRIAL_MAX_CLIENTS", () => {
@@ -47,11 +47,11 @@ describe("match-fit-launch-promotions", () => {
   });
 
   it("uses defaults for trainer founding BG tier", () => {
-    expect(getTrainerFoundingBgPercentMax()).toBe(10);
-    expect(getTrainerFoundingRegistrationWaiverMax()).toBe(10);
+    expect(getTrainerFoundingBgPercentMax()).toBe(30);
+    expect(getTrainerFoundingRegistrationWaiverMax()).toBe(30);
     expect(isTrainerFoundingBgPercentTier(0)).toBe(true);
-    expect(isTrainerFoundingBgPercentTier(9)).toBe(true);
-    expect(isTrainerFoundingBgPercentTier(10)).toBe(false);
+    expect(isTrainerFoundingBgPercentTier(29)).toBe(true);
+    expect(isTrainerFoundingBgPercentTier(30)).toBe(false);
   });
 });
 

@@ -1,6 +1,6 @@
 /**
  * Launch pricing: client membership trials and trainer registration fee tiers.
- * Beta caps (10 trainers / 50 clients) live in `beta-launch-config.ts`.
+ * Beta caps live in `beta-launch-config.ts` (separate from founding promo caps below).
  */
 
 import { countLaunchClients, countLaunchTrainers } from "@/lib/launch-account-counts";
@@ -13,21 +13,21 @@ function parsePositiveInt(raw: string | undefined, fallback: number, max: number
 
 export type TrainerRegistrationPricingMode = "FOUNDING_BG_SURCHARGE_20PCT" | "STANDARD_100_MINUS_BG";
 
-/** First N trainers pay 20% of Checkr background fee (not $100 minus BG). Default 10. */
+/** First N trainers pay 20% of Checkr background fee (not $100 minus BG). Default 30. */
 export function getTrainerFoundingBgPercentMax(): number {
-  return parsePositiveInt(process.env.MATCH_FIT_TRAINER_FOUNDING_BG_PERCENT_MAX, 10, 1_000_000);
+  return parsePositiveInt(process.env.MATCH_FIT_TRAINER_FOUNDING_BG_PERCENT_MAX, 30, 1_000_000);
 }
 
 /** @deprecated Use getTrainerFoundingBgPercentMax — kept for env migration. */
 export function getTrainerFoundingRegistrationWaiverMax(): number {
   const legacy = process.env.MATCH_FIT_TRAINER_FOUNDING_REGISTRATION_WAIVER_MAX?.trim();
-  if (legacy) return parsePositiveInt(legacy, 10, 1_000_000);
+  if (legacy) return parsePositiveInt(legacy, 30, 1_000_000);
   return getTrainerFoundingBgPercentMax();
 }
 
-/** First N clients: card required up front, 14-day trial before first invoice. Default 50. */
+/** First N clients: card required up front, 14-day trial before first invoice. Default 150. */
 export function getClientFoundingTrialMaxClients(): number {
-  return parsePositiveInt(process.env.MATCH_FIT_CLIENT_FOUNDING_TRIAL_MAX_CLIENTS, 50, 1_000_000);
+  return parsePositiveInt(process.env.MATCH_FIT_CLIENT_FOUNDING_TRIAL_MAX_CLIENTS, 150, 1_000_000);
 }
 
 /** Founding trial length (days). Default 14. */

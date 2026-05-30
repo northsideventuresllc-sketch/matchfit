@@ -8,6 +8,7 @@ import { TrainerComplianceCertTracksForm } from "@/components/trainer/trainer-co
 import { TrainerComplianceW9EmailSelfService } from "@/components/trainer/trainer-compliance-w9-email-self-service";
 import { TrainerComplianceW9DownloadButton } from "@/components/trainer/trainer-compliance-w9-download-button";
 import { TrainerRegistrationFeePanel } from "@/components/trainer/trainer-registration-fee-panel";
+import { getTrainerFoundingBgPercentMax } from "@/lib/match-fit-launch-promotions";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { OFF_PLATFORM_LIQUIDATED_DAMAGES_NOTICE } from "@/lib/tos-off-platform-deterrent";
 import { backgroundCheckStatusLabel, certificationReviewStatusLabel } from "@/lib/trainer-compliance-status-copy";
@@ -155,8 +156,8 @@ export default async function TrainerComplianceDetailsPage() {
         <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Platform registration fee</h2>
         <p className="mt-3 text-sm text-white/55">
           After your background check clears and certifications are approved, pay the one-time Match Fit registration
-          amount through Stripe. Founding coaches (first 10) pay 20% of the Checkr fee; later coaches pay $100 minus the
-          screening credit.
+          amount through Stripe. Founding coaches (first {getTrainerFoundingBgPercentMax()}) pay 20% of the Checkr fee;
+          later coaches pay $100 minus the screening credit.
         </p>
         <div className="mt-4">
           <TrainerRegistrationFeePanel />
