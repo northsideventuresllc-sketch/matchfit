@@ -53,7 +53,7 @@ function launchExcludeTrainerUsernamesExceptOwner(): string[] {
   );
 }
 
-function emailPatternExcludeOr(): Prisma.ClientWhereInput[] {
+function emailPatternExcludeOrClient(): Prisma.ClientWhereInput[] {
   const excluded = launchExcludeEmailsLower();
   return [
     { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" } },
@@ -63,11 +63,31 @@ function emailPatternExcludeOr(): Prisma.ClientWhereInput[] {
   ];
 }
 
-function usernamePrefixExcludeOr(prefix: string): Prisma.ClientWhereInput[] {
+function emailPatternExcludeOrTrainer(): Prisma.TrainerWhereInput[] {
+  const excluded = launchExcludeEmailsLower();
+  return [
+    { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" } },
+    { email: { endsWith: ".invalid", mode: "insensitive" } },
+    { email: { endsWith: MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX, mode: "insensitive" } },
+    ...(excluded.length > 0 ? [{ email: { in: excluded } }] : []),
+  ];
+}
+
+function usernamePrefixExcludeOrClient(prefix: string): Prisma.ClientWhereInput[] {
   return [{ username: { startsWith: prefix, mode: "insensitive" } }];
 }
 
-function launchUsernameEqualsExcludeOr(usernames: string[]): Prisma.ClientWhereInput[] {
+function usernamePrefixExcludeOrTrainer(prefix: string): Prisma.TrainerWhereInput[] {
+  return [{ username: { startsWith: prefix, mode: "insensitive" } }];
+}
+
+function launchUsernameEqualsExcludeOrClient(usernames: string[]): Prisma.ClientWhereInput[] {
+  return usernames.map((username) => ({
+    username: { equals: username, mode: "insensitive" as const },
+  }));
+}
+
+function launchUsernameEqualsExcludeOrTrainer(usernames: string[]): Prisma.TrainerWhereInput[] {
   return usernames.map((username) => ({
     username: { equals: username, mode: "insensitive" as const },
   }));
@@ -75,9 +95,9 @@ function launchUsernameEqualsExcludeOr(usernames: string[]): Prisma.ClientWhereI
 
 function fakeClientOr(): Prisma.ClientWhereInput[] {
   return [
-    ...emailPatternExcludeOr(),
-    ...usernamePrefixExcludeOr(SYNTHETIC_CLIENT_USERNAME_PREFIX),
-    ...launchUsernameEqualsExcludeOr(launchExcludeClientUsernamesExceptOwner()),
+    ...emailPatternExcludeOrClient(),
+    ...usernamePrefixExcludeOrClient(SYNTHETIC_CLIENT_USERNAME_PREFIX),
+    ...launchUsernameEqualsExcludeOrClient(launchExcludeClientUsernamesExceptOwner()),
   ];
 }
 
@@ -90,9 +110,9 @@ function fakeTrainerOr(): Prisma.TrainerWhereInput[] {
   ]);
 
   return [
-    ...emailPatternExcludeOr(),
-    ...usernamePrefixExcludeOr(SYNTHETIC_TRAINER_USERNAME_PREFIX),
-    ...launchUsernameEqualsExcludeOr(launchExcludeTrainerUsernamesExceptOwner()),
+    ...emailPatternExcludeOrTrainer(),
+    ...usernamePrefixExcludeOrTrainer(SYNTHETIC_TRAINER_USERNAME_PREFIX),
+    ...launchUsernameEqualsExcludeOrTrainer(launchExcludeTrainerUsernamesExceptOwner()),
     ...certOr,
   ];
 }
