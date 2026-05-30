@@ -51,8 +51,8 @@ describe("getLaunchPromoStats", () => {
     isBetaLaunchGatesEnabledMock.mockReturnValue(true);
     betaMaxTrainersMock.mockReturnValue(100);
     betaMaxClientsMock.mockReturnValue(50);
-    getTrainerFoundingBgPercentMaxMock.mockReturnValue(10);
-    getClientFoundingTrialMaxClientsMock.mockReturnValue(50);
+    getTrainerFoundingBgPercentMaxMock.mockReturnValue(30);
+    getClientFoundingTrialMaxClientsMock.mockReturnValue(150);
     countLaunchTrainersMock.mockResolvedValue(2);
     countLaunchClientsMock.mockResolvedValue(12);
     trainerBetaSlotsUsedMock.mockResolvedValue(3);
@@ -64,8 +64,8 @@ describe("getLaunchPromoStats", () => {
 
     expect(stats.trainerCount).toBe(2);
     expect(stats.clientCount).toBe(12);
-    expect(stats.trainerFoundingRemaining).toBe(8);
-    expect(stats.clientFoundingRemaining).toBe(38);
+    expect(stats.trainerFoundingRemaining).toBe(28);
+    expect(stats.clientFoundingRemaining).toBe(138);
     expect(stats.trainerFoundingActive).toBe(true);
     expect(stats.clientFoundingActive).toBe(true);
   });
