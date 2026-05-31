@@ -90,13 +90,15 @@ export default async function PromosPage() {
             reached. Once the caps hit, standard pricing applies.
           </p>
           <div className="mx-auto mt-6 max-w-xl rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 text-left text-xs leading-relaxed text-white/50 sm:text-[13px]">
-            <span className="font-semibold text-[#FF7E00]/90">Beta reach:</span> Clients anywhere in the{" "}
-            <span className="font-semibold text-white/70">United States</span> can sign up and join the waitlist when
-            capacity gates apply. In-person (mobile) sessions with coaches launch first in the{" "}
-            <span className="font-semibold text-white/70">Atlanta metro area</span> (within approximately 15–20 miles of
-            downtown Atlanta). Virtual coaching and nationwide discovery are available wherever the product supports
-            them. Trainer sign-up and the trainer waitlist still require a service ZIP in the Atlanta metro area while
-            in-person coaching expands.
+            <span className="font-semibold text-[#FF7E00]/90">Beta reach:</span>{" "}
+            <span className="font-semibold text-white/70">Up to 30 fitness professionals</span> can join during beta —
+            {" "}<span className="font-semibold text-white/70">10 offering in-person sessions</span> in the Atlanta metro area
+            (within approximately 15&ndash;20 miles of downtown Atlanta) and{" "}
+            <span className="font-semibold text-white/70">20 offering virtual coaching</span> to clients anywhere in the
+            United States.{" "}
+            <span className="font-semibold text-white/70">Up to 150 clients</span> can join during beta &mdash;
+            Atlanta-area clients may book in-person or virtual sessions; clients outside Atlanta are matched with
+            virtual coaches only.
           </div>
         </div>
 
@@ -132,8 +134,10 @@ export default async function PromosPage() {
                 <span className="font-bold text-[#FFD34E]">{trainerFoundingMax} fitness professionals</span>{" "}
                 to join Match Fit pay only{" "}
                 <span className="font-bold text-[#FFD34E]">20% of their background check cost</span> for
-                onboarding (instead of the usual $100.00 platform fee minus the screening amount). Trainer onboarding
-                during beta requires a service ZIP in our Atlanta metro in-person launch area.
+                onboarding (instead of the usual $100.00 platform fee minus the screening amount).{" "}
+                <span className="font-semibold text-white/70">10 of those spots are reserved for in-person coaches</span>{" "}
+                in the Atlanta metro area; the remaining{" "}
+                <span className="font-semibold text-white/70">20 spots are open to virtual coaches nationwide</span>.
               </p>
 
               <div className="mt-6 space-y-2">
@@ -219,7 +223,9 @@ export default async function PromosPage() {
                 <span className="font-semibold text-white/80">
                   you will not be charged for {trialDays} days
                 </span>
-                . Client sign-up is open to valid U.S. ZIP codes nationwide during beta.
+                . Atlanta-area clients can book{" "}
+                <span className="font-semibold text-white/70">in-person or virtual</span> sessions; clients outside Atlanta are matched with{" "}
+                <span className="font-semibold text-white/70">virtual coaches only</span>.
               </p>
 
               <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
