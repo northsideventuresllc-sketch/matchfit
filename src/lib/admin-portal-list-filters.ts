@@ -90,9 +90,9 @@ function fakeTrainerOr(): Prisma.TrainerWhereInput[] {
   ]);
 
   return [
-    ...emailPatternExcludeOr(),
-    ...usernamePrefixExcludeOr(SYNTHETIC_TRAINER_USERNAME_PREFIX),
-    ...launchUsernameEqualsExcludeOr(launchExcludeTrainerUsernamesExceptOwner()),
+    ...(emailPatternExcludeOr() as unknown as Prisma.TrainerWhereInput[]),
+    ...(usernamePrefixExcludeOr(SYNTHETIC_TRAINER_USERNAME_PREFIX) as unknown as Prisma.TrainerWhereInput[]),
+    ...(launchUsernameEqualsExcludeOr(launchExcludeTrainerUsernamesExceptOwner()) as unknown as Prisma.TrainerWhereInput[]),
     ...certOr,
   ];
 }
