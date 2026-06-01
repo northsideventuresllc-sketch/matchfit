@@ -22,6 +22,8 @@ import { postTrainerLogout } from "@/lib/trainer-logout";
 import { US_STATE_POSTAL_OPTIONS } from "@/lib/trainer-profile-demography-options";
 import { coerceTrainerBackgroundVendorStatus, coerceTrainerCptStatus } from "@/lib/trainer-onboarding-status";
 import { hasOnboardingSnapshotChanges, shouldInterceptDashboardNavigation } from "@/lib/trainer-onboarding-unsaved-changes";
+import { useMetaSignupFunnelStep } from "@/hooks/use-meta-signup-funnel-step";
+import { TRAINER_ONBOARDING_FUNNEL_STEPS } from "@/lib/meta-pixel-funnel";
 
 type TrainerMe = {
   id: string;
@@ -125,6 +127,18 @@ function fileSig(f: File | null): string | null {
 
 export default function TrainerOnboardingClient() {
   const [step, setStep] = useState(1);
+  const onboardingFunnelStep = useMemo(() => {
+    const meta = TRAINER_ONBOARDING_FUNNEL_STEPS[step];
+    if (!meta) return null;
+    return {
+      funnel: "trainer" as const,
+      step_id: meta.step_id,
+      step_name: meta.step_name,
+      step_index: step,
+    };
+  }, [step]);
+  useMetaSignupFunnelStep(onboardingFunnelStep);
+
   const [loadingMe, setLoadingMe] = useState(true);
   const [meError, setMeError] = useState<string | null>(null);
   const [trainer, setTrainer] = useState<TrainerMe | null>(null);

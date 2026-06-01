@@ -1,5 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { DEFAULT_ADMIN_DASHBOARD_LAYOUT } from "@/lib/admin-dashboard-layout";
+import { loadAdminDashboardLayout } from "@/lib/admin-dashboard-layout-server";
 import { getAdminPortalOverview, type AdminPortalOverview } from "@/lib/admin-portal-data";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/session";
@@ -60,5 +62,15 @@ export default async function AdminHomePage() {
     );
   }
 
-  return <AdminDashboardClient initialOverview={overview} initialTestMode={sess.testMode} />;
+  const savedLayout = await loadAdminDashboardLayout(sess.adminId);
+
+  return (
+    <AdminDashboardClient
+      initialOverview={overview}
+      initialTestMode={sess.testMode}
+      initialLayout={savedLayout ?? DEFAULT_ADMIN_DASHBOARD_LAYOUT}
+      administratorId={sess.adminId}
+      layoutLoadedFromServer={savedLayout !== null}
+    />
+  );
 }

@@ -24,6 +24,8 @@ model Administrator {
   lastName     String
   /// ISO date string YYYY-MM-DD (birth date; used to derive admin code at onboarding).
   dateOfBirth  String
+  /// JSON admin dashboard layout: section order and visibility preferences.
+  adminDashboardLayoutJson String?
 
   auditLogs AdministratorAuditLog[]
 

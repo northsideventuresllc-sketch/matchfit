@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { TurnstileField } from "@/components/turnstile-field";
 import { trackGoogleAdsConversion } from "@/lib/google-ads";
+import { trackMetaConversion } from "@/lib/meta-pixel";
 import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { isTurnstileClientEnabled } from "@/lib/turnstile-config";
@@ -74,6 +75,7 @@ export default function TrainerSignupCompletePage() {
         }
         clearTrainerSignupDraft();
         trackGoogleAdsConversion("trainer_signup");
+        trackMetaConversion("trainer_signup");
         navigateWithFullLoad(data.next ?? "/trainer/onboarding");
       } catch {
         if (!cancelled) {
@@ -141,6 +143,7 @@ export default function TrainerSignupCompletePage() {
       }
       clearTrainerSignupDraft();
       trackGoogleAdsConversion("trainer_signup");
+      trackMetaConversion("trainer_signup");
       navigateWithFullLoad(data.next ?? "/trainer/onboarding");
     } catch {
       setError("Something went wrong. Try again.");

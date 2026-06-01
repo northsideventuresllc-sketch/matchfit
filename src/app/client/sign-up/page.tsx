@@ -7,7 +7,9 @@ import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { getSupabaseEmailCallbackUrl, isSupabaseConfigured } from "@/lib/supabase/email-callback-url";
 import { buildSupabaseSignUpOptions } from "@/lib/supabase/sign-up-options";
 import { tryCreateMatchFitSupabaseBrowserClient } from "@/lib/supabase/browser-client";
+import { useMetaSignupFunnelStep } from "@/hooks/use-meta-signup-funnel-step";
 import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
+import { trackMetaLead } from "@/lib/meta-pixel-funnel";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
 import { BetaCapFullSignupNotice } from "@/components/beta-cap-full-signup-notice";
 import { useBetaLaunchStatus } from "@/hooks/use-beta-launch-status";
@@ -108,6 +110,33 @@ function ClientSignUpPageInner() {
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [betaInviteReserved, setBetaInviteReserved] = useState<string | null>(null);
   const turnstile = useTurnstileGate();
+
+  const wizardFunnelStep = useMemo(() => {
+    if (wizardStep === 1) {
+      return {
+        funnel: "client" as const,
+        step_id: "sign_up_profile",
+        step_name: "Profile details",
+        step_index: 1,
+      };
+    }
+    if (awaitingCode) {
+      return {
+        funnel: "client" as const,
+        step_id: "sign_up_2fa_code",
+        step_name: "2FA code entry",
+        step_index: 3,
+      };
+    }
+    return {
+      funnel: "client" as const,
+      step_id: "sign_up_2fa",
+      step_name: "2FA setup",
+      step_index: 2,
+    };
+  }, [wizardStep, awaitingCode]);
+
+  useMetaSignupFunnelStep(wizardFunnelStep);
 
   useEffect(() => {
     if (!betaInviteTokenFromUrl) return;
@@ -278,6 +307,7 @@ function ClientSignUpPageInner() {
             .catch(() => {});
         }
       }
+      trackMetaLead("client");
       // Full navigation so the httpOnly registration cookie is present before the billing page loads.
       navigateWithFullLoad(data.next ?? "/client/subscribe");
     } catch {
@@ -363,6 +393,7 @@ function ClientSignUpPageInner() {
             .catch(() => {});
         }
       }
+      trackMetaLead("client");
       navigateWithFullLoad(data.next ?? "/client/subscribe");
     } catch {
       setError("Something went wrong. Try again.");

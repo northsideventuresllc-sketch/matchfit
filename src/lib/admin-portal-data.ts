@@ -20,6 +20,13 @@ import { prisma } from "@/lib/prisma";
 import { formatFeaturedDisplayDayLabel } from "@/lib/featured-eastern-calendar";
 import { getHomeUserCounts } from "@/lib/home-user-counts";
 import { getPlatformRevenueTotals } from "@/lib/platform-revenue-events";
+import {
+  getAdminAlertsPanel,
+  getAdminFinancesPanel,
+  getAdminPlatformSummaryPanel,
+  getAdminTrafficFunnelPanel,
+  getAdminTrainerPipelinePanel,
+} from "@/lib/admin-portal-metrics";
 import { getAdminSiteTrafficSnapshot } from "@/lib/site-analytics";
 
 export type {
@@ -335,12 +342,28 @@ export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
     console.error("[admin portal] ensureAdminReportingSchema", e);
   }
 
-  const [traffic, userCounts, revenue, recentSignupsResult, recentFeatured] = await Promise.all([
+  const [
+    traffic,
+    userCounts,
+    revenue,
+    recentSignupsResult,
+    recentFeatured,
+    funnel,
+    pipeline,
+    finances,
+    alerts,
+    platformSummary,
+  ] = await Promise.all([
     getAdminSiteTrafficSnapshot(7),
     getHomeUserCounts(),
     getAdminRevenueSnapshot(),
     getAdminSignupLog({ limit: 8, offset: 0 }),
     getAdminRecentFeatured(6),
+    getAdminTrafficFunnelPanel(),
+    getAdminTrainerPipelinePanel(),
+    getAdminFinancesPanel(),
+    getAdminAlertsPanel(),
+    getAdminPlatformSummaryPanel(),
   ]);
 
   return {
@@ -349,5 +372,10 @@ export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
     revenue,
     recentSignups: recentSignupsResult.rows,
     recentFeatured,
+    funnel,
+    pipeline,
+    finances,
+    alerts,
+    platformSummary,
   };
 }

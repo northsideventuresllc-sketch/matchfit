@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { DevAccountShortcuts } from "@/components/dev-account-shortcuts";
 import { GoogleAdsGtag } from "@/components/google-ads-gtag";
+import { MetaPixel } from "@/components/meta-pixel";
 import { SiteAnalyticsTrackerBoundary } from "@/components/site-analytics-tracker-boundary";
 import "./globals.css";
 
@@ -59,6 +60,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <GoogleAdsGtag />
+        <MetaPixel />
         <SiteAnalyticsTrackerBoundary />
         {children}
         {process.env.NODE_ENV === "development" ? <DevAccountShortcuts /> : null}
