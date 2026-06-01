@@ -94,32 +94,30 @@ function SignupRowCard(props: {
 }) {
   const { row } = props;
   return (
-    <div
-      className={`flex flex-col gap-2 rounded-xl border border-white/[0.06] bg-[#07080c]/80 px-3 py-3 sm:flex-row sm:items-center sm:justify-between ${
-        props.compact ? "py-2.5" : ""
-      }`}
-    >
+    <div className="flex flex-col gap-2 rounded-xl border border-white/[0.07] bg-white/[0.025] px-4 py-3 transition hover:bg-white/[0.04] sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="font-semibold text-white">{row.displayName}</p>
+          <p className="font-semibold text-white/90">{row.displayName}</p>
           <span
-            className={`rounded-md px-1.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] ${
-              row.kind === "client" ? "bg-violet-500/15 text-violet-200" : "bg-orange-500/15 text-orange-100"
+            className={`rounded-md px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+              row.kind === "client" ? "bg-violet-500/15 text-violet-300" : "bg-orange-500/15 text-orange-300"
             }`}
           >
             {row.kind}
           </span>
         </div>
-        <p className="font-mono text-xs text-white/45">@{row.username}</p>
-        {!props.compact ? <p className="text-[11px] text-white/35">{row.email}</p> : null}
-        <p className="mt-1 text-[11px] text-white/40">{formatSignupDate(row.createdAt)}</p>
-        <p className="mt-1 text-[11px] text-cyan-200/70">{statsSummary(row.kind, row.stats)}</p>
+        <p className="font-mono text-[11px] text-white/40">@{row.username}</p>
+        {!props.compact ? <p className="text-[11px] text-white/30">{row.email}</p> : null}
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px]">
+          <span className="text-white/35">{formatSignupDate(row.createdAt)}</span>
+          <span className="text-cyan-300/60">{statsSummary(row.kind, row.stats)}</span>
+        </div>
       </div>
       <button
         type="button"
         disabled={props.busyKey !== null}
         onClick={() => void props.onOpen(row.kind, row.id)}
-        className="shrink-0 rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-cyan-50 transition hover:bg-cyan-500/15 disabled:opacity-40"
+        className="shrink-0 rounded-lg border border-cyan-400/25 bg-cyan-500/10 px-3 py-1.5 text-[11px] font-medium text-cyan-200 transition hover:bg-cyan-500/20 disabled:opacity-40"
       >
         {props.busyKey === `${row.kind}:${row.id}` ? "Opening…" : "Open account"}
       </button>
@@ -135,27 +133,29 @@ function AdminDirectoryUserTable(props: {
   onImpersonate: (role: "client" | "trainer", userId: string) => void;
 }) {
   return (
-    <section className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-4 backdrop-blur-md sm:p-5">
-      <h2 className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">{props.title}</h2>
-      <div className="mt-3 space-y-2">
+    <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 shadow-[0_2px_16px_-8px_rgba(0,0,0,0.5)]">
+      <div className="border-b border-white/[0.06] bg-white/[0.02] px-4 py-3">
+        <h2 className="text-xs font-semibold text-white/60">{props.title}</h2>
+      </div>
+      <div className="divide-y divide-white/[0.04]">
         {props.list.length === 0 ? (
-          <p className="text-sm text-white/45">No matches.</p>
+          <p className="px-4 py-5 text-sm text-white/35">No matches.</p>
         ) : (
           props.list.map((row) => (
             <div
               key={`${row.kind}-${row.id}`}
-              className="flex flex-col gap-2 rounded-xl border border-white/[0.06] bg-[#07080c]/80 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-2 px-4 py-3 transition hover:bg-white/[0.025] sm:flex-row sm:items-center sm:justify-between"
             >
               <div>
-                <p className="font-semibold text-white">{row.displayName}</p>
-                <p className="font-mono text-xs text-white/45">@{row.username}</p>
-                <p className="text-[11px] text-white/35">{row.email}</p>
+                <p className="font-semibold text-white/90">{row.displayName}</p>
+                <p className="font-mono text-[11px] text-white/40">@{row.username}</p>
+                <p className="text-[11px] text-white/30">{row.email}</p>
               </div>
               <button
                 type="button"
                 disabled={props.busyKey !== null}
                 onClick={() => void props.onImpersonate(props.kind, row.id)}
-                className="shrink-0 rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-cyan-50 transition hover:bg-cyan-500/15 disabled:opacity-40"
+                className="shrink-0 rounded-lg border border-cyan-400/25 bg-cyan-500/10 px-3 py-1.5 text-[11px] font-medium text-cyan-200 transition hover:bg-cyan-500/20 disabled:opacity-40"
               >
                 {props.busyKey === `${props.kind}:${row.id}` ? "Opening…" : "Open account"}
               </button>
@@ -169,19 +169,22 @@ function AdminDirectoryUserTable(props: {
 
 function FeaturedSnapshotList({ items }: { items: AdminFeaturedSnapshot[] }) {
   if (items.length === 0) {
-    return <p className="text-sm text-white/45">No featured allocations yet.</p>;
+    return <p className="text-sm text-white/35">No featured allocations yet.</p>;
   }
   return (
     <ul className="space-y-2">
       {items.map((f) => (
         <li
           key={`${f.displayDayKey}-${f.regionZipPrefix}-${f.trainerId}-${f.source}`}
-          className="rounded-xl border border-white/[0.06] bg-[#07080c]/80 px-3 py-2.5"
+          className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3"
         >
-          <p className="font-semibold text-white">{f.displayName}</p>
-          <p className="font-mono text-xs text-white/45">@{f.username}</p>
-          <p className="mt-1 text-[11px] text-white/40">
-            {f.displayDayLabel} · ZIP {f.regionZipPrefix}xx · {f.source === "PAID_BID" ? "Paid bid" : "Raffle"}
+          <p className="font-semibold text-white/90">{f.displayName}</p>
+          <p className="font-mono text-[11px] text-white/40">@{f.username}</p>
+          <p className="mt-1 text-[11px] text-white/35">
+            {f.displayDayLabel} · ZIP {f.regionZipPrefix}xx ·{" "}
+            <span className={f.source === "PAID_BID" ? "text-amber-300/70" : "text-violet-300/70"}>
+              {f.source === "PAID_BID" ? "Paid bid" : "Raffle"}
+            </span>
           </p>
         </li>
       ))}
@@ -402,82 +405,103 @@ export function AdminDashboardClient(props: {
 
   function renderSectionBody(id: AdminDashboardSectionId) {
     switch (id) {
-      case "overview-kpis":
+      case "overview-kpis": {
+        const kpis = [
+          {
+            label: "Total Members",
+            value: totalMembers,
+            sub: `${userCounts.clientsTotal} clients · ${userCounts.trainersTotal} trainers`,
+            note: "Excludes test & QA accounts",
+            accent: "border-t-cyan-500/50",
+          },
+          {
+            label: "Active Clients",
+            value: userCounts.clientsActive,
+            sub: "Billing in good standing",
+            accent: "border-t-violet-500/50",
+          },
+          {
+            label: "Active Trainers",
+            value: userCounts.trainersActive,
+            sub: "Onboarded + recent activity",
+            accent: "border-t-blue-500/50",
+          },
+          {
+            label: "Client Subscribers",
+            value: revenue.activePlatformSubscribers,
+            sub: "$10/mo platform subscription",
+            accent: "border-t-emerald-500/50",
+          },
+          {
+            label: "Premium Trainers",
+            value: revenue.activeTrainerPremiumSubscribers,
+            sub: "$20/mo premium studio",
+            accent: "border-t-amber-500/50",
+          },
+          {
+            label: "Site Visitors (7d)",
+            value: traffic.uniqueVisitors,
+            sub: `${traffic.pageViews} views · ${traffic.linkClicks} clicks`,
+            accent: "border-t-pink-500/50",
+          },
+        ];
         return (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Total members</p>
-              <p className="mt-2 text-3xl font-black tabular-nums text-white">{totalMembers}</p>
-            <p className="mt-1 text-xs text-white/40">
-              {userCounts.clientsTotal} clients · {userCounts.trainersTotal} trainers
-            </p>
-            <p className="mt-1 text-[10px] text-white/30">Excludes test &amp; QA accounts</p>
-            </div>
-            <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Active clients</p>
-              <p className="mt-2 text-3xl font-black tabular-nums text-white">{userCounts.clientsActive}</p>
-              <p className="mt-1 text-xs text-white/40">Billing in good standing</p>
-            </div>
-            <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Active trainers</p>
-              <p className="mt-2 text-3xl font-black tabular-nums text-white">{userCounts.trainersActive}</p>
-              <p className="mt-1 text-xs text-white/40">Onboarded + recent activity</p>
-            </div>
-            <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Client subscribers</p>
-              <p className="mt-2 text-3xl font-black tabular-nums text-white">{revenue.activePlatformSubscribers}</p>
-              <p className="mt-1 text-xs text-white/40">$10/mo platform subscription</p>
-            </div>
-            <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Premium trainers</p>
-              <p className="mt-2 text-3xl font-black tabular-nums text-white">
-                {revenue.activeTrainerPremiumSubscribers}
-              </p>
-              <p className="mt-1 text-xs text-white/40">$20/mo premium studio</p>
-            </div>
-            <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Site visitors (7d)</p>
-              <p className="mt-2 text-3xl font-black tabular-nums text-white">{traffic.uniqueVisitors}</p>
-              <p className="mt-1 text-xs text-white/40">
-                {traffic.pageViews} page views · {traffic.linkClicks} clicks
-              </p>
-            </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {kpis.map((k) => (
+              <div
+                key={k.label}
+                className={`rounded-xl border border-white/[0.08] border-t-2 ${k.accent} bg-[#0c0f14]/90 p-4 shadow-[0_2px_16px_-8px_rgba(0,0,0,0.5)]`}
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40">{k.label}</p>
+                <p className="mt-2 text-3xl font-bold tabular-nums text-white">{k.value}</p>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-white/40">{k.sub}</p>
+                {k.note ? <p className="mt-1 text-[10px] text-white/25">{k.note}</p> : null}
+              </div>
+            ))}
           </div>
         );
+      }
       case "revenue-snapshot":
         return (
-          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.06] p-5">
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-200/80">Platform revenue</p>
-            <p className="mt-2 text-2xl font-black tabular-nums text-white">{formatUsdFromCents(revenue.revenueCents)}</p>
-            <p className="mt-1 text-xs text-white/45">
-              {revenue.eventCount} recorded payment event{revenue.eventCount === 1 ? "" : "s"} (gross collected)
-            </p>
-            <p className="mt-4 text-[11px] font-black uppercase tracking-[0.18em] text-emerald-200/70">
-              Gross platform profit
-            </p>
-            <p className="mt-1 text-xl font-black tabular-nums text-emerald-50">
-              {formatUsdFromCents(revenue.grossProfitCents)}
-            </p>
-            <ul className="mt-3 space-y-1.5 text-[11px] leading-relaxed text-white/45">
-              <li>
-                Services: {formatUsdFromCents(revenue.byCategory.SERVICE_CHECKOUT.grossProfitCents)} profit (
-                {revenue.byCategory.SERVICE_CHECKOUT.eventCount} checkouts)
-              </li>
-              <li>
-                Client subs ($10/mo):{" "}
-                {formatUsdFromCents(revenue.byCategory.CLIENT_PLATFORM_SUBSCRIPTION.grossProfitCents)} profit
-              </li>
-              <li>
-                Trainer premium ($20/mo):{" "}
-                {formatUsdFromCents(revenue.byCategory.TRAINER_PREMIUM_SUBSCRIPTION.grossProfitCents)} profit
-              </li>
-              <li>
-                Other one-time: {formatUsdFromCents(revenue.byCategory.ONE_TIME_PURCHASE.grossProfitCents)} profit
-              </li>
-            </ul>
-            <p className="mt-2 text-[10px] leading-relaxed text-white/35">
-              Live billing only — sandbox and test accounts excluded.
-            </p>
+          <div className="overflow-hidden rounded-2xl border border-emerald-400/20 bg-[#0c0f14]/90 shadow-[0_2px_24px_-8px_rgba(0,0,0,0.6)]">
+            <div className="border-b border-emerald-400/10 bg-emerald-500/[0.05] px-5 py-4">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400/80">Platform Revenue</p>
+              <div className="mt-2 flex flex-wrap items-end gap-6">
+                <div>
+                  <p className="text-3xl font-bold tabular-nums text-white">{formatUsdFromCents(revenue.revenueCents)}</p>
+                  <p className="mt-0.5 text-xs text-white/40">
+                    {revenue.eventCount} payment event{revenue.eventCount === 1 ? "" : "s"} · gross collected
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400/70">Gross Profit</p>
+                  <p className="text-2xl font-bold tabular-nums text-emerald-300">{formatUsdFromCents(revenue.grossProfitCents)}</p>
+                </div>
+              </div>
+            </div>
+            <div className="px-5 py-4">
+              <ul className="space-y-2 text-xs text-white/50">
+                <li className="flex justify-between gap-4">
+                  <span>Services</span>
+                  <span className="tabular-nums text-white/70">
+                    {formatUsdFromCents(revenue.byCategory.SERVICE_CHECKOUT.grossProfitCents)} profit · {revenue.byCategory.SERVICE_CHECKOUT.eventCount} checkouts
+                  </span>
+                </li>
+                <li className="flex justify-between gap-4">
+                  <span>Client subs ($10/mo)</span>
+                  <span className="tabular-nums text-white/70">{formatUsdFromCents(revenue.byCategory.CLIENT_PLATFORM_SUBSCRIPTION.grossProfitCents)} profit</span>
+                </li>
+                <li className="flex justify-between gap-4">
+                  <span>Trainer premium ($20/mo)</span>
+                  <span className="tabular-nums text-white/70">{formatUsdFromCents(revenue.byCategory.TRAINER_PREMIUM_SUBSCRIPTION.grossProfitCents)} profit</span>
+                </li>
+                <li className="flex justify-between gap-4">
+                  <span>Other one-time</span>
+                  <span className="tabular-nums text-white/70">{formatUsdFromCents(revenue.byCategory.ONE_TIME_PURCHASE.grossProfitCents)} profit</span>
+                </li>
+              </ul>
+              <p className="mt-3 text-[10px] text-white/25">Live billing only — sandbox and test accounts excluded.</p>
+            </div>
           </div>
         );
       case "platform-health":
@@ -494,123 +518,139 @@ export function AdminDashboardClient(props: {
         return <OperationalAlertsSection alerts={alerts} />;
       case "impersonation-audit":
         return (
-          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-            <div className="space-y-2">
-              {props.auditLog.length === 0 ? (
-                <p className="text-sm text-white/45">No impersonation events yet.</p>
-              ) : (
-                props.auditLog.map((row) => (
-                  <div key={row.id} className="rounded-xl border border-white/[0.06] bg-[#07080c]/80 px-3 py-2 text-xs">
-                    <p className="text-white/85">
-                      {row.action} · {row.targetRole} @{row.targetUsername ?? row.targetId.slice(0, 8)}
+          <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90">
+            {props.auditLog.length === 0 ? (
+              <p className="px-5 py-6 text-sm text-white/35">No impersonation events yet.</p>
+            ) : (
+              <div className="divide-y divide-white/[0.04]">
+                {props.auditLog.map((row) => (
+                  <div key={row.id} className="px-4 py-3">
+                    <p className="text-xs font-medium text-white/80">
+                      {row.action} · {row.targetRole}{" "}
+                      <span className="font-mono">@{row.targetUsername ?? row.targetId.slice(0, 8)}</span>
                     </p>
-                    <p className="text-white/40">
+                    <p className="mt-0.5 text-[11px] text-white/35">
                       {row.administratorEmail} · {formatSignupDate(row.createdAt)}
                     </p>
                   </div>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         );
       case "ai-visitor-insights":
         return props.visitorInsight ? (
-          <div className="rounded-2xl border border-cyan-400/25 bg-cyan-500/[0.06] p-5">
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/80">{props.visitorInsight}</p>
-            <p className="mt-3 text-xs">
-              <Link href="/admin/assistant" className="text-cyan-300/90 underline-offset-4 hover:underline">
-                Open AI assistant for deeper analysis and goal setting
-              </Link>
-            </p>
+          <div className="overflow-hidden rounded-2xl border border-cyan-400/20 bg-[#0c0f14]/90">
+            <div className="border-b border-cyan-400/10 bg-cyan-500/[0.05] px-5 py-3">
+              <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-cyan-400/80">
+                <span>✦</span> AI Analysis
+              </p>
+            </div>
+            <div className="px-5 py-4">
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/75">{props.visitorInsight}</p>
+              <p className="mt-4 text-xs">
+                <Link href="/admin/assistant" className="text-cyan-400/80 underline-offset-4 hover:underline hover:text-cyan-300">
+                  Open AI assistant for deeper analysis →
+                </Link>
+              </p>
+            </div>
           </div>
         ) : (
-          <p className="text-sm text-white/45">
-            Insights unavailable.{" "}
-            <Link href="/admin/assistant" className="text-cyan-300/90 underline-offset-4 hover:underline">
+          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] px-5 py-6 text-center">
+            <p className="text-sm text-white/35">Insights unavailable.</p>
+            <Link href="/admin/assistant" className="mt-2 block text-xs text-cyan-400/70 underline-offset-4 hover:underline">
               Open the AI assistant
             </Link>
-            .
-          </p>
+          </div>
         );
       case "recent-signups":
         return (
-          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-            <div className="space-y-2">
-              {recentSignups.length === 0 ? (
-                <p className="text-sm text-white/45">No signups yet.</p>
-              ) : (
-                recentSignups.map((row) => (
-                  <SignupRowCard key={`${row.kind}-${row.id}`} row={row} busyKey={busyKey} onOpen={impersonate} compact />
-                ))
-              )}
-            </div>
+          <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90">
+            {recentSignups.length === 0 ? (
+              <p className="px-5 py-6 text-sm text-white/35">No signups yet.</p>
+            ) : (
+              <div className="divide-y divide-white/[0.04]">
+                {recentSignups.map((row) => (
+                  <div key={`${row.kind}-${row.id}`} className="px-4 py-1">
+                    <SignupRowCard row={row} busyKey={busyKey} onOpen={impersonate} compact />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
       case "recent-featured":
         return (
-          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
+          <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
             <FeaturedSnapshotList items={recentFeatured} />
           </div>
         );
       case "test-mode":
         return (
-          <div className="rounded-2xl border border-amber-400/25 bg-amber-500/[0.07] p-5">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <p className="text-sm text-white/70">
-                Toggle on while validating flows. External billing and messaging integrations still follow environment
-                keys.
+          <div className="overflow-hidden rounded-2xl border border-amber-400/20 bg-[#0c0f14]/90">
+            <div className="border-b border-amber-400/10 bg-amber-500/[0.04] px-5 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-400/70">Test Mode</p>
+            </div>
+            <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between">
+              <p className="text-sm text-white/55">
+                Toggle on while validating flows. External billing and messaging integrations still follow environment keys.
               </p>
               <button
                 type="button"
                 disabled={busyKey !== null}
                 onClick={() => void toggleTestMode(!testMode)}
-                className={`rounded-xl px-5 py-3 text-xs font-black uppercase tracking-[0.12em] transition disabled:opacity-40 ${
+                className={`shrink-0 rounded-xl px-5 py-2.5 text-xs font-semibold transition disabled:opacity-40 ${
                   testMode
-                    ? "border border-amber-300/40 bg-amber-500/20 text-amber-50"
-                    : "border border-white/15 bg-white/[0.05] text-white/75 hover:bg-white/[0.08]"
+                    ? "border border-amber-300/35 bg-amber-500/15 text-amber-200"
+                    : "border border-white/10 bg-white/[0.04] text-white/60 hover:bg-white/[0.07]"
                 }`}
               >
-                {busyKey === "testmode" ? "Updating…" : testMode ? "Test mode on" : "Test mode off"}
+                {busyKey === "testmode" ? "Updating…" : testMode ? "● Test mode on" : "○ Test mode off"}
               </button>
             </div>
           </div>
         );
       case "signup-log":
         return (
-          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-4 sm:p-5">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <p className="text-sm text-white/50">{signupTotal} total registrations</p>
+          <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90">
+            <div className="flex items-center justify-between border-b border-white/[0.06] bg-white/[0.02] px-5 py-3">
+              <p className="text-xs text-white/40">{signupTotal} total registrations</p>
               {signupLog.length < signupTotal ? (
                 <button
                   type="button"
                   disabled={signupLoading || busyKey !== null}
                   onClick={() => void loadSignupLog(signupOffset + signupPageSize, false)}
-                  className="rounded-lg border border-white/15 px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-white/75 hover:bg-white/[0.06] disabled:opacity-40"
+                  className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-medium text-white/55 hover:bg-white/[0.05] disabled:opacity-40"
                 >
                   {signupLoading ? "Loading…" : "Load more"}
                 </button>
               ) : null}
             </div>
-            <div className="mt-4 space-y-2">
-              {signupLog.length === 0 && !signupLoading ? (
-                <p className="text-sm text-white/45">No signups to show.</p>
-              ) : (
-                signupLog.map((row) => (
-                  <SignupRowCard key={`log-${row.kind}-${row.id}`} row={row} busyKey={busyKey} onOpen={impersonate} />
-                ))
-              )}
-            </div>
+            {signupLog.length === 0 && !signupLoading ? (
+              <p className="px-5 py-6 text-sm text-white/35">No signups to show.</p>
+            ) : (
+              <div className="divide-y divide-white/[0.04]">
+                {signupLog.map((row) => (
+                  <div key={`log-${row.kind}-${row.id}`} className="px-4 py-1">
+                    <SignupRowCard row={row} busyKey={busyKey} onOpen={impersonate} />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
       case "member-search":
         return (
           <div className="space-y-4">
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search username, email, or phone…"
-              className="w-full rounded-xl border border-white/[0.1] bg-[#07080c] px-4 py-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-cyan-400/35 focus:ring-2 focus:ring-cyan-400/20"
-            />
+            <div className="relative">
+              <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/25">⌕</span>
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search username, email, or phone…"
+                className="w-full rounded-xl border border-white/[0.1] bg-[#0c0f14] py-3 pl-10 pr-4 text-sm text-white/90 outline-none placeholder:text-white/25 focus:border-cyan-400/30 focus:ring-2 focus:ring-cyan-400/15"
+              />
+            </div>
             <div className="grid gap-6 lg:grid-cols-2">
               <AdminDirectoryUserTable
                 title="Clients"
@@ -645,62 +685,75 @@ export function AdminDashboardClient(props: {
   }, [orderedVisibleSections]);
 
   return (
-    <main className="relative min-h-dvh overflow-x-hidden bg-[#050608] px-5 py-10 text-white sm:px-8 sm:py-12">
+    <main className="relative min-h-dvh overflow-x-hidden bg-[#050608] text-white">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[22rem] bg-[radial-gradient(ellipse_90%_60%_at_50%_-10%,rgba(34,211,238,0.12),transparent_55%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[32rem] bg-[radial-gradient(ellipse_100%_60%_at_50%_-5%,rgba(34,211,238,0.09),transparent_60%),radial-gradient(ellipse_60%_40%_at_80%_0%,rgba(99,102,241,0.07),transparent_50%)]"
       />
 
-      <div className="relative mx-auto max-w-6xl space-y-8">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-4">
-            <AdminPortalNav current="dashboard" />
+      {/* Page header */}
+      <div className="relative border-b border-white/[0.06] bg-[#050608]/80 px-5 py-6 backdrop-blur-sm sm:px-8">
+        <div className="mx-auto max-w-6xl">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-cyan-300/85">Match Fit</p>
-            <h1 className="mt-1 text-3xl font-black tracking-tight">Administrator Portal</h1>
-            <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-[#FF7E00]/60">
-              Version {MATCH_FIT_PRODUCT_VERSION_LABEL}
-            </p>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/55">
-              Platform overview, signup activity, member search, and secure account access for operations and trust &
-              safety.{" "}
-              <Link href="/admin/beta-waitlists" className="text-cyan-300/90 underline-offset-4 hover:underline">
-                Beta waitlists
-              </Link>
-              . Account access is disclosed in our{" "}
-              <Link href="/privacy#platform-administration" className="text-cyan-300/90 underline-offset-4 hover:underline">
-                Privacy Policy
-              </Link>{" "}
-              and{" "}
-              <Link href="/terms#platform-administration" className="text-cyan-300/90 underline-offset-4 hover:underline">
-                Terms
-              </Link>
-              .
-            </p>
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/15 ring-1 ring-cyan-500/30">
+                  <span className="text-xs text-cyan-400">⚡</span>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-cyan-400/80">Match Fit</p>
+                  <h1 className="text-lg font-bold leading-tight text-white">Administrator Portal</h1>
+                </div>
+                <span className="ml-1 hidden rounded-md bg-[#FF7E00]/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#FF7E00]/70 sm:block">
+                  v{MATCH_FIT_PRODUCT_VERSION_LABEL}
+                </span>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setLayoutSaveError(null);
+                  setLayoutPersistedHint(null);
+                  setCustomizerOpen(true);
+                }}
+                className="flex items-center gap-1.5 rounded-xl border border-cyan-400/25 bg-cyan-500/10 px-3.5 py-2 text-xs font-medium text-cyan-200 transition hover:bg-cyan-500/15"
+              >
+                <span aria-hidden className="text-[10px]">⊞</span>
+                Customize
+              </button>
+              <button
+                type="button"
+                onClick={() => void logout()}
+                disabled={busyKey !== null}
+                className="rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-medium text-white/65 transition hover:bg-white/[0.07] hover:text-white/85 disabled:opacity-40"
+              >
+                Sign out
+              </button>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setLayoutSaveError(null);
-                setLayoutPersistedHint(null);
-                setCustomizerOpen(true);
-              }}
-              className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-2.5 text-xs font-black uppercase tracking-[0.1em] text-cyan-50 hover:bg-cyan-500/15"
-            >
-              Customize dashboard
-            </button>
-            <button
-              type="button"
-              onClick={() => void logout()}
-              disabled={busyKey !== null}
-              className="rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 text-xs font-black uppercase tracking-[0.1em] text-white/80 hover:bg-white/[0.07] disabled:opacity-40"
-            >
-              Sign out
-            </button>
+          <div className="mt-4">
+            <AdminPortalNav current="dashboard" />
           </div>
-        </header>
+          <p className="mt-4 max-w-2xl text-xs leading-relaxed text-white/40">
+            Platform overview, signup activity, member search, and secure account access for operations and trust &
+            safety.{" "}
+            <Link href="/admin/beta-waitlists" className="text-cyan-300/70 underline-offset-4 hover:underline">
+              Beta waitlists
+            </Link>
+            {" · "}
+            <Link href="/privacy#platform-administration" className="text-cyan-300/70 underline-offset-4 hover:underline">
+              Privacy Policy
+            </Link>
+            {" · "}
+            <Link href="/terms#platform-administration" className="text-cyan-300/70 underline-offset-4 hover:underline">
+              Terms
+            </Link>
+          </p>
+        </div>
+      </div>
+
+      <div className="relative mx-auto max-w-6xl space-y-8 px-5 py-8 sm:px-8">
 
         <AdminDashboardSectionNav layout={layout} />
 
@@ -724,7 +777,11 @@ export function AdminDashboardClient(props: {
               return (
                 <Fragment key={sectionId}>
                   {showGroupHeading ? (
-                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300/70">{meta.group}</p>
+                    <div className="flex items-center gap-3">
+                      <span className="h-px flex-1 bg-white/[0.06]" />
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30">{meta.group}</p>
+                      <span className="h-px flex-1 bg-white/[0.06]" />
+                    </div>
                   ) : null}
                   <AdminDashboardSection
                     id={sectionId}
@@ -762,16 +819,16 @@ export function AdminDashboardClient(props: {
           </p>
         ) : null}
 
-        <footer className="border-t border-white/[0.08] pt-6 text-xs text-white/40">
-          <p>
-            Impersonation is privileged and disclosed in our legal terms. Sign out and clear sessions when finished.
-            Prefer sandbox Stripe keys on staging.
-          </p>
-          <p className="mt-3">
-            <Link href="/admin/sign-up" className="text-cyan-300/90 underline-offset-4 hover:underline">
-              New staff onboarding form
+        <footer className="border-t border-white/[0.06] pt-6 text-[11px] text-white/30">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="max-w-lg leading-relaxed">
+              Impersonation is privileged and disclosed in our legal terms. Sign out and clear sessions when finished.
+              Prefer sandbox Stripe keys on staging.
+            </p>
+            <Link href="/admin/sign-up" className="shrink-0 text-cyan-400/60 underline-offset-4 hover:text-cyan-300 hover:underline">
+              New staff onboarding →
             </Link>
-          </p>
+          </div>
         </footer>
       </div>
     </main>

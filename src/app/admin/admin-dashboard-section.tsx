@@ -24,11 +24,11 @@ export function AdminDashboardSection(props: {
         <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-cyan-300/50">{props.group}</p>
       ) : null}
       {props.title ? (
-        <div className="mb-4">
-          <h2 id={`${props.id}-heading`} className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">
+        <div className="mb-4 border-l-2 border-cyan-500/40 pl-4">
+          <h2 id={`${props.id}-heading`} className="text-sm font-bold text-white/70">
             {props.title}
           </h2>
-          {props.description ? <p className="mt-1 text-sm text-white/50">{props.description}</p> : null}
+          {props.description ? <p className="mt-0.5 text-xs leading-relaxed text-white/40">{props.description}</p> : null}
         </div>
       ) : null}
       {props.children}

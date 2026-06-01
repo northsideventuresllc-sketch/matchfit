@@ -24,10 +24,10 @@ const FINANCE_WINDOW_LABELS: Record<AdminFinanceWindowKey, string> = {
 
 function StatCard(props: { label: string; value: string | number; hint?: string }) {
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-[#07080c]/80 px-3 py-3">
-      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">{props.label}</p>
-      <p className="mt-1 text-xl font-black tabular-nums text-white">{props.value}</p>
-      {props.hint ? <p className="mt-1 text-[10px] text-white/35">{props.hint}</p> : null}
+    <div className="rounded-xl border border-white/[0.07] bg-gradient-to-br from-white/[0.04] to-transparent px-4 py-3.5">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40">{props.label}</p>
+      <p className="mt-2 text-2xl font-bold tabular-nums text-white">{props.value}</p>
+      {props.hint ? <p className="mt-1 text-[10px] leading-relaxed text-white/35">{props.hint}</p> : null}
     </div>
   );
 }
@@ -47,9 +47,9 @@ function LoginRecencyGrid(props: { title: string; buckets: AdminLoginRecencyBuck
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">{props.title}</p>
       <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-7">
         {rows.map((r) => (
-          <div key={r.label} className="rounded-lg border border-white/[0.05] bg-black/20 px-2 py-1.5 text-center">
-            <p className="text-[9px] uppercase text-white/35">{r.label}</p>
-            <p className="text-sm font-bold tabular-nums text-white">{r.value}</p>
+          <div key={r.label} className="rounded-lg border border-white/[0.07] bg-white/[0.03] px-2 py-2 text-center">
+            <p className="text-[9px] font-medium uppercase tracking-wider text-white/35">{r.label}</p>
+            <p className="mt-0.5 text-base font-bold tabular-nums text-white">{r.value}</p>
           </div>
         ))}
       </div>
@@ -59,10 +59,12 @@ function LoginRecencyGrid(props: { title: string; buckets: AdminLoginRecencyBuck
 
 function MetricsSection(props: { title: string; description?: string; children: ReactNode }) {
   return (
-    <section className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-4 sm:p-5">
-      <h2 className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">{props.title}</h2>
-      {props.description ? <p className="mt-1 text-sm text-white/50">{props.description}</p> : null}
-      <div className="mt-4">{props.children}</div>
+    <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 shadow-[0_2px_24px_-8px_rgba(0,0,0,0.6)]">
+      <div className="border-b border-white/[0.06] bg-white/[0.02] px-5 py-4">
+        <h2 className="text-sm font-semibold text-white/80">{props.title}</h2>
+        {props.description ? <p className="mt-0.5 text-xs leading-relaxed text-white/40">{props.description}</p> : null}
+      </div>
+      <div className="p-5">{props.children}</div>
     </section>
   );
 }
@@ -257,19 +259,19 @@ export function TrainerPipelineSection({ pipeline }: { pipeline: AdminTrainerPip
       title="Trainer onboarding pipeline"
       description={`${pipeline.totalInPipeline} trainers in pipeline (excludes deidentified and QA synthetic). Percentages are relative to completed first signup.`}
     >
-      <ul className="space-y-2">
+      <div className="divide-y divide-white/[0.04] overflow-hidden rounded-xl border border-white/[0.07]">
         {pipeline.stages.map((s) => (
-          <li
+          <div
             key={s.id}
-            className="flex flex-col gap-1 rounded-xl border border-white/[0.06] bg-[#07080c]/80 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+            className="flex items-center justify-between gap-4 px-4 py-2.5 hover:bg-white/[0.025]"
           >
-            <span className="text-sm text-white/80">{s.label}</span>
-            <span className="text-sm font-bold tabular-nums text-white">
-              {s.count} <span className="text-white/40">({s.percentOfSignup}%)</span>
+            <span className="text-sm text-white/70">{s.label}</span>
+            <span className="shrink-0 text-sm font-semibold tabular-nums text-white">
+              {s.count} <span className="text-white/35 text-xs font-normal">({s.percentOfSignup}%)</span>
             </span>
-          </li>
+          </div>
         ))}
-      </ul>
+      </div>
     </MetricsSection>
   );
 }
@@ -294,12 +296,12 @@ export function FinancesDetailSection({ finances }: { finances: AdminFinancesPan
         {(Object.keys(FINANCE_WINDOW_LABELS) as AdminFinanceWindowKey[]).map((key) => {
           const w = finances.windows[key];
           return (
-            <div key={key} className="rounded-xl border border-emerald-400/15 bg-emerald-500/[0.04] p-3">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200/70">
+            <div key={key} className="rounded-xl border border-emerald-400/15 bg-gradient-to-br from-emerald-500/[0.06] to-transparent p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400/70">
                 {FINANCE_WINDOW_LABELS[key]}
               </p>
-              <p className="mt-1 text-lg font-black text-white">{formatUsdFromCents(w.grossProfitCents)} profit</p>
-              <p className="text-[10px] text-white/40">{formatUsdFromCents(w.revenueCents)} gross revenue</p>
+              <p className="mt-2 text-xl font-bold text-white">{formatUsdFromCents(w.grossProfitCents)}</p>
+              <p className="mt-0.5 text-[10px] text-white/35">profit · {formatUsdFromCents(w.revenueCents)} gross</p>
             </div>
           );
         })}
@@ -339,31 +341,48 @@ export function FinancesDetailSection({ finances }: { finances: AdminFinancesPan
 export function OperationalAlertsSection({ alerts }: { alerts: AdminAlertsPanel }) {
   return (
     <MetricsSection title="Operational alerts" description="Trust, safety, billing, and product feedback queues.">
-      <div className="space-y-4">
+      <div className="space-y-3">
         {alerts.groups.map((g) => (
-          <div key={g.id} className="rounded-xl border border-white/[0.06] bg-[#07080c]/80 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-white">{g.label}</p>
+          <div
+            key={g.id}
+            className={`overflow-hidden rounded-xl border ${
+              g.severity === "critical"
+                ? "border-red-500/20"
+                : g.severity === "warning"
+                  ? "border-amber-500/20"
+                  : "border-white/[0.07]"
+            }`}
+          >
+            <div
+              className={`flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 ${
+                g.severity === "critical"
+                  ? "bg-red-500/[0.06]"
+                  : g.severity === "warning"
+                    ? "bg-amber-500/[0.05]"
+                    : "bg-white/[0.02]"
+              }`}
+            >
+              <p className="text-sm font-medium text-white/85">{g.label}</p>
               <span
-                className={`rounded-md px-1.5 py-0.5 text-[10px] font-black uppercase ${
+                className={`rounded px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
                   g.severity === "critical"
-                    ? "bg-[#E32B2B]/20 text-[#FFB4B4]"
+                    ? "bg-red-500/20 text-red-300"
                     : g.severity === "warning"
-                      ? "bg-amber-500/20 text-amber-100"
-                      : "bg-white/10 text-white/55"
+                      ? "bg-amber-500/20 text-amber-300"
+                      : "bg-white/[0.08] text-white/45"
                 }`}
               >
                 {g.severity} · {g.total}
               </span>
             </div>
             {g.items.length === 0 ? (
-              <p className="mt-2 text-[11px] text-white/40">No items in preview.</p>
+              <p className="px-4 py-2.5 text-[11px] text-white/30">No items in preview.</p>
             ) : (
-              <ul className="mt-2 space-y-1.5">
+              <ul className="divide-y divide-white/[0.03]">
                 {g.items.map((item) => (
-                  <li key={item.id} className="text-[11px] text-white/50">
-                    <span className="font-medium text-white/75">{item.title}</span>
-                    {item.detail ? ` — ${item.detail}` : ""}
+                  <li key={item.id} className="px-4 py-2 text-[11px] text-white/45">
+                    <span className="font-medium text-white/70">{item.title}</span>
+                    {item.detail ? <span className="text-white/35"> — {item.detail}</span> : ""}
                   </li>
                 ))}
               </ul>

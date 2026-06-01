@@ -19,15 +19,17 @@ export function AdminDashboardSectionNav(props: { layout: AdminDashboardLayout }
   return (
     <nav
       aria-label="Dashboard sections"
-      className="sticky top-0 z-10 -mx-1 rounded-2xl border border-white/[0.08] bg-[#050608]/95 px-2 py-3 backdrop-blur-md"
+      className="sticky top-0 z-10 -mx-5 sm:-mx-8 border-b border-white/[0.06] bg-[#050608]/90 px-5 py-3 backdrop-blur-xl sm:px-8"
     >
-      <p className="px-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Jump to section</p>
-      <div className="mt-2 flex flex-wrap gap-1.5 px-1">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-1 gap-y-1.5">
+        <span className="mr-2 hidden text-[9px] font-black uppercase tracking-[0.2em] text-white/25 sm:block">
+          Jump to
+        </span>
         {visible.map((id) => (
           <a
             key={id}
             href={`#${adminDashboardSectionDomId(id)}`}
-            className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-white/65 transition hover:border-cyan-400/25 hover:bg-cyan-500/10 hover:text-cyan-50"
+            className="rounded-lg px-2.5 py-1 text-[10px] font-medium text-white/50 transition hover:bg-white/[0.07] hover:text-white/90"
           >
             {labelById[id] ?? id}
           </a>
