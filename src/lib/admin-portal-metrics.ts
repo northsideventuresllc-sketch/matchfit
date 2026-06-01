@@ -494,7 +494,7 @@ async function loadRecentTransactions(limit = 20): Promise<AdminFinanceRecentTra
       occurredAt: r.completedAt.toISOString(),
       label: r.purchaseLabelSnapshot ?? "Service checkout",
       amountCents: r.totalChargedCents ?? r.amountCents,
-      grossProfitCents: r.adminFeeCents,
+      grossProfitCents: r.adminFeeCents ?? 0,
       clientId: r.clientId,
       trainerId: r.trainerId,
     })),
