@@ -18,6 +18,13 @@ const {
 vi.mock("@/lib/launch-account-counts", () => ({
   countLaunchPlatformSubscribers: mockCountLaunchPlatformSubscribers,
   countLaunchPremiumTrainers: mockCountLaunchPremiumTrainers,
+  launchClientCountWhere: vi.fn(() => ({ deidentifiedAt: null })),
+  launchTrainerCountWhere: vi.fn(() => ({ deidentifiedAt: null })),
+}));
+
+vi.mock("@/lib/platform-revenue-filters", () => ({
+  LIVE_PLATFORM_REVENUE_WHERE: { billingLiveMode: true },
+  scrubNonLivePlatformRevenueEvents: vi.fn().mockResolvedValue(0),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -29,6 +36,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     client: {
       findMany: vi.fn(),
+      findUnique: vi.fn().mockResolvedValue({ stripeBillingLiveMode: true }),
     },
     trainerProfile: {
       findMany: vi.fn(),

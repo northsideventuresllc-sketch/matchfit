@@ -3,8 +3,14 @@ import { isMissingAdminReportingTableError } from "@/lib/ensure-admin-reporting-
 import {
   countLaunchPlatformSubscribers,
   countLaunchPremiumTrainers,
+  launchClientCountWhere,
+  launchTrainerCountWhere,
 } from "@/lib/launch-account-counts";
 import { prisma } from "@/lib/prisma";
+import {
+  LIVE_PLATFORM_REVENUE_WHERE,
+  scrubNonLivePlatformRevenueEvents,
+} from "@/lib/platform-revenue-filters";
 import {
   CLIENT_PLATFORM_SUBSCRIPTION_PROFIT_CENTS,
   oneTimePurchaseRevenueProfit,
@@ -84,7 +90,17 @@ export async function recordServiceCheckoutRevenueEvent(args: {
   adminFeeCents?: number | null;
   ledgerGrossTotalCents?: number | null;
   completedAt?: Date;
+  billingLiveMode?: boolean;
 }): Promise<void> {
+  let billingLiveMode = args.billingLiveMode;
+  if (billingLiveMode === undefined) {
+    const client = await prisma.client.findUnique({
+      where: { id: args.clientId },
+      select: { stripeBillingLiveMode: true },
+    });
+    billingLiveMode = client?.stripeBillingLiveMode !== false;
+  }
+
   const breakdown = serviceCheckoutRevenueProfit(args);
   await recordPlatformRevenueEvent({
     category: "SERVICE_CHECKOUT",
@@ -94,6 +110,7 @@ export async function recordServiceCheckoutRevenueEvent(args: {
     clientId: args.clientId,
     trainerId: args.trainerId,
     occurredAt: args.completedAt,
+    billingLiveMode,
     metaJson: JSON.stringify({
       amountCents: args.amountCents,
       totalChargedCents: args.totalChargedCents ?? null,
@@ -109,6 +126,15 @@ export async function recordClientSubscriptionInvoiceEvent(args: {
   occurredAt?: Date;
   billingLiveMode?: boolean;
 }): Promise<void> {
+  let billingLiveMode = args.billingLiveMode;
+  if (billingLiveMode === undefined && args.clientId) {
+    const client = await prisma.client.findUnique({
+      where: { id: args.clientId },
+      select: { stripeBillingLiveMode: true },
+    });
+    billingLiveMode = client?.stripeBillingLiveMode !== false;
+  }
+
   const breakdown = subscriptionRevenueProfit(
     args.platformProfitCents ?? CLIENT_PLATFORM_SUBSCRIPTION_PROFIT_CENTS,
   );
@@ -119,7 +145,7 @@ export async function recordClientSubscriptionInvoiceEvent(args: {
     grossProfitCents: breakdown.grossProfitCents,
     clientId: args.clientId,
     occurredAt: args.occurredAt,
-    billingLiveMode: args.billingLiveMode,
+    billingLiveMode,
   });
 }
 
@@ -127,6 +153,7 @@ export async function recordTrainerPremiumSubscriptionInvoiceEvent(args: {
   stripeInvoiceId: string;
   trainerId: string;
   platformProfitCents?: number;
+  billingLiveMode?: boolean;
 }): Promise<void> {
   const breakdown = subscriptionRevenueProfit(
     args.platformProfitCents ?? TRAINER_PREMIUM_SUBSCRIPTION_PROFIT_CENTS,
@@ -137,6 +164,7 @@ export async function recordTrainerPremiumSubscriptionInvoiceEvent(args: {
     revenueCents: breakdown.revenueCents,
     grossProfitCents: breakdown.grossProfitCents,
     trainerId: args.trainerId,
+    billingLiveMode: args.billingLiveMode,
   });
 }
 
@@ -146,6 +174,20 @@ function inferPromoPackUsdCents(tokenAmount: number): number | null {
 }
 
 async function backfillPlatformRevenueEvents(): Promise<void> {
+  const launchClients = await prisma.client.findMany({
+    where: launchClientCountWhere(),
+    select: { id: true },
+    take: 5000,
+  });
+  const launchClientIds = new Set(launchClients.map((c) => c.id));
+
+  const launchTrainers = await prisma.trainer.findMany({
+    where: launchTrainerCountWhere(),
+    select: { id: true },
+    take: 5000,
+  });
+  const launchTrainerIds = new Set(launchTrainers.map((t) => t.id));
+
   const serviceRows = await prisma.trainerClientServiceTransaction.findMany({
     select: {
       id: true,
@@ -161,6 +203,7 @@ async function backfillPlatformRevenueEvents(): Promise<void> {
     orderBy: { completedAt: "asc" },
   });
   for (const row of serviceRows) {
+    if (!launchClientIds.has(row.clientId) || !launchTrainerIds.has(row.trainerId)) continue;
     await recordServiceCheckoutRevenueEvent({
       transactionId: row.id,
       clientId: row.clientId,
@@ -174,7 +217,11 @@ async function backfillPlatformRevenueEvents(): Promise<void> {
   }
 
   const registrationProfiles = await prisma.trainerProfile.findMany({
-    where: { hasPaidRegistrationFee: true, registrationFeePaidCents: { gt: 0 } },
+    where: {
+      hasPaidRegistrationFee: true,
+      registrationFeePaidCents: { gt: 0 },
+      trainer: launchTrainerCountWhere(),
+    },
     select: { trainerId: true, registrationFeePaidCents: true },
     take: 5000,
   });
@@ -193,13 +240,21 @@ async function backfillPlatformRevenueEvents(): Promise<void> {
   }
 
   const tokenPurchases = await prisma.trainerTokenLedgerEntry.findMany({
-    where: { reason: "STRIPE_PURCHASE", referenceKey: { not: null } },
+    where: {
+      reason: "STRIPE_PURCHASE",
+      referenceKey: { not: null },
+      trainer: launchTrainerCountWhere(),
+    },
     select: { trainerId: true, delta: true, referenceKey: true, createdAt: true },
     take: 5000,
     orderBy: { createdAt: "asc" },
   });
   const payingClients = await prisma.client.findMany({
-    where: { stripeLastSubscriptionInvoicePaidAt: { not: null }, deidentifiedAt: null },
+    where: {
+      ...launchClientCountWhere(),
+      stripeBillingLiveMode: true,
+      stripeLastSubscriptionInvoicePaidAt: { not: null },
+    },
     select: { id: true, stripeLastSubscriptionInvoicePaidAt: true },
     take: 5000,
   });
@@ -209,6 +264,7 @@ async function backfillPlatformRevenueEvents(): Promise<void> {
       stripeInvoiceId: `backfill:${c.id}`,
       clientId: c.id,
       occurredAt: c.stripeLastSubscriptionInvoicePaidAt,
+      billingLiveMode: true,
     });
   }
 
@@ -250,6 +306,7 @@ export async function ensurePlatformRevenueBackfill(): Promise<void> {
 
 export async function getPlatformRevenueTotals(): Promise<PlatformRevenueTotals> {
   await ensurePlatformRevenueBackfill();
+  await scrubNonLivePlatformRevenueEvents();
 
   const [activeClientSubscribers, activeTrainerPremiumSubscribers] = await Promise.all([
     countLaunchPlatformSubscribers(),
@@ -259,7 +316,7 @@ export async function getPlatformRevenueTotals(): Promise<PlatformRevenueTotals>
   try {
     const grouped = await prisma.platformRevenueEvent.groupBy({
       by: ["category"],
-      where: { billingLiveMode: true },
+      where: LIVE_PLATFORM_REVENUE_WHERE,
       _sum: { revenueCents: true, grossProfitCents: true },
       _count: { _all: true },
     });

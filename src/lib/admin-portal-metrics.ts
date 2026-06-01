@@ -28,6 +28,8 @@ import {
   daysSinceLaunch,
 } from "@/lib/platform-success-rating";
 import type { PlatformRevenueCategory } from "@/lib/platform-revenue-accounting";
+import { LIVE_PLATFORM_REVENUE_WHERE, mergeLiveRevenueWhere } from "@/lib/platform-revenue-filters";
+import { launchClientCountWhere, launchTrainerCountWhere } from "@/lib/launch-account-counts";
 import { parseTopOffering } from "@/lib/admin-portal-parsers";
 import { homepageDisplayDayKey } from "@/lib/featured-eastern-calendar";
 
@@ -396,7 +398,9 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
 }
 
 async function loadFinanceWindow(since: Date | null): Promise<AdminFinanceWindowSnapshot> {
-  const where = since ? { createdAt: { gte: since } } : undefined;
+  const where = since
+    ? mergeLiveRevenueWhere({ createdAt: { gte: since } })
+    : LIVE_PLATFORM_REVENUE_WHERE;
   try {
     const [grouped, feeRows] = await Promise.all([
       prisma.platformRevenueEvent.groupBy({
@@ -407,10 +411,20 @@ async function loadFinanceWindow(since: Date | null): Promise<AdminFinanceWindow
       }),
       since
         ? prisma.trainerClientServiceTransaction.aggregate({
-            where: { completedAt: { gte: since } },
+            where: {
+              completedAt: { gte: since },
+              client: launchClientCountWhere(),
+              trainer: launchTrainerCountWhere(),
+            },
             _sum: { adminFeeCents: true },
           })
-        : prisma.trainerClientServiceTransaction.aggregate({ _sum: { adminFeeCents: true } }),
+        : prisma.trainerClientServiceTransaction.aggregate({
+            where: {
+              client: launchClientCountWhere(),
+              trainer: launchTrainerCountWhere(),
+            },
+            _sum: { adminFeeCents: true },
+          }),
     ]);
 
     const byCategory = EMPTY_BY_CATEGORY();
@@ -449,6 +463,7 @@ async function loadFinanceWindow(since: Date | null): Promise<AdminFinanceWindow
 async function loadRecentTransactions(limit = 20): Promise<AdminFinanceRecentTransaction[]> {
   const [platformRows, serviceRows] = await Promise.all([
     prisma.platformRevenueEvent.findMany({
+      where: LIVE_PLATFORM_REVENUE_WHERE,
       orderBy: { createdAt: "desc" },
       take: limit,
       select: {
@@ -462,6 +477,10 @@ async function loadRecentTransactions(limit = 20): Promise<AdminFinanceRecentTra
       },
     }),
     prisma.trainerClientServiceTransaction.findMany({
+      where: {
+        client: launchClientCountWhere(),
+        trainer: launchTrainerCountWhere(),
+      },
       orderBy: { completedAt: "desc" },
       take: limit,
       select: {
@@ -562,7 +581,9 @@ export async function getAdminFinancesPanel(now = new Date()): Promise<AdminFina
   const windows = Object.fromEntries(windowEntries) as Record<AdminFinanceWindowKey, AdminFinanceWindowSnapshot>;
 
   const lifetimeGrouped = await loadFinanceWindow(null);
-  const lifetimeEvents = await prisma.platformRevenueEvent.count().catch(() => 0);
+  const lifetimeEvents = await prisma.platformRevenueEvent
+    .count({ where: LIVE_PLATFORM_REVENUE_WHERE })
+    .catch(() => 0);
 
   const dayKey = todayFeaturedDayKey();
   const [

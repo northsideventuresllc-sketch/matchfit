@@ -20,6 +20,7 @@ import { prisma } from "@/lib/prisma";
 import { formatFeaturedDisplayDayLabel } from "@/lib/featured-eastern-calendar";
 import { getHomeUserCounts } from "@/lib/home-user-counts";
 import { getPlatformRevenueTotals } from "@/lib/platform-revenue-events";
+import { scrubNonLivePlatformRevenueEvents } from "@/lib/platform-revenue-filters";
 import {
   getAdminAlertsPanel,
   getAdminFinancesPanel,
@@ -377,6 +378,10 @@ export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
   } catch (e) {
     console.error("[admin portal] ensureAdminReportingSchema", e);
   }
+
+  await scrubNonLivePlatformRevenueEvents().catch((e) => {
+    console.error("[admin portal] scrubNonLivePlatformRevenueEvents", e);
+  });
 
   const [
     traffic,
