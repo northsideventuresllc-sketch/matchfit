@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { DevAccountShortcuts } from "@/components/dev-account-shortcuts";
 import { GoogleAdsGtag } from "@/components/google-ads-gtag";
+import { SiteAnalyticsTracker } from "@/components/site-analytics-tracker";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -54,6 +55,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <GoogleAdsGtag />
+        <SiteAnalyticsTracker />
         {children}
         {process.env.NODE_ENV === "development" ? <DevAccountShortcuts /> : null}
       </body>

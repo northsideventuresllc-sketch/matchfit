@@ -1,7 +1,14 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getAdminPortalOverview, type AdminPortalOverview } from "@/lib/admin-portal-data";
+import {
+  ensureAdminDashboardPreferences,
+  getAdminDashboardPreferences,
+} from "@/lib/admin-dashboard-preferences";
+import { getAdminAuditLog, getAdminPortalOverview, type AdminPortalOverview } from "@/lib/admin-portal-data";
+import { runAdminAnalyticsAi } from "@/lib/admin-analytics-ai";
 import { prisma } from "@/lib/prisma";
+import { requireAdminSession } from "@/lib/require-admin";
+import { getAdminSiteTrafficSnapshot } from "@/lib/site-analytics";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/session";
 import { AdminDashboardClient } from "./admin-dashboard-client";
 
@@ -21,15 +28,30 @@ export default async function AdminHomePage() {
     redirect("/admin/login");
   }
 
+  await ensureAdminDashboardPreferences(sess.adminId);
+  const preferences = await getAdminDashboardPreferences(sess.adminId);
+
   let overview: AdminPortalOverview | null = null;
   let loadError: string | null = null;
+  let visitorInsight = "";
+  let auditLog: Awaited<ReturnType<typeof getAdminAuditLog>> = [];
 
   try {
     overview = await getAdminPortalOverview();
+    auditLog = await getAdminAuditLog(25);
+    if (preferences.enabledWidgets.includes("ai_visitor_insights")) {
+      visitorInsight = await runAdminAnalyticsAi({
+        action: "signup_recommendations",
+        administratorId: sess.adminId,
+        overview,
+        traffic: overview.traffic,
+      });
+    }
   } catch (e) {
     console.error("[admin home]", e);
+    const message = e instanceof Error ? e.message : "";
     loadError =
-      e instanceof Error && e.message.includes("platform_revenue_events")
+      message.includes("platform_revenue_events") || message.includes("site_analytics_events")
         ? "Administrator reporting tables are missing. Run `npm run db:push` (or apply the latest migration) and reload."
         : "Could not load the administrator dashboard. Check database connectivity and server logs.";
   }
@@ -56,5 +78,13 @@ export default async function AdminHomePage() {
     );
   }
 
-  return <AdminDashboardClient initialOverview={overview} initialTestMode={sess.testMode} />;
+  return (
+    <AdminDashboardClient
+      initialOverview={overview}
+      initialTestMode={sess.testMode}
+      enabledWidgets={preferences.enabledWidgets}
+      auditLog={auditLog}
+      visitorInsight={visitorInsight}
+    />
+  );
 }

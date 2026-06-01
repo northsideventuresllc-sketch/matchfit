@@ -20,6 +20,18 @@ export function betaExcludeCapCountEmails(): Set<string> {
   return s;
 }
 
+/** Usernames excluded from cap counts and admin metrics, comma-separated, case-insensitive. */
+export function betaExcludeCapCountUsernames(): Set<string> {
+  const raw = process.env.MATCH_FIT_BETA_EXCLUDE_CAP_COUNT_USERNAMES?.trim();
+  const s = new Set<string>();
+  if (!raw) return s;
+  for (const part of raw.split(",")) {
+    const u = part.trim().toLowerCase().replace(/^@/, "");
+    if (u) s.add(u);
+  }
+  return s;
+}
+
 export function isBetaLaunchGatesEnabled(): boolean {
   return truthyEnv(process.env.MATCH_FIT_BETA_GATES_ENABLED);
 }

@@ -54,6 +54,7 @@ export async function POST(req: Request) {
   }
 
   try {
+    const billingLiveMode = event.livemode === true;
     if (event.type === "payment_intent.succeeded") {
       const pi = event.data.object as Stripe.PaymentIntent;
       if (isTrainerBackgroundCheckPaymentIntent(pi)) {
@@ -115,6 +116,7 @@ export async function POST(req: Request) {
             revenueCents: regBreakdown.revenueCents,
             grossProfitCents: regBreakdown.grossProfitCents,
             trainerId,
+            billingLiveMode,
             metaJson: JSON.stringify({ purpose: "trainer_registration_fee" }),
           });
         }
@@ -159,6 +161,7 @@ export async function POST(req: Request) {
             revenueCents: promoBreakdown.revenueCents,
             grossProfitCents: promoBreakdown.grossProfitCents,
             trainerId: md.trainerId,
+            billingLiveMode,
             metaJson: JSON.stringify({ purpose: "trainer_promo_tokens", packTier: tier?.id ?? null, tokens }),
           });
         }
@@ -247,6 +250,7 @@ export async function POST(req: Request) {
             stripeInvoiceId: invoice.id,
             clientId: client.id,
             occurredAt: paidAt,
+            billingLiveMode,
           });
         }
       }

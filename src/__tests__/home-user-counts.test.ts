@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Prisma } from "@/generated/prisma/client";
 
-const { queryRawMock, betaExcludeCapCountEmailsMock } = vi.hoisted(() => ({
+const { queryRawMock, betaExcludeCapCountEmailsMock, betaExcludeCapCountUsernamesMock } = vi.hoisted(() => ({
   queryRawMock: vi.fn(),
   betaExcludeCapCountEmailsMock: vi.fn<() => Set<string>>(),
+  betaExcludeCapCountUsernamesMock: vi.fn<() => Set<string>>(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -14,6 +15,7 @@ vi.mock("@/lib/prisma", () => ({
 
 vi.mock("@/lib/beta-launch-config", () => ({
   betaExcludeCapCountEmails: betaExcludeCapCountEmailsMock,
+  betaExcludeCapCountUsernames: betaExcludeCapCountUsernamesMock,
 }));
 
 import { getHomeUserCounts } from "@/lib/home-user-counts";
@@ -29,6 +31,7 @@ describe("getHomeUserCounts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     betaExcludeCapCountEmailsMock.mockReturnValue(new Set());
+    betaExcludeCapCountUsernamesMock.mockReturnValue(new Set());
   });
 
   it("maps bigint query rows into numeric counters", async () => {

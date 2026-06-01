@@ -7,6 +7,7 @@ import { postClientLogout } from "@/lib/client-logout";
 import { postTrainerLogout } from "@/lib/trainer-logout";
 import type { HomePageAuth } from "@/lib/home-page-auth";
 import {
+  ADMIN_SIGN_IN_PATH,
   CLIENT_DASHBOARD_PATH,
   CLIENT_SIGN_IN_PATH,
   CLIENT_SIGN_UP_PATH,
@@ -123,6 +124,9 @@ export function HomeLoginMenu({ homeAuth }: Props) {
                 onClick={() => setOpen(false)}
               >
                 Trainer Sign In
+              </Link>
+              <Link href={ADMIN_SIGN_IN_PATH} role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
+                Admin Portal
               </Link>
               <div className="mx-3 my-2 border-t border-dashed border-white/[0.2]" role="separator" />
               <Link href={CLIENT_SIGN_UP_PATH} role="menuitem" className={itemClass} onClick={() => setOpen(false)}>

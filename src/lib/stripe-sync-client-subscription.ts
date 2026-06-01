@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getStripe } from "@/lib/stripe-server";
+import { getStripe, stripeObjectIsLiveBilling } from "@/lib/stripe-server";
 import type Stripe from "stripe";
 
 const GRACE_MS = 72 * 60 * 60 * 1000;
@@ -37,6 +37,7 @@ export async function syncClientSubscriptionFromStripe(subscriptionId: string): 
     data: {
       stripeSubscriptionActive: ok,
       subscriptionGraceUntil: graceUntil,
+      stripeBillingLiveMode: stripeObjectIsLiveBilling(sub.livemode),
     },
   });
 }

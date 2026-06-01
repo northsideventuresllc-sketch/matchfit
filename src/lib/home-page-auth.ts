@@ -13,3 +13,4 @@ export const CLIENT_SIGN_UP_PATH = "/client/sign-up";
 export const TRAINER_SIGN_UP_PATH = "/trainer/signup";
 export const CLIENT_DASHBOARD_PATH = "/client/dashboard";
 export const TRAINER_DASHBOARD_PATH = "/trainer/dashboard";
+export const ADMIN_SIGN_IN_PATH = "/admin/login";

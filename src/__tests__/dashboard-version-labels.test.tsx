@@ -44,6 +44,7 @@ vi.mock("@/lib/navigate-full-load", () => ({
 import { AdminDashboardClient } from "@/app/admin/admin-dashboard-client";
 import { ClientDashboardShell } from "@/components/client/client-dashboard-shell";
 import { TrainerDashboardShell } from "@/components/trainer/trainer-dashboard-shell";
+import { DEFAULT_ADMIN_DASHBOARD_WIDGETS } from "@/lib/admin-dashboard-widgets";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
 
 describe("dashboard version labels", () => {
@@ -97,10 +98,20 @@ describe("dashboard version labels", () => {
             activePlatformSubscribers: 0,
             activeTrainerPremiumSubscribers: 0,
           },
+          traffic: {
+            uniqueVisitors: 0,
+            pageViews: 0,
+            windowDays: 30,
+            topPages: [],
+            topLinks: [],
+          },
           recentSignups: [],
           recentFeatured: [],
         }}
         initialTestMode={false}
+        enabledWidgets={[...DEFAULT_ADMIN_DASHBOARD_WIDGETS]}
+        auditLog={[]}
+        visitorInsight=""
       />,
     );
 

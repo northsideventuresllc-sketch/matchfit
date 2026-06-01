@@ -12,3 +12,7 @@ export function getStripe(): Stripe | null {
   }
   return stripeSingleton;
 }
+
+export function stripeObjectIsLiveBilling(livemode: boolean | null | undefined): boolean {
+  return livemode === true;
+}

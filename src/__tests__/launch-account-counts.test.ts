@@ -72,7 +72,9 @@ describe("launch account count exclusions", () => {
       OR: expect.arrayContaining([
         { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" } },
         { email: { endsWith: ".invalid", mode: "insensitive" } },
-        { email: { in: ["qa-coach@example.com"] } },
+        { email: { in: expect.arrayContaining(["qa-coach@example.com", "jb@northsideventuresgroup.com"]) } },
+        { username: { in: ["coachjonny22"], mode: "insensitive" } },
+        { username: { startsWith: "mfqst_", mode: "insensitive" } },
       ]),
     });
 
@@ -82,6 +84,9 @@ describe("launch account count exclusions", () => {
       OR: expect.arrayContaining([
         { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" } },
         { email: { endsWith: ".invalid", mode: "insensitive" } },
+        { email: { in: expect.arrayContaining(["jonnybooth22@gmail.com"]) } },
+        { username: { in: ["jbfitness6299"], mode: "insensitive" } },
+        { username: { startsWith: "mfqsc_", mode: "insensitive" } },
       ]),
     });
   });

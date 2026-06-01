@@ -1,4 +1,8 @@
 import { Prisma } from "@/generated/prisma/client";
+import {
+  countLaunchPlatformSubscribers,
+  countLaunchPremiumTrainers,
+} from "@/lib/launch-account-counts";
 import { prisma } from "@/lib/prisma";
 import {
   CLIENT_PLATFORM_SUBSCRIPTION_PROFIT_CENTS,
@@ -45,9 +49,11 @@ export async function recordPlatformRevenueEvent(args: {
   trainerId?: string | null;
   metaJson?: string | null;
   occurredAt?: Date;
+  billingLiveMode?: boolean;
 }): Promise<void> {
   const revenueCents = Math.max(0, Math.floor(args.revenueCents));
   const grossProfitCents = Math.max(0, Math.floor(args.grossProfitCents));
+  if (args.billingLiveMode === false) return;
   try {
     await prisma.platformRevenueEvent.create({
       data: {
@@ -57,6 +63,7 @@ export async function recordPlatformRevenueEvent(args: {
         grossProfitCents,
         clientId: args.clientId ?? undefined,
         trainerId: args.trainerId ?? undefined,
+        billingLiveMode: true,
         metaJson: args.metaJson ?? undefined,
         ...(args.occurredAt ? { createdAt: args.occurredAt } : {}),
       },
@@ -100,6 +107,7 @@ export async function recordClientSubscriptionInvoiceEvent(args: {
   clientId: string;
   platformProfitCents?: number;
   occurredAt?: Date;
+  billingLiveMode?: boolean;
 }): Promise<void> {
   const breakdown = subscriptionRevenueProfit(
     args.platformProfitCents ?? CLIENT_PLATFORM_SUBSCRIPTION_PROFIT_CENTS,
@@ -111,6 +119,7 @@ export async function recordClientSubscriptionInvoiceEvent(args: {
     grossProfitCents: breakdown.grossProfitCents,
     clientId: args.clientId,
     occurredAt: args.occurredAt,
+    billingLiveMode: args.billingLiveMode,
   });
 }
 
@@ -243,15 +252,14 @@ export async function getPlatformRevenueTotals(): Promise<PlatformRevenueTotals>
   await ensurePlatformRevenueBackfill();
 
   const [activeClientSubscribers, activeTrainerPremiumSubscribers] = await Promise.all([
-    prisma.client.count({ where: { deidentifiedAt: null, stripeSubscriptionActive: true } }),
-    prisma.trainerProfile.count({
-      where: { premiumStudioEnabledAt: { not: null }, trainer: { deidentifiedAt: null } },
-    }),
+    countLaunchPlatformSubscribers(),
+    countLaunchPremiumTrainers(),
   ]);
 
   try {
     const grouped = await prisma.platformRevenueEvent.groupBy({
       by: ["category"],
+      where: { billingLiveMode: true },
       _sum: { revenueCents: true, grossProfitCents: true },
       _count: { _all: true },
     });

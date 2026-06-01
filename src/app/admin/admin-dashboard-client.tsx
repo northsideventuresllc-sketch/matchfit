@@ -4,11 +4,14 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
 import type {
+  AdminAuditLogRow,
   AdminFeaturedSnapshot,
   AdminPortalOverview,
   AdminSignupRow,
   AdminUserStats,
 } from "@/lib/admin-portal-data";
+import type { AdminDashboardWidgetId } from "@/lib/admin-dashboard-widgets";
+import { AdminPortalNav } from "@/components/admin/admin-portal-nav";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
 
@@ -169,8 +172,12 @@ function FeaturedSnapshotList({ items }: { items: AdminFeaturedSnapshot[] }) {
 export function AdminDashboardClient(props: {
   initialOverview: AdminPortalOverview;
   initialTestMode: boolean;
+  enabledWidgets: AdminDashboardWidgetId[];
+  auditLog: AdminAuditLogRow[];
+  visitorInsight: string;
 }) {
-  const { userCounts, revenue, recentSignups, recentFeatured } = props.initialOverview;
+  const { userCounts, revenue, traffic, recentSignups, recentFeatured } = props.initialOverview;
+  const show = (id: AdminDashboardWidgetId) => props.enabledWidgets.includes(id);
 
   const [q, setQ] = useState("");
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -322,7 +329,9 @@ export function AdminDashboardClient(props: {
 
       <div className="relative mx-auto max-w-6xl space-y-8">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
+          <div className="space-y-4">
+            <AdminPortalNav current="dashboard" />
+            <div>
             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-cyan-300/85">Match Fit</p>
             <h1 className="mt-1 text-3xl font-black tracking-tight">Administrator Portal</h1>
             <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-[#FF7E00]/60">
@@ -344,6 +353,7 @@ export function AdminDashboardClient(props: {
               </Link>
               .
             </p>
+            </div>
           </div>
           <button
             type="button"
@@ -355,13 +365,17 @@ export function AdminDashboardClient(props: {
           </button>
         </header>
 
+        {show("member_counts") || show("platform_client_subs") || show("premium_trainer_subs") ? (
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {show("member_counts") ? (
+          <>
           <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
             <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Total members</p>
             <p className="mt-2 text-3xl font-black tabular-nums text-white">{totalMembers}</p>
             <p className="mt-1 text-xs text-white/40">
               {userCounts.clientsTotal} clients · {userCounts.trainersTotal} trainers
             </p>
+            <p className="mt-1 text-[10px] text-white/30">Excludes test &amp; QA accounts</p>
           </div>
           <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
             <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Active clients</p>
@@ -373,14 +387,28 @@ export function AdminDashboardClient(props: {
             <p className="mt-2 text-3xl font-black tabular-nums text-white">{userCounts.trainersActive}</p>
             <p className="mt-1 text-xs text-white/40">Onboarded + recent activity</p>
           </div>
+          </>
+          ) : null}
+          {show("platform_client_subs") ? (
           <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
             <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Platform subscribers</p>
             <p className="mt-2 text-3xl font-black tabular-nums text-white">{revenue.activePlatformSubscribers}</p>
-            <p className="mt-1 text-xs text-white/40">Stripe subscription active</p>
+            <p className="mt-1 text-xs text-white/40">Live Stripe subs only</p>
           </div>
+          ) : null}
+          {show("premium_trainer_subs") ? (
+          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Premium trainers</p>
+            <p className="mt-2 text-3xl font-black tabular-nums text-white">{revenue.activeTrainerPremiumSubscribers}</p>
+            <p className="mt-1 text-xs text-white/40">Premium studio enabled</p>
+          </div>
+          ) : null}
         </section>
+        ) : null}
 
+        {(show("revenue_summary") || show("recent_signups") || show("featured_allocations")) ? (
         <section className="grid gap-4 lg:grid-cols-3">
+          {show("revenue_summary") ? (
           <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.06] p-5 lg:col-span-1">
             <p className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-200/80">Platform revenue</p>
             <p className="mt-2 text-2xl font-black tabular-nums text-white">
@@ -413,11 +441,12 @@ export function AdminDashboardClient(props: {
               </li>
             </ul>
             <p className="mt-2 text-[10px] leading-relaxed text-white/35">
-              Gross profit excludes Match Fit operating costs. Service profit is the admin fee; subscriptions are $10 / $20
-              platform portions; other purchases are total charged minus processor fee.
+              Live billing only — sandbox and test accounts excluded.
             </p>
           </div>
+          ) : null}
 
+          {show("recent_signups") ? (
           <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5 lg:col-span-1">
             <h2 className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Recent signups</h2>
             <div className="mt-3 space-y-2">
@@ -430,15 +459,98 @@ export function AdminDashboardClient(props: {
               )}
             </div>
           </div>
+          ) : null}
 
+          {show("featured_allocations") ? (
           <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5 lg:col-span-1">
             <h2 className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Recent featured trainers</h2>
             <div className="mt-3">
               <FeaturedSnapshotList items={recentFeatured} />
             </div>
           </div>
+          ) : null}
         </section>
+        ) : null}
 
+        {(show("unique_visitors") || show("top_pages") || show("top_buttons")) ? (
+        <section className="grid gap-4 lg:grid-cols-3">
+          {show("unique_visitors") ? (
+          <div className="rounded-2xl border border-violet-400/20 bg-violet-500/[0.06] p-5">
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-violet-200/80">Unique visitors</p>
+            <p className="mt-2 text-3xl font-black tabular-nums">{traffic.uniqueVisitors}</p>
+            <p className="mt-1 text-xs text-white/45">Last {traffic.windowDays} days · {traffic.pageViews} page views</p>
+          </div>
+          ) : null}
+          {show("top_pages") ? (
+          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5 lg:col-span-1">
+            <h2 className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Top pages</h2>
+            <ul className="mt-3 space-y-2 text-sm">
+              {traffic.topPages.length === 0 ? (
+                <li className="text-white/45">No data yet.</li>
+              ) : (
+                traffic.topPages.map((p) => (
+                  <li key={p.path} className="flex justify-between gap-2 text-white/80">
+                    <span className="truncate font-mono text-xs">{p.path}</span>
+                    <span className="shrink-0 tabular-nums text-white/50">{p.uniqueVisitors}</span>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+          ) : null}
+          {show("top_buttons") ? (
+          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5 lg:col-span-1">
+            <h2 className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Top clicks</h2>
+            <ul className="mt-3 space-y-2 text-sm">
+              {traffic.topLinks.length === 0 ? (
+                <li className="text-white/45">No data yet.</li>
+              ) : (
+                traffic.topLinks.map((l) => (
+                  <li key={l.target} className="text-white/80">
+                    <p className="truncate font-mono text-xs">{l.label ?? l.target}</p>
+                    <p className="text-[11px] text-white/40">{l.uniqueClickers} unique clickers</p>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+          ) : null}
+        </section>
+        ) : null}
+
+        {show("ai_visitor_insights") && props.visitorInsight ? (
+        <section className="rounded-2xl border border-cyan-400/25 bg-cyan-500/[0.06] p-5">
+          <h2 className="text-[11px] font-black uppercase tracking-[0.18em] text-cyan-200/90">AI visitor insights</h2>
+          <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-white/80">{props.visitorInsight}</p>
+          <p className="mt-3 text-xs">
+            <Link href="/admin/assistant" className="text-cyan-300/90 underline-offset-4 hover:underline">
+              Open AI assistant for deeper analysis
+            </Link>
+          </p>
+        </section>
+        ) : null}
+
+        {show("impersonation_audit") ? (
+        <section className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
+          <h2 className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Impersonation audit log</h2>
+          <div className="mt-3 space-y-2">
+            {props.auditLog.length === 0 ? (
+              <p className="text-sm text-white/45">No impersonation events yet.</p>
+            ) : (
+              props.auditLog.map((row) => (
+                <div key={row.id} className="rounded-xl border border-white/[0.06] bg-[#07080c]/80 px-3 py-2 text-xs">
+                  <p className="text-white/85">
+                    {row.action} · {row.targetRole} @{row.targetUsername ?? row.targetId.slice(0, 8)}
+                  </p>
+                  <p className="text-white/40">{row.administratorEmail} · {formatSignupDate(row.createdAt)}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+        ) : null}
+
+        {show("test_mode") ? (
         <section className="rounded-2xl border border-amber-400/25 bg-amber-500/[0.07] p-5">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
@@ -461,6 +573,7 @@ export function AdminDashboardClient(props: {
             </button>
           </div>
         </section>
+        ) : null}
 
         {TURNSTILE_SITE_KEY ? (
           <div className="flex justify-center rounded-2xl border border-white/[0.06] bg-[#0c0f14]/60 py-4">
@@ -474,6 +587,7 @@ export function AdminDashboardClient(props: {
           </p>
         ) : null}
 
+        {show("signup_log") ? (
         <section className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-4 sm:p-5">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -503,7 +617,9 @@ export function AdminDashboardClient(props: {
             )}
           </div>
         </section>
+        ) : null}
 
+        {show("member_search") ? (
         <section className="space-y-4">
           <div>
             <h2 className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Member search</h2>
@@ -534,6 +650,7 @@ export function AdminDashboardClient(props: {
             />
           </div>
         </section>
+        ) : null}
 
         <footer className="border-t border-white/[0.08] pt-6 text-xs text-white/40">
           <p>

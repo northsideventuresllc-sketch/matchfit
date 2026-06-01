@@ -24,7 +24,10 @@ model Administrator {
   /// ISO date string YYYY-MM-DD (birth date; used to derive admin code at onboarding).
   dateOfBirth  String
 
-  auditLogs AdministratorAuditLog[]
+  auditLogs              AdministratorAuditLog[]
+  dashboardPreferences   AdminDashboardPreferences?
+  goals                  AdminGoal[]
+  aiMessages             AdminAiMessage[]
 
   @@map("administrators")
   @@schema("public")
@@ -74,11 +77,92 @@ model PlatformRevenueEvent {
   clientId  String?
   trainerId String?
 
+  /// True when Stripe livemode; false for test/sandbox — excluded from admin metrics.
+  billingLiveMode Boolean @default(true)
+
   /// Optional JSON snapshot (fee breakdown, invoice id, etc.).
   metaJson String?
 
   @@index([category, createdAt])
+  @@index([billingLiveMode, createdAt])
   @@map("platform_revenue_events")
+  @@schema("public")
+}
+
+/// Per-administrator dashboard widget visibility.
+model AdminDashboardPreferences {
+  id        String   @id @default(cuid())
+  updatedAt DateTime @updatedAt
+
+  administratorId String        @unique
+  administrator   Administrator @relation(fields: [administratorId], references: [id], onDelete: Cascade)
+
+  /// JSON: { "enabledWidgets": string[] }
+  widgetsJson String
+
+  @@map("admin_dashboard_preferences")
+  @@schema("public")
+}
+
+/// Operator KPI goals for AI-assisted analysis.
+model AdminGoal {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  administratorId String
+  administrator   Administrator @relation(fields: [administratorId], references: [id], onDelete: Cascade)
+
+  title        String
+  description  String?
+  targetMetric String?
+  targetValue  Int?
+  deadline     DateTime?
+  status       String   @default("ACTIVE")
+
+  @@index([administratorId, status])
+  @@map("admin_goals")
+  @@schema("public")
+}
+
+/// Admin AI assistant conversation turns.
+model AdminAiMessage {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  administratorId String
+  administrator   Administrator @relation(fields: [administratorId], references: [id], onDelete: Cascade)
+
+  role       String
+  content    String
+  actionType String?
+
+  @@index([administratorId, createdAt])
+  @@map("admin_ai_messages")
+  @@schema("public")
+}
+
+/// First-party site traffic for administrator reporting.
+model SiteAnalyticsEvent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  /// PAGE_VIEW | LINK_CLICK
+  kind String
+
+  path       String
+  targetPath String?
+  targetUrl  String?
+  linkLabel  String?
+
+  visitorId String
+  sessionId String
+
+  @@index([createdAt])
+  @@index([kind, createdAt])
+  @@index([path, createdAt])
+  @@index([visitorId, createdAt])
+  @@map("site_analytics_events")
   @@schema("public")
 }
 
@@ -141,6 +225,8 @@ model Client {
   stripeSubscriptionId String?
   /// Mirrors Stripe subscription status for dashboard access control.
   stripeSubscriptionActive Boolean @default(false)
+  /// From Stripe livemode; admin metrics count only `true`.
+  stripeBillingLiveMode Boolean?
   /// When subscription is inactive and `now` is after this instant, non-billing dashboard routes require renewal (null = no lock).
   subscriptionGraceUntil DateTime?
   /// Set from Stripe `invoice.payment_succeeded` (and initial signup) for analytics / “recently paid” windows.

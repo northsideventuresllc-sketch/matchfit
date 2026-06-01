@@ -1,8 +1,10 @@
 import { Prisma } from "@/generated/prisma/client";
+import { ensureAdminReportingSchema } from "@/lib/ensure-admin-reporting-schema";
 import { prisma } from "@/lib/prisma";
 import { formatFeaturedDisplayDayLabel } from "@/lib/featured-eastern-calendar";
 import { getHomeUserCounts, type HomeUserCounts } from "@/lib/home-user-counts";
 import { getPlatformRevenueTotals, type PlatformRevenueTotals } from "@/lib/platform-revenue-events";
+import { getAdminSiteTrafficSnapshot, type AdminTrafficSnapshot } from "@/lib/site-analytics";
 
 export type AdminUserStats = {
   completedPurchases: number;
@@ -44,9 +46,20 @@ export type AdminRevenueSnapshot = {
   activeTrainerPremiumSubscribers: number;
 };
 
+export type AdminAuditLogRow = {
+  id: string;
+  createdAt: string;
+  action: string;
+  targetRole: string;
+  targetId: string;
+  targetUsername: string | null;
+  administratorEmail: string;
+};
+
 export type AdminPortalOverview = {
   userCounts: HomeUserCounts;
   revenue: AdminRevenueSnapshot;
+  traffic: AdminTrafficSnapshot;
   recentSignups: AdminSignupRow[];
   recentFeatured: AdminFeaturedSnapshot[];
 };
@@ -346,9 +359,16 @@ export async function getAdminRecentFeatured(limit = 6): Promise<AdminFeaturedSn
 }
 
 export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
-  const [userCounts, revenue, recentSignupsResult, recentFeatured] = await Promise.all([
+  try {
+    await ensureAdminReportingSchema();
+  } catch (e) {
+    console.error("[admin portal] ensureAdminReportingSchema", e);
+  }
+
+  const [userCounts, revenue, traffic, recentSignupsResult, recentFeatured] = await Promise.all([
     getHomeUserCounts(),
     getAdminRevenueSnapshot(),
+    getAdminSiteTrafficSnapshot(7),
     getAdminSignupLog({ limit: 8, offset: 0 }),
     getAdminRecentFeatured(6),
   ]);
@@ -356,9 +376,35 @@ export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
   return {
     userCounts,
     revenue,
+    traffic,
     recentSignups: recentSignupsResult.rows,
     recentFeatured,
   };
+}
+
+export async function getAdminAuditLog(limit = 25): Promise<AdminAuditLogRow[]> {
+  const rows = await prisma.administratorAuditLog.findMany({
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: {
+      id: true,
+      createdAt: true,
+      action: true,
+      targetRole: true,
+      targetId: true,
+      targetUsername: true,
+      administrator: { select: { email: true } },
+    },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    createdAt: r.createdAt.toISOString(),
+    action: r.action,
+    targetRole: r.targetRole,
+    targetId: r.targetId,
+    targetUsername: r.targetUsername,
+    administratorEmail: r.administrator.email,
+  }));
 }
 
 export function formatUsdFromCents(cents: number): string {

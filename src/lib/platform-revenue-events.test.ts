@@ -5,14 +5,19 @@ const {
   mockPlatformRevenueEventCreate,
   mockPlatformRevenueEventCount,
   mockPlatformRevenueEventGroupBy,
-  mockClientCount,
-  mockTrainerProfileCount,
+  mockCountLaunchPlatformSubscribers,
+  mockCountLaunchPremiumTrainers,
 } = vi.hoisted(() => ({
   mockPlatformRevenueEventCreate: vi.fn(),
   mockPlatformRevenueEventCount: vi.fn(),
   mockPlatformRevenueEventGroupBy: vi.fn(),
-  mockClientCount: vi.fn(),
-  mockTrainerProfileCount: vi.fn(),
+  mockCountLaunchPlatformSubscribers: vi.fn(),
+  mockCountLaunchPremiumTrainers: vi.fn(),
+}));
+
+vi.mock("@/lib/launch-account-counts", () => ({
+  countLaunchPlatformSubscribers: mockCountLaunchPlatformSubscribers,
+  countLaunchPremiumTrainers: mockCountLaunchPremiumTrainers,
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -23,11 +28,9 @@ vi.mock("@/lib/prisma", () => ({
       groupBy: mockPlatformRevenueEventGroupBy,
     },
     client: {
-      count: mockClientCount,
       findMany: vi.fn(),
     },
     trainerProfile: {
-      count: mockTrainerProfileCount,
       findMany: vi.fn(),
     },
     trainerClientServiceTransaction: {
@@ -59,8 +62,19 @@ describe("platform-revenue-events", () => {
     mockPlatformRevenueEventCreate.mockResolvedValue({});
     mockPlatformRevenueEventCount.mockResolvedValue(1);
     mockPlatformRevenueEventGroupBy.mockResolvedValue([]);
-    mockClientCount.mockResolvedValue(0);
-    mockTrainerProfileCount.mockResolvedValue(0);
+    mockCountLaunchPlatformSubscribers.mockResolvedValue(0);
+    mockCountLaunchPremiumTrainers.mockResolvedValue(0);
+  });
+
+  it("skips sandbox revenue events", async () => {
+    await recordPlatformRevenueEvent({
+      category: "ONE_TIME_PURCHASE",
+      idempotencyKey: "evt_sandbox",
+      revenueCents: 100,
+      grossProfitCents: 10,
+      billingLiveMode: false,
+    });
+    expect(mockPlatformRevenueEventCreate).not.toHaveBeenCalled();
   });
 
   it("normalizes negative and fractional cents before persisting", async () => {
@@ -134,6 +148,7 @@ describe("platform-revenue-events", () => {
         grossProfitCents: 1_200,
         clientId: "client_1",
         trainerId: "trainer_1",
+        billingLiveMode: true,
         metaJson: JSON.stringify({
           amountCents: 10_000,
           totalChargedCents: 11_200,
@@ -145,8 +160,8 @@ describe("platform-revenue-events", () => {
   });
 
   it("aggregates totals and category breakdowns", async () => {
-    mockClientCount.mockResolvedValueOnce(6);
-    mockTrainerProfileCount.mockResolvedValueOnce(3);
+    mockCountLaunchPlatformSubscribers.mockResolvedValueOnce(6);
+    mockCountLaunchPremiumTrainers.mockResolvedValueOnce(3);
     mockPlatformRevenueEventGroupBy.mockResolvedValueOnce([
       {
         category: "SERVICE_CHECKOUT",
@@ -181,8 +196,8 @@ describe("platform-revenue-events", () => {
   });
 
   it("returns zeroed event totals when the table is missing", async () => {
-    mockClientCount.mockResolvedValueOnce(4);
-    mockTrainerProfileCount.mockResolvedValueOnce(2);
+    mockCountLaunchPlatformSubscribers.mockResolvedValueOnce(4);
+    mockCountLaunchPremiumTrainers.mockResolvedValueOnce(2);
     mockPlatformRevenueEventGroupBy.mockRejectedValueOnce(prismaKnownError("P2021"));
 
     await expect(getPlatformRevenueTotals()).resolves.toEqual({
