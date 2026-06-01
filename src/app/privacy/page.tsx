@@ -81,9 +81,11 @@ export default async function PrivacyPage() {
           content, messaging, and optional premium features. We collect account and profile data needed to run the
           Service, record when you accept this Privacy Policy alongside our Terms where the product requires it, process
           subscriptions and certain coach payments through Stripe, send security and transactional messages through email
-          infrastructure, deliver optional browser Web Push alerts when you opt in, and store your in-app activity (including chats and social posts) on our systems. You may
-          adjust optional visibility of some profile fields and request in-product account deletion, which de-identifies
-          your record while preserving the minimum data we need for trust, safety, and legal compliance. We use reasonable
+          infrastructure, deliver optional browser Web Push alerts when you opt in, collect limited usage analytics on
+          public marketing and product pages (such as page views and link clicks), and store your in-app activity
+          (including chats and social posts) on our systems. You may adjust optional visibility of some profile fields and
+          request in-product account deletion, which schedules removal after a grace period as described in Section 7, while
+          preserving the minimum data we need for trust, safety, and legal compliance. We use reasonable
           technical and organizational measures to protect personal information. We do not sell your personal information
           as that term is commonly defined in U.S. state privacy laws.
         </P>
@@ -192,7 +194,7 @@ export default async function PrivacyPage() {
           </Li>
           <Li>
             <Strong>Video Meeting OAuth (Optional):</Strong> if you connect Zoom, Google Meet, or Microsoft Teams for
-            virtual sessions, we store OAuth tokens needed to create or manage meetings.             Refresh tokens may be encrypted at rest in production.
+            virtual sessions, we store OAuth tokens needed to create or manage meetings. Refresh tokens may be encrypted at rest in production.
           </Li>
         </Ul>
 
@@ -200,7 +202,8 @@ export default async function PrivacyPage() {
         <Ul>
           <Li>
             <Strong>Waitlist:</Strong> email address, ZIP code, and status if you join a Trainer or Client waitlist when beta
-            capacity is full.
+            capacity is full. Client waitlist sign-up is open to U.S. ZIP codes; trainer waitlist sign-up may require a
+            service ZIP in our Atlanta metro in-person launch area.
           </Li>
           <Li>
             <Strong>Invite tokens:</Strong> time-limited signup links and slot reservation timestamps when we invite you from
@@ -244,6 +247,13 @@ export default async function PrivacyPage() {
             off-platform contact or payment patterns) and, when configured, optional machine-assisted classifiers to flag
             content for internal trust-and-safety review. Flagged or reviewed messages may be retained in admin tooling.
           </Li>
+          <Li>
+            <Strong>Usage Analytics:</Strong> on public and authenticated pages outside admin tooling, we may record page
+            views, in-app link clicks (including destination paths or external URLs and optional link labels), and
+            pseudonymous visitor and session identifiers stored in a browser cookie and session storage. When deployed on
+            Vercel, we may also use <Strong>Vercel Web Analytics</Strong> to collect page views and web performance metrics.
+            Admin routes and API endpoints are excluded from first-party page tracking as implemented.
+          </Li>
         </Ul>
 
         <H2 id="sources">3. How We Collect Information</H2>
@@ -275,7 +285,8 @@ export default async function PrivacyPage() {
           <Li>Honor optional profile visibility settings you choose in account settings;</Li>
           <Li>Verify identity or eligibility where required for coach onboarding, compliance, or risk controls;</Li>
           <Li>
-            Operate beta capacity limits, waitlists, founding promotions, and geographic eligibility during limited launches;
+            Operate beta capacity limits, waitlists, founding promotions, and geographic eligibility for in-person
+            services and trainer onboarding during limited launches;
           </Li>
           <Li>Detect, investigate, and prevent fraud, abuse, and violations of our Terms or policies;</Li>
           <Li>Communicate service, billing, and policy updates;</Li>
@@ -286,8 +297,8 @@ export default async function PrivacyPage() {
             Section 7;
           </Li>
           <Li>
-            Analyze usage in aggregated or de-identified form where permitted, to understand product performance and plan
-            improvements.
+            Analyze usage in aggregated or de-identified form where permitted, to understand product performance, measure
+            traffic, and plan improvements;
           </Li>
         </Ul>
 
@@ -334,6 +345,10 @@ export default async function PrivacyPage() {
                 <Strong>Web Push</Strong> (through your browser and operating system) for optional lock-screen alerts when
                 you enable them in settings—no per-message carrier charges; you can revoke permission in your browser at any
                 time;
+              </Li>
+              <Li>
+                <Strong>Vercel Web Analytics</Strong>, when deployed on Vercel, for page-view and web-vitals measurement on
+                our sites;
               </Li>
               <Li>
                 <Strong>Cloud Hosting, Database, and AI Infrastructure</Strong> vendors (such as Vercel and Supabase) that

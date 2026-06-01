@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { DevAccountShortcuts } from "@/components/dev-account-shortcuts";
 import { GoogleAdsGtag } from "@/components/google-ads-gtag";
-import { SiteAnalyticsTracker } from "@/components/site-analytics-tracker";
+import { MetaPixel } from "@/components/meta-pixel";
+import { SiteAnalyticsTrackerBoundary } from "@/components/site-analytics-tracker-boundary";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -17,7 +19,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Match Fit",
-  description: "Find coaches who fit your goals — Atlanta beta.",
+  description: "Find coaches who fit your goals — U.S. beta signup. In-person sessions launch first in Atlanta.",
+  other: {
+    "zoom-domain-verification": "ZOOM_verify_f46c3e32cc204793875cdb2735cc818c",
+  },
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -55,9 +60,11 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <GoogleAdsGtag />
-        <SiteAnalyticsTracker />
+        <MetaPixel />
+        <SiteAnalyticsTrackerBoundary />
         {children}
         {process.env.NODE_ENV === "development" ? <DevAccountShortcuts /> : null}
+        <Analytics />
       </body>
     </html>
   );

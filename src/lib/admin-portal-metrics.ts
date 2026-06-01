@@ -1,0 +1,988 @@
+import "server-only";
+
+import { Prisma } from "@/generated/prisma/client";
+import type {
+  AdminAlertGroup,
+  AdminAlertItem,
+  AdminAlertSeverity,
+  AdminAlertsPanel,
+  AdminFinanceBestSeller,
+  AdminFinanceRecentTransaction,
+  AdminFinanceWindowKey,
+  AdminFinanceWindowSnapshot,
+  AdminFinancesPanel,
+  AdminLoginRecencyBuckets,
+  AdminPlatformFunctionStat,
+  AdminPlatformSummaryPanel,
+  AdminRevenueByCategory,
+  AdminTrainerPipelinePanel,
+  AdminTrainerPipelineStage,
+  AdminTrafficFunnelPanel,
+} from "@/lib/admin-portal-types";
+import { getHomeUserCounts } from "@/lib/home-user-counts";
+import { isPrismaMissingColumnError, isPrismaMissingTableError } from "@/lib/prisma-missing-column";
+import { prisma } from "@/lib/prisma";
+import {
+  computeMarketCompetitivenessProxy,
+  computePlatformSuccessRating,
+  daysSinceLaunch,
+} from "@/lib/platform-success-rating";
+import type { PlatformRevenueCategory } from "@/lib/platform-revenue-accounting";
+import { parseTopOffering } from "@/lib/admin-portal-parsers";
+import { homepageDisplayDayKey } from "@/lib/featured-eastern-calendar";
+
+const TRAINER_EXCLUDE_SYNTH = Prisma.sql`AND COALESCE(t."internalQaSyntheticPersona", false) = false`;
+
+const CLIENT_SIGNUP_PATHS = ["/client/sign-up", "/client/sign-up/complete"];
+const TRAINER_SIGNUP_PATHS = ["/trainer/signup", "/trainer/sign-up", "/trainer/signup/complete"];
+
+const FINANCE_WINDOW_MS: Record<AdminFinanceWindowKey, number> = {
+  "24h": 24 * 60 * 60 * 1000,
+  "7d": 7 * 24 * 60 * 60 * 1000,
+  "30d": 30 * 24 * 60 * 60 * 1000,
+  "90d": 90 * 24 * 60 * 60 * 1000,
+  "1y": 365 * 24 * 60 * 60 * 1000,
+  "5y": 5 * 365 * 24 * 60 * 60 * 1000,
+};
+
+const EMPTY_LOGIN_BUCKETS: AdminLoginRecencyBuckets = {
+  h12: 0,
+  h24: 0,
+  d7: 0,
+  d30: 0,
+  d90: 0,
+  d180: 0,
+  d365: 0,
+};
+
+const EMPTY_BY_CATEGORY = (): AdminRevenueByCategory => ({
+  SERVICE_CHECKOUT: { revenueCents: 0, grossProfitCents: 0, eventCount: 0 },
+  CLIENT_PLATFORM_SUBSCRIPTION: { revenueCents: 0, grossProfitCents: 0, eventCount: 0 },
+  TRAINER_PREMIUM_SUBSCRIPTION: { revenueCents: 0, grossProfitCents: 0, eventCount: 0 },
+  ONE_TIME_PURCHASE: { revenueCents: 0, grossProfitCents: 0, eventCount: 0 },
+});
+
+const BG_FAILED_STATUSES = ["DENIED", "NEEDS_FURTHER_REVIEW", "REJECTED", "CONSIDER", "PENDING_REVIEW"];
+
+const RLS_ADVISORY_TABLE_COUNT = 0;
+
+type CountRow = { n: bigint };
+
+function n(row: CountRow | undefined): number {
+  return Number(row?.n ?? BigInt(0));
+}
+
+function sinceFromWindow(key: AdminFinanceWindowKey, now = new Date()): Date {
+  return new Date(now.getTime() - FINANCE_WINDOW_MS[key]);
+}
+
+function emptyFinanceWindow(): AdminFinanceWindowSnapshot {
+  return {
+    revenueCents: 0,
+    grossProfitCents: 0,
+    byCategory: EMPTY_BY_CATEGORY(),
+    platformFeesCents: 0,
+    leadingRevenueFactor: null,
+  };
+}
+
+function severityFromCount(count: number, criticalAt: number, warningAt: number): AdminAlertSeverity {
+  if (count >= criticalAt) return "critical";
+  if (count >= warningAt) return "warning";
+  return "info";
+}
+
+async function countAnalyticsPageViews(paths: string[] | null, since?: Date): Promise<number> {
+  try {
+    if (paths && paths.length > 0) {
+      const rows = await prisma.$queryRaw<CountRow[]>`
+        SELECT COUNT(*)::bigint AS n FROM site_analytics_events
+        WHERE kind = 'PAGE_VIEW'
+          AND path = ANY(${paths})
+          ${since ? Prisma.sql`AND "createdAt" >= ${since}` : Prisma.empty}
+      `;
+      return n(rows[0]);
+    }
+    const rows = await prisma.$queryRaw<CountRow[]>`
+      SELECT COUNT(*)::bigint AS n FROM site_analytics_events
+      WHERE kind = 'PAGE_VIEW'
+        ${since ? Prisma.sql`AND "createdAt" >= ${since}` : Prisma.empty}
+    `;
+    return n(rows[0]);
+  } catch (e) {
+    if (isPrismaMissingTableError(e, "site_analytics_events")) return 0;
+    throw e;
+  }
+}
+
+async function countAnalyticsDistinct(paths: string[] | null, since?: Date): Promise<number> {
+  try {
+    const rows = await prisma.$queryRaw<CountRow[]>`
+      SELECT COUNT(DISTINCT "visitorId")::bigint AS n FROM site_analytics_events
+      WHERE kind = 'PAGE_VIEW'
+        ${paths && paths.length > 0 ? Prisma.sql`AND path = ANY(${paths})` : Prisma.empty}
+        ${since ? Prisma.sql`AND "createdAt" >= ${since}` : Prisma.empty}
+    `;
+    return n(rows[0]);
+  } catch (e) {
+    if (isPrismaMissingTableError(e, "site_analytics_events")) return 0;
+    throw e;
+  }
+}
+
+async function countActiveOnSiteNow(): Promise<number> {
+  const since = new Date(Date.now() - 15 * 60 * 1000);
+  try {
+    const rows = await prisma.$queryRaw<CountRow[]>`
+      SELECT COUNT(DISTINCT "sessionId")::bigint AS n
+      FROM site_analytics_events
+      WHERE "createdAt" >= ${since}
+    `;
+    return n(rows[0]);
+  } catch (e) {
+    if (isPrismaMissingTableError(e, "site_analytics_events")) return 0;
+    throw e;
+  }
+}
+
+async function analyticsAvailable(): Promise<boolean> {
+  try {
+    await prisma.$queryRaw`SELECT 1 FROM site_analytics_events LIMIT 1`;
+    return true;
+  } catch (e) {
+    if (isPrismaMissingTableError(e, "site_analytics_events")) return false;
+    throw e;
+  }
+}
+
+async function countLoginBuckets(table: "clients" | "trainers"): Promise<AdminLoginRecencyBuckets> {
+  const synth =
+    table === "clients"
+      ? Prisma.sql`COALESCE("internalQaSyntheticPersona", false) = false`
+      : Prisma.sql`COALESCE("internalQaSyntheticPersona", false) = false`;
+  try {
+    const rows = await prisma.$queryRaw<
+      {
+        h12: bigint;
+        h24: bigint;
+        d7: bigint;
+        d30: bigint;
+        d90: bigint;
+        d180: bigint;
+        d365: bigint;
+      }[]
+    >`
+      SELECT
+        COUNT(*) FILTER (WHERE "lastLoginAt" >= NOW() - INTERVAL '12 hours')::bigint AS h12,
+        COUNT(*) FILTER (WHERE "lastLoginAt" >= NOW() - INTERVAL '24 hours')::bigint AS h24,
+        COUNT(*) FILTER (WHERE "lastLoginAt" >= NOW() - INTERVAL '7 days')::bigint AS d7,
+        COUNT(*) FILTER (WHERE "lastLoginAt" >= NOW() - INTERVAL '30 days')::bigint AS d30,
+        COUNT(*) FILTER (WHERE "lastLoginAt" >= NOW() - INTERVAL '90 days')::bigint AS d90,
+        COUNT(*) FILTER (WHERE "lastLoginAt" >= NOW() - INTERVAL '180 days')::bigint AS d180,
+        COUNT(*) FILTER (WHERE "lastLoginAt" >= NOW() - INTERVAL '365 days')::bigint AS d365
+      FROM ${Prisma.raw(`"${table}"`)}
+      WHERE "deidentifiedAt" IS NULL
+        AND "lastLoginAt" IS NOT NULL
+        AND ${synth}
+    `;
+    const r = rows[0];
+    return {
+      h12: Number(r?.h12 ?? 0),
+      h24: Number(r?.h24 ?? 0),
+      d7: Number(r?.d7 ?? 0),
+      d30: Number(r?.d30 ?? 0),
+      d90: Number(r?.d90 ?? 0),
+      d180: Number(r?.d180 ?? 0),
+      d365: Number(r?.d365 ?? 0),
+    };
+  } catch (e) {
+    if (isPrismaMissingColumnError(e, "lastLoginAt")) return EMPTY_LOGIN_BUCKETS;
+    throw e;
+  }
+}
+
+async function countTopPlatformFunctions(role: "client" | "trainer"): Promise<AdminPlatformFunctionStat[]> {
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const stats: { key: string; label: string; count: number }[] = [];
+
+  if (role === "client") {
+    const [browse, bookings, chat, questionnaires] = await Promise.all([
+      prisma.clientTrainerBrowsePass.count({ where: { createdAt: { gte: since }, client: { internalQaSyntheticPersona: false } } }),
+      prisma.bookedTrainingSession.count({ where: { createdAt: { gte: since }, client: { internalQaSyntheticPersona: false } } }),
+      prisma.trainerClientChatMessage.count({
+        where: { createdAt: { gte: since }, authorRole: "CLIENT", conversation: { client: { internalQaSyntheticPersona: false } } },
+      }),
+      prisma.clientDailyQuestionnaire.count({ where: { createdAt: { gte: since }, client: { internalQaSyntheticPersona: false } } }),
+    ]);
+    stats.push(
+      { key: "browse_trainers", label: "Find Trainers (swipes)", count: browse },
+      { key: "book_sessions", label: "Book training sessions", count: bookings },
+      { key: "chat", label: "Chat messages", count: chat },
+      { key: "daily_questionnaire", label: "Daily questionnaires", count: questionnaires },
+    );
+  } else {
+    const [posts, bookings, chat, browse] = await Promise.all([
+      prisma.trainerFitHubPost.count({ where: { createdAt: { gte: since }, trainer: { internalQaSyntheticPersona: false } } }),
+      prisma.bookedTrainingSession.count({ where: { createdAt: { gte: since }, trainer: { internalQaSyntheticPersona: false } } }),
+      prisma.trainerClientChatMessage.count({
+        where: { createdAt: { gte: since }, authorRole: "TRAINER", conversation: { trainer: { internalQaSyntheticPersona: false } } },
+      }),
+      prisma.trainerClientBrowsePass.count({ where: { createdAt: { gte: since }, trainer: { internalQaSyntheticPersona: false } } }),
+    ]);
+    stats.push(
+      { key: "fithub_posts", label: "FitHub posts", count: posts },
+      { key: "book_sessions", label: "Booked sessions", count: bookings },
+      { key: "chat", label: "Chat messages", count: chat },
+      { key: "discover_clients", label: "Client discovery passes", count: browse },
+    );
+  }
+
+  return stats
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 2)
+    .map(({ key, label, count }) => ({ key, label, count }));
+}
+
+export async function getAdminTrafficFunnelPanel(): Promise<AdminTrafficFunnelPanel> {
+  const analyticsOk = await analyticsAvailable();
+  const [
+    homepageVisits,
+    totalSiteVisits,
+    clientSignupPageViews,
+    trainerSignupPageViews,
+    clientSignupVisitors,
+    trainerSignupVisitors,
+    activeOnSiteNow,
+    clientLoginsByRecency,
+    trainerLoginsByRecency,
+    pendingByStatus,
+    clientsTotal,
+    trainersTotal,
+    incompleteTrainerSignups,
+    trainersSignupBeforeBackgroundCheck,
+    clientsInFreeTrial,
+    activeClientSubscriptions,
+    topClientFunctions,
+    topTrainerFunctions,
+  ] = await Promise.all([
+    countAnalyticsPageViews(["/"]),
+    countAnalyticsPageViews(null),
+    countAnalyticsPageViews(CLIENT_SIGNUP_PATHS),
+    countAnalyticsPageViews(TRAINER_SIGNUP_PATHS),
+    countAnalyticsDistinct(CLIENT_SIGNUP_PATHS),
+    countAnalyticsDistinct(TRAINER_SIGNUP_PATHS),
+    countActiveOnSiteNow(),
+    countLoginBuckets("clients"),
+    countLoginBuckets("trainers"),
+    prisma.pendingClientRegistration.groupBy({ by: ["status"], _count: { _all: true } }),
+    prisma.client.count({ where: { deidentifiedAt: null, internalQaSyntheticPersona: false } }),
+    prisma.trainer.count({ where: { deidentifiedAt: null, internalQaSyntheticPersona: false } }),
+    prisma.trainer.count({
+      where: {
+        deidentifiedAt: null,
+        internalQaSyntheticPersona: false,
+        OR: [{ profile: { is: { dashboardActivatedAt: null } } }, { profile: { is: { backgroundCheckStatus: { not: "APPROVED" } } } }],
+      },
+    }),
+    prisma.trainer.count({
+      where: {
+        deidentifiedAt: null,
+        internalQaSyntheticPersona: false,
+        profile: { is: { hasPaidBackgroundFee: false, backgroundCheckStatus: "NOT_STARTED" } },
+      },
+    }),
+    prisma.client.count({
+      where: {
+        deidentifiedAt: null,
+        internalQaSyntheticPersona: false,
+        stripeSubscriptionActive: true,
+        stripeLastSubscriptionInvoicePaidAt: null,
+      },
+    }),
+    prisma.client.count({
+      where: { deidentifiedAt: null, internalQaSyntheticPersona: false, stripeSubscriptionActive: true },
+    }),
+    countTopPlatformFunctions("client"),
+    countTopPlatformFunctions("trainer"),
+  ]);
+
+  const pendingTotal = pendingByStatus.reduce((s, r) => s + r._count._all, 0);
+  const pendingStatusMap = Object.fromEntries(pendingByStatus.map((r) => [r.status, r._count._all]));
+
+  return {
+    homepageVisits,
+    totalSiteVisits,
+    clientSignupPageViews,
+    clientsReachedSignupWithoutAccount: Math.max(0, clientSignupVisitors - clientsTotal + pendingTotal),
+    trainerSignupPageViews,
+    trainersReachedSignupWithoutAccount: Math.max(0, trainerSignupVisitors - trainersTotal),
+    activeOnSiteNow,
+    clientLoginsByRecency,
+    trainerLoginsByRecency,
+    pendingClientRegistrations: { total: pendingTotal, byStatus: pendingStatusMap },
+    incompleteTrainerSignups,
+    trainersSignupBeforeBackgroundCheck,
+    clientsInFreeTrial,
+    activeClientSubscriptions,
+    topClientFunctions,
+    topTrainerFunctions,
+    analyticsAvailable: analyticsOk,
+  };
+}
+
+export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipelinePanel> {
+  const baseWhere = Prisma.sql`t."deidentifiedAt" IS NULL ${TRAINER_EXCLUDE_SYNTH}`;
+
+  const [signupCompleted, bgSubmitted, bgFailed, bgPassed, docsPending, live] = await Promise.all([
+    prisma.$queryRaw<CountRow[]>`
+      SELECT COUNT(*)::bigint AS n FROM trainers t
+      INNER JOIN trainer_profiles p ON p."trainerId" = t.id
+      WHERE ${baseWhere} AND (p."hasSignedTOS" = true OR t."createdAt" IS NOT NULL)
+    `,
+    prisma.$queryRaw<CountRow[]>`
+      SELECT COUNT(*)::bigint AS n FROM trainers t
+      INNER JOIN trainer_profiles p ON p."trainerId" = t.id
+      WHERE ${baseWhere}
+        AND (
+          p."checkrReportId" IS NOT NULL
+          OR (p."backgroundCheckStatus" <> 'NOT_STARTED' AND p."backgroundCheckStatus" <> 'APPROVED')
+        )
+    `,
+    prisma.$queryRaw<CountRow[]>`
+      SELECT COUNT(*)::bigint AS n FROM trainers t
+      INNER JOIN trainer_profiles p ON p."trainerId" = t.id
+      WHERE ${baseWhere}
+        AND (
+          p."backgroundCheckStatus" IN (${Prisma.join(BG_FAILED_STATUSES.map((s) => Prisma.sql`${s}`))})
+          OR p."backgroundCheckReviewStatus" IN (${Prisma.join(BG_FAILED_STATUSES.map((s) => Prisma.sql`${s}`))})
+        )
+    `,
+    prisma.$queryRaw<CountRow[]>`
+      SELECT COUNT(*)::bigint AS n FROM trainers t
+      INNER JOIN trainer_profiles p ON p."trainerId" = t.id
+      WHERE ${baseWhere} AND p."backgroundCheckStatus" = 'APPROVED'
+    `,
+    prisma.$queryRaw<CountRow[]>`
+      SELECT COUNT(*)::bigint AS n FROM trainers t
+      INNER JOIN trainer_profiles p ON p."trainerId" = t.id
+      WHERE ${baseWhere}
+        AND (
+          (p."certificationUrl" IS NOT NULL AND p."certificationReviewStatus" <> 'APPROVED')
+          OR (p."nutritionistCertificationUrl" IS NOT NULL AND p."nutritionistCertificationReviewStatus" <> 'APPROVED')
+          OR (p."specialistCertificationUrl" IS NOT NULL AND p."specialistCertificationReviewStatus" <> 'APPROVED')
+          OR (p."otherCertificationUrl" IS NOT NULL AND p."otherCertificationReviewStatus" <> 'APPROVED')
+        )
+    `,
+    prisma.$queryRaw<CountRow[]>`
+      SELECT COUNT(*)::bigint AS n FROM trainers t
+      INNER JOIN trainer_profiles p ON p."trainerId" = t.id
+      WHERE ${baseWhere} AND p."dashboardActivatedAt" IS NOT NULL
+    `,
+  ]);
+
+  const totalInPipeline = n(signupCompleted[0]);
+  const pct = (count: number) => (totalInPipeline > 0 ? Math.round((count / totalInPipeline) * 1000) / 10 : 0);
+
+  const stages: AdminTrainerPipelineStage[] = [
+    { id: "signup", label: "Completed first signup", count: n(signupCompleted[0]), percentOfSignup: pct(n(signupCompleted[0])) },
+    { id: "bg_submitted", label: "Background check submitted / pending", count: n(bgSubmitted[0]), percentOfSignup: pct(n(bgSubmitted[0])) },
+    { id: "bg_review", label: "Background check failed / in review", count: n(bgFailed[0]), percentOfSignup: pct(n(bgFailed[0])) },
+    { id: "bg_passed", label: "Background check passed", count: n(bgPassed[0]), percentOfSignup: pct(n(bgPassed[0])) },
+    { id: "docs_pending", label: "Documents uploaded, not approved", count: n(docsPending[0]), percentOfSignup: pct(n(docsPending[0])) },
+    { id: "live", label: "Documents approved / live", count: n(live[0]), percentOfSignup: pct(n(live[0])) },
+  ];
+
+  return { totalInPipeline, stages };
+}
+
+async function loadFinanceWindow(since: Date | null): Promise<AdminFinanceWindowSnapshot> {
+  const where = since ? { createdAt: { gte: since } } : undefined;
+  try {
+    const [grouped, feeRows] = await Promise.all([
+      prisma.platformRevenueEvent.groupBy({
+        by: ["category"],
+        where,
+        _sum: { revenueCents: true, grossProfitCents: true },
+        _count: { _all: true },
+      }),
+      since
+        ? prisma.trainerClientServiceTransaction.aggregate({
+            where: { completedAt: { gte: since } },
+            _sum: { adminFeeCents: true },
+          })
+        : prisma.trainerClientServiceTransaction.aggregate({ _sum: { adminFeeCents: true } }),
+    ]);
+
+    const byCategory = EMPTY_BY_CATEGORY();
+    let revenueCents = 0;
+    let grossProfitCents = 0;
+    for (const row of grouped) {
+      const cat = row.category as PlatformRevenueCategory;
+      if (!(cat in byCategory)) continue;
+      const rev = row._sum.revenueCents ?? 0;
+      const profit = row._sum.grossProfitCents ?? 0;
+      byCategory[cat] = { revenueCents: rev, grossProfitCents: profit, eventCount: row._count._all };
+      revenueCents += rev;
+      grossProfitCents += profit;
+    }
+
+    let leading: AdminFinanceWindowSnapshot["leadingRevenueFactor"] = null;
+    for (const [category, v] of Object.entries(byCategory)) {
+      if (!leading || v.grossProfitCents > leading.grossProfitCents) {
+        leading = { category, grossProfitCents: v.grossProfitCents };
+      }
+    }
+
+    return {
+      revenueCents,
+      grossProfitCents,
+      byCategory,
+      platformFeesCents: feeRows._sum.adminFeeCents ?? 0,
+      leadingRevenueFactor: leading,
+    };
+  } catch (e) {
+    if (isPrismaMissingTableError(e, "platform_revenue_events")) return emptyFinanceWindow();
+    throw e;
+  }
+}
+
+async function loadRecentTransactions(limit = 20): Promise<AdminFinanceRecentTransaction[]> {
+  const [platformRows, serviceRows] = await Promise.all([
+    prisma.platformRevenueEvent.findMany({
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: {
+        id: true,
+        createdAt: true,
+        category: true,
+        revenueCents: true,
+        grossProfitCents: true,
+        clientId: true,
+        trainerId: true,
+      },
+    }),
+    prisma.trainerClientServiceTransaction.findMany({
+      orderBy: { completedAt: "desc" },
+      take: limit,
+      select: {
+        id: true,
+        completedAt: true,
+        totalChargedCents: true,
+        amountCents: true,
+        adminFeeCents: true,
+        purchaseLabelSnapshot: true,
+        clientId: true,
+        trainerId: true,
+      },
+    }),
+  ]);
+
+  const merged: AdminFinanceRecentTransaction[] = [
+    ...platformRows.map((r) => ({
+      id: `pre:${r.id}`,
+      source: "platform_revenue" as const,
+      occurredAt: r.createdAt.toISOString(),
+      label: r.category.replace(/_/g, " "),
+      amountCents: r.revenueCents,
+      grossProfitCents: r.grossProfitCents,
+      clientId: r.clientId,
+      trainerId: r.trainerId,
+    })),
+    ...serviceRows.map((r) => ({
+      id: `svc:${r.id}`,
+      source: "service_checkout" as const,
+      occurredAt: r.completedAt.toISOString(),
+      label: r.purchaseLabelSnapshot ?? "Service checkout",
+      amountCents: r.totalChargedCents ?? r.amountCents,
+      grossProfitCents: r.adminFeeCents ?? 0,
+      clientId: r.clientId,
+      trainerId: r.trainerId,
+    })),
+  ];
+
+  return merged.sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)).slice(0, limit);
+}
+
+function parseTopOfferingFromProfile(serviceOfferingsJson: string | null): string | null {
+  return parseTopOffering(serviceOfferingsJson);
+}
+
+async function loadBestSellers(since: Date): Promise<AdminFinanceBestSeller[]> {
+  const grouped = await prisma.trainerClientServiceTransaction.groupBy({
+    by: ["trainerId"],
+    where: { completedAt: { gte: since } },
+    _sum: { amountCents: true, totalChargedCents: true },
+    _count: { _all: true },
+    orderBy: { _sum: { amountCents: "desc" } },
+    take: 5,
+  });
+  if (grouped.length === 0) return [];
+
+  const trainerIds = grouped.map((g) => g.trainerId);
+  const trainers = await prisma.trainer.findMany({
+    where: { id: { in: trainerIds }, internalQaSyntheticPersona: false },
+    select: {
+      id: true,
+      username: true,
+      preferredName: true,
+      firstName: true,
+      lastName: true,
+      profile: { select: { serviceOfferingsJson: true } },
+    },
+  });
+  const byId = new Map(trainers.map((t) => [t.id, t]));
+
+  return grouped.map((g) => {
+    const t = byId.get(g.trainerId);
+    const displayName =
+      t?.preferredName?.trim() ||
+      [t?.firstName, t?.lastName].filter(Boolean).join(" ").trim() ||
+      t?.username ||
+      g.trainerId;
+    return {
+      trainerId: g.trainerId,
+      username: t?.username ?? "unknown",
+      displayName,
+      volumeCents: Number(g._sum.totalChargedCents ?? g._sum.amountCents ?? 0),
+      transactionCount: g._count._all,
+      topOfferingName: parseTopOfferingFromProfile(t?.profile?.serviceOfferingsJson ?? null),
+    };
+  });
+}
+
+function todayFeaturedDayKey(now = new Date()): string {
+  return homepageDisplayDayKey(now);
+}
+
+export async function getAdminFinancesPanel(now = new Date()): Promise<AdminFinancesPanel> {
+  const windowKeys = Object.keys(FINANCE_WINDOW_MS) as AdminFinanceWindowKey[];
+  const windowEntries = await Promise.all(
+    windowKeys.map(async (key) => [key, await loadFinanceWindow(sinceFromWindow(key, now))] as const),
+  );
+  const windows = Object.fromEntries(windowEntries) as Record<AdminFinanceWindowKey, AdminFinanceWindowSnapshot>;
+
+  const lifetimeGrouped = await loadFinanceWindow(null);
+  const lifetimeEvents = await prisma.platformRevenueEvent.count().catch(() => 0);
+
+  const dayKey = todayFeaturedDayKey();
+  const [
+    clientsInFreeTrial,
+    paymentFailedInGrace,
+    clientsWithCard,
+    activeSubscriptions,
+    recentTransactions,
+    premiumTrainers,
+    featuredTrainersToday,
+    bestSellers,
+  ] = await Promise.all([
+    prisma.client.count({
+      where: {
+        deidentifiedAt: null,
+        internalQaSyntheticPersona: false,
+        stripeSubscriptionActive: true,
+        stripeLastSubscriptionInvoicePaidAt: null,
+      },
+    }),
+    prisma.client.count({
+      where: {
+        deidentifiedAt: null,
+        internalQaSyntheticPersona: false,
+        subscriptionGraceUntil: { gte: now },
+        stripeSubscriptionActive: false,
+      },
+    }),
+    prisma.client.count({
+      where: { deidentifiedAt: null, internalQaSyntheticPersona: false, stripeCustomerId: { not: null } },
+    }),
+    prisma.client.count({
+      where: { deidentifiedAt: null, internalQaSyntheticPersona: false, stripeSubscriptionActive: true },
+    }),
+    loadRecentTransactions(20),
+    prisma.trainerProfile.count({
+      where: { premiumStudioEnabledAt: { not: null }, trainer: { deidentifiedAt: null, internalQaSyntheticPersona: false } },
+    }),
+    prisma.featuredDailyAllocation.count({ where: { displayDayKey: dayKey } }),
+    loadBestSellers(sinceFromWindow("30d", now)),
+  ]);
+
+  return {
+    windows,
+    lifetime: { ...lifetimeGrouped, eventCount: lifetimeEvents },
+    clientsInFreeTrial,
+    pendingSubscriptionStop: null,
+    paymentFailedInGrace,
+    clientsWithCard,
+    activeSubscriptions,
+    recentTransactions,
+    premiumTrainers,
+    trainersWithCard: null,
+    featuredTrainersToday,
+    bestSellers,
+  };
+}
+
+async function loadAlertGroup(
+  id: string,
+  label: string,
+  severity: AdminAlertSeverity,
+  items: AdminAlertItem[],
+  total: number,
+): Promise<AdminAlertGroup> {
+  return { id, label, severity, items, total };
+}
+
+export async function getAdminAlertsPanel(): Promise<AdminAlertsPanel> {
+  const limit = 8;
+
+  const [
+    failedBgTrainers,
+    bugReports,
+    productIdeas,
+    failedPayments,
+    suspendedClients,
+    suspendedTrainers,
+    openSafetyReports,
+    pendingChatReviews,
+    chatContactWarnings,
+    openDisputes,
+  ] = await Promise.all([
+    prisma.trainer.findMany({
+      where: {
+        internalQaSyntheticPersona: false,
+        profile: {
+          is: {
+            OR: [
+              { backgroundCheckStatus: { in: ["DENIED", "NEEDS_FURTHER_REVIEW"] } },
+              { backgroundCheckReviewStatus: { in: ["DENIED", "NEEDS_FURTHER_REVIEW", "REJECTED"] } },
+            ],
+          },
+        },
+      },
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      select: { id: true, username: true, preferredName: true, firstName: true, lastName: true, profile: { select: { backgroundCheckStatus: true } } },
+    }),
+    prisma.clientBugReport.findMany({ orderBy: { createdAt: "desc" }, take: limit, select: { id: true, createdAt: true, category: true, description: true } }),
+    prisma.productIdeaSubmission.findMany({ orderBy: { createdAt: "desc" }, take: limit, select: { id: true, createdAt: true, category: true, description: true } }),
+    prisma.client.findMany({
+      where: { internalQaSyntheticPersona: false, subscriptionGraceUntil: { gte: new Date() }, stripeSubscriptionActive: false },
+      take: limit,
+      orderBy: { subscriptionGraceUntil: "asc" },
+      select: { id: true, username: true, subscriptionGraceUntil: true },
+    }),
+    prisma.client.count({ where: { safetySuspended: true, internalQaSyntheticPersona: false } }),
+    prisma.trainer.count({ where: { safetySuspended: true, internalQaSyntheticPersona: false } }),
+    prisma.safetyReport.count({ where: { status: "PENDING" } }),
+    prisma.chatAdminReviewItem.findMany({
+      where: { status: "PENDING" },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: { id: true, createdAt: true, matchedSignalsJson: true, bodyExcerpt: true },
+    }),
+    prisma.chatAdminReviewItem.findMany({
+      where: {
+        status: "PENDING",
+        OR: [
+          { matchedSignalsJson: { contains: "phone" } },
+          { matchedSignalsJson: { contains: "email" } },
+          { matchedSignalsJson: { contains: "PHONE" } },
+          { matchedSignalsJson: { contains: "EMAIL" } },
+        ],
+      },
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      select: { id: true, createdAt: true, bodyExcerpt: true },
+    }),
+    prisma.sessionPayoutDispute.count({ where: { status: "PENDING_ADMIN" } }),
+  ]);
+
+  const failedBgItems: AdminAlertItem[] = failedBgTrainers.map((t) => ({
+    id: t.id,
+    severity: "critical" as const,
+    title: `@${t.username}`,
+    detail: `Background check: ${t.profile?.backgroundCheckStatus ?? "unknown"}`,
+    href: `/admin`,
+    createdAt: null,
+  }));
+
+  const groups: AdminAlertGroup[] = [
+    await loadAlertGroup(
+      "failed_bg",
+      "Failed background checks",
+      severityFromCount(failedBgTrainers.length, 3, 1),
+      failedBgItems,
+      failedBgTrainers.length,
+    ),
+    await loadAlertGroup(
+      "bug_reports",
+      "Bug reports",
+      severityFromCount(bugReports.length, 10, 3),
+      bugReports.map((b) => ({
+        id: b.id,
+        severity: "warning" as const,
+        title: b.category,
+        detail: b.description.slice(0, 120),
+        href: null,
+        createdAt: b.createdAt.toISOString(),
+      })),
+      bugReports.length,
+    ),
+    await loadAlertGroup(
+      "product_ideas",
+      "Product ideas",
+      "info",
+      productIdeas.map((p) => ({
+        id: p.id,
+        severity: "info" as const,
+        title: p.category,
+        detail: p.description.slice(0, 120),
+        href: null,
+        createdAt: p.createdAt.toISOString(),
+      })),
+      productIdeas.length,
+    ),
+    await loadAlertGroup(
+      "failed_payments",
+      "Failed payments (grace)",
+      severityFromCount(failedPayments.length, 5, 1),
+      failedPayments.map((c) => ({
+        id: c.id,
+        severity: "critical" as const,
+        title: `@${c.username}`,
+        detail: `Grace until ${c.subscriptionGraceUntil?.toISOString() ?? "unknown"}`,
+        href: `/admin`,
+        createdAt: c.subscriptionGraceUntil?.toISOString() ?? null,
+      })),
+      failedPayments.length,
+    ),
+    await loadAlertGroup(
+      "flagged_users",
+      "Flagged users & safety",
+      severityFromCount(suspendedClients + suspendedTrainers + openSafetyReports, 5, 1),
+      [
+        ...(suspendedClients > 0
+          ? [{ id: "clients-suspended", severity: "warning" as const, title: "Suspended clients", detail: `${suspendedClients} client(s) on safety hold`, href: "/admin", createdAt: null }]
+          : []),
+        ...(suspendedTrainers > 0
+          ? [{ id: "trainers-suspended", severity: "warning" as const, title: "Suspended trainers", detail: `${suspendedTrainers} trainer(s) on safety hold`, href: "/admin", createdAt: null }]
+          : []),
+        ...(openSafetyReports > 0
+          ? [{ id: "safety-open", severity: "warning" as const, title: "Open safety reports", detail: `${openSafetyReports} pending review`, href: "/admin", createdAt: null }]
+          : []),
+      ],
+      suspendedClients + suspendedTrainers + openSafetyReports,
+    ),
+    await loadAlertGroup(
+      "chat_warnings",
+      "Chat warnings (PII / contact leakage)",
+      severityFromCount(chatContactWarnings.length, 3, 1),
+      chatContactWarnings.map((c) => ({
+        id: c.id,
+        severity: "warning" as const,
+        title: "Contact signal detected",
+        detail: c.bodyExcerpt.slice(0, 100),
+        href: null,
+        createdAt: c.createdAt.toISOString(),
+      })),
+      pendingChatReviews.length,
+    ),
+    await loadAlertGroup(
+      "security",
+      "Security & compliance",
+      RLS_ADVISORY_TABLE_COUNT > 0 || openDisputes > 3 ? "warning" : "info",
+      [
+        ...(RLS_ADVISORY_TABLE_COUNT > 0
+          ? [{ id: "rls-advisory", severity: "warning" as const, title: "RLS advisory", detail: `${RLS_ADVISORY_TABLE_COUNT} Supabase tables flagged (internal)`, href: null, createdAt: null }]
+          : []),
+        ...(openDisputes > 0
+          ? [{ id: "disputes", severity: "info" as const, title: "Open payout disputes", detail: `${openDisputes} awaiting admin`, href: null, createdAt: null }]
+          : []),
+      ],
+      RLS_ADVISORY_TABLE_COUNT + openDisputes,
+    ),
+  ];
+
+  return { groups };
+}
+
+/**
+ * Site stability score (0–100):
+ * Starts at 100 and subtracts weighted penalties for open payout disputes, recent bug reports,
+ * clients in billing grace, and missing analytics ingest (no events in 24h when table exists).
+ */
+export async function computePlatformStabilityScore(): Promise<{ score: number; notes: string[] }> {
+  const notes: string[] = [];
+  let score = 100;
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const [openDisputes, bugs7d, graceClients, analyticsEvents24h, analyticsOk] = await Promise.all([
+    prisma.sessionPayoutDispute.count({ where: { status: "PENDING_ADMIN" } }),
+    prisma.clientBugReport.count({ where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } }),
+    prisma.client.count({ where: { subscriptionGraceUntil: { gte: new Date() }, stripeSubscriptionActive: false, internalQaSyntheticPersona: false } }),
+    prisma.siteAnalyticsEvent.count({ where: { createdAt: { gte: since24h } } }).catch(() => -1),
+    analyticsAvailable(),
+  ]);
+
+  if (openDisputes > 0) {
+    const penalty = Math.min(25, openDisputes * 5);
+    score -= penalty;
+    notes.push(`${openDisputes} open payout dispute(s)`);
+  }
+  if (bugs7d > 0) {
+    const penalty = Math.min(20, bugs7d * 2);
+    score -= penalty;
+    notes.push(`${bugs7d} bug report(s) in 7d`);
+  }
+  if (graceClients > 0) {
+    const penalty = Math.min(15, graceClients * 3);
+    score -= penalty;
+    notes.push(`${graceClients} client(s) in billing grace`);
+  }
+  if (analyticsOk && analyticsEvents24h === 0) {
+    score -= 10;
+    notes.push("No analytics events in 24h");
+  }
+
+  return { score: Math.max(0, Math.min(100, score)), notes };
+}
+
+/**
+ * Security score (0–100):
+ * Weighted blend of 2FA adoption, open safety reports, active suspensions, RLS advisory penalty,
+ * and recent administrator audit coverage (impersonation logged in last 30d).
+ */
+export async function computePlatformSecurityScore(): Promise<{ score: number; notes: string[] }> {
+  const notes: string[] = [];
+  const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  const [clientsTotal, clients2fa, trainersTotal, trainers2fa, openSafety, suspendedClients, suspendedTrainers, audit30d] =
+    await Promise.all([
+    prisma.client.count({ where: { deidentifiedAt: null, internalQaSyntheticPersona: false } }),
+    prisma.client.count({ where: { deidentifiedAt: null, internalQaSyntheticPersona: false, twoFactorEnabled: true } }),
+    prisma.trainer.count({ where: { deidentifiedAt: null, internalQaSyntheticPersona: false } }),
+    prisma.trainer.count({ where: { deidentifiedAt: null, internalQaSyntheticPersona: false, twoFactorEnabled: true } }),
+    prisma.safetyReport.count({ where: { status: "PENDING" } }),
+    prisma.client.count({ where: { safetySuspended: true, internalQaSyntheticPersona: false } }),
+    prisma.trainer.count({ where: { safetySuspended: true, internalQaSyntheticPersona: false } }),
+    prisma.administratorAuditLog.count({ where: { createdAt: { gte: since30d } } }),
+  ]);
+  const suspensions = suspendedClients + suspendedTrainers;
+
+  const totalUsers = clientsTotal + trainersTotal;
+  const twoFaRate = totalUsers > 0 ? (clients2fa + trainers2fa) / totalUsers : 0;
+  const auditCoverage = Math.min(1, audit30d / 10);
+
+  let score = Math.round(twoFaRate * 35 + auditCoverage * 25 + 40);
+  if (openSafety > 0) {
+    score -= Math.min(20, openSafety * 4);
+    notes.push(`${openSafety} open safety report(s)`);
+  }
+  if (suspensions > 0) {
+    score -= Math.min(15, suspensions * 2);
+    notes.push(`${suspensions} active suspension(s)`);
+  }
+  if (RLS_ADVISORY_TABLE_COUNT > 0) {
+    score -= Math.min(10, RLS_ADVISORY_TABLE_COUNT * 2);
+    notes.push(`${RLS_ADVISORY_TABLE_COUNT} RLS advisory table(s)`);
+  }
+  notes.push(`2FA adoption ${Math.round(twoFaRate * 100)}%`);
+  notes.push(`${audit30d} admin audit event(s) in 30d`);
+
+  return { score: Math.max(0, Math.min(100, score)), notes };
+}
+
+export async function getAdminPlatformSummaryPanel(): Promise<AdminPlatformSummaryPanel> {
+  const now = new Date();
+  const userCounts = await getHomeUserCounts();
+  const [stability, security, lifetime, pipeline, finances, returningRatio] = await Promise.all([
+    computePlatformStabilityScore(),
+    computePlatformSecurityScore(),
+    loadFinanceWindow(null),
+    getAdminTrainerPipelinePanel(),
+    getAdminFinancesPanel(now),
+    (async () => {
+      try {
+        const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const rows = await prisma.$queryRaw<{ visitors: bigint; returning: bigint }[]>`
+          WITH v AS (
+            SELECT "visitorId", COUNT(*)::int AS visits
+            FROM site_analytics_events
+            WHERE kind = 'PAGE_VIEW' AND "createdAt" >= ${since}
+            GROUP BY "visitorId"
+          )
+          SELECT
+            COUNT(*)::bigint AS visitors,
+            COUNT(*) FILTER (WHERE visits > 1)::bigint AS returning
+          FROM v
+        `;
+        const visitors = Number(rows[0]?.visitors ?? 0);
+        const returning = Number(rows[0]?.returning ?? 0);
+        return visitors > 0 ? returning / visitors : 0;
+      } catch {
+        return 0;
+      }
+    })(),
+  ]);
+
+  const totalUsers = userCounts.clientsTotal + userCounts.trainersTotal;
+  const activeUsers = userCounts.clientsActive + userCounts.trainersActive;
+  const launchDays = daysSinceLaunch(now);
+  const revenuePerDay = launchDays > 0 ? lifetime.revenueCents / launchDays : lifetime.revenueCents;
+  const margin = lifetime.revenueCents > 0 ? lifetime.grossProfitCents / lifetime.revenueCents : 0;
+  const liveStage = pipeline.stages.find((s) => s.id === "live");
+  const signupStage = pipeline.stages.find((s) => s.id === "signup");
+  const trainerCompletion =
+    signupStage && signupStage.count > 0 ? (liveStage?.count ?? 0) / signupStage.count : 0;
+  const subscriptionConversion =
+    userCounts.clientsTotal > 0 ? finances.activeSubscriptions / userCounts.clientsTotal : 0;
+
+  const successRating = computePlatformSuccessRating({
+    daysSinceLaunch: launchDays,
+    totalUsers,
+    activeUsers,
+    returningVisitorRatio: returningRatio,
+    revenuePerDayCents: revenuePerDay,
+    grossProfitMargin: margin,
+    stabilityScore: stability.score,
+    securityScore: security.score,
+    trainerPipelineCompletionRate: trainerCompletion,
+    subscriptionConversionRate: subscriptionConversion,
+    marketCompetitiveness: computeMarketCompetitivenessProxy({
+      clientsTotal: userCounts.clientsTotal,
+      trainersTotal: userCounts.trainersTotal,
+      trainersLive: liveStage?.count ?? 0,
+      featuredToday: finances.featuredTrainersToday,
+    }),
+  });
+
+  return {
+    userCounts,
+    stabilityScore: stability.score,
+    stabilityNotes: stability.notes,
+    securityScore: security.score,
+    securityNotes: security.notes,
+    lifetimeRevenueCents: lifetime.revenueCents,
+    lifetimeGrossProfitCents: lifetime.grossProfitCents,
+    successRating,
+  };
+}
+
+export async function getReturningVisitorRatio30d(): Promise<number> {
+  try {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const rows = await prisma.$queryRaw<{ visitors: bigint; returning: bigint }[]>`
+      WITH v AS (
+        SELECT "visitorId", COUNT(*)::int AS visits
+        FROM site_analytics_events
+        WHERE kind = 'PAGE_VIEW' AND "createdAt" >= ${since}
+        GROUP BY "visitorId"
+      )
+      SELECT COUNT(*)::bigint AS visitors, COUNT(*) FILTER (WHERE visits > 1)::bigint AS returning FROM v
+    `;
+    const visitors = Number(rows[0]?.visitors ?? 0);
+    const returning = Number(rows[0]?.returning ?? 0);
+    return visitors > 0 ? returning / visitors : 0;
+  } catch {
+    return 0;
+  }
+}

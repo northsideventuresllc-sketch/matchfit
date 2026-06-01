@@ -7,7 +7,9 @@ import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { getSupabaseEmailCallbackUrl, isSupabaseConfigured } from "@/lib/supabase/email-callback-url";
 import { buildSupabaseSignUpOptions } from "@/lib/supabase/sign-up-options";
 import { tryCreateMatchFitSupabaseBrowserClient } from "@/lib/supabase/browser-client";
+import { useMetaSignupFunnelStep } from "@/hooks/use-meta-signup-funnel-step";
 import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
+import { trackMetaLead } from "@/lib/meta-pixel-funnel";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
 import { BetaCapFullSignupNotice } from "@/components/beta-cap-full-signup-notice";
 import { useBetaLaunchStatus } from "@/hooks/use-beta-launch-status";
@@ -108,6 +110,33 @@ function ClientSignUpPageInner() {
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [betaInviteReserved, setBetaInviteReserved] = useState<string | null>(null);
   const turnstile = useTurnstileGate();
+
+  const wizardFunnelStep = useMemo(() => {
+    if (wizardStep === 1) {
+      return {
+        funnel: "client" as const,
+        step_id: "sign_up_profile",
+        step_name: "Profile details",
+        step_index: 1,
+      };
+    }
+    if (awaitingCode) {
+      return {
+        funnel: "client" as const,
+        step_id: "sign_up_2fa_code",
+        step_name: "2FA code entry",
+        step_index: 3,
+      };
+    }
+    return {
+      funnel: "client" as const,
+      step_id: "sign_up_2fa",
+      step_name: "2FA setup",
+      step_index: 2,
+    };
+  }, [wizardStep, awaitingCode]);
+
+  useMetaSignupFunnelStep(wizardFunnelStep);
 
   useEffect(() => {
     if (!betaInviteTokenFromUrl) return;
@@ -278,6 +307,7 @@ function ClientSignUpPageInner() {
             .catch(() => {});
         }
       }
+      trackMetaLead("client");
       // Full navigation so the httpOnly registration cookie is present before the billing page loads.
       navigateWithFullLoad(data.next ?? "/client/subscribe");
     } catch {
@@ -363,6 +393,7 @@ function ClientSignUpPageInner() {
             .catch(() => {});
         }
       }
+      trackMetaLead("client");
       navigateWithFullLoad(data.next ?? "/client/subscribe");
     } catch {
       setError("Something went wrong. Try again.");
@@ -408,7 +439,7 @@ function ClientSignUpPageInner() {
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-white/55 sm:text-base">
           {wizardStep === 1
-            ? "Tell us a bit about yourself. Atlanta metro beta — you must be 18 or older to join."
+            ? "Tell us a bit about yourself. U.S. beta — anyone in the United States can sign up. You must be 18 or older. In-person sessions launch first in the Atlanta metro area."
             : awaitingCode
               ? "Check your inbox for a verification email with your code."
               : "Add an extra layer of security, or skip and turn this on later in settings."}
@@ -602,7 +633,7 @@ function ClientSignUpPageInner() {
               <div className="grid gap-5 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
                   <label htmlFor="su-zip" className={labelClass}>
-                    Home ZIP (Atlanta metro beta)
+                    Home ZIP (United States)
                   </label>
                   <input
                     id="su-zip"
@@ -612,7 +643,7 @@ function ClientSignUpPageInner() {
                     required
                     value={zipCode}
                     onChange={(e) => setZipCode(e.target.value)}
-                    placeholder="30301 or 30062"
+                    placeholder="90210 or 30301"
                     pattern="[0-9]{5}(-[0-9]{4})?"
                     title="Enter a valid US ZIP code"
                     className={inputClass}
@@ -685,7 +716,17 @@ function ClientSignUpPageInner() {
             </form>
           ) : (
             <>
-              <TurnstileField gate={turnstile} className="mb-6 flex justify-center" />
+              <TurnstileField
+                enabled={turnstile.enabled}
+                widgetRef={turnstile.ref}
+                siteKey={turnstile.siteKey}
+                onReady={turnstile.onTurnstileReady}
+                onError={turnstile.onTurnstileError}
+                onExpire={turnstile.onTurnstileExpire}
+                widgetError={turnstile.widgetError}
+                ready={turnstile.ready}
+                className="mb-6 flex justify-center"
+              />
               {!awaitingCode ? (
             <div className="flex flex-col gap-6">
               <p className="text-sm leading-relaxed text-white/55">

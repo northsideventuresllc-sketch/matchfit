@@ -1,6 +1,6 @@
 {
   "name": "match-fit-app",
-  "version": "1.0.1-beta.0",
+  "version": "1.1.1-beta",
   "private": true,
   "engines": {
     "node": ">=20.19.0 <23"
@@ -13,6 +13,7 @@
     "lint": "eslint --max-warnings 0",
     "test": "vitest run",
     "db:push": "prisma generate && prisma db push",
+    "db:migrate": "prisma generate && prisma migrate deploy",
     "generate": "prisma generate",
     "beta:setup": "node scripts/beta-launch-setup.mjs --db-push",
     "beta:preflight": "node --env-file=.env scripts/beta-launch-setup.mjs --preflight",
@@ -23,6 +24,7 @@
     "seed:dashboard-demo": "tsx --env-file=.env scripts/seed-demo-client-dashboard-showcase.js",
     "seed:admin": "tsx --env-file=.env scripts/seed-bootstrap-admin.js",
     "seed:test-accounts": "node --env-file=.env scripts/seed-match-fit-dev-test-accounts.js",
+    "reset:owner-portals": "node --env-file=.env npx tsx scripts/reset-owner-portal-passwords.ts",
     "tos:alignment": "tsx scripts/tos-alignment-check.ts",
     "postinstall": "prisma generate"
   },
@@ -34,11 +36,12 @@
     "@stripe/stripe-js": "^9.2.0",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.105.4",
+    "@vercel/analytics": "^2.0.1",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",
     "jose": "^6.2.2",
-    "pg": "^8.21.0",
     "next": "^16.2.6",
+    "pg": "^8.21.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "resend": "^6.12.3",

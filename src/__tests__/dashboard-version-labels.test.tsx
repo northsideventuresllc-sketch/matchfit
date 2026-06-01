@@ -44,8 +44,99 @@ vi.mock("@/lib/navigate-full-load", () => ({
 import { AdminDashboardClient } from "@/app/admin/admin-dashboard-client";
 import { ClientDashboardShell } from "@/components/client/client-dashboard-shell";
 import { TrainerDashboardShell } from "@/components/trainer/trainer-dashboard-shell";
-import { DEFAULT_ADMIN_DASHBOARD_WIDGETS } from "@/lib/admin-dashboard-widgets";
+import { DEFAULT_ADMIN_DASHBOARD_LAYOUT } from "@/lib/admin-dashboard-layout";
+import type { AdminPortalOverview } from "@/lib/admin-portal-types";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
+
+const EMPTY_OVERVIEW: AdminPortalOverview = {
+  userCounts: { trainersTotal: 7, trainersActive: 5, clientsTotal: 12, clientsActive: 10 },
+  revenue: {
+    revenueCents: 0,
+    grossProfitCents: 0,
+    eventCount: 0,
+    byCategory: {
+      SERVICE_CHECKOUT: { revenueCents: 0, grossProfitCents: 0, eventCount: 0 },
+      CLIENT_PLATFORM_SUBSCRIPTION: { revenueCents: 0, grossProfitCents: 0, eventCount: 0 },
+      TRAINER_PREMIUM_SUBSCRIPTION: { revenueCents: 0, grossProfitCents: 0, eventCount: 0 },
+      ONE_TIME_PURCHASE: { revenueCents: 0, grossProfitCents: 0, eventCount: 0 },
+    },
+    activePlatformSubscribers: 0,
+    activeTrainerPremiumSubscribers: 0,
+  },
+  traffic: {
+    windowDays: 7,
+    pageViews: 0,
+    uniqueVisitors: 0,
+    linkClicks: 0,
+    topPages: [],
+    topLinks: [],
+    daily: [],
+    recentEvents: [],
+  },
+  recentSignups: [],
+  recentFeatured: [],
+  funnel: {
+    homepageVisits: 0,
+    totalSiteVisits: 0,
+    clientSignupPageViews: 0,
+    clientsReachedSignupWithoutAccount: 0,
+    trainerSignupPageViews: 0,
+    trainersReachedSignupWithoutAccount: 0,
+    activeOnSiteNow: 0,
+    clientLoginsByRecency: { h12: 0, h24: 0, d7: 0, d30: 0, d90: 0, d180: 0, d365: 0 },
+    trainerLoginsByRecency: { h12: 0, h24: 0, d7: 0, d30: 0, d90: 0, d180: 0, d365: 0 },
+    pendingClientRegistrations: { total: 0, byStatus: {} },
+    incompleteTrainerSignups: 0,
+    trainersSignupBeforeBackgroundCheck: 0,
+    clientsInFreeTrial: 0,
+    activeClientSubscriptions: 0,
+    topClientFunctions: [],
+    topTrainerFunctions: [],
+    analyticsAvailable: false,
+  },
+  pipeline: { totalInPipeline: 0, stages: [] },
+  finances: {
+    windows: {
+      "24h": { revenueCents: 0, grossProfitCents: 0, byCategory: {}, platformFeesCents: 0, leadingRevenueFactor: null },
+      "7d": { revenueCents: 0, grossProfitCents: 0, byCategory: {}, platformFeesCents: 0, leadingRevenueFactor: null },
+      "30d": { revenueCents: 0, grossProfitCents: 0, byCategory: {}, platformFeesCents: 0, leadingRevenueFactor: null },
+      "90d": { revenueCents: 0, grossProfitCents: 0, byCategory: {}, platformFeesCents: 0, leadingRevenueFactor: null },
+      "1y": { revenueCents: 0, grossProfitCents: 0, byCategory: {}, platformFeesCents: 0, leadingRevenueFactor: null },
+      "5y": { revenueCents: 0, grossProfitCents: 0, byCategory: {}, platformFeesCents: 0, leadingRevenueFactor: null },
+    },
+    lifetime: { revenueCents: 0, grossProfitCents: 0, byCategory: {}, platformFeesCents: 0, leadingRevenueFactor: null, eventCount: 0 },
+    clientsInFreeTrial: 0,
+    pendingSubscriptionStop: null,
+    paymentFailedInGrace: 0,
+    clientsWithCard: 0,
+    activeSubscriptions: 0,
+    recentTransactions: [],
+    premiumTrainers: 0,
+    trainersWithCard: null,
+    featuredTrainersToday: 0,
+    bestSellers: [],
+  },
+  alerts: { groups: [] },
+  platformSummary: {
+    userCounts: { trainersTotal: 0, trainersActive: 0, clientsTotal: 0, clientsActive: 0 },
+    stabilityScore: 0,
+    stabilityNotes: [],
+    securityScore: 0,
+    securityNotes: [],
+    lifetimeRevenueCents: 0,
+    lifetimeGrossProfitCents: 0,
+    successRating: {
+      score: 0,
+      factors: [],
+      meta: {
+        launchDate: "2026-05-21",
+        marketingStartDate: "2026-05-25",
+        marketingBudgetUsd: 70,
+        daysSinceLaunch: 0,
+      },
+    },
+  },
+};
 
 describe("dashboard version labels", () => {
   beforeEach(() => {
@@ -83,33 +174,11 @@ describe("dashboard version labels", () => {
   it("renders product version in the admin portal header", () => {
     const html = renderToStaticMarkup(
       <AdminDashboardClient
-        initialOverview={{
-          userCounts: { trainersTotal: 7, trainersActive: 5, clientsTotal: 12, clientsActive: 10 },
-          revenue: {
-            revenueCents: 0,
-            grossProfitCents: 0,
-            eventCount: 0,
-            byCategory: {
-              SERVICE_CHECKOUT: { revenueCents: 0, grossProfitCents: 0, eventCount: 0 },
-              CLIENT_PLATFORM_SUBSCRIPTION: { revenueCents: 0, grossProfitCents: 0, eventCount: 0 },
-              TRAINER_PREMIUM_SUBSCRIPTION: { revenueCents: 0, grossProfitCents: 0, eventCount: 0 },
-              ONE_TIME_PURCHASE: { revenueCents: 0, grossProfitCents: 0, eventCount: 0 },
-            },
-            activePlatformSubscribers: 0,
-            activeTrainerPremiumSubscribers: 0,
-          },
-          traffic: {
-            uniqueVisitors: 0,
-            pageViews: 0,
-            windowDays: 30,
-            topPages: [],
-            topLinks: [],
-          },
-          recentSignups: [],
-          recentFeatured: [],
-        }}
+        initialOverview={EMPTY_OVERVIEW}
         initialTestMode={false}
-        enabledWidgets={[...DEFAULT_ADMIN_DASHBOARD_WIDGETS]}
+        initialLayout={DEFAULT_ADMIN_DASHBOARD_LAYOUT}
+        administratorId="admin_test"
+        layoutLoadedFromServer={false}
         auditLog={[]}
         visitorInsight=""
       />,

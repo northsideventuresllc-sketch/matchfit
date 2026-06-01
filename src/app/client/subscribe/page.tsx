@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { trackGoogleAdsConversion } from "@/lib/google-ads";
+import { trackMetaConversion } from "@/lib/meta-pixel";
+import { trackMetaInitiateCheckout } from "@/lib/meta-pixel-funnel";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 
 type SubscriptionOffer = {
@@ -51,6 +53,7 @@ function SubscribeContent() {
         setLoading(false);
         return;
       }
+      trackMetaInitiateCheckout("client");
       navigateWithFullLoad(data.url);
     } catch {
       setFatal("Network error. Try again.");
@@ -130,6 +133,7 @@ function SubscribeContent() {
         return;
       }
       trackGoogleAdsConversion("client_signup");
+      trackMetaConversion("client_signup");
       const next = data.next ?? "/client/login?registered=1";
       navigateWithFullLoad(next);
     } catch {

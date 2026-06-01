@@ -20,7 +20,7 @@ export function betaExcludeCapCountEmails(): Set<string> {
   return s;
 }
 
-/** Usernames excluded from cap counts and admin metrics, comma-separated, case-insensitive. */
+/** Usernames excluded from beta cap counts (test / staff accounts), comma-separated, case-insensitive. */
 export function betaExcludeCapCountUsernames(): Set<string> {
   const raw = process.env.MATCH_FIT_BETA_EXCLUDE_CAP_COUNT_USERNAMES?.trim();
   const s = new Set<string>();

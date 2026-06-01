@@ -1,6 +1,7 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider   = "prisma-client"
+  output     = "../src/generated/prisma"
+  engineType = "binary"
 }
 
 datasource db {
@@ -23,11 +24,12 @@ model Administrator {
   lastName     String
   /// ISO date string YYYY-MM-DD (birth date; used to derive admin code at onboarding).
   dateOfBirth  String
+  /// JSON admin dashboard layout: section order and visibility preferences.
+  adminDashboardLayoutJson String?
 
-  auditLogs              AdministratorAuditLog[]
-  dashboardPreferences   AdminDashboardPreferences?
-  goals                  AdminGoal[]
-  aiMessages             AdminAiMessage[]
+  auditLogs   AdministratorAuditLog[]
+  goals       AdminGoal[]
+  aiMessages  AdminAiMessage[]
 
   @@map("administrators")
   @@schema("public")
@@ -89,21 +91,6 @@ model PlatformRevenueEvent {
   @@schema("public")
 }
 
-/// Per-administrator dashboard widget visibility.
-model AdminDashboardPreferences {
-  id        String   @id @default(cuid())
-  updatedAt DateTime @updatedAt
-
-  administratorId String        @unique
-  administrator   Administrator @relation(fields: [administratorId], references: [id], onDelete: Cascade)
-
-  /// JSON: { "enabledWidgets": string[] }
-  widgetsJson String
-
-  @@map("admin_dashboard_preferences")
-  @@schema("public")
-}
-
 /// Operator KPI goals for AI-assisted analysis.
 model AdminGoal {
   id        String   @id @default(cuid())
@@ -142,7 +129,7 @@ model AdminAiMessage {
   @@schema("public")
 }
 
-/// First-party site traffic for administrator reporting.
+/// Anonymous first-party traffic (page views and outbound/internal link clicks) for admin reporting.
 model SiteAnalyticsEvent {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -150,12 +137,19 @@ model SiteAnalyticsEvent {
   /// PAGE_VIEW | LINK_CLICK
   kind String
 
-  path       String
-  targetPath String?
-  targetUrl  String?
-  linkLabel  String?
+  /// Path on matchfit.app where the event occurred (no query string).
+  path String
 
+  /// Same-origin destination path for link clicks (internal navigation).
+  targetPath String?
+  /// External URL for link clicks (truncated).
+  targetUrl String?
+  /// Anchor text or aria-label when available.
+  linkLabel String?
+
+  /// Random cookie id — not tied to client/trainer accounts.
   visitorId String
+  /// Per-tab session id (sessionStorage).
   sessionId String
 
   @@index([createdAt])
@@ -225,7 +219,7 @@ model Client {
   stripeSubscriptionId String?
   /// Mirrors Stripe subscription status for dashboard access control.
   stripeSubscriptionActive Boolean @default(false)
-  /// From Stripe livemode; admin metrics count only `true`.
+  /// Set from Stripe `livemode` on subscription sync (admin metrics count only `true`).
   stripeBillingLiveMode Boolean?
   /// When subscription is inactive and `now` is after this instant, non-billing dashboard routes require renewal (null = no lock).
   subscriptionGraceUntil DateTime?

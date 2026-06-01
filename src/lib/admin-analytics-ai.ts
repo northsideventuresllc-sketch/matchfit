@@ -26,8 +26,8 @@ function fallbackVisitorInsights(traffic: AdminTrafficSnapshot): string {
   const topLink = traffic.topLinks[0]?.target ?? "sign-up CTAs";
   return [
     `In the last ${traffic.windowDays} days you had ${traffic.uniqueVisitors} unique visitors and ${traffic.pageViews} page views.`,
-    `Top landing page: ${topPage} (${traffic.topPages[0]?.uniqueVisitors ?? 0} unique viewers).`,
-    `Most-clicked action: ${topLink}.`,
+    `Top landing page: ${topPage} (${traffic.topPages[0]?.views ?? 0} views).`,
+    `Most-clicked action: ${topLink} (${traffic.topLinks[0]?.clicks ?? 0} clicks).`,
     "Recommendations: tighten the hero CTA on your top landing page, add social proof near trainer/client signup buttons, and A/B test the headline on /client/sign-up.",
   ].join("\n\n");
 }

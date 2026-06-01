@@ -52,8 +52,7 @@ describe("trainer-dev-test-cert-sync", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env = { ...originalEnv };
-    process.env.NODE_ENV = "development";
+    process.env = { ...originalEnv, NODE_ENV: "development" };
     delete process.env.MATCH_FIT_TEST_TRAINER_USERNAMES;
     delete process.env.MATCH_FIT_DEV_TRAINER_IDENTIFIER;
     delete process.env.MATCH_FIT_DEV_APPROVE_ALL_TRAINER_CERTS;
@@ -75,7 +74,7 @@ describe("trainer-dev-test-cert-sync", () => {
   });
 
   it("returns false outside development when trainer is not allowlisted", () => {
-    process.env.NODE_ENV = "production";
+    process.env = { ...process.env, NODE_ENV: "production" };
 
     expect(shouldSyncDevelopmentTestTrainerCertifications(trainer)).toBe(false);
   });

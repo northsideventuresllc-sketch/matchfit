@@ -87,90 +87,99 @@ async function persistMicrosoftConnection(args: {
 }
 
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const oauthErr = url.searchParams.get("error");
-  if (oauthErr) {
-    return redirectBack(req, `oauthError=${encodeURIComponent(oauthErr)}`);
-  }
-  const code = url.searchParams.get("code");
-  if (!code?.trim()) {
-    return redirectBack(req, "oauthError=missing_code");
-  }
-
-  const cookieStore = await cookies();
-  const linkCookie = cookieStore.get(TRAINER_MICROSOFT_SUPABASE_LINK_COOKIE)?.value;
-  const link = linkCookie ? await verifyTrainerMicrosoftSupabaseLinkState(linkCookie) : null;
-
-  const origin =
-    process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") || new URL(req.url).origin;
-  const response = NextResponse.redirect(`${origin}/trainer/dashboard/video-meetings?connected=microsoft`);
-
-  if (link) {
-    const { supabase, error } = createSupabaseServerClientForTrainerMicrosoftOAuth({
-      requestCookies: cookieStore,
-      responseCookies: response.cookies,
-    });
-    if (error || !supabase) {
-      return redirectBack(req, "oauthError=supabase_not_configured");
+  try {
+    const url = new URL(req.url);
+    const oauthErr = url.searchParams.get("error");
+    if (oauthErr) {
+      return redirectBack(req, `oauthError=${encodeURIComponent(oauthErr)}`);
+    }
+    const code = url.searchParams.get("code");
+    if (!code?.trim()) {
+      return redirectBack(req, "oauthError=missing_code");
     }
 
-    const { error: xErr } = await supabase.auth.exchangeCodeForSession(code);
-    if (xErr) {
-      console.error("[trainer oauth microsoft callback] exchangeCodeForSession", xErr);
-      return redirectBack(req, `oauthError=${encodeURIComponent(xErr.message)}`);
+    const cookieStore = await cookies();
+    const linkCookie = cookieStore.get(TRAINER_MICROSOFT_SUPABASE_LINK_COOKIE)?.value;
+    const link = linkCookie ? await verifyTrainerMicrosoftSupabaseLinkState(linkCookie) : null;
+
+    const origin =
+      process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") || new URL(req.url).origin;
+    const response = NextResponse.redirect(`${origin}/trainer/dashboard/video-meetings?connected=microsoft`);
+
+    if (link) {
+      const { supabase, error } = createSupabaseServerClientForTrainerMicrosoftOAuth({
+        requestCookies: cookieStore,
+        responseCookies: response.cookies,
+      });
+      if (error || !supabase) {
+        return redirectBack(req, "oauthError=supabase_not_configured");
+      }
+
+      const { error: xErr } = await supabase.auth.exchangeCodeForSession(code);
+      if (xErr) {
+        console.error("[trainer oauth microsoft callback] exchangeCodeForSession", xErr);
+        return redirectBack(req, `oauthError=${encodeURIComponent(xErr.message)}`);
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        return redirectBack(req, "oauthError=no_session_after_exchange");
+      }
+
+      const bundle = sessionToMicrosoftBundle(session);
+      if ("error" in bundle) {
+        return redirectBack(req, `oauthError=${encodeURIComponent(bundle.error)}`);
+      }
+
+      let hint: string | null = null;
+      if (bundle.accessToken) {
+        hint = await graphAccountHint(bundle.accessToken);
+      }
+
+      await persistMicrosoftConnection({
+        trainerId: link.trainerId,
+        exchanged: bundle,
+        hint,
+        oauthGrantSource: "supabase_azure",
+      });
+
+      await supabase.auth.signOut();
+      response.cookies.delete(TRAINER_MICROSOFT_SUPABASE_LINK_COOKIE);
+      return response;
     }
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) {
-      return redirectBack(req, "oauthError=no_session_after_exchange");
+    const state = url.searchParams.get("state");
+    if (!state?.trim()) {
+      return redirectBack(req, "oauthError=invalid_state");
+    }
+    const st = await verifyVideoOAuthState(state);
+    if (!st || st.provider !== "MICROSOFT") {
+      return redirectBack(req, "oauthError=invalid_state");
     }
 
-    const bundle = sessionToMicrosoftBundle(session);
-    if ("error" in bundle) {
-      return redirectBack(req, `oauthError=${encodeURIComponent(bundle.error)}`);
+    const exchanged = await microsoftExchangeCode(code);
+    if ("error" in exchanged) {
+      return redirectBack(req, `oauthError=${encodeURIComponent(exchanged.error)}`);
     }
-
     let hint: string | null = null;
-    if (bundle.accessToken) {
-      hint = await graphAccountHint(bundle.accessToken);
+    if (exchanged.accessToken) {
+      hint = await graphAccountHint(exchanged.accessToken);
     }
-
     await persistMicrosoftConnection({
-      trainerId: link.trainerId,
-      exchanged: bundle,
+      trainerId: st.trainerId,
+      exchanged,
       hint,
-      oauthGrantSource: "supabase_azure",
+      oauthGrantSource: "direct",
     });
-
-    await supabase.auth.signOut();
-    response.cookies.delete(TRAINER_MICROSOFT_SUPABASE_LINK_COOKIE);
-    return response;
+    return redirectBack(req, "connected=microsoft");
+  } catch (e) {
+    console.error("[trainer oauth microsoft callback]", e);
+    const msg =
+      e instanceof Error && e.message.trim()
+        ? e.message.trim()
+        : "Could not save Microsoft connection. Try again or contact support.";
+    return redirectBack(req, `oauthError=${encodeURIComponent(msg)}`);
   }
-
-  const state = url.searchParams.get("state");
-  if (!state?.trim()) {
-    return redirectBack(req, "oauthError=invalid_state");
-  }
-  const st = await verifyVideoOAuthState(state);
-  if (!st || st.provider !== "MICROSOFT") {
-    return redirectBack(req, "oauthError=invalid_state");
-  }
-
-  const exchanged = await microsoftExchangeCode(code);
-  if ("error" in exchanged) {
-    return redirectBack(req, `oauthError=${encodeURIComponent(exchanged.error)}`);
-  }
-  let hint: string | null = null;
-  if (exchanged.accessToken) {
-    hint = await graphAccountHint(exchanged.accessToken);
-  }
-  await persistMicrosoftConnection({
-    trainerId: st.trainerId,
-    exchanged,
-    hint,
-    oauthGrantSource: "direct",
-  });
-  return redirectBack(req, "connected=microsoft");
 }

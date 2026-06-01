@@ -5,7 +5,10 @@ import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import { getClientFoundingTrialMaxClients } from "@/lib/match-fit-launch-promotion-caps";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
+
+const CLIENT_FOUNDING_CAP = getClientFoundingTrialMaxClients();
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
@@ -127,9 +130,9 @@ export default function ClientWaitlistPage() {
             </span>
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-white/60">
-            All beta slots are currently full. Reserve your username now — you will be notified by
-            email when a slot opens. You will have 30 days to complete your account setup once
-            invited.
+            All founding client slots are currently full. Anyone in the United States can join the
+            waitlist — reserve your username now and we will email you when a slot opens. You will
+            have 30 days to complete your account setup once invited.
           </p>
         </div>
 
@@ -137,7 +140,8 @@ export default function ClientWaitlistPage() {
         <div className="mt-4 rounded-2xl border border-[#FF7E00]/20 bg-[#12151C]/75 px-4 py-3 backdrop-blur-xl">
           <p className="text-xs leading-relaxed text-white/55">
             <span className="font-semibold text-[#FF7E00]">Note:</span> Founding member promos
-            (14-day free trial) apply only to the first 50 clients who sign up directly. Waitlist
+            (14-day free trial) apply only to the first {CLIENT_FOUNDING_CAP} clients who sign up directly.
+            Waitlist
             users receive standard pricing when their slot opens.
           </p>
         </div>
@@ -269,11 +273,11 @@ export default function ClientWaitlistPage() {
               </div>
 
               <label className="flex flex-col gap-2">
-                <span className={labelClass}>Home ZIP (Atlanta metro)</span>
+                <span className={labelClass}>Home ZIP (United States)</span>
                 <input
                   required
                   className={inputClass}
-                  placeholder="30301"
+                  placeholder="90210 or 30301"
                   value={homeZipCode}
                   onChange={(e) => setHomeZipCode(e.target.value)}
                 />

@@ -9,6 +9,10 @@ import {
   TRAINER_SIGN_UP_PATH,
   type HomePageAuth,
 } from "@/lib/home-page-auth";
+import {
+  getClientFoundingTrialMaxClients,
+  getTrainerFoundingBgPercentMax,
+} from "@/lib/match-fit-launch-promotion-caps";
 import { MATCH_FIT_PRODUCT_VERSION_ANNOUNCE } from "@/lib/match-fit-product-version";
 
 function SectionShell({
@@ -74,6 +78,8 @@ function ServiceCard({
 
 export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
   const loggedIn = homeAuth.clientLoggedIn || homeAuth.trainerLoggedIn;
+  const trainerFoundingCap = getTrainerFoundingBgPercentMax();
+  const clientFoundingCap = getClientFoundingTrialMaxClients();
 
   return (
     <div className="mt-20 space-y-6 sm:mt-24 sm:space-y-8">
@@ -118,7 +124,10 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
                 aria-hidden
               />
               <span>
-                <span className="font-semibold text-white/90">First 10 fitness professionals:</span> your
+                <span className="font-semibold text-white/90">
+                  First {trainerFoundingCap} fitness professionals:
+                </span>{" "}
+                your
                 one-time onboarding fee will be{" "}
                 <span className="font-bold text-[#FFD34E]">20% of the background check cost</span> instead of
                 the background check fee being subtracted from the usual{" "}
@@ -131,7 +140,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
                 aria-hidden
               />
               <span>
-                <span className="font-semibold text-white/90">First 50 clients:</span> your first{" "}
+                <span className="font-semibold text-white/90">First {clientFoundingCap} clients:</span> your first{" "}
                 <span className="font-bold text-[#FFD34E]">14 days on the platform are 100% free</span> so
                 you have an opportunity to enjoy what we can offer before you make a commitment.
               </span>
@@ -146,10 +155,12 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
         </p>
 
         <p className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-xs leading-relaxed text-white/45 sm:text-[13px]">
-          <span className="font-semibold text-[#FF7E00]/90">Service area:</span> We are currently serving the{" "}
-          <span className="font-semibold text-white/60">Atlanta metro area</span> (within approximately 15–20
-          miles of downtown Atlanta) to start. We will be working hard to expand to more cities and regions as
-          soon as possible.
+          <span className="font-semibold text-[#FF7E00]/90">Beta rollout:</span> Anyone in the{" "}
+          <span className="font-semibold text-white/60">United States</span> can create a client account during
+          beta. <span className="font-semibold text-white/60">In-person sessions</span> with coaches are launching
+          first in the <span className="font-semibold text-white/60">Atlanta metro area</span> (within approximately
+          15–20 miles of downtown Atlanta). Virtual coaching and nationwide discovery are available wherever the
+          product supports them.
         </p>
       </SectionShell>
 

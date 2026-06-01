@@ -1,14 +1,10 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import {
-  ensureAdminDashboardPreferences,
-  getAdminDashboardPreferences,
-} from "@/lib/admin-dashboard-preferences";
-import { getAdminAuditLog, getAdminPortalOverview, type AdminPortalOverview } from "@/lib/admin-portal-data";
 import { runAdminAnalyticsAi } from "@/lib/admin-analytics-ai";
+import { DEFAULT_ADMIN_DASHBOARD_LAYOUT } from "@/lib/admin-dashboard-layout";
+import { loadAdminDashboardLayout } from "@/lib/admin-dashboard-layout-server";
+import { getAdminAuditLog, getAdminPortalOverview, type AdminPortalOverview } from "@/lib/admin-portal-data";
 import { prisma } from "@/lib/prisma";
-import { requireAdminSession } from "@/lib/require-admin";
-import { getAdminSiteTrafficSnapshot } from "@/lib/site-analytics";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/session";
 import { AdminDashboardClient } from "./admin-dashboard-client";
 
@@ -28,9 +24,6 @@ export default async function AdminHomePage() {
     redirect("/admin/login");
   }
 
-  await ensureAdminDashboardPreferences(sess.adminId);
-  const preferences = await getAdminDashboardPreferences(sess.adminId);
-
   let overview: AdminPortalOverview | null = null;
   let loadError: string | null = null;
   let visitorInsight = "";
@@ -39,21 +32,24 @@ export default async function AdminHomePage() {
   try {
     overview = await getAdminPortalOverview();
     auditLog = await getAdminAuditLog(25);
-    if (preferences.enabledWidgets.includes("ai_visitor_insights")) {
-      visitorInsight = await runAdminAnalyticsAi({
-        action: "signup_recommendations",
-        administratorId: sess.adminId,
-        overview,
-        traffic: overview.traffic,
-      });
-    }
+    visitorInsight = await runAdminAnalyticsAi({
+      action: "signup_recommendations",
+      administratorId: sess.adminId,
+      overview,
+      traffic: overview.traffic,
+    });
   } catch (e) {
     console.error("[admin home]", e);
     const message = e instanceof Error ? e.message : "";
-    loadError =
-      message.includes("platform_revenue_events") || message.includes("site_analytics_events")
-        ? "Administrator reporting tables are missing. Run `npm run db:push` (or apply the latest migration) and reload."
-        : "Could not load the administrator dashboard. Check database connectivity and server logs.";
+    const missingReportingTable =
+      message.includes("platform_revenue_events") ||
+      message.includes("administrator_audit_logs") ||
+      message.includes("site_analytics_events") ||
+      message.includes("admin_goals") ||
+      message.includes("admin_ai_messages");
+    loadError = missingReportingTable
+      ? "Administrator reporting tables could not be initialized. From the project root run `npm run db:migrate` (production) or `npm run db:push` (local), then reload. If this persists, check server logs for database permissions."
+      : "Could not load the administrator dashboard. Check database connectivity and server logs.";
   }
 
   if (loadError) {
@@ -78,11 +74,15 @@ export default async function AdminHomePage() {
     );
   }
 
+  const savedLayout = await loadAdminDashboardLayout(sess.adminId);
+
   return (
     <AdminDashboardClient
       initialOverview={overview}
       initialTestMode={sess.testMode}
-      enabledWidgets={preferences.enabledWidgets}
+      initialLayout={savedLayout ?? DEFAULT_ADMIN_DASHBOARD_LAYOUT}
+      administratorId={sess.adminId}
+      layoutLoadedFromServer={savedLayout !== null}
       auditLog={auditLog}
       visitorInsight={visitorInsight}
     />

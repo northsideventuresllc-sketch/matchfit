@@ -1,19 +1,39 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import {
+  ADMIN_DASHBOARD_LAYOUT_STORAGE_KEY,
+  ADMIN_DASHBOARD_SECTIONS,
+  type AdminDashboardLayout,
+  type AdminDashboardSectionGroup,
+  type AdminDashboardSectionId,
+  parseAdminDashboardLayout,
+  serializeAdminDashboardLayout,
+  visibleDashboardSections,
+} from "@/lib/admin-dashboard-layout";
 import type {
-  AdminAuditLogRow,
   AdminFeaturedSnapshot,
   AdminPortalOverview,
   AdminSignupRow,
   AdminUserStats,
-} from "@/lib/admin-portal-data";
-import type { AdminDashboardWidgetId } from "@/lib/admin-dashboard-widgets";
+} from "@/lib/admin-portal-types";
+import type { AdminAuditLogRow } from "@/lib/admin-portal-data";
 import { AdminPortalNav } from "@/components/admin/admin-portal-nav";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
+import { AdminDashboardLayoutCustomizer } from "./admin-dashboard-layout-customizer";
+import {
+  AcquisitionFunnelSection,
+  FinancesDetailSection,
+  OperationalAlertsSection,
+  PlatformHealthSection,
+  SiteTrafficSection,
+  TrainerPipelineSection,
+} from "./admin-dashboard-metrics";
+import { AdminDashboardSection } from "./admin-dashboard-section";
+import { AdminDashboardSectionNav } from "./admin-dashboard-section-nav";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
@@ -169,21 +189,36 @@ function FeaturedSnapshotList({ items }: { items: AdminFeaturedSnapshot[] }) {
   );
 }
 
+const SECTION_META_BY_ID = Object.fromEntries(ADMIN_DASHBOARD_SECTIONS.map((s) => [s.id, s])) as Record<
+  AdminDashboardSectionId,
+  (typeof ADMIN_DASHBOARD_SECTIONS)[number]
+>;
+
 export function AdminDashboardClient(props: {
   initialOverview: AdminPortalOverview;
   initialTestMode: boolean;
-  enabledWidgets: AdminDashboardWidgetId[];
+  initialLayout: AdminDashboardLayout;
+  administratorId: string;
+  layoutLoadedFromServer: boolean;
   auditLog: AdminAuditLogRow[];
   visitorInsight: string;
 }) {
-  const { userCounts, revenue, traffic, recentSignups, recentFeatured } = props.initialOverview;
-  const show = (id: AdminDashboardWidgetId) => props.enabledWidgets.includes(id);
+  const overview = props.initialOverview;
+  const { userCounts, revenue, recentSignups, recentFeatured, traffic, funnel, pipeline, finances, alerts, platformSummary } =
+    overview;
+
+  const layoutStorageKey = `${ADMIN_DASHBOARD_LAYOUT_STORAGE_KEY}:${props.administratorId}`;
 
   const [q, setQ] = useState("");
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [rows, setRows] = useState<{ clients: DirectoryRow[]; trainers: DirectoryRow[] } | null>(null);
   const [testMode, setTestMode] = useState(props.initialTestMode);
   const [error, setError] = useState<string | null>(null);
+  const [layout, setLayout] = useState(props.initialLayout);
+  const [customizerOpen, setCustomizerOpen] = useState(false);
+  const [layoutSaving, setLayoutSaving] = useState(false);
+  const [layoutSaveError, setLayoutSaveError] = useState<string | null>(null);
+  const [layoutPersistedHint, setLayoutPersistedHint] = useState<string | null>(null);
 
   const [signupLog, setSignupLog] = useState<AdminSignupRow[]>([]);
   const [signupTotal, setSignupTotal] = useState(0);
@@ -240,6 +275,51 @@ export function AdminDashboardClient(props: {
     return () => window.clearTimeout(t);
   }, [q, loadDirectory]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(() => {
+    if (props.layoutLoadedFromServer) return;
+    try {
+      const raw = localStorage.getItem(layoutStorageKey);
+      if (!raw) return;
+      setLayout(parseAdminDashboardLayout(JSON.parse(raw)));
+    } catch {
+      /* ignore corrupt local layout */
+    }
+  }, [layoutStorageKey, props.layoutLoadedFromServer]);
+
+  const orderedVisibleSections = useMemo(() => visibleDashboardSections(layout), [layout]);
+
+  async function saveDashboardLayout(next: AdminDashboardLayout) {
+    setLayoutSaving(true);
+    setLayoutSaveError(null);
+    setLayoutPersistedHint(null);
+    try {
+      localStorage.setItem(layoutStorageKey, serializeAdminDashboardLayout(next));
+      const res = await fetch("/api/admin/dashboard-layout", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ layout: next }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        layout?: AdminDashboardLayout;
+        persisted?: boolean;
+        warning?: string;
+      };
+      if (!res.ok) {
+        setLayoutSaveError(data.error ?? "Could not save dashboard layout.");
+        return;
+      }
+      setLayout(parseAdminDashboardLayout(data.layout ?? next));
+      if (data.warning) setLayoutPersistedHint(data.warning);
+      setCustomizerOpen(false);
+    } catch {
+      setLayoutSaveError("Could not save dashboard layout.");
+    } finally {
+      setLayoutSaving(false);
+    }
+  }
 
   async function logout() {
     setBusyKey("logout");
@@ -320,6 +400,250 @@ export function AdminDashboardClient(props: {
 
   const totalMembers = userCounts.clientsTotal + userCounts.trainersTotal;
 
+  function renderSectionBody(id: AdminDashboardSectionId) {
+    switch (id) {
+      case "overview-kpis":
+        return (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Total members</p>
+              <p className="mt-2 text-3xl font-black tabular-nums text-white">{totalMembers}</p>
+            <p className="mt-1 text-xs text-white/40">
+              {userCounts.clientsTotal} clients · {userCounts.trainersTotal} trainers
+            </p>
+            <p className="mt-1 text-[10px] text-white/30">Excludes test &amp; QA accounts</p>
+            </div>
+            <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Active clients</p>
+              <p className="mt-2 text-3xl font-black tabular-nums text-white">{userCounts.clientsActive}</p>
+              <p className="mt-1 text-xs text-white/40">Billing in good standing</p>
+            </div>
+            <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Active trainers</p>
+              <p className="mt-2 text-3xl font-black tabular-nums text-white">{userCounts.trainersActive}</p>
+              <p className="mt-1 text-xs text-white/40">Onboarded + recent activity</p>
+            </div>
+            <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Client subscribers</p>
+              <p className="mt-2 text-3xl font-black tabular-nums text-white">{revenue.activePlatformSubscribers}</p>
+              <p className="mt-1 text-xs text-white/40">$10/mo platform subscription</p>
+            </div>
+            <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Premium trainers</p>
+              <p className="mt-2 text-3xl font-black tabular-nums text-white">
+                {revenue.activeTrainerPremiumSubscribers}
+              </p>
+              <p className="mt-1 text-xs text-white/40">$20/mo premium studio</p>
+            </div>
+            <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Site visitors (7d)</p>
+              <p className="mt-2 text-3xl font-black tabular-nums text-white">{traffic.uniqueVisitors}</p>
+              <p className="mt-1 text-xs text-white/40">
+                {traffic.pageViews} page views · {traffic.linkClicks} clicks
+              </p>
+            </div>
+          </div>
+        );
+      case "revenue-snapshot":
+        return (
+          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.06] p-5">
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-200/80">Platform revenue</p>
+            <p className="mt-2 text-2xl font-black tabular-nums text-white">{formatUsdFromCents(revenue.revenueCents)}</p>
+            <p className="mt-1 text-xs text-white/45">
+              {revenue.eventCount} recorded payment event{revenue.eventCount === 1 ? "" : "s"} (gross collected)
+            </p>
+            <p className="mt-4 text-[11px] font-black uppercase tracking-[0.18em] text-emerald-200/70">
+              Gross platform profit
+            </p>
+            <p className="mt-1 text-xl font-black tabular-nums text-emerald-50">
+              {formatUsdFromCents(revenue.grossProfitCents)}
+            </p>
+            <ul className="mt-3 space-y-1.5 text-[11px] leading-relaxed text-white/45">
+              <li>
+                Services: {formatUsdFromCents(revenue.byCategory.SERVICE_CHECKOUT.grossProfitCents)} profit (
+                {revenue.byCategory.SERVICE_CHECKOUT.eventCount} checkouts)
+              </li>
+              <li>
+                Client subs ($10/mo):{" "}
+                {formatUsdFromCents(revenue.byCategory.CLIENT_PLATFORM_SUBSCRIPTION.grossProfitCents)} profit
+              </li>
+              <li>
+                Trainer premium ($20/mo):{" "}
+                {formatUsdFromCents(revenue.byCategory.TRAINER_PREMIUM_SUBSCRIPTION.grossProfitCents)} profit
+              </li>
+              <li>
+                Other one-time: {formatUsdFromCents(revenue.byCategory.ONE_TIME_PURCHASE.grossProfitCents)} profit
+              </li>
+            </ul>
+            <p className="mt-2 text-[10px] leading-relaxed text-white/35">
+              Live billing only — sandbox and test accounts excluded.
+            </p>
+          </div>
+        );
+      case "platform-health":
+        return <PlatformHealthSection panel={platformSummary} />;
+      case "site-traffic":
+        return <SiteTrafficSection traffic={traffic} />;
+      case "acquisition-funnel":
+        return <AcquisitionFunnelSection funnel={funnel} />;
+      case "trainer-pipeline":
+        return <TrainerPipelineSection pipeline={pipeline} />;
+      case "finances-detail":
+        return <FinancesDetailSection finances={finances} />;
+      case "operational-alerts":
+        return <OperationalAlertsSection alerts={alerts} />;
+      case "impersonation-audit":
+        return (
+          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
+            <div className="space-y-2">
+              {props.auditLog.length === 0 ? (
+                <p className="text-sm text-white/45">No impersonation events yet.</p>
+              ) : (
+                props.auditLog.map((row) => (
+                  <div key={row.id} className="rounded-xl border border-white/[0.06] bg-[#07080c]/80 px-3 py-2 text-xs">
+                    <p className="text-white/85">
+                      {row.action} · {row.targetRole} @{row.targetUsername ?? row.targetId.slice(0, 8)}
+                    </p>
+                    <p className="text-white/40">
+                      {row.administratorEmail} · {formatSignupDate(row.createdAt)}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        );
+      case "ai-visitor-insights":
+        return props.visitorInsight ? (
+          <div className="rounded-2xl border border-cyan-400/25 bg-cyan-500/[0.06] p-5">
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/80">{props.visitorInsight}</p>
+            <p className="mt-3 text-xs">
+              <Link href="/admin/assistant" className="text-cyan-300/90 underline-offset-4 hover:underline">
+                Open AI assistant for deeper analysis and goal setting
+              </Link>
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-white/45">
+            Insights unavailable.{" "}
+            <Link href="/admin/assistant" className="text-cyan-300/90 underline-offset-4 hover:underline">
+              Open the AI assistant
+            </Link>
+            .
+          </p>
+        );
+      case "recent-signups":
+        return (
+          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
+            <div className="space-y-2">
+              {recentSignups.length === 0 ? (
+                <p className="text-sm text-white/45">No signups yet.</p>
+              ) : (
+                recentSignups.map((row) => (
+                  <SignupRowCard key={`${row.kind}-${row.id}`} row={row} busyKey={busyKey} onOpen={impersonate} compact />
+                ))
+              )}
+            </div>
+          </div>
+        );
+      case "recent-featured":
+        return (
+          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
+            <FeaturedSnapshotList items={recentFeatured} />
+          </div>
+        );
+      case "test-mode":
+        return (
+          <div className="rounded-2xl border border-amber-400/25 bg-amber-500/[0.07] p-5">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <p className="text-sm text-white/70">
+                Toggle on while validating flows. External billing and messaging integrations still follow environment
+                keys.
+              </p>
+              <button
+                type="button"
+                disabled={busyKey !== null}
+                onClick={() => void toggleTestMode(!testMode)}
+                className={`rounded-xl px-5 py-3 text-xs font-black uppercase tracking-[0.12em] transition disabled:opacity-40 ${
+                  testMode
+                    ? "border border-amber-300/40 bg-amber-500/20 text-amber-50"
+                    : "border border-white/15 bg-white/[0.05] text-white/75 hover:bg-white/[0.08]"
+                }`}
+              >
+                {busyKey === "testmode" ? "Updating…" : testMode ? "Test mode on" : "Test mode off"}
+              </button>
+            </div>
+          </div>
+        );
+      case "signup-log":
+        return (
+          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-4 sm:p-5">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <p className="text-sm text-white/50">{signupTotal} total registrations</p>
+              {signupLog.length < signupTotal ? (
+                <button
+                  type="button"
+                  disabled={signupLoading || busyKey !== null}
+                  onClick={() => void loadSignupLog(signupOffset + signupPageSize, false)}
+                  className="rounded-lg border border-white/15 px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-white/75 hover:bg-white/[0.06] disabled:opacity-40"
+                >
+                  {signupLoading ? "Loading…" : "Load more"}
+                </button>
+              ) : null}
+            </div>
+            <div className="mt-4 space-y-2">
+              {signupLog.length === 0 && !signupLoading ? (
+                <p className="text-sm text-white/45">No signups to show.</p>
+              ) : (
+                signupLog.map((row) => (
+                  <SignupRowCard key={`log-${row.kind}-${row.id}`} row={row} busyKey={busyKey} onOpen={impersonate} />
+                ))
+              )}
+            </div>
+          </div>
+        );
+      case "member-search":
+        return (
+          <div className="space-y-4">
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search username, email, or phone…"
+              className="w-full rounded-xl border border-white/[0.1] bg-[#07080c] px-4 py-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-cyan-400/35 focus:ring-2 focus:ring-cyan-400/20"
+            />
+            <div className="grid gap-6 lg:grid-cols-2">
+              <AdminDirectoryUserTable
+                title="Clients"
+                kind="client"
+                list={rows?.clients ?? []}
+                busyKey={busyKey}
+                onImpersonate={impersonate}
+              />
+              <AdminDirectoryUserTable
+                title="Trainers"
+                kind="trainer"
+                list={rows?.trainers ?? []}
+                busyKey={busyKey}
+                onImpersonate={impersonate}
+              />
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  }
+
+  const sectionsToRender = useMemo(() => {
+    let lastGroup: AdminDashboardSectionGroup | null = null;
+    return orderedVisibleSections.map((sectionId) => {
+      const meta = SECTION_META_BY_ID[sectionId];
+      const showGroupHeading = meta.group !== lastGroup;
+      lastGroup = meta.group;
+      return { sectionId, meta, showGroupHeading };
+    });
+  }, [orderedVisibleSections]);
+
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-[#050608] px-5 py-10 text-white sm:px-8 sm:py-12">
       <div
@@ -355,224 +679,75 @@ export function AdminDashboardClient(props: {
             </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => void logout()}
-            disabled={busyKey !== null}
-            className="rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 text-xs font-black uppercase tracking-[0.1em] text-white/80 hover:bg-white/[0.07] disabled:opacity-40"
-          >
-            Sign out
-          </button>
-        </header>
-
-        {show("member_counts") || show("platform_client_subs") || show("premium_trainer_subs") ? (
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {show("member_counts") ? (
-          <>
-          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Total members</p>
-            <p className="mt-2 text-3xl font-black tabular-nums text-white">{totalMembers}</p>
-            <p className="mt-1 text-xs text-white/40">
-              {userCounts.clientsTotal} clients · {userCounts.trainersTotal} trainers
-            </p>
-            <p className="mt-1 text-[10px] text-white/30">Excludes test &amp; QA accounts</p>
-          </div>
-          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Active clients</p>
-            <p className="mt-2 text-3xl font-black tabular-nums text-white">{userCounts.clientsActive}</p>
-            <p className="mt-1 text-xs text-white/40">Billing in good standing</p>
-          </div>
-          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Active trainers</p>
-            <p className="mt-2 text-3xl font-black tabular-nums text-white">{userCounts.trainersActive}</p>
-            <p className="mt-1 text-xs text-white/40">Onboarded + recent activity</p>
-          </div>
-          </>
-          ) : null}
-          {show("platform_client_subs") ? (
-          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Platform subscribers</p>
-            <p className="mt-2 text-3xl font-black tabular-nums text-white">{revenue.activePlatformSubscribers}</p>
-            <p className="mt-1 text-xs text-white/40">Live Stripe subs only</p>
-          </div>
-          ) : null}
-          {show("premium_trainer_subs") ? (
-          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Premium trainers</p>
-            <p className="mt-2 text-3xl font-black tabular-nums text-white">{revenue.activeTrainerPremiumSubscribers}</p>
-            <p className="mt-1 text-xs text-white/40">Premium studio enabled</p>
-          </div>
-          ) : null}
-        </section>
-        ) : null}
-
-        {(show("revenue_summary") || show("recent_signups") || show("featured_allocations")) ? (
-        <section className="grid gap-4 lg:grid-cols-3">
-          {show("revenue_summary") ? (
-          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.06] p-5 lg:col-span-1">
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-200/80">Platform revenue</p>
-            <p className="mt-2 text-2xl font-black tabular-nums text-white">
-              {formatUsdFromCents(revenue.revenueCents)}
-            </p>
-            <p className="mt-1 text-xs text-white/45">
-              {revenue.eventCount} recorded payment event{revenue.eventCount === 1 ? "" : "s"} (gross collected)
-            </p>
-            <p className="mt-4 text-[11px] font-black uppercase tracking-[0.18em] text-emerald-200/70">
-              Gross platform profit
-            </p>
-            <p className="mt-1 text-xl font-black tabular-nums text-emerald-50">
-              {formatUsdFromCents(revenue.grossProfitCents)}
-            </p>
-            <ul className="mt-3 space-y-1.5 text-[11px] leading-relaxed text-white/45">
-              <li>
-                Services: {formatUsdFromCents(revenue.byCategory.SERVICE_CHECKOUT.grossProfitCents)} profit (
-                {revenue.byCategory.SERVICE_CHECKOUT.eventCount} checkouts)
-              </li>
-              <li>
-                Client subs ($10/mo): {formatUsdFromCents(revenue.byCategory.CLIENT_PLATFORM_SUBSCRIPTION.grossProfitCents)}{" "}
-                profit
-              </li>
-              <li>
-                Trainer premium ($20/mo):{" "}
-                {formatUsdFromCents(revenue.byCategory.TRAINER_PREMIUM_SUBSCRIPTION.grossProfitCents)} profit
-              </li>
-              <li>
-                Other one-time: {formatUsdFromCents(revenue.byCategory.ONE_TIME_PURCHASE.grossProfitCents)} profit
-              </li>
-            </ul>
-            <p className="mt-2 text-[10px] leading-relaxed text-white/35">
-              Live billing only — sandbox and test accounts excluded.
-            </p>
-          </div>
-          ) : null}
-
-          {show("recent_signups") ? (
-          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5 lg:col-span-1">
-            <h2 className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Recent signups</h2>
-            <div className="mt-3 space-y-2">
-              {recentSignups.length === 0 ? (
-                <p className="text-sm text-white/45">No signups yet.</p>
-              ) : (
-                recentSignups.map((row) => (
-                  <SignupRowCard key={`${row.kind}-${row.id}`} row={row} busyKey={busyKey} onOpen={impersonate} compact />
-                ))
-              )}
-            </div>
-          </div>
-          ) : null}
-
-          {show("featured_allocations") ? (
-          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5 lg:col-span-1">
-            <h2 className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Recent featured trainers</h2>
-            <div className="mt-3">
-              <FeaturedSnapshotList items={recentFeatured} />
-            </div>
-          </div>
-          ) : null}
-        </section>
-        ) : null}
-
-        {(show("unique_visitors") || show("top_pages") || show("top_buttons")) ? (
-        <section className="grid gap-4 lg:grid-cols-3">
-          {show("unique_visitors") ? (
-          <div className="rounded-2xl border border-violet-400/20 bg-violet-500/[0.06] p-5">
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-violet-200/80">Unique visitors</p>
-            <p className="mt-2 text-3xl font-black tabular-nums">{traffic.uniqueVisitors}</p>
-            <p className="mt-1 text-xs text-white/45">Last {traffic.windowDays} days · {traffic.pageViews} page views</p>
-          </div>
-          ) : null}
-          {show("top_pages") ? (
-          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5 lg:col-span-1">
-            <h2 className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Top pages</h2>
-            <ul className="mt-3 space-y-2 text-sm">
-              {traffic.topPages.length === 0 ? (
-                <li className="text-white/45">No data yet.</li>
-              ) : (
-                traffic.topPages.map((p) => (
-                  <li key={p.path} className="flex justify-between gap-2 text-white/80">
-                    <span className="truncate font-mono text-xs">{p.path}</span>
-                    <span className="shrink-0 tabular-nums text-white/50">{p.uniqueVisitors}</span>
-                  </li>
-                ))
-              )}
-            </ul>
-          </div>
-          ) : null}
-          {show("top_buttons") ? (
-          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5 lg:col-span-1">
-            <h2 className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Top clicks</h2>
-            <ul className="mt-3 space-y-2 text-sm">
-              {traffic.topLinks.length === 0 ? (
-                <li className="text-white/45">No data yet.</li>
-              ) : (
-                traffic.topLinks.map((l) => (
-                  <li key={l.target} className="text-white/80">
-                    <p className="truncate font-mono text-xs">{l.label ?? l.target}</p>
-                    <p className="text-[11px] text-white/40">{l.uniqueClickers} unique clickers</p>
-                  </li>
-                ))
-              )}
-            </ul>
-          </div>
-          ) : null}
-        </section>
-        ) : null}
-
-        {show("ai_visitor_insights") && props.visitorInsight ? (
-        <section className="rounded-2xl border border-cyan-400/25 bg-cyan-500/[0.06] p-5">
-          <h2 className="text-[11px] font-black uppercase tracking-[0.18em] text-cyan-200/90">AI visitor insights</h2>
-          <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-white/80">{props.visitorInsight}</p>
-          <p className="mt-3 text-xs">
-            <Link href="/admin/assistant" className="text-cyan-300/90 underline-offset-4 hover:underline">
-              Open AI assistant for deeper analysis
-            </Link>
-          </p>
-        </section>
-        ) : null}
-
-        {show("impersonation_audit") ? (
-        <section className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-          <h2 className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Impersonation audit log</h2>
-          <div className="mt-3 space-y-2">
-            {props.auditLog.length === 0 ? (
-              <p className="text-sm text-white/45">No impersonation events yet.</p>
-            ) : (
-              props.auditLog.map((row) => (
-                <div key={row.id} className="rounded-xl border border-white/[0.06] bg-[#07080c]/80 px-3 py-2 text-xs">
-                  <p className="text-white/85">
-                    {row.action} · {row.targetRole} @{row.targetUsername ?? row.targetId.slice(0, 8)}
-                  </p>
-                  <p className="text-white/40">{row.administratorEmail} · {formatSignupDate(row.createdAt)}</p>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
-        ) : null}
-
-        {show("test_mode") ? (
-        <section className="rounded-2xl border border-amber-400/25 bg-amber-500/[0.07] p-5">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-200/90">Test mode</p>
-              <p className="mt-1 text-sm text-white/70">
-                Toggle on while validating flows. External billing and messaging integrations still follow environment keys.
-              </p>
-            </div>
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              disabled={busyKey !== null}
-              onClick={() => void toggleTestMode(!testMode)}
-              className={`rounded-xl px-5 py-3 text-xs font-black uppercase tracking-[0.12em] transition disabled:opacity-40 ${
-                testMode
-                  ? "border border-amber-300/40 bg-amber-500/20 text-amber-50"
-                  : "border border-white/15 bg-white/[0.05] text-white/75 hover:bg-white/[0.08]"
-              }`}
+              onClick={() => {
+                setLayoutSaveError(null);
+                setLayoutPersistedHint(null);
+                setCustomizerOpen(true);
+              }}
+              className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-2.5 text-xs font-black uppercase tracking-[0.1em] text-cyan-50 hover:bg-cyan-500/15"
             >
-              {busyKey === "testmode" ? "Updating…" : testMode ? "Test mode on" : "Test mode off"}
+              Customize dashboard
+            </button>
+            <button
+              type="button"
+              onClick={() => void logout()}
+              disabled={busyKey !== null}
+              className="rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 text-xs font-black uppercase tracking-[0.1em] text-white/80 hover:bg-white/[0.07] disabled:opacity-40"
+            >
+              Sign out
             </button>
           </div>
-        </section>
+        </header>
+
+        <AdminDashboardSectionNav layout={layout} />
+
+        {orderedVisibleSections.length === 0 ? (
+          <p className="rounded-2xl border border-amber-400/25 bg-amber-500/[0.07] px-4 py-6 text-sm text-amber-100/90">
+            All sections are hidden. Open <strong className="font-bold">Customize dashboard</strong> to show sections
+            again.
+          </p>
+        ) : (
+          <div className="space-y-10">
+            {sectionsToRender.map(({ sectionId, meta, showGroupHeading }) => {
+              const usesInternalHeading = [
+                "platform-health",
+                "site-traffic",
+                "acquisition-funnel",
+                "trainer-pipeline",
+                "finances-detail",
+                "operational-alerts",
+              ].includes(sectionId);
+
+              return (
+                <Fragment key={sectionId}>
+                  {showGroupHeading ? (
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300/70">{meta.group}</p>
+                  ) : null}
+                  <AdminDashboardSection
+                    id={sectionId}
+                    title={usesInternalHeading ? undefined : meta.label}
+                    description={usesInternalHeading ? undefined : meta.description}
+                  >
+                    {renderSectionBody(sectionId)}
+                  </AdminDashboardSection>
+                </Fragment>
+              );
+            })}
+          </div>
+        )}
+
+        {customizerOpen ? (
+          <AdminDashboardLayoutCustomizer
+            layout={layout}
+            saving={layoutSaving}
+            saveError={layoutSaveError}
+            persistedHint={layoutPersistedHint}
+            onSave={(next) => void saveDashboardLayout(next)}
+            onClose={() => setCustomizerOpen(false)}
+          />
         ) : null}
 
         {TURNSTILE_SITE_KEY ? (
@@ -585,71 +760,6 @@ export function AdminDashboardClient(props: {
           <p className="rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]" role="alert">
             {error}
           </p>
-        ) : null}
-
-        {show("signup_log") ? (
-        <section className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-4 sm:p-5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Signup log</h2>
-              <p className="mt-1 text-sm text-white/50">
-                All client and trainer registrations, newest first ({signupTotal} total).
-              </p>
-            </div>
-            {signupLog.length < signupTotal ? (
-              <button
-                type="button"
-                disabled={signupLoading || busyKey !== null}
-                onClick={() => void loadSignupLog(signupOffset + signupPageSize, false)}
-                className="rounded-lg border border-white/15 px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-white/75 hover:bg-white/[0.06] disabled:opacity-40"
-              >
-                {signupLoading ? "Loading…" : "Load more"}
-              </button>
-            ) : null}
-          </div>
-          <div className="mt-4 space-y-2">
-            {signupLog.length === 0 && !signupLoading ? (
-              <p className="text-sm text-white/45">No signups to show.</p>
-            ) : (
-              signupLog.map((row) => (
-                <SignupRowCard key={`log-${row.kind}-${row.id}`} row={row} busyKey={busyKey} onOpen={impersonate} />
-              ))
-            )}
-          </div>
-        </section>
-        ) : null}
-
-        {show("member_search") ? (
-        <section className="space-y-4">
-          <div>
-            <h2 className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Member search</h2>
-            <p className="mt-1 text-sm text-white/50">
-              Search by username, email, or phone, then open the member&apos;s dashboard in a supervised session.
-            </p>
-          </div>
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search username, email, or phone…"
-            className="w-full rounded-xl border border-white/[0.1] bg-[#07080c] px-4 py-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-cyan-400/35 focus:ring-2 focus:ring-cyan-400/20"
-          />
-          <div className="grid gap-6 lg:grid-cols-2">
-            <AdminDirectoryUserTable
-              title="Clients"
-              kind="client"
-              list={rows?.clients ?? []}
-              busyKey={busyKey}
-              onImpersonate={impersonate}
-            />
-            <AdminDirectoryUserTable
-              title="Trainers"
-              kind="trainer"
-              list={rows?.trainers ?? []}
-              busyKey={busyKey}
-              onImpersonate={impersonate}
-            />
-          </div>
-        </section>
         ) : null}
 
         <footer className="border-t border-white/[0.08] pt-6 text-xs text-white/40">

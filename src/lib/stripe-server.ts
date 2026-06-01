@@ -13,6 +13,13 @@ export function getStripe(): Stripe | null {
   return stripeSingleton;
 }
 
+/** True when `STRIPE_SECRET_KEY` is a live (non-test) secret. */
+export function isStripeLiveSecretKey(): boolean {
+  const key = process.env.STRIPE_SECRET_KEY?.trim();
+  return Boolean(key?.startsWith("sk_live_"));
+}
+
+/** Stripe objects created under test keys report `livemode: false`. */
 export function stripeObjectIsLiveBilling(livemode: boolean | null | undefined): boolean {
   return livemode === true;
 }

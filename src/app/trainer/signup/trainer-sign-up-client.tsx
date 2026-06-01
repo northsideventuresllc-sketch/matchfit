@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { TurnstileField } from "@/components/turnstile-field";
 import { trackGoogleAdsConversion } from "@/lib/google-ads";
+import { trackMetaConversion } from "@/lib/meta-pixel";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { getSupabaseEmailCallbackUrl, isSupabaseConfigured } from "@/lib/supabase/email-callback-url";
 import { buildSupabaseSignUpOptions } from "@/lib/supabase/sign-up-options";
@@ -13,8 +14,10 @@ import { writeTrainerSignupDraft } from "@/lib/trainer-supabase-signup-draft";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
 import { BetaCapFullSignupNotice } from "@/components/beta-cap-full-signup-notice";
 import { useBetaLaunchStatus } from "@/hooks/use-beta-launch-status";
+import { useMetaSignupFunnelStep } from "@/hooks/use-meta-signup-funnel-step";
 import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
-import { FormEvent, useEffect, useState } from "react";
+import { trackMetaLead } from "@/lib/meta-pixel-funnel";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 transition placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2";
@@ -56,6 +59,25 @@ export default function TrainerSignUpClient() {
   const [busy, setBusy] = useState(false);
   const [verificationEmailSent, setVerificationEmailSent] = useState(false);
   const turnstile = useTurnstileGate();
+
+  const wizardFunnelStep = useMemo(
+    () =>
+      verificationEmailSent
+        ? {
+            funnel: "trainer" as const,
+            step_id: "sign_up_email_sent",
+            step_name: "Verification email sent",
+            step_index: 2,
+          }
+        : {
+            funnel: "trainer" as const,
+            step_id: "sign_up_form_active",
+            step_name: "Sign-up form",
+            step_index: 1,
+          },
+    [verificationEmailSent],
+  );
+  useMetaSignupFunnelStep(wizardFunnelStep);
 
   useEffect(() => {
     if (!betaInviteFromUrl) return;
@@ -196,6 +218,7 @@ export default function TrainerSignUpClient() {
             return;
           }
           trackGoogleAdsConversion("trainer_signup");
+          trackMetaConversion("trainer_signup");
           navigateWithFullLoad(data.next ?? "/trainer/onboarding");
           return;
         }
@@ -212,6 +235,7 @@ export default function TrainerSignUpClient() {
           serviceZipCode: serviceZipCode.trim(),
           ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
         });
+        trackMetaLead("trainer");
         setVerificationEmailSent(true);
         setBusy(false);
         return;
@@ -235,6 +259,7 @@ export default function TrainerSignUpClient() {
         return;
       }
       trackGoogleAdsConversion("trainer_signup");
+      trackMetaConversion("trainer_signup");
       navigateWithFullLoad(data.next ?? "/trainer/onboarding");
     } catch {
       setError("Something went wrong. Try again.");
@@ -521,7 +546,17 @@ export default function TrainerSignUpClient() {
               </label>
             </div>
 
-            <TurnstileField gate={turnstile} className="flex justify-center pt-1" />
+            <TurnstileField
+              enabled={turnstile.enabled}
+              widgetRef={turnstile.ref}
+              siteKey={turnstile.siteKey}
+              onReady={turnstile.onTurnstileReady}
+              onError={turnstile.onTurnstileError}
+              onExpire={turnstile.onTurnstileExpire}
+              widgetError={turnstile.widgetError}
+              ready={turnstile.ready}
+              className="flex justify-center pt-1"
+            />
 
             <button
               type="submit"

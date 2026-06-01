@@ -163,10 +163,13 @@ export default async function TermsPage() {
           sign-up before the reserved slot may be released to the next waitlisted person.
         </P>
         <P>
-          <Strong>Geographic service area:</Strong> During the Atlanta metro beta, Trainer and Client sign-up and waitlist
-          flows may require a ZIP code inside the published Atlanta metropolitan service area (approximately fifteen to
-          twenty road miles from downtown Atlanta, as implemented in our ZIP allowlist). We may expand to additional regions
-          over time and will describe availability in-product.
+          <Strong>Geographic availability during beta:</Strong> During the current beta rollout,{" "}
+          <Strong>Clients anywhere in the United States</Strong> may create an account and join the client waitlist
+          when capacity gates apply. <Strong>In-person (mobile) sessions</Strong> with coaches are launching first in
+          our published Atlanta metropolitan service area (approximately fifteen to twenty road miles from downtown
+          Atlanta, as implemented in our ZIP allowlist for coach service areas). Trainer sign-up and trainer waitlist
+          flows may still require a service ZIP inside that Atlanta metro area while in-person coaching expands. We
+          may expand in-person regions over time and will describe availability in-product.
         </P>
         <P>
           <Strong>Founding promotions (while caps last):</Strong> The first{" "}

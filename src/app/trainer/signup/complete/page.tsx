@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { TurnstileField } from "@/components/turnstile-field";
 import { trackGoogleAdsConversion } from "@/lib/google-ads";
+import { trackMetaConversion } from "@/lib/meta-pixel";
 import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { isTurnstileClientEnabled } from "@/lib/turnstile-config";
@@ -74,6 +75,7 @@ export default function TrainerSignupCompletePage() {
         }
         clearTrainerSignupDraft();
         trackGoogleAdsConversion("trainer_signup");
+        trackMetaConversion("trainer_signup");
         navigateWithFullLoad(data.next ?? "/trainer/onboarding");
       } catch {
         if (!cancelled) {
@@ -141,6 +143,7 @@ export default function TrainerSignupCompletePage() {
       }
       clearTrainerSignupDraft();
       trackGoogleAdsConversion("trainer_signup");
+      trackMetaConversion("trainer_signup");
       navigateWithFullLoad(data.next ?? "/trainer/onboarding");
     } catch {
       setError("Something went wrong. Try again.");
@@ -179,7 +182,16 @@ export default function TrainerSignupCompletePage() {
 
         {sessionReady && turnstile.enabled ? (
           <div className="mt-8 flex flex-col items-center gap-6">
-            <TurnstileField gate={turnstile} />
+            <TurnstileField
+              enabled={turnstile.enabled}
+              widgetRef={turnstile.ref}
+              siteKey={turnstile.siteKey}
+              onReady={turnstile.onTurnstileReady}
+              onError={turnstile.onTurnstileError}
+              onExpire={turnstile.onTurnstileExpire}
+              widgetError={turnstile.widgetError}
+              ready={turnstile.ready}
+            />
             <button
               type="button"
               disabled={busy || !turnstile.ready}

@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Prisma } from "@/generated/prisma/client";
 
-const { queryRawMock, betaExcludeCapCountEmailsMock, betaExcludeCapCountUsernamesMock } = vi.hoisted(() => ({
-  queryRawMock: vi.fn(),
-  betaExcludeCapCountEmailsMock: vi.fn<() => Set<string>>(),
-  betaExcludeCapCountUsernamesMock: vi.fn<() => Set<string>>(),
-}));
+const { queryRawMock, betaExcludeCapCountEmailsMock, betaExcludeCapCountUsernamesMock } = vi.hoisted(
+  () => ({
+    queryRawMock: vi.fn(),
+    betaExcludeCapCountEmailsMock: vi.fn<() => Set<string>>(),
+    betaExcludeCapCountUsernamesMock: vi.fn<() => Set<string>>(),
+  }),
+);
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -90,5 +92,22 @@ describe("getHomeUserCounts", () => {
 
     await expect(getHomeUserCounts()).rejects.toThrow("database timeout");
     expect(queryRawMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns zero counters in development when the database is unavailable", async () => {
+    const prevNodeEnv = process.env.NODE_ENV;
+    try {
+      process.env.NODE_ENV = "development";
+      queryRawMock.mockRejectedValue(new Error("Can't reach database server at localhost:5432"));
+
+      await expect(getHomeUserCounts()).resolves.toEqual({
+        trainersTotal: 0,
+        trainersActive: 0,
+        clientsTotal: 0,
+        clientsActive: 0,
+      });
+    } finally {
+      process.env.NODE_ENV = prevNodeEnv;
+    }
   });
 });

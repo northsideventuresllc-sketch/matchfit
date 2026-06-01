@@ -1,12 +1,20 @@
 import { redirect } from "next/navigation";
-import { getAdminDashboardPreferences, ensureAdminDashboardPreferences } from "@/lib/admin-dashboard-preferences";
+import { DEFAULT_ADMIN_DASHBOARD_LAYOUT } from "@/lib/admin-dashboard-layout";
+import { loadAdminDashboardLayout } from "@/lib/admin-dashboard-layout-server";
 import { requireAdminSession } from "@/lib/require-admin";
 import { AdminSettingsClient } from "./admin-settings-client";
 
 export default async function AdminSettingsPage() {
   const sess = await requireAdminSession();
   if (!sess) redirect("/admin/login");
-  await ensureAdminDashboardPreferences(sess.adminId);
-  const prefs = await getAdminDashboardPreferences(sess.adminId);
-  return <AdminSettingsClient initialEnabled={prefs.enabledWidgets} />;
+
+  const savedLayout = await loadAdminDashboardLayout(sess.adminId);
+
+  return (
+    <AdminSettingsClient
+      administratorId={sess.adminId}
+      initialLayout={savedLayout ?? DEFAULT_ADMIN_DASHBOARD_LAYOUT}
+      layoutLoadedFromServer={savedLayout !== null}
+    />
+  );
 }

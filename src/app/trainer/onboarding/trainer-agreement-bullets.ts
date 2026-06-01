@@ -23,7 +23,7 @@ const TRAINER_ONBOARDING_AGREEMENT_BULLETS_STANDARD = [
   "By checking each box in this list, you confirm that you have read, understood, and agree to every statement above and to the basic Trainer Terms of Service that govern your use of Match Fit.",
 ] as const;
 
-/** Same length as {@link getTrainerOnboardingAgreementBullets}; indices 0, 3, and 6 differ for founding coaches (first 10). */
+/** Same length as {@link getTrainerOnboardingAgreementBullets}; indices 0, 3, and 6 differ for founding coaches (first N per launch cap). */
 const TRAINER_ONBOARDING_AGREEMENT_BULLETS_REGISTRATION_WAIVED = [
   "The standard trainer registration fee is $100.00, but your account is in a limited founding-coach window: after your background check clears, Match Fit charges you 20% of the amount you paid the independent screening provider (as verified on your Checkr report), plus an estimated card processing fee—not the full $100.00 platform fee.",
   "The background check is administered and priced by an independent third-party screening company that Match Fit will integrate with in a future release; you are responsible for paying the background check provider according to its instructions.",

@@ -197,14 +197,8 @@ export default async function ClientDashboardHomePage() {
         )}
       </ClientDashboardHomeSection>
 
+      {featuredCoaches.length > 0 ? (
       <ClientDashboardHomeSection title="Featured Coaches in Your Area">
-        {!zipPrefix ? (
-          <p className="text-center text-sm text-white/40">
-            Add a valid U.S. ZIP code on your account so we can match you to a regional featured pool.
-          </p>
-        ) : featuredCoaches.length === 0 ? (
-          <p className="text-center text-sm text-white/40">No featured coaches are scheduled for your region today.</p>
-        ) : (
           <>
             <ul className="mx-auto max-w-xl space-y-3">
               {featuredCoaches.map((c) => {
@@ -253,8 +247,8 @@ export default async function ClientDashboardHomePage() {
               </Link>
             </p>
           </>
-        )}
       </ClientDashboardHomeSection>
+      ) : null}
 
       <ClientDashboardHomeSection
         title="Coach Nudges"

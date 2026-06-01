@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { trackGoogleAdsConversion } from "@/lib/google-ads";
+import { trackMetaConversion } from "@/lib/meta-pixel";
 
 function MissingSession() {
   return (
@@ -42,6 +43,7 @@ function ConfirmCheckout({ sessionId }: { sessionId: string }) {
           return;
         }
         trackGoogleAdsConversion("client_signup");
+        trackMetaConversion("client_signup");
         router.push("/client/dashboard");
         router.refresh();
       } catch {
