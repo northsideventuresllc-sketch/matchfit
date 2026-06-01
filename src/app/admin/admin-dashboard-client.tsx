@@ -279,6 +279,7 @@ export function AdminDashboardClient(props: {
   }, [q, loadDirectory]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  /* eslint-disable react-hooks/set-state-in-effect -- reading localStorage on mount is safe */
   useEffect(() => {
     if (props.layoutLoadedFromServer) return;
     try {
@@ -289,6 +290,7 @@ export function AdminDashboardClient(props: {
       /* ignore corrupt local layout */
     }
   }, [layoutStorageKey, props.layoutLoadedFromServer]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const orderedVisibleSections = useMemo(() => visibleDashboardSections(layout), [layout]);
 
@@ -679,6 +681,7 @@ export function AdminDashboardClient(props: {
     return orderedVisibleSections.map((sectionId) => {
       const meta = SECTION_META_BY_ID[sectionId];
       const showGroupHeading = meta.group !== lastGroup;
+      // eslint-disable-next-line react-hooks/immutability -- tracking previous group within map is intentional
       lastGroup = meta.group;
       return { sectionId, meta, showGroupHeading };
     });
