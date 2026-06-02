@@ -5,6 +5,7 @@ import {
   SYNTHETIC_CLIENT_USERNAME_PREFIX,
   SYNTHETIC_TRAINER_USERNAME_PREFIX,
   getLaunchExcludeEmails,
+  getLaunchExcludeUsernames,
 } from "@/lib/launch-account-counts";
 import {
   getMatchFitDevPlaceholderCertPathPrefixes,
@@ -253,6 +254,81 @@ export function buildAdminPortalClientSqlFilterLegacy(): PrismaNamespace.Sql {
         ${usernameNotIn}
       )
     )
+  `;
+}
+
+/** Raw SQL for launch metrics on clients — excludes owner test accounts and all QA/synthetic rows. */
+export function buildLaunchMetricsClientSqlFilter(alias = "c"): PrismaNamespace.Sql {
+  const emails = getLaunchExcludeEmails("client").map((e) => e.toLowerCase());
+  const usernames = getLaunchExcludeUsernames("client").map((u) => u.toLowerCase());
+  const col = (name: string) => PrismaNamespace.raw(`"${alias}"."${name}"`);
+
+  const emailNotIn =
+    emails.length > 0
+      ? PrismaNamespace.sql`AND LOWER(${col("email")}) NOT IN (${sqlInList(emails)})`
+      : PrismaNamespace.empty;
+
+  const usernameNotIn =
+    usernames.length > 0
+      ? PrismaNamespace.sql`AND LOWER(${col("username")}) NOT IN (${sqlInList(usernames)})`
+      : PrismaNamespace.empty;
+
+  return PrismaNamespace.sql`
+    AND COALESCE(${col("internalQaSyntheticPersona")}, false) = false
+    AND LOWER(${col("username")}) NOT LIKE ${`${SYNTHETIC_CLIENT_USERNAME_PREFIX.toLowerCase()}%`}
+    AND LOWER(${col("email")}) NOT LIKE ${`%${INTERNAL_SYNTHETIC_EMAIL_SUFFIX}`}
+    AND LOWER(${col("email")}) NOT LIKE '%.invalid'
+    AND LOWER(${col("email")}) NOT LIKE ${`%${MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX}`}
+    ${emailNotIn}
+    ${usernameNotIn}
+  `;
+}
+
+/** Raw SQL for launch metrics on trainers — excludes owner test accounts and dev-seed personas. */
+export function buildLaunchMetricsTrainerSqlFilter(
+  trainerAlias = "t",
+  profileAlias?: string,
+): PrismaNamespace.Sql {
+  const emails = getLaunchExcludeEmails("trainer").map((e) => e.toLowerCase());
+  const usernames = getLaunchExcludeUsernames("trainer").map((u) => u.toLowerCase());
+  const tCol = (name: string) => PrismaNamespace.raw(`"${trainerAlias}"."${name}"`);
+  const certPrefixes = getMatchFitDevPlaceholderCertPathPrefixes();
+
+  const emailNotIn =
+    emails.length > 0
+      ? PrismaNamespace.sql`AND LOWER(${tCol("email")}) NOT IN (${sqlInList(emails)})`
+      : PrismaNamespace.empty;
+
+  const usernameNotIn =
+    usernames.length > 0
+      ? PrismaNamespace.sql`AND LOWER(${tCol("username")}) NOT IN (${sqlInList(usernames)})`
+      : PrismaNamespace.empty;
+
+  const certChecks =
+    profileAlias && certPrefixes.length > 0
+      ? certPrefixes.map(
+          (prefix) => PrismaNamespace.sql`
+            COALESCE(${PrismaNamespace.raw(`"${profileAlias}"."certificationUrl"`)}, '') NOT ILIKE ${`${prefix}%`}
+            AND COALESCE(${PrismaNamespace.raw(`"${profileAlias}"."nutritionistCertificationUrl"`)}, '') NOT ILIKE ${`${prefix}%`}
+            AND COALESCE(${PrismaNamespace.raw(`"${profileAlias}"."specialistCertificationUrl"`)}, '') NOT ILIKE ${`${prefix}%`}
+          `,
+        )
+      : [];
+
+  const certBlock =
+    certChecks.length > 0
+      ? PrismaNamespace.sql`AND (${PrismaNamespace.join(certChecks, " AND ")})`
+      : PrismaNamespace.empty;
+
+  return PrismaNamespace.sql`
+    AND COALESCE(${tCol("internalQaSyntheticPersona")}, false) = false
+    AND LOWER(${tCol("username")}) NOT LIKE ${`${SYNTHETIC_TRAINER_USERNAME_PREFIX.toLowerCase()}%`}
+    AND LOWER(${tCol("email")}) NOT LIKE ${`%${INTERNAL_SYNTHETIC_EMAIL_SUFFIX}`}
+    AND LOWER(${tCol("email")}) NOT LIKE '%.invalid'
+    AND LOWER(${tCol("email")}) NOT LIKE ${`%${MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX}`}
+    ${emailNotIn}
+    ${usernameNotIn}
+    ${certBlock}
   `;
 }
 

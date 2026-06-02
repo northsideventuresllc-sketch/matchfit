@@ -130,6 +130,42 @@ export function launchPremiumTrainerCountWhere(): Prisma.TrainerProfileWhereInpu
   };
 }
 
+/** Active platform subscription rows that count toward launch metrics (excludes sandbox billing). */
+export function launchClientActiveSubscriptionCountWhere(): Prisma.ClientWhereInput {
+  return {
+    ...launchClientCountWhere(),
+    stripeSubscriptionActive: true,
+  };
+}
+
+/** Paying launch subscribers — requires live Stripe billing mode. */
+export function launchClientPayingSubscriberCountWhere(): Prisma.ClientWhereInput {
+  return launchPlatformSubscriberCountWhere();
+}
+
+/** Launch clients in trial (active sub, no paid invoice yet). */
+export function launchClientFreeTrialCountWhere(): Prisma.ClientWhereInput {
+  return {
+    ...launchClientActiveSubscriptionCountWhere(),
+    stripeLastSubscriptionInvoicePaidAt: null,
+  };
+}
+
+export function launchClientBillingGraceWhere(now = new Date()): Prisma.ClientWhereInput {
+  return {
+    ...launchClientCountWhere(),
+    subscriptionGraceUntil: { gte: now },
+    stripeSubscriptionActive: false,
+  };
+}
+
+export function launchClientWithCardWhere(): Prisma.ClientWhereInput {
+  return {
+    ...launchClientCountWhere(),
+    stripeCustomerId: { not: null },
+  };
+}
+
 export async function countLaunchPlatformSubscribers(): Promise<number> {
   return prisma.client.count({ where: launchPlatformSubscriberCountWhere() });
 }

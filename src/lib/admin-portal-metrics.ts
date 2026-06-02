@@ -29,11 +29,18 @@ import {
 } from "@/lib/platform-success-rating";
 import type { PlatformRevenueCategory } from "@/lib/platform-revenue-accounting";
 import { LIVE_PLATFORM_REVENUE_WHERE, mergeLiveRevenueWhere } from "@/lib/platform-revenue-filters";
-import { launchClientCountWhere, launchTrainerCountWhere } from "@/lib/launch-account-counts";
+import {
+  countLaunchPremiumTrainers,
+  countLaunchPlatformSubscribers,
+  launchClientBillingGraceWhere,
+  launchClientCountWhere,
+  launchClientFreeTrialCountWhere,
+  launchClientWithCardWhere,
+  launchTrainerCountWhere,
+} from "@/lib/launch-account-counts";
+import { buildLaunchMetricsClientSqlFilter, buildLaunchMetricsTrainerSqlFilter } from "@/lib/admin-portal-list-filters";
 import { parseTopOffering } from "@/lib/admin-portal-parsers";
 import { homepageDisplayDayKey } from "@/lib/featured-eastern-calendar";
-
-const TRAINER_EXCLUDE_SYNTH = Prisma.sql`AND COALESCE(t."internalQaSyntheticPersona", false) = false`;
 
 const CLIENT_SIGNUP_PATHS = ["/client/sign-up", "/client/sign-up/complete"];
 const TRAINER_SIGNUP_PATHS = ["/trainer/signup", "/trainer/sign-up", "/trainer/signup/complete"];
@@ -158,10 +165,11 @@ async function analyticsAvailable(): Promise<boolean> {
 }
 
 async function countLoginBuckets(table: "clients" | "trainers"): Promise<AdminLoginRecencyBuckets> {
-  const synth =
+  const alias = table === "clients" ? "c" : "t";
+  const metricsFilter =
     table === "clients"
-      ? Prisma.sql`COALESCE("internalQaSyntheticPersona", false) = false`
-      : Prisma.sql`COALESCE("internalQaSyntheticPersona", false) = false`;
+      ? buildLaunchMetricsClientSqlFilter(alias)
+      : buildLaunchMetricsTrainerSqlFilter(alias);
   try {
     const rows = await prisma.$queryRaw<
       {
@@ -175,17 +183,17 @@ async function countLoginBuckets(table: "clients" | "trainers"): Promise<AdminLo
       }[]
     >`
       SELECT
-        COUNT(*) FILTER (WHERE "lastLoginAt" >= NOW() - INTERVAL '12 hours')::bigint AS h12,
-        COUNT(*) FILTER (WHERE "lastLoginAt" >= NOW() - INTERVAL '24 hours')::bigint AS h24,
-        COUNT(*) FILTER (WHERE "lastLoginAt" >= NOW() - INTERVAL '7 days')::bigint AS d7,
-        COUNT(*) FILTER (WHERE "lastLoginAt" >= NOW() - INTERVAL '30 days')::bigint AS d30,
-        COUNT(*) FILTER (WHERE "lastLoginAt" >= NOW() - INTERVAL '90 days')::bigint AS d90,
-        COUNT(*) FILTER (WHERE "lastLoginAt" >= NOW() - INTERVAL '180 days')::bigint AS d180,
-        COUNT(*) FILTER (WHERE "lastLoginAt" >= NOW() - INTERVAL '365 days')::bigint AS d365
-      FROM ${Prisma.raw(`"${table}"`)}
-      WHERE "deidentifiedAt" IS NULL
-        AND "lastLoginAt" IS NOT NULL
-        AND ${synth}
+        COUNT(*) FILTER (WHERE ${Prisma.raw(`"${alias}"."lastLoginAt"`)} >= NOW() - INTERVAL '12 hours')::bigint AS h12,
+        COUNT(*) FILTER (WHERE ${Prisma.raw(`"${alias}"."lastLoginAt"`)} >= NOW() - INTERVAL '24 hours')::bigint AS h24,
+        COUNT(*) FILTER (WHERE ${Prisma.raw(`"${alias}"."lastLoginAt"`)} >= NOW() - INTERVAL '7 days')::bigint AS d7,
+        COUNT(*) FILTER (WHERE ${Prisma.raw(`"${alias}"."lastLoginAt"`)} >= NOW() - INTERVAL '30 days')::bigint AS d30,
+        COUNT(*) FILTER (WHERE ${Prisma.raw(`"${alias}"."lastLoginAt"`)} >= NOW() - INTERVAL '90 days')::bigint AS d90,
+        COUNT(*) FILTER (WHERE ${Prisma.raw(`"${alias}"."lastLoginAt"`)} >= NOW() - INTERVAL '180 days')::bigint AS d180,
+        COUNT(*) FILTER (WHERE ${Prisma.raw(`"${alias}"."lastLoginAt"`)} >= NOW() - INTERVAL '365 days')::bigint AS d365
+      FROM ${Prisma.raw(`"${table}"`)} ${Prisma.raw(`"${alias}"`)}
+      WHERE ${Prisma.raw(`"${alias}"."deidentifiedAt"`)} IS NULL
+        AND ${Prisma.raw(`"${alias}"."lastLoginAt"`)} IS NOT NULL
+        ${metricsFilter}
     `;
     const r = rows[0];
     return {
@@ -209,12 +217,12 @@ async function countTopPlatformFunctions(role: "client" | "trainer"): Promise<Ad
 
   if (role === "client") {
     const [browse, bookings, chat, questionnaires] = await Promise.all([
-      prisma.clientTrainerBrowsePass.count({ where: { createdAt: { gte: since }, client: { internalQaSyntheticPersona: false } } }),
-      prisma.bookedTrainingSession.count({ where: { createdAt: { gte: since }, client: { internalQaSyntheticPersona: false } } }),
+      prisma.clientTrainerBrowsePass.count({ where: { createdAt: { gte: since }, client: launchClientCountWhere() } }),
+      prisma.bookedTrainingSession.count({ where: { createdAt: { gte: since }, client: launchClientCountWhere() } }),
       prisma.trainerClientChatMessage.count({
-        where: { createdAt: { gte: since }, authorRole: "CLIENT", conversation: { client: { internalQaSyntheticPersona: false } } },
+        where: { createdAt: { gte: since }, authorRole: "CLIENT", conversation: { client: launchClientCountWhere() } },
       }),
-      prisma.clientDailyQuestionnaire.count({ where: { createdAt: { gte: since }, client: { internalQaSyntheticPersona: false } } }),
+      prisma.clientDailyQuestionnaire.count({ where: { createdAt: { gte: since }, client: launchClientCountWhere() } }),
     ]);
     stats.push(
       { key: "browse_trainers", label: "Find Trainers (swipes)", count: browse },
@@ -224,12 +232,12 @@ async function countTopPlatformFunctions(role: "client" | "trainer"): Promise<Ad
     );
   } else {
     const [posts, bookings, chat, browse] = await Promise.all([
-      prisma.trainerFitHubPost.count({ where: { createdAt: { gte: since }, trainer: { internalQaSyntheticPersona: false } } }),
-      prisma.bookedTrainingSession.count({ where: { createdAt: { gte: since }, trainer: { internalQaSyntheticPersona: false } } }),
+      prisma.trainerFitHubPost.count({ where: { createdAt: { gte: since }, trainer: launchTrainerCountWhere() } }),
+      prisma.bookedTrainingSession.count({ where: { createdAt: { gte: since }, trainer: launchTrainerCountWhere() } }),
       prisma.trainerClientChatMessage.count({
-        where: { createdAt: { gte: since }, authorRole: "TRAINER", conversation: { trainer: { internalQaSyntheticPersona: false } } },
+        where: { createdAt: { gte: since }, authorRole: "TRAINER", conversation: { trainer: launchTrainerCountWhere() } },
       }),
-      prisma.trainerClientBrowsePass.count({ where: { createdAt: { gte: since }, trainer: { internalQaSyntheticPersona: false } } }),
+      prisma.trainerClientBrowsePass.count({ where: { createdAt: { gte: since }, trainer: launchTrainerCountWhere() } }),
     ]);
     stats.push(
       { key: "fithub_posts", label: "FitHub posts", count: posts },
@@ -277,33 +285,22 @@ export async function getAdminTrafficFunnelPanel(): Promise<AdminTrafficFunnelPa
     countLoginBuckets("clients"),
     countLoginBuckets("trainers"),
     prisma.pendingClientRegistration.groupBy({ by: ["status"], _count: { _all: true } }),
-    prisma.client.count({ where: { deidentifiedAt: null, internalQaSyntheticPersona: false } }),
-    prisma.trainer.count({ where: { deidentifiedAt: null, internalQaSyntheticPersona: false } }),
+    prisma.client.count({ where: launchClientCountWhere() }),
+    prisma.trainer.count({ where: launchTrainerCountWhere() }),
     prisma.trainer.count({
       where: {
-        deidentifiedAt: null,
-        internalQaSyntheticPersona: false,
+        ...launchTrainerCountWhere(),
         OR: [{ profile: { is: { dashboardActivatedAt: null } } }, { profile: { is: { backgroundCheckStatus: { not: "APPROVED" } } } }],
       },
     }),
     prisma.trainer.count({
       where: {
-        deidentifiedAt: null,
-        internalQaSyntheticPersona: false,
+        ...launchTrainerCountWhere(),
         profile: { is: { hasPaidBackgroundFee: false, backgroundCheckStatus: "NOT_STARTED" } },
       },
     }),
-    prisma.client.count({
-      where: {
-        deidentifiedAt: null,
-        internalQaSyntheticPersona: false,
-        stripeSubscriptionActive: true,
-        stripeLastSubscriptionInvoicePaidAt: null,
-      },
-    }),
-    prisma.client.count({
-      where: { deidentifiedAt: null, internalQaSyntheticPersona: false, stripeSubscriptionActive: true },
-    }),
+    prisma.client.count({ where: launchClientFreeTrialCountWhere() }),
+    countLaunchPlatformSubscribers(),
     countTopPlatformFunctions("client"),
     countTopPlatformFunctions("trainer"),
   ]);
@@ -333,7 +330,8 @@ export async function getAdminTrafficFunnelPanel(): Promise<AdminTrafficFunnelPa
 }
 
 export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipelinePanel> {
-  const baseWhere = Prisma.sql`t."deidentifiedAt" IS NULL ${TRAINER_EXCLUDE_SYNTH}`;
+  const trainerMetricsFilter = buildLaunchMetricsTrainerSqlFilter("t", "p");
+  const baseWhere = Prisma.sql`t."deidentifiedAt" IS NULL ${trainerMetricsFilter}`;
 
   const [signupCompleted, bgSubmitted, bgFailed, bgPassed, docsPending, live] = await Promise.all([
     prisma.$queryRaw<CountRow[]>`
@@ -529,7 +527,11 @@ function parseTopOfferingFromProfile(serviceOfferingsJson: string | null): strin
 async function loadBestSellers(since: Date): Promise<AdminFinanceBestSeller[]> {
   const grouped = await prisma.trainerClientServiceTransaction.groupBy({
     by: ["trainerId"],
-    where: { completedAt: { gte: since } },
+    where: {
+      completedAt: { gte: since },
+      client: launchClientCountWhere(),
+      trainer: launchTrainerCountWhere(),
+    },
     _sum: { amountCents: true, totalChargedCents: true },
     _count: { _all: true },
     orderBy: { _sum: { amountCents: "desc" } },
@@ -539,7 +541,7 @@ async function loadBestSellers(since: Date): Promise<AdminFinanceBestSeller[]> {
 
   const trainerIds = grouped.map((g) => g.trainerId);
   const trainers = await prisma.trainer.findMany({
-    where: { id: { in: trainerIds }, internalQaSyntheticPersona: false },
+    where: { id: { in: trainerIds }, ...launchTrainerCountWhere() },
     select: {
       id: true,
       username: true,
@@ -596,32 +598,12 @@ export async function getAdminFinancesPanel(now = new Date()): Promise<AdminFina
     featuredTrainersToday,
     bestSellers,
   ] = await Promise.all([
-    prisma.client.count({
-      where: {
-        deidentifiedAt: null,
-        internalQaSyntheticPersona: false,
-        stripeSubscriptionActive: true,
-        stripeLastSubscriptionInvoicePaidAt: null,
-      },
-    }),
-    prisma.client.count({
-      where: {
-        deidentifiedAt: null,
-        internalQaSyntheticPersona: false,
-        subscriptionGraceUntil: { gte: now },
-        stripeSubscriptionActive: false,
-      },
-    }),
-    prisma.client.count({
-      where: { deidentifiedAt: null, internalQaSyntheticPersona: false, stripeCustomerId: { not: null } },
-    }),
-    prisma.client.count({
-      where: { deidentifiedAt: null, internalQaSyntheticPersona: false, stripeSubscriptionActive: true },
-    }),
+    prisma.client.count({ where: launchClientFreeTrialCountWhere() }),
+    prisma.client.count({ where: launchClientBillingGraceWhere(now) }),
+    prisma.client.count({ where: launchClientWithCardWhere() }),
+    countLaunchPlatformSubscribers(),
     loadRecentTransactions(20),
-    prisma.trainerProfile.count({
-      where: { premiumStudioEnabledAt: { not: null }, trainer: { deidentifiedAt: null, internalQaSyntheticPersona: false } },
-    }),
+    countLaunchPremiumTrainers(),
     prisma.featuredDailyAllocation.count({ where: { displayDayKey: dayKey } }),
     loadBestSellers(sinceFromWindow("30d", now)),
   ]);
@@ -669,7 +651,7 @@ export async function getAdminAlertsPanel(): Promise<AdminAlertsPanel> {
   ] = await Promise.all([
     prisma.trainer.findMany({
       where: {
-        internalQaSyntheticPersona: false,
+        ...launchTrainerCountWhere(),
         profile: {
           is: {
             OR: [
@@ -686,13 +668,13 @@ export async function getAdminAlertsPanel(): Promise<AdminAlertsPanel> {
     prisma.clientBugReport.findMany({ orderBy: { createdAt: "desc" }, take: limit, select: { id: true, createdAt: true, category: true, description: true } }),
     prisma.productIdeaSubmission.findMany({ orderBy: { createdAt: "desc" }, take: limit, select: { id: true, createdAt: true, category: true, description: true } }),
     prisma.client.findMany({
-      where: { internalQaSyntheticPersona: false, subscriptionGraceUntil: { gte: new Date() }, stripeSubscriptionActive: false },
+      where: launchClientBillingGraceWhere(new Date()),
       take: limit,
       orderBy: { subscriptionGraceUntil: "asc" },
       select: { id: true, username: true, subscriptionGraceUntil: true },
     }),
-    prisma.client.count({ where: { safetySuspended: true, internalQaSyntheticPersona: false } }),
-    prisma.trainer.count({ where: { safetySuspended: true, internalQaSyntheticPersona: false } }),
+    prisma.client.count({ where: { safetySuspended: true, ...launchClientCountWhere() } }),
+    prisma.trainer.count({ where: { safetySuspended: true, ...launchTrainerCountWhere() } }),
     prisma.safetyReport.count({ where: { status: "PENDING" } }),
     prisma.chatAdminReviewItem.findMany({
       where: { status: "PENDING" },
@@ -839,7 +821,7 @@ export async function computePlatformStabilityScore(): Promise<{ score: number; 
   const [openDisputes, bugs7d, graceClients, analyticsEvents24h, analyticsOk] = await Promise.all([
     prisma.sessionPayoutDispute.count({ where: { status: "PENDING_ADMIN" } }),
     prisma.clientBugReport.count({ where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } }),
-    prisma.client.count({ where: { subscriptionGraceUntil: { gte: new Date() }, stripeSubscriptionActive: false, internalQaSyntheticPersona: false } }),
+    prisma.client.count({ where: launchClientBillingGraceWhere(new Date()) }),
     prisma.siteAnalyticsEvent.count({ where: { createdAt: { gte: since24h } } }).catch(() => -1),
     analyticsAvailable(),
   ]);
@@ -878,13 +860,13 @@ export async function computePlatformSecurityScore(): Promise<{ score: number; n
 
   const [clientsTotal, clients2fa, trainersTotal, trainers2fa, openSafety, suspendedClients, suspendedTrainers, audit30d] =
     await Promise.all([
-    prisma.client.count({ where: { deidentifiedAt: null, internalQaSyntheticPersona: false } }),
-    prisma.client.count({ where: { deidentifiedAt: null, internalQaSyntheticPersona: false, twoFactorEnabled: true } }),
-    prisma.trainer.count({ where: { deidentifiedAt: null, internalQaSyntheticPersona: false } }),
-    prisma.trainer.count({ where: { deidentifiedAt: null, internalQaSyntheticPersona: false, twoFactorEnabled: true } }),
+    prisma.client.count({ where: launchClientCountWhere() }),
+    prisma.client.count({ where: { ...launchClientCountWhere(), twoFactorEnabled: true } }),
+    prisma.trainer.count({ where: launchTrainerCountWhere() }),
+    prisma.trainer.count({ where: { ...launchTrainerCountWhere(), twoFactorEnabled: true } }),
     prisma.safetyReport.count({ where: { status: "PENDING" } }),
-    prisma.client.count({ where: { safetySuspended: true, internalQaSyntheticPersona: false } }),
-    prisma.trainer.count({ where: { safetySuspended: true, internalQaSyntheticPersona: false } }),
+    prisma.client.count({ where: { safetySuspended: true, ...launchClientCountWhere() } }),
+    prisma.trainer.count({ where: { safetySuspended: true, ...launchTrainerCountWhere() } }),
     prisma.administratorAuditLog.count({ where: { createdAt: { gte: since30d } } }),
   ]);
   const suspensions = suspendedClients + suspendedTrainers;

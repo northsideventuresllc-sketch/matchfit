@@ -3,10 +3,13 @@ import {
   ADMIN_REDACTED_EMAIL_LABEL,
   adminPortalClientListWhere,
   adminPortalTrainerListWhere,
+  buildAdminPortalClientSqlFilter,
+  buildLaunchMetricsClientSqlFilter,
+  buildLaunchMetricsTrainerSqlFilter,
   isAdminOwnerTestUsername,
   redactEmailForAdminPortal,
 } from "@/lib/admin-portal-list-filters";
-import { INTERNAL_SYNTHETIC_EMAIL_SUFFIX } from "@/lib/launch-account-counts";
+import { INTERNAL_SYNTHETIC_EMAIL_SUFFIX, getLaunchExcludeUsernames } from "@/lib/launch-account-counts";
 
 describe("admin portal list filters", () => {
   it("keeps owner test usernames in list filters while excluding synthetic prefixes", () => {
@@ -53,5 +56,20 @@ describe("admin portal list filters", () => {
       ADMIN_REDACTED_EMAIL_LABEL,
     );
     expect(redactEmailForAdminPortal("member@example.com", "realuser", "client")).toBe("member@example.com");
+  });
+
+  it("metrics SQL filters exclude owner test accounts (unlike list filters)", () => {
+    expect(getLaunchExcludeUsernames("client")).toContain("jbfitness6299");
+    expect(getLaunchExcludeUsernames("trainer")).toContain("coachjonny22");
+
+    const clientMetricsSql = buildLaunchMetricsClientSqlFilter("c").strings.join(" ");
+    const clientListSql = buildAdminPortalClientSqlFilter().strings.join(" ");
+    expect(clientMetricsSql).toContain("NOT IN");
+    expect(clientListSql).toMatch(/username.*IN/i);
+    expect(clientMetricsSql).not.toMatch(/OR\s*\(\s*LOWER\(c\."username"\)\s*IN/i);
+
+    const trainerMetricsSql = buildLaunchMetricsTrainerSqlFilter("t", "p").strings.join(" ");
+    expect(trainerMetricsSql).toContain("NOT IN");
+    expect(trainerMetricsSql).not.toMatch(/OR\s*\(\s*LOWER\(t\."username"\)\s*IN/i);
   });
 });
