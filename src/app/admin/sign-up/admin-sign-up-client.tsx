@@ -1,9 +1,18 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useRef, useState } from "react";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
+import {
+  AdminPortalBackdrop,
+  AdminPortalBetaNotice,
+  AdminPortalLogoLink,
+  AdminPrimaryButton,
+  adminInputClassSm,
+  adminLabelClass,
+  adminLinkClass,
+  adminPanelClass,
+} from "@/components/admin/admin-portal-ui";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
@@ -74,22 +83,12 @@ export function AdminSignUpClient(props: { decision?: string }) {
   }
 
   return (
-    <main className="relative min-h-dvh overflow-x-hidden bg-[#050608] text-white antialiased">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_100%_70%_at_50%_-15%,rgba(34,211,238,0.1),transparent_55%)]"
-      />
+    <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] text-white antialiased">
+      <AdminPortalBackdrop />
 
       <div className="relative z-10 mx-auto flex min-h-dvh max-w-lg flex-col px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
-        <header className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-3 opacity-90 transition hover:opacity-100">
-            <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl">
-              <Image src="/logo.png" alt="Match Fit" fill className="object-contain" sizes="44px" />
-            </div>
-            <span className="text-sm font-black tracking-tight">
-              <span className="text-[#E8EAEF]">Match</span> <span className="text-[#E32B2B]">Fit</span>
-            </span>
-          </Link>
+        <header>
+          <AdminPortalLogoLink />
         </header>
 
         <div className="mt-10 flex flex-1 flex-col">
@@ -98,11 +97,7 @@ export function AdminSignUpClient(props: { decision?: string }) {
             Complete this form so Match Fit leadership receives your details. When they approve the request, your staff code is
             derived from your legal first name, legal last name, and birth date (two letters + two letters + MMDD).
           </p>
-          <p className="mt-3 rounded-xl border border-amber-400/30 bg-amber-500/[0.07] px-3 py-2.5 text-xs leading-relaxed text-amber-50/95 sm:text-sm">
-            <span className="font-semibold text-amber-100">First beta.</span> Match Fit’s initial beta does not yet include the
-            completed Administrator Portal—that work is scheduled for when version 1.0 goes live. Requests and approvals during beta may
-            evolve before launch.
-          </p>
+          <AdminPortalBetaNotice className="mt-3" />
 
           {decisionNote ? (
             <p
@@ -133,7 +128,7 @@ export function AdminSignUpClient(props: { decision?: string }) {
                 </Link>
               </div>
             ) : (
-              <div className="rounded-3xl border border-white/[0.08] bg-[#0c0f14]/95 p-6 backdrop-blur-xl sm:p-8">
+              <div className={`rounded-3xl ${adminPanelClass} p-6 sm:p-8`}>
                 {error ? (
                   <p className="mb-4 rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]" role="alert">
                     {error}
@@ -143,59 +138,57 @@ export function AdminSignUpClient(props: { decision?: string }) {
                 <form className="flex flex-col gap-4" onSubmit={(e) => void handleSubmit(e)}>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[11px] font-semibold uppercase tracking-wide text-white/45">Legal first name</label>
+                      <label className={adminLabelClass}>Legal first name</label>
                       <input
                         required
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
-                        className="rounded-xl border border-white/[0.1] bg-[#07080c] px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-400/35 focus:ring-2 focus:ring-cyan-400/25"
+                        className={adminInputClassSm}
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[11px] font-semibold uppercase tracking-wide text-white/45">Legal last name</label>
+                      <label className={adminLabelClass}>Legal last name</label>
                       <input
                         required
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
-                        className="rounded-xl border border-white/[0.1] bg-[#07080c] px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-400/35 focus:ring-2 focus:ring-cyan-400/25"
+                        className={adminInputClassSm}
                       />
                     </div>
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-semibold uppercase tracking-wide text-white/45">
-                      Date of birth (YYYY-MM-DD)
-                    </label>
+                    <label className={adminLabelClass}>Date of birth (YYYY-MM-DD)</label>
                     <input
                       required
                       type="date"
                       value={dateOfBirth}
                       onChange={(e) => setDateOfBirth(e.target.value)}
-                      className="rounded-xl border border-white/[0.1] bg-[#07080c] px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-400/35 focus:ring-2 focus:ring-cyan-400/25"
+                      className={adminInputClassSm}
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-semibold uppercase tracking-wide text-white/45">Work email</label>
+                    <label className={adminLabelClass}>Work email</label>
                     <input
                       required
                       type="email"
                       autoComplete="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="rounded-xl border border-white/[0.1] bg-[#07080c] px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-400/35 focus:ring-2 focus:ring-cyan-400/25"
+                      className={adminInputClassSm}
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-semibold uppercase tracking-wide text-white/45">Password (12+ characters)</label>
+                    <label className={adminLabelClass}>Password (12+ characters)</label>
                     <input
                       required
                       type="password"
                       autoComplete="new-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="rounded-xl border border-white/[0.1] bg-[#07080c] px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-400/35 focus:ring-2 focus:ring-cyan-400/25"
+                      className={adminInputClassSm}
                     />
                   </div>
 
@@ -205,19 +198,15 @@ export function AdminSignUpClient(props: { decision?: string }) {
                     </div>
                   ) : null}
 
-                  <button
-                    type="submit"
-                    disabled={busy}
-                    className="mt-2 flex min-h-[3rem] items-center justify-center rounded-xl bg-[linear-gradient(135deg,#67e8f9_0%,#38bdf8_50%,#6366f1_100%)] text-xs font-black uppercase tracking-[0.1em] text-[#050608] disabled:opacity-50"
-                  >
+                  <AdminPrimaryButton type="submit" disabled={busy} className="mt-2 min-h-[3rem] text-xs">
                     {busy ? "Submitting…" : "Submit for approval"}
-                  </button>
+                  </AdminPrimaryButton>
                 </form>
               </div>
             )}
 
             <p className="mt-8 text-center text-xs text-white/40">
-              <Link href="/admin/login" className="text-cyan-300/90 underline-offset-4 hover:underline">
+              <Link href="/admin/login" className={adminLinkClass}>
                 Already approved? Administrator Log In
               </Link>
               {" · "}

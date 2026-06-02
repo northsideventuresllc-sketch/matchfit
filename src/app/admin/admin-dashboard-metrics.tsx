@@ -24,7 +24,7 @@ const FINANCE_WINDOW_LABELS: Record<AdminFinanceWindowKey, string> = {
 
 function StatCard(props: { label: string; value: string | number; hint?: string }) {
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-[#07080c]/80 px-3 py-3">
+    <div className="rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-3 py-3">
       <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">{props.label}</p>
       <p className="mt-1 text-xl font-black tabular-nums text-white">{props.value}</p>
       {props.hint ? <p className="mt-1 text-[10px] text-white/35">{props.hint}</p> : null}
@@ -59,7 +59,7 @@ function LoginRecencyGrid(props: { title: string; buckets: AdminLoginRecencyBuck
 
 function MetricsSection(props: { title: string; description?: string; children: ReactNode }) {
   return (
-    <section className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-4 sm:p-5">
+    <section className="rounded-2xl border border-white/[0.08] bg-[#12151C]/90 p-4 shadow-[0_34px_90px_-48px_rgba(227,43,43,0.35)] backdrop-blur-xl sm:p-5">
       <h2 className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">{props.title}</h2>
       {props.description ? <p className="mt-1 text-sm text-white/50">{props.description}</p> : null}
       <div className="mt-4">{props.children}</div>
@@ -261,7 +261,7 @@ export function TrainerPipelineSection({ pipeline }: { pipeline: AdminTrainerPip
         {pipeline.stages.map((s) => (
           <li
             key={s.id}
-            className="flex flex-col gap-1 rounded-xl border border-white/[0.06] bg-[#07080c]/80 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+            className="flex flex-col gap-1 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
           >
             <span className="text-sm text-white/80">{s.label}</span>
             <span className="text-sm font-bold tabular-nums text-white">
@@ -341,7 +341,7 @@ export function OperationalAlertsSection({ alerts }: { alerts: AdminAlertsPanel 
     <MetricsSection title="Operational alerts" description="Trust, safety, billing, and product feedback queues.">
       <div className="space-y-4">
         {alerts.groups.map((g) => (
-          <div key={g.id} className="rounded-xl border border-white/[0.06] bg-[#07080c]/80 p-3">
+          <div key={g.id} className="rounded-xl border border-white/[0.06] bg-[#0E1016]/80 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-semibold text-white">{g.label}</p>
               <span
