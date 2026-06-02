@@ -7,7 +7,6 @@ import {
   ADMIN_DASHBOARD_LAYOUT_STORAGE_KEY,
   ADMIN_DASHBOARD_SECTIONS,
   type AdminDashboardLayout,
-  type AdminDashboardSectionGroup,
   type AdminDashboardSectionId,
   parseAdminDashboardLayout,
   serializeAdminDashboardLayout,
@@ -281,7 +280,9 @@ export function AdminDashboardClient(props: {
     try {
       const raw = localStorage.getItem(layoutStorageKey);
       if (!raw) return;
-      setLayout(parseAdminDashboardLayout(JSON.parse(raw)));
+      queueMicrotask(() => {
+        setLayout(parseAdminDashboardLayout(JSON.parse(raw)));
+      });
     } catch {
       /* ignore corrupt local layout */
     }
@@ -634,15 +635,18 @@ export function AdminDashboardClient(props: {
     }
   }
 
-  const sectionsToRender = useMemo(() => {
-    let lastGroup: AdminDashboardSectionGroup | null = null;
-    return orderedVisibleSections.map((sectionId) => {
-      const meta = SECTION_META_BY_ID[sectionId];
-      const showGroupHeading = meta.group !== lastGroup;
-      lastGroup = meta.group;
-      return { sectionId, meta, showGroupHeading };
-    });
-  }, [orderedVisibleSections]);
+  const sectionsToRender = useMemo(
+    () =>
+      orderedVisibleSections.reduce<
+        { sectionId: AdminDashboardSectionId; meta: (typeof SECTION_META_BY_ID)[AdminDashboardSectionId]; showGroupHeading: boolean }[]
+      >((acc, sectionId) => {
+        const meta = SECTION_META_BY_ID[sectionId];
+        const prevGroup = acc.length > 0 ? acc[acc.length - 1]!.meta.group : null;
+        acc.push({ sectionId, meta, showGroupHeading: meta.group !== prevGroup });
+        return acc;
+      }, []),
+    [orderedVisibleSections],
+  );
 
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-[#050608] px-5 py-10 text-white sm:px-8 sm:py-12">

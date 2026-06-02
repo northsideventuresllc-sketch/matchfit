@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { runOutboundChatComplianceMonitoring } from "@/lib/chat-compliance-monitor";
+import { getChatContactLeakageBlockReason } from "@/lib/chat-leakage-detection";
 import {
   clientHasPaidTrainerOnce,
   getConversationBookingSnapshot,
@@ -47,6 +48,12 @@ export async function createTrainerBookingInvite(args: {
   }
   if (args.endsAt.getTime() - args.startsAt.getTime() > 12 * 60 * 60 * 1000) {
     return { error: "Booking window cannot exceed 12 hours." };
+  }
+
+  const noteTrimmed = args.note?.trim() ?? "";
+  if (noteTrimmed) {
+    const contactBlock = getChatContactLeakageBlockReason(noteTrimmed);
+    if (contactBlock) return { error: contactBlock };
   }
 
   const conv = await prisma.trainerClientConversation.findUnique({
