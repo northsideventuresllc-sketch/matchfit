@@ -21,6 +21,7 @@ export function MetaPixel() {
         `}
       </Script>
       <noscript>
+        {/* eslint-disable-next-line @next/next/no-img-element -- Meta Pixel noscript fallback requires raw img */}
         <img
           alt=""
           height="1"

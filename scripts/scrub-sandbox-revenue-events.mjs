@@ -3,6 +3,7 @@
  *
  *   node --env-file=.env scripts/scrub-sandbox-revenue-events.mjs
  */
+/* eslint-disable @typescript-eslint/no-require-imports -- CommonJS script entrypoint */
 const { PrismaClient } = require("@prisma/client");
 
 async function main() {

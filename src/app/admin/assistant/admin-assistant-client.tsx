@@ -36,7 +36,9 @@ export function AdminAssistantClient() {
   }, []);
 
   useEffect(() => {
-    void loadHistory();
+    queueMicrotask(() => {
+      void loadHistory();
+    });
   }, [loadHistory]);
 
   async function send(action: ActionId, message?: string) {

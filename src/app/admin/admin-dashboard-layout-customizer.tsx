@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import {
-  ADMIN_DASHBOARD_SECTIONS,
   type AdminDashboardLayout,
   DEFAULT_ADMIN_DASHBOARD_LAYOUT,
   type AdminDashboardSectionId,
