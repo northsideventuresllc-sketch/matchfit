@@ -13,6 +13,6 @@ describe("metaStandardEventForConversion", () => {
 
 describe("META_PIXEL_ID", () => {
   it("is configured for Match Fit", () => {
-    expect(META_PIXEL_ID).toBe("2866690703676850");
+    expect(META_PIXEL_ID).toBe("1033341912986790");
   });
 });
