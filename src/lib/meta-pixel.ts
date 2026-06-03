@@ -1,5 +1,5 @@
 /** Meta (Facebook) Pixel ID for Match Fit ads attribution. */
-export const META_PIXEL_ID = "2866690703676850";
+export const META_PIXEL_ID = "1033341912986790";
 
 export type MetaConversionKind = "client_signup" | "trainer_signup";
 
