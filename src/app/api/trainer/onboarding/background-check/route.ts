@@ -4,7 +4,7 @@ import { getSessionTrainerId } from "@/lib/session";
 import { verifyTrainerOnboardingDevPassword } from "@/lib/trainer-dev-bypass";
 import { verifyMatchFitInternalQaTrainerOnboardingBypass } from "@/lib/match-fit-internal-qa";
 import { mockInitiateTrainerBackgroundCheck } from "@/lib/trainer-onboarding-mocks";
-import { maybeActivateTrainerDashboard } from "@/lib/trainer-onboarding-dashboard";
+import { applyTrainerBackgroundCheckReviewOutcome } from "@/lib/trainer-compliance-window-sync";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -70,7 +70,10 @@ export async function POST(req: Request) {
       },
     });
 
-    await maybeActivateTrainerDashboard(trainerId);
+    await applyTrainerBackgroundCheckReviewOutcome({
+      trainerId,
+      backgroundCheckStatus: "APPROVED",
+    });
 
     return NextResponse.json({
       ok: true,

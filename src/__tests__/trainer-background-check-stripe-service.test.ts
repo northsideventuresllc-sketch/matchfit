@@ -2,11 +2,13 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   mockTrainerProfileUpsert,
+  mockTrainerProfileFindUnique,
   mockPaymentIntentsCreate,
   mockPaymentIntentsRetrieve,
   mockGetStripe,
 } = vi.hoisted(() => ({
   mockTrainerProfileUpsert: vi.fn(),
+  mockTrainerProfileFindUnique: vi.fn(),
   mockPaymentIntentsCreate: vi.fn(),
   mockPaymentIntentsRetrieve: vi.fn(),
   mockGetStripe: vi.fn(),
@@ -16,6 +18,8 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     trainerProfile: {
       upsert: mockTrainerProfileUpsert,
+      findUnique: mockTrainerProfileFindUnique,
+      update: vi.fn(),
     },
   },
 }));
@@ -48,6 +52,7 @@ describe("trainer background check Stripe service", () => {
       client_secret: "cs_test_123",
     });
     mockTrainerProfileUpsert.mockResolvedValue(undefined);
+    mockTrainerProfileFindUnique.mockResolvedValue(null);
   });
 
   afterAll(() => {
@@ -70,10 +75,14 @@ describe("trainer background check Stripe service", () => {
         trainerId: "trainer_1",
         hasPaidBackgroundFee: true,
         backgroundCheckVendorPaidCents: 4999,
+        backgroundCheckStatus: "PENDING",
+        backgroundCheckReviewStatus: "PENDING",
       },
       update: {
         hasPaidBackgroundFee: true,
         backgroundCheckVendorPaidCents: 4999,
+        backgroundCheckStatus: "PENDING",
+        backgroundCheckReviewStatus: "PENDING",
         updatedAt: expect.any(Date),
       },
     });

@@ -8,6 +8,7 @@ import {
   TRAINER_DEV_FAKE_NUTRITION_CERTIFICATION_PATH,
 } from "@/lib/trainer-dev-cert-placeholders";
 import { maybeActivateTrainerDashboard } from "@/lib/trainer-onboarding-dashboard";
+import { syncTrainerComplianceWindow } from "@/lib/trainer-compliance-window-sync";
 
 function parseTestTrainerUsernameList(): string[] {
   const raw = process.env.MATCH_FIT_TEST_TRAINER_USERNAMES?.trim();
@@ -100,6 +101,7 @@ export async function syncDevelopmentTestTrainerCertificationsForTrainer(trainer
       nutritionistCertificationUrl: nutUrl,
     },
   });
+  await syncTrainerComplianceWindow(trainerId);
   await maybeActivateTrainerDashboard(trainerId);
   return true;
 }

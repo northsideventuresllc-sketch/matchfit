@@ -1,5 +1,6 @@
 import { defaultBackgroundCheckVendorPaidCents } from "@/lib/checkr";
 import { prisma } from "@/lib/prisma";
+import { syncTrainerComplianceWindow } from "@/lib/trainer-compliance-window-sync";
 import { getStripe } from "@/lib/stripe-server";
 import type Stripe from "stripe";
 
@@ -24,19 +25,25 @@ export async function applyTrainerBackgroundCheckStripePayment(args: {
   vendorPaidCents: number;
 }): Promise<void> {
   const cents = Math.max(1, Math.floor(args.vendorPaidCents));
+  const now = new Date();
   await prisma.trainerProfile.upsert({
     where: { trainerId: args.trainerId },
     create: {
       trainerId: args.trainerId,
       hasPaidBackgroundFee: true,
       backgroundCheckVendorPaidCents: cents,
+      backgroundCheckStatus: "PENDING",
+      backgroundCheckReviewStatus: "PENDING",
     },
     update: {
       hasPaidBackgroundFee: true,
       backgroundCheckVendorPaidCents: cents,
-      updatedAt: new Date(),
+      backgroundCheckStatus: "PENDING",
+      backgroundCheckReviewStatus: "PENDING",
+      updatedAt: now,
     },
   });
+  await syncTrainerComplianceWindow(args.trainerId);
 }
 
 export async function createTrainerBackgroundCheckPaymentIntent(args: {

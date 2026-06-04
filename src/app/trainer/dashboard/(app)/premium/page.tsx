@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PremiumSignupClient } from "./premium-signup-client";
 import { TrainerPremiumHubSummary } from "@/components/trainer/trainer-premium-hub-summary";
+import { isTrainerPremiumStudioActive } from "@/lib/trainer-premium-studio";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 
@@ -14,12 +15,18 @@ export default async function TrainerPremiumSignupPage() {
   const trainerId = await getSessionTrainerId();
   if (!trainerId) redirect("/trainer/dashboard/login");
 
+  const active = await isTrainerPremiumStudioActive(trainerId);
   const profile = await prisma.trainerProfile.findUnique({
     where: { trainerId },
-    select: { premiumStudioEnabledAt: true },
+    select: { premiumStudioEnabledAt: true, fitHubPromoEndsAt: true },
   });
-
-  const active = Boolean(profile?.premiumStudioEnabledAt);
+  const promoOnly =
+    active && !profile?.premiumStudioEnabledAt && profile?.fitHubPromoEndsAt != null;
+  const promoEndsLabel = profile?.fitHubPromoEndsAt?.toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 
   return (
     <div className="space-y-8 pb-4">
@@ -27,7 +34,13 @@ export default async function TrainerPremiumSignupPage() {
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Premium Page</p>
         <h1 className="text-3xl font-black uppercase tracking-[0.12em] sm:text-4xl">PREMIUM HUB</h1>
         <p className="mx-auto max-w-2xl text-sm leading-relaxed text-white/55">
-          {active ? (
+          {promoOnly ? (
+            <>
+              Your founding FitHub promo is active through{" "}
+              {promoEndsLabel}
+              . Use featured placement, FitHub publishing, and promotion tokens during this window.
+            </>
+          ) : active ? (
             <>
               You chose to invest in your Premium Page—this hub is your backstage for that decision. Each card below opens
               a focused workspace: where you stand for featured placement, how you publish to FitHub, and how promotion

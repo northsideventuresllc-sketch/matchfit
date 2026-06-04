@@ -15,6 +15,7 @@ export async function GET() {
     where: { trainerId },
     select: {
       hasPaidRegistrationFee: true,
+      registrationFeeHoldStatus: true,
       hasPaidBackgroundFee: true,
       backgroundCheckVendorPaidCents: true,
       backgroundCheckStatus: true,
@@ -48,10 +49,12 @@ export async function GET() {
       : { dueCents: 0 };
 
   return NextResponse.json({
-    hasPaidRegistrationFee: profile.hasPaidRegistrationFee,
+    hasPaidRegistrationFee: registrationPaid,
+    signupFeeOnHold,
+    registrationFeeHoldStatus: hold,
     foundingPricing: profile.registrationFeePricingMode === "FOUNDING_BG_SURCHARGE_20PCT",
     backgroundCheckPaidCents: bgCents,
-    canPay: bgOk && certsOk && !profile.hasPaidRegistrationFee && dueCents > 0,
+    canPay: !signupFeeOnHold && bgOk && certsOk && !registrationPaid && dueCents > 0,
     dueCents,
     dueError: dueError ?? null,
     pricingMode: profile.registrationFeePricingMode,

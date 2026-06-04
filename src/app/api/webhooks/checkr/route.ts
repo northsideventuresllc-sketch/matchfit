@@ -4,11 +4,15 @@ import {
   verifyCheckrWebhookSignature,
   checkrWebhookIndicatesClear,
   checkrWebhookIndicatesConsider,
+  checkrWebhookIndicatesDenied,
 } from "@/lib/checkr";
 import { notifySupportPlanBReviewNeeded } from "@/lib/background-check-plan-b";
 import { isBackgroundCheckPlanBActive } from "@/lib/checkr-integration";
 import { prisma } from "@/lib/prisma";
-import { syncTrainerComplianceWindow } from "@/lib/trainer-compliance-window-sync";
+import {
+  applyTrainerBackgroundCheckReviewOutcome,
+  syncTrainerComplianceWindow,
+} from "@/lib/trainer-compliance-window-sync";
 import { maybeActivateTrainerDashboard } from "@/lib/trainer-onboarding-dashboard";
 import { NextResponse } from "next/server";
 
@@ -54,20 +58,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, ignored: true, reason: "no_trainer_mapping" });
   }
 
-  const now = new Date();
+  if (checkrWebhookIndicatesDenied(outcome)) {
+    await applyTrainerBackgroundCheckReviewOutcome({
+      trainerId,
+      backgroundCheckStatus: "DENIED",
+      reportId: outcome.reportId,
+      candidateId: outcome.candidateId,
+    });
+    return NextResponse.json({ ok: true, status: "denied" });
+  }
 
   if (checkrWebhookIndicatesConsider(outcome)) {
-    await prisma.trainerProfile.update({
-      where: { trainerId },
-      data: {
-        backgroundCheckStatus: "NEEDS_FURTHER_REVIEW",
-        backgroundCheckReviewStatus: "NEEDS_FURTHER_REVIEW",
-        ...(outcome.reportId ? { checkrReportId: outcome.reportId } : {}),
-        ...(outcome.candidateId ? { checkrCandidateId: outcome.candidateId } : {}),
-        updatedAt: now,
-      },
+    await applyTrainerBackgroundCheckReviewOutcome({
+      trainerId,
+      backgroundCheckStatus: "NEEDS_FURTHER_REVIEW",
+      reportId: outcome.reportId,
+      candidateId: outcome.candidateId,
     });
-    await syncTrainerComplianceWindow(trainerId);
     if (isBackgroundCheckPlanBActive()) {
       await notifySupportPlanBReviewNeeded(trainerId);
     }
@@ -85,14 +92,11 @@ export async function POST(req: Request) {
     candidateId: outcome.candidateId,
   });
 
-  await prisma.trainerProfile.update({
-    where: { trainerId },
-    data: {
-      backgroundCheckStatus: "APPROVED",
-      backgroundCheckReviewStatus: "APPROVED",
-      backgroundCheckClearedAt: now,
-      updatedAt: now,
-    },
+  await applyTrainerBackgroundCheckReviewOutcome({
+    trainerId,
+    backgroundCheckStatus: "APPROVED",
+    reportId: outcome.reportId,
+    candidateId: outcome.candidateId,
   });
 
   await syncTrainerComplianceWindow(trainerId);

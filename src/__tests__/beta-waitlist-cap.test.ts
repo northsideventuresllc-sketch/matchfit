@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createHmac } from "node:crypto";
 import {
   checkrWebhookIndicatesClear,
+  checkrWebhookIndicatesDenied,
   parseCheckrWebhookPaidCents,
   parseCheckrWebhookReportOutcome,
   verifyCheckrWebhookSignature,
@@ -83,5 +84,13 @@ describe("parseCheckrWebhookReportOutcome", () => {
     });
     expect(clear?.vendorPaidCents).toBe(4900);
     expect(checkrWebhookIndicatesClear(clear!)).toBe(true);
+  });
+
+  it("detects denied outcomes from result field", () => {
+    const denied = parseCheckrWebhookReportOutcome({
+      data: { object: { id: "rep_4", result: "disqualified", package: "mf_trainer:trainer-denied" } },
+    });
+    expect(denied?.reportStatus).toBe("disqualified");
+    expect(checkrWebhookIndicatesDenied(denied!)).toBe(true);
   });
 });

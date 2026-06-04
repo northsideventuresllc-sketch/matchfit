@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { PremiumStudioLockedNotice } from "@/components/trainer/premium-studio-locked";
 import { TrainerFitHubStudioNotifications } from "@/components/trainer/trainer-fithub-studio-notifications";
 import { TrainerPremiumHubBackLink } from "@/components/trainer/trainer-premium-hub-summary";
-import { prisma } from "@/lib/prisma";
+import { isTrainerPremiumStudioActive } from "@/lib/trainer-premium-studio";
 import { getSessionTrainerId } from "@/lib/session";
 import { TrainerPremiumMyContentClient } from "../my-content/trainer-premium-my-content-client";
 import { TrainerPremiumStudioClient } from "../studio/trainer-premium-studio-client";
@@ -17,11 +17,7 @@ export default async function TrainerPremiumFitHubContentPage() {
   const trainerId = await getSessionTrainerId();
   if (!trainerId) redirect("/trainer/dashboard/login");
 
-  const profile = await prisma.trainerProfile.findUnique({
-    where: { trainerId },
-    select: { premiumStudioEnabledAt: true },
-  });
-  const active = Boolean(profile?.premiumStudioEnabledAt);
+  const active = await isTrainerPremiumStudioActive(trainerId);
 
   if (!active) {
     return (

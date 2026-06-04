@@ -156,7 +156,9 @@ export function parseCheckrWebhookReportOutcome(body: unknown): CheckrWebhookRep
     data.object && typeof data.object === "object" ? (data.object as Record<string, unknown>) : data;
 
   const paid = parseCheckrWebhookPaidCents(body);
-  const reportStatus = String(object.status ?? data.status ?? "").toLowerCase();
+  const reportStatus = String(
+    object.result ?? object.adjudication ?? object.status ?? data.result ?? data.status ?? "",
+  ).toLowerCase();
   const eventType = String(o.type ?? o.event ?? "").toLowerCase();
 
   if (!reportStatus && !eventType && !paid) return null;
@@ -187,3 +189,22 @@ export function checkrWebhookIndicatesConsider(outcome: CheckrWebhookReportOutco
   const s = outcome.reportStatus;
   return s === "consider" || (s === "pending" && outcome.eventType.includes("consider"));
 }
+
+export function checkrWebhookIndicatesDenied(outcome: CheckrWebhookReportOutcome): boolean {
+  const s = outcome.reportStatus;
+  return (
+    s === "disqualified" ||
+    s === "fail" ||
+    s === "failed" ||
+    s === "denied" ||
+    s === "adverse" ||
+    s === "canceled" ||
+    s === "cancelled"
+  );
+}
+
+export type CheckrBackgroundReviewStatus =
+  | "APPROVED"
+  | "NEEDS_FURTHER_REVIEW"
+  | "DENIED"
+  | "PENDING";

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { FeaturedListingStudioPanel } from "@/components/trainer/featured-listing-studio-panel";
 import { PremiumStudioLockedNotice } from "@/components/trainer/premium-studio-locked";
 import { TrainerPremiumHubBackLink } from "@/components/trainer/trainer-premium-hub-summary";
-import { prisma } from "@/lib/prisma";
+import { isTrainerPremiumStudioActive } from "@/lib/trainer-premium-studio";
 import { getSessionTrainerId } from "@/lib/session";
 
 export const metadata: Metadata = {
@@ -15,11 +15,7 @@ export default async function TrainerPremiumFeaturedPage() {
   const trainerId = await getSessionTrainerId();
   if (!trainerId) redirect("/trainer/dashboard/login");
 
-  const profile = await prisma.trainerProfile.findUnique({
-    where: { trainerId },
-    select: { premiumStudioEnabledAt: true },
-  });
-  const active = Boolean(profile?.premiumStudioEnabledAt);
+  const active = await isTrainerPremiumStudioActive(trainerId);
 
   if (!active) {
     return (

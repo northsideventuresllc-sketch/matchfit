@@ -3,6 +3,7 @@ import path from "path";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { maybeActivateTrainerDashboard } from "@/lib/trainer-onboarding-dashboard";
+import { syncTrainerComplianceWindow } from "@/lib/trainer-compliance-window-sync";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
 
@@ -129,6 +130,7 @@ export async function POST(req: Request) {
       },
     });
 
+    await syncTrainerComplianceWindow(trainerId);
     await maybeActivateTrainerDashboard(trainerId);
 
     return NextResponse.json({

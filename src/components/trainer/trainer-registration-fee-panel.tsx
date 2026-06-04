@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 
 type Summary = {
   hasPaidRegistrationFee: boolean;
+  signupFeeOnHold?: boolean;
+  registrationFeeHoldStatus?: string;
   foundingPricing: boolean;
   backgroundCheckPaidCents: number;
   canPay: boolean;
@@ -73,6 +75,15 @@ export function TrainerRegistrationFeePanel() {
 
   if (!summary) {
     return error ? <p className="text-sm text-rose-200/90">{error}</p> : null;
+  }
+
+  if (summary.signupFeeOnHold && summary.registrationFeeHoldStatus === "HELD") {
+    return (
+      <p className="text-sm text-emerald-200/90">
+        Your platform registration fee was authorized at signup and is on hold. We capture it only after your
+        certifications and background check are approved; no second payment is required.
+      </p>
+    );
   }
 
   if (summary.hasPaidRegistrationFee) {

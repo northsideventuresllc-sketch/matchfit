@@ -8,6 +8,7 @@ import {
   trainerComplianceWindowShouldPause,
   trainerComplianceWindowComplete,
 } from "@/lib/trainer-compliance-window";
+import type { CheckrBackgroundReviewStatus } from "@/lib/checkr";
 import {
   cancelTrainerSignupFeeHold,
   captureTrainerSignupFeeHoldOnComplianceSuccess,
@@ -72,6 +73,46 @@ function anyCertDenied(prof: ProfileRow): boolean {
   if (prof.onboardingTrackNutrition && trackDenied(prof.nutritionistCertificationReviewStatus)) return true;
   if (prof.onboardingTrackSpecialist && trackDenied(prof.specialistCertificationReviewStatus)) return true;
   return false;
+}
+
+export async function applyTrainerBackgroundCheckReviewOutcome(args: {
+  trainerId: string;
+  backgroundCheckStatus: CheckrBackgroundReviewStatus;
+  reportId?: string;
+  candidateId?: string;
+}): Promise<void> {
+  const now = new Date();
+  const data: Record<string, unknown> = {
+    backgroundCheckStatus: args.backgroundCheckStatus,
+    updatedAt: now,
+  };
+  if (args.reportId?.trim()) data.checkrReportId = args.reportId.trim();
+  if (args.candidateId?.trim()) data.checkrCandidateId = args.candidateId.trim();
+
+  if (args.backgroundCheckStatus === "APPROVED") {
+    data.backgroundCheckReviewStatus = "APPROVED";
+    data.backgroundCheckClearedAt = now;
+  } else if (args.backgroundCheckStatus === "NEEDS_FURTHER_REVIEW") {
+    data.backgroundCheckReviewStatus = "NEEDS_FURTHER_REVIEW";
+    data.backgroundCheckClearedAt = null;
+  } else if (args.backgroundCheckStatus === "DENIED") {
+    data.backgroundCheckReviewStatus = "DENIED";
+    data.backgroundCheckClearedAt = null;
+  } else {
+    data.backgroundCheckReviewStatus = "PENDING";
+  }
+
+  await prisma.trainerProfile.update({
+    where: { trainerId: args.trainerId },
+    data: data as never,
+  });
+
+  if (args.backgroundCheckStatus === "DENIED") {
+    await expireTrainerComplianceWindow(args.trainerId);
+    return;
+  }
+
+  await maybeActivateTrainerDashboard(args.trainerId);
 }
 
 export async function applyTrainerSignupFeeHoldAuthorized(args: {

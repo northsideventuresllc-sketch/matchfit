@@ -26,6 +26,7 @@ export async function POST(req: Request) {
       where: { trainerId },
       select: {
         hasPaidRegistrationFee: true,
+        registrationFeeHoldStatus: true,
         hasPaidBackgroundFee: true,
         backgroundCheckVendorPaidCents: true,
         backgroundCheckStatus: true,
@@ -41,8 +42,17 @@ export async function POST(req: Request) {
     if (!profile) {
       return NextResponse.json({ error: "Profile not found." }, { status: 404 });
     }
-    if (profile.hasPaidRegistrationFee) {
-      return NextResponse.json({ error: "Registration fee already paid." }, { status: 400 });
+    const hold = (profile.registrationFeeHoldStatus ?? "NOT_STARTED").trim().toUpperCase();
+    if (hold === "HELD" || hold === "CAPTURED" || profile.hasPaidRegistrationFee) {
+      return NextResponse.json(
+        {
+          error:
+            hold === "HELD"
+              ? "Your signup registration fee is on hold until certification and background check are approved."
+              : "Registration fee already paid.",
+        },
+        { status: 400 },
+      );
     }
     if (!certificationsGatePassed(profile)) {
       return NextResponse.json({ error: "Complete certification review before paying the registration fee." }, { status: 400 });
