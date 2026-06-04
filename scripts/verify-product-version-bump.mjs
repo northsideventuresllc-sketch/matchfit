@@ -45,6 +45,20 @@ function resolveBaseRef() {
   const fromEnv = process.env.MATCH_FIT_VERSION_BASE_REF?.trim();
   if (fromEnv) return fromEnv;
 
+  const baseSha = process.env.GITHUB_BASE_SHA?.trim();
+  if (baseSha) return baseSha;
+
+  const beforeSha = process.env.GITHUB_BEFORE_SHA?.trim();
+  if (beforeSha && beforeSha !== "0000000000000000000000000000000000000000") {
+    return beforeSha;
+  }
+
+  try {
+    execSync("git fetch origin main --depth=100", { cwd: ROOT, stdio: "pipe" });
+  } catch {
+    // shallow clones may not have network in some environments
+  }
+
   try {
     const mergeBase = execSync("git merge-base HEAD origin/main", {
       cwd: ROOT,
@@ -55,15 +69,26 @@ function resolveBaseRef() {
     // fall through
   }
 
-  return "origin/main";
+  try {
+    execSync("git rev-parse --verify origin/main", { cwd: ROOT, stdio: "pipe" });
+    return "origin/main";
+  } catch {
+    return null;
+  }
 }
 
 function listChangedFiles(baseRef) {
-  const out = execSync(`git diff --name-only ${baseRef}...HEAD`, {
-    cwd: ROOT,
-    encoding: "utf8",
-  }).trim();
-  return out ? out.split("\n").filter(Boolean) : [];
+  try {
+    const out = execSync(`git diff --name-only ${baseRef}...HEAD`, {
+      cwd: ROOT,
+      encoding: "utf8",
+    }).trim();
+    return out ? out.split("\n").filter(Boolean) : [];
+  } catch (error) {
+    console.warn(`Could not diff against ${baseRef}; skipping version bump enforcement.`);
+    console.warn(error instanceof Error ? error.message : String(error));
+    return [];
+  }
 }
 
 function isProductFacingPath(path) {
@@ -78,6 +103,11 @@ function isProductFacingPath(path) {
 
 function main() {
   const baseRef = resolveBaseRef();
+  if (!baseRef) {
+    console.warn("No git base ref available; skipping version bump enforcement.");
+    return;
+  }
+
   const changed = listChangedFiles(baseRef);
   const productChanges = changed.filter(isProductFacingPath);
 

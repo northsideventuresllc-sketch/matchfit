@@ -32,6 +32,8 @@ jobs:
           POSTGRES_DB: postgres
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -40,5 +42,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run version:verify
+        env:
+          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_BEFORE_SHA: ${{ github.event.before }}
       - run: npm run test
       - run: npm run build
