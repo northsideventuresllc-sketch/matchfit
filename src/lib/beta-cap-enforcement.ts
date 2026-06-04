@@ -13,7 +13,9 @@ import {
   countActiveTrainerBetaInvites,
   trainerBetaSlotsUsed,
 } from "@/lib/beta-waitlist-service";
-import type { Prisma } from "@/generated/prisma/client";
+import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+
+type BetaCapDb = Prisma.TransactionClient | PrismaClient;
 
 export { countLaunchTrainersInTx, countLaunchClientsInTx } from "@/lib/launch-account-counts";
 
@@ -27,7 +29,7 @@ export class BetaCapExceededError extends Error {
   }
 }
 
-async function trainerSlotsUsedInTx(tx: Prisma.TransactionClient): Promise<number> {
+async function trainerSlotsUsedInTx(tx: BetaCapDb): Promise<number> {
   const [registered, invited] = await Promise.all([
     countLaunchTrainersInTx(tx),
     countActiveTrainerBetaInvites(tx),
@@ -35,7 +37,7 @@ async function trainerSlotsUsedInTx(tx: Prisma.TransactionClient): Promise<numbe
   return registered + invited;
 }
 
-async function clientSlotsUsedInTx(tx: Prisma.TransactionClient): Promise<number> {
+async function clientSlotsUsedInTx(tx: BetaCapDb): Promise<number> {
   const [registered, invited] = await Promise.all([
     countLaunchClientsInTx(tx),
     countActiveClientBetaInvites(tx),
@@ -45,7 +47,7 @@ async function clientSlotsUsedInTx(tx: Prisma.TransactionClient): Promise<number
 
 /** Re-check cap inside a transaction before creating a trainer (closes signup races). */
 export async function assertTrainerBetaSlotInTransaction(
-  tx: Prisma.TransactionClient,
+  tx: BetaCapDb,
   betaInviteEntryId: string | null,
 ): Promise<void> {
   if (!isBetaLaunchGatesEnabled()) return;
@@ -71,7 +73,7 @@ export async function assertTrainerBetaSlotInTransaction(
 
 /** Re-check cap inside a transaction before reserving a client registration hold. */
 export async function assertClientBetaSlotInTransaction(
-  tx: Prisma.TransactionClient,
+  tx: BetaCapDb,
   betaClientWaitlistEntryId: string | null,
 ): Promise<void> {
   if (!isBetaLaunchGatesEnabled()) return;
@@ -97,7 +99,7 @@ export async function assertClientBetaSlotInTransaction(
 
 /** Re-check cap inside finalize transaction (hold may have been created before cap filled). */
 export async function assertClientBetaSlotForFinalize(
-  tx: Prisma.TransactionClient,
+  tx: BetaCapDb,
   betaClientWaitlistEntryId: string | null,
 ): Promise<void> {
   await assertClientBetaSlotInTransaction(tx, betaClientWaitlistEntryId);

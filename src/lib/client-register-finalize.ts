@@ -29,48 +29,45 @@ export async function finalizeClientRegistrationFromSignup(
   const betaWl = options.betaClientWaitlistEntryId;
 
   try {
-    const client = await prisma.$transaction(async (tx) => {
-      await assertClientBetaSlotForFinalize(tx, betaWl);
-      const c = await tx.client.create({
+    await assertClientBetaSlotForFinalize(prisma, betaWl);
+    const client = await prisma.client.create({
+      data: {
+        firstName: body.firstName,
+        lastName: body.lastName,
+        preferredName: body.preferredName,
+        username,
+        phone: body.phone.trim(),
+        email,
+        passwordHash,
+        zipCode: body.zipCode,
+        dateOfBirth: body.dateOfBirth,
+        termsAcceptedAt: now,
+        privacyPolicyAcceptedAt: now,
+        twoFactorEnabled,
+        twoFactorMethod,
+        stayLoggedIn: body.stayLoggedIn,
+        stripeCustomerId: null,
+        stripeSubscriptionId: null,
+        stripeSubscriptionActive: false,
+        stripeBillingLiveMode: null,
+        subscriptionGraceUntil: null,
+        stripeLastSubscriptionInvoicePaidAt: null,
+        platformTrialEndsAt: trialEndsAt,
+        paymentGraceUntil: null,
+        accountDeactivatedAt: null,
+        platformTrialConsumed: false,
+      },
+    });
+    if (betaWl) {
+      await prisma.betaClientWaitlistEntry.updateMany({
+        where: { id: betaWl, status: "INVITED" },
         data: {
-          firstName: body.firstName,
-          lastName: body.lastName,
-          preferredName: body.preferredName,
-          username,
-          phone: body.phone.trim(),
-          email,
-          passwordHash,
-          zipCode: body.zipCode,
-          dateOfBirth: body.dateOfBirth,
-          termsAcceptedAt: now,
-          privacyPolicyAcceptedAt: now,
-          twoFactorEnabled,
-          twoFactorMethod,
-          stayLoggedIn: body.stayLoggedIn,
-          stripeCustomerId: null,
-          stripeSubscriptionId: null,
-          stripeSubscriptionActive: false,
-          stripeBillingLiveMode: null,
-          subscriptionGraceUntil: null,
-          stripeLastSubscriptionInvoicePaidAt: null,
-          platformTrialEndsAt: trialEndsAt,
-          paymentGraceUntil: null,
-          accountDeactivatedAt: null,
-          platformTrialConsumed: false,
+          status: "REGISTERED",
+          registeredClientId: client.id,
+          updatedAt: now,
         },
       });
-      if (betaWl) {
-        await tx.betaClientWaitlistEntry.updateMany({
-          where: { id: betaWl, status: "INVITED" },
-          data: {
-            status: "REGISTERED",
-            registeredClientId: c.id,
-            updatedAt: now,
-          },
-        });
-      }
-      return c;
-    }, { isolationLevel: "Serializable" });
+    }
 
     void notifyClientMembershipTrialStarted({
       clientId: client.id,
@@ -91,6 +88,20 @@ export async function finalizeClientRegistrationFromSignup(
       if (existing) {
         return { ok: true, clientId: existing.id, alreadyCompleted: true };
       }
+    }
+    if (
+      e &&
+      typeof e === "object" &&
+      "code" in e &&
+      ((e as { code?: string }).code === "P2022" || (e as { code?: string }).code === "P2021")
+    ) {
+      console.error("[finalizeClientRegistrationFromSignup] schema drift", e);
+      return {
+        ok: false,
+        error:
+          "Sign-up is temporarily unavailable while we finish a database update. Please try again in a few minutes.",
+        code: "SCHEMA_OUT_OF_DATE",
+      };
     }
     console.error(e);
     return { ok: false, error: "Could not create your account." };

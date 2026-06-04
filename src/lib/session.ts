@@ -456,16 +456,27 @@ export async function verifyRegistrationHoldToken(token: string): Promise<string
   }
 }
 
+const REGISTRATION_HOLD_COOKIE_OPTIONS = {
+  httpOnly: true,
+  sameSite: "lax" as const,
+  secure: sessionCookieSecure(),
+  path: "/",
+  maxAge: 60 * 60 * 72,
+};
+
+/** Prefer this from Route Handlers so the registration hold cookie is on the returned `NextResponse`. */
+export async function applyRegistrationHoldToNextResponse(
+  res: NextResponse,
+  pendingId: string,
+): Promise<void> {
+  const token = await signRegistrationHoldToken(pendingId);
+  res.cookies.set(REGISTRATION_HOLD_COOKIE, token, REGISTRATION_HOLD_COOKIE_OPTIONS);
+}
+
 export async function setRegistrationHoldCookie(pendingId: string): Promise<void> {
   const token = await signRegistrationHoldToken(pendingId);
   const store = await cookies();
-  store.set(REGISTRATION_HOLD_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: sessionCookieSecure(),
-    path: "/",
-    maxAge: 60 * 60 * 72,
-  });
+  store.set(REGISTRATION_HOLD_COOKIE, token, REGISTRATION_HOLD_COOKIE_OPTIONS);
 }
 
 export async function clearRegistrationHoldCookie(): Promise<void> {

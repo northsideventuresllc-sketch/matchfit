@@ -1,5 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { httpStatusFromResendError } from "@/lib/resend-client";
+import { isPrismaMissingColumnError, isPrismaMissingTableError } from "@/lib/prisma-missing-column";
 
 const DB_BUSY_RE = /SQLITE_BUSY|database is locked|SQLITE_IOERR_BLOCKED|EBUSY/i;
 
@@ -22,6 +23,26 @@ export function publicApiErrorFromUnknown(
     if (e.code === "P2034") {
       return { message: DB_BUSY_USER_MESSAGE, status: 503 };
     }
+    if (e.code === "P2021" || e.code === "P2022") {
+      return {
+        message:
+          "Sign-up is temporarily unavailable while we finish a database update. Please try again in a few minutes or contact support@match-fit.net if this persists.",
+        status: 503,
+      };
+    }
+  }
+
+  if (
+    isPrismaMissingTableError(e, "pending_client_registrations") ||
+    isPrismaMissingTableError(e, "beta_client_waitlist_entries") ||
+    isPrismaMissingColumnError(e, "privacyPolicyAcceptedAt") ||
+    isPrismaMissingColumnError(e, "betaClientWaitlistEntryId")
+  ) {
+    return {
+      message:
+        "Sign-up is temporarily unavailable while we finish a database update. Please try again in a few minutes or contact support@match-fit.net if this persists.",
+      status: 503,
+    };
   }
 
   if (e instanceof Prisma.PrismaClientInitializationError) {
@@ -34,6 +55,21 @@ export function publicApiErrorFromUnknown(
     const m = e.message;
     if (DB_BUSY_RE.test(m)) {
       return { message: DB_BUSY_USER_MESSAGE, status: 503 };
+    }
+
+    if (/AUTH_SECRET must be set/i.test(m)) {
+      return {
+        message:
+          "Sign-in security is not fully configured on the server. Our team has been notified — please try again shortly.",
+        status: 503,
+      };
+    }
+
+    if (/Cookies can only be modified/i.test(m)) {
+      return {
+        message: "Could not start your sign-up session. Please refresh and try again.",
+        status: 500,
+      };
     }
 
     if (/Resend HTTP|RESEND_API_KEY is not set/i.test(m)) {

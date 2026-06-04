@@ -2,9 +2,7 @@ import { isEmailTaken, isUsernameTaken, findDeactivatedClientForReactivation } f
 import { BetaCapExceededError } from "@/lib/beta-cap-enforcement";
 import { finalizeClientRegistrationFromSignup } from "@/lib/client-register-finalize";
 import { purgeExpiredRegistrationHolds } from "@/lib/purge-registration-holds";
-import {
-  applyClientSessionToNextResponse,
-} from "@/lib/session";
+import { applyClientSessionToNextResponse } from "@/lib/session";
 import {
   firstZodErrorMessage,
   normalizeRegisterJson,
@@ -81,7 +79,10 @@ export async function POST(req: Request) {
       twoFactorMethod: "NONE",
     });
     if (!result.ok) {
-      return NextResponse.json({ error: result.error, code: result.code }, { status: result.code === "BETA_CLIENT_CAP" ? 403 : 400 });
+      return NextResponse.json(
+        { error: result.error, code: result.code },
+        { status: result.code === "BETA_CLIENT_CAP" ? 403 : 400 },
+      );
     }
 
     const res = NextResponse.json({

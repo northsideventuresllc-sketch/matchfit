@@ -33,33 +33,31 @@ export async function createClientRegistrationHold(
   const email = body.email.trim().toLowerCase();
   const passwordHash = await hashPassword(body.password);
 
-  return prisma.$transaction(
-    async (tx) => {
-      await assertClientBetaSlotInTransaction(tx, options.betaClientWaitlistEntryId);
-      return tx.pendingClientRegistration.create({
-        data: {
-          firstName: body.firstName,
-          lastName: body.lastName,
-          preferredName: body.preferredName,
-          username,
-          phone: body.phone.trim(),
-          email,
-          passwordHash,
-          zipCode: body.zipCode,
-          dateOfBirth: body.dateOfBirth,
-          termsAcceptedAt: new Date(),
-          privacyPolicyAcceptedAt: new Date(),
-          status: options.status,
-          twoFactorEnabled: options.twoFactorEnabled,
-          twoFactorMethod: options.twoFactorMethod,
-          otpHash: options.otpHash,
-          otpExpiresAt: options.otpExpiresAt,
-          stayLoggedIn: body.stayLoggedIn,
-          expiresAt: options.expiresAt ?? new Date(Date.now() + HOLD_TTL_MS),
-          betaClientWaitlistEntryId: options.betaClientWaitlistEntryId ?? undefined,
-        },
-      });
+  // Cap re-check without Serializable isolation — avoids Supabase pooler transaction failures.
+  // Finalize after billing runs assertClientBetaSlotForFinalize again before creating the client row.
+  await assertClientBetaSlotInTransaction(prisma, options.betaClientWaitlistEntryId);
+
+  return prisma.pendingClientRegistration.create({
+    data: {
+      firstName: body.firstName,
+      lastName: body.lastName,
+      preferredName: body.preferredName,
+      username,
+      phone: body.phone.trim(),
+      email,
+      passwordHash,
+      zipCode: body.zipCode,
+      dateOfBirth: body.dateOfBirth,
+      termsAcceptedAt: new Date(),
+      privacyPolicyAcceptedAt: new Date(),
+      status: options.status,
+      twoFactorEnabled: options.twoFactorEnabled,
+      twoFactorMethod: options.twoFactorMethod,
+      otpHash: options.otpHash,
+      otpExpiresAt: options.otpExpiresAt,
+      stayLoggedIn: body.stayLoggedIn,
+      expiresAt: options.expiresAt ?? new Date(Date.now() + HOLD_TTL_MS),
+      betaClientWaitlistEntryId: options.betaClientWaitlistEntryId ?? undefined,
     },
-    { isolationLevel: "Serializable" },
-  );
+  });
 }
