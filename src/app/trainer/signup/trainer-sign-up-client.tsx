@@ -194,7 +194,7 @@ export default function TrainerSignUpClient() {
         emailNorm,
         password,
         firstName: firstName.trim(),
-        turnstileToken: turnstile.getCaptchaToken(),
+        turnstileToken: turnstile.getCaptchaToken() ?? null,
       });
       if (!delivery.ok) {
         setError(delivery.error);
@@ -263,7 +263,7 @@ export default function TrainerSignUpClient() {
 
     setBusy(true);
     try {
-      const turnstileToken = turnstile.getCaptchaToken();
+      const turnstileToken = turnstile.getCaptchaToken() ?? null;
       const emailNorm = email.trim().toLowerCase();
       const registerCore = {
         firstName: firstName.trim(),
@@ -488,6 +488,10 @@ export default function TrainerSignUpClient() {
               aria-live="polite"
             >
               <p className="text-base font-black tracking-tight text-emerald-50">Verification email sent</p>
+              <p className="mt-3 rounded-xl border border-[#FFD34E]/35 bg-[#FFD34E]/10 px-4 py-3 text-sm leading-relaxed text-[#FFF4D0]">
+                <span className="font-semibold text-white">Already verified?</span> You do not need to wait for email.
+                Tap <span className="font-semibold">Continue with password</span> below to finish sign-up.
+              </p>
               <p className="mt-3 text-sm leading-relaxed text-emerald-100/85">
                 We sent a message to <span className="font-semibold text-white">{email.trim()}</span>. Open it and tap
                 <span className="font-semibold"> Confirm your email</span>. You will return here to finish security check,

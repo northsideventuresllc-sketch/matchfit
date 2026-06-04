@@ -210,7 +210,8 @@ export async function sendSupabaseSignupVerificationEmail(args: {
     }
 
     const ensured = await ensureSupabaseAuthSignupUser({ email, password, role: args.role });
-    if (!ensured.ok) return ensured;
+    if (!("userId" in ensured)) return ensured;
+    const userId = ensured.userId;
 
     const admin = createSupabaseAdminClient();
     const { data, error } = await admin.auth.admin.generateLink({
@@ -247,7 +248,7 @@ export async function sendSupabaseSignupVerificationEmail(args: {
       replyTo: "support@match-fit.net",
     });
 
-    await admin.auth.admin.updateUserById(ensured.userId, {
+    await admin.auth.admin.updateUserById(userId, {
       user_metadata: {
         ...(existing?.raw_user_meta_data ?? {}),
         ...metadata,
