@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "prisma generate && next dev",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "prisma generate && node scripts/maybe-migrate-deploy.mjs && next build",
     "typecheck": "tsc --noEmit",
     "start": "next start",
     "lint": "eslint --max-warnings 0",
