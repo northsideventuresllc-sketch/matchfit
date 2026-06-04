@@ -57,6 +57,8 @@ export default function TrainerSignUpClient() {
   const [betaInviteReserved, setBetaInviteReserved] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [verificationEmailSent, setVerificationEmailSent] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
+  const [resendNotice, setResendNotice] = useState<string | null>(null);
   const turnstile = useTurnstileGate();
 
   const wizardFunnelStep = useMemo(
@@ -95,6 +97,65 @@ export default function TrainerSignUpClient() {
       cancelled = true;
     };
   }, [betaInviteFromUrl]);
+
+  async function deliverTrainerVerificationEmail(args: {
+    emailNorm: string;
+    password: string;
+    firstName: string;
+    turnstileToken: string | null;
+  }): Promise<{ ok: true } | { ok: false; error: string; code?: string }> {
+    const res = await fetch("/api/public/resend-signup-verification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: args.emailNorm,
+        password: args.password,
+        role: "trainer",
+        firstName: args.firstName,
+        ...(args.turnstileToken ? { turnstileToken: args.turnstileToken } : {}),
+      }),
+    });
+    const data = (await res.json()) as { error?: string; code?: string };
+    if (!res.ok) {
+      return { ok: false, error: data.error ?? "Could not send the verification email.", code: data.code };
+    }
+    return { ok: true };
+  }
+
+  async function handleResendVerificationEmail() {
+    setError(null);
+    setResendNotice(null);
+    const emailNorm = email.trim().toLowerCase();
+    if (!emailNorm || !simpleEmailValid(emailNorm)) {
+      setError("Enter a valid email address.");
+      return;
+    }
+    const tsErr = turnstile.validateBeforeSubmit();
+    if (tsErr) {
+      setError(tsErr);
+      return;
+    }
+    setResendBusy(true);
+    try {
+      const delivery = await deliverTrainerVerificationEmail({
+        emailNorm,
+        password,
+        firstName: firstName.trim(),
+        turnstileToken: turnstile.getCaptchaToken(),
+      });
+      if (!delivery.ok) {
+        setError(delivery.error);
+        turnstile.reset();
+        return;
+      }
+      setResendNotice("Verification email sent again. Check your inbox and spam folder.");
+    } catch {
+      setError("Something went wrong. Try again.");
+      turnstile.reset();
+    } finally {
+      setResendBusy(false);
+    }
+  }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -229,8 +290,27 @@ export default function TrainerSignUpClient() {
           serviceZipCode: serviceZipCode.trim(),
           ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
         });
+
+        const delivery = await deliverTrainerVerificationEmail({
+          emailNorm,
+          password,
+          firstName: firstName.trim(),
+          turnstileToken,
+        });
+        if (!delivery.ok) {
+          setError(
+            delivery.error ??
+              "We could not send the verification email. Use Resend below or contact support@match-fit.net.",
+          );
+          turnstile.reset();
+          setVerificationEmailSent(true);
+          setBusy(false);
+          return;
+        }
+
         trackMetaLead("trainer");
         setVerificationEmailSent(true);
+        setResendNotice(null);
         setBusy(false);
         return;
       }
@@ -349,13 +429,27 @@ export default function TrainerSignUpClient() {
                 then you will continue to the trainer agreement and payment steps.
               </p>
               <p className="mt-3 text-xs leading-relaxed text-emerald-100/60">
-                Did not get it? Check spam, or wait a minute and try signing up again — the link expires after a while.
+                Did not get it? Check spam, then use Resend below. The link expires after a while.
               </p>
+              {resendNotice ? (
+                <p className="mt-3 text-xs font-semibold text-emerald-100/90" role="status">
+                  {resendNotice}
+                </p>
+              ) : null}
               <button
                 type="button"
-                className="mt-5 text-xs font-bold uppercase tracking-wide text-[#FF7E00] underline-offset-4 hover:underline"
+                disabled={resendBusy || busy || (turnstile.enabled && !turnstile.ready)}
+                onClick={() => void handleResendVerificationEmail()}
+                className="mt-5 min-h-[2.75rem] w-full rounded-xl border border-[#FF7E00]/45 bg-[#FF7E00]/10 px-4 text-xs font-black uppercase tracking-[0.08em] text-[#FFD34E] transition hover:bg-[#FF7E00]/15 disabled:opacity-50"
+              >
+                {resendBusy ? "Sending…" : "Resend verification email"}
+              </button>
+              <button
+                type="button"
+                className="mt-4 text-xs font-bold uppercase tracking-wide text-[#FF7E00] underline-offset-4 hover:underline"
                 onClick={() => {
                   setVerificationEmailSent(false);
+                  setResendNotice(null);
                   setError(null);
                 }}
               >

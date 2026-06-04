@@ -39,3 +39,11 @@ Restart `npm run dev` after changing env vars so `NEXT_PUBLIC_*` reloads.
 
 - Local / prod: `GET /api/public/turnstile-status`  
   With dummy keys, expect `"usingDummyKeys": true` and `"healthy": true`.
+- Signup verification delivery: `GET /api/public/signup-verification-email-health`  
+  Expect `"deliveryConfigured": true` when `SUPABASE_SERVICE_ROLE_KEY` and `RESEND_API_KEY` are set in Production.
+
+## Signup verification email delivery
+
+Supabase Auth still creates the user on `signUp`, but Match Fit **delivers the confirmation link through Resend** (verified match-fit.net domain) when `SUPABASE_SERVICE_ROLE_KEY` is set. Without it, delivery falls back to Supabase’s built-in SMTP, which is often delayed or filtered.
+
+After deploy, trainer sign-up shows **Resend verification email** if the first message does not arrive.
