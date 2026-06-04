@@ -1,0 +1,12 @@
+---
+description: Match Fit canonical project location and workspace conventions
+alwaysApply: true
+---
+
+# Match Fit project root
+
+- **Canonical repo**: This directory (`match-fit-app`) is the Match Fit Next.js application.
+- **Parent hub**: `/Users/jonnybooth/Desktop/Desktop/Northside Ventures/Northside Intellegence/Sector 1-Non-Autonomous Agents/Sector 1A (Non Autonomous)/Match Fit` holds brand assets, social media files, and this app.
+- **Do not edit** stale copies under `~/.cursor/projects/empty-window/match-fit`.
+- **Social links**: Use `MatchFitSocialLinks` and `MATCH_FIT_OFFICIAL_SOCIAL_LINKS` — do not hardcode URLs in pages.
+- **Beta promos**: Home page leads with `HomeBetaPromoBanner`; full stats live on `/promos`.
