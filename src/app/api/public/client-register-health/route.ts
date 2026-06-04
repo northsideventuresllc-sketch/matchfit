@@ -3,6 +3,7 @@ import {
   countClientPlatformTrialColumns,
 } from "@/lib/ensure-client-platform-trial-schema";
 import { directPostgresUrlForDdl, directPostgresUrlSource } from "@/lib/direct-postgres-ddl";
+import { probeClientRegisterInsert } from "@/lib/probe-client-register-insert";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,13 @@ export async function GET() {
     schemaCheckError = e instanceof Error ? e.message : String(e);
   }
 
-  const healthy = databaseUrlConfigured && directUrlConfigured && trialColumnsFound >= 4;
+  const insertProbe = await probeClientRegisterInsert();
+
+  const healthy =
+    databaseUrlConfigured &&
+    directUrlConfigured &&
+    trialColumnsFound >= 4 &&
+    insertProbe.ok;
 
   let message: string;
   if (healthy) {
@@ -36,6 +43,8 @@ export async function GET() {
       "DIRECT_URL is missing and could not be derived from DATABASE_URL. Add Supabase DIRECT_URL (port 5432) in Vercel Production.";
   } else if (trialColumnsFound < 4) {
     message = `Client trial columns are missing (${trialColumnsFound}/4). The next sign-up attempt should auto-repair; if not, run npm run db:migrate against production.`;
+  } else if (!insertProbe.ok) {
+    message = `Client sign-up insert probe failed (${insertProbe.code}).`;
   } else {
     message = "Client sign-up schema check failed.";
   }
@@ -48,6 +57,9 @@ export async function GET() {
     directHost: safeHostFromUrl(directPostgresUrlForDdl()),
     trialColumnsFound,
     trialColumnsRequired: 4,
+    insertProbeOk: insertProbe.ok,
+    insertProbeCode: insertProbe.ok ? null : insertProbe.code,
+    insertProbeError: insertProbe.ok ? null : insertProbe.message.slice(0, 500),
     schemaCheckError,
     deployCommit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
     message,
