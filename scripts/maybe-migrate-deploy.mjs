@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-function shouldRunMigrateDeploy(): boolean {
+function shouldRunMigrateDeploy() {
   if (process.env.VERCEL !== "1") return false;
   return Boolean(process.env.DIRECT_URL?.trim() || process.env.DATABASE_URL?.trim());
 }
