@@ -55,6 +55,13 @@ export function publicApiErrorFromUnknown(
 
   if (e instanceof Error) {
     const m = e.message;
+    if (/clients trial columns still missing/i.test(m) || /Set DIRECT_URL on the server/i.test(m)) {
+      return {
+        message:
+          "Sign-up is temporarily unavailable while we finish a database update. Please try again in a few minutes or contact support@match-fit.net if this persists.",
+        status: 503,
+      };
+    }
     if (DB_BUSY_RE.test(m)) {
       return { message: DB_BUSY_USER_MESSAGE, status: 503 };
     }
