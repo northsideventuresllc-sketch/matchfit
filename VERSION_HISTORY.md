@@ -4,4 +4,5 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-04** `1.1.2-beta` → `1.1.3-beta` (**patch** — Accurate social icons, beta banner mobile layout, and sign-up DOB field clamp)
 - **2026-06-04** `1.1.1-beta` → `1.1.2-beta` (**patch**) — Automatic product version policy and bump tooling (this change)
