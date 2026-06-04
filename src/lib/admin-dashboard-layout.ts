@@ -2,7 +2,8 @@
  * Administrator dashboard section registry and layout preferences (client-safe).
  */
 
-export const ADMIN_DASHBOARD_LAYOUT_VERSION = 1 as const;
+export const ADMIN_DASHBOARD_LAYOUT_VERSION = 2 as const;
+const LEGACY_LAYOUT_VERSION = 1 as const;
 
 export const ADMIN_DASHBOARD_SECTION_IDS = [
   "overview-kpis",
@@ -25,6 +26,15 @@ export const ADMIN_DASHBOARD_SECTION_IDS = [
 export type AdminDashboardSectionId = (typeof ADMIN_DASHBOARD_SECTION_IDS)[number];
 
 export type AdminDashboardSectionGroup = "Overview" | "Analytics" | "Activity" | "Operations";
+
+export type AdminDashboardDensity = "comfortable" | "compact";
+
+export type AdminDashboardLayoutPresetId =
+  | "default"
+  | "essential"
+  | "analytics"
+  | "trust-safety"
+  | "operations";
 
 export type AdminDashboardSectionMeta = {
   id: AdminDashboardSectionId;
@@ -137,45 +147,167 @@ export type AdminDashboardLayout = {
   /** Display order; includes hidden sections (hidden sections are omitted on render). */
   order: AdminDashboardSectionId[];
   hidden: AdminDashboardSectionId[];
+  /** Sections shown collapsed until expanded (persisted per administrator). */
+  collapsed: AdminDashboardSectionId[];
+  density: AdminDashboardDensity;
 };
 
 export const DEFAULT_ADMIN_DASHBOARD_LAYOUT: AdminDashboardLayout = {
   version: ADMIN_DASHBOARD_LAYOUT_VERSION,
   order: [...ADMIN_DASHBOARD_SECTION_IDS],
   hidden: [],
+  collapsed: [],
+  density: "comfortable",
 };
+
+export type AdminDashboardLayoutPreset = {
+  id: AdminDashboardLayoutPresetId;
+  label: string;
+  description: string;
+  hidden: AdminDashboardSectionId[];
+  collapsed: AdminDashboardSectionId[];
+};
+
+export const ADMIN_DASHBOARD_LAYOUT_PRESETS: AdminDashboardLayoutPreset[] = [
+  {
+    id: "default",
+    label: "Full dashboard",
+    description: "Show every section; expand all panels.",
+    hidden: [],
+    collapsed: [],
+  },
+  {
+    id: "essential",
+    label: "Essential overview",
+    description: "High-level KPIs, revenue, alerts, and recent signups only.",
+    hidden: [
+      "platform-health",
+      "site-traffic",
+      "acquisition-funnel",
+      "trainer-pipeline",
+      "finances-detail",
+      "ai-visitor-insights",
+      "impersonation-audit",
+      "recent-featured",
+      "test-mode",
+      "signup-log",
+      "member-search",
+    ],
+    collapsed: [],
+  },
+  {
+    id: "analytics",
+    label: "Analytics focus",
+    description: "Traffic, funnel, pipeline, and finances; hide day-to-day operations tools.",
+    hidden: ["test-mode", "signup-log", "member-search", "impersonation-audit", "recent-featured"],
+    collapsed: ["finances-detail", "ai-visitor-insights"],
+  },
+  {
+    id: "trust-safety",
+    label: "Trust & safety",
+    description: "Alerts, audit log, member search, and signup activity.",
+    hidden: [
+      "revenue-snapshot",
+      "platform-health",
+      "site-traffic",
+      "acquisition-funnel",
+      "trainer-pipeline",
+      "finances-detail",
+      "ai-visitor-insights",
+      "recent-featured",
+      "test-mode",
+    ],
+    collapsed: ["signup-log"],
+  },
+  {
+    id: "operations",
+    label: "Operations desk",
+    description: "Test mode, logs, search, and recent activity — panels start collapsed to reduce noise.",
+    hidden: [
+      "platform-health",
+      "site-traffic",
+      "acquisition-funnel",
+      "trainer-pipeline",
+      "finances-detail",
+      "ai-visitor-insights",
+    ],
+    collapsed: ["overview-kpis", "revenue-snapshot", "operational-alerts"],
+  },
+];
 
 export function adminDashboardSectionDomId(id: AdminDashboardSectionId): string {
   return `admin-section-${id}`;
+}
+
+function normalizeOrder(orderRaw: unknown): AdminDashboardSectionId[] {
+  const order: AdminDashboardSectionId[] = [];
+  if (Array.isArray(orderRaw)) {
+    for (const item of orderRaw) {
+      if (typeof item === "string" && isAdminDashboardSectionId(item) && !order.includes(item)) {
+        order.push(item);
+      }
+    }
+  }
+  for (const id of ADMIN_DASHBOARD_SECTION_IDS) {
+    if (!order.includes(id)) order.push(id);
+  }
+  return order;
+}
+
+function normalizeHidden(hiddenRaw: unknown): AdminDashboardSectionId[] {
+  const hidden: AdminDashboardSectionId[] = [];
+  if (!Array.isArray(hiddenRaw)) return hidden;
+  for (const item of hiddenRaw) {
+    if (typeof item === "string" && isAdminDashboardSectionId(item) && !hidden.includes(item)) {
+      hidden.push(item);
+    }
+  }
+  return hidden;
+}
+
+function normalizeCollapsed(collapsedRaw: unknown): AdminDashboardSectionId[] {
+  const collapsed: AdminDashboardSectionId[] = [];
+  if (!Array.isArray(collapsedRaw)) return collapsed;
+  for (const item of collapsedRaw) {
+    if (typeof item === "string" && isAdminDashboardSectionId(item) && !collapsed.includes(item)) {
+      collapsed.push(item);
+    }
+  }
+  return collapsed;
+}
+
+function normalizeDensity(value: unknown): AdminDashboardDensity {
+  return value === "compact" ? "compact" : "comfortable";
 }
 
 export function parseAdminDashboardLayout(raw: unknown): AdminDashboardLayout {
   if (!raw || typeof raw !== "object") return { ...DEFAULT_ADMIN_DASHBOARD_LAYOUT };
 
   const obj = raw as Record<string, unknown>;
-  if (obj.version !== ADMIN_DASHBOARD_LAYOUT_VERSION) return { ...DEFAULT_ADMIN_DASHBOARD_LAYOUT };
-
-  const orderRaw = Array.isArray(obj.order) ? obj.order : [];
-  const hiddenRaw = Array.isArray(obj.hidden) ? obj.hidden : [];
-
-  const order: AdminDashboardSectionId[] = [];
-  for (const item of orderRaw) {
-    if (typeof item === "string" && isAdminDashboardSectionId(item) && !order.includes(item)) {
-      order.push(item);
-    }
-  }
-  for (const id of ADMIN_DASHBOARD_SECTION_IDS) {
-    if (!order.includes(id)) order.push(id);
+  if (obj.version !== ADMIN_DASHBOARD_LAYOUT_VERSION && obj.version !== LEGACY_LAYOUT_VERSION) {
+    return { ...DEFAULT_ADMIN_DASHBOARD_LAYOUT };
   }
 
-  const hidden: AdminDashboardSectionId[] = [];
-  for (const item of hiddenRaw) {
-    if (typeof item === "string" && isAdminDashboardSectionId(item) && !hidden.includes(item)) {
-      hidden.push(item);
-    }
+  const order = normalizeOrder(obj.order);
+  const hidden = normalizeHidden(obj.hidden);
+
+  if (obj.version === LEGACY_LAYOUT_VERSION) {
+    return {
+      version: ADMIN_DASHBOARD_LAYOUT_VERSION,
+      order,
+      hidden,
+      collapsed: [],
+      density: "comfortable",
+    };
   }
 
-  return { version: ADMIN_DASHBOARD_LAYOUT_VERSION, order, hidden };
+  return {
+    version: ADMIN_DASHBOARD_LAYOUT_VERSION,
+    order,
+    hidden,
+    collapsed: normalizeCollapsed(obj.collapsed),
+    density: normalizeDensity(obj.density),
+  };
 }
 
 export function serializeAdminDashboardLayout(layout: AdminDashboardLayout): string {
@@ -184,6 +316,10 @@ export function serializeAdminDashboardLayout(layout: AdminDashboardLayout): str
 
 export function isSectionVisible(layout: AdminDashboardLayout, id: AdminDashboardSectionId): boolean {
   return !layout.hidden.includes(id);
+}
+
+export function isSectionCollapsed(layout: AdminDashboardLayout, id: AdminDashboardSectionId): boolean {
+  return layout.collapsed.includes(id);
 }
 
 /** Sections in display order, visible only. */
@@ -200,6 +336,47 @@ export function setSectionVisible(
   if (visible) hidden.delete(id);
   else hidden.add(id);
   return { ...layout, hidden: [...hidden] };
+}
+
+export function setSectionCollapsed(
+  layout: AdminDashboardLayout,
+  id: AdminDashboardSectionId,
+  collapsed: boolean,
+): AdminDashboardLayout {
+  const next = new Set(layout.collapsed);
+  if (collapsed) next.add(id);
+  else next.delete(id);
+  return { ...layout, collapsed: [...next] };
+}
+
+export function collapseAllVisibleSections(layout: AdminDashboardLayout): AdminDashboardLayout {
+  return { ...layout, collapsed: [...visibleDashboardSections(layout)] };
+}
+
+export function expandAllSections(layout: AdminDashboardLayout): AdminDashboardLayout {
+  return { ...layout, collapsed: [] };
+}
+
+export function setLayoutDensity(
+  layout: AdminDashboardLayout,
+  density: AdminDashboardDensity,
+): AdminDashboardLayout {
+  return { ...layout, density };
+}
+
+export function applyLayoutPreset(
+  layout: AdminDashboardLayout,
+  presetId: AdminDashboardLayoutPresetId,
+): AdminDashboardLayout {
+  const preset = ADMIN_DASHBOARD_LAYOUT_PRESETS.find((p) => p.id === presetId);
+  if (!preset || presetId === "default") {
+    return { ...DEFAULT_ADMIN_DASHBOARD_LAYOUT, order: layout.order };
+  }
+  return {
+    ...layout,
+    hidden: [...preset.hidden],
+    collapsed: [...preset.collapsed],
+  };
 }
 
 export function moveSection(
@@ -229,4 +406,17 @@ export function sectionsByGroup(): Record<AdminDashboardSectionGroup, AdminDashb
   return out;
 }
 
-export const ADMIN_DASHBOARD_LAYOUT_STORAGE_KEY = "mf_admin_dashboard_layout_v1";
+export function visibleSectionsByGroup(
+  layout: AdminDashboardLayout,
+): { group: AdminDashboardSectionGroup; sections: AdminDashboardSectionMeta[] }[] {
+  const visibleIds = new Set(visibleDashboardSections(layout));
+  const groups: AdminDashboardSectionGroup[] = ["Overview", "Analytics", "Activity", "Operations"];
+  return groups
+    .map((group) => ({
+      group,
+      sections: ADMIN_DASHBOARD_SECTIONS.filter((s) => s.group === group && visibleIds.has(s.id)),
+    }))
+    .filter((entry) => entry.sections.length > 0);
+}
+
+export const ADMIN_DASHBOARD_LAYOUT_STORAGE_KEY = "mf_admin_dashboard_layout_v2";
