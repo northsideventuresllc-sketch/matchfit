@@ -7,7 +7,7 @@ import {
 } from "@/lib/match-fit-official-social";
 
 const PLATFORM_MARKERS: Record<MatchFitOfficialSocialPlatform, readonly string[]> = {
-  threads: ['fill="#000000"', "M12.35 5.5"],
+  threads: ['fill="#000000"', "M141.537 88.9883", 'viewBox="0 0 192 192"'],
   tiktok: ['fill="#25F4EE"', 'fill="#FE2C55"'],
   facebook: ['fill="#1877F2"', "M13.2 20.5"],
   instagram: ["<linearGradient", 'stop-color="#FEDA75"'],

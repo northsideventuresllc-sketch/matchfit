@@ -17,9 +17,11 @@ import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 const inputClass =
-  "w-full rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 transition placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2";
+  "w-full min-w-0 max-w-full rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 transition placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2";
 
-const labelClass = "text-xs font-semibold uppercase tracking-wide text-white/50";
+const dateInputClass = `${inputClass} mf-date-input appearance-none`;
+
+const labelClass = "text-left text-xs font-semibold uppercase tracking-wide text-white/50 [overflow-wrap:anywhere]";
 
 function formatLocalYmd(d: Date): string {
   const y = d.getFullYear();
@@ -412,7 +414,7 @@ function ClientSignUpPageInner() {
         className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(45,52,64,0.3)_0%,transparent_35%,transparent_70%,rgba(11,12,15,0.9)_100%)]"
       />
 
-      <div className="relative z-10 mx-auto max-w-xl px-5 pb-20 pt-10 sm:px-8 sm:pt-14">
+      <div className="relative z-10 mx-auto w-full min-w-0 max-w-xl px-4 pb-20 pt-10 sm:px-8 sm:pt-14">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <Link href="/client" className="flex items-center gap-3 opacity-90 transition hover:opacity-100">
             <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl sm:h-14 sm:w-14">
@@ -452,7 +454,7 @@ function ClientSignUpPageInner() {
           </p>
         ) : null}
 
-        <div className="mt-8 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
+        <div className="mt-8 min-w-0 overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-5 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
           {betaStatusLoading ? (
             <p className="text-sm text-white/50">Checking availability…</p>
           ) : clientCapFull ? (
@@ -497,7 +499,7 @@ function ClientSignUpPageInner() {
               ) : null}
 
               {wizardStep === 1 ? (
-            <form onSubmit={handleStep1Next} className="flex flex-col gap-5" noValidate>
+            <form onSubmit={handleStep1Next} className="flex min-w-0 flex-col gap-5" noValidate>
               <div className="grid gap-5 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
                   <label htmlFor="su-first" className={labelClass}>
@@ -640,8 +642,8 @@ function ClientSignUpPageInner() {
                 Password must be at least 8 characters and include at least one capital letter and one special character.
               </p>
 
-              <div className="grid gap-5 sm:grid-cols-2">
-                <div className="flex flex-col gap-2">
+              <div className="grid min-w-0 grid-cols-1 gap-5 md:grid-cols-2">
+                <div className="flex min-w-0 flex-col gap-2">
                   <label htmlFor="su-zip" className={labelClass}>
                     Home ZIP (United States)
                   </label>
@@ -659,7 +661,7 @@ function ClientSignUpPageInner() {
                     className={inputClass}
                   />
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex min-w-0 flex-col gap-2">
                   <label htmlFor="su-dob" className={labelClass}>
                     Date of birth <span className="font-normal normal-case text-white/35">(18+)</span>
                   </label>
@@ -672,7 +674,7 @@ function ClientSignUpPageInner() {
                     value={dateOfBirth}
                     onChange={(e) => setDateOfBirth(e.target.value)}
                     style={{ colorScheme: "dark" }}
-                    className={inputClass}
+                    className={dateInputClass}
                   />
                 </div>
               </div>
