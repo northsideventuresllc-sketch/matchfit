@@ -12,3 +12,15 @@ ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "registrationFeeHoldStat
 ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "fitHubPromoEndsAt" TIMESTAMP(3);
 
 ALTER TABLE "trainers" ALTER COLUMN "termsAcceptedAt" DROP NOT NULL;
+
+-- Existing coaches keep dashboard access without repeating signup payment.
+UPDATE "trainer_profiles"
+SET
+  "limitedDashboardUnlockedAt" = COALESCE("dashboardActivatedAt", "createdAt"),
+  "registrationFeeHoldStatus" = CASE
+    WHEN "hasPaidRegistrationFee" = true THEN 'CAPTURED'
+    WHEN "hasSignedTOS" = true THEN 'HELD'
+    ELSE "registrationFeeHoldStatus"
+  END
+WHERE "limitedDashboardUnlockedAt" IS NULL
+  AND ("dashboardActivatedAt" IS NOT NULL OR "hasPaidRegistrationFee" = true OR "hasSignedTOS" = true);
