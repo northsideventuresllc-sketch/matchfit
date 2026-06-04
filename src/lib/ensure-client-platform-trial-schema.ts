@@ -9,7 +9,7 @@ const CLIENT_PLATFORM_TRIAL_COLUMNS = [
   "platformTrialConsumed",
 ] as const;
 
-const CLIENT_PLATFORM_TRIAL_DDL = `
+export const CLIENT_PLATFORM_TRIAL_DDL = `
 ALTER TABLE "clients"
   ADD COLUMN IF NOT EXISTS "platformTrialEndsAt" TIMESTAMP(3);
 ALTER TABLE "clients"
@@ -39,7 +39,7 @@ export function isMissingClientPlatformTrialColumnError(e: unknown): boolean {
   return CLIENT_PLATFORM_TRIAL_COLUMNS.some((name) => column.includes(name) || message.includes(name));
 }
 
-async function countClientPlatformTrialColumns(): Promise<number> {
+export async function countClientPlatformTrialColumns(): Promise<number> {
   const rows = await prisma.$queryRaw<{ count: bigint }[]>`
     SELECT COUNT(*)::bigint AS "count"
     FROM information_schema.columns
@@ -66,10 +66,13 @@ export async function ensureClientPlatformTrialSchema(): Promise<void> {
     return;
   }
 
-  if (directPostgresUrlForDdl()) {
+  const ddlUrl = directPostgresUrlForDdl();
+  if (ddlUrl) {
     await runDirectPostgresDdl(CLIENT_PLATFORM_TRIAL_DDL);
   } else {
-    await prisma.$executeRawUnsafe(CLIENT_PLATFORM_TRIAL_DDL);
+    throw new Error(
+      "[ensureClientPlatformTrialSchema] No DIRECT_URL and could not derive a 5432 Postgres URL from DATABASE_URL.",
+    );
   }
 
   const ready = await countClientPlatformTrialColumns();

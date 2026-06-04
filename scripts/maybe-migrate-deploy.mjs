@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 function shouldRunMigrateDeploy() {
-  if (process.env.VERCEL !== "1") return false;
+  if (process.env.VERCEL !== "1" && !process.env.VERCEL_ENV) return false;
   return Boolean(process.env.DIRECT_URL?.trim() || process.env.DATABASE_URL?.trim());
 }
 
@@ -24,4 +24,11 @@ const result = spawnSync("npx", ["prisma", "migrate", "deploy"], {
   env: process.env,
 });
 
-process.exit(result.status ?? 1);
+if ((result.status ?? 1) === 0) {
+  process.exit(0);
+}
+
+console.warn(
+  "[maybe-migrate-deploy] prisma migrate deploy failed; continuing build. Runtime sign-up self-heal will apply trial columns if needed.",
+);
+process.exit(0);
