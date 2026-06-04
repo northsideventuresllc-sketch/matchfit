@@ -141,7 +141,7 @@ export default function TrainerSignUpClient() {
         emailNorm,
         password,
         firstName: firstName.trim(),
-        turnstileToken: turnstile.getCaptchaToken(),
+        turnstileToken: turnstile.getCaptchaToken() ?? null,
       });
       if (!delivery.ok) {
         setError(delivery.error);
@@ -295,7 +295,7 @@ export default function TrainerSignUpClient() {
           emailNorm,
           password,
           firstName: firstName.trim(),
-          turnstileToken,
+          turnstileToken: turnstileToken ?? null,
         });
         if (!delivery.ok) {
           setError(
