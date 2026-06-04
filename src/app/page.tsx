@@ -57,7 +57,7 @@ export default async function Home({ searchParams }: HomeProps) {
         className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(45,52,64,0.35)_0%,transparent_35%,transparent_70%,rgba(11,12,15,0.9)_100%)]"
       />
 
-      <div className="relative z-10 mx-auto flex min-h-dvh max-w-6xl flex-col px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14 lg:px-10">
+      <div className="relative z-10 mx-auto flex min-h-dvh w-full min-w-0 max-w-6xl flex-col px-4 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14 lg:px-10">
         <header className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl sm:h-16 sm:w-16">
@@ -86,7 +86,7 @@ export default async function Home({ searchParams }: HomeProps) {
           </div>
         </header>
 
-        <div className="mt-6 sm:mt-8">
+        <div className="mt-6 min-w-0 sm:mt-8">
           <HomeBetaPromoBanner />
         </div>
 

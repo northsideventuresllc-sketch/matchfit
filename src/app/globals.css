@@ -100,3 +100,24 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Native date inputs have a large intrinsic min-width; clamp them inside flex/grid on mobile. */
+input[type="date"].mf-date-input {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  text-align: left;
+}
+
+input[type="date"].mf-date-input::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: left;
+}
+
+@media (min-width: 768px) {
+  input[type="date"].mf-date-input,
+  input[type="date"].mf-date-input::-webkit-date-and-time-value {
+    text-align: center;
+  }
+}
