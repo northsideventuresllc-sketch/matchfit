@@ -2,7 +2,7 @@ import { tryAutomatedCheckrInvitation } from "@/lib/checkr-api-client";
 import { defaultBackgroundCheckVendorPaidCents } from "@/lib/checkr";
 import { isBackgroundCheckPlanBActive } from "@/lib/checkr-integration";
 import { signBackgroundCheckStaffToken } from "@/lib/background-check-action-token";
-import { getAppOrigin } from "@/lib/app-origin";
+import { appBaseUrlForEmail } from "@/lib/match-fit-email-shell";
 import { prisma } from "@/lib/prisma";
 import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
 import { syncTrainerComplianceWindow } from "@/lib/trainer-compliance-window-sync";
@@ -61,8 +61,9 @@ async function sendTrainerBackgroundEmail(args: {
   await sendTransactionalEmailIfAllowed({
     kind: "BACKGROUND_CHECK_UPDATE",
     to: args.email,
+    audience: "TRAINER",
     trainerId: args.trainerId,
-    context: {
+    variables: {
       bgStatus: args.statusLabel,
       dashboardUrl: args.dashboardUrl,
     },
@@ -110,7 +111,7 @@ export async function requestTrainerBackgroundCheckInvite(trainerId: string): Pr
   }
 
   const now = new Date();
-  const origin = getAppOrigin();
+  const origin = appBaseUrlForEmail();
   const automated = await tryAutomatedCheckrInvitation({
     trainerId,
     email: trainer.email,
@@ -178,7 +179,8 @@ export async function requestTrainerBackgroundCheckInvite(trainerId: string): Pr
   await sendTransactionalEmailIfAllowed({
     kind: "BACKGROUND_CHECK_PLAN_B_INVITE_REQUEST",
     to: MATCH_FIT_SUPPORT_EMAIL,
-    context: {
+    audience: "STAFF",
+    variables: {
       trainerName: `${trainer.firstName} ${trainer.lastName}`.trim(),
       trainerEmail: trainer.email,
       trainerUsername: trainer.username,
@@ -216,7 +218,7 @@ export async function confirmPlanBBackgroundCheckInviteSent(trainerId: string): 
     },
   });
 
-  const origin = getAppOrigin();
+  const origin = appBaseUrlForEmail();
   const dash = trainerDashboardComplianceUrl(origin);
   const invitePage = requestInvitePageUrl(origin);
 
@@ -230,8 +232,9 @@ export async function confirmPlanBBackgroundCheckInviteSent(trainerId: string): 
   await sendTransactionalEmailIfAllowed({
     kind: "BACKGROUND_CHECK_PLAN_B_INVITE_SENT_TRAINER",
     to: trainer.email,
+    audience: "TRAINER",
     trainerId,
-    context: {
+    variables: {
       firstName: trainer.firstName,
       dashboardUrl: dash,
       inviteHelpUrl: invitePage,
@@ -257,13 +260,14 @@ export async function notifySupportPlanBReviewNeeded(trainerId: string): Promise
 
   const approveToken = await signBackgroundCheckStaffToken(trainerId, "approve");
   const denyToken = await signBackgroundCheckStaffToken(trainerId, "deny");
-  const origin = getAppOrigin();
+  const origin = appBaseUrlForEmail();
   const base = origin.replace(/\/$/, "");
 
   await sendTransactionalEmailIfAllowed({
     kind: "BACKGROUND_CHECK_PLAN_B_REVIEW",
     to: MATCH_FIT_SUPPORT_EMAIL,
-    context: {
+    audience: "STAFF",
+    variables: {
       trainerName: `${trainer.firstName} ${trainer.lastName}`.trim(),
       trainerEmail: trainer.email,
       trainerUsername: trainer.username,
@@ -297,7 +301,7 @@ export async function applyPlanBBackgroundCheckStaffDecision(
   if (!trainer?.profile) return { ok: false, message: "Trainer not found." };
 
   const now = new Date();
-  const origin = getAppOrigin();
+  const origin = appBaseUrlForEmail();
   const dash = trainerDashboardComplianceUrl(origin);
 
   if (action === "approve") {

@@ -30,6 +30,9 @@ type Props = {
     nutritionistCertificationReviewStatus: string;
     specialistCertificationReviewStatus: string;
     hasPaidBackgroundFee: boolean;
+    registrationFeeHoldStatus?: string | null;
+    backgroundCheckInviteRequestedAt?: string | null;
+    backgroundCheckInviteSentAt?: string | null;
   };
   matchQuestionnaireStatus: string;
 };

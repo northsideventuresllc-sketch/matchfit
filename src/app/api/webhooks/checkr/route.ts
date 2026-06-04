@@ -1,11 +1,11 @@
 import {
   parseCheckrWebhookReportOutcome,
-  recordCheckrBackgroundCheckPaid,
   verifyCheckrWebhookSignature,
   checkrWebhookIndicatesClear,
   checkrWebhookIndicatesConsider,
   checkrWebhookIndicatesDenied,
 } from "@/lib/checkr";
+import { recordCheckrBackgroundCheckPaid } from "@/lib/checkr-webhook-records";
 import { notifySupportPlanBReviewNeeded } from "@/lib/background-check-plan-b";
 import { isBackgroundCheckPlanBActive } from "@/lib/checkr-integration";
 import { prisma } from "@/lib/prisma";
