@@ -103,7 +103,7 @@ export default function TrainerSignUpClient() {
     password: string;
     firstName: string;
     turnstileToken: string | null;
-  }): Promise<{ ok: true } | { ok: false; error: string; code?: string }> {
+  }): Promise<{ ok: true } | { ok: false; error: string; code?: string; retryAfterSeconds?: number }> {
     const res = await fetch("/api/public/resend-signup-verification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -115,11 +115,64 @@ export default function TrainerSignUpClient() {
         ...(args.turnstileToken ? { turnstileToken: args.turnstileToken } : {}),
       }),
     });
-    const data = (await res.json()) as { error?: string; code?: string };
+    const data = (await res.json()) as {
+      error?: string;
+      code?: string;
+      retryAfterSeconds?: number | null;
+    };
     if (!res.ok) {
-      return { ok: false, error: data.error ?? "Could not send the verification email.", code: data.code };
+      return {
+        ok: false,
+        error: data.error ?? "Could not send the verification email.",
+        code: data.code,
+        retryAfterSeconds: data.retryAfterSeconds ?? undefined,
+      };
     }
     return { ok: true };
+  }
+
+  async function handleContinueWithPassword() {
+    setError(null);
+    setResendNotice(null);
+    const emailNorm = email.trim().toLowerCase();
+    if (!emailNorm || !password) {
+      setError("Enter your email and password, then try again.");
+      return;
+    }
+    const supabase = tryCreateMatchFitSupabaseBrowserClient();
+    if (!supabase) {
+      setError("Supabase client could not be created.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error: signInErr } = await supabase.auth.signInWithPassword({ email: emailNorm, password });
+      if (signInErr) {
+        setError(
+          signInErr.message.includes("Email not confirmed")
+            ? "Your email is not confirmed yet. Wait for the verification link or try Resend after the cooldown."
+            : signInErr.message || "Could not sign in. Check your password and try again.",
+        );
+        setBusy(false);
+        return;
+      }
+      writeTrainerSignupDraft({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        username: username.trim(),
+        phone: phone.trim(),
+        email: emailNorm,
+        password,
+        agreedToTerms: true,
+        stayLoggedIn,
+        serviceZipCode: serviceZipCode.trim(),
+        ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
+      });
+      navigateWithFullLoad("/trainer/signup/complete");
+    } catch {
+      setError("Something went wrong. Try again.");
+      setBusy(false);
+    }
   }
 
   async function handleResendVerificationEmail() {
@@ -226,58 +279,6 @@ export default function TrainerSignUpClient() {
       };
 
       if (isSupabaseConfigured()) {
-        const supabase = tryCreateMatchFitSupabaseBrowserClient();
-        if (!supabase) {
-          setError("Supabase client could not be created. Check environment variables.");
-          setBusy(false);
-          return;
-        }
-
-        const { data: signData, error: signErr } = await supabase.auth.signUp({
-          email: emailNorm,
-          password,
-          options: buildSupabaseSignUpOptions({
-            emailRedirectTo: getSupabaseEmailCallbackUrl(),
-            turnstileToken,
-            data: {
-              match_fit_role: "trainer",
-              pending_match_fit_profile: true,
-            },
-          }),
-        });
-
-        if (signErr) {
-          setError(signErr.message || "Could not start email verification.");
-          turnstile.reset();
-          setBusy(false);
-          return;
-        }
-
-        if (signData.session) {
-          const res = await fetch("/api/trainer/register", {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(registerCore),
-          });
-          const data = (await res.json()) as { error?: string; next?: string; code?: string };
-          if (!res.ok) {
-            setErrorCode(data.code ?? null);
-            setError(
-              data.code === "BETA_TRAINER_CAP"
-                ? (data.error ?? "Coach slots are full for this beta.")
-                : (data.error ?? "Could not create your account."),
-            );
-            turnstile.reset();
-            setBusy(false);
-            return;
-          }
-          trackGoogleAdsConversion("trainer_signup");
-          trackMetaConversion("trainer_signup");
-          navigateWithFullLoad(data.next ?? "/trainer/signup/terms");
-          return;
-        }
-
         writeTrainerSignupDraft({
           firstName: firstName.trim(),
           lastName: lastName.trim(),
@@ -297,11 +298,75 @@ export default function TrainerSignUpClient() {
           firstName: firstName.trim(),
           turnstileToken,
         });
+
+        if (
+          !delivery.ok &&
+          (delivery.code === "SUPABASE_ADMIN_NOT_CONFIGURED" || delivery.code === "RESEND_NOT_CONFIGURED")
+        ) {
+          const supabase = tryCreateMatchFitSupabaseBrowserClient();
+          if (!supabase) {
+            setError("Supabase client could not be created. Check environment variables.");
+            setBusy(false);
+            return;
+          }
+
+          const { data: signData, error: signErr } = await supabase.auth.signUp({
+            email: emailNorm,
+            password,
+            options: buildSupabaseSignUpOptions({
+              emailRedirectTo: getSupabaseEmailCallbackUrl(),
+              turnstileToken,
+              data: {
+                match_fit_role: "trainer",
+                pending_match_fit_profile: true,
+              },
+            }),
+          });
+
+          if (signErr) {
+            setError(signErr.message || "Could not start email verification.");
+            turnstile.reset();
+            setBusy(false);
+            return;
+          }
+
+          if (signData.session) {
+            const res = await fetch("/api/trainer/register", {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(registerCore),
+            });
+            const data = (await res.json()) as { error?: string; next?: string; code?: string };
+            if (!res.ok) {
+              setErrorCode(data.code ?? null);
+              setError(
+                data.code === "BETA_TRAINER_CAP"
+                  ? (data.error ?? "Coach slots are full for this beta.")
+                  : (data.error ?? "Could not create your account."),
+              );
+              turnstile.reset();
+              setBusy(false);
+              return;
+            }
+            trackGoogleAdsConversion("trainer_signup");
+            trackMetaConversion("trainer_signup");
+            navigateWithFullLoad(data.next ?? "/trainer/signup/terms");
+            return;
+          }
+
+          trackMetaLead("trainer");
+          setVerificationEmailSent(true);
+          setResendNotice(null);
+          setBusy(false);
+          return;
+        }
+
         if (!delivery.ok) {
-          setError(
-            delivery.error ??
-              "We could not send the verification email. Use Resend below or contact support@match-fit.net.",
-          );
+          setError(delivery.error ?? "We could not send the verification email.");
+          if (delivery.code === "EMAIL_ALREADY_CONFIRMED") {
+            setResendNotice("Your email looks verified already — try Continue with password below.");
+          }
           turnstile.reset();
           setVerificationEmailSent(true);
           setBusy(false);
@@ -444,6 +509,17 @@ export default function TrainerSignUpClient() {
               >
                 {resendBusy ? "Sending…" : "Resend verification email"}
               </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void handleContinueWithPassword()}
+                className="mt-3 min-h-[2.75rem] w-full rounded-xl border border-white/15 bg-white/5 px-4 text-xs font-black uppercase tracking-[0.08em] text-white/85 transition hover:bg-white/10 disabled:opacity-50"
+              >
+                {busy ? "Please wait…" : "Continue with password"}
+              </button>
+              <p className="mt-3 text-[11px] leading-relaxed text-emerald-100/55">
+                Already confirmed your email? Use Continue with password. Otherwise wait 2 minutes between Resend attempts.
+              </p>
               <button
                 type="button"
                 className="mt-4 text-xs font-bold uppercase tracking-wide text-[#FF7E00] underline-offset-4 hover:underline"

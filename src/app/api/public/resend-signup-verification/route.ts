@@ -41,10 +41,19 @@ export async function POST(req: Request) {
       const status =
         result.code === "EMAIL_ALREADY_CONFIRMED"
           ? 409
-          : result.code === "SUPABASE_ADMIN_NOT_CONFIGURED" || result.code === "RESEND_NOT_CONFIGURED"
-            ? 503
-            : 400;
-      return NextResponse.json({ error: result.error, code: result.code }, { status });
+          : result.code === "EMAIL_RATE_LIMIT" || result.code === "RESEND_COOLDOWN"
+            ? 429
+            : result.code === "SUPABASE_ADMIN_NOT_CONFIGURED" || result.code === "RESEND_NOT_CONFIGURED"
+              ? 503
+              : 400;
+      return NextResponse.json(
+        {
+          error: result.error,
+          code: result.code,
+          retryAfterSeconds: result.retryAfterSeconds ?? null,
+        },
+        { status },
+      );
     }
 
     return NextResponse.json({ ok: true });
