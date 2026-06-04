@@ -8,8 +8,11 @@ import { TrainerPremiumHubSummary } from "@/components/trainer/trainer-premium-h
 import { TrainerMatchAnswersPreview } from "@/components/trainer/trainer-match-answers-preview";
 import { parseAiMatchProfileForDisplay } from "@/lib/ai-match-profile-parse";
 import { prisma } from "@/lib/prisma";
+import { TrainerDashboardComplianceOnboarding } from "@/components/trainer/trainer-dashboard-compliance-onboarding";
 import { TRAINER_MATCH_QUESTIONNAIRES_PATH } from "@/lib/trainer-match-questionnaires-routes";
 import { trainerPublishedProfilePath } from "@/lib/trainer-public-profile-route";
+import { evaluateTrainerComplianceWindow } from "@/lib/trainer-compliance-window";
+import { hasTrainerFullPlatformAccess } from "@/lib/trainer-full-access";
 import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
 import { getSessionTrainerId } from "@/lib/session";
 import { isPrismaMissingColumnError, isPrismaUnknownModelFieldError } from "@/lib/prisma-missing-column";
@@ -52,14 +55,30 @@ export default async function TrainerDashboardHomePage() {
           hasSignedTOS: true,
           hasUploadedW9: true,
           backgroundCheckStatus: true,
+          backgroundCheckClearedAt: true,
           certificationReviewStatus: true,
           nutritionistCertificationReviewStatus: true,
+          specialistCertificationReviewStatus: true,
           onboardingTrackCpt: true,
           onboardingTrackNutrition: true,
+          onboardingTrackSpecialist: true,
+          specialistProfessionalRole: true,
           dashboardActivatedAt: true,
           matchQuestionnaireStatus: true,
           aiMatchProfileText: true,
           premiumStudioEnabledAt: true,
+          limitedDashboardUnlockedAt: true,
+          registrationFeeHoldStatus: true,
+          hasPaidRegistrationFee: true,
+          hasPaidBackgroundFee: true,
+          complianceWindowStartedAt: true,
+          complianceWindowPausedAt: true,
+          complianceCertReuploadDeadlineAt: true,
+          complianceHumanReviewDeadlineAt: true,
+          complianceCertFailedAttempts: true,
+          complianceWindowExpiredAt: true,
+          checkrReportId: true,
+          fitHubPromoEndsAt: true,
         },
       },
     },
@@ -82,6 +101,9 @@ export default async function TrainerDashboardHomePage() {
       : null;
 
   const premiumActive = Boolean(profile?.premiumStudioEnabledAt);
+  const fullAccess = hasTrainerFullPlatformAccess(profile);
+  const complianceWindow = profile ? evaluateTrainerComplianceWindow(profile) : null;
+  const showCompliancePanel = Boolean(profile?.limitedDashboardUnlockedAt && !fullAccess);
 
   const QUICK_LINKS_JSON_COL = "dashboardQuickLinkIdsJson";
   let dashboardQuickLinkIds: TrainerDashboardQuickLinkId[] = [];
@@ -107,6 +129,24 @@ export default async function TrainerDashboardHomePage() {
           Signed in as <span className="text-white/75">@{trainer.username}</span>
         </p>
       </header>
+
+      {showCompliancePanel && complianceWindow && profile ? (
+        <TrainerDashboardComplianceOnboarding
+          complianceWindow={complianceWindow}
+          profile={{
+            onboardingTrackCpt: profile.onboardingTrackCpt,
+            onboardingTrackNutrition: profile.onboardingTrackNutrition,
+            onboardingTrackSpecialist: profile.onboardingTrackSpecialist,
+            specialistProfessionalRole: profile.specialistProfessionalRole,
+            backgroundCheckStatus: profile.backgroundCheckStatus,
+            certificationReviewStatus: profile.certificationReviewStatus,
+            nutritionistCertificationReviewStatus: profile.nutritionistCertificationReviewStatus,
+            specialistCertificationReviewStatus: profile.specialistCertificationReviewStatus,
+            hasPaidBackgroundFee: profile.hasPaidBackgroundFee,
+          }}
+          matchQuestionnaireStatus={profile.matchQuestionnaireStatus ?? "not_started"}
+        />
+      ) : null}
 
       <section className="mx-auto flex w-full max-w-xl flex-col items-center sm:max-w-2xl">
         <div className="w-full rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 text-center shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-7">
@@ -164,6 +204,10 @@ export default async function TrainerDashboardHomePage() {
               day: "numeric",
             })}
             .
+          </p>
+        ) : showCompliancePanel ? (
+          <p className="mx-auto mt-2 max-w-xl text-center text-xs text-amber-100/70">
+            Limited access — complete certification and background screening above to unlock client features.
           </p>
         ) : (
           <p className="mx-auto mt-2 max-w-xl text-center text-xs text-white/40">

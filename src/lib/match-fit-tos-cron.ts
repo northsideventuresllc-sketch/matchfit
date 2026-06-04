@@ -15,6 +15,7 @@ import {
 import { finalizeDueAccountDeletions } from "@/lib/account-deletion-grace";
 import { runClientPlatformBillingLifecycleJobs } from "@/lib/client-platform-lifecycle";
 import { runBetaWaitlistCronJobs } from "@/lib/beta-waitlist-service";
+import { processTrainerComplianceWindowExpirations } from "@/lib/trainer-compliance-window-cron";
 
 export type TosCronSummary = {
   backgroundCheckWarningsSent: number;
@@ -44,6 +45,7 @@ export type TosCronSummary = {
     paymentGraceStarted: number;
     accountsDeactivated: number;
   };
+  trainerComplianceWindowsExpired: number;
 };
 
 async function backfillApprovedBackgroundCheckTimestamps(): Promise<number> {
@@ -233,6 +235,12 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   } catch (e) {
     console.error("[tos cron] client platform billing lifecycle", e);
   }
+  let trainerComplianceWindowsExpired = 0;
+  try {
+    trainerComplianceWindowsExpired = await processTrainerComplianceWindowExpirations();
+  } catch (e) {
+    console.error("[tos cron] trainer compliance window", e);
+  }
   return {
     backgroundCheckClearedBackfill: backfill,
     backgroundCheckWarningsSent: warnings,
@@ -250,5 +258,6 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     betaWaitlist,
     accountDeletions,
     clientPlatformBilling,
+    trainerComplianceWindowsExpired,
   };
 }

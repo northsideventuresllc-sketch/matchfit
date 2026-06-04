@@ -76,7 +76,7 @@ export default function TrainerSignupCompletePage() {
         clearTrainerSignupDraft();
         trackGoogleAdsConversion("trainer_signup");
         trackMetaConversion("trainer_signup");
-        navigateWithFullLoad(data.next ?? "/trainer/onboarding");
+        navigateWithFullLoad(data.next ?? "/trainer/signup/terms");
       } catch {
         if (!cancelled) {
           setError("Something went wrong. Try again.");

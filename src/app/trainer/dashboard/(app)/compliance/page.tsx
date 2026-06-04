@@ -10,7 +10,6 @@ import { TrainerComplianceW9DownloadButton } from "@/components/trainer/trainer-
 import { TrainerRegistrationFeePanel } from "@/components/trainer/trainer-registration-fee-panel";
 import { getTrainerFoundingBgPercentMax } from "@/lib/match-fit-launch-promotion-caps";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
-import { OFF_PLATFORM_LIQUIDATED_DAMAGES_NOTICE } from "@/lib/tos-off-platform-deterrent";
 import { backgroundCheckStatusLabel, certificationReviewStatusLabel } from "@/lib/trainer-compliance-status-copy";
 import { prisma } from "@/lib/prisma";
 import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
@@ -146,11 +145,6 @@ export default async function TrainerComplianceDetailsPage() {
           looks incorrect.
         </p>
       </header>
-
-      <section className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.08] p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-amber-200/90">Off-platform payments</p>
-        <p className="mt-2 text-sm leading-relaxed text-white/70">{OFF_PLATFORM_LIQUIDATED_DAMAGES_NOTICE}</p>
-      </section>
 
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
         <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Platform registration fee</h2>

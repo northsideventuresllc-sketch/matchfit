@@ -20,7 +20,7 @@ function resolvePostVerifyPath(user: { user_metadata?: Record<string, unknown> }
   const pending = Boolean(meta.pending_match_fit_profile);
 
   if (role === "trainer") {
-    return pending ? "/trainer/signup/complete" : "/trainer/onboarding";
+    return pending ? "/trainer/signup/complete" : "/trainer/dashboard";
   }
   if (role === "client") {
     return pending ? "/client/sign-up/complete" : "/client/dashboard";

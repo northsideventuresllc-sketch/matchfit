@@ -468,7 +468,7 @@ model Trainer {
   socialLinkedin     String?
   socialOtherUrl     String?
 
-  termsAcceptedAt DateTime
+  termsAcceptedAt DateTime?
   privacyPolicyAcceptedAt DateTime?
 
   twoFactorEnabled Boolean @default(false)
@@ -974,7 +974,26 @@ model TrainerProfile {
   /// Set when we notify the trainer that renewal is due within ~30 days.
   backgroundCheckExpiryWarningSentAt DateTime?
 
-  /// Set when the trainer completes the skeleton background-check step; marks the compliance profile as ready for the main dashboard.
+  /// After signup fee is authorized (held); trainer may use the dashboard in limited mode.
+  limitedDashboardUnlockedAt DateTime?
+  /// Seven-day cert + background-check window starts when signup payment is authorized.
+  complianceWindowStartedAt DateTime?
+  /// When both cert and BG are submitted, the 7-day window pauses until outcomes are known.
+  complianceWindowPausedAt DateTime?
+  /// After a cert denial, trainer has until this time to re-upload (resets the 7-day clock).
+  complianceCertReuploadDeadlineAt DateTime?
+  /// When BG needs human review, trainer has 28 days to work with Match Fit staff (7-day clock stays paused).
+  complianceHumanReviewDeadlineAt DateTime?
+  complianceCertFailedAttempts Int @default(0)
+  complianceWindowExpiredAt DateTime?
+  /// Stripe PaymentIntent id for signup registration fee (manual capture until full compliance).
+  registrationFeeHoldPaymentIntentId String?
+  /// NOT_STARTED | HELD | CAPTURED | CANCELED
+  registrationFeeHoldStatus String @default("NOT_STARTED")
+  /// BETA FitHub promo: 28 days free premium studio access after cert + BG approved.
+  fitHubPromoEndsAt DateTime?
+
+  /// Set when cert, BG, W-9, and TOS are satisfied — trainer is live for clients.
   dashboardActivatedAt DateTime?
   /// not_started | in_progress | completed — Onboarding Questionnaire (trainer Daily Questionnaires).
   matchQuestionnaireStatus String @default("not_started")
