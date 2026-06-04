@@ -1,6 +1,6 @@
 {
   "name": "match-fit-app",
-  "version": "1.1.1-beta",
+  "version": "1.1.2-beta",
   "private": true,
   "engines": {
     "node": ">=20.19.0 <23"
@@ -26,6 +26,8 @@
     "seed:test-accounts": "node --env-file=.env scripts/seed-match-fit-dev-test-accounts.js",
     "reset:owner-portals": "node --env-file=.env npx tsx scripts/reset-owner-portal-passwords.ts",
     "tos:alignment": "tsx scripts/tos-alignment-check.ts",
+    "version:bump": "node scripts/bump-product-version.mjs",
+    "version:verify": "node scripts/verify-product-version-bump.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {

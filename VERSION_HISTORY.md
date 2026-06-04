@@ -1,0 +1,7 @@
+# Match Fit version history
+
+Automated log from `npm run version:bump`. UI labels derive from `package.json` via `src/lib/match-fit-product-version.ts`.
+
+## Entries
+
+- **2026-06-04** `1.1.1-beta` → `1.1.2-beta` (**patch**) — Automatic product version policy and bump tooling (this change)

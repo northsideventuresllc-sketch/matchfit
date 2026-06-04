@@ -16,6 +16,10 @@ export type SendSupabaseSignupVerificationResult =
   | { ok: true; resendId?: string }
   | { ok: false; error: string; code: string; retryAfterSeconds?: number };
 
+type EnsureSupabaseAuthSignupUserResult =
+  | { ok: true; userId: string }
+  | { ok: false; error: string; code: string; retryAfterSeconds?: number };
+
 const RESEND_COOLDOWN_MS = 2 * 60 * 1000;
 
 function buildVerificationEmail(args: {
@@ -67,7 +71,7 @@ async function findAuthUserByEmail(email: string): Promise<AuthUserRow | null> {
   return rows[0] ?? null;
 }
 
-function mapSupabaseAuthError(error: { message?: string; status?: number }): SendSupabaseSignupVerificationResult {
+function mapSupabaseAuthError(error: { message?: string; status?: number }): EnsureSupabaseAuthSignupUserResult {
   const msg = (error.message ?? "").toLowerCase();
   if (
     error.status === 429 ||
@@ -101,7 +105,7 @@ async function ensureSupabaseAuthSignupUser(args: {
   email: string;
   password: string;
   role: SupabaseSignupVerificationRole;
-}): Promise<{ ok: true; userId: string } | SendSupabaseSignupVerificationResult> {
+}): Promise<EnsureSupabaseAuthSignupUserResult> {
   const admin = createSupabaseAdminClient();
   const email = args.email.trim().toLowerCase();
   const password = args.password.trim();

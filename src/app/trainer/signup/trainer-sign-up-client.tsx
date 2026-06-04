@@ -296,7 +296,7 @@ export default function TrainerSignUpClient() {
           emailNorm,
           password,
           firstName: firstName.trim(),
-          turnstileToken,
+          turnstileToken: turnstileToken ?? null,
         });
 
         if (
