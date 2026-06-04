@@ -2,7 +2,9 @@ import { queueChatAdminReview } from "@/lib/chat-admin-review-queue";
 import { getChatContactLeakageBlockReason, scanChatTextForLeakageSignals } from "@/lib/chat-leakage-detection";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
-import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import { hasTrainerFullPlatformAccess } from "@/lib/trainer-full-access";
+import { trainerFullAccessProfileSelect } from "@/lib/trainer-full-access-profile-select";
+import { trainerFullAccessBlockedMessage } from "@/lib/assert-trainer-full-access";
 import {
   FREE_TRAINER_NUDGES_PER_DAY,
   PREMIUM_NUDGES_PRODUCT_NOTICE,
@@ -29,26 +31,11 @@ export async function POST(req: Request) {
         firstName: true,
         lastName: true,
         preferredName: true,
-        profile: {
-          select: {
-            dashboardActivatedAt: true,
-            premiumStudioEnabledAt: true,
-            hasSignedTOS: true,
-            hasUploadedW9: true,
-            backgroundCheckStatus: true,
-            backgroundCheckClearedAt: true,
-            onboardingTrackCpt: true,
-            onboardingTrackNutrition: true,
-            onboardingTrackSpecialist: true,
-            certificationReviewStatus: true,
-            nutritionistCertificationReviewStatus: true,
-            specialistCertificationReviewStatus: true,
-          },
-        },
+        profile: { select: { ...trainerFullAccessProfileSelect, premiumStudioEnabledAt: true } },
       },
     });
-    if (!trainer?.profile || trainer.profile.dashboardActivatedAt == null || !isTrainerComplianceComplete(trainer.profile)) {
-      return NextResponse.json({ error: "Your trainer profile must be live before you can nudge clients." }, { status: 403 });
+    if (!trainer?.profile || !hasTrainerFullPlatformAccess(trainer.profile)) {
+      return NextResponse.json({ error: trainerFullAccessBlockedMessage() }, { status: 403 });
     }
 
     const body = (await req.json()) as { clientUsername?: string; message?: string | null };

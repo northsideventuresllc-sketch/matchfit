@@ -3,7 +3,8 @@ import { getSessionTrainerId } from "@/lib/session";
 import { defaultTrainerBookingAvailability, trainerBookingAvailabilitySchema } from "@/lib/booking-availability";
 import { validateTrainerAvailabilityConsistency } from "@/lib/booking-availability-validate";
 import { normalizeUsBookingTimezone } from "@/lib/us-booking-timezones";
-import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import { hasTrainerFullPlatformAccess } from "@/lib/trainer-full-access";
+import { trainerFullAccessBlockedMessage } from "@/lib/assert-trainer-full-access";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -55,7 +56,7 @@ export async function PATCH(req: Request) {
       where: { id: trainerId },
       select: { profile: { select: { dashboardActivatedAt: true, hasSignedTOS: true, hasUploadedW9: true, backgroundCheckStatus: true, backgroundCheckClearedAt: true, onboardingTrackCpt: true, onboardingTrackNutrition: true, onboardingTrackSpecialist: true, certificationReviewStatus: true, nutritionistCertificationReviewStatus: true, specialistCertificationReviewStatus: true } } },
     });
-    if (!trainer?.profile || trainer.profile.dashboardActivatedAt == null || !isTrainerComplianceComplete(trainer.profile)) {
+    if (!trainer?.profile || !hasTrainerFullPlatformAccess(trainer.profile)) {
       return NextResponse.json({ error: "Your trainer profile must be live." }, { status: 403 });
     }
 

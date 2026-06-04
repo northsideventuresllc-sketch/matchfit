@@ -36,12 +36,11 @@ export async function createTrainerRecord(
           phone: body.phone.trim(),
           email,
           passwordHash,
-          termsAcceptedAt: new Date(),
-          privacyPolicyAcceptedAt: new Date(),
           profile: {
             create: {
               registrationFeeWaived,
               registrationFeePricingMode,
+              hasSignedTOS: false,
               ...(serviceZipCode ? { serviceZipCode } : {}),
               backgroundCheckStatus: "NOT_STARTED",
               certificationReviewStatus: "NOT_STARTED",

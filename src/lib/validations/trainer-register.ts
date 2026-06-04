@@ -10,34 +10,31 @@ export const trainerLoginSchema = z.object({
   turnstileToken: z.string().optional(),
 });
 
-export const trainerSignupSchema = z
-  .object({
-    firstName: z.string().trim().min(1, "First name is required.").max(80),
-    lastName: z.string().trim().min(1, "Last name is required.").max(80),
-    username: z
-      .string()
-      .trim()
-      .min(3, "Username must be at least 3 characters.")
-      .max(32)
-      .regex(/^[a-zA-Z0-9_]+$/, "Username may only use letters, numbers, and underscores."),
-    phone: z
-      .string()
-      .trim()
-      .min(10, "Enter a valid phone number (at least 10 digits).")
-      .max(32),
-    email: z.string().trim().email("Enter a valid email address.").max(254),
-    password: passwordPolicySchema,
-    agreedToTerms: z.boolean(),
-    stayLoggedIn: z.boolean().optional().default(true),
-    turnstileToken: z.string().optional(),
-    /** Required when Match Fit beta geo gates are enabled. */
-    serviceZipCode: z.string().trim().max(12).optional().default(""),
-    betaInviteToken: z.string().optional(),
-  })
-  .refine((d) => d.agreedToTerms === true, {
-    message: "You must accept the Terms of Service.",
-    path: ["agreedToTerms"],
-  });
+/** Step 1 — account credentials only; terms and payment follow on dedicated signup steps. */
+export const trainerSignupSchema = z.object({
+  firstName: z.string().trim().min(1, "First name is required.").max(80),
+  lastName: z.string().trim().min(1, "Last name is required.").max(80),
+  username: z
+    .string()
+    .trim()
+    .min(3, "Username must be at least 3 characters.")
+    .max(32)
+    .regex(/^[a-zA-Z0-9_]+$/, "Username may only use letters, numbers, and underscores."),
+  phone: z
+    .string()
+    .trim()
+    .min(10, "Enter a valid phone number (at least 10 digits).")
+    .max(32),
+  email: z.string().trim().email("Enter a valid email address.").max(254),
+  password: passwordPolicySchema,
+  /** Legacy field from older single-page signup; ignored when false. */
+  agreedToTerms: z.boolean().optional(),
+  stayLoggedIn: z.boolean().optional().default(true),
+  turnstileToken: z.string().optional(),
+  /** Required when Match Fit beta geo gates are enabled. */
+  serviceZipCode: z.string().trim().max(12).optional().default(""),
+  betaInviteToken: z.string().optional(),
+});
 
 export const trainerBasicProfileSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required.").max(80),

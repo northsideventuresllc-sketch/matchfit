@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
+import { trainerFullAccessBlockedMessage } from "@/lib/assert-trainer-full-access";
+import { hasTrainerFullPlatformAccess } from "@/lib/trainer-full-access";
+import { trainerFullAccessProfileSelect } from "@/lib/trainer-full-access-profile-select";
 import { NextResponse } from "next/server";
 
 /** Marks Premium Page / studio as enabled for the signed-in trainer (skeleton until paid checkout exists). */
@@ -10,15 +13,17 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    await prisma.trainerProfile.upsert({
+    const profile = await prisma.trainerProfile.findUnique({
       where: { trainerId },
-      create: {
-        trainerId,
-        premiumStudioEnabledAt: new Date(),
-      },
-      update: {
-        premiumStudioEnabledAt: new Date(),
-      },
+      select: trainerFullAccessProfileSelect,
+    });
+    if (!hasTrainerFullPlatformAccess(profile)) {
+      return NextResponse.json({ error: trainerFullAccessBlockedMessage() }, { status: 403 });
+    }
+
+    await prisma.trainerProfile.update({
+      where: { trainerId },
+      data: { premiumStudioEnabledAt: new Date() },
     });
 
     return NextResponse.json({ ok: true });

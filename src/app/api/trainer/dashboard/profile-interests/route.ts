@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
-import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import { hasTrainerFullPlatformAccess } from "@/lib/trainer-full-access";
+import { trainerFullAccessBlockedMessage } from "@/lib/assert-trainer-full-access";
 import { NextResponse } from "next/server";
 
 function displayClientName(c: { preferredName: string; firstName: string; lastName: string }): string {
@@ -33,7 +34,7 @@ export async function GET() {
         },
       },
     });
-    if (!trainer?.profile || trainer.profile.dashboardActivatedAt == null || !isTrainerComplianceComplete(trainer.profile)) {
+    if (!trainer?.profile || !hasTrainerFullPlatformAccess(trainer.profile)) {
       return NextResponse.json({ error: "Your trainer profile must be live." }, { status: 403 });
     }
 

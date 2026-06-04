@@ -5,7 +5,9 @@ import { evaluateBetaTrainerRegistrationGate } from "@/lib/beta-trainer-register
 import { markTrainerWaitlistRegistered } from "@/lib/beta-waitlist-service";
 import { BetaCapExceededError } from "@/lib/beta-cap-enforcement";
 import { createTrainerRecord } from "@/lib/trainer-register-service";
+import { resolveTrainerSignupNextPath } from "@/lib/trainer-signup-next-path";
 import { isTrainerEmailTaken, isTrainerUsernameTaken } from "@/lib/trainer-queries";
+import { prisma } from "@/lib/prisma";
 import { trainerSignupSchema } from "@/lib/validations/trainer-register";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { verifyTurnstileToken } from "@/lib/turnstile-verify";
@@ -94,7 +96,19 @@ export async function POST(req: Request) {
       await markTrainerWaitlistRegistered(gate.betaInviteEntryId, trainerId);
     }
 
-    const res = NextResponse.json({ ok: true, next: "/trainer/onboarding" });
+    const profile = await prisma.trainerProfile.findUnique({
+      where: { trainerId },
+      select: {
+        hasSignedTOS: true,
+        registrationFeeHoldStatus: true,
+        hasPaidRegistrationFee: true,
+        limitedDashboardUnlockedAt: true,
+      },
+    });
+    const res = NextResponse.json({
+      ok: true,
+      next: resolveTrainerSignupNextPath(profile),
+    });
     await applyTrainerSessionToNextResponse(res, trainerId, body.stayLoggedIn);
     void sendTrainerWelcomeEmail({
       to: createdEmail,

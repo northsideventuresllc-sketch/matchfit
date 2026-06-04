@@ -50,7 +50,6 @@ export default function TrainerSignUpClient() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [stayLoggedIn, setStayLoggedIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -135,10 +134,6 @@ export default function TrainerSignUpClient() {
       setError("Passwords do not match.");
       return;
     }
-    if (!agreedToTerms) {
-      setError("Please agree to the Terms of Service to continue.");
-      return;
-    }
     if (betaGatesOn) {
       const z = serviceZipCode.trim();
       if (!/^\d{5}(-\d{4})?$/.test(z)) {
@@ -163,7 +158,6 @@ export default function TrainerSignUpClient() {
         phone: phone.trim(),
         email: emailNorm,
         password,
-        agreedToTerms: true,
         stayLoggedIn,
         serviceZipCode: serviceZipCode.trim(),
         ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
@@ -219,7 +213,7 @@ export default function TrainerSignUpClient() {
           }
           trackGoogleAdsConversion("trainer_signup");
           trackMetaConversion("trainer_signup");
-          navigateWithFullLoad(data.next ?? "/trainer/onboarding");
+          navigateWithFullLoad(data.next ?? "/trainer/signup/terms");
           return;
         }
 
@@ -260,7 +254,7 @@ export default function TrainerSignUpClient() {
       }
       trackGoogleAdsConversion("trainer_signup");
       trackMetaConversion("trainer_signup");
-      navigateWithFullLoad(data.next ?? "/trainer/onboarding");
+      navigateWithFullLoad(data.next ?? "/trainer/signup/terms");
     } catch {
       setError("Something went wrong. Try again.");
     } finally {
@@ -301,8 +295,8 @@ export default function TrainerSignUpClient() {
 
         <h1 className="mt-10 text-2xl font-black tracking-tight sm:mt-12 sm:text-3xl">Create Your Trainer Account</h1>
         <p className="mt-2 text-sm leading-relaxed text-white/55 sm:text-base">
-          You will complete compliance steps after this screen. Atlanta metro beta coaches only — use a strong password;
-          you can enable two-factor authentication later just like clients.
+          Enter your account details first. Next you will review the trainer agreement, authorize the signup fee, then
+          finish certification and background screening from your dashboard.
         </p>
 
         {betaInviteReserved ? (
@@ -352,7 +346,7 @@ export default function TrainerSignUpClient() {
               <p className="mt-3 text-sm leading-relaxed text-emerald-100/85">
                 We sent a message to <span className="font-semibold text-white">{email.trim()}</span>. Open it and tap
                 <span className="font-semibold"> Confirm your email</span>. You will return here to finish security check,
-                then we open trainer onboarding.
+                then you will continue to the trainer agreement and payment steps.
               </p>
               <p className="mt-3 text-xs leading-relaxed text-emerald-100/60">
                 Did not get it? Check spam, or wait a minute and try signing up again — the link expires after a while.
@@ -528,24 +522,6 @@ export default function TrainerSignUpClient() {
               </label>
             </div>
 
-            <div className="flex gap-3 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-4">
-              <input
-                id="tr-su-terms"
-                type="checkbox"
-                required
-                checked={agreedToTerms}
-                onChange={(e) => setAgreedToTerms(e.target.checked)}
-                className="mt-1 h-4 w-4 shrink-0 accent-[#FF7E00] focus:ring-2 focus:ring-[#FF7E00]/40 focus:ring-offset-0"
-              />
-              <label htmlFor="tr-su-terms" className="text-sm leading-relaxed text-white/70">
-                I agree to the{" "}
-                <Link href="/terms" className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
-                  Terms of Service
-                </Link>
-                .
-              </label>
-            </div>
-
             <TurnstileField
               enabled={turnstile.enabled}
               widgetRef={turnstile.ref}
@@ -572,7 +548,7 @@ export default function TrainerSignUpClient() {
                 className="absolute inset-px rounded-[0.65rem] bg-white/10 opacity-0 transition group-hover:opacity-100"
               />
               <span className="relative">
-                {busy ? "Please wait…" : verificationEmailSent ? "Check your inbox" : "Continue to onboarding"}
+                {busy ? "Please wait…" : verificationEmailSent ? "Check your inbox" : "Create account"}
               </span>
             </button>
           </form>

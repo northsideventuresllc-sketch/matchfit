@@ -4,6 +4,8 @@ import { AdminImpersonationStrip } from "@/components/admin/admin-impersonation-
 import { TrainerDashboardShell } from "@/components/trainer/trainer-dashboard-shell";
 import { isAccountDeletionGraceActive } from "@/lib/account-deletion-grace";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import { hasTrainerLimitedDashboardAccess } from "@/lib/trainer-full-access";
+import { resolveTrainerSignupNextPath } from "@/lib/trainer-signup-next-path";
 import { prisma } from "@/lib/prisma";
 import { purgeExpiredSuspensionRecords } from "@/lib/suspension-lifecycle";
 import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
@@ -44,6 +46,10 @@ export default async function TrainerDashboardAppLayout({
           nutritionistCertificationReviewStatus: true,
           specialistCertificationReviewStatus: true,
           premiumStudioEnabledAt: true,
+          registrationFeeHoldStatus: true,
+          hasPaidRegistrationFee: true,
+          limitedDashboardUnlockedAt: true,
+          dashboardActivatedAt: true,
         },
       },
     },
@@ -59,6 +65,15 @@ export default async function TrainerDashboardAppLayout({
   }
   if (trainer.safetySuspended) {
     redirect("/trainer/account-suspended");
+  }
+
+  const signupNext = resolveTrainerSignupNextPath(trainer.profile);
+  if (signupNext !== "/trainer/dashboard") {
+    redirect(signupNext);
+  }
+
+  if (!hasTrainerLimitedDashboardAccess(trainer.profile) && !trainer.profile?.dashboardActivatedAt) {
+    redirect("/trainer/onboarding");
   }
   const displayName =
     trainer.preferredName?.trim() ||

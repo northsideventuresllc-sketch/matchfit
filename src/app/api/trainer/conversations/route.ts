@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { getSessionTrainerId } from "@/lib/session";
-import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import { hasTrainerFullPlatformAccess } from "@/lib/trainer-full-access";
+import { trainerFullAccessBlockedMessage } from "@/lib/assert-trainer-full-access";
 import { conversationArchiveMetaForActor, purgeExpiredArchivedConversations } from "@/lib/trainer-client-conversation-archive";
 import { getClientIdsWithChatBlockedForTrainer } from "@/lib/user-block-queries";
 import { NextResponse } from "next/server";
@@ -36,7 +37,7 @@ export async function GET() {
         },
       },
     });
-    if (!trainer?.profile || trainer.profile.dashboardActivatedAt == null || !isTrainerComplianceComplete(trainer.profile)) {
+    if (!trainer?.profile || !hasTrainerFullPlatformAccess(trainer.profile)) {
       return NextResponse.json({ error: "Your trainer profile must be live." }, { status: 403 });
     }
 

@@ -10,6 +10,8 @@ import {
   applyTrainerBackgroundCheckStripePayment,
   isTrainerBackgroundCheckPaymentIntent,
 } from "@/lib/trainer-background-check-stripe";
+import { applyTrainerSignupFeeHoldAuthorized } from "@/lib/trainer-compliance-window-sync";
+import { TRAINER_SIGNUP_FEE_HOLD_PURPOSE } from "@/lib/trainer-signup-fee-hold";
 import { getStripe } from "@/lib/stripe-server";
 import {
   oneTimePurchaseRevenueProfit,
@@ -55,8 +57,22 @@ export async function POST(req: Request) {
 
   try {
     const billingLiveMode = event.livemode === true;
-    if (event.type === "payment_intent.succeeded") {
+    if (event.type === "payment_intent.succeeded" || event.type === "payment_intent.amount_capturable_updated") {
       const pi = event.data.object as Stripe.PaymentIntent;
+      if (pi.metadata?.purpose === TRAINER_SIGNUP_FEE_HOLD_PURPOSE && pi.status === "requires_capture") {
+        const trainerId = String(pi.metadata?.trainerId ?? "").trim();
+        if (trainerId) {
+          const paidCents =
+            typeof pi.amount === "number" && pi.amount > 0
+              ? pi.amount
+              : Math.max(0, parseInt(String(pi.metadata?.totalChargedCents ?? "0"), 10) || 0);
+          await applyTrainerSignupFeeHoldAuthorized({
+            trainerId,
+            paymentIntentId: pi.id,
+            paidCents,
+          });
+        }
+      }
       if (isTrainerBackgroundCheckPaymentIntent(pi)) {
         const trainerId = String(pi.metadata?.trainerId ?? "").trim();
         if (trainerId) {
