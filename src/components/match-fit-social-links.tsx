@@ -6,9 +6,14 @@ type Props = {
   /** Visual density for footers vs auth pages. */
   variant?: "footer" | "compact";
   className?: string;
+  showLabel?: boolean;
 };
 
-export function MatchFitSocialLinks({ variant = "footer", className = "" }: Props) {
+export function MatchFitSocialLinks({
+  variant = "footer",
+  className = "",
+  showLabel = true,
+}: Props) {
   const iconSize = variant === "compact" ? "h-5 w-5" : "h-6 w-6";
   const buttonClass =
     variant === "compact"
@@ -17,17 +22,19 @@ export function MatchFitSocialLinks({ variant = "footer", className = "" }: Prop
 
   return (
     <div className={className}>
-      <p
-        className={
-          variant === "compact"
-            ? "text-center text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-white/40"
-            : "text-center text-xs font-semibold uppercase tracking-[0.18em] text-white/45"
-        }
-      >
-        Follow Match Fit
-      </p>
+      {showLabel ? (
+        <p
+          className={
+            variant === "compact"
+              ? "text-center text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-white/40"
+              : "text-center text-xs font-semibold uppercase tracking-[0.18em] text-white/45"
+          }
+        >
+          Follow Match Fit
+        </p>
+      ) : null}
       <ul
-        className={`mt-3 flex flex-wrap items-center justify-center gap-3 ${variant === "footer" ? "sm:gap-4" : ""}`}
+        className={`${showLabel ? "mt-3 " : ""}flex flex-wrap items-center justify-center gap-3 ${variant === "footer" ? "sm:gap-4" : ""}`}
         aria-label="Match Fit on social media"
       >
         {MATCH_FIT_OFFICIAL_SOCIAL_LINKS.map((item) => (

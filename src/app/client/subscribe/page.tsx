@@ -7,6 +7,10 @@ import { trackGoogleAdsConversion } from "@/lib/google-ads";
 import { trackMetaConversion } from "@/lib/meta-pixel";
 import { trackMetaInitiateCheckout } from "@/lib/meta-pixel-funnel";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
+import {
+  CLIENT_PAYMENT_GRACE_DAYS,
+  CLIENT_PLATFORM_TRIAL_DAYS,
+} from "@/lib/client-platform-trial-constants";
 
 type SubscriptionOffer = {
   foundingSlot: boolean;
@@ -76,7 +80,9 @@ function SubscribeContent() {
         if (cancelled) return;
 
         if (!meta.hasHold) {
-          setFatal("Your sign-up session is missing or expired. Please start again from client sign-up.");
+          setFatal(
+            `This page is only for finishing a pending registration. New sign-ups get a ${CLIENT_PLATFORM_TRIAL_DAYS}-day free trial with no card required — start at client sign-up.`,
+          );
           setLoading(false);
           return;
         }
@@ -150,7 +156,7 @@ function SubscribeContent() {
   }
 
   const foundingCopy = offer?.foundingSlot
-    ? `Founding member offer: add your card now for a ${offer.foundingTrialDays}-day free trial before your first $10/month charge.`
+    ? `Legacy pending registration: add your card now for a ${offer.foundingTrialDays}-day Stripe trial before your first $10/month charge.`
     : null;
 
   return (
@@ -160,9 +166,20 @@ function SubscribeContent() {
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(255,211,78,0.12),transparent_55%),radial-gradient(ellipse_90%_60%_at_100%_0%,rgba(255,126,0,0.08),transparent_50%)]"
       />
       <div className="relative z-10 mx-auto max-w-lg px-5 py-12 sm:px-8">
-        <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Subscription</h1>
+        <div className="rounded-2xl border border-[#FF7E00]/25 bg-[#FF7E00]/10 px-4 py-3 text-sm leading-relaxed text-white/75">
+          <span className="font-semibold text-[#FFD34E]">New to Match Fit?</span> Sign up at{" "}
+          <Link href="/client/sign-up" className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
+            client sign-up
+          </Link>{" "}
+          for a {CLIENT_PLATFORM_TRIAL_DAYS}-day free trial with no card required, then {CLIENT_PAYMENT_GRACE_DAYS} days
+          to subscribe before deactivation.
+        </div>
+
+        <h1 className="mt-8 text-2xl font-black tracking-tight sm:text-3xl">Finish pending registration</h1>
+        <p className="mt-2 text-xs font-bold uppercase tracking-[0.14em] text-white/40">Legacy checkout only</p>
         <p className="mt-4 text-sm leading-relaxed text-white/65 sm:text-base">
-          Match Fit is <span className="font-semibold text-white">$10.00 per month</span> after any introductory offer.
+          This page completes an older sign-up that still has a pending registration hold. Match Fit is{" "}
+          <span className="font-semibold text-white">$10.00 per month</span> after any introductory offer.
           {foundingCopy ? (
             <>
               {" "}
@@ -171,14 +188,14 @@ function SubscribeContent() {
           ) : offer && !offer.foundingSlot ? (
             <>
               {" "}
-              Choose a <span className="font-semibold text-white">{offer.postCapTrialDays}-day free trial</span> (card
-              required) or pay your first month now.
+              Choose a legacy Stripe <span className="font-semibold text-white">{offer.postCapTrialDays}-day trial</span>{" "}
+              (card required at checkout) or pay your first month now.
             </>
           ) : (
             <>
               {" "}
-              Add your card to activate membership. Founding slots include a free trial before the first $10/month charge
-              (length is set automatically at checkout).
+              Add your card in Stripe to finish this pending registration. Founding holds may include a Stripe trial
+              before the first $10/month charge.
             </>
           )}
         </p>
@@ -188,8 +205,8 @@ function SubscribeContent() {
           tokens and subscription references.
         </p>
         <p className="mt-3 text-xs leading-relaxed text-white/40">
-          Your profile is only created after your subscription is active or in a free trial. Use &quot;Cancel and delete
-          my sign-up&quot; if you leave without finishing checkout.
+          For this legacy flow only, your Match Fit account is created after Stripe confirms an active subscription or
+          Stripe trial. Use &quot;Cancel and delete my sign-up&quot; if you leave without finishing checkout.
         </p>
 
         {canceled ? (
@@ -238,6 +255,12 @@ function SubscribeContent() {
             <p className="rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]" role="alert">
               {fatal}
             </p>
+            <Link
+              href="/client/sign-up"
+              className="inline-flex min-h-[3rem] w-full items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F]"
+            >
+              Go to client sign-up
+            </Link>
             {offer && !offer.foundingSlot ? (
               <div className="flex flex-col gap-3">
                 <button
@@ -246,7 +269,7 @@ function SubscribeContent() {
                   onClick={() => void startCheckout("trial_3d")}
                   className="flex min-h-[3rem] w-full items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] px-4 text-sm font-black uppercase tracking-[0.08em] text-white"
                 >
-                  Try {offer.postCapTrialDays}-day free trial
+                  Try {offer.postCapTrialDays}-day Stripe trial
                 </button>
                 <button
                   type="button"
@@ -274,7 +297,7 @@ function SubscribeContent() {
               onClick={() => void startCheckout("trial_3d")}
               className="flex min-h-[3.25rem] w-full items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] px-4 text-sm font-black uppercase tracking-[0.08em] text-white"
             >
-              {offer.postCapTrialDays}-day free trial (card required)
+              {offer.postCapTrialDays}-day Stripe trial (card at checkout)
             </button>
             <button
               type="button"

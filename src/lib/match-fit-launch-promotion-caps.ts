@@ -24,7 +24,7 @@ export function getTrainerFoundingRegistrationWaiverMax(): number {
   return getTrainerFoundingBgPercentMax();
 }
 
-/** First N clients: card required up front, 14-day trial before first invoice. Default 150. */
+/** First N clients eligible for founding promo slot counting. Default 150. */
 export function getClientFoundingTrialMaxClients(): number {
   return parsePositiveInt(process.env.MATCH_FIT_CLIENT_FOUNDING_TRIAL_MAX_CLIENTS, 150, 1_000_000);
 }
@@ -34,7 +34,7 @@ export function getClientFoundingTrialDays(): number {
   return parsePositiveInt(process.env.MATCH_FIT_CLIENT_FOUNDING_TRIAL_DAYS, 14, 730);
 }
 
-/** After founding cap: optional short trial length (days). Default 3. */
+/** Legacy Stripe checkout (pending registration holds): optional short trial with card on file. Default 3. */
 export function getClientPostCapTrialDays(): number {
   return parsePositiveInt(process.env.MATCH_FIT_CLIENT_POST_CAP_TRIAL_DAYS, 3, 90);
 }

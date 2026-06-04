@@ -78,6 +78,7 @@ export async function finalizeClientRegistrationFromSignup(
       trialDays: Math.max(1, Math.round((trialEndsAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))),
       trialEndLabel: trialEndsAt.toLocaleDateString("en-US", { dateStyle: "long" }),
       foundingSlot: false,
+      cardOnFile: false,
     });
 
     return { ok: true, clientId: client.id };

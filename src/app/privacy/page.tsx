@@ -112,9 +112,9 @@ export default async function PrivacyPage() {
           </Li>
           <Li>
             <Strong>Terms, Privacy, and Compliance Timestamps:</Strong> records of when you accepted applicable terms,
-            when you accepted this Privacy Policy (including at client registration, pending registration, or trainer
-            sign-up, and when carried forward at account creation after checkout), and when you complete certain compliance
-            steps where the product requires them.
+            when you accepted this Privacy Policy (including at client registration, pending registration, trainer
+            sign-up, or when carried forward from a legacy pending registration completed through Stripe checkout), and
+            when you complete certain compliance steps where the product requires them.
           </Li>
         </Ul>
 

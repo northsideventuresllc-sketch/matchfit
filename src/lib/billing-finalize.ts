@@ -118,6 +118,7 @@ export async function finalizeRegistrationAfterPayment(subscriptionId: string): 
           ? trialEnd.toLocaleDateString("en-US", { dateStyle: "long" })
           : "when your trial ends",
         foundingSlot: founding,
+        cardOnFile: true,
       });
     }
 

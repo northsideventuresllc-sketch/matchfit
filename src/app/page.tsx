@@ -1,9 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { FeaturedTrainersCarousel } from "@/components/featured-trainers-carousel";
+import { HomeBetaPromoBanner } from "@/components/home-beta-promo-banner";
 import { HomeBrandBanner } from "@/components/home-brand-banner";
 import { HomeInfoSections } from "@/components/home-info-sections";
 import { HomeLoginMenu } from "@/components/home-login-menu";
+import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
 import type { FeaturedTrainerCard } from "@/lib/featured-homepage-data";
 import { getFeaturedTrainersForHomepage } from "@/lib/featured-homepage-data";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
@@ -78,10 +80,17 @@ export default async function Home({ searchParams }: HomeProps) {
               </p>
             </div>
           </div>
-          <HomeLoginMenu homeAuth={homeAuth} />
+          <div className="flex items-center gap-3 sm:gap-4">
+            <MatchFitSocialLinks variant="compact" showLabel={false} className="hidden sm:block" />
+            <HomeLoginMenu homeAuth={homeAuth} />
+          </div>
         </header>
 
-        <div className="mt-3">
+        <div className="mt-6 sm:mt-8">
+          <HomeBetaPromoBanner />
+        </div>
+
+        <div className="mt-4">
           <Link
             href="/promos"
             className="inline-flex items-center gap-1.5 rounded-full border border-[#FF7E00]/35 bg-[#FF7E00]/10 px-3 py-1 text-[0.7rem] font-bold uppercase tracking-[0.1em] text-[#FF7E00] transition hover:border-[#FF7E00]/55 hover:bg-[#FF7E00]/20"

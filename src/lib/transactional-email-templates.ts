@@ -484,39 +484,73 @@ export function buildTransactionalEmail(
       const trialDays = c(ctx.trialDays, "14");
       const trialEndLabel = c(ctx.trialEndLabel, "your trial end date");
       const monthlyUsd = c(ctx.monthlyUsd, "10.00");
+      const paymentGraceDays = c(ctx.paymentGraceDays, "14");
       const founding = ctx.foundingSlot === "1";
+      const cardOnFile = ctx.cardOnFile === "1";
       const subject = founding
         ? `Your ${trialDays}-day Match Fit membership trial started`
-        : `Your Match Fit free trial started`;
-      const text = `Your Match Fit membership is active with a ${trialDays}-day trial. Your card is on file; the first $${monthlyUsd}/month charge is scheduled for ${trialEndLabel} unless you cancel before then.\n\nManage billing: ${dashboardUrl}\n\n— Match Fit`;
+        : cardOnFile
+          ? `Your Match Fit free trial started`
+          : `Your ${trialDays}-day Match Fit free trial started`;
+      const text = cardOnFile
+        ? `Your Match Fit membership is active with a ${trialDays}-day Stripe trial. Your card is on file; the first $${monthlyUsd}/month charge is scheduled for ${trialEndLabel} unless you cancel before then.\n\nManage billing: ${dashboardUrl}\n\n— Match Fit`
+        : `Your Match Fit account is active with a ${trialDays}-day platform trial — no card required yet. When the trial ends on ${trialEndLabel}, you will have ${paymentGraceDays} days to connect a card and subscribe before your account is deactivated.\n\nManage billing: ${dashboardUrl}\n\n— Match Fit`;
       const html = wrapMatchFitTransactionalHtml({
-        preheader: `${trialDays}-day trial — billing starts ${trialEndLabel}.`,
+        preheader: cardOnFile
+          ? `${trialDays}-day trial — billing starts ${trialEndLabel}.`
+          : `${trialDays}-day trial — no card required until you subscribe.`,
         title: "Trial started",
-        bodyHtml: bodyParagraphs([
-          founding
-            ? `You're in a <strong style="color:${s.textPrimary};">founding member</strong> slot: <strong style="color:${s.textPrimary};">${escapeHtmlEmail(trialDays)} days</strong> free before your first $${escapeHtmlEmail(monthlyUsd)}/month invoice.`
-            : `Your <strong style="color:${s.textPrimary};">${escapeHtmlEmail(trialDays)}-day</strong> trial is active. Your card is on file for when billing begins.`,
-          `First paid month is scheduled for <strong style="color:${s.textPrimary};">${escapeHtmlEmail(trialEndLabel)}</strong> unless you cancel in Stripe beforehand.`,
-        ]),
+        bodyHtml: bodyParagraphs(
+          cardOnFile
+            ? [
+                founding
+                  ? `You're in a <strong style="color:${s.textPrimary};">founding member</strong> slot: <strong style="color:${s.textPrimary};">${escapeHtmlEmail(trialDays)} days</strong> free before your first $${escapeHtmlEmail(monthlyUsd)}/month invoice.`
+                  : `Your <strong style="color:${s.textPrimary};">${escapeHtmlEmail(trialDays)}-day</strong> Stripe trial is active. Your card is on file for when billing begins.`,
+                `First paid month is scheduled for <strong style="color:${s.textPrimary};">${escapeHtmlEmail(trialEndLabel)}</strong> unless you cancel in Stripe beforehand.`,
+              ]
+            : [
+                `Your Match Fit account includes a <strong style="color:${s.textPrimary};">${escapeHtmlEmail(trialDays)}-day</strong> platform trial with <strong style="color:${s.textPrimary};">no card required at sign-up</strong>.`,
+                `When the trial ends on <strong style="color:${s.textPrimary};">${escapeHtmlEmail(trialEndLabel)}</strong>, you have <strong style="color:${s.textPrimary};">${escapeHtmlEmail(paymentGraceDays)} days</strong> to connect a card and subscribe before access is deactivated.`,
+              ],
+        ),
         ctaHref: dashboardUrl,
-        ctaLabel: "Manage membership",
+        ctaLabel: cardOnFile ? "Manage membership" : "Open billing",
       });
       return finalizeTransactional(subject, text, html);
     }
     case "CLIENT_MEMBERSHIP_TRIAL_ENDING": {
       const trialEndLabel = c(ctx.trialEndLabel, "soon");
       const monthlyUsd = c(ctx.monthlyUsd, "10.00");
-      const subject = "Your Match Fit trial ends soon";
-      const text = `Your free trial ends on ${trialEndLabel}. Unless you cancel, Match Fit will charge $${monthlyUsd}/month on that date.\n\nManage billing: ${dashboardUrl}\n\n— Match Fit`;
+      const subject = "Your Match Fit Stripe trial ends soon";
+      const text = `Your Stripe subscription trial ends on ${trialEndLabel}. Unless you cancel, Match Fit will charge $${monthlyUsd}/month on that date using the card on file.\n\nManage billing: ${dashboardUrl}\n\n— Match Fit`;
       const html = wrapMatchFitTransactionalHtml({
-        preheader: `Billing begins ${trialEndLabel}.`,
-        title: "Trial ending soon",
+        preheader: `Stripe billing begins ${trialEndLabel}.`,
+        title: "Stripe trial ending soon",
         bodyHtml: bodyParagraphs([
-          `Your free trial ends on <strong style="color:${s.textPrimary};">${escapeHtmlEmail(trialEndLabel)}</strong>.`,
+          `Your Stripe subscription trial ends on <strong style="color:${s.textPrimary};">${escapeHtmlEmail(trialEndLabel)}</strong>.`,
           `Unless you cancel, your card on file will be charged <strong style="color:${s.textPrimary};">$${escapeHtmlEmail(monthlyUsd)}/month</strong> on that date.`,
         ]),
         ctaHref: dashboardUrl,
         ctaLabel: "Manage membership",
+      });
+      return finalizeTransactional(subject, text, html);
+    }
+    case "CLIENT_PLATFORM_PAYMENT_GRACE_STARTED": {
+      const paymentGraceDays = c(ctx.paymentGraceDays, "14");
+      const paymentGraceUntilLabel = c(ctx.paymentGraceUntilLabel, "the grace deadline");
+      const monthlyUsd = c(ctx.monthlyUsd, "10.00");
+      const subject = "Your Match Fit free trial ended — subscribe to keep access";
+      const text = `Your platform free trial has ended. Connect a card and subscribe at $${monthlyUsd}/month before ${paymentGraceUntilLabel} (${paymentGraceDays}-day payment grace). If payment is not completed by then, your account will be deactivated until you pay to reactivate.\n\nSubscribe: ${dashboardUrl}\n\n— Match Fit`;
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: `Subscribe before ${paymentGraceUntilLabel}.`,
+        title: "Payment grace started",
+        bodyHtml: bodyParagraphs([
+          `Your <strong style="color:${s.textPrimary};">platform free trial</strong> has ended.`,
+          `You have <strong style="color:${s.textPrimary};">${escapeHtmlEmail(paymentGraceDays)} days</strong> (until <strong style="color:${s.textPrimary};">${escapeHtmlEmail(paymentGraceUntilLabel)}</strong>) to connect a card and start your <strong style="color:${s.textPrimary};">$${escapeHtmlEmail(monthlyUsd)}/month</strong> subscription.`,
+          `If payment is not completed by then, your account is deactivated until you pay to reactivate — a new free trial is not offered.`,
+        ]),
+        ctaHref: dashboardUrl,
+        ctaLabel: "Subscribe now",
       });
       return finalizeTransactional(subject, text, html);
     }

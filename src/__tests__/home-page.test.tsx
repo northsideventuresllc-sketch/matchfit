@@ -58,6 +58,14 @@ vi.mock("@/components/home-brand-banner", () => ({
   HomeBrandBanner: () => <div data-home-brand-banner />,
 }));
 
+vi.mock("@/components/home-beta-promo-banner", () => ({
+  HomeBetaPromoBanner: () => <div data-home-beta-promo-banner />,
+}));
+
+vi.mock("@/components/match-fit-social-links", () => ({
+  MatchFitSocialLinks: () => <div data-match-fit-social-links />,
+}));
+
 vi.mock("@/components/home-info-sections", () => ({
   HomeInfoSections: ({ homeAuth }: { homeAuth: { clientLoggedIn: boolean; trainerLoggedIn: boolean } }) => {
     homeInfoSectionsPropsMock({ homeAuth });
@@ -124,6 +132,7 @@ describe("app/page Home component", () => {
     const markup = await renderHome(Promise.resolve({ zip: "30301" }));
 
     expect(markup).toContain("Current Promos");
+    expect(markup).toContain("data-home-beta-promo-banner");
     expect(redirectStayLoggedInClientToDashboardMock).not.toHaveBeenCalled();
     expect(clientFindUniqueMock).not.toHaveBeenCalled();
     expect(getFeaturedTrainersForHomepageMock).not.toHaveBeenCalled();

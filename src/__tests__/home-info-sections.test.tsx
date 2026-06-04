@@ -37,19 +37,19 @@ vi.mock("@/components/match-fit-social-links", () => ({
 }));
 
 import { HomeInfoSections } from "@/components/home-info-sections";
-import { MATCH_FIT_PRODUCT_VERSION_ANNOUNCE } from "@/lib/match-fit-product-version";
 
 describe("HomeInfoSections", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("renders the logged-out CTA and versioned announcement", () => {
+  it("renders the logged-out CTA and follow section", () => {
     const html = renderToStaticMarkup(
       <HomeInfoSections homeAuth={{ clientLoggedIn: false, trainerLoggedIn: false }} />,
     );
 
-    expect(html).toContain(`Version ${MATCH_FIT_PRODUCT_VERSION_ANNOUNCE}`);
+    expect(html).toContain('id="follow-match-fit"');
+    expect(html).toContain("Stay connected");
     expect(html).toContain('data-component="home-beta-slot-warning"');
     expect(html).not.toContain('data-component="home-cta-logout-bar"');
     expect(html).toContain('href="/client/sign-up"');

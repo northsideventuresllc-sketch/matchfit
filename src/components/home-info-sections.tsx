@@ -9,10 +9,6 @@ import {
   TRAINER_SIGN_UP_PATH,
   type HomePageAuth,
 } from "@/lib/home-page-auth";
-import {
-  getTrainerFoundingBgPercentMax,
-} from "@/lib/match-fit-launch-promotion-caps";
-import { MATCH_FIT_PRODUCT_VERSION_ANNOUNCE } from "@/lib/match-fit-product-version";
 
 function SectionShell({
   id,
@@ -77,93 +73,9 @@ function ServiceCard({
 
 export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
   const loggedIn = homeAuth.clientLoggedIn || homeAuth.trainerLoggedIn;
-  const trainerFoundingCap = getTrainerFoundingBgPercentMax();
 
   return (
     <div className="mt-20 space-y-6 sm:mt-24 sm:space-y-8">
-      {/* 0 — Beta welcome + promo announcement */}
-      <SectionShell
-        id="beta-welcome"
-        eyebrow="Welcome to Match Fit"
-        eyebrowClass="text-[#FF7E00]"
-        title={`We are live — Version ${MATCH_FIT_PRODUCT_VERSION_ANNOUNCE}`}
-        accent="left"
-      >
-        <p>
-          Thank you for joining Match Fit! Match Fit is built to connect anyone looking to accomplish their
-          fitness goals with the best fitness professionals that will help anyone get there.
-        </p>
-        <p>
-          As of <span className="font-semibold text-white/85">May 21st, 2026</span>, Match Fit is{" "}
-          <span className="font-bold text-[#FFD34E]">LIVE!</span> In Version {MATCH_FIT_PRODUCT_VERSION_ANNOUNCE}, we are
-          rolling out
-          the foundation of all the amazing features that this platform offers. Please know that there will be
-          bugs and we encourage you to{" "}
-          <Link
-            href="/report-bug"
-            className="font-semibold text-[#FF7E00] underline-offset-4 transition hover:text-[#FFD34E] hover:underline"
-          >
-            report a bug
-          </Link>{" "}
-          with our <span className="font-semibold text-white/85">&ldquo;Report A Bug&rdquo;</span> feature at
-          the bottom of the page. We also encourage you to{" "}
-          <span className="font-semibold text-white/85">share your ideas</span> with us, so we can continuously
-          bring features that are requested by none other than you!
-        </p>
-
-        <div className="rounded-2xl border border-[#FF7E00]/25 bg-[#FF7E00]/[0.06] p-5 space-y-4">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FFD34E]">
-            Founding member promos — active until caps are reached
-          </p>
-          <ul className="list-none space-y-4">
-            <li className="flex gap-3">
-              <span
-                className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[linear-gradient(135deg,#FFD34E,#FF7E00)]"
-                aria-hidden
-              />
-              <span>
-                <span className="font-semibold text-white/90">
-                  First {trainerFoundingCap} fitness professionals:
-                </span>{" "}
-                your
-                one-time onboarding fee will be{" "}
-                <span className="font-bold text-[#FFD34E]">20% of the background check cost</span> instead of
-                the background check fee being subtracted from the usual{" "}
-                <span className="font-semibold text-white/75">$100.00 onboarding fee</span>.
-              </span>
-            </li>
-            <li className="flex gap-3">
-              <span
-                className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[linear-gradient(135deg,#FF7E00,#E32B2B)]"
-                aria-hidden
-              />
-              <span>
-                <span className="font-semibold text-white/90">All new clients:</span> complete sign-up and agree to
-                the Terms of Service to start a{" "}
-                <span className="font-bold text-[#FFD34E]">14-day free trial with no card required</span>. After the
-                trial, you have <span className="font-bold text-[#FFD34E]">14 more days</span> to connect a card and
-                subscribe before the account is deactivated.
-              </span>
-            </li>
-          </ul>
-        </div>
-
-        <p>
-          Once the caps are hit, you will be able to{" "}
-          <span className="font-semibold text-white/85">reserve your username on a waitlist</span> until we
-          open up the app to more people.
-        </p>
-
-        <p className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-xs leading-relaxed text-white/45 sm:text-[13px]">
-          <span className="font-semibold text-[#FF7E00]/90">Beta rollout:</span> Anyone in the{" "}
-          <span className="font-semibold text-white/60">United States</span> can create a client account during
-          beta. <span className="font-semibold text-white/60">In-person sessions</span> with coaches are launching
-          first in the <span className="font-semibold text-white/60">Atlanta metro area</span> (within approximately
-          15–20 miles of downtown Atlanta). Virtual coaching and nationwide discovery are available wherever the
-          product supports them.
-        </p>
-      </SectionShell>
-
       {/* 1 — Value first: why the product exists + economics (retention: answer "why stay" early) */}
       <SectionShell
         id="what-is-match-fit"
@@ -550,6 +462,21 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           </p>
         </article>
       </div>
+
+      <section
+        id="follow-match-fit"
+        className="rounded-3xl border border-white/[0.08] bg-[#12151C]/75 p-7 text-center shadow-[0_34px_90px_-50px_rgba(227,43,43,0.35)] backdrop-blur-xl sm:p-9"
+      >
+        <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FFD34E]">Stay connected</p>
+        <h2 className="mt-3 text-balance text-xl font-black uppercase leading-tight tracking-wide text-white sm:text-2xl">
+          Follow Match Fit for launch updates and community wins
+        </h2>
+        <p className="mx-auto mt-4 max-w-2xl text-pretty text-[15px] leading-relaxed text-white/60 sm:text-base">
+          We share real progress, coach spotlights, and beta news on our official channels — so you always know Match
+          Fit is active, responsive, and building with you.
+        </p>
+        <MatchFitSocialLinks variant="footer" className="mx-auto mt-6 max-w-md" />
+      </section>
 
       {loggedIn ? (
         <div id="cta" className="mx-auto w-full max-w-xl">

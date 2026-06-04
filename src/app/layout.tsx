@@ -5,6 +5,7 @@ import { DevAccountShortcuts } from "@/components/dev-account-shortcuts";
 import { GoogleAdsGtag } from "@/components/google-ads-gtag";
 import { MetaPixel } from "@/components/meta-pixel";
 import { SiteAnalyticsTrackerBoundary } from "@/components/site-analytics-tracker-boundary";
+import { SiteSocialFooter } from "@/components/site-social-footer";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -63,6 +64,7 @@ export default function RootLayout({
         <MetaPixel />
         <SiteAnalyticsTrackerBoundary />
         {children}
+        <SiteSocialFooter />
         {process.env.NODE_ENV === "development" ? <DevAccountShortcuts /> : null}
         <Analytics />
       </body>

@@ -156,7 +156,11 @@ export async function POST(req: Request) {
     const billing = await resolveClientSubscriptionBilling({ billingChoice });
     if (!billing.foundingSlot && !billingChoice) {
       return NextResponse.json(
-        { error: "Choose a membership option: 3-day free trial or pay now.", code: "BILLING_CHOICE_REQUIRED" },
+        {
+          error:
+            "Choose a membership option for this pending registration: legacy Stripe trial with card on file, or pay now.",
+          code: "BILLING_CHOICE_REQUIRED",
+        },
         { status: 400 },
       );
     }

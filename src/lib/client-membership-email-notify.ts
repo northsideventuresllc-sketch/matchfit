@@ -1,3 +1,4 @@
+import { CLIENT_PAYMENT_GRACE_DAYS } from "@/lib/client-platform-trial-constants";
 import { prisma } from "@/lib/prisma";
 import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
 import { appBaseUrlForEmail } from "@/lib/match-fit-email-shell";
@@ -12,6 +13,8 @@ export async function notifyClientMembershipTrialStarted(args: {
   trialDays: number;
   trialEndLabel: string;
   foundingSlot: boolean;
+  /** When false, this is the card-free platform trial at sign-up. */
+  cardOnFile: boolean;
 }): Promise<void> {
   try {
     await sendTransactionalEmailIfAllowed({
@@ -23,6 +26,8 @@ export async function notifyClientMembershipTrialStarted(args: {
         trialDays: String(args.trialDays),
         trialEndLabel: args.trialEndLabel,
         foundingSlot: args.foundingSlot ? "1" : "0",
+        cardOnFile: args.cardOnFile ? "1" : "0",
+        paymentGraceDays: String(CLIENT_PAYMENT_GRACE_DAYS),
         monthlyUsd: "10.00",
         dashboardUrl: billingDashboardUrl(),
       },
@@ -32,6 +37,7 @@ export async function notifyClientMembershipTrialStarted(args: {
   }
 }
 
+/** Stripe subscription trial ending (legacy checkout with card on file). */
 export async function notifyClientMembershipTrialEnding(args: {
   stripeSubscriptionId: string;
   trialEndLabel: string;
@@ -55,6 +61,30 @@ export async function notifyClientMembershipTrialEnding(args: {
     });
   } catch (e) {
     console.error("[membership email] trial ending failed:", e);
+  }
+}
+
+/** Platform free trial ended — payment grace window to subscribe before deactivation. */
+export async function notifyClientPlatformPaymentGraceStarted(args: {
+  clientId: string;
+  email: string;
+  paymentGraceUntilLabel: string;
+}): Promise<void> {
+  try {
+    await sendTransactionalEmailIfAllowed({
+      kind: "CLIENT_PLATFORM_PAYMENT_GRACE_STARTED",
+      to: args.email.trim(),
+      audience: "CLIENT",
+      clientId: args.clientId,
+      variables: {
+        paymentGraceDays: String(CLIENT_PAYMENT_GRACE_DAYS),
+        paymentGraceUntilLabel: args.paymentGraceUntilLabel,
+        monthlyUsd: "10.00",
+        dashboardUrl: billingDashboardUrl(),
+      },
+    });
+  } catch (e) {
+    console.error("[membership email] payment grace started failed:", e);
   }
 }
 
