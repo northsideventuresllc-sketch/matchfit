@@ -2,7 +2,7 @@
 
 export const TRAINER_SIGNUP_AGREEMENT_DOCUMENT = `Match Fit connects fitness professionals with clients who discover coaches through the platform. You agree to provide accurate information during signup, certification review, and background screening.
 
-During beta, founding coaches pay the independent background screening fee plus 20% of that amount and a card processing fee at signup. Other coaches pay a $100.00 platform registration fee plus processing at signup. Your card is authorized at signup; Match Fit captures the registration amount only after your certification and background check are approved.
+During beta, founding coaches pay the independent background screening fee plus 20% of that amount and a card processing fee at signup. Other coaches pay a $100.00 platform registration fee plus processing at signup. Your card is authorized at signup (held in Stripe); Match Fit captures the registration amount only after your certification and background check are approved. If you do not complete background screening after your Checkr invitation is sent, the background-check portion of that authorization is not applied to your account (see Terms).
 
 You will have limited dashboard access right after payment. To unlock messaging, client discovery, services, and premium tools, upload your credentials and complete Checkr background screening within the compliance window described in the Terms of Service.
 

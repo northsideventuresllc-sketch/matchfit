@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createHmac } from "node:crypto";
-import { parseCheckrWebhookPaidCents, verifyCheckrWebhookSignature } from "@/lib/checkr";
+import {
+  checkrWebhookIndicatesClear,
+  parseCheckrWebhookPaidCents,
+  parseCheckrWebhookReportOutcome,
+  verifyCheckrWebhookSignature,
+} from "@/lib/checkr";
 
 describe("verifyCheckrWebhookSignature", () => {
   it("accepts a valid HMAC-SHA256 hex signature", () => {
@@ -53,5 +58,30 @@ describe("parseCheckrWebhookPaidCents", () => {
     });
     expect(parsed?.externalTrainerId).toBe("trainer-xyz");
     expect(parsed?.vendorPaidCents).toBe(4900);
+  });
+});
+
+describe("parseCheckrWebhookReportOutcome", () => {
+  it("detects consider vs clear", () => {
+    const consider = parseCheckrWebhookReportOutcome({
+      type: "report.updated",
+      data: { object: { id: "r1", status: "consider", metadata: { trainerId: "t1" } } },
+    });
+    expect(consider?.reportStatus).toBe("consider");
+    expect(checkrWebhookIndicatesClear(consider!)).toBe(false);
+
+    const clear = parseCheckrWebhookReportOutcome({
+      type: "report.completed",
+      data: {
+        object: {
+          id: "r2",
+          status: "clear",
+          price: 4900,
+          metadata: { trainerId: "t2" },
+        },
+      },
+    });
+    expect(clear?.vendorPaidCents).toBe(4900);
+    expect(checkrWebhookIndicatesClear(clear!)).toBe(true);
   });
 });

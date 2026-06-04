@@ -136,3 +136,54 @@ export function parseCheckrWebhookPaidCents(body: unknown): {
 
   return { reportId, candidateId, vendorPaidCents, externalTrainerId };
 }
+
+export type CheckrWebhookReportOutcome = {
+  reportId?: string;
+  candidateId?: string;
+  externalTrainerId?: string;
+  vendorPaidCents?: number;
+  /** clear | consider | pending | complete | completed */
+  reportStatus: string;
+  eventType: string;
+};
+
+/** Parse report lifecycle from Checkr webhook (broader than paid-only parser). */
+export function parseCheckrWebhookReportOutcome(body: unknown): CheckrWebhookReportOutcome | null {
+  if (!body || typeof body !== "object") return null;
+  const o = body as Record<string, unknown>;
+  const data = (o.data && typeof o.data === "object" ? o.data : o) as Record<string, unknown>;
+  const object =
+    data.object && typeof data.object === "object" ? (data.object as Record<string, unknown>) : data;
+
+  const paid = parseCheckrWebhookPaidCents(body);
+  const reportStatus = String(object.status ?? data.status ?? "").toLowerCase();
+  const eventType = String(o.type ?? o.event ?? "").toLowerCase();
+
+  if (!reportStatus && !eventType && !paid) return null;
+
+  return {
+    reportId: paid?.reportId,
+    candidateId: paid?.candidateId,
+    externalTrainerId: paid?.externalTrainerId,
+    vendorPaidCents: paid?.vendorPaidCents,
+    reportStatus,
+    eventType,
+  };
+}
+
+export function checkrWebhookIndicatesClear(outcome: CheckrWebhookReportOutcome): boolean {
+  const s = outcome.reportStatus;
+  const t = outcome.eventType;
+  return (
+    s === "clear" ||
+    s === "complete" ||
+    s === "completed" ||
+    t.includes("complete") ||
+    (t.includes("report") && s === "clear")
+  );
+}
+
+export function checkrWebhookIndicatesConsider(outcome: CheckrWebhookReportOutcome): boolean {
+  const s = outcome.reportStatus;
+  return s === "consider" || (s === "pending" && outcome.eventType.includes("consider"));
+}

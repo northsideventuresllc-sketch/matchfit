@@ -1,5 +1,14 @@
-import { parseCheckrWebhookPaidCents, recordCheckrBackgroundCheckPaid, verifyCheckrWebhookSignature } from "@/lib/checkr";
+import {
+  parseCheckrWebhookReportOutcome,
+  recordCheckrBackgroundCheckPaid,
+  verifyCheckrWebhookSignature,
+  checkrWebhookIndicatesClear,
+  checkrWebhookIndicatesConsider,
+} from "@/lib/checkr";
+import { notifySupportPlanBReviewNeeded } from "@/lib/background-check-plan-b";
+import { isBackgroundCheckPlanBActive } from "@/lib/checkr-integration";
 import { prisma } from "@/lib/prisma";
+import { syncTrainerComplianceWindow } from "@/lib/trainer-compliance-window-sync";
 import { maybeActivateTrainerDashboard } from "@/lib/trainer-onboarding-dashboard";
 import { NextResponse } from "next/server";
 
@@ -28,15 +37,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   }
 
-  const parsed = parseCheckrWebhookPaidCents(body);
-  if (!parsed) {
+  const outcome = parseCheckrWebhookReportOutcome(body);
+  if (!outcome) {
     return NextResponse.json({ ok: true, ignored: true });
   }
 
-  let trainerId = parsed.externalTrainerId?.trim();
-  if (!trainerId && parsed.candidateId) {
+  let trainerId = outcome.externalTrainerId?.trim();
+  if (!trainerId && outcome.candidateId) {
     const prof = await prisma.trainerProfile.findFirst({
-      where: { checkrCandidateId: parsed.candidateId },
+      where: { checkrCandidateId: outcome.candidateId },
       select: { trainerId: true },
     });
     trainerId = prof?.trainerId;
@@ -45,11 +54,35 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, ignored: true, reason: "no_trainer_mapping" });
   }
 
+  const now = new Date();
+
+  if (checkrWebhookIndicatesConsider(outcome)) {
+    await prisma.trainerProfile.update({
+      where: { trainerId },
+      data: {
+        backgroundCheckStatus: "NEEDS_FURTHER_REVIEW",
+        backgroundCheckReviewStatus: "NEEDS_FURTHER_REVIEW",
+        ...(outcome.reportId ? { checkrReportId: outcome.reportId } : {}),
+        ...(outcome.candidateId ? { checkrCandidateId: outcome.candidateId } : {}),
+        updatedAt: now,
+      },
+    });
+    await syncTrainerComplianceWindow(trainerId);
+    if (isBackgroundCheckPlanBActive()) {
+      await notifySupportPlanBReviewNeeded(trainerId);
+    }
+    return NextResponse.json({ ok: true, status: "needs_review" });
+  }
+
+  if (!checkrWebhookIndicatesClear(outcome) || !outcome.vendorPaidCents) {
+    return NextResponse.json({ ok: true, ignored: true, reason: "not_terminal_clear" });
+  }
+
   await recordCheckrBackgroundCheckPaid({
     trainerId,
-    vendorPaidCents: parsed.vendorPaidCents,
-    reportId: parsed.reportId,
-    candidateId: parsed.candidateId,
+    vendorPaidCents: outcome.vendorPaidCents,
+    reportId: outcome.reportId,
+    candidateId: outcome.candidateId,
   });
 
   await prisma.trainerProfile.update({
@@ -57,12 +90,13 @@ export async function POST(req: Request) {
     data: {
       backgroundCheckStatus: "APPROVED",
       backgroundCheckReviewStatus: "APPROVED",
-      backgroundCheckClearedAt: new Date(),
-      updatedAt: new Date(),
+      backgroundCheckClearedAt: now,
+      updatedAt: now,
     },
   });
 
+  await syncTrainerComplianceWindow(trainerId);
   await maybeActivateTrainerDashboard(trainerId);
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, status: "approved" });
 }

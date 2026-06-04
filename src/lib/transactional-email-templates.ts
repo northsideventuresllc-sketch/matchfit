@@ -213,6 +213,90 @@ export function buildTransactionalEmail(
       });
       return finalizeTransactional(subject, text, html);
     }
+    case "BACKGROUND_CHECK_PLAN_B_INVITE_REQUEST": {
+      const trainerName = c(ctx.trainerName, "Jordan Smith");
+      const trainerEmail = c(ctx.trainerEmail, "coach@example.com");
+      const confirmUrl = c(ctx.confirmInviteSentUrl, "https://match-fit.net/api/background-check/plan-b/staff-action?token=sample");
+      const subject = `[Match Fit] Send Checkr invite — ${trainerName}`;
+      const text = [
+        "A trainer requested a Checkr background screening invitation (Plan B — API backup).",
+        "",
+        `Name: ${trainerName}`,
+        `Email: ${trainerEmail}`,
+        `Username: ${c(ctx.trainerUsername, "coachjordan")}`,
+        `Phone: ${c(ctx.trainerPhone, "(404) 555-0100")}`,
+        `ZIP: ${c(ctx.serviceZip, "30301")}`,
+        `Trainer id: ${c(ctx.trainerId, "sample-trainer-id")}`,
+        c(ctx.checkrAutomateNote, "") ? `Note: ${c(ctx.checkrAutomateNote, "")}` : null,
+        "",
+        `After you send the Checkr dashboard invite, confirm here: ${confirmUrl}`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: "Trainer needs a Checkr invitation (manual queue).",
+        title: "Send Checkr invite",
+        bodyHtml: `${bodyParagraphs([
+          `Trainer <strong style="color:${s.textPrimary};">${escapeHtmlEmail(trainerName)}</strong> (${escapeHtmlEmail(trainerEmail)}) requested background screening.`,
+          `Username: ${escapeHtmlEmail(c(ctx.trainerUsername, "coachjordan"))} · Phone: ${escapeHtmlEmail(c(ctx.trainerPhone, "(404) 555-0100"))} · ZIP: ${escapeHtmlEmail(c(ctx.serviceZip, "30301"))}`,
+          "Send the invite from the Checkr Dashboard, then confirm below so the trainer is notified.",
+        ])}<table role="presentation" cellspacing="0" cellpadding="0" align="center" style="margin:20px auto 0;"><tr><td><a href="${escapeHtmlEmail(confirmUrl)}" style="display:inline-block;padding:12px 18px;border-radius:10px;background:${s.orange};color:${s.bg};font-weight:800;text-decoration:none;font-size:13px;">Background check sent confirmation</a></td></tr></table>`,
+      });
+      return finalizeTransactional(subject, text, html);
+    }
+    case "BACKGROUND_CHECK_PLAN_B_INVITE_SENT_TRAINER": {
+      const dash = c(ctx.dashboardUrl, trainerDashboardUrl);
+      const subject = "Your Checkr background check invitation — Match Fit";
+      const text = [
+        `Hi ${firstName},`,
+        "",
+        "Match Fit has sent your Checkr background screening invitation.",
+        "1. Open the email from Checkr (check spam).",
+        "2. Complete every disclosure and authorization step.",
+        "3. Submit within 7 days — invitations expire.",
+        "",
+        `Dashboard: ${dash}`,
+        "",
+        "— Match Fit",
+      ].join("\n");
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: "Complete your Checkr screening within 7 days.",
+        title: "Checkr invite sent",
+        bodyHtml: bodyParagraphs([
+          `Hi <strong style="color:${s.textPrimary};">${escapeHtmlEmail(firstName)}</strong> — your Checkr invitation is on its way or already in your inbox.`,
+          "Complete every step Checkr shows you. If you do not finish within 7 days, your invitation may expire and your screening escrow will not apply.",
+          "When you are done, open your Match Fit dashboard — we will update your status after results are verified.",
+        ]),
+        ctaHref: dash,
+        ctaLabel: "Open compliance",
+      });
+      return finalizeTransactional(subject, text, html);
+    }
+    case "BACKGROUND_CHECK_PLAN_B_REVIEW": {
+      const trainerName = c(ctx.trainerName, "Jordan Smith");
+      const approveUrl = c(ctx.approveUrl, "https://match-fit.net/api/background-check/plan-b/staff-action?token=sampleapprove");
+      const denyUrl = c(ctx.denyUrl, "https://match-fit.net/api/background-check/plan-b/staff-action?token=sampledeny");
+      const subject = `[Match Fit] Background check ready for review — ${trainerName}`;
+      const text = [
+        "A trainer background check needs staff approval (Plan B backup flow).",
+        "",
+        `Trainer: ${trainerName} (${c(ctx.trainerEmail, "coach@example.com")})`,
+        `Report id: ${c(ctx.reportId, "—")}`,
+        `Status: ${c(ctx.status, "PENDING")}`,
+        "",
+        `Approve: ${approveUrl}`,
+        `Deny: ${denyUrl}`,
+      ].join("\n");
+      const html = wrapMatchFitTransactionalHtml({
+        preheader: "Approve or deny trainer background screening.",
+        title: "Screening review",
+        bodyHtml: `${bodyParagraphs([
+          `Review results for <strong style="color:${s.textPrimary};">${escapeHtmlEmail(trainerName)}</strong>.`,
+          `Report: ${escapeHtmlEmail(c(ctx.reportId, "—"))} · Status: ${escapeHtmlEmail(c(ctx.status, "PENDING"))}`,
+        ])}<table role="presentation" cellspacing="0" cellpadding="0" align="center" style="margin:20px auto 0;"><tr><td style="padding:0 8px;"><a href="${escapeHtmlEmail(approveUrl)}" style="display:inline-block;padding:12px 18px;border-radius:10px;background:${s.orange};color:${s.bg};font-weight:800;text-decoration:none;font-size:13px;">Approve</a></td><td style="padding:0 8px;"><a href="${escapeHtmlEmail(denyUrl)}" style="display:inline-block;padding:12px 18px;border-radius:10px;background:${s.red};color:#fff;font-weight:800;text-decoration:none;font-size:13px;">Deny</a></td></tr></table>`,
+      });
+      return finalizeTransactional(subject, text, html);
+    }
     case "ADMIN_REGISTRATION_REQUEST": {
       const subject = `[Match Fit] Administrator approval — ${adminName}`;
       const approveUrl = c(ctx.approveUrl, "https://match-fit.net/api/admin/pending-decision?token=sample");

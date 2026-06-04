@@ -2,20 +2,20 @@ import {
   computeCheckoutFeeBreakdown,
   feeMetadataFromBreakdown,
 } from "@/lib/stripe-checkout-line-items";
-import { trainerBackgroundCheckAmountCents } from "@/lib/trainer-background-check-stripe";
 import type { TrainerRegistrationPricingMode } from "@/lib/match-fit-launch-promotions";
-import { TRAINER_PLATFORM_REGISTRATION_FEE_CENTS } from "@/lib/trainer-registration-fee";
+import {
+  computeTrainerSignupCaptureOnBgFailureCents,
+  computeTrainerSignupCaptureOnSuccessCents,
+  computeTrainerSignupEscrowSplit,
+  signupEscrowMetadata,
+} from "@/lib/trainer-signup-escrow";
 import { getStripe } from "@/lib/stripe-server";
 
 export const TRAINER_SIGNUP_FEE_HOLD_PURPOSE = "trainer_signup_fee_hold";
 
 /** Base platform amount due at signup (cents, before processing fee). */
 export function computeTrainerSignupFeeBaseCents(pricingMode: TrainerRegistrationPricingMode): number {
-  if (pricingMode === "FOUNDING_BG_SURCHARGE_20PCT") {
-    const bg = trainerBackgroundCheckAmountCents();
-    return bg + Math.max(1, Math.round(bg * 0.2));
-  }
-  return TRAINER_PLATFORM_REGISTRATION_FEE_CENTS;
+  return computeTrainerSignupEscrowSplit(pricingMode).baseCents;
 }
 
 export async function createTrainerSignupFeeHoldPaymentIntent(args: {
@@ -49,6 +49,7 @@ export async function createTrainerSignupFeeHoldPaymentIntent(args: {
       processingFeeCents: String(breakdown.processingCents),
       totalChargedCents: String(breakdown.totalChargedCents),
       ...feeMetadataFromBreakdown(breakdown),
+      ...signupEscrowMetadata(args.pricingMode),
     },
   });
 
@@ -68,6 +69,32 @@ export async function captureTrainerSignupFeeHold(paymentIntentId: string): Prom
   const stripe = getStripe();
   if (!stripe) throw new Error("STRIPE_SECRET_KEY is not configured.");
   await stripe.paymentIntents.capture(paymentIntentId);
+}
+
+/** Capture held signup fee when compliance succeeds (full authorized total). */
+export async function captureTrainerSignupFeeHoldOnComplianceSuccess(
+  paymentIntentId: string,
+  pricingMode: TrainerRegistrationPricingMode,
+): Promise<void> {
+  const stripe = getStripe();
+  if (!stripe) throw new Error("STRIPE_SECRET_KEY is not configured.");
+  const amount = computeTrainerSignupCaptureOnSuccessCents(pricingMode);
+  await stripe.paymentIntents.capture(paymentIntentId, { amount_to_capture: amount });
+}
+
+/**
+ * If background screening never clears, capture only the platform (+ processing) portion.
+ * The background-check escrow portion is not applied to the trainer's account.
+ */
+export async function captureTrainerSignupFeeHoldPartial(
+  paymentIntentId: string,
+  pricingMode: TrainerRegistrationPricingMode,
+  _reason: "bg_failure",
+): Promise<void> {
+  const stripe = getStripe();
+  if (!stripe) throw new Error("STRIPE_SECRET_KEY is not configured.");
+  const amount = computeTrainerSignupCaptureOnBgFailureCents(pricingMode);
+  await stripe.paymentIntents.capture(paymentIntentId, { amount_to_capture: amount });
 }
 
 export async function cancelTrainerSignupFeeHold(paymentIntentId: string): Promise<void> {

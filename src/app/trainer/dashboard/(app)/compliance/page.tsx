@@ -149,8 +149,9 @@ export default async function TrainerComplianceDetailsPage() {
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
         <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Platform registration fee</h2>
         <p className="mt-3 text-sm text-white/55">
-          After your background check clears and certifications are approved, pay the one-time Match Fit registration
-          amount through Stripe. Founding coaches (first {getTrainerFoundingBgPercentMax()}) pay 20% of the Checkr fee;
+          Your signup fee is authorized (held) in Stripe at registration; Match Fit captures it after background screening
+          and certifications are approved. If you do not complete screening, the background-check portion is not applied
+          (see Terms). Founding coaches (first {getTrainerFoundingBgPercentMax()}) pay 20% of the Checkr fee;
           later coaches pay $100 minus the screening credit.
         </p>
         <div className="mt-4">

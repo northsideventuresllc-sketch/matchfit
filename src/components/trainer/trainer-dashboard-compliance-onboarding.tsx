@@ -5,7 +5,10 @@ import { useCallback, useState } from "react";
 import { OnboardingCertStatusLegend } from "@/app/trainer/onboarding/onboarding-cert-status-legend";
 import { CREDIBLE_CPT_ORGANIZATIONS } from "@/app/trainer/onboarding/credible-cpt-organizations";
 import { CREDIBLE_NUTRITION_CREDENTIALS } from "@/app/trainer/onboarding/credible-nutrition-credentials";
+import { TrainerBackgroundCheckPlanBPanel } from "@/components/trainer/trainer-background-check-plan-b-panel";
 import { TrainerBackgroundCheckStripePayment } from "@/components/trainer/trainer-background-check-stripe-payment";
+import { isBackgroundCheckPlanBActive } from "@/lib/checkr-integration";
+import { trainerHasSignupBackgroundEscrow } from "@/lib/trainer-background-check-ui";
 import { TrainerComplianceCertTracksForm } from "@/components/trainer/trainer-compliance-cert-tracks-form";
 import {
   SPECIALIST_ROLE_OPTIONS,
@@ -243,7 +246,22 @@ export function TrainerDashboardComplianceOnboarding({
             </p>
             {bgStatus === "NOT_STARTED" || bgStatus === "PENDING" ? (
               <div className="mt-4">
-                {!profile.hasPaidBackgroundFee ? (
+                {isBackgroundCheckPlanBActive() ? (
+                  <TrainerBackgroundCheckPlanBPanel
+                    backgroundCheckStatus={profile.backgroundCheckStatus}
+                    inviteRequestedAt={profile.backgroundCheckInviteRequestedAt ?? null}
+                    inviteSentAt={profile.backgroundCheckInviteSentAt ?? null}
+                    signupEscrowActive={trainerHasSignupBackgroundEscrow({
+                      registrationFeeHoldStatus: profile.registrationFeeHoldStatus,
+                      hasPaidBackgroundFee: profile.hasPaidBackgroundFee,
+                    })}
+                    compact
+                  />
+                ) : !profile.hasPaidBackgroundFee &&
+                  !trainerHasSignupBackgroundEscrow({
+                    registrationFeeHoldStatus: profile.registrationFeeHoldStatus,
+                    hasPaidBackgroundFee: profile.hasPaidBackgroundFee,
+                  }) ? (
                   <TrainerBackgroundCheckStripePayment
                     amountLabel="Background screening fee"
                     onPaid={() => refresh()}
@@ -251,8 +269,8 @@ export function TrainerDashboardComplianceOnboarding({
                   />
                 ) : (
                   <p className="text-sm text-white/60">
-                    Screening fee received. Complete your Checkr invitation from email, or contact support if you need a
-                    new link.
+                    Signup fee hold includes screening. Complete your Checkr invitation from email, or contact support if
+                    you need a new link.
                   </p>
                 )}
               </div>

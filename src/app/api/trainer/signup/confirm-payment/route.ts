@@ -47,10 +47,16 @@ export async function POST(req: Request) {
           ? pi.amount
           : 0;
 
+    const pricingMode =
+      pi.metadata?.pricingMode === "STANDARD_100_MINUS_BG"
+        ? "STANDARD_100_MINUS_BG"
+        : "FOUNDING_BG_SURCHARGE_20PCT";
+
     await applyTrainerSignupFeeHoldAuthorized({
       trainerId,
       paymentIntentId: pi.id,
       paidCents,
+      pricingMode,
     });
 
     const profile = await prisma.trainerProfile.findUnique({

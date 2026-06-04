@@ -436,7 +436,20 @@ export default async function TermsPage() {
             <Strong>Founding-coach pricing (first {FOUNDING_TRAINER_CAP} Trainers):</Strong> twenty percent (20%) of the
             verified background-check fee plus processing fees—not the full $100.00 model. Match Fit generally collects the
             registration fee only after background screening clears and primary certification is approved, as implemented in
-            onboarding.
+            onboarding. At signup, your card is <Strong>authorized (held)</Strong> through our payment processor; Match Fit{" "}
+            <Strong>captures</Strong> the registration amount only after certification and background screening are approved.
+          </Li>
+          <Li>
+            <Strong>Background screening escrow:</Strong> A portion of your signup authorization is earmarked for the
+            independent background-check provider (for example, Checkr). If you do not complete background screening after we
+            send (or automate) your invitation, you do not receive credit for that background-check portion toward registration
+            pricing, and we may capture only the platform and processing portions of your authorization as implemented in the
+            product. Refunds of the background-check escrow slice are not guaranteed.
+          </Li>
+          <Li>
+            <Strong>Backup screening process:</Strong> When our direct Checkr API integration is not yet active, Trainers
+            request an invitation through Match Fit; staff sends Checkr invitations manually. Automated webhooks or staff
+            review may update your status when results are available.
           </Li>
           <Li>
             To appear publicly, Trainers may need to complete tax documentation (such as IRS Form W-9 or successor forms),

@@ -15,6 +15,8 @@ export type TrainerComplianceWindowProfile = TrainerCertificationGateProfile & {
   complianceWindowExpiredAt?: Date | string | null;
   backgroundCheckStatus?: string | null;
   checkrReportId?: string | null;
+  backgroundCheckInviteRequestedAt?: Date | string | null;
+  backgroundCheckInviteSentAt?: Date | string | null;
   certificationReviewStatus?: string | null;
   nutritionistCertificationReviewStatus?: string | null;
   specialistCertificationReviewStatus?: string | null;
@@ -49,7 +51,10 @@ export function trainerCertificationSubmitted(prof: TrainerComplianceWindowProfi
 export function trainerBackgroundCheckSubmitted(prof: TrainerComplianceWindowProfile): boolean {
   const status = coerceTrainerBackgroundVendorStatus(prof.backgroundCheckStatus);
   if (status !== "NOT_STARTED") return true;
-  return Boolean(prof.checkrReportId?.trim());
+  if (prof.checkrReportId?.trim()) return true;
+  if (toDate(prof.backgroundCheckInviteRequestedAt)) return true;
+  if (toDate(prof.backgroundCheckInviteSentAt)) return true;
+  return false;
 }
 
 export function trainerComplianceWindowShouldPause(prof: TrainerComplianceWindowProfile): boolean {

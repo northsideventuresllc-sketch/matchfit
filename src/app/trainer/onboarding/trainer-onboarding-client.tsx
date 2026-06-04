@@ -17,7 +17,10 @@ import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { verifyTrainerOnboardingDevPassword } from "@/lib/trainer-dev-bypass";
 import { certificationsGatePassed } from "@/lib/trainer-onboarding-cert-gate";
 import { normalizeTrainerSocialFields } from "@/lib/trainer-social-urls";
+import { TrainerBackgroundCheckPlanBPanel } from "@/components/trainer/trainer-background-check-plan-b-panel";
 import { TrainerBackgroundCheckStripePayment } from "@/components/trainer/trainer-background-check-stripe-payment";
+import { isBackgroundCheckPlanBActive } from "@/lib/checkr-integration";
+import { trainerHasSignupBackgroundEscrow } from "@/lib/trainer-background-check-ui";
 import { postTrainerLogout } from "@/lib/trainer-logout";
 import { US_STATE_POSTAL_OPTIONS } from "@/lib/trainer-profile-demography-options";
 import { coerceTrainerBackgroundVendorStatus, coerceTrainerCptStatus } from "@/lib/trainer-onboarding-status";
@@ -65,6 +68,9 @@ type TrainerMe = {
     specialistCertificationUrl: string | null;
     otherCertificationReviewStatus: string;
     backgroundCheckReviewStatus: string;
+    registrationFeeHoldStatus?: string | null;
+    backgroundCheckInviteRequestedAt?: string | null;
+    backgroundCheckInviteSentAt?: string | null;
     dashboardActivatedAt?: string | null;
     matchQuestionnaireStatus?: string;
   } | null;
@@ -1232,18 +1238,46 @@ export default function TrainerOnboardingClient() {
                   </div>
                 ) : null}
               </div>
-              {profile?.hasPaidBackgroundFee ? (
-                <p className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100/95">
-                  Background check fee paid. Complete Checkr screening if you have not already — vendor status above
-                  updates when your report clears.
-                </p>
-              ) : (
-                <TrainerBackgroundCheckStripePayment
-                  amountLabel={backgroundCheckFeeLabel}
-                  onPaid={handleBackgroundPaymentSuccess}
-                  onError={(msg) => setError(msg || null)}
-                />
-              )}
+              {(() => {
+                const planB = isBackgroundCheckPlanBActive();
+                const escrow = trainerHasSignupBackgroundEscrow({
+                  registrationFeeHoldStatus: profile?.registrationFeeHoldStatus,
+                  hasPaidBackgroundFee: profile?.hasPaidBackgroundFee,
+                });
+                if (planB) {
+                  return (
+                    <TrainerBackgroundCheckPlanBPanel
+                      backgroundCheckStatus={profile?.backgroundCheckStatus ?? "NOT_STARTED"}
+                      inviteRequestedAt={profile?.backgroundCheckInviteRequestedAt ?? null}
+                      inviteSentAt={profile?.backgroundCheckInviteSentAt ?? null}
+                      signupEscrowActive={escrow}
+                    />
+                  );
+                }
+                if (escrow) {
+                  return (
+                    <p className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100/95">
+                      Your signup fee authorization includes background screening held in Stripe until Checkr clears.
+                      Request your Checkr invitation below when the integrated flow is available.
+                    </p>
+                  );
+                }
+                if (profile?.hasPaidBackgroundFee) {
+                  return (
+                    <p className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100/95">
+                      Background check fee paid. Complete Checkr screening if you have not already — vendor status above
+                      updates when your report clears.
+                    </p>
+                  );
+                }
+                return (
+                  <TrainerBackgroundCheckStripePayment
+                    amountLabel={backgroundCheckFeeLabel}
+                    onPaid={handleBackgroundPaymentSuccess}
+                    onError={(msg) => setError(msg || null)}
+                  />
+                );
+              })()}
               {showBackgroundCheckDevOverride ? (
                 <>
                   <div className="flex flex-col gap-2">
@@ -1269,10 +1303,10 @@ export default function TrainerOnboardingClient() {
                     Override for testing
                   </button>
                 </>
-              ) : bgVendor !== "APPROVED" ? (
+              ) : bgVendor !== "APPROVED" && !isBackgroundCheckPlanBActive() ? (
                 <p className="rounded-xl border border-white/[0.08] bg-[#0E1016]/80 px-4 py-3 text-sm text-white/60">
-                  Background screening opens here once Checkr is connected to your account. If you received a Checkr email
-                  invitation, complete it first — this page will update when your report clears.
+                  After payment, complete Checkr screening from the invitation sent to your email. This page updates when
+                  your report clears.
                 </p>
               ) : null}
               <button

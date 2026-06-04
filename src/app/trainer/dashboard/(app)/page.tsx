@@ -78,6 +78,8 @@ export default async function TrainerDashboardHomePage() {
           complianceCertFailedAttempts: true,
           complianceWindowExpiredAt: true,
           checkrReportId: true,
+          backgroundCheckInviteRequestedAt: true,
+          backgroundCheckInviteSentAt: true,
           fitHubPromoEndsAt: true,
         },
       },
@@ -143,6 +145,9 @@ export default async function TrainerDashboardHomePage() {
             nutritionistCertificationReviewStatus: profile.nutritionistCertificationReviewStatus,
             specialistCertificationReviewStatus: profile.specialistCertificationReviewStatus,
             hasPaidBackgroundFee: profile.hasPaidBackgroundFee,
+            registrationFeeHoldStatus: profile.registrationFeeHoldStatus,
+            backgroundCheckInviteRequestedAt: profile.backgroundCheckInviteRequestedAt?.toISOString() ?? null,
+            backgroundCheckInviteSentAt: profile.backgroundCheckInviteSentAt?.toISOString() ?? null,
           }}
           matchQuestionnaireStatus={profile.matchQuestionnaireStatus ?? "not_started"}
         />

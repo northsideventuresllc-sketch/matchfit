@@ -927,6 +927,14 @@ model TrainerProfile {
   backgroundCheckVendorPaidCents Int?
   checkrCandidateId String?
   checkrReportId    String?
+  /// Plan B: trainer requested Checkr invite (API or manual support queue).
+  backgroundCheckInviteRequestedAt DateTime?
+  /// Plan B: Match Fit staff confirmed Checkr invitation email was sent.
+  backgroundCheckInviteSentAt DateTime?
+  /// Portion of signup hold earmarked for Checkr (cents); released only when screening clears.
+  backgroundCheckEscrowCents Int?
+  /// Platform registration portion of signup hold (cents).
+  platformEscrowCents Int?
   /// FOUNDING_BG_SURCHARGE_20PCT | STANDARD_100_MINUS_BG — set at trainer signup from launch slot.
   registrationFeePricingMode String @default("FOUNDING_BG_SURCHARGE_20PCT")
   hasPaidRegistrationFee Boolean @default(false)

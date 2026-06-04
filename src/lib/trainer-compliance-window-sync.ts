@@ -8,7 +8,13 @@ import {
   trainerComplianceWindowShouldPause,
   trainerComplianceWindowComplete,
 } from "@/lib/trainer-compliance-window";
-import { captureTrainerSignupFeeHold, cancelTrainerSignupFeeHold } from "@/lib/trainer-signup-fee-hold";
+import {
+  cancelTrainerSignupFeeHold,
+  captureTrainerSignupFeeHoldOnComplianceSuccess,
+  captureTrainerSignupFeeHoldPartial,
+} from "@/lib/trainer-signup-fee-hold";
+import type { TrainerRegistrationPricingMode } from "@/lib/match-fit-launch-promotions";
+import { computeTrainerSignupEscrowSplit } from "@/lib/trainer-signup-escrow";
 import { maybeActivateTrainerDashboard } from "@/lib/trainer-onboarding-dashboard";
 
 type ProfileRow = {
@@ -21,6 +27,7 @@ type ProfileRow = {
   complianceWindowExpiredAt: Date | null;
   registrationFeeHoldPaymentIntentId: string | null;
   registrationFeeHoldStatus: string;
+  registrationFeePricingMode: string;
   hasPaidRegistrationFee: boolean;
   fitHubPromoEndsAt: Date | null;
   onboardingTrackCpt: boolean;
@@ -43,6 +50,7 @@ const profileSelect = {
   complianceWindowExpiredAt: true,
   registrationFeeHoldPaymentIntentId: true,
   registrationFeeHoldStatus: true,
+  registrationFeePricingMode: true,
   hasPaidRegistrationFee: true,
   fitHubPromoEndsAt: true,
   onboardingTrackCpt: true,
@@ -70,8 +78,11 @@ export async function applyTrainerSignupFeeHoldAuthorized(args: {
   trainerId: string;
   paymentIntentId: string;
   paidCents: number;
+  pricingMode?: TrainerRegistrationPricingMode;
 }): Promise<void> {
   const now = new Date();
+  const mode = args.pricingMode ?? "FOUNDING_BG_SURCHARGE_20PCT";
+  const split = computeTrainerSignupEscrowSplit(mode);
   await prisma.trainerProfile.update({
     where: { trainerId: args.trainerId },
     data: {
@@ -81,6 +92,10 @@ export async function applyTrainerSignupFeeHoldAuthorized(args: {
       complianceWindowStartedAt: now,
       hasPaidRegistrationFee: false,
       registrationFeePaidCents: args.paidCents > 0 ? args.paidCents : undefined,
+      hasPaidBackgroundFee: true,
+      backgroundCheckVendorPaidCents: split.backgroundCheckEscrowCents,
+      backgroundCheckEscrowCents: split.backgroundCheckEscrowCents,
+      platformEscrowCents: split.platformEscrowCents,
       updatedAt: now,
     },
   });
@@ -127,7 +142,9 @@ export async function syncTrainerComplianceWindow(trainerId: string): Promise<vo
   if (trainerComplianceWindowComplete(refreshed) && refreshed.registrationFeeHoldStatus === "HELD") {
     const piId = refreshed.registrationFeeHoldPaymentIntentId?.trim();
     if (piId) {
-      await captureTrainerSignupFeeHold(piId);
+      const pricingMode = (refreshed.registrationFeePricingMode ??
+        "FOUNDING_BG_SURCHARGE_20PCT") as TrainerRegistrationPricingMode;
+      await captureTrainerSignupFeeHoldOnComplianceSuccess(piId, pricingMode);
       await prisma.trainerProfile.update({
         where: { trainerId },
         data: {
@@ -158,15 +175,44 @@ export async function expireTrainerComplianceWindow(trainerId: string): Promise<
 
   const now = new Date();
   const piId = prof.registrationFeeHoldPaymentIntentId?.trim();
-  if (piId && prof.registrationFeeHoldStatus === "HELD") {
-    await cancelTrainerSignupFeeHold(piId);
+  const holdHeld = prof.registrationFeeHoldStatus === "HELD";
+  const bgStatus = (
+    await prisma.trainerProfile.findUnique({
+      where: { trainerId },
+      select: { backgroundCheckStatus: true, registrationFeePricingMode: true },
+    })
+  )?.backgroundCheckStatus;
+  const bgApproved = (bgStatus ?? "").trim().toUpperCase() === "APPROVED";
+
+  if (piId && holdHeld) {
+    if (bgApproved) {
+      await cancelTrainerSignupFeeHold(piId);
+    } else {
+      const pricingMode = (
+        await prisma.trainerProfile.findUnique({
+          where: { trainerId },
+          select: { registrationFeePricingMode: true },
+        })
+      )?.registrationFeePricingMode as TrainerRegistrationPricingMode | undefined;
+      await captureTrainerSignupFeeHoldPartial(
+        piId,
+        pricingMode ?? "FOUNDING_BG_SURCHARGE_20PCT",
+        "bg_failure",
+      );
+    }
   }
 
   await prisma.trainerProfile.update({
     where: { trainerId },
     data: {
       complianceWindowExpiredAt: now,
-      registrationFeeHoldStatus: prof.registrationFeeHoldStatus === "HELD" ? "CANCELED" : prof.registrationFeeHoldStatus,
+      registrationFeeHoldStatus: holdHeld ? (bgApproved ? "CANCELED" : "CAPTURED") : prof.registrationFeeHoldStatus,
+      ...(!bgApproved && holdHeld
+        ? {
+            hasPaidBackgroundFee: false,
+            backgroundCheckVendorPaidCents: null,
+          }
+        : {}),
       updatedAt: now,
     },
   });
