@@ -7,7 +7,6 @@ export async function isTrainerPremiumStudioActive(trainerId: string): Promise<b
     where: { trainerId },
     select: {
       premiumStudioEnabledAt: true,
-      fitHubPromoEndsAt: true,
       ...trainerFullAccessProfileSelect,
     },
   });

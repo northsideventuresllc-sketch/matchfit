@@ -8,7 +8,6 @@ import {
 } from "@/lib/trainer-client-conversation-archive";
 import { getSessionTrainerId } from "@/lib/session";
 import { hasTrainerFullPlatformAccess } from "@/lib/trainer-full-access";
-import { trainerFullAccessBlockedMessage } from "@/lib/assert-trainer-full-access";
 import { loadChatScopedClientPendingBookings } from "@/lib/marketplace-governance-overview";
 import { canAuthorSendChatMessage } from "@/lib/trainer-client-chat-rules";
 import { computeTrainerCheckoutHint } from "@/lib/trainer-chat-checkout-hint";

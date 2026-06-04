@@ -98,10 +98,13 @@ function PaymentForm({
 
 export default function TrainerSignupPaymentClient({ foundingPricing }: Props) {
   const publishableKey = getStripePublishableKey();
+  const stripeConfigured = Boolean(publishableKey);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [amountLabel, setAmountLabel] = useState<string>("…");
-  const [loading, setLoading] = useState(true);
-  const [initError, setInitError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(stripeConfigured);
+  const [initError, setInitError] = useState<string | null>(
+    stripeConfigured ? null : "Stripe is not configured for this environment.",
+  );
 
   const stripePromise = useMemo(
     () => (publishableKey ? loadStripe(publishableKey) : null),
@@ -109,11 +112,7 @@ export default function TrainerSignupPaymentClient({ foundingPricing }: Props) {
   );
 
   useEffect(() => {
-    if (!publishableKey) {
-      setInitError("Stripe is not configured for this environment.");
-      setLoading(false);
-      return;
-    }
+    if (!stripeConfigured) return;
     let cancelled = false;
     void fetch("/api/trainer/signup/create-payment-intent", {
       method: "POST",
@@ -140,7 +139,7 @@ export default function TrainerSignupPaymentClient({ foundingPricing }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [publishableKey]);
+  }, [stripeConfigured]);
 
   const options: StripeElementsOptions | undefined = clientSecret
     ? { clientSecret, appearance: { theme: "night", variables: { colorPrimary: "#FF7E00" } } }

@@ -2,7 +2,7 @@ import {
   getMatchFitInternalQaClientEmails,
   getMatchFitInternalQaTrainerEmails,
 } from "@/lib/match-fit-internal-qa";
-import { getMatchFitTestTrainerEmails } from "@/lib/match-fit-test-trainer-compliance";
+import { getMatchFitTestTrainerEmails } from "@/lib/match-fit-test-trainer-emails";
 import { TRAINER_DEV_FAKE_CPT_CERTIFICATION_PATH } from "@/lib/trainer-dev-cert-placeholders";
 
 /**

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
-import { trainerFullAccessBlockedMessage } from "@/lib/assert-trainer-full-access";
 import { hasTrainerFullPlatformAccess } from "@/lib/trainer-full-access";
+import { trainerFullAccessBlockedMessage } from "@/lib/assert-trainer-full-access";
 import { trainerFullAccessProfileSelect } from "@/lib/trainer-full-access-profile-select";
 import { NextResponse } from "next/server";
 

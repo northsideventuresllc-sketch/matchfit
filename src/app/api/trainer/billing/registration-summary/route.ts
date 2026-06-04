@@ -36,6 +36,9 @@ export async function GET() {
   const bgCents = profile.backgroundCheckVendorPaidCents ?? 0;
   const certsOk = certificationsGatePassed(profile);
   const bgOk = profile.backgroundCheckStatus === "APPROVED" && profile.hasPaidBackgroundFee && bgCents > 0;
+  const registrationPaid = profile.hasPaidRegistrationFee;
+  const hold = (profile.registrationFeeHoldStatus ?? "").trim().toUpperCase();
+  const signupFeeOnHold = hold === "HELD" || hold === "CAPTURED";
 
   const { dueCents, error: dueError } =
     bgOk && !profile.hasPaidRegistrationFee

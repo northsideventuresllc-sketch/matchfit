@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { purgeExpiredArchivedConversations } from "@/lib/trainer-client-conversation-archive";
 import { getSessionTrainerId } from "@/lib/session";
 import { hasTrainerFullPlatformAccess } from "@/lib/trainer-full-access";
-import { trainerFullAccessBlockedMessage } from "@/lib/assert-trainer-full-access";
 import { isTrainerClientChatBlocked } from "@/lib/user-block-queries";
 import { NextResponse } from "next/server";
 

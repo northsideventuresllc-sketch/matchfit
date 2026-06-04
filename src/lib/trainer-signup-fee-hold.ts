@@ -89,8 +89,9 @@ export async function captureTrainerSignupFeeHoldOnComplianceSuccess(
 export async function captureTrainerSignupFeeHoldPartial(
   paymentIntentId: string,
   pricingMode: TrainerRegistrationPricingMode,
-  _reason: "bg_failure",
+  reason: "bg_failure",
 ): Promise<void> {
+  void reason;
   const stripe = getStripe();
   if (!stripe) throw new Error("STRIPE_SECRET_KEY is not configured.");
   const amount = computeTrainerSignupCaptureOnBgFailureCents(pricingMode);

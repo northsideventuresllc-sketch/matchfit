@@ -3,7 +3,6 @@ import { getSessionTrainerId } from "@/lib/session";
 import { createTrainerBookingInvite } from "@/lib/trainer-client-booking-service";
 import { trainerSyncBookingVideoFromOAuth } from "@/lib/trainer-booking-video-sync";
 import { hasTrainerFullPlatformAccess } from "@/lib/trainer-full-access";
-import { trainerFullAccessBlockedMessage } from "@/lib/assert-trainer-full-access";
 import { isTrainerClientInteractionRestricted } from "@/lib/user-block-queries";
 import type { VideoConferenceProviderKey } from "@/lib/trainer-video-oauth-state";
 import { NextResponse } from "next/server";

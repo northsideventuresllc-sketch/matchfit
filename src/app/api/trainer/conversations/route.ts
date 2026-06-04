@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { getSessionTrainerId } from "@/lib/session";
 import { hasTrainerFullPlatformAccess } from "@/lib/trainer-full-access";
-import { trainerFullAccessBlockedMessage } from "@/lib/assert-trainer-full-access";
 import { conversationArchiveMetaForActor, purgeExpiredArchivedConversations } from "@/lib/trainer-client-conversation-archive";
 import { getClientIdsWithChatBlockedForTrainer } from "@/lib/user-block-queries";
 import { NextResponse } from "next/server";

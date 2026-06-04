@@ -3,7 +3,6 @@ import { getAppOriginFromRequest } from "@/lib/app-origin";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { hasTrainerFullPlatformAccess } from "@/lib/trainer-full-access";
-import { trainerFullAccessBlockedMessage } from "@/lib/assert-trainer-full-access";
 import {
   coachServiceCheckoutSearch,
   parseTrainerServiceOfferingsJson,

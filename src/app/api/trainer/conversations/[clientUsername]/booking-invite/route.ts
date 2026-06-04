@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { createTrainerBookingInvite } from "@/lib/trainer-client-booking-service";
 import { hasTrainerFullPlatformAccess } from "@/lib/trainer-full-access";
-import { trainerFullAccessBlockedMessage } from "@/lib/assert-trainer-full-access";
 import { isTrainerClientInteractionRestricted } from "@/lib/user-block-queries";
 import { NextResponse } from "next/server";
 import { z } from "zod";

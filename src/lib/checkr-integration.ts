@@ -1,4 +1,4 @@
-import { getCheckrApiKey } from "@/lib/checkr";
+import { getCheckrApiKey } from "@/lib/checkr-config";
 
 /** Production Checkr API; staging uses CHECKR_API_BASE override. */
 export const CHECKR_API_DEFAULT_BASE = "https://api.checkr.com/v1";
