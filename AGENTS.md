@@ -61,3 +61,24 @@ Copy `.env.example` to `.env`. At minimum set `DATABASE_URL`, `DIRECT_URL`, and 
 ### Admin login for manual testing
 
 After seeding, admin portal is at `/admin/login`. Use staff code `jobo0602` with the password you set during seeding.
+
+### Product version (required on deployable tasks)
+
+Match Fit uses `major.minor.patch` with optional **BETA** (`package.json` → `src/lib/match-fit-product-version.ts`). **Bump on every production deploy** in the same PR — the owner does not need to ask.
+
+| Level | When |
+|-------|------|
+| `major` | Transformative changes (e.g. multiple new marketplaces, platform pivot) |
+| `minor` | Notable features or redesigns (e.g. admin portal, dashboard redesign) |
+| `patch` | Bug fixes, copy polish, small UX tweaks |
+
+```bash
+npm run version:bump -- patch --reason "Fix client signup validation"
+npm run version:verify   # CI enforces bump when product paths change
+```
+
+- Full categorization guide: `docs/MATCH_FIT_PRODUCT_VERSION.md`
+- Cursor rule (always on): `.cursor/rules/product-version.mdc`
+- **Owner approval only:** adding/removing BETA or changing version structure
+- **Task completion:** state explicitly that the product version was updated (old → new, level used)
+- Never hardcode version strings in UI — use `MATCH_FIT_PRODUCT_VERSION_LABEL` / `MATCH_FIT_PRODUCT_VERSION_ANNOUNCE`

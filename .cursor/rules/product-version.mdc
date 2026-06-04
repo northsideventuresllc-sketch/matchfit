@@ -1,0 +1,35 @@
+---
+description: Match Fit automatic product version bumps on every deployable task
+alwaysApply: true
+---
+
+# Match Fit product version (required on deployable work)
+
+Full guide: `docs/MATCH_FIT_PRODUCT_VERSION.md`.
+
+## Template
+
+`Version [BETA ]#.#.#` — **BETA** only while `package.json` uses a `-beta` prerelease. Never hardcode version strings in UI; use `MATCH_FIT_PRODUCT_VERSION_LABEL` or `MATCH_FIT_PRODUCT_VERSION_ANNOUNCE` from `@/lib/match-fit-product-version`.
+
+## Every deployed task
+
+Before you finish a Match Fit task that will go live:
+
+1. **Classify** the change: `major` | `minor` | `patch` (see doc). If unclear, **ask the owner** — do not guess on minor vs major.
+2. **Bump:** `npm run version:bump -- <level> --reason "what shipped"`.
+3. **Verify:** `npm run version:verify` (CI runs this on PRs).
+4. **Completion message:** Always include a line such as: **Product version updated:** `1.1.1-beta` → `1.1.2-beta` (**patch**) — labels now show `Version BETA 1.1.2`.
+
+Skip the bump only for non-shipping work (local experiments, docs-only with no deploy, or changes explicitly scoped as not production-bound).
+
+## Owner approval only
+
+Do **not** add/remove **BETA** or change version structure without explicit owner approval.
+
+## Categorization cheat sheet
+
+| Level | Signal |
+|-------|--------|
+| **major** | New marketplaces at scale, platform pivot, changes that redefine Match Fit |
+| **minor** | New portal areas, redesigns, features users notice but app identity stays same |
+| **patch** | Bug fixes, copy tweaks, small polish |

@@ -10,3 +10,4 @@ alwaysApply: true
 - **Do not edit** stale copies under `~/.cursor/projects/empty-window/match-fit`.
 - **Social links**: Use `MatchFitSocialLinks` and `MATCH_FIT_OFFICIAL_SOCIAL_LINKS` — do not hardcode URLs in pages.
 - **Beta promos**: Home page leads with `HomeBetaPromoBanner`; full stats live on `/promos`.
+- **Product version**: On every deployable task, bump via `npm run version:bump` and state it in completion — see `.cursor/rules/product-version.mdc` and `docs/MATCH_FIT_PRODUCT_VERSION.md`.
