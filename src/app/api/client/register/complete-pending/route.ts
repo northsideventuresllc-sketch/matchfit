@@ -1,3 +1,4 @@
+import { ensureClientPlatformTrialSchema } from "@/lib/ensure-client-platform-trial-schema";
 import { verifyOtp } from "@/lib/otp";
 import { purgeExpiredRegistrationHolds } from "@/lib/purge-registration-holds";
 import { prisma } from "@/lib/prisma";
@@ -10,6 +11,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
+    await ensureClientPlatformTrialSchema();
     await purgeExpiredRegistrationHolds();
 
     const json = await req.json();

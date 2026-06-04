@@ -1,4 +1,5 @@
 import { isEmailTaken, isUsernameTaken, findDeactivatedClientForReactivation } from "@/lib/client-queries";
+import { ensureClientPlatformTrialSchema } from "@/lib/ensure-client-platform-trial-schema";
 import { BetaCapExceededError } from "@/lib/beta-cap-enforcement";
 import { finalizeClientRegistrationFromSignup } from "@/lib/client-register-finalize";
 import { purgeExpiredRegistrationHolds } from "@/lib/purge-registration-holds";
@@ -24,6 +25,7 @@ function isAtLeast18(birthYmd: string): boolean {
 
 export async function POST(req: Request) {
   try {
+    await ensureClientPlatformTrialSchema();
     await purgeExpiredRegistrationHolds();
 
     const json = await req.json();

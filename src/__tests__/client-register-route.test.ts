@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextResponse } from "next/server";
 
 const {
+  ensureClientPlatformTrialSchemaMock,
   purgeExpiredRegistrationHoldsMock,
   evaluateBetaClientRegistrationGateMock,
   isUsernameTakenMock,
@@ -11,6 +12,7 @@ const {
   applyClientSessionToNextResponseMock,
   verifyTurnstileTokenMock,
 } = vi.hoisted(() => ({
+  ensureClientPlatformTrialSchemaMock: vi.fn(),
   purgeExpiredRegistrationHoldsMock: vi.fn(),
   evaluateBetaClientRegistrationGateMock: vi.fn(),
   isUsernameTakenMock: vi.fn(),
@@ -19,6 +21,10 @@ const {
   finalizeClientRegistrationFromSignupMock: vi.fn(),
   applyClientSessionToNextResponseMock: vi.fn(),
   verifyTurnstileTokenMock: vi.fn(),
+}));
+
+vi.mock("@/lib/ensure-client-platform-trial-schema", () => ({
+  ensureClientPlatformTrialSchema: ensureClientPlatformTrialSchemaMock,
 }));
 
 vi.mock("@/lib/purge-registration-holds", () => ({
@@ -68,6 +74,7 @@ const validBody = {
 describe("POST /api/client/register", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    ensureClientPlatformTrialSchemaMock.mockResolvedValue(undefined);
     purgeExpiredRegistrationHoldsMock.mockResolvedValue(undefined);
     verifyTurnstileTokenMock.mockResolvedValue({ ok: true });
     findDeactivatedClientForReactivationMock.mockResolvedValue(null);

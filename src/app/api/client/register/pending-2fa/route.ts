@@ -1,4 +1,5 @@
 import { isEmailTaken, isUsernameTaken } from "@/lib/client-queries";
+import { ensureClientPlatformTrialSchema } from "@/lib/ensure-client-platform-trial-schema";
 import { deliverSignupOtp } from "@/lib/deliver-otp";
 import { generateSixDigitCode, hashOtp } from "@/lib/otp";
 import { BetaCapExceededError } from "@/lib/beta-cap-enforcement";
@@ -26,6 +27,7 @@ function isAtLeast18(birthYmd: string): boolean {
 
 export async function POST(req: Request) {
   try {
+    await ensureClientPlatformTrialSchema();
     await purgeExpiredRegistrationHolds();
 
     const json = await req.json();
