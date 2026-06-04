@@ -38,7 +38,7 @@ export function AdminDashboardLayoutCustomizer(props: {
       }}
     >
       <div
-        className="max-h-[min(90vh,42rem)] w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#0c0f14] shadow-2xl"
+        className="max-h-[min(90vh,42rem)] w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#12151C] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >
@@ -55,7 +55,7 @@ export function AdminDashboardLayoutCustomizer(props: {
         <div className="max-h-[min(60vh,28rem)] overflow-y-auto px-5 py-4">
           {(["Overview", "Analytics", "Activity", "Operations"] as const).map((groupName) => (
             <div key={groupName} className="mb-5 last:mb-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-300/60">{groupName}</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FF7E00]/60">{groupName}</p>
               <ul className="mt-2 space-y-2">
                 {grouped[groupName].map((meta) => {
                   const visible = isSectionVisible(draft, meta.id);
@@ -63,14 +63,14 @@ export function AdminDashboardLayoutCustomizer(props: {
                   return (
                     <li
                       key={meta.id}
-                      className="flex flex-col gap-2 rounded-xl border border-white/[0.06] bg-[#07080c]/90 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                      className="flex flex-col gap-2 rounded-xl border border-white/[0.06] bg-[#0E1016]/90 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-2.5">
                         <input
                           type="checkbox"
                           checked={visible}
                           onChange={() => toggle(meta.id)}
-                          className="mt-0.5 size-4 shrink-0 rounded border-white/20 bg-[#050608] accent-cyan-400"
+                          className="mt-0.5 size-4 shrink-0 rounded border-white/20 bg-[#0B0C0F] accent-[#FF7E00]"
                         />
                         <span className="min-w-0">
                           <span className="block text-sm font-semibold text-white">{meta.label}</span>
@@ -144,7 +144,7 @@ export function AdminDashboardLayoutCustomizer(props: {
               type="button"
               disabled={props.saving}
               onClick={() => props.onSave(draft)}
-              className="rounded-lg border border-cyan-400/35 bg-cyan-500/15 px-4 py-2 text-[11px] font-black uppercase tracking-[0.1em] text-cyan-50 hover:bg-cyan-500/20 disabled:opacity-40"
+              className="rounded-lg border border-[#FF7E00]/35 bg-[#FF7E00]/15 px-4 py-2 text-[11px] font-black uppercase tracking-[0.1em] text-[#FFD34E] hover:bg-[#FF7E00]/20 disabled:opacity-40"
             >
               {props.saving ? "Saving…" : "Save layout"}
             </button>

@@ -54,7 +54,7 @@ export default async function AdminHomePage() {
 
   if (loadError) {
     return (
-      <main className="min-h-dvh bg-[#050608] px-5 py-16 text-white">
+      <main className="min-h-dvh bg-[#0B0C0F] px-5 py-16 text-white">
         <div className="mx-auto max-w-lg rounded-2xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 p-6">
           <h1 className="text-lg font-black">Administrator Portal unavailable</h1>
           <p className="mt-3 text-sm text-[#FFB4B4]">{loadError}</p>
@@ -65,7 +65,7 @@ export default async function AdminHomePage() {
 
   if (!overview) {
     return (
-      <main className="min-h-dvh bg-[#050608] px-5 py-16 text-white">
+      <main className="min-h-dvh bg-[#0B0C0F] px-5 py-16 text-white">
         <div className="mx-auto max-w-lg rounded-2xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 p-6">
           <h1 className="text-lg font-black">Administrator Portal unavailable</h1>
           <p className="mt-3 text-sm text-[#FFB4B4]">Could not load dashboard data.</p>

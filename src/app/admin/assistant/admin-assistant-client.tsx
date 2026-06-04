@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AdminPortalNav } from "@/components/admin/admin-portal-nav";
+import { AdminPortalBackdrop, adminAccentButtonClass, adminPanelClass } from "@/components/admin/admin-portal-ui";
 
 type ChatMessage = {
   id: string;
@@ -69,8 +70,9 @@ export function AdminAssistantClient() {
   }
 
   return (
-    <main className="relative min-h-dvh bg-[#050608] px-5 py-10 text-white sm:px-8">
-      <div className="relative mx-auto flex max-w-3xl flex-col gap-6">
+    <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] px-5 py-10 text-white sm:px-8 sm:py-12">
+      <AdminPortalBackdrop />
+      <div className="relative z-10 mx-auto flex max-w-3xl flex-col gap-6">
         <header className="space-y-4">
           <AdminPortalNav current="assistant" />
           <div>
@@ -89,14 +91,14 @@ export function AdminAssistantClient() {
               type="button"
               disabled={busy}
               onClick={() => void send(a.id)}
-              className="rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-[11px] font-black uppercase tracking-wide text-cyan-50 disabled:opacity-40"
+              className={`${adminAccentButtonClass} disabled:opacity-40`}
             >
               {a.label}
             </button>
           ))}
         </div>
 
-        <section className="min-h-[20rem] flex-1 space-y-3 rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-4">
+        <section className={`min-h-[20rem] flex-1 space-y-3 ${adminPanelClass} p-4`}>
           {messages.length === 0 ? (
             <p className="text-sm text-white/45">No messages yet. Pick an action above or type below.</p>
           ) : (
@@ -105,8 +107,8 @@ export function AdminAssistantClient() {
                 key={m.id}
                 className={`rounded-xl px-3 py-2 text-sm ${
                   m.role === "assistant"
-                    ? "border border-cyan-400/20 bg-cyan-500/[0.06] text-cyan-50/95"
-                    : "border border-white/[0.06] bg-[#07080c]/80 text-white/85"
+                    ? "border border-[#FF7E00]/20 bg-[#FF7E00]/[0.06] text-[#FFD34E]/95"
+                    : "border border-white/[0.06] bg-[#0E1016]/80 text-white/85"
                 }`}
               >
                 <p className="text-[10px] font-black uppercase tracking-wide text-white/35">{m.role}</p>
@@ -123,14 +125,14 @@ export function AdminAssistantClient() {
             value={goalTitle}
             onChange={(e) => setGoalTitle(e.target.value)}
             placeholder="Goal title (optional, for Set Goal)…"
-            className="w-full rounded-xl border border-white/10 bg-[#07080c] px-4 py-2 text-sm"
+            className="w-full rounded-xl border border-white/10 bg-[#0E1016] px-4 py-2 text-sm"
           />
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask a question or describe a goal…"
             rows={3}
-            className="w-full rounded-xl border border-white/10 bg-[#07080c] px-4 py-3 text-sm"
+            className="w-full rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-sm"
           />
           <button
             type="button"

@@ -8,6 +8,12 @@ import {
   serializeAdminDashboardLayout,
 } from "@/lib/admin-dashboard-layout";
 import { AdminPortalNav } from "@/components/admin/admin-portal-nav";
+import {
+  AdminPortalBackdrop,
+  adminAccentButtonClass,
+  adminLinkClass,
+  adminPanelClass,
+} from "@/components/admin/admin-portal-ui";
 import { AdminDashboardLayoutCustomizer } from "../admin-dashboard-layout-customizer";
 
 export function AdminSettingsClient(props: {
@@ -58,8 +64,9 @@ export function AdminSettingsClient(props: {
   );
 
   return (
-    <main className="relative min-h-dvh bg-[#050608] px-5 py-10 text-white sm:px-8">
-      <div className="relative mx-auto max-w-3xl space-y-8">
+    <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] px-5 py-10 text-white sm:px-8 sm:py-12">
+      <AdminPortalBackdrop />
+      <div className="relative z-10 mx-auto max-w-3xl space-y-8">
         <header className="space-y-4">
           <AdminPortalNav current="settings" />
           <div>
@@ -71,7 +78,7 @@ export function AdminSettingsClient(props: {
           </div>
         </header>
 
-        <section className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
+        <section className={`${adminPanelClass} p-5`}>
           <p className="text-sm text-white/70">
             Use the layout editor to show or hide sections such as site traffic, revenue, impersonation audit, and AI
             insights.
@@ -79,13 +86,13 @@ export function AdminSettingsClient(props: {
           <button
             type="button"
             onClick={() => setCustomizerOpen(true)}
-            className="mt-4 rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-2.5 text-xs font-black uppercase tracking-[0.1em] text-cyan-50 hover:bg-cyan-500/15"
+            className={`mt-4 ${adminAccentButtonClass} px-4 py-2.5 text-xs hover:bg-[#FF7E00]/15`}
           >
             Edit dashboard layout
           </button>
           {message ? <p className="mt-4 text-sm text-emerald-200/90">{message}</p> : null}
           <p className="mt-4 text-xs text-white/40">
-            <Link href="/admin" className="text-cyan-300/90 underline-offset-4 hover:underline">
+            <Link href="/admin" className={adminLinkClass}>
               Back to dashboard
             </Link>
           </p>
