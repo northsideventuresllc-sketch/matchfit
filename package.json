@@ -28,6 +28,7 @@
     "tos:alignment": "tsx scripts/tos-alignment-check.ts",
     "version:bump": "node scripts/bump-product-version.mjs",
     "version:verify": "node scripts/verify-product-version-bump.mjs",
+    "content:calendar:sync": "bash scripts/sync-matchfit-content-calendar.sh",
     "postinstall": "prisma generate"
   },
   "dependencies": {

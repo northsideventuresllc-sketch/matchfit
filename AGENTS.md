@@ -62,6 +62,12 @@ Copy `.env.example` to `.env`. At minimum set `DATABASE_URL`, `DIRECT_URL`, and 
 
 After seeding, admin portal is at `/admin/login`. Use staff code `jobo0602` with the password you set during seeding.
 
+### Social content calendar (agents)
+
+- Canonical file: `content/social/matchfit-content-calendar.jsx`
+- Sync from parent hub: `npm run content:calendar:sync` (see `content/social/README.md`)
+- Skill: `.cursor/skills/matchfit-social-content/SKILL.md`
+
 ### Product version (required on deployable tasks)
 
 Match Fit uses `major.minor.patch` with optional **BETA** (`package.json` → `src/lib/match-fit-product-version.ts`). **Bump on every production deploy** in the same PR — the owner does not need to ask.
