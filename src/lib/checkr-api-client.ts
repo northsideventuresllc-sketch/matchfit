@@ -1,4 +1,4 @@
-import { getCheckrApiKey } from "@/lib/checkr";
+import { getCheckrApiKey } from "@/lib/checkr-config";
 import {
   getCheckrApiBase,
   getCheckrPackageSlug,

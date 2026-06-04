@@ -18,6 +18,7 @@ const {
   mockConstructEvent,
   mockCheckoutSessionRetrieve,
   mockStripeSubscriptionRetrieve,
+  mockSyncTrainerComplianceWindow,
 } = vi.hoisted(() => ({
   mockFinalizeRegistrationAfterPayment: vi.fn(),
   mockNotifyClientMembershipTrialEnding: vi.fn(),
@@ -36,6 +37,7 @@ const {
   mockConstructEvent: vi.fn(),
   mockCheckoutSessionRetrieve: vi.fn(),
   mockStripeSubscriptionRetrieve: vi.fn(),
+  mockSyncTrainerComplianceWindow: vi.fn(),
 }));
 
 vi.mock("@/lib/billing-finalize", () => ({
@@ -72,6 +74,11 @@ vi.mock("@/lib/stripe-sync-client-subscription", () => ({
 vi.mock("@/lib/trainer-background-check-stripe", () => ({
   applyTrainerBackgroundCheckStripePayment: mockApplyTrainerBackgroundCheckStripePayment,
   isTrainerBackgroundCheckPaymentIntent: mockIsTrainerBackgroundCheckPaymentIntent,
+}));
+
+vi.mock("@/lib/trainer-compliance-window-sync", () => ({
+  applyTrainerSignupFeeHoldAuthorized: vi.fn(),
+  syncTrainerComplianceWindow: mockSyncTrainerComplianceWindow,
 }));
 
 vi.mock("@/lib/stripe-server", () => ({
@@ -116,6 +123,7 @@ describe("POST /api/webhooks/stripe (background check payment intents)", () => {
     });
     mockIsTrainerBackgroundCheckPaymentIntent.mockReturnValue(true);
     mockApplyTrainerBackgroundCheckStripePayment.mockResolvedValue(undefined);
+    mockSyncTrainerComplianceWindow.mockResolvedValue(undefined);
   });
 
   afterAll(() => {
@@ -180,6 +188,7 @@ describe("POST /api/webhooks/stripe (background check payment intents)", () => {
       trainerId: "trainer_1",
       vendorPaidCents: 5200,
     });
+    expect(mockSyncTrainerComplianceWindow).toHaveBeenCalledWith("trainer_1");
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ received: true });
   });

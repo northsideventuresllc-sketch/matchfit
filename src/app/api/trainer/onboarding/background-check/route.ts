@@ -1,4 +1,4 @@
-import { defaultBackgroundCheckVendorPaidCents } from "@/lib/checkr";
+import { defaultBackgroundCheckVendorPaidCents } from "@/lib/checkr-config";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { verifyTrainerOnboardingDevPassword } from "@/lib/trainer-dev-bypass";

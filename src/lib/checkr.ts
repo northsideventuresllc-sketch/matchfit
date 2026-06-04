@@ -1,5 +1,4 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { prisma } from "@/lib/prisma";
 
 export { defaultBackgroundCheckVendorPaidCents, getCheckrApiKey, isCheckrApiConfigured } from "@/lib/checkr-config";
 
@@ -31,20 +30,6 @@ export function verifyCheckrWebhookSignature(
   } catch {
     return false;
   }
-}
-
-export async function recordCheckrBackgroundCheckPaid(payload: CheckrReportPaidPayload): Promise<void> {
-  const cents = Math.max(1, Math.floor(payload.vendorPaidCents));
-  await prisma.trainerProfile.update({
-    where: { trainerId: payload.trainerId },
-    data: {
-      hasPaidBackgroundFee: true,
-      backgroundCheckVendorPaidCents: cents,
-      ...(payload.reportId ? { checkrReportId: payload.reportId } : {}),
-      ...(payload.candidateId ? { checkrCandidateId: payload.candidateId } : {}),
-      updatedAt: new Date(),
-    },
-  });
 }
 
 /**

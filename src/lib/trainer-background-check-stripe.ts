@@ -1,6 +1,5 @@
-import { defaultBackgroundCheckVendorPaidCents } from "@/lib/checkr";
+import { defaultBackgroundCheckVendorPaidCents } from "@/lib/checkr-config";
 import { prisma } from "@/lib/prisma";
-import { syncTrainerComplianceWindow } from "@/lib/trainer-compliance-window-sync";
 import { getStripe } from "@/lib/stripe-server";
 import type Stripe from "stripe";
 
@@ -43,7 +42,6 @@ export async function applyTrainerBackgroundCheckStripePayment(args: {
       updatedAt: now,
     },
   });
-  await syncTrainerComplianceWindow(args.trainerId);
 }
 
 export async function createTrainerBackgroundCheckPaymentIntent(args: {

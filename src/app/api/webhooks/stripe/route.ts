@@ -10,7 +10,10 @@ import {
   applyTrainerBackgroundCheckStripePayment,
   isTrainerBackgroundCheckPaymentIntent,
 } from "@/lib/trainer-background-check-stripe";
-import { applyTrainerSignupFeeHoldAuthorized } from "@/lib/trainer-compliance-window-sync";
+import {
+  applyTrainerSignupFeeHoldAuthorized,
+  syncTrainerComplianceWindow,
+} from "@/lib/trainer-compliance-window-sync";
 import { TRAINER_SIGNUP_FEE_HOLD_PURPOSE } from "@/lib/trainer-signup-fee-hold";
 import { getStripe } from "@/lib/stripe-server";
 import {
@@ -82,6 +85,7 @@ export async function POST(req: Request) {
               : Math.max(0, parseInt(String(pi.metadata?.vendorPaidCents ?? "0"), 10) || 0);
           if (cents > 0) {
             await applyTrainerBackgroundCheckStripePayment({ trainerId, vendorPaidCents: cents });
+            await syncTrainerComplianceWindow(trainerId);
           }
         }
       }

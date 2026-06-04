@@ -1,5 +1,5 @@
 import { tryAutomatedCheckrInvitation } from "@/lib/checkr-api-client";
-import { defaultBackgroundCheckVendorPaidCents } from "@/lib/checkr";
+import { defaultBackgroundCheckVendorPaidCents } from "@/lib/checkr-config";
 import { isBackgroundCheckPlanBActive } from "@/lib/checkr-integration";
 import { signBackgroundCheckStaffToken } from "@/lib/background-check-action-token";
 import { appBaseUrlForEmail } from "@/lib/match-fit-email-shell";

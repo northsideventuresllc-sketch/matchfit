@@ -1,4 +1,5 @@
 import { confirmTrainerBackgroundCheckPaymentIntent } from "@/lib/trainer-background-check-stripe";
+import { syncTrainerComplianceWindow } from "@/lib/trainer-compliance-window-sync";
 import { getSessionTrainerId } from "@/lib/session";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
@@ -30,6 +31,7 @@ export async function POST(req: Request) {
       trainerId,
       paymentIntentId: parsed.data.paymentIntentId.trim(),
     });
+    await syncTrainerComplianceWindow(trainerId);
 
     return NextResponse.json({ ok: true });
   } catch (e) {

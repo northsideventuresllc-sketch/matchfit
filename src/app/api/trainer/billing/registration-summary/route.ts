@@ -33,15 +33,16 @@ export async function GET() {
     return NextResponse.json({ error: "Profile not found." }, { status: 404 });
   }
 
+  const hold = (profile.registrationFeeHoldStatus ?? "NOT_STARTED").trim().toUpperCase();
+  const signupFeeOnHold = hold === "HELD" || hold === "CAPTURED";
+  const registrationPaid = profile.hasPaidRegistrationFee || hold === "CAPTURED";
+
   const bgCents = profile.backgroundCheckVendorPaidCents ?? 0;
   const certsOk = certificationsGatePassed(profile);
   const bgOk = profile.backgroundCheckStatus === "APPROVED" && profile.hasPaidBackgroundFee && bgCents > 0;
-  const registrationPaid = profile.hasPaidRegistrationFee;
-  const hold = (profile.registrationFeeHoldStatus ?? "").trim().toUpperCase();
-  const signupFeeOnHold = hold === "HELD" || hold === "CAPTURED";
 
   const { dueCents, error: dueError } =
-    bgOk && !profile.hasPaidRegistrationFee
+    bgOk && !registrationPaid && !signupFeeOnHold
       ? computeTrainerRegistrationDueCents({
           pricingMode:
             profile.registrationFeePricingMode === "STANDARD_100_MINUS_BG"
