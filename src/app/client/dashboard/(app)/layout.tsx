@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ClientDashboardShell } from "@/components/client/client-dashboard-shell";
 import { billingExemptDashboardPath, isClientBillingHardLocked } from "@/lib/client-billing-access";
+import { syncClientPlatformBillingLifecycle } from "@/lib/client-platform-lifecycle";
 import {
   countClientUnreadInboxNotifications,
   runClientNotificationLifecycle,
@@ -34,6 +35,10 @@ export default async function ClientDashboardAppLayout({
       stripeSubscriptionId: true,
       stripeSubscriptionActive: true,
       subscriptionGraceUntil: true,
+      platformTrialEndsAt: true,
+      paymentGraceUntil: true,
+      accountDeactivatedAt: true,
+      platformTrialConsumed: true,
       deidentifiedAt: true,
       accountDeletionRequestedAt: true,
       accountDeletionFinalizeAt: true,
@@ -53,12 +58,33 @@ export default async function ClientDashboardAppLayout({
     redirect("/client/account-suspended");
   }
 
-  if (!client.matchPreferencesCompletedAt) {
+  await syncClientPlatformBillingLifecycle(clientId);
+  const billingClient = await prisma.client.findUnique({
+    where: { id: clientId },
+    select: {
+      matchPreferencesCompletedAt: true,
+      stripeSubscriptionId: true,
+      stripeSubscriptionActive: true,
+      subscriptionGraceUntil: true,
+      platformTrialEndsAt: true,
+      paymentGraceUntil: true,
+      accountDeactivatedAt: true,
+      platformTrialConsumed: true,
+    },
+  });
+  if (!billingClient) {
+    redirect(staleClientSessionInvalidateRedirect("/client"));
+  }
+  if (billingClient.accountDeactivatedAt) {
+    redirect("/client/reactivate");
+  }
+
+  if (!billingClient.matchPreferencesCompletedAt) {
     redirect("/client/dashboard/preferences/onboarding");
   }
 
   const pathname = (await headers()).get("x-mf-pathname") ?? "";
-  if (isClientBillingHardLocked(client) && !billingExemptDashboardPath(pathname)) {
+  if (isClientBillingHardLocked(billingClient) && !billingExemptDashboardPath(pathname)) {
     redirect("/client/dashboard/billing?locked=1");
   }
 

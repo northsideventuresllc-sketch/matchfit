@@ -69,6 +69,24 @@ export async function isEmailTaken(email: string): Promise<boolean> {
   return Boolean(wl);
 }
 
+/** Returns a deactivated client eligible for paid reactivation (not deidentified). */
+export async function findDeactivatedClientForReactivation(email: string) {
+  const e = email.trim().toLowerCase();
+  return prisma.client.findFirst({
+    where: {
+      email: e,
+      deidentifiedAt: null,
+      accountDeactivatedAt: { not: null },
+    },
+    select: {
+      id: true,
+      email: true,
+      username: true,
+      platformTrialConsumed: true,
+    },
+  });
+}
+
 /** True if another account (or pending registration) already uses this email. */
 export async function isEmailTakenByAnother(email: string, excludeClientId: string): Promise<boolean> {
   const e = email.trim().toLowerCase();

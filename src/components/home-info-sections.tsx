@@ -10,7 +10,6 @@ import {
   type HomePageAuth,
 } from "@/lib/home-page-auth";
 import {
-  getClientFoundingTrialMaxClients,
   getTrainerFoundingBgPercentMax,
 } from "@/lib/match-fit-launch-promotion-caps";
 import { MATCH_FIT_PRODUCT_VERSION_ANNOUNCE } from "@/lib/match-fit-product-version";
@@ -79,7 +78,6 @@ function ServiceCard({
 export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
   const loggedIn = homeAuth.clientLoggedIn || homeAuth.trainerLoggedIn;
   const trainerFoundingCap = getTrainerFoundingBgPercentMax();
-  const clientFoundingCap = getClientFoundingTrialMaxClients();
 
   return (
     <div className="mt-20 space-y-6 sm:mt-24 sm:space-y-8">
@@ -140,9 +138,11 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
                 aria-hidden
               />
               <span>
-                <span className="font-semibold text-white/90">First {clientFoundingCap} clients:</span> your first{" "}
-                <span className="font-bold text-[#FFD34E]">14 days on the platform are 100% free</span> so
-                you have an opportunity to enjoy what we can offer before you make a commitment.
+                <span className="font-semibold text-white/90">All new clients:</span> complete sign-up and agree to
+                the Terms of Service to start a{" "}
+                <span className="font-bold text-[#FFD34E]">14-day free trial with no card required</span>. After the
+                trial, you have <span className="font-bold text-[#FFD34E]">14 more days</span> to connect a card and
+                subscribe before the account is deactivated.
               </span>
             </li>
           </ul>

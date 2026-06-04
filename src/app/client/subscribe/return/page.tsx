@@ -13,8 +13,8 @@ function MissingSession() {
         Missing checkout session. Return here from Stripe after completing payment.
       </p>
       <p>
-        <Link href="/client/subscribe" className="text-sm font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
-          Back to subscribe
+        <Link href="/client/dashboard/billing" className="text-sm font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
+          Back to billing
         </Link>
       </p>
     </div>
@@ -64,7 +64,8 @@ function ConfirmCheckout({ sessionId }: { sessionId: string }) {
       <div className="mt-6 space-y-3">
         <p className="text-sm text-white/70">Confirming your membership…</p>
         <p className="text-xs text-white/45">
-          Free trials still require a card on file; you are not charged until the trial ends unless you cancel in Stripe.
+          Connecting your card starts your Match Fit platform subscription. You are charged according to the plan shown at
+          checkout unless a promotional rate applies.
         </p>
       </div>
     );
@@ -76,8 +77,8 @@ function ConfirmCheckout({ sessionId }: { sessionId: string }) {
         {message}
       </p>
       <p>
-        <Link href="/client/subscribe" className="text-sm font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
-          Back to subscribe
+        <Link href="/client/dashboard/billing" className="text-sm font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
+          Back to billing
         </Link>
       </p>
     </div>

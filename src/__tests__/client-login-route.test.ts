@@ -12,6 +12,7 @@ const {
   signLoginChallengeTokenMock,
   publicApiErrorFromUnknownMock,
   verifyTurnstileTokenMock,
+  syncClientPlatformBillingLifecycleMock,
 } = vi.hoisted(() => ({
   clientLoginDeletionRedirectMock: vi.fn(),
   send2FACodeMock: vi.fn(),
@@ -24,6 +25,11 @@ const {
   signLoginChallengeTokenMock: vi.fn(),
   publicApiErrorFromUnknownMock: vi.fn(),
   verifyTurnstileTokenMock: vi.fn(),
+  syncClientPlatformBillingLifecycleMock: vi.fn(),
+}));
+
+vi.mock("@/lib/client-platform-lifecycle", () => ({
+  syncClientPlatformBillingLifecycle: syncClientPlatformBillingLifecycleMock,
 }));
 
 vi.mock("@/lib/account-deletion-login-redirect", () => ({
@@ -78,17 +84,30 @@ function makeRequest(payload: Record<string, unknown>): Request {
   });
 }
 
+function activeClient(overrides?: Record<string, unknown>) {
+  return {
+    id: "client_1",
+    passwordHash: "hash",
+    safetySuspended: false,
+    twoFactorEnabled: false,
+    stripeSubscriptionId: null,
+    stripeSubscriptionActive: false,
+    subscriptionGraceUntil: null,
+    platformTrialEndsAt: new Date(Date.now() + 86_400_000),
+    paymentGraceUntil: null,
+    accountDeactivatedAt: null,
+    platformTrialConsumed: false,
+    ...overrides,
+  };
+}
+
 describe("POST /api/client/login", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
     verifyTurnstileTokenMock.mockResolvedValue({ ok: true });
-    findClientByIdentifierMock.mockResolvedValue({
-      id: "client_1",
-      passwordHash: "hash",
-      safetySuspended: false,
-      twoFactorEnabled: false,
-    });
+    findClientByIdentifierMock.mockResolvedValue(activeClient());
+    syncClientPlatformBillingLifecycleMock.mockResolvedValue(undefined);
     verifyPasswordMock.mockResolvedValue(true);
     getLoginOtpDeliveryMock.mockResolvedValue(null);
     prismaClientUpdateMock.mockResolvedValue(undefined);
@@ -150,12 +169,11 @@ describe("POST /api/client/login", () => {
   });
 
   it("returns 403 with ACCOUNT_SUSPENDED when safety-suspended", async () => {
-    findClientByIdentifierMock.mockResolvedValueOnce({
-      id: "client_1",
-      passwordHash: "hash",
-      safetySuspended: true,
-      twoFactorEnabled: false,
-    });
+    findClientByIdentifierMock.mockResolvedValueOnce(
+      activeClient({
+        safetySuspended: true,
+      }),
+    );
 
     const response = await POST(makeRequest({ identifier: "member@example.com", password: "Password1!" }));
 
@@ -168,13 +186,32 @@ describe("POST /api/client/login", () => {
     expect(getLoginOtpDeliveryMock).not.toHaveBeenCalled();
   });
 
-  it("issues a 2FA challenge when 2FA is enabled and an email delivery target exists", async () => {
-    findClientByIdentifierMock.mockResolvedValueOnce({
-      id: "client_1",
-      passwordHash: "hash",
-      safetySuspended: false,
-      twoFactorEnabled: true,
+  it("returns 403 with ACCOUNT_DEACTIVATED when billing lifecycle blocks login", async () => {
+    findClientByIdentifierMock.mockResolvedValue(
+      activeClient({
+        platformTrialEndsAt: new Date(Date.now() - 86_400_000),
+        paymentGraceUntil: new Date(Date.now() - 86_400_000),
+        accountDeactivatedAt: new Date(Date.now() - 86_400_000),
+        platformTrialConsumed: true,
+      }),
+    );
+
+    const response = await POST(makeRequest({ identifier: "member@example.com", password: "Password1!" }));
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "ACCOUNT_DEACTIVATED",
+      next: "/client/reactivate",
     });
+    expect(syncClientPlatformBillingLifecycleMock).toHaveBeenCalledWith("client_1");
+  });
+
+  it("issues a 2FA challenge when 2FA is enabled and an email delivery target exists", async () => {
+    findClientByIdentifierMock.mockResolvedValue(
+      activeClient({
+        twoFactorEnabled: true,
+      }),
+    );
     getLoginOtpDeliveryMock.mockResolvedValueOnce({ email: "member@example.com" });
 
     const response = await POST(makeRequest({ identifier: "member@example.com", password: "Password1!" }));

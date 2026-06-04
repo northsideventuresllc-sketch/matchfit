@@ -1,17 +1,15 @@
-import {
-  resolveClientSubscriptionBilling,
-  type ClientSubscriptionBillingChoice,
-} from "@/lib/match-fit-launch-promotions";
-import { estimateStripeProcessingFeeCents } from "@/lib/stripe-processing-fee";
 import { purgeExpiredRegistrationHolds } from "@/lib/purge-registration-holds";
 import { prisma } from "@/lib/prisma";
-import { getRegistrationHoldPendingId } from "@/lib/session";
+import { getRegistrationHoldPendingId, getSessionClientId } from "@/lib/session";
 import { getStripe } from "@/lib/stripe-server";
+import { resolveClientSubscriptionBilling } from "@/lib/match-fit-launch-promotions";
+import { estimateStripeProcessingFeeCents } from "@/lib/stripe-processing-fee";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 const bodySchema = z.object({
   billingChoice: z.enum(["trial_3d", "pay_now"]).optional(),
+  reactivation: z.boolean().optional(),
 });
 
 function errorMessage(err: unknown): string {
@@ -26,6 +24,48 @@ function getAppOrigin(req: Request): string {
   const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
   if (fromEnv) return fromEnv;
   return new URL(req.url).origin;
+}
+
+async function createClientSubscriptionCheckout(args: {
+  req: Request;
+  stripe: NonNullable<ReturnType<typeof getStripe>>;
+  priceId: string;
+  customerEmail: string;
+  metadata: Record<string, string>;
+  trialDays: number;
+  successPath?: string;
+}) {
+  const origin = getAppOrigin(args.req);
+  const monthlyCents = 1000;
+  const processingCents =
+    args.metadata.matchFitBillingChoice === "pay_now" ? estimateStripeProcessingFeeCents(monthlyCents) : 0;
+  const successPath = args.successPath ?? "/client/subscribe/return?session_id={CHECKOUT_SESSION_ID}";
+
+  const session = await args.stripe.checkout.sessions.create({
+    mode: "subscription",
+    customer_email: args.customerEmail,
+    payment_method_collection: "always",
+    line_items: [{ price: args.priceId, quantity: 1 }],
+    success_url: `${origin}${successPath}`,
+    cancel_url: `${origin}/client/dashboard/billing?canceled=1`,
+    metadata: {
+      ...args.metadata,
+      ...(processingCents > 0 ? { estimatedFirstInvoiceProcessingCents: String(processingCents) } : {}),
+    },
+    subscription_data: {
+      ...(args.trialDays > 0 ? { trial_period_days: args.trialDays } : {}),
+      metadata: args.metadata,
+    },
+  });
+
+  if (!session.url) {
+    return NextResponse.json(
+      { error: "Stripe did not return a checkout URL. Check your Stripe account and price configuration." },
+      { status: 502 },
+    );
+  }
+
+  return NextResponse.json({ url: session.url });
 }
 
 export async function POST(req: Request) {
@@ -56,6 +96,44 @@ export async function POST(req: Request) {
       );
     }
 
+    const json = await req.json().catch(() => ({}));
+    const parsed = bodySchema.safeParse(json);
+
+    const sessionClientId = await getSessionClientId();
+    if (sessionClientId) {
+      const client = await prisma.client.findUnique({
+        where: { id: sessionClientId },
+        select: {
+          email: true,
+          accountDeactivatedAt: true,
+          paymentGraceUntil: true,
+          platformTrialEndsAt: true,
+          stripeSubscriptionActive: true,
+        },
+      });
+      if (!client) {
+        return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+      }
+      const needsPayment =
+        Boolean(client.accountDeactivatedAt) ||
+        (client.paymentGraceUntil && client.paymentGraceUntil.getTime() > Date.now()) ||
+        (client.platformTrialEndsAt && client.platformTrialEndsAt.getTime() <= Date.now() && !client.stripeSubscriptionActive);
+      if (needsPayment || parsed.success && parsed.data.reactivation) {
+        return createClientSubscriptionCheckout({
+          req,
+          stripe,
+          priceId,
+          customerEmail: client.email,
+          metadata: {
+            clientId: sessionClientId,
+            matchFitBillingChoice: "reactivation_pay_now",
+          },
+          trialDays: 0,
+          successPath: "/client/subscribe/return?session_id={CHECKOUT_SESSION_ID}",
+        });
+      }
+    }
+
     const holdId = await getRegistrationHoldPendingId();
     if (!holdId) {
       return NextResponse.json({ error: "No registration in progress. Start sign-up again." }, { status: 401 });
@@ -74,12 +152,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "This account is not ready for billing." }, { status: 400 });
     }
 
-    const json = await req.json().catch(() => ({}));
-    const parsed = bodySchema.safeParse(json);
-    const billingChoice: ClientSubscriptionBillingChoice | undefined = parsed.success
-      ? parsed.data.billingChoice
-      : undefined;
-
+    const billingChoice = parsed.success ? parsed.data.billingChoice : undefined;
     const billing = await resolveClientSubscriptionBilling({ billingChoice });
     if (!billing.foundingSlot && !billingChoice) {
       return NextResponse.json(
@@ -88,11 +161,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const origin = getAppOrigin(req);
-    const monthlyCents = 1000;
-    const processingCents =
-      billing.choice === "pay_now" ? estimateStripeProcessingFeeCents(monthlyCents) : 0;
-
     const subscriptionMetadata: Record<string, string> = {
       holdId: hold.id,
       matchFitBillingChoice: billing.choice,
@@ -100,37 +168,14 @@ export async function POST(req: Request) {
     };
 
     try {
-      const session = await stripe.checkout.sessions.create({
-        mode: "subscription",
-        customer_email: hold.email,
-        payment_method_collection: "always",
-        line_items: [{ price: priceId, quantity: 1 }],
-        success_url: `${origin}/client/subscribe/return?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin}/client/subscribe?canceled=1`,
-        metadata: {
-          holdId: hold.id,
-          matchFitBillingChoice: billing.choice,
-          ...(billing.foundingSlot ? { matchFitFoundingTrial: "1" } : {}),
-          ...(processingCents > 0 ? { estimatedFirstInvoiceProcessingCents: String(processingCents) } : {}),
-        },
-        subscription_data: {
-          ...(billing.trialDays > 0 ? { trial_period_days: billing.trialDays } : {}),
-          metadata: subscriptionMetadata,
-        },
-      });
-
-      if (!session.url) {
-        return NextResponse.json(
-          { error: "Stripe did not return a checkout URL. Check your Stripe account and price configuration." },
-          { status: 502 },
-        );
-      }
-
-      return NextResponse.json({
-        url: session.url,
-        foundingSlot: billing.foundingSlot,
+      return await createClientSubscriptionCheckout({
+        req,
+        stripe,
+        priceId,
+        customerEmail: hold.email,
+        metadata: subscriptionMetadata,
         trialDays: billing.trialDays,
-        choice: billing.choice,
+        successPath: "/client/subscribe/return?session_id={CHECKOUT_SESSION_ID}&legacy=1",
       });
     } catch (e) {
       console.error("[create-subscription] Stripe Checkout error:", e);

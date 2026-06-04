@@ -2,12 +2,11 @@ import { verifyOtp } from "@/lib/otp";
 import { purgeExpiredRegistrationHolds } from "@/lib/purge-registration-holds";
 import { prisma } from "@/lib/prisma";
 import { completePendingSchema } from "@/lib/validations/client-register";
-import { setRegistrationHoldCookie } from "@/lib/session";
+import { applyClientSessionToNextResponse } from "@/lib/session";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { verifyTurnstileToken } from "@/lib/turnstile-verify";
+import { finalizeClientRegistrationFromSignup } from "@/lib/client-register-finalize";
 import { NextResponse } from "next/server";
-
-const HOLD_TTL_MS = 72 * 60 * 60 * 1000;
 
 export async function POST(req: Request) {
   try {
@@ -43,18 +42,40 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid verification code." }, { status: 400 });
     }
 
-    await prisma.pendingClientRegistration.update({
-      where: { id: pending.id },
-      data: {
-        status: "AWAITING_PAYMENT",
-        otpHash: null,
-        otpExpiresAt: null,
-        expiresAt: new Date(Date.now() + HOLD_TTL_MS),
+    const result = await finalizeClientRegistrationFromSignup(
+      {
+        firstName: pending.firstName,
+        lastName: pending.lastName,
+        preferredName: pending.preferredName,
+        username: pending.username,
+        phone: pending.phone,
+        email: pending.email,
+        password: "",
+        zipCode: pending.zipCode,
+        dateOfBirth: pending.dateOfBirth,
+        stayLoggedIn: pending.stayLoggedIn,
       },
-    });
+      {
+        betaClientWaitlistEntryId: pending.betaClientWaitlistEntryId,
+        twoFactorEnabled: true,
+        twoFactorMethod: pending.twoFactorMethod === "EMAIL" ? "EMAIL" : "NONE",
+        passwordHash: pending.passwordHash,
+      },
+    );
 
-    await setRegistrationHoldCookie(pending.id);
-    return NextResponse.json({ ok: true, pendingId: pending.id, next: "/client/subscribe" });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error, code: result.code }, { status: 400 });
+    }
+
+    await prisma.pendingClientRegistration.deleteMany({ where: { id: pending.id } });
+
+    const res = NextResponse.json({
+      ok: true,
+      clientId: result.clientId,
+      next: "/client/dashboard/preferences/onboarding",
+    });
+    await applyClientSessionToNextResponse(res, result.clientId, pending.stayLoggedIn);
+    return res;
   } catch (e) {
     const { message, status } = publicApiErrorFromUnknown(e, "Could not complete verification. Try again.", {
       logLabel: "[Match Fit complete-pending]",

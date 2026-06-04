@@ -8,6 +8,16 @@ type Summary = {
   hasSubscription: boolean;
   stripeSubscriptionActive: boolean;
   subscriptionGraceUntil: string | null;
+  platformTrialEndsAt: string | null;
+  paymentGraceUntil: string | null;
+  accountDeactivatedAt: string | null;
+  platformTrialConsumed: boolean;
+  accessPhase:
+    | "platform_trial"
+    | "payment_grace"
+    | "deactivated"
+    | "paid"
+    | "stripe_lapsed_grace";
   nextBillingDate: string | null;
   subscriptionStatus: string | null;
   cancelAtPeriodEnd: boolean;
@@ -45,6 +55,29 @@ export function ClientBillingPageClient() {
     }, 0);
     return () => window.clearTimeout(t);
   }, [load]);
+
+  async function startSubscriptionCheckout() {
+    setBusy("checkout");
+    setError(null);
+    try {
+      const res = await fetch("/api/client/billing/create-subscription", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reactivation: summary?.accessPhase === "deactivated" }),
+      });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        setError(data.error ?? "Could not start checkout.");
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      setError("Network error.");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function openPortal() {
     setBusy("portal");
@@ -88,8 +121,8 @@ export function ClientBillingPageClient() {
     <div className="space-y-6">
       {locked ? (
         <p className="rounded-2xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-center text-sm text-[#FFB4B4]">
-          YOUR SUBSCRIPTION NEEDS ATTENTION. UPDATE PAYMENT OR RENEW BELOW TO RESTORE FULL ACCESS AFTER ANY GRACE
-          PERIOD.
+          YOUR FREE TRIAL HAS ENDED. CONNECT A CARD AND SUBSCRIBE BELOW WITHIN YOUR PAYMENT GRACE WINDOW TO KEEP ACCESS.
+          AFTER GRACE EXPIRES, YOUR ACCOUNT IS DEACTIVATED UNTIL YOU PAY TO REACTIVATE.
         </p>
       ) : null}
 
@@ -106,10 +139,32 @@ export function ClientBillingPageClient() {
           <div className="space-y-2 text-center">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">Subscription</p>
             <p className="text-sm text-white/75">
-              {summary.hasSubscription
-                ? `STATUS: ${(summary.subscriptionStatus ?? "UNKNOWN").toUpperCase().replace(/_/g, " ")}`
-                : "NO ACTIVE STRIPE SUBSCRIPTION ON THIS ACCOUNT (DEVELOPMENT OR LEGACY)."}
+              {summary.accessPhase === "platform_trial"
+                ? "FREE TRIAL ACTIVE — NO CARD REQUIRED YET."
+                : summary.accessPhase === "payment_grace"
+                  ? "PAYMENT GRACE — SUBSCRIBE AND ADD A CARD TO RESTORE FULL ACCESS."
+                  : summary.hasSubscription
+                    ? `STATUS: ${(summary.subscriptionStatus ?? "UNKNOWN").toUpperCase().replace(/_/g, " ")}`
+                    : "NO ACTIVE STRIPE SUBSCRIPTION ON THIS ACCOUNT."}
             </p>
+            {summary.platformTrialEndsAt && summary.accessPhase === "platform_trial" ? (
+              <p className="text-xs text-emerald-200/90">
+                FREE TRIAL ENDS:{" "}
+                {new Date(summary.platformTrialEndsAt).toLocaleString(undefined, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              </p>
+            ) : null}
+            {summary.paymentGraceUntil && summary.accessPhase === "payment_grace" ? (
+              <p className="text-xs text-amber-200/90">
+                PAYMENT GRACE ENDS:{" "}
+                {new Date(summary.paymentGraceUntil).toLocaleString(undefined, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              </p>
+            ) : null}
             {summary.nextBillingDate ? (
               <p className="text-xs text-white/50">
                 NEXT BILLING DATE:{" "}
@@ -152,6 +207,16 @@ export function ClientBillingPageClient() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+            {summary.accessPhase === "payment_grace" || summary.accessPhase === "stripe_lapsed_grace" ? (
+              <button
+                type="button"
+                disabled={busy !== null}
+                onClick={() => void startSubscriptionCheckout()}
+                className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-[#FF7E00]/50 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-4 text-xs font-black uppercase tracking-[0.08em] text-[#0B0C0F] transition disabled:opacity-40 sm:max-w-xs"
+              >
+                {busy === "checkout" ? "OPENING CHECKOUT…" : "SUBSCRIBE & ADD CARD"}
+              </button>
+            ) : null}
             <button
               type="button"
               disabled={busy !== null || !summary.hasStripeCustomer}

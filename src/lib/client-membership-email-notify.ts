@@ -3,7 +3,7 @@ import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send"
 import { appBaseUrlForEmail } from "@/lib/match-fit-email-shell";
 
 function billingDashboardUrl(): string {
-  return `${appBaseUrlForEmail()}/client/subscribe`;
+  return `${appBaseUrlForEmail()}/client/dashboard/billing`;
 }
 
 export async function notifyClientMembershipTrialStarted(args: {

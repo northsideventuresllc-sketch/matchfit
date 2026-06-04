@@ -214,28 +214,22 @@ export default async function PromosPage() {
               </div>
 
               <p className="mt-5 text-pretty text-[15px] leading-relaxed text-white/65 sm:text-base">
-                The first{" "}
-                <span className="font-bold text-[#FFD34E]">{clientFoundingMax} clients</span> to join Match Fit
-                receive a{" "}
-                <span className="font-bold text-[#FFD34E]">{trialDays}-day free trial</span> before their
-                first billing cycle — so you can experience the platform fully before making a commitment. A
-                card is required upfront but{" "}
-                <span className="font-semibold text-white/80">
-                  you will not be charged for {trialDays} days
-                </span>
-                . Atlanta-area clients can book{" "}
-                <span className="font-semibold text-white/70">in-person or virtual</span> sessions; clients outside Atlanta are matched with{" "}
-                <span className="font-semibold text-white/70">virtual coaches only</span>.
+                Complete client sign-up and agree to the Terms of Service to start a{" "}
+                <span className="font-bold text-[#FFD34E]">{trialDays}-day free trial</span> with{" "}
+                <span className="font-semibold text-white/80">no card required at sign-up</span>. When the trial ends,
+                you have <span className="font-bold text-[#FFD34E]">14 days</span> to connect a card and subscribe.
+                If payment is not completed in that window, the account is deactivated until you pay to reactivate — a
+                new free trial is not offered on reactivation.
               </p>
 
               <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="font-semibold text-white/75">Standard trial</span>
-                  <span className="text-white/55">3 days free</span>
+                  <span className="font-semibold text-white/75">Free trial at sign-up</span>
+                  <span className="text-white/55">{trialDays} days, no card</span>
                 </div>
                 <div className="mt-2 flex items-center justify-between text-sm">
-                  <span className="font-bold text-[#FFD34E]">Founding trial</span>
-                  <span className="font-bold text-[#FFD34E]">{trialDays} days free</span>
+                  <span className="font-bold text-[#FFD34E]">Payment grace after trial</span>
+                  <span className="font-bold text-[#FFD34E]">14 days</span>
                 </div>
               </div>
 
@@ -296,7 +290,7 @@ export default async function PromosPage() {
             </li>
             <li className="flex gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />
-              <span>Clients receive a 3-day free trial before their first billing cycle.</span>
+              <span>Clients receive a {trialDays}-day free trial at sign-up (no card required), then 14 days to subscribe before deactivation.</span>
             </li>
             <li className="flex gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />

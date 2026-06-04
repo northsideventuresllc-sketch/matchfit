@@ -23,9 +23,9 @@ function resolvePostVerifyPath(user: { user_metadata?: Record<string, unknown> }
     return pending ? "/trainer/signup/complete" : "/trainer/onboarding";
   }
   if (role === "client") {
-    return pending ? "/client/sign-up/complete" : "/client/subscribe";
+    return pending ? "/client/sign-up/complete" : "/client/dashboard";
   }
-  return "/client/subscribe";
+  return "/client/sign-up";
 }
 
 /**
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
   }
 
   const cookieStore = await cookies();
-  const provisionalPath = "/client/subscribe";
+  const provisionalPath = "/client/sign-up";
   const response = NextResponse.redirect(new URL(provisionalPath, origin));
 
   const supabase = createServerClient(url, anon, {

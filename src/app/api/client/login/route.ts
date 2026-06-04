@@ -1,4 +1,6 @@
 import { clientLoginDeletionRedirect } from "@/lib/account-deletion-login-redirect";
+import { isClientAccountLoginBlocked } from "@/lib/client-billing-access";
+import { syncClientPlatformBillingLifecycle } from "@/lib/client-platform-lifecycle";
 import { send2FACode } from "@/lib/auth-2fa-email";
 import { findClientByIdentifier } from "@/lib/client-queries";
 import { getLoginOtpDelivery } from "@/lib/login-two-factor-target";
@@ -13,6 +15,18 @@ import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { verifyTurnstileToken } from "@/lib/turnstile-verify";
 import { loginSchema } from "@/lib/validations/client-register";
 import { NextResponse } from "next/server";
+
+function accountDeactivatedResponse() {
+  return NextResponse.json(
+    {
+      error:
+        "Your Match Fit account is deactivated because payment was not completed after your free trial. Pay to reactivate your account.",
+      code: "ACCOUNT_DEACTIVATED",
+      next: "/client/reactivate",
+    },
+    { status: 403 },
+  );
+}
 
 function accountSuspendedResponse() {
   return NextResponse.json(
@@ -48,16 +62,35 @@ export async function POST(req: Request) {
       return accountSuspendedResponse();
     }
 
-    const otpDelivery = await getLoginOtpDelivery(client.id);
-    if (client.twoFactorEnabled && otpDelivery) {
+    await syncClientPlatformBillingLifecycle(client.id);
+    const refreshed = await findClientByIdentifier(identifier);
+    if (!refreshed) {
+      return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
+    }
+    if (
+      isClientAccountLoginBlocked({
+        stripeSubscriptionId: refreshed.stripeSubscriptionId,
+        stripeSubscriptionActive: refreshed.stripeSubscriptionActive,
+        subscriptionGraceUntil: refreshed.subscriptionGraceUntil,
+        platformTrialEndsAt: refreshed.platformTrialEndsAt,
+        paymentGraceUntil: refreshed.paymentGraceUntil,
+        accountDeactivatedAt: refreshed.accountDeactivatedAt,
+        platformTrialConsumed: refreshed.platformTrialConsumed,
+      })
+    ) {
+      return accountDeactivatedResponse();
+    }
+
+    const otpDelivery = await getLoginOtpDelivery(refreshed.id);
+    if (refreshed.twoFactorEnabled && otpDelivery) {
       try {
-        await send2FACode(otpDelivery.email, client.id, "CLIENT");
+        await send2FACode(otpDelivery.email, refreshed.id, "CLIENT");
       } catch (deliverErr) {
         console.error("[Match Fit login 2FA] Email OTP delivery failed.", deliverErr);
         throw deliverErr;
       }
       await prisma.client.update({
-        where: { id: client.id },
+        where: { id: refreshed.id },
         data: {
           stayLoggedIn,
           twoFactorLoginAttempts: 0,
@@ -66,7 +99,7 @@ export async function POST(req: Request) {
           twoFactorOtpExpires: null,
         },
       });
-      const token = await signLoginChallengeToken(client.id, { stayLoggedIn });
+      const token = await signLoginChallengeToken(refreshed.id, { stayLoggedIn });
       const res = NextResponse.json({
         needsTwoFactor: true,
         next: "/verify-2fa",
@@ -76,14 +109,14 @@ export async function POST(req: Request) {
     }
 
     await prisma.client.update({
-      where: { id: client.id },
+      where: { id: refreshed.id },
       data: { stayLoggedIn },
     });
-    const deletionRedirect = await clientLoginDeletionRedirect(client.id);
+    const deletionRedirect = await clientLoginDeletionRedirect(refreshed.id);
     const res = NextResponse.json(
       deletionRedirect ? { ok: true, ...deletionRedirect } : { ok: true },
     );
-    await applyClientSessionToNextResponse(res, client.id, stayLoggedIn);
+    await applyClientSessionToNextResponse(res, refreshed.id, stayLoggedIn);
     return res;
   } catch (e) {
     const { message, status } = publicApiErrorFromUnknown(e, "Sign-in failed. Please try again.", {

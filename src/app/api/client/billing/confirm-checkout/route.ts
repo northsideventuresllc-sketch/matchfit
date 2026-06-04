@@ -1,6 +1,12 @@
 import { finalizeRegistrationAfterPayment } from "@/lib/billing-finalize";
+import { finalizeClientSubscriptionPayment } from "@/lib/client-subscription-payment-finalize";
 import { prisma } from "@/lib/prisma";
-import { clearRegistrationHoldCookie, getRegistrationHoldPendingId, setClientSession } from "@/lib/session";
+import {
+  clearRegistrationHoldCookie,
+  getRegistrationHoldPendingId,
+  getSessionClientId,
+  setClientSession,
+} from "@/lib/session";
 import { getStripe } from "@/lib/stripe-server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -36,6 +42,36 @@ export async function POST(req: Request) {
       );
     }
 
+    const sub = session.subscription;
+    const subscriptionId = typeof sub === "string" ? sub : sub?.id;
+    if (!subscriptionId) {
+      return NextResponse.json({ error: "No subscription on this checkout session." }, { status: 400 });
+    }
+
+    const metaClientId = session.metadata?.clientId;
+    if (metaClientId && typeof metaClientId === "string") {
+      const sessionClientId = await getSessionClientId();
+      if (!sessionClientId || sessionClientId !== metaClientId) {
+        return NextResponse.json(
+          {
+            error:
+              "This checkout does not match your current session. Sign in with the account you are reactivating and try again.",
+          },
+          { status: 403 },
+        );
+      }
+      const result = await finalizeClientSubscriptionPayment(subscriptionId);
+      if (!result.ok) {
+        return NextResponse.json({ error: result.error }, { status: 400 });
+      }
+      const created = await prisma.client.findUnique({
+        where: { id: result.clientId },
+        select: { stayLoggedIn: true },
+      });
+      await setClientSession(result.clientId, created?.stayLoggedIn ?? true);
+      return NextResponse.json({ ok: true, clientId: result.clientId });
+    }
+
     const metaHoldId = session.metadata?.holdId;
     const cookieHoldId = await getRegistrationHoldPendingId();
     if (!metaHoldId || typeof metaHoldId !== "string") {
@@ -49,12 +85,6 @@ export async function POST(req: Request) {
         },
         { status: 403 },
       );
-    }
-
-    const sub = session.subscription;
-    const subscriptionId = typeof sub === "string" ? sub : sub?.id;
-    if (!subscriptionId) {
-      return NextResponse.json({ error: "No subscription on this checkout session." }, { status: 400 });
     }
 
     const result = await finalizeRegistrationAfterPayment(subscriptionId);

@@ -308,8 +308,7 @@ function ClientSignUpPageInner() {
         }
       }
       trackMetaLead("client");
-      // Full navigation so the httpOnly registration cookie is present before the billing page loads.
-      navigateWithFullLoad(data.next ?? "/client/subscribe");
+      navigateWithFullLoad(data.next ?? "/client/dashboard/preferences/onboarding");
     } catch {
       setError("Something went wrong. Try again.");
     } finally {
@@ -394,7 +393,7 @@ function ClientSignUpPageInner() {
         }
       }
       trackMetaLead("client");
-      navigateWithFullLoad(data.next ?? "/client/subscribe");
+      navigateWithFullLoad(data.next ?? "/client/dashboard/preferences/onboarding");
     } catch {
       setError("Something went wrong. Try again.");
     } finally {
@@ -439,7 +438,7 @@ function ClientSignUpPageInner() {
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-white/55 sm:text-base">
           {wizardStep === 1
-            ? "Tell us a bit about yourself. U.S. beta — anyone in the United States can sign up. You must be 18 or older. In-person sessions launch first in the Atlanta metro area."
+            ? "Tell us a bit about yourself. After you agree to the Terms of Service, your account starts with a 14-day free trial — no card required at sign-up. U.S. beta — anyone in the United States can sign up. You must be 18 or older."
             : awaitingCode
               ? "Check your inbox for a verification email with your code."
               : "Add an extra layer of security, or skip and turn this on later in settings."}
@@ -480,6 +479,17 @@ function ClientSignUpPageInner() {
                         className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline"
                       >
                         Join the client waitlist
+                      </Link>
+                    </>
+                  ) : null}
+                  {errorCode === "ACCOUNT_REACTIVATION_REQUIRED" ? (
+                    <>
+                      {" "}
+                      <Link
+                        href="/client/reactivate"
+                        className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline"
+                      >
+                        Pay to reactivate
                       </Link>
                     </>
                   ) : null}
@@ -676,7 +686,7 @@ function ClientSignUpPageInner() {
                   className="mt-1 h-4 w-4 shrink-0 accent-[#FF7E00] focus:ring-2 focus:ring-[#FF7E00]/40 focus:ring-offset-0"
                 />
                 <label htmlFor="su-stay" className="text-sm leading-relaxed text-white/70">
-                  Stay logged in on this device after you subscribe (uses a longer browser session when enabled).
+                  Stay logged in on this device after sign-up (uses a longer browser session when enabled).
                 </label>
               </div>
 

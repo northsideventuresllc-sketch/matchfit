@@ -225,6 +225,14 @@ model Client {
   subscriptionGraceUntil DateTime?
   /// Set from Stripe `invoice.payment_succeeded` (and initial signup) for analytics / “recently paid” windows.
   stripeLastSubscriptionInvoicePaidAt DateTime?
+  /// End of the card-free platform trial granted at sign-up (before payment is required).
+  platformTrialEndsAt DateTime?
+  /// After the platform trial ends, clients have until this instant to add a card and subscribe.
+  paymentGraceUntil DateTime?
+  /// When set, login and dashboard access are blocked until the client pays to reactivate.
+  accountDeactivatedAt DateTime?
+  /// True once the client consumed their one-time platform trial (reactivation requires payment).
+  platformTrialConsumed Boolean @default(false)
 
   /// Short public-style bio; never expose private address to trainer APIs.
   bio String?

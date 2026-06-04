@@ -83,11 +83,13 @@ export default async function PrivacyPage() {
           subscriptions and certain coach payments through Stripe, send security and transactional messages through email
           infrastructure, deliver optional browser Web Push alerts when you opt in, collect limited usage analytics on
           public marketing and product pages (such as page views and link clicks), and store your in-app activity
-          (including chats and social posts) on our systems. You may adjust optional visibility of some profile fields and
-          request in-product account deletion, which schedules removal after a grace period as described in Section 7, while
-          preserving the minimum data we need for trust, safety, and legal compliance. We use reasonable
-          technical and organizational measures to protect personal information. We do not sell your personal information
-          as that term is commonly defined in U.S. state privacy laws.
+          (including chats and social posts) on our systems. Client sign-up includes a 14-day platform access trial with
+          no card required; after the trial, you have 14 days to subscribe before the account is deactivated until paid
+          reactivation. You may adjust optional visibility of some profile fields and request in-product account
+          deletion, which schedules removal after a grace period as described in Section 7, while preserving the
+          minimum data we need for trust, safety, and legal compliance. We use reasonable technical and organizational
+          measures to protect personal information. We do not sell your personal information as that term is commonly
+          defined in U.S. state privacy laws.
         </P>
 
         <H2 id="collect">2. Information We Collect</H2>
@@ -137,8 +139,10 @@ export default async function PrivacyPage() {
             your complete mailing address.
           </Li>
           <Li>
-            <Strong>Billing:</Strong> Stripe customer and subscription identifiers; payment details are collected by
-            Stripe under its own terms and privacy policy—we do not store full payment card numbers on our servers.
+            <Strong>Billing:</Strong> Stripe customer and subscription identifiers when you subscribe; payment details are
+            collected by Stripe under its own terms and privacy policy—we do not store full payment card numbers on our
+            servers. We record platform trial end dates, payment grace windows, and account deactivation timestamps to
+            enforce the client sign-up billing lifecycle described in our Terms.
           </Li>
           <Li>
             <Strong>Social and Engagement on Fit Hub:</Strong> likes, comments, reposts, shares, and content reports you

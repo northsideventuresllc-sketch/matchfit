@@ -1,8 +1,10 @@
-import { isEmailTaken, isUsernameTaken } from "@/lib/client-queries";
+import { isEmailTaken, isUsernameTaken, findDeactivatedClientForReactivation } from "@/lib/client-queries";
 import { BetaCapExceededError } from "@/lib/beta-cap-enforcement";
-import { createClientRegistrationHold } from "@/lib/client-registration-hold";
+import { finalizeClientRegistrationFromSignup } from "@/lib/client-register-finalize";
 import { purgeExpiredRegistrationHolds } from "@/lib/purge-registration-holds";
-import { setRegistrationHoldCookie } from "@/lib/session";
+import {
+  applyClientSessionToNextResponse,
+} from "@/lib/session";
 import {
   firstZodErrorMessage,
   normalizeRegisterJson,
@@ -43,6 +45,19 @@ export async function POST(req: Request) {
     const username = body.username.trim();
     const email = body.email.trim().toLowerCase();
 
+    const deactivated = await findDeactivatedClientForReactivation(email);
+    if (deactivated) {
+      return NextResponse.json(
+        {
+          error:
+            "This email belongs to a deactivated Match Fit account. Pay to reactivate instead of creating a new account.",
+          code: "ACCOUNT_REACTIVATION_REQUIRED",
+          next: `/client/reactivate?email=${encodeURIComponent(email)}`,
+        },
+        { status: 409 },
+      );
+    }
+
     const gate = await evaluateBetaClientRegistrationGate({
       zipCode: body.zipCode,
       email,
@@ -60,17 +75,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "That email is already registered." }, { status: 409 });
     }
 
-    const pending = await createClientRegistrationHold(body, {
+    const result = await finalizeClientRegistrationFromSignup(body, {
       betaClientWaitlistEntryId: gate.betaClientWaitlistEntryId,
-      status: "AWAITING_PAYMENT",
       twoFactorEnabled: false,
       twoFactorMethod: "NONE",
-      otpHash: null,
-      otpExpiresAt: null,
     });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error, code: result.code }, { status: result.code === "BETA_CLIENT_CAP" ? 403 : 400 });
+    }
 
-    await setRegistrationHoldCookie(pending.id);
-    return NextResponse.json({ ok: true, pendingId: pending.id, next: "/client/subscribe" });
+    const res = NextResponse.json({
+      ok: true,
+      clientId: result.clientId,
+      next: "/client/dashboard/preferences/onboarding",
+    });
+    await applyClientSessionToNextResponse(res, result.clientId, body.stayLoggedIn);
+    return res;
   } catch (e) {
     if (e instanceof BetaCapExceededError) {
       return NextResponse.json({ error: e.message, code: e.code }, { status: 403 });

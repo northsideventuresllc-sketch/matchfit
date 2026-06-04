@@ -13,6 +13,7 @@ import {
   shouldSendBackgroundCheckExpiryWarning,
 } from "@/lib/trainer-background-check-renewal";
 import { finalizeDueAccountDeletions } from "@/lib/account-deletion-grace";
+import { runClientPlatformBillingLifecycleJobs } from "@/lib/client-platform-lifecycle";
 import { runBetaWaitlistCronJobs } from "@/lib/beta-waitlist-service";
 
 export type TosCronSummary = {
@@ -38,6 +39,10 @@ export type TosCronSummary = {
   accountDeletions: {
     clientsFinalized: number;
     trainersFinalized: number;
+  };
+  clientPlatformBilling: {
+    paymentGraceStarted: number;
+    accountsDeactivated: number;
   };
 };
 
@@ -222,6 +227,12 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   } catch (e) {
     console.error("[tos cron] account deletion finalize", e);
   }
+  let clientPlatformBilling = { paymentGraceStarted: 0, accountsDeactivated: 0 };
+  try {
+    clientPlatformBilling = await runClientPlatformBillingLifecycleJobs();
+  } catch (e) {
+    console.error("[tos cron] client platform billing lifecycle", e);
+  }
   return {
     backgroundCheckClearedBackfill: backfill,
     backgroundCheckWarningsSent: warnings,
@@ -238,5 +249,6 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     videoOAuthTokenRefreshErrors,
     betaWaitlist,
     accountDeletions,
+    clientPlatformBilling,
   };
 }

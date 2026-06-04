@@ -3,11 +3,12 @@ import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 import { betaInviteSlotDays, betaMaxClients, betaMaxTrainers } from "@/lib/beta-launch-config";
 import { LEGAL_EFFECTIVE_DATE_DISPLAY } from "@/lib/legal-effective-date";
 import {
-  getClientFoundingTrialDays,
-  getClientFoundingTrialMaxClients,
-  getClientPostCapTrialDays,
   getTrainerFoundingBgPercentMax,
 } from "@/lib/match-fit-launch-promotions";
+import {
+  CLIENT_PAYMENT_GRACE_DAYS,
+  CLIENT_PLATFORM_TRIAL_DAYS,
+} from "@/lib/client-platform-trial-constants";
 import {
   CHECK_IN_LEAD_HOURS,
   GATE_A_POST_SESSION_SILENCE_HOURS,
@@ -37,9 +38,6 @@ const BETA_MAX_TRAINERS = betaMaxTrainers();
 const BETA_MAX_CLIENTS = betaMaxClients();
 const BETA_INVITE_SLOT_DAYS = betaInviteSlotDays();
 const FOUNDING_TRAINER_CAP = getTrainerFoundingBgPercentMax();
-const FOUNDING_CLIENT_CAP = getClientFoundingTrialMaxClients();
-const FOUNDING_CLIENT_TRIAL_DAYS = getClientFoundingTrialDays();
-const POST_CAP_CLIENT_TRIAL_DAYS = getClientPostCapTrialDays();
 
 function P({ children }: { children: React.ReactNode }) {
   return <p className="mt-3 text-sm leading-relaxed text-white/60">{children}</p>;
@@ -140,8 +138,9 @@ export default async function TermsPage() {
         <Ul>
           <Li>You must be legally able to enter a binding contract in your jurisdiction to use the Service.</Li>
           <Li>
-            You are responsible for accurate profile and billing information. Clients are required to maintain a valid
-            payment method on file for activation and continued use where the Service requires it.
+            You are responsible for accurate profile and billing information. After your platform free trial, you must
+            connect a valid payment method and maintain an active Platform Subscription to keep access beyond the posted
+            payment grace period.
           </Li>
           <Li>
             You must complete any user agreement or acceptance flows presented in the app (including acknowledgments at
@@ -172,14 +171,20 @@ export default async function TermsPage() {
           may expand in-person regions over time and will describe availability in-product.
         </P>
         <P>
-          <Strong>Founding promotions (while caps last):</Strong> The first{" "}
+          <Strong>Client sign-up trial:</Strong> After you complete client sign-up and agree to these Terms, your account
+          receives a <Strong>{CLIENT_PLATFORM_TRIAL_DAYS}-day</Strong> platform access trial with{" "}
+          <Strong>no card required at sign-up</Strong>. When that trial ends, you have an additional{" "}
+          <Strong>{CLIENT_PAYMENT_GRACE_DAYS} days</Strong> to connect a card and start the recurring Platform Subscription.
+          If payment is not completed before the grace period ends, your account is deactivated and dashboard access is
+          blocked until you pay to reactivate. Reactivation requires payment and a connected card; a new free trial is not
+          offered if you previously consumed the sign-up trial.
+        </P>
+        <P>
+          <Strong>Founding trainer promotions (while caps last):</Strong> The first{" "}
           <Strong>{FOUNDING_TRAINER_CAP} Trainers</Strong> who complete registration may pay a reduced one-time platform
           registration amount equal to <Strong>twenty percent (20%)</Strong> of the background-check fee they paid to the
           independent screening provider (plus transaction fees), instead of the standard one hundred U.S. dollar ($100.00)
-          registration model described in Section 11. The first <Strong>{FOUNDING_CLIENT_CAP} Clients</Strong> may receive a{" "}
-          <Strong>{FOUNDING_CLIENT_TRIAL_DAYS}-day</Strong> platform subscription trial (card on file; billing begins after the
-          trial unless canceled). After founding client slots fill, new Clients may see a shorter trial (currently{" "}
-          <Strong>{POST_CAP_CLIENT_TRIAL_DAYS} days</Strong>) or pay immediately, as shown at checkout.
+          registration model described in Section 11.
         </P>
 
         <H2 id="fees-and-payments">3. Fees, Administrative Charges, and Payment Processing</H2>
@@ -348,10 +353,20 @@ export default async function TermsPage() {
         <H2 id="subscriptions-billing">7. Client Platform Subscription, Pause, and Failed Payments</H2>
         <Ul>
           <Li>
+            New Clients receive a <Strong>{CLIENT_PLATFORM_TRIAL_DAYS}-day</Strong> platform access trial after completing
+            sign-up and agreeing to these Terms. No card is required during that trial. When the trial ends, you have{" "}
+            <Strong>{CLIENT_PAYMENT_GRACE_DAYS} days</Strong> to connect a card and start the recurring Platform Subscription
+            at the rate shown in-product (currently {usdCents(TOS_CLIENT_PLATFORM_SUBSCRIPTION_USD)} per month unless a
+            promotion applies).
+          </Li>
+          <Li>
+            If payment is not completed before the grace period ends, your account is deactivated and you cannot sign in or
+            use dashboard features until you pay to reactivate and connect a card. Attempting to register again with the same
+            email does not grant a new free trial.
+          </Li>
+          <Li>
             Platform subscriptions renew according to the plan you select until canceled in accordance with in-product
-            controls and processor billing portals where linked. Founding Clients in the first {FOUNDING_CLIENT_CAP} slots may
-            receive a {FOUNDING_CLIENT_TRIAL_DAYS}-day trial before the first subscription invoice, subject to a valid payment
-            method on file; details appear at checkout.
+            controls and processor billing portals where linked.
           </Li>
           <Li>
             If you pause your subscription after a bill date as allowed in-product, you may lose access to the trainer
@@ -359,8 +374,9 @@ export default async function TermsPage() {
             subscription will not renew.
           </Li>
           <Li>
-            If a renewal payment fails, you may have a grace period (currently up to <Strong>seven (7) days</Strong>) to
-            update payment information before access is suspended, as implemented in billing flows and communications.
+            If a renewal payment fails after you have an active subscription, you may have a grace period (currently up to{" "}
+            <Strong>seventy-two (72) hours</Strong>) to update payment information before non-billing dashboard access is
+            restricted, as implemented in billing flows and communications.
           </Li>
         </Ul>
 

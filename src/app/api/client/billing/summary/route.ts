@@ -1,4 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import {
+  resolveClientPlatformAccessPhase,
+  type ClientPlatformAccessPhase,
+} from "@/lib/client-platform-access";
+import { syncClientPlatformBillingLifecycle } from "@/lib/client-platform-lifecycle";
 import { getSessionClientId } from "@/lib/session";
 import { getStripe } from "@/lib/stripe-server";
 import { NextResponse } from "next/server";
@@ -10,6 +15,9 @@ export async function GET() {
     if (!clientId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
+
+    await syncClientPlatformBillingLifecycle(clientId);
+
     const client = await prisma.client.findUnique({
       where: { id: clientId },
       select: {
@@ -17,11 +25,17 @@ export async function GET() {
         stripeSubscriptionId: true,
         stripeSubscriptionActive: true,
         subscriptionGraceUntil: true,
+        platformTrialEndsAt: true,
+        paymentGraceUntil: true,
+        accountDeactivatedAt: true,
+        platformTrialConsumed: true,
       },
     });
     if (!client) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
+
+    const accessPhase: ClientPlatformAccessPhase = resolveClientPlatformAccessPhase(client);
 
     const stripe = getStripe();
     let nextBillingDate: string | null = null;
@@ -67,6 +81,11 @@ export async function GET() {
       hasSubscription: Boolean(client.stripeSubscriptionId),
       stripeSubscriptionActive: client.stripeSubscriptionActive,
       subscriptionGraceUntil: client.subscriptionGraceUntil?.toISOString() ?? null,
+      platformTrialEndsAt: client.platformTrialEndsAt?.toISOString() ?? null,
+      paymentGraceUntil: client.paymentGraceUntil?.toISOString() ?? null,
+      accountDeactivatedAt: client.accountDeactivatedAt?.toISOString() ?? null,
+      platformTrialConsumed: client.platformTrialConsumed,
+      accessPhase,
       nextBillingDate,
       subscriptionStatus,
       cancelAtPeriodEnd,
