@@ -83,9 +83,7 @@ export function HomeBetaPromoBanner() {
               <span className="min-w-0 flex-1 text-left [overflow-wrap:anywhere]">
                 <span className="font-semibold text-white/90">All new clients:</span> complete sign-up and agree to the
                 Terms of Service to start a{" "}
-                <span className="font-bold text-[#FFD34E]">14-day free trial with no card required</span>. After the
-                trial, you have <span className="font-bold text-[#FFD34E]">14 more days</span> to connect a card and
-                subscribe before the account is deactivated.
+                <span className="font-bold text-[#FFD34E]">14-day free trial with no card required</span>.
               </span>
             </li>
           </ul>
