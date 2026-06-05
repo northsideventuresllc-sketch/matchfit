@@ -13,7 +13,13 @@ const TRAINER_REGISTER_PROFILE_COLUMNS = [
   "registrationFeeHoldPaymentIntentId",
   "registrationFeeHoldStatus",
   "fitHubPromoEndsAt",
+  "backgroundCheckInviteRequestedAt",
+  "backgroundCheckInviteSentAt",
+  "backgroundCheckEscrowCents",
+  "platformEscrowCents",
 ] as const;
+
+export const TRAINER_REGISTER_PROFILE_COLUMNS_REQUIRED = TRAINER_REGISTER_PROFILE_COLUMNS.length;
 
 export const TRAINER_REGISTER_SCHEMA_DDL = `
 ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "limitedDashboardUnlockedAt" TIMESTAMP(3);
@@ -26,6 +32,10 @@ ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "complianceWindowExpired
 ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "registrationFeeHoldPaymentIntentId" TEXT;
 ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "registrationFeeHoldStatus" TEXT NOT NULL DEFAULT 'NOT_STARTED';
 ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "fitHubPromoEndsAt" TIMESTAMP(3);
+ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "backgroundCheckInviteRequestedAt" TIMESTAMP(3);
+ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "backgroundCheckInviteSentAt" TIMESTAMP(3);
+ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "backgroundCheckEscrowCents" INTEGER;
+ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "platformEscrowCents" INTEGER;
 ALTER TABLE "trainers" ALTER COLUMN "termsAcceptedAt" DROP NOT NULL;
 `;
 
@@ -76,7 +86,11 @@ export async function countTrainerRegisterProfileColumns(): Promise<number> {
         'complianceWindowExpiredAt',
         'registrationFeeHoldPaymentIntentId',
         'registrationFeeHoldStatus',
-        'fitHubPromoEndsAt'
+        'fitHubPromoEndsAt',
+        'backgroundCheckInviteRequestedAt',
+        'backgroundCheckInviteSentAt',
+        'backgroundCheckEscrowCents',
+        'platformEscrowCents'
       )
   `;
   return Number(rows[0]?.count ?? 0);
@@ -98,7 +112,8 @@ export async function isTrainerTermsAcceptedAtNullable(): Promise<boolean | null
 
 /**
  * Applies trainer signup DDL idempotently when production missed
- * `20260603120000_trainer_compliance_window_signup_hold`.
+ * `20260603120000_trainer_compliance_window_signup_hold` or
+ * `20260603120000_background_check_plan_b`.
  */
 export async function ensureTrainerRegisterSchema(): Promise<void> {
   const [profileColumns, termsNullable] = await Promise.all([

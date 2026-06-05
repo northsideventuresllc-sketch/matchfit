@@ -1,6 +1,6 @@
 import { isSupabaseAdminConfigured } from "@/lib/supabase/admin-client";
 import { findSupabaseAuthUserByEmail } from "@/lib/supabase/find-auth-user-by-email";
-import { countTrainerRegisterProfileColumns, isTrainerTermsAcceptedAtNullable } from "@/lib/ensure-trainer-register-schema";
+import { countTrainerRegisterProfileColumns, isTrainerTermsAcceptedAtNullable, TRAINER_REGISTER_PROFILE_COLUMNS_REQUIRED } from "@/lib/ensure-trainer-register-schema";
 import { countTrainerSignupTermsColumns } from "@/lib/ensure-trainer-signup-terms-schema";
 import { probeTrainerRegisterInsert } from "@/lib/probe-trainer-register-insert";
 import { probeTrainerSignupTermsUpdate } from "@/lib/probe-trainer-signup-terms-update";
@@ -37,7 +37,7 @@ export async function GET() {
     authLookupOk &&
     insertProbe.ok &&
     termsProbe.ok &&
-    trainerProfileColumnsFound >= 10 &&
+    trainerProfileColumnsFound >= TRAINER_REGISTER_PROFILE_COLUMNS_REQUIRED &&
     trainerTermsColumnsFound >= 2 &&
     termsAcceptedAtNullable === true;
 
@@ -54,8 +54,8 @@ export async function GET() {
     message = `Trainer sign-up insert probe failed (${insertProbe.code}).`;
   } else if (!termsProbe.ok) {
     message = `Trainer agreement save probe failed (${termsProbe.code}).`;
-  } else if (trainerProfileColumnsFound < 10 || trainerTermsColumnsFound < 2 || termsAcceptedAtNullable !== true) {
-    message = `Trainer signup schema is out of date (profileColumns=${trainerProfileColumnsFound}/10, termsAcceptedAtNullable=${String(termsAcceptedAtNullable)}). The next sign-up attempt should auto-repair.`;
+  } else if (trainerProfileColumnsFound < TRAINER_REGISTER_PROFILE_COLUMNS_REQUIRED || trainerTermsColumnsFound < 2 || termsAcceptedAtNullable !== true) {
+    message = `Trainer signup schema is out of date (profileColumns=${trainerProfileColumnsFound}/${TRAINER_REGISTER_PROFILE_COLUMNS_REQUIRED}, termsAcceptedAtNullable=${String(termsAcceptedAtNullable)}). The next sign-up attempt should auto-repair.`;
   } else {
     message = "Trainer sign-up health check failed.";
   }
@@ -70,7 +70,7 @@ export async function GET() {
     insertProbeCode: insertProbe.ok ? null : insertProbe.code,
     insertProbeError: insertProbe.ok ? null : insertProbe.message.slice(0, 500),
     trainerProfileColumnsFound,
-    trainerProfileColumnsRequired: 10,
+    trainerProfileColumnsRequired: TRAINER_REGISTER_PROFILE_COLUMNS_REQUIRED,
     trainerTermsColumnsFound,
     trainerTermsColumnsRequired: 2,
     termsProbeOk: termsProbe.ok,
