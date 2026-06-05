@@ -56,7 +56,10 @@ export async function sendResendEmail(params: {
   html?: string;
   replyTo?: string;
 }): Promise<string | undefined> {
-  const key = process.env.RESEND_API_KEY;
+  const { hydratePlatformEnvFromDatabase } = await import("@/lib/hydrate-platform-env");
+  const { readPlatformSecret } = await import("@/lib/platform-secrets");
+  await hydratePlatformEnvFromDatabase();
+  const key = (await readPlatformSecret("RESEND_API_KEY")) ?? process.env.RESEND_API_KEY?.trim();
   if (!key) {
     throw new Error("RESEND_API_KEY is not set.");
   }

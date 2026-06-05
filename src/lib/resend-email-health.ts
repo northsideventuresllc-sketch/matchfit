@@ -1,24 +1,31 @@
 import "server-only";
 
 import { matchFitProductionFromHeader } from "@/lib/resend-client";
+import { readPlatformSecret } from "@/lib/platform-secrets";
+import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 
 export type ResendEmailHealth = {
   configured: boolean;
   apiReachable: boolean;
   fromAddress: string | null;
   domainVerified: boolean | null;
+  loadedFromPlatformSecrets: boolean;
   error: string | null;
 };
 
 /** Confirms RESEND_API_KEY is valid and the match-fit.net sending domain is verified. */
 export async function resendEmailHealth(): Promise<ResendEmailHealth> {
-  const key = process.env.RESEND_API_KEY?.trim();
+  await hydratePlatformEnvFromDatabase();
+  const fromDb = await readPlatformSecret("RESEND_API_KEY");
+  const loadedFromPlatformSecrets = Boolean(fromDb);
+  const key = fromDb ?? process.env.RESEND_API_KEY?.trim();
   if (!key) {
     return {
       configured: false,
       apiReachable: false,
       fromAddress: null,
       domainVerified: null,
+      loadedFromPlatformSecrets,
       error: "RESEND_API_KEY is not set.",
     };
   }
@@ -37,6 +44,7 @@ export async function resendEmailHealth(): Promise<ResendEmailHealth> {
         apiReachable: false,
         fromAddress,
         domainVerified: null,
+        loadedFromPlatformSecrets,
         error: `Resend HTTP ${res.status}: ${raw.slice(0, 180)}`,
       };
     }
@@ -56,6 +64,7 @@ export async function resendEmailHealth(): Promise<ResendEmailHealth> {
       apiReachable: true,
       fromAddress,
       domainVerified,
+      loadedFromPlatformSecrets,
       error: null,
     };
   } catch (e) {
@@ -64,6 +73,7 @@ export async function resendEmailHealth(): Promise<ResendEmailHealth> {
       apiReachable: false,
       fromAddress,
       domainVerified: null,
+      loadedFromPlatformSecrets,
       error: e instanceof Error ? e.message : "Resend API call failed.",
     };
   }

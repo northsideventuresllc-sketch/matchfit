@@ -7,6 +7,7 @@ vi.mock("@/lib/resend-email-health", () => ({
     apiReachable: true,
     fromAddress: "Match Fit <noreply@example.test>",
     domainVerified: true,
+    loadedFromPlatformSecrets: true,
     error: null,
   })),
 }));

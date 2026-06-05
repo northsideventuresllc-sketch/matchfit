@@ -1,4 +1,4 @@
-import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
+import { directPostgresUrlSource } from "@/lib/direct-postgres-ddl";
 import { resendEmailHealth } from "@/lib/resend-email-health";
 import { NextResponse } from "next/server";
 
@@ -6,7 +6,6 @@ export const dynamic = "force-dynamic";
 
 /** Public readiness check for login/signup OTP email delivery via Resend. */
 export async function GET() {
-  await hydratePlatformEnvFromDatabase();
   const probe = await resendEmailHealth();
   const healthy =
     probe.configured && probe.apiReachable && probe.domainVerified !== false;
@@ -30,6 +29,8 @@ export async function GET() {
     resendApiReachable: probe.apiReachable,
     fromAddress: probe.fromAddress,
     domainVerified: probe.domainVerified,
+    loadedFromPlatformSecrets: probe.loadedFromPlatformSecrets,
+    directPostgresUrlSource: directPostgresUrlSource(),
     resendError: probe.error,
     deployCommit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
     message,
