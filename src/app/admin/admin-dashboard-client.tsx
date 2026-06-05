@@ -766,12 +766,6 @@ export function AdminDashboardClient(props: {
           <time dateTime={overview.computedAt} className="font-semibold text-white">
             {statsAsOfLabel}
           </time>
-          <span className="text-white/45">
-            {" "}
-            · Success {platformSummary.successRating.score.toFixed(1)} · Potential{" "}
-            {platformSummary.potentialSuccess.score.toFixed(1)} · Valuation{" "}
-            {formatUsdFromCents(platformSummary.valuation.valuationCents)}
-          </span>
         </p>
 
         {orderedVisibleSections.length === 0 ? (
