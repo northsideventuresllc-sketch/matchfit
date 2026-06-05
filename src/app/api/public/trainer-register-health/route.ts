@@ -1,5 +1,6 @@
 import { isSupabaseAdminConfigured } from "@/lib/supabase/admin-client";
 import { findSupabaseAuthUserByEmail } from "@/lib/supabase/find-auth-user-by-email";
+import { countTrainerRegisterProfileColumns, isTrainerTermsAcceptedAtNullable } from "@/lib/ensure-trainer-register-schema";
 import { probeTrainerRegisterInsert } from "@/lib/probe-trainer-register-insert";
 import { NextResponse } from "next/server";
 
@@ -24,7 +25,15 @@ export async function GET() {
   }
 
   const insertProbe = await probeTrainerRegisterInsert();
-  const healthy = databaseUrlConfigured && supabaseAdminConfigured && authLookupOk && insertProbe.ok;
+  const trainerProfileColumnsFound = await countTrainerRegisterProfileColumns();
+  const termsAcceptedAtNullable = await isTrainerTermsAcceptedAtNullable();
+  const healthy =
+    databaseUrlConfigured &&
+    supabaseAdminConfigured &&
+    authLookupOk &&
+    insertProbe.ok &&
+    trainerProfileColumnsFound >= 10 &&
+    termsAcceptedAtNullable === true;
 
   let message: string;
   if (healthy) {
@@ -37,6 +46,8 @@ export async function GET() {
     message = `Supabase admin user lookup failed${authLookupError ? `: ${authLookupError}` : "."}`;
   } else if (!insertProbe.ok) {
     message = `Trainer sign-up insert probe failed (${insertProbe.code}).`;
+  } else if (trainerProfileColumnsFound < 10 || termsAcceptedAtNullable !== true) {
+    message = `Trainer signup schema is out of date (profileColumns=${trainerProfileColumnsFound}/10, termsAcceptedAtNullable=${String(termsAcceptedAtNullable)}). The next sign-up attempt should auto-repair.`;
   } else {
     message = "Trainer sign-up health check failed.";
   }
@@ -50,6 +61,9 @@ export async function GET() {
     insertProbeOk: insertProbe.ok,
     insertProbeCode: insertProbe.ok ? null : insertProbe.code,
     insertProbeError: insertProbe.ok ? null : insertProbe.message.slice(0, 500),
+    trainerProfileColumnsFound,
+    trainerProfileColumnsRequired: 10,
+    termsAcceptedAtNullable,
     deployCommit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
     message,
   });

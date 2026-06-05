@@ -1,3 +1,4 @@
+import { ensureTrainerRegisterSchema } from "@/lib/ensure-trainer-register-schema";
 import { prisma } from "@/lib/prisma";
 
 export type TrainerRegisterInsertProbeResult =
@@ -14,6 +15,13 @@ export async function probeTrainerRegisterInsert(): Promise<TrainerRegisterInser
   const email = `mf.trainer.probe.${suffix}@internal.match-fit.invalid`;
 
   try {
+    await ensureTrainerRegisterSchema();
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { ok: false, code: "TRAINER_SCHEMA_REPAIR_FAILED", message };
+  }
+
+  try {
     await prisma.$transaction(async (tx) => {
       await tx.trainer.create({
         data: {
@@ -28,6 +36,8 @@ export async function probeTrainerRegisterInsert(): Promise<TrainerRegisterInser
               registrationFeeWaived: true,
               registrationFeePricingMode: "FOUNDING_BG_SURCHARGE_20PCT",
               hasSignedTOS: false,
+              registrationFeeHoldStatus: "NOT_STARTED",
+              complianceCertFailedAttempts: 0,
               serviceZipCode: "30301",
               backgroundCheckStatus: "NOT_STARTED",
               certificationReviewStatus: "NOT_STARTED",
@@ -50,8 +60,8 @@ export async function probeTrainerRegisterInsert(): Promise<TrainerRegisterInser
       return { ok: true };
     }
     const message = e instanceof Error ? e.message : String(e);
-    if (message.includes("registrationFeeHoldStatus") && message.includes("null value")) {
-      return { ok: false, code: "REGISTRATION_FEE_HOLD_STATUS_NOT_NULL", message };
+    if (message.includes("termsAcceptedAt") && message.includes("null")) {
+      return { ok: false, code: "TERMS_ACCEPTED_AT_NOT_NULL", message };
     }
     return { ok: false, code: "TRAINER_INSERT_PROBE_FAILED", message };
   }

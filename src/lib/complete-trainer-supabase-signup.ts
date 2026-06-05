@@ -6,6 +6,7 @@ import { markTrainerWaitlistRegistered } from "@/lib/beta-waitlist-service";
 import { prisma } from "@/lib/prisma";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin-client";
 import { findSupabaseAuthUserByEmail } from "@/lib/supabase/find-auth-user-by-email";
+import { isMissingTrainerRegisterSchemaError } from "@/lib/ensure-trainer-register-schema";
 import { createTrainerRecord } from "@/lib/trainer-register-service";
 import { isTrainerEmailTaken, isTrainerUsernameTaken } from "@/lib/trainer-queries";
 import { resolveTrainerSignupNextPath } from "@/lib/trainer-signup-next-path";
@@ -32,6 +33,15 @@ function mapCreateTrainerError(e: unknown): CompleteTrainerSupabaseSignupResult 
       return { ok: false, error: "That account detail is already in use.", code: "UNIQUE_VIOLATION", status: 409 };
     }
     if (e.code === "P2021" || e.code === "P2022") {
+      return {
+        ok: false,
+        error:
+          "Sign-up is temporarily unavailable while we finish a database update. Please try again in a few minutes or contact support@match-fit.net if this persists.",
+        code: "SCHEMA_OUT_OF_DATE",
+        status: 503,
+      };
+    }
+    if (e.code === "P2011" || e.code === "P2012") {
       return {
         ok: false,
         error:
@@ -152,6 +162,15 @@ export async function completeTrainerSupabaseSignup(
   } catch (e) {
     const mapped = mapCreateTrainerError(e);
     if (mapped) return mapped;
+    if (isMissingTrainerRegisterSchemaError(e)) {
+      return {
+        ok: false,
+        error:
+          "Sign-up is temporarily unavailable while we finish a database update. Please try again in a few minutes or contact support@match-fit.net if this persists.",
+        code: "SCHEMA_OUT_OF_DATE",
+        status: 503,
+      };
+    }
     console.error("[completeTrainerSupabaseSignup]", e);
     return {
       ok: false,
