@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-05** `1.2.0-beta` → `1.2.1-beta` (**patch** — Admin assistant uses Anthropic when ANTHROPIC_API_KEY is set)
 - **2026-06-05** `1.1.17-beta` → `1.2.0-beta` (**minor** — Admin portal stats, AI assistant redesign with past chats, valuation, potential success score, stats timestamp, dashboard organization)
 - **2026-06-05** `1.1.16-beta` → `1.1.17-beta` (**patch** — Signup email health validates Resend API)
 - **2026-06-05** `1.1.15-beta` → `1.1.16-beta` (**patch** — Resend health uses platform_secrets key for probe)

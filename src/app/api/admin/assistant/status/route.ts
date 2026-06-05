@@ -7,11 +7,5 @@ export async function GET() {
   if (!sess) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   const status = await probeAdminAiProvider();
-  return NextResponse.json({
-    ...status,
-    anthropic: {
-      integrated: false,
-      message: "Match Fit uses OpenAI for the admin assistant. Anthropic is not configured in this app.",
-    },
-  });
+  return NextResponse.json(status);
 }

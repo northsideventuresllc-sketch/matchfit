@@ -31,12 +31,11 @@ type Conversation = {
 };
 
 type AiStatus = {
-  provider: string;
+  provider: "anthropic" | "openai";
   configured: boolean;
   working: boolean;
   model: string;
   message: string;
-  anthropic?: { integrated: boolean; message: string };
 };
 
 type ActionId = (typeof ADMIN_AI_QUICK_PROMPTS)[number]["action"];
@@ -266,8 +265,10 @@ export function AdminAssistantClient() {
         <p className="mt-1 text-[13px] opacity-90">
           {status?.message ?? "Checking assistant status…"}
         </p>
-        {status?.anthropic ? (
-          <p className="mt-2 text-xs opacity-75">{status.anthropic.message}</p>
+        {status?.working ? (
+          <p className="mt-2 text-xs opacity-75">
+            Provider: {status.provider === "anthropic" ? "Anthropic (Claude)" : "OpenAI"} · {status.model}
+          </p>
         ) : null}
       </div>
 

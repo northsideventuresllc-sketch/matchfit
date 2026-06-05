@@ -27,8 +27,10 @@ type HistoryTurn = {
   content: string;
 };
 
+export type AdminAiProviderId = "anthropic" | "openai";
+
 export type AdminAiProviderStatus = {
-  provider: "openai";
+  provider: AdminAiProviderId;
   configured: boolean;
   working: boolean;
   model: string;
@@ -132,6 +134,181 @@ function resolveOpenAiModel(): string {
   return process.env.OPENAI_ADMIN_ANALYTICS_MODEL?.trim() || "gpt-4o-mini";
 }
 
+function resolveAnthropicModel(): string {
+  return process.env.ANTHROPIC_ADMIN_ANALYTICS_MODEL?.trim() || "claude-sonnet-4-6";
+}
+
+function resolveAdminAiProvider(): AdminAiProviderId | null {
+  if (process.env.ANTHROPIC_API_KEY?.trim()) return "anthropic";
+  if (process.env.OPENAI_API_KEY?.trim()) return "openai";
+  return null;
+}
+
+function resolveAdminAiModel(provider: AdminAiProviderId): string {
+  return provider === "anthropic" ? resolveAnthropicModel() : resolveOpenAiModel();
+}
+
+function resolveAdminAiKey(provider: AdminAiProviderId): string | undefined {
+  return provider === "anthropic"
+    ? process.env.ANTHROPIC_API_KEY?.trim()
+    : process.env.OPENAI_API_KEY?.trim();
+}
+
+function providerDisplayName(provider: AdminAiProviderId): string {
+  return provider === "anthropic" ? "Anthropic (Claude)" : "OpenAI";
+}
+
+async function probeAnthropicProvider(model: string, key: string): Promise<AdminAiProviderStatus> {
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 1,
+        messages: [{ role: "user", content: "ping" }],
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (!res.ok) {
+      return {
+        provider: "anthropic",
+        configured: true,
+        working: false,
+        model,
+        message:
+          "Anthropic key is present but the API rejected the request. Quick prompts will use built-in fallbacks.",
+      };
+    }
+
+    return {
+      provider: "anthropic",
+      configured: true,
+      working: true,
+      model,
+      message: `Connected to Anthropic (Claude). Full AI answers are available via ${model}.`,
+    };
+  } catch {
+    return {
+      provider: "anthropic",
+      configured: true,
+      working: false,
+      model,
+      message:
+        "Anthropic key is present but the service could not be reached. Quick prompts will use built-in fallbacks.",
+    };
+  }
+}
+
+async function probeOpenAiProvider(model: string, key: string): Promise<AdminAiProviderStatus> {
+  try {
+    const res = await fetch("https://api.openai.com/v1/models", {
+      headers: { Authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (!res.ok) {
+      return {
+        provider: "openai",
+        configured: true,
+        working: false,
+        model,
+        message: "OpenAI key is present but the API rejected the request. Quick prompts will use built-in fallbacks.",
+      };
+    }
+
+    return {
+      provider: "openai",
+      configured: true,
+      working: true,
+      model,
+      message: `Connected to OpenAI. Full AI answers are available via ${model}.`,
+    };
+  } catch {
+    return {
+      provider: "openai",
+      configured: true,
+      working: false,
+      model,
+      message: "OpenAI key is present but the service could not be reached. Quick prompts will use built-in fallbacks.",
+    };
+  }
+}
+
+async function callAnthropicMessages(args: {
+  key: string;
+  model: string;
+  systemPrompt: string;
+  priorTurns: HistoryTurn[];
+  userContent: string;
+}): Promise<string | null> {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": args.key,
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: args.model,
+      system: args.systemPrompt,
+      messages: [...args.priorTurns, { role: "user", content: args.userContent }],
+      temperature: 0.4,
+      max_tokens: 900,
+    }),
+    signal: AbortSignal.timeout(45000),
+  });
+
+  if (!res.ok) return null;
+
+  const json = (await res.json()) as {
+    content?: Array<{ type?: string; text?: string }>;
+  };
+  const text = json.content
+    ?.filter((block) => block.type === "text")
+    .map((block) => block.text ?? "")
+    .join("")
+    .trim();
+  return text || null;
+}
+
+async function callOpenAiChatCompletions(args: {
+  key: string;
+  model: string;
+  systemPrompt: string;
+  priorTurns: HistoryTurn[];
+  userContent: string;
+}): Promise<string | null> {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${args.key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: args.model,
+      messages: [
+        { role: "system", content: args.systemPrompt },
+        ...args.priorTurns,
+        { role: "user", content: args.userContent },
+      ],
+      temperature: 0.4,
+      max_tokens: 900,
+    }),
+    signal: AbortSignal.timeout(45000),
+  });
+
+  if (!res.ok) return null;
+
+  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  return json.choices?.[0]?.message?.content?.trim() || null;
+}
+
 function fallbackForAction(
   action: AdminAiAction,
   args: {
@@ -159,51 +336,33 @@ function fallbackForAction(
 }
 
 export async function probeAdminAiProvider(): Promise<AdminAiProviderStatus> {
-  const model = resolveOpenAiModel();
-  const key = process.env.OPENAI_API_KEY?.trim();
+  const provider = resolveAdminAiProvider();
 
+  if (!provider) {
+    return {
+      provider: "anthropic",
+      configured: false,
+      working: false,
+      model: resolveAnthropicModel(),
+      message: "No AI provider is configured. Quick prompts still return built-in traffic insights.",
+    };
+  }
+
+  const model = resolveAdminAiModel(provider);
+  const key = resolveAdminAiKey(provider);
   if (!key) {
     return {
-      provider: "openai",
+      provider,
       configured: false,
       working: false,
       model,
-      message: "OpenAI is not configured. Quick prompts still return built-in traffic insights.",
+      message: `${providerDisplayName(provider)} is not configured. Quick prompts still return built-in traffic insights.`,
     };
   }
 
-  try {
-    const res = await fetch("https://api.openai.com/v1/models", {
-      headers: { Authorization: `Bearer ${key}` },
-      signal: AbortSignal.timeout(8000),
-    });
-
-    if (!res.ok) {
-      return {
-        provider: "openai",
-        configured: true,
-        working: false,
-        model,
-        message: "OpenAI key is present but the API rejected the request. Quick prompts will use built-in fallbacks.",
-      };
-    }
-
-    return {
-      provider: "openai",
-      configured: true,
-      working: true,
-      model,
-      message: "Connected to OpenAI. Full AI answers are available.",
-    };
-  } catch {
-    return {
-      provider: "openai",
-      configured: true,
-      working: false,
-      model,
-      message: "OpenAI key is present but the service could not be reached. Quick prompts will use built-in fallbacks.",
-    };
-  }
+  return provider === "anthropic"
+    ? probeAnthropicProvider(model, key)
+    : probeOpenAiProvider(model, key);
 }
 
 export async function createAdminAiConversation(administratorId: string, title = "New conversation") {
@@ -340,9 +499,20 @@ export async function runAdminAnalyticsAi(args: {
     },
   });
 
-  const key = process.env.OPENAI_API_KEY?.trim();
+  const provider = resolveAdminAiProvider();
   const context = buildContextSummary(args.overview, args.traffic, goals);
 
+  if (!provider) {
+    return fallbackForAction(args.action, {
+      goals,
+      overview: args.overview,
+      traffic: args.traffic,
+      userMessage: args.userMessage,
+      goalTitle: args.goalTitle,
+    });
+  }
+
+  const key = resolveAdminAiKey(provider);
   if (!key) {
     return fallbackForAction(args.action, {
       goals,
@@ -376,38 +546,24 @@ export async function runAdminAnalyticsAi(args: {
     .slice(-12)
     .map((t) => ({ role: t.role, content: t.content }));
 
-  const model = resolveOpenAiModel();
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: systemPrompts[args.action] },
-        ...priorTurns,
-        { role: "user", content: userContent },
-      ],
-      temperature: 0.4,
-      max_tokens: 900,
-    }),
-    signal: AbortSignal.timeout(45000),
-  });
+  const model = resolveAdminAiModel(provider);
+  const text =
+    provider === "anthropic"
+      ? await callAnthropicMessages({
+          key,
+          model,
+          systemPrompt: systemPrompts[args.action],
+          priorTurns,
+          userContent,
+        })
+      : await callOpenAiChatCompletions({
+          key,
+          model,
+          systemPrompt: systemPrompts[args.action],
+          priorTurns,
+          userContent,
+        });
 
-  if (!res.ok) {
-    return fallbackForAction(args.action, {
-      goals,
-      overview: args.overview,
-      traffic: args.traffic,
-      userMessage: args.userMessage,
-      goalTitle: args.goalTitle,
-    });
-  }
-
-  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  const text = json.choices?.[0]?.message?.content?.trim();
   return text || fallbackForAction(args.action, {
     goals,
     overview: args.overview,
