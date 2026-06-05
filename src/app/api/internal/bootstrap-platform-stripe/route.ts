@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { runDirectPostgresDdl } from "@/lib/direct-postgres-ddl";
 import { prisma } from "@/lib/prisma";
 import { clearPlatformSecretCache } from "@/lib/platform-secrets";
 import { resetStripeClient } from "@/lib/stripe-server";
 
 export const dynamic = "force-dynamic";
+
+const PLATFORM_SECRETS_DDL = `
+CREATE TABLE IF NOT EXISTS public.platform_secrets (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+`;
 
 const bodySchema = z.object({
   stripeSecretKey: z.string().startsWith("sk_live_"),
@@ -30,6 +39,8 @@ export async function POST(req: Request) {
   if (!bearer || bearer !== body.stripeWebhookSecret) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
+
+  await runDirectPostgresDdl(PLATFORM_SECRETS_DDL);
 
   const existing = await prisma.platformSecret.count({
     where: { key: { in: ["STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "STRIPE_WEBHOOK_SECRET"] } },
