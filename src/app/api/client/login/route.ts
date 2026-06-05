@@ -2,6 +2,7 @@ import { clientLoginDeletionRedirect } from "@/lib/account-deletion-login-redire
 import { isClientAccountLoginBlocked } from "@/lib/client-billing-access";
 import { syncClientPlatformBillingLifecycle } from "@/lib/client-platform-lifecycle";
 import { send2FACode } from "@/lib/auth-2fa-email";
+import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { findClientByIdentifier } from "@/lib/client-queries";
 import { getLoginOtpDelivery } from "@/lib/login-two-factor-target";
 import { prisma } from "@/lib/prisma";
@@ -50,6 +51,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: turn.error }, { status: turn.status });
     }
     const { identifier, password, stayLoggedIn } = parsed.data;
+    await hydratePlatformEnvFromDatabase();
     const client = await findClientByIdentifier(identifier);
     if (!client) {
       return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });

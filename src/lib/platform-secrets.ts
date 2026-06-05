@@ -35,7 +35,25 @@ export function isPlaceholderStripeWebhookSecret(key: string | null | undefined)
   return false;
 }
 
-async function readPlatformSecretFromDatabase(key: string): Promise<string | null> {
+/** True when Vercel still has a placeholder/invalid Resend API key. */
+export function isPlaceholderResendApiKey(key: string | null | undefined): boolean {
+  const value = key?.trim();
+  if (!value) return true;
+  if (value.includes("...")) return true;
+  if (value.endsWith("_key") && value.startsWith("re_")) return true;
+  if (process.env.VERCEL_ENV === "production" && value.startsWith("re_test_")) return true;
+  return false;
+}
+
+export function isPlaceholderResendFromEmail(value: string | null | undefined): boolean {
+  const email = value?.trim();
+  if (!email) return true;
+  if (email.includes("...")) return true;
+  if (email.includes("@resend.dev")) return process.env.VERCEL_ENV === "production";
+  return false;
+}
+
+async function queryPlatformSecretFromDatabase(key: string): Promise<string | null> {
   const raw = directPostgresUrlForDdl();
   if (!raw) return null;
 
@@ -57,12 +75,12 @@ async function readPlatformSecretFromDatabase(key: string): Promise<string | nul
   }
 }
 
-async function readPlatformSecret(key: string): Promise<string | null> {
+export async function readPlatformSecret(key: string): Promise<string | null> {
   const now = Date.now();
   const hit = cache.get(key);
   if (hit && hit.expiresAt > now) return hit.value;
 
-  const value = await readPlatformSecretFromDatabase(key);
+  const value = await queryPlatformSecretFromDatabase(key);
   if (value) {
     cache.set(key, { value, expiresAt: now + CACHE_TTL_MS });
   }

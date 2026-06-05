@@ -1,3 +1,4 @@
+import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { resendEmailHealth } from "@/lib/resend-email-health";
 import { NextResponse } from "next/server";
 
@@ -5,6 +6,7 @@ export const dynamic = "force-dynamic";
 
 /** Public readiness check for login/signup OTP email delivery via Resend. */
 export async function GET() {
+  await hydratePlatformEnvFromDatabase();
   const probe = await resendEmailHealth();
   const healthy =
     probe.configured && probe.apiReachable && probe.domainVerified !== false;
