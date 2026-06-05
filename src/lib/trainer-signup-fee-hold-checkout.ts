@@ -1,10 +1,6 @@
-import type { TrainerRegistrationPricingMode } from "@/lib/match-fit-launch-promotions";
+import type { TrainerRegistrationPricingMode } from "@/lib/match-fit-launch-promotion-caps";
 import { getAppOrigin } from "@/lib/app-origin";
-import {
-  computeCheckoutFeeBreakdown,
-  feeMetadataFromBreakdown,
-  stripeCheckoutLineItemsFromBreakdown,
-} from "@/lib/stripe-checkout-line-items";
+import { computeCheckoutFeeBreakdown, feeMetadataFromBreakdown } from "@/lib/stripe-checkout-line-items";
 import { getStripe } from "@/lib/stripe-server";
 import {
   computeTrainerSignupFeeBaseCents,
@@ -23,6 +19,11 @@ export async function createTrainerSignupFeeHoldCheckoutSession(args: {
     throw new Error("Billing is not configured.");
   }
 
+  const email = args.email.trim();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error("Trainer account email is missing or invalid for Stripe checkout.");
+  }
+
   const baseCents = computeTrainerSignupFeeBaseCents(args.pricingMode);
   const breakdown = computeCheckoutFeeBreakdown({
     baseCents,
@@ -33,30 +34,34 @@ export async function createTrainerSignupFeeHoldCheckoutSession(args: {
   const origin = (args.origin ?? getAppOrigin()).replace(/\/$/, "");
   const modeLabel =
     args.pricingMode === "FOUNDING_BG_SURCHARGE_20PCT"
-      ? "Founding coach signup fee hold (background screening + platform portion)"
-      : "Trainer signup fee hold ($100 platform registration)";
+      ? "Founding coach signup fee hold"
+      : "Trainer signup fee hold";
 
   const paymentIntentMetadata = {
     purpose: TRAINER_SIGNUP_FEE_HOLD_PURPOSE,
     trainerId: args.trainerId,
     pricingMode: args.pricingMode,
-    baseCents: String(breakdown.baseCents),
-    processingFeeCents: String(breakdown.processingCents),
-    totalChargedCents: String(breakdown.totalChargedCents),
     ...feeMetadataFromBreakdown(breakdown),
     ...signupEscrowMetadata(args.pricingMode),
   };
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
-    customer_email: args.email,
-    line_items: stripeCheckoutLineItemsFromBreakdown({
-      breakdown,
-      baseName: "Match Fit trainer signup fee authorization",
-      baseDescription: `${modeLabel}. Match Fit captures only after certification and background screening are approved.`,
-      includeAdminFee: false,
-      includeProcessingFee: true,
-    }),
+    customer_email: email,
+    payment_method_types: ["card"],
+    line_items: [
+      {
+        quantity: 1,
+        price_data: {
+          currency: "usd",
+          unit_amount: breakdown.totalChargedCents,
+          product_data: {
+            name: "Match Fit trainer signup fee authorization",
+            description: `${modeLabel}. Match Fit captures only after certification and background screening are approved.`,
+          },
+        },
+      },
+    ],
     payment_intent_data: {
       capture_method: "manual",
       metadata: paymentIntentMetadata,

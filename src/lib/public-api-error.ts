@@ -1,5 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { httpStatusFromResendError } from "@/lib/resend-client";
+import { stripeApiErrorMessage } from "@/lib/stripe-api-error";
 import { isMissingClientPlatformTrialColumnError } from "@/lib/ensure-client-platform-trial-schema";
 import { isPrismaMissingColumnError, isPrismaMissingTableError } from "@/lib/prisma-missing-column";
 
@@ -61,6 +62,11 @@ export function publicApiErrorFromUnknown(
     if (DB_BUSY_RE.test(e.message)) {
       return { message: DB_BUSY_USER_MESSAGE, status: 503 };
     }
+  }
+
+  const stripeMessage = stripeApiErrorMessage(e);
+  if (stripeMessage) {
+    return { message: stripeMessage, status: 502 };
   }
 
   if (e instanceof Error) {
