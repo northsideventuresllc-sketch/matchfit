@@ -12,10 +12,6 @@ export async function evaluateBetaTrainerRegistrationGate(args: {
   username: string;
   betaInviteToken?: string | null;
 }): Promise<BetaTrainerRegisterGateResult> {
-  if (!isBetaLaunchGatesEnabled()) {
-    return { ok: true, betaInviteEntryId: null };
-  }
-
   const zip = args.serviceZipCode.trim();
   if (!zip || !isValidUsServiceZip(zip)) {
     return {
@@ -24,6 +20,10 @@ export async function evaluateBetaTrainerRegistrationGate(args: {
       code: "INVALID_SERVICE_ZIP",
       error: "Enter a valid US ZIP code (5 digits) for your primary service area.",
     };
+  }
+
+  if (!isBetaLaunchGatesEnabled()) {
+    return { ok: true, betaInviteEntryId: null };
   }
 
   if (!(await isTrainerBetaCapReached())) {

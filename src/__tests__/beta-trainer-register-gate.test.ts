@@ -19,6 +19,16 @@ describe("evaluateBetaTrainerRegistrationGate", () => {
     vi.mocked(isTrainerBetaCapReached).mockResolvedValue(false);
   });
 
+  it("requires valid US ZIP even when beta gates are off", async () => {
+    vi.mocked(isBetaLaunchGatesEnabled).mockReturnValue(false);
+    const result = await evaluateBetaTrainerRegistrationGate({
+      serviceZipCode: "",
+      email: "coach@example.com",
+      username: "coachbay",
+    });
+    expect(result).toMatchObject({ ok: false, code: "INVALID_SERVICE_ZIP", status: 400 });
+  });
+
   it("allows nationwide US ZIP codes when beta gates are on", async () => {
     const result = await evaluateBetaTrainerRegistrationGate({
       serviceZipCode: "94102",

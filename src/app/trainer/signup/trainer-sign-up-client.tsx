@@ -29,8 +29,8 @@ function countPhoneDigits(phone: string): number {
   return phone.replace(/\D/g, "").length;
 }
 
-function simpleEmailValid(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+function isValidSignupServiceZip(zip: string): boolean {
+  return /^\d{5}(-\d{4})?$/.test(zip.trim());
 }
 
 function formatTrainerSignupFinishError(error: string, code?: string): string {
@@ -229,7 +229,7 @@ export default function TrainerSignUpClient() {
       setError("Enter your email and password, then try again.");
       return;
     }
-    if (betaGatesOn && !/^\d{5}(-\d{4})?$/.test(serviceZipCode.trim())) {
+    if (!isValidSignupServiceZip(serviceZipCode)) {
       setError("Enter a valid US ZIP code (5 digits).");
       return;
     }
@@ -337,12 +337,9 @@ export default function TrainerSignUpClient() {
       setError("Passwords do not match.");
       return;
     }
-    if (betaGatesOn) {
-      const z = serviceZipCode.trim();
-      if (!/^\d{5}(-\d{4})?$/.test(z)) {
-        setError("Enter a valid US ZIP code (5 digits).");
-        return;
-      }
+    if (!isValidSignupServiceZip(serviceZipCode)) {
+      setError("Enter a valid US ZIP code (5 digits).");
+      return;
     }
     const tsErr = turnstile.validateBeforeSubmit();
     if (tsErr) {
@@ -699,28 +696,26 @@ export default function TrainerSignUpClient() {
               />
             </div>
 
-            {betaGatesOn ? (
-              <div className="flex flex-col gap-2">
-                <label htmlFor="tr-su-zip" className={labelClass}>
-                  Primary service ZIP
-                </label>
-                <input
-                  id="tr-su-zip"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="postal-code"
-                  required
-                  value={serviceZipCode}
-                  onChange={(e) => setServiceZipCode(e.target.value)}
-                  placeholder="94102"
-                  className={inputClass}
-                />
-                <p className="text-xs leading-relaxed text-white/40">
-                  Used for matching and your public profile. Anyone in the U.S. can sign up; in-person sessions are
-                  available in the Atlanta metro area during beta.
-                </p>
-              </div>
-            ) : null}
+            <div className="flex flex-col gap-2">
+              <label htmlFor="tr-su-zip" className={labelClass}>
+                Primary service ZIP
+              </label>
+              <input
+                id="tr-su-zip"
+                type="text"
+                inputMode="numeric"
+                autoComplete="postal-code"
+                required
+                value={serviceZipCode}
+                onChange={(e) => setServiceZipCode(e.target.value)}
+                placeholder="94102"
+                className={inputClass}
+              />
+              <p className="text-xs leading-relaxed text-white/40">
+                Used for matching and your public profile. Anyone in the U.S. can sign up; in-person sessions are
+                available in the Atlanta metro area during beta.
+              </p>
+            </div>
 
             <div className="flex flex-col gap-2">
               <label htmlFor="tr-su-email" className={labelClass}>
