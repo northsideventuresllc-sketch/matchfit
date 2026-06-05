@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-05** `1.1.12-beta` → `1.1.13-beta` (**patch** — Read platform_secrets via session pooler SQL)
 - **2026-06-05** `1.1.11-beta` → `1.1.12-beta` (**patch** — Vercel session pooler for DDL bootstrap)
 - **2026-06-05** `1.1.10-beta` → `1.1.11-beta` (**patch** — Bootstrap Stripe via direct Postgres SQL)
 - **2026-06-05** `1.1.9-beta` → `1.1.10-beta` (**patch** — Bootstrap platform_secrets DDL self-heal)

@@ -1,6 +1,8 @@
 import "server-only";
 
-import { prisma } from "@/lib/prisma";
+import pg from "pg";
+import { directPostgresUrlForDdl } from "@/lib/direct-postgres-ddl";
+import { pgPoolConfigForConnectionString } from "@/lib/supabase-database-url";
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const cache = new Map<string, { value: string; expiresAt: number }>();
@@ -33,21 +35,38 @@ export function isPlaceholderStripeWebhookSecret(key: string | null | undefined)
   return false;
 }
 
+async function readPlatformSecretFromDatabase(key: string): Promise<string | null> {
+  const raw = directPostgresUrlForDdl();
+  if (!raw) return null;
+
+  const pool = new pg.Pool({
+    ...pgPoolConfigForConnectionString(raw),
+    max: 1,
+  });
+
+  try {
+    const result = await pool.query<{ value: string }>(
+      `SELECT value FROM public.platform_secrets WHERE key = $1 LIMIT 1`,
+      [key],
+    );
+    return result.rows[0]?.value?.trim() ?? null;
+  } catch {
+    return null;
+  } finally {
+    await pool.end().catch(() => {});
+  }
+}
+
 async function readPlatformSecret(key: string): Promise<string | null> {
   const now = Date.now();
   const hit = cache.get(key);
   if (hit && hit.expiresAt > now) return hit.value;
 
-  try {
-    const row = await prisma.platformSecret.findUnique({ where: { key } });
-    const value = row?.value?.trim() ?? null;
-    if (value) {
-      cache.set(key, { value, expiresAt: now + CACHE_TTL_MS });
-    }
-    return value;
-  } catch {
-    return null;
+  const value = await readPlatformSecretFromDatabase(key);
+  if (value) {
+    cache.set(key, { value, expiresAt: now + CACHE_TTL_MS });
   }
+  return value;
 }
 
 /** Env first; falls back to `platform_secrets` when env is missing or a known placeholder. */
