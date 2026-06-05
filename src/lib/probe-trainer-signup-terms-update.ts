@@ -1,8 +1,9 @@
-import { ensureTrainerRegisterSchema } from "@/lib/ensure-trainer-register-schema";
+import { ensureTrainerRegisterSchema, isMissingTrainerRegisterSchemaError } from "@/lib/ensure-trainer-register-schema";
 import { prisma } from "@/lib/prisma";
 import {
   ensureTrainerSignupTermsSchema,
   isMissingTrainerSignupTermsColumnError,
+  isTrainerSignupTermsAccessError,
 } from "@/lib/ensure-trainer-signup-terms-schema";
 
 export type TrainerSignupTermsProbeResult =
@@ -16,6 +17,7 @@ export async function probeTrainerSignupTermsUpdate(): Promise<TrainerSignupTerm
   const email = `mf.terms.probe.${suffix}@internal.match-fit.invalid`;
 
   try {
+    await ensureTrainerRegisterSchema();
     await ensureTrainerSignupTermsSchema();
   } catch (e) {
     return {
@@ -37,8 +39,21 @@ export async function probeTrainerSignupTermsUpdate(): Promise<TrainerSignupTerm
           passwordHash: "probe",
           profile: {
             create: {
+              registrationFeeWaived: true,
+              registrationFeePricingMode: "FOUNDING_BG_SURCHARGE_20PCT",
               hasSignedTOS: false,
               registrationFeeHoldStatus: "NOT_STARTED",
+              complianceCertFailedAttempts: 0,
+              serviceZipCode: "30301",
+              backgroundCheckStatus: "NOT_STARTED",
+              certificationReviewStatus: "NOT_STARTED",
+              nutritionistCertificationReviewStatus: "NOT_STARTED",
+              specialistCertificationReviewStatus: "NOT_STARTED",
+              backgroundCheckReviewStatus: "NOT_STARTED",
+              onboardingTrackCpt: false,
+              onboardingTrackNutrition: false,
+              onboardingTrackSpecialist: false,
+              otherCertificationReviewStatus: "NOT_STARTED",
             },
           },
         },
@@ -57,6 +72,15 @@ export async function probeTrainerSignupTermsUpdate(): Promise<TrainerSignupTerm
         where: { trainerId: trainer.id },
         data: { hasSignedTOS: true, updatedAt: now },
       });
+      await tx.trainerProfile.findUnique({
+        where: { trainerId: trainer.id },
+        select: {
+          hasSignedTOS: true,
+          registrationFeeHoldStatus: true,
+          hasPaidRegistrationFee: true,
+          limitedDashboardUnlockedAt: true,
+        },
+      });
 
       throw new Error("PROBE_ROLLBACK");
     });
@@ -65,10 +89,17 @@ export async function probeTrainerSignupTermsUpdate(): Promise<TrainerSignupTerm
     if (e instanceof Error && e.message === "PROBE_ROLLBACK") {
       return { ok: true };
     }
-    if (isMissingTrainerSignupTermsColumnError(e)) {
+    if (isMissingTrainerSignupTermsColumnError(e) || isMissingTrainerRegisterSchemaError(e)) {
       return {
         ok: false,
         code: "TRAINER_TERMS_COLUMNS_MISSING",
+        message: e instanceof Error ? e.message : String(e),
+      };
+    }
+    if (isTrainerSignupTermsAccessError(e)) {
+      return {
+        ok: false,
+        code: "TRAINER_TERMS_RLS_BLOCKED",
         message: e instanceof Error ? e.message : String(e),
       };
     }

@@ -25,6 +25,17 @@ export function isMissingTrainerSignupTermsColumnError(e: unknown): boolean {
   return column.includes("privacyPolicyAcceptedAt") || column.includes("termsAcceptedAt") || message.includes("privacyPolicyAcceptedAt");
 }
 
+/** Prisma pool role cannot write when RLS is enabled without bypass (same class of failure as admin portal). */
+export function isTrainerSignupTermsAccessError(e: unknown): boolean {
+  const message = e instanceof Error ? e.message : String(e);
+  return (
+    message.includes("permission denied") ||
+    message.includes("42501") ||
+    message.includes("row-level security") ||
+    message.includes("violates row-level security policy")
+  );
+}
+
 export async function countTrainerSignupTermsColumns(): Promise<number> {
   const rows = await prisma.$queryRaw<{ count: bigint }[]>`
     SELECT COUNT(*)::bigint AS "count"

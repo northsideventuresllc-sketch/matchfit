@@ -75,6 +75,7 @@ export async function GET() {
     trainerTermsColumnsRequired: 2,
     termsProbeOk: termsProbe.ok,
     termsProbeCode: termsProbe.ok ? null : termsProbe.code,
+    termsProbeError: termsProbe.ok ? null : termsProbe.message.slice(0, 500),
     termsAcceptedAtNullable,
     deployCommit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
     message,
