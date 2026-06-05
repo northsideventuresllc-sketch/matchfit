@@ -37,13 +37,13 @@ export async function GET() {
     message = "Administrator sign-in database access is ready.";
   } else if (!databaseUrlConfigured) {
     message = "DATABASE_URL is missing in Vercel Production environment variables.";
-  } else if (databaseUrlUsesSupabaseDirectHost && !databaseUrlLooksLikePooler) {
-    message =
-      "DATABASE_URL uses Supabase direct host (db.*.supabase.co), which is unreliable from Vercel. Set DATABASE_URL to the Supabase pooler URL (or SUPABASE_DATABASE_POOLER_URL).";
-  } else if (!authSecretConfigured) {
-    message = "AUTH_SECRET is missing or too short — administrator sessions cannot be signed.";
   } else if (!readProbe.ok) {
     message = `Administrator table probe failed: ${readProbe.message.slice(0, 240)}`;
+  } else if (!authSecretConfigured) {
+    message = "AUTH_SECRET is missing or too short — administrator sessions cannot be signed.";
+  } else if (databaseUrlUsesSupabaseDirectHost && !databaseUrlLooksLikePooler) {
+    message =
+      "DATABASE_URL still uses Supabase direct host (db.*.supabase.co). Runtime auto-pooler is active, but set DATABASE_URL to the transaction pooler in Vercel for reliability.";
   } else {
     message = countError ?? "Administrator sign-in health check failed.";
   }
@@ -57,6 +57,7 @@ export async function GET() {
     directPostgresUrlSource: directPostgresUrlSource(),
     authSecretConfigured,
     administratorTableReadable: readProbe.ok,
+    administratorReadProbeError: readProbe.ok ? null : readProbe.message,
     administratorCount,
     countError,
     supabaseAdminConfigured: isSupabaseAdminConfigured(),

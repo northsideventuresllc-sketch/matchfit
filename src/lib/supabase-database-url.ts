@@ -89,14 +89,6 @@ export function resolvePrismaDatabaseUrl(): string {
     return poolerOverride;
   }
 
-  const directUrl = process.env.DIRECT_URL?.trim();
-  if (directUrl && isSupabaseDirectDbHost(databaseUrl) && isSupabasePoolerHost(directUrl)) {
-    console.warn(
-      "[prisma] DATABASE_URL points at Supabase direct host while DIRECT_URL looks like the pooler — using DIRECT_URL for Prisma.",
-    );
-    return directUrl;
-  }
-
   if (isSupabasePoolerHost(databaseUrl)) {
     return databaseUrl;
   }
@@ -109,6 +101,15 @@ export function resolvePrismaDatabaseUrl(): string {
       );
       return derived;
     }
+
+    const directUrl = process.env.DIRECT_URL?.trim();
+    if (directUrl && isSupabasePoolerHost(directUrl)) {
+      console.warn(
+        "[prisma] DATABASE_URL points at Supabase direct host while DIRECT_URL looks like the pooler — using DIRECT_URL for Prisma.",
+      );
+      return directUrl;
+    }
+
     console.error(
       "[prisma] DATABASE_URL uses Supabase direct host (db.*.supabase.co). Set SUPABASE_PROJECT_REGION, SUPABASE_DATABASE_POOLER_URL, or point DATABASE_URL at the pooler in Vercel.",
     );

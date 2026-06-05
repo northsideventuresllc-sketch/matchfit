@@ -1,5 +1,9 @@
 import "server-only";
 import pg from "pg";
+import {
+  isSupabaseDirectDbHost,
+  isSupabasePoolerHost,
+} from "@/lib/supabase-database-url";
 
 function normalizeConnectionString(connectionString: string): string {
   try {
@@ -71,18 +75,48 @@ export function deriveDirectPostgresUrlFromDatabaseUrl(databaseUrl: string): str
   }
 }
 
-/** Prefer DIRECT_URL, then a 5432 Supabase URL derived from DATABASE_URL. */
+/**
+ * Postgres URL for schema repair DDL (must be direct/session — not transaction pooler :6543).
+ * When Vercel has DATABASE_URL=direct and DIRECT_URL=pooler (swapped), use db.*.supabase.co from DATABASE_URL.
+ */
 export function directPostgresUrlForDdl(): string | null {
-  const explicit = process.env.DIRECT_URL?.trim();
-  if (explicit) return normalizeConnectionString(explicit);
   const databaseUrl = process.env.DATABASE_URL?.trim();
-  if (!databaseUrl) return null;
-  return deriveDirectPostgresUrlFromDatabaseUrl(databaseUrl);
+  const directUrl = process.env.DIRECT_URL?.trim();
+
+  if (databaseUrl && isSupabaseDirectDbHost(databaseUrl)) {
+    const fromDatabase = deriveDirectPostgresUrlFromDatabaseUrl(databaseUrl);
+    if (fromDatabase) return normalizeConnectionString(fromDatabase);
+  }
+
+  if (directUrl && isSupabaseDirectDbHost(directUrl)) {
+    return normalizeConnectionString(directUrl);
+  }
+
+  if (directUrl && !isSupabasePoolerHost(directUrl)) {
+    return normalizeConnectionString(directUrl);
+  }
+
+  if (databaseUrl) {
+    const derived = deriveDirectPostgresUrlFromDatabaseUrl(databaseUrl);
+    if (derived) return normalizeConnectionString(derived);
+  }
+
+  return null;
 }
 
-export function directPostgresUrlSource(): "DIRECT_URL" | "derived_from_DATABASE_URL" | "missing" {
-  if (process.env.DIRECT_URL?.trim()) return "DIRECT_URL";
-  if (deriveDirectPostgresUrlFromDatabaseUrl(process.env.DATABASE_URL ?? "")) {
+export function directPostgresUrlSource():
+  | "DIRECT_URL"
+  | "derived_from_DATABASE_URL"
+  | "derived_from_direct_DATABASE_URL"
+  | "missing" {
+  const databaseUrl = process.env.DATABASE_URL?.trim() ?? "";
+  const directUrl = process.env.DIRECT_URL?.trim();
+
+  if (databaseUrl && isSupabaseDirectDbHost(databaseUrl)) {
+    return "derived_from_direct_DATABASE_URL";
+  }
+  if (directUrl && !isSupabasePoolerHost(directUrl)) return "DIRECT_URL";
+  if (deriveDirectPostgresUrlFromDatabaseUrl(databaseUrl)) {
     return "derived_from_DATABASE_URL";
   }
   return "missing";
