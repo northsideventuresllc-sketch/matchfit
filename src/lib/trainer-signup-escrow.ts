@@ -1,35 +1,12 @@
-import type { TrainerRegistrationPricingMode } from "@/lib/match-fit-launch-promotions";
-import { trainerBackgroundCheckAmountCents } from "@/lib/trainer-background-check-stripe";
-import { TRAINER_PLATFORM_REGISTRATION_FEE_CENTS } from "@/lib/trainer-registration-fee";
+import type { TrainerRegistrationPricingMode } from "@/lib/match-fit-launch-promotion-caps";
 import { computeCheckoutFeeBreakdown } from "@/lib/stripe-checkout-line-items";
 import { estimateStripeProcessingFeeCents } from "@/lib/stripe-processing-fee";
+import {
+  computeTrainerSignupEscrowSplit,
+} from "@/lib/trainer-signup-escrow-split";
 
-export type TrainerSignupEscrowSplit = {
-  backgroundCheckEscrowCents: number;
-  platformEscrowCents: number;
-  baseCents: number;
-};
-
-/** How signup authorization splits between Checkr escrow and platform fee (base only, before processing). */
-export function computeTrainerSignupEscrowSplit(
-  pricingMode: TrainerRegistrationPricingMode,
-): TrainerSignupEscrowSplit {
-  const bg = trainerBackgroundCheckAmountCents();
-  if (pricingMode === "FOUNDING_BG_SURCHARGE_20PCT") {
-    const platform = Math.max(1, Math.round(bg * 0.2));
-    return {
-      backgroundCheckEscrowCents: bg,
-      platformEscrowCents: platform,
-      baseCents: bg + platform,
-    };
-  }
-  const platform = Math.max(0, TRAINER_PLATFORM_REGISTRATION_FEE_CENTS - bg);
-  return {
-    backgroundCheckEscrowCents: bg,
-    platformEscrowCents: platform,
-    baseCents: TRAINER_PLATFORM_REGISTRATION_FEE_CENTS,
-  };
-}
+export type { TrainerSignupEscrowSplit } from "@/lib/trainer-signup-escrow-split";
+export { computeTrainerSignupEscrowSplit } from "@/lib/trainer-signup-escrow-split";
 
 /** Stripe capture amount when background screening never clears (platform + its processing share only). */
 export function computeTrainerSignupCaptureOnBgFailureCents(

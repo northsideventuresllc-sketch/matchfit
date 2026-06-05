@@ -1,7 +1,7 @@
-import type { TrainerRegistrationPricingMode } from "@/lib/match-fit-launch-promotions";
-import { computeTrainerSignupEscrowSplit } from "@/lib/trainer-signup-escrow";
-import { trainerBackgroundCheckAmountCents } from "@/lib/trainer-background-check-stripe";
-import { TRAINER_PLATFORM_REGISTRATION_FEE_CENTS } from "@/lib/trainer-registration-fee";
+import type { TrainerRegistrationPricingMode } from "@/lib/match-fit-launch-promotion-caps";
+import { computeTrainerSignupEscrowSplit } from "@/lib/trainer-signup-escrow-split";
+import { trainerBackgroundCheckAmountCents } from "@/lib/trainer-background-check-fee";
+import { TRAINER_PLATFORM_REGISTRATION_FEE_CENTS } from "@/lib/trainer-platform-registration-fee";
 
 function formatUsd(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -28,8 +28,11 @@ export function trainerSignupPaymentHoldExplanation(pricingMode: TrainerRegistra
   return `Standard pricing: today's hold is up to ${listPrice} total — an estimated ${bgLabel} background screening portion plus a ${platformLabel} Match Fit platform balance, plus card processing. If screening is not approved, only the platform portion (and its processing) may be captured.`;
 }
 
+export const TRAINER_SIGNUP_PAYMENT_AFTER_HOLD_NOTE =
+  "After the hold is placed, you'll unlock your limited dashboard to upload certification, tax forms, and complete background screening. Holds that are never captured expire automatically per your card issuer's rules.";
+
 export function trainerSignupPaymentAfterHoldNote(): string {
-  return "After the hold is placed, you'll unlock your limited dashboard to upload certification, tax forms, and complete background screening. Holds that are never captured expire automatically per your card issuer's rules.";
+  return TRAINER_SIGNUP_PAYMENT_AFTER_HOLD_NOTE;
 }
 
 /** User-safe message when Stripe keys are missing in production. */

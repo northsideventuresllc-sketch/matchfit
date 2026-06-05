@@ -17,14 +17,9 @@ export function useStripePublishableKey(serverKey?: string | null): StripePublis
   const [loading, setLoading] = useState(!normalizedServerKey);
 
   useEffect(() => {
-    if (normalizedServerKey) {
-      setPublishableKey(normalizedServerKey);
-      setLoading(false);
-      return;
-    }
+    if (normalizedServerKey) return;
 
     let cancelled = false;
-    setLoading(true);
     void fetch("/api/public/stripe-publishable-key", { cache: "no-store" })
       .then((r) => r.json())
       .then((d: { publicKey?: string | null }) => {

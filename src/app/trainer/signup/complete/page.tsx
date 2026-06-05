@@ -17,7 +17,7 @@ export default function TrainerSignupCompletePage() {
   const turnstile = useTurnstileGate();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [draft] = useState<TrainerSupabaseSignupDraft | null>(() => readTrainerSignupDraft());
 
   const runServerComplete = useCallback(
     async (draft: TrainerSupabaseSignupDraft, turnstileToken: string | null) => {
@@ -62,16 +62,14 @@ export default function TrainerSignupCompletePage() {
   );
 
   useEffect(() => {
-    const draft = readTrainerSignupDraft();
     if (!draft) {
       router.replace("/trainer/signup");
       return;
     }
-    setReady(true);
     if (!isTurnstileClientEnabled()) {
-      void runServerComplete(draft, null);
+      void Promise.resolve().then(() => runServerComplete(draft, null));
     }
-  }, [router, runServerComplete]);
+  }, [draft, router, runServerComplete]);
 
   async function finishWithTurnstile() {
     const draft = readTrainerSignupDraft();
@@ -115,7 +113,7 @@ export default function TrainerSignupCompletePage() {
           </p>
         ) : null}
 
-        {ready && turnstile.enabled ? (
+        {draft && turnstile.enabled ? (
           <div className="mt-8 flex flex-col items-center gap-6">
             <TurnstileField
               enabled={turnstile.enabled}
@@ -136,7 +134,7 @@ export default function TrainerSignupCompletePage() {
               {busy ? "Working…" : "Create my account"}
             </button>
           </div>
-        ) : ready && !turnstile.enabled && busy ? (
+        ) : draft && !turnstile.enabled && busy ? (
           <p className="mt-8 text-sm text-white/50">Creating your account…</p>
         ) : null}
 

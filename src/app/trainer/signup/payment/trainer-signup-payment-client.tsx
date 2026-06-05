@@ -106,8 +106,6 @@ export default function TrainerSignupPaymentClient({
   const useCheckoutRedirect = !useEmbeddedCheckout && stripeSecretConfigured;
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [amountLabel, setAmountLabel] = useState<string>("…");
-  const [loadingIntent, setLoadingIntent] = useState(false);
-  const [redirecting, setRedirecting] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
 
   const stripePromise = useMemo(
@@ -115,18 +113,23 @@ export default function TrainerSignupPaymentClient({
     [publishableKey],
   );
 
+  const configUnavailable =
+    !publishableLoading && !stripeSecretConfigured ? TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE : null;
+  const checkoutUnavailable =
+    !publishableLoading &&
+    stripeSecretConfigured &&
+    !useCheckoutRedirect &&
+    !useEmbeddedCheckout
+      ? TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE
+      : null;
+  const displayInitError = initError ?? configUnavailable ?? checkoutUnavailable;
+
   useEffect(() => {
     if (publishableLoading) return;
-
-    if (!stripeSecretConfigured) {
-      setInitError(TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
-      return;
-    }
+    if (!stripeSecretConfigured || (!useCheckoutRedirect && !useEmbeddedCheckout)) return;
 
     if (useCheckoutRedirect) {
       let cancelled = false;
-      setRedirecting(true);
-      setInitError(null);
       void fetch("/api/trainer/signup/create-checkout-session", {
         method: "POST",
         credentials: "include",
@@ -135,7 +138,6 @@ export default function TrainerSignupPaymentClient({
         .then((d: { url?: string; totalCents?: number; error?: string }) => {
           if (cancelled) return;
           if (!d.url) {
-            setRedirecting(false);
             setInitError(d.error ?? TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
             return;
           }
@@ -146,7 +148,6 @@ export default function TrainerSignupPaymentClient({
         })
         .catch(() => {
           if (!cancelled) {
-            setRedirecting(false);
             setInitError(TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
           }
         });
@@ -155,14 +156,7 @@ export default function TrainerSignupPaymentClient({
       };
     }
 
-    if (!useEmbeddedCheckout) {
-      setInitError(TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
-      return;
-    }
-
     let cancelled = false;
-    setLoadingIntent(true);
-    setInitError(null);
     void fetch("/api/trainer/signup/create-payment-intent", {
       method: "POST",
       credentials: "include",
@@ -181,14 +175,16 @@ export default function TrainerSignupPaymentClient({
       })
       .catch(() => {
         if (!cancelled) setInitError(TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingIntent(false);
       });
     return () => {
       cancelled = true;
     };
   }, [publishableLoading, stripeSecretConfigured, useCheckoutRedirect, useEmbeddedCheckout]);
+
+  const redirecting =
+    useCheckoutRedirect && !publishableLoading && !displayInitError;
+  const loadingIntent =
+    useEmbeddedCheckout && !publishableLoading && !clientSecret && !displayInitError;
 
   const options: StripeElementsOptions | undefined = clientSecret
     ? { clientSecret, appearance: { theme: "night", variables: { colorPrimary: "#FF7E00" } } }
@@ -225,9 +221,9 @@ export default function TrainerSignupPaymentClient({
                 ? `Redirecting to secure Stripe checkout${amountLabel !== "…" ? ` for ${amountLabel}` : ""}…`
                 : TRAINER_SIGNUP_PAYMENT_LOADING_MESSAGE}
             </p>
-          ) : initError ? (
+          ) : displayInitError ? (
             <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-4 text-sm leading-relaxed text-rose-100/95">
-              <p>{initError}</p>
+              <p>{displayInitError}</p>
               <p className="mt-3 text-xs text-rose-100/70">
                 This is a temporary platform setup issue on our side — not a problem with your card. You can refresh
                 this page in a few minutes or email{" "}

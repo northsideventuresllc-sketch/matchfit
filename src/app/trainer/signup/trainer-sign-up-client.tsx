@@ -33,6 +33,10 @@ function isValidSignupServiceZip(zip: string): boolean {
   return /^\d{5}(-\d{4})?$/.test(zip.trim());
 }
 
+function simpleEmailValid(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
 function formatTrainerSignupFinishError(error: string, code?: string): string {
   if (code === "SCHEMA_OUT_OF_DATE") {
     return "Sign-up is temporarily unavailable while we finish a database update. Try again in a few minutes.";
@@ -64,7 +68,6 @@ export default function TrainerSignUpClient() {
   const betaInviteFromUrl = searchParams.get("betaInvite")?.trim() || "";
   const [serviceZipCode, setServiceZipCode] = useState("");
   const { status: betaStatus, loading: betaStatusLoading } = useBetaLaunchStatus();
-  const betaGatesOn = betaStatus?.gatesEnabled === true;
   const trainerCapFull =
     betaStatus?.gatesEnabled === true &&
     betaStatus.trainerWaitlistOpen === true &&

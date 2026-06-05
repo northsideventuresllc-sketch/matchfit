@@ -1,10 +1,10 @@
 import {
   getTrainerFoundingBgPercentMax,
   type TrainerRegistrationPricingMode,
-} from "@/lib/match-fit-launch-promotions";
+} from "@/lib/match-fit-launch-promotion-caps";
+import { TRAINER_PLATFORM_REGISTRATION_FEE_CENTS } from "@/lib/trainer-platform-registration-fee";
 
-/** Platform registration list price before background-check credit (USD). */
-export const TRAINER_PLATFORM_REGISTRATION_FEE_CENTS = 10_000;
+export { TRAINER_PLATFORM_REGISTRATION_FEE_CENTS } from "@/lib/trainer-platform-registration-fee";
 
 export function trainerRegistrationPricingModeForNewTrainer(
   trainerCountBeforeInsert: number,

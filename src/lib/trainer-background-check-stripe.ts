@@ -1,19 +1,11 @@
-import { defaultBackgroundCheckVendorPaidCents } from "@/lib/checkr-config";
+import { trainerBackgroundCheckAmountCents } from "@/lib/trainer-background-check-fee";
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe-server";
 import type Stripe from "stripe";
 
-export const TRAINER_BACKGROUND_CHECK_STRIPE_PURPOSE = "trainer_background_check_fee";
+export { trainerBackgroundCheckAmountCents } from "@/lib/trainer-background-check-fee";
 
-/** Amount charged for background screening (cents). */
-export function trainerBackgroundCheckAmountCents(): number {
-  const usd = process.env.NEXT_PUBLIC_TRAINER_BACKGROUND_CHECK_FEE_USD?.trim();
-  if (usd) {
-    const n = Number.parseFloat(usd);
-    if (Number.isFinite(n) && n > 0) return Math.round(n * 100);
-  }
-  return defaultBackgroundCheckVendorPaidCents();
-}
+export const TRAINER_BACKGROUND_CHECK_STRIPE_PURPOSE = "trainer_background_check_fee";
 
 export function isTrainerBackgroundCheckPaymentIntent(pi: Stripe.PaymentIntent): boolean {
   return pi.metadata?.purpose === TRAINER_BACKGROUND_CHECK_STRIPE_PURPOSE;
