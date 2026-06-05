@@ -3,13 +3,20 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import "server-only";
 
 import { PrismaClient } from "@/generated/prisma/client";
+import { resolvePrismaDatabaseUrl } from "@/lib/supabase-database-url";
 
 const BUILD_PLACEHOLDER_DATABASE_URL =
   "postgresql://build:build@127.0.0.1:1/matchfit_build_placeholder";
 
 function databaseUrl(): string {
   const url = process.env.DATABASE_URL?.trim();
-  if (url) return url;
+  if (url) {
+    try {
+      return resolvePrismaDatabaseUrl();
+    } catch {
+      return url;
+    }
+  }
   // `next build` imports server modules to collect page data; no live DB is required.
   if (
     process.env.NEXT_PHASE === "phase-production-build" ||

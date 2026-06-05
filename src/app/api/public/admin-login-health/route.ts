@@ -1,4 +1,6 @@
 import { countAdministrators, probeAdministratorRead } from "@/lib/ensure-admin-portal-schema";
+import { directPostgresUrlSource } from "@/lib/direct-postgres-ddl";
+import { isSupabaseDirectDbHost, isSupabasePoolerHost } from "@/lib/supabase-database-url";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/admin-client";
 import { NextResponse } from "next/server";
 
@@ -6,7 +8,9 @@ export const dynamic = "force-dynamic";
 
 /** Public health check for administrator sign-in DB readiness (no secrets). */
 export async function GET() {
-  const databaseUrlConfigured = Boolean(process.env.DATABASE_URL?.trim());
+  const databaseUrl = process.env.DATABASE_URL?.trim() ?? "";
+  const directUrl = process.env.DIRECT_URL?.trim() ?? "";
+  const databaseUrlConfigured = Boolean(databaseUrl);
   const authSecretConfigured = Boolean(process.env.AUTH_SECRET?.trim() && process.env.AUTH_SECRET.trim().length >= 32);
   const readProbe = await probeAdministratorRead();
   let administratorCount = 0;
@@ -19,6 +23,10 @@ export async function GET() {
     }
   }
 
+  const databaseUrlUsesSupabaseDirectHost = databaseUrl ? isSupabaseDirectDbHost(databaseUrl) : false;
+  const directUrlLooksLikePooler = directUrl ? isSupabasePoolerHost(directUrl) : false;
+  const databaseUrlLooksLikePooler = databaseUrl ? isSupabasePoolerHost(databaseUrl) : false;
+
   const healthy = databaseUrlConfigured && authSecretConfigured && readProbe.ok && !countError;
 
   let message: string;
@@ -29,6 +37,9 @@ export async function GET() {
     message = "Administrator sign-in database access is ready.";
   } else if (!databaseUrlConfigured) {
     message = "DATABASE_URL is missing in Vercel Production environment variables.";
+  } else if (databaseUrlUsesSupabaseDirectHost && !databaseUrlLooksLikePooler) {
+    message =
+      "DATABASE_URL uses Supabase direct host (db.*.supabase.co), which is unreliable from Vercel. Set DATABASE_URL to the Supabase pooler URL (or SUPABASE_DATABASE_POOLER_URL).";
   } else if (!authSecretConfigured) {
     message = "AUTH_SECRET is missing or too short — administrator sessions cannot be signed.";
   } else if (!readProbe.ok) {
@@ -40,6 +51,10 @@ export async function GET() {
   return NextResponse.json({
     healthy,
     databaseUrlConfigured,
+    databaseUrlUsesSupabaseDirectHost,
+    databaseUrlLooksLikePooler,
+    directUrlLooksLikePooler,
+    directPostgresUrlSource: directPostgresUrlSource(),
     authSecretConfigured,
     administratorTableReadable: readProbe.ok,
     administratorCount,

@@ -1,5 +1,9 @@
 import { normalizeAdministratorCodeInput } from "@/lib/admin-code";
-import { ensureAdminPortalSchema, isAdminPortalSchemaError } from "@/lib/ensure-admin-portal-schema";
+import {
+  ensureAdminPortalSchema,
+  isAdminPortalConnectionError,
+  isAdminPortalSchemaError,
+} from "@/lib/ensure-admin-portal-schema";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
@@ -63,6 +67,15 @@ export async function POST(req: Request) {
       } catch (repairErr) {
         console.error("[admin login] schema repair failed", repairErr);
       }
+    }
+    if (isAdminPortalConnectionError(e)) {
+      return NextResponse.json(
+        {
+          error:
+            "We could not reach the administrator database. This is usually a temporary connection issue — wait a minute and try again. If it persists, verify DATABASE_URL on Vercel uses the Supabase pooler URL (not db.*.supabase.co).",
+        },
+        { status: 503 },
+      );
     }
     const { message, status } = publicApiErrorFromUnknown(e, "Could Not Sign You In.", {
       logLabel: "[admin login]",
