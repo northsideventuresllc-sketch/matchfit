@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
+import { isTrainerSignupStripeConfigured } from "@/lib/stripe-config";
+import { getStripePublishableKey } from "@/lib/stripe-publishable";
 import { resolveTrainerSignupNextPath } from "@/lib/trainer-signup-next-path";
 import TrainerSignupPaymentClient from "./trainer-signup-payment-client";
 
@@ -36,6 +38,8 @@ export default async function TrainerSignupPaymentPage() {
   return (
     <TrainerSignupPaymentClient
       foundingPricing={profile.registrationFeePricingMode === "FOUNDING_BG_SURCHARGE_20PCT"}
+      stripePublishableKey={getStripePublishableKey()}
+      stripeConfiguredOnServer={isTrainerSignupStripeConfigured()}
     />
   );
 }

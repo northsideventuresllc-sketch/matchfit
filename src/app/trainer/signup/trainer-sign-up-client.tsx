@@ -17,6 +17,7 @@ import { useBetaLaunchStatus } from "@/hooks/use-beta-launch-status";
 import { useMetaSignupFunnelStep } from "@/hooks/use-meta-signup-funnel-step";
 import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { trackMetaLead } from "@/lib/meta-pixel-funnel";
+import { TRAINER_SIGNUP_FLOW_OVERVIEW } from "@/lib/trainer-signup-payment-messaging";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 const inputClass =
@@ -538,10 +539,7 @@ export default function TrainerSignUpClient() {
         </header>
 
         <h1 className="mt-10 text-2xl font-black tracking-tight sm:mt-12 sm:text-3xl">Create Your Trainer Account</h1>
-        <p className="mt-2 text-sm leading-relaxed text-white/55 sm:text-base">
-          Enter your account details first. Next you will review the trainer agreement, authorize the signup fee, then
-          finish certification and background screening from your dashboard.
-        </p>
+        <p className="mt-3 text-sm leading-relaxed text-white/60 sm:text-base">{TRAINER_SIGNUP_FLOW_OVERVIEW}</p>
 
         {betaInviteReserved ? (
           <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100/95">

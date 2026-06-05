@@ -6,10 +6,19 @@ import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-
 import { loadStripe, type StripeElementsOptions } from "@stripe/stripe-js";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
-import { getStripePublishableKey } from "@/lib/stripe-publishable";
+import {
+  TRAINER_SIGNUP_PAYMENT_AFTER_HOLD_NOTE,
+  TRAINER_SIGNUP_PAYMENT_INTRO,
+  TRAINER_SIGNUP_PAYMENT_LOADING_MESSAGE,
+  TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE,
+  trainerSignupPaymentHoldExplanation,
+} from "@/lib/trainer-signup-payment-messaging";
+import { useStripePublishableKey } from "@/lib/use-stripe-publishable-key";
 
 type Props = {
   foundingPricing: boolean;
+  stripePublishableKey?: string | null;
+  stripeConfiguredOnServer: boolean;
 };
 
 function PaymentForm({
@@ -40,7 +49,7 @@ function PaymentForm({
       }
       const piId = paymentIntent?.id;
       if (!piId) {
-        setError("Payment completed but no payment id was returned.");
+        setError("Authorization completed but no payment id was returned.");
         return;
       }
       const res = await fetch("/api/trainer/signup/confirm-payment", {
@@ -51,12 +60,12 @@ function PaymentForm({
       });
       const data = (await res.json()) as { error?: string; next?: string };
       if (!res.ok) {
-        setError(data.error ?? "Payment succeeded but we could not update your account. Contact support.");
+        setError(data.error ?? "Authorization succeeded but we could not update your account. Contact support.");
         return;
       }
       navigateWithFullLoad(data.next ?? "/trainer/dashboard");
     } catch {
-      setError("Something went wrong while processing payment.");
+      setError("Something went wrong while processing your card authorization.");
     } finally {
       setSubmitting(false);
     }
@@ -64,22 +73,13 @@ function PaymentForm({
 
   return (
     <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
-      <p className="text-sm leading-relaxed text-white/65">
-        {foundingPricing ? (
-          <>
-            Founding coach pricing: you authorize the estimated background screening fee plus a 20% platform
-            surcharge and card processing. Match Fit captures this amount only after your certification and
-            background check are approved.
-          </>
-        ) : (
-          <>
-            You authorize the $100.00 platform registration fee plus card processing. Match Fit captures this
-            amount only after your certification and background check are approved.
-          </>
-        )}
-      </p>
+      <div className="space-y-3 rounded-xl border border-white/[0.08] bg-[#12151C]/60 px-4 py-4 text-sm leading-relaxed text-white/70">
+        <p>{trainerSignupPaymentHoldExplanation(foundingPricing ? "FOUNDING_BG_SURCHARGE_20PCT" : "STANDARD_100_MINUS_BG")}</p>
+        <p className="text-white/55">{TRAINER_SIGNUP_PAYMENT_AFTER_HOLD_NOTE}</p>
+      </div>
       <p className="text-sm text-white/80">
-        Total due now: <span className="font-semibold text-[#FFD34E]">{amountLabel}</span>
+        Hold amount today (includes processing):{" "}
+        <span className="font-semibold text-[#FFD34E]">{amountLabel}</span>
       </p>
       <div className="rounded-xl border border-white/[0.08] bg-[#0E1016]/90 px-3 py-4">
         <PaymentElement />
@@ -90,21 +90,23 @@ function PaymentForm({
         disabled={!stripe || !elements || submitting}
         className="flex min-h-[3rem] w-full items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] disabled:opacity-60"
       >
-        {submitting ? "Processing…" : "Authorize signup fee"}
+        {submitting ? "Authorizing…" : "Place signup fee hold"}
       </button>
     </form>
   );
 }
 
-export default function TrainerSignupPaymentClient({ foundingPricing }: Props) {
-  const publishableKey = getStripePublishableKey();
+export default function TrainerSignupPaymentClient({
+  foundingPricing,
+  stripePublishableKey,
+  stripeConfiguredOnServer,
+}: Props) {
+  const { publishableKey, loading: publishableLoading } = useStripePublishableKey(stripePublishableKey);
   const stripeConfigured = Boolean(publishableKey);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [amountLabel, setAmountLabel] = useState<string>("…");
-  const [loading, setLoading] = useState(stripeConfigured);
-  const [initError, setInitError] = useState<string | null>(
-    stripeConfigured ? null : "Stripe is not configured for this environment.",
-  );
+  const [loadingIntent, setLoadingIntent] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
 
   const stripePromise = useMemo(
     () => (publishableKey ? loadStripe(publishableKey) : null),
@@ -112,8 +114,19 @@ export default function TrainerSignupPaymentClient({ foundingPricing }: Props) {
   );
 
   useEffect(() => {
-    if (!stripeConfigured) return;
+    if (publishableLoading) return;
+    if (!stripeConfigured) {
+      setInitError(TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
+      return;
+    }
+    if (!stripeConfiguredOnServer) {
+      setInitError(TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
+      return;
+    }
+
     let cancelled = false;
+    setLoadingIntent(true);
+    setInitError(null);
     void fetch("/api/trainer/signup/create-payment-intent", {
       method: "POST",
       credentials: "include",
@@ -122,7 +135,7 @@ export default function TrainerSignupPaymentClient({ foundingPricing }: Props) {
       .then((d: { clientSecret?: string; totalCents?: number; error?: string }) => {
         if (cancelled) return;
         if (!d.clientSecret) {
-          setInitError(d.error ?? "Could not initialize payment.");
+          setInitError(d.error ?? TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
           return;
         }
         setClientSecret(d.clientSecret);
@@ -131,19 +144,21 @@ export default function TrainerSignupPaymentClient({ foundingPricing }: Props) {
         }
       })
       .catch(() => {
-        if (!cancelled) setInitError("Could not reach the payment server.");
+        if (!cancelled) setInitError(TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setLoadingIntent(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [stripeConfigured]);
+  }, [publishableLoading, stripeConfigured, stripeConfiguredOnServer]);
 
   const options: StripeElementsOptions | undefined = clientSecret
     ? { clientSecret, appearance: { theme: "night", variables: { colorPrimary: "#FF7E00" } } }
     : undefined;
+
+  const loading = publishableLoading || loadingIntent;
 
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] px-5 py-10 text-white sm:px-8">
@@ -155,17 +170,33 @@ export default function TrainerSignupPaymentClient({ foundingPricing }: Props) {
           <span className="text-sm font-bold text-white/70">Back to agreement</span>
         </Link>
 
-        <h1 className="mt-8 text-2xl font-black uppercase tracking-tight">Trainer signup fee</h1>
-        <p className="mt-2 text-sm text-white/55">
-          Your card is authorized today. Match Fit captures the fee only after certification and background
-          screening are approved.
-        </p>
+        <h1 className="mt-8 text-2xl font-black uppercase tracking-tight">Authorize signup fee</h1>
+        <p className="mt-3 text-sm leading-relaxed text-white/60">{TRAINER_SIGNUP_PAYMENT_INTRO}</p>
+
+        <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-white/55">
+          <li>Your card receives a temporary hold for the total shown below (not an immediate charge).</li>
+          <li>You continue onboarding in your dashboard — certification upload, tax forms, background screening.</li>
+          <li>
+            Match Fit captures the fee only after certification and background screening are approved. If screening is
+            not approved, only the platform portion of the hold may be captured; the rest is released.
+          </li>
+        </ol>
 
         <div className="mt-8">
           {loading ? (
-            <p className="text-sm text-white/50">Loading secure checkout…</p>
+            <p className="text-sm text-white/50">{TRAINER_SIGNUP_PAYMENT_LOADING_MESSAGE}</p>
           ) : initError ? (
-            <p className="text-sm text-rose-300">{initError}</p>
+            <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-4 text-sm leading-relaxed text-rose-100/95">
+              <p>{initError}</p>
+              <p className="mt-3 text-xs text-rose-100/70">
+                This is a temporary platform setup issue on our side — not a problem with your card. You can refresh
+                this page in a few minutes or email{" "}
+                <a href="mailto:support@match-fit.net" className="font-semibold text-white underline-offset-2 hover:underline">
+                  support@match-fit.net
+                </a>{" "}
+                if it persists.
+              </p>
+            </div>
           ) : clientSecret && stripePromise && options ? (
             <Elements stripe={stripePromise} options={options}>
               <PaymentForm amountLabel={amountLabel} foundingPricing={foundingPricing} />
