@@ -131,46 +131,102 @@ export default function TrainerSignUpClient() {
     return { ok: true };
   }
 
+  async function finishTrainerSignupOnServer(registerCore: {
+    firstName: string;
+    lastName: string;
+    username: string;
+    phone: string;
+    email: string;
+    password: string;
+    stayLoggedIn: boolean;
+    serviceZipCode: string;
+    betaInviteToken?: string;
+    turnstileToken?: string | null;
+  }): Promise<{ ok: true } | { ok: false; error: string; code?: string }> {
+    const res = await fetch("/api/trainer/complete-supabase-signup", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        firstName: registerCore.firstName,
+        lastName: registerCore.lastName,
+        username: registerCore.username,
+        phone: registerCore.phone,
+        email: registerCore.email,
+        password: registerCore.password,
+        stayLoggedIn: registerCore.stayLoggedIn,
+        serviceZipCode: registerCore.serviceZipCode,
+        agreedToTerms: true,
+        ...(registerCore.betaInviteToken ? { betaInviteToken: registerCore.betaInviteToken } : {}),
+        ...(registerCore.turnstileToken ? { turnstileToken: registerCore.turnstileToken } : {}),
+      }),
+    });
+    const data = (await res.json()) as { error?: string; next?: string; code?: string };
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: data.error ?? "Could not finish creating your account.",
+        code: data.code,
+      };
+    }
+    trackGoogleAdsConversion("trainer_signup");
+    trackMetaConversion("trainer_signup");
+    navigateWithFullLoad(data.next ?? "/trainer/signup/terms");
+    return { ok: true };
+  }
+
   async function handleContinueWithPassword() {
     setError(null);
     setResendNotice(null);
     const emailNorm = email.trim().toLowerCase();
+    if (!firstName.trim() || !lastName.trim()) {
+      setError("Enter your first and last name.");
+      return;
+    }
+    const u = username.trim();
+    if (!u || u.length < 3) {
+      setError("Username must be at least 3 characters.");
+      return;
+    }
+    if (!phone.trim() || countPhoneDigits(phone) < 10) {
+      setError("Enter a valid phone number.");
+      return;
+    }
     if (!emailNorm || !password) {
       setError("Enter your email and password, then try again.");
       return;
     }
-    const supabase = tryCreateMatchFitSupabaseBrowserClient();
-    if (!supabase) {
-      setError("Supabase client could not be created.");
+    if (betaGatesOn && !/^\d{5}(-\d{4})?$/.test(serviceZipCode.trim())) {
+      setError("Enter your primary Atlanta metro ZIP (5 digits).");
+      return;
+    }
+    const tsErr = turnstile.validateBeforeSubmit();
+    if (tsErr) {
+      setError(tsErr);
       return;
     }
     setBusy(true);
     try {
-      const { error: signInErr } = await supabase.auth.signInWithPassword({ email: emailNorm, password });
-      if (signInErr) {
-        setError(
-          signInErr.message.includes("Email not confirmed")
-            ? "Your email is not confirmed yet. Wait for the verification link or try Resend after the cooldown."
-            : signInErr.message || "Could not sign in. Check your password and try again.",
-        );
-        setBusy(false);
-        return;
-      }
-      writeTrainerSignupDraft({
+      const result = await finishTrainerSignupOnServer({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        username: username.trim(),
+        username: u,
         phone: phone.trim(),
         email: emailNorm,
         password,
-        agreedToTerms: true,
         stayLoggedIn,
         serviceZipCode: serviceZipCode.trim(),
         ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
+        turnstileToken: turnstile.getCaptchaToken() ?? null,
       });
-      navigateWithFullLoad("/trainer/signup/complete");
+      if (!result.ok) {
+        setError(result.error);
+        turnstile.reset();
+        setBusy(false);
+      }
     } catch {
       setError("Something went wrong. Try again.");
+      turnstile.reset();
       setBusy(false);
     }
   }
@@ -363,10 +419,21 @@ export default function TrainerSignUpClient() {
         }
 
         if (!delivery.ok) {
-          setError(delivery.error ?? "We could not send the verification email.");
           if (delivery.code === "EMAIL_ALREADY_CONFIRMED") {
-            setResendNotice("Your email looks verified already — try Continue with password below.");
+            const finished = await finishTrainerSignupOnServer({
+              ...registerCore,
+              turnstileToken,
+            });
+            if (!finished.ok) {
+              setError(finished.error);
+              setResendNotice("Your email is verified. Use Finish sign-up with password below.");
+              setVerificationEmailSent(true);
+              turnstile.reset();
+            }
+            setBusy(false);
+            return;
           }
+          setError(delivery.error ?? "We could not send the verification email.");
           turnstile.reset();
           setVerificationEmailSent(true);
           setBusy(false);
@@ -489,8 +556,8 @@ export default function TrainerSignUpClient() {
             >
               <p className="text-base font-black tracking-tight text-emerald-50">Verification email sent</p>
               <p className="mt-3 rounded-xl border border-[#FFD34E]/35 bg-[#FFD34E]/10 px-4 py-3 text-sm leading-relaxed text-[#FFF4D0]">
-                <span className="font-semibold text-white">Already verified?</span> You do not need to wait for email.
-                Tap <span className="font-semibold">Continue with password</span> below to finish sign-up.
+                <span className="font-semibold text-white">Already verified?</span> Skip waiting for email and tap{" "}
+                <span className="font-semibold">Finish sign-up with password</span> below.
               </p>
               <p className="mt-3 text-sm leading-relaxed text-emerald-100/85">
                 We sent a message to <span className="font-semibold text-white">{email.trim()}</span>. Open it and tap
@@ -519,7 +586,7 @@ export default function TrainerSignUpClient() {
                 onClick={() => void handleContinueWithPassword()}
                 className="mt-3 min-h-[2.75rem] w-full rounded-xl border border-white/15 bg-white/5 px-4 text-xs font-black uppercase tracking-[0.08em] text-white/85 transition hover:bg-white/10 disabled:opacity-50"
               >
-                {busy ? "Please wait…" : "Continue with password"}
+                {busy ? "Please wait…" : "Finish sign-up with password"}
               </button>
               <p className="mt-3 text-[11px] leading-relaxed text-emerald-100/55">
                 Already confirmed your email? Use Continue with password. Otherwise wait 2 minutes between Resend attempts.

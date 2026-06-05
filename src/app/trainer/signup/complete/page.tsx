@@ -3,56 +3,31 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { TurnstileField } from "@/components/turnstile-field";
 import { trackGoogleAdsConversion } from "@/lib/google-ads";
 import { trackMetaConversion } from "@/lib/meta-pixel";
 import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { isTurnstileClientEnabled } from "@/lib/turnstile-config";
-import { tryCreateMatchFitSupabaseBrowserClient } from "@/lib/supabase/browser-client";
-import { clearTrainerSignupDraft, readTrainerSignupDraft } from "@/lib/trainer-supabase-signup-draft";
+import { clearTrainerSignupDraft, readTrainerSignupDraft, type TrainerSupabaseSignupDraft } from "@/lib/trainer-supabase-signup-draft";
 
 export default function TrainerSignupCompletePage() {
   const router = useRouter();
   const turnstile = useTurnstileGate();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [sessionReady, setSessionReady] = useState(false);
+  const [ready, setReady] = useState(false);
 
-  useEffect(() => {
-    const draft = readTrainerSignupDraft();
-    const supabase = tryCreateMatchFitSupabaseBrowserClient();
-    if (!draft || !supabase) {
-      router.replace("/trainer/signup");
-      return;
-    }
-
-    let cancelled = false;
-
-    void (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        if (!cancelled) {
-          setError("No active session. Open the link from your verification email again, or start sign-up over.");
-        }
-        return;
-      }
-      if (!cancelled) setSessionReady(true);
-
-      if (isTurnstileClientEnabled() || cancelled) return;
-
+  const runServerComplete = useCallback(
+    async (draft: TrainerSupabaseSignupDraft, turnstileToken: string | null) => {
       setBusy(true);
+      setError(null);
       try {
-        const res = await fetch("/api/trainer/register-with-supabase", {
+        const res = await fetch("/api/trainer/complete-supabase-signup", {
           method: "POST",
           credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             firstName: draft.firstName,
             lastName: draft.lastName,
@@ -64,12 +39,13 @@ export default function TrainerSignupCompletePage() {
             stayLoggedIn: draft.stayLoggedIn,
             serviceZipCode: draft.serviceZipCode?.trim() ?? "",
             ...(draft.betaInviteToken ? { betaInviteToken: draft.betaInviteToken } : {}),
+            ...(turnstileToken ? { turnstileToken } : {}),
           }),
         });
         const data = (await res.json()) as { error?: string; next?: string };
-        if (cancelled) return;
         if (!res.ok) {
           setError(data.error ?? "Could not finish creating your account.");
+          turnstile.reset();
           setBusy(false);
           return;
         }
@@ -78,31 +54,29 @@ export default function TrainerSignupCompletePage() {
         trackMetaConversion("trainer_signup");
         navigateWithFullLoad(data.next ?? "/trainer/signup/terms");
       } catch {
-        if (!cancelled) {
-          setError("Something went wrong. Try again.");
-          setBusy(false);
-        }
+        setError("Something went wrong. Try again.");
+        setBusy(false);
       }
-    })();
+    },
+    [turnstile],
+  );
 
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
-
-  async function finishWithTurnstile() {
-    setError(null);
+  useEffect(() => {
     const draft = readTrainerSignupDraft();
-    const supabase = tryCreateMatchFitSupabaseBrowserClient();
-    if (!draft || !supabase) {
+    if (!draft) {
       router.replace("/trainer/signup");
       return;
     }
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      setError("Session expired. Open the link from your verification email again.");
+    setReady(true);
+    if (!isTurnstileClientEnabled()) {
+      void runServerComplete(draft, null);
+    }
+  }, [router, runServerComplete]);
+
+  async function finishWithTurnstile() {
+    const draft = readTrainerSignupDraft();
+    if (!draft) {
+      router.replace("/trainer/signup");
       return;
     }
     const tsErr = turnstile.validateBeforeSubmit();
@@ -110,45 +84,7 @@ export default function TrainerSignupCompletePage() {
       setError(tsErr);
       return;
     }
-    const turnstileToken = turnstile.getCaptchaToken();
-    setBusy(true);
-    try {
-      const res = await fetch("/api/trainer/register-with-supabase", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          firstName: draft.firstName,
-          lastName: draft.lastName,
-          username: draft.username.trim(),
-          phone: draft.phone.trim(),
-          email: draft.email.trim().toLowerCase(),
-          password: draft.password,
-          agreedToTerms: draft.agreedToTerms,
-          stayLoggedIn: draft.stayLoggedIn,
-          serviceZipCode: draft.serviceZipCode?.trim() ?? "",
-          ...(draft.betaInviteToken ? { betaInviteToken: draft.betaInviteToken } : {}),
-          turnstileToken,
-        }),
-      });
-      const data = (await res.json()) as { error?: string; next?: string };
-      if (!res.ok) {
-        setError(data.error ?? "Could not finish creating your account.");
-        turnstile.reset();
-        setBusy(false);
-        return;
-      }
-      clearTrainerSignupDraft();
-      trackGoogleAdsConversion("trainer_signup");
-      trackMetaConversion("trainer_signup");
-      navigateWithFullLoad(data.next ?? "/trainer/onboarding");
-    } catch {
-      setError("Something went wrong. Try again.");
-      setBusy(false);
-    }
+    await runServerComplete(draft, turnstile.getCaptchaToken() ?? null);
   }
 
   return (
@@ -165,7 +101,6 @@ export default function TrainerSignupCompletePage() {
 
         <h1 className="text-2xl font-black tracking-tight">Finish creating your trainer account</h1>
         <p className="mt-3 text-sm leading-relaxed text-white/55">
-          Your email is verified.{" "}
           {turnstile.enabled
             ? "Complete the security check, then create your Match Fit profile."
             : "We are creating your Match Fit profile now."}
@@ -180,7 +115,7 @@ export default function TrainerSignupCompletePage() {
           </p>
         ) : null}
 
-        {sessionReady && turnstile.enabled ? (
+        {ready && turnstile.enabled ? (
           <div className="mt-8 flex flex-col items-center gap-6">
             <TurnstileField
               enabled={turnstile.enabled}
@@ -201,7 +136,7 @@ export default function TrainerSignupCompletePage() {
               {busy ? "Working…" : "Create my account"}
             </button>
           </div>
-        ) : sessionReady && !turnstile.enabled && busy ? (
+        ) : ready && !turnstile.enabled && busy ? (
           <p className="mt-8 text-sm text-white/50">Creating your account…</p>
         ) : null}
 
