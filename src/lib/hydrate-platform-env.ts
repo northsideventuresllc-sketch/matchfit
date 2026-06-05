@@ -68,6 +68,16 @@ export async function hydratePlatformEnvFromDatabase(): Promise<void> {
       if (resolved) process.env.RESEND_FROM_EMAIL = resolved;
     }
 
+    const anthropicKey = await readPlatformSecret("ANTHROPIC_API_KEY");
+    if (anthropicKey) {
+      process.env.ANTHROPIC_API_KEY = anthropicKey;
+    }
+
+    const anthropicModel = await readPlatformSecret("ANTHROPIC_ADMIN_ANALYTICS_MODEL");
+    if (anthropicModel) {
+      process.env.ANTHROPIC_ADMIN_ANALYTICS_MODEL = anthropicModel;
+    }
+
     resetStripeClient();
   })();
 
