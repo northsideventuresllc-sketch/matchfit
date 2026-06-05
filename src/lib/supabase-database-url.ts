@@ -50,9 +50,20 @@ export function isSupabasePostgresHost(connectionString: string): boolean {
 /**
  * `pg` pool config for Prisma / DDL. Supabase uses a chain that Node rejects unless
  * `rejectUnauthorized` is disabled (same as Supabase dashboard connection guidance).
+ *
+ * Strips `sslmode` from the URL so `sslmode=require` cannot override explicit pool SSL.
  */
 export function pgPoolConfigForConnectionString(connectionString: string): PoolConfig {
-  const config: PoolConfig = { connectionString };
+  let normalized = connectionString.trim();
+  try {
+    const url = new URL(normalized);
+    url.searchParams.delete("sslmode");
+    normalized = url.toString();
+  } catch {
+    // keep raw string when not a valid URL
+  }
+
+  const config: PoolConfig = { connectionString: normalized };
   if (isSupabasePostgresHost(connectionString)) {
     config.ssl = { rejectUnauthorized: false };
   }
@@ -90,9 +101,7 @@ export function derivePoolerDatabaseUrlFromDirectSupabaseUrl(directUrl: string):
   pooler.port = process.env.SUPABASE_POOLER_PORT?.trim() || "6543";
   pooler.username = `postgres.${ref}`;
   pooler.searchParams.set("pgbouncer", "true");
-  if (!pooler.searchParams.has("sslmode")) {
-    pooler.searchParams.set("sslmode", "require");
-  }
+  pooler.searchParams.set("sslmode", "no-verify");
   return pooler.toString();
 }
 

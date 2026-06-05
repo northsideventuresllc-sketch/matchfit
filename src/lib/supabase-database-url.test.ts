@@ -27,9 +27,10 @@ describe("supabase-database-url", () => {
 
   it("enables relaxed TLS for Supabase pg pools", () => {
     const supabase = pgPoolConfigForConnectionString(
-      "postgresql://postgres.qtesdsxrfggdlxdaraaq:pw@aws-1-us-east-2.pooler.supabase.com:6543/postgres",
+      "postgresql://postgres.qtesdsxrfggdlxdaraaq:pw@aws-1-us-east-2.pooler.supabase.com:6543/postgres?sslmode=require",
     );
     expect(supabase.ssl).toEqual({ rejectUnauthorized: false });
+    expect(supabase.connectionString).not.toContain("sslmode=");
 
     const local = pgPoolConfigForConnectionString("postgresql://postgres:pw@127.0.0.1:5432/postgres");
     expect(local.ssl).toBeUndefined();
@@ -42,6 +43,7 @@ describe("supabase-database-url", () => {
     expect(derived).toContain("aws-1-us-east-2.pooler.supabase.com:6543");
     expect(derived).toContain("postgres.qtesdsxrfggdlxdaraaq");
     expect(derived).toContain("pgbouncer=true");
+    expect(derived).toContain("sslmode=no-verify");
   });
 
   it("prefers derived pooler when DATABASE_URL uses Match Fit direct host", () => {

@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-05** `1.1.7-beta` → `1.1.8-beta` (**patch** — Strip sslmode override for Supabase Prisma TLS)
 - **2026-06-05** `1.1.6-beta` → `1.1.7-beta` (**patch** — Fix Supabase TLS for Prisma admin portal)
 - **2026-06-05** `1.1.5-beta` → `1.1.6-beta` (**patch**)
 - **2026-06-05** `1.1.4-beta` → `1.1.5-beta` (**patch**)
