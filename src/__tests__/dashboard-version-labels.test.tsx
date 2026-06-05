@@ -49,6 +49,7 @@ import type { AdminPortalOverview } from "@/lib/admin-portal-types";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
 
 const EMPTY_OVERVIEW: AdminPortalOverview = {
+  computedAt: "2026-06-05T12:00:00.000Z",
   userCounts: { trainersTotal: 7, trainersActive: 5, clientsTotal: 12, clientsActive: 10 },
   revenue: {
     revenueCents: 0,
@@ -135,6 +136,31 @@ const EMPTY_OVERVIEW: AdminPortalOverview = {
         daysSinceLaunch: 0,
       },
     },
+    potentialSuccess: {
+      score: 0,
+      currentScore: 0,
+      uplift: 0,
+      successRating: {
+        score: 0,
+        factors: [],
+        meta: {
+          launchDate: "2026-05-21",
+          marketingStartDate: "2026-05-25",
+          marketingBudgetUsd: 70,
+          daysSinceLaunch: 0,
+        },
+      },
+      assumptions: [],
+    },
+    valuation: {
+      valuationCents: 0,
+      subscriptionArrCents: 0,
+      transactionalArrCents: 0,
+      totalArrCents: 0,
+      revenueMultiple: 3,
+      networkValueCents: 0,
+      method: "Beta marketplace heuristic",
+    },
   },
 };
 
@@ -184,6 +210,6 @@ describe("dashboard version labels", () => {
       />,
     );
 
-    expect(html).toContain(`Version ${MATCH_FIT_PRODUCT_VERSION_LABEL}`);
+    expect(html).toContain(`v${MATCH_FIT_PRODUCT_VERSION_LABEL}`);
   });
 });

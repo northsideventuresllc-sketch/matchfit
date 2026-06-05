@@ -21,7 +21,7 @@ export function AdminDashboardSection(props: {
       aria-labelledby={props.title ? `${props.id}-heading` : undefined}
     >
       {props.group ? (
-        <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#FF7E00]/50">{props.group}</p>
+        <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#FF7E00]/55">{props.group}</p>
       ) : null}
       {props.title ? (
         <div className="mb-4">

@@ -1,18 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useRef, useState } from "react";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
 import {
-  AdminPortalBackdrop,
-  AdminPortalBetaNotice,
-  AdminPortalLogoLink,
-  AdminPrimaryButton,
-  adminInputClassSm,
-  adminLabelClass,
-  adminLinkClass,
-  adminPanelClass,
-} from "@/components/admin/admin-portal-ui";
+  adminPortalBackgroundLayers,
+  adminPortalMainClass,
+} from "@/components/admin/admin-portal-styles";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
@@ -83,21 +78,32 @@ export function AdminSignUpClient(props: { decision?: string }) {
   }
 
   return (
-    <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] text-white antialiased">
-      <AdminPortalBackdrop />
+    <main className={adminPortalMainClass}>
+      <div aria-hidden className={adminPortalBackgroundLayers.warmGlow} />
 
       <div className="relative z-10 mx-auto flex min-h-dvh max-w-lg flex-col px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
-        <header>
-          <AdminPortalLogoLink />
+        <header className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3 opacity-90 transition hover:opacity-100">
+            <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl">
+              <Image src="/logo.png" alt="Match Fit" fill className="object-contain" sizes="44px" />
+            </div>
+            <span className="text-sm font-black tracking-tight">
+              <span className="text-[#E8EAEF]">Match</span> <span className="text-[#E32B2B]">Fit</span>
+            </span>
+          </Link>
         </header>
 
         <div className="mt-10 flex flex-1 flex-col">
-          <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Administrator onboarding</h1>
+          <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Administrator Onboarding</h1>
           <p className="mt-3 text-sm leading-relaxed text-white/55">
             Complete this form so Match Fit leadership receives your details. When they approve the request, your staff code is
             derived from your legal first name, legal last name, and birth date (two letters + two letters + MMDD).
           </p>
-          <AdminPortalBetaNotice className="mt-3" />
+          <p className="mt-3 rounded-xl border border-amber-400/30 bg-amber-500/[0.07] px-3 py-2.5 text-xs leading-relaxed text-amber-50/95 sm:text-sm">
+            <span className="font-semibold text-amber-100">First beta.</span> Match Fit’s initial beta does not yet include the
+            completed Administrator Portal—that work is scheduled for when version 1.0 goes live. Requests and approvals during beta may
+            evolve before launch.
+          </p>
 
           {decisionNote ? (
             <p
@@ -124,11 +130,11 @@ export function AdminSignUpClient(props: { decision?: string }) {
                   href="/admin/login"
                   className="mt-6 inline-flex min-h-[2.75rem] items-center justify-center rounded-xl bg-emerald-500 px-4 text-xs font-black uppercase tracking-[0.1em] text-[#052e1f]"
                 >
-                  Back to staff sign-in
+                  Back to Staff Sign-In
                 </Link>
               </div>
             ) : (
-              <div className={`rounded-3xl ${adminPanelClass} p-6 sm:p-8`}>
+              <div className="rounded-3xl border border-white/[0.08] bg-[#12151C]/95 p-6 backdrop-blur-xl sm:p-8">
                 {error ? (
                   <p className="mb-4 rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]" role="alert">
                     {error}
@@ -138,57 +144,59 @@ export function AdminSignUpClient(props: { decision?: string }) {
                 <form className="flex flex-col gap-4" onSubmit={(e) => void handleSubmit(e)}>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="flex flex-col gap-1.5">
-                      <label className={adminLabelClass}>Legal first name</label>
+                      <label className="text-[11px] font-semibold uppercase tracking-wide text-white/45">Legal first name</label>
                       <input
                         required
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
-                        className={adminInputClassSm}
+                        className="rounded-xl border border-white/[0.1] bg-[#07080c] px-3 py-2.5 text-sm text-white outline-none focus:border-[#FF7E00]/35 focus:ring-2 focus:ring-[#FF7E00]/25"
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label className={adminLabelClass}>Legal last name</label>
+                      <label className="text-[11px] font-semibold uppercase tracking-wide text-white/45">Legal last name</label>
                       <input
                         required
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
-                        className={adminInputClassSm}
+                        className="rounded-xl border border-white/[0.1] bg-[#07080c] px-3 py-2.5 text-sm text-white outline-none focus:border-[#FF7E00]/35 focus:ring-2 focus:ring-[#FF7E00]/25"
                       />
                     </div>
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className={adminLabelClass}>Date of birth (YYYY-MM-DD)</label>
+                    <label className="text-[11px] font-semibold uppercase tracking-wide text-white/45">
+                      Date of birth (YYYY-MM-DD)
+                    </label>
                     <input
                       required
                       type="date"
                       value={dateOfBirth}
                       onChange={(e) => setDateOfBirth(e.target.value)}
-                      className={adminInputClassSm}
+                      className="rounded-xl border border-white/[0.1] bg-[#07080c] px-3 py-2.5 text-sm text-white outline-none focus:border-[#FF7E00]/35 focus:ring-2 focus:ring-[#FF7E00]/25"
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className={adminLabelClass}>Work email</label>
+                    <label className="text-[11px] font-semibold uppercase tracking-wide text-white/45">Work email</label>
                     <input
                       required
                       type="email"
                       autoComplete="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className={adminInputClassSm}
+                      className="rounded-xl border border-white/[0.1] bg-[#07080c] px-3 py-2.5 text-sm text-white outline-none focus:border-[#FF7E00]/35 focus:ring-2 focus:ring-[#FF7E00]/25"
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className={adminLabelClass}>Password (12+ characters)</label>
+                    <label className="text-[11px] font-semibold uppercase tracking-wide text-white/45">Password (12+ characters)</label>
                     <input
                       required
                       type="password"
                       autoComplete="new-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className={adminInputClassSm}
+                      className="rounded-xl border border-white/[0.1] bg-[#07080c] px-3 py-2.5 text-sm text-white outline-none focus:border-[#FF7E00]/35 focus:ring-2 focus:ring-[#FF7E00]/25"
                     />
                   </div>
 
@@ -198,15 +206,19 @@ export function AdminSignUpClient(props: { decision?: string }) {
                     </div>
                   ) : null}
 
-                  <AdminPrimaryButton type="submit" disabled={busy} className="mt-2 min-h-[3rem] text-xs">
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="mt-2 flex min-h-[3rem] items-center justify-center rounded-xl bg-[linear-gradient(135deg,#67e8f9_0%,#38bdf8_50%,#6366f1_100%)] text-xs font-black uppercase tracking-[0.1em] text-[#050608] disabled:opacity-50"
+                  >
                     {busy ? "Submitting…" : "Submit for approval"}
-                  </AdminPrimaryButton>
+                  </button>
                 </form>
               </div>
             )}
 
             <p className="mt-8 text-center text-xs text-white/40">
-              <Link href="/admin/login" className={adminLinkClass}>
+              <Link href="/admin/login" className="text-cyan-300/90 underline-offset-4 hover:underline">
                 Already approved? Administrator Log In
               </Link>
               {" · "}

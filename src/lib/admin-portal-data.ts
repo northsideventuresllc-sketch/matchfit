@@ -408,6 +408,7 @@ export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
   ]);
 
   return {
+    computedAt: new Date().toISOString(),
     traffic,
     userCounts,
     revenue,
