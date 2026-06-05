@@ -1,5 +1,5 @@
-import { isZipInBetaAtlantaMetroArea } from "@/lib/beta-atlanta-metro-zips";
 import { isBetaLaunchGatesEnabled } from "@/lib/beta-launch-config";
+import { isValidUsServiceZip } from "@/lib/trainer-in-person-service-area";
 import { getValidBetaInvite, isTrainerBetaCapReached } from "@/lib/beta-waitlist-service";
 
 export type BetaTrainerRegisterGateResult =
@@ -15,18 +15,21 @@ export async function evaluateBetaTrainerRegistrationGate(args: {
   if (!isBetaLaunchGatesEnabled()) {
     return { ok: true, betaInviteEntryId: null };
   }
+
   const zip = args.serviceZipCode.trim();
-  if (!zip || !isZipInBetaAtlantaMetroArea(zip)) {
+  if (!zip || !isValidUsServiceZip(zip)) {
     return {
       ok: false,
       status: 400,
-      code: "BETA_OUTSIDE_SERVICE_AREA",
-      error: "Enter a valid Atlanta metro ZIP for your primary service area.",
+      code: "INVALID_SERVICE_ZIP",
+      error: "Enter a valid US ZIP code (5 digits) for your primary service area.",
     };
   }
+
   if (!(await isTrainerBetaCapReached())) {
     return { ok: true, betaInviteEntryId: null };
   }
+
   const inv = await getValidBetaInvite(args.betaInviteToken ?? undefined);
   const email = args.email.trim().toLowerCase();
   const username = args.username.trim();

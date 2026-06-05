@@ -1,9 +1,32 @@
 import { prisma } from "@/lib/prisma";
+import {
+  ensureTrainerSignupTermsSchema,
+  isMissingTrainerSignupTermsColumnError,
+} from "@/lib/ensure-trainer-signup-terms-schema";
 import { getSessionTrainerId } from "@/lib/session";
 import { resolveTrainerSignupNextPath } from "@/lib/trainer-signup-next-path";
 import { trainerAgreementsSchema } from "@/lib/validations/trainer-register";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
+
+async function saveTrainerAgreement(trainerId: string): Promise<void> {
+  const now = new Date();
+  await prisma.$transaction([
+    prisma.trainer.update({
+      where: { id: trainerId },
+      data: {
+        termsAcceptedAt: now,
+        privacyPolicyAcceptedAt: now,
+      },
+    }),
+    prisma.trainerProfile.update({
+      where: { trainerId },
+      data: { hasSignedTOS: true, updatedAt: now },
+    }),
+  ]);
+}
 
 export async function PATCH(req: Request) {
   try {
@@ -18,20 +41,14 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    const now = new Date();
-    await prisma.$transaction([
-      prisma.trainer.update({
-        where: { id: trainerId },
-        data: {
-          termsAcceptedAt: now,
-          privacyPolicyAcceptedAt: now,
-        },
-      }),
-      prisma.trainerProfile.update({
-        where: { trainerId },
-        data: { hasSignedTOS: true, updatedAt: now },
-      }),
-    ]);
+    await ensureTrainerSignupTermsSchema();
+    try {
+      await saveTrainerAgreement(trainerId);
+    } catch (e) {
+      if (!isMissingTrainerSignupTermsColumnError(e)) throw e;
+      await ensureTrainerSignupTermsSchema();
+      await saveTrainerAgreement(trainerId);
+    }
 
     const profile = await prisma.trainerProfile.findUnique({
       where: { trainerId },

@@ -1,7 +1,9 @@
 import { isSupabaseAdminConfigured } from "@/lib/supabase/admin-client";
 import { findSupabaseAuthUserByEmail } from "@/lib/supabase/find-auth-user-by-email";
 import { countTrainerRegisterProfileColumns, isTrainerTermsAcceptedAtNullable } from "@/lib/ensure-trainer-register-schema";
+import { countTrainerSignupTermsColumns } from "@/lib/ensure-trainer-signup-terms-schema";
 import { probeTrainerRegisterInsert } from "@/lib/probe-trainer-register-insert";
+import { probeTrainerSignupTermsUpdate } from "@/lib/probe-trainer-signup-terms-update";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -25,14 +27,18 @@ export async function GET() {
   }
 
   const insertProbe = await probeTrainerRegisterInsert();
+  const termsProbe = await probeTrainerSignupTermsUpdate();
   const trainerProfileColumnsFound = await countTrainerRegisterProfileColumns();
+  const trainerTermsColumnsFound = await countTrainerSignupTermsColumns();
   const termsAcceptedAtNullable = await isTrainerTermsAcceptedAtNullable();
   const healthy =
     databaseUrlConfigured &&
     supabaseAdminConfigured &&
     authLookupOk &&
     insertProbe.ok &&
+    termsProbe.ok &&
     trainerProfileColumnsFound >= 10 &&
+    trainerTermsColumnsFound >= 2 &&
     termsAcceptedAtNullable === true;
 
   let message: string;
@@ -46,7 +52,9 @@ export async function GET() {
     message = `Supabase admin user lookup failed${authLookupError ? `: ${authLookupError}` : "."}`;
   } else if (!insertProbe.ok) {
     message = `Trainer sign-up insert probe failed (${insertProbe.code}).`;
-  } else if (trainerProfileColumnsFound < 10 || termsAcceptedAtNullable !== true) {
+  } else if (!termsProbe.ok) {
+    message = `Trainer agreement save probe failed (${termsProbe.code}).`;
+  } else if (trainerProfileColumnsFound < 10 || trainerTermsColumnsFound < 2 || termsAcceptedAtNullable !== true) {
     message = `Trainer signup schema is out of date (profileColumns=${trainerProfileColumnsFound}/10, termsAcceptedAtNullable=${String(termsAcceptedAtNullable)}). The next sign-up attempt should auto-repair.`;
   } else {
     message = "Trainer sign-up health check failed.";
@@ -63,6 +71,10 @@ export async function GET() {
     insertProbeError: insertProbe.ok ? null : insertProbe.message.slice(0, 500),
     trainerProfileColumnsFound,
     trainerProfileColumnsRequired: 10,
+    trainerTermsColumnsFound,
+    trainerTermsColumnsRequired: 2,
+    termsProbeOk: termsProbe.ok,
+    termsProbeCode: termsProbe.ok ? null : termsProbe.code,
     termsAcceptedAtNullable,
     deployCommit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
     message,

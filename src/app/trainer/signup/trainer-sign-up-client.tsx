@@ -42,8 +42,8 @@ function formatTrainerSignupFinishError(error: string, code?: string): string {
   if (code === "USERNAME_TAKEN") {
     return "That username is already taken. Choose a different username above, then try Finish again.";
   }
-  if (code === "BETA_OUTSIDE_SERVICE_AREA") {
-    return "Enter a valid Atlanta metro ZIP (for example 30301) in the form above, then try Finish again.";
+  if (code === "INVALID_SERVICE_ZIP") {
+    return "Enter a valid US ZIP code (5 digits) in the form above, then try Finish again.";
   }
   if (code === "EMAIL_NOT_CONFIRMED") {
     return "Your email is not confirmed yet. Check your inbox, or tap Resend verification email.";
@@ -229,7 +229,7 @@ export default function TrainerSignUpClient() {
       return;
     }
     if (betaGatesOn && !/^\d{5}(-\d{4})?$/.test(serviceZipCode.trim())) {
-      setError("Enter your primary Atlanta metro ZIP (5 digits).");
+      setError("Enter a valid US ZIP code (5 digits).");
       return;
     }
     const tsErr = turnstile.validateBeforeSubmit();
@@ -339,7 +339,7 @@ export default function TrainerSignUpClient() {
     if (betaGatesOn) {
       const z = serviceZipCode.trim();
       if (!/^\d{5}(-\d{4})?$/.test(z)) {
-        setError("Enter your primary Atlanta metro ZIP (5 digits).");
+        setError("Enter a valid US ZIP code (5 digits).");
         return;
       }
     }
@@ -704,7 +704,7 @@ export default function TrainerSignUpClient() {
             {betaGatesOn ? (
               <div className="flex flex-col gap-2">
                 <label htmlFor="tr-su-zip" className={labelClass}>
-                  Primary service ZIP (Atlanta metro)
+                  Primary service ZIP
                 </label>
                 <input
                   id="tr-su-zip"
@@ -714,9 +714,13 @@ export default function TrainerSignUpClient() {
                   required
                   value={serviceZipCode}
                   onChange={(e) => setServiceZipCode(e.target.value)}
-                  placeholder="30301"
+                  placeholder="94102"
                   className={inputClass}
                 />
+                <p className="text-xs leading-relaxed text-white/40">
+                  Used for matching and your public profile. Anyone in the U.S. can sign up; in-person sessions are
+                  available in the Atlanta metro area during beta.
+                </p>
               </div>
             ) : null}
 

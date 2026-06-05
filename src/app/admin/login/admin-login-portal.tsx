@@ -108,7 +108,7 @@ export default function AdminLoginPortal() {
                     spellCheck={false}
                     maxLength={24}
                     className={`${adminInputClass} font-mono tracking-wide`}
-                    placeholder="8-character code"
+                    placeholder="8-character code (not email)"
                   />
                 </div>
 
@@ -156,8 +156,12 @@ export default function AdminLoginPortal() {
                   ready={turnstile.ready}
                 />
 
-                <AdminPrimaryButton type="submit" disabled={busy} className="mt-1">
-                  {busy ? "Signing in…" : "Continue"}
+                <AdminPrimaryButton
+                  type="submit"
+                  disabled={busy || (turnstile.enabled && !turnstile.ready)}
+                  className="mt-1"
+                >
+                  {busy ? "Signing in…" : turnstile.enabled && !turnstile.ready ? "Complete security check…" : "Continue"}
                 </AdminPrimaryButton>
               </form>
 

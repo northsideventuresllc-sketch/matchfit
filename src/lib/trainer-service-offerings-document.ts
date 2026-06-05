@@ -1,3 +1,4 @@
+import { inPersonServiceZipValidationError } from "@/lib/trainer-in-person-service-area";
 import { z } from "zod";
 import {
   BILLING_UNITS,
@@ -414,11 +415,11 @@ export const trainerServiceOfferingsDocumentSchema = z
     }
     const needsZip = doc.services.some((s) => s.delivery === "in_person" || s.delivery === "both");
     if (needsZip) {
-      const zip = doc.inPersonServiceZip?.trim() ?? "";
-      if (!/^\d{5}(-\d{4})?$/.test(zip)) {
+      const zipErr = inPersonServiceZipValidationError(doc.inPersonServiceZip);
+      if (zipErr) {
         ctx.addIssue({
           code: "custom",
-          message: "Enter a valid US ZIP for in-person service coverage.",
+          message: zipErr,
           path: ["inPersonServiceZip"],
         });
       }

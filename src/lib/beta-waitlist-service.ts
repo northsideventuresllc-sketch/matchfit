@@ -7,7 +7,7 @@ import {
   isBetaLaunchGatesEnabled,
 } from "@/lib/beta-launch-config";
 import { countLaunchClients, countLaunchTrainers } from "@/lib/launch-account-counts";
-import { isZipInBetaAtlantaMetroArea } from "@/lib/beta-atlanta-metro-zips";
+import { isValidUsServiceZip } from "@/lib/trainer-in-person-service-area";
 import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
 import { appBaseUrlForEmail } from "@/lib/match-fit-email-shell";
 
@@ -92,8 +92,8 @@ export async function joinBetaTrainerWaitlist(args: {
   if (!(await isTrainerBetaCapReached())) {
     return { error: "Trainer slots are still available — sign up instead of joining the waitlist." };
   }
-  if (!isZipInBetaAtlantaMetroArea(args.serviceZipCode)) {
-    return { error: "That ZIP is outside the Atlanta metro beta area." };
+  if (!isValidUsServiceZip(args.serviceZipCode)) {
+    return { error: "Enter a valid US ZIP code (5 digits)." };
   }
   const email = args.email.trim().toLowerCase();
   const desiredUsername = args.desiredUsername.trim();
