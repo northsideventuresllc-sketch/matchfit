@@ -1,3 +1,4 @@
+import { ensureTrainerRegisterSchema } from "@/lib/ensure-trainer-register-schema";
 import { prisma } from "@/lib/prisma";
 import {
   ensureTrainerSignupTermsSchema,
