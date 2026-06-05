@@ -3,6 +3,7 @@ import pg from "pg";
 import {
   isSupabaseDirectDbHost,
   isSupabasePoolerHost,
+  pgPoolConfigForConnectionString,
 } from "@/lib/supabase-database-url";
 
 function normalizeConnectionString(connectionString: string): string {
@@ -13,15 +14,6 @@ function normalizeConnectionString(connectionString: string): string {
     return url.toString();
   } catch {
     return connectionString;
-  }
-}
-
-function isSupabaseHost(connectionString: string): boolean {
-  try {
-    const host = new URL(connectionString).hostname;
-    return host.includes("supabase.com") || host.includes("supabase.co");
-  } catch {
-    return false;
   }
 }
 
@@ -134,8 +126,7 @@ export async function runDirectPostgresDdl(sql: string): Promise<void> {
 
   const connectionString = normalizeConnectionString(raw);
   const pool = new pg.Pool({
-    connectionString,
-    ssl: isSupabaseHost(raw) ? { rejectUnauthorized: false } : undefined,
+    ...pgPoolConfigForConnectionString(connectionString),
     max: 1,
   });
 

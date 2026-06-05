@@ -1,3 +1,5 @@
+import type { PoolConfig } from "pg";
+
 /** Helpers for Supabase connection strings on serverless (Vercel). */
 
 /** Fallback pooler regions when SUPABASE_PROJECT_REGION is unset (project ref → region slug). */
@@ -35,6 +37,26 @@ export function isSupabasePoolerHost(connectionString: string): boolean {
   const url = parsePostgresUrl(connectionString);
   if (!url) return false;
   return url.hostname.includes("pooler.supabase.com");
+}
+
+/** True for Supabase Postgres hosts (direct db.* or pooler). */
+export function isSupabasePostgresHost(connectionString: string): boolean {
+  const url = parsePostgresUrl(connectionString);
+  if (!url) return false;
+  const host = url.hostname;
+  return host.includes("supabase.com") || host.includes("supabase.co");
+}
+
+/**
+ * `pg` pool config for Prisma / DDL. Supabase uses a chain that Node rejects unless
+ * `rejectUnauthorized` is disabled (same as Supabase dashboard connection guidance).
+ */
+export function pgPoolConfigForConnectionString(connectionString: string): PoolConfig {
+  const config: PoolConfig = { connectionString };
+  if (isSupabasePostgresHost(connectionString)) {
+    config.ssl = { rejectUnauthorized: false };
+  }
+  return config;
 }
 
 function poolerRegionForProjectRef(ref: string): string | null {

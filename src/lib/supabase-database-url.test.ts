@@ -3,6 +3,8 @@ import {
   derivePoolerDatabaseUrlFromDirectSupabaseUrl,
   isSupabaseDirectDbHost,
   isSupabasePoolerHost,
+  isSupabasePostgresHost,
+  pgPoolConfigForConnectionString,
   resolvePrismaDatabaseUrl,
 } from "@/lib/supabase-database-url";
 
@@ -14,6 +16,23 @@ describe("supabase-database-url", () => {
         "postgresql://postgres.abc123:pw@aws-1-us-east-2.pooler.supabase.com:6543/postgres?pgbouncer=true",
       ),
     ).toBe(true);
+    expect(isSupabasePostgresHost("postgresql://postgres:pw@db.abc123.supabase.co:5432/postgres")).toBe(true);
+    expect(
+      isSupabasePostgresHost(
+        "postgresql://postgres.abc123:pw@aws-1-us-east-2.pooler.supabase.com:6543/postgres",
+      ),
+    ).toBe(true);
+    expect(isSupabasePostgresHost("postgresql://postgres:pw@127.0.0.1:5432/postgres")).toBe(false);
+  });
+
+  it("enables relaxed TLS for Supabase pg pools", () => {
+    const supabase = pgPoolConfigForConnectionString(
+      "postgresql://postgres.qtesdsxrfggdlxdaraaq:pw@aws-1-us-east-2.pooler.supabase.com:6543/postgres",
+    );
+    expect(supabase.ssl).toEqual({ rejectUnauthorized: false });
+
+    const local = pgPoolConfigForConnectionString("postgresql://postgres:pw@127.0.0.1:5432/postgres");
+    expect(local.ssl).toBeUndefined();
   });
 
   it("derives pooler URL from direct Supabase DATABASE_URL for Match Fit", () => {

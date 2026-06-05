@@ -3,7 +3,10 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import "server-only";
 
 import { PrismaClient } from "@/generated/prisma/client";
-import { resolvePrismaDatabaseUrl } from "@/lib/supabase-database-url";
+import {
+  pgPoolConfigForConnectionString,
+  resolvePrismaDatabaseUrl,
+} from "@/lib/supabase-database-url";
 
 const BUILD_PLACEHOLDER_DATABASE_URL =
   "postgresql://build:build@127.0.0.1:1/matchfit_build_placeholder";
@@ -29,9 +32,7 @@ function databaseUrl(): string {
 
 /** Shared Prisma v7 client factory (Direct TCP via `@prisma/adapter-pg`). */
 export function createPrismaClient(): PrismaClient {
-  const adapter = new PrismaPg({
-    connectionString: databaseUrl(),
-  });
+  const adapter = new PrismaPg(pgPoolConfigForConnectionString(databaseUrl()));
   return new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
