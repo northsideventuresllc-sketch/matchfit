@@ -1,19 +1,20 @@
+import { getAppOriginFromRequest } from "@/lib/app-origin";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { isStripeSecretConfigured } from "@/lib/stripe-config";
-import { createTrainerSignupFeeHoldPaymentIntent } from "@/lib/trainer-signup-fee-hold";
+import { createTrainerSignupFeeHoldCheckoutSession } from "@/lib/trainer-signup-fee-hold-checkout";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-export async function POST() {
+/** Stripe Checkout redirect when publishable key is unavailable (secret key only). */
+export async function POST(req: Request) {
   try {
     const trainerId = await getSessionTrainerId();
     if (!trainerId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
-
     if (!isStripeSecretConfigured()) {
       return NextResponse.json({ error: "Billing is not configured." }, { status: 503 });
     }
@@ -48,27 +49,17 @@ export async function POST() {
         ? "STANDARD_100_MINUS_BG"
         : "FOUNDING_BG_SURCHARGE_20PCT";
 
-    const { clientSecret, paymentIntentId, baseCents, totalCents } =
-      await createTrainerSignupFeeHoldPaymentIntent({
-        trainerId,
-        email: trainer.email,
-        pricingMode,
-      });
-
-    return NextResponse.json({
-      clientSecret,
-      paymentIntentId,
-      baseCents,
-      totalCents,
+    const { url, totalCents } = await createTrainerSignupFeeHoldCheckoutSession({
+      trainerId,
+      email: trainer.email,
       pricingMode,
+      origin: getAppOriginFromRequest(req),
     });
+
+    return NextResponse.json({ url, totalCents, mode: "checkout_redirect" as const });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Could not start payment.";
-    if (msg.includes("STRIPE_SECRET_KEY") || msg.includes("Billing is not configured")) {
-      return NextResponse.json({ error: "Billing is not configured." }, { status: 503 });
-    }
     const { message, status } = publicApiErrorFromUnknown(e, "Could not start payment.", {
-      logLabel: "[trainer signup payment intent]",
+      logLabel: "[trainer signup checkout session]",
     });
     return NextResponse.json({ error: message }, { status });
   }

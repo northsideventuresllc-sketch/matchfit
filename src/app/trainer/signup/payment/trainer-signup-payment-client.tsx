@@ -18,7 +18,7 @@ import { useStripePublishableKey } from "@/lib/use-stripe-publishable-key";
 type Props = {
   foundingPricing: boolean;
   stripePublishableKey?: string | null;
-  stripeConfiguredOnServer: boolean;
+  stripeSecretConfigured: boolean;
 };
 
 function PaymentForm({
@@ -99,13 +99,15 @@ function PaymentForm({
 export default function TrainerSignupPaymentClient({
   foundingPricing,
   stripePublishableKey,
-  stripeConfiguredOnServer,
+  stripeSecretConfigured,
 }: Props) {
   const { publishableKey, loading: publishableLoading } = useStripePublishableKey(stripePublishableKey);
-  const stripeConfigured = Boolean(publishableKey);
+  const useEmbeddedCheckout = Boolean(publishableKey);
+  const useCheckoutRedirect = !useEmbeddedCheckout && stripeSecretConfigured;
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [amountLabel, setAmountLabel] = useState<string>("…");
   const [loadingIntent, setLoadingIntent] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
 
   const stripePromise = useMemo(
@@ -115,11 +117,45 @@ export default function TrainerSignupPaymentClient({
 
   useEffect(() => {
     if (publishableLoading) return;
-    if (!stripeConfigured) {
+
+    if (!stripeSecretConfigured) {
       setInitError(TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
       return;
     }
-    if (!stripeConfiguredOnServer) {
+
+    if (useCheckoutRedirect) {
+      let cancelled = false;
+      setRedirecting(true);
+      setInitError(null);
+      void fetch("/api/trainer/signup/create-checkout-session", {
+        method: "POST",
+        credentials: "include",
+      })
+        .then((r) => r.json())
+        .then((d: { url?: string; totalCents?: number; error?: string }) => {
+          if (cancelled) return;
+          if (!d.url) {
+            setRedirecting(false);
+            setInitError(d.error ?? TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
+            return;
+          }
+          if (typeof d.totalCents === "number" && d.totalCents > 0) {
+            setAmountLabel(`$${(d.totalCents / 100).toFixed(2)}`);
+          }
+          window.location.assign(d.url);
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setRedirecting(false);
+            setInitError(TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
+          }
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (!useEmbeddedCheckout) {
       setInitError(TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
       return;
     }
@@ -152,13 +188,13 @@ export default function TrainerSignupPaymentClient({
     return () => {
       cancelled = true;
     };
-  }, [publishableLoading, stripeConfigured, stripeConfiguredOnServer]);
+  }, [publishableLoading, stripeSecretConfigured, useCheckoutRedirect, useEmbeddedCheckout]);
 
   const options: StripeElementsOptions | undefined = clientSecret
     ? { clientSecret, appearance: { theme: "night", variables: { colorPrimary: "#FF7E00" } } }
     : undefined;
 
-  const loading = publishableLoading || loadingIntent;
+  const loading = publishableLoading || loadingIntent || redirecting;
 
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] px-5 py-10 text-white sm:px-8">
@@ -184,7 +220,11 @@ export default function TrainerSignupPaymentClient({
 
         <div className="mt-8">
           {loading ? (
-            <p className="text-sm text-white/50">{TRAINER_SIGNUP_PAYMENT_LOADING_MESSAGE}</p>
+            <p className="text-sm text-white/50">
+              {redirecting
+                ? `Redirecting to secure Stripe checkout${amountLabel !== "…" ? ` for ${amountLabel}` : ""}…`
+                : TRAINER_SIGNUP_PAYMENT_LOADING_MESSAGE}
+            </p>
           ) : initError ? (
             <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-4 text-sm leading-relaxed text-rose-100/95">
               <p>{initError}</p>
