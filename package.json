@@ -1,6 +1,6 @@
 {
   "name": "match-fit-app",
-  "version": "1.2.1-beta",
+  "version": "1.2.2-beta",
   "private": true,
   "engines": {
     "node": ">=20.19.0 <23"
@@ -21,6 +21,7 @@
     "beta:vercel-env": "node scripts/vercel-env-push-beta.mjs",
     "vercel:env:resend": "node scripts/vercel-env-set-resend-production.mjs",
     "vercel:env:anthropic": "node scripts/vercel-env-set-anthropic-production.mjs",
+    "bootstrap:anthropic": "node scripts/bootstrap-anthropic-platform-secret.mjs",
     "db:locks": "sh scripts/show-sqlite-db-locks.sh",
     "test:watch": "vitest",
     "seed:dashboard-demo": "tsx --env-file=.env scripts/seed-demo-client-dashboard-showcase.js",
