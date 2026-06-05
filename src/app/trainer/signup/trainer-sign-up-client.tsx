@@ -42,6 +42,9 @@ function formatTrainerSignupFinishError(error: string, code?: string): string {
   if (code === "SUPABASE_AUTH_FAILED" || code === "SUPABASE_PASSWORD_SYNC_FAILED") {
     return "We could not verify your password. Re-enter the password from the form above, then try Finish again.";
   }
+  if (error.toLowerCase().includes("captcha")) {
+    return "Complete the security check below, then tap Finish sign-up with password again.";
+  }
   return error;
 }
 

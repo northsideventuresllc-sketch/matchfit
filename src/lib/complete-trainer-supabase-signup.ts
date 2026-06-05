@@ -1,5 +1,4 @@
 import "server-only";
-import { createClient } from "@supabase/supabase-js";
 import { BetaCapExceededError } from "@/lib/beta-cap-enforcement";
 import { evaluateBetaTrainerRegistrationGate } from "@/lib/beta-trainer-register-gate";
 import { markTrainerWaitlistRegistered } from "@/lib/beta-waitlist-service";
@@ -14,11 +13,6 @@ import type { TrainerSignupParsed } from "@/lib/trainer-register-service";
 export type CompleteTrainerSupabaseSignupResult =
   | { ok: true; trainerId: string; next: string }
   | { ok: false; error: string; code?: string; status: number };
-
-function isEmailNotConfirmedError(message: string): boolean {
-  const m = message.toLowerCase();
-  return m.includes("email not confirmed") || m.includes("email_not_confirmed");
-}
 
 type SupabaseAuthUserRow = {
   id: string;
@@ -48,33 +42,13 @@ async function syncSupabasePassword(
   return { ok: true };
 }
 
-async function signInSupabaseWithPassword(email: string, password: string): Promise<{ ok: true } | { ok: false; error: string }> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
-  if (!url || !anon) {
-    return { ok: false, error: "Supabase is not configured." };
-  }
-
-  const client = createClient(url, anon, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-
-  const attempt = await client.auth.signInWithPassword({ email, password });
-  if (!attempt.error) return { ok: true };
-
-  if (isEmailNotConfirmedError(attempt.error.message)) {
-    return {
-      ok: false,
-      error: "Confirm your email first, then tap Finish sign-up with password.",
-    };
-  }
-
-  return { ok: false, error: attempt.error.message || "Could not verify your password." };
-}
-
 /**
  * Validates Supabase credentials, ensures email is confirmed, creates the Match Fit
  * trainer row, and returns the post-signup redirect path.
+ *
+ * Does not call Supabase Auth sign-in APIs (those require a browser captcha token when
+ * Attack Protection is enabled). Email ownership is established via confirmation, and
+ * Match Fit verifies Turnstile on the API route before calling this helper.
  */
 export async function completeTrainerSupabaseSignup(
   body: TrainerSignupParsed,
@@ -135,16 +109,6 @@ export async function completeTrainerSupabaseSignup(
       error: passwordSync.error,
       code: "SUPABASE_PASSWORD_SYNC_FAILED",
       status: 400,
-    };
-  }
-
-  const signIn = await signInSupabaseWithPassword(email, body.password);
-  if (!signIn.ok) {
-    return {
-      ok: false,
-      error: signIn.error,
-      code: "SUPABASE_AUTH_FAILED",
-      status: 401,
     };
   }
 

@@ -4,8 +4,6 @@ const {
   prismaMock,
   createSupabaseAdminClientMock,
   adminAuthMock,
-  createClientMock,
-  signInWithPasswordMock,
   evaluateBetaTrainerRegistrationGateMock,
   isTrainerUsernameTakenMock,
   isTrainerEmailTakenMock,
@@ -16,13 +14,10 @@ const {
   const adminAuthMock = {
     updateUserById: vi.fn(),
   };
-  const signInWithPasswordMock = vi.fn();
   return {
     prismaMock: { $queryRaw: vi.fn(), trainerProfile: { findUnique: vi.fn() } },
     createSupabaseAdminClientMock: vi.fn(() => ({ auth: { admin: adminAuthMock } })),
     adminAuthMock,
-    createClientMock: vi.fn(() => ({ auth: { signInWithPassword: signInWithPasswordMock } })),
-    signInWithPasswordMock,
     evaluateBetaTrainerRegistrationGateMock: vi.fn(),
     isTrainerUsernameTakenMock: vi.fn(),
     isTrainerEmailTakenMock: vi.fn(),
@@ -36,9 +31,6 @@ vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
 vi.mock("@/lib/supabase/admin-client", () => ({
   isSupabaseAdminConfigured: () => true,
   createSupabaseAdminClient: createSupabaseAdminClientMock,
-}));
-vi.mock("@supabase/supabase-js", () => ({
-  createClient: createClientMock,
 }));
 vi.mock("@/lib/beta-trainer-register-gate", () => ({
   evaluateBetaTrainerRegistrationGate: evaluateBetaTrainerRegistrationGateMock,
@@ -73,13 +65,10 @@ const body = {
 describe("completeTrainerSupabaseSignup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
     evaluateBetaTrainerRegistrationGateMock.mockResolvedValue({ ok: true, betaInviteEntryId: null });
     isTrainerUsernameTakenMock.mockResolvedValue(false);
     isTrainerEmailTakenMock.mockResolvedValue(false);
     prismaMock.$queryRaw.mockResolvedValue([{ id: "auth_user_1", email_confirmed_at: new Date("2026-01-01") }]);
-    signInWithPasswordMock.mockResolvedValue({ data: { session: { access_token: "token" } }, error: null });
     createTrainerRecordMock.mockResolvedValue({ id: "trainer_1", email: body.email });
     prismaMock.trainerProfile.findUnique.mockResolvedValue({
       hasSignedTOS: false,
@@ -91,7 +80,7 @@ describe("completeTrainerSupabaseSignup", () => {
     sendTrainerWelcomeEmailMock.mockResolvedValue(undefined);
   });
 
-  it("creates trainer after server-side Supabase password check", async () => {
+  it("creates trainer after syncing password for a confirmed Supabase user", async () => {
     const result = await completeTrainerSupabaseSignup(body);
     expect(result).toMatchObject({ ok: true, trainerId: "trainer_1" });
     expect(createTrainerRecordMock).toHaveBeenCalledOnce();
