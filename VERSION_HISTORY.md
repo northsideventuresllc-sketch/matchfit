@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-05** `1.1.10-beta` → `1.1.11-beta` (**patch** — Bootstrap Stripe via direct Postgres SQL)
 - **2026-06-05** `1.1.9-beta` → `1.1.10-beta` (**patch** — Bootstrap platform_secrets DDL self-heal)
 - **2026-06-05** `1.1.8-beta` → `1.1.9-beta` (**patch** — Live Stripe keys bootstrap and platform_secrets fallback)
 - **2026-06-05** `1.1.7-beta` → `1.1.8-beta` (**patch** — Strip sslmode override for Supabase Prisma TLS)
