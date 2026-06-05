@@ -22,9 +22,11 @@ describe("deriveDirectPostgresUrlFromDatabaseUrl", () => {
 });
 
 describe("directPostgresUrlForDdl", () => {
-  it("uses db.* host from DATABASE_URL when DIRECT_URL is the transaction pooler", () => {
+  it("uses db.* host from DATABASE_URL when DIRECT_URL is the transaction pooler (local)", () => {
     const prevDb = process.env.DATABASE_URL;
     const prevDirect = process.env.DIRECT_URL;
+    const prevVercel = process.env.VERCEL;
+    delete process.env.VERCEL;
     process.env.DATABASE_URL =
       "postgresql://postgres:secret@db.qtesdsxrfggdlxdaraaq.supabase.co:5432/postgres?sslmode=require";
     process.env.DIRECT_URL =
@@ -38,6 +40,31 @@ describe("directPostgresUrlForDdl", () => {
       else process.env.DATABASE_URL = prevDb;
       if (prevDirect === undefined) delete process.env.DIRECT_URL;
       else process.env.DIRECT_URL = prevDirect;
+      if (prevVercel === undefined) delete process.env.VERCEL;
+      else process.env.VERCEL = prevVercel;
+    }
+  });
+
+  it("uses session pooler on Vercel when DIRECT_URL is the transaction pooler", () => {
+    const prevDb = process.env.DATABASE_URL;
+    const prevDirect = process.env.DIRECT_URL;
+    const prevVercel = process.env.VERCEL;
+    process.env.VERCEL = "1";
+    process.env.DATABASE_URL =
+      "postgresql://postgres:secret@db.qtesdsxrfggdlxdaraaq.supabase.co:5432/postgres?sslmode=require";
+    process.env.DIRECT_URL =
+      "postgresql://postgres.qtesdsxrfggdlxdaraaq:secret@aws-1-us-east-2.pooler.supabase.com:6543/postgres?pgbouncer=true";
+    try {
+      expect(directPostgresUrlForDdl()).toBe(
+        "postgresql://postgres.qtesdsxrfggdlxdaraaq:secret@aws-1-us-east-2.pooler.supabase.com:5432/postgres",
+      );
+    } finally {
+      if (prevDb === undefined) delete process.env.DATABASE_URL;
+      else process.env.DATABASE_URL = prevDb;
+      if (prevDirect === undefined) delete process.env.DIRECT_URL;
+      else process.env.DIRECT_URL = prevDirect;
+      if (prevVercel === undefined) delete process.env.VERCEL;
+      else process.env.VERCEL = prevVercel;
     }
   });
 });

@@ -67,15 +67,33 @@ export function deriveDirectPostgresUrlFromDatabaseUrl(databaseUrl: string): str
   }
 }
 
+function sessionPoolerUrlFromPoolerConnectionString(poolerUrl: string): string | null {
+  try {
+    const url = new URL(poolerUrl.trim());
+    if (!url.hostname.includes("pooler.supabase.com")) return null;
+    url.port = "5432";
+    url.searchParams.delete("pgbouncer");
+    return normalizeConnectionString(url.toString());
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Postgres URL for schema repair DDL (must be direct/session — not transaction pooler :6543).
- * When Vercel has DATABASE_URL=direct and DIRECT_URL=pooler (swapped), use db.*.supabase.co from DATABASE_URL.
+ * On Vercel, prefer Supavisor session mode (:5432) because db.*.supabase.co is often unreachable.
  */
 export function directPostgresUrlForDdl(): string | null {
   const databaseUrl = process.env.DATABASE_URL?.trim();
   const directUrl = process.env.DIRECT_URL?.trim();
+  const onVercel = process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV);
 
-  if (databaseUrl && isSupabaseDirectDbHost(databaseUrl)) {
+  if (onVercel && directUrl && isSupabasePoolerHost(directUrl)) {
+    const sessionPooler = sessionPoolerUrlFromPoolerConnectionString(directUrl);
+    if (sessionPooler) return sessionPooler;
+  }
+
+  if (databaseUrl && isSupabaseDirectDbHost(databaseUrl) && !onVercel) {
     const fromDatabase = deriveDirectPostgresUrlFromDatabaseUrl(databaseUrl);
     if (fromDatabase) return normalizeConnectionString(fromDatabase);
   }
@@ -100,11 +118,16 @@ export function directPostgresUrlSource():
   | "DIRECT_URL"
   | "derived_from_DATABASE_URL"
   | "derived_from_direct_DATABASE_URL"
+  | "session_pooler_on_vercel"
   | "missing" {
   const databaseUrl = process.env.DATABASE_URL?.trim() ?? "";
   const directUrl = process.env.DIRECT_URL?.trim();
+  const onVercel = process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV);
 
-  if (databaseUrl && isSupabaseDirectDbHost(databaseUrl)) {
+  if (onVercel && directUrl && isSupabasePoolerHost(directUrl)) {
+    return "session_pooler_on_vercel";
+  }
+  if (databaseUrl && isSupabaseDirectDbHost(databaseUrl) && !onVercel) {
     return "derived_from_direct_DATABASE_URL";
   }
   if (directUrl && !isSupabasePoolerHost(directUrl)) return "DIRECT_URL";
