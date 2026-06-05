@@ -32,10 +32,14 @@ export async function getTrainerLoginOtpDelivery(trainerId: string): Promise<Tra
   if (method && method !== "NONE") {
     return {
       delivery: method as OtpChannel,
-      email: trainer.email,
+      email: trainer.email.trim().toLowerCase(),
       phone: trainer.phone,
     };
   }
 
-  return null;
+  return {
+    delivery: "EMAIL",
+    email: trainer.email.trim().toLowerCase(),
+    phone: trainer.phone,
+  };
 }

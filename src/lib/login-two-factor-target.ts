@@ -35,10 +35,15 @@ export async function getLoginOtpDelivery(clientId: string): Promise<LoginOtpDel
   if (method && method !== "NONE") {
     return {
       delivery: method as OtpChannel,
-      email: client.email,
+      email: client.email.trim().toLowerCase(),
       phone: client.phone,
     };
   }
 
-  return null;
+  // 2FA enabled but no verified channel yet — deliver to account email (login bootstrap path).
+  return {
+    delivery: "EMAIL",
+    email: client.email.trim().toLowerCase(),
+    phone: client.phone,
+  };
 }
