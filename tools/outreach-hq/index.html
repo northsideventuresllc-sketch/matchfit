@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Match Fit — Outreach HQ</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --black:#0a0a0a; --white:#f5f5f0; --green:#b8ff57; --green-dim:#7aaa2e;
+    --gray:#1c1c1c; --gray2:#2a2a2a; --gray3:#3d3d3d; --muted:#888;
+    --red:#ff4d4d; --yellow:#ffd84d; --blue:#4da6ff; --purple:#a855f7;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--black);color:var(--white);font-family:'DM Sans',sans-serif;min-height:100vh;padding:24px;}
+
+  header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:28px;border-bottom:1px solid var(--gray3);padding-bottom:16px;}
+  h1{font-family:'Bebas Neue',sans-serif;font-size:3rem;color:var(--green);letter-spacing:2px;line-height:1;}
+  .subtitle{color:var(--muted);font-size:0.82rem;margin-top:3px;}
+
+  /* SUPABASE CONFIG BANNER */
+  .config-banner{background:var(--gray);border:1px solid var(--yellow);border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .config-banner input{flex:1;min-width:180px;background:var(--gray2);border:1px solid var(--gray3);border-radius:8px;padding:8px 12px;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.85rem;outline:none;}
+  .config-banner input:focus{border-color:var(--green);}
+  .config-label{font-size:0.72rem;text-transform:uppercase;letter-spacing:1px;color:var(--yellow);white-space:nowrap;}
+
+  /* PROGRESS BARS */
+  .progress-row{display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;}
+  .prog-card{background:var(--gray);border-radius:12px;padding:14px 18px;flex:1;min-width:160px;border:1px solid var(--gray3);}
+  .prog-label{font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;}
+  .prog-nums{display:flex;align-items:baseline;gap:4px;}
+  .prog-val{font-family:'Bebas Neue',sans-serif;font-size:2.2rem;line-height:1;}
+  .prog-max{font-size:0.85rem;color:var(--muted);}
+  .bar-wrap{background:var(--gray2);border-radius:99px;height:5px;margin-top:8px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:99px;transition:width .3s ease;}
+
+  /* COUNTERS (no limit) */
+  .counter-row{display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;}
+  .counter-card{background:var(--gray);border-radius:12px;padding:14px 18px;flex:1;min-width:130px;border:1px solid var(--gray3);text-align:center;}
+  .counter-label{font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;}
+  .counter-val{font-family:'Bebas Neue',sans-serif;font-size:2.5rem;color:var(--white);}
+  .counter-sub{font-size:0.75rem;color:var(--muted);margin-top:2px;}
+
+  /* TABS */
+  .tabs{display:flex;gap:4px;margin-bottom:20px;background:var(--gray);padding:4px;border-radius:10px;width:fit-content;flex-wrap:wrap;}
+  .tab{padding:8px 18px;border-radius:7px;cursor:pointer;font-weight:500;font-size:0.88rem;color:var(--muted);border:none;background:none;transition:all .2s;}
+  .tab.active{background:var(--green);color:var(--black);}
+  .panel{display:none;} .panel.active{display:block;}
+
+  /* FORM */
+  .form-card{background:var(--gray);border-radius:14px;padding:22px;margin-bottom:20px;border:1px solid var(--gray3);}
+  .form-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--green);margin-bottom:14px;letter-spacing:1px;}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;}
+  .form-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+  @media(max-width:680px){.form-grid,.form-grid-2{grid-template-columns:1fr;} h1{font-size:2rem;}}
+  label{font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px;}
+  input,select,textarea{width:100%;background:var(--gray2);border:1px solid var(--gray3);border-radius:8px;padding:9px 12px;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.88rem;outline:none;transition:border .2s;}
+  input:focus,select:focus,textarea:focus{border-color:var(--green);}
+  select option{background:var(--gray2);}
+  textarea{resize:vertical;min-height:80px;}
+
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:8px;font-weight:600;font-size:0.88rem;cursor:pointer;border:none;transition:all .2s;}
+  .btn-green{background:var(--green);color:var(--black);}
+  .btn-green:hover{background:var(--green-dim);}
+  .btn-ghost{background:transparent;border:1px solid var(--gray3);color:var(--white);}
+  .btn-ghost:hover{border-color:var(--green);color:var(--green);}
+  .btn-red{background:transparent;border:1px solid var(--red);color:var(--red);}
+  .btn-red:hover{background:var(--red);color:var(--white);}
+  .btn-purple{background:transparent;border:1px solid var(--purple);color:var(--purple);}
+  .btn-purple:hover{background:var(--purple);color:var(--white);}
+
+  /* LEADS */
+  .lead-list{display:flex;flex-direction:column;gap:12px;}
+  .lead-card{background:var(--gray);border-radius:14px;border:1px solid var(--gray3);overflow:hidden;transition:border-color .2s;}
+  .lead-card:hover{border-color:var(--green);}
+  .lead-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;cursor:pointer;}
+  .lead-meta{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .lead-handle{font-family:'Bebas Neue',sans-serif;font-size:1.25rem;letter-spacing:.5px;}
+  .ig-link{font-size:0.75rem;color:var(--blue);text-decoration:none;border:1px solid var(--blue);border-radius:99px;padding:2px 9px;}
+  .ig-link:hover{background:var(--blue);color:var(--black);}
+  .badge{padding:3px 9px;border-radius:99px;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
+  .badge-atl{background:rgba(77,166,255,.12);color:var(--blue);border:1px solid var(--blue);}
+  .badge-virt{background:rgba(184,255,87,.1);color:var(--green);border:1px solid var(--green);}
+  .status-dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  .dot-pending{background:var(--yellow);} .dot-approved{background:var(--green);}
+  .dot-sent{background:var(--blue);} .dot-replied{background:var(--purple);} .dot-pass{background:var(--gray3);}
+  .lead-body{display:none;padding:0 18px 18px;border-top:1px solid var(--gray2);}
+  .lead-body.open{display:block;}
+  .block-label{font-size:0.72rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px;margin-top:14px;}
+  .copy-box{background:var(--gray2);border-radius:8px;padding:12px 14px;font-size:0.86rem;line-height:1.6;border:1px solid var(--gray3);white-space:pre-wrap;position:relative;padding-right:70px;}
+  .copy-btn{position:absolute;top:8px;right:8px;background:var(--gray3);border:none;border-radius:6px;padding:4px 10px;color:var(--white);font-size:0.72rem;cursor:pointer;font-family:'DM Sans',sans-serif;}
+  .copy-btn:hover,.copy-btn.copied{background:var(--green);color:var(--black);}
+  .why-fit-box{background:rgba(184,255,87,.07);border:1px solid rgba(184,255,87,.2);border-radius:8px;padding:10px 14px;font-size:0.85rem;line-height:1.5;color:var(--green);}
+  .action-row{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center;}
+  .niche-tag{font-size:0.75rem;color:var(--muted);background:var(--gray2);padding:3px 9px;border-radius:99px;}
+  .status-select{font-size:0.78rem;padding:4px 8px;border-radius:6px;width:auto;}
+  .chevron{transition:transform .2s;color:var(--muted);font-size:0.85rem;}
+  .chevron.open{transform:rotate(180deg);}
+
+  /* RESPONSES */
+  .response-log{background:var(--gray);border-radius:14px;padding:18px;border:1px solid var(--gray3);}
+  .log-entry{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--gray2);align-items:flex-start;}
+  .log-entry:last-child{border-bottom:none;}
+  .log-handle{font-weight:600;font-size:0.88rem;}
+  .log-response{font-size:0.83rem;color:var(--muted);margin-top:2px;}
+  .outcome-badge{padding:2px 8px;border-radius:99px;font-size:0.68rem;font-weight:700;text-transform:uppercase;white-space:nowrap;}
+  .outcome-positive{background:rgba(184,255,87,.12);color:var(--green);}
+  .outcome-neutral{background:rgba(255,216,77,.12);color:var(--yellow);}
+  .outcome-negative{background:rgba(255,77,77,.12);color:var(--red);}
+
+  /* INSIGHTS */
+  .insight-card{background:var(--gray);border-radius:14px;padding:18px;border:1px solid var(--gray3);margin-bottom:14px;}
+  .insight-title{font-family:'Bebas Neue',sans-serif;font-size:1.15rem;color:var(--green);margin-bottom:10px;}
+  .insight-item{display:flex;align-items:flex-start;gap:9px;margin-bottom:7px;font-size:0.86rem;}
+
+  /* SESSIONS */
+  .session-card{background:var(--gray);border-radius:14px;padding:18px;border:1px solid var(--gray3);margin-bottom:12px;}
+  .session-date{font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:var(--green);margin-bottom:8px;}
+  .session-stats{display:flex;gap:18px;flex-wrap:wrap;}
+  .session-stat{font-size:0.83rem;color:var(--muted);}
+  .session-stat span{color:var(--white);font-weight:600;}
+
+  /* SUPABASE STATUS */
+  .sb-status{font-size:0.75rem;padding:4px 10px;border-radius:99px;display:inline-flex;align-items:center;gap:5px;}
+  .sb-ok{background:rgba(184,255,87,.12);color:var(--green);}
+  .sb-err{background:rgba(255,77,77,.12);color:var(--red);}
+  .sb-idle{background:rgba(136,136,136,.12);color:var(--muted);}
+
+  .empty-state{text-align:center;padding:36px;color:var(--muted);font-size:0.88rem;}
+  .filter-row{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
+  .filter-row select{width:auto;padding:7px 12px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>MATCH FIT</h1>
+    <div class="subtitle">Outreach HQ · @theofficialmatchfit · v2</div>
+  </div>
+  <div style="text-align:right;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--green)" id="todayDate"></div>
+    <div id="sbStatusBadge" class="sb-status sb-idle">⬜ Supabase not configured</div>
+  </div>
+</header>
+
+<!-- SUPABASE CONFIG -->
+<div class="config-banner">
+  <span class="config-label">🔗 Supabase</span>
+  <input id="sb-url" placeholder="Project URL (https://xxx.supabase.co)" />
+  <input id="sb-key" placeholder="Anon Key" />
+  <input id="sb-table" placeholder="Table name (e.g. ni_brain_outreach)" value="ni_brain_outreach" style="max-width:220px;"/>
+  <button class="btn btn-green" onclick="saveSbConfig()">Save</button>
+  <button class="btn btn-ghost" onclick="testSbConnection()">Test</button>
+</div>
+
+<!-- QUOTA PROGRESS -->
+<div class="progress-row">
+  <div class="prog-card">
+    <div class="prog-label">Virtual Leads</div>
+    <div class="prog-nums">
+      <div class="prog-val" id="virt-count" style="color:var(--green)">0</div>
+      <div class="prog-max">/ 20</div>
+    </div>
+    <div class="bar-wrap"><div class="bar-fill" id="virt-bar" style="width:0%;background:var(--green)"></div></div>
+  </div>
+  <div class="prog-card">
+    <div class="prog-label">ATL Local Leads</div>
+    <div class="prog-nums">
+      <div class="prog-val" id="atl-count" style="color:var(--blue)">0</div>
+      <div class="prog-max">/ 10</div>
+    </div>
+    <div class="bar-wrap"><div class="bar-fill" id="atl-bar" style="width:0%;background:var(--blue)"></div></div>
+  </div>
+  <div class="prog-card">
+    <div class="prog-label">Reply Rate</div>
+    <div class="prog-nums">
+      <div class="prog-val" id="reply-rate" style="color:var(--white)">—</div>
+    </div>
+    <div class="bar-wrap"><div class="bar-fill" id="reply-bar" style="width:0%;background:var(--purple)"></div></div>
+  </div>
+</div>
+
+<!-- ACTION COUNTERS (no limits) -->
+<div class="counter-row">
+  <div class="counter-card">
+    <div class="counter-label">DMs Sent</div>
+    <div class="counter-val" id="cnt-dms">0</div>
+    <div class="counter-sub">this session</div>
+  </div>
+  <div class="counter-card">
+    <div class="counter-label">Followed</div>
+    <div class="counter-val" id="cnt-follows">0</div>
+    <div class="counter-sub">this session</div>
+  </div>
+  <div class="counter-card">
+    <div class="counter-label">Comments</div>
+    <div class="counter-val" id="cnt-comments">0</div>
+    <div class="counter-sub">this session</div>
+  </div>
+  <div class="counter-card">
+    <div class="counter-label">Approved</div>
+    <div class="counter-val" id="cnt-approved" style="color:var(--green)">0</div>
+    <div class="counter-sub">ready to send</div>
+  </div>
+  <div class="counter-card">
+    <div class="counter-label">Replied</div>
+    <div class="counter-val" id="cnt-replied" style="color:var(--purple)">0</div>
+    <div class="counter-sub">all time</div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab(event,'leads')">📋 Leads</button>
+  <button class="tab" onclick="switchTab(event,'add')">➕ Add Lead</button>
+  <button class="tab" onclick="switchTab(event,'responses')">💬 Responses</button>
+  <button class="tab" onclick="switchTab(event,'insights')">📊 Insights</button>
+  <button class="tab" onclick="switchTab(event,'sessions')">🗓 Sessions</button>
+</div>
+
+<!-- LEADS -->
+<div class="panel active" id="panel-leads">
+  <div class="filter-row">
+    <select id="fg" onchange="renderLeads()"><option value="all">All Groups</option><option value="ATL Local">ATL Local</option><option value="Virtual">Virtual</option></select>
+    <select id="fs" onchange="renderLeads()"><option value="all">All Statuses</option><option>Pending</option><option>Approved</option><option>Sent</option><option>Replied</option><option>Pass</option></select>
+    <button class="btn btn-ghost" onclick="exportCSV()">⬇ Export CSV</button>
+    <button class="btn btn-purple" onclick="uploadAllToSupabase()">☁ Upload All to NI Brain</button>
+  </div>
+  <div class="lead-list" id="leadList"><div class="empty-state">No leads yet.</div></div>
+</div>
+
+<!-- ADD LEAD -->
+<div class="panel" id="panel-add">
+  <div class="form-card">
+    <div class="form-title">NEW LEAD</div>
+    <div class="form-grid">
+      <div><label>Instagram Username *</label><input id="f-handle" placeholder="@username"/></div>
+      <div><label>Niche *</label><input id="f-niche" placeholder="e.g. Strength, Sports Performance"/></div>
+      <div><label>Target Group *</label>
+        <select id="f-group"><option value="Virtual">Virtual</option><option value="ATL Local">ATL Local</option></select>
+      </div>
+    </div>
+    <div class="form-grid-2">
+      <div><label>Why Match Fit? *</label><input id="f-why" placeholder="e.g. Posts online programs, has booking link, engaged audience"/></div>
+      <div><label>Notes</label><input id="f-notes" placeholder="e.g. Strong engagement, sports-specific content"/></div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label>DM Draft (fully written — you edit) *</label>
+      <textarea id="f-dm" rows="6" placeholder="Paste or write the full DM here..."></textarea>
+    </div>
+    <div class="form-grid-2">
+      <div><label>Comment Draft</label><input id="f-comment" placeholder="e.g. This is exactly what athletes need 🔥 Keep going!"/></div>
+      <div><label>Comment On (which post)</label><input id="f-commentpost" placeholder="e.g. Most recent reel / training highlight"/></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:4px;">
+      <button class="btn btn-green" onclick="addLead()">➕ Add Lead</button>
+    </div>
+  </div>
+
+  <!-- TEMPLATES -->
+  <div class="form-card">
+    <div class="form-title">BASE TEMPLATE — VIRTUAL</div>
+    <div class="copy-box" id="tpl-virt">Hey [Name] 👋
+
+Your online coaching content stands out — especially [specific thing you noticed]. You clearly know how to get real results remotely.
+
+We're building Match Fit — a marketplace that connects virtual trainers with athletes who are actively looking to book. You list your services, athletes find you. No cold outreach on your end.
+
+We're in beta and keeping the trainer roster selective right now. Wanted to reach out before we open it publicly.
+
+Interested in being one of our early trainers? — JB @ Match Fit
+<button class="copy-btn" onclick="copyBox('tpl-virt',this)">Copy</button></div>
+  </div>
+
+  <div class="form-card">
+    <div class="form-title">BASE TEMPLATE — ATL LOCAL</div>
+    <div class="copy-box" id="tpl-atl">Hey [Name] 👋
+
+Came across your page — your training content and the way you push your athletes is exactly what we're building around.
+
+We're launching Match Fit in Atlanta: a platform where serious trainers get found by athletes who are ready to book. Think of it as your own booking pipeline — athletes come to you.
+
+We're in beta and hand-selecting trainers right now. Would love to get you on early.
+
+Worth a quick convo? — JB @ Match Fit
+<button class="copy-btn" onclick="copyBox('tpl-atl',this)">Copy</button></div>
+  </div>
+</div>
+
+<!-- RESPONSES -->
+<div class="panel" id="panel-responses">
+  <div class="form-card">
+    <div class="form-title">LOG A RESPONSE</div>
+    <div class="form-grid">
+      <div><label>Username</label><input id="r-handle" placeholder="@username"/></div>
+      <div><label>Their Response</label><input id="r-response" placeholder="What did they say?"/></div>
+      <div><label>Outcome</label>
+        <select id="r-outcome">
+          <option value="positive">✅ Positive (interested)</option>
+          <option value="neutral">🤔 Neutral (maybe/question)</option>
+          <option value="negative">❌ Negative (not interested)</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-green" onclick="addResponse()">Log Response</button>
+  </div>
+  <div class="response-log" id="responseLog"><div class="empty-state">No responses logged yet.</div></div>
+</div>
+
+<!-- INSIGHTS -->
+<div class="panel" id="panel-insights">
+  <div class="insight-card">
+    <div class="insight-title">✅ WHAT'S WORKING</div>
+    <div id="ins-pos"><div class="empty-state" style="padding:8px 0">Log responses to see patterns.</div></div>
+  </div>
+  <div class="insight-card">
+    <div class="insight-title">⚠️ WHAT NEEDS ADJUSTING</div>
+    <div id="ins-neg"><div class="empty-state" style="padding:8px 0">Log responses to see patterns.</div></div>
+  </div>
+  <div class="insight-card">
+    <div class="insight-title">📌 STANDING NOTES</div>
+    <div class="insight-item"><span>📌</span> Personalize the [specific thing] line every single time — generic = ignored</div>
+    <div class="insight-item"><span>📌</span> Keep DMs under 1,000 characters (Instagram hard cap)</div>
+    <div class="insight-item"><span>📌</span> ATL trainers → lead with local community angle</div>
+    <div class="insight-item"><span>📌</span> Virtual trainers → lead with "clients come to you" framing</div>
+    <div class="insight-item"><span>📌</span> Update notes here as replies come in each session</div>
+  </div>
+</div>
+
+<!-- SESSIONS -->
+<div class="panel" id="panel-sessions">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--green)">SESSION LOG</div>
+    <button class="btn btn-green" onclick="closeSession()">✅ Close Session</button>
+  </div>
+  <div id="sessionLog"><div class="empty-state">No sessions closed yet.</div></div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────
+let S = JSON.parse(localStorage.getItem('mf2') || '{}');
+if (!S.leads) S.leads = [];
+if (!S.responses) S.responses = [];
+if (!S.sessions) S.sessions = [];
+if (!S.today) S.today = {dms:0, follows:0, comments:0};
+if (!S.sb) S.sb = {url:'', key:'', table:'ni_brain_outreach'};
+
+// Pre-fill supabase fields
+document.getElementById('sb-url').value = S.sb.url || '';
+document.getElementById('sb-key').value = S.sb.key || '';
+document.getElementById('sb-table').value = S.sb.table || 'ni_brain_outreach';
+
+function save() { localStorage.setItem('mf2', JSON.stringify(S)); updateAll(); }
+
+// ─── INIT ────────────────────────────────────────────────────────────
+document.getElementById('todayDate').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+
+function updateAll() {
+  // quota
+  const virt = S.leads.filter(l=>l.group==='Virtual').length;
+  const atl = S.leads.filter(l=>l.group==='ATL Local').length;
+  document.getElementById('virt-count').textContent = virt;
+  document.getElementById('atl-count').textContent = atl;
+  document.getElementById('virt-bar').style.width = Math.min(virt/20*100,100)+'%';
+  document.getElementById('atl-bar').style.width = Math.min(atl/10*100,100)+'%';
+  // counters
+  document.getElementById('cnt-dms').textContent = S.today.dms;
+  document.getElementById('cnt-follows').textContent = S.today.follows;
+  document.getElementById('cnt-comments').textContent = S.today.comments;
+  document.getElementById('cnt-approved').textContent = S.leads.filter(l=>l.status==='Approved').length;
+  document.getElementById('cnt-replied').textContent = S.responses.length;
+  // reply rate
+  const sent = S.leads.filter(l=>l.status==='Sent'||l.status==='Replied').length;
+  const rate = sent > 0 ? Math.round(S.responses.length/sent*100)+'%' : '—';
+  document.getElementById('reply-rate').textContent = rate;
+  document.getElementById('reply-bar').style.width = sent > 0 ? Math.min(S.responses.length/sent*100,100)+'%' : '0%';
+}
+
+// ─── SUPABASE ────────────────────────────────────────────────────────
+function saveSbConfig() {
+  S.sb.url = document.getElementById('sb-url').value.trim();
+  S.sb.key = document.getElementById('sb-key').value.trim();
+  S.sb.table = document.getElementById('sb-table').value.trim() || 'ni_brain_outreach';
+  save();
+  setSbStatus('idle','💾 Saved — click Test to verify');
+}
+
+function setSbStatus(type, msg) {
+  const el = document.getElementById('sbStatusBadge');
+  el.className = 'sb-status sb-'+type;
+  el.textContent = msg;
+}
+
+async function testSbConnection() {
+  if (!S.sb.url || !S.sb.key) { setSbStatus('err','❌ Fill in URL + Key first'); return; }
+  setSbStatus('idle','⏳ Testing...');
+  try {
+    const res = await fetch(`${S.sb.url}/rest/v1/${S.sb.table}?limit=1`, {
+      headers: { 'apikey': S.sb.key, 'Authorization': 'Bearer '+S.sb.key }
+    });
+    if (res.ok || res.status === 200) { setSbStatus('ok','✅ Connected to NI Brain'); }
+    else { setSbStatus('err',`❌ Error ${res.status}: ${res.statusText}`); }
+  } catch(e) { setSbStatus('err','❌ Connection failed'); }
+}
+
+async function uploadLeadToSupabase(lead) {
+  if (!S.sb.url || !S.sb.key) return false;
+  const payload = {
+    handle: lead.handle,
+    niche: lead.niche,
+    target_group: lead.group,
+    why_match_fit: lead.why,
+    dm_draft: lead.dm,
+    comment_draft: lead.comment,
+    comment_post: lead.commentPost,
+    status: lead.status,
+    notes: lead.notes,
+    added: lead.added,
+    source: 'instagram_outreach_hq'
+  };
+  try {
+    const res = await fetch(`${S.sb.url}/rest/v1/${S.sb.table}`, {
+      method: 'POST',
+      headers: {
+        'apikey': S.sb.key,
+        'Authorization': 'Bearer '+S.sb.key,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(payload)
+    });
+    return res.ok;
+  } catch { return false; }
+}
+
+async function uploadAllToSupabase() {
+  if (!S.sb.url || !S.sb.key) { alert('Configure Supabase first.'); return; }
+  setSbStatus('idle','⏳ Uploading...');
+  let ok = 0;
+  for (const lead of S.leads) {
+    const success = await uploadLeadToSupabase(lead);
+    if (success) ok++;
+  }
+  setSbStatus('ok', `✅ Uploaded ${ok}/${S.leads.length} to NI Brain`);
+}
+
+// ─── TABS ────────────────────────────────────────────────────────────
+function switchTab(e, name) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  e.target.classList.add('active');
+  document.getElementById('panel-'+name).classList.add('active');
+  if (name==='leads') renderLeads();
+  if (name==='responses') renderResponses();
+  if (name==='sessions') renderSessions();
+  if (name==='insights') updateInsights();
+}
+
+// ─── ADD LEAD ────────────────────────────────────────────────────────
+function addLead() {
+  const handle = document.getElementById('f-handle').value.trim();
+  const niche = document.getElementById('f-niche').value.trim();
+  const group = document.getElementById('f-group').value;
+  const why = document.getElementById('f-why').value.trim();
+  const dm = document.getElementById('f-dm').value.trim();
+  const comment = document.getElementById('f-comment').value.trim();
+  const commentPost = document.getElementById('f-commentpost').value.trim();
+  const notes = document.getElementById('f-notes').value.trim();
+  if (!handle || !niche || !dm || !why) { alert('Handle, niche, why Match Fit, and DM are required.'); return; }
+
+  const virtCount = S.leads.filter(l=>l.group==='Virtual').length;
+  const atlCount = S.leads.filter(l=>l.group==='ATL Local').length;
+  if (group==='Virtual' && virtCount >= 20) { alert('Virtual quota full (20/20). Review existing leads or expand quota.'); return; }
+  if (group==='ATL Local' && atlCount >= 10) { alert('ATL Local quota full (10/10). Review existing leads or expand quota.'); return; }
+
+  const lead = {
+    id: Date.now(),
+    handle: handle.startsWith('@') ? handle : '@'+handle,
+    niche, group, why, dm, comment, commentPost, notes,
+    status: 'Pending',
+    added: new Date().toLocaleDateString()
+  };
+  S.leads.push(lead);
+  save();
+
+  // auto-upload if supabase configured
+  if (S.sb.url && S.sb.key) {
+    uploadLeadToSupabase(lead).then(ok => {
+      if (ok) setSbStatus('ok', '✅ Lead synced to NI Brain');
+    });
+  }
+
+  ['f-handle','f-niche','f-why','f-dm','f-comment','f-commentpost','f-notes'].forEach(id=>document.getElementById(id).value='');
+  // switch to leads tab
+  document.querySelectorAll('.tab')[0].click();
+}
+
+// ─── RENDER LEADS ────────────────────────────────────────────────────
+function renderLeads() {
+  const fg = document.getElementById('fg').value;
+  const fs = document.getElementById('fs').value;
+  let leads = [...S.leads];
+  if (fg !== 'all') leads = leads.filter(l=>l.group===fg);
+  if (fs !== 'all') leads = leads.filter(l=>l.status===fs);
+  const el = document.getElementById('leadList');
+  if (!leads.length) { el.innerHTML='<div class="empty-state">No leads match this filter.</div>'; return; }
+
+  el.innerHTML = leads.map(lead => {
+    const bc = lead.group==='ATL Local' ? 'badge-atl' : 'badge-virt';
+    const dc = {Pending:'dot-pending',Approved:'dot-approved',Sent:'dot-sent',Replied:'dot-replied',Pass:'dot-pass'}[lead.status]||'dot-pending';
+    const igUrl = `https://instagram.com/${lead.handle.replace('@','')}`;
+    return `<div class="lead-card" id="card-${lead.id}">
+      <div class="lead-header" onclick="toggleCard(${lead.id})">
+        <div class="lead-meta">
+          <span class="lead-handle">${esc(lead.handle)}</span>
+          <a class="ig-link" href="${igUrl}" target="_blank" onclick="event.stopPropagation()">↗ IG</a>
+          <span class="badge ${bc}">${lead.group}</span>
+          <span class="niche-tag">${esc(lead.niche)}</span>
+          <span class="status-dot ${dc}"></span>
+          <span style="font-size:0.75rem;color:var(--muted)">${lead.status}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <select class="status-select" onchange="changeStatus(${lead.id},this.value)" onclick="event.stopPropagation()">
+            ${['Pending','Approved','Sent','Replied','Pass'].map(s=>`<option ${lead.status===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+          <span class="chevron" id="chev-${lead.id}">▼</span>
+        </div>
+      </div>
+      <div class="lead-body" id="body-${lead.id}">
+        <div class="block-label">⚡ WHY MATCH FIT</div>
+        <div class="why-fit-box">${esc(lead.why)}</div>
+        ${lead.dm ? `<div class="block-label">📩 DM DRAFT</div><div class="copy-box" id="dm-${lead.id}">${esc(lead.dm)}<button class="copy-btn" onclick="copyBox('dm-${lead.id}',this)">Copy</button></div>` : ''}
+        ${lead.comment ? `<div class="block-label">💬 COMMENT ${lead.commentPost?'· <em style="color:var(--muted)">'+esc(lead.commentPost)+'</em>':''}</div><div class="copy-box" id="cmt-${lead.id}">${esc(lead.comment)}<button class="copy-btn" onclick="copyBox('cmt-${lead.id}',this)">Copy</button></div>` : ''}
+        ${lead.notes ? `<div class="block-label">🗒 NOTES</div><div style="font-size:0.83rem;color:var(--muted)">${esc(lead.notes)}</div>` : ''}
+        <div class="action-row">
+          <button class="btn btn-ghost" style="font-size:0.8rem" onclick="bump('dms')">✅ DM Sent</button>
+          <button class="btn btn-ghost" style="font-size:0.8rem" onclick="bump('follows')">➕ Followed</button>
+          <button class="btn btn-ghost" style="font-size:0.8rem" onclick="bump('comments')">💬 Commented</button>
+          <button class="btn btn-purple" style="font-size:0.8rem" onclick="syncOne(${lead.id})">☁ Sync</button>
+          <button class="btn btn-red" style="font-size:0.8rem" onclick="deleteLead(${lead.id})">🗑 Remove</button>
+        </div>
+        <div style="font-size:0.72rem;color:var(--muted);margin-top:8px">Added ${lead.added}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleCard(id) {
+  document.getElementById('body-'+id).classList.toggle('open');
+  document.getElementById('chev-'+id).classList.toggle('open');
+}
+
+function changeStatus(id, status) {
+  const lead = S.leads.find(l=>l.id===id);
+  if (lead) { lead.status = status; save(); renderLeads(); }
+}
+
+function deleteLead(id) {
+  if (!confirm('Remove this lead?')) return;
+  S.leads = S.leads.filter(l=>l.id!==id);
+  save(); renderLeads();
+}
+
+function bump(type) {
+  S.today[type]++;
+  save();
+}
+
+async function syncOne(id) {
+  const lead = S.leads.find(l=>l.id===id);
+  if (!lead) return;
+  const ok = await uploadLeadToSupabase(lead);
+  setSbStatus(ok?'ok':'err', ok?'✅ Synced to NI Brain':'❌ Sync failed');
+}
+
+// ─── RESPONSES ───────────────────────────────────────────────────────
+function addResponse() {
+  const handle = document.getElementById('r-handle').value.trim();
+  const response = document.getElementById('r-response').value.trim();
+  const outcome = document.getElementById('r-outcome').value;
+  if (!handle || !response) { alert('Handle and response required.'); return; }
+  S.responses.push({ handle: handle.startsWith('@')?handle:'@'+handle, response, outcome, date: new Date().toLocaleDateString() });
+  document.getElementById('r-handle').value = '';
+  document.getElementById('r-response').value = '';
+  save(); renderResponses(); updateInsights();
+}
+
+function renderResponses() {
+  const el = document.getElementById('responseLog');
+  if (!S.responses.length) { el.innerHTML='<div class="empty-state">No responses yet.</div>'; return; }
+  el.innerHTML = [...S.responses].reverse().map(r => {
+    const cls = {positive:'outcome-positive',neutral:'outcome-neutral',negative:'outcome-negative'}[r.outcome];
+    const lbl = {positive:'✅ Interested',neutral:'🤔 Maybe',negative:'❌ Pass'}[r.outcome];
+    return `<div class="log-entry"><div style="flex:1"><div class="log-handle">${esc(r.handle)}</div><div class="log-response">${esc(r.response)}</div><div style="font-size:0.7rem;color:var(--muted);margin-top:3px">${r.date}</div></div><span class="outcome-badge ${cls}">${lbl}</span></div>`;
+  }).join('');
+}
+
+function updateInsights() {
+  const pos = S.responses.filter(r=>r.outcome==='positive');
+  const neg = S.responses.filter(r=>r.outcome==='negative');
+  document.getElementById('ins-pos').innerHTML = pos.length
+    ? pos.map(r=>`<div class="insight-item"><span>✅</span><div><strong>${esc(r.handle)}</strong>: ${esc(r.response)}</div></div>`).join('')
+    : '<div class="empty-state" style="padding:6px 0">No positives yet — keep going!</div>';
+  document.getElementById('ins-neg').innerHTML = neg.length
+    ? neg.map(r=>`<div class="insight-item"><span>❌</span><div><strong>${esc(r.handle)}</strong>: ${esc(r.response)}</div></div>`).join('')
+    : '<div class="empty-state" style="padding:6px 0">No negatives logged.</div>';
+}
+
+// ─── SESSIONS ────────────────────────────────────────────────────────
+function closeSession() {
+  const {dms,follows,comments} = S.today;
+  if (dms+follows+comments===0) { alert('Nothing to log yet.'); return; }
+  S.sessions.push({ date:new Date().toLocaleDateString(), dms, follows, comments, leads:S.leads.length, responses:S.responses.length });
+  S.today = {dms:0, follows:0, comments:0};
+  save(); renderSessions();
+  alert('Session closed ✅ Counters reset.');
+}
+
+function renderSessions() {
+  const el = document.getElementById('sessionLog');
+  if (!S.sessions.length) { el.innerHTML='<div class="empty-state">No sessions closed yet.</div>'; return; }
+  el.innerHTML = [...S.sessions].reverse().map((s,i)=>`
+    <div class="session-card">
+      <div class="session-date">Session ${S.sessions.length-i} · ${s.date}</div>
+      <div class="session-stats">
+        <div class="session-stat">DMs: <span>${s.dms}</span></div>
+        <div class="session-stat">Follows: <span>${s.follows}</span></div>
+        <div class="session-stat">Comments: <span>${s.comments}</span></div>
+        <div class="session-stat">Total Leads: <span>${s.leads}</span></div>
+        <div class="session-stat">Responses: <span>${s.responses}</span></div>
+      </div>
+    </div>`).join('');
+}
+
+// ─── UTILS ───────────────────────────────────────────────────────────
+function copyBox(id, btn) {
+  const el = document.getElementById(id);
+  const text = el.innerText.replace(/Copy$/,'').trim();
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.textContent='Copied!'; btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent='Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function exportCSV() {
+  const rows = [['Handle','Niche','Group','Why Match Fit','Status','Added','Notes']];
+  S.leads.forEach(l=>rows.push([l.handle,l.niche,l.group,l.why||'',l.status,l.added,l.notes||'']));
+  const csv = rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download = 'matchfit-leads.csv'; a.click();
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ─── BOOT ────────────────────────────────────────────────────────────
+updateAll();
+renderLeads();
+updateInsights();
+</script>
+</body>
+</html>

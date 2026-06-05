@@ -29,6 +29,7 @@
     "version:bump": "node scripts/bump-product-version.mjs",
     "version:verify": "node scripts/verify-product-version-bump.mjs",
     "content:calendar:sync": "bash scripts/sync-matchfit-content-calendar.sh",
+    "outreach:hq": "npx --yes serve tools/outreach-hq -p 8787",
     "postinstall": "prisma generate"
   },
   "dependencies": {
