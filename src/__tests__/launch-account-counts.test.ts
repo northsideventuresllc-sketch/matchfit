@@ -5,8 +5,15 @@ import {
   getLaunchExcludeUsernames,
   isInternalSyntheticMatchFitEmail,
   launchClientCountWhere,
+  launchClientFreeTrialCountWhere,
+  launchClientPlatformPaymentGraceWhere,
+  launchClientPlatformTrialCountWhere,
+  launchClientStripeTrialCountWhere,
   launchPlatformSubscriberCountWhere,
+  launchTrainerBeforeRegistrationPaymentWhere,
+  launchTrainerIncompleteSignupWhere,
   launchTrainerCountWhere,
+  activePendingClientRegistrationWhere,
   countLaunchClients,
   countLaunchTrainers,
   countPendingClientRegistrations,
@@ -186,6 +193,63 @@ describe("launch-account-counts async", () => {
       where: {
         status: { in: ["PENDING_2FA", "AWAITING_PAYMENT"] },
         expiresAt: { gt: expect.any(Date) },
+      },
+    });
+  });
+});
+
+describe("admin funnel count filters", () => {
+  const now = new Date("2026-03-15T12:00:00.000Z");
+
+  it("active pending client registration filter excludes expired and completed rows", () => {
+    expect(activePendingClientRegistrationWhere(now)).toEqual({
+      status: { in: ["PENDING_2FA", "AWAITING_PAYMENT"] },
+      expiresAt: { gt: now },
+    });
+  });
+
+  it("platform trial filter requires active platformTrialEndsAt without live Stripe sub", () => {
+    const where = launchClientPlatformTrialCountWhere(now);
+    expect(where.platformTrialEndsAt).toEqual({ gt: now });
+    expect(where.accountDeactivatedAt).toBeNull();
+    expect(where.NOT?.AND).toEqual([
+      { stripeSubscriptionActive: true },
+      { stripeSubscriptionId: { not: null } },
+      { NOT: { stripeSubscriptionId: "" } },
+    ]);
+  });
+
+  it("stripe trial filter requires subscription without paid invoice", () => {
+    const where = launchClientStripeTrialCountWhere();
+    expect(where.stripeSubscriptionActive).toBe(true);
+    expect(where.stripeLastSubscriptionInvoicePaidAt).toBeNull();
+  });
+
+  it("free trial filter unions platform and stripe trial paths", () => {
+    const where = launchClientFreeTrialCountWhere(now);
+    expect(where.OR).toHaveLength(2);
+    expect(where.OR?.[0]).toEqual(launchClientPlatformTrialCountWhere(now));
+    expect(where.OR?.[1]).toEqual(launchClientStripeTrialCountWhere());
+  });
+
+  it("platform payment grace excludes clients still in platform trial", () => {
+    const where = launchClientPlatformPaymentGraceWhere(now);
+    expect(where.paymentGraceUntil).toEqual({ gt: now });
+    expect(where.NOT).toEqual({ platformTrialEndsAt: { gt: now } });
+  });
+
+  it("incomplete trainer signup means dashboard not activated", () => {
+    const where = launchTrainerIncompleteSignupWhere();
+    expect(where.profile).toEqual({ is: { dashboardActivatedAt: null } });
+  });
+
+  it("trainer pre registration payment uses new hold/fee fields", () => {
+    const where = launchTrainerBeforeRegistrationPaymentWhere();
+    expect(where.profile).toEqual({
+      is: {
+        hasPaidRegistrationFee: false,
+        limitedDashboardUnlockedAt: null,
+        NOT: { registrationFeeHoldStatus: { in: ["HELD", "CAPTURED"] } },
       },
     });
   });

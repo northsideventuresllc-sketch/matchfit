@@ -143,12 +143,98 @@ export function launchClientPayingSubscriberCountWhere(): Prisma.ClientWhereInpu
   return launchPlatformSubscriberCountWhere();
 }
 
-/** Launch clients in trial (active sub, no paid invoice yet). */
-export function launchClientFreeTrialCountWhere(): Prisma.ClientWhereInput {
+/** Non-expired client sign-ups still in the registration hold flow (2FA or Stripe checkout). */
+export const ACTIVE_PENDING_CLIENT_REGISTRATION_STATUSES = ["PENDING_2FA", "AWAITING_PAYMENT"] as const;
+
+export function activePendingClientRegistrationWhere(now = new Date()): Prisma.PendingClientRegistrationWhereInput {
+  return {
+    status: { in: [...ACTIVE_PENDING_CLIENT_REGISTRATION_STATUSES] },
+    expiresAt: { gt: now },
+  };
+}
+
+/** Card-free founding trial (`platformTrialEndsAt`) without an active Stripe subscription. */
+export function launchClientPlatformTrialCountWhere(now = new Date()): Prisma.ClientWhereInput {
+  return {
+    ...launchClientCountWhere(),
+    accountDeactivatedAt: null,
+    platformTrialEndsAt: { gt: now },
+    NOT: {
+      AND: [{ stripeSubscriptionActive: true }, { stripeSubscriptionId: { not: null } }, { NOT: { stripeSubscriptionId: "" } }],
+    },
+  };
+}
+
+/** Stripe subscription started but no paid invoice yet (legacy checkout path). */
+export function launchClientStripeTrialCountWhere(): Prisma.ClientWhereInput {
   return {
     ...launchClientActiveSubscriptionCountWhere(),
     stripeLastSubscriptionInvoicePaidAt: null,
+    stripeSubscriptionId: { not: null },
+    NOT: { stripeSubscriptionId: "" },
   };
+}
+
+/** Launch clients in any free-trial phase (card-free platform trial or Stripe trial). */
+export function launchClientFreeTrialCountWhere(now = new Date()): Prisma.ClientWhereInput {
+  return {
+    ...launchClientCountWhere(),
+    OR: [launchClientPlatformTrialCountWhere(now), launchClientStripeTrialCountWhere()],
+  };
+}
+
+/** After platform trial ends: grace window before card/subscription is required. */
+export function launchClientPlatformPaymentGraceWhere(now = new Date()): Prisma.ClientWhereInput {
+  return {
+    ...launchClientCountWhere(),
+    accountDeactivatedAt: null,
+    paymentGraceUntil: { gt: now },
+    NOT: { platformTrialEndsAt: { gt: now } },
+  };
+}
+
+/** Trainer account exists but marketplace dashboard is not live yet. */
+export function launchTrainerIncompleteSignupWhere(): Prisma.TrainerWhereInput {
+  return {
+    ...launchTrainerCountWhere(),
+    profile: { is: { dashboardActivatedAt: null } },
+  };
+}
+
+/** Trainer has not paid the registration fee / unlocked limited dashboard (new signup flow). */
+export function launchTrainerBeforeRegistrationPaymentWhere(): Prisma.TrainerWhereInput {
+  return {
+    ...launchTrainerCountWhere(),
+    profile: {
+      is: {
+        hasPaidRegistrationFee: false,
+        limitedDashboardUnlockedAt: null,
+        NOT: { registrationFeeHoldStatus: { in: ["HELD", "CAPTURED"] } },
+      },
+    },
+  };
+}
+
+/** Trainer row exists but Terms of Service not accepted yet. */
+export function launchTrainerBeforeTermsWhere(): Prisma.TrainerWhereInput {
+  return {
+    ...launchTrainerCountWhere(),
+    profile: { is: { hasSignedTOS: false } },
+  };
+}
+
+export async function getActivePendingClientRegistrationStats(now = new Date()): Promise<{
+  total: number;
+  byStatus: Record<string, number>;
+}> {
+  const rows = await prisma.pendingClientRegistration.groupBy({
+    by: ["status"],
+    where: activePendingClientRegistrationWhere(now),
+    _count: { _all: true },
+  });
+  const byStatus = Object.fromEntries(rows.map((r) => [r.status, r._count._all]));
+  const total = rows.reduce((sum, row) => sum + row._count._all, 0);
+  return { total, byStatus };
 }
 
 export function launchClientBillingGraceWhere(now = new Date()): Prisma.ClientWhereInput {
@@ -190,11 +276,8 @@ export async function countLaunchClientsInTx(tx: Prisma.TransactionClient): Prom
   return tx.client.count({ where: launchClientCountWhere() });
 }
 
-export async function countPendingClientRegistrations(): Promise<number> {
+export async function countPendingClientRegistrations(now = new Date()): Promise<number> {
   return prisma.pendingClientRegistration.count({
-    where: {
-      status: { in: ["PENDING_2FA", "AWAITING_PAYMENT"] },
-      expiresAt: { gt: new Date() },
-    },
+    where: activePendingClientRegistrationWhere(now),
   });
 }

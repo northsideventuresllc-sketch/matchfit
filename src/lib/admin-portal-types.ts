@@ -117,9 +117,18 @@ export type AdminTrafficFunnelPanel = {
   clientLoginsByRecency: AdminLoginRecencyBuckets;
   trainerLoginsByRecency: AdminLoginRecencyBuckets;
   pendingClientRegistrations: { total: number; byStatus: Record<string, number> };
+  /** Trainer account exists but marketplace dashboard is not live yet. */
   incompleteTrainerSignups: number;
-  trainersSignupBeforeBackgroundCheck: number;
+  /** Trainer has not paid registration fee / unlocked limited dashboard (new signup flow). */
+  trainersBeforeRegistrationPayment: number;
+  /** Trainer row exists but Terms of Service not accepted yet. */
+  trainersBeforeTerms: number;
+  /** Card-free founding trial or Stripe trial before first paid invoice. */
   clientsInFreeTrial: number;
+  clientsInPlatformTrial: number;
+  clientsInStripeTrial: number;
+  /** Post-trial window before card/subscription is required (card-free path). */
+  clientsInPlatformPaymentGrace: number;
   activeClientSubscriptions: number;
   topClientFunctions: AdminPlatformFunctionStat[];
   topTrainerFunctions: AdminPlatformFunctionStat[];
@@ -172,7 +181,11 @@ export type AdminFinancesPanel = {
   windows: Record<AdminFinanceWindowKey, AdminFinanceWindowSnapshot>;
   lifetime: AdminFinanceWindowSnapshot & { eventCount: number };
   clientsInFreeTrial: number;
+  clientsInPlatformTrial: number;
+  clientsInStripeTrial: number;
+  clientsInPlatformPaymentGrace: number;
   pendingSubscriptionStop: number | null;
+  /** Stripe subscription lapsed — billing retry grace (`subscriptionGraceUntil`). */
   paymentFailedInGrace: number;
   clientsWithCard: number;
   activeSubscriptions: number;

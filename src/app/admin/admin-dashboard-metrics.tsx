@@ -221,16 +221,48 @@ export function AcquisitionFunnelSection({ funnel }: { funnel: AdminTrafficFunne
         <StatCard
           label="Reached client signup (no account)"
           value={funnel.clientsReachedSignupWithoutAccount}
+          hint="Unique signup visitors minus live clients, plus active pending registrations"
         />
         <StatCard
           label="Reached trainer signup (no account)"
           value={funnel.trainersReachedSignupWithoutAccount}
+          hint="Unique signup visitors minus live trainer accounts"
         />
-        <StatCard label="Incomplete trainer signups" value={funnel.incompleteTrainerSignups} />
-        <StatCard label="Trainers pre background fee" value={funnel.trainersSignupBeforeBackgroundCheck} />
-        <StatCard label="Clients in free trial" value={funnel.clientsInFreeTrial} />
-        <StatCard label="Active client subscriptions" value={funnel.activeClientSubscriptions} />
-        <StatCard label="Pending client registrations" value={funnel.pendingClientRegistrations.total} />
+        <StatCard
+          label="Pending client registrations"
+          value={funnel.pendingClientRegistrations.total}
+          hint="Non-expired rows in PENDING_2FA or AWAITING_PAYMENT"
+        />
+        <StatCard
+          label="Incomplete trainer signups"
+          value={funnel.incompleteTrainerSignups}
+          hint="Dashboard not live yet (`dashboardActivatedAt` null)"
+        />
+        <StatCard
+          label="Trainers before terms"
+          value={funnel.trainersBeforeTerms}
+          hint="Account created but Terms of Service not accepted"
+        />
+        <StatCard
+          label="Trainers pre registration payment"
+          value={funnel.trainersBeforeRegistrationPayment}
+          hint="No registration fee hold/capture and limited dashboard not unlocked"
+        />
+        <StatCard
+          label="Clients in free trial"
+          value={funnel.clientsInFreeTrial}
+          hint={`${funnel.clientsInPlatformTrial} card-free platform trial · ${funnel.clientsInStripeTrial} Stripe trial (no paid invoice yet)`}
+        />
+        <StatCard
+          label="Clients in post-trial payment grace"
+          value={funnel.clientsInPlatformPaymentGrace}
+          hint="Platform trial ended; card/subscription not connected yet"
+        />
+        <StatCard
+          label="Active client subscriptions"
+          value={funnel.activeClientSubscriptions}
+          hint="Live Stripe billing with active subscription"
+        />
       </div>
       {Object.keys(funnel.pendingClientRegistrations.byStatus).length > 0 ? (
         <ul className="mt-3 text-[11px] text-white/45">
@@ -277,7 +309,7 @@ export function TrainerPipelineSection({ pipeline }: { pipeline: AdminTrainerPip
   return (
     <MetricsSection
       title="Trainer onboarding pipeline"
-      description={`${pipeline.totalInPipeline} trainers in pipeline (excludes deidentified and QA synthetic). Percentages are relative to completed first signup.`}
+      description={`${pipeline.totalInPipeline} trainers in pipeline (excludes deidentified and QA synthetic). Percentages are relative to trainers who accepted Terms of Service.`}
     >
       <ul className="space-y-2">
         {pipeline.stages.map((s) => (
@@ -303,11 +335,28 @@ export function FinancesDetailSection({ finances }: { finances: AdminFinancesPan
       description="Revenue windows from platform_revenue_events; service admin fees from completed checkouts."
     >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Clients in free trial" value={finances.clientsInFreeTrial} />
-        <StatCard label="Payment failed (grace)" value={finances.paymentFailedInGrace} />
+        <StatCard
+          label="Clients in free trial"
+          value={finances.clientsInFreeTrial}
+          hint={`${finances.clientsInPlatformTrial} platform trial · ${finances.clientsInStripeTrial} Stripe trial`}
+        />
+        <StatCard
+          label="Post-trial payment grace"
+          value={finances.clientsInPlatformPaymentGrace}
+          hint="Card-free trial ended; billing setup still required"
+        />
+        <StatCard
+          label="Stripe billing grace"
+          value={finances.paymentFailedInGrace}
+          hint="Subscription lapsed; retry window before deactivation"
+        />
         <StatCard label="Clients with card on file" value={finances.clientsWithCard} />
-        <StatCard label="Active subscriptions" value={finances.activeSubscriptions} />
-        <StatCard label="Premium trainers" value={finances.premiumTrainers} />
+        <StatCard label="Active subscriptions" value={finances.activeSubscriptions} hint="Live Stripe billing" />
+        <StatCard
+          label="Premium trainers"
+          value={finances.premiumTrainers}
+          hint="Premium studio enabled (`premiumStudioEnabledAt` set)"
+        />
         <StatCard label="Featured slots today" value={finances.featuredTrainersToday} />
         <StatCard label="Lifetime revenue events" value={finances.lifetime.eventCount} />
         <StatCard label="Lifetime platform fees (services)" value={formatUsdFromCents(finances.lifetime.platformFeesCents)} />
