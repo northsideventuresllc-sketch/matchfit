@@ -31,12 +31,14 @@ import {
   TOKENS_PER_USD_PACK,
 } from "@/lib/trainer-promo-tokens";
 import { computeCheckoutFeeBreakdown } from "@/lib/stripe-checkout-line-items";
+import { hydrateStripeEnvFromDatabase } from "@/lib/hydrate-stripe-env";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  await hydrateStripeEnvFromDatabase();
   const stripe = getStripe();
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!stripe || !secret) {

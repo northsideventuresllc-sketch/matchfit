@@ -2,6 +2,10 @@ import Stripe from "stripe";
 
 let stripeSingleton: Stripe | null = null;
 
+export function resetStripeClient(): void {
+  stripeSingleton = null;
+}
+
 export function getStripe(): Stripe | null {
   const key = process.env.STRIPE_SECRET_KEY?.trim();
   if (!key) {

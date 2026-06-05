@@ -1,4 +1,5 @@
 import { stripeConfigHealth } from "@/lib/stripe-config";
+import { hydrateStripeEnvFromDatabase } from "@/lib/hydrate-stripe-env";
 import { stripeSecretHealth } from "@/lib/stripe-secret-health";
 import { stripePublishableKeySource } from "@/lib/stripe-publishable";
 import { NextResponse } from "next/server";
@@ -7,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 /** Public readiness check for trainer signup card authorization (no secrets exposed). */
 export async function GET() {
+  await hydrateStripeEnvFromDatabase();
   const health = stripeConfigHealth();
   const secretProbe = await stripeSecretHealth();
   const publishableKeySource = stripePublishableKeySource();

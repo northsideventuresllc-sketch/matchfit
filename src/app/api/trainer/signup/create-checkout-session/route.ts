@@ -1,4 +1,5 @@
 import { getAppOriginFromRequest } from "@/lib/app-origin";
+import { hydrateStripeEnvFromDatabase } from "@/lib/hydrate-stripe-env";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { isStripeSecretConfigured } from "@/lib/stripe-config";
@@ -11,6 +12,7 @@ export const dynamic = "force-dynamic";
 /** Stripe Checkout redirect when publishable key is unavailable (secret key only). */
 export async function POST(req: Request) {
   try {
+    await hydrateStripeEnvFromDatabase();
     const trainerId = await getSessionTrainerId();
     if (!trainerId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
