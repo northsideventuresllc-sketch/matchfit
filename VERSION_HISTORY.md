@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-05** `1.1.17-beta` → `1.2.0-beta` (**minor** — Admin portal stats: valuation, potential success score, AI context, stats timestamp, dashboard organization)
 - **2026-06-05** `1.1.16-beta` → `1.1.17-beta` (**patch** — Signup email health validates Resend API)
 - **2026-06-05** `1.1.15-beta` → `1.1.16-beta` (**patch** — Resend health uses platform_secrets key for probe)
 - **2026-06-05** `1.1.14-beta` → `1.1.15-beta` (**patch** — Resend platform_secrets hydration for 2FA email)

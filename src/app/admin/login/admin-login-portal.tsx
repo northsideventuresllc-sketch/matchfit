@@ -1,18 +1,16 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { TurnstileField } from "@/components/turnstile-field";
+import { AdminPrimaryButton, adminInputClass } from "@/components/admin/admin-portal-ui";
 import {
-  AdminPortalBackdrop,
-  AdminPortalBetaNotice,
-  AdminPortalLogoLink,
-  AdminPrimaryButton,
-  adminInputClass,
-  adminLabelClass,
-  adminLinkClass,
-  adminPanelClass,
-} from "@/components/admin/admin-portal-ui";
+  adminPortalBackgroundLayers,
+  adminPortalEyebrowClass,
+  adminPortalLinkClass,
+  adminPortalMainClass,
+} from "@/components/admin/admin-portal-styles";
 import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 
@@ -48,7 +46,7 @@ export default function AdminLoginPortal() {
       });
       const data = (await res.json()) as { error?: string; next?: string };
       if (!res.ok) {
-        const msg = data.error ?? "Could Not Sign You In.";
+        const msg = data.error ?? "Could not sign you in.";
         setError(
           res.status === 401
             ? `${msg} Check your administrator code and password. If this account was removed during testing, it must be recreated.`
@@ -66,12 +64,23 @@ export default function AdminLoginPortal() {
   }
 
   return (
-    <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] text-white antialiased">
-      <AdminPortalBackdrop />
+    <main className={adminPortalMainClass}>
+      <div aria-hidden className={adminPortalBackgroundLayers.warmGlow} />
+      <div aria-hidden className={adminPortalBackgroundLayers.vignette} />
 
       <div className="relative z-10 mx-auto flex min-h-dvh max-w-lg flex-col px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
         <header className="flex items-center justify-between gap-4">
-          <AdminPortalLogoLink />
+          <Link href="/" className="flex items-center gap-3 opacity-90 transition hover:opacity-100">
+            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl sm:h-14 sm:w-14">
+              <Image src="/logo.png" alt="Match Fit" fill className="object-contain" sizes="56px" />
+            </div>
+            <div className="leading-none">
+              <p className="text-sm font-black tracking-tight sm:text-base">
+                <span className="text-[#E8EAEF]">Match</span> <span className="text-[#E32B2B]">Fit</span>
+              </p>
+              <p className={`mt-1 ${adminPortalEyebrowClass}`}>Administrator</p>
+            </div>
+          </Link>
         </header>
 
         <div className="mt-12 flex flex-1 flex-col sm:mt-16">
@@ -80,10 +89,14 @@ export default function AdminLoginPortal() {
             Sign in with your eight-character administrator code and password. This area is restricted to authorized Match Fit
             personnel.
           </p>
-          <AdminPortalBetaNotice className="mx-auto mt-4 max-w-lg text-center" />
+          <p className="mx-auto mt-4 max-w-lg rounded-2xl border border-amber-400/30 bg-amber-500/[0.07] px-4 py-3 text-center text-xs leading-relaxed text-amber-50/95 sm:text-sm">
+            <span className="font-semibold text-amber-100">First beta.</span> Match Fit’s initial beta release does not yet ship a
+            finished Administrator Portal. The full staff console will be built and switched on when version 1.0 goes live; until then,
+            what you see here may be incomplete, experimental, or updated without notice.
+          </p>
 
           <div className="mx-auto mt-10 w-full max-w-md">
-            <div className={`rounded-3xl ${adminPanelClass} p-6 shadow-[0_30px_80px_-40px_rgba(227,43,43,0.55)] sm:p-8`}>
+            <div className="rounded-3xl border border-white/[0.08] bg-[#12151C]/95 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:p-8">
               {error ? (
                 <p
                   className="mb-4 rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]"
@@ -95,7 +108,7 @@ export default function AdminLoginPortal() {
 
               <form onSubmit={(e) => void handleLogin(e)} className="flex flex-col gap-5">
                 <div className="flex flex-col gap-2">
-                  <label htmlFor="admin-code" className={adminLabelClass}>
+                  <label htmlFor="admin-code" className="text-xs font-semibold uppercase tracking-wide text-white/50">
                     Administrator code
                   </label>
                   <input
@@ -113,7 +126,7 @@ export default function AdminLoginPortal() {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label htmlFor="admin-password" className={adminLabelClass}>
+                  <label htmlFor="admin-password" className="text-xs font-semibold uppercase tracking-wide text-white/50">
                     Password
                   </label>
                   <div className="relative">
@@ -123,7 +136,7 @@ export default function AdminLoginPortal() {
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className={`${adminInputClass} pr-24`}
+                      className="w-full rounded-xl border border-white/[0.1] bg-[#07080c] px-4 py-3 pr-24 text-sm text-white outline-none ring-[#FF7E00]/40 placeholder:text-white/25 focus:border-[#FF7E00]/35 focus:ring-2"
                     />
                     <button
                       type="button"
@@ -140,7 +153,7 @@ export default function AdminLoginPortal() {
                     type="checkbox"
                     checked={stayLoggedIn}
                     onChange={(e) => setStayLoggedIn(e.target.checked)}
-                    className="h-4 w-4 rounded border-white/20 bg-[#0E1016] accent-[#FF7E00]"
+                    className="h-4 w-4 rounded border-white/20 bg-[#07080c] text-[#FF7E00] focus:ring-[#FF7E00]/40"
                   />
                   Stay signed in on this device
                 </label>
@@ -167,8 +180,8 @@ export default function AdminLoginPortal() {
 
               <p className="mt-8 text-center text-xs leading-relaxed text-white/40">
                 Need access?{" "}
-                <Link href="/admin/sign-up" className={adminLinkClass}>
-                  Request an administrator account
+                <Link href="/admin/sign-up" className={adminPortalLinkClass}>
+                  Request an Administrator Account
                 </Link>
               </p>
             </div>

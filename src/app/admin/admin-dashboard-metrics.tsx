@@ -68,20 +68,42 @@ function MetricsSection(props: { title: string; description?: string; children: 
 }
 
 export function PlatformHealthSection({ panel }: { panel: AdminPlatformSummaryPanel }) {
-  const { successRating } = panel;
+  const { successRating, potentialSuccess, valuation } = panel;
   return (
     <MetricsSection
-      title="Platform health & success rating"
-      description={`Launch ${successRating.meta.launchDate} · Marketing from ${successRating.meta.marketingStartDate} ($${successRating.meta.marketingBudgetUsd} budget). Composite score blends stability, security, retention, revenue, and pipeline signals.`}
+      title="Platform health, success & valuation"
+      description={`Launch ${successRating.meta.launchDate} · Marketing from ${successRating.meta.marketingStartDate} ($${successRating.meta.marketingBudgetUsd} budget). Current success rating blends live signals; potential success projects beta ceilings; valuation uses ARR + network heuristics.`}
     >
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Success rating (0–10)" value={successRating.score.toFixed(1)} />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Success rating (0–10)" value={successRating.score.toFixed(1)} hint="Current composite score" />
+        <StatCard
+          label="Potential success (0–10)"
+          value={potentialSuccess.score.toFixed(1)}
+          hint={`+${potentialSuccess.uplift.toFixed(1)} vs current · AI assistant uses this projection`}
+        />
+        <StatCard
+          label="Est. platform valuation"
+          value={formatUsdFromCents(valuation.valuationCents)}
+          hint={`${valuation.revenueMultiple.toFixed(1)}× ARR + network value`}
+        />
         <StatCard label="Stability score" value={`${panel.stabilityScore}/100`} hint={panel.stabilityNotes.join(" · ") || undefined} />
-        <StatCard label="Security score" value={`${panel.securityScore}/100`} hint={panel.securityNotes.join(" · ") || undefined} />
       </div>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        <StatCard label="Security score" value={`${panel.securityScore}/100`} hint={panel.securityNotes.join(" · ") || undefined} />
         <StatCard label="Lifetime revenue" value={formatUsdFromCents(panel.lifetimeRevenueCents)} />
         <StatCard label="Lifetime gross profit" value={formatUsdFromCents(panel.lifetimeGrossProfitCents)} />
+      </div>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <StatCard
+          label="Annualized subscription ARR"
+          value={formatUsdFromCents(valuation.subscriptionArrCents)}
+          hint="Client $10/mo + trainer premium $20/mo"
+        />
+        <StatCard
+          label="Annualized 30d gross profit"
+          value={formatUsdFromCents(valuation.transactionalArrCents)}
+          hint="Service checkout profit × 12"
+        />
       </div>
       <ul className="mt-4 space-y-1.5 text-[11px] text-white/45">
         {successRating.factors.map((f) => (

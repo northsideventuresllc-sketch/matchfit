@@ -1,6 +1,8 @@
 /** Client-safe types and helpers for the administrator dashboard (no Prisma / server imports). */
 
+import type { PlatformPotentialSuccessBreakdown } from "@/lib/platform-potential-success";
 import type { PlatformSuccessRatingBreakdown } from "@/lib/platform-success-rating";
+import type { PlatformValuationBreakdown } from "@/lib/platform-valuation";
 
 export type AdminUserStats = {
   completedPurchases: number;
@@ -213,9 +215,12 @@ export type AdminPlatformSummaryPanel = {
   lifetimeRevenueCents: number;
   lifetimeGrossProfitCents: number;
   successRating: PlatformSuccessRatingBreakdown;
+  potentialSuccess: PlatformPotentialSuccessBreakdown;
+  valuation: PlatformValuationBreakdown;
 };
 
 export type AdminPortalOverview = {
+  computedAt: string;
   traffic: AdminTrafficSnapshot;
   userCounts: AdminHomeUserCounts;
   revenue: AdminRevenueSnapshot;

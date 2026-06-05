@@ -1,7 +1,4 @@
-import {
-  supabaseSignupVerificationDeliveryConfigured,
-  supabaseSignupVerificationHealthMessage,
-} from "@/lib/supabase-signup-verification-email";
+import { supabaseSignupVerificationHealthMessage } from "@/lib/supabase-signup-verification-email";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/admin-client";
 import { resendEmailHealth } from "@/lib/resend-email-health";
 import { NextResponse } from "next/server";

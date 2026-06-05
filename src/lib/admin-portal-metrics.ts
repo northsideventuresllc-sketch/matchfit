@@ -22,11 +22,13 @@ import type {
 import { getHomeUserCounts } from "@/lib/home-user-counts";
 import { isPrismaMissingColumnError, isPrismaMissingTableError } from "@/lib/prisma-missing-column";
 import { prisma } from "@/lib/prisma";
+import { computePotentialSuccessScore } from "@/lib/platform-potential-success";
 import {
   computeMarketCompetitivenessProxy,
   computePlatformSuccessRating,
   daysSinceLaunch,
 } from "@/lib/platform-success-rating";
+import { computePlatformValuation } from "@/lib/platform-valuation";
 import type { PlatformRevenueCategory } from "@/lib/platform-revenue-accounting";
 import { LIVE_PLATFORM_REVENUE_WHERE, mergeLiveRevenueWhere } from "@/lib/platform-revenue-filters";
 import {
@@ -939,7 +941,14 @@ export async function getAdminPlatformSummaryPanel(): Promise<AdminPlatformSumma
   const subscriptionConversion =
     userCounts.clientsTotal > 0 ? finances.activeSubscriptions / userCounts.clientsTotal : 0;
 
-  const successRating = computePlatformSuccessRating({
+  const marketCompetitiveness = computeMarketCompetitivenessProxy({
+    clientsTotal: userCounts.clientsTotal,
+    trainersTotal: userCounts.trainersTotal,
+    trainersLive: liveStage?.count ?? 0,
+    featuredToday: finances.featuredTrainersToday,
+  });
+
+  const ratingInput = {
     daysSinceLaunch: launchDays,
     totalUsers,
     activeUsers,
@@ -950,12 +959,18 @@ export async function getAdminPlatformSummaryPanel(): Promise<AdminPlatformSumma
     securityScore: security.score,
     trainerPipelineCompletionRate: trainerCompletion,
     subscriptionConversionRate: subscriptionConversion,
-    marketCompetitiveness: computeMarketCompetitivenessProxy({
-      clientsTotal: userCounts.clientsTotal,
-      trainersTotal: userCounts.trainersTotal,
-      trainersLive: liveStage?.count ?? 0,
-      featuredToday: finances.featuredTrainersToday,
-    }),
+    marketCompetitiveness,
+    revenue30dCents: finances.windows["30d"].grossProfitCents,
+  };
+
+  const successRating = computePlatformSuccessRating(ratingInput);
+  const potentialSuccess = computePotentialSuccessScore(ratingInput);
+  const valuation = computePlatformValuation({
+    activePlatformSubscribers: finances.activeSubscriptions,
+    activeTrainerPremiumSubscribers: finances.premiumTrainers,
+    grossProfit30dCents: finances.windows["30d"].grossProfitCents,
+    activeUsers,
+    successScore: successRating.score,
   });
 
   return {
@@ -967,6 +982,8 @@ export async function getAdminPlatformSummaryPanel(): Promise<AdminPlatformSumma
     lifetimeRevenueCents: lifetime.revenueCents,
     lifetimeGrossProfitCents: lifetime.grossProfitCents,
     successRating,
+    potentialSuccess,
+    valuation,
   };
 }
 

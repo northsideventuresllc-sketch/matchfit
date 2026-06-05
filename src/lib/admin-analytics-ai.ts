@@ -42,6 +42,14 @@ function buildContextSummary(overview: AdminPortalOverview, traffic: AdminTraffi
         platformSubscribers: overview.revenue.activePlatformSubscribers,
         premiumTrainers: overview.revenue.activeTrainerPremiumSubscribers,
       },
+      successMetrics: {
+        currentScore: overview.platformSummary.successRating.score,
+        potentialSuccessScore: overview.platformSummary.potentialSuccess.score,
+        potentialUplift: overview.platformSummary.potentialSuccess.uplift,
+        valuationCents: overview.platformSummary.valuation.valuationCents,
+        valuationMultiple: overview.platformSummary.valuation.revenueMultiple,
+      },
+      statsComputedAt: overview.computedAt,
       traffic: {
         uniqueVisitors: traffic.uniqueVisitors,
         topPages: traffic.topPages,
