@@ -33,6 +33,15 @@ function simpleEmailValid(email: string): boolean {
 }
 
 function formatTrainerSignupFinishError(error: string, code?: string): string {
+  if (code === "SCHEMA_OUT_OF_DATE") {
+    return "Sign-up is temporarily unavailable while we finish a database update. Try again in a few minutes.";
+  }
+  if (code === "EMAIL_TAKEN") {
+    return "That email already has a Match Fit trainer account. Try signing in instead.";
+  }
+  if (code === "USERNAME_TAKEN") {
+    return "That username is already taken. Choose a different username above, then try Finish again.";
+  }
   if (code === "BETA_OUTSIDE_SERVICE_AREA") {
     return "Enter a valid Atlanta metro ZIP (for example 30301) in the form above, then try Finish again.";
   }

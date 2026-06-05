@@ -24,6 +24,16 @@ export function publicApiErrorFromUnknown(
     if (e.code === "P2034") {
       return { message: DB_BUSY_USER_MESSAGE, status: 503 };
     }
+    if (e.code === "P2002") {
+      const target = Array.isArray(e.meta?.target) ? e.meta.target.join(",") : String(e.meta?.target ?? "");
+      if (target.includes("email")) {
+        return { message: "That email is already registered.", status: 409 };
+      }
+      if (target.includes("username")) {
+        return { message: "That username is already taken.", status: 409 };
+      }
+      return { message: "That account detail is already in use.", status: 409 };
+    }
     if (e.code === "P2021" || e.code === "P2022") {
       return {
         message:

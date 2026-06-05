@@ -4,6 +4,7 @@ const {
   prismaMock,
   createSupabaseAdminClientMock,
   adminAuthMock,
+  findSupabaseAuthUserByEmailMock,
   evaluateBetaTrainerRegistrationGateMock,
   isTrainerUsernameTakenMock,
   isTrainerEmailTakenMock,
@@ -15,9 +16,10 @@ const {
     updateUserById: vi.fn(),
   };
   return {
-    prismaMock: { $queryRaw: vi.fn(), trainerProfile: { findUnique: vi.fn() } },
+    prismaMock: { trainerProfile: { findUnique: vi.fn() } },
     createSupabaseAdminClientMock: vi.fn(() => ({ auth: { admin: adminAuthMock } })),
     adminAuthMock,
+    findSupabaseAuthUserByEmailMock: vi.fn(),
     evaluateBetaTrainerRegistrationGateMock: vi.fn(),
     isTrainerUsernameTakenMock: vi.fn(),
     isTrainerEmailTakenMock: vi.fn(),
@@ -31,6 +33,9 @@ vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
 vi.mock("@/lib/supabase/admin-client", () => ({
   isSupabaseAdminConfigured: () => true,
   createSupabaseAdminClient: createSupabaseAdminClientMock,
+}));
+vi.mock("@/lib/supabase/find-auth-user-by-email", () => ({
+  findSupabaseAuthUserByEmail: findSupabaseAuthUserByEmailMock,
 }));
 vi.mock("@/lib/beta-trainer-register-gate", () => ({
   evaluateBetaTrainerRegistrationGate: evaluateBetaTrainerRegistrationGateMock,
@@ -68,7 +73,11 @@ describe("completeTrainerSupabaseSignup", () => {
     evaluateBetaTrainerRegistrationGateMock.mockResolvedValue({ ok: true, betaInviteEntryId: null });
     isTrainerUsernameTakenMock.mockResolvedValue(false);
     isTrainerEmailTakenMock.mockResolvedValue(false);
-    prismaMock.$queryRaw.mockResolvedValue([{ id: "auth_user_1", email_confirmed_at: new Date("2026-01-01") }]);
+    findSupabaseAuthUserByEmailMock.mockResolvedValue({
+      id: "auth_user_1",
+      email_confirmed_at: new Date("2026-01-01"),
+      raw_user_meta_data: null,
+    });
     createTrainerRecordMock.mockResolvedValue({ id: "trainer_1", email: body.email });
     prismaMock.trainerProfile.findUnique.mockResolvedValue({
       hasSignedTOS: false,
@@ -84,14 +93,22 @@ describe("completeTrainerSupabaseSignup", () => {
     const result = await completeTrainerSupabaseSignup(body);
     expect(result).toMatchObject({ ok: true, trainerId: "trainer_1" });
     expect(createTrainerRecordMock).toHaveBeenCalledOnce();
-    expect(adminAuthMock.updateUserById).toHaveBeenCalledTimes(2);
-    expect(adminAuthMock.updateUserById).toHaveBeenNthCalledWith(1, "auth_user_1", {
+    expect(adminAuthMock.updateUserById).toHaveBeenCalledWith("auth_user_1", {
       password: body.password,
+      user_metadata: {
+        match_fit_role: "trainer",
+        pending_match_fit_profile: false,
+        email_verified: true,
+      },
     });
   });
 
   it("rejects when email is not confirmed yet", async () => {
-    prismaMock.$queryRaw.mockResolvedValue([{ id: "auth_user_1", email_confirmed_at: null }]);
+    findSupabaseAuthUserByEmailMock.mockResolvedValue({
+      id: "auth_user_1",
+      email_confirmed_at: null,
+      raw_user_meta_data: null,
+    });
     const result = await completeTrainerSupabaseSignup(body);
     expect(result).toMatchObject({ ok: false, code: "EMAIL_NOT_CONFIRMED", status: 403 });
     expect(createTrainerRecordMock).not.toHaveBeenCalled();

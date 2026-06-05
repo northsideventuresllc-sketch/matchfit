@@ -1,9 +1,11 @@
 import "server-only";
+import { Prisma } from "@/generated/prisma/client";
 import { BetaCapExceededError } from "@/lib/beta-cap-enforcement";
 import { evaluateBetaTrainerRegistrationGate } from "@/lib/beta-trainer-register-gate";
 import { markTrainerWaitlistRegistered } from "@/lib/beta-waitlist-service";
 import { prisma } from "@/lib/prisma";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin-client";
+import { findSupabaseAuthUserByEmail } from "@/lib/supabase/find-auth-user-by-email";
 import { createTrainerRecord } from "@/lib/trainer-register-service";
 import { isTrainerEmailTaken, isTrainerUsernameTaken } from "@/lib/trainer-queries";
 import { resolveTrainerSignupNextPath } from "@/lib/trainer-signup-next-path";
@@ -14,32 +16,32 @@ export type CompleteTrainerSupabaseSignupResult =
   | { ok: true; trainerId: string; next: string }
   | { ok: false; error: string; code?: string; status: number };
 
-type SupabaseAuthUserRow = {
-  id: string;
-  email_confirmed_at: Date | null;
-};
-
-async function findSupabaseAuthUser(email: string): Promise<SupabaseAuthUserRow | null> {
-  const rows = await prisma.$queryRaw<SupabaseAuthUserRow[]>`
-    SELECT id, email_confirmed_at
-    FROM auth.users
-    WHERE lower(email) = lower(${email})
-    LIMIT 1
-  `;
-  return rows[0] ?? null;
-}
-
-async function syncSupabasePassword(
-  userId: string,
-  password: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const admin = createSupabaseAdminClient();
-  const { error } = await admin.auth.admin.updateUserById(userId, { password });
-  if (error) {
-    console.error("[completeTrainerSupabaseSignup] syncSupabasePassword", error);
-    return { ok: false, error: error.message?.trim() || "Could not sync your password." };
+function mapCreateTrainerError(e: unknown): CompleteTrainerSupabaseSignupResult | null {
+  if (e instanceof BetaCapExceededError) {
+    return { ok: false, error: e.message, code: e.code, status: 403 };
   }
-  return { ok: true };
+  if (e instanceof Prisma.PrismaClientKnownRequestError) {
+    if (e.code === "P2002") {
+      const target = Array.isArray(e.meta?.target) ? e.meta.target.join(",") : String(e.meta?.target ?? "");
+      if (target.includes("email")) {
+        return { ok: false, error: "That email is already registered.", code: "EMAIL_TAKEN", status: 409 };
+      }
+      if (target.includes("username")) {
+        return { ok: false, error: "That username is already taken.", code: "USERNAME_TAKEN", status: 409 };
+      }
+      return { ok: false, error: "That account detail is already in use.", code: "UNIQUE_VIOLATION", status: 409 };
+    }
+    if (e.code === "P2021" || e.code === "P2022") {
+      return {
+        ok: false,
+        error:
+          "Sign-up is temporarily unavailable while we finish a database update. Please try again in a few minutes or contact support@match-fit.net if this persists.",
+        code: "SCHEMA_OUT_OF_DATE",
+        status: 503,
+      };
+    }
+  }
+  return null;
 }
 
 /**
@@ -53,99 +55,111 @@ async function syncSupabasePassword(
 export async function completeTrainerSupabaseSignup(
   body: TrainerSignupParsed,
 ): Promise<CompleteTrainerSupabaseSignupResult> {
-  const email = body.email.trim().toLowerCase();
-  const username = body.username.trim();
+  try {
+    const email = body.email.trim().toLowerCase();
+    const username = body.username.trim();
 
-  const gate = await evaluateBetaTrainerRegistrationGate({
-    serviceZipCode: body.serviceZipCode ?? "",
-    email,
-    username,
-    betaInviteToken: body.betaInviteToken,
-  });
-  if (!gate.ok) {
-    return { ok: false, error: gate.error, code: gate.code, status: gate.status };
-  }
+    const gate = await evaluateBetaTrainerRegistrationGate({
+      serviceZipCode: body.serviceZipCode ?? "",
+      email,
+      username,
+      betaInviteToken: body.betaInviteToken,
+    });
+    if (!gate.ok) {
+      return { ok: false, error: gate.error, code: gate.code, status: gate.status };
+    }
 
-  if (await isTrainerUsernameTaken(username)) {
-    return { ok: false, error: "That username is already taken.", code: "USERNAME_TAKEN", status: 409 };
-  }
-  if (await isTrainerEmailTaken(email)) {
-    return { ok: false, error: "That email is already registered.", code: "EMAIL_TAKEN", status: 409 };
-  }
+    if (await isTrainerUsernameTaken(username)) {
+      return { ok: false, error: "That username is already taken.", code: "USERNAME_TAKEN", status: 409 };
+    }
+    if (await isTrainerEmailTaken(email)) {
+      return { ok: false, error: "That email is already registered.", code: "EMAIL_TAKEN", status: 409 };
+    }
 
-  if (!isSupabaseAdminConfigured()) {
+    if (!isSupabaseAdminConfigured()) {
+      return {
+        ok: false,
+        error: "Trainer sign-up is not fully configured. Contact support@match-fit.net.",
+        code: "SUPABASE_ADMIN_NOT_CONFIGURED",
+        status: 503,
+      };
+    }
+
+    const authUser = await findSupabaseAuthUserByEmail(email);
+    if (!authUser) {
+      return {
+        ok: false,
+        error: "No sign-up record found for this email. Submit the sign-up form first.",
+        code: "SUPABASE_USER_MISSING",
+        status: 404,
+      };
+    }
+
+    const emailConfirmed = authUser.email_confirmed_at != null;
+    if (!emailConfirmed) {
+      return {
+        ok: false,
+        error: "Confirm your email first, then tap Finish sign-up with password.",
+        code: "EMAIL_NOT_CONFIRMED",
+        status: 403,
+      };
+    }
+
+    const admin = createSupabaseAdminClient();
+    const { error: passwordSyncError } = await admin.auth.admin.updateUserById(authUser.id, {
+      password: body.password,
+      user_metadata: {
+        match_fit_role: "trainer",
+        pending_match_fit_profile: false,
+        email_verified: true,
+      },
+    });
+    if (passwordSyncError) {
+      console.error("[completeTrainerSupabaseSignup] updateUserById", passwordSyncError);
+      return {
+        ok: false,
+        error: passwordSyncError.message?.trim() || "Could not sync your password.",
+        code: "SUPABASE_PASSWORD_SYNC_FAILED",
+        status: 400,
+      };
+    }
+
+    const { id: trainerId, email: createdEmail } = await createTrainerRecord(body, {
+      betaInviteEntryId: gate.betaInviteEntryId,
+    });
+
+    if (gate.betaInviteEntryId) {
+      await markTrainerWaitlistRegistered(gate.betaInviteEntryId, trainerId);
+    }
+
+    const profile = await prisma.trainerProfile.findUnique({
+      where: { trainerId },
+      select: {
+        hasSignedTOS: true,
+        registrationFeeHoldStatus: true,
+        hasPaidRegistrationFee: true,
+        limitedDashboardUnlockedAt: true,
+      },
+    });
+
+    void sendTrainerWelcomeEmail({
+      to: createdEmail,
+      firstName: body.firstName,
+      trainerId,
+    }).catch((err) => console.error("[completeTrainerSupabaseSignup] welcome email failed:", err));
+
+    return { ok: true, trainerId, next: resolveTrainerSignupNextPath(profile) };
+  } catch (e) {
+    const mapped = mapCreateTrainerError(e);
+    if (mapped) return mapped;
+    console.error("[completeTrainerSupabaseSignup]", e);
     return {
       ok: false,
-      error: "Trainer sign-up is not fully configured. Contact support@match-fit.net.",
-      code: "SUPABASE_ADMIN_NOT_CONFIGURED",
-      status: 503,
+      error: "Registration failed. Please try again.",
+      code: "UNEXPECTED",
+      status: 500,
     };
   }
-
-  const authUser = await findSupabaseAuthUser(email);
-  if (!authUser) {
-    return {
-      ok: false,
-      error: "No sign-up record found for this email. Submit the sign-up form first.",
-      code: "SUPABASE_USER_MISSING",
-      status: 404,
-    };
-  }
-
-  const emailConfirmed = authUser.email_confirmed_at != null;
-  if (!emailConfirmed) {
-    return {
-      ok: false,
-      error: "Confirm your email first, then tap Finish sign-up with password.",
-      code: "EMAIL_NOT_CONFIRMED",
-      status: 403,
-    };
-  }
-
-  const passwordSync = await syncSupabasePassword(authUser.id, body.password);
-  if (!passwordSync.ok) {
-    return {
-      ok: false,
-      error: passwordSync.error,
-      code: "SUPABASE_PASSWORD_SYNC_FAILED",
-      status: 400,
-    };
-  }
-
-  const { id: trainerId, email: createdEmail } = await createTrainerRecord(body, {
-    betaInviteEntryId: gate.betaInviteEntryId,
-  });
-
-  if (gate.betaInviteEntryId) {
-    await markTrainerWaitlistRegistered(gate.betaInviteEntryId, trainerId);
-  }
-
-  const admin = createSupabaseAdminClient();
-  await admin.auth.admin.updateUserById(authUser.id, {
-    user_metadata: {
-      match_fit_role: "trainer",
-      pending_match_fit_profile: false,
-      email_verified: true,
-    },
-  });
-
-  const profile = await prisma.trainerProfile.findUnique({
-    where: { trainerId },
-    select: {
-      hasSignedTOS: true,
-      registrationFeeHoldStatus: true,
-      hasPaidRegistrationFee: true,
-      limitedDashboardUnlockedAt: true,
-    },
-  });
-
-  void sendTrainerWelcomeEmail({
-    to: createdEmail,
-    firstName: body.firstName,
-    trainerId,
-  }).catch((err) => console.error("[completeTrainerSupabaseSignup] welcome email failed:", err));
-
-  return { ok: true, trainerId, next: resolveTrainerSignupNextPath(profile) };
 }
 
 export { BetaCapExceededError };
