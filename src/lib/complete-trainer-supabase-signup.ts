@@ -20,20 +20,32 @@ function isEmailNotConfirmedError(message: string): boolean {
   return m.includes("email not confirmed") || m.includes("email_not_confirmed");
 }
 
-async function findSupabaseAuthUserId(email: string): Promise<string | null> {
-  const rows = await prisma.$queryRaw<{ id: string }[]>`
-    SELECT id
+type SupabaseAuthUserRow = {
+  id: string;
+  email_confirmed_at: Date | null;
+};
+
+async function findSupabaseAuthUser(email: string): Promise<SupabaseAuthUserRow | null> {
+  const rows = await prisma.$queryRaw<SupabaseAuthUserRow[]>`
+    SELECT id, email_confirmed_at
     FROM auth.users
     WHERE lower(email) = lower(${email})
     LIMIT 1
   `;
-  return rows[0]?.id ?? null;
+  return rows[0] ?? null;
 }
 
-async function ensureSupabaseEmailConfirmed(userId: string): Promise<void> {
+async function syncSupabasePassword(
+  userId: string,
+  password: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const admin = createSupabaseAdminClient();
-  const { error } = await admin.auth.admin.updateUserById(userId, { email_confirm: true });
-  if (error) throw error;
+  const { error } = await admin.auth.admin.updateUserById(userId, { password });
+  if (error) {
+    console.error("[completeTrainerSupabaseSignup] syncSupabasePassword", error);
+    return { ok: false, error: error.message?.trim() || "Could not sync your password." };
+  }
+  return { ok: true };
 }
 
 async function signInSupabaseWithPassword(email: string, password: string): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -50,15 +62,11 @@ async function signInSupabaseWithPassword(email: string, password: string): Prom
   const attempt = await client.auth.signInWithPassword({ email, password });
   if (!attempt.error) return { ok: true };
 
-  if (isEmailNotConfirmedError(attempt.error.message) && isSupabaseAdminConfigured()) {
-    const userId = await findSupabaseAuthUserId(email);
-    if (!userId) {
-      return { ok: false, error: "Could not find your sign-up record. Start sign-up again." };
-    }
-    await ensureSupabaseEmailConfirmed(userId);
-    const retry = await client.auth.signInWithPassword({ email, password });
-    if (!retry.error) return { ok: true };
-    return { ok: false, error: retry.error.message || "Could not verify your password." };
+  if (isEmailNotConfirmedError(attempt.error.message)) {
+    return {
+      ok: false,
+      error: "Confirm your email first, then tap Finish sign-up with password.",
+    };
   }
 
   return { ok: false, error: attempt.error.message || "Could not verify your password." };
@@ -100,13 +108,33 @@ export async function completeTrainerSupabaseSignup(
     };
   }
 
-  const authUserId = await findSupabaseAuthUserId(email);
-  if (!authUserId) {
+  const authUser = await findSupabaseAuthUser(email);
+  if (!authUser) {
     return {
       ok: false,
       error: "No sign-up record found for this email. Submit the sign-up form first.",
       code: "SUPABASE_USER_MISSING",
       status: 404,
+    };
+  }
+
+  const emailConfirmed = authUser.email_confirmed_at != null;
+  if (!emailConfirmed) {
+    return {
+      ok: false,
+      error: "Confirm your email first, then tap Finish sign-up with password.",
+      code: "EMAIL_NOT_CONFIRMED",
+      status: 403,
+    };
+  }
+
+  const passwordSync = await syncSupabasePassword(authUser.id, body.password);
+  if (!passwordSync.ok) {
+    return {
+      ok: false,
+      error: passwordSync.error,
+      code: "SUPABASE_PASSWORD_SYNC_FAILED",
+      status: 400,
     };
   }
 
@@ -129,7 +157,7 @@ export async function completeTrainerSupabaseSignup(
   }
 
   const admin = createSupabaseAdminClient();
-  await admin.auth.admin.updateUserById(authUserId, {
+  await admin.auth.admin.updateUserById(authUser.id, {
     user_metadata: {
       match_fit_role: "trainer",
       pending_match_fit_profile: false,

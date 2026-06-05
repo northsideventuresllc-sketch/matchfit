@@ -78,7 +78,7 @@ describe("completeTrainerSupabaseSignup", () => {
     evaluateBetaTrainerRegistrationGateMock.mockResolvedValue({ ok: true, betaInviteEntryId: null });
     isTrainerUsernameTakenMock.mockResolvedValue(false);
     isTrainerEmailTakenMock.mockResolvedValue(false);
-    prismaMock.$queryRaw.mockResolvedValue([{ id: "auth_user_1" }]);
+    prismaMock.$queryRaw.mockResolvedValue([{ id: "auth_user_1", email_confirmed_at: new Date("2026-01-01") }]);
     signInWithPasswordMock.mockResolvedValue({ data: { session: { access_token: "token" } }, error: null });
     createTrainerRecordMock.mockResolvedValue({ id: "trainer_1", email: body.email });
     prismaMock.trainerProfile.findUnique.mockResolvedValue({
@@ -95,6 +95,16 @@ describe("completeTrainerSupabaseSignup", () => {
     const result = await completeTrainerSupabaseSignup(body);
     expect(result).toMatchObject({ ok: true, trainerId: "trainer_1" });
     expect(createTrainerRecordMock).toHaveBeenCalledOnce();
-    expect(adminAuthMock.updateUserById).toHaveBeenCalledOnce();
+    expect(adminAuthMock.updateUserById).toHaveBeenCalledTimes(2);
+    expect(adminAuthMock.updateUserById).toHaveBeenNthCalledWith(1, "auth_user_1", {
+      password: body.password,
+    });
+  });
+
+  it("rejects when email is not confirmed yet", async () => {
+    prismaMock.$queryRaw.mockResolvedValue([{ id: "auth_user_1", email_confirmed_at: null }]);
+    const result = await completeTrainerSupabaseSignup(body);
+    expect(result).toMatchObject({ ok: false, code: "EMAIL_NOT_CONFIRMED", status: 403 });
+    expect(createTrainerRecordMock).not.toHaveBeenCalled();
   });
 });

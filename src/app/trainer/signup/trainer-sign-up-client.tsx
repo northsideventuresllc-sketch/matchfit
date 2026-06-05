@@ -32,6 +32,19 @@ function simpleEmailValid(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
+function formatTrainerSignupFinishError(error: string, code?: string): string {
+  if (code === "BETA_OUTSIDE_SERVICE_AREA") {
+    return "Enter a valid Atlanta metro ZIP (for example 30301) in the form above, then try Finish again.";
+  }
+  if (code === "EMAIL_NOT_CONFIRMED") {
+    return "Your email is not confirmed yet. Check your inbox, or tap Resend verification email.";
+  }
+  if (code === "SUPABASE_AUTH_FAILED" || code === "SUPABASE_PASSWORD_SYNC_FAILED") {
+    return "We could not verify your password. Re-enter the password from the form above, then try Finish again.";
+  }
+  return error;
+}
+
 export default function TrainerSignUpClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -79,6 +92,13 @@ export default function TrainerSignUpClient() {
     [verificationEmailSent],
   );
   useMetaSignupFunnelStep(wizardFunnelStep);
+
+  const resetTurnstile = turnstile.reset;
+
+  useEffect(() => {
+    if (!verificationEmailSent) return;
+    resetTurnstile();
+  }, [verificationEmailSent, resetTurnstile]);
 
   useEffect(() => {
     if (!betaInviteFromUrl) return;
@@ -220,7 +240,7 @@ export default function TrainerSignUpClient() {
         turnstileToken: turnstile.getCaptchaToken() ?? null,
       });
       if (!result.ok) {
-        setError(result.error);
+        setError(formatTrainerSignupFinishError(result.error, result.code));
         turnstile.reset();
         setBusy(false);
       }
@@ -425,7 +445,7 @@ export default function TrainerSignUpClient() {
               turnstileToken,
             });
             if (!finished.ok) {
-              setError(finished.error);
+              setError(formatTrainerSignupFinishError(finished.error, finished.code));
               setResendNotice("Your email is verified. Use Finish sign-up with password below.");
               setVerificationEmailSent(true);
               turnstile.reset();
@@ -582,11 +602,11 @@ export default function TrainerSignUpClient() {
               </button>
               <button
                 type="button"
-                disabled={busy}
+                disabled={busy || (turnstile.enabled && !turnstile.ready)}
                 onClick={() => void handleContinueWithPassword()}
                 className="mt-3 min-h-[2.75rem] w-full rounded-xl border border-white/15 bg-white/5 px-4 text-xs font-black uppercase tracking-[0.08em] text-white/85 transition hover:bg-white/10 disabled:opacity-50"
               >
-                {busy ? "Please wait…" : "Finish sign-up with password"}
+                {busy ? "Please wait…" : turnstile.enabled && !turnstile.ready ? "Complete security check…" : "Finish sign-up with password"}
               </button>
               <p className="mt-3 text-[11px] leading-relaxed text-emerald-100/55">
                 Already confirmed your email? Use Continue with password. Otherwise wait 2 minutes between Resend attempts.
