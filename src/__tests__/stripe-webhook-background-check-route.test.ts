@@ -83,6 +83,7 @@ vi.mock("@/lib/trainer-compliance-window-sync", () => ({
 
 vi.mock("@/lib/stripe-server", () => ({
   getStripe: mockGetStripe,
+  resetStripeClient: vi.fn(),
 }));
 
 vi.mock("@/lib/trainer-promo-tokens", () => ({

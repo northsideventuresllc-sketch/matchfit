@@ -27,9 +27,10 @@ model Administrator {
   /// JSON admin dashboard layout: section order and visibility preferences.
   adminDashboardLayoutJson String?
 
-  auditLogs   AdministratorAuditLog[]
-  goals       AdminGoal[]
-  aiMessages  AdminAiMessage[]
+  auditLogs        AdministratorAuditLog[]
+  goals            AdminGoal[]
+  aiMessages       AdminAiMessage[]
+  aiConversations  AdminAiConversation[]
 
   @@map("administrators")
   @@schema("public")
@@ -112,6 +113,24 @@ model AdminGoal {
   @@schema("public")
 }
 
+/// Admin AI assistant chat thread (past conversations).
+model AdminAiConversation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  administratorId String
+  administrator   Administrator @relation(fields: [administratorId], references: [id], onDelete: Cascade)
+
+  title String @default("New conversation")
+
+  messages AdminAiMessage[]
+
+  @@index([administratorId, updatedAt])
+  @@map("admin_ai_conversations")
+  @@schema("public")
+}
+
 /// Admin AI assistant conversation turns.
 model AdminAiMessage {
   id        String   @id @default(cuid())
@@ -120,11 +139,15 @@ model AdminAiMessage {
   administratorId String
   administrator   Administrator @relation(fields: [administratorId], references: [id], onDelete: Cascade)
 
+  conversationId String?
+  conversation   AdminAiConversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
   role       String
   content    String
   actionType String?
 
   @@index([administratorId, createdAt])
+  @@index([conversationId, createdAt])
   @@map("admin_ai_messages")
   @@schema("public")
 }

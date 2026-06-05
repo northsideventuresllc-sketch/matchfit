@@ -189,12 +189,30 @@ CREATE INDEX IF NOT EXISTS "admin_goals_administratorId_status_idx"
 `);
   }
 
+  if (!(await tableExists("admin_ai_conversations"))) {
+    await prisma.$executeRawUnsafe(`
+CREATE TABLE IF NOT EXISTS "admin_ai_conversations" (
+    "id" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "administratorId" TEXT NOT NULL,
+    "title" TEXT NOT NULL DEFAULT 'New conversation',
+    CONSTRAINT "admin_ai_conversations_pkey" PRIMARY KEY ("id")
+);
+`);
+    await prisma.$executeRawUnsafe(`
+CREATE INDEX IF NOT EXISTS "admin_ai_conversations_administratorId_updatedAt_idx"
+  ON "admin_ai_conversations"("administratorId", "updatedAt");
+`);
+  }
+
   if (!(await tableExists("admin_ai_messages"))) {
     await prisma.$executeRawUnsafe(`
 CREATE TABLE IF NOT EXISTS "admin_ai_messages" (
     "id" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "administratorId" TEXT NOT NULL,
+    "conversationId" TEXT,
     "role" TEXT NOT NULL,
     "content" TEXT NOT NULL,
     "actionType" TEXT,
@@ -204,6 +222,19 @@ CREATE TABLE IF NOT EXISTS "admin_ai_messages" (
     await prisma.$executeRawUnsafe(`
 CREATE INDEX IF NOT EXISTS "admin_ai_messages_administratorId_createdAt_idx"
   ON "admin_ai_messages"("administratorId", "createdAt");
+`);
+    await prisma.$executeRawUnsafe(`
+CREATE INDEX IF NOT EXISTS "admin_ai_messages_conversationId_createdAt_idx"
+  ON "admin_ai_messages"("conversationId", "createdAt");
+`);
+  } else {
+    await prisma.$executeRawUnsafe(`
+ALTER TABLE "admin_ai_messages"
+  ADD COLUMN IF NOT EXISTS "conversationId" TEXT;
+`);
+    await prisma.$executeRawUnsafe(`
+CREATE INDEX IF NOT EXISTS "admin_ai_messages_conversationId_createdAt_idx"
+  ON "admin_ai_messages"("conversationId", "createdAt");
 `);
   }
 }
