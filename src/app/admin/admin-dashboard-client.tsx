@@ -31,6 +31,7 @@ import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version
 import { AdminDashboardLayoutCustomizer } from "./admin-dashboard-layout-customizer";
 import {
   AcquisitionFunnelSection,
+  AdPerformanceSection,
   FinancesDetailSection,
   OperationalAlertsSection,
   PlatformHealthSection,
@@ -206,10 +207,9 @@ export function AdminDashboardClient(props: {
   administratorId: string;
   layoutLoadedFromServer: boolean;
   auditLog: AdminAuditLogRow[];
-  visitorInsight: string;
 }) {
   const overview = props.initialOverview;
-  const { userCounts, revenue, recentSignups, recentFeatured, traffic, funnel, pipeline, finances, alerts, platformSummary } =
+  const { userCounts, revenue, recentSignups, recentFeatured, traffic, funnel, adPerformance, pipeline, finances, alerts, platformSummary } =
     overview;
 
   const layoutStorageKey = `${ADMIN_DASHBOARD_LAYOUT_STORAGE_KEY}:${props.administratorId}`;
@@ -493,6 +493,8 @@ export function AdminDashboardClient(props: {
         return <SiteTrafficSection traffic={traffic} />;
       case "acquisition-funnel":
         return <AcquisitionFunnelSection funnel={funnel} />;
+      case "ad-performance":
+        return <AdPerformanceSection panel={adPerformance} />;
       case "trainer-pipeline":
         return <TrainerPipelineSection pipeline={pipeline} />;
       case "finances-detail":
@@ -521,23 +523,18 @@ export function AdminDashboardClient(props: {
           </div>
         );
       case "ai-visitor-insights":
-        return props.visitorInsight ? (
+        return (
           <div className="rounded-2xl border border-[#FF7E00]/25 bg-[#FF7E00]/[0.06] p-5">
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/80">{props.visitorInsight}</p>
+            <p className="text-sm leading-relaxed text-white/80">
+              Open the Analytics Assistant to choose how you want AI help — custom questions, potential rating guidance,
+              or monthly revenue planning. Nothing runs until you submit a prompt.
+            </p>
             <p className="mt-3 text-xs">
               <Link href="/admin/assistant" className="text-[#FF7E00] underline-offset-4 hover:underline">
-                Open AI assistant for deeper analysis and goal setting
+                Open Analytics Assistant
               </Link>
             </p>
           </div>
-        ) : (
-          <p className="text-sm text-white/45">
-            Insights unavailable.{" "}
-            <Link href="/admin/assistant" className="text-[#FF7E00] underline-offset-4 hover:underline">
-              Open the AI assistant
-            </Link>
-            .
-          </p>
         );
       case "recent-signups":
         return (
@@ -671,6 +668,10 @@ export function AdminDashboardClient(props: {
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/55">
               Platform overview, signup activity, member search, and secure account access for operations and trust &
               safety.{" "}
+              <Link href="/admin/outreach" className={adminLinkClass}>
+                Outreach HQ
+              </Link>
+              .{" "}
               <Link href="/admin/beta-waitlists" className={adminLinkClass}>
                 Beta waitlists
               </Link>
@@ -687,6 +688,12 @@ export function AdminDashboardClient(props: {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link href="/admin/outreach" className={`${adminAccentButtonClass} px-4 py-2.5 text-xs no-underline hover:bg-[#FF7E00]/15`}>
+              Outreach HQ
+            </Link>
+            <Link href="/admin/content-calendar" className={`${adminAccentButtonClass} px-4 py-2.5 text-xs no-underline hover:bg-[#FF7E00]/15`}>
+              Content Calendar
+            </Link>
             <button
               type="button"
               onClick={() => {
@@ -723,6 +730,7 @@ export function AdminDashboardClient(props: {
                 "platform-health",
                 "site-traffic",
                 "acquisition-funnel",
+                "ad-performance",
                 "trainer-pipeline",
                 "finances-detail",
                 "operational-alerts",
