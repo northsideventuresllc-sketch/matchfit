@@ -3,7 +3,6 @@ import "server-only";
 import {
   CONTENT_CALENDAR_PLATFORMS_BY_TYPE,
   CONTENT_CALENDAR_POST_TYPES,
-  type ContentCalendarPostType,
 } from "@/lib/content-calendar/constants";
 import { addWeekdays, formatCalendarDate, getContentCalendarRotation } from "@/lib/content-calendar/rotation";
 import type { GeneratedWeekPost } from "@/lib/content-calendar/content-calendar-ai";

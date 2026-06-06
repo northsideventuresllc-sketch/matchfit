@@ -171,8 +171,10 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
   }, []);
 
   useEffect(() => {
-    void loadSchedule();
-    void loadMissed();
+    queueMicrotask(() => {
+      void loadSchedule();
+      void loadMissed();
+    });
   }, [loadSchedule, loadMissed]);
 
   async function generateWeek() {
