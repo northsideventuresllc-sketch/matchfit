@@ -251,7 +251,7 @@ export function AcquisitionFunnelSection({ funnel }: { funnel: AdminTrafficFunne
         <StatCard
           label="Clients in free trial"
           value={funnel.clientsInFreeTrial}
-          hint={`${funnel.clientsInPlatformTrial} card-free platform trial · ${funnel.clientsInStripeTrial} Stripe trial (no paid invoice yet)`}
+          hint={`${funnel.clientsInPlatformTrial ?? 0} card-free platform trial · ${funnel.clientsInStripeTrial ?? 0} Stripe trial (no paid invoice yet)`}
         />
         <StatCard
           label="Clients in post-trial payment grace"
@@ -338,7 +338,7 @@ export function FinancesDetailSection({ finances }: { finances: AdminFinancesPan
         <StatCard
           label="Clients in free trial"
           value={finances.clientsInFreeTrial}
-          hint={`${finances.clientsInPlatformTrial} platform trial · ${finances.clientsInStripeTrial} Stripe trial`}
+          hint={`${finances.clientsInPlatformTrial ?? 0} platform trial · ${finances.clientsInStripeTrial ?? 0} Stripe trial`}
         />
         <StatCard
           label="Post-trial payment grace"

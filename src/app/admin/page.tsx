@@ -38,12 +38,6 @@ export default async function AdminHomePage() {
     await ensureAdminPortalSchema();
     overview = await getAdminPortalOverview();
     auditLog = await getAdminAuditLog(25);
-    visitorInsight = await runAdminAnalyticsAi({
-      action: "signup_recommendations",
-      administratorId: sess.adminId,
-      overview,
-      traffic: overview.traffic,
-    });
   } catch (e) {
     console.error("[admin home]", e);
     const message = e instanceof Error ? e.message : "";
@@ -60,6 +54,19 @@ export default async function AdminHomePage() {
         : isAdminPortalSchemaError(e)
           ? "Administrator database permissions need repair. Reload once — the app will retry schema repair automatically."
           : "Could not load the administrator dashboard. Check database connectivity and server logs.";
+  }
+
+  if (!loadError && overview) {
+    try {
+      visitorInsight = await runAdminAnalyticsAi({
+        action: "signup_recommendations",
+        administratorId: sess.adminId,
+        overview,
+        traffic: overview.traffic,
+      });
+    } catch (e) {
+      console.error("[admin home] visitor insight", e);
+    }
   }
 
   if (loadError) {

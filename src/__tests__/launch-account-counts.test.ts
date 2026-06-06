@@ -215,7 +215,7 @@ describe("admin funnel count filters", () => {
     expect(where.NOT?.AND).toEqual([
       { stripeSubscriptionActive: true },
       { stripeSubscriptionId: { not: null } },
-      { NOT: { stripeSubscriptionId: "" } },
+      { stripeSubscriptionId: { not: "" } },
     ]);
   });
 
@@ -223,6 +223,10 @@ describe("admin funnel count filters", () => {
     const where = launchClientStripeTrialCountWhere();
     expect(where.stripeSubscriptionActive).toBe(true);
     expect(where.stripeLastSubscriptionInvoicePaidAt).toBeNull();
+    expect(where.AND).toEqual([
+      { stripeSubscriptionId: { not: null } },
+      { stripeSubscriptionId: { not: "" } },
+    ]);
   });
 
   it("free trial filter unions platform and stripe trial paths", () => {
@@ -249,7 +253,7 @@ describe("admin funnel count filters", () => {
       is: {
         hasPaidRegistrationFee: false,
         limitedDashboardUnlockedAt: null,
-        NOT: { registrationFeeHoldStatus: { in: ["HELD", "CAPTURED"] } },
+        registrationFeeHoldStatus: { notIn: ["HELD", "CAPTURED"] },
       },
     });
   });

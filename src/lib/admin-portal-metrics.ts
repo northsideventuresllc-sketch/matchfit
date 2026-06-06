@@ -20,6 +20,8 @@ import type {
   AdminTrafficFunnelPanel,
 } from "@/lib/admin-portal-types";
 import { getHomeUserCounts } from "@/lib/home-user-counts";
+import { isMissingClientPlatformTrialColumnError } from "@/lib/ensure-client-platform-trial-schema";
+import { isMissingTrainerRegisterSchemaError } from "@/lib/ensure-trainer-register-schema";
 import { isPrismaMissingColumnError, isPrismaMissingTableError } from "@/lib/prisma-missing-column";
 import { prisma } from "@/lib/prisma";
 import { computePotentialSuccessScore } from "@/lib/platform-potential-success";
@@ -88,6 +90,83 @@ type CountRow = { n: bigint };
 
 function n(row: CountRow | undefined): number {
   return Number(row?.n ?? BigInt(0));
+}
+
+function isRecoverableAdminMetricsError(e: unknown): boolean {
+  if (isMissingClientPlatformTrialColumnError(e)) return true;
+  if (isMissingTrainerRegisterSchemaError(e)) return true;
+  if (isPrismaMissingTableError(e, "pending_client_registrations")) return true;
+  if (e instanceof Prisma.PrismaClientValidationError) return true;
+  return false;
+}
+
+async function safeClientCount(where: Prisma.ClientWhereInput, fallback = 0): Promise<number> {
+  try {
+    return await prisma.client.count({ where });
+  } catch (e) {
+    if (isRecoverableAdminMetricsError(e)) {
+      console.warn("[admin metrics] client count fallback", e);
+      return fallback;
+    }
+    throw e;
+  }
+}
+
+async function safeTrainerCount(where: Prisma.TrainerWhereInput, fallback = 0): Promise<number> {
+  try {
+    return await prisma.trainer.count({ where });
+  } catch (e) {
+    if (isRecoverableAdminMetricsError(e)) {
+      console.warn("[admin metrics] trainer count fallback", e);
+      return fallback;
+    }
+    throw e;
+  }
+}
+
+async function safePendingClientRegistrationStats(now: Date): Promise<{ total: number; byStatus: Record<string, number> }> {
+  try {
+    return await getActivePendingClientRegistrationStats(now);
+  } catch (e) {
+    if (isRecoverableAdminMetricsError(e)) {
+      console.warn("[admin metrics] pending client registration fallback", e);
+      return { total: 0, byStatus: {} };
+    }
+    throw e;
+  }
+}
+
+async function countTrainersBeforeRegistrationPayment(): Promise<number> {
+  try {
+    return await prisma.trainer.count({ where: launchTrainerBeforeRegistrationPaymentWhere() });
+  } catch (e) {
+    if (!isRecoverableAdminMetricsError(e)) throw e;
+    console.warn("[admin metrics] trainer pre-registration payment fallback to legacy background-fee filter", e);
+    return safeTrainerCount({
+      ...launchTrainerCountWhere(),
+      profile: { is: { hasPaidBackgroundFee: false, backgroundCheckStatus: "NOT_STARTED" } },
+    });
+  }
+}
+
+async function countClientFreeTrialBreakdown(now: Date): Promise<{
+  total: number;
+  platform: number;
+  stripe: number;
+}> {
+  try {
+    const [total, platform, stripe] = await Promise.all([
+      prisma.client.count({ where: launchClientFreeTrialCountWhere(now) }),
+      prisma.client.count({ where: launchClientPlatformTrialCountWhere(now) }),
+      prisma.client.count({ where: launchClientStripeTrialCountWhere() }),
+    ]);
+    return { total, platform, stripe };
+  } catch (e) {
+    if (!isRecoverableAdminMetricsError(e)) throw e;
+    console.warn("[admin metrics] free trial fallback to Stripe-only counts", e);
+    const stripe = await safeClientCount(launchClientStripeTrialCountWhere());
+    return { total: stripe, platform: 0, stripe };
+  }
 }
 
 function sinceFromWindow(key: AdminFinanceWindowKey, now = new Date()): Date {
@@ -264,6 +343,7 @@ async function countTopPlatformFunctions(role: "client" | "trainer"): Promise<Ad
 
 export async function getAdminTrafficFunnelPanel(now = new Date()): Promise<AdminTrafficFunnelPanel> {
   const analyticsOk = await analyticsAvailable();
+  const freeTrialPromise = countClientFreeTrialBreakdown(now);
   const [
     homepageVisits,
     totalSiteVisits,
@@ -280,13 +360,11 @@ export async function getAdminTrafficFunnelPanel(now = new Date()): Promise<Admi
     incompleteTrainerSignups,
     trainersBeforeRegistrationPayment,
     trainersBeforeTerms,
-    clientsInFreeTrial,
-    clientsInPlatformTrial,
-    clientsInStripeTrial,
     clientsInPlatformPaymentGrace,
     activeClientSubscriptions,
     topClientFunctions,
     topTrainerFunctions,
+    freeTrial,
   ] = await Promise.all([
     countAnalyticsPageViews(["/"]),
     countAnalyticsPageViews(null),
@@ -297,19 +375,17 @@ export async function getAdminTrafficFunnelPanel(now = new Date()): Promise<Admi
     countActiveOnSiteNow(),
     countLoginBuckets("clients"),
     countLoginBuckets("trainers"),
-    getActivePendingClientRegistrationStats(now),
-    prisma.client.count({ where: launchClientCountWhere() }),
-    prisma.trainer.count({ where: launchTrainerCountWhere() }),
-    prisma.trainer.count({ where: launchTrainerIncompleteSignupWhere() }),
-    prisma.trainer.count({ where: launchTrainerBeforeRegistrationPaymentWhere() }),
-    prisma.trainer.count({ where: launchTrainerBeforeTermsWhere() }),
-    prisma.client.count({ where: launchClientFreeTrialCountWhere(now) }),
-    prisma.client.count({ where: launchClientPlatformTrialCountWhere(now) }),
-    prisma.client.count({ where: launchClientStripeTrialCountWhere() }),
-    prisma.client.count({ where: launchClientPlatformPaymentGraceWhere(now) }),
+    safePendingClientRegistrationStats(now),
+    safeClientCount(launchClientCountWhere()),
+    safeTrainerCount(launchTrainerCountWhere()),
+    safeTrainerCount(launchTrainerIncompleteSignupWhere()),
+    countTrainersBeforeRegistrationPayment(),
+    safeTrainerCount(launchTrainerBeforeTermsWhere()),
+    safeClientCount(launchClientPlatformPaymentGraceWhere(now)),
     countLaunchPlatformSubscribers(),
     countTopPlatformFunctions("client"),
     countTopPlatformFunctions("trainer"),
+    freeTrialPromise,
   ]);
 
   const pendingTotal = pendingClientRegistrations.total;
@@ -329,9 +405,9 @@ export async function getAdminTrafficFunnelPanel(now = new Date()): Promise<Admi
     incompleteTrainerSignups,
     trainersBeforeRegistrationPayment,
     trainersBeforeTerms,
-    clientsInFreeTrial,
-    clientsInPlatformTrial,
-    clientsInStripeTrial,
+    clientsInFreeTrial: freeTrial.total,
+    clientsInPlatformTrial: freeTrial.platform,
+    clientsInStripeTrial: freeTrial.stripe,
     clientsInPlatformPaymentGrace,
     activeClientSubscriptions,
     topClientFunctions,
@@ -599,10 +675,9 @@ export async function getAdminFinancesPanel(now = new Date()): Promise<AdminFina
     .catch(() => 0);
 
   const dayKey = todayFeaturedDayKey();
+  const freeTrialPromise = countClientFreeTrialBreakdown(now);
   const [
-    clientsInFreeTrial,
-    clientsInPlatformTrial,
-    clientsInStripeTrial,
+    freeTrial,
     clientsInPlatformPaymentGrace,
     paymentFailedInGrace,
     clientsWithCard,
@@ -612,12 +687,10 @@ export async function getAdminFinancesPanel(now = new Date()): Promise<AdminFina
     featuredTrainersToday,
     bestSellers,
   ] = await Promise.all([
-    prisma.client.count({ where: launchClientFreeTrialCountWhere(now) }),
-    prisma.client.count({ where: launchClientPlatformTrialCountWhere(now) }),
-    prisma.client.count({ where: launchClientStripeTrialCountWhere() }),
-    prisma.client.count({ where: launchClientPlatformPaymentGraceWhere(now) }),
-    prisma.client.count({ where: launchClientBillingGraceWhere(now) }),
-    prisma.client.count({ where: launchClientWithCardWhere() }),
+    freeTrialPromise,
+    safeClientCount(launchClientPlatformPaymentGraceWhere(now)),
+    safeClientCount(launchClientBillingGraceWhere(now)),
+    safeClientCount(launchClientWithCardWhere()),
     countLaunchPlatformSubscribers(),
     loadRecentTransactions(20),
     countLaunchPremiumTrainers(),
@@ -628,9 +701,9 @@ export async function getAdminFinancesPanel(now = new Date()): Promise<AdminFina
   return {
     windows,
     lifetime: { ...lifetimeGrouped, eventCount: lifetimeEvents },
-    clientsInFreeTrial,
-    clientsInPlatformTrial,
-    clientsInStripeTrial,
+    clientsInFreeTrial: freeTrial.total,
+    clientsInPlatformTrial: freeTrial.platform,
+    clientsInStripeTrial: freeTrial.stripe,
     clientsInPlatformPaymentGrace,
     pendingSubscriptionStop: null,
     paymentFailedInGrace,

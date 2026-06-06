@@ -160,7 +160,11 @@ export function launchClientPlatformTrialCountWhere(now = new Date()): Prisma.Cl
     accountDeactivatedAt: null,
     platformTrialEndsAt: { gt: now },
     NOT: {
-      AND: [{ stripeSubscriptionActive: true }, { stripeSubscriptionId: { not: null } }, { NOT: { stripeSubscriptionId: "" } }],
+      AND: [
+        { stripeSubscriptionActive: true },
+        { stripeSubscriptionId: { not: null } },
+        { stripeSubscriptionId: { not: "" } },
+      ],
     },
   };
 }
@@ -170,8 +174,7 @@ export function launchClientStripeTrialCountWhere(): Prisma.ClientWhereInput {
   return {
     ...launchClientActiveSubscriptionCountWhere(),
     stripeLastSubscriptionInvoicePaidAt: null,
-    stripeSubscriptionId: { not: null },
-    NOT: { stripeSubscriptionId: "" },
+    AND: [{ stripeSubscriptionId: { not: null } }, { stripeSubscriptionId: { not: "" } }],
   };
 }
 
@@ -209,7 +212,7 @@ export function launchTrainerBeforeRegistrationPaymentWhere(): Prisma.TrainerWhe
       is: {
         hasPaidRegistrationFee: false,
         limitedDashboardUnlockedAt: null,
-        NOT: { registrationFeeHoldStatus: { in: ["HELD", "CAPTURED"] } },
+        registrationFeeHoldStatus: { notIn: ["HELD", "CAPTURED"] },
       },
     },
   };

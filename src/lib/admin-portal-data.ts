@@ -16,6 +16,8 @@ import type {
   AdminUserStats,
 } from "@/lib/admin-portal-types";
 import { ensureAdminReportingSchema } from "@/lib/ensure-admin-reporting-schema";
+import { ensureClientPlatformTrialSchema } from "@/lib/ensure-client-platform-trial-schema";
+import { ensureTrainerRegisterSchema } from "@/lib/ensure-trainer-register-schema";
 import { prisma } from "@/lib/prisma";
 import { formatFeaturedDisplayDayLabel } from "@/lib/featured-eastern-calendar";
 import { getHomeUserCounts } from "@/lib/home-user-counts";
@@ -378,6 +380,15 @@ export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
   } catch (e) {
     console.error("[admin portal] ensureAdminReportingSchema", e);
   }
+
+  await Promise.all([
+    ensureClientPlatformTrialSchema().catch((e) => {
+      console.error("[admin portal] ensureClientPlatformTrialSchema", e);
+    }),
+    ensureTrainerRegisterSchema().catch((e) => {
+      console.error("[admin portal] ensureTrainerRegisterSchema", e);
+    }),
+  ]);
 
   await scrubNonLivePlatformRevenueEvents().catch((e) => {
     console.error("[admin portal] scrubNonLivePlatformRevenueEvents", e);
