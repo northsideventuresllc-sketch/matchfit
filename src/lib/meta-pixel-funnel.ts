@@ -84,11 +84,23 @@ export function resolveSignupFunnelFromPath(pathname: string): MetaFunnelStep | 
       step_name: "Email verification complete",
       step_index: 2,
     },
+    "/trainer/signup/terms": {
+      funnel: "trainer",
+      step_id: "sign_up_terms",
+      step_name: "Trainer agreement",
+      step_index: 3,
+    },
+    "/trainer/signup/payment": {
+      funnel: "trainer",
+      step_id: "sign_up_payment",
+      step_name: "Signup fee",
+      step_index: 4,
+    },
     "/trainer/onboarding": {
       funnel: "trainer",
       step_id: "onboarding",
       step_name: "Onboarding",
-      step_index: 3,
+      step_index: 5,
     },
   };
 

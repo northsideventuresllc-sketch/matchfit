@@ -8,7 +8,7 @@ import {
 
 const PLATFORM_MARKERS: Record<MatchFitOfficialSocialPlatform, readonly string[]> = {
   threads: ['fill="#000000"', "M141.537 88.9883", 'viewBox="0 0 192 192"'],
-  tiktok: ['fill="#25F4EE"', 'fill="#FE2C55"'],
+  tiktok: ['fill="#25F4EE"', 'fill="#FE2C55"', "M19.589 6.686"],
   facebook: ['fill="#1877F2"', "M13.2 20.5"],
   instagram: ["<linearGradient", 'stop-color="#FEDA75"'],
 };

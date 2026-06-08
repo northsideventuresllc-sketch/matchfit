@@ -158,6 +158,33 @@ function providerDisplayName(provider: AdminAiProviderId): string {
   return provider === "anthropic" ? "Anthropic (Claude)" : "OpenAI";
 }
 
+/** Sync env check for server pages and outreach/content AI helpers (no live probe). */
+export function getAdminAiProviderStatus(): AdminAiProviderStatus {
+  const provider = resolveAdminAiProvider();
+  if (!provider) {
+    return {
+      provider: "anthropic",
+      configured: false,
+      working: false,
+      model: resolveAnthropicModel(),
+      message:
+        "No AI provider configured. Add ANTHROPIC_API_KEY (preferred) or OPENAI_API_KEY to enable AI responses.",
+    };
+  }
+
+  const model = resolveAdminAiModel(provider);
+  const key = resolveAdminAiKey(provider);
+  return {
+    provider,
+    configured: Boolean(key),
+    working: false,
+    model,
+    message: key
+      ? `${providerDisplayName(provider)} is configured for admin analytics.`
+      : `${providerDisplayName(provider)} is not fully configured.`,
+  };
+}
+
 async function probeAnthropicProvider(model: string, key: string): Promise<AdminAiProviderStatus> {
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {

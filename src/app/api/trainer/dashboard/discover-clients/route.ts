@@ -15,6 +15,7 @@ import {
 } from "@/lib/trainer-discover-match-batch";
 import { isTrainerPremiumStudioActive } from "@/lib/trainer-premium-studio";
 import { isClientHiddenFromTrainerDiscover } from "@/lib/user-block-queries";
+import { publicMarketplaceVisibleClientWhere } from "@/lib/match-fit-public-marketplace-hidden";
 import { assertTrainerClientPayloadHasNoAddress } from "@/lib/trainer-safe-client-profile";
 import { isMatchFitInternalQaTrainerEmail } from "@/lib/match-fit-internal-qa";
 import { refreshInternalQaTrainerSimulationIfNeeded, processInternalQaDeferredOfficialChats } from "@/lib/internal-qa-simulation";
@@ -114,8 +115,9 @@ export async function GET(req: Request) {
     const qaTrainer = isMatchFitInternalQaTrainerEmail(trainer.email);
     const clients = await prisma.client.findMany({
       where: {
-        deidentifiedAt: null,
-        internalQaSyntheticPersona: qaTrainer ? true : false,
+        ...(qaTrainer
+          ? { deidentifiedAt: null, accountDeletionFinalizeAt: null, internalQaSyntheticPersona: true }
+          : publicMarketplaceVisibleClientWhere()),
         allowTrainerDiscovery: true,
         matchPreferencesCompletedAt: { not: null },
         ...(q

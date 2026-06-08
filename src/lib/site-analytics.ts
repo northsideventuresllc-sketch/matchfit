@@ -66,6 +66,11 @@ export async function recordSiteAnalyticsEvent(
       linkLabel: payload.linkLabel ?? null,
       visitorId: payload.visitorId,
       sessionId: payload.sessionId,
+      utmSource: payload.utmSource ?? null,
+      utmMedium: payload.utmMedium ?? null,
+      utmCampaign: payload.utmCampaign ?? null,
+      utmContent: payload.utmContent ?? null,
+      utmTerm: payload.utmTerm ?? null,
     },
   });
 }

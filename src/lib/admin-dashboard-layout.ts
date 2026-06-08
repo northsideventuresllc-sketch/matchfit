@@ -11,6 +11,7 @@ export const ADMIN_DASHBOARD_SECTION_IDS = [
   "platform-health",
   "site-traffic",
   "acquisition-funnel",
+  "ad-performance",
   "trainer-pipeline",
   "finances-detail",
   "operational-alerts",
@@ -59,7 +60,7 @@ export const ADMIN_DASHBOARD_SECTIONS: AdminDashboardSectionMeta[] = [
   {
     id: "platform-health",
     label: "Platform health",
-    description: "Success rating, potential success projection, valuation, stability, and security.",
+    description: "Success rating, potential metrics, valuation, stability, security, and revenue projection.",
     group: "Analytics",
   },
   {
@@ -72,6 +73,12 @@ export const ADMIN_DASHBOARD_SECTIONS: AdminDashboardSectionMeta[] = [
     id: "acquisition-funnel",
     label: "Acquisition funnel",
     description: "Signup funnel, logins, and top product actions.",
+    group: "Analytics",
+  },
+  {
+    id: "ad-performance",
+    label: "Ad performance",
+    description: "Google Ads and Meta spend, clicks, and UTM-attributed signup traffic (7 days).",
     group: "Analytics",
   },
   {

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { ensureFeaturedAllocationsResolved } from "@/lib/featured-competition";
 import { homepageDisplayDayKey } from "@/lib/featured-eastern-calendar";
 import { clientZipToPrefix } from "@/lib/featured-region";
+import { isTrainerHiddenFromPublicMarketplace } from "@/lib/match-fit-public-marketplace-hidden";
 
 export type FeaturedTrainerCard = {
   username: string;
@@ -49,18 +50,22 @@ export async function getFeaturedTrainersForHomepage(opts: {
       trainer: {
         select: {
           username: true,
+          email: true,
           firstName: true,
           lastName: true,
           preferredName: true,
           fitnessNiches: true,
           bio: true,
           profileImageUrl: true,
+          internalQaSyntheticPersona: true,
         },
       },
     },
   });
 
-  return allocations.map((a) => ({
+  return allocations
+    .filter((a) => !isTrainerHiddenFromPublicMarketplace(a.trainer))
+    .map((a) => ({
     username: a.trainer.username,
     displayName: coachDisplayName(a.trainer),
     specialtyLine: specialtyLine(a.trainer),

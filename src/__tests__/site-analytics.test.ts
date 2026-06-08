@@ -2,7 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   isSiteAnalyticsBotUserAgent,
   parseSiteAnalyticsIngestBody,
+  parseUtmFromSearchParams,
 } from "@/lib/site-analytics-shared";
+
+const NULL_UTM = {
+  utmSource: null,
+  utmMedium: null,
+  utmCampaign: null,
+  utmContent: null,
+  utmTerm: null,
+} as const;
 
 describe("site-analytics ingest", () => {
   it("accepts page views on public paths", () => {
@@ -20,6 +29,7 @@ describe("site-analytics ingest", () => {
       linkLabel: null,
       visitorId: "visitor12345678",
       sessionId: "session12345678",
+      ...NULL_UTM,
     });
   });
 
@@ -90,6 +100,38 @@ describe("site-analytics ingest", () => {
       linkLabel: "Join as trainer",
       visitorId: "visitor12345678",
       sessionId: "session12345678",
+      ...NULL_UTM,
+    });
+  });
+
+  it("accepts UTM attribution fields on ingest", () => {
+    const payload = parseSiteAnalyticsIngestBody({
+      kind: "page_view",
+      path: "/client/sign-up",
+      visitorId: "visitor12345678",
+      sessionId: "session12345678",
+      utmSource: "facebook",
+      utmMedium: "paid_social",
+      utmCampaign: "client_beta_launch",
+    });
+
+    expect(payload).toMatchObject({
+      utmSource: "facebook",
+      utmMedium: "paid_social",
+      utmCampaign: "client_beta_launch",
+    });
+  });
+
+  it("parses UTM params from search strings", () => {
+    const params = parseUtmFromSearchParams(
+      new URLSearchParams("utm_source=google&utm_medium=cpc&utm_campaign=trainer_search"),
+    );
+    expect(params).toEqual({
+      utmSource: "google",
+      utmMedium: "cpc",
+      utmCampaign: "trainer_search",
+      utmContent: null,
+      utmTerm: null,
     });
   });
 

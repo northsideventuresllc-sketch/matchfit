@@ -4,8 +4,14 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 import {
   SITE_ANALYTICS_SESSION_KEY,
+  SITE_ANALYTICS_UTM_COOKIE,
   SITE_ANALYTICS_VISITOR_COOKIE,
+  hasAnyUtm,
+  parseUtmCookie,
+  parseUtmFromSearchParams,
+  serializeUtmCookie,
   type SiteAnalyticsKind,
+  type SiteAnalyticsUtm,
 } from "@/lib/site-analytics-shared";
 
 const VISITOR_MAX_AGE_DAYS = 400;
@@ -16,8 +22,8 @@ export function readCookie(name: string): string | null {
   return match?.[1] ? decodeURIComponent(match[1]) : null;
 }
 
-export function writeCookie(name: string, value: string) {
-  const maxAge = VISITOR_MAX_AGE_DAYS * 24 * 60 * 60;
+export function writeCookie(name: string, value: string, maxAgeDays = VISITOR_MAX_AGE_DAYS) {
+  const maxAge = maxAgeDays * 24 * 60 * 60;
   const secure = typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
   document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`;
 }
@@ -49,6 +55,26 @@ export function getSessionId(): string {
   }
 }
 
+/** First-touch UTM params persist for 30 days (aligned with typical ad attribution windows). */
+export function captureUtmAttribution(searchParams: URLSearchParams | null): SiteAnalyticsUtm {
+  const empty: SiteAnalyticsUtm = {
+    utmSource: null,
+    utmMedium: null,
+    utmCampaign: null,
+    utmContent: null,
+    utmTerm: null,
+  };
+
+  const fromUrl = searchParams ? parseUtmFromSearchParams(searchParams) : empty;
+  if (hasAnyUtm(fromUrl)) {
+    writeCookie(SITE_ANALYTICS_UTM_COOKIE, serializeUtmCookie(fromUrl), 30);
+    return fromUrl;
+  }
+
+  const stored = parseUtmCookie(readCookie(SITE_ANALYTICS_UTM_COOKIE));
+  return stored ?? empty;
+}
+
 export function currentPath(pathname: string): string {
   const base = pathname.startsWith("/") ? pathname : `/${pathname}`;
   return base.split("?")[0]?.split("#")[0] ?? base;
@@ -76,17 +102,28 @@ export async function sendEvent(payload: {
   targetPath?: string;
   targetUrl?: string;
   linkLabel?: string;
+  utm?: SiteAnalyticsUtm;
 }) {
   const visitorId = getVisitorId();
   const sessionId = getSessionId();
+  const utm = payload.utm ?? captureUtmAttribution(null);
   try {
     await fetch("/api/public/site-analytics", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ...payload,
+        kind: payload.kind,
+        path: payload.path,
+        targetPath: payload.targetPath,
+        targetUrl: payload.targetUrl,
+        linkLabel: payload.linkLabel,
         visitorId,
         sessionId,
+        utmSource: utm.utmSource,
+        utmMedium: utm.utmMedium,
+        utmCampaign: utm.utmCampaign,
+        utmContent: utm.utmContent,
+        utmTerm: utm.utmTerm,
       }),
       keepalive: true,
       credentials: "same-origin",
@@ -110,7 +147,8 @@ export function SiteAnalyticsTracker() {
     if (lastPageKey.current === pageKey) return;
     lastPageKey.current = pageKey;
 
-    void sendEvent({ kind: "PAGE_VIEW", path });
+    const utm = captureUtmAttribution(searchParams);
+    void sendEvent({ kind: "PAGE_VIEW", path, utm });
   }, [pathname, searchParams]);
 
   useEffect(() => {
@@ -152,6 +190,7 @@ export function SiteAnalyticsTracker() {
         targetPath,
         targetUrl,
         linkLabel: linkLabelFromAnchor(anchor) ?? undefined,
+        utm: captureUtmAttribution(searchParams),
       });
     }
 

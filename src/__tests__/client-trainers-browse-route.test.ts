@@ -90,6 +90,14 @@ vi.mock("@/lib/user-block-queries", () => ({
 
 vi.mock("@/lib/match-fit-internal-qa", () => ({
   isMatchFitInternalQaClientEmail: isMatchFitInternalQaClientEmailMock,
+  getMatchFitInternalQaClientEmails: vi.fn(() => []),
+}));
+
+vi.mock("@/lib/match-fit-public-marketplace-hidden", () => ({
+  publicMarketplaceVisibleTrainerWhere: () => ({
+    deidentifiedAt: null,
+    accountDeletionFinalizeAt: null,
+  }),
 }));
 
 vi.mock("@/lib/internal-qa-simulation", () => ({

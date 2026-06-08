@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { publicMarketplaceVisibleTrainerWhere } from "@/lib/match-fit-public-marketplace-hidden";
 
 type DemoPostSpec = {
   demoSeedKey: string;
@@ -79,7 +80,10 @@ async function resolveDemoTrainerIds(): Promise<string[]> {
 
   if (usernames.length) {
     const rows = await prisma.trainer.findMany({
-      where: { username: { in: usernames } },
+      where: {
+        ...publicMarketplaceVisibleTrainerWhere(),
+        username: { in: usernames },
+      },
       select: { id: true, username: true },
     });
     const byUser = new Map(rows.map((r) => [r.username, r.id]));
@@ -92,6 +96,7 @@ async function resolveDemoTrainerIds(): Promise<string[]> {
   }
 
   const fallback = await prisma.trainer.findMany({
+    where: publicMarketplaceVisibleTrainerWhere(),
     take: 8,
     orderBy: { createdAt: "asc" },
     select: { id: true },
@@ -136,6 +141,7 @@ export async function ensureClientFitHubSamplePosts(): Promise<void> {
   const count = await prisma.trainerFitHubPost.count();
   if (count === 0) {
     const trainers = await prisma.trainer.findMany({
+      where: publicMarketplaceVisibleTrainerWhere(),
       take: 4,
       orderBy: { createdAt: "asc" },
       select: { id: true },

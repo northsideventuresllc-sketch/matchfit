@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { TrainerClientNudgePanel } from "@/components/client/trainer-client-nudge-panel";
 import { parseClientMatchPreferencesJson } from "@/lib/client-match-preferences";
 import { parseClientOptionalProfileVisibility } from "@/lib/optional-profile-visibility";
+import { isClientHiddenFromPublicMarketplace } from "@/lib/match-fit-public-marketplace-hidden";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 
@@ -14,9 +15,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const handle = decodeURIComponent(username);
   const client = await prisma.client.findUnique({
     where: { username: handle },
-    select: { preferredName: true, allowTrainerDiscovery: true },
+    select: { preferredName: true, email: true, username: true, allowTrainerDiscovery: true, internalQaSyntheticPersona: true },
   });
-  if (!client || !client.allowTrainerDiscovery) {
+  if (!client || !client.allowTrainerDiscovery || isClientHiddenFromPublicMarketplace(client)) {
     return { title: "Client | Match Fit" };
   }
   return {
@@ -33,6 +34,7 @@ export default async function ClientPublicProfilePage({ params }: Props) {
     where: { username: handle },
     select: {
       id: true,
+      email: true,
       preferredName: true,
       username: true,
       bio: true,
@@ -43,6 +45,7 @@ export default async function ClientPublicProfilePage({ params }: Props) {
       optionalProfileVisibilityJson: true,
       deidentifiedAt: true,
       accountDeletionFinalizeAt: true,
+      internalQaSyntheticPersona: true,
     },
   });
 
@@ -53,6 +56,10 @@ export default async function ClientPublicProfilePage({ params }: Props) {
   const sessionClientId = await getSessionClientId();
   const sessionTrainerId = await getSessionTrainerId();
   const isOwner = sessionClientId === client.id;
+
+  if (isClientHiddenFromPublicMarketplace(client) && !isOwner) {
+    notFound();
+  }
 
   if (!client.allowTrainerDiscovery && !isOwner) {
     notFound();
