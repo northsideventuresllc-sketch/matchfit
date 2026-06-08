@@ -12,6 +12,7 @@ import {
 } from "@/lib/client-trainer-browse";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { marketplaceActiveTrainerWhere } from "@/lib/account-deletion-grace";
+import { publicMarketplaceVisibleTrainerWhere } from "@/lib/match-fit-public-marketplace-hidden";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
 import { getTrainerIdsHiddenFromClientMatchFeed } from "@/lib/user-block-queries";
@@ -57,8 +58,7 @@ export async function GET(req: Request) {
 
     const trainers = await prisma.trainer.findMany({
       where: {
-        ...marketplaceActiveTrainerWhere,
-        internalQaSyntheticPersona: false,
+        ...publicMarketplaceVisibleTrainerWhere(),
         profile: {
           dashboardActivatedAt: { not: null },
         },

@@ -152,11 +152,44 @@ model SiteAnalyticsEvent {
   /// Per-tab session id (sessionStorage).
   sessionId String
 
+  /// First-touch UTM attribution (optional; from ad campaign links).
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmContent  String?
+  utmTerm     String?
+
   @@index([createdAt])
   @@index([kind, createdAt])
   @@index([path, createdAt])
   @@index([visitorId, createdAt])
+  @@index([utmSource, utmCampaign, createdAt])
   @@map("site_analytics_events")
+  @@schema("public")
+}
+
+/// Daily ad platform performance snapshot (Google Ads / Meta Ads API sync).
+model AdPlatformDailySnapshot {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// google | meta
+  platform String
+  /// YYYY-MM-DD (America/New_York)
+  dayKey   String
+
+  impressions Int @default(0)
+  clicks      Int @default(0)
+  spendCents  Int @default(0)
+  conversions Int @default(0)
+
+  /// Optional raw API payload for debugging.
+  rawJson String?
+
+  @@unique([platform, dayKey])
+  @@index([dayKey])
+  @@map("ad_platform_daily_snapshots")
   @@schema("public")
 }
 
@@ -1971,6 +2004,194 @@ model BetaClientWaitlistEntry {
   @@index([email])
   @@index([desiredUsername])
   @@map("beta_client_waitlist_entries")
+  @@schema("public")
+}
+
+/// Trainer outreach — Instagram profile leads (admin Outreach HQ).
+model OutreachInstagramLead {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  handle           String
+  profileUrl       String
+  niche            String
+  /// ATL_LOCAL | VIRTUAL
+  targetGroup      String
+  whyMatchFit      String
+  likelihoodScore  Int      @default(50)
+  notes            String?
+
+  dmText           String
+  commentText      String
+  commentPostRef   String?
+  genericInviteTail String?
+
+  /// LEAD | OUTREACH_SENT | FOLLOW_UP_1 | FOLLOW_UP_2 | RESPONSE_RECEIVED
+  status           String   @default("LEAD")
+  /// ACTIVE_LEAD | FOLLOW_UP_NEEDED | STATUS_UNKNOWN | DEAD_LEAD
+  autoClassification String @default("ACTIVE_LEAD")
+
+  outreachSentAt     DateTime?
+  followUp1SentAt    DateTime?
+  followUp2SentAt    DateTime?
+  responseReceivedAt DateTime?
+
+  dmTextEdited       Boolean @default(false)
+  commentTextEdited  Boolean @default(false)
+  generationBatchId  String?
+  createdByAdminId   String?
+
+  @@index([deletedAt, status, createdAt])
+  @@index([handle])
+  @@map("outreach_instagram_leads")
+  @@schema("public")
+}
+
+/// Trainer outreach — Facebook page/group post leads.
+model OutreachFacebookLead {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  pageName         String
+  pageUrl          String
+  /// TRAINER | CLIENT
+  audience         String   @default("TRAINER")
+  niche            String?
+  targetGroup      String
+  whyMatchFit      String
+  likelihoodScore  Int      @default(50)
+  notes            String?
+
+  pagePostText     String
+  genericInviteTail String?
+
+  status           String   @default("LEAD")
+  autoClassification String @default("ACTIVE_LEAD")
+
+  outreachSentAt     DateTime?
+  responseReceivedAt DateTime?
+
+  pagePostTextEdited Boolean @default(false)
+  generationBatchId  String?
+  createdByAdminId   String?
+
+  @@index([deletedAt, status, createdAt])
+  @@index([pageUrl])
+  @@map("outreach_facebook_leads")
+  @@schema("public")
+}
+
+/// Trainer outreach — email leads for fitness professionals.
+model OutreachEmailLead {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  name             String
+  email            String
+  businessName     String?
+  niche            String?
+  emailSourceUrl   String?
+  targetGroup      String
+  whyMatchFit      String
+  likelihoodScore  Int      @default(50)
+  notes            String?
+
+  emailSubject     String
+  emailBody        String
+  genericInviteTail String?
+
+  status           String   @default("LEAD")
+  autoClassification String @default("ACTIVE_LEAD")
+
+  outreachSentAt     DateTime?
+  followUp1SentAt    DateTime?
+  followUp2SentAt    DateTime?
+  responseReceivedAt DateTime?
+
+  emailBodyEdited    Boolean @default(false)
+  generationBatchId  String?
+  createdByAdminId   String?
+
+  @@index([deletedAt, status, createdAt])
+  @@index([email])
+  @@map("outreach_email_leads")
+  @@schema("public")
+}
+
+/// Trainer outreach — other channels (LinkedIn, X, referrals, etc.).
+model OutreachOtherLead {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  contactLabel     String
+  contactUrl       String?
+  channelNotes     String?
+  niche            String?
+  targetGroup      String
+  whyMatchFit      String
+  likelihoodScore  Int      @default(50)
+  notes            String?
+
+  outreachText     String
+  genericInviteTail String?
+
+  status           String   @default("LEAD")
+  autoClassification String @default("ACTIVE_LEAD")
+
+  outreachSentAt     DateTime?
+  followUp1SentAt    DateTime?
+  followUp2SentAt    DateTime?
+  responseReceivedAt DateTime?
+
+  outreachTextEdited Boolean @default(false)
+  generationBatchId  String?
+  createdByAdminId   String?
+
+  @@index([deletedAt, status, createdAt])
+  @@map("outreach_other_leads")
+  @@schema("public")
+}
+
+/// AI learning signals from outreach edits and outcomes.
+model OutreachLearningSignal {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  /// instagram | facebook | email | other
+  platform     String
+  signalType   String
+  leadId       String?
+  originalText String?
+  editedText   String?
+  outcome      String?
+  metaJson     String?
+
+  @@index([platform, signalType, createdAt])
+  @@map("outreach_learning_signals")
+  @@schema("public")
+}
+
+/// Shared generic invite tail per platform + segment for a generation day.
+model OutreachDailyTemplate {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  /// instagram | facebook | email | other
+  platform          String
+  targetGroup       String
+  genericInviteTail String
+  generationBatchId String   @unique
+
+  @@index([platform, targetGroup, createdAt])
+  @@map("outreach_daily_templates")
   @@schema("public")
 }
 

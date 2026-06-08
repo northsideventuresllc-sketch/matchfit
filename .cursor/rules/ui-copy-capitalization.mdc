@@ -1,0 +1,37 @@
+---
+description: Match Fit user-facing copy and capitalization (home page is the reference)
+alwaysApply: true
+---
+
+# UI copy & capitalization
+
+Use the public home page (`src/app/page.tsx`, `src/components/home-info-sections.tsx`) as the reference for tone and casing.
+
+## Brand & product names
+
+- **Match Fit** — always title case; never "match fit" or "MATCH FIT" in source strings (CSS `uppercase` is fine for labels).
+- **Fit Hub**, **Premium Hub** — title case in navigation and headings.
+- **FITHUB** — all caps only when the trainer nav uses the compact badge style.
+
+## Headings & navigation
+
+- **Page titles (`h1`)**: Title Case — e.g. "Administrator Portal", "Beta Waitlists", "Dashboard Settings".
+- **Nav links & standalone CTAs**: Title Case — e.g. "Current Promos", "Back to Home", "Customize Dashboard", "Sign Out".
+- **Section eyebrows** (small labels with `uppercase` CSS): store in sentence case; let CSS transform — e.g. eyebrow text `"The platform"`, `"Overview"`.
+
+## Body copy, errors, and helpers
+
+- **Sentences & paragraphs**: sentence case.
+- **Error/status messages**: sentence case — e.g. "Could not load the dashboard.", not "Could Not Load The Dashboard."
+- **Form labels** (without forced uppercase): title case for short labels — "Administrator code", "Password".
+
+## Buttons
+
+- **Primary/secondary actions** (often styled with `uppercase`): write Title Case in source — "Open Account", "Load More", "Save Layout".
+- **Sentence-style buttons** (no uppercase CSS): sentence case — "Continue", "Learn how it works".
+
+## Avoid
+
+- Inconsistent casing within the same surface (e.g. "Beta waitlists" next to "AI Assistant").
+- Title Case Every Word in body paragraphs.
+- Hard-coded ALL CAPS in JSX unless matching an acronym or enum display (e.g. status badges).

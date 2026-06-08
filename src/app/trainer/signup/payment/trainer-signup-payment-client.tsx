@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { loadStripe, type StripeElementsOptions } from "@stripe/stripe-js";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { TrainerSignupStepNav } from "@/components/trainer/trainer-signup-step-nav";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { getStripePublishableKey } from "@/lib/stripe-publishable";
 
@@ -85,13 +85,21 @@ function PaymentForm({
         <PaymentElement />
       </div>
       {error ? <p className="text-sm text-rose-300">{error}</p> : null}
-      <button
-        type="submit"
-        disabled={!stripe || !elements || submitting}
-        className="flex min-h-[3rem] w-full items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] disabled:opacity-60"
-      >
-        {submitting ? "Processing…" : "Authorize signup fee"}
-      </button>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Link
+          href="/trainer/signup/terms"
+          className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold tracking-wide text-white transition hover:border-white/25"
+        >
+          Back to Agreement
+        </Link>
+        <button
+          type="submit"
+          disabled={!stripe || !elements || submitting}
+          className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] disabled:opacity-60"
+        >
+          {submitting ? "Processing…" : "Authorize signup fee"}
+        </button>
+      </div>
     </form>
   );
 }
@@ -146,22 +154,21 @@ export default function TrainerSignupPaymentClient({ foundingPricing }: Props) {
     : undefined;
 
   return (
-    <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] px-5 py-10 text-white sm:px-8">
-      <div className="mx-auto max-w-lg">
-        <Link href="/trainer/signup/terms" className="inline-flex items-center gap-3">
-          <div className="relative h-10 w-10 overflow-hidden rounded-lg">
-            <Image src="/logo.png" alt="Match Fit" fill className="object-contain" sizes="40px" />
-          </div>
-          <span className="text-sm font-bold text-white/70">Back to agreement</span>
-        </Link>
+    <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] text-white antialiased">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(255,211,78,0.12),transparent_55%),radial-gradient(ellipse_90%_60%_at_100%_0%,rgba(255,126,0,0.08),transparent_50%)]"
+      />
 
-        <h1 className="mt-8 text-2xl font-black uppercase tracking-tight">Trainer signup fee</h1>
+      <div className="relative z-10 mx-auto max-w-lg px-5 pb-20 pt-10 sm:px-8 sm:pt-14">
+        <TrainerSignupStepNav currentStep={3} showSaveForLater />
+
         <p className="mt-2 text-sm text-white/55">
           Your card is authorized today. Match Fit captures the fee only after certification and background
           screening are approved.
         </p>
 
-        <div className="mt-8">
+        <div className="mt-8 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
           {loading ? (
             <p className="text-sm text-white/50">Loading secure checkout…</p>
           ) : initError ? (
@@ -172,6 +179,12 @@ export default function TrainerSignupPaymentClient({ foundingPricing }: Props) {
             </Elements>
           ) : null}
         </div>
+
+        <p className="mt-6 text-center text-xs text-white/40">
+          <Link href="/trainer/signup" className="underline-offset-4 hover:text-white/60 hover:underline">
+            Back to account details
+          </Link>
+        </p>
       </div>
     </main>
   );

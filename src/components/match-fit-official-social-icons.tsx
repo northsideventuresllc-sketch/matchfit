@@ -21,18 +21,19 @@ function OfficialThreadsIcon({ className }: IconProps) {
   );
 }
 
+/** Official TikTok musical-note mark (24×24 artboard) scaled inside the app tile. */
+const TIKTOK_NOTE_PATH =
+  "M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.672a2.896 2.896 0 0 1-5.201 1.743 2.895 2.895 0 0 1 3.183-4.251v-3.5a6.329 6.329 0 0 0-1.183-.11 6.33 6.33 0 0 0-6.33 6.33 6.33 6.33 0 0 0 9.347 5.577v-7.564a8.188 8.188 0 0 0 4.773 1.527V6.686h-.007z";
+
 function OfficialTikTokIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden>
       <rect x="2" y="2" width="20" height="20" rx="5.5" fill="#000000" />
-      <path
-        fill="#25F4EE"
-        d="M15.8 7.2v2.1c-.9-.05-1.8.15-2.5.55v5.4a3.4 3.4 0 1 1-3.4-3.4h.25v2.05a1.35 1.35 0 1 0 1.35 1.35V6.2h2.35c.15 1.05.6 1.95 1.45 2.55.35.25.75.42 1.15.5Z"
-      />
-      <path
-        fill="#FE2C55"
-        d="M16.15 7.55c-.4-.08-.8-.25-1.15-.5-.85-.6-1.3-1.5-1.45-2.55h2.35v2.05c-.9-.05-1.8.15-2.5.55v5.4a3.4 3.4 0 1 1-3.4-3.4h.25v2.05a1.35 1.35 0 1 0 1.35 1.35V6.55h2.35c.15 1.05.6 1.95 1.45 2.55.35.25.75.42 1.15.5Z"
-      />
+      <svg x="4.5" y="4.5" width="15" height="15" viewBox="0 0 24 24" aria-hidden>
+        <path fill="#25F4EE" d={TIKTOK_NOTE_PATH} transform="translate(-0.55,-0.45)" />
+        <path fill="#FE2C55" d={TIKTOK_NOTE_PATH} transform="translate(0.55,0.45)" />
+        <path fill="#FFFFFF" d={TIKTOK_NOTE_PATH} />
+      </svg>
     </svg>
   );
 }

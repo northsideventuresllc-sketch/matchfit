@@ -11,6 +11,7 @@ import {
   utcDayRange,
 } from "@/lib/trainer-nudge-limits";
 import { isMatchFitInternalQaTrainerEmail } from "@/lib/match-fit-internal-qa";
+import { isClientHiddenFromPublicMarketplace } from "@/lib/match-fit-public-marketplace-hidden";
 import { NextResponse } from "next/server";
 
 const MAX_MESSAGE = 500;
@@ -57,9 +58,19 @@ export async function POST(req: Request) {
 
     const client = await prisma.client.findUnique({
       where: { username: handle },
-      select: { id: true, allowTrainerDiscovery: true, matchPreferencesCompletedAt: true, internalQaSyntheticPersona: true },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        allowTrainerDiscovery: true,
+        matchPreferencesCompletedAt: true,
+        internalQaSyntheticPersona: true,
+      },
     });
     if (!client) {
+      return NextResponse.json({ error: "Client not found." }, { status: 404 });
+    }
+    if (isClientHiddenFromPublicMarketplace(client) && !client.internalQaSyntheticPersona) {
       return NextResponse.json({ error: "Client not found." }, { status: 404 });
     }
     if (!client.allowTrainerDiscovery) {

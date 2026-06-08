@@ -13,18 +13,15 @@ function InstagramIcon(props: IconProps) {
   );
 }
 
+const TIKTOK_NOTE_PATH =
+  "M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.672a2.896 2.896 0 0 1-5.201 1.743 2.895 2.895 0 0 1 3.183-4.251v-3.5a6.329 6.329 0 0 0-1.183-.11 6.33 6.33 0 0 0-6.33 6.33 6.33 6.33 0 0 0 9.347 5.577v-7.564a8.188 8.188 0 0 0 4.773 1.527V6.686h-.007z";
+
 function TikTokIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={props.className} aria-hidden>
-      <path
-        fill="#25F4EE"
-        d="M17.4 6.3V9c-1.2-.1-2.4.2-3.4.8v8.1a4.5 4.5 0 1 1-4.5-4.5h.3V11.5a2.25 2.25 0 1 0 2.25 2.25V2h3.1c.2 1.4.8 2.6 1.95 3.45.45.32.95.58 1.45.75Z"
-      />
-      <path
-        fill="#FE2C55"
-        d="M17.4 6.3c-.5-.17-1-.43-1.45-.75A5.8 5.8 0 0 1 14.1 2h3.3v4.3Z"
-        opacity={0.92}
-      />
+      <path fill="#25F4EE" d={TIKTOK_NOTE_PATH} transform="translate(-0.55,-0.45)" />
+      <path fill="#FE2C55" d={TIKTOK_NOTE_PATH} transform="translate(0.55,0.45)" />
+      <path fill="#FFFFFF" d={TIKTOK_NOTE_PATH} />
     </svg>
   );
 }

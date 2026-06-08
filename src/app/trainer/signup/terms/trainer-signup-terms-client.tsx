@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
-import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { TRAINER_SIGNUP_AGREEMENT_DOCUMENT } from "@/app/trainer/onboarding/trainer-agreement-bullets";
+import { TrainerSignupStepNav } from "@/components/trainer/trainer-signup-step-nav";
+import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-[15px] text-white outline-none ring-[#FF7E00]/40 transition placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2";
@@ -43,16 +43,15 @@ export default function TrainerSignupTermsClient() {
   }
 
   return (
-    <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] px-5 py-10 text-white sm:px-8">
-      <div className="mx-auto max-w-2xl">
-        <Link href="/trainer/signup" className="inline-flex items-center gap-3">
-          <div className="relative h-10 w-10 overflow-hidden rounded-lg">
-            <Image src="/logo.png" alt="Match Fit" fill className="object-contain" sizes="40px" />
-          </div>
-          <span className="text-sm font-bold text-white/70">Back to account details</span>
-        </Link>
+    <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] text-white antialiased">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(255,211,78,0.12),transparent_55%),radial-gradient(ellipse_90%_60%_at_100%_0%,rgba(255,126,0,0.08),transparent_50%)]"
+      />
 
-        <h1 className="mt-8 text-2xl font-black uppercase tracking-tight sm:text-3xl">Trainer agreement</h1>
+      <div className="relative z-10 mx-auto max-w-2xl px-5 pb-20 pt-10 sm:px-8 sm:pt-14">
+        <TrainerSignupStepNav currentStep={2} showSaveForLater />
+
         <p className="mt-2 text-sm text-white/55">
           Read the summary below, then open the full Terms of Service and Privacy Policy for complete platform rules,
           fees, and enforcement policies.
@@ -89,13 +88,21 @@ export default function TrainerSignupTermsClient() {
             </span>
           </label>
           {error ? <p className="text-sm text-rose-300">{error}</p> : null}
-          <button
-            type="submit"
-            disabled={busy}
-            className="flex min-h-[3rem] w-full items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] disabled:opacity-60"
-          >
-            {busy ? "Saving…" : "Continue to payment"}
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/trainer/signup"
+              className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold tracking-wide text-white transition hover:border-white/25"
+            >
+              Back to Account
+            </Link>
+            <button
+              type="submit"
+              disabled={busy}
+              className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] disabled:opacity-60"
+            >
+              {busy ? "Saving…" : "Continue to Payment"}
+            </button>
+          </div>
         </form>
       </div>
     </main>

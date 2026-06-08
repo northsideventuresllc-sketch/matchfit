@@ -13,7 +13,15 @@ import { requireAdminSession } from "@/lib/require-admin";
 import { getAdminSiteTrafficSnapshot } from "@/lib/site-analytics";
 
 const bodySchema = z.object({
-  action: z.enum(["set_goal", "goal_analysis", "site_analysis", "signup_recommendations", "freeform"]),
+  action: z.enum([
+    "set_goal",
+    "goal_analysis",
+    "site_analysis",
+    "signup_recommendations",
+    "potential_rating_advice",
+    "revenue_projection_advice",
+    "freeform",
+  ]),
   message: z.string().max(4000).optional(),
   goalTitle: z.string().max(200).optional(),
   goalDescription: z.string().max(2000).optional(),

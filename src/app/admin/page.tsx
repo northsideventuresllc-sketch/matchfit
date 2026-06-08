@@ -1,6 +1,5 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { runAdminAnalyticsAi } from "@/lib/admin-analytics-ai";
 import { DEFAULT_ADMIN_DASHBOARD_LAYOUT } from "@/lib/admin-dashboard-layout";
 import { loadAdminDashboardLayout } from "@/lib/admin-dashboard-layout-server";
 import { getAdminAuditLog, getAdminPortalOverview, type AdminPortalOverview } from "@/lib/admin-portal-data";
@@ -26,18 +25,11 @@ export default async function AdminHomePage() {
 
   let overview: AdminPortalOverview | null = null;
   let loadError: string | null = null;
-  let visitorInsight = "";
   let auditLog: Awaited<ReturnType<typeof getAdminAuditLog>> = [];
 
   try {
     overview = await getAdminPortalOverview();
     auditLog = await getAdminAuditLog(25);
-    visitorInsight = await runAdminAnalyticsAi({
-      action: "signup_recommendations",
-      administratorId: sess.adminId,
-      overview,
-      traffic: overview.traffic,
-    });
   } catch (e) {
     console.error("[admin home]", e);
     const message = e instanceof Error ? e.message : "";
@@ -84,7 +76,6 @@ export default async function AdminHomePage() {
       administratorId={sess.adminId}
       layoutLoadedFromServer={savedLayout !== null}
       auditLog={auditLog}
-      visitorInsight={visitorInsight}
     />
   );
 }

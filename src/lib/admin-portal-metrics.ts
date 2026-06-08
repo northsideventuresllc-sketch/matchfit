@@ -27,6 +27,8 @@ import {
   computePlatformSuccessRating,
   daysSinceLaunch,
 } from "@/lib/platform-success-rating";
+import { computePlatformGrowthProjection } from "@/lib/platform-growth-projection";
+import { computePlatformPotentialRating } from "@/lib/platform-potential-rating";
 import type { PlatformRevenueCategory } from "@/lib/platform-revenue-accounting";
 import { LIVE_PLATFORM_REVENUE_WHERE, mergeLiveRevenueWhere } from "@/lib/platform-revenue-filters";
 import {
@@ -958,6 +960,56 @@ export async function getAdminPlatformSummaryPanel(): Promise<AdminPlatformSumma
     }),
   });
 
+  const successInput = {
+    daysSinceLaunch: launchDays,
+    totalUsers,
+    activeUsers,
+    returningVisitorRatio: returningRatio,
+    revenuePerDayCents: revenuePerDay,
+    grossProfitMargin: margin,
+    stabilityScore: stability.score,
+    securityScore: security.score,
+    trainerPipelineCompletionRate: trainerCompletion,
+    subscriptionConversionRate: subscriptionConversion,
+    marketCompetitiveness: computeMarketCompetitivenessProxy({
+      clientsTotal: userCounts.clientsTotal,
+      trainersTotal: userCounts.trainersTotal,
+      trainersLive: liveStage?.count ?? 0,
+      featuredToday: finances.featuredTrainersToday,
+    }),
+  };
+
+  const potentialRating = computePlatformPotentialRating(successInput);
+
+  const revenue30d = finances.windows["30d"];
+  let uniqueVisitors30d = 0;
+  try {
+    const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const visitorRows = await prisma.$queryRaw<{ visitors: bigint }[]>`
+      SELECT COUNT(DISTINCT "visitorId")::bigint AS visitors
+      FROM site_analytics_events
+      WHERE kind = 'PAGE_VIEW' AND "createdAt" >= ${since30d}
+    `;
+    uniqueVisitors30d = Number(visitorRows[0]?.visitors ?? 0);
+  } catch {
+    uniqueVisitors30d = 0;
+  }
+
+  const funnel = await getAdminTrafficFunnelPanel();
+
+  const growthProjection = computePlatformGrowthProjection({
+    activeClientSubscriptions: finances.activeSubscriptions,
+    premiumTrainers: finances.premiumTrainers,
+    clientsInFreeTrial: finances.clientsInFreeTrial,
+    clientsWithCard: finances.clientsWithCard,
+    revenue30dCents: revenue30d.revenueCents,
+    grossProfit30dCents: revenue30d.grossProfitCents,
+    uniqueVisitors30d,
+    clientSignupPageViews7d: funnel.clientSignupPageViews,
+    pendingClientRegistrations: funnel.pendingClientRegistrations.total,
+    daysSinceLaunch: launchDays,
+  });
+
   return {
     userCounts,
     stabilityScore: stability.score,
@@ -967,6 +1019,8 @@ export async function getAdminPlatformSummaryPanel(): Promise<AdminPlatformSumma
     lifetimeRevenueCents: lifetime.revenueCents,
     lifetimeGrossProfitCents: lifetime.grossProfitCents,
     successRating,
+    potentialRating,
+    growthProjection,
   };
 }
 

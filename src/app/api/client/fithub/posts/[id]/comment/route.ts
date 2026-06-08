@@ -1,4 +1,4 @@
-import { isFitHubPostPubliclyInteractable } from "@/lib/fithub-public-feed";
+import { fithubPostPublicInteractSelect, isFitHubPostPubliclyInteractable } from "@/lib/fithub-public-feed";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
 import { NextResponse } from "next/server";
@@ -14,7 +14,7 @@ export async function POST(req: Request, ctx: Ctx) {
     const { id: postId } = await ctx.params;
     const post = await prisma.trainerFitHubPost.findUnique({
       where: { id: postId },
-      select: { id: true, visibility: true, scheduledPublishAt: true },
+      select: fithubPostPublicInteractSelect,
     });
     if (!post || !isFitHubPostPubliclyInteractable(post)) {
       return NextResponse.json({ error: "Not found." }, { status: 404 });

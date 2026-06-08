@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { TrainerSignupStepNav } from "@/components/trainer/trainer-signup-step-nav";
 import { TurnstileField } from "@/components/turnstile-field";
 import { trackGoogleAdsConversion } from "@/lib/google-ads";
 import { trackMetaConversion } from "@/lib/meta-pixel";
@@ -32,7 +32,21 @@ function simpleEmailValid(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
-export default function TrainerSignUpClient() {
+export type TrainerSignupResumeAccount = {
+  firstName: string;
+  lastName: string;
+  username: string;
+  email: string;
+  phone: string;
+  hasSignedTOS: boolean;
+  signupFeeComplete: boolean;
+};
+
+type TrainerSignUpClientProps = {
+  resumeAccount?: TrainerSignupResumeAccount;
+};
+
+export default function TrainerSignUpClient({ resumeAccount }: TrainerSignUpClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const betaInviteFromUrl = searchParams.get("betaInvite")?.trim() || "";
@@ -419,30 +433,18 @@ export default function TrainerSignUpClient() {
       />
 
       <div className="relative z-10 mx-auto max-w-xl px-5 pb-20 pt-10 sm:px-8 sm:pt-14">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <Link href="/trainer/dashboard/login" className="flex items-center gap-3 opacity-90 transition hover:opacity-100">
-            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl sm:h-14 sm:w-14">
-              <Image src="/logo.png" alt="Match Fit" fill className="object-contain" sizes="56px" />
-            </div>
-            <div className="leading-none">
-              <p className="text-sm font-black tracking-tight sm:text-base">
-                <span className="text-[#E8EAEF]">Match</span> <span className="text-[#E32B2B]">Fit</span>
-              </p>
-            </div>
-          </Link>
-          <Link
-            href="/trainer/dashboard/login"
-            className="text-xs font-semibold uppercase tracking-wide text-white/50 transition hover:text-white/75"
-          >
-            Back to Sign-In
-          </Link>
-        </header>
+        <TrainerSignupStepNav currentStep={1} showSaveForLater={Boolean(resumeAccount)} />
 
-        <h1 className="mt-10 text-2xl font-black tracking-tight sm:mt-12 sm:text-3xl">Create Your Trainer Account</h1>
-        <p className="mt-2 text-sm leading-relaxed text-white/55 sm:text-base">
-          Enter your account details first. Next you will review the trainer agreement, authorize the signup fee, then
-          finish certification and background screening from your dashboard.
-        </p>
+        {!resumeAccount ? (
+          <p className="mt-2 text-sm leading-relaxed text-white/55 sm:text-base">
+            Enter your account details first. Next you will review the trainer agreement, authorize the signup fee, then
+            finish certification and background screening from your dashboard.
+          </p>
+        ) : (
+          <p className="mt-2 text-sm leading-relaxed text-white/55 sm:text-base">
+            Your trainer account is created. Review your details below, then continue to the agreement or payment step.
+          </p>
+        )}
 
         {betaInviteReserved ? (
           <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100/95">
@@ -452,7 +454,53 @@ export default function TrainerSignUpClient() {
         ) : null}
 
         <div className="mt-8 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
-          {betaStatusLoading ? (
+          {resumeAccount ? (
+            <div className="space-y-5">
+              <dl className="grid gap-4 text-sm sm:grid-cols-2">
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-white/45">Name</dt>
+                  <dd className="mt-1 font-semibold text-white">
+                    {[resumeAccount.firstName, resumeAccount.lastName].filter(Boolean).join(" ")}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-white/45">Username</dt>
+                  <dd className="mt-1 font-semibold text-white">@{resumeAccount.username}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-white/45">Email</dt>
+                  <dd className="mt-1 text-white/85">{resumeAccount.email}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-white/45">Phone</dt>
+                  <dd className="mt-1 text-white/85">{resumeAccount.phone}</dd>
+                </div>
+              </dl>
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                {!resumeAccount.hasSignedTOS ? (
+                  <Link
+                    href="/trainer/signup/terms"
+                    className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F]"
+                  >
+                    Continue to Agreement
+                  </Link>
+                ) : !resumeAccount.signupFeeComplete ? (
+                  <Link
+                    href="/trainer/signup/payment"
+                    className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F]"
+                  >
+                    Continue to Payment
+                  </Link>
+                ) : null}
+                <Link
+                  href="/trainer/dashboard/login"
+                  className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold tracking-wide text-white transition hover:border-white/25"
+                >
+                  Sign In
+                </Link>
+              </div>
+            </div>
+          ) : betaStatusLoading ? (
             <p className="text-sm text-white/50">Checking availability…</p>
           ) : trainerCapFull ? (
             <BetaCapFullSignupNotice
@@ -730,15 +778,17 @@ export default function TrainerSignUpClient() {
           )}
         </div>
 
-        <p className="mt-8 text-center text-xs text-white/40">
-          <button
-            type="button"
-            onClick={() => router.push("/trainer/dashboard/login")}
-            className="underline-offset-4 transition hover:text-white/60 hover:underline"
-          >
-            Already have an account?
-          </button>
-        </p>
+        {!resumeAccount ? (
+          <p className="mt-8 text-center text-xs text-white/40">
+            <button
+              type="button"
+              onClick={() => router.push("/trainer/dashboard/login")}
+              className="underline-offset-4 transition hover:text-white/60 hover:underline"
+            >
+              Already have an account?
+            </button>
+          </p>
+        ) : null}
       </div>
     </main>
   );

@@ -16,6 +16,7 @@ import { prisma } from "@/lib/prisma";
 import { isPrismaMissingColumnError } from "@/lib/prisma-missing-column";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import { isTrainerHiddenFromPublicMarketplace } from "@/lib/match-fit-public-marketplace-hidden";
 import {
   trainerOffersNutritionServices,
   trainerOffersPersonalTrainingServices,
@@ -25,6 +26,7 @@ const PROFILE_CHECKOUT_COL = "clientsCanPurchaseServicesFromProfile";
 
 const trainerPublicOuterSelect = {
   id: true,
+  email: true,
   username: true,
   firstName: true,
   lastName: true,
@@ -45,6 +47,7 @@ const trainerPublicOuterSelect = {
   optionalProfileVisibilityJson: true,
   deidentifiedAt: true,
   accountDeletionFinalizeAt: true,
+  internalQaSyntheticPersona: true,
 } as const;
 
 const trainerPublicProfileSelect = {
@@ -138,12 +141,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const trainer = await prisma.trainer.findUnique({
     where: { username: handle },
     select: {
+      email: true,
+      username: true,
       preferredName: true,
       firstName: true,
       lastName: true,
       bio: true,
       deidentifiedAt: true,
       accountDeletionFinalizeAt: true,
+      internalQaSyntheticPersona: true,
       profile: {
         select: {
           dashboardActivatedAt: true,
@@ -165,7 +171,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     !trainer.deidentifiedAt &&
     !trainer.accountDeletionFinalizeAt &&
     isTrainerComplianceComplete(trainer.profile);
-  if (!trainer || !published) {
+  if (!trainer || !published || isTrainerHiddenFromPublicMarketplace(trainer)) {
     return {
       title: `Coach | Match Fit`,
       description: "Find certified coaches on Match Fit.",
@@ -225,6 +231,11 @@ export default async function TrainerPublicProfilePage({ params, searchParams }:
     notFound();
   }
 
+  const sessionTrainerId = await getSessionTrainerId();
+  if (isTrainerHiddenFromPublicMarketplace(trainer) && sessionTrainerId !== trainer.id) {
+    notFound();
+  }
+
   const published =
     trainer.profile.dashboardActivatedAt != null && isTrainerComplianceComplete(trainer.profile);
   if (!published) {
@@ -256,7 +267,6 @@ export default async function TrainerPublicProfilePage({ params, searchParams }:
   const fullProfileUrl = await absoluteProfileUrl(trainer.username);
 
   const clientId = await getSessionClientId();
-  const sessionTrainerId = await getSessionTrainerId();
 
   let officialChatStartedAt: Date | null = null;
   if (clientId) {

@@ -28,6 +28,7 @@ import {
   getAdminTrafficFunnelPanel,
   getAdminTrainerPipelinePanel,
 } from "@/lib/admin-portal-metrics";
+import { getAdPerformancePanel } from "@/lib/ad-platform-performance";
 import { getAdminSiteTrafficSnapshot } from "@/lib/site-analytics";
 
 export type {
@@ -390,6 +391,7 @@ export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
     recentSignupsResult,
     recentFeatured,
     funnel,
+    adPerformance,
     pipeline,
     finances,
     alerts,
@@ -401,6 +403,7 @@ export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
     getAdminSignupLog({ limit: 8, offset: 0 }),
     getAdminRecentFeatured(6),
     getAdminTrafficFunnelPanel(),
+    getAdPerformancePanel(7),
     getAdminTrainerPipelinePanel(),
     getAdminFinancesPanel(),
     getAdminAlertsPanel(),
@@ -414,6 +417,7 @@ export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
     recentSignups: recentSignupsResult.rows,
     recentFeatured,
     funnel,
+    adPerformance,
     pipeline,
     finances,
     alerts,

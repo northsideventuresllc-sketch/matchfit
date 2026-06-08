@@ -5,6 +5,9 @@ export type SiteAnalyticsKind = (typeof SITE_ANALYTICS_KINDS)[number];
 
 export const SITE_ANALYTICS_VISITOR_COOKIE = "mf_vid";
 export const SITE_ANALYTICS_SESSION_KEY = "mf_sid";
+export const SITE_ANALYTICS_UTM_COOKIE = "mf_utm";
+
+const UTM_MAX = 120;
 
 const PATH_MAX = 500;
 const LABEL_MAX = 200;
@@ -14,7 +17,15 @@ const ID_MAX = 64;
 const BOT_UA =
   /bot|crawler|spider|slurp|facebookexternalhit|whatsapp|preview|headless|lighthouse|bytespider/i;
 
-export type SiteAnalyticsIngestPayload = {
+export type SiteAnalyticsUtm = {
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  utmContent: string | null;
+  utmTerm: string | null;
+};
+
+export type SiteAnalyticsIngestPayload = SiteAnalyticsUtm & {
   kind: SiteAnalyticsKind;
   path: string;
   targetPath?: string | null;
@@ -93,6 +104,56 @@ function normalizeId(raw: string): string | null {
   return t;
 }
 
+function normalizeUtmValue(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const t = trimTo(raw, UTM_MAX);
+  if (!t) return null;
+  return t;
+}
+
+export function parseUtmFromSearchParams(params: URLSearchParams): SiteAnalyticsUtm {
+  return {
+    utmSource: normalizeUtmValue(params.get("utm_source")),
+    utmMedium: normalizeUtmValue(params.get("utm_medium")),
+    utmCampaign: normalizeUtmValue(params.get("utm_campaign")),
+    utmContent: normalizeUtmValue(params.get("utm_content")),
+    utmTerm: normalizeUtmValue(params.get("utm_term")),
+  };
+}
+
+export function hasAnyUtm(utm: SiteAnalyticsUtm): boolean {
+  return Boolean(
+    utm.utmSource || utm.utmMedium || utm.utmCampaign || utm.utmContent || utm.utmTerm,
+  );
+}
+
+export function serializeUtmCookie(utm: SiteAnalyticsUtm): string {
+  return JSON.stringify({
+    s: utm.utmSource,
+    m: utm.utmMedium,
+    c: utm.utmCampaign,
+    n: utm.utmContent,
+    t: utm.utmTerm,
+  });
+}
+
+export function parseUtmCookie(raw: string | null): SiteAnalyticsUtm | null {
+  if (!raw?.trim()) return null;
+  try {
+    const parsed = JSON.parse(decodeURIComponent(raw)) as Record<string, unknown>;
+    const utm: SiteAnalyticsUtm = {
+      utmSource: normalizeUtmValue(typeof parsed.s === "string" ? parsed.s : null),
+      utmMedium: normalizeUtmValue(typeof parsed.m === "string" ? parsed.m : null),
+      utmCampaign: normalizeUtmValue(typeof parsed.c === "string" ? parsed.c : null),
+      utmContent: normalizeUtmValue(typeof parsed.n === "string" ? parsed.n : null),
+      utmTerm: normalizeUtmValue(typeof parsed.t === "string" ? parsed.t : null),
+    };
+    return hasAnyUtm(utm) ? utm : null;
+  } catch {
+    return null;
+  }
+}
+
 export function isSiteAnalyticsBotUserAgent(userAgent: string | null): boolean {
   if (!userAgent?.trim()) return false;
   return BOT_UA.test(userAgent);
@@ -120,6 +181,12 @@ export function parseSiteAnalyticsIngestBody(body: unknown): SiteAnalyticsIngest
 
   if (kind === "LINK_CLICK" && !targetPath && !targetUrl) return null;
 
+  const utmSource = normalizeUtmValue(typeof b.utmSource === "string" ? b.utmSource : null);
+  const utmMedium = normalizeUtmValue(typeof b.utmMedium === "string" ? b.utmMedium : null);
+  const utmCampaign = normalizeUtmValue(typeof b.utmCampaign === "string" ? b.utmCampaign : null);
+  const utmContent = normalizeUtmValue(typeof b.utmContent === "string" ? b.utmContent : null);
+  const utmTerm = normalizeUtmValue(typeof b.utmTerm === "string" ? b.utmTerm : null);
+
   return {
     kind,
     path,
@@ -128,5 +195,10 @@ export function parseSiteAnalyticsIngestBody(body: unknown): SiteAnalyticsIngest
     linkLabel,
     visitorId,
     sessionId,
+    utmSource,
+    utmMedium,
+    utmCampaign,
+    utmContent,
+    utmTerm,
   };
 }

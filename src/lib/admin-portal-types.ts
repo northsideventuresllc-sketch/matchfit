@@ -1,6 +1,9 @@
 /** Client-safe types and helpers for the administrator dashboard (no Prisma / server imports). */
 
+import type { PlatformGrowthProjection } from "@/lib/platform-growth-projection";
+import type { PlatformPotentialRatingBreakdown } from "@/lib/platform-potential-rating";
 import type { PlatformSuccessRatingBreakdown } from "@/lib/platform-success-rating";
+import type { AdPerformancePanel } from "@/lib/ad-platform-performance";
 
 export type AdminUserStats = {
   completedPurchases: number;
@@ -213,6 +216,8 @@ export type AdminPlatformSummaryPanel = {
   lifetimeRevenueCents: number;
   lifetimeGrossProfitCents: number;
   successRating: PlatformSuccessRatingBreakdown;
+  potentialRating: PlatformPotentialRatingBreakdown;
+  growthProjection: PlatformGrowthProjection;
 };
 
 export type AdminPortalOverview = {
@@ -222,6 +227,7 @@ export type AdminPortalOverview = {
   recentSignups: AdminSignupRow[];
   recentFeatured: AdminFeaturedSnapshot[];
   funnel: AdminTrafficFunnelPanel;
+  adPerformance: AdPerformancePanel;
   pipeline: AdminTrainerPipelinePanel;
   finances: AdminFinancesPanel;
   alerts: AdminAlertsPanel;

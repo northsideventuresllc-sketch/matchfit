@@ -1,5 +1,6 @@
 import { parseClientMatchPreferencesJson } from "@/lib/client-match-preferences";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import { publicMarketplaceVisibleTrainerWhere } from "@/lib/match-fit-public-marketplace-hidden";
 import { prisma } from "@/lib/prisma";
 
 export const DAILY_QUESTIONNAIRE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -116,6 +117,7 @@ async function pickRecentTrainersForClient(clientZip: string, excludeTrainerIds:
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const rows = await prisma.trainer.findMany({
       where: {
+        ...publicMarketplaceVisibleTrainerWhere(),
         id: excludeTrainerIds.length ? { notIn: excludeTrainerIds } : undefined,
         createdAt: { gte: since },
       },
@@ -152,7 +154,10 @@ async function pickRecentTrainersForClient(clientZip: string, excludeTrainerIds:
     if (eligible.length) return shuffle(eligible);
   }
   const fallback = await prisma.trainer.findMany({
-    where: excludeTrainerIds.length ? { id: { notIn: excludeTrainerIds } } : undefined,
+    where: {
+      ...publicMarketplaceVisibleTrainerWhere(),
+      ...(excludeTrainerIds.length ? { id: { notIn: excludeTrainerIds } } : {}),
+    },
     orderBy: { createdAt: "desc" },
     take: 40,
     select: {

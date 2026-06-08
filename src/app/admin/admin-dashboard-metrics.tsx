@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { ReactNode } from "react";
 import type {
   AdminAlertsPanel,
@@ -11,6 +12,7 @@ import type {
   AdminTrafficFunnelPanel,
   AdminTrainerPipelinePanel,
 } from "@/lib/admin-portal-types";
+import type { AdPerformancePanel } from "@/lib/ad-platform-performance";
 import { formatUsdFromCents } from "@/lib/admin-portal-types";
 
 const FINANCE_WINDOW_LABELS: Record<AdminFinanceWindowKey, string> = {
@@ -68,28 +70,82 @@ function MetricsSection(props: { title: string; description?: string; children: 
 }
 
 export function PlatformHealthSection({ panel }: { panel: AdminPlatformSummaryPanel }) {
-  const { successRating } = panel;
+  const { successRating, potentialRating, growthProjection } = panel;
+
   return (
     <MetricsSection
       title="Platform health & success rating"
-      description={`Launch ${successRating.meta.launchDate} · Marketing from ${successRating.meta.marketingStartDate} ($${successRating.meta.marketingBudgetUsd} budget). Composite score blends stability, security, retention, revenue, and pipeline signals.`}
+      description={`Launch ${successRating.meta.launchDate} · Marketing from ${successRating.meta.marketingStartDate} ($${successRating.meta.marketingBudgetUsd} budget). Success rating reflects current performance; potential rating models optimized traffic, stability, and funnel levers at this beta stage.`}
     >
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Success rating (0–10)" value={successRating.score.toFixed(1)} />
+        <StatCard
+          label="Potential rating (0–10)"
+          value={potentialRating.score.toFixed(1)}
+          hint={`+${potentialRating.uplift.toFixed(1)} vs current if key levers improve`}
+        />
         <StatCard label="Stability score" value={`${panel.stabilityScore}/100`} hint={panel.stabilityNotes.join(" · ") || undefined} />
         <StatCard label="Security score" value={`${panel.securityScore}/100`} hint={panel.securityNotes.join(" · ") || undefined} />
       </div>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Lifetime revenue" value={formatUsdFromCents(panel.lifetimeRevenueCents)} />
         <StatCard label="Lifetime gross profit" value={formatUsdFromCents(panel.lifetimeGrossProfitCents)} />
+        <StatCard
+          label="Realistic revenue (this month)"
+          value={formatUsdFromCents(growthProjection.realisticMonthlyRevenueCents)}
+          hint={`${formatUsdFromCents(growthProjection.realisticMonthlyGrossProfitCents)} platform profit · MRR base ${formatUsdFromCents(growthProjection.recurringMrrCents)}`}
+        />
+        <StatCard
+          label="Indicative valuation"
+          value={`${formatUsdFromCents(growthProjection.valuationLowCents)} – ${formatUsdFromCents(growthProjection.valuationHighCents)}`}
+          hint={`Mid: ${formatUsdFromCents(growthProjection.valuationMidCents)} · early marketplace ARR multiple`}
+        />
       </div>
-      <ul className="mt-4 space-y-1.5 text-[11px] text-white/45">
-        {successRating.factors.map((f) => (
-          <li key={f.id}>
-            {f.label}: raw {f.raw.toFixed(2)} → contribution {f.contribution.toFixed(2)} (weight {(f.weight * 100).toFixed(0)}%)
-          </li>
-        ))}
-      </ul>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-xl border border-[#FF7E00]/20 bg-[#FF7E00]/[0.05] p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#FFD34E]/80">
+            Do this to reach potential rating
+          </p>
+          <ul className="mt-3 space-y-2 text-sm text-white/75">
+            {potentialRating.recommendations.map((r) => (
+              <li key={r.id}>
+                <span className="font-semibold text-white">{r.label}. </span>
+                {r.action}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs text-white/40">
+            <Link href="/admin/assistant" className="text-[#FF7E00] underline-offset-4 hover:underline">
+              Run AI guidance for potential rating
+            </Link>
+          </p>
+        </div>
+        <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/[0.05] p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200/80">
+            Do this to hit monthly revenue
+          </p>
+          <ul className="mt-3 space-y-2 text-sm text-white/75">
+            {growthProjection.revenueRecommendations.map((r) => (
+              <li key={r.id}>
+                <span className="font-semibold text-white">{r.label}. </span>
+                {r.action}
+              </li>
+            ))}
+          </ul>
+          <ul className="mt-3 space-y-1 text-[10px] text-white/35">
+            {growthProjection.assumptions.map((a) => (
+              <li key={a}>• {a}</li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs text-white/40">
+            <Link href="/admin/assistant" className="text-[#FF7E00] underline-offset-4 hover:underline">
+              Run AI guidance for revenue projection
+            </Link>
+          </p>
+        </div>
+      </div>
     </MetricsSection>
   );
 }
@@ -247,6 +303,45 @@ export function AcquisitionFunnelSection({ funnel }: { funnel: AdminTrafficFunne
           </ul>
         </div>
       </div>
+    </MetricsSection>
+  );
+}
+
+export function AdPerformanceSection({ panel }: { panel: AdPerformancePanel }) {
+  const metaConfigured = panel.integrations.find((i) => i.platform === "meta")?.configured ?? false;
+  const googleConfigured = panel.integrations.find((i) => i.platform === "google")?.configured ?? false;
+
+  return (
+    <MetricsSection
+      title="Ad performance"
+      description="Google Ads and Meta metrics synced via API, plus on-site UTM attribution (7 days)."
+    >
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Meta spend" value={formatUsdFromCents(panel.totals.meta.spendCents)} />
+        <StatCard label="Google spend" value={formatUsdFromCents(panel.totals.google.spendCents)} />
+        <StatCard label="UTM page views" value={panel.totals.attributedPageViews} />
+        <StatCard label="UTM signup views" value={panel.totals.attributedSignupViews} />
+      </div>
+      <p className="mt-4 text-[11px] text-white/45">
+        API sync: Meta {metaConfigured ? "connected" : "not configured"} · Google{" "}
+        {googleConfigured ? "connected" : "not configured"}.{" "}
+        <Link href="/admin/ad-tracking" className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
+          Open Ad Tracking HQ
+        </Link>{" "}
+        to build campaign URLs and run a manual sync.
+      </p>
+      {panel.attribution.length > 0 ? (
+        <ul className="mt-4 space-y-1 text-[11px] text-white/50">
+          {panel.attribution.slice(0, 5).map((row) => (
+            <li key={`${row.utmSource}-${row.utmCampaign}`} className="flex justify-between gap-3">
+              <span>
+                {row.utmSource} / {row.utmCampaign}
+              </span>
+              <span className="tabular-nums text-white/70">{row.pageViews} views</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </MetricsSection>
   );
 }

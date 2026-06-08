@@ -135,6 +135,29 @@ const EMPTY_OVERVIEW: AdminPortalOverview = {
         daysSinceLaunch: 0,
       },
     },
+    potentialRating: {
+      score: 0,
+      successScore: 0,
+      uplift: 0,
+      optimizedFactors: [],
+      recommendations: [],
+      meta: {
+        launchDate: "2026-05-21",
+        marketingStartDate: "2026-05-25",
+        marketingBudgetUsd: 70,
+        daysSinceLaunch: 0,
+      },
+    },
+    growthProjection: {
+      realisticMonthlyRevenueCents: 0,
+      realisticMonthlyGrossProfitCents: 0,
+      recurringMrrCents: 0,
+      valuationLowCents: 0,
+      valuationMidCents: 0,
+      valuationHighCents: 0,
+      assumptions: [],
+      revenueRecommendations: [],
+    },
   },
 };
 
@@ -180,7 +203,6 @@ describe("dashboard version labels", () => {
         administratorId="admin_test"
         layoutLoadedFromServer={false}
         auditLog={[]}
-        visitorInsight=""
       />,
     );
 
