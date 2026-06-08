@@ -105,6 +105,91 @@ export type AdminHomeUserCounts = {
   clientsActive: number;
 };
 
+export type AdminMemberOverviewPanel = {
+  totalActiveMembers: number;
+  totalMembers: number;
+  freeTrialClients: number;
+  subscribedClients: number;
+  inactiveClients: number;
+  uniqueSiteVisitorsAllTime: number;
+  pendingTrainers: number;
+  compliantActiveTrainers: number;
+  inactiveTrainers: number;
+};
+
+export type AdminPipelineStage = {
+  id: string;
+  label: string;
+  count: number;
+};
+
+export type AdminPipelineEntry = {
+  id: string;
+  label: string;
+  email: string | null;
+  username: string | null;
+  role: "client" | "trainer";
+  filledFields: string[];
+  missingFields: string[];
+  createdAt: string | null;
+};
+
+export type AdminClientPipelinePanel = {
+  stages: AdminPipelineStage[];
+  entries: AdminPipelineEntry[];
+};
+
+export type AdminTrainerPipelineEntry = {
+  trainerId: string;
+  username: string;
+  displayName: string;
+  onboardingFeeCompleted: boolean;
+  backgroundCheckStatus: string;
+  backgroundCheckReviewStatus: string | null;
+  documentsComplete: boolean;
+  documentsPending: boolean;
+};
+
+export type AdminTrainerPipelinePanel = {
+  totalInPipeline: number;
+  stages: AdminTrainerPipelineStage[];
+  pendingTrainers: AdminTrainerPipelineEntry[];
+};
+
+export type AdminSiteActivityPanel = {
+  activeMembersNow: number;
+  clientLoginsByRecency: AdminLoginRecencyBuckets;
+  trainerLoginsByRecency: AdminLoginRecencyBuckets;
+  topClientFunctions: AdminPlatformFunctionStat[];
+  topTrainerFunctions: AdminPlatformFunctionStat[];
+};
+
+export type AdminPremiumTrainerActivityPanel = {
+  premiumTrainers: number;
+  featuredSlotsToday: number;
+  activeAdvertisements: number;
+  tokenRevenueCents: number;
+  recentBids: { trainerUsername: string; regionZipPrefix: string; amountCents: number; displayDayKey: string }[];
+};
+
+export type AdminEmailStatsPanel = {
+  windowDays: number;
+  totalAttempts: number;
+  sent: number;
+  skippedPrefs: number;
+  skippedNoRecipient: number;
+  failed: number;
+  byKind: { kind: string; sent: number; failed: number }[];
+  recent: {
+    id: string;
+    at: string;
+    kind: string;
+    toEmail: string;
+    status: string;
+    subject: string;
+  }[];
+};
+
 export type AdminLoginRecencyBuckets = {
   h12: number;
   h24: number;
@@ -157,10 +242,6 @@ export type AdminTrainerPipelineStage = {
   percentOfSignup: number;
 };
 
-export type AdminTrainerPipelinePanel = {
-  totalInPipeline: number;
-  stages: AdminTrainerPipelineStage[];
-};
 
 export type AdminFinanceWindowKey = "24h" | "7d" | "30d" | "90d" | "1y" | "5y";
 
@@ -253,13 +334,16 @@ export type AdminPortalOverview = {
   computedAt: string;
   traffic: AdminTrafficSnapshot;
   userCounts: AdminHomeUserCounts;
+  memberOverview: AdminMemberOverviewPanel;
   revenue: AdminRevenueSnapshot;
-  recentSignups: AdminSignupRow[];
   recentFeatured: AdminFeaturedSnapshot[];
-  funnel: AdminTrafficFunnelPanel;
+  siteActivity: AdminSiteActivityPanel;
   adPerformance: AdPerformancePanel;
+  clientPipeline: AdminClientPipelinePanel;
   pipeline: AdminTrainerPipelinePanel;
+  premiumActivity: AdminPremiumTrainerActivityPanel;
   finances: AdminFinancesPanel;
+  emailStats: AdminEmailStatsPanel;
   alerts: AdminAlertsPanel;
   platformSummary: AdminPlatformSummaryPanel;
 };

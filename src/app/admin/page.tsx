@@ -1,6 +1,5 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { runAdminAnalyticsAi } from "@/lib/admin-analytics-ai";
 import { DEFAULT_ADMIN_DASHBOARD_LAYOUT } from "@/lib/admin-dashboard-layout";
 import { loadAdminDashboardLayout } from "@/lib/admin-dashboard-layout-server";
 import { getAdminAuditLog, getAdminPortalOverview, type AdminPortalOverview } from "@/lib/admin-portal-data";
@@ -31,7 +30,6 @@ export default async function AdminHomePage() {
 
   let overview: AdminPortalOverview | null = null;
   let loadError: string | null = null;
-  let visitorInsight = "";
   let auditLog: Awaited<ReturnType<typeof getAdminAuditLog>> = [];
 
   try {
@@ -54,19 +52,6 @@ export default async function AdminHomePage() {
         : isAdminPortalSchemaError(e)
           ? "Administrator database permissions need repair. Reload once — the app will retry schema repair automatically."
           : "Could not load the administrator dashboard. Check database connectivity and server logs.";
-  }
-
-  if (!loadError && overview) {
-    try {
-      visitorInsight = await runAdminAnalyticsAi({
-        action: "signup_recommendations",
-        administratorId: sess.adminId,
-        overview,
-        traffic: overview.traffic,
-      });
-    } catch (e) {
-      console.error("[admin home] visitor insight", e);
-    }
   }
 
   if (loadError) {
@@ -101,7 +86,6 @@ export default async function AdminHomePage() {
       administratorId={sess.adminId}
       layoutLoadedFromServer={savedLayout !== null}
       auditLog={auditLog}
-      visitorInsight={visitorInsight}
     />
   );
 }

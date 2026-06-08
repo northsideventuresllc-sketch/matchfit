@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  ADMIN_DASHBOARD_SECTION_IDS,
   DEFAULT_ADMIN_DASHBOARD_LAYOUT,
   applyLayoutPreset,
   collapseAllVisibleSections,
@@ -16,13 +15,13 @@ describe("admin-dashboard-layout", () => {
     expect(parseAdminDashboardLayout(null)).toEqual(DEFAULT_ADMIN_DASHBOARD_LAYOUT);
   });
 
-  it("migrates v1 layouts to v2 with collapse and density defaults", () => {
+  it("migrates v1 layouts to v3 with collapse and density defaults", () => {
     const parsed = parseAdminDashboardLayout({
       version: 1,
       order: ["member-search", "overview-kpis"],
       hidden: ["signup-log"],
     });
-    expect(parsed.version).toBe(2);
+    expect(parsed.version).toBe(3);
     expect(parsed.order[0]).toBe("member-search");
     expect(parsed.hidden).toContain("signup-log");
     expect(parsed.collapsed).toEqual([]);
@@ -42,7 +41,7 @@ describe("admin-dashboard-layout", () => {
     const collapsed = setSectionCollapsed(DEFAULT_ADMIN_DASHBOARD_LAYOUT, "signup-log", true);
     expect(collapsed.collapsed).toContain("signup-log");
     const allCollapsed = collapseAllVisibleSections(DEFAULT_ADMIN_DASHBOARD_LAYOUT);
-    expect(allCollapsed.collapsed.length).toBe(ADMIN_DASHBOARD_SECTION_IDS.length);
+    expect(allCollapsed.collapsed.length).toBe(visibleDashboardSections(DEFAULT_ADMIN_DASHBOARD_LAYOUT).length);
     const expanded = expandAllSections(allCollapsed);
     expect(expanded.collapsed).toEqual([]);
   });
