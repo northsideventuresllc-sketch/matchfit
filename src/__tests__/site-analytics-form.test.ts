@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { sendEventMock } = vi.hoisted(() => ({
   sendEventMock: vi.fn().mockResolvedValue(undefined),
@@ -22,6 +22,10 @@ const ctx = {
 };
 
 describe("site-analytics form helpers", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("tracks field focus with the field name as label", async () => {
     trackFormFieldFocus(ctx, "email");
     await Promise.resolve();
