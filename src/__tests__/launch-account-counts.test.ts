@@ -71,14 +71,16 @@ describe("launch account count exclusions", () => {
     );
   });
 
-  it("always excludes owner dev/test client jbfitness6299 from launch counts", () => {
-    expect(getLaunchExcludeUsernames("client")).toContain("jbfitness6299");
+  it("always excludes owner dev/test clients jbfitness6299 and jonnybronny from launch counts", () => {
+    expect(getLaunchExcludeUsernames("client")).toEqual(
+      expect.arrayContaining(["jbfitness6299", "jonnybronny"]),
+    );
     expect(getLaunchExcludeEmails("client")).toContain("jonnybooth22@gmail.com");
 
     const clientWhere = launchClientCountWhere();
     expect(clientWhere.NOT).toEqual({
       OR: expect.arrayContaining([
-        { username: { in: expect.arrayContaining(["jbfitness6299"]), mode: "insensitive" } },
+        { username: { in: expect.arrayContaining(["jbfitness6299", "jonnybronny"]), mode: "insensitive" } },
         { email: { in: expect.arrayContaining(["jonnybooth22@gmail.com"]) } },
       ]),
     });
@@ -115,6 +117,7 @@ describe("launch account count exclusions", () => {
     const trainerWhere = launchTrainerCountWhere();
     expect(trainerWhere.deidentifiedAt).toBeNull();
     expect(trainerWhere.internalQaSyntheticPersona).toBe(false);
+    expect(trainerWhere.profile).toEqual({ is: { hasSignedTOS: true } });
     expect(trainerWhere.NOT?.OR).toEqual(
       expect.arrayContaining([
         { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" } },
@@ -172,7 +175,7 @@ describe("launch-account-counts async", () => {
     );
   });
 
-  it("counts launch trainers with exclusion rules", async () => {
+  it("counts launch trainers with ToS and exclusion rules", async () => {
     mockTrainerCount.mockResolvedValue(9);
 
     await expect(countLaunchTrainers()).resolves.toBe(9);
@@ -180,6 +183,7 @@ describe("launch-account-counts async", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           internalQaSyntheticPersona: false,
+          profile: { is: { hasSignedTOS: true } },
         }),
       }),
     );

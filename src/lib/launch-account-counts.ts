@@ -63,7 +63,7 @@ function launchDevCertExcludeOr(): AnyWhereOrItem[] {
 export const SYNTHETIC_TRAINER_USERNAME_PREFIX = "mfqst_";
 export const SYNTHETIC_CLIENT_USERNAME_PREFIX = "mfqsc_";
 
-const BUILTIN_LAUNCH_EXCLUDE_CLIENT_USERNAMES = ["jbfitness6299"] as const;
+const BUILTIN_LAUNCH_EXCLUDE_CLIENT_USERNAMES = ["jbfitness6299", "jonnybronny"] as const;
 const BUILTIN_LAUNCH_EXCLUDE_CLIENT_EMAILS = ["jonnybooth22@gmail.com"] as const;
 const BUILTIN_LAUNCH_EXCLUDE_TRAINER_USERNAMES = ["coachjonny22"] as const;
 const BUILTIN_LAUNCH_EXCLUDE_TRAINER_EMAILS = ["jb@northsideventuresgroup.com"] as const;
@@ -81,7 +81,8 @@ export function getLaunchExcludeUsernames(role?: "client" | "trainer"): string[]
   return [...ex];
 }
 
-export function launchTrainerCountWhere(): Prisma.TrainerWhereInput {
+/** Trainer rows that pass launch exclusion filters (may still be pre–Terms of Service). */
+export function launchTrainerAccountWhere(): Prisma.TrainerWhereInput {
   const usernameExcludes = [SYNTHETIC_TRAINER_USERNAME_PREFIX, ...getMatchFitLaunchExcludeTrainerUsernames()];
   const exactUsernameExcludes = getLaunchExcludeUsernames("trainer");
   return {
@@ -95,6 +96,14 @@ export function launchTrainerCountWhere(): Prisma.TrainerWhereInput {
         ...launchDevCertExcludeOr(),
       ] as Prisma.TrainerWhereInput[],
     },
+  };
+}
+
+/** Launch trainers — counted on the platform only after Terms of Service are accepted. */
+export function launchTrainerCountWhere(): Prisma.TrainerWhereInput {
+  return {
+    ...launchTrainerAccountWhere(),
+    profile: { is: { hasSignedTOS: true } },
   };
 }
 
@@ -199,7 +208,7 @@ export function launchClientPlatformPaymentGraceWhere(now = new Date()): Prisma.
 /** Trainer account exists but marketplace dashboard is not live yet. */
 export function launchTrainerIncompleteSignupWhere(): Prisma.TrainerWhereInput {
   return {
-    ...launchTrainerCountWhere(),
+    ...launchTrainerAccountWhere(),
     profile: { is: { dashboardActivatedAt: null } },
   };
 }
@@ -221,7 +230,7 @@ export function launchTrainerBeforeRegistrationPaymentWhere(): Prisma.TrainerWhe
 /** Trainer row exists but Terms of Service not accepted yet. */
 export function launchTrainerBeforeTermsWhere(): Prisma.TrainerWhereInput {
   return {
-    ...launchTrainerCountWhere(),
+    ...launchTrainerAccountWhere(),
     profile: { is: { hasSignedTOS: false } },
   };
 }

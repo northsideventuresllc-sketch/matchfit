@@ -122,9 +122,11 @@ async function queryHomeUserCounts(
       (
         SELECT COUNT(*)::bigint
         FROM "trainers" t
+        INNER JOIN "trainer_profiles" p ON p."trainerId" = t."id"
         WHERE t."deidentifiedAt" IS NULL
           ${trainerSynthClause}
           ${trainerEmailClause}
+          AND p."hasSignedTOS" = true
       ) AS trainers_total,
       (
         SELECT COUNT(*)::bigint
@@ -133,6 +135,7 @@ async function queryHomeUserCounts(
         WHERE t."deidentifiedAt" IS NULL
           ${trainerSynthClause}
           ${trainerEmailClause}
+          AND p."hasSignedTOS" = true
           AND p."dashboardActivatedAt" IS NOT NULL
           AND (
             p."dashboardActivatedAt" >= NOW() - INTERVAL '60 days'
@@ -204,8 +207,8 @@ async function queryHomeUserCounts(
 }
 
 /**
- * Homepage marketing counters. Trainers "active": dashboard onboarding completed and either
- * activated in the last 60 days or platform activity (messages, sessions, FitHub, punch-ins) in the last 7 days.
+ * Homepage marketing counters. Trainers total: accepted Terms of Service (excludes test/QA accounts).
+ * Trainers active: ToS accepted, dashboard live, and recent activity.
  * Clients "active": billing in good standing (no platform sub, active sub, or grace window) or a subscription
  * invoice paid in the last 14 days (`stripeLastSubscriptionInvoicePaidAt`, maintained by Stripe webhooks).
  *
