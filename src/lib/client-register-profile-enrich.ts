@@ -8,18 +8,23 @@ import { registerProfileSchema } from "@/lib/validations/client-register";
 
 export type RegisterProfileInput = z.infer<typeof registerProfileSchema>;
 
-export type EnrichedRegisterProfile = RegisterProfileInput & {
+type RegisterProfilePassthroughInput = Omit<RegisterProfileInput, "preferredName" | "username"> & {
+  preferredName?: string;
+  username?: string;
+  betaInviteToken?: string;
+};
+
+export type EnrichedRegisterProfile<TInput extends RegisterProfilePassthroughInput> = Omit<
+  TInput,
+  "preferredName" | "username"
+> & {
   preferredName: string;
   username: string;
 };
 
-export async function enrichClientRegisterProfile(
-  body: Omit<RegisterProfileInput, "preferredName" | "username"> & {
-    preferredName?: string;
-    username?: string;
-    betaInviteToken?: string;
-  },
-): Promise<EnrichedRegisterProfile> {
+export async function enrichClientRegisterProfile<TInput extends RegisterProfilePassthroughInput>(
+  body: TInput,
+): Promise<EnrichedRegisterProfile<TInput>> {
   const email = body.email.trim().toLowerCase();
   const preferredName = defaultPreferredNameFromSignup(body.firstName, body.lastName, body.preferredName);
 
