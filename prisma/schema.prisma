@@ -987,7 +987,7 @@ model TrainerProfile {
   backgroundCheckInviteRequestedAt DateTime?
   /// Plan B: Match Fit staff confirmed Checkr invitation email was sent.
   backgroundCheckInviteSentAt DateTime?
-  /// Portion of signup hold earmarked for Checkr (cents); released only when screening clears.
+  /// Portion of signup hold earmarked for Checkr (cents); captured when screening completes.
   backgroundCheckEscrowCents Int?
   /// Platform registration portion of signup hold (cents).
   platformEscrowCents Int?
@@ -1054,10 +1054,14 @@ model TrainerProfile {
   complianceHumanReviewDeadlineAt DateTime?
   complianceCertFailedAttempts Int @default(0)
   complianceWindowExpiredAt DateTime?
-  /// Stripe PaymentIntent id for signup registration fee (manual capture until full compliance).
+  /// Stripe PaymentIntent id for platform onboarding hold (manual capture until full compliance).
   registrationFeeHoldPaymentIntentId String?
   /// NOT_STARTED | HELD | CAPTURED | CANCELED
   registrationFeeHoldStatus String @default("NOT_STARTED")
+  /// Stripe PaymentIntent id for background-check escrow (manual capture when Checkr screening completes).
+  backgroundCheckEscrowPaymentIntentId String?
+  /// NOT_STARTED | HELD | CAPTURED | CANCELED
+  backgroundCheckEscrowHoldStatus String @default("NOT_STARTED")
   /// BETA FitHub promo: 28 days free premium studio access after cert + BG approved.
   fitHubPromoEndsAt DateTime?
 

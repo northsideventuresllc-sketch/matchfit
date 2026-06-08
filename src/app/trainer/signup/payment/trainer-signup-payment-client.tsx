@@ -21,12 +21,22 @@ type Props = {
   stripeSecretConfigured: boolean;
 };
 
+type PaymentStep = "platform" | "background_check";
+
 function PaymentForm({
   amountLabel,
   foundingPricing,
+  step,
+  backgroundCheckPaymentIntentId,
+  onPlatformAuthorized,
+  onBackgroundCheckAuthorized,
 }: {
   amountLabel: string;
   foundingPricing: boolean;
+  step: PaymentStep;
+  backgroundCheckPaymentIntentId: string | null;
+  onPlatformAuthorized: () => void;
+  onBackgroundCheckAuthorized: (next?: string) => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -52,7 +62,31 @@ function PaymentForm({
         setError("Authorization completed but no payment id was returned.");
         return;
       }
-      const res = await fetch("/api/trainer/signup/confirm-payment", {
+
+      if (step === "platform") {
+        if (!backgroundCheckPaymentIntentId) {
+          setError("Background screening authorization is missing. Refresh and try again.");
+          return;
+        }
+        const platformRes = await fetch("/api/trainer/signup/confirm-platform-hold", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            paymentIntentId: piId,
+            backgroundCheckPaymentIntentId,
+          }),
+        });
+        const platformData = (await platformRes.json()) as { error?: string };
+        if (!platformRes.ok) {
+          setError(platformData.error ?? "Platform authorization succeeded but we could not update your account.");
+          return;
+        }
+        onPlatformAuthorized();
+        return;
+      }
+
+      const res = await fetch("/api/trainer/signup/confirm-background-escrow", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -63,7 +97,7 @@ function PaymentForm({
         setError(data.error ?? "Authorization succeeded but we could not update your account. Contact support.");
         return;
       }
-      navigateWithFullLoad(data.next ?? "/trainer/dashboard");
+      onBackgroundCheckAuthorized(data.next);
     } catch {
       setError("Something went wrong while processing your card authorization.");
     } finally {
@@ -73,12 +107,19 @@ function PaymentForm({
 
   return (
     <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
-      <div className="space-y-3 rounded-xl border border-white/[0.08] bg-[#12151C]/60 px-4 py-4 text-sm leading-relaxed text-white/70">
-        <p>{trainerSignupPaymentHoldExplanation(foundingPricing ? "FOUNDING_BG_SURCHARGE_20PCT" : "STANDARD_100_MINUS_BG")}</p>
-        <p className="text-white/55">{TRAINER_SIGNUP_PAYMENT_AFTER_HOLD_NOTE}</p>
-      </div>
+      {step === "platform" ? (
+        <div className="space-y-3 rounded-xl border border-white/[0.08] bg-[#12151C]/60 px-4 py-4 text-sm leading-relaxed text-white/70">
+          <p>{trainerSignupPaymentHoldExplanation(foundingPricing ? "FOUNDING_BG_SURCHARGE_20PCT" : "STANDARD_100_MINUS_BG")}</p>
+          <p className="text-white/55">{TRAINER_SIGNUP_PAYMENT_AFTER_HOLD_NOTE}</p>
+        </div>
+      ) : (
+        <p className="rounded-xl border border-white/[0.08] bg-[#12151C]/60 px-4 py-4 text-sm leading-relaxed text-white/70">
+          Step 2 of 2: authorize the background screening hold. Match Fit captures this portion when Checkr screening
+          runs, even if the result is not approved.
+        </p>
+      )}
       <p className="text-sm text-white/80">
-        Hold amount today (includes processing):{" "}
+        Hold amount for this step (includes processing):{" "}
         <span className="font-semibold text-[#FFD34E]">{amountLabel}</span>
       </p>
       <div className="rounded-xl border border-white/[0.08] bg-[#0E1016]/90 px-3 py-4">
@@ -90,7 +131,11 @@ function PaymentForm({
         disabled={!stripe || !elements || submitting}
         className="flex min-h-[3rem] w-full items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] disabled:opacity-60"
       >
-        {submitting ? "Authorizing…" : "Place signup fee hold"}
+        {submitting
+          ? "Authorizing…"
+          : step === "platform"
+            ? "Place platform hold (step 1 of 2)"
+            : "Place background screening hold (step 2 of 2)"}
       </button>
     </form>
   );
@@ -104,8 +149,11 @@ export default function TrainerSignupPaymentClient({
   const { publishableKey, loading: publishableLoading } = useStripePublishableKey(stripePublishableKey);
   const useEmbeddedCheckout = Boolean(publishableKey);
   const useCheckoutRedirect = !useEmbeddedCheckout && stripeSecretConfigured;
+  const [step, setStep] = useState<PaymentStep>("platform");
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [amountLabel, setAmountLabel] = useState<string>("…");
+  const [backgroundCheckPaymentIntentId, setBackgroundCheckPaymentIntentId] = useState<string | null>(null);
+  const [backgroundCheckClientSecret, setBackgroundCheckClientSecret] = useState<string | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
 
   const stripePromise = useMemo(
@@ -162,17 +210,31 @@ export default function TrainerSignupPaymentClient({
       credentials: "include",
     })
       .then((r) => r.json())
-      .then((d: { clientSecret?: string; totalCents?: number; error?: string }) => {
-        if (cancelled) return;
-        if (!d.clientSecret) {
-          setInitError(d.error ?? TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
-          return;
-        }
-        setClientSecret(d.clientSecret);
-        if (typeof d.totalCents === "number" && d.totalCents > 0) {
-          setAmountLabel(`$${(d.totalCents / 100).toFixed(2)}`);
-        }
-      })
+      .then(
+        (d: {
+          clientSecret?: string;
+          paymentIntentId?: string;
+          backgroundCheckClientSecret?: string;
+          backgroundCheckPaymentIntentId?: string;
+          totalCents?: number;
+          platformHoldCents?: number;
+          error?: string;
+        }) => {
+          if (cancelled) return;
+          if (!d.clientSecret || !d.paymentIntentId || !d.backgroundCheckClientSecret || !d.backgroundCheckPaymentIntentId) {
+            setInitError(d.error ?? TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
+            return;
+          }
+          setClientSecret(d.clientSecret);
+          setBackgroundCheckPaymentIntentId(d.backgroundCheckPaymentIntentId);
+          setBackgroundCheckClientSecret(d.backgroundCheckClientSecret);
+          if (typeof d.platformHoldCents === "number" && d.platformHoldCents > 0) {
+            setAmountLabel(`$${(d.platformHoldCents / 100).toFixed(2)}`);
+          } else if (typeof d.totalCents === "number" && d.totalCents > 0) {
+            setAmountLabel(`$${(d.totalCents / 100).toFixed(2)}`);
+          }
+        },
+      )
       .catch(() => {
         if (!cancelled) setInitError(TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
       });
@@ -192,6 +254,17 @@ export default function TrainerSignupPaymentClient({
 
   const loading = publishableLoading || loadingIntent || redirecting;
 
+  function handlePlatformAuthorized() {
+    setStep("background_check");
+    if (backgroundCheckClientSecret) {
+      setClientSecret(backgroundCheckClientSecret);
+    }
+  }
+
+  function handleBackgroundCheckAuthorized(next?: string) {
+    navigateWithFullLoad(next ?? "/trainer/dashboard");
+  }
+
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] px-5 py-10 text-white sm:px-8">
       <div className="mx-auto max-w-lg">
@@ -206,12 +279,10 @@ export default function TrainerSignupPaymentClient({
         <p className="mt-3 text-sm leading-relaxed text-white/60">{TRAINER_SIGNUP_PAYMENT_INTRO}</p>
 
         <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-white/55">
-          <li>Your card receives a temporary hold for the total shown below (not an immediate charge).</li>
-          <li>You continue onboarding in your dashboard — certification upload, tax forms, background screening.</li>
-          <li>
-            Match Fit captures the fee only after certification and background screening are approved. If screening is
-            not approved, only the platform portion of the hold may be captured; the rest is released.
-          </li>
+          <li>Step 1: platform onboarding hold (released if you are not fully approved).</li>
+          <li>Step 2: background screening hold (captured when Checkr screening runs).</li>
+          <li>After both holds are placed, continue certification and background screening in your dashboard.</li>
+          <li>When certification and screening are fully approved, Match Fit captures the platform hold.</li>
         </ol>
 
         <div className="mt-8">
@@ -234,8 +305,15 @@ export default function TrainerSignupPaymentClient({
               </p>
             </div>
           ) : clientSecret && stripePromise && options ? (
-            <Elements stripe={stripePromise} options={options}>
-              <PaymentForm amountLabel={amountLabel} foundingPricing={foundingPricing} />
+            <Elements key={`${step}-${clientSecret}`} stripe={stripePromise} options={options}>
+              <PaymentForm
+                amountLabel={amountLabel}
+                foundingPricing={foundingPricing}
+                step={step}
+                backgroundCheckPaymentIntentId={backgroundCheckPaymentIntentId}
+                onPlatformAuthorized={handlePlatformAuthorized}
+                onBackgroundCheckAuthorized={handleBackgroundCheckAuthorized}
+              />
             </Elements>
           ) : null}
         </div>

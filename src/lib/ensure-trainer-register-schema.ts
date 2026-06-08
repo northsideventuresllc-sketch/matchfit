@@ -19,6 +19,8 @@ const TRAINER_REGISTER_PROFILE_COLUMNS = [
   "backgroundCheckInviteSentAt",
   "backgroundCheckEscrowCents",
   "platformEscrowCents",
+  "backgroundCheckEscrowPaymentIntentId",
+  "backgroundCheckEscrowHoldStatus",
 ] as const;
 
 export const TRAINER_REGISTER_PROFILE_COLUMNS_REQUIRED = TRAINER_REGISTER_PROFILE_COLUMNS.length;
@@ -40,6 +42,8 @@ ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "backgroundCheckInviteRe
 ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "backgroundCheckInviteSentAt" TIMESTAMP(3);
 ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "backgroundCheckEscrowCents" INTEGER;
 ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "platformEscrowCents" INTEGER;
+ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "backgroundCheckEscrowPaymentIntentId" TEXT;
+ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "backgroundCheckEscrowHoldStatus" TEXT NOT NULL DEFAULT 'NOT_STARTED';
 ALTER TABLE "trainers" ALTER COLUMN "termsAcceptedAt" DROP NOT NULL;
 `;
 
@@ -96,7 +100,9 @@ export async function countTrainerRegisterProfileColumns(): Promise<number> {
         'backgroundCheckInviteRequestedAt',
         'backgroundCheckInviteSentAt',
         'backgroundCheckEscrowCents',
-        'platformEscrowCents'
+        'platformEscrowCents',
+        'backgroundCheckEscrowPaymentIntentId',
+        'backgroundCheckEscrowHoldStatus'
       )
   `;
   return Number(rows[0]?.count ?? 0);
