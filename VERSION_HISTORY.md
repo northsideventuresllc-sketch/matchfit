@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-08** `1.3.0-beta` → `1.3.1-beta` (**patch** — Fix client signup type passthrough for beta invite token)
 - **2026-06-08** `1.2.2-beta` → `1.3.0-beta` (**minor** — Form analytics events, streamlined client signup, trainer account at TOS with 7-day onboarding fee)
 - **2026-06-05** `1.2.1-beta` → `1.2.2-beta` (**patch** — Hydrate Anthropic admin assistant keys from platform_secrets)
 - **2026-06-05** `1.2.0-beta` → `1.2.1-beta` (**patch** — Admin assistant uses Anthropic when ANTHROPIC_API_KEY is set)
