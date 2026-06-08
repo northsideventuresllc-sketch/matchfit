@@ -1,5 +1,4 @@
 import { BetaCapExceededError, completeTrainerSupabaseSignup } from "@/lib/complete-trainer-supabase-signup";
-import { applyTrainerSessionToNextResponse } from "@/lib/session";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { trainerSignupSchema } from "@/lib/validations/trainer-register";
 import { verifyTurnstileToken } from "@/lib/turnstile-verify";
@@ -8,9 +7,8 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 /**
- * One-step trainer sign-up completion after Supabase Auth account exists.
- * Validates email/password server-side, creates the Match Fit trainer row, and
- * sets the trainer session cookie — no browser Supabase session required.
+ * Validates Supabase email confirmation and signup fields, then routes to terms
+ * (Match Fit trainer row is created when the trainer agreement is accepted).
  */
 export async function POST(req: Request) {
   try {
@@ -25,14 +23,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: turn.error }, { status: turn.status });
     }
 
-    const result = await completeTrainerSupabaseSignup(parsed.data);
+    const result = await completeTrainerSupabaseSignup(parsed.data, { createAccount: false });
     if (!result.ok) {
       return NextResponse.json({ error: result.error, code: result.code }, { status: result.status });
     }
 
-    const res = NextResponse.json({ ok: true, next: result.next, trainerId: result.trainerId });
-    await applyTrainerSessionToNextResponse(res, result.trainerId, parsed.data.stayLoggedIn);
-    return res;
+    return NextResponse.json({ ok: true, next: result.next });
   } catch (e) {
     if (e instanceof BetaCapExceededError) {
       return NextResponse.json({ error: e.message, code: e.code }, { status: 403 });

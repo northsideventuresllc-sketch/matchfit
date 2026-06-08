@@ -127,6 +127,12 @@ export function SiteTrafficSection({ traffic }: { traffic: AdminPortalOverview["
         <StatCard label="Unique visitors" value={traffic.uniqueVisitors} />
         <StatCard label="Link clicks" value={traffic.linkClicks} />
       </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Form field focus" value={traffic.formEvents.fieldFocus} />
+        <StatCard label="Form submit attempts" value={traffic.formEvents.submitAttempts} />
+        <StatCard label="Form submit errors" value={traffic.formEvents.submitErrors} />
+        <StatCard label="Form submit success" value={traffic.formEvents.submitSuccesses} />
+      </div>
       {traffic.daily.length > 0 ? (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[20rem] text-left text-[11px] text-white/55">

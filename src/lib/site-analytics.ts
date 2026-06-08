@@ -42,6 +42,12 @@ const EMPTY_TRAFFIC: AdminTrafficSnapshot = {
   pageViews: 0,
   uniqueVisitors: 0,
   linkClicks: 0,
+  formEvents: {
+    fieldFocus: 0,
+    submitAttempts: 0,
+    submitErrors: 0,
+    submitSuccesses: 0,
+  },
   topPages: [],
   topLinks: [],
   daily: [],
@@ -69,7 +75,7 @@ export async function getAdminSiteTrafficSnapshot(windowDays = 7): Promise<Admin
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
   try {
-    const [pageViewsRow, visitorsRow, linkClicksRow, topPages, topLinks, daily, recent] =
+    const [pageViewsRow, visitorsRow, linkClicksRow, formFocusRow, formAttemptRow, formErrorRow, formSuccessRow, topPages, topLinks, daily, recent] =
       await Promise.all([
         prisma.$queryRaw<CountRow[]>`
           SELECT COUNT(*)::bigint AS n
@@ -85,6 +91,26 @@ export async function getAdminSiteTrafficSnapshot(windowDays = 7): Promise<Admin
           SELECT COUNT(*)::bigint AS n
           FROM site_analytics_events
           WHERE "createdAt" >= ${since} AND kind = 'LINK_CLICK'
+        `,
+        prisma.$queryRaw<CountRow[]>`
+          SELECT COUNT(*)::bigint AS n
+          FROM site_analytics_events
+          WHERE "createdAt" >= ${since} AND kind = 'FORM_FIELD_FOCUS'
+        `,
+        prisma.$queryRaw<CountRow[]>`
+          SELECT COUNT(*)::bigint AS n
+          FROM site_analytics_events
+          WHERE "createdAt" >= ${since} AND kind = 'FORM_SUBMIT_ATTEMPT'
+        `,
+        prisma.$queryRaw<CountRow[]>`
+          SELECT COUNT(*)::bigint AS n
+          FROM site_analytics_events
+          WHERE "createdAt" >= ${since} AND kind = 'FORM_SUBMIT_ERROR'
+        `,
+        prisma.$queryRaw<CountRow[]>`
+          SELECT COUNT(*)::bigint AS n
+          FROM site_analytics_events
+          WHERE "createdAt" >= ${since} AND kind = 'FORM_SUBMIT_SUCCESS'
         `,
         prisma.$queryRaw<TopPageRow[]>`
           SELECT path, COUNT(*)::bigint AS views
@@ -134,6 +160,12 @@ export async function getAdminSiteTrafficSnapshot(windowDays = 7): Promise<Admin
       pageViews: Number(pageViewsRow[0]?.n ?? BigInt(0)),
       uniqueVisitors: Number(visitorsRow[0]?.n ?? BigInt(0)),
       linkClicks: Number(linkClicksRow[0]?.n ?? BigInt(0)),
+      formEvents: {
+        fieldFocus: Number(formFocusRow[0]?.n ?? BigInt(0)),
+        submitAttempts: Number(formAttemptRow[0]?.n ?? BigInt(0)),
+        submitErrors: Number(formErrorRow[0]?.n ?? BigInt(0)),
+        submitSuccesses: Number(formSuccessRow[0]?.n ?? BigInt(0)),
+      },
       topPages: topPages.map((r) => ({ path: r.path, views: Number(r.views) })),
       topLinks: topLinks.map((r) => ({
         target: r.target,

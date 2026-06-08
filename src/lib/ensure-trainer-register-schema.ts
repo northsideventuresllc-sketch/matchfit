@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 
 const TRAINER_REGISTER_PROFILE_COLUMNS = [
   "limitedDashboardUnlockedAt",
+  "onboardingFeePaymentDeadlineAt",
+  "onboardingFeePaymentExpiredAt",
   "complianceWindowStartedAt",
   "complianceWindowPausedAt",
   "complianceCertReuploadDeadlineAt",
@@ -23,6 +25,8 @@ export const TRAINER_REGISTER_PROFILE_COLUMNS_REQUIRED = TRAINER_REGISTER_PROFIL
 
 export const TRAINER_REGISTER_SCHEMA_DDL = `
 ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "limitedDashboardUnlockedAt" TIMESTAMP(3);
+ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "onboardingFeePaymentDeadlineAt" TIMESTAMP(3);
+ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "onboardingFeePaymentExpiredAt" TIMESTAMP(3);
 ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "complianceWindowStartedAt" TIMESTAMP(3);
 ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "complianceWindowPausedAt" TIMESTAMP(3);
 ALTER TABLE "trainer_profiles" ADD COLUMN IF NOT EXISTS "complianceCertReuploadDeadlineAt" TIMESTAMP(3);
@@ -78,6 +82,8 @@ export async function countTrainerRegisterProfileColumns(): Promise<number> {
       AND table_name = 'trainer_profiles'
       AND column_name IN (
         'limitedDashboardUnlockedAt',
+        'onboardingFeePaymentDeadlineAt',
+        'onboardingFeePaymentExpiredAt',
         'complianceWindowStartedAt',
         'complianceWindowPausedAt',
         'complianceCertReuploadDeadlineAt',

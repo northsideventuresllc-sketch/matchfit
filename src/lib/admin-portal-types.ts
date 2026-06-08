@@ -71,12 +71,24 @@ export type AdminTrafficSnapshot = {
   pageViews: number;
   uniqueVisitors: number;
   linkClicks: number;
+  formEvents: {
+    fieldFocus: number;
+    submitAttempts: number;
+    submitErrors: number;
+    submitSuccesses: number;
+  };
   topPages: AdminTrafficTopPage[];
   topLinks: AdminTrafficTopLink[];
   daily: AdminTrafficDayPoint[];
   recentEvents: {
     at: string;
-    kind: "PAGE_VIEW" | "LINK_CLICK";
+    kind:
+      | "PAGE_VIEW"
+      | "LINK_CLICK"
+      | "FORM_FIELD_FOCUS"
+      | "FORM_SUBMIT_ATTEMPT"
+      | "FORM_SUBMIT_ERROR"
+      | "FORM_SUBMIT_SUCCESS";
     path: string;
     target: string | null;
     label: string | null;

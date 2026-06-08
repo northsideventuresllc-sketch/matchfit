@@ -64,7 +64,9 @@ function mapCreateTrainerError(e: unknown): CompleteTrainerSupabaseSignupResult 
  */
 export async function completeTrainerSupabaseSignup(
   body: TrainerSignupParsed,
+  options?: { createAccount?: boolean },
 ): Promise<CompleteTrainerSupabaseSignupResult> {
+  const createAccount = options?.createAccount === true;
   try {
     const email = body.email.trim().toLowerCase();
     const username = body.username.trim();
@@ -134,6 +136,10 @@ export async function completeTrainerSupabaseSignup(
       };
     }
 
+    if (!createAccount) {
+      return { ok: true, trainerId: "", next: "/trainer/signup/terms" };
+    }
+
     const { id: trainerId, email: createdEmail } = await createTrainerRecord(body, {
       betaInviteEntryId: gate.betaInviteEntryId,
     });
@@ -149,6 +155,8 @@ export async function completeTrainerSupabaseSignup(
         registrationFeeHoldStatus: true,
         hasPaidRegistrationFee: true,
         limitedDashboardUnlockedAt: true,
+        onboardingFeePaymentDeadlineAt: true,
+        onboardingFeePaymentExpiredAt: true,
       },
     });
 

@@ -157,7 +157,7 @@ model SiteAnalyticsEvent {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
 
-  /// PAGE_VIEW | LINK_CLICK
+  /// PAGE_VIEW | LINK_CLICK | FORM_*
   kind String
 
   /// Path on matchfit.app where the event occurred (no query string).
@@ -1007,7 +1007,11 @@ model TrainerProfile {
 
   /// After signup fee is authorized (held); trainer may use the dashboard in limited mode.
   limitedDashboardUnlockedAt DateTime?
-  /// Seven-day cert + background-check window starts when signup payment is authorized.
+  /// Onboarding fee must be authorized within 7 days of account creation (TOS acceptance).
+  onboardingFeePaymentDeadlineAt DateTime?
+  /// Set when the onboarding fee deadline passes without payment.
+  onboardingFeePaymentExpiredAt DateTime?
+  /// Seven-day cert + background-check window starts when the trainer account is created.
   complianceWindowStartedAt DateTime?
   /// When both cert and BG are submitted, the 7-day window pauses until outcomes are known.
   complianceWindowPausedAt DateTime?

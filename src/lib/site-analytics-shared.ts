@@ -1,7 +1,22 @@
 /** Client-safe site analytics constants, types, and ingest parsing (no Prisma). */
 
-export const SITE_ANALYTICS_KINDS = ["PAGE_VIEW", "LINK_CLICK"] as const;
+export const SITE_ANALYTICS_KINDS = [
+  "PAGE_VIEW",
+  "LINK_CLICK",
+  "FORM_FIELD_FOCUS",
+  "FORM_SUBMIT_ATTEMPT",
+  "FORM_SUBMIT_ERROR",
+  "FORM_SUBMIT_SUCCESS",
+] as const;
 export type SiteAnalyticsKind = (typeof SITE_ANALYTICS_KINDS)[number];
+
+export const SITE_ANALYTICS_FORM_KINDS = [
+  "FORM_FIELD_FOCUS",
+  "FORM_SUBMIT_ATTEMPT",
+  "FORM_SUBMIT_ERROR",
+  "FORM_SUBMIT_SUCCESS",
+] as const;
+export type SiteAnalyticsFormKind = (typeof SITE_ANALYTICS_FORM_KINDS)[number];
 
 export const SITE_ANALYTICS_VISITOR_COOKIE = "mf_vid";
 export const SITE_ANALYTICS_SESSION_KEY = "mf_sid";
@@ -41,11 +56,19 @@ export type AdminTrafficDayPoint = {
   uniqueVisitors: number;
 };
 
+export type AdminTrafficFormStats = {
+  fieldFocus: number;
+  submitAttempts: number;
+  submitErrors: number;
+  submitSuccesses: number;
+};
+
 export type AdminTrafficSnapshot = {
   windowDays: number;
   pageViews: number;
   uniqueVisitors: number;
   linkClicks: number;
+  formEvents: AdminTrafficFormStats;
   topPages: AdminTrafficTopPage[];
   topLinks: AdminTrafficTopLink[];
   daily: AdminTrafficDayPoint[];
@@ -93,6 +116,15 @@ function normalizeId(raw: string): string | null {
   return t;
 }
 
+function isFormKind(kind: string): kind is SiteAnalyticsFormKind {
+  return (
+    kind === "FORM_FIELD_FOCUS" ||
+    kind === "FORM_SUBMIT_ATTEMPT" ||
+    kind === "FORM_SUBMIT_ERROR" ||
+    kind === "FORM_SUBMIT_SUCCESS"
+  );
+}
+
 export function isSiteAnalyticsBotUserAgent(userAgent: string | null): boolean {
   if (!userAgent?.trim()) return false;
   return BOT_UA.test(userAgent);
@@ -102,7 +134,7 @@ export function parseSiteAnalyticsIngestBody(body: unknown): SiteAnalyticsIngest
   if (!body || typeof body !== "object") return null;
   const b = body as Record<string, unknown>;
   const kind = typeof b.kind === "string" ? b.kind.toUpperCase() : "";
-  if (kind !== "PAGE_VIEW" && kind !== "LINK_CLICK") return null;
+  if (!SITE_ANALYTICS_KINDS.includes(kind as SiteAnalyticsKind)) return null;
 
   const path = typeof b.path === "string" ? normalizePath(b.path) : null;
   if (!path) return null;
@@ -119,9 +151,10 @@ export function parseSiteAnalyticsIngestBody(body: unknown): SiteAnalyticsIngest
     typeof b.linkLabel === "string" ? trimTo(b.linkLabel, LABEL_MAX) || null : null;
 
   if (kind === "LINK_CLICK" && !targetPath && !targetUrl) return null;
+  if (isFormKind(kind) && !linkLabel) return null;
 
   return {
-    kind,
+    kind: kind as SiteAnalyticsKind,
     path,
     targetPath,
     targetUrl,

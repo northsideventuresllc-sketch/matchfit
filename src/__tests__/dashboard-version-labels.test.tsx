@@ -69,6 +69,12 @@ const EMPTY_OVERVIEW: AdminPortalOverview = {
     pageViews: 0,
     uniqueVisitors: 0,
     linkClicks: 0,
+    formEvents: {
+      fieldFocus: 0,
+      submitAttempts: 0,
+      submitErrors: 0,
+      submitSuccesses: 0,
+    },
     topPages: [],
     topLinks: [],
     daily: [],

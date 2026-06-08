@@ -8,8 +8,8 @@ import { stripeConfigHealth } from "@/lib/stripe-config";
 
 describe("trainer-signup-payment-messaging", () => {
   it("explains hold vs charge on the signup overview", () => {
-    expect(TRAINER_SIGNUP_FLOW_OVERVIEW).toMatch(/temporary card hold/i);
-    expect(TRAINER_SIGNUP_FLOW_OVERVIEW).toMatch(/only charges/i);
+    expect(TRAINER_SIGNUP_FLOW_OVERVIEW).toMatch(/onboarding fee hold/i);
+    expect(TRAINER_SIGNUP_FLOW_OVERVIEW).toMatch(/only captures/i);
   });
 
   it("explains pending hold on the payment step", () => {

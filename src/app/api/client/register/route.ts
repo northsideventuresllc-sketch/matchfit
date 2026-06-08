@@ -1,3 +1,4 @@
+import { enrichClientRegisterProfile } from "@/lib/client-register-profile-enrich";
 import { isEmailTaken, isUsernameTaken, findDeactivatedClientForReactivation } from "@/lib/client-queries";
 import { ensureClientPlatformTrialSchema } from "@/lib/ensure-client-platform-trial-schema";
 import { BetaCapExceededError } from "@/lib/beta-cap-enforcement";
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
     if (!turn.ok) {
       return NextResponse.json({ error: turn.error }, { status: turn.status });
     }
-    const body = parsed.data;
+    const body = await enrichClientRegisterProfile(parsed.data);
     if (!isAtLeast18(body.dateOfBirth)) {
       return NextResponse.json({ error: "You must be at least 18 years old." }, { status: 400 });
     }

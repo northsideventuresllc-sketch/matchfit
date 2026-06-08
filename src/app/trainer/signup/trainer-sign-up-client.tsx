@@ -205,8 +205,6 @@ export default function TrainerSignUpClient() {
         code: data.code,
       };
     }
-    trackGoogleAdsConversion("trainer_signup");
-    trackMetaConversion("trainer_signup");
     navigateWithFullLoad(data.next ?? "/trainer/signup/terms");
     return { ok: true };
   }
@@ -440,6 +438,18 @@ export default function TrainerSignUpClient() {
             }
             trackGoogleAdsConversion("trainer_signup");
             trackMetaConversion("trainer_signup");
+            writeTrainerSignupDraft({
+              firstName: firstName.trim(),
+              lastName: lastName.trim(),
+              username: u,
+              phone: phone.trim(),
+              email: emailNorm,
+              password,
+              agreedToTerms: true,
+              stayLoggedIn,
+              serviceZipCode: serviceZipCode.trim(),
+              ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
+            });
             navigateWithFullLoad(data.next ?? "/trainer/signup/terms");
             return;
           }
@@ -499,6 +509,18 @@ export default function TrainerSignUpClient() {
       }
       trackGoogleAdsConversion("trainer_signup");
       trackMetaConversion("trainer_signup");
+      writeTrainerSignupDraft({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        username: u,
+        phone: phone.trim(),
+        email: emailNorm,
+        password,
+        agreedToTerms: true,
+        stayLoggedIn,
+        serviceZipCode: serviceZipCode.trim(),
+        ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
+      });
       navigateWithFullLoad(data.next ?? "/trainer/signup/terms");
     } catch {
       setError("Something went wrong. Try again.");

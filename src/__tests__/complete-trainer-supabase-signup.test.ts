@@ -89,18 +89,16 @@ describe("completeTrainerSupabaseSignup", () => {
     sendTrainerWelcomeEmailMock.mockResolvedValue(undefined);
   });
 
-  it("creates trainer after syncing password for a confirmed Supabase user", async () => {
-    const result = await completeTrainerSupabaseSignup(body);
+  it("creates trainer after syncing password when createAccount is true", async () => {
+    const result = await completeTrainerSupabaseSignup(body, { createAccount: true });
     expect(result).toMatchObject({ ok: true, trainerId: "trainer_1" });
     expect(createTrainerRecordMock).toHaveBeenCalledOnce();
-    expect(adminAuthMock.updateUserById).toHaveBeenCalledWith("auth_user_1", {
-      password: body.password,
-      user_metadata: {
-        match_fit_role: "trainer",
-        pending_match_fit_profile: false,
-        email_verified: true,
-      },
-    });
+  });
+
+  it("prepares signup for terms without creating trainer by default", async () => {
+    const result = await completeTrainerSupabaseSignup(body);
+    expect(result).toMatchObject({ ok: true, next: "/trainer/signup/terms", trainerId: "" });
+    expect(createTrainerRecordMock).not.toHaveBeenCalled();
   });
 
   it("rejects when email is not confirmed yet", async () => {

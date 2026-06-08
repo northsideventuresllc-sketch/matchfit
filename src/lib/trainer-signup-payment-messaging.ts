@@ -9,7 +9,7 @@ function formatUsd(cents: number): string {
 
 /** Short overview on the first signup page — no payment jargon yet. */
 export const TRAINER_SIGNUP_FLOW_OVERVIEW =
-  "How trainer signup works: (1) create your account, (2) accept the trainer agreement, (3) place a temporary card hold for your signup fee, then (4) finish certification and background screening from your dashboard. Match Fit only charges the signup fee after your documents and background check are approved.";
+  "How trainer signup works: (1) enter your account details and verify email, (2) accept the trainer agreement — your account is created automatically, (3) finish certification and background screening from your dashboard within 7 days, and place your onboarding fee hold before the deadline. Match Fit only captures the signup fee after your documents and background check are approved.";
 
 /** Payment step headline helper text — explains hold vs charge. */
 export const TRAINER_SIGNUP_PAYMENT_INTRO =

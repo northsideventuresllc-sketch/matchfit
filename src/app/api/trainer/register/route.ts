@@ -1,13 +1,7 @@
-import { applyTrainerSessionToNextResponse } from "@/lib/session";
-import { sendTrainerWelcomeEmail } from "@/lib/trainer-welcome-email";
-import { BetaCapExceededError } from "@/lib/beta-cap-enforcement";
-import { createTrainerRecord } from "@/lib/trainer-register-service";
 import { evaluateBetaTrainerRegistrationGate } from "@/lib/beta-trainer-register-gate";
-import { markTrainerWaitlistRegistered } from "@/lib/beta-waitlist-service";
+import { BetaCapExceededError } from "@/lib/beta-cap-enforcement";
 import { isTrainerEmailTaken, isTrainerUsernameTaken } from "@/lib/trainer-queries";
-import { resolveTrainerSignupNextPath } from "@/lib/trainer-signup-next-path";
 import { trainerSignupSchema } from "@/lib/validations/trainer-register";
-import { prisma } from "@/lib/prisma";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { verifyTurnstileToken } from "@/lib/turnstile-verify";
 import { NextResponse } from "next/server";
@@ -38,37 +32,13 @@ export async function POST(req: Request) {
     }
 
     if (await isTrainerUsernameTaken(username)) {
-      return NextResponse.json({ error: "That username is already taken." }, { status: 409 });
+      return NextResponse.json({ error: "That username is already taken.", code: "USERNAME_TAKEN" }, { status: 409 });
     }
     if (await isTrainerEmailTaken(email)) {
-      return NextResponse.json({ error: "That email is already registered." }, { status: 409 });
+      return NextResponse.json({ error: "That email is already registered.", code: "EMAIL_TAKEN" }, { status: 409 });
     }
 
-    const trainer = await createTrainerRecord(body, {
-      betaInviteEntryId: gate.ok ? gate.betaInviteEntryId : null,
-    });
-
-    if (gate.ok && gate.betaInviteEntryId) {
-      await markTrainerWaitlistRegistered(gate.betaInviteEntryId, trainer.id);
-    }
-
-    const profile = await prisma.trainerProfile.findUnique({
-      where: { trainerId: trainer.id },
-      select: {
-        hasSignedTOS: true,
-        registrationFeeHoldStatus: true,
-        hasPaidRegistrationFee: true,
-        limitedDashboardUnlockedAt: true,
-      },
-    });
-    const res = NextResponse.json({ ok: true, next: resolveTrainerSignupNextPath(profile) });
-    await applyTrainerSessionToNextResponse(res, trainer.id, body.stayLoggedIn);
-    void sendTrainerWelcomeEmail({
-      to: email,
-      firstName: body.firstName,
-      trainerId: trainer.id,
-    }).catch((err) => console.error("[trainer register] welcome email failed:", err));
-    return res;
+    return NextResponse.json({ ok: true, next: "/trainer/signup/terms" });
   } catch (e) {
     if (e instanceof BetaCapExceededError) {
       return NextResponse.json({ error: e.message, code: e.code }, { status: 403 });

@@ -11,6 +11,12 @@ import { useMetaSignupFunnelStep } from "@/hooks/use-meta-signup-funnel-step";
 import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { trackMetaLead } from "@/lib/meta-pixel-funnel";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
+import {
+  bindFormFieldFocus,
+  trackFormSubmitAttempt,
+  trackFormSubmitError,
+  trackFormSubmitSuccess,
+} from "@/lib/site-analytics-form";
 import { BetaCapFullSignupNotice } from "@/components/beta-cap-full-signup-notice";
 import { useBetaLaunchStatus } from "@/hooks/use-beta-launch-status";
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
@@ -22,6 +28,8 @@ const inputClass =
 const dateInputClass = `${inputClass} mf-date-input appearance-none`;
 
 const labelClass = "text-left text-xs font-semibold uppercase tracking-wide text-white/50 [overflow-wrap:anywhere]";
+
+const CLIENT_SIGNUP_FORM = { path: "/client/sign-up", formId: "client_sign_up" };
 
 function formatLocalYmd(d: Date): string {
   const y = d.getFullYear();
@@ -97,12 +105,9 @@ function ClientSignUpPageInner() {
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [preferredName, setPreferredName] = useState("");
-  const [username, setUsername] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [zipCode, setZipCode] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -149,7 +154,6 @@ function ClientSignUpPageInner() {
         if (cancelled || !d.valid) return;
         if (d.firstName?.trim()) setFirstName(d.firstName.trim());
         if (d.email?.trim()) setEmail(d.email.trim().toLowerCase());
-        if (d.desiredUsername?.trim()) setUsername(d.desiredUsername.trim());
         setBetaInviteReserved(d.desiredUsername?.trim() ?? null);
       })
       .catch(() => {});
@@ -170,12 +174,9 @@ function ClientSignUpPageInner() {
   function buildProfilePayload() {
     const fn = firstName.trim();
     const ln = lastName.trim();
-    const pref = preferredName.trim();
     return {
       firstName: fn,
       lastName: ln,
-      preferredName: pref,
-      username: username.trim(),
       phone: phone.trim(),
       email: email.trim().toLowerCase(),
       password,
@@ -198,23 +199,6 @@ function ClientSignUpPageInner() {
       setError("Last name is required.");
       return false;
     }
-    if (!preferredName.trim()) {
-      setError("Preferred name is required.");
-      return false;
-    }
-    const u = username.trim();
-    if (!u) {
-      setError("Username is required.");
-      return false;
-    }
-    if (u.length < 3) {
-      setError("Username must be at least 3 characters.");
-      return false;
-    }
-    if (!/^[a-zA-Z0-9_]+$/.test(u)) {
-      setError("Username may only use letters, numbers, and underscores.");
-      return false;
-    }
     if (!phone.trim()) {
       setError("Phone number is required.");
       return false;
@@ -234,10 +218,6 @@ function ClientSignUpPageInner() {
     const pwMsg = describePasswordPolicyViolations(password);
     if (pwMsg) {
       setError(pwMsg);
-      return false;
-    }
-    if (password !== confirmPassword) {
-      setError("Passwords do not match. Fix your passwords before continuing.");
       return false;
     }
     if (!zipCode.trim()) {
@@ -262,7 +242,11 @@ function ClientSignUpPageInner() {
 
   function handleStep1Next(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!validateStep1()) return;
+    trackFormSubmitAttempt(CLIENT_SIGNUP_FORM);
+    if (!validateStep1()) {
+      trackFormSubmitError(CLIENT_SIGNUP_FORM, "validation_failed");
+      return;
+    }
     setWizardStep(2);
     setAwaitingCode(false);
     setPendingId(null);
@@ -273,6 +257,7 @@ function ClientSignUpPageInner() {
   async function handleSkip2fa() {
     setError(null);
     if (!assertTurnstileOrSetError()) return;
+    trackFormSubmitAttempt(CLIENT_SIGNUP_FORM);
     setBusy(true);
     try {
       const res = await fetch("/api/client/register", {
@@ -283,6 +268,7 @@ function ClientSignUpPageInner() {
       const data = (await res.json()) as { error?: string; next?: string; code?: string };
       if (!res.ok) {
         setErrorCode(data.code ?? null);
+        trackFormSubmitError(CLIENT_SIGNUP_FORM, data.code ?? "register_failed");
         setError(
           data.code === "BETA_CLIENT_CAP"
             ? (data.error ?? "Memberships are full for this beta.")
@@ -310,6 +296,7 @@ function ClientSignUpPageInner() {
         }
       }
       trackMetaLead("client");
+      trackFormSubmitSuccess(CLIENT_SIGNUP_FORM);
       navigateWithFullLoad(data.next ?? "/client/dashboard/preferences/onboarding");
     } catch {
       setError("Something went wrong. Try again.");
@@ -373,6 +360,7 @@ function ClientSignUpPageInner() {
       const data = (await res.json()) as { error?: string; next?: string };
       if (!res.ok) {
         setError(data.error ?? "Verification failed.");
+        trackFormSubmitError(CLIENT_SIGNUP_FORM, "verify_failed");
         turnstile.reset();
         return;
       }
@@ -395,6 +383,7 @@ function ClientSignUpPageInner() {
         }
       }
       trackMetaLead("client");
+      trackFormSubmitSuccess(CLIENT_SIGNUP_FORM);
       navigateWithFullLoad(data.next ?? "/client/dashboard/preferences/onboarding");
     } catch {
       setError("Something went wrong. Try again.");
@@ -440,7 +429,7 @@ function ClientSignUpPageInner() {
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-white/55 sm:text-base">
           {wizardStep === 1
-            ? "Tell us a bit about yourself. After you agree to the Terms of Service, your account starts with a 14-day free trial — no card required at sign-up. U.S. beta — anyone in the United States can sign up. You must be 18 or older."
+            ? "Tell us a bit about yourself. Your default username comes from your email (you can change it later in settings). After you agree to the Terms of Service, your account starts with a 14-day free trial — no card required at sign-up. U.S. beta — anyone in the United States can sign up. You must be 18 or older."
             : awaitingCode
               ? "Check your inbox for a verification email with your code."
               : "Add an extra layer of security, or skip and turn this on later in settings."}
@@ -448,9 +437,8 @@ function ClientSignUpPageInner() {
 
         {betaInviteReserved ? (
           <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100/95">
-            Beta invite active — complete sign-up with{" "}
-            <span className="font-semibold text-white">@{betaInviteReserved}</span> and the invited email before your slot
-            expires.
+            Beta invite active — complete sign-up with the invited email before your slot expires. Your username will
+            be reserved as <span className="font-semibold text-white">@{betaInviteReserved}</span>.
           </p>
         ) : null}
 
@@ -512,6 +500,7 @@ function ClientSignUpPageInner() {
                     required
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
+                    onFocus={bindFormFieldFocus(CLIENT_SIGNUP_FORM, "firstName")}
                     className={inputClass}
                   />
                 </div>
@@ -526,42 +515,10 @@ function ClientSignUpPageInner() {
                     required
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
+                    onFocus={bindFormFieldFocus(CLIENT_SIGNUP_FORM, "lastName")}
                     className={inputClass}
                   />
                 </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label htmlFor="su-preferred" className={labelClass}>
-                  Preferred name{" "}
-                  <span className="font-normal normal-case text-white/35">(shown on your profile)</span>
-                </label>
-                <input
-                  id="su-preferred"
-                  type="text"
-                  autoComplete="nickname"
-                  required
-                  value={preferredName}
-                  onChange={(e) => setPreferredName(e.target.value)}
-                  placeholder="How you want to be addressed"
-                  className={inputClass}
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label htmlFor="su-username" className={labelClass}>
-                  Username
-                </label>
-                <input
-                  id="su-username"
-                  type="text"
-                  autoComplete="username"
-                  required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Unique handle"
-                  className={inputClass}
-                />
               </div>
 
               <div className="flex flex-col gap-2">
@@ -575,6 +532,7 @@ function ClientSignUpPageInner() {
                   required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
+                  onFocus={bindFormFieldFocus(CLIENT_SIGNUP_FORM, "phone")}
                   placeholder="(555) 555-5555"
                   className={inputClass}
                 />
@@ -591,6 +549,7 @@ function ClientSignUpPageInner() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onFocus={bindFormFieldFocus(CLIENT_SIGNUP_FORM, "email")}
                   placeholder="you@example.com"
                   className={inputClass}
                 />
@@ -608,23 +567,8 @@ function ClientSignUpPageInner() {
                   minLength={8}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  onFocus={bindFormFieldFocus(CLIENT_SIGNUP_FORM, "password")}
                   placeholder="At least 8 characters"
-                  className={inputClass}
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label htmlFor="su-confirm" className={labelClass}>
-                  Confirm password
-                </label>
-                <input
-                  id="su-confirm"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Re-enter password"
                   className={inputClass}
                 />
               </div>
@@ -636,7 +580,7 @@ function ClientSignUpPageInner() {
                   onChange={(e) => setShowPassword(e.target.checked)}
                   className="h-4 w-4 shrink-0 accent-[#FF7E00] focus:ring-2 focus:ring-[#FF7E00]/40 focus:ring-offset-0"
                 />
-                <span>Show passwords</span>
+                <span>Show password</span>
               </label>
               <p className="text-xs leading-relaxed text-white/40">
                 Password must be at least 8 characters and include at least one capital letter and one special character.

@@ -1,4 +1,5 @@
-import { prisma } from "@/lib/prisma";
+import { BetaCapExceededError } from "@/lib/beta-cap-enforcement";
+import { evaluateBetaTrainerRegistrationGate } from "@/lib/beta-trainer-register-gate";
 import {
   ensureTrainerRegisterSchema,
   isMissingTrainerRegisterSchemaError,
@@ -8,16 +9,27 @@ import {
   isMissingTrainerSignupTermsColumnError,
   isTrainerSignupTermsAccessError,
 } from "@/lib/ensure-trainer-signup-terms-schema";
-import { getSessionTrainerId } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
+import { applyTrainerSessionToNextResponse, getSessionTrainerId } from "@/lib/session";
+import { createTrainerAccountAfterTermsAcceptance } from "@/lib/trainer-signup-after-terms";
 import { resolveTrainerSignupNextPath } from "@/lib/trainer-signup-next-path";
-import { trainerAgreementsSchema } from "@/lib/validations/trainer-register";
+import { trainerOnboardingFeeDeadlineAt } from "@/lib/trainer-onboarding-fee-deadline";
+import { trainerAgreementsSchema, trainerSignupSchema } from "@/lib/validations/trainer-register";
+import { verifyTurnstileToken } from "@/lib/turnstile-verify";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
-async function saveTrainerAgreement(trainerId: string): Promise<void> {
+const trainerTermsWithSignupSchema = trainerAgreementsSchema.extend({
+  signup: trainerSignupSchema.optional(),
+  turnstileToken: z.string().optional(),
+});
+
+async function saveTrainerAgreementForExisting(trainerId: string): Promise<void> {
   const now = new Date();
+  const paymentDeadline = trainerOnboardingFeeDeadlineAt(now);
   await prisma.$transaction(async (tx) => {
     await tx.trainer.update({
       where: { id: trainerId },
@@ -34,8 +46,17 @@ async function saveTrainerAgreement(trainerId: string): Promise<void> {
         registrationFeeHoldStatus: "NOT_STARTED",
         registrationFeePricingMode: "FOUNDING_BG_SURCHARGE_20PCT",
         complianceCertFailedAttempts: 0,
+        limitedDashboardUnlockedAt: now,
+        complianceWindowStartedAt: now,
+        onboardingFeePaymentDeadlineAt: paymentDeadline,
       },
-      update: { hasSignedTOS: true, updatedAt: now },
+      update: {
+        hasSignedTOS: true,
+        limitedDashboardUnlockedAt: now,
+        complianceWindowStartedAt: now,
+        onboardingFeePaymentDeadlineAt: paymentDeadline,
+        updatedAt: now,
+      },
     });
   });
 }
@@ -50,26 +71,70 @@ function isRepairableTrainerAgreementError(e: unknown): boolean {
 
 export async function PATCH(req: Request) {
   try {
-    const trainerId = await getSessionTrainerId();
-    if (!trainerId) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const parsed = trainerAgreementsSchema.safeParse(await req.json());
+    const json = await req.json();
+    const parsed = trainerTermsWithSignupSchema.safeParse(json);
     if (!parsed.success) {
       const msg = parsed.error.issues[0]?.message ?? "Invalid request.";
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
+    const trainerId = await getSessionTrainerId();
+
     await ensureTrainerRegisterSchema();
     await ensureTrainerSignupTermsSchema();
+
+    if (!trainerId) {
+      if (!parsed.data.signup) {
+        return NextResponse.json(
+          { error: "Sign-up details are required before accepting the trainer agreement." },
+          { status: 400 },
+        );
+      }
+      const turn = await verifyTurnstileToken(parsed.data.turnstileToken ?? parsed.data.signup.turnstileToken, req);
+      if (!turn.ok) {
+        return NextResponse.json({ error: turn.error }, { status: turn.status });
+      }
+
+      const gate = await evaluateBetaTrainerRegistrationGate({
+        serviceZipCode: parsed.data.signup.serviceZipCode ?? "",
+        email: parsed.data.signup.email.trim().toLowerCase(),
+        username: parsed.data.signup.username.trim(),
+        betaInviteToken: parsed.data.signup.betaInviteToken,
+      });
+      if (!gate.ok) {
+        return NextResponse.json({ error: gate.error, code: gate.code }, { status: gate.status });
+      }
+
+      let result;
+      try {
+        result = await createTrainerAccountAfterTermsAcceptance(parsed.data.signup, {
+          betaInviteEntryId: gate.betaInviteEntryId,
+        });
+      } catch (e) {
+        if (!isRepairableTrainerAgreementError(e)) throw e;
+        await ensureTrainerRegisterSchema();
+        await ensureTrainerSignupTermsSchema();
+        result = await createTrainerAccountAfterTermsAcceptance(parsed.data.signup, {
+          betaInviteEntryId: gate.betaInviteEntryId,
+        });
+      }
+
+      if (!result.ok) {
+        return NextResponse.json({ error: result.error, code: result.code }, { status: result.status });
+      }
+
+      const res = NextResponse.json({ ok: true, next: result.next, trainerId: result.trainerId });
+      await applyTrainerSessionToNextResponse(res, result.trainerId, parsed.data.signup.stayLoggedIn ?? true);
+      return res;
+    }
+
     try {
-      await saveTrainerAgreement(trainerId);
+      await saveTrainerAgreementForExisting(trainerId);
     } catch (e) {
       if (!isRepairableTrainerAgreementError(e)) throw e;
       await ensureTrainerRegisterSchema();
       await ensureTrainerSignupTermsSchema();
-      await saveTrainerAgreement(trainerId);
+      await saveTrainerAgreementForExisting(trainerId);
     }
 
     let profile;
@@ -81,6 +146,8 @@ export async function PATCH(req: Request) {
           registrationFeeHoldStatus: true,
           hasPaidRegistrationFee: true,
           limitedDashboardUnlockedAt: true,
+          onboardingFeePaymentDeadlineAt: true,
+          onboardingFeePaymentExpiredAt: true,
         },
       });
     } catch (e) {
@@ -93,12 +160,17 @@ export async function PATCH(req: Request) {
           registrationFeeHoldStatus: true,
           hasPaidRegistrationFee: true,
           limitedDashboardUnlockedAt: true,
+          onboardingFeePaymentDeadlineAt: true,
+          onboardingFeePaymentExpiredAt: true,
         },
       });
     }
 
     return NextResponse.json({ ok: true, next: resolveTrainerSignupNextPath(profile) });
   } catch (e) {
+    if (e instanceof BetaCapExceededError) {
+      return NextResponse.json({ error: e.message, code: e.code }, { status: 403 });
+    }
     const { message, status } = publicApiErrorFromUnknown(e, "Could not save your agreement.", {
       logLabel: "[Match Fit trainer signup terms]",
     });

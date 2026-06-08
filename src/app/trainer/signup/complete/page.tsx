@@ -5,8 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { TurnstileField } from "@/components/turnstile-field";
-import { trackGoogleAdsConversion } from "@/lib/google-ads";
-import { trackMetaConversion } from "@/lib/meta-pixel";
 import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { isTurnstileClientEnabled } from "@/lib/turnstile-config";
@@ -50,8 +48,6 @@ export default function TrainerSignupCompletePage() {
           return;
         }
         clearTrainerSignupDraft();
-        trackGoogleAdsConversion("trainer_signup");
-        trackMetaConversion("trainer_signup");
         navigateWithFullLoad(data.next ?? "/trainer/signup/terms");
       } catch {
         setError("Something went wrong. Try again.");
@@ -97,11 +93,11 @@ export default function TrainerSignupCompletePage() {
           </span>
         </Link>
 
-        <h1 className="text-2xl font-black tracking-tight">Finish creating your trainer account</h1>
+        <h1 className="text-2xl font-black tracking-tight">Continue to trainer agreement</h1>
         <p className="mt-3 text-sm leading-relaxed text-white/55">
           {turnstile.enabled
-            ? "Complete the security check, then create your Match Fit profile."
-            : "We are creating your Match Fit profile now."}
+            ? "Complete the security check, then continue to the trainer agreement. Your Match Fit account is created when you accept."
+            : "We are verifying your email confirmation before the trainer agreement step."}
         </p>
 
         {error ? (
@@ -131,7 +127,7 @@ export default function TrainerSignupCompletePage() {
               onClick={() => void finishWithTurnstile()}
               className="min-h-[3rem] w-full max-w-sm rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] disabled:opacity-50"
             >
-              {busy ? "Working…" : "Create my account"}
+              {busy ? "Working…" : "Continue to agreement"}
             </button>
           </div>
         ) : draft && !turnstile.enabled && busy ? (

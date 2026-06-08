@@ -136,6 +136,30 @@ describe("site-analytics ingest", () => {
     ).toBeNull();
   });
 
+  it("accepts form submit events with form id label", () => {
+    expect(
+      parseSiteAnalyticsIngestBody({
+        kind: "form_submit_attempt",
+        path: "/client/sign-up",
+        linkLabel: "client_sign_up",
+        visitorId: "visitor12345678",
+        sessionId: "session12345678",
+      }),
+    ).toMatchObject({
+      kind: "FORM_SUBMIT_ATTEMPT",
+      linkLabel: "client_sign_up",
+    });
+
+    expect(
+      parseSiteAnalyticsIngestBody({
+        kind: "form_field_focus",
+        path: "/client/sign-up",
+        visitorId: "visitor12345678",
+        sessionId: "session12345678",
+      }),
+    ).toBeNull();
+  });
+
   it("truncates long values to storage-safe lengths", () => {
     const payload = parseSiteAnalyticsIngestBody({
       kind: "link_click",
