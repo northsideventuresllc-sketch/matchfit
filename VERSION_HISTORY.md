@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-09** `1.4.9-beta` → `1.4.10-beta` (**patch** — Fix duplicate signup hold return key causing typecheck failure)
 - **2026-06-09** `1.4.8-beta` → `1.4.9-beta` (**patch** — Admin directory shows deidentified and dev-cert trainers; fix pending pipeline visibility)
 - **2026-06-09** `1.4.7-beta` → `1.4.8-beta` (**patch** — Fix pending trainer detection and member search coverage)
 - **2026-06-09** `1.4.6-beta` → `1.4.7-beta` (**patch** — Add test coverage for signup, admin, email, and AI platform routes)
