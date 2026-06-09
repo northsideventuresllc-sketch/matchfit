@@ -180,21 +180,33 @@ function parseJsonArray<T>(raw: string): T[] {
 }
 
 async function getExclusionList(platform: OutreachPlatform): Promise<string[]> {
+  const activeOnly = { deletedAt: null as null };
+
   if (platform === "instagram") {
     const rows = await prisma.outreachInstagramLead.findMany({
+      where: activeOnly,
       select: { handle: true, profileUrl: true },
     });
     return rows.flatMap((r) => [r.handle.toLowerCase(), r.profileUrl.toLowerCase()]);
   }
   if (platform === "facebook") {
-    const rows = await prisma.outreachFacebookLead.findMany({ select: { pageUrl: true, pageName: true } });
+    const rows = await prisma.outreachFacebookLead.findMany({
+      where: activeOnly,
+      select: { pageUrl: true, pageName: true },
+    });
     return rows.flatMap((r) => [r.pageUrl.toLowerCase(), r.pageName.toLowerCase()]);
   }
   if (platform === "email") {
-    const rows = await prisma.outreachEmailLead.findMany({ select: { email: true } });
+    const rows = await prisma.outreachEmailLead.findMany({
+      where: activeOnly,
+      select: { email: true },
+    });
     return rows.map((r) => r.email.toLowerCase());
   }
-  const rows = await prisma.outreachOtherLead.findMany({ select: { contactLabel: true, contactUrl: true } });
+  const rows = await prisma.outreachOtherLead.findMany({
+    where: activeOnly,
+    select: { contactLabel: true, contactUrl: true },
+  });
   return rows.flatMap((r) => [r.contactLabel.toLowerCase(), (r.contactUrl ?? "").toLowerCase()].filter(Boolean));
 }
 
