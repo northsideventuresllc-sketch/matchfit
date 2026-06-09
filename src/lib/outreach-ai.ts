@@ -201,31 +201,26 @@ function parseJsonArray<T>(raw: string): T[] {
 }
 
 async function getExclusionList(platform: OutreachPlatform): Promise<string[]> {
-  const activeOnly = { deletedAt: null as null };
-
+  // Include soft-deleted leads — we never resurface a trainer that was already saved or dismissed.
   if (platform === "instagram") {
     const rows = await prisma.outreachInstagramLead.findMany({
-      where: activeOnly,
       select: { handle: true, profileUrl: true },
     });
     return rows.flatMap((r) => [r.handle.toLowerCase(), r.profileUrl.toLowerCase()]);
   }
   if (platform === "facebook") {
     const rows = await prisma.outreachFacebookLead.findMany({
-      where: activeOnly,
       select: { pageUrl: true, pageName: true },
     });
     return rows.flatMap((r) => [r.pageUrl.toLowerCase(), r.pageName.toLowerCase()]);
   }
   if (platform === "email") {
     const rows = await prisma.outreachEmailLead.findMany({
-      where: activeOnly,
       select: { email: true },
     });
     return rows.map((r) => r.email.toLowerCase());
   }
   const rows = await prisma.outreachOtherLead.findMany({
-    where: activeOnly,
     select: { contactLabel: true, contactUrl: true },
   });
   return rows.flatMap((r) => [r.contactLabel.toLowerCase(), (r.contactUrl ?? "").toLowerCase()].filter(Boolean));
@@ -253,20 +248,26 @@ function platformCriteria(platform: OutreachPlatform): string {
 function buildOutreachSystemPrompt(platform: OutreachPlatform, learning: string): string {
   const criteria = platformCriteria(platform);
   return [
-    "You are Match Fit's outreach research assistant.",
+    "You are Match Fit's outreach research assistant. Your job is to find real, high-quality leads — not generic profiles.",
     OUTREACH_BRAND_FACTS,
     learning,
     criteria,
     "Return ONLY a valid JSON array. No markdown fences.",
     "Never suggest handles, emails, or URLs already in the exclusion list.",
     platform === "instagram"
-      ? "Find real, public Instagram profiles of fitness professionals. NEVER invent usernames — only handles you are confident exist."
+      ? [
+          "Find real, public Instagram profiles of fitness professionals. NEVER invent usernames — only handles you are confident exist.",
+          "The best leads are coaches who are ACTIVELY BUILDING a client business right now: posting recent client results, announcing open spots, running DM funnels, or launching new programs.",
+          "Every personalHook must reference something SPECIFIC and RECENT from their content — a specific post topic, a client win they shared, a methodology they explained, a challenge they launched. Never write a generic opener.",
+        ].join(" ")
       : platform === "facebook"
         ? "Find real Facebook pages or groups where fitness trainers gather. NEVER invent URLs."
         : platform === "email"
           ? "Find real fitness professionals with publicly listed emails. NEVER invent email addresses."
           : "Find real fitness professional contacts. NEVER invent URLs or emails.",
-    "Each lead needs a short whyMatchFit (1 sentence) and likelihoodScore (0-100).",
+    platform === "instagram"
+      ? "Each lead needs: whyMatchFit with at least one concrete business signal (follower range, credential, active booking, client results), personalHook referencing a specific recent post, and likelihoodScore (0-100)."
+      : "Each lead needs: whyMatchFit with at least one concrete business signal (follower range, credential, active booking, client results), and likelihoodScore (0-100).",
   ]
     .filter(Boolean)
     .join("\n");
@@ -461,10 +462,40 @@ ${OUTREACH_INSTAGRAM_CRITERIA}
 For ATL_LOCAL: Atlanta metro personal trainers, strength coaches, gym-based coaches, or hybrid coaches with local presence.
 For VIRTUAL: online coaches, remote personal trainers, nutrition coaches, and virtual training brands run by an individual coach.
 
+QUALITY BAR — every lead must meet this standard. Study these examples:
+
+EXAMPLE 1 (Virtual, @rachelratios):
+- niche: "Women's body recomposition / fat loss without tracking"
+- whyMatchFit: "Highly engaged despite 1.2K followers. Distinct 'no food diary' methodology is a real hook. Currently has 2 open coaching spots — actively looking for clients right now."
+- personalHook: "Your Feb→May recomp results and the 30+ client system behind it — that's a real methodology, not just motivation content. The fact that you have 2 spots open right now is exactly why I'm reaching out."
+- commentText: "The glutes built vs padded breakdown is such an important distinction — this is what real recomp looks like 🔥"
+- commentPostRef: "Feb→May body recomp results post (17 hours ago)"
+
+EXAMPLE 2 (ATL Local, @customcorefitness):
+- niche: "Personal training / full-body / bootcamp"
+- whyMatchFit: "3.9K followers, ATL Personal Trainer in bio, runs a Saturday bootcamp at a specific ATL address. Active community with live conversations in comments."
+- personalHook: "Saw someone asking about cost in the comments on the Saturday bootcamp post and you replied right away — that's the kind of active community Match Fit is built to support."
+- commentText: "A Saturday bootcamp at a real location with a real community — this is what ATL fitness needs more of 💪"
+- commentPostRef: "Saturday bootcamp promotion post (12 hours ago)"
+
+EXAMPLE 3 (Virtual, @isasmithfit):
+- niche: "Competition prep / nutrition / online coaching"
+- whyMatchFit: "Registered Dietitian + Online Coach — rare credential combo. 7.6K followers with strong comp prep content. RD credential is a major differentiator on a marketplace."
+- personalHook: "An RD who also coaches comp prep is a rare combo — most athletes have to juggle two separate professionals. That's a real edge on a marketplace where clients are searching by specialty."
+- commentText: "RD + prep coach is such a powerful combo — your clients are getting the full picture 🙌"
+- commentPostRef: "Back to work prep season post (today)"
+
+RULES FOR QUALITY:
+- personalHook must reference a SPECIFIC recent post or content piece — never generic praise. Name what the post was about.
+- whyMatchFit must state a concrete business signal: follower count, credential, open spots, active booking link, client results content, named location.
+- commentText must be specific to what commentPostRef contains — no generic "great content" lines.
+- commentPostRef must describe the post: topic + how recent (e.g. "3-phase transformation case study (posted yesterday)").
+- Prefer coaches who are actively building a client business (booking links, open spots announcements, DM CTAs, recent client result posts).
+
 Return ONLY a JSON array. Each item MUST be a real public profile you are confident exists.
 
 JSON schema per item:
-{"handle":"@username","profileUrl":"https://www.instagram.com/username/","niche":"strength coaching","targetGroup":"ATL_LOCAL"|"VIRTUAL","whyMatchFit":"one sentence on why they'd want Match Fit to grow their coaching brand","likelihoodScore":72,"personalHook":"specific coaching content detail for opener","commentText":"short comment for their post","commentPostRef":"Latest post","notes":"optional — include coaching specialty if known"}
+{"handle":"@username","profileUrl":"https://www.instagram.com/username/","niche":"specific niche","targetGroup":"ATL_LOCAL"|"VIRTUAL","whyMatchFit":"concrete business signal in 1-2 sentences","likelihoodScore":72,"personalHook":"specific reference to a recent post or content piece","commentText":"specific comment tied to commentPostRef","commentPostRef":"post topic + recency","notes":"optional — credential, specialty, or recent milestone"}
 
 Generic invite tail for ATL: "${tailAtl}"
 Generic invite tail for Virtual: "${tailVirtual}"`;
