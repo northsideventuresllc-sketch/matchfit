@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-09** `1.4.10-beta` → `1.4.11-beta` (**patch** — Fix CI version verify for added test coverage)
 - **2026-06-09** `1.4.9-beta` → `1.4.10-beta` (**patch** — Fix duplicate backgroundCheckHoldCents build error; improve Outreach HQ AI lead quality with few-shot examples and deduplication across deleted leads)
 - **2026-06-09** `1.4.8-beta` → `1.4.9-beta` (**patch** — Admin directory shows deidentified and dev-cert trainers; fix pending pipeline visibility)
 - **2026-06-09** `1.4.7-beta` → `1.4.8-beta` (**patch** — Fix pending trainer detection and member search coverage)
