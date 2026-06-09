@@ -68,8 +68,7 @@ function stageLabelForGenerateProgress(
   if (percent < 20) return "Starting AI lead research…";
   if (percent < 42) return "Finding fitness pro leads…";
   if (percent < 58) return "Drafting personalized outreach copy…";
-  if (platform === "instagram" && percent < 84) return "Verifying Instagram profiles…";
-  if (percent < 94) return "Saving leads to Outreach HQ…";
+  if (percent < 84) return "Saving leads to Outreach HQ…";
   return "Almost done…";
 }
 

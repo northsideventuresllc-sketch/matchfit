@@ -2,10 +2,11 @@ import "server-only";
 
 import { getAdminAiProviderStatusAsync } from "@/lib/admin-analytics-ai";
 import {
-  mapWithConcurrency,
-  normalizeInstagramLeadIdentity,
-  verifyInstagramProfile,
-} from "@/lib/instagram-profile-verify";
+  countAvailableInstagramSeeds,
+  pickInstagramSeedLeads,
+  type OutreachInstagramSeed,
+} from "@/lib/outreach-instagram-seeds";
+import { normalizeInstagramLeadIdentity } from "@/lib/instagram-profile-verify";
 import { buildOutreachLearningContext } from "@/lib/outreach-learning";
 import {
   genericInviteTail,
@@ -150,13 +151,31 @@ async function callAi(system: string, user: string): Promise<AiCallResult> {
 
 function parseJsonArray<T>(raw: string): T[] {
   const clean = raw.replace(/```json|```/g, "").trim();
-  try {
-    const parsed = JSON.parse(clean) as unknown;
-    if (Array.isArray(parsed)) return parsed as T[];
-  } catch {
-    const m = clean.match(/\[[\s\S]*\]/);
-    if (m) return JSON.parse(m[0]) as T[];
+  const tryParse = (text: string): T[] | null => {
+    try {
+      const parsed = JSON.parse(text) as unknown;
+      if (Array.isArray(parsed)) return parsed as T[];
+      if (parsed && typeof parsed === "object") {
+        const record = parsed as Record<string, unknown>;
+        for (const key of ["leads", "items", "data", "results"]) {
+          if (Array.isArray(record[key])) return record[key] as T[];
+        }
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  };
+
+  const direct = tryParse(clean);
+  if (direct) return direct;
+
+  const match = clean.match(/\[[\s\S]*\]/);
+  if (match) {
+    const nested = tryParse(match[0]);
+    if (nested) return nested;
   }
+
   return [];
 }
 
@@ -208,20 +227,65 @@ export async function generateOutreachLeads(args: {
   const tailAtl = genericInviteTail(args.platform, "ATL_LOCAL");
   const tailVirtual = genericInviteTail(args.platform, "VIRTUAL");
 
+  const instagramSeeds =
+    args.platform === "instagram"
+      ? pickInstagramSeedLeads({
+          atlCount: args.atlCount,
+          virtualCount: args.virtualCount,
+          exclusions,
+        })
+      : [];
+
+  if (args.platform === "instagram" && instagramSeeds.length === 0) {
+    const available = countAvailableInstagramSeeds(exclusions);
+    return {
+      batchId,
+      leads: [],
+      aiUsed: false,
+      message: `No new Instagram leads available — all seed accounts are already in your database (${available.atl} ATL and ${available.virtual} virtual remaining). Delete an old pull or lower your counts.`,
+    };
+  }
+
   const system = [
     "You are Match Fit's outreach research assistant.",
     OUTREACH_BRAND_FACTS,
     learning,
     "Return ONLY a valid JSON array. No markdown fences.",
     "Never suggest handles, emails, or URLs already in the exclusion list.",
-    "For Instagram: NEVER invent or guess usernames. Only include accounts you are highly confident are real, public, and currently active.",
+    args.platform === "instagram"
+      ? "For Instagram: keep every handle and profileUrl exactly as provided in the user prompt."
+      : "For Instagram: NEVER invent or guess usernames. Only include accounts you are highly confident are real, public, and currently active.",
     "Each lead needs a short whyMatchFit (1 sentence) and likelihoodScore (0-100).",
   ].join("\n");
 
-  const userPrompt = buildPlatformPrompt(args.platform, args.atlCount, args.virtualCount, exclusions, tailAtl, tailVirtual);
+  const userPrompt =
+    args.platform === "instagram"
+      ? buildInstagramCopyPrompt(instagramSeeds, tailAtl, tailVirtual)
+      : buildPlatformPrompt(args.platform, args.atlCount, args.virtualCount, exclusions, tailAtl, tailVirtual);
+
   const ai = await callAi(system, userPrompt);
 
   if (!ai.ok) {
+    if (args.platform === "instagram" && instagramSeeds.length > 0) {
+      const saved = await persistGeneratedLeads(
+        args.platform,
+        "[]",
+        batchId,
+        args.adminId,
+        tailAtl,
+        tailVirtual,
+        instagramSeeds,
+      );
+      if (saved.leads.length > 0) {
+        return {
+          batchId,
+          leads: saved.leads,
+          aiUsed: false,
+          message: `${ai.error} Saved ${saved.leads.length} lead(s) with default outreach copy instead.`,
+          verification: saved.verification,
+        };
+      }
+    }
     return {
       batchId,
       leads: [],
@@ -230,7 +294,15 @@ export async function generateOutreachLeads(args: {
     };
   }
 
-  const saved = await persistGeneratedLeads(args.platform, ai.text, batchId, args.adminId, tailAtl, tailVirtual);
+  const saved = await persistGeneratedLeads(
+    args.platform,
+    ai.text,
+    batchId,
+    args.adminId,
+    tailAtl,
+    tailVirtual,
+    args.platform === "instagram" ? instagramSeeds : undefined,
+  );
   const verification = saved.verification;
   const leads = saved.leads;
   let message: string | undefined;
@@ -262,6 +334,30 @@ export async function generateOutreachLeads(args: {
   return { batchId, leads, aiUsed: true, message, verification };
 }
 
+function buildInstagramCopyPrompt(seeds: OutreachInstagramSeed[], tailAtl: string, tailVirtual: string): string {
+  return `Write personalized Instagram outreach for EXACTLY these ${seeds.length} confirmed profiles.
+You MUST keep handle and profileUrl unchanged for each row. Do not add or remove profiles.
+
+Profiles:
+${JSON.stringify(
+  seeds.map((s) => ({
+    handle: s.handle,
+    profileUrl: s.profileUrl,
+    niche: s.niche,
+    targetGroup: s.targetGroup,
+    displayName: s.displayName,
+  })),
+  null,
+  2,
+)}
+
+Return ONLY a JSON array with one object per profile above, same order, using this schema:
+{"handle":"@username","profileUrl":"https://www.instagram.com/username/","niche":"...","targetGroup":"ATL_LOCAL"|"VIRTUAL","whyMatchFit":"one sentence","likelihoodScore":72,"personalHook":"specific detail for opener","commentText":"short comment for their post","commentPostRef":"Latest post","notes":"optional"}
+
+Generic invite tail for ATL: "${tailAtl}"
+Generic invite tail for Virtual: "${tailVirtual}"`;
+}
+
 function buildPlatformPrompt(
   platform: OutreachPlatform,
   atlCount: number,
@@ -271,22 +367,6 @@ function buildPlatformPrompt(
   tailVirtual: string,
 ): string {
   const excl = exclusions.slice(0, 200).join(", ") || "none yet";
-  if (platform === "instagram") {
-    return `Find ${atlCount} ATL-local and ${virtualCount} virtual fitness trainer Instagram profiles for Match Fit outreach.
-Exclude: ${excl}
-
-CRITICAL RULES:
-- Only include Instagram usernames that are real, public, and currently active. Do NOT invent handles.
-- profileUrl must be https://www.instagram.com/username/ (lowercase username, no extra paths).
-- Prefer established coaches/creators you are confident exist; skip any account you are unsure about.
-
-JSON schema per item:
-{"handle":"@username","profileUrl":"https://www.instagram.com/username/","niche":"strength coaching","targetGroup":"ATL_LOCAL"|"VIRTUAL","whyMatchFit":"one sentence","likelihoodScore":72,"personalHook":"specific content detail for opener","commentText":"short comment for their post","commentPostRef":"which post to comment on","notes":"optional"}
-
-Use targetGroup ATL_LOCAL for Atlanta-based, VIRTUAL for online-only.
-Generic invite tail for ATL: "${tailAtl}"
-Generic invite tail for Virtual: "${tailVirtual}"`;
-  }
   if (platform === "facebook") {
     return `Find ${atlCount + virtualCount} active Facebook groups or pages for Atlanta fitness trainer outreach.
 Exclude: ${excl}
@@ -322,94 +402,98 @@ async function persistGeneratedLeads(
   adminId: string,
   tailAtl: string,
   tailVirtual: string,
+  instagramSeeds?: OutreachInstagramSeed[],
 ): Promise<{ leads: unknown[]; verification?: OutreachLeadVerificationSummary }> {
   if (platform === "instagram") {
-    const items = parseJsonArray<GeneratedInstagramLead & { personalHook?: string }>(raw);
-    const created = [];
-    const rejectedSamples: { handle: string; reason: string }[] = [];
-    const seenUsernames = new Set<string>();
+    const seeds = instagramSeeds ?? [];
+    const seedByUsername = new Map(seeds.map((s) => [s.username.toLowerCase(), s]));
+    const aiItems = parseJsonArray<GeneratedInstagramLead & { personalHook?: string }>(raw);
+    const aiByUsername = new Map<string, GeneratedInstagramLead & { personalHook?: string }>();
 
-    const prepared = items.flatMap((item) => {
+    for (const item of aiItems) {
       const normalized = normalizeInstagramLeadIdentity({
         handle: item.handle,
         profileUrl: item.profileUrl,
       });
-      if (!normalized) {
-        rejectedSamples.push({
-          handle: item.handle ?? item.profileUrl ?? "unknown",
-          reason: "Invalid Instagram handle or profile URL.",
-        });
-        return [];
-      }
-      if (seenUsernames.has(normalized.username)) return [];
-      seenUsernames.add(normalized.username);
-      return [{ item, normalized }];
-    });
-
-    const verifiedRows = await mapWithConcurrency(prepared, 4, async ({ item, normalized }) => {
-      const verified = await verifyInstagramProfile(normalized.username);
-      if (!verified.ok) {
-        return {
-          kind: "rejected" as const,
-          handle: normalized.handle,
-          reason: verified.reason,
-        };
-      }
-
-      const group = normalizeGroup(item.targetGroup ?? "VIRTUAL");
-      const tail = group === "ATL_LOCAL" ? tailAtl : tailVirtual;
-      const hook =
-        item.personalHook ??
-        verified.biography?.slice(0, 120) ??
-        item.whyMatchFit ??
-        "your recent training content";
-      const opener = instagramPersonalizedOpener(group, verified.username, hook);
-      const dmText = `${opener}${tail}`;
-      const row = await prisma.outreachInstagramLead.create({
-        data: {
-          handle: `@${verified.username}`,
-          profileUrl: verified.profileUrl,
-          niche: item.niche ?? "Fitness coaching",
-          targetGroup: group,
-          whyMatchFit: item.whyMatchFit ?? "Strong fit for Match Fit beta roster.",
-          likelihoodScore: clampScore(item.likelihoodScore),
-          notes:
-            [
-              item.notes,
-              verified.fullName ? `Verified as ${verified.fullName}` : null,
-              verified.verifiedVia === "html" ? "Verified via public profile page." : null,
-            ]
-              .filter(Boolean)
-              .join(" · ") || null,
-          dmText,
-          commentText: item.commentText ?? `Love the work you're putting in 🔥`,
-          commentPostRef: item.commentPostRef ?? "Latest post",
-          genericInviteTail: tail,
-          generationBatchId: batchId,
-          createdByAdminId: adminId,
-        },
-      });
-      return { kind: "created" as const, row };
-    });
-
-    for (const result of verifiedRows) {
-      if (result.kind === "created") created.push(result.row);
-      else rejectedSamples.push({ handle: result.handle, reason: result.reason });
+      if (normalized) aiByUsername.set(normalized.username, item);
     }
 
-    await prisma.outreachDailyTemplate.createMany({
-      data: [
-        { platform: "instagram", targetGroup: "ATL_LOCAL", genericInviteTail: tailAtl, generationBatchId: `${batchId}_atl` },
-        { platform: "instagram", targetGroup: "VIRTUAL", genericInviteTail: tailVirtual, generationBatchId: `${batchId}_virt` },
-      ],
-      skipDuplicates: true,
-    });
+    const created = [];
+    const rejectedSamples: { handle: string; reason: string }[] = [];
+
+    for (const seed of seeds) {
+      const item = aiByUsername.get(seed.username.toLowerCase());
+      const group = normalizeGroup(item?.targetGroup ?? seed.targetGroup);
+      const tail = group === "ATL_LOCAL" ? tailAtl : tailVirtual;
+      const hook = item?.personalHook ?? item?.whyMatchFit ?? seed.niche ?? "your recent training content";
+      const opener = instagramPersonalizedOpener(group, seed.username, hook);
+      const dmText = item?.dmText?.trim() ? item.dmText : `${opener}${tail}`;
+
+      try {
+        const row = await prisma.outreachInstagramLead.create({
+          data: {
+            handle: seed.handle,
+            profileUrl: seed.profileUrl,
+            niche: item?.niche ?? seed.niche,
+            targetGroup: group,
+            whyMatchFit: item?.whyMatchFit ?? `Strong fit for Match Fit — ${seed.displayName} audience aligns with our trainer roster.`,
+            likelihoodScore: clampScore(item?.likelihoodScore),
+            notes: [item?.notes, "Pre-verified seed account."].filter(Boolean).join(" · ") || null,
+            dmText,
+            commentText: item?.commentText ?? `Love the work you're putting in 🔥`,
+            commentPostRef: item?.commentPostRef ?? "Latest post",
+            genericInviteTail: tail,
+            generationBatchId: batchId,
+            createdByAdminId: adminId,
+          },
+        });
+        created.push(row);
+      } catch (e) {
+        console.error("[outreach-ai] Failed to save Instagram seed lead:", seed.username, e);
+        rejectedSamples.push({
+          handle: seed.handle,
+          reason: "Could not save lead to database.",
+        });
+      }
+    }
+
+    if (seeds.length === 0) {
+      rejectedSamples.push({ handle: "batch", reason: "No seed profiles selected." });
+    } else if (created.length === 0 && aiItems.length === 0) {
+      rejectedSamples.push({
+        handle: seeds[0]?.handle ?? "batch",
+        reason: "AI did not return parseable outreach copy.",
+      });
+    }
+
+    try {
+      await prisma.outreachDailyTemplate.createMany({
+        data: [
+          {
+            platform: "instagram",
+            targetGroup: "ATL_LOCAL",
+            genericInviteTail: tailAtl,
+            generationBatchId: `${batchId}_atl`,
+          },
+          {
+            platform: "instagram",
+            targetGroup: "VIRTUAL",
+            genericInviteTail: tailVirtual,
+            generationBatchId: `${batchId}_virt`,
+          },
+        ],
+        skipDuplicates: true,
+      });
+    } catch (e) {
+      console.warn("[outreach-ai] outreachDailyTemplate createMany skipped:", e);
+    }
+
     return {
       leads: created,
       verification: {
-        parsed: items.length,
+        parsed: seeds.length,
         saved: created.length,
-        rejected: Math.max(0, items.length - created.length),
+        rejected: Math.max(0, seeds.length - created.length),
         rejectedSamples: rejectedSamples.slice(0, 8),
       },
     };

@@ -109,7 +109,8 @@ async function verifyInstagramProfileViaHtml(username: string): Promise<Instagra
     const hasProfileMarker =
       html.includes(`"username":"${normalized}"`) ||
       html.includes(`instagram.com/${normalized}`) ||
-      html.includes('"profilePage_"');
+      html.includes("profilePage") ||
+      (html.length > 50_000 && html.includes(normalized) && !html.includes("login"));
 
     if (!res.ok || !hasProfileMarker) {
       return null;
