@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getAdminAiProviderStatus } from "@/lib/admin-analytics-ai";
+import { getAdminAiProviderStatusAsync } from "@/lib/admin-analytics-ai";
 import { buildOutreachLearningContext } from "@/lib/outreach-learning";
 import {
   genericInviteTail,
@@ -64,7 +64,7 @@ export type GeneratedOtherLead = {
 };
 
 async function callAi(system: string, user: string): Promise<string | null> {
-  const status = getAdminAiProviderStatus();
+  const status = await getAdminAiProviderStatusAsync();
   if (!status.configured) return null;
 
   if (status.provider === "anthropic") {

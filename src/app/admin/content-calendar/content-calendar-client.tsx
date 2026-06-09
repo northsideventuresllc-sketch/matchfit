@@ -335,7 +335,7 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
         {!props.aiStatus.niBrain ? (
           <AdminPortalAlert variant="info">
             NI Brain Supabase keys are not set. Add NI_BRAIN_SUPABASE_URL and NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY to
-            persist schedules and learning.
+            Vercel production env or store them in platform_secrets (via bootstrap script), then redeploy.
           </AdminPortalAlert>
         ) : null}
 

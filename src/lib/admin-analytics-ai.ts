@@ -1,5 +1,7 @@
 import "server-only";
 
+import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
+
 import {
   sanitizeAssistantMessageForDisplay,
   type AdminAiAction,
@@ -158,7 +160,7 @@ function providerDisplayName(provider: AdminAiProviderId): string {
   return provider === "anthropic" ? "Anthropic (Claude)" : "OpenAI";
 }
 
-/** Sync env check for server pages and outreach/content AI helpers (no live probe). */
+/** Sync env check for server pages and outreach/content AI helpers (no live probe). Prefer {@link getAdminAiProviderStatusAsync} when platform_secrets may hold keys. */
 export function getAdminAiProviderStatus(): AdminAiProviderStatus {
   const provider = resolveAdminAiProvider();
   if (!provider) {
@@ -183,6 +185,11 @@ export function getAdminAiProviderStatus(): AdminAiProviderStatus {
       ? `${providerDisplayName(provider)} is configured for admin analytics.`
       : `${providerDisplayName(provider)} is not fully configured.`,
   };
+}
+
+export async function getAdminAiProviderStatusAsync(): Promise<AdminAiProviderStatus> {
+  await hydratePlatformEnvFromDatabase();
+  return getAdminAiProviderStatus();
 }
 
 async function probeAnthropicProvider(model: string, key: string): Promise<AdminAiProviderStatus> {
@@ -363,6 +370,7 @@ function fallbackForAction(
 }
 
 export async function probeAdminAiProvider(): Promise<AdminAiProviderStatus> {
+  await hydratePlatformEnvFromDatabase();
   const provider = resolveAdminAiProvider();
 
   if (!provider) {
@@ -511,6 +519,7 @@ export async function runAdminAnalyticsAi(args: {
   traffic: AdminTrafficSnapshot;
   history?: HistoryTurn[];
 }): Promise<string> {
+  await hydratePlatformEnvFromDatabase();
   const goals = await prisma.adminGoal.findMany({
     where: { administratorId: args.administratorId, status: "ACTIVE" },
     orderBy: { createdAt: "desc" },
