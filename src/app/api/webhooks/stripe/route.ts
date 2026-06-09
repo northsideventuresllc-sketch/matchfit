@@ -81,6 +81,8 @@ export async function POST(req: Request) {
           await applyTrainerSignupPlatformHoldAuthorized({
             trainerId,
             paymentIntentId: pi.id,
+            pendingBackgroundCheckEscrowPaymentIntentId:
+              pi.metadata?.backgroundCheckPaymentIntentId?.trim() || null,
             paidCents,
             pricingMode,
           });

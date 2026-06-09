@@ -77,6 +77,31 @@ async function createManualCapturePaymentIntent(args: {
   return { clientSecret: pi.client_secret, paymentIntentId: pi.id };
 }
 
+/** Creates only the background-check escrow PaymentIntent (manual capture). */
+export async function createTrainerSignupBackgroundEscrowPaymentIntent(args: {
+  trainerId: string;
+  email: string;
+  pricingMode: TrainerRegistrationPricingMode;
+}): Promise<{ clientSecret: string; paymentIntentId: string; holdCents: number }> {
+  const split = computeTrainerSignupEscrowSplit(args.pricingMode);
+  const holdCents = computeTrainerSignupBackgroundEscrowHoldCents(args.pricingMode);
+  const escrowMeta = signupEscrowMetadata(args.pricingMode);
+  const pi = await createManualCapturePaymentIntent({
+    amountCents: holdCents,
+    email: args.email,
+    metadata: {
+      purpose: TRAINER_SIGNUP_BG_ESCROW_PURPOSE,
+      trainerId: args.trainerId,
+      pricingMode: args.pricingMode,
+      holdSlice: "background_check",
+      backgroundCheckEscrowCents: String(split.backgroundCheckEscrowCents),
+      backgroundCheckHoldCents: String(holdCents),
+      ...escrowMeta,
+    },
+  });
+  return { ...pi, holdCents };
+}
+
 /** Creates separate platform + background-check holds so each slice can be captured independently. */
 export async function createTrainerSignupFeeHoldPaymentIntents(args: {
   trainerId: string;
@@ -88,6 +113,8 @@ export async function createTrainerSignupFeeHoldPaymentIntents(args: {
   const backgroundCheckHoldCents = computeTrainerSignupBackgroundEscrowHoldCents(args.pricingMode);
   const escrowMeta = signupEscrowMetadata(args.pricingMode);
 
+  const backgroundCheck = await createTrainerSignupBackgroundEscrowPaymentIntent(args);
+
   const platform = await createManualCapturePaymentIntent({
     amountCents: platformHoldCents,
     email: args.email,
@@ -98,20 +125,7 @@ export async function createTrainerSignupFeeHoldPaymentIntents(args: {
       holdSlice: "platform",
       platformEscrowCents: String(split.platformEscrowCents),
       platformHoldCents: String(platformHoldCents),
-      ...escrowMeta,
-    },
-  });
-
-  const backgroundCheck = await createManualCapturePaymentIntent({
-    amountCents: backgroundCheckHoldCents,
-    email: args.email,
-    metadata: {
-      purpose: TRAINER_SIGNUP_BG_ESCROW_PURPOSE,
-      trainerId: args.trainerId,
-      pricingMode: args.pricingMode,
-      holdSlice: "background_check",
-      backgroundCheckEscrowCents: String(split.backgroundCheckEscrowCents),
-      backgroundCheckHoldCents: String(backgroundCheckHoldCents),
+      backgroundCheckPaymentIntentId: backgroundCheck.paymentIntentId,
       ...escrowMeta,
     },
   });
@@ -121,6 +135,7 @@ export async function createTrainerSignupFeeHoldPaymentIntents(args: {
     platformPaymentIntentId: platform.paymentIntentId,
     backgroundCheckClientSecret: backgroundCheck.clientSecret,
     backgroundCheckPaymentIntentId: backgroundCheck.paymentIntentId,
+    backgroundCheckHoldCents: backgroundCheck.holdCents,
     baseCents: split.baseCents,
     totalCents: computeTrainerSignupCombinedHoldCents(args.pricingMode),
     platformHoldCents,

@@ -1,8 +1,15 @@
 import type { TrainerRegistrationPricingMode } from "@/lib/match-fit-launch-promotion-caps";
 import { getAppOrigin } from "@/lib/app-origin";
+import { feeMetadataFromBreakdown } from "@/lib/stripe-checkout-line-items";
 import { getStripe } from "@/lib/stripe-server";
 import {
-  createTrainerSignupFeeHoldPaymentIntents,
+  computeTrainerSignupBackgroundEscrowHoldCents,
+  computeTrainerSignupEscrowSplit,
+  computeTrainerSignupPlatformHoldCents,
+  signupEscrowMetadata,
+} from "@/lib/trainer-signup-escrow";
+import {
+  createTrainerSignupBackgroundEscrowPaymentIntent,
   TRAINER_SIGNUP_BG_ESCROW_PURPOSE,
   TRAINER_SIGNUP_PLATFORM_HOLD_PURPOSE,
 } from "@/lib/trainer-signup-fee-hold";
@@ -28,7 +35,12 @@ export async function createTrainerSignupFeeHoldCheckoutSession(args: {
     throw new Error("Trainer account email is missing or invalid for Stripe checkout.");
   }
 
-  const intents = await createTrainerSignupFeeHoldPaymentIntents({
+  const split = computeTrainerSignupEscrowSplit(args.pricingMode);
+  const platformHoldCents = computeTrainerSignupPlatformHoldCents(args.pricingMode);
+  const backgroundCheckHoldCents = computeTrainerSignupBackgroundEscrowHoldCents(args.pricingMode);
+  const escrowMeta = signupEscrowMetadata(args.pricingMode);
+
+  const backgroundCheck = await createTrainerSignupBackgroundEscrowPaymentIntent({
     trainerId: args.trainerId,
     email,
     pricingMode: args.pricingMode,
@@ -40,6 +52,23 @@ export async function createTrainerSignupFeeHoldCheckoutSession(args: {
       ? "Founding coach signup fee hold"
       : "Trainer signup fee hold";
 
+  const paymentIntentMetadata = {
+    purpose: TRAINER_SIGNUP_PLATFORM_HOLD_PURPOSE,
+    trainerId: args.trainerId,
+    pricingMode: args.pricingMode,
+    holdSlice: "platform",
+    platformEscrowCents: String(split.platformEscrowCents),
+    platformHoldCents: String(platformHoldCents),
+    backgroundCheckPaymentIntentId: backgroundCheck.paymentIntentId,
+    ...escrowMeta,
+    ...feeMetadataFromBreakdown({
+      baseCents: split.platformEscrowCents,
+      adminCents: 0,
+      processingCents: platformHoldCents - split.platformEscrowCents,
+      totalChargedCents: platformHoldCents,
+    }),
+  };
+
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer_email: email,
@@ -49,7 +78,7 @@ export async function createTrainerSignupFeeHoldCheckoutSession(args: {
         quantity: 1,
         price_data: {
           currency: "usd",
-          unit_amount: intents.platformHoldCents,
+          unit_amount: platformHoldCents,
           product_data: {
             name: "Match Fit trainer platform onboarding authorization",
             description: `${modeLabel}. Match Fit captures the platform portion only after certification and background screening are approved.`,
@@ -57,12 +86,16 @@ export async function createTrainerSignupFeeHoldCheckoutSession(args: {
         },
       },
     ],
-    payment_intent: intents.platformPaymentIntentId,
+    payment_intent_data: {
+      capture_method: "manual",
+      receipt_email: email,
+      metadata: paymentIntentMetadata,
+    },
     metadata: {
       purpose: TRAINER_SIGNUP_PLATFORM_HOLD_PURPOSE,
       trainerId: args.trainerId,
       pricingMode: args.pricingMode,
-      backgroundCheckPaymentIntentId: intents.backgroundCheckPaymentIntentId,
+      backgroundCheckPaymentIntentId: backgroundCheck.paymentIntentId,
     },
     success_url: `${origin}/trainer/signup/payment/return?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/trainer/signup/payment?canceled=1`,
@@ -74,9 +107,9 @@ export async function createTrainerSignupFeeHoldCheckoutSession(args: {
 
   return {
     url: session.url,
-    baseCents: intents.baseCents,
-    totalCents: intents.totalCents,
-    backgroundCheckPaymentIntentId: intents.backgroundCheckPaymentIntentId,
+    baseCents: split.baseCents,
+    totalCents: platformHoldCents + backgroundCheckHoldCents,
+    backgroundCheckPaymentIntentId: backgroundCheck.paymentIntentId,
   };
 }
 
