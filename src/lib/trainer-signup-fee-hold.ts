@@ -110,7 +110,6 @@ export async function createTrainerSignupFeeHoldPaymentIntents(args: {
 }): Promise<TrainerSignupFeeHoldIntents> {
   const split = computeTrainerSignupEscrowSplit(args.pricingMode);
   const platformHoldCents = computeTrainerSignupPlatformHoldCents(args.pricingMode);
-  const backgroundCheckHoldCents = computeTrainerSignupBackgroundEscrowHoldCents(args.pricingMode);
   const escrowMeta = signupEscrowMetadata(args.pricingMode);
 
   const backgroundCheck = await createTrainerSignupBackgroundEscrowPaymentIntent(args);
