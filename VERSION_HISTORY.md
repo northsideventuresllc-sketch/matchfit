@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-09** `1.4.11-beta` → `1.4.12-beta` (**patch** — Exclude QA test accounts (jibbyjam22) from all member metrics; count owner client + real pending trainers)
 - **2026-06-09** `1.4.10-beta` → `1.4.11-beta` (**patch** — Count pending trainers toward platform totals and beta slot usage)
 - **2026-06-09** `1.4.9-beta` → `1.4.10-beta` (**patch** — Fix duplicate backgroundCheckHoldCents build error; improve Outreach HQ AI lead quality with few-shot examples and deduplication across deleted leads)
 - **2026-06-09** `1.4.8-beta` → `1.4.9-beta` (**patch** — Admin directory shows deidentified and dev-cert trainers; fix pending pipeline visibility)

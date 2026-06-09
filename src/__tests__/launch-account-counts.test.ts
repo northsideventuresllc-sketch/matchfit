@@ -68,22 +68,22 @@ describe("launch account count exclusions", () => {
     expect(where.internalQaSyntheticPersona).toBe(false);
     expect(where.NOT?.OR).toEqual(
       expect.arrayContaining([
-        { username: { in: expect.arrayContaining(["jbfitness6299"]), mode: "insensitive" } },
+        { username: { in: expect.arrayContaining(["jibbyjam22"]), mode: "insensitive" } },
       ]),
     );
   });
 
-  it("always excludes owner dev/test clients jbfitness6299 and jonnybronny from launch counts", () => {
+  it("always excludes owner dev/test clients from launch counts but keeps owner client jbfitness6299", () => {
     expect(getLaunchExcludeUsernames("client")).toEqual(
-      expect.arrayContaining(["jbfitness6299", "jonnybronny"]),
+      expect.arrayContaining(["jibbyjam22", "jonnybronny22", "twofa_tester"]),
     );
-    expect(getLaunchExcludeEmails("client")).toContain("jonnybooth22@gmail.com");
+    expect(getLaunchExcludeUsernames("client")).not.toContain("jbfitness6299");
+    expect(getLaunchExcludeEmails("client")).not.toContain("jonnybooth22@gmail.com");
 
     const clientWhere = launchClientCountWhere();
     expect(clientWhere.NOT).toEqual({
       OR: expect.arrayContaining([
-        { username: { in: expect.arrayContaining(["jbfitness6299", "jonnybronny"]), mode: "insensitive" } },
-        { email: { in: expect.arrayContaining(["jonnybooth22@gmail.com"]) } },
+        { username: { in: expect.arrayContaining(["jibbyjam22", "jonnybronny22"]), mode: "insensitive" } },
       ]),
     });
   });
@@ -105,12 +105,12 @@ describe("launch account count exclusions", () => {
 
     expect(getLaunchExcludeEmails()).toEqual(
       expect.arrayContaining([
-        "jonnybooth22@gmail.com",
         "staff@example.com",
         "coach@dev.com",
         "member@dev.com",
       ]),
     );
+    expect(getLaunchExcludeEmails()).not.toContain("jonnybooth22@gmail.com");
   });
 
   it("launch count filters exclude synthetic personas, builtins, and internal emails", () => {
@@ -129,9 +129,9 @@ describe("launch account count exclusions", () => {
       expect.arrayContaining([
         { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" } },
         { email: { endsWith: ".invalid", mode: "insensitive" } },
-        { email: { in: expect.arrayContaining(["jonnybooth22@gmail.com", "qa-coach@example.com"]) } },
+        { email: { in: expect.arrayContaining(["qa-coach@example.com"]) } },
         { username: { startsWith: "mfqst_", mode: "insensitive" } },
-        { username: { startsWith: "coachjonny22", mode: "insensitive" } },
+        { username: { in: expect.arrayContaining(["coachjonny22", "jibbyjam22"]), mode: "insensitive" } },
       ]),
     );
 
@@ -140,8 +140,7 @@ describe("launch account count exclusions", () => {
     expect(clientWhere.NOT?.OR).toEqual(
       expect.arrayContaining([
         { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" } },
-        { email: { in: expect.arrayContaining(["jonnybooth22@gmail.com"]) } },
-        { username: { startsWith: "jbfitness6299", mode: "insensitive" } },
+        { username: { in: expect.arrayContaining(["jibbyjam22", "jonnybronny22"]), mode: "insensitive" } },
       ]),
     );
   });

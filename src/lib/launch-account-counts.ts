@@ -7,6 +7,10 @@ import {
   getMatchFitLaunchExcludeTrainerUsernames,
   MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX,
 } from "@/lib/match-fit-launch-exclude-accounts";
+import {
+  MATCH_FIT_EXCLUDE_NON_PRODUCTION_CLIENT_USERNAMES,
+  MATCH_FIT_EXCLUDE_NON_PRODUCTION_TRAINER_USERNAMES,
+} from "@/lib/match-fit-production-member-excludes";
 
 export const INTERNAL_SYNTHETIC_EMAIL_SUFFIX = "@internal.match-fit.invalid";
 
@@ -52,9 +56,9 @@ function launchUsernameInExcludeOr(usernames: string[]): AnyWhereOrItem[] {
 export const SYNTHETIC_TRAINER_USERNAME_PREFIX = "mfqst_";
 export const SYNTHETIC_CLIENT_USERNAME_PREFIX = "mfqsc_";
 
-const BUILTIN_LAUNCH_EXCLUDE_CLIENT_USERNAMES = ["jbfitness6299", "jonnybronny"] as const;
-const BUILTIN_LAUNCH_EXCLUDE_CLIENT_EMAILS = ["jonnybooth22@gmail.com"] as const;
-const BUILTIN_LAUNCH_EXCLUDE_TRAINER_USERNAMES = ["coachjonny22"] as const;
+const BUILTIN_LAUNCH_EXCLUDE_CLIENT_USERNAMES = [...MATCH_FIT_EXCLUDE_NON_PRODUCTION_CLIENT_USERNAMES] as const;
+const BUILTIN_LAUNCH_EXCLUDE_CLIENT_EMAILS = [] as const;
+const BUILTIN_LAUNCH_EXCLUDE_TRAINER_USERNAMES = [...MATCH_FIT_EXCLUDE_NON_PRODUCTION_TRAINER_USERNAMES] as const;
 const BUILTIN_LAUNCH_EXCLUDE_TRAINER_EMAILS = ["jb@northsideventuresgroup.com"] as const;
 
 export function getLaunchExcludeUsernames(role?: "client" | "trainer"): string[] {

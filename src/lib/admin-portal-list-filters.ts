@@ -13,10 +13,14 @@ import {
   getMatchFitLaunchExcludeTrainerUsernames,
   MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX,
 } from "@/lib/match-fit-launch-exclude-accounts";
+import {
+  MATCH_FIT_ADMIN_REDACT_CLIENT_USERNAMES,
+  MATCH_FIT_ADMIN_REDACT_TRAINER_USERNAMES,
+} from "@/lib/match-fit-production-member-excludes";
 
-/** Owner QA portals — hidden from admin signup log, member search, and pipeline counts. */
-export const ADMIN_OWNER_TEST_CLIENT_USERNAMES = ["jbfitness6299", "jonnybronny22"] as const;
-export const ADMIN_OWNER_TEST_TRAINER_USERNAMES = ["coachjonny22"] as const;
+/** Owner QA portals — email redacted in admin member search only (still counted if real). */
+export const ADMIN_OWNER_TEST_CLIENT_USERNAMES = MATCH_FIT_ADMIN_REDACT_CLIENT_USERNAMES;
+export const ADMIN_OWNER_TEST_TRAINER_USERNAMES = MATCH_FIT_ADMIN_REDACT_TRAINER_USERNAMES;
 
 export const ADMIN_REDACTED_EMAIL_LABEL = "Email hidden (owner test account)";
 
@@ -43,21 +47,11 @@ function launchExcludeEmailsLower(): string[] {
 }
 
 function launchExcludeClientUsernamesForAdminPortal(): string[] {
-  return [
-    ...new Set([
-      ...getMatchFitLaunchExcludeClientUsernames().map((u) => u.toLowerCase()),
-      ...OWNER_CLIENT_USERNAMES_LOWER,
-    ]),
-  ];
+  return [...new Set(getMatchFitLaunchExcludeClientUsernames().map((u) => u.toLowerCase()))];
 }
 
 function launchExcludeTrainerUsernamesForAdminPortal(): string[] {
-  return [
-    ...new Set([
-      ...getMatchFitLaunchExcludeTrainerUsernames().map((u) => u.toLowerCase()),
-      ...OWNER_TRAINER_USERNAMES_LOWER,
-    ]),
-  ];
+  return [...new Set(getMatchFitLaunchExcludeTrainerUsernames().map((u) => u.toLowerCase()))];
 }
 
 function emailPatternExcludeOr(): Prisma.ClientWhereInput[] {
@@ -96,24 +90,12 @@ function fakeTrainerOr(): Prisma.TrainerWhereInput[] {
   ];
 }
 
-function ownerClientUsernameExcludeOr(): Prisma.ClientWhereInput[] {
-  return ADMIN_OWNER_TEST_CLIENT_USERNAMES.map((username) => ({
-    username: { equals: username, mode: "insensitive" as const },
-  }));
-}
-
-function ownerTrainerUsernameExcludeOr(): Prisma.TrainerWhereInput[] {
-  return ADMIN_OWNER_TEST_TRAINER_USERNAMES.map((username) => ({
-    username: { equals: username, mode: "insensitive" as const },
-  }));
-}
-
 function adminPortalClientListWhereBase(includeSyntheticColumn: boolean): Prisma.ClientWhereInput {
   return {
     deidentifiedAt: null,
     ...(includeSyntheticColumn ? { internalQaSyntheticPersona: false } : {}),
     NOT: {
-      OR: [...fakeClientOr(), ...ownerClientUsernameExcludeOr()],
+      OR: [...fakeClientOr()],
     },
   };
 }
@@ -126,7 +108,7 @@ function adminPortalTrainerListWhereBase(
     ...(includeDeidentified ? {} : { deidentifiedAt: null }),
     ...(includeSyntheticColumn ? { internalQaSyntheticPersona: false } : {}),
     NOT: {
-      OR: [...fakeTrainerOr(), ...ownerTrainerUsernameExcludeOr()],
+      OR: [...fakeTrainerOr()],
     },
   };
 }

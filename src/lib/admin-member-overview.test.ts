@@ -38,21 +38,22 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/launch-account-counts", () => ({
-  countLaunchPlatformSubscribers: mockCountLaunchPlatformSubscribers,
-  launchClientBillingGraceWhere: mockLaunchClientBillingGraceWhere,
-  launchClientCountWhere: mockLaunchClientCountWhere,
-  launchClientFreeTrialCountWhere: mockLaunchClientFreeTrialCountWhere,
-  launchClientPlatformPaymentGraceWhere: mockLaunchClientPlatformPaymentGraceWhere,
-  launchTrainerCountWhere: mockLaunchTrainerCountWhere,
-}));
+vi.mock("@/lib/launch-account-counts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/launch-account-counts")>();
+  return {
+    ...actual,
+    countLaunchPlatformSubscribers: mockCountLaunchPlatformSubscribers,
+    launchClientBillingGraceWhere: mockLaunchClientBillingGraceWhere,
+    launchClientCountWhere: mockLaunchClientCountWhere,
+    launchClientFreeTrialCountWhere: mockLaunchClientFreeTrialCountWhere,
+    launchClientPlatformPaymentGraceWhere: mockLaunchClientPlatformPaymentGraceWhere,
+    launchTrainerCountWhere: mockLaunchTrainerCountWhere,
+    launchPendingTrainerWhere: vi.fn(() => ({ __tag: "launch-pending" })),
+  };
+});
 
 vi.mock("@/lib/home-user-counts", () => ({
   getHomeUserCounts: mockGetHomeUserCounts,
-}));
-
-vi.mock("@/lib/admin-portal-list-filters", () => ({
-  adminPendingTrainerWhere: vi.fn(() => ({ __tag: "admin-pending" })),
 }));
 
 vi.mock("@/lib/prisma-missing-column", () => ({
@@ -79,9 +80,14 @@ describe("admin-member-overview", () => {
       trainersPending: 4,
     });
     mockCountLaunchPlatformSubscribers.mockResolvedValue(12);
-    mockClientCount.mockResolvedValue(0);
+    mockClientCount.mockImplementation((args?: { where?: Record<string, unknown> }) => {
+      const w = args?.where;
+      if (w && "freeTrial" in w && w.freeTrial === true) return Promise.resolve(7);
+      if (w && w.stripeSubscriptionActive === false) return Promise.resolve(9);
+      return Promise.resolve(40);
+    });
     mockTrainerCount.mockImplementation((args?: { where?: Record<string, unknown> }) => {
-      if (args?.where?.__tag === "admin-pending") return Promise.resolve(4);
+      if (args?.where?.__tag === "launch-pending") return Promise.resolve(4);
       const profileIs = (args?.where?.profile as { is?: { dashboardActivatedAt?: { not?: unknown } } } | undefined)?.is;
       if (profileIs && "dashboardActivatedAt" in profileIs && "not" in (profileIs.dashboardActivatedAt ?? {})) {
         return Promise.resolve(30);
@@ -93,10 +99,6 @@ describe("admin-member-overview", () => {
   });
 
   it("builds admin member overview metrics from launch and analytics data", async () => {
-    mockClientCount
-      .mockResolvedValueOnce(40) // activeClients in countTotalActiveMembers
-      .mockResolvedValueOnce(7) // freeTrialClients
-      .mockResolvedValueOnce(9); // inactiveClients
     mockQueryRaw.mockResolvedValueOnce([{ n: BigInt(99) }]);
 
     const result = await getAdminMemberOverviewPanel(new Date("2026-06-09T12:00:00.000Z"));

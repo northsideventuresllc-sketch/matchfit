@@ -21,7 +21,7 @@ describe("admin portal list filters", () => {
     expect(clientFakeOr).toEqual(
       expect.arrayContaining([
         { username: { startsWith: "mfqsc_", mode: "insensitive" } },
-        { username: { equals: "jbfitness6299", mode: "insensitive" } },
+        { username: { equals: "jibbyjam22", mode: "insensitive" } },
         { username: { equals: "jonnybronny22", mode: "insensitive" } },
         { username: { equals: "twofa_tester", mode: "insensitive" } },
       ]),
@@ -34,14 +34,16 @@ describe("admin portal list filters", () => {
         { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" } },
         { username: { startsWith: "mfqst_", mode: "insensitive" } },
         { username: { equals: "coachjonny22", mode: "insensitive" } },
+        { username: { equals: "jibbyjam22", mode: "insensitive" } },
       ]),
     );
   });
 
   it("redacts email only for owner test accounts", () => {
     expect(isAdminOwnerTestUsername("jbfitness6299", "client")).toBe(true);
+    expect(isAdminOwnerTestUsername("jibbyjam22", "client")).toBe(true);
     expect(isAdminOwnerTestUsername("coachjonny22", "trainer")).toBe(true);
-    expect(isAdminOwnerTestUsername("realuser", "client")).toBe(false);
+    expect(isAdminOwnerTestUsername("kmfitness", "trainer")).toBe(false);
 
     expect(redactEmailForAdminPortal("jonnybooth22@gmail.com", "jbfitness6299", "client")).toBe(
       ADMIN_REDACTED_EMAIL_LABEL,
@@ -53,7 +55,7 @@ describe("admin portal list filters", () => {
   });
 
   it("metrics and list SQL filters both exclude owner test accounts", () => {
-    expect(getLaunchExcludeUsernames("client")).toContain("jbfitness6299");
+    expect(getLaunchExcludeUsernames("client")).toContain("jibbyjam22");
     expect(getLaunchExcludeUsernames("trainer")).toContain("coachjonny22");
 
     const clientMetricsSql = buildLaunchMetricsClientSqlFilter("c").strings.join(" ");
