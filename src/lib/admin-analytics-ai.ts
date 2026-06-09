@@ -510,6 +510,12 @@ export async function getAdminAiHistory(
   }));
 }
 
+export const ADMIN_ANTHROPIC_MODEL_OPTIONS = [
+  { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
+  { id: "claude-opus-4-6", label: "Claude Opus 4.6" },
+  { id: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
+] as const;
+
 export async function runAdminAnalyticsAi(args: {
   action: AdminAiAction;
   administratorId: string;
@@ -518,6 +524,7 @@ export async function runAdminAnalyticsAi(args: {
   overview: AdminPortalOverview;
   traffic: AdminTrafficSnapshot;
   history?: HistoryTurn[];
+  modelOverride?: string;
 }): Promise<string> {
   await hydratePlatformEnvFromDatabase();
   const goals = await prisma.adminGoal.findMany({
@@ -582,7 +589,10 @@ export async function runAdminAnalyticsAi(args: {
     .slice(-12)
     .map((t) => ({ role: t.role, content: t.content }));
 
-  const model = resolveAdminAiModel(provider);
+  const model =
+    provider === "anthropic" && args.modelOverride?.trim()
+      ? args.modelOverride.trim()
+      : resolveAdminAiModel(provider);
   const text =
     provider === "anthropic"
       ? await callAnthropicMessages({

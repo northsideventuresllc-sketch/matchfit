@@ -5,6 +5,7 @@ import {
   CONTENT_CALENDAR_BRAND_FACTS,
   CONTENT_CALENDAR_DAYS_LONG,
   CONTENT_CALENDAR_PLATFORMS_BY_TYPE,
+  type ContentCalendarGeneratorPostType,
   type ContentCalendarPostType,
 } from "@/lib/content-calendar/constants";
 import { getContentCalendarRotation } from "@/lib/content-calendar/rotation";
@@ -132,8 +133,46 @@ Return ONLY JSON: {"hashtags":["tag1","tag2",...]} with 6-10 tags mixing broad f
   return tags.length ? tags : ["MatchFit", "AtlantaFitness", "PersonalTrainer", "FitnessApp", "BetaLaunch"];
 }
 
+export async function regenerateCalendarPost(args: {
+  weekStart: string;
+  offset: number;
+  dayIndex: number;
+  postType: ContentCalendarPostType;
+  feedback?: string;
+  existingCaption?: string;
+  existingVisualPrompt?: string | null;
+}): Promise<GeneratedWeekPost | null> {
+  const learning = await buildLearningContext();
+  const rot = getContentCalendarRotation(args.dayIndex, args.offset);
+  const targetGroup = rot[args.postType];
+  const platforms = CONTENT_CALENDAR_PLATFORMS_BY_TYPE[args.postType];
+  const system = `You are Match Fit's content calendar AI.
+${CONTENT_CALENDAR_BRAND_FACTS}
+${learning}
+Respond ONLY with JSON: {"caption":"","visualPrompt":null,"hashtags":["tag1"]}
+visualPrompt null only for Text posts.`;
+  const user = `Regenerate ${CONTENT_CALENDAR_DAYS_LONG[args.dayIndex]} ${args.postType} for ${targetGroup} (week ${args.weekStart}).
+Platforms: ${platforms}.
+${args.existingCaption ? `Previous caption:\n${args.existingCaption}` : ""}
+${args.existingVisualPrompt ? `Previous visual prompt:\n${args.existingVisualPrompt}` : ""}
+${args.feedback ? `Operator feedback — apply these changes:\n${args.feedback}` : "Improve hook, clarity, and hashtags while keeping the same intent."}`;
+  const text = await callAi(system, user, 2500);
+  const parsed = text ? parseJsonBlock<{ caption?: string; visualPrompt?: string | null; hashtags?: string[] }>(text) : null;
+  if (!parsed) return null;
+  return {
+    dayIndex: args.dayIndex,
+    postType: args.postType,
+    targetGroup,
+    platforms,
+    caption: parsed.caption ?? "",
+    visualPrompt: args.postType === "Text" ? null : (parsed.visualPrompt ?? ""),
+    hashtags: (parsed.hashtags ?? []).map((h) => String(h).replace(/^#/, "")),
+  };
+}
+
 export async function generateSinglePost(args: {
-  platform: string;
+  postType?: ContentCalendarGeneratorPostType;
+  platform?: string;
   contentType: string;
   tone: string;
   customNote?: string;
@@ -144,8 +183,12 @@ ${CONTENT_CALENDAR_BRAND_FACTS}
 ${learning}
 Generate authentic content — scroll-stopping hook, core message, CTA, platform hashtags.
 Respond ONLY with JSON: {"hook":"","body":"","cta":"","hashtags":["tag1"],"dmScript":""}`;
-  const user = `Generate a ${args.tone} ${args.contentType} post for ${args.platform}.
-${args.customNote ? `Context: ${args.customNote}` : ""}
+  const platformLabel =
+    args.postType
+      ? CONTENT_CALENDAR_PLATFORMS_BY_TYPE[args.postType]
+      : (args.platform ?? "Instagram");
+  const user = `Generate a ${args.tone} ${args.contentType} ${args.postType ? `${args.postType} ` : ""}post for ${platformLabel}.
+${args.customNote ? `Prompt: ${args.customNote}` : ""}
 Target: Atlanta trainers and clients. Goal: match-fit.net signups.`;
   const text = await callAi(system, user);
   return text ? parseJsonBlock(text) : null;

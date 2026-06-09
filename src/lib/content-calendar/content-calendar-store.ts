@@ -114,6 +114,22 @@ export async function reschedulePost(args: { postId: string; newDate: string }):
   if (error) throw new Error(error.message);
 }
 
+export async function deletePost(postId: string): Promise<void> {
+  const client = createNiBrainClient();
+  const { error } = await client.from("match_fit_content_calendar_posts").delete().eq("id", postId);
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteWeekPosts(weekStart: string): Promise<void> {
+  const client = createNiBrainClient();
+  const { error } = await client
+    .from("match_fit_content_calendar_posts")
+    .delete()
+    .eq("week_start", weekStart)
+    .eq("posted", false);
+  if (error) throw new Error(error.message);
+}
+
 export async function dismissMissedPrompt(postId: string): Promise<void> {
   const client = createNiBrainClient();
   const { error } = await client
