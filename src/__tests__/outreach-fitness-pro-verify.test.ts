@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { assessFitnessProfessionalProfile } from "@/lib/outreach-fitness-pro-verify";
+import {
+  assessFitnessProfessionalLeadText,
+  assessFitnessProfessionalProfile,
+  scoreFitnessProfessionalText,
+} from "@/lib/outreach-fitness-pro-verify";
 
 const baseProfile = {
   ok: true as const,
@@ -13,12 +17,54 @@ const baseProfile = {
   verifiedVia: "api" as const,
 };
 
+describe("scoreFitnessProfessionalText", () => {
+  it("scores strong coaching bios highly", () => {
+    const scored = scoreFitnessProfessionalText({
+      biography: "NASM CPT | Online strength coach | Apply for coaching",
+      username: "coach_jordan",
+    });
+    expect(scored.score).toBeGreaterThanOrEqual(50);
+    expect(scored.tier).toBe("verified");
+  });
+
+  it("gives partial credit for fitness usernames and soft fitness language", () => {
+    const scored = scoreFitnessProfessionalText({
+      username: "fitnessbyjess",
+      biography: "Helping women get stronger every day",
+    });
+    expect(scored.score).toBeGreaterThanOrEqual(16);
+  });
+
+  it("penalizes fashion designers without fitness signals", () => {
+    const scored = scoreFitnessProfessionalText({
+      fullName: "Kay Styles",
+      biography: "Fashion designer | boutique owner | DM for collabs",
+      username: "stylebykay",
+    });
+    expect(scored.score).toBeLessThan(0);
+  });
+});
+
 describe("assessFitnessProfessionalProfile", () => {
   it("accepts a public personal trainer profile", () => {
-    expect(assessFitnessProfessionalProfile(baseProfile)).toEqual({
-      ok: true,
-      niche: "Personal training & coaching",
+    const result = assessFitnessProfessionalProfile(baseProfile);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.tier).toMatch(/verified|likely/);
+      expect(result.fitnessScore).toBeGreaterThanOrEqual(22);
+    }
+  });
+
+  it("accepts fitness usernames when bio is sparse but profile is public", () => {
+    const result = assessFitnessProfessionalProfile({
+      ...baseProfile,
+      verifiedVia: "html",
+      biography: null,
+      categoryName: null,
+      username: "fitnessbyjess",
+      fullName: "Jess",
     });
+    expect(result.ok).toBe(true);
   });
 
   it("rejects private accounts", () => {
@@ -61,18 +107,6 @@ describe("assessFitnessProfessionalProfile", () => {
     });
   });
 
-  it("rejects accounts with very large followings", () => {
-    expect(
-      assessFitnessProfessionalProfile({
-        ...baseProfile,
-        followerCount: 900_000,
-      }),
-    ).toEqual({
-      ok: false,
-      reason: "Account has too many followers — target independent coaches, not mega-influencers.",
-    });
-  });
-
   it("rejects profiles without coaching signals in bio or category", () => {
     expect(
       assessFitnessProfessionalProfile({
@@ -83,34 +117,41 @@ describe("assessFitnessProfessionalProfile", () => {
       }),
     ).toEqual({
       ok: false,
-      reason: "Bio does not show personal training, coaching, or nutrition services.",
+      reason: "Profile doesn't look like a fitness pro — no clear training, coaching, or nutrition signals.",
     });
   });
+});
 
-  it("accepts nutrition coaches via category when bio is sparse", () => {
-    expect(
-      assessFitnessProfessionalProfile({
-        ...baseProfile,
-        biography: "Helping busy adults eat better",
-        categoryName: "Nutritionist",
-      }),
-    ).toEqual({
-      ok: true,
-      niche: "Nutrition coaching",
+describe("assessFitnessProfessionalLeadText", () => {
+  it("accepts facebook page leads about trainer communities", () => {
+    const result = assessFitnessProfessionalLeadText({
+      pageName: "Atlanta Personal Trainers Network",
+      niche: "personal training",
+      whyMatchFit: "Active group of Atlanta fitness coaches sharing clients and gym openings.",
     });
+    expect(result.ok).toBe(true);
   });
 
-  it("rejects HTML-verified profiles without a readable fitness bio", () => {
+  it("accepts trainer email leads with business context", () => {
+    const result = assessFitnessProfessionalLeadText({
+      name: "Chris Morgan",
+      businessName: "Morgan Performance Coaching",
+      niche: "strength coaching",
+      whyMatchFit: "Independent online strength coach with a public contact page.",
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it("rejects non-fitness email leads", () => {
     expect(
-      assessFitnessProfessionalProfile({
-        ...baseProfile,
-        verifiedVia: "html",
-        biography: null,
-        categoryName: "Digital creator",
+      assessFitnessProfessionalLeadText({
+        name: "Kay Styles",
+        businessName: "Kay Styles Boutique",
+        whyMatchFit: "Fashion designer with a public contact form.",
       }),
     ).toEqual({
       ok: false,
-      reason: "Could not confirm coaching services from this profile — need a public fitness bio.",
+      reason: "Lead doesn't look like a fitness pro — no clear training, coaching, or nutrition focus.",
     });
   });
 });

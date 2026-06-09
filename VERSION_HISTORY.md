@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-09** `1.4.5-beta` → `1.4.6-beta` (**patch**)
 - **2026-06-09** `1.4.4-beta` → `1.4.5-beta` (**patch**)
 - **2026-06-09** `1.4.3-beta` → `1.4.4-beta` (**patch** — Fix outreach lead generation and unblock deployment)
 - **2026-06-09** `1.4.2-beta` → `1.4.3-beta` (**patch** — Hydrate NI Brain and Anthropic keys from platform_secrets before admin AI status checks)

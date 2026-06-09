@@ -33,6 +33,10 @@ import {
   targetGroupLabel,
 } from "@/lib/outreach-types";
 import type { AdminAiProviderStatus } from "@/lib/admin-analytics-ai";
+import {
+  OUTREACH_PLATFORM_UI,
+  stageLabelForOutreachGenerate,
+} from "@/lib/outreach-platform-ui";
 
 type AnyLead = InstagramLeadRow | FacebookLeadRow | EmailLeadRow | OtherLeadRow;
 
@@ -60,17 +64,7 @@ function formatOutreachBatchLabel(batchId: string | null, leads: AnyLead[]): str
   return `${batchId} · ${leads.length} lead${leads.length === 1 ? "" : "s"}`;
 }
 
-function stageLabelForGenerateProgress(percent: number): string {
-  if (percent >= 100) return "Complete";
-  if (percent < 20) return "Starting AI lead research…";
-  if (percent < 38) return "Finding independent fitness pros…";
-  if (percent < 55) return "Verifying Instagram profiles…";
-  if (percent < 78) return "Checking coaching bio & niche fit…";
-  if (percent < 92) return "Drafting personalized outreach copy…";
-  return "Almost done…";
-}
-
-function OutreachGenerateProgressBar(props: { percent: number; stage: string }) {
+function OutreachGenerateProgressBar(props: { percent: number; stage: string; footnote: string }) {
   return (
     <div
       className="space-y-2 rounded-xl border border-[#FF7E00]/25 bg-[#FF7E00]/[0.06] p-4"
@@ -91,7 +85,7 @@ function OutreachGenerateProgressBar(props: { percent: number; stage: string }) 
           style={{ width: `${Math.max(0, Math.min(100, props.percent))}%` }}
         />
       </div>
-      <p className="text-[11px] text-white/45">This can take a minute while AI researches leads and verifies profiles.</p>
+      <p className="text-[11px] text-white/45">{props.footnote}</p>
     </div>
   );
 }
@@ -403,10 +397,7 @@ function PlatformTabPanel(props: {
       <section className={`${adminCardClass} space-y-4`}>
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Generate leads</p>
-          <p className="mt-2 text-sm text-white/55">
-            AI finds new fitness pro leads, skips ones already in the database, and drafts personalized outreach with a
-            shared invite tail for today&apos;s batch.
-          </p>
+          <p className="mt-2 text-sm text-white/55">{OUTREACH_PLATFORM_UI[props.platform].generateDescription}</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div>
@@ -446,7 +437,11 @@ function PlatformTabPanel(props: {
           </button>
         </div>
         {props.generating || props.generateProgress > 0 ? (
-          <OutreachGenerateProgressBar percent={props.generateProgress} stage={props.generateStage} />
+          <OutreachGenerateProgressBar
+            percent={props.generateProgress}
+            stage={props.generateStage}
+            footnote={OUTREACH_PLATFORM_UI[props.platform].progressFootnote}
+          />
         ) : null}
       </section>
 
@@ -454,7 +449,7 @@ function PlatformTabPanel(props: {
         <p className="text-sm text-white/45">Loading leads…</p>
       ) : activeLeads.length === 0 ? (
         <p className="rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-8 text-center text-sm text-white/45">
-          No active leads yet. Generate a batch to get started.
+          {OUTREACH_PLATFORM_UI[props.platform].emptyHint}
         </p>
       ) : (
         <div className="space-y-6">
@@ -595,14 +590,18 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
 
     const totalLeads = atlCount + virtualCount;
     const estimatedMs =
-      tab === "instagram" ? 14_000 + totalLeads * 2_800 : 9_000 + totalLeads * 450;
+      tab === "instagram"
+        ? 18_000 + totalLeads * 3_500 * 2
+        : tab === "facebook"
+          ? 12_000 + totalLeads * 900 * 2
+          : 10_000 + totalLeads * 700 * 2;
     const startedAt = Date.now();
 
     const timer = window.setInterval(() => {
       const elapsed = Date.now() - startedAt;
       const next = Math.min(92, Math.round((elapsed / estimatedMs) * 92));
       setGenerateProgress(next);
-      setGenerateStage(stageLabelForGenerateProgress(next));
+      setGenerateStage(stageLabelForOutreachGenerate(tab, next));
     }, 120);
 
     return () => window.clearInterval(timer);
@@ -613,7 +612,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     setError(null);
     setSuccessMessage(null);
     setGenerateProgress(0);
-    setGenerateStage(stageLabelForGenerateProgress(0));
+    setGenerateStage(stageLabelForOutreachGenerate(tab, 0));
     try {
       const res = await fetch("/api/admin/outreach/generate", {
         method: "POST",
@@ -638,18 +637,18 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
       if (leadCount === 0) {
         setError(
           data.message ??
-            (tab === "instagram" && data.verification?.parsed
-              ? `No leads saved. ${data.verification.rejected} profile(s) failed verification.`
+            (data.verification?.parsed
+              ? `No leads saved. ${data.verification.rejected} candidate(s) failed verification.`
               : "No leads were generated. Try again."),
         );
         setSuccessMessage(null);
       } else if (data.message) {
         setSuccessMessage(data.message);
         setError(null);
-      } else if (tab === "instagram" && data.verification) {
+      } else if (data.verification) {
         setSuccessMessage(
-          `Saved ${data.verification.saved} verified Instagram lead(s)${
-            data.verification.rejected > 0 ? ` (${data.verification.rejected} invalid profiles skipped)` : ""
+          `Saved ${data.verification.saved} verified lead(s)${
+            data.verification.rejected > 0 ? ` (${data.verification.rejected} skipped)` : ""
           }.`,
         );
         setError(null);
