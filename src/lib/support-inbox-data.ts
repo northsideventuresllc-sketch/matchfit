@@ -55,18 +55,29 @@ export async function storeSupportInboxMessage(args: {
   textBody?: string | null;
   htmlBody?: string | null;
 }): Promise<void> {
+  const data = {
+    fromEmail: args.fromEmail,
+    toEmail: args.toEmail,
+    subject: args.subject,
+    textBody: args.textBody ?? null,
+    htmlBody: args.htmlBody ?? null,
+    status: "unread" as const,
+  };
+
   try {
-    await prisma.supportInboxMessage.create({
-      data: {
-        resendEmailId: args.resendEmailId ?? null,
-        fromEmail: args.fromEmail,
-        toEmail: args.toEmail,
-        subject: args.subject,
-        textBody: args.textBody ?? null,
-        htmlBody: args.htmlBody ?? null,
-        status: "unread",
-      },
-    });
+    if (args.resendEmailId?.trim()) {
+      await prisma.supportInboxMessage.upsert({
+        where: { resendEmailId: args.resendEmailId },
+        create: { ...data, resendEmailId: args.resendEmailId },
+        update: {
+          ...data,
+          status: "unread",
+        },
+      });
+      return;
+    }
+
+    await prisma.supportInboxMessage.create({ data });
   } catch (e) {
     console.warn("[support inbox] failed to store message", e);
   }

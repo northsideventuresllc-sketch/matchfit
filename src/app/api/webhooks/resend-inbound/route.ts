@@ -1,51 +1,29 @@
 import { NextResponse } from "next/server";
-import { storeSupportInboxMessage } from "@/lib/support-inbox-data";
+import { processResendInboundWebhook, verifyResendInboundWebhook } from "@/lib/resend-inbound-webhook";
 
-const SUPPORT_ADDRESS = "support@match-fit.net";
-
-type ResendInboundPayload = {
-  type?: string;
-  data?: {
-    email_id?: string;
-    from?: string;
-    to?: string | string[];
-    subject?: string;
-    text?: string;
-    html?: string;
-  };
-};
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const secret = process.env.RESEND_INBOUND_WEBHOOK_SECRET?.trim();
-  if (secret) {
-    const auth = req.headers.get("authorization")?.trim();
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  const rawBody = await req.text();
+  if (!rawBody.trim()) {
+    return NextResponse.json({ error: "Empty body" }, { status: 400 });
   }
 
-  let payload: ResendInboundPayload;
-  try {
-    payload = (await req.json()) as ResendInboundPayload;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  const data = payload.data;
-  if (!data) return NextResponse.json({ ok: true });
-
-  const toList = Array.isArray(data.to) ? data.to : data.to ? [data.to] : [];
-  const isSupport = toList.some((t) => t.toLowerCase().includes(SUPPORT_ADDRESS));
-  if (!isSupport) return NextResponse.json({ ok: true, skipped: true });
-
-  await storeSupportInboxMessage({
-    resendEmailId: data.email_id ?? null,
-    fromEmail: data.from ?? "unknown",
-    toEmail: toList[0] ?? SUPPORT_ADDRESS,
-    subject: data.subject ?? "(no subject)",
-    textBody: data.text ?? null,
-    htmlBody: data.html ?? null,
+  const verified = verifyResendInboundWebhook(rawBody, {
+    svixId: req.headers.get("svix-id"),
+    svixTimestamp: req.headers.get("svix-timestamp"),
+    svixSignature: req.headers.get("svix-signature"),
   });
+  if (!verified) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  }
 
-  return NextResponse.json({ ok: true });
+  try {
+    const result = await processResendInboundWebhook(rawBody);
+    return NextResponse.json({ ok: true, ...result });
+  } catch (e) {
+    console.error("[resend inbound]", e);
+    return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
+  }
 }
