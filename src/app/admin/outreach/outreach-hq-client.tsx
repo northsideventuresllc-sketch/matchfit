@@ -60,10 +60,7 @@ function formatOutreachBatchLabel(batchId: string | null, leads: AnyLead[]): str
   return `${batchId} · ${leads.length} lead${leads.length === 1 ? "" : "s"}`;
 }
 
-function stageLabelForGenerateProgress(
-  percent: number,
-  platform: OutreachPlatform,
-): string {
+function stageLabelForGenerateProgress(percent: number): string {
   if (percent >= 100) return "Complete";
   if (percent < 20) return "Starting AI lead research…";
   if (percent < 42) return "Finding fitness pro leads…";
@@ -600,14 +597,11 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
       tab === "instagram" ? 14_000 + totalLeads * 2_800 : 9_000 + totalLeads * 450;
     const startedAt = Date.now();
 
-    setGenerateProgress(0);
-    setGenerateStage(stageLabelForGenerateProgress(0, tab));
-
     const timer = window.setInterval(() => {
       const elapsed = Date.now() - startedAt;
       const next = Math.min(92, Math.round((elapsed / estimatedMs) * 92));
       setGenerateProgress(next);
-      setGenerateStage(stageLabelForGenerateProgress(next, tab));
+      setGenerateStage(stageLabelForGenerateProgress(next));
     }, 120);
 
     return () => window.clearInterval(timer);
@@ -618,7 +612,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     setError(null);
     setSuccessMessage(null);
     setGenerateProgress(0);
-    setGenerateStage(stageLabelForGenerateProgress(0, tab));
+    setGenerateStage(stageLabelForGenerateProgress(0));
     try {
       const res = await fetch("/api/admin/outreach/generate", {
         method: "POST",

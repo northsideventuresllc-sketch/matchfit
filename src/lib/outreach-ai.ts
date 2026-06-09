@@ -418,7 +418,6 @@ async function persistGeneratedLeads(
 ): Promise<{ leads: unknown[]; verification?: OutreachLeadVerificationSummary }> {
   if (platform === "instagram") {
     const seeds = instagramSeeds ?? [];
-    const seedByUsername = new Map(seeds.map((s) => [s.username.toLowerCase(), s]));
     const aiItems = parseJsonArray<GeneratedInstagramLead & { personalHook?: string }>(raw);
     const aiByUsername = new Map<string, GeneratedInstagramLead & { personalHook?: string }>();
 

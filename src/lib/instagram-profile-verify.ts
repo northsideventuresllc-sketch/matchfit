@@ -58,7 +58,7 @@ export function normalizeInstagramLeadIdentity(input: {
   return { username, handle: `@${username}`, profileUrl };
 }
 
-function extractProfileFieldsFromHtml(html: string, username: string): {
+function extractProfileFieldsFromHtml(html: string): {
   fullName: string | null;
   biography: string | null;
   isPrivate: boolean;
@@ -116,7 +116,7 @@ async function verifyInstagramProfileViaHtml(username: string): Promise<Instagra
       return null;
     }
 
-    const fields = extractProfileFieldsFromHtml(html, normalized);
+    const fields = extractProfileFieldsFromHtml(html);
     return {
       ok: true,
       username: normalized,
