@@ -1,7 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getContentCalendarAiStatus } from "@/lib/content-calendar/content-calendar-ai";
-import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
+import { getContentCalendarAiStatusAsync } from "@/lib/content-calendar/content-calendar-ai";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/session";
 import { ContentCalendarClient } from "./content-calendar-client";
@@ -18,8 +17,7 @@ export default async function AdminContentCalendarPage() {
   });
   if (!adminRow) redirect("/admin/login");
 
-  await hydratePlatformEnvFromDatabase();
-  const aiStatus = getContentCalendarAiStatus();
+  const aiStatus = await getContentCalendarAiStatusAsync();
 
   return <ContentCalendarClient aiStatus={aiStatus} />;
 }

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getAdminAiProviderStatus } from "@/lib/admin-analytics-ai";
+import { getAdminAiProviderStatusAsync } from "@/lib/admin-analytics-ai";
 import {
   CONTENT_CALENDAR_BRAND_FACTS,
   CONTENT_CALENDAR_DAYS_LONG,
@@ -30,7 +30,7 @@ export type GeneratedWeekPost = GeneratedPostContent & {
 };
 
 async function callAi(system: string, user: string, maxTokens = 2000): Promise<string | null> {
-  const status = getAdminAiProviderStatus();
+  const status = await getAdminAiProviderStatusAsync();
   if (!status.configured) return null;
 
   if (status.provider === "anthropic") {
@@ -267,6 +267,17 @@ export async function generateStaticMedia(prompt: string): Promise<{ url: string
   return url ? { url } : null;
 }
 
+export async function getContentCalendarAiStatusAsync(): Promise<{
+  configured: boolean;
+  niBrain: boolean;
+  media: boolean;
+  message: string;
+}> {
+  const { hydratePlatformEnvFromDatabase } = await import("@/lib/hydrate-platform-env");
+  await hydratePlatformEnvFromDatabase();
+  return getContentCalendarAiStatus();
+}
+
 export function getContentCalendarAiStatus(): { configured: boolean; niBrain: boolean; media: boolean; message: string } {
   const ai = getAdminAiProviderStatus();
   const niBrain = Boolean(
@@ -275,7 +286,7 @@ export function getContentCalendarAiStatus(): { configured: boolean; niBrain: bo
   const media = Boolean(process.env.OPENAI_API_KEY?.trim());
   const parts: string[] = [];
   if (!ai.configured) parts.push("Add ANTHROPIC_API_KEY or OPENAI_API_KEY for generation.");
-  if (!niBrain) parts.push("Add NI Brain Supabase keys for learning persistence.");
+  if (!niBrain) parts.push("Add NI Brain Supabase keys (Vercel env or platform_secrets) for learning persistence.");
   if (!media) parts.push("Add OPENAI_API_KEY for static image generation.");
   return {
     configured: ai.configured,

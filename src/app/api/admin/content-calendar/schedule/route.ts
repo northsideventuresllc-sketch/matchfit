@@ -6,14 +6,13 @@ import {
   serializePostForClient,
   upsertWeekPosts,
 } from "@/lib/content-calendar/content-calendar-store";
-import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
-import { isNiBrainConfigured } from "@/lib/ni-brain-client";
+import { isNiBrainConfiguredAsync } from "@/lib/ni-brain-client";
 import { requireAdminSession } from "@/lib/require-admin";
 
 export async function GET(req: Request) {
   const sess = await requireAdminSession();
   if (!sess) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-  if (!isNiBrainConfigured()) {
+  if (!(await isNiBrainConfiguredAsync())) {
     return NextResponse.json({ error: "NI Brain is not configured on the server." }, { status: 503 });
   }
 
@@ -39,7 +38,7 @@ const postSchema = z.object({
 export async function POST(req: Request) {
   const sess = await requireAdminSession();
   if (!sess) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-  if (!isNiBrainConfigured()) {
+  if (!(await isNiBrainConfiguredAsync())) {
     return NextResponse.json({ error: "NI Brain is not configured on the server." }, { status: 503 });
   }
 
@@ -47,7 +46,6 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
 
   try {
-    await hydratePlatformEnvFromDatabase();
     const generated = await generateWeekContent({
       weekStart: parsed.data.weekStart,
       offset: parsed.data.offset,

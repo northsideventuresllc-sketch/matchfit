@@ -30,6 +30,17 @@ export function isNiBrainConfigured(): boolean {
   );
 }
 
+/** Loads NI Brain keys from platform_secrets when Vercel env is unset. */
+export async function ensureNiBrainEnvHydrated(): Promise<void> {
+  const { hydratePlatformEnvFromDatabase } = await import("@/lib/hydrate-platform-env");
+  await hydratePlatformEnvFromDatabase();
+}
+
+export async function isNiBrainConfiguredAsync(): Promise<boolean> {
+  await ensureNiBrainEnvHydrated();
+  return isNiBrainConfigured();
+}
+
 /** Server-only NI Brain (Northside Intelligence) Supabase client — project kxijunwgbrlfzvgkhklo. */
 export function createNiBrainClient(): SupabaseClient {
   const url = process.env.NI_BRAIN_SUPABASE_URL?.trim();
