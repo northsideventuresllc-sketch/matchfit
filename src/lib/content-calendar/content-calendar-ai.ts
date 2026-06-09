@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getAdminAiProviderStatusAsync } from "@/lib/admin-analytics-ai";
+import { getAdminAiProviderStatus, getAdminAiProviderStatusAsync } from "@/lib/admin-analytics-ai";
 import {
   CONTENT_CALENDAR_BRAND_FACTS,
   CONTENT_CALENDAR_DAYS_LONG,
