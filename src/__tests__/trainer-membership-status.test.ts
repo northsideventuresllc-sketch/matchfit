@@ -26,6 +26,19 @@ describe("trainer membership status", () => {
     ).toBe("active");
   });
 
+  it("marks deidentified trainers before other statuses", () => {
+    expect(
+      resolveTrainerMembershipStatus({
+        trainer: {
+          termsAcceptedAt: new Date("2026-06-01T00:00:00.000Z"),
+          deidentifiedAt: new Date("2026-06-08T00:00:00.000Z"),
+        },
+        profile: { hasSignedTOS: true, dashboardActivatedAt: null },
+      }),
+    ).toBe("deidentified");
+    expect(trainerMembershipStatusLabel("deidentified")).toBe("Removed (deidentified)");
+  });
+
   it("marks pre-tos trainers separately from pending", () => {
     expect(
       resolveTrainerMembershipStatus({

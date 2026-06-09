@@ -3,8 +3,8 @@ import { cookies } from "next/headers";
 import {
   adminPortalClientListWhere,
   adminPortalClientListWhereLegacy,
-  adminPortalTrainerListWhere,
-  adminPortalTrainerListWhereLegacy,
+  adminPortalTrainerDirectoryWhere,
+  adminPortalTrainerDirectoryWhereLegacy,
   redactEmailForAdminPortal,
 } from "@/lib/admin-portal-list-filters";
 import { prisma } from "@/lib/prisma";
@@ -60,7 +60,7 @@ export async function GET(req: Request) {
       });
     }
 
-    async function loadTrainers(trainerWhere: ReturnType<typeof adminPortalTrainerListWhere>) {
+    async function loadTrainers(trainerWhere: ReturnType<typeof adminPortalTrainerDirectoryWhere>) {
       return prisma.trainer.findMany({
         where: trainerSearchClause ? { AND: [trainerWhere, trainerSearchClause] } : trainerWhere,
         take,
@@ -73,6 +73,7 @@ export async function GET(req: Request) {
           firstName: true,
           lastName: true,
           termsAcceptedAt: true,
+          deidentifiedAt: true,
           createdAt: true,
           profile: {
             select: {
@@ -99,9 +100,9 @@ export async function GET(req: Request) {
     const trainers =
       role === "client"
         ? []
-        : await loadTrainers(adminPortalTrainerListWhere()).catch((e) => {
+        : await loadTrainers(adminPortalTrainerDirectoryWhere()).catch((e) => {
             if (!isMissingInternalQaSyntheticPersonaColumn(e)) throw e;
-            return loadTrainers(adminPortalTrainerListWhereLegacy());
+            return loadTrainers(adminPortalTrainerDirectoryWhereLegacy());
           });
 
     return NextResponse.json({
@@ -118,7 +119,7 @@ export async function GET(req: Request) {
       })),
       trainers: trainers.map((t) => {
         const membershipStatus = resolveTrainerMembershipStatus({
-          trainer: t,
+          trainer: { termsAcceptedAt: t.termsAcceptedAt, deidentifiedAt: t.deidentifiedAt },
           profile: t.profile,
         });
         return {

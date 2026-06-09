@@ -1,7 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { trainerOnboardingFeeIsPaid } from "@/lib/trainer-onboarding-fee-deadline";
 
-export type TrainerMembershipStatus = "pre_tos" | "pending" | "active";
+export type TrainerMembershipStatus = "pre_tos" | "pending" | "active" | "deidentified";
 
 export type TrainerMembershipProfile = {
   hasSignedTOS?: boolean | null;
@@ -14,12 +14,15 @@ export type TrainerMembershipProfile = {
 
 export type TrainerMembershipTrainer = {
   termsAcceptedAt?: Date | string | null;
+  deidentifiedAt?: Date | string | null;
 };
 
 export function resolveTrainerMembershipStatus(input: {
   trainer?: TrainerMembershipTrainer | null;
   profile?: TrainerMembershipProfile | null;
 }): TrainerMembershipStatus {
+  if (input.trainer?.deidentifiedAt) return "deidentified";
+
   const profile = input.profile;
   if (profile?.dashboardActivatedAt) return "active";
 
@@ -45,6 +48,7 @@ export function resolveTrainerMembershipStatus(input: {
 export function trainerMembershipStatusLabel(status: TrainerMembershipStatus): string {
   if (status === "active") return "Active";
   if (status === "pending") return "Pending onboarding";
+  if (status === "deidentified") return "Removed (deidentified)";
   return "Pre–Terms of Service";
 }
 

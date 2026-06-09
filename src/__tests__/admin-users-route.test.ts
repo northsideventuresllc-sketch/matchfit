@@ -4,8 +4,8 @@ import { clearTestCookieJar, testCookieJar } from "@/test/next-cookie-jar";
 
 const clientMainWhere = { __tag: "client-main" };
 const clientLegacyWhere = { __tag: "client-legacy" };
-const trainerMainWhere = { __tag: "trainer-main" };
-const trainerLegacyWhere = { __tag: "trainer-legacy" };
+const trainerDirectoryWhere = { __tag: "trainer-directory" };
+const trainerDirectoryLegacyWhere = { __tag: "trainer-directory-legacy" };
 
 const {
   mockVerifyAdminSessionToken,
@@ -14,8 +14,8 @@ const {
   mockTrainerFindMany,
   mockAdminPortalClientListWhere,
   mockAdminPortalClientListWhereLegacy,
-  mockAdminPortalTrainerListWhere,
-  mockAdminPortalTrainerListWhereLegacy,
+  mockAdminPortalTrainerDirectoryWhere,
+  mockAdminPortalTrainerDirectoryWhereLegacy,
   mockRedactEmailForAdminPortal,
 } = vi.hoisted(() => ({
   mockVerifyAdminSessionToken: vi.fn(),
@@ -24,8 +24,8 @@ const {
   mockTrainerFindMany: vi.fn(),
   mockAdminPortalClientListWhere: vi.fn(),
   mockAdminPortalClientListWhereLegacy: vi.fn(),
-  mockAdminPortalTrainerListWhere: vi.fn(),
-  mockAdminPortalTrainerListWhereLegacy: vi.fn(),
+  mockAdminPortalTrainerDirectoryWhere: vi.fn(),
+  mockAdminPortalTrainerDirectoryWhereLegacy: vi.fn(),
   mockRedactEmailForAdminPortal: vi.fn(),
 }));
 
@@ -51,8 +51,8 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/admin-portal-list-filters", () => ({
   adminPortalClientListWhere: mockAdminPortalClientListWhere,
   adminPortalClientListWhereLegacy: mockAdminPortalClientListWhereLegacy,
-  adminPortalTrainerListWhere: mockAdminPortalTrainerListWhere,
-  adminPortalTrainerListWhereLegacy: mockAdminPortalTrainerListWhereLegacy,
+  adminPortalTrainerDirectoryWhere: mockAdminPortalTrainerDirectoryWhere,
+  adminPortalTrainerDirectoryWhereLegacy: mockAdminPortalTrainerDirectoryWhereLegacy,
   redactEmailForAdminPortal: mockRedactEmailForAdminPortal,
 }));
 
@@ -78,8 +78,8 @@ describe("GET /api/admin/users", () => {
 
     mockAdminPortalClientListWhere.mockReturnValue(clientMainWhere);
     mockAdminPortalClientListWhereLegacy.mockReturnValue(clientLegacyWhere);
-    mockAdminPortalTrainerListWhere.mockReturnValue(trainerMainWhere);
-    mockAdminPortalTrainerListWhereLegacy.mockReturnValue(trainerLegacyWhere);
+    mockAdminPortalTrainerDirectoryWhere.mockReturnValue(trainerDirectoryWhere);
+    mockAdminPortalTrainerDirectoryWhereLegacy.mockReturnValue(trainerDirectoryLegacyWhere);
     mockRedactEmailForAdminPortal.mockImplementation((email: string) => `redacted:${email}`);
 
     mockClientFindMany.mockResolvedValue([
@@ -161,7 +161,7 @@ describe("GET /api/admin/users", () => {
     expect(mockTrainerFindMany).toHaveBeenCalledWith({
       where: {
         AND: [
-          trainerMainWhere,
+          trainerDirectoryWhere,
           {
             OR: [
               { username: { contains: "SearchTerm", mode: "insensitive" } },
@@ -184,6 +184,7 @@ describe("GET /api/admin/users", () => {
         firstName: true,
         lastName: true,
         termsAcceptedAt: true,
+        deidentifiedAt: true,
         createdAt: true,
         profile: {
           select: {
@@ -302,11 +303,11 @@ describe("GET /api/admin/users", () => {
 
     expect(res.status).toBe(200);
     expect(mockAdminPortalClientListWhereLegacy).toHaveBeenCalledTimes(1);
-    expect(mockAdminPortalTrainerListWhereLegacy).toHaveBeenCalledTimes(1);
+    expect(mockAdminPortalTrainerDirectoryWhereLegacy).toHaveBeenCalledTimes(1);
     expect(mockClientFindMany.mock.calls[0]?.[0]).toMatchObject({ where: clientMainWhere });
     expect(mockClientFindMany.mock.calls[1]?.[0]).toMatchObject({ where: clientLegacyWhere });
-    expect(mockTrainerFindMany.mock.calls[0]?.[0]).toMatchObject({ where: trainerMainWhere });
-    expect(mockTrainerFindMany.mock.calls[1]?.[0]).toMatchObject({ where: trainerLegacyWhere });
+    expect(mockTrainerFindMany.mock.calls[0]?.[0]).toMatchObject({ where: trainerDirectoryWhere });
+    expect(mockTrainerFindMany.mock.calls[1]?.[0]).toMatchObject({ where: trainerDirectoryLegacyWhere });
     expect(body.clients[0]).toMatchObject({
       id: "client_legacy",
       displayName: "legacy-client",

@@ -65,7 +65,7 @@ type DirectoryRow =
       email: string;
       displayName: string;
       createdAt: string;
-      membershipStatus: "pre_tos" | "pending" | "active";
+      membershipStatus: "pre_tos" | "pending" | "active" | "deidentified";
       membershipStatusLabel: string;
     };
 
@@ -170,7 +170,9 @@ function AdminDirectoryUserTable(props: {
                           ? "bg-emerald-500/15 text-emerald-200"
                           : row.membershipStatus === "pending"
                             ? "bg-orange-500/15 text-orange-100"
-                            : "bg-white/10 text-white/55"
+                            : row.membershipStatus === "deidentified"
+                              ? "bg-red-500/15 text-red-200"
+                              : "bg-white/10 text-white/55"
                       }`}
                     >
                       {row.membershipStatusLabel}

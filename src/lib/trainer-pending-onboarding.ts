@@ -73,8 +73,9 @@ export async function markTrainerPendingAfterTermsAcceptance(
 export async function repairStaleTrainerPendingRecords(limit = 120): Promise<number> {
   const candidates = await prisma.trainer.findMany({
     where: {
-      deidentifiedAt: null,
-      profile: { is: { dashboardActivatedAt: null } },
+      NOT: {
+        profile: { is: { dashboardActivatedAt: { not: null } } },
+      },
       OR: [
         { termsAcceptedAt: { not: null } },
         { profile: { is: { hasSignedTOS: true } } },
@@ -102,6 +103,7 @@ export async function repairStaleTrainerPendingRecords(limit = 120): Promise<num
   for (const candidate of candidates) {
     const profile = candidate.profile;
     const needsRepair =
+      Boolean(candidate.termsAcceptedAt && !profile) ||
       Boolean(candidate.termsAcceptedAt && !profile?.hasSignedTOS) ||
       Boolean(candidate.termsAcceptedAt && !profile?.complianceWindowStartedAt) ||
       Boolean(profile?.hasSignedTOS && !profile?.complianceWindowStartedAt);

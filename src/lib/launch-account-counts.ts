@@ -242,10 +242,8 @@ export function launchTrainerBeforeTermsWhere(): Prisma.TrainerWhereInput {
 export function launchPendingTrainerWhere(): Prisma.TrainerWhereInput {
   return {
     ...launchTrainerAccountWhere(),
-    profile: {
-      is: {
-        dashboardActivatedAt: null,
-      },
+    NOT: {
+      profile: { is: { dashboardActivatedAt: { not: null } } },
     },
     OR: [
       { termsAcceptedAt: { not: null } },

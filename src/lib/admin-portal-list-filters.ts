@@ -89,18 +89,10 @@ function fakeClientOr(): Prisma.ClientWhereInput[] {
 }
 
 function fakeTrainerOr(): Prisma.TrainerWhereInput[] {
-  const certPrefixes = getMatchFitDevPlaceholderCertPathPrefixes();
-  const certOr = certPrefixes.flatMap((prefix) => [
-    { profile: { is: { certificationUrl: { startsWith: prefix, mode: "insensitive" as const } } } },
-    { profile: { is: { nutritionistCertificationUrl: { startsWith: prefix, mode: "insensitive" as const } } } },
-    { profile: { is: { specialistCertificationUrl: { startsWith: prefix, mode: "insensitive" as const } } } },
-  ]);
-
   return [
     ...(emailPatternExcludeOr() as unknown as Prisma.TrainerWhereInput[]),
     ...(usernamePrefixExcludeOr(SYNTHETIC_TRAINER_USERNAME_PREFIX) as unknown as Prisma.TrainerWhereInput[]),
     ...(launchUsernameEqualsExcludeOr(launchExcludeTrainerUsernamesForAdminPortal()) as unknown as Prisma.TrainerWhereInput[]),
-    ...certOr,
   ];
 }
 
@@ -126,9 +118,12 @@ function adminPortalClientListWhereBase(includeSyntheticColumn: boolean): Prisma
   };
 }
 
-function adminPortalTrainerListWhereBase(includeSyntheticColumn: boolean): Prisma.TrainerWhereInput {
+function adminPortalTrainerListWhereBase(
+  includeSyntheticColumn: boolean,
+  includeDeidentified: boolean,
+): Prisma.TrainerWhereInput {
   return {
-    deidentifiedAt: null,
+    ...(includeDeidentified ? {} : { deidentifiedAt: null }),
     ...(includeSyntheticColumn ? { internalQaSyntheticPersona: false } : {}),
     NOT: {
       OR: [...fakeTrainerOr(), ...ownerTrainerUsernameExcludeOr()],
@@ -146,14 +141,50 @@ export function adminPortalClientListWhereLegacy(): Prisma.ClientWhereInput {
   return adminPortalClientListWhereBase(false);
 }
 
-/** Prisma filter: real trainers + owner test account; excludes synthetic / dev-seed fake coaches. */
+/** Prisma filter: real trainers + owner test account; excludes synthetic QA personas (signup log). */
 export function adminPortalTrainerListWhere(): Prisma.TrainerWhereInput {
-  return adminPortalTrainerListWhereBase(true);
+  return adminPortalTrainerListWhereBase(true, false);
 }
 
 /** Same as {@link adminPortalTrainerListWhere} when `internalQaSyntheticPersona` is not migrated yet. */
 export function adminPortalTrainerListWhereLegacy(): Prisma.TrainerWhereInput {
-  return adminPortalTrainerListWhereBase(false);
+  return adminPortalTrainerListWhereBase(false, false);
+}
+
+/** Member search / pipeline directory — includes deidentified trainers so admins can find removed accounts. */
+export function adminPortalTrainerDirectoryWhere(): Prisma.TrainerWhereInput {
+  return adminPortalTrainerListWhereBase(true, true);
+}
+
+/** Legacy directory filter when `internalQaSyntheticPersona` is not migrated yet. */
+export function adminPortalTrainerDirectoryWhereLegacy(): Prisma.TrainerWhereInput {
+  return adminPortalTrainerListWhereBase(false, true);
+}
+
+/**
+ * Pending trainers for admin pipeline — includes deidentified accounts and trainers without profiles.
+ * Dev-placeholder certification URLs do not exclude rows (admin-only view).
+ */
+export function adminPendingTrainerWhere(): Prisma.TrainerWhereInput {
+  return {
+    ...adminPortalTrainerDirectoryWhere(),
+    NOT: {
+      profile: { is: { dashboardActivatedAt: { not: null } } },
+    },
+    OR: [
+      { termsAcceptedAt: { not: null } },
+      { profile: { is: { hasSignedTOS: true } } },
+      { profile: { is: { complianceWindowStartedAt: { not: null } } } },
+      { profile: { is: { limitedDashboardUnlockedAt: { not: null } } } },
+      {
+        profile: {
+          is: {
+            registrationFeeHoldStatus: { in: ["HELD", "CAPTURED"] },
+          },
+        },
+      },
+    ],
+  };
 }
 
 function sqlInList(values: string[]): PrismaNamespace.Sql {
@@ -190,7 +221,6 @@ export function buildAdminPortalClientSqlFilter(): PrismaNamespace.Sql {
 export function buildAdminPortalTrainerSqlFilter(): PrismaNamespace.Sql {
   const emails = launchExcludeEmailsLower();
   const extraUsernames = launchExcludeTrainerUsernamesForAdminPortal();
-  const certPrefixes = getMatchFitDevPlaceholderCertPathPrefixes();
 
   const emailNotIn =
     emails.length > 0
@@ -202,22 +232,6 @@ export function buildAdminPortalTrainerSqlFilter(): PrismaNamespace.Sql {
       ? PrismaNamespace.sql`AND LOWER(t."username") NOT IN (${sqlInList(extraUsernames)})`
       : PrismaNamespace.empty;
 
-  const certChecks = certPrefixes.map(
-    (prefix) => PrismaNamespace.sql`
-      COALESCE(p."certificationUrl", '') NOT ILIKE ${`${prefix}%`}
-      AND COALESCE(p."nutritionistCertificationUrl", '') NOT ILIKE ${`${prefix}%`}
-      AND COALESCE(p."specialistCertificationUrl", '') NOT ILIKE ${`${prefix}%`}
-    `,
-  );
-  const certBlock =
-    certChecks.length > 0
-      ? PrismaNamespace.sql`AND NOT EXISTS (
-          SELECT 1 FROM "trainer_profiles" p
-          WHERE p."trainerId" = t."id"
-            AND NOT (${PrismaNamespace.join(certChecks, " AND ")})
-        )`
-      : PrismaNamespace.empty;
-
   return PrismaNamespace.sql`
     AND COALESCE(t."internalQaSyntheticPersona", false) = false
     AND LOWER(t."username") NOT LIKE ${`${SYNTHETIC_TRAINER_USERNAME_PREFIX.toLowerCase()}%`}
@@ -226,8 +240,12 @@ export function buildAdminPortalTrainerSqlFilter(): PrismaNamespace.Sql {
     AND LOWER(t."email") NOT LIKE ${`%${MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX}`}
     ${emailNotIn}
     ${usernameNotIn}
-    ${certBlock}
   `;
+}
+
+/** Admin pipeline SQL — same as list filter but includes deidentified trainers. */
+export function buildAdminPortalTrainerDirectorySqlFilter(): PrismaNamespace.Sql {
+  return buildAdminPortalTrainerSqlFilter();
 }
 
 /** Fallback when `internalQaSyntheticPersona` column is missing — still excludes obvious fake rows. */
@@ -333,7 +351,6 @@ export function buildLaunchMetricsTrainerSqlFilter(
 export function buildAdminPortalTrainerSqlFilterLegacy(): PrismaNamespace.Sql {
   const emails = launchExcludeEmailsLower();
   const extraUsernames = launchExcludeTrainerUsernamesForAdminPortal();
-  const certPrefixes = getMatchFitDevPlaceholderCertPathPrefixes();
 
   const emailNotIn =
     emails.length > 0
@@ -345,22 +362,6 @@ export function buildAdminPortalTrainerSqlFilterLegacy(): PrismaNamespace.Sql {
       ? PrismaNamespace.sql`AND LOWER(t."username") NOT IN (${sqlInList(extraUsernames)})`
       : PrismaNamespace.empty;
 
-  const certChecks = certPrefixes.map(
-    (prefix) => PrismaNamespace.sql`
-      COALESCE(p."certificationUrl", '') NOT ILIKE ${`${prefix}%`}
-      AND COALESCE(p."nutritionistCertificationUrl", '') NOT ILIKE ${`${prefix}%`}
-      AND COALESCE(p."specialistCertificationUrl", '') NOT ILIKE ${`${prefix}%`}
-    `,
-  );
-  const certBlock =
-    certChecks.length > 0
-      ? PrismaNamespace.sql`AND NOT EXISTS (
-          SELECT 1 FROM "trainer_profiles" p
-          WHERE p."trainerId" = t."id"
-            AND NOT (${PrismaNamespace.join(certChecks, " AND ")})
-        )`
-      : PrismaNamespace.empty;
-
   return PrismaNamespace.sql`
     AND LOWER(t."username") NOT LIKE ${`${SYNTHETIC_TRAINER_USERNAME_PREFIX.toLowerCase()}%`}
     AND LOWER(t."email") NOT LIKE ${`%${INTERNAL_SYNTHETIC_EMAIL_SUFFIX}`}
@@ -368,6 +369,5 @@ export function buildAdminPortalTrainerSqlFilterLegacy(): PrismaNamespace.Sql {
     AND LOWER(t."email") NOT LIKE ${`%${MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX}`}
     ${emailNotIn}
     ${usernameNotIn}
-    ${certBlock}
   `;
 }

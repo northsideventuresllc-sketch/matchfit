@@ -51,6 +51,10 @@ vi.mock("@/lib/home-user-counts", () => ({
   getHomeUserCounts: mockGetHomeUserCounts,
 }));
 
+vi.mock("@/lib/admin-portal-list-filters", () => ({
+  adminPendingTrainerWhere: vi.fn(() => ({ __tag: "admin-pending" })),
+}));
+
 vi.mock("@/lib/prisma-missing-column", () => ({
   isPrismaMissingTableError: mockIsPrismaMissingTableError,
 }));
@@ -76,7 +80,14 @@ describe("admin-member-overview", () => {
     });
     mockCountLaunchPlatformSubscribers.mockResolvedValue(12);
     mockClientCount.mockResolvedValue(0);
-    mockTrainerCount.mockResolvedValue(0);
+    mockTrainerCount.mockImplementation((args?: { where?: Record<string, unknown> }) => {
+      if (args?.where?.__tag === "admin-pending") return Promise.resolve(4);
+      const profileIs = (args?.where?.profile as { is?: { dashboardActivatedAt?: { not?: unknown } } } | undefined)?.is;
+      if (profileIs && "dashboardActivatedAt" in profileIs && "not" in (profileIs.dashboardActivatedAt ?? {})) {
+        return Promise.resolve(30);
+      }
+      return Promise.resolve(0);
+    });
     mockQueryRaw.mockResolvedValue([{ n: BigInt(0) }]);
     mockIsPrismaMissingTableError.mockReturnValue(false);
   });
@@ -86,8 +97,6 @@ describe("admin-member-overview", () => {
       .mockResolvedValueOnce(40) // activeClients in countTotalActiveMembers
       .mockResolvedValueOnce(7) // freeTrialClients
       .mockResolvedValueOnce(9); // inactiveClients
-    mockTrainerCount
-      .mockResolvedValueOnce(30); // onboarded trainers in countInactiveTrainers
     mockQueryRaw.mockResolvedValueOnce([{ n: BigInt(99) }]);
 
     const result = await getAdminMemberOverviewPanel(new Date("2026-06-09T12:00:00.000Z"));
@@ -111,7 +120,6 @@ describe("admin-member-overview", () => {
     mockQueryRaw.mockRejectedValueOnce(err);
     mockIsPrismaMissingTableError.mockReturnValueOnce(true);
     mockClientCount.mockResolvedValueOnce(10).mockResolvedValueOnce(2).mockResolvedValueOnce(3);
-    mockTrainerCount.mockResolvedValueOnce(22);
 
     const result = await getAdminMemberOverviewPanel(new Date("2026-06-09T12:00:00.000Z"));
 
@@ -124,7 +132,6 @@ describe("admin-member-overview", () => {
     mockQueryRaw.mockRejectedValueOnce(err);
     mockIsPrismaMissingTableError.mockReturnValueOnce(false);
     mockClientCount.mockResolvedValueOnce(10).mockResolvedValueOnce(2).mockResolvedValueOnce(3);
-    mockTrainerCount.mockResolvedValueOnce(22);
 
     await expect(getAdminMemberOverviewPanel()).rejects.toBe(err);
   });

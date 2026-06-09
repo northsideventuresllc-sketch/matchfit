@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   ADMIN_REDACTED_EMAIL_LABEL,
+  adminPendingTrainerWhere,
   adminPortalClientListWhere,
+  adminPortalTrainerDirectoryWhere,
   adminPortalTrainerListWhere,
   buildAdminPortalClientSqlFilter,
+  buildAdminPortalTrainerSqlFilter,
   buildLaunchMetricsClientSqlFilter,
   buildLaunchMetricsTrainerSqlFilter,
   isAdminOwnerTestUsername,
@@ -59,6 +62,27 @@ describe("admin portal list filters", () => {
     expect(clientListSql).toContain("NOT IN");
 
     const trainerMetricsSql = buildLaunchMetricsTrainerSqlFilter("t", "p").strings.join(" ");
+    const trainerListSql = buildAdminPortalTrainerSqlFilter().strings.join(" ");
     expect(trainerMetricsSql).toContain("NOT IN");
+    expect(trainerListSql).toContain("NOT IN");
+    expect(trainerListSql).not.toContain("certificationUrl");
+  });
+
+  it("directory filter includes deidentified trainers; signup log excludes them", () => {
+    expect(adminPortalTrainerListWhere().deidentifiedAt).toBeNull();
+    expect(adminPortalTrainerDirectoryWhere().deidentifiedAt).toBeUndefined();
+  });
+
+  it("admin pending trainer filter matches onboarding-started trainers without live dashboard", () => {
+    const where = adminPendingTrainerWhere();
+    expect(where.NOT).toEqual({
+      profile: { is: { dashboardActivatedAt: { not: null } } },
+    });
+    expect(where.OR).toEqual(
+      expect.arrayContaining([
+        { termsAcceptedAt: { not: null } },
+        { profile: { is: { hasSignedTOS: true } } },
+      ]),
+    );
   });
 });

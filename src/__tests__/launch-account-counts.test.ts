@@ -265,10 +265,8 @@ describe("admin funnel count filters", () => {
 
   it("pending trainer filter includes ToS or onboarding started with dashboard not live", () => {
     const where = launchPendingTrainerWhere();
-    expect(where.profile).toEqual({
-      is: {
-        dashboardActivatedAt: null,
-      },
+    expect(where.NOT).toEqual({
+      profile: { is: { dashboardActivatedAt: { not: null } } },
     });
     expect(where.OR).toEqual(
       expect.arrayContaining([

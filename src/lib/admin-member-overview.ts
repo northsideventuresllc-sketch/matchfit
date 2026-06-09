@@ -10,6 +10,7 @@ import {
   launchClientPlatformPaymentGraceWhere,
   launchTrainerCountWhere,
 } from "@/lib/launch-account-counts";
+import { adminPendingTrainerWhere } from "@/lib/admin-portal-list-filters";
 import { getHomeUserCounts } from "@/lib/home-user-counts";
 import { isPrismaMissingTableError } from "@/lib/prisma-missing-column";
 
@@ -73,7 +74,7 @@ async function countTotalActiveMembers(now = new Date(), userCounts?: Awaited<Re
         NOT: launchClientInactiveSubscriberWhere(now),
       },
     }),
-    Promise.resolve(counts.trainersPending),
+    prisma.trainer.count({ where: adminPendingTrainerWhere() }),
   ]);
 
   return activeClients + counts.trainersActive + pendingTrainers;
@@ -103,6 +104,7 @@ export async function getAdminMemberOverviewPanel(now = new Date()): Promise<Adm
     inactiveClients,
     uniqueSiteVisitorsAllTime,
     inactiveTrainers,
+    pendingTrainers,
   ] = await Promise.all([
     countTotalActiveMembers(now, userCounts),
     prisma.client.count({ where: launchClientFreeTrialCountWhere(now) }),
@@ -110,6 +112,7 @@ export async function getAdminMemberOverviewPanel(now = new Date()): Promise<Adm
     prisma.client.count({ where: launchClientInactiveSubscriberWhere(now) }),
     countUniqueSiteVisitorsAllTime(),
     countInactiveTrainers(),
+    prisma.trainer.count({ where: adminPendingTrainerWhere() }),
   ]);
 
   return {
@@ -119,7 +122,7 @@ export async function getAdminMemberOverviewPanel(now = new Date()): Promise<Adm
     subscribedClients,
     inactiveClients,
     uniqueSiteVisitorsAllTime,
-    pendingTrainers: userCounts.trainersPending,
+    pendingTrainers,
     compliantActiveTrainers: userCounts.trainersActive,
     inactiveTrainers,
   };

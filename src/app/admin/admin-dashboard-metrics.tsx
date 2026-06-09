@@ -537,16 +537,27 @@ export function TrainerPipelineSection({ pipeline }: { pipeline: AdminTrainerPip
                 className={`block w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
                   selectedTrainerId === t.trainerId
                     ? "border-[#FF7E00]/35 bg-[#FF7E00]/10 text-white"
-                    : "border-white/[0.05] bg-black/20 text-white/75 hover:bg-white/[0.04]"
+                    : t.deidentified
+                      ? "border-red-500/20 bg-red-500/[0.06] text-white/75 hover:bg-red-500/10"
+                      : "border-white/[0.05] bg-black/20 text-white/75 hover:bg-white/[0.04]"
                 }`}
               >
-                {t.displayName} <span className="font-mono text-xs text-white/40">@{t.username}</span>
+                {t.displayName}{" "}
+                {t.deidentified ? (
+                  <span className="text-[10px] font-black uppercase tracking-[0.12em] text-red-300/80">Removed</span>
+                ) : null}{" "}
+                <span className="font-mono text-xs text-white/40">@{t.username}</span>
               </button>
             ))
           )}
         </div>
         {selected ? (
           <div className="mt-3 rounded-xl border border-[#FF7E00]/25 bg-[#FF7E00]/[0.06] p-3 text-[11px] text-white/70">
+            {selected.deidentified ? (
+              <p className="mb-2 font-semibold text-red-300/90">
+                Account deidentified — hidden from marketplace and login. Search by username/email to locate.
+              </p>
+            ) : null}
             <p>Terms accepted: {selected.termsAccepted ? "Yes" : "No"}</p>
             <p className="mt-1">7-day compliance window started: {selected.complianceWindowStarted ? "Yes" : "No"}</p>
             <p className="mt-1">Onboarding fee completed: {selected.onboardingFeeCompleted ? "Yes" : "No"}</p>

@@ -60,10 +60,14 @@ import {
   launchTrainerBeforeRegistrationPaymentWhere,
   launchTrainerBeforeTermsWhere,
   launchTrainerCountWhere,
-  launchPendingTrainerWhere,
   launchTrainerIncompleteSignupWhere,
 } from "@/lib/launch-account-counts";
-import { buildLaunchMetricsClientSqlFilter, buildLaunchMetricsTrainerSqlFilter } from "@/lib/admin-portal-list-filters";
+import {
+  adminPendingTrainerWhere,
+  buildAdminPortalTrainerDirectorySqlFilter,
+  buildLaunchMetricsClientSqlFilter,
+  buildLaunchMetricsTrainerSqlFilter,
+} from "@/lib/admin-portal-list-filters";
 import { parseTopOffering } from "@/lib/admin-portal-parsers";
 import { homepageDisplayDayKey } from "@/lib/featured-eastern-calendar";
 import { repairStaleTrainerPendingRecords } from "@/lib/trainer-pending-onboarding";
@@ -593,8 +597,8 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
     console.warn("[admin trainer pipeline] pending record repair skipped:", e);
   });
 
-  const trainerMetricsFilter = buildLaunchMetricsTrainerSqlFilter("t", "p");
-  const baseWhere = Prisma.sql`t."deidentifiedAt" IS NULL ${trainerMetricsFilter}`;
+  const trainerMetricsFilter = buildAdminPortalTrainerDirectorySqlFilter();
+  const baseWhere = Prisma.sql`TRUE ${trainerMetricsFilter}`;
 
   const [startedSignup, basicInfoNoTos, signupCompleted, bgSubmitted, bgFailed, bgPassed, docsPending, live, pendingTrainerRows] =
     await Promise.all([
@@ -602,9 +606,9 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
     prisma.signupFormProgress.count({ where: { role: "trainer", stage: "basic_info_complete" } }).catch(() => 0),
     prisma.$queryRaw<CountRow[]>`
       SELECT COUNT(*)::bigint AS n FROM trainers t
-      INNER JOIN trainer_profiles p ON p."trainerId" = t.id
+      LEFT JOIN trainer_profiles p ON p."trainerId" = t.id
       WHERE ${baseWhere}
-        AND p."dashboardActivatedAt" IS NULL
+        AND (p."dashboardActivatedAt" IS NULL OR p."trainerId" IS NULL)
         AND (
           p."hasSignedTOS" = true
           OR t."termsAcceptedAt" IS NOT NULL
@@ -615,11 +619,11 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
     `,
     prisma.$queryRaw<CountRow[]>`
       SELECT COUNT(*)::bigint AS n FROM trainers t
-      INNER JOIN trainer_profiles p ON p."trainerId" = t.id
+      LEFT JOIN trainer_profiles p ON p."trainerId" = t.id
       WHERE ${baseWhere}
         AND (
           p."checkrReportId" IS NOT NULL
-          OR (p."backgroundCheckStatus" <> 'NOT_STARTED' AND p."backgroundCheckStatus" <> 'APPROVED')
+          OR (p."backgroundCheckStatus" IS NOT NULL AND p."backgroundCheckStatus" <> 'NOT_STARTED' AND p."backgroundCheckStatus" <> 'APPROVED')
         )
     `,
     prisma.$queryRaw<CountRow[]>`
@@ -653,7 +657,7 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
       WHERE ${baseWhere} AND p."dashboardActivatedAt" IS NOT NULL
     `,
     prisma.trainer.findMany({
-      where: launchPendingTrainerWhere(),
+      where: adminPendingTrainerWhere(),
       orderBy: { updatedAt: "desc" },
       take: 80,
       select: {
@@ -663,6 +667,7 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
         firstName: true,
         lastName: true,
         termsAcceptedAt: true,
+        deidentifiedAt: true,
         profile: {
           select: {
             hasSignedTOS: true,
@@ -714,6 +719,7 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
       username: t.username,
       displayName:
         t.preferredName?.trim() || [t.firstName, t.lastName].filter(Boolean).join(" ").trim() || t.username,
+      deidentified: Boolean(t.deidentifiedAt),
       ...qualifications,
     };
   });

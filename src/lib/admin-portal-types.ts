@@ -144,6 +144,7 @@ export type AdminTrainerPipelineEntry = {
   trainerId: string;
   username: string;
   displayName: string;
+  deidentified?: boolean;
   termsAccepted: boolean;
   complianceWindowStarted: boolean;
   onboardingFeeCompleted: boolean;
