@@ -6,6 +6,7 @@ import {
   serializePostForClient,
   upsertWeekPosts,
 } from "@/lib/content-calendar/content-calendar-store";
+import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { isNiBrainConfigured } from "@/lib/ni-brain-client";
 import { requireAdminSession } from "@/lib/require-admin";
 
@@ -46,6 +47,7 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
 
   try {
+    await hydratePlatformEnvFromDatabase();
     const generated = await generateWeekContent({
       weekStart: parsed.data.weekStart,
       offset: parsed.data.offset,
