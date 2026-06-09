@@ -60,6 +60,45 @@ function formatOutreachBatchLabel(batchId: string | null, leads: AnyLead[]): str
   return `${batchId} · ${leads.length} lead${leads.length === 1 ? "" : "s"}`;
 }
 
+function stageLabelForGenerateProgress(
+  percent: number,
+  platform: OutreachPlatform,
+): string {
+  if (percent >= 100) return "Complete";
+  if (percent < 20) return "Starting AI lead research…";
+  if (percent < 42) return "Finding fitness pro leads…";
+  if (percent < 58) return "Drafting personalized outreach copy…";
+  if (platform === "instagram" && percent < 84) return "Verifying Instagram profiles…";
+  if (percent < 94) return "Saving leads to Outreach HQ…";
+  return "Almost done…";
+}
+
+function OutreachGenerateProgressBar(props: { percent: number; stage: string }) {
+  return (
+    <div
+      className="space-y-2 rounded-xl border border-[#FF7E00]/25 bg-[#FF7E00]/[0.06] p-4"
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={props.percent}
+      aria-label="Lead generation progress"
+      aria-live="polite"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-[#FFD34E]">{props.stage}</p>
+        <p className="text-sm font-black tabular-nums text-white/85">{props.percent}%</p>
+      </div>
+      <div className="h-3 overflow-hidden rounded-full border border-white/10 bg-[#0E1016]/80">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-[#FF7E00] via-[#FF9A2E] to-[#FFD34E] transition-[width] duration-300 ease-out"
+          style={{ width: `${Math.max(0, Math.min(100, props.percent))}%` }}
+        />
+      </div>
+      <p className="text-[11px] text-white/45">This can take a minute while AI researches leads and verifies profiles.</p>
+    </div>
+  );
+}
+
 function groupLeadsByBatch(leads: AnyLead[]): OutreachBatchGroup[] {
   const active = leads.filter((l) => !l.deletedAt);
   const map = new Map<string, AnyLead[]>();
@@ -238,6 +277,8 @@ function PlatformTabPanel(props: {
   leads: AnyLead[];
   loading: boolean;
   generating: boolean;
+  generateProgress: number;
+  generateStage: string;
   bulkDeleting: boolean;
   atlCount: number;
   virtualCount: number;
@@ -407,6 +448,9 @@ function PlatformTabPanel(props: {
             Refresh
           </button>
         </div>
+        {props.generating || props.generateProgress > 0 ? (
+          <OutreachGenerateProgressBar percent={props.generateProgress} stage={props.generateStage} />
+        ) : null}
       </section>
 
       {props.loading ? (
@@ -505,6 +549,8 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   const [leads, setLeads] = useState<AnyLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [generateProgress, setGenerateProgress] = useState(0);
+  const [generateStage, setGenerateStage] = useState("");
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -547,10 +593,33 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     };
   }, [leads]);
 
+  useEffect(() => {
+    if (!generating) return;
+
+    const totalLeads = atlCount + virtualCount;
+    const estimatedMs =
+      tab === "instagram" ? 14_000 + totalLeads * 2_800 : 9_000 + totalLeads * 450;
+    const startedAt = Date.now();
+
+    setGenerateProgress(0);
+    setGenerateStage(stageLabelForGenerateProgress(0, tab));
+
+    const timer = window.setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      const next = Math.min(92, Math.round((elapsed / estimatedMs) * 92));
+      setGenerateProgress(next);
+      setGenerateStage(stageLabelForGenerateProgress(next, tab));
+    }, 120);
+
+    return () => window.clearInterval(timer);
+  }, [generating, tab, atlCount, virtualCount]);
+
   const generate = async () => {
     setGenerating(true);
     setError(null);
     setSuccessMessage(null);
+    setGenerateProgress(0);
+    setGenerateStage(stageLabelForGenerateProgress(0, tab));
     try {
       const res = await fetch("/api/admin/outreach/generate", {
         method: "POST",
@@ -595,11 +664,19 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         setError(null);
       }
 
+      setGenerateProgress(96);
+      setGenerateStage("Refreshing leads…");
       await loadLeads(tab);
+      setGenerateProgress(100);
+      setGenerateStage("Complete");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generation failed.");
     } finally {
       setGenerating(false);
+      window.setTimeout(() => {
+        setGenerateProgress(0);
+        setGenerateStage("");
+      }, 700);
     }
   };
 
@@ -744,6 +821,8 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
           leads={leads}
           loading={loading}
           generating={generating}
+          generateProgress={generateProgress}
+          generateStage={generateStage}
           bulkDeleting={bulkDeleting}
           atlCount={atlCount}
           virtualCount={virtualCount}
