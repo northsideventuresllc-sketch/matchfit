@@ -82,6 +82,7 @@ export function AdminAssistantClient() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<AiStatus | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [statsLine, setStatsLine] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const initialConversationSelected = useRef(false);
 
@@ -109,6 +110,18 @@ export function AdminAssistantClient() {
     if (!res.ok) return;
     const data = (await res.json()) as { messages?: ChatMessage[] };
     setMessages(data.messages ?? []);
+  }, []);
+
+  useEffect(() => {
+    void fetch("/api/admin/overview", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { memberOverview?: { totalActiveMembers: number; subscribedClients: number; freeTrialClients: number }; traffic?: { uniqueVisitors: number } } | null) => {
+        if (!data?.memberOverview) return;
+        setStatsLine(
+          `${data.memberOverview.totalActiveMembers} active members · ${data.memberOverview.subscribedClients} subscribers · ${data.memberOverview.freeTrialClients} free trials · ${data.traffic?.uniqueVisitors ?? 0} visitors (7d)`,
+        );
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -271,6 +284,23 @@ export function AdminAssistantClient() {
           </p>
         ) : null}
       </div>
+
+      {statsLine ? (
+        <div className="rounded-2xl border border-[#FF7E00]/20 bg-[#FF7E00]/[0.06] px-4 py-3">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#FFD34E]/80">Live stats snapshot</p>
+          <p className="mt-1 text-sm text-white/75">{statsLine}</p>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setInput("Summarize current dashboard stats and highlight the top 3 actions I should take this week.");
+            }}
+            className={`mt-3 ${adminPortalSecondaryButtonClass}`}
+          >
+            Draft stats summary prompt
+          </button>
+        </div>
+      ) : null}
 
       <div className="flex min-h-[32rem] flex-col gap-4 lg:grid lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-6">
         <aside className={`${adminPortalCardClass} p-3 lg:p-4`}>

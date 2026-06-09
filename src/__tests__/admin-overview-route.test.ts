@@ -65,8 +65,18 @@ describe("GET /api/admin/overview", () => {
         activePlatformSubscribers: 8,
         activeTrainerPremiumSubscribers: 3,
       },
-      recentSignups: [],
       recentFeatured: [],
+      memberOverview: {
+        totalActiveMembers: 0,
+        totalMembers: 0,
+        freeTrialClients: 0,
+        subscribedClients: 0,
+        inactiveClients: 0,
+        uniqueSiteVisitorsAllTime: 0,
+        pendingTrainers: 0,
+        compliantActiveTrainers: 0,
+        inactiveTrainers: 0,
+      },
     });
   });
 

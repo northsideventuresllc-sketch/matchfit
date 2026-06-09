@@ -1,15 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type {
   AdminAlertsPanel,
+  AdminClientPipelinePanel,
+  AdminEmailStatsPanel,
   AdminFinanceWindowKey,
   AdminFinancesPanel,
   AdminLoginRecencyBuckets,
+  AdminMemberOverviewPanel,
   AdminPlatformSummaryPanel,
   AdminPortalOverview,
-  AdminTrafficFunnelPanel,
+  AdminPremiumTrainerActivityPanel,
+  AdminRevenueSnapshot,
+  AdminSiteActivityPanel,
   AdminTrainerPipelinePanel,
 } from "@/lib/admin-portal-types";
 import type { AdPerformancePanel } from "@/lib/ad-platform-performance";
@@ -24,12 +29,43 @@ const FINANCE_WINDOW_LABELS: Record<AdminFinanceWindowKey, string> = {
   "5y": "5 years",
 };
 
-function StatCard(props: { label: string; value: string | number; hint?: string }) {
+function StatCard(props: { label: string; value: string | number; hint?: string; accent?: "default" | "orange" | "violet" | "emerald" }) {
+  const accent = props.accent ?? "default";
+  const border =
+    accent === "orange"
+      ? "border-[#FF7E00]/25 bg-gradient-to-br from-[#FF7E00]/[0.12] to-[#0E1016]/90"
+      : accent === "violet"
+        ? "border-violet-400/20 bg-gradient-to-br from-violet-500/[0.08] to-[#0E1016]/90"
+        : accent === "emerald"
+          ? "border-emerald-400/20 bg-gradient-to-br from-emerald-500/[0.08] to-[#0E1016]/90"
+          : "border-white/[0.06] bg-[#0E1016]/80";
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-3 py-3">
+    <div className={`rounded-xl border px-3 py-3 shadow-[0_20px_50px_-40px_rgba(255,126,0,0.45)] ${border}`}>
       <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">{props.label}</p>
       <p className="mt-1 text-xl font-black tabular-nums text-white">{props.value}</p>
       {props.hint ? <p className="mt-1 text-[10px] text-white/35">{props.hint}</p> : null}
+    </div>
+  );
+}
+
+export function MemberOverviewSection({ panel }: { panel: AdminMemberOverviewPanel }) {
+  const cards: { label: string; value: number; hint?: string; accent?: "default" | "orange" | "violet" | "emerald" }[] = [
+    { label: "Total Active Members", value: panel.totalActiveMembers, hint: "Past signup + ToS; trial, processing, or good standing", accent: "orange" },
+    { label: "Total Members", value: panel.totalMembers, hint: "All clients and trainers (excludes test/QA)" },
+    { label: "Free Trial Clients", value: panel.freeTrialClients, accent: "violet" },
+    { label: "Subscribed Clients", value: panel.subscribedClients, hint: "Live billing in good standing", accent: "emerald" },
+    { label: "Inactive Clients", value: panel.inactiveClients, hint: "Subscribed previously; outside billing grace" },
+    { label: "Unique Site Visitors", value: panel.uniqueSiteVisitorsAllTime, hint: "All-time distinct visitors" },
+    { label: "Pending Trainers", value: panel.pendingTrainers, hint: "Onboarding in progress" },
+    { label: "Compliant Active Trainers", value: panel.compliantActiveTrainers, hint: "Fully onboarded + recent activity", accent: "emerald" },
+    { label: "Inactive Trainers", value: panel.inactiveTrainers, hint: "Onboarded but no recent platform activity" },
+  ];
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+      {cards.map((c) => (
+        <StatCard key={c.label} label={c.label} value={c.value} hint={c.hint} accent={c.accent} />
+      ))}
     </div>
   );
 }
@@ -185,12 +221,13 @@ export function SiteTrafficSection({ traffic }: { traffic: AdminPortalOverview["
   return (
     <MetricsSection
       title={`Site traffic (${traffic.windowDays}d)`}
-      description="Page views and link clicks from public site analytics (bots filtered at ingest)."
+      description="Public site analytics — page views, unique visitors, and engagement (bots filtered at ingest)."
     >
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="7D unique visitors" value={traffic.uniqueVisitors} accent="orange" hint="Distinct visitors this window" />
         <StatCard label="Page views" value={traffic.pageViews} />
-        <StatCard label="Unique visitors" value={traffic.uniqueVisitors} />
         <StatCard label="Link clicks" value={traffic.linkClicks} />
+        <StatCard label="Homepage views" value={traffic.topPages.find((p) => p.path === "/")?.views ?? 0} hint="In top pages window" />
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Form field focus" value={traffic.formEvents.fieldFocus} />
@@ -273,86 +310,24 @@ export function SiteTrafficSection({ traffic }: { traffic: AdminPortalOverview["
   );
 }
 
-export function AcquisitionFunnelSection({ funnel }: { funnel: AdminTrafficFunnelPanel }) {
+export function SiteActivitySection({ panel }: { panel: AdminSiteActivityPanel }) {
   return (
     <MetricsSection
-      title="Acquisition funnel & engagement"
-      description={
-        funnel.analyticsAvailable
-          ? "Signup page views, live sessions, login recency, and top product actions (7d, excludes QA synthetic accounts)."
-          : "Site analytics table not available — funnel page-view counts may be zero until reporting schema is applied."
-      }
+      title="Site activity"
+      description="Member-only engagement inside dashboards — login recency and top product actions (7d)."
     >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Homepage visits (all time)" value={funnel.homepageVisits} />
-        <StatCard label="Total site page views" value={funnel.totalSiteVisits} />
-        <StatCard label="Active on site now (~15m)" value={funnel.activeOnSiteNow} />
-        <StatCard label="Client signup page views" value={funnel.clientSignupPageViews} />
-        <StatCard label="Trainer signup page views" value={funnel.trainerSignupPageViews} />
-        <StatCard
-          label="Reached client signup (no account)"
-          value={funnel.clientsReachedSignupWithoutAccount}
-          hint="Unique signup visitors minus live clients, plus active pending registrations"
-        />
-        <StatCard
-          label="Reached trainer signup (no account)"
-          value={funnel.trainersReachedSignupWithoutAccount}
-          hint="Unique signup visitors minus live trainer accounts"
-        />
-        <StatCard
-          label="Pending client registrations"
-          value={funnel.pendingClientRegistrations.total}
-          hint="Non-expired rows in PENDING_2FA or AWAITING_PAYMENT"
-        />
-        <StatCard
-          label="Incomplete trainer signups"
-          value={funnel.incompleteTrainerSignups}
-          hint="Dashboard not live yet (`dashboardActivatedAt` null)"
-        />
-        <StatCard
-          label="Trainers before terms"
-          value={funnel.trainersBeforeTerms}
-          hint="Account created but Terms of Service not accepted"
-        />
-        <StatCard
-          label="Trainers pre registration payment"
-          value={funnel.trainersBeforeRegistrationPayment}
-          hint="No registration fee hold/capture and limited dashboard not unlocked"
-        />
-        <StatCard
-          label="Clients in free trial"
-          value={funnel.clientsInFreeTrial}
-          hint={`${funnel.clientsInPlatformTrial ?? 0} card-free platform trial · ${funnel.clientsInStripeTrial ?? 0} Stripe trial (no paid invoice yet)`}
-        />
-        <StatCard
-          label="Clients in post-trial payment grace"
-          value={funnel.clientsInPlatformPaymentGrace}
-          hint="Platform trial ended; card/subscription not connected yet"
-        />
-        <StatCard
-          label="Active client subscriptions"
-          value={funnel.activeClientSubscriptions}
-          hint="Live Stripe billing with active subscription"
-        />
+        <StatCard label="Active members now (~15m)" value={panel.activeMembersNow} accent="orange" hint="Dashboard page views" />
       </div>
-      {Object.keys(funnel.pendingClientRegistrations.byStatus).length > 0 ? (
-        <ul className="mt-3 text-[11px] text-white/45">
-          {Object.entries(funnel.pendingClientRegistrations.byStatus).map(([status, count]) => (
-            <li key={status}>
-              {status}: {count}
-            </li>
-          ))}
-        </ul>
-      ) : null}
       <div className="mt-5 grid gap-6 lg:grid-cols-2">
-        <LoginRecencyGrid title="Client logins by recency" buckets={funnel.clientLoginsByRecency} />
-        <LoginRecencyGrid title="Trainer logins by recency" buckets={funnel.trainerLoginsByRecency} />
+        <LoginRecencyGrid title="Client logins by recency" buckets={panel.clientLoginsByRecency} />
+        <LoginRecencyGrid title="Trainer logins by recency" buckets={panel.trainerLoginsByRecency} />
       </div>
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Top client actions (7d)</p>
           <ul className="mt-2 space-y-1 text-[11px] text-white/50">
-            {funnel.topClientFunctions.map((f) => (
+            {panel.topClientFunctions.map((f) => (
               <li key={f.key} className="flex justify-between">
                 <span>{f.label}</span>
                 <span className="tabular-nums">{f.count}</span>
@@ -363,7 +338,7 @@ export function AcquisitionFunnelSection({ funnel }: { funnel: AdminTrafficFunne
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Top trainer actions (7d)</p>
           <ul className="mt-2 space-y-1 text-[11px] text-white/50">
-            {funnel.topTrainerFunctions.map((f) => (
+            {panel.topTrainerFunctions.map((f) => (
               <li key={f.key} className="flex justify-between">
                 <span>{f.label}</span>
                 <span className="tabular-nums">{f.count}</span>
@@ -372,6 +347,117 @@ export function AcquisitionFunnelSection({ funnel }: { funnel: AdminTrafficFunne
           </ul>
         </div>
       </div>
+    </MetricsSection>
+  );
+}
+
+export function ClientPipelineSection({ panel }: { panel: AdminClientPipelinePanel }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  return (
+    <MetricsSection
+      title="Client pipeline"
+      description="From 50%+ signup completion through free trial. Subscribers appear in Member overview."
+    >
+      <ul className="grid gap-2 sm:grid-cols-3">
+        {panel.stages.map((s) => (
+          <li key={s.id} className="rounded-xl border border-violet-400/20 bg-violet-500/[0.06] px-3 py-2.5">
+            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-violet-200/70">{s.label}</p>
+            <p className="mt-1 text-2xl font-black tabular-nums text-white">{s.count}</p>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-4 max-h-72 space-y-2 overflow-y-auto">
+        {panel.entries.length === 0 ? (
+          <p className="text-sm text-white/45">No pending clients in pipeline.</p>
+        ) : (
+          panel.entries.map((e) => (
+            <div key={e.id} className="rounded-xl border border-white/[0.06] bg-[#0E1016]/80">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
+                onClick={() => setExpandedId(expandedId === e.id ? null : e.id)}
+              >
+                <span className="text-sm font-semibold text-white">{e.label}</span>
+                <span className="text-[10px] uppercase text-white/35">{expandedId === e.id ? "Hide" : "Details"}</span>
+              </button>
+              {expandedId === e.id ? (
+                <div className="border-t border-white/[0.05] px-3 py-2 text-[11px] text-white/55">
+                  <p>Filled: {e.filledFields.join(", ") || "—"}</p>
+                  <p className="mt-1">Missing: {e.missingFields.join(", ") || "—"}</p>
+                </div>
+              ) : null}
+            </div>
+          ))
+        )}
+      </div>
+    </MetricsSection>
+  );
+}
+
+export function PremiumTrainerActivitySection({ panel }: { panel: AdminPremiumTrainerActivityPanel }) {
+  return (
+    <MetricsSection title="Premium trainer activity" description="Premium studio, featured slots, ads, tokens, and bidding.">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <StatCard label="Premium trainers" value={panel.premiumTrainers} accent="orange" />
+        <StatCard label="Featured slots today" value={panel.featuredSlotsToday} />
+        <StatCard label="Active advertisements" value={panel.activeAdvertisements} />
+        <StatCard label="Token revenue (30d)" value={formatUsdFromCents(panel.tokenRevenueCents)} accent="emerald" />
+        <StatCard label="Bids today" value={panel.recentBids.length} hint="Featured placement bids" />
+      </div>
+      {panel.recentBids.length > 0 ? (
+        <ul className="mt-4 space-y-1.5 text-[11px] text-white/55">
+          {panel.recentBids.map((b, i) => (
+            <li key={`${b.trainerUsername}-${i}`} className="flex justify-between gap-3 rounded-lg border border-white/[0.05] px-3 py-2">
+              <span>
+                @{b.trainerUsername} · ZIP {b.regionZipPrefix} · {b.displayDayKey}
+              </span>
+              <span className="shrink-0 font-semibold text-white">{formatUsdFromCents(b.amountCents)}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </MetricsSection>
+  );
+}
+
+export function FinancialDetailsSection({ finances, revenue }: { finances: AdminFinancesPanel; revenue: AdminRevenueSnapshot }) {
+  return (
+    <MetricsSection title="Financial details" description="Platform revenue, subscription health, and transaction history.">
+      <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.06] p-4">
+        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-200/80">Lifetime platform revenue</p>
+        <p className="mt-2 text-2xl font-black tabular-nums text-white">{formatUsdFromCents(revenue.revenueCents)}</p>
+        <p className="mt-1 text-xs text-white/45">
+          Gross profit {formatUsdFromCents(revenue.grossProfitCents)} · {revenue.eventCount} events
+        </p>
+      </div>
+      <FinancesDetailSection finances={finances} embedded />
+    </MetricsSection>
+  );
+}
+
+export function AutomatedEmailStatsSection({ panel }: { panel: AdminEmailStatsPanel }) {
+  return (
+    <MetricsSection
+      title="Automated email stats"
+      description={`Transactional email delivery over the last ${panel.windowDays} days.`}
+    >
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <StatCard label="Total attempts" value={panel.totalAttempts} />
+        <StatCard label="Sent" value={panel.sent} accent="emerald" />
+        <StatCard label="Skipped (prefs)" value={panel.skippedPrefs} />
+        <StatCard label="Skipped (no recipient)" value={panel.skippedNoRecipient} />
+        <StatCard label="Failed" value={panel.failed} accent="orange" />
+      </div>
+      {panel.recent.length > 0 ? (
+        <ul className="mt-4 max-h-48 space-y-1 overflow-y-auto text-[10px] text-white/45">
+          {panel.recent.map((r) => (
+            <li key={r.id}>
+              {new Date(r.at).toLocaleString()} · {r.kind} · {r.status} · {r.toEmail}
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </MetricsSection>
   );
 }
@@ -416,10 +502,13 @@ export function AdPerformanceSection({ panel }: { panel: AdPerformancePanel }) {
 }
 
 export function TrainerPipelineSection({ pipeline }: { pipeline: AdminTrainerPipelinePanel }) {
+  const [selectedTrainerId, setSelectedTrainerId] = useState<string | null>(null);
+  const selected = pipeline.pendingTrainers.find((t) => t.trainerId === selectedTrainerId) ?? null;
+
   return (
     <MetricsSection
       title="Trainer onboarding pipeline"
-      description={`${pipeline.totalInPipeline} trainers in pipeline (excludes deidentified and QA synthetic). Percentages are relative to trainers who accepted Terms of Service.`}
+      description={`${pipeline.totalInPipeline} trainers past Terms of Service. Percentages relative to terms-accepted count.`}
     >
       <ul className="space-y-2">
         {pipeline.stages.map((s) => (
@@ -434,16 +523,48 @@ export function TrainerPipelineSection({ pipeline }: { pipeline: AdminTrainerPip
           </li>
         ))}
       </ul>
+      <div className="mt-5">
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Pending trainers</p>
+        <div className="mt-2 max-h-56 space-y-1.5 overflow-y-auto">
+          {pipeline.pendingTrainers.length === 0 ? (
+            <p className="text-sm text-white/45">No pending trainers.</p>
+          ) : (
+            pipeline.pendingTrainers.map((t) => (
+              <button
+                key={t.trainerId}
+                type="button"
+                onClick={() => setSelectedTrainerId(t.trainerId === selectedTrainerId ? null : t.trainerId)}
+                className={`block w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
+                  selectedTrainerId === t.trainerId
+                    ? "border-[#FF7E00]/35 bg-[#FF7E00]/10 text-white"
+                    : "border-white/[0.05] bg-black/20 text-white/75 hover:bg-white/[0.04]"
+                }`}
+              >
+                {t.displayName} <span className="font-mono text-xs text-white/40">@{t.username}</span>
+              </button>
+            ))
+          )}
+        </div>
+        {selected ? (
+          <div className="mt-3 rounded-xl border border-[#FF7E00]/25 bg-[#FF7E00]/[0.06] p-3 text-[11px] text-white/70">
+            <p>Onboarding fee completed: {selected.onboardingFeeCompleted ? "Yes" : "No"}</p>
+            <p className="mt-1">Background check: {selected.backgroundCheckStatus}</p>
+            {selected.backgroundCheckReviewStatus ? (
+              <p className="mt-1">BG review: {selected.backgroundCheckReviewStatus}</p>
+            ) : null}
+            <p className="mt-1">
+              Documents: {selected.documentsComplete ? "Complete" : selected.documentsPending ? "Pending" : "Not uploaded"}
+            </p>
+          </div>
+        ) : null}
+      </div>
     </MetricsSection>
   );
 }
 
-export function FinancesDetailSection({ finances }: { finances: AdminFinancesPanel }) {
-  return (
-    <MetricsSection
-      title="Finances & subscriptions"
-      description="Revenue windows from platform_revenue_events; service admin fees from completed checkouts."
-    >
+export function FinancesDetailSection({ finances, embedded }: { finances: AdminFinancesPanel; embedded?: boolean }) {
+  const body = (
+    <>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Clients in free trial"
@@ -513,6 +634,17 @@ export function FinancesDetailSection({ finances }: { finances: AdminFinancesPan
           </ul>
         </div>
       ) : null}
+    </>
+  );
+
+  if (embedded) return <div className="mt-4">{body}</div>;
+
+  return (
+    <MetricsSection
+      title="Finances & subscriptions"
+      description="Revenue windows from platform_revenue_events; service admin fees from completed checkouts."
+    >
+      {body}
     </MetricsSection>
   );
 }

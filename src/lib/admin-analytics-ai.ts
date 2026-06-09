@@ -123,7 +123,7 @@ function buildContextSummary(overview: AdminPortalOverview, traffic: AdminTraffi
         targetValue: g.targetValue,
         deadline: g.deadline?.toISOString() ?? null,
       })),
-      recentSignupCount: overview.recentSignups.length,
+      memberOverview: overview.memberOverview,
     },
     null,
     2,

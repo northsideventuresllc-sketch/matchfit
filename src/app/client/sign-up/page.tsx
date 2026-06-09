@@ -19,6 +19,7 @@ import {
 } from "@/lib/site-analytics-form";
 import { BetaCapFullSignupNotice } from "@/components/beta-cap-full-signup-notice";
 import { useBetaLaunchStatus } from "@/hooks/use-beta-launch-status";
+import { useSignupProgressReport } from "@/lib/use-signup-progress-report";
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -117,6 +118,23 @@ function ClientSignUpPageInner() {
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [betaInviteReserved, setBetaInviteReserved] = useState<string | null>(null);
   const turnstile = useTurnstileGate();
+  const reportSignupProgress = useSignupProgressReport("client");
+
+  useEffect(() => {
+    reportSignupProgress(
+      {
+        firstName: Boolean(firstName.trim()),
+        lastName: Boolean(lastName.trim()),
+        phone: Boolean(phone.trim()),
+        email: Boolean(email.trim()),
+        password: Boolean(password),
+        zipCode: Boolean(zipCode.trim()),
+        dateOfBirth: Boolean(dateOfBirth),
+        agreedToTerms,
+      },
+      { email, username: undefined },
+    );
+  }, [firstName, lastName, phone, email, password, zipCode, dateOfBirth, agreedToTerms, reportSignupProgress]);
 
   const wizardFunnelStep = useMemo(() => {
     if (wizardStep === 1) {

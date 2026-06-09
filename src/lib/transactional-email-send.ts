@@ -7,6 +7,7 @@ import { buildTransactionalEmail } from "@/lib/transactional-email-templates";
 import type { TransactionalEmailKind } from "@/lib/transactional-email-kinds";
 import { isMandatoryTransactionalEmailKind } from "@/lib/transactional-email-kinds";
 import { clientAllowsTransactionalEmailKind, trainerAllowsTransactionalEmailKind } from "@/lib/transactional-email-prefs";
+import { logTransactionalEmailDelivery } from "@/lib/transactional-email-delivery-log";
 
 export type SendTransactionalEmailAudience = "CLIENT" | "TRAINER" | "STAFF";
 
@@ -30,7 +31,20 @@ export type SendTransactionalEmailResult =
  */
 export async function sendTransactionalEmailIfAllowed(params: SendTransactionalEmailParams): Promise<SendTransactionalEmailResult> {
   const to = params.to?.trim();
-  if (!to) return { sent: false, skipped: "no_recipient" };
+  const { subject } = buildTransactionalEmail(params.kind, params.variables);
+
+  if (!to) {
+    void logTransactionalEmailDelivery({
+      kind: params.kind,
+      audience: params.audience,
+      toEmail: "",
+      subject,
+      status: "skipped_no_recipient",
+      clientId: params.clientId,
+      trainerId: params.trainerId,
+    });
+    return { sent: false, skipped: "no_recipient" };
+  }
 
   if (!isMandatoryTransactionalEmailKind(params.kind) && params.audience !== "STAFF") {
     if (params.audience === "CLIENT" && params.clientId) {
@@ -40,6 +54,15 @@ export async function sendTransactionalEmailIfAllowed(params: SendTransactionalE
       });
       const prefs = parseClientNotificationPrefsJson(row?.notificationPrefsJson);
       if (!clientAllowsTransactionalEmailKind(prefs, params.kind)) {
+        void logTransactionalEmailDelivery({
+          kind: params.kind,
+          audience: params.audience,
+          toEmail: to,
+          subject,
+          status: "skipped_prefs",
+          clientId: params.clientId,
+          trainerId: params.trainerId,
+        });
         return { sent: false, skipped: "prefs" };
       }
     }
@@ -50,18 +73,51 @@ export async function sendTransactionalEmailIfAllowed(params: SendTransactionalE
       });
       const prefs = parseTrainerNotificationPrefsJson(row?.notificationPrefsJson);
       if (!trainerAllowsTransactionalEmailKind(prefs, params.kind)) {
+        void logTransactionalEmailDelivery({
+          kind: params.kind,
+          audience: params.audience,
+          toEmail: to,
+          subject,
+          status: "skipped_prefs",
+          clientId: params.clientId,
+          trainerId: params.trainerId,
+        });
         return { sent: false, skipped: "prefs" };
       }
     }
   }
 
-  const { subject, text, html } = buildTransactionalEmail(params.kind, params.variables);
-  await sendMatchFitBrandedEmail({
-    to,
-    subject,
-    text,
-    html,
-    replyTo: params.audience === "STAFF" ? undefined : MATCH_FIT_REPLY_TO,
-  });
-  return { sent: true };
+  const { text, html } = buildTransactionalEmail(params.kind, params.variables);
+  try {
+    const resendId = await sendMatchFitBrandedEmail({
+      to,
+      subject,
+      text,
+      html,
+      replyTo: params.audience === "STAFF" ? undefined : MATCH_FIT_REPLY_TO,
+    });
+    void logTransactionalEmailDelivery({
+      kind: params.kind,
+      audience: params.audience,
+      toEmail: to,
+      subject,
+      status: "sent",
+      resendId,
+      clientId: params.clientId,
+      trainerId: params.trainerId,
+    });
+    return { sent: true };
+  } catch (e) {
+    void logTransactionalEmailDelivery({
+      kind: params.kind,
+      audience: params.audience,
+      toEmail: to,
+      subject,
+      status: "failed",
+      errorMessage: e instanceof Error ? e.message : String(e),
+      clientId: params.clientId,
+      trainerId: params.trainerId,
+    });
+    throw e;
+  }
 }

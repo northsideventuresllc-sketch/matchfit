@@ -33,10 +33,14 @@ import { formatAdminStatsTimestamp } from "@/lib/admin-stats-timestamp";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { AdminDashboardLayoutCustomizer } from "./admin-dashboard-layout-customizer";
 import {
-  AcquisitionFunnelSection,
-  FinancesDetailSection,
+  AutomatedEmailStatsSection,
+  ClientPipelineSection,
+  FinancialDetailsSection,
+  MemberOverviewSection,
   OperationalAlertsSection,
   PlatformHealthSection,
+  PremiumTrainerActivitySection,
+  SiteActivitySection,
   SiteTrafficSection,
   TrainerPipelineSection,
 } from "./admin-dashboard-metrics";
@@ -209,11 +213,22 @@ export function AdminDashboardClient(props: {
   administratorId: string;
   layoutLoadedFromServer: boolean;
   auditLog: AdminAuditLogRow[];
-  visitorInsight: string;
 }) {
   const overview = props.initialOverview;
-  const { userCounts, revenue, recentSignups, recentFeatured, traffic, funnel, pipeline, finances, alerts, platformSummary } =
-    overview;
+  const {
+    memberOverview,
+    revenue,
+    recentFeatured,
+    traffic,
+    siteActivity,
+    clientPipeline,
+    pipeline,
+    premiumActivity,
+    finances,
+    emailStats,
+    alerts,
+    platformSummary,
+  } = overview;
 
   const layoutStorageKey = `${ADMIN_DASHBOARD_LAYOUT_STORAGE_KEY}:${props.administratorId}`;
   const legacyLayoutStorageKey = `mf_admin_dashboard_layout_v1:${props.administratorId}`;
@@ -274,14 +289,18 @@ export function AdminDashboardClient(props: {
     }
   }, []);
 
-  /* eslint-disable react-hooks/set-state-in-effect -- initial directory + signup log */
+  /* eslint-disable react-hooks/set-state-in-effect -- initial signup log */
   useEffect(() => {
-    void loadDirectory("");
     void loadSignupLog(0, true);
-  }, [loadDirectory, loadSignupLog]);
+  }, [loadSignupLog]);
 
   useEffect(() => {
-    const t = window.setTimeout(() => void loadDirectory(q), 280);
+    const trimmed = q.trim();
+    if (trimmed.length < 2) {
+      setRows(null);
+      return;
+    }
+    const t = window.setTimeout(() => void loadDirectory(trimmed), 280);
     return () => window.clearTimeout(t);
   }, [q, loadDirectory]);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -445,98 +464,36 @@ export function AdminDashboardClient(props: {
     }
   }
 
-  const totalMembers = userCounts.clientsTotal + userCounts.trainersTotal;
-
   function renderSectionBody(id: AdminDashboardSectionId) {
     switch (id) {
       case "overview-kpis":
-        return (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Total members</p>
-              <p className="mt-2 text-3xl font-black tabular-nums text-white">{totalMembers}</p>
-            <p className="mt-1 text-xs text-white/40">
-              {userCounts.clientsTotal} clients · {userCounts.trainersTotal} trainers
-            </p>
-            <p className="mt-1 text-[10px] text-white/30">Excludes test &amp; QA accounts</p>
-            </div>
-            <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Active clients</p>
-              <p className="mt-2 text-3xl font-black tabular-nums text-white">{userCounts.clientsActive}</p>
-              <p className="mt-1 text-xs text-white/40">Billing in good standing</p>
-            </div>
-            <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Active trainers</p>
-              <p className="mt-2 text-3xl font-black tabular-nums text-white">{userCounts.trainersActive}</p>
-              <p className="mt-1 text-xs text-white/40">Onboarded + recent activity</p>
-            </div>
-            <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Client subscribers</p>
-              <p className="mt-2 text-3xl font-black tabular-nums text-white">{revenue.activePlatformSubscribers}</p>
-              <p className="mt-1 text-xs text-white/40">$10/mo platform subscription</p>
-            </div>
-            <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Premium trainers</p>
-              <p className="mt-2 text-3xl font-black tabular-nums text-white">
-                {revenue.activeTrainerPremiumSubscribers}
-              </p>
-              <p className="mt-1 text-xs text-white/40">$20/mo premium studio</p>
-            </div>
-            <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Site visitors (7d)</p>
-              <p className="mt-2 text-3xl font-black tabular-nums text-white">{traffic.uniqueVisitors}</p>
-              <p className="mt-1 text-xs text-white/40">
-                {traffic.pageViews} page views · {traffic.linkClicks} clicks
-              </p>
-            </div>
-          </div>
-        );
-      case "revenue-snapshot":
-        return (
-          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.06] p-5">
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-200/80">Platform revenue</p>
-            <p className="mt-2 text-2xl font-black tabular-nums text-white">{formatUsdFromCents(revenue.revenueCents)}</p>
-            <p className="mt-1 text-xs text-white/45">
-              {revenue.eventCount} recorded payment event{revenue.eventCount === 1 ? "" : "s"} (gross collected)
-            </p>
-            <p className="mt-4 text-[11px] font-black uppercase tracking-[0.18em] text-emerald-200/70">
-              Gross platform profit
-            </p>
-            <p className="mt-1 text-xl font-black tabular-nums text-emerald-50">
-              {formatUsdFromCents(revenue.grossProfitCents)}
-            </p>
-            <ul className="mt-3 space-y-1.5 text-[11px] leading-relaxed text-white/45">
-              <li>
-                Services: {formatUsdFromCents(revenue.byCategory.SERVICE_CHECKOUT.grossProfitCents)} profit (
-                {revenue.byCategory.SERVICE_CHECKOUT.eventCount} checkouts)
-              </li>
-              <li>
-                Client subs ($10/mo):{" "}
-                {formatUsdFromCents(revenue.byCategory.CLIENT_PLATFORM_SUBSCRIPTION.grossProfitCents)} profit
-              </li>
-              <li>
-                Trainer premium ($20/mo):{" "}
-                {formatUsdFromCents(revenue.byCategory.TRAINER_PREMIUM_SUBSCRIPTION.grossProfitCents)} profit
-              </li>
-              <li>
-                Other one-time: {formatUsdFromCents(revenue.byCategory.ONE_TIME_PURCHASE.grossProfitCents)} profit
-              </li>
-            </ul>
-            <p className="mt-2 text-[10px] leading-relaxed text-white/35">
-              Live billing only — sandbox and test accounts excluded.
-            </p>
-          </div>
-        );
+        return <MemberOverviewSection panel={memberOverview} />;
       case "platform-health":
         return <PlatformHealthSection panel={platformSummary} />;
       case "site-traffic":
         return <SiteTrafficSection traffic={traffic} />;
-      case "acquisition-funnel":
-        return <AcquisitionFunnelSection funnel={funnel} />;
+      case "client-pipeline":
+        return <ClientPipelineSection panel={clientPipeline} />;
       case "trainer-pipeline":
         return <TrainerPipelineSection pipeline={pipeline} />;
-      case "finances-detail":
-        return <FinancesDetailSection finances={finances} />;
+      case "site-activity":
+        return <SiteActivitySection panel={siteActivity} />;
+      case "premium-trainer-activity":
+        return <PremiumTrainerActivitySection panel={premiumActivity} />;
+      case "financial-details":
+        return <FinancialDetailsSection finances={finances} revenue={revenue} />;
+      case "automated-email-stats":
+        return <AutomatedEmailStatsSection panel={emailStats} />;
+      case "ad-performance":
+        return (
+          <p className="text-sm text-white/55">
+            Ad performance lives on{" "}
+            <Link href="/admin/ad-tracking" className={adminPortalLinkClass}>
+              Ad Tracking HQ
+            </Link>
+            .
+          </p>
+        );
       case "operational-alerts":
         return <OperationalAlertsSection alerts={alerts} />;
       case "impersonation-audit":
@@ -555,39 +512,6 @@ export function AdminDashboardClient(props: {
                       {row.administratorEmail} · {formatSignupDate(row.createdAt)}
                     </p>
                   </div>
-                ))
-              )}
-            </div>
-          </div>
-        );
-      case "ai-visitor-insights":
-        return props.visitorInsight ? (
-          <div className="rounded-2xl border border-[#FF7E00]/25 bg-[#FF7E00]/[0.06] p-5">
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/80">{props.visitorInsight}</p>
-            <p className="mt-3 text-xs">
-              <Link href="/admin/assistant" className={adminPortalLinkClass}>
-                Open AI Assistant for deeper analysis and goal setting
-              </Link>
-            </p>
-          </div>
-        ) : (
-          <p className="text-sm text-white/45">
-            Insights unavailable.{" "}
-            <Link href="/admin/assistant" className={adminPortalLinkClass}>
-              Open the AI Assistant
-            </Link>
-            .
-          </p>
-        );
-      case "recent-signups":
-        return (
-          <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
-            <div className="space-y-2">
-              {recentSignups.length === 0 ? (
-                <p className="text-sm text-white/45">No signups yet.</p>
-              ) : (
-                recentSignups.map((row) => (
-                  <SignupRowCard key={`${row.kind}-${row.id}`} row={row} busyKey={busyKey} onOpen={impersonate} compact />
                 ))
               )}
             </div>
@@ -658,22 +582,26 @@ export function AdminDashboardClient(props: {
               placeholder="Search username, email, or phone…"
               className="w-full rounded-xl border border-white/[0.1] bg-[#07080c] px-4 py-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#FF7E00]/35 focus:ring-2 focus:ring-[#FF7E00]/20"
             />
-            <div className="grid gap-6 lg:grid-cols-2">
-              <AdminDirectoryUserTable
-                title="Clients"
-                kind="client"
-                list={rows?.clients ?? []}
-                busyKey={busyKey}
-                onImpersonate={impersonate}
-              />
-              <AdminDirectoryUserTable
-                title="Trainers"
-                kind="trainer"
-                list={rows?.trainers ?? []}
-                busyKey={busyKey}
-                onImpersonate={impersonate}
-              />
-            </div>
+            {q.trim().length < 2 ? (
+              <p className="text-sm text-white/45">Type at least 2 characters to search real members.</p>
+            ) : (
+              <div className="grid gap-6 lg:grid-cols-2">
+                <AdminDirectoryUserTable
+                  title="Clients"
+                  kind="client"
+                  list={rows?.clients ?? []}
+                  busyKey={busyKey}
+                  onImpersonate={impersonate}
+                />
+                <AdminDirectoryUserTable
+                  title="Trainers"
+                  kind="trainer"
+                  list={rows?.trainers ?? []}
+                  busyKey={busyKey}
+                  onImpersonate={impersonate}
+                />
+              </div>
+            )}
           </div>
         );
       default:
@@ -779,9 +707,12 @@ export function AdminDashboardClient(props: {
               const usesInternalHeading = [
                 "platform-health",
                 "site-traffic",
-                "acquisition-funnel",
+                "site-activity",
+                "client-pipeline",
                 "trainer-pipeline",
-                "finances-detail",
+                "premium-trainer-activity",
+                "financial-details",
+                "automated-email-stats",
                 "operational-alerts",
               ].includes(sectionId);
 
