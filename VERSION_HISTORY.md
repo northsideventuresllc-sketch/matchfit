@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-09** `1.4.12-beta` → `1.4.13-beta` (**patch** — Fix content calendar post action type narrowing in build)
 - **2026-06-09** `1.4.11-beta` → `1.4.12-beta` (**patch** — Admin portal UI polish: content calendar, ad tracking, settings, AI assistant improvements)
 - **2026-06-09** `1.4.10-beta` → `1.4.11-beta` (**patch** — Count pending trainers toward platform totals and beta slot usage)
 - **2026-06-09** `1.4.9-beta` → `1.4.10-beta` (**patch** — Fix duplicate backgroundCheckHoldCents build error; improve Outreach HQ AI lead quality with few-shot examples and deduplication across deleted leads)
