@@ -21,9 +21,9 @@ const PAGES: { id: AdminPortalNavPage; href: string; label: string }[] = [
   { id: "outreach", href: "/admin/outreach", label: "Outreach HQ" },
   { id: "content-calendar", href: "/admin/content-calendar", label: "Content Calendar" },
   { id: "ad-tracking", href: "/admin/ad-tracking", label: "Ad Tracking" },
-  { id: "settings", href: "/admin/settings", label: "Settings" },
   { id: "assistant", href: "/admin/assistant", label: "AI Assistant" },
   { id: "waitlists", href: "/admin/beta-waitlists", label: "Beta Waitlists" },
+  { id: "settings", href: "/admin/settings", label: "Settings" },
 ];
 
 function linkClassName(current: AdminPortalNavPage, page: AdminPortalNavPage, variant: "horizontal" | "sidebar") {
