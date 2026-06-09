@@ -63,9 +63,10 @@ function formatOutreachBatchLabel(batchId: string | null, leads: AnyLead[]): str
 function stageLabelForGenerateProgress(percent: number): string {
   if (percent >= 100) return "Complete";
   if (percent < 20) return "Starting AI lead research…";
-  if (percent < 42) return "Finding fitness pro leads…";
-  if (percent < 58) return "Drafting personalized outreach copy…";
-  if (percent < 84) return "Saving leads to Outreach HQ…";
+  if (percent < 38) return "Finding independent fitness pros…";
+  if (percent < 55) return "Verifying Instagram profiles…";
+  if (percent < 78) return "Checking coaching bio & niche fit…";
+  if (percent < 92) return "Drafting personalized outreach copy…";
   return "Almost done…";
 }
 

@@ -14,6 +14,8 @@ export type InstagramProfileVerification =
       fullName: string | null;
       biography: string | null;
       isPrivate: boolean;
+      categoryName: string | null;
+      followerCount: number | null;
       verifiedVia: "api" | "html";
     }
   | { ok: false; username: string; reason: string };
@@ -25,6 +27,8 @@ type WebProfileInfoResponse = {
       full_name?: string;
       biography?: string;
       is_private?: boolean;
+      category_name?: string;
+      edge_followed_by?: { count?: number };
     };
   };
 };
@@ -62,10 +66,12 @@ function extractProfileFieldsFromHtml(html: string): {
   fullName: string | null;
   biography: string | null;
   isPrivate: boolean;
+  categoryName: string | null;
 } {
   const fullNameMatch = html.match(/"full_name":"((?:\\.|[^"\\])*)"/);
   const biographyMatch = html.match(/"biography":"((?:\\.|[^"\\])*)"/);
   const isPrivateMatch = html.match(/"is_private":(true|false)/);
+  const categoryMatch = html.match(/"category_name":"((?:\\.|[^"\\])*)"/);
 
   const unescape = (value: string | undefined) =>
     value?.replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))).replace(/\\n/g, "\n") ??
@@ -75,6 +81,7 @@ function extractProfileFieldsFromHtml(html: string): {
     fullName: unescape(fullNameMatch?.[1])?.trim() || null,
     biography: unescape(biographyMatch?.[1])?.trim() || null,
     isPrivate: isPrivateMatch?.[1] === "true",
+    categoryName: unescape(categoryMatch?.[1])?.trim() || null,
   };
 }
 
@@ -124,6 +131,8 @@ async function verifyInstagramProfileViaHtml(username: string): Promise<Instagra
       fullName: fields.fullName,
       biography: fields.biography,
       isPrivate: fields.isPrivate,
+      categoryName: fields.categoryName,
+      followerCount: null,
       verifiedVia: "html",
     };
   } catch {
@@ -183,6 +192,7 @@ export async function verifyInstagramProfile(username: string): Promise<Instagra
       return { ok: false, username: normalized, reason: "Instagram profile not found." };
     }
 
+    const followerCount = user?.edge_followed_by?.count;
     return {
       ok: true,
       username: resolved,
@@ -190,6 +200,8 @@ export async function verifyInstagramProfile(username: string): Promise<Instagra
       fullName: user?.full_name?.trim() || null,
       biography: user?.biography?.trim() || null,
       isPrivate: Boolean(user?.is_private),
+      categoryName: user?.category_name?.trim() || null,
+      followerCount: typeof followerCount === "number" ? followerCount : null,
       verifiedVia: "api",
     };
   } catch (e) {

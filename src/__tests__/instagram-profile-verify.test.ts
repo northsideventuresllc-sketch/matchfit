@@ -65,6 +65,8 @@ describe("verifyInstagramProfile", () => {
       fullName: "Match Fit",
       biography: "Swipe. Match. Train.",
       isPrivate: false,
+      categoryName: null,
+      followerCount: null,
       verifiedVia: "api",
     });
   });
@@ -104,6 +106,8 @@ describe("verifyInstagramProfile", () => {
       fullName: "Coach Jonny",
       biography: "Atlanta trainer",
       isPrivate: false,
+      categoryName: null,
+      followerCount: null,
       verifiedVia: "html",
     });
   });
