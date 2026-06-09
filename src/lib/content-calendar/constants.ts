@@ -43,11 +43,16 @@ export const CONTENT_CALENDAR_TYPE_ICONS: Record<ContentCalendarPostType, string
 };
 
 export const CONTENT_CALENDAR_PLATFORMS_BY_TYPE: Record<ContentCalendarPostType, string> = {
-  Carousel: "Instagram + Facebook",
-  Static: "Instagram + Facebook",
-  Video: "Instagram Reels + TikTok",
-  Text: "Threads + Facebook",
+  Carousel: "Instagram, Threads, Facebook, TikTok",
+  Static: "Instagram, Threads, Facebook",
+  Video: "Instagram Reels, Facebook Reels, Threads, TikTok",
+  Text: "Threads, Facebook",
 };
+
+/** Post types available in the AI generator (maps to platforms automatically). */
+export const CONTENT_CALENDAR_GENERATOR_POST_TYPES = ["Carousel", "Static", "Video"] as const;
+
+export type ContentCalendarGeneratorPostType = (typeof CONTENT_CALENDAR_GENERATOR_POST_TYPES)[number];
 
 export const CONTENT_CALENDAR_DAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const;
 export const CONTENT_CALENDAR_DAYS_LONG = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] as const;

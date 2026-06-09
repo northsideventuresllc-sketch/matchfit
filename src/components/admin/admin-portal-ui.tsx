@@ -28,7 +28,7 @@ export const adminPanelInnerClass =
 export const adminCardClass = `${adminPanelClass} p-5 sm:p-6`;
 
 export const adminPrimaryButtonClass =
-  "group relative isolate flex min-h-[3.25rem] w-full items-center justify-center overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition active:translate-y-px disabled:opacity-50";
+  "inline-flex min-h-[2.75rem] shrink-0 items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-5 py-2.5 text-xs font-black uppercase tracking-[0.1em] text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition hover:brightness-105 active:translate-y-px disabled:opacity-45 disabled:grayscale-[0.3]";
 
 export const adminSecondaryButtonClass =
   "rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 text-xs font-black uppercase tracking-[0.1em] text-white/80 transition hover:border-white/25 hover:bg-white/[0.07] disabled:opacity-40";
@@ -134,11 +134,24 @@ export function AdminPortalAlert({
 export function AdminPortalBetaNotice({ className = "mt-4" }: { className?: string }) {
   return (
     <p
-      className={`rounded-2xl border border-[#FF7E00]/20 bg-[#12151C]/75 px-4 py-3 text-xs leading-relaxed text-white/55 sm:text-sm ${className}`}
+      className={`mx-auto max-w-3xl rounded-2xl border border-[#FF7E00]/20 bg-[#12151C]/75 px-4 py-3 text-center text-xs leading-relaxed text-white/55 sm:text-sm ${className}`}
     >
-      <span className="font-semibold text-[#FF7E00]">Beta note:</span> The administrator console is still evolving ahead of
-      version 1.0. Tools here may be incomplete or change as operations scale.
+      <span className="font-black uppercase tracking-[0.12em] text-[#FF7E00]">Beta note:</span> The administrator console
+      is still evolving ahead of version 1.0. Tools here may be incomplete or change as operations scale.
     </p>
+  );
+}
+
+export function AdminLoadingBar({ label }: { label?: string }) {
+  return (
+    <div className="space-y-2" role="status" aria-live="polite">
+      <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full w-2/5 animate-[admin-loading_1.4s_ease-in-out_infinite] rounded-full bg-[linear-gradient(90deg,#FFD34E,#FF7E00,#E32B2B,#FF7E00)]"
+        />
+      </div>
+      {label ? <p className="text-xs text-white/50">{label}</p> : null}
+    </div>
   );
 }
 

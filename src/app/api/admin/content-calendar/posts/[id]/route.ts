@@ -11,6 +11,25 @@ const patchSchema = z.object({
   originalVisualPrompt: z.string().nullable().optional(),
 });
 
+export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const sess = await requireAdminSession();
+  if (!sess) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!(await isNiBrainConfiguredAsync())) {
+    return NextResponse.json({ error: "NI Brain is not configured." }, { status: 503 });
+  }
+
+  const { id } = await ctx.params;
+  const { deletePost } = await import("@/lib/content-calendar/content-calendar-store");
+
+  try {
+    await deletePost(id);
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("[content-calendar post DELETE]", e);
+    return NextResponse.json({ error: "Could not delete post." }, { status: 500 });
+  }
+}
+
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const sess = await requireAdminSession();
   if (!sess) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });

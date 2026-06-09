@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { generateStaticMedia } from "@/lib/content-calendar/content-calendar-ai";
+import { generateStaticMedia, regenerateCalendarPost } from "@/lib/content-calendar/content-calendar-ai";
 import {
   dismissMissedPrompt,
   markPostPosted,
   reschedulePost,
+  serializePostForClient,
   updatePostMedia,
+  upsertWeekPosts,
 } from "@/lib/content-calendar/content-calendar-store";
+import type { ContentCalendarPostType } from "@/lib/content-calendar/constants";
 import { isNiBrainConfiguredAsync, recordContentLearning } from "@/lib/ni-brain-client";
 import { requireAdminSession } from "@/lib/require-admin";
 
@@ -20,6 +23,16 @@ const actionSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("generate_media"),
     prompt: z.string().min(10).max(4000),
+  }),
+  z.object({
+    action: z.literal("regenerate"),
+    feedback: z.string().max(2000).optional(),
+    weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    offset: z.number().int().min(0).max(28),
+    dayIndex: z.number().int().min(0).max(4),
+    postType: z.enum(["Carousel", "Static", "Video", "Text"]),
+    existingCaption: z.string().optional(),
+    existingVisualPrompt: z.string().nullable().optional(),
   }),
 ]);
 
@@ -46,6 +59,30 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       case "reschedule":
         await reschedulePost({ postId: id, newDate: parsed.data.newDate });
         return NextResponse.json({ ok: true });
+      case "regenerate": {
+        const regenerated = await regenerateCalendarPost({
+          weekStart: parsed.data.weekStart,
+          offset: parsed.data.offset,
+          dayIndex: parsed.data.dayIndex,
+          postType: parsed.data.postType as ContentCalendarPostType,
+          feedback: parsed.data.feedback,
+          existingCaption: parsed.data.existingCaption,
+          existingVisualPrompt: parsed.data.existingVisualPrompt,
+        });
+        if (!regenerated) {
+          return NextResponse.json({ error: "Regeneration failed. Check AI API keys." }, { status: 502 });
+        }
+        const rows = await upsertWeekPosts({
+          weekStart: parsed.data.weekStart,
+          offset: parsed.data.offset,
+          posts: [regenerated],
+          adminId: sess.adminId,
+        });
+        const post = rows.find(
+          (r) => r.day_index === parsed.data.dayIndex && r.post_type === parsed.data.postType,
+        );
+        return NextResponse.json({ post: post ? serializePostForClient(post) : null });
+      }
       case "generate_media": {
         await updatePostMedia({ postId: id, mediaUrl: null, mediaStatus: "generating" });
         const result = await generateStaticMedia(parsed.data.prompt);

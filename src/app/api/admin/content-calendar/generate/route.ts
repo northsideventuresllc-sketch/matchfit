@@ -5,7 +5,8 @@ import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { requireAdminSession } from "@/lib/require-admin";
 
 const bodySchema = z.object({
-  platform: z.string().min(1),
+  postType: z.enum(["Carousel", "Static", "Video"]).optional(),
+  platform: z.string().min(1).optional(),
   contentType: z.string().min(1),
   tone: z.string().min(1),
   customNote: z.string().optional(),
