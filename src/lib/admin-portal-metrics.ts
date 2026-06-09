@@ -66,6 +66,8 @@ import {
 import { buildLaunchMetricsClientSqlFilter, buildLaunchMetricsTrainerSqlFilter } from "@/lib/admin-portal-list-filters";
 import { parseTopOffering } from "@/lib/admin-portal-parsers";
 import { homepageDisplayDayKey } from "@/lib/featured-eastern-calendar";
+import { repairStaleTrainerPendingRecords } from "@/lib/trainer-pending-onboarding";
+import { buildTrainerPendingQualifications } from "@/lib/trainer-membership-status";
 
 const CLIENT_SIGNUP_PATHS = ["/client/sign-up", "/client/sign-up/complete"];
 const TRAINER_SIGNUP_PATHS = ["/trainer/signup", "/trainer/sign-up", "/trainer/signup/complete"];
@@ -587,6 +589,10 @@ export async function getAdminPremiumTrainerActivityPanel(now = new Date()): Pro
 export { getAdminEmailStatsPanel };
 
 export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipelinePanel> {
+  await repairStaleTrainerPendingRecords().catch((e) => {
+    console.warn("[admin trainer pipeline] pending record repair skipped:", e);
+  });
+
   const trainerMetricsFilter = buildLaunchMetricsTrainerSqlFilter("t", "p");
   const baseWhere = Prisma.sql`t."deidentifiedAt" IS NULL ${trainerMetricsFilter}`;
 
@@ -598,9 +604,14 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
       SELECT COUNT(*)::bigint AS n FROM trainers t
       INNER JOIN trainer_profiles p ON p."trainerId" = t.id
       WHERE ${baseWhere}
-        AND p."hasSignedTOS" = true
-        AND p."complianceWindowStartedAt" IS NOT NULL
         AND p."dashboardActivatedAt" IS NULL
+        AND (
+          p."hasSignedTOS" = true
+          OR t."termsAcceptedAt" IS NOT NULL
+          OR p."complianceWindowStartedAt" IS NOT NULL
+          OR p."limitedDashboardUnlockedAt" IS NOT NULL
+          OR p."registrationFeeHoldStatus" IN ('HELD', 'CAPTURED')
+        )
     `,
     prisma.$queryRaw<CountRow[]>`
       SELECT COUNT(*)::bigint AS n FROM trainers t
@@ -643,16 +654,19 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
     `,
     prisma.trainer.findMany({
       where: launchPendingTrainerWhere(),
-      orderBy: { createdAt: "desc" },
-      take: 40,
+      orderBy: { updatedAt: "desc" },
+      take: 80,
       select: {
         id: true,
         username: true,
         preferredName: true,
         firstName: true,
         lastName: true,
+        termsAcceptedAt: true,
         profile: {
           select: {
+            hasSignedTOS: true,
+            complianceWindowStartedAt: true,
             hasPaidRegistrationFee: true,
             registrationFeeHoldStatus: true,
             backgroundCheckStatus: true,
@@ -682,7 +696,7 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
       count: basicInfoNoTos,
       percentOfSignup: pct(basicInfoNoTos),
     },
-    { id: "signup", label: "Pending trainers (7-day window)", count: n(signupCompleted[0]), percentOfSignup: pct(n(signupCompleted[0])) },
+    { id: "signup", label: "Pending trainers (onboarding)", count: n(signupCompleted[0]), percentOfSignup: pct(n(signupCompleted[0])) },
     { id: "bg_submitted", label: "Background check submitted / pending", count: n(bgSubmitted[0]), percentOfSignup: pct(n(bgSubmitted[0])) },
     { id: "bg_review", label: "Background check failed / in review", count: n(bgFailed[0]), percentOfSignup: pct(n(bgFailed[0])) },
     { id: "bg_passed", label: "Background check passed", count: n(bgPassed[0]), percentOfSignup: pct(n(bgPassed[0])) },
@@ -691,30 +705,16 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
   ];
 
   const pendingTrainers: AdminTrainerPipelineEntry[] = pendingTrainerRows.map((t) => {
-    const p = t.profile;
-    const hasDocs =
-      Boolean(p?.certificationUrl) ||
-      Boolean(p?.nutritionistCertificationUrl) ||
-      Boolean(p?.specialistCertificationUrl) ||
-      Boolean(p?.otherCertificationUrl);
-    const allApproved =
-      (!p?.certificationUrl || p.certificationReviewStatus === "APPROVED") &&
-      (!p?.nutritionistCertificationUrl || p.nutritionistCertificationReviewStatus === "APPROVED") &&
-      (!p?.specialistCertificationUrl || p.specialistCertificationReviewStatus === "APPROVED") &&
-      (!p?.otherCertificationUrl || p.otherCertificationReviewStatus === "APPROVED");
+    const qualifications = buildTrainerPendingQualifications({
+      termsAcceptedAt: t.termsAcceptedAt,
+      profile: t.profile,
+    });
     return {
       trainerId: t.id,
       username: t.username,
       displayName:
         t.preferredName?.trim() || [t.firstName, t.lastName].filter(Boolean).join(" ").trim() || t.username,
-      onboardingFeeCompleted:
-        Boolean(p?.hasPaidRegistrationFee) ||
-        p?.registrationFeeHoldStatus === "HELD" ||
-        p?.registrationFeeHoldStatus === "CAPTURED",
-      backgroundCheckStatus: p?.backgroundCheckStatus ?? "NOT_STARTED",
-      backgroundCheckReviewStatus: p?.backgroundCheckReviewStatus ?? null,
-      documentsComplete: hasDocs && allApproved,
-      documentsPending: hasDocs && !allApproved,
+      ...qualifications,
     };
   });
 

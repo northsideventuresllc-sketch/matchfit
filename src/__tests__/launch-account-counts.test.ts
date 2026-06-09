@@ -263,13 +263,19 @@ describe("admin funnel count filters", () => {
     });
   });
 
-  it("pending trainer filter requires ToS, compliance window started, dashboard not live", () => {
+  it("pending trainer filter includes ToS or onboarding started with dashboard not live", () => {
     const where = launchPendingTrainerWhere();
     expect(where.profile).toEqual({
       is: {
         dashboardActivatedAt: null,
-        complianceWindowStartedAt: { not: null },
       },
     });
+    expect(where.OR).toEqual(
+      expect.arrayContaining([
+        { termsAcceptedAt: { not: null } },
+        { profile: { is: { hasSignedTOS: true } } },
+        { profile: { is: { complianceWindowStartedAt: { not: null } } } },
+      ]),
+    );
   });
 });

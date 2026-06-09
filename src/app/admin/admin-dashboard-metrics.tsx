@@ -56,7 +56,7 @@ export function MemberOverviewSection({ panel }: { panel: AdminMemberOverviewPan
     { label: "Subscribed Clients", value: panel.subscribedClients, hint: "Live billing in good standing", accent: "emerald" },
     { label: "Inactive Clients", value: panel.inactiveClients, hint: "Subscribed previously; outside billing grace" },
     { label: "Unique Site Visitors", value: panel.uniqueSiteVisitorsAllTime, hint: "All-time distinct visitors" },
-    { label: "Pending Trainers", value: panel.pendingTrainers, hint: "7-day onboarding window started" },
+    { label: "Pending Trainers", value: panel.pendingTrainers, hint: "Accepted Terms or onboarding started" },
     { label: "Compliant Active Trainers", value: panel.compliantActiveTrainers, hint: "Fully onboarded + recent activity", accent: "emerald" },
     { label: "Inactive Trainers", value: panel.inactiveTrainers, hint: "Onboarded but no recent platform activity" },
   ];
@@ -547,7 +547,9 @@ export function TrainerPipelineSection({ pipeline }: { pipeline: AdminTrainerPip
         </div>
         {selected ? (
           <div className="mt-3 rounded-xl border border-[#FF7E00]/25 bg-[#FF7E00]/[0.06] p-3 text-[11px] text-white/70">
-            <p>Onboarding fee completed: {selected.onboardingFeeCompleted ? "Yes" : "No"}</p>
+            <p>Terms accepted: {selected.termsAccepted ? "Yes" : "No"}</p>
+            <p className="mt-1">7-day compliance window started: {selected.complianceWindowStarted ? "Yes" : "No"}</p>
+            <p className="mt-1">Onboarding fee completed: {selected.onboardingFeeCompleted ? "Yes" : "No"}</p>
             <p className="mt-1">Background check: {selected.backgroundCheckStatus}</p>
             {selected.backgroundCheckReviewStatus ? (
               <p className="mt-1">BG review: {selected.backgroundCheckReviewStatus}</p>

@@ -99,7 +99,16 @@ describe("GET /api/admin/users", () => {
         preferredName: "",
         firstName: "Taylor",
         lastName: "Coach",
+        termsAcceptedAt: new Date("2026-05-26T00:00:00.000Z"),
         createdAt: new Date("2026-05-27T00:00:00.000Z"),
+        profile: {
+          hasSignedTOS: true,
+          dashboardActivatedAt: null,
+          complianceWindowStartedAt: new Date("2026-05-26T00:00:00.000Z"),
+          limitedDashboardUnlockedAt: new Date("2026-05-26T00:00:00.000Z"),
+          registrationFeeHoldStatus: "HELD",
+          hasPaidRegistrationFee: false,
+        },
       },
     ]);
   });
@@ -130,29 +139,9 @@ describe("GET /api/admin/users", () => {
               { username: { contains: "SearchTerm", mode: "insensitive" } },
               { email: { contains: "SearchTerm", mode: "insensitive" } },
               { phone: { contains: "SearchTerm" } },
-            ],
-          },
-        ],
-      },
-      take: 40,
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        preferredName: true,
-        createdAt: true,
-      },
-    });
-    expect(mockTrainerFindMany).toHaveBeenCalledWith({
-      where: {
-        AND: [
-          trainerMainWhere,
-          {
-            OR: [
-              { username: { contains: "SearchTerm", mode: "insensitive" } },
-              { email: { contains: "SearchTerm", mode: "insensitive" } },
-              { phone: { contains: "SearchTerm" } },
+              { firstName: { contains: "SearchTerm", mode: "insensitive" } },
+              { lastName: { contains: "SearchTerm", mode: "insensitive" } },
+              { preferredName: { contains: "SearchTerm", mode: "insensitive" } },
             ],
           },
         ],
@@ -167,6 +156,45 @@ describe("GET /api/admin/users", () => {
         firstName: true,
         lastName: true,
         createdAt: true,
+      },
+    });
+    expect(mockTrainerFindMany).toHaveBeenCalledWith({
+      where: {
+        AND: [
+          trainerMainWhere,
+          {
+            OR: [
+              { username: { contains: "SearchTerm", mode: "insensitive" } },
+              { email: { contains: "SearchTerm", mode: "insensitive" } },
+              { phone: { contains: "SearchTerm" } },
+              { firstName: { contains: "SearchTerm", mode: "insensitive" } },
+              { lastName: { contains: "SearchTerm", mode: "insensitive" } },
+              { preferredName: { contains: "SearchTerm", mode: "insensitive" } },
+            ],
+          },
+        ],
+      },
+      take: 40,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        preferredName: true,
+        firstName: true,
+        lastName: true,
+        termsAcceptedAt: true,
+        createdAt: true,
+        profile: {
+          select: {
+            hasSignedTOS: true,
+            dashboardActivatedAt: true,
+            complianceWindowStartedAt: true,
+            limitedDashboardUnlockedAt: true,
+            registrationFeeHoldStatus: true,
+            hasPaidRegistrationFee: true,
+          },
+        },
       },
     });
     expect(mockRedactEmailForAdminPortal).toHaveBeenNthCalledWith(
@@ -200,6 +228,8 @@ describe("GET /api/admin/users", () => {
           email: "redacted:trainer@example.com",
           displayName: "Taylor Coach",
           createdAt: "2026-05-27T00:00:00.000Z",
+          membershipStatus: "pending",
+          membershipStatusLabel: "Pending onboarding",
         },
       ],
     });
@@ -254,7 +284,16 @@ describe("GET /api/admin/users", () => {
           preferredName: null,
           firstName: "",
           lastName: "",
+          termsAcceptedAt: null,
           createdAt: new Date("2026-05-25T00:00:00.000Z"),
+          profile: {
+            hasSignedTOS: false,
+            dashboardActivatedAt: null,
+            complianceWindowStartedAt: null,
+            limitedDashboardUnlockedAt: null,
+            registrationFeeHoldStatus: "NOT_STARTED",
+            hasPaidRegistrationFee: false,
+          },
         },
       ]);
 

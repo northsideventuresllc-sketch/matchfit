@@ -236,18 +236,30 @@ export function launchTrainerBeforeTermsWhere(): Prisma.TrainerWhereInput {
 }
 
 /**
- * Pending trainers: accepted Terms and the 7-day onboarding/compliance window has started,
- * but the marketplace dashboard is not fully live yet.
+ * Pending trainers: accepted Terms or started onboarding, marketplace dashboard not live yet.
+ * Does not require the 7-day compliance window timestamp — that is tracked as a qualification.
  */
 export function launchPendingTrainerWhere(): Prisma.TrainerWhereInput {
   return {
-    ...launchTrainerCountWhere(),
+    ...launchTrainerAccountWhere(),
     profile: {
       is: {
         dashboardActivatedAt: null,
-        complianceWindowStartedAt: { not: null },
       },
     },
+    OR: [
+      { termsAcceptedAt: { not: null } },
+      { profile: { is: { hasSignedTOS: true } } },
+      { profile: { is: { complianceWindowStartedAt: { not: null } } } },
+      { profile: { is: { limitedDashboardUnlockedAt: { not: null } } } },
+      {
+        profile: {
+          is: {
+            registrationFeeHoldStatus: { in: ["HELD", "CAPTURED"] },
+          },
+        },
+      },
+    ],
   };
 }
 

@@ -65,6 +65,8 @@ type DirectoryRow =
       email: string;
       displayName: string;
       createdAt: string;
+      membershipStatus: "pre_tos" | "pending" | "active";
+      membershipStatusLabel: string;
     };
 
 function formatSignupDate(iso: string) {
@@ -159,7 +161,22 @@ function AdminDirectoryUserTable(props: {
               className="flex flex-col gap-2 rounded-xl border border-white/[0.06] bg-[#07080c]/80 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
             >
               <div>
-                <p className="font-semibold text-white">{row.displayName}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-semibold text-white">{row.displayName}</p>
+                  {row.kind === "trainer" ? (
+                    <span
+                      className={`rounded-md px-1.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] ${
+                        row.membershipStatus === "active"
+                          ? "bg-emerald-500/15 text-emerald-200"
+                          : row.membershipStatus === "pending"
+                            ? "bg-orange-500/15 text-orange-100"
+                            : "bg-white/10 text-white/55"
+                      }`}
+                    >
+                      {row.membershipStatusLabel}
+                    </span>
+                  ) : null}
+                </div>
                 <p className="font-mono text-xs text-white/45">@{row.username}</p>
                 <p className="text-[11px] text-white/35">{row.email}</p>
               </div>
@@ -579,11 +596,13 @@ export function AdminDashboardClient(props: {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search username, email, or phone…"
+              placeholder="Search name, username, email, or phone…"
               className="w-full rounded-xl border border-white/[0.1] bg-[#07080c] px-4 py-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#FF7E00]/35 focus:ring-2 focus:ring-[#FF7E00]/20"
             />
             {q.trim().length < 2 ? (
-              <p className="text-sm text-white/45">Type at least 2 characters to search real members.</p>
+              <p className="text-sm text-white/45">
+                Type at least 2 characters to search real members, including pending trainers.
+              </p>
             ) : (
               <div className="grid gap-6 lg:grid-cols-2">
                 <AdminDirectoryUserTable

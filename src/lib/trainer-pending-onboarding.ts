@@ -65,3 +65,57 @@ export async function markTrainerPendingAfterTermsAcceptance(
     },
   });
 }
+
+/**
+ * Repairs trainers who accepted Terms or started onboarding but are missing profile flags
+ * required for admin pending-trainer counts and pipeline views.
+ */
+export async function repairStaleTrainerPendingRecords(limit = 120): Promise<number> {
+  const candidates = await prisma.trainer.findMany({
+    where: {
+      deidentifiedAt: null,
+      profile: { is: { dashboardActivatedAt: null } },
+      OR: [
+        { termsAcceptedAt: { not: null } },
+        { profile: { is: { hasSignedTOS: true } } },
+        { profile: { is: { complianceWindowStartedAt: { not: null } } } },
+        { profile: { is: { limitedDashboardUnlockedAt: { not: null } } } },
+        { profile: { is: { registrationFeeHoldStatus: { in: ["HELD", "CAPTURED"] } } } },
+      ],
+    },
+    select: {
+      id: true,
+      termsAcceptedAt: true,
+      createdAt: true,
+      profile: {
+        select: {
+          hasSignedTOS: true,
+          complianceWindowStartedAt: true,
+        },
+      },
+    },
+    orderBy: { updatedAt: "desc" },
+    take: limit,
+  });
+
+  let repaired = 0;
+  for (const candidate of candidates) {
+    const profile = candidate.profile;
+    const needsRepair =
+      Boolean(candidate.termsAcceptedAt && !profile?.hasSignedTOS) ||
+      Boolean(candidate.termsAcceptedAt && !profile?.complianceWindowStartedAt) ||
+      Boolean(profile?.hasSignedTOS && !profile?.complianceWindowStartedAt);
+
+    if (!needsRepair) continue;
+
+    const anchor =
+      candidate.termsAcceptedAt ??
+      profile?.complianceWindowStartedAt ??
+      candidate.createdAt;
+
+    await markTrainerPendingAfterTermsAcceptance(candidate.id, anchor);
+    repaired += 1;
+  }
+
+  return repaired;
+}

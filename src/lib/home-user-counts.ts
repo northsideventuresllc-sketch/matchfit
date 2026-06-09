@@ -138,8 +138,13 @@ async function queryHomeUserCounts(
         WHERE t."deidentifiedAt" IS NULL
           ${trainerSynthClause}
           ${trainerEmailClause}
-          AND p."hasSignedTOS" = true
-          AND p."complianceWindowStartedAt" IS NOT NULL
+          AND (
+            p."hasSignedTOS" = true
+            OR t."termsAcceptedAt" IS NOT NULL
+            OR p."complianceWindowStartedAt" IS NOT NULL
+            OR p."limitedDashboardUnlockedAt" IS NOT NULL
+            OR p."registrationFeeHoldStatus" IN ('HELD', 'CAPTURED')
+          )
           AND p."dashboardActivatedAt" IS NULL
       ) AS trainers_pending,
       (
@@ -223,7 +228,7 @@ async function queryHomeUserCounts(
 
 /**
  * Homepage marketing counters. Trainers total: accepted Terms of Service (excludes test/QA accounts).
- * Trainers pending: accepted Terms and the 7-day onboarding window has started, dashboard not fully live.
+ * Trainers pending: accepted Terms or started onboarding, dashboard not fully live.
  * Trainers active: ToS accepted, dashboard live, and recent activity.
  * Clients "active": billing in good standing (no platform sub, active sub, or grace window) or a subscription
  * invoice paid in the last 14 days (`stripeLastSubscriptionInvoicePaidAt`, maintained by Stripe webhooks).

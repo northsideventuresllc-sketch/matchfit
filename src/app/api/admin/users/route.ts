@@ -9,6 +9,12 @@ import {
 } from "@/lib/admin-portal-list-filters";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/session";
+import {
+  buildAdminClientSearchClause,
+  buildAdminTrainerSearchClause,
+  resolveTrainerMembershipStatus,
+  trainerMembershipStatusLabel,
+} from "@/lib/trainer-membership-status";
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
@@ -34,34 +40,12 @@ export async function GET(req: Request) {
 
     const take = 40;
 
-    const searchClause = q
-      ? {
-          OR: [
-            { username: { contains: q, mode: "insensitive" as const } },
-            { email: { contains: q, mode: "insensitive" as const } },
-            { phone: { contains: q } },
-          ],
-        }
-      : undefined;
+    const clientSearchClause = q ? buildAdminClientSearchClause(q) : undefined;
+    const trainerSearchClause = q ? buildAdminTrainerSearchClause(q) : undefined;
 
     async function loadClients(clientWhere: ReturnType<typeof adminPortalClientListWhere>) {
       return prisma.client.findMany({
-        where: searchClause ? { AND: [clientWhere, searchClause] } : clientWhere,
-        take,
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          username: true,
-          email: true,
-          preferredName: true,
-          createdAt: true,
-        },
-      });
-    }
-
-    async function loadTrainers(trainerWhere: ReturnType<typeof adminPortalTrainerListWhere>) {
-      return prisma.trainer.findMany({
-        where: searchClause ? { AND: [trainerWhere, searchClause] } : trainerWhere,
+        where: clientSearchClause ? { AND: [clientWhere, clientSearchClause] } : clientWhere,
         take,
         orderBy: { createdAt: "desc" },
         select: {
@@ -72,6 +56,34 @@ export async function GET(req: Request) {
           firstName: true,
           lastName: true,
           createdAt: true,
+        },
+      });
+    }
+
+    async function loadTrainers(trainerWhere: ReturnType<typeof adminPortalTrainerListWhere>) {
+      return prisma.trainer.findMany({
+        where: trainerSearchClause ? { AND: [trainerWhere, trainerSearchClause] } : trainerWhere,
+        take,
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          preferredName: true,
+          firstName: true,
+          lastName: true,
+          termsAcceptedAt: true,
+          createdAt: true,
+          profile: {
+            select: {
+              hasSignedTOS: true,
+              dashboardActivatedAt: true,
+              complianceWindowStartedAt: true,
+              limitedDashboardUnlockedAt: true,
+              registrationFeeHoldStatus: true,
+              hasPaidRegistrationFee: true,
+            },
+          },
         },
       });
     }
@@ -98,20 +110,31 @@ export async function GET(req: Request) {
         id: c.id,
         username: c.username,
         email: redactEmailForAdminPortal(c.email, c.username, "client"),
-        displayName: c.preferredName?.trim() || c.username,
+        displayName:
+          c.preferredName?.trim() ||
+          [c.firstName, c.lastName].filter(Boolean).join(" ").trim() ||
+          c.username,
         createdAt: c.createdAt.toISOString(),
       })),
-      trainers: trainers.map((t) => ({
-        kind: "trainer" as const,
-        id: t.id,
-        username: t.username,
-        email: redactEmailForAdminPortal(t.email, t.username, "trainer"),
-        displayName:
-          t.preferredName?.trim() ||
-          [t.firstName, t.lastName].filter(Boolean).join(" ").trim() ||
-          t.username,
-        createdAt: t.createdAt.toISOString(),
-      })),
+      trainers: trainers.map((t) => {
+        const membershipStatus = resolveTrainerMembershipStatus({
+          trainer: t,
+          profile: t.profile,
+        });
+        return {
+          kind: "trainer" as const,
+          id: t.id,
+          username: t.username,
+          email: redactEmailForAdminPortal(t.email, t.username, "trainer"),
+          displayName:
+            t.preferredName?.trim() ||
+            [t.firstName, t.lastName].filter(Boolean).join(" ").trim() ||
+            t.username,
+          createdAt: t.createdAt.toISOString(),
+          membershipStatus,
+          membershipStatusLabel: trainerMembershipStatusLabel(membershipStatus),
+        };
+      }),
     });
   } catch (e) {
     console.error("[admin users]", e);
