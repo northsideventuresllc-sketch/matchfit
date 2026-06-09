@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-09** `1.4.3-beta` → `1.4.4-beta` (**patch** — Fix content calendar AI build import regression)
 - **2026-06-09** `1.4.2-beta` → `1.4.3-beta` (**patch** — Hydrate NI Brain and Anthropic keys from platform_secrets before admin AI status checks)
 - **2026-06-09** `1.4.1-beta` → `1.4.2-beta` (**patch** — Pending trainer counts start at ToS and 7-day window)
 - **2026-06-09** `1.4.0-beta` → `1.4.1-beta` (**patch** — Wire Resend inbound webhook for support inbox)
