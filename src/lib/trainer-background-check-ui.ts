@@ -8,12 +8,22 @@ export function resolveTrainerBackgroundCheckUiMode(): TrainerBackgroundCheckUiM
   return "unconfigured";
 }
 
-/** Signup fee hold includes a background-check escrow slice (no separate Stripe BG charge). */
+/** Signup holds include a background-check escrow slice (split PI or legacy combined hold). */
 export function trainerHasSignupBackgroundEscrow(args: {
   registrationFeeHoldStatus?: string | null;
+  backgroundCheckEscrowHoldStatus?: string | null;
+  backgroundCheckEscrowPaymentIntentId?: string | null;
   hasPaidBackgroundFee?: boolean;
 }): boolean {
-  const hold = (args.registrationFeeHoldStatus ?? "").trim().toUpperCase();
-  if (hold === "HELD" || hold === "CAPTURED") return true;
-  return Boolean(args.hasPaidBackgroundFee);
+  if (args.hasPaidBackgroundFee) return true;
+  const bgHold = (args.backgroundCheckEscrowHoldStatus ?? "").trim().toUpperCase();
+  if (bgHold === "HELD" || bgHold === "CAPTURED") return true;
+  const platformHold = (args.registrationFeeHoldStatus ?? "").trim().toUpperCase();
+  if (
+    (platformHold === "HELD" || platformHold === "CAPTURED") &&
+    !args.backgroundCheckEscrowPaymentIntentId?.trim()
+  ) {
+    return true;
+  }
+  return false;
 }

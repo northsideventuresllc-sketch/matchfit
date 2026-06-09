@@ -9,7 +9,7 @@ import { stripeConfigHealth } from "@/lib/stripe-config";
 describe("trainer-signup-payment-messaging", () => {
   it("explains hold vs charge on the signup overview", () => {
     expect(TRAINER_SIGNUP_FLOW_OVERVIEW).toMatch(/onboarding fee hold/i);
-    expect(TRAINER_SIGNUP_FLOW_OVERVIEW).toMatch(/only captures/i);
+    expect(TRAINER_SIGNUP_FLOW_OVERVIEW).toMatch(/captures the platform portion only/i);
   });
 
   it("explains pending hold on the payment step", () => {
@@ -17,10 +17,11 @@ describe("trainer-signup-payment-messaging", () => {
     expect(TRAINER_SIGNUP_PAYMENT_INTRO).toMatch(/does not capture/i);
   });
 
-  it("describes founding escrow split without implying immediate charge", () => {
+  it("describes founding escrow split without implying immediate platform charge", () => {
     const copy = trainerSignupPaymentHoldExplanation("FOUNDING_BG_SURCHARGE_20PCT");
-    expect(copy).toMatch(/hold includes/i);
     expect(copy).toMatch(/screening portion/i);
+    expect(copy).toMatch(/platform portion stays on hold/i);
+    expect(copy).toMatch(/screening portion is captured/i);
     expect(copy).not.toMatch(/charged today/i);
   });
 });

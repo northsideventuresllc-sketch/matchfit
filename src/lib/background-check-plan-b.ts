@@ -6,9 +6,10 @@ import { appBaseUrlForEmail } from "@/lib/match-fit-email-shell";
 import { prisma } from "@/lib/prisma";
 import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
 import { syncTrainerComplianceWindow } from "@/lib/trainer-compliance-window-sync";
-import { captureTrainerSignupFeeHoldPartial } from "@/lib/trainer-signup-fee-hold";
-import type { TrainerRegistrationPricingMode } from "@/lib/match-fit-launch-promotions";
-
+import {
+  captureTrainerBackgroundCheckEscrowIfReady,
+  releaseTrainerSignupPlatformHoldIfHeld,
+} from "@/lib/trainer-compliance-window-sync";
 export const MATCH_FIT_SUPPORT_EMAIL =
   process.env.MATCH_FIT_SUPPORT_EMAIL?.trim() || "support@match-fit.net";
 
@@ -26,7 +27,9 @@ const trainerSelect = {
       backgroundCheckInviteSentAt: true,
       checkrCandidateId: true,
       registrationFeeHoldPaymentIntentId: true,
+      backgroundCheckEscrowPaymentIntentId: true,
       registrationFeeHoldStatus: true,
+      backgroundCheckEscrowHoldStatus: true,
       registrationFeePricingMode: true,
       hasPaidBackgroundFee: true,
       backgroundCheckVendorPaidCents: true,
@@ -96,12 +99,19 @@ export async function requestTrainerBackgroundCheckInvite(trainerId: string): Pr
     return { ok: false, mode: "manual", message: "Trainer profile not found." };
   }
 
-  const hold = (trainer.profile.registrationFeeHoldStatus ?? "").trim().toUpperCase();
-  if (hold !== "HELD" && hold !== "CAPTURED" && !trainer.profile.hasPaidBackgroundFee) {
+  const platformHold = (trainer.profile.registrationFeeHoldStatus ?? "").trim().toUpperCase();
+  const bgHold = (trainer.profile.backgroundCheckEscrowHoldStatus ?? "").trim().toUpperCase();
+  const platformReady = platformHold === "HELD" || platformHold === "CAPTURED";
+  const bgReady =
+    bgHold === "HELD" ||
+    bgHold === "CAPTURED" ||
+    trainer.profile.hasPaidBackgroundFee ||
+    !trainer.profile.backgroundCheckEscrowPaymentIntentId?.trim();
+  if (!platformReady || !bgReady) {
     return {
       ok: false,
       mode: "manual",
-      message: "Authorize your signup fee before requesting background screening.",
+      message: "Authorize both signup fee holds before requesting background screening.",
     };
   }
 
@@ -318,6 +328,7 @@ export async function applyPlanBBackgroundCheckStaffDecision(
         updatedAt: now,
       },
     });
+    await captureTrainerBackgroundCheckEscrowIfReady(trainerId);
     await syncTrainerComplianceWindow(trainerId);
     await notifyTrainerInApp({
       trainerId,
@@ -334,31 +345,23 @@ export async function applyPlanBBackgroundCheckStaffDecision(
     return { ok: true, message: "Background check approved." };
   }
 
-  const piId = trainer.profile.registrationFeeHoldPaymentIntentId?.trim();
-  const holdStatus = (trainer.profile.registrationFeeHoldStatus ?? "").trim().toUpperCase();
-  const pricingMode = (trainer.profile.registrationFeePricingMode ??
-    "FOUNDING_BG_SURCHARGE_20PCT") as TrainerRegistrationPricingMode;
-
-  if (piId && holdStatus === "HELD") {
-    await captureTrainerSignupFeeHoldPartial(piId, pricingMode, "bg_failure");
-  }
-
   await prisma.trainerProfile.update({
     where: { trainerId },
     data: {
       backgroundCheckStatus: "DENIED",
       backgroundCheckReviewStatus: "DENIED",
-      hasPaidBackgroundFee: false,
-      backgroundCheckVendorPaidCents: null,
       updatedAt: now,
     },
   });
+
+  await captureTrainerBackgroundCheckEscrowIfReady(trainerId);
+  await releaseTrainerSignupPlatformHoldIfHeld(trainerId);
 
   await notifyTrainerInApp({
     trainerId,
     title: "Background screening not cleared",
     body:
-      "Your screening did not clear. The background-check portion of your signup authorization was not applied; see Terms for fee handling.",
+      "Your screening did not clear. The background-check fee was applied to cover Checkr screening; your platform onboarding hold was released.",
     linkHref: dash,
   });
   await sendTrainerBackgroundEmail({

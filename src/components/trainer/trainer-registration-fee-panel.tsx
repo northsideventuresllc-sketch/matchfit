@@ -80,8 +80,8 @@ export function TrainerRegistrationFeePanel() {
   if (summary.signupFeeOnHold && summary.registrationFeeHoldStatus === "HELD") {
     return (
       <p className="text-sm text-emerald-200/90">
-        Your platform registration fee was authorized at signup and is on hold. We capture it only after your
-        certifications and background check are approved; no second payment is required.
+        Your platform onboarding fee is on hold. We capture the background-check portion when Checkr screening runs,
+        and capture the platform portion only after your certifications and background check are fully approved.
       </p>
     );
   }

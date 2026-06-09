@@ -10,11 +10,17 @@ import {
   applyTrainerBackgroundCheckStripePayment,
   isTrainerBackgroundCheckPaymentIntent,
 } from "@/lib/trainer-background-check-stripe";
+import { syncTrainerComplianceWindow } from "@/lib/trainer-compliance-window-sync";
 import {
+  isTrainerSignupBackgroundEscrowPaymentIntent,
+  isTrainerSignupPlatformHoldPaymentIntent,
+  TRAINER_SIGNUP_FEE_HOLD_PURPOSE,
+} from "@/lib/trainer-signup-fee-hold";
+import {
+  applyTrainerSignupBackgroundEscrowHoldAuthorized,
   applyTrainerSignupFeeHoldAuthorized,
-  syncTrainerComplianceWindow,
+  applyTrainerSignupPlatformHoldAuthorized,
 } from "@/lib/trainer-compliance-window-sync";
-import { TRAINER_SIGNUP_FEE_HOLD_PURPOSE } from "@/lib/trainer-signup-fee-hold";
 import { getStripe } from "@/lib/stripe-server";
 import {
   oneTimePurchaseRevenueProfit,
@@ -64,9 +70,28 @@ export async function POST(req: Request) {
     const billingLiveMode = event.livemode === true;
     if (event.type === "payment_intent.succeeded" || event.type === "payment_intent.amount_capturable_updated") {
       const pi = event.data.object as Stripe.PaymentIntent;
-      if (pi.metadata?.purpose === TRAINER_SIGNUP_FEE_HOLD_PURPOSE && pi.status === "requires_capture") {
+      if (pi.status === "requires_capture") {
         const trainerId = String(pi.metadata?.trainerId ?? "").trim();
-        if (trainerId) {
+        if (trainerId && isTrainerSignupPlatformHoldPaymentIntent(pi)) {
+          const paidCents = typeof pi.amount === "number" && pi.amount > 0 ? pi.amount : 0;
+          const pricingMode =
+            pi.metadata?.pricingMode === "STANDARD_100_MINUS_BG"
+              ? "STANDARD_100_MINUS_BG"
+              : "FOUNDING_BG_SURCHARGE_20PCT";
+          await applyTrainerSignupPlatformHoldAuthorized({
+            trainerId,
+            paymentIntentId: pi.id,
+            pendingBackgroundCheckEscrowPaymentIntentId:
+              pi.metadata?.backgroundCheckPaymentIntentId?.trim() || null,
+            paidCents,
+            pricingMode,
+          });
+        } else if (trainerId && isTrainerSignupBackgroundEscrowPaymentIntent(pi)) {
+          await applyTrainerSignupBackgroundEscrowHoldAuthorized({
+            trainerId,
+            paymentIntentId: pi.id,
+          });
+        } else if (trainerId && pi.metadata?.purpose === TRAINER_SIGNUP_FEE_HOLD_PURPOSE) {
           const paidCents =
             typeof pi.amount === "number" && pi.amount > 0
               ? pi.amount

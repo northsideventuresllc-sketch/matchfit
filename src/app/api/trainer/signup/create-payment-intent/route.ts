@@ -2,7 +2,7 @@ import { hydrateStripeEnvFromDatabase } from "@/lib/hydrate-stripe-env";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { isStripeSecretConfigured } from "@/lib/stripe-config";
-import { createTrainerSignupFeeHoldPaymentIntent } from "@/lib/trainer-signup-fee-hold";
+import { createTrainerSignupFeeHoldPaymentIntents } from "@/lib/trainer-signup-fee-hold";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
 
@@ -33,6 +33,7 @@ export async function POST() {
       select: {
         hasSignedTOS: true,
         registrationFeeHoldStatus: true,
+        backgroundCheckEscrowHoldStatus: true,
         hasPaidRegistrationFee: true,
         registrationFeePricingMode: true,
       },
@@ -40,8 +41,15 @@ export async function POST() {
     if (!profile?.hasSignedTOS) {
       return NextResponse.json({ error: "Accept the trainer agreement before payment." }, { status: 400 });
     }
-    const hold = (profile.registrationFeeHoldStatus ?? "").trim().toUpperCase();
-    if (hold === "HELD" || hold === "CAPTURED" || profile.hasPaidRegistrationFee) {
+    const platformHold = (profile.registrationFeeHoldStatus ?? "").trim().toUpperCase();
+    const bgHold = (profile.backgroundCheckEscrowHoldStatus ?? "").trim().toUpperCase();
+    if (
+      platformHold === "HELD" ||
+      platformHold === "CAPTURED" ||
+      bgHold === "HELD" ||
+      bgHold === "CAPTURED" ||
+      profile.hasPaidRegistrationFee
+    ) {
       return NextResponse.json({ error: "Signup fee already authorized." }, { status: 400 });
     }
 
@@ -50,18 +58,21 @@ export async function POST() {
         ? "STANDARD_100_MINUS_BG"
         : "FOUNDING_BG_SURCHARGE_20PCT";
 
-    const { clientSecret, paymentIntentId, baseCents, totalCents } =
-      await createTrainerSignupFeeHoldPaymentIntent({
-        trainerId,
-        email: trainer.email,
-        pricingMode,
-      });
+    const intents = await createTrainerSignupFeeHoldPaymentIntents({
+      trainerId,
+      email: trainer.email,
+      pricingMode,
+    });
 
     return NextResponse.json({
-      clientSecret,
-      paymentIntentId,
-      baseCents,
-      totalCents,
+      clientSecret: intents.platformClientSecret,
+      paymentIntentId: intents.platformPaymentIntentId,
+      backgroundCheckClientSecret: intents.backgroundCheckClientSecret,
+      backgroundCheckPaymentIntentId: intents.backgroundCheckPaymentIntentId,
+      baseCents: intents.baseCents,
+      totalCents: intents.totalCents,
+      platformHoldCents: intents.platformHoldCents,
+      backgroundCheckHoldCents: intents.backgroundCheckHoldCents,
       pricingMode,
     });
   } catch (e) {

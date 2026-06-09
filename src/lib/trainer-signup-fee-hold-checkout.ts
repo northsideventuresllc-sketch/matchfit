@@ -1,19 +1,30 @@
 import type { TrainerRegistrationPricingMode } from "@/lib/match-fit-launch-promotion-caps";
 import { getAppOrigin } from "@/lib/app-origin";
-import { computeCheckoutFeeBreakdown, feeMetadataFromBreakdown } from "@/lib/stripe-checkout-line-items";
+import { feeMetadataFromBreakdown } from "@/lib/stripe-checkout-line-items";
 import { getStripe } from "@/lib/stripe-server";
 import {
-  computeTrainerSignupFeeBaseCents,
-  TRAINER_SIGNUP_FEE_HOLD_PURPOSE,
+  computeTrainerSignupBackgroundEscrowHoldCents,
+  computeTrainerSignupEscrowSplit,
+  computeTrainerSignupPlatformHoldCents,
+  signupEscrowMetadata,
+} from "@/lib/trainer-signup-escrow";
+import {
+  createTrainerSignupBackgroundEscrowPaymentIntent,
+  TRAINER_SIGNUP_BG_ESCROW_PURPOSE,
+  TRAINER_SIGNUP_PLATFORM_HOLD_PURPOSE,
 } from "@/lib/trainer-signup-fee-hold";
-import { signupEscrowMetadata } from "@/lib/trainer-signup-escrow";
 
 export async function createTrainerSignupFeeHoldCheckoutSession(args: {
   trainerId: string;
   email: string;
   pricingMode: TrainerRegistrationPricingMode;
   origin?: string;
-}): Promise<{ url: string; baseCents: number; totalCents: number }> {
+}): Promise<{
+  url: string;
+  baseCents: number;
+  totalCents: number;
+  backgroundCheckPaymentIntentId: string;
+}> {
   const stripe = getStripe();
   if (!stripe) {
     throw new Error("Billing is not configured.");
@@ -24,11 +35,15 @@ export async function createTrainerSignupFeeHoldCheckoutSession(args: {
     throw new Error("Trainer account email is missing or invalid for Stripe checkout.");
   }
 
-  const baseCents = computeTrainerSignupFeeBaseCents(args.pricingMode);
-  const breakdown = computeCheckoutFeeBreakdown({
-    baseCents,
-    includeAdminFee: false,
-    includeProcessingFee: true,
+  const split = computeTrainerSignupEscrowSplit(args.pricingMode);
+  const platformHoldCents = computeTrainerSignupPlatformHoldCents(args.pricingMode);
+  const backgroundCheckHoldCents = computeTrainerSignupBackgroundEscrowHoldCents(args.pricingMode);
+  const escrowMeta = signupEscrowMetadata(args.pricingMode);
+
+  const backgroundCheck = await createTrainerSignupBackgroundEscrowPaymentIntent({
+    trainerId: args.trainerId,
+    email,
+    pricingMode: args.pricingMode,
   });
 
   const origin = (args.origin ?? getAppOrigin()).replace(/\/$/, "");
@@ -38,11 +53,20 @@ export async function createTrainerSignupFeeHoldCheckoutSession(args: {
       : "Trainer signup fee hold";
 
   const paymentIntentMetadata = {
-    purpose: TRAINER_SIGNUP_FEE_HOLD_PURPOSE,
+    purpose: TRAINER_SIGNUP_PLATFORM_HOLD_PURPOSE,
     trainerId: args.trainerId,
     pricingMode: args.pricingMode,
-    ...feeMetadataFromBreakdown(breakdown),
-    ...signupEscrowMetadata(args.pricingMode),
+    holdSlice: "platform",
+    platformEscrowCents: String(split.platformEscrowCents),
+    platformHoldCents: String(platformHoldCents),
+    backgroundCheckPaymentIntentId: backgroundCheck.paymentIntentId,
+    ...escrowMeta,
+    ...feeMetadataFromBreakdown({
+      baseCents: split.platformEscrowCents,
+      adminCents: 0,
+      processingCents: platformHoldCents - split.platformEscrowCents,
+      totalChargedCents: platformHoldCents,
+    }),
   };
 
   const session = await stripe.checkout.sessions.create({
@@ -54,22 +78,24 @@ export async function createTrainerSignupFeeHoldCheckoutSession(args: {
         quantity: 1,
         price_data: {
           currency: "usd",
-          unit_amount: breakdown.totalChargedCents,
+          unit_amount: platformHoldCents,
           product_data: {
-            name: "Match Fit trainer signup fee authorization",
-            description: `${modeLabel}. Match Fit captures only after certification and background screening are approved.`,
+            name: "Match Fit trainer platform onboarding authorization",
+            description: `${modeLabel}. Match Fit captures the platform portion only after certification and background screening are approved.`,
           },
         },
       },
     ],
     payment_intent_data: {
       capture_method: "manual",
+      receipt_email: email,
       metadata: paymentIntentMetadata,
     },
     metadata: {
-      purpose: TRAINER_SIGNUP_FEE_HOLD_PURPOSE,
+      purpose: TRAINER_SIGNUP_PLATFORM_HOLD_PURPOSE,
       trainerId: args.trainerId,
       pricingMode: args.pricingMode,
+      backgroundCheckPaymentIntentId: backgroundCheck.paymentIntentId,
     },
     success_url: `${origin}/trainer/signup/payment/return?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/trainer/signup/payment?canceled=1`,
@@ -79,7 +105,12 @@ export async function createTrainerSignupFeeHoldCheckoutSession(args: {
     throw new Error("Could not start checkout.");
   }
 
-  return { url: session.url, baseCents: breakdown.baseCents, totalCents: breakdown.totalChargedCents };
+  return {
+    url: session.url,
+    baseCents: split.baseCents,
+    totalCents: platformHoldCents + backgroundCheckHoldCents,
+    backgroundCheckPaymentIntentId: backgroundCheck.paymentIntentId,
+  };
 }
 
 export function paymentIntentIdFromCheckoutSession(
@@ -88,3 +119,5 @@ export function paymentIntentIdFromCheckoutSession(
   if (!paymentIntent) return null;
   return typeof paymentIntent === "string" ? paymentIntent : paymentIntent.id ?? null;
 }
+
+export { TRAINER_SIGNUP_BG_ESCROW_PURPOSE, TRAINER_SIGNUP_PLATFORM_HOLD_PURPOSE };
