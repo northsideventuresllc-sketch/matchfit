@@ -65,6 +65,7 @@ describe("verifyInstagramProfile", () => {
       fullName: "Match Fit",
       biography: "Swipe. Match. Train.",
       isPrivate: false,
+      verifiedVia: "api",
     });
   });
 
@@ -79,6 +80,31 @@ describe("verifyInstagramProfile", () => {
       ok: false,
       username: "missing_user_xyz",
       reason: "Instagram profile not found.",
+    });
+  });
+
+  it("falls back to HTML profile page when JSON API is blocked", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        headers: { get: () => "text/html" },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () =>
+          '<html><script>"username":"coachjonny","full_name":"Coach Jonny","biography":"Atlanta trainer","is_private":false</script></html>',
+      });
+
+    await expect(verifyInstagramProfile("coachjonny")).resolves.toEqual({
+      ok: true,
+      username: "coachjonny",
+      profileUrl: "https://www.instagram.com/coachjonny/",
+      fullName: "Coach Jonny",
+      biography: "Atlanta trainer",
+      isPrivate: false,
+      verifiedVia: "html",
     });
   });
 });

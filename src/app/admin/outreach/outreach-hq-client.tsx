@@ -512,16 +512,21 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   const [virtualCount, setVirtualCount] = useState(10);
   const [coworkJson, setCoworkJson] = useState<string | null>(null);
 
-  const loadLeads = useCallback(async (platform: OutreachPlatform) => {
+  const loadLeads = useCallback(async (platform: OutreachPlatform, options?: { clearAlerts?: boolean }) => {
     setLoading(true);
-    setError(null);
+    if (options?.clearAlerts) {
+      setError(null);
+      setSuccessMessage(null);
+    }
     try {
       const res = await fetch(`/api/admin/outreach/leads?platform=${platform}`, { credentials: "include" });
       if (!res.ok) throw new Error("Could not load leads.");
       const data = (await res.json()) as { leads?: AnyLead[] };
       setLeads(data.leads ?? []);
     } catch {
-      setError("Could not load outreach leads. Run db:migrate if tables are missing.");
+      if (options?.clearAlerts) {
+        setError("Could not load outreach leads. Run db:migrate if tables are missing.");
+      }
     } finally {
       setLoading(false);
     }
@@ -529,7 +534,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
 
   useEffect(() => {
     queueMicrotask(() => {
-      void loadLeads(tab);
+      void loadLeads(tab, { clearAlerts: true });
     });
   }, [tab, loadLeads]);
 
@@ -557,20 +562,39 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         error?: string;
         message?: string;
         leads?: unknown[];
-        verification?: { saved: number; rejected: number; rejectedSamples?: { handle: string; reason: string }[] };
+        verification?: {
+          parsed: number;
+          saved: number;
+          rejected: number;
+          rejectedSamples?: { handle: string; reason: string }[];
+        };
       };
       if (!res.ok) throw new Error(data.error ?? "Generation failed.");
-      if (data.message && !data.leads?.length) {
-        setError(data.message);
+
+      const leadCount = data.leads?.length ?? 0;
+      if (leadCount === 0) {
+        setError(
+          data.message ??
+            (tab === "instagram" && data.verification?.parsed
+              ? `No leads saved. ${data.verification.rejected} profile(s) failed verification.`
+              : "No leads were generated. Try again."),
+        );
+        setSuccessMessage(null);
       } else if (data.message) {
         setSuccessMessage(data.message);
+        setError(null);
       } else if (tab === "instagram" && data.verification) {
         setSuccessMessage(
           `Saved ${data.verification.saved} verified Instagram lead(s)${
             data.verification.rejected > 0 ? ` (${data.verification.rejected} invalid profiles skipped)` : ""
           }.`,
         );
+        setError(null);
+      } else {
+        setSuccessMessage(`Saved ${leadCount} new lead${leadCount === 1 ? "" : "s"}.`);
+        setError(null);
       }
+
       await loadLeads(tab);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generation failed.");

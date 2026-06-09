@@ -4,6 +4,8 @@ import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { generateOutreachLeads } from "@/lib/outreach-ai";
 import { requireAdminSession } from "@/lib/require-admin";
 
+export const maxDuration = 300;
+
 const bodySchema = z.object({
   platform: z.enum(["instagram", "facebook", "email", "other"]),
   atlCount: z.number().int().min(0).max(20).default(5),

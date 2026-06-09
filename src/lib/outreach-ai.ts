@@ -2,8 +2,8 @@ import "server-only";
 
 import { getAdminAiProviderStatusAsync } from "@/lib/admin-analytics-ai";
 import {
+  mapWithConcurrency,
   normalizeInstagramLeadIdentity,
-  sleepMs,
   verifyInstagramProfile,
 } from "@/lib/instagram-profile-verify";
 import { buildOutreachLearningContext } from "@/lib/outreach-learning";
@@ -68,13 +68,19 @@ export type GeneratedOtherLead = {
   notes?: string;
 };
 
-async function callAi(system: string, user: string): Promise<string | null> {
+type AiCallResult = { ok: true; text: string } | { ok: false; error: string };
+
+async function callAi(system: string, user: string): Promise<AiCallResult> {
   const status = await getAdminAiProviderStatusAsync();
-  if (!status.configured) return null;
+  if (!status.configured) {
+    return { ok: false, error: "AI provider not configured. Add ANTHROPIC_API_KEY or OPENAI_API_KEY." };
+  }
 
   if (status.provider === "anthropic") {
     const key = process.env.ANTHROPIC_API_KEY?.trim();
-    if (!key) return null;
+    if (!key) {
+      return { ok: false, error: "ANTHROPIC_API_KEY is missing on the server." };
+    }
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -83,20 +89,33 @@ async function callAi(system: string, user: string): Promise<string | null> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: status.model ?? "claude-sonnet-4-20250514",
+        model: status.model ?? "claude-sonnet-4-6",
         max_tokens: 4000,
         system,
         messages: [{ role: "user", content: user }],
         temperature: 0.5,
       }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const detail = (await res.text().catch(() => "")).slice(0, 240);
+      console.error("[outreach-ai] Anthropic API error:", res.status, detail);
+      return {
+        ok: false,
+        error: `Anthropic API rejected the request (HTTP ${res.status}). Check the API key and model (${status.model}).`,
+      };
+    }
     const data = (await res.json()) as { content?: { type: string; text?: string }[] };
-    return data.content?.find((b) => b.type === "text")?.text ?? null;
+    const text = data.content?.find((b) => b.type === "text")?.text ?? null;
+    if (!text?.trim()) {
+      return { ok: false, error: "Anthropic returned an empty response." };
+    }
+    return { ok: true, text };
   }
 
   const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) return null;
+  if (!key) {
+    return { ok: false, error: "OPENAI_API_KEY is missing on the server." };
+  }
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -113,9 +132,20 @@ async function callAi(system: string, user: string): Promise<string | null> {
       ],
     }),
   });
-  if (!res.ok) return null;
+  if (!res.ok) {
+    const detail = (await res.text().catch(() => "")).slice(0, 240);
+    console.error("[outreach-ai] OpenAI API error:", res.status, detail);
+    return {
+      ok: false,
+      error: `OpenAI API rejected the request (HTTP ${res.status}). Check the API key and model (${status.model}).`,
+    };
+  }
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  return data.choices?.[0]?.message?.content ?? null;
+  const text = data.choices?.[0]?.message?.content ?? null;
+  if (!text?.trim()) {
+    return { ok: false, error: "OpenAI returned an empty response." };
+  }
+  return { ok: true, text };
 }
 
 function parseJsonArray<T>(raw: string): T[] {
@@ -189,27 +219,46 @@ export async function generateOutreachLeads(args: {
   ].join("\n");
 
   const userPrompt = buildPlatformPrompt(args.platform, args.atlCount, args.virtualCount, exclusions, tailAtl, tailVirtual);
-  const raw = await callAi(system, userPrompt);
+  const ai = await callAi(system, userPrompt);
 
-  if (!raw) {
+  if (!ai.ok) {
     return {
       batchId,
       leads: [],
       aiUsed: false,
-      message: "AI provider not configured. Add ANTHROPIC_API_KEY or OPENAI_API_KEY.",
+      message: ai.error,
     };
   }
 
-  const saved = await persistGeneratedLeads(args.platform, raw, batchId, args.adminId, tailAtl, tailVirtual);
+  const saved = await persistGeneratedLeads(args.platform, ai.text, batchId, args.adminId, tailAtl, tailVirtual);
   const verification = saved.verification;
   const leads = saved.leads;
   let message: string | undefined;
-  if (args.platform === "instagram" && verification && verification.saved === 0 && verification.parsed > 0) {
-    message =
-      "AI returned Instagram handles, but none resolved to live profiles. Try generating again or add leads manually.";
+
+  if (leads.length === 0) {
+    if (args.platform === "instagram" && verification) {
+      if (verification.parsed === 0) {
+        message =
+          "AI did not return parseable Instagram leads. Try generating again — the model may have returned prose instead of JSON.";
+      } else {
+        const sampleReasons = verification.rejectedSamples
+          .slice(0, 3)
+          .map((s) => `${s.handle}: ${s.reason}`)
+          .join("; ");
+        message = sampleReasons
+          ? `AI returned ${verification.parsed} handle(s), but none could be verified. Examples: ${sampleReasons}`
+          : "AI returned Instagram handles, but none resolved to live profiles. Try generating again.";
+      }
+    } else if (verification?.parsed === 0 || !verification) {
+      message =
+        "AI did not return any usable leads. Try generating again — if this keeps happening, check the server API key and model.";
+    } else {
+      message = "No leads were saved from this generation run. Try again.";
+    }
   } else if (args.platform === "instagram" && verification && verification.rejected > 0) {
     message = `Saved ${verification.saved} verified Instagram lead(s); skipped ${verification.rejected} invalid or unavailable profile(s).`;
   }
+
   return { batchId, leads, aiUsed: true, message, verification };
 }
 
@@ -280,7 +329,7 @@ async function persistGeneratedLeads(
     const rejectedSamples: { handle: string; reason: string }[] = [];
     const seenUsernames = new Set<string>();
 
-    for (const item of items) {
+    const prepared = items.flatMap((item) => {
       const normalized = normalizeInstagramLeadIdentity({
         handle: item.handle,
         profileUrl: item.profileUrl,
@@ -290,16 +339,21 @@ async function persistGeneratedLeads(
           handle: item.handle ?? item.profileUrl ?? "unknown",
           reason: "Invalid Instagram handle or profile URL.",
         });
-        continue;
+        return [];
       }
-      if (seenUsernames.has(normalized.username)) continue;
+      if (seenUsernames.has(normalized.username)) return [];
       seenUsernames.add(normalized.username);
+      return [{ item, normalized }];
+    });
 
+    const verifiedRows = await mapWithConcurrency(prepared, 4, async ({ item, normalized }) => {
       const verified = await verifyInstagramProfile(normalized.username);
-      await sleepMs(250);
       if (!verified.ok) {
-        rejectedSamples.push({ handle: normalized.handle, reason: verified.reason });
-        continue;
+        return {
+          kind: "rejected" as const,
+          handle: normalized.handle,
+          reason: verified.reason,
+        };
       }
 
       const group = normalizeGroup(item.targetGroup ?? "VIRTUAL");
@@ -319,7 +373,14 @@ async function persistGeneratedLeads(
           targetGroup: group,
           whyMatchFit: item.whyMatchFit ?? "Strong fit for Match Fit beta roster.",
           likelihoodScore: clampScore(item.likelihoodScore),
-          notes: [item.notes, verified.fullName ? `Verified as ${verified.fullName}` : null].filter(Boolean).join(" · ") || null,
+          notes:
+            [
+              item.notes,
+              verified.fullName ? `Verified as ${verified.fullName}` : null,
+              verified.verifiedVia === "html" ? "Verified via public profile page." : null,
+            ]
+              .filter(Boolean)
+              .join(" · ") || null,
           dmText,
           commentText: item.commentText ?? `Love the work you're putting in 🔥`,
           commentPostRef: item.commentPostRef ?? "Latest post",
@@ -328,8 +389,14 @@ async function persistGeneratedLeads(
           createdByAdminId: adminId,
         },
       });
-      created.push(row);
+      return { kind: "created" as const, row };
+    });
+
+    for (const result of verifiedRows) {
+      if (result.kind === "created") created.push(result.row);
+      else rejectedSamples.push({ handle: result.handle, reason: result.reason });
     }
+
     await prisma.outreachDailyTemplate.createMany({
       data: [
         { platform: "instagram", targetGroup: "ATL_LOCAL", genericInviteTail: tailAtl, generationBatchId: `${batchId}_atl` },
