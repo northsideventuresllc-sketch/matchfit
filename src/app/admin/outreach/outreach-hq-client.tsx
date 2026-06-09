@@ -36,6 +36,55 @@ import type { AdminAiProviderStatus } from "@/lib/admin-analytics-ai";
 
 type AnyLead = InstagramLeadRow | FacebookLeadRow | EmailLeadRow | OtherLeadRow;
 
+type OutreachBatchGroup = {
+  batchId: string | null;
+  label: string;
+  leads: AnyLead[];
+};
+
+function formatOutreachBatchLabel(batchId: string | null, leads: AnyLead[]): string {
+  if (!batchId) return `Manual / unknown batch (${leads.length})`;
+  const match = /^batch_(\d+)_/.exec(batchId);
+  if (match) {
+    const date = new Date(Number(match[1]));
+    if (!Number.isNaN(date.getTime())) {
+      return `${date.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })} · ${leads.length} lead${leads.length === 1 ? "" : "s"}`;
+    }
+  }
+  return `${batchId} · ${leads.length} lead${leads.length === 1 ? "" : "s"}`;
+}
+
+function groupLeadsByBatch(leads: AnyLead[]): OutreachBatchGroup[] {
+  const active = leads.filter((l) => !l.deletedAt);
+  const map = new Map<string, AnyLead[]>();
+
+  for (const lead of active) {
+    const key = lead.generationBatchId ?? "__none__";
+    const group = map.get(key) ?? [];
+    group.push(lead);
+    map.set(key, group);
+  }
+
+  return Array.from(map.entries())
+    .map(([key, batchLeads]) => {
+      const batchId = key === "__none__" ? null : key;
+      return {
+        batchId,
+        label: formatOutreachBatchLabel(batchId, batchLeads),
+        leads: batchLeads.sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        ),
+      };
+    })
+    .sort((a, b) => new Date(b.leads[0]?.createdAt ?? 0).getTime() - new Date(a.leads[0]?.createdAt ?? 0).getTime());
+}
+
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -189,6 +238,7 @@ function PlatformTabPanel(props: {
   leads: AnyLead[];
   loading: boolean;
   generating: boolean;
+  bulkDeleting: boolean;
   atlCount: number;
   virtualCount: number;
   onAtlCount: (n: number) => void;
@@ -197,8 +247,118 @@ function PlatformTabPanel(props: {
   onRefresh: () => void;
   onUpdate: (id: string, patch: Record<string, unknown>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onBulkDelete: (
+    input: { mode: "all" } | { mode: "batch"; generationBatchId: string } | { mode: "ids"; ids: string[] },
+  ) => Promise<void>;
 }) {
   const activeLeads = props.leads.filter((l) => !l.deletedAt);
+  const batches = useMemo(() => groupLeadsByBatch(props.leads), [props.leads]);
+
+  const renderLead = (lead: AnyLead) => {
+    if (props.platform === "instagram") {
+      const ig = lead as InstagramLeadRow;
+      return (
+        <LeadBubble
+          key={ig.id}
+          platform="instagram"
+          lead={ig}
+          title={ig.handle}
+          linkHref={ig.profileUrl}
+          linkLabel="Open Instagram profile"
+          onUpdate={(patch) => props.onUpdate(ig.id, patch)}
+          onDelete={() => props.onDelete(ig.id)}
+        >
+          <EditableBlock
+            label="Instagram DM"
+            value={ig.dmText}
+            rows={6}
+            onSave={(dmText) => props.onUpdate(ig.id, { dmText })}
+          />
+          <EditableBlock
+            label="Comment (to grab attention)"
+            value={ig.commentText}
+            rows={2}
+            onSave={(commentText) => props.onUpdate(ig.id, { commentText })}
+          />
+          {ig.commentPostRef ? <p className="text-xs text-white/40">Comment on: {ig.commentPostRef}</p> : null}
+        </LeadBubble>
+      );
+    }
+    if (props.platform === "facebook") {
+      const fb = lead as FacebookLeadRow;
+      return (
+        <LeadBubble
+          key={fb.id}
+          platform="facebook"
+          lead={fb}
+          title={fb.pageName}
+          linkHref={fb.pageUrl}
+          linkLabel="Open Facebook page"
+          onUpdate={(patch) => props.onUpdate(fb.id, patch)}
+          onDelete={() => props.onDelete(fb.id)}
+        >
+          <EditableBlock
+            label="Page post"
+            value={fb.pagePostText}
+            rows={6}
+            onSave={(pagePostText) => props.onUpdate(fb.id, { pagePostText })}
+          />
+        </LeadBubble>
+      );
+    }
+    if (props.platform === "email") {
+      const em = lead as EmailLeadRow;
+      return (
+        <LeadBubble
+          key={em.id}
+          platform="email"
+          lead={em}
+          title={em.name}
+          linkHref={em.emailSourceUrl ?? undefined}
+          linkLabel={em.emailSourceUrl ? "Where email was found" : em.email}
+          onUpdate={(patch) => props.onUpdate(em.id, patch)}
+          onDelete={() => props.onDelete(em.id)}
+        >
+          <p className="text-sm text-white/55">
+            {em.email}
+            {em.businessName ? ` · ${em.businessName}` : ""}
+          </p>
+          <EditableBlock
+            label="Email subject"
+            value={em.emailSubject}
+            rows={1}
+            onSave={(emailSubject) => props.onUpdate(em.id, { emailSubject })}
+          />
+          <EditableBlock
+            label="Email body"
+            value={em.emailBody}
+            rows={8}
+            onSave={(emailBody) => props.onUpdate(em.id, { emailBody })}
+          />
+        </LeadBubble>
+      );
+    }
+    const ot = lead as OtherLeadRow;
+    return (
+      <LeadBubble
+        key={ot.id}
+        platform="other"
+        lead={ot}
+        title={ot.contactLabel}
+        linkHref={ot.contactUrl ?? undefined}
+        onUpdate={(patch) => props.onUpdate(ot.id, patch)}
+        onDelete={() => props.onDelete(ot.id)}
+      >
+        {ot.channelNotes ? <p className="text-xs text-white/45">{ot.channelNotes}</p> : null}
+        <EditableBlock
+          label="Outreach message"
+          value={ot.outreachText}
+          rows={6}
+          onSave={(outreachText) => props.onUpdate(ot.id, { outreachText })}
+        />
+      </LeadBubble>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -256,111 +416,84 @@ function PlatformTabPanel(props: {
           No active leads yet. Generate a batch to get started.
         </p>
       ) : (
-        <div className="space-y-4">
-          {activeLeads.map((lead) => {
-            if (props.platform === "instagram") {
-              const ig = lead as InstagramLeadRow;
-              return (
-                <LeadBubble
-                  key={ig.id}
-                  platform="instagram"
-                  lead={ig}
-                  title={ig.handle}
-                  linkHref={ig.profileUrl}
-                  linkLabel="Open Instagram profile"
-                  onUpdate={(patch) => props.onUpdate(ig.id, patch)}
-                  onDelete={() => props.onDelete(ig.id)}
-                >
-                  <EditableBlock
-                    label="Instagram DM"
-                    value={ig.dmText}
-                    rows={6}
-                    onSave={(dmText) => props.onUpdate(ig.id, { dmText })}
-                  />
-                  <EditableBlock
-                    label="Comment (to grab attention)"
-                    value={ig.commentText}
-                    rows={2}
-                    onSave={(commentText) => props.onUpdate(ig.id, { commentText })}
-                  />
-                  {ig.commentPostRef ? (
-                    <p className="text-xs text-white/40">Comment on: {ig.commentPostRef}</p>
-                  ) : null}
-                </LeadBubble>
-              );
-            }
-            if (props.platform === "facebook") {
-              const fb = lead as FacebookLeadRow;
-              return (
-                <LeadBubble
-                  key={fb.id}
-                  platform="facebook"
-                  lead={fb}
-                  title={fb.pageName}
-                  linkHref={fb.pageUrl}
-                  linkLabel="Open Facebook page"
-                  onUpdate={(patch) => props.onUpdate(fb.id, patch)}
-                  onDelete={() => props.onDelete(fb.id)}
-                >
-                  <EditableBlock
-                    label="Page post"
-                    value={fb.pagePostText}
-                    rows={6}
-                    onSave={(pagePostText) => props.onUpdate(fb.id, { pagePostText })}
-                  />
-                </LeadBubble>
-              );
-            }
-            if (props.platform === "email") {
-              const em = lead as EmailLeadRow;
-              return (
-                <LeadBubble
-                  key={em.id}
-                  platform="email"
-                  lead={em}
-                  title={em.name}
-                  linkHref={em.emailSourceUrl ?? undefined}
-                  linkLabel={em.emailSourceUrl ? "Where email was found" : em.email}
-                  onUpdate={(patch) => props.onUpdate(em.id, patch)}
-                  onDelete={() => props.onDelete(em.id)}
-                >
-                  <p className="text-sm text-white/55">{em.email}{em.businessName ? ` · ${em.businessName}` : ""}</p>
-                  <EditableBlock
-                    label="Email subject"
-                    value={em.emailSubject}
-                    rows={1}
-                    onSave={(emailSubject) => props.onUpdate(em.id, { emailSubject })}
-                  />
-                  <EditableBlock
-                    label="Email body"
-                    value={em.emailBody}
-                    rows={8}
-                    onSave={(emailBody) => props.onUpdate(em.id, { emailBody })}
-                  />
-                </LeadBubble>
-              );
-            }
-            const ot = lead as OtherLeadRow;
-            return (
-              <LeadBubble
-                key={ot.id}
-                platform="other"
-                lead={ot}
-                title={ot.contactLabel}
-                linkHref={ot.contactUrl ?? undefined}
-                onUpdate={(patch) => props.onUpdate(ot.id, patch)}
-                onDelete={() => props.onDelete(ot.id)}
+        <div className="space-y-6">
+          <section className={`${adminCardClass} space-y-3`}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Active pulls</p>
+                <p className="mt-1 text-sm text-white/55">
+                  {activeLeads.length} lead{activeLeads.length === 1 ? "" : "s"} across {batches.length} pull
+                  {batches.length === 1 ? "" : "s"} on this tab.
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={props.bulkDeleting}
+                className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20 disabled:opacity-40"
+                onClick={() => {
+                  if (
+                    !confirm(
+                      `Move all ${activeLeads.length} active leads on this tab to the deleted archive? They stay on file for learning.`,
+                    )
+                  ) {
+                    return;
+                  }
+                  void props.onBulkDelete({ mode: "all" });
+                }}
               >
-                {ot.channelNotes ? <p className="text-xs text-white/45">{ot.channelNotes}</p> : null}
-                <EditableBlock
-                  label="Outreach message"
-                  value={ot.outreachText}
-                  rows={6}
-                  onSave={(outreachText) => props.onUpdate(ot.id, { outreachText })}
-                />
-              </LeadBubble>
-            );
-          })}
+                {props.bulkDeleting ? "Removing…" : `Delete all ${activeLeads.length} leads`}
+              </button>
+            </div>
+          </section>
+
+          {batches.map((batch) => (
+            <section key={batch.batchId ?? "__none__"} className="space-y-3">
+              <div className="flex flex-col gap-2 border-b border-white/[0.06] pb-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FF7E00]/80">Outreach pull</p>
+                  <p className="mt-1 text-sm font-semibold text-white/85">{batch.label}</p>
+                </div>
+                {batch.batchId ? (
+                  <button
+                    type="button"
+                    disabled={props.bulkDeleting}
+                    className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20 disabled:opacity-40"
+                    onClick={() => {
+                      if (
+                        !confirm(
+                          `Move this pull (${batch.leads.length} lead${batch.leads.length === 1 ? "" : "s"}) to the deleted archive? They stay on file for learning.`,
+                        )
+                      ) {
+                        return;
+                      }
+                      void props.onBulkDelete({ mode: "batch", generationBatchId: batch.batchId! });
+                    }}
+                  >
+                    {props.bulkDeleting ? "Removing…" : "Delete this pull"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={props.bulkDeleting}
+                    className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20 disabled:opacity-40"
+                    onClick={() => {
+                      if (
+                        !confirm(
+                          `Move these ${batch.leads.length} unbatched lead${batch.leads.length === 1 ? "" : "s"} to the deleted archive?`,
+                        )
+                      ) {
+                        return;
+                      }
+                      void props.onBulkDelete({ mode: "ids", ids: batch.leads.map((l) => l.id) });
+                    }}
+                  >
+                    {props.bulkDeleting ? "Removing…" : "Delete unbatched leads"}
+                  </button>
+                )}
+              </div>
+              <div className="space-y-4">{batch.leads.map((lead) => renderLead(lead))}</div>
+            </section>
+          ))}
         </div>
       )}
     </div>
@@ -372,6 +505,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   const [leads, setLeads] = useState<AnyLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [atlCount, setAtlCount] = useState(5);
@@ -467,6 +601,32 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     await loadLeads(tab);
   };
 
+  const bulkDeleteLeads = async (
+    input: { mode: "all" } | { mode: "batch"; generationBatchId: string } | { mode: "ids"; ids: string[] },
+  ) => {
+    setBulkDeleting(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const res = await fetch("/api/admin/outreach/leads/bulk-delete", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ platform: tab, ...input }),
+      });
+      const data = (await res.json()) as { error?: string; deletedCount?: number };
+      if (!res.ok) throw new Error(data.error ?? "Bulk delete failed.");
+      setSuccessMessage(
+        `Moved ${data.deletedCount ?? 0} lead${data.deletedCount === 1 ? "" : "s"} to the deleted archive.`,
+      );
+      await loadLeads(tab);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Bulk delete failed.");
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   const loadCoworkBrief = async () => {
     const res = await fetch("/api/admin/outreach/cowork-brief", { credentials: "include" });
     if (!res.ok) return;
@@ -560,6 +720,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
           leads={leads}
           loading={loading}
           generating={generating}
+          bulkDeleting={bulkDeleting}
           atlCount={atlCount}
           virtualCount={virtualCount}
           onAtlCount={setAtlCount}
@@ -568,6 +729,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
           onRefresh={() => void loadLeads(tab)}
           onUpdate={updateLead}
           onDelete={deleteLead}
+          onBulkDelete={bulkDeleteLeads}
         />
 
         <AdminPortalBetaNotice />
