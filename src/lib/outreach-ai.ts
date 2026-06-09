@@ -1,6 +1,11 @@
 import "server-only";
 
 import { getAdminAiProviderStatus } from "@/lib/admin-analytics-ai";
+import {
+  normalizeInstagramLeadIdentity,
+  sleepMs,
+  verifyInstagramProfile,
+} from "@/lib/instagram-profile-verify";
 import { buildOutreachLearningContext } from "@/lib/outreach-learning";
 import {
   genericInviteTail,
@@ -148,12 +153,25 @@ function normalizeGroup(g: string): OutreachTargetGroup {
   return g === "ATL_LOCAL" || g === "ATL Local" || g === "ATL" ? "ATL_LOCAL" : "VIRTUAL";
 }
 
+export type OutreachLeadVerificationSummary = {
+  parsed: number;
+  saved: number;
+  rejected: number;
+  rejectedSamples: { handle: string; reason: string }[];
+};
+
 export async function generateOutreachLeads(args: {
   platform: OutreachPlatform;
   atlCount: number;
   virtualCount: number;
   adminId: string;
-}): Promise<{ batchId: string; leads: unknown[]; aiUsed: boolean; message?: string }> {
+}): Promise<{
+  batchId: string;
+  leads: unknown[];
+  aiUsed: boolean;
+  message?: string;
+  verification?: OutreachLeadVerificationSummary;
+}> {
   const batchId = `batch_${Date.now()}_${args.adminId.slice(0, 6)}`;
   const exclusions = await getExclusionList(args.platform);
   const learning = await buildOutreachLearningContext(args.platform);
@@ -166,7 +184,7 @@ export async function generateOutreachLeads(args: {
     learning,
     "Return ONLY a valid JSON array. No markdown fences.",
     "Never suggest handles, emails, or URLs already in the exclusion list.",
-    "Use real, verifiable public profiles when possible — search your knowledge for active fitness professionals.",
+    "For Instagram: NEVER invent or guess usernames. Only include accounts you are highly confident are real, public, and currently active.",
     "Each lead needs a short whyMatchFit (1 sentence) and likelihoodScore (0-100).",
   ].join("\n");
 
@@ -183,7 +201,16 @@ export async function generateOutreachLeads(args: {
   }
 
   const saved = await persistGeneratedLeads(args.platform, raw, batchId, args.adminId, tailAtl, tailVirtual);
-  return { batchId, leads: saved, aiUsed: true };
+  const verification = saved.verification;
+  const leads = saved.leads;
+  let message: string | undefined;
+  if (args.platform === "instagram" && verification && verification.saved === 0 && verification.parsed > 0) {
+    message =
+      "AI returned Instagram handles, but none resolved to live profiles. Try generating again or add leads manually.";
+  } else if (args.platform === "instagram" && verification && verification.rejected > 0) {
+    message = `Saved ${verification.saved} verified Instagram lead(s); skipped ${verification.rejected} invalid or unavailable profile(s).`;
+  }
+  return { batchId, leads, aiUsed: true, message, verification };
 }
 
 function buildPlatformPrompt(
@@ -199,8 +226,13 @@ function buildPlatformPrompt(
     return `Find ${atlCount} ATL-local and ${virtualCount} virtual fitness trainer Instagram profiles for Match Fit outreach.
 Exclude: ${excl}
 
+CRITICAL RULES:
+- Only include Instagram usernames that are real, public, and currently active. Do NOT invent handles.
+- profileUrl must be https://www.instagram.com/username/ (lowercase username, no extra paths).
+- Prefer established coaches/creators you are confident exist; skip any account you are unsure about.
+
 JSON schema per item:
-{"handle":"@username","profileUrl":"https://instagram.com/username","niche":"strength coaching","targetGroup":"ATL_LOCAL"|"VIRTUAL","whyMatchFit":"one sentence","likelihoodScore":72,"personalHook":"specific content detail for opener","commentText":"short comment for their post","commentPostRef":"which post to comment on","notes":"optional"}
+{"handle":"@username","profileUrl":"https://www.instagram.com/username/","niche":"strength coaching","targetGroup":"ATL_LOCAL"|"VIRTUAL","whyMatchFit":"one sentence","likelihoodScore":72,"personalHook":"specific content detail for opener","commentText":"short comment for their post","commentPostRef":"which post to comment on","notes":"optional"}
 
 Use targetGroup ATL_LOCAL for Atlanta-based, VIRTUAL for online-only.
 Generic invite tail for ATL: "${tailAtl}"
@@ -241,27 +273,53 @@ async function persistGeneratedLeads(
   adminId: string,
   tailAtl: string,
   tailVirtual: string,
-): Promise<unknown[]> {
+): Promise<{ leads: unknown[]; verification?: OutreachLeadVerificationSummary }> {
   if (platform === "instagram") {
     const items = parseJsonArray<GeneratedInstagramLead & { personalHook?: string }>(raw);
     const created = [];
+    const rejectedSamples: { handle: string; reason: string }[] = [];
+    const seenUsernames = new Set<string>();
+
     for (const item of items) {
+      const normalized = normalizeInstagramLeadIdentity({
+        handle: item.handle,
+        profileUrl: item.profileUrl,
+      });
+      if (!normalized) {
+        rejectedSamples.push({
+          handle: item.handle ?? item.profileUrl ?? "unknown",
+          reason: "Invalid Instagram handle or profile URL.",
+        });
+        continue;
+      }
+      if (seenUsernames.has(normalized.username)) continue;
+      seenUsernames.add(normalized.username);
+
+      const verified = await verifyInstagramProfile(normalized.username);
+      await sleepMs(250);
+      if (!verified.ok) {
+        rejectedSamples.push({ handle: normalized.handle, reason: verified.reason });
+        continue;
+      }
+
       const group = normalizeGroup(item.targetGroup ?? "VIRTUAL");
-      const handle = item.handle?.startsWith("@") ? item.handle : `@${item.handle ?? "unknown"}`;
       const tail = group === "ATL_LOCAL" ? tailAtl : tailVirtual;
-      const name = handle.replace("@", "");
-      const hook = item.personalHook ?? item.whyMatchFit ?? "your recent training content";
-      const opener = instagramPersonalizedOpener(group, name, hook);
+      const hook =
+        item.personalHook ??
+        verified.biography?.slice(0, 120) ??
+        item.whyMatchFit ??
+        "your recent training content";
+      const opener = instagramPersonalizedOpener(group, verified.username, hook);
       const dmText = `${opener}${tail}`;
       const row = await prisma.outreachInstagramLead.create({
         data: {
-          handle,
-          profileUrl: item.profileUrl ?? `https://instagram.com/${name}`,
+          handle: `@${verified.username}`,
+          profileUrl: verified.profileUrl,
           niche: item.niche ?? "Fitness coaching",
           targetGroup: group,
           whyMatchFit: item.whyMatchFit ?? "Strong fit for Match Fit beta roster.",
           likelihoodScore: clampScore(item.likelihoodScore),
-          notes: item.notes ?? null,
+          notes: [item.notes, verified.fullName ? `Verified as ${verified.fullName}` : null].filter(Boolean).join(" · ") || null,
           dmText,
           commentText: item.commentText ?? `Love the work you're putting in 🔥`,
           commentPostRef: item.commentPostRef ?? "Latest post",
@@ -279,7 +337,15 @@ async function persistGeneratedLeads(
       ],
       skipDuplicates: true,
     });
-    return created;
+    return {
+      leads: created,
+      verification: {
+        parsed: items.length,
+        saved: created.length,
+        rejected: Math.max(0, items.length - created.length),
+        rejectedSamples: rejectedSamples.slice(0, 8),
+      },
+    };
   }
 
   if (platform === "facebook") {
@@ -305,7 +371,7 @@ async function persistGeneratedLeads(
       });
       created.push(row);
     }
-    return created;
+    return { leads: created };
   }
 
   if (platform === "email") {
@@ -337,7 +403,7 @@ async function persistGeneratedLeads(
       });
       created.push(row);
     }
-    return created;
+    return { leads: created };
   }
 
   const items = parseJsonArray<GeneratedOtherLead & { personalHook?: string }>(raw);
@@ -363,7 +429,7 @@ async function persistGeneratedLeads(
     });
     created.push(row);
   }
-  return created;
+  return { leads: created };
 }
 
 function clampScore(n: number | undefined): number {

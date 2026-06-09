@@ -373,6 +373,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [atlCount, setAtlCount] = useState(5);
   const [virtualCount, setVirtualCount] = useState(10);
   const [coworkJson, setCoworkJson] = useState<string | null>(null);
@@ -410,6 +411,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   const generate = async () => {
     setGenerating(true);
     setError(null);
+    setSuccessMessage(null);
     try {
       const res = await fetch("/api/admin/outreach/generate", {
         method: "POST",
@@ -417,9 +419,24 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ platform: tab, atlCount, virtualCount }),
       });
-      const data = (await res.json()) as { error?: string; message?: string; leads?: unknown[] };
+      const data = (await res.json()) as {
+        error?: string;
+        message?: string;
+        leads?: unknown[];
+        verification?: { saved: number; rejected: number; rejectedSamples?: { handle: string; reason: string }[] };
+      };
       if (!res.ok) throw new Error(data.error ?? "Generation failed.");
-      if (data.message && !data.leads?.length) setError(data.message);
+      if (data.message && !data.leads?.length) {
+        setError(data.message);
+      } else if (data.message) {
+        setSuccessMessage(data.message);
+      } else if (tab === "instagram" && data.verification) {
+        setSuccessMessage(
+          `Saved ${data.verification.saved} verified Instagram lead(s)${
+            data.verification.rejected > 0 ? ` (${data.verification.rejected} invalid profiles skipped)` : ""
+          }.`,
+        );
+      }
       await loadLeads(tab);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generation failed.");
@@ -485,6 +502,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         ) : null}
 
         {error ? <AdminPortalAlert variant="error">{error}</AdminPortalAlert> : null}
+        {successMessage ? <AdminPortalAlert variant="success">{successMessage}</AdminPortalAlert> : null}
 
         <div className="grid gap-3 sm:grid-cols-3">
           <div className={`${adminPanelClass} p-4`}>
