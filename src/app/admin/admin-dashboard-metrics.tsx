@@ -56,7 +56,7 @@ export function MemberOverviewSection({ panel }: { panel: AdminMemberOverviewPan
     { label: "Subscribed Clients", value: panel.subscribedClients, hint: "Live billing in good standing", accent: "emerald" },
     { label: "Inactive Clients", value: panel.inactiveClients, hint: "Subscribed previously; outside billing grace" },
     { label: "Unique Site Visitors", value: panel.uniqueSiteVisitorsAllTime, hint: "All-time distinct visitors" },
-    { label: "Pending Trainers", value: panel.pendingTrainers, hint: "Onboarding in progress" },
+    { label: "Pending Trainers", value: panel.pendingTrainers, hint: "7-day onboarding window started" },
     { label: "Compliant Active Trainers", value: panel.compliantActiveTrainers, hint: "Fully onboarded + recent activity", accent: "emerald" },
     { label: "Inactive Trainers", value: panel.inactiveTrainers, hint: "Onboarded but no recent platform activity" },
   ];

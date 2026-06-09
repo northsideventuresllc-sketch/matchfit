@@ -100,6 +100,7 @@ export type AdminTrafficSnapshot = {
 
 export type AdminHomeUserCounts = {
   trainersTotal: number;
+  trainersPending: number;
   trainersActive: number;
   clientsTotal: number;
   clientsActive: number;

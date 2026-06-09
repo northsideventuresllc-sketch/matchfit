@@ -13,7 +13,7 @@ import { prisma } from "@/lib/prisma";
 import { applyTrainerSessionToNextResponse, getSessionTrainerId } from "@/lib/session";
 import { createTrainerAccountAfterTermsAcceptance } from "@/lib/trainer-signup-after-terms";
 import { resolveTrainerSignupNextPath } from "@/lib/trainer-signup-next-path";
-import { trainerOnboardingFeeDeadlineAt } from "@/lib/trainer-onboarding-fee-deadline";
+import { markTrainerPendingAfterTermsAcceptance } from "@/lib/trainer-pending-onboarding";
 import { trainerAgreementsSchema, trainerSignupSchema } from "@/lib/validations/trainer-register";
 import { verifyTurnstileToken } from "@/lib/turnstile-verify";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
@@ -28,36 +28,9 @@ const trainerTermsWithSignupSchema = trainerAgreementsSchema.extend({
 });
 
 async function saveTrainerAgreementForExisting(trainerId: string): Promise<void> {
-  const now = new Date();
-  const paymentDeadline = trainerOnboardingFeeDeadlineAt(now);
+  await ensureTrainerRegisterSchema();
   await prisma.$transaction(async (tx) => {
-    await tx.trainer.update({
-      where: { id: trainerId },
-      data: {
-        termsAcceptedAt: now,
-        privacyPolicyAcceptedAt: now,
-      },
-    });
-    await tx.trainerProfile.upsert({
-      where: { trainerId },
-      create: {
-        trainerId,
-        hasSignedTOS: true,
-        registrationFeeHoldStatus: "NOT_STARTED",
-        registrationFeePricingMode: "FOUNDING_BG_SURCHARGE_20PCT",
-        complianceCertFailedAttempts: 0,
-        limitedDashboardUnlockedAt: now,
-        complianceWindowStartedAt: now,
-        onboardingFeePaymentDeadlineAt: paymentDeadline,
-      },
-      update: {
-        hasSignedTOS: true,
-        limitedDashboardUnlockedAt: now,
-        complianceWindowStartedAt: now,
-        onboardingFeePaymentDeadlineAt: paymentDeadline,
-        updatedAt: now,
-      },
-    });
+    await markTrainerPendingAfterTermsAcceptance(trainerId, new Date(), tx);
   });
 }
 

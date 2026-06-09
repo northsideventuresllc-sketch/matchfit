@@ -51,19 +51,6 @@ function launchClientInactiveSubscriberWhere(now = new Date()): Prisma.ClientWhe
   };
 }
 
-/** Trainers in onboarding (past signup, dashboard not fully live). */
-function launchPendingTrainerWhere(): Prisma.TrainerWhereInput {
-  return {
-    ...launchTrainerCountWhere(),
-    profile: {
-      is: {
-        hasSignedTOS: true,
-        dashboardActivatedAt: null,
-      },
-    },
-  };
-}
-
 /** Onboarded trainers without recent activity (inverse of home active trainers). */
 async function countInactiveTrainers(): Promise<number> {
   const userCounts = await getHomeUserCounts();
@@ -76,8 +63,9 @@ async function countInactiveTrainers(): Promise<number> {
   return Math.max(0, onboarded - userCounts.trainersActive);
 }
 
-async function countTotalActiveMembers(now = new Date()): Promise<number> {
-  const [activeClients, userCounts, pendingTrainers] = await Promise.all([
+async function countTotalActiveMembers(now = new Date(), userCounts?: Awaited<ReturnType<typeof getHomeUserCounts>>): Promise<number> {
+  const counts = userCounts ?? (await getHomeUserCounts());
+  const [activeClients, pendingTrainers] = await Promise.all([
     prisma.client.count({
       where: {
         ...launchClientCountWhere(),
@@ -85,11 +73,10 @@ async function countTotalActiveMembers(now = new Date()): Promise<number> {
         NOT: launchClientInactiveSubscriberWhere(now),
       },
     }),
-    getHomeUserCounts(),
-    prisma.trainer.count({ where: launchPendingTrainerWhere() }),
+    Promise.resolve(counts.trainersPending),
   ]);
 
-  return activeClients + userCounts.trainersActive + pendingTrainers;
+  return activeClients + counts.trainersActive + pendingTrainers;
 }
 
 async function countUniqueSiteVisitorsAllTime(): Promise<number> {
@@ -115,15 +102,13 @@ export async function getAdminMemberOverviewPanel(now = new Date()): Promise<Adm
     subscribedClients,
     inactiveClients,
     uniqueSiteVisitorsAllTime,
-    pendingTrainers,
     inactiveTrainers,
   ] = await Promise.all([
-    countTotalActiveMembers(now),
+    countTotalActiveMembers(now, userCounts),
     prisma.client.count({ where: launchClientFreeTrialCountWhere(now) }),
     countLaunchPlatformSubscribers(),
     prisma.client.count({ where: launchClientInactiveSubscriberWhere(now) }),
     countUniqueSiteVisitorsAllTime(),
-    prisma.trainer.count({ where: launchPendingTrainerWhere() }),
     countInactiveTrainers(),
   ]);
 
@@ -134,7 +119,7 @@ export async function getAdminMemberOverviewPanel(now = new Date()): Promise<Adm
     subscribedClients,
     inactiveClients,
     uniqueSiteVisitorsAllTime,
-    pendingTrainers,
+    pendingTrainers: userCounts.trainersPending,
     compliantActiveTrainers: userCounts.trainersActive,
     inactiveTrainers,
   };

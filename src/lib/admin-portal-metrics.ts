@@ -60,6 +60,7 @@ import {
   launchTrainerBeforeRegistrationPaymentWhere,
   launchTrainerBeforeTermsWhere,
   launchTrainerCountWhere,
+  launchPendingTrainerWhere,
   launchTrainerIncompleteSignupWhere,
 } from "@/lib/launch-account-counts";
 import { buildLaunchMetricsClientSqlFilter, buildLaunchMetricsTrainerSqlFilter } from "@/lib/admin-portal-list-filters";
@@ -596,7 +597,10 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
     prisma.$queryRaw<CountRow[]>`
       SELECT COUNT(*)::bigint AS n FROM trainers t
       INNER JOIN trainer_profiles p ON p."trainerId" = t.id
-      WHERE ${baseWhere} AND p."hasSignedTOS" = true
+      WHERE ${baseWhere}
+        AND p."hasSignedTOS" = true
+        AND p."complianceWindowStartedAt" IS NOT NULL
+        AND p."dashboardActivatedAt" IS NULL
     `,
     prisma.$queryRaw<CountRow[]>`
       SELECT COUNT(*)::bigint AS n FROM trainers t
@@ -638,15 +642,7 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
       WHERE ${baseWhere} AND p."dashboardActivatedAt" IS NOT NULL
     `,
     prisma.trainer.findMany({
-      where: {
-        ...launchTrainerCountWhere(),
-        profile: {
-          is: {
-            hasSignedTOS: true,
-            dashboardActivatedAt: null,
-          },
-        },
-      },
+      where: launchPendingTrainerWhere(),
       orderBy: { createdAt: "desc" },
       take: 40,
       select: {
@@ -686,7 +682,7 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
       count: basicInfoNoTos,
       percentOfSignup: pct(basicInfoNoTos),
     },
-    { id: "signup", label: "Terms accepted", count: n(signupCompleted[0]), percentOfSignup: pct(n(signupCompleted[0])) },
+    { id: "signup", label: "Pending trainers (7-day window)", count: n(signupCompleted[0]), percentOfSignup: pct(n(signupCompleted[0])) },
     { id: "bg_submitted", label: "Background check submitted / pending", count: n(bgSubmitted[0]), percentOfSignup: pct(n(bgSubmitted[0])) },
     { id: "bg_review", label: "Background check failed / in review", count: n(bgFailed[0]), percentOfSignup: pct(n(bgFailed[0])) },
     { id: "bg_passed", label: "Background check passed", count: n(bgPassed[0]), percentOfSignup: pct(n(bgPassed[0])) },

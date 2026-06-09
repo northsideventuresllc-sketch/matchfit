@@ -40,6 +40,7 @@ describe("GET /api/admin/overview", () => {
     mockGetAdminPortalOverview.mockResolvedValue({
       userCounts: {
         trainersTotal: 50,
+        trainersPending: 5,
         trainersActive: 20,
         clientsTotal: 80,
         clientsActive: 30,

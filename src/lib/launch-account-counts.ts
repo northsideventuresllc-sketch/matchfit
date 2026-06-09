@@ -235,6 +235,26 @@ export function launchTrainerBeforeTermsWhere(): Prisma.TrainerWhereInput {
   };
 }
 
+/**
+ * Pending trainers: accepted Terms and the 7-day onboarding/compliance window has started,
+ * but the marketplace dashboard is not fully live yet.
+ */
+export function launchPendingTrainerWhere(): Prisma.TrainerWhereInput {
+  return {
+    ...launchTrainerCountWhere(),
+    profile: {
+      is: {
+        dashboardActivatedAt: null,
+        complianceWindowStartedAt: { not: null },
+      },
+    },
+  };
+}
+
+export async function countLaunchPendingTrainers(): Promise<number> {
+  return prisma.trainer.count({ where: launchPendingTrainerWhere() });
+}
+
 export async function getActivePendingClientRegistrationStats(now = new Date()): Promise<{
   total: number;
   byStatus: Record<string, number>;

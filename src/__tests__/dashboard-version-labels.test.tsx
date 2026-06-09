@@ -50,7 +50,7 @@ import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version
 
 const EMPTY_OVERVIEW: AdminPortalOverview = {
   computedAt: "2026-06-05T12:00:00.000Z",
-  userCounts: { trainersTotal: 7, trainersActive: 5, clientsTotal: 12, clientsActive: 10 },
+  userCounts: { trainersTotal: 7, trainersPending: 1, trainersActive: 5, clientsTotal: 12, clientsActive: 10 },
   revenue: {
     revenueCents: 0,
     grossProfitCents: 0,
@@ -155,7 +155,7 @@ const EMPTY_OVERVIEW: AdminPortalOverview = {
   },
   alerts: { groups: [] },
   platformSummary: {
-    userCounts: { trainersTotal: 0, trainersActive: 0, clientsTotal: 0, clientsActive: 0 },
+    userCounts: { trainersTotal: 0, trainersPending: 0, trainersActive: 0, clientsTotal: 0, clientsActive: 0 },
     stabilityScore: 0,
     stabilityNotes: [],
     securityScore: 0,

@@ -12,6 +12,7 @@ import {
   launchPlatformSubscriberCountWhere,
   launchTrainerBeforeRegistrationPaymentWhere,
   launchTrainerIncompleteSignupWhere,
+  launchPendingTrainerWhere,
   launchTrainerCountWhere,
   activePendingClientRegistrationWhere,
   countLaunchClients,
@@ -258,6 +259,16 @@ describe("admin funnel count filters", () => {
         hasPaidRegistrationFee: false,
         limitedDashboardUnlockedAt: null,
         registrationFeeHoldStatus: { notIn: ["HELD", "CAPTURED"] },
+      },
+    });
+  });
+
+  it("pending trainer filter requires ToS, compliance window started, dashboard not live", () => {
+    const where = launchPendingTrainerWhere();
+    expect(where.profile).toEqual({
+      is: {
+        dashboardActivatedAt: null,
+        complianceWindowStartedAt: { not: null },
       },
     });
   });
