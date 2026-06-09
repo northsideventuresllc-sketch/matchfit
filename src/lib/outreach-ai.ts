@@ -265,7 +265,9 @@ function buildOutreachSystemPrompt(platform: OutreachPlatform, learning: string)
         : platform === "email"
           ? "Find real fitness professionals with publicly listed emails. NEVER invent email addresses."
           : "Find real fitness professional contacts. NEVER invent URLs or emails.",
-    "Each lead needs: whyMatchFit with at least one concrete business signal (follower range, credential, active booking, client results), personalHook referencing a specific recent post, and likelihoodScore (0-100).",
+    platform === "instagram"
+      ? "Each lead needs: whyMatchFit with at least one concrete business signal (follower range, credential, active booking, client results), personalHook referencing a specific recent post, and likelihoodScore (0-100)."
+      : "Each lead needs: whyMatchFit with at least one concrete business signal (follower range, credential, active booking, client results), and likelihoodScore (0-100).",
   ]
     .filter(Boolean)
     .join("\n");
