@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-09** `1.3.2-beta` → `1.3.3-beta` (**patch** — Fix trainer signup escrow typecheck failure)
 - **2026-06-08** `1.3.1-beta` → `1.3.2-beta` (**minor** — Admin Ad Tracking HQ, Outreach HQ, content calendar, and platform growth analytics merged with signup flow)
 - **2026-06-08** `1.3.0-beta` → `1.3.1-beta` (**patch** — Fix client signup enrich typing for deploy)
 - **2026-06-08** `1.2.2-beta` → `1.3.0-beta` (**minor** — Form analytics events, streamlined client signup, trainer account at TOS with 7-day onboarding fee)
