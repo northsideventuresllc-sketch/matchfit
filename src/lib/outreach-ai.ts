@@ -252,7 +252,7 @@ function buildOutreachSystemPrompt(platform: OutreachPlatform, learning: string)
     OUTREACH_BRAND_FACTS,
     learning,
     criteria,
-    "Return ONLY a valid JSON array. No markdown fences.",
+    "OUTPUT FORMAT — CRITICAL: Your entire response must be a single raw JSON array starting with [ and ending with ]. No prose, no explanation, no markdown fences (no ```), no preamble, no postamble. If you add anything outside the JSON array the response is unusable.",
     "Never suggest handles, emails, or URLs already in the exclusion list.",
     platform === "instagram"
       ? [
@@ -498,7 +498,9 @@ JSON schema per item:
 {"handle":"@username","profileUrl":"https://www.instagram.com/username/","niche":"specific niche","targetGroup":"ATL_LOCAL"|"VIRTUAL","whyMatchFit":"concrete business signal in 1-2 sentences","likelihoodScore":72,"personalHook":"specific reference to a recent post or content piece","commentText":"specific comment tied to commentPostRef","commentPostRef":"post topic + recency","notes":"optional — credential, specialty, or recent milestone"}
 
 Generic invite tail for ATL: "${tailAtl}"
-Generic invite tail for Virtual: "${tailVirtual}"`;
+Generic invite tail for Virtual: "${tailVirtual}"
+
+Respond with ONLY the JSON array. No text before or after the array.`;
   }
   if (platform === "facebook") {
     return `Find ${atlCount} ATL-local and ${virtualCount} virtual Facebook pages or trainer-focused groups for Match Fit outreach.
