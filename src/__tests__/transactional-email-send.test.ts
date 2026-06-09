@@ -11,6 +11,7 @@ const {
   sendMatchFitBrandedEmailMock,
   buildTransactionalEmailMock,
   isMandatoryTransactionalEmailKindMock,
+  logTransactionalEmailDeliveryMock,
 } = vi.hoisted(() => ({
   clientFindUniqueMock: vi.fn(),
   trainerFindUniqueMock: vi.fn(),
@@ -21,6 +22,7 @@ const {
   sendMatchFitBrandedEmailMock: vi.fn(),
   buildTransactionalEmailMock: vi.fn(),
   isMandatoryTransactionalEmailKindMock: vi.fn(),
+  logTransactionalEmailDeliveryMock: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -59,6 +61,10 @@ vi.mock("@/lib/transactional-email-prefs", () => ({
   trainerAllowsTransactionalEmailKind: trainerAllowsTransactionalEmailKindMock,
 }));
 
+vi.mock("@/lib/transactional-email-delivery-log", () => ({
+  logTransactionalEmailDelivery: logTransactionalEmailDeliveryMock,
+}));
+
 import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
 
 describe("sendTransactionalEmailIfAllowed", () => {
@@ -77,6 +83,7 @@ describe("sendTransactionalEmailIfAllowed", () => {
     clientFindUniqueMock.mockResolvedValue(null);
     trainerFindUniqueMock.mockResolvedValue(null);
     sendMatchFitBrandedEmailMock.mockResolvedValue("msg_1");
+    logTransactionalEmailDeliveryMock.mockResolvedValue(undefined);
   });
 
   it("skips when recipient is empty", async () => {
@@ -89,6 +96,15 @@ describe("sendTransactionalEmailIfAllowed", () => {
 
     expect(result).toEqual({ sent: false, skipped: "no_recipient" });
     expect(sendMatchFitBrandedEmailMock).not.toHaveBeenCalled();
+    expect(logTransactionalEmailDeliveryMock).toHaveBeenCalledWith({
+      kind: "CLIENT_WELCOME",
+      audience: "CLIENT",
+      toEmail: "",
+      subject: "Subject line",
+      status: "skipped_no_recipient",
+      clientId: undefined,
+      trainerId: undefined,
+    });
   });
 
   it("skips optional client emails when notification prefs disallow", async () => {
@@ -110,6 +126,15 @@ describe("sendTransactionalEmailIfAllowed", () => {
     });
     expect(result).toEqual({ sent: false, skipped: "prefs" });
     expect(sendMatchFitBrandedEmailMock).not.toHaveBeenCalled();
+    expect(logTransactionalEmailDeliveryMock).toHaveBeenCalledWith({
+      kind: "CLIENT_WELCOME",
+      audience: "CLIENT",
+      toEmail: "client@example.com",
+      subject: "Subject line",
+      status: "skipped_prefs",
+      clientId: "client_123",
+      trainerId: undefined,
+    });
   });
 
   it("skips optional trainer emails when notification prefs disallow", async () => {
@@ -131,6 +156,15 @@ describe("sendTransactionalEmailIfAllowed", () => {
     });
     expect(result).toEqual({ sent: false, skipped: "prefs" });
     expect(sendMatchFitBrandedEmailMock).not.toHaveBeenCalled();
+    expect(logTransactionalEmailDeliveryMock).toHaveBeenCalledWith({
+      kind: "TRAINER_WELCOME",
+      audience: "TRAINER",
+      toEmail: "trainer@example.com",
+      subject: "Subject line",
+      status: "skipped_prefs",
+      clientId: undefined,
+      trainerId: "trainer_123",
+    });
   });
 
   it("sends with support reply-to for non-staff audiences", async () => {
@@ -152,6 +186,16 @@ describe("sendTransactionalEmailIfAllowed", () => {
       html: "<p>Html body</p>",
       replyTo: MATCH_FIT_REPLY_TO,
     });
+    expect(logTransactionalEmailDeliveryMock).toHaveBeenCalledWith({
+      kind: "PASSWORD_RESET",
+      audience: "CLIENT",
+      toEmail: "member@example.com",
+      subject: "Subject line",
+      status: "sent",
+      resendId: "msg_1",
+      clientId: undefined,
+      trainerId: undefined,
+    });
   });
 
   it("omits reply-to for staff audience", async () => {
@@ -172,6 +216,16 @@ describe("sendTransactionalEmailIfAllowed", () => {
       html: "<p>Html body</p>",
       replyTo: undefined,
     });
+    expect(logTransactionalEmailDeliveryMock).toHaveBeenCalledWith({
+      kind: "BUG_REPORT_ACKNOWLEDGMENT",
+      audience: "STAFF",
+      toEmail: "staff@example.com",
+      subject: "Subject line",
+      status: "sent",
+      resendId: "msg_1",
+      clientId: undefined,
+      trainerId: undefined,
+    });
   });
 
   it("bypasses preference lookups for mandatory kinds", async () => {
@@ -189,5 +243,29 @@ describe("sendTransactionalEmailIfAllowed", () => {
     expect(clientFindUniqueMock).not.toHaveBeenCalled();
     expect(trainerFindUniqueMock).not.toHaveBeenCalled();
     expect(sendMatchFitBrandedEmailMock).toHaveBeenCalled();
+  });
+
+  it("logs failed status and rethrows when delivery fails", async () => {
+    sendMatchFitBrandedEmailMock.mockRejectedValueOnce(new Error("resend down"));
+
+    await expect(
+      sendTransactionalEmailIfAllowed({
+        kind: "PASSWORD_RESET",
+        to: "member@example.com",
+        audience: "CLIENT",
+        variables: { resetUrl: "https://example.test/reset" },
+      }),
+    ).rejects.toThrow("resend down");
+
+    expect(logTransactionalEmailDeliveryMock).toHaveBeenCalledWith({
+      kind: "PASSWORD_RESET",
+      audience: "CLIENT",
+      toEmail: "member@example.com",
+      subject: "Subject line",
+      status: "failed",
+      errorMessage: "resend down",
+      clientId: undefined,
+      trainerId: undefined,
+    });
   });
 });
