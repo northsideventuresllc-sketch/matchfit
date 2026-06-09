@@ -60,27 +60,26 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         await reschedulePost({ postId: id, newDate: parsed.data.newDate });
         return NextResponse.json({ ok: true });
       case "regenerate": {
+        const { weekStart, offset, dayIndex, postType, feedback, existingCaption, existingVisualPrompt } = parsed.data;
         const regenerated = await regenerateCalendarPost({
-          weekStart: parsed.data.weekStart,
-          offset: parsed.data.offset,
-          dayIndex: parsed.data.dayIndex,
-          postType: parsed.data.postType as ContentCalendarPostType,
-          feedback: parsed.data.feedback,
-          existingCaption: parsed.data.existingCaption,
-          existingVisualPrompt: parsed.data.existingVisualPrompt,
+          weekStart,
+          offset,
+          dayIndex,
+          postType: postType as ContentCalendarPostType,
+          feedback,
+          existingCaption,
+          existingVisualPrompt,
         });
         if (!regenerated) {
           return NextResponse.json({ error: "Regeneration failed. Check AI API keys." }, { status: 502 });
         }
         const rows = await upsertWeekPosts({
-          weekStart: parsed.data.weekStart,
-          offset: parsed.data.offset,
+          weekStart,
+          offset,
           posts: [regenerated],
           adminId: sess.adminId,
         });
-        const post = rows.find(
-          (r) => r.day_index === parsed.data.dayIndex && r.post_type === parsed.data.postType,
-        );
+        const post = rows.find((r) => r.day_index === dayIndex && r.post_type === postType);
         return NextResponse.json({ post: post ? serializePostForClient(post) : null });
       }
       case "generate_media": {
