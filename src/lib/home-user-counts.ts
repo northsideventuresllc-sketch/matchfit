@@ -125,16 +125,19 @@ async function queryHomeUserCounts(
       (
         SELECT COUNT(*)::bigint
         FROM "trainers" t
-        INNER JOIN "trainer_profiles" p ON p."trainerId" = t."id"
+        LEFT JOIN "trainer_profiles" p ON p."trainerId" = t."id"
         WHERE t."deidentifiedAt" IS NULL
           ${trainerSynthClause}
           ${trainerEmailClause}
-          AND p."hasSignedTOS" = true
+          AND (
+            t."termsAcceptedAt" IS NOT NULL
+            OR p."hasSignedTOS" = true
+          )
       ) AS trainers_total,
       (
         SELECT COUNT(*)::bigint
         FROM "trainers" t
-        INNER JOIN "trainer_profiles" p ON p."trainerId" = t."id"
+        LEFT JOIN "trainer_profiles" p ON p."trainerId" = t."id"
         WHERE t."deidentifiedAt" IS NULL
           ${trainerSynthClause}
           ${trainerEmailClause}
@@ -145,7 +148,7 @@ async function queryHomeUserCounts(
             OR p."limitedDashboardUnlockedAt" IS NOT NULL
             OR p."registrationFeeHoldStatus" IN ('HELD', 'CAPTURED')
           )
-          AND p."dashboardActivatedAt" IS NULL
+          AND (p."dashboardActivatedAt" IS NULL OR p."trainerId" IS NULL)
       ) AS trainers_pending,
       (
         SELECT COUNT(*)::bigint
@@ -227,7 +230,7 @@ async function queryHomeUserCounts(
 }
 
 /**
- * Homepage marketing counters. Trainers total: accepted Terms of Service (excludes test/QA accounts).
+ * Homepage marketing counters. Trainers total: accepted Terms of Service (includes pending onboarding).
  * Trainers pending: accepted Terms or started onboarding, dashboard not fully live.
  * Trainers active: ToS accepted, dashboard live, and recent activity.
  * Clients "active": billing in good standing (no platform sub, active sub, or grace window) or a subscription

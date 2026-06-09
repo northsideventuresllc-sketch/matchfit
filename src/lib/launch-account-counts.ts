@@ -2,7 +2,6 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { betaExcludeCapCountEmails, betaExcludeCapCountUsernames } from "@/lib/beta-launch-config";
 import {
-  getMatchFitDevPlaceholderCertPathPrefixes,
   getMatchFitLaunchExcludeClientUsernames,
   getMatchFitLaunchExcludeEmails,
   getMatchFitLaunchExcludeTrainerUsernames,
@@ -50,16 +49,6 @@ function launchUsernameInExcludeOr(usernames: string[]): AnyWhereOrItem[] {
   return [{ username: { in: usernames, mode: "insensitive" } }];
 }
 
-const DEV_CERT_PREFIXES = getMatchFitDevPlaceholderCertPathPrefixes();
-
-function launchDevCertExcludeOr(): AnyWhereOrItem[] {
-  return DEV_CERT_PREFIXES.flatMap((prefix) => [
-    { profile: { is: { certificationUrl: { startsWith: prefix, mode: "insensitive" } } } },
-    { profile: { is: { nutritionistCertificationUrl: { startsWith: prefix, mode: "insensitive" } } } },
-    { profile: { is: { specialistCertificationUrl: { startsWith: prefix, mode: "insensitive" } } } },
-  ]);
-}
-
 export const SYNTHETIC_TRAINER_USERNAME_PREFIX = "mfqst_";
 export const SYNTHETIC_CLIENT_USERNAME_PREFIX = "mfqsc_";
 
@@ -93,17 +82,19 @@ export function launchTrainerAccountWhere(): Prisma.TrainerWhereInput {
         ...launchEmailExcludeOr("trainer"),
         ...launchUsernamePrefixExcludeOr(usernameExcludes),
         ...launchUsernameInExcludeOr(exactUsernameExcludes),
-        ...launchDevCertExcludeOr(),
       ] as Prisma.TrainerWhereInput[],
     },
   };
 }
 
-/** Launch trainers — counted on the platform only after Terms of Service are accepted. */
+/** Trainers counted on the platform after Terms — includes pending onboarding before dashboard is live. */
 export function launchTrainerCountWhere(): Prisma.TrainerWhereInput {
   return {
     ...launchTrainerAccountWhere(),
-    profile: { is: { hasSignedTOS: true } },
+    OR: [
+      { termsAcceptedAt: { not: null } },
+      { profile: { is: { hasSignedTOS: true } } },
+    ],
   };
 }
 
@@ -231,7 +222,10 @@ export function launchTrainerBeforeRegistrationPaymentWhere(): Prisma.TrainerWhe
 export function launchTrainerBeforeTermsWhere(): Prisma.TrainerWhereInput {
   return {
     ...launchTrainerAccountWhere(),
-    profile: { is: { hasSignedTOS: false } },
+    termsAcceptedAt: null,
+    NOT: {
+      profile: { is: { hasSignedTOS: true } },
+    },
   };
 }
 

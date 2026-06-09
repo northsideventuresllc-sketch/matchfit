@@ -11,6 +11,7 @@ import {
   launchClientStripeTrialCountWhere,
   launchPlatformSubscriberCountWhere,
   launchTrainerBeforeRegistrationPaymentWhere,
+  launchTrainerBeforeTermsWhere,
   launchTrainerIncompleteSignupWhere,
   launchPendingTrainerWhere,
   launchTrainerCountWhere,
@@ -118,7 +119,12 @@ describe("launch account count exclusions", () => {
     const trainerWhere = launchTrainerCountWhere();
     expect(trainerWhere.deidentifiedAt).toBeNull();
     expect(trainerWhere.internalQaSyntheticPersona).toBe(false);
-    expect(trainerWhere.profile).toEqual({ is: { hasSignedTOS: true } });
+    expect(trainerWhere.OR).toEqual(
+      expect.arrayContaining([
+        { termsAcceptedAt: { not: null } },
+        { profile: { is: { hasSignedTOS: true } } },
+      ]),
+    );
     expect(trainerWhere.NOT?.OR).toEqual(
       expect.arrayContaining([
         { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" } },
@@ -184,7 +190,10 @@ describe("launch-account-counts async", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           internalQaSyntheticPersona: false,
-          profile: { is: { hasSignedTOS: true } },
+          OR: expect.arrayContaining([
+            { termsAcceptedAt: { not: null } },
+            { profile: { is: { hasSignedTOS: true } } },
+          ]),
         }),
       }),
     );
@@ -275,5 +284,23 @@ describe("admin funnel count filters", () => {
         { profile: { is: { complianceWindowStartedAt: { not: null } } } },
       ]),
     );
+  });
+
+  it("platform trainer count includes pending trainers who accepted Terms on the trainer row", () => {
+    const where = launchTrainerCountWhere();
+    expect(where.OR).toEqual(
+      expect.arrayContaining([
+        { termsAcceptedAt: { not: null } },
+        { profile: { is: { hasSignedTOS: true } } },
+      ]),
+    );
+  });
+
+  it("pre-tos trainer filter excludes termsAcceptedAt and signed profile rows", () => {
+    const where = launchTrainerBeforeTermsWhere();
+    expect(where.termsAcceptedAt).toBeNull();
+    expect(where.NOT).toEqual({
+      profile: { is: { hasSignedTOS: true } },
+    });
   });
 });
