@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { generateSinglePost } from "@/lib/content-calendar/content-calendar-ai";
+import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { requireAdminSession } from "@/lib/require-admin";
 
 const bodySchema = z.object({
@@ -18,6 +19,7 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
 
   try {
+    await hydratePlatformEnvFromDatabase();
     const result = await generateSinglePost(parsed.data);
     if (!result) {
       return NextResponse.json({ error: "Generation failed. Check AI API keys." }, { status: 502 });
