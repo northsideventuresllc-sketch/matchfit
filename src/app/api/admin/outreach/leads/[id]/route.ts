@@ -15,6 +15,7 @@ const patchSchema = z.object({
   emailSubject: z.string().max(500).optional(),
   emailBody: z.string().max(8000).optional(),
   outreachText: z.string().max(8000).optional(),
+  saveToHub: z.literal(true).optional(),
 });
 
 const deleteSchema = z.object({

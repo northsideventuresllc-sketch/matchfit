@@ -22,6 +22,7 @@ import type {
   FacebookLeadRow,
   InstagramLeadRow,
   OtherLeadRow,
+  OutreachHubLead,
   OutreachLeadStatus,
   OutreachPlatform,
 } from "@/lib/outreach-types";
@@ -38,10 +39,9 @@ import {
   OUTREACH_PLATFORM_UI,
   stageLabelForOutreachGenerate,
 } from "@/lib/outreach-platform-ui";
-import type { RegisteredTrainerOutreachRow } from "@/lib/outreach-registered-trainers";
 
 type AnyLead = InstagramLeadRow | FacebookLeadRow | EmailLeadRow | OtherLeadRow;
-type OutreachView = OutreachPlatform | "registered";
+type OutreachView = OutreachPlatform | "hub";
 
 type OutreachBatchGroup = {
   batchId: string | null;
@@ -186,12 +186,15 @@ function LeadBubble(props: {
   lead: AnyLead;
   onUpdate: (patch: Record<string, unknown>) => Promise<void>;
   onDelete: () => Promise<void>;
+  onSaveToHub: () => Promise<void>;
   children: ReactNode;
   title: string;
   linkHref?: string;
   linkLabel?: string;
 }) {
   const [deleting, setDeleting] = useState(false);
+  const [savingToHub, setSavingToHub] = useState(false);
+  const isSaved = Boolean(props.lead.savedToHubAt);
   const classification = props.lead.autoClassification as keyof typeof OUTREACH_CLASSIFICATION_LABELS;
   const statusOptions = OUTREACH_STATUS_OPTIONS.filter(
     (s) => props.platform !== "facebook" || !["FOLLOW_UP_1", "FOLLOW_UP_2"].includes(s.id),
@@ -246,18 +249,31 @@ function LeadBubble(props: {
                 </option>
               ))}
             </select>
-            <button
-              type="button"
-              disabled={deleting}
-              className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20 disabled:opacity-40"
-              onClick={() => {
-                if (!confirm("Move this outreach to deleted archive? It stays on file for learning.")) return;
-                setDeleting(true);
-                void props.onDelete().finally(() => setDeleting(false));
-              }}
-            >
-              {deleting ? "Removing…" : "Delete"}
-            </button>
+            <div className="flex flex-wrap gap-2 sm:justify-end">
+              <button
+                type="button"
+                disabled={savingToHub || isSaved}
+                className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-40"
+                onClick={() => {
+                  setSavingToHub(true);
+                  void props.onSaveToHub().finally(() => setSavingToHub(false));
+                }}
+              >
+                {isSaved ? "Saved to hub" : savingToHub ? "Saving…" : "Save"}
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20 disabled:opacity-40"
+                onClick={() => {
+                  if (!confirm("Move this outreach to deleted archive? It stays on file for learning.")) return;
+                  setDeleting(true);
+                  void props.onDelete().finally(() => setDeleting(false));
+                }}
+              >
+                {deleting ? "Removing…" : "Delete"}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -274,6 +290,7 @@ function PlatformTabPanel(props: {
   generateProgress: number;
   generateStage: string;
   bulkDeleting: boolean;
+  bulkSaving: boolean;
   atlCount: number;
   virtualCount: number;
   onAtlCount: (n: number) => void;
@@ -282,7 +299,11 @@ function PlatformTabPanel(props: {
   onRefresh: () => void;
   onUpdate: (id: string, patch: Record<string, unknown>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onSaveToHub: (id: string) => Promise<void>;
   onBulkDelete: (
+    input: { mode: "all" } | { mode: "batch"; generationBatchId: string } | { mode: "ids"; ids: string[] },
+  ) => Promise<void>;
+  onBulkSave: (
     input: { mode: "all" } | { mode: "batch"; generationBatchId: string } | { mode: "ids"; ids: string[] },
   ) => Promise<void>;
 }) {
@@ -302,6 +323,7 @@ function PlatformTabPanel(props: {
           linkLabel="Open Instagram profile"
           onUpdate={(patch) => props.onUpdate(ig.id, patch)}
           onDelete={() => props.onDelete(ig.id)}
+          onSaveToHub={() => props.onSaveToHub(ig.id)}
         >
           <EditableBlock
             label="Instagram DM"
@@ -331,6 +353,7 @@ function PlatformTabPanel(props: {
           linkLabel="Open Facebook page"
           onUpdate={(patch) => props.onUpdate(fb.id, patch)}
           onDelete={() => props.onDelete(fb.id)}
+          onSaveToHub={() => props.onSaveToHub(fb.id)}
         >
           <EditableBlock
             label="Page post"
@@ -353,6 +376,7 @@ function PlatformTabPanel(props: {
           linkLabel={em.emailSourceUrl ? "Where email was found" : em.email}
           onUpdate={(patch) => props.onUpdate(em.id, patch)}
           onDelete={() => props.onDelete(em.id)}
+          onSaveToHub={() => props.onSaveToHub(em.id)}
         >
           <p className="text-sm text-white/55">
             {em.email}
@@ -383,6 +407,7 @@ function PlatformTabPanel(props: {
         linkHref={ot.contactUrl ?? undefined}
         onUpdate={(patch) => props.onUpdate(ot.id, patch)}
         onDelete={() => props.onDelete(ot.id)}
+        onSaveToHub={() => props.onSaveToHub(ot.id)}
       >
         {ot.channelNotes ? <p className="text-xs text-white/45">{ot.channelNotes}</p> : null}
         <EditableBlock
@@ -465,23 +490,42 @@ function PlatformTabPanel(props: {
                   {batches.length === 1 ? "" : "s"} on this tab.
                 </p>
               </div>
-              <button
-                type="button"
-                disabled={props.bulkDeleting}
-                className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20 disabled:opacity-40"
-                onClick={() => {
-                  if (
-                    !confirm(
-                      `Move all ${activeLeads.length} active leads on this tab to the deleted archive? They stay on file for learning.`,
-                    )
-                  ) {
-                    return;
-                  }
-                  void props.onBulkDelete({ mode: "all" });
-                }}
-              >
-                {props.bulkDeleting ? "Removing…" : `Delete all ${activeLeads.length} leads`}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={props.bulkSaving}
+                  className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-40"
+                  onClick={() => {
+                    if (
+                      !confirm(
+                        `Save all ${activeLeads.length} active lead${activeLeads.length === 1 ? "" : "s"} on this tab to Outreach Hub?`,
+                      )
+                    ) {
+                      return;
+                    }
+                    void props.onBulkSave({ mode: "all" });
+                  }}
+                >
+                  {props.bulkSaving ? "Saving…" : `Save all ${activeLeads.length} leads`}
+                </button>
+                <button
+                  type="button"
+                  disabled={props.bulkDeleting}
+                  className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20 disabled:opacity-40"
+                  onClick={() => {
+                    if (
+                      !confirm(
+                        `Move all ${activeLeads.length} active leads on this tab to the deleted archive? They stay on file for learning.`,
+                      )
+                    ) {
+                      return;
+                    }
+                    void props.onBulkDelete({ mode: "all" });
+                  }}
+                >
+                  {props.bulkDeleting ? "Removing…" : `Delete all ${activeLeads.length} leads`}
+                </button>
+              </div>
             </div>
           </section>
 
@@ -539,63 +583,162 @@ function PlatformTabPanel(props: {
   );
 }
 
-function RegisteredTrainersPanel(props: {
-  trainers: RegisteredTrainerOutreachRow[];
+function OutreachHubPanel(props: {
+  entries: OutreachHubLead[];
   loading: boolean;
   onRefresh: () => void;
+  onUpdate: (platform: OutreachPlatform, id: string, patch: Record<string, unknown>) => Promise<void>;
+  onDelete: (platform: OutreachPlatform, id: string) => Promise<void>;
+  onSaveToHub: (platform: OutreachPlatform, id: string) => Promise<void>;
 }) {
+  const renderEntry = (entry: OutreachHubLead) => {
+    const { platform, lead } = entry;
+
+    if (platform === "instagram") {
+      const ig = lead as InstagramLeadRow;
+      return (
+        <LeadBubble
+          key={`${platform}-${ig.id}`}
+          platform="instagram"
+          lead={ig}
+          title={ig.handle}
+          linkHref={ig.profileUrl}
+          linkLabel="Open Instagram profile"
+          onUpdate={(patch) => props.onUpdate(platform, ig.id, patch)}
+          onDelete={() => props.onDelete(platform, ig.id)}
+          onSaveToHub={() => props.onSaveToHub(platform, ig.id)}
+        >
+          <EditableBlock label="Instagram DM" value={ig.dmText} rows={6} onSave={(dmText) => props.onUpdate(platform, ig.id, { dmText })} />
+          <EditableBlock
+            label="Comment (to grab attention)"
+            value={ig.commentText}
+            rows={2}
+            onSave={(commentText) => props.onUpdate(platform, ig.id, { commentText })}
+          />
+          {ig.commentPostRef ? <p className="text-xs text-white/40">Comment on: {ig.commentPostRef}</p> : null}
+        </LeadBubble>
+      );
+    }
+
+    if (platform === "facebook") {
+      const fb = lead as FacebookLeadRow;
+      return (
+        <LeadBubble
+          key={`${platform}-${fb.id}`}
+          platform="facebook"
+          lead={fb}
+          title={fb.pageName}
+          linkHref={fb.pageUrl}
+          linkLabel="Open Facebook page"
+          onUpdate={(patch) => props.onUpdate(platform, fb.id, patch)}
+          onDelete={() => props.onDelete(platform, fb.id)}
+          onSaveToHub={() => props.onSaveToHub(platform, fb.id)}
+        >
+          <EditableBlock
+            label="Page post"
+            value={fb.pagePostText}
+            rows={6}
+            onSave={(pagePostText) => props.onUpdate(platform, fb.id, { pagePostText })}
+          />
+        </LeadBubble>
+      );
+    }
+
+    if (platform === "email") {
+      const em = lead as EmailLeadRow;
+      return (
+        <LeadBubble
+          key={`${platform}-${em.id}`}
+          platform="email"
+          lead={em}
+          title={em.name}
+          linkHref={em.emailSourceUrl ?? undefined}
+          linkLabel={em.emailSourceUrl ? "Where email was found" : em.email}
+          onUpdate={(patch) => props.onUpdate(platform, em.id, patch)}
+          onDelete={() => props.onDelete(platform, em.id)}
+          onSaveToHub={() => props.onSaveToHub(platform, em.id)}
+        >
+          <p className="text-sm text-white/55">
+            {em.email}
+            {em.businessName ? ` · ${em.businessName}` : ""}
+          </p>
+          <EditableBlock
+            label="Email subject"
+            value={em.emailSubject}
+            rows={1}
+            onSave={(emailSubject) => props.onUpdate(platform, em.id, { emailSubject })}
+          />
+          <EditableBlock
+            label="Email body"
+            value={em.emailBody}
+            rows={8}
+            onSave={(emailBody) => props.onUpdate(platform, em.id, { emailBody })}
+          />
+        </LeadBubble>
+      );
+    }
+
+    const ot = lead as OtherLeadRow;
+    return (
+      <LeadBubble
+        key={`${platform}-${ot.id}`}
+        platform="other"
+        lead={ot}
+        title={ot.contactLabel}
+        linkHref={ot.contactUrl ?? undefined}
+        onUpdate={(patch) => props.onUpdate(platform, ot.id, patch)}
+        onDelete={() => props.onDelete(platform, ot.id)}
+        onSaveToHub={() => props.onSaveToHub(platform, ot.id)}
+      >
+        {ot.channelNotes ? <p className="text-xs text-white/45">{ot.channelNotes}</p> : null}
+        <EditableBlock
+          label="Outreach message"
+          value={ot.outreachText}
+          rows={6}
+          onSave={(outreachText) => props.onUpdate(platform, ot.id, { outreachText })}
+        />
+      </LeadBubble>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <section className={`${adminCardClass} space-y-3`}>
-        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Match Fit roster</p>
+        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Outreach Hub</p>
         <p className="text-sm text-white/55">
-          Real trainers who already signed up on Match Fit. This list is read-only here — manage accounts from the admin
-          dashboard. Cold outreach generation skips these handles automatically.
+          Saved contacts from every platform — your working list for follow-up. Download a CSV anytime for spreadsheets
+          or external tools.
         </p>
-        <button type="button" className={adminSecondaryButtonClass} onClick={props.onRefresh}>
-          Refresh roster
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <a href="/api/admin/outreach/hub/export" className={adminAccentButtonClass}>
+            Download CSV
+          </a>
+          <button type="button" className={adminSecondaryButtonClass} onClick={props.onRefresh}>
+            Refresh hub
+          </button>
+        </div>
       </section>
 
       {props.loading ? (
-        <p className="text-sm text-white/45">Loading registered trainers…</p>
-      ) : props.trainers.length === 0 ? (
+        <p className="text-sm text-white/45">Loading saved contacts…</p>
+      ) : props.entries.length === 0 ? (
         <p className="rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-8 text-center text-sm text-white/45">
-          No registered trainers yet.
+          No saved contacts yet. Use Save on any lead bubble to add them here.
         </p>
       ) : (
-        <div className="space-y-3">
-          {props.trainers.map((trainer) => (
-            <article key={trainer.id} className={`${adminPanelClass} p-4 sm:p-5`}>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0 space-y-1">
-                  <h3 className="text-lg font-black tracking-tight text-white">{trainer.displayName}</h3>
-                  <p className="text-sm text-white/55">
-                    @{trainer.username}
-                    {trainer.fitnessNiches ? ` · ${trainer.fitnessNiches}` : ""}
-                  </p>
-                  <p className="text-xs text-white/40">{trainer.email}</p>
-                  <div className="flex flex-wrap gap-3 pt-1 text-xs">
-                    {trainer.instagramUrl ? (
-                      <a href={trainer.instagramUrl} target="_blank" rel="noreferrer" className={adminLinkClass}>
-                        {trainer.instagramHandle ?? "Instagram"}
-                      </a>
-                    ) : null}
-                    {trainer.facebookUrl ? (
-                      <a href={trainer.facebookUrl} target="_blank" rel="noreferrer" className={adminLinkClass}>
-                        Facebook
-                      </a>
-                    ) : null}
-                    <Link href="/admin" className={adminLinkClass}>
-                      Open admin dashboard
-                    </Link>
-                  </div>
-                </div>
-                <p className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-white/35">
-                  Joined {new Date(trainer.createdAt).toLocaleDateString()}
-                </p>
-              </div>
-            </article>
+        <div className="space-y-4">
+          <p className="text-sm text-white/55">
+            {props.entries.length} saved contact{props.entries.length === 1 ? "" : "s"} across all platforms.
+          </p>
+          {props.entries.map((entry) => (
+            <div key={`${entry.platform}-${entry.lead.id}`} className="space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#FF7E00]/70">
+                {OUTREACH_PLATFORMS.find((p) => p.id === entry.platform)?.label ?? entry.platform}
+                {" · Saved "}
+                {new Date(entry.savedToHubAt).toLocaleString()}
+              </p>
+              {renderEntry(entry)}
+            </div>
           ))}
         </div>
       )}
@@ -611,15 +754,15 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   const [generateProgress, setGenerateProgress] = useState(0);
   const [generateStage, setGenerateStage] = useState("");
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkSaving, setBulkSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [atlCount, setAtlCount] = useState(3);
   const [virtualCount, setVirtualCount] = useState(5);
-  const [coworkJson, setCoworkJson] = useState<string | null>(null);
-  const [registeredTrainers, setRegisteredTrainers] = useState<RegisteredTrainerOutreachRow[]>([]);
+  const [hubEntries, setHubEntries] = useState<OutreachHubLead[]>([]);
   const [purging, setPurging] = useState(false);
 
-  const coldTab = tab === "registered" ? "instagram" : tab;
+  const coldTab = tab === "hub" ? "instagram" : tab;
 
   const loadLeads = useCallback(async (platform: OutreachPlatform, options?: { clearAlerts?: boolean }) => {
     setLoading(true);
@@ -641,16 +784,21 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     }
   }, []);
 
-  const loadRegisteredTrainers = useCallback(async () => {
+  const loadHubEntries = useCallback(async (options?: { clearAlerts?: boolean }) => {
     setLoading(true);
-    setError(null);
+    if (options?.clearAlerts) {
+      setError(null);
+      setSuccessMessage(null);
+    }
     try {
-      const res = await fetch("/api/admin/outreach/registered-trainers", { credentials: "include" });
-      if (!res.ok) throw new Error("Could not load registered trainers.");
-      const data = await readJsonResponse<{ trainers?: RegisteredTrainerOutreachRow[] }>(res);
-      setRegisteredTrainers(data.trainers ?? []);
+      const res = await fetch("/api/admin/outreach/hub", { credentials: "include" });
+      if (!res.ok) throw new Error("Could not load outreach hub.");
+      const data = await readJsonResponse<{ entries?: OutreachHubLead[]; leads?: OutreachHubLead[] }>(res);
+      setHubEntries(data.leads ?? data.entries ?? []);
     } catch {
-      setError("Could not load registered Match Fit trainers.");
+      if (options?.clearAlerts) {
+        setError("Could not load Outreach Hub saved contacts.");
+      }
     } finally {
       setLoading(false);
     }
@@ -658,13 +806,13 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
 
   useEffect(() => {
     queueMicrotask(() => {
-      if (tab === "registered") {
-        void loadRegisteredTrainers();
+      if (tab === "hub") {
+        void loadHubEntries({ clearAlerts: true });
       } else {
         void loadLeads(tab, { clearAlerts: true });
       }
     });
-  }, [tab, loadLeads, loadRegisteredTrainers]);
+  }, [tab, loadLeads, loadHubEntries]);
 
   const stats = useMemo(() => {
     const active = leads.filter((l) => !l.deletedAt);
@@ -676,7 +824,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   }, [leads]);
 
   useEffect(() => {
-    if (!generating || tab === "registered") return;
+    if (!generating || tab === "hub") return;
 
     const totalLeads = atlCount + virtualCount;
     const estimatedMs =
@@ -763,26 +911,76 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     }
   };
 
-  const updateLead = async (id: string, patch: Record<string, unknown>) => {
+  const updateLead = async (id: string, patch: Record<string, unknown>, platform: OutreachPlatform = coldTab) => {
     const res = await fetch(`/api/admin/outreach/leads/${id}`, {
       method: "PATCH",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ platform: coldTab, ...patch }),
+      body: JSON.stringify({ platform, ...patch }),
     });
     if (!res.ok) throw new Error("Update failed.");
-    await loadLeads(coldTab);
+    if (tab === "hub") {
+      await loadHubEntries();
+    } else {
+      await loadLeads(coldTab);
+    }
   };
 
-  const deleteLead = async (id: string) => {
+  const deleteLead = async (id: string, platform: OutreachPlatform = coldTab) => {
     const res = await fetch(`/api/admin/outreach/leads/${id}`, {
       method: "DELETE",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ platform: coldTab }),
+      body: JSON.stringify({ platform }),
     });
     if (!res.ok) throw new Error("Delete failed.");
-    await loadLeads(coldTab);
+    if (tab === "hub") {
+      await loadHubEntries();
+    } else {
+      await loadLeads(coldTab);
+    }
+  };
+
+  const saveLeadToHub = async (id: string, platform: OutreachPlatform = coldTab) => {
+    const res = await fetch(`/api/admin/outreach/leads/${id}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ platform, saveToHub: true }),
+    });
+    if (!res.ok) throw new Error("Save failed.");
+    setSuccessMessage("Saved to Outreach Hub.");
+    if (tab === "hub") {
+      await loadHubEntries();
+    } else {
+      await loadLeads(coldTab);
+    }
+  };
+
+  const bulkSaveLeads = async (
+    input: { mode: "all" } | { mode: "batch"; generationBatchId: string } | { mode: "ids"; ids: string[] },
+  ) => {
+    setBulkSaving(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const res = await fetch("/api/admin/outreach/leads/bulk-save", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ platform: coldTab, ...input }),
+      });
+      const data = await readJsonResponse<{ error?: string; savedCount?: number }>(res);
+      if (!res.ok) throw new Error(data.error ?? "Bulk save failed.");
+      setSuccessMessage(
+        `Saved ${data.savedCount ?? 0} lead${data.savedCount === 1 ? "" : "s"} to Outreach Hub.`,
+      );
+      await loadLeads(coldTab);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Bulk save failed.");
+    } finally {
+      setBulkSaving(false);
+    }
   };
 
   const bulkDeleteLeads = async (
@@ -832,19 +1030,16 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
       const data = await readJsonResponse<{ error?: string; message?: string }>(res);
       if (!res.ok) throw new Error(data.error ?? "Purge failed.");
       setSuccessMessage(data.message ?? "Archived outreach rows removed.");
-      if (tab !== "registered") await loadLeads(coldTab);
+      if (tab === "hub") {
+        await loadHubEntries();
+      } else {
+        await loadLeads(coldTab);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Purge failed.");
     } finally {
       setPurging(false);
     }
-  };
-
-  const loadCoworkBrief = async () => {
-    const res = await fetch("/api/admin/outreach/cowork-brief", { credentials: "include" });
-    if (!res.ok) return;
-    const data = await readJsonResponse<unknown>(res);
-    setCoworkJson(JSON.stringify(data, null, 2));
   };
 
   return (
@@ -858,8 +1053,8 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF7E00]">Match Fit</p>
               <h1 className="mt-1 text-3xl font-black tracking-tight">Outreach HQ</h1>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/55">
-                Daily trainer outreach by platform — AI lead discovery, editable copy, status tracking, and a Cowork
-                morning brief. Data lives in your Match Fit database (Supabase Postgres).
+                Daily trainer outreach by platform — AI lead discovery, editable copy, status tracking, and a saved
+                Outreach Hub. Data lives in your Match Fit database (Supabase Postgres).
               </p>
             </div>
             <Link href="/admin" className={adminSecondaryButtonClass}>
@@ -907,25 +1102,6 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
           </button>
         </section>
 
-        <section className={`${adminCardClass} space-y-3`}>
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Claude Cowork</p>
-          <p className="text-sm text-white/55">
-            Export today&apos;s Lead-status queue for morning automation. Cowork can open profile links in Chrome tabs,
-            send DMs/comments/emails, then update status via the API or this UI.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" className={adminAccentButtonClass} onClick={() => void loadCoworkBrief()}>
-              Load morning brief
-            </button>
-            {coworkJson ? <CopyButton text={coworkJson} /> : null}
-          </div>
-          {coworkJson ? (
-            <pre className="max-h-64 overflow-auto rounded-xl border border-white/[0.06] bg-[#0E1016]/90 p-3 text-[11px] leading-relaxed text-white/60">
-              {coworkJson}
-            </pre>
-          ) : null}
-        </section>
-
         <nav className="flex flex-wrap gap-2" aria-label="Outreach platform">
           {OUTREACH_PLATFORMS.map((p) => (
             <button
@@ -944,21 +1120,24 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
           <button
             type="button"
             className={
-              tab === "registered"
+              tab === "hub"
                 ? "rounded-lg border border-[#FF7E00]/40 bg-[#FF7E00]/10 px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#FFD34E]"
                 : adminSecondaryButtonClass
             }
-            onClick={() => setTab("registered")}
+            onClick={() => setTab("hub")}
           >
-            Match Fit trainers
+            OUTREACH HUB
           </button>
         </nav>
 
-        {tab === "registered" ? (
-          <RegisteredTrainersPanel
-            trainers={registeredTrainers}
+        {tab === "hub" ? (
+          <OutreachHubPanel
+            entries={hubEntries}
             loading={loading}
-            onRefresh={() => void loadRegisteredTrainers()}
+            onRefresh={() => void loadHubEntries()}
+            onUpdate={(platform, id, patch) => updateLead(id, patch, platform)}
+            onDelete={(platform, id) => deleteLead(id, platform)}
+            onSaveToHub={(platform, id) => saveLeadToHub(id, platform)}
           />
         ) : (
           <PlatformTabPanel
@@ -969,6 +1148,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
             generateProgress={generateProgress}
             generateStage={generateStage}
             bulkDeleting={bulkDeleting}
+            bulkSaving={bulkSaving}
             atlCount={atlCount}
             virtualCount={virtualCount}
             onAtlCount={setAtlCount}
@@ -977,7 +1157,9 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
             onRefresh={() => void loadLeads(tab)}
             onUpdate={updateLead}
             onDelete={deleteLead}
+            onSaveToHub={saveLeadToHub}
             onBulkDelete={bulkDeleteLeads}
+            onBulkSave={bulkSaveLeads}
           />
         )}
 

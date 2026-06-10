@@ -61,6 +61,7 @@ export type InstagramLeadRow = {
   generationBatchId: string | null;
   createdAt: string;
   deletedAt: string | null;
+  savedToHubAt: string | null;
 };
 
 export type FacebookLeadRow = {
@@ -83,6 +84,7 @@ export type FacebookLeadRow = {
   generationBatchId: string | null;
   createdAt: string;
   deletedAt: string | null;
+  savedToHubAt: string | null;
 };
 
 export type EmailLeadRow = {
@@ -109,6 +111,7 @@ export type EmailLeadRow = {
   generationBatchId: string | null;
   createdAt: string;
   deletedAt: string | null;
+  savedToHubAt: string | null;
 };
 
 export type OtherLeadRow = {
@@ -133,6 +136,13 @@ export type OtherLeadRow = {
   generationBatchId: string | null;
   createdAt: string;
   deletedAt: string | null;
+  savedToHubAt: string | null;
+};
+
+export type OutreachHubLead = {
+  platform: OutreachPlatform;
+  savedToHubAt: string;
+  lead: InstagramLeadRow | FacebookLeadRow | EmailLeadRow | OtherLeadRow;
 };
 
 export function targetGroupLabel(group: string): string {
