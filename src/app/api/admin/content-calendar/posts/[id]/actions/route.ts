@@ -60,6 +60,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         await reschedulePost({ postId: id, newDate: parsed.data.newDate });
         return NextResponse.json({ ok: true });
       case "regenerate": {
+        const { weekStart, offset, dayIndex, postType, feedback, existingCaption, existingVisualPrompt } = parsed.data;
+        const {
+          weekStart,
+          offset,
+          dayIndex,
+          postType,
+          feedback,
+          existingCaption,
+          existingVisualPrompt,
+        } = parsed.data;
         const { weekStart, offset, dayIndex, postType, feedback, existingCaption, existingVisualPrompt } =
           parsed.data;
         const regenerated = await regenerateCalendarPost({
@@ -80,6 +90,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           posts: [regenerated],
           adminId: sess.adminId,
         });
+        const post = rows.find(
+          (r) => r.day_index === dayIndex && r.post_type === postType,
+        );
         const post = rows.find((r) => r.day_index === dayIndex && r.post_type === postType);
         return NextResponse.json({ post: post ? serializePostForClient(post) : null });
       }
