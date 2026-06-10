@@ -6,7 +6,7 @@ import {
   type AdminDashboardSectionId,
   adminDashboardSectionDomId,
 } from "@/lib/admin-dashboard-layout";
-import { adminPortalCardClass } from "@/components/admin/admin-portal-styles";
+import { adminPortalCardClass, adminPortalSecondaryButtonClass } from "@/components/admin/admin-portal-styles";
 
 function ChevronIcon(props: { expanded: boolean }) {
   return (
@@ -32,6 +32,8 @@ export function AdminDashboardSectionPanel(props: {
   collapsed: boolean;
   density: AdminDashboardDensity;
   onToggleCollapsed: () => void;
+  onRefresh?: () => void;
+  refreshing?: boolean;
   children: ReactNode;
 }) {
   const bodyId = `${adminDashboardSectionDomId(props.id)}-body`;
@@ -43,29 +45,41 @@ export function AdminDashboardSectionPanel(props: {
       aria-labelledby={`${props.id}-heading`}
     >
       <div className={`${adminPortalCardClass} overflow-hidden`}>
-        <button
-          type="button"
-          id={`${props.id}-heading`}
-          aria-expanded={!props.collapsed}
-          aria-controls={bodyId}
-          onClick={props.onToggleCollapsed}
-          className="flex w-full items-start gap-3 px-4 py-3.5 text-left transition hover:bg-white/[0.03] sm:px-5 sm:py-4"
-        >
-          <ChevronIcon expanded={!props.collapsed} />
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-black uppercase tracking-[0.14em] text-white/85">
-              {props.title}
-            </span>
-            {props.description ? (
-              <span className="mt-1 block text-xs leading-snug text-white/45">{props.description}</span>
-            ) : null}
-            {props.collapsed ? (
-              <span className="mt-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-[#FF7E00]/70">
-                Collapsed — click to expand
+        <div className="flex items-start gap-2 px-4 py-3.5 sm:gap-3 sm:px-5 sm:py-4">
+          <button
+            type="button"
+            id={`${props.id}-heading`}
+            aria-expanded={!props.collapsed}
+            aria-controls={bodyId}
+            onClick={props.onToggleCollapsed}
+            className="flex min-w-0 flex-1 items-start gap-3 text-left transition hover:opacity-90"
+          >
+            <ChevronIcon expanded={!props.collapsed} />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-black uppercase tracking-[0.14em] text-white/85">
+                {props.title}
               </span>
-            ) : null}
-          </span>
-        </button>
+              {props.description ? (
+                <span className="mt-1 block text-xs leading-snug text-white/45">{props.description}</span>
+              ) : null}
+              {props.collapsed ? (
+                <span className="mt-1.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-[#FF7E00]/70">
+                  Collapsed — click to expand
+                </span>
+              ) : null}
+            </span>
+          </button>
+          {props.onRefresh ? (
+            <button
+              type="button"
+              onClick={() => props.onRefresh?.()}
+              disabled={props.refreshing}
+              className={`${adminPortalSecondaryButtonClass} shrink-0 px-3 py-2 text-[10px] tracking-[0.12em]`}
+            >
+              {props.refreshing ? "Refreshing…" : "Refresh Stats"}
+            </button>
+          ) : null}
+        </div>
 
         <div
           id={bodyId}

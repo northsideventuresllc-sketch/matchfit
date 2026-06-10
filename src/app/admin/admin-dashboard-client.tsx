@@ -235,7 +235,7 @@ export function AdminDashboardClient(props: {
 }) {
   const [overview, setOverview] = useState(props.initialOverview);
   const [auditLog, setAuditLog] = useState(props.auditLog);
-  const [refreshing, setRefreshing] = useState(false);
+  const [refreshingSectionId, setRefreshingSectionId] = useState<AdminDashboardSectionId | null>(null);
   const {
     memberOverview,
     revenue,
@@ -346,31 +346,43 @@ export function AdminDashboardClient(props: {
     };
   }, []);
 
-  const refreshDashboard = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      const [overviewRes, auditRes] = await Promise.all([
-        fetch("/api/admin/overview", { credentials: "include" }),
-        fetch("/api/admin/audit-log", { credentials: "include" }),
-      ]);
-      const overviewData = (await overviewRes.json()) as AdminPortalOverview & { error?: string };
-      const auditData = (await auditRes.json()) as { items?: AdminAuditLogRow[]; error?: string };
-      if (!overviewRes.ok) {
-        setError(overviewData.error ?? "Could not refresh dashboard stats.");
-        return;
+  const refreshSection = useCallback(
+    async (sectionId: AdminDashboardSectionId) => {
+      setRefreshingSectionId(sectionId);
+      try {
+        const overviewRes = await fetch("/api/admin/overview", { credentials: "include" });
+        const overviewData = (await overviewRes.json()) as AdminPortalOverview & { error?: string };
+        if (!overviewRes.ok) {
+          setError(overviewData.error ?? "Could not refresh dashboard stats.");
+          return;
+        }
+        setOverview(overviewData);
+
+        if (sectionId === "impersonation-audit") {
+          const auditRes = await fetch("/api/admin/audit-log", { credentials: "include" });
+          const auditData = (await auditRes.json()) as { items?: AdminAuditLogRow[]; error?: string };
+          if (auditRes.ok) {
+            setAuditLog(auditData.items ?? []);
+          }
+        }
+
+        if (sectionId === "signup-log") {
+          await loadSignupLog(0, true);
+        }
+
+        if (sectionId === "member-search" && q.trim().length >= 2) {
+          await loadDirectory(q.trim());
+        }
+
+        setError(null);
+      } catch {
+        setError("Could not refresh dashboard stats.");
+      } finally {
+        setRefreshingSectionId(null);
       }
-      setOverview(overviewData);
-      if (auditRes.ok) {
-        setAuditLog(auditData.items ?? []);
-      }
-      await loadSignupLog(0, true);
-      setError(null);
-    } catch {
-      setError("Could not refresh dashboard stats.");
-    } finally {
-      setRefreshing(false);
-    }
-  }, [loadSignupLog]);
+    },
+    [loadDirectory, loadSignupLog, q],
+  );
 
   const orderedVisibleSections = useMemo(() => visibleDashboardSections(layout), [layout]);
 
@@ -698,14 +710,6 @@ export function AdminDashboardClient(props: {
           <>
             <button
               type="button"
-              onClick={() => void refreshDashboard()}
-              disabled={refreshing || busyKey !== null}
-              className={adminPortalSecondaryButtonClass}
-            >
-              {refreshing ? "Refreshing…" : "Refresh"}
-            </button>
-            <button
-              type="button"
               onClick={() => {
                 setLayoutSaveError(null);
                 setLayoutPersistedHint(null);
@@ -785,6 +789,8 @@ export function AdminDashboardClient(props: {
                   collapsed={isSectionCollapsed(layout, sectionId)}
                   density={layout.density}
                   onToggleCollapsed={() => toggleSectionCollapsed(sectionId)}
+                  onRefresh={() => void refreshSection(sectionId)}
+                  refreshing={refreshingSectionId === sectionId}
                 >
                   {renderSectionBody(sectionId)}
                 </AdminDashboardSectionPanel>
