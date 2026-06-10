@@ -215,6 +215,31 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     });
   });
 
+  it("returns post=null when upserted rows do not include the requested regenerate slot", async () => {
+    mockUpsertWeekPosts.mockResolvedValueOnce([
+      {
+        id: "row_other",
+        day_index: 4,
+        post_type: "Carousel",
+      },
+    ]);
+
+    const res = await POST(
+      postJson({
+        action: "regenerate",
+        weekStart: "2026-06-02",
+        offset: 7,
+        dayIndex: 2,
+        postType: "Video",
+      }),
+      routeCtx,
+    );
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ post: null });
+    expect(mockSerializePostForClient).not.toHaveBeenCalled();
+  });
+
   it("returns 502 when regeneration fails", async () => {
     mockRegenerateCalendarPost.mockResolvedValueOnce(null);
 
@@ -234,6 +259,7 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     expect(mockUpsertWeekPosts).not.toHaveBeenCalled();
   });
 
+  it("returns 400 when regenerate payload fails schema validation", async () => {
   it("returns null post when regenerated row is not found in upsert results", async () => {
     mockUpsertWeekPosts.mockResolvedValueOnce([
       {
@@ -265,6 +291,8 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
         action: "regenerate",
         weekStart: "2026-06-02",
         offset: 7,
+        dayIndex: 9,
+        postType: "Video",
         dayIndex: 5,
         postType: "Text",
       }),
