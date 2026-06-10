@@ -135,6 +135,7 @@ export async function createTrainerSignupFeeHoldPaymentIntents(args: {
     platformPaymentIntentId: platform.paymentIntentId,
     backgroundCheckClientSecret: backgroundCheck.clientSecret,
     backgroundCheckPaymentIntentId: backgroundCheck.paymentIntentId,
+    backgroundCheckHoldCents: backgroundCheck.holdCents,
     baseCents: split.baseCents,
     totalCents: computeTrainerSignupCombinedHoldCents(args.pricingMode),
     platformHoldCents,

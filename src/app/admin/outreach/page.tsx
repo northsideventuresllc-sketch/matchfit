@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { probeAdminAiProvider } from "@/lib/admin-analytics-ai";
 import { getAdminAiProviderStatusAsync } from "@/lib/admin-analytics-ai";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/session";
@@ -17,6 +18,7 @@ export default async function AdminOutreachPage() {
   });
   if (!adminRow) redirect("/admin/login");
 
+  const aiStatus = await probeAdminAiProvider();
   const aiStatus = await getAdminAiProviderStatusAsync();
 
   return <OutreachHqClient aiStatus={aiStatus} />;
