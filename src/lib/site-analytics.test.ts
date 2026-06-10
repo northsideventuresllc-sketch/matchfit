@@ -21,6 +21,14 @@ vi.mock("@/lib/prisma-missing-column", () => ({
 
 import { getAdminSiteTrafficSnapshot, recordSiteAnalyticsEvent } from "@/lib/site-analytics";
 
+const emptyUtm = {
+  utmSource: null,
+  utmMedium: null,
+  utmCampaign: null,
+  utmContent: null,
+  utmTerm: null,
+} as const;
+
 describe("site-analytics server helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -43,6 +51,7 @@ describe("site-analytics server helpers", () => {
       utmCampaign: null,
       utmContent: null,
       utmTerm: null,
+      ...emptyUtm,
     });
 
     expect(mockSiteAnalyticsCreate).toHaveBeenCalledWith({

@@ -1,16 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AdminPortalNav } from "@/components/admin/admin-portal-nav";
+import { AdminPortalShell } from "@/components/admin/admin-portal-shell";
 import {
   AdminPortalAlert,
-  AdminPortalBackdrop,
   AdminPortalBetaNotice,
-  AdminPortalLogoLink,
+  AdminLoadingBar,
   adminAccentButtonClass,
   adminCardClass,
-  adminEyebrowClass,
   adminInputClassSm,
   adminLabelClass,
   adminLinkClass,
@@ -94,6 +91,7 @@ export function AdTrackingClient() {
   const [config, setConfig] = useState<TrackingConfigResponse | null>(null);
   const [panel, setPanel] = useState<AdPerformancePanel | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
@@ -107,6 +105,7 @@ export function AdTrackingClient() {
 
   const load = useCallback(async () => {
     setError(null);
+    setLoading(true);
     try {
       const [configRes, perfRes] = await Promise.all([
         fetch("/api/admin/ad-tracking/config"),
@@ -120,6 +119,8 @@ export function AdTrackingClient() {
       setBaseUrl(configJson.defaultBaseUrl);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load ad tracking.");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -182,37 +183,49 @@ export function AdTrackingClient() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#0B0C0F] text-white">
-      <AdminPortalBackdrop />
-      <div className="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-        <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <AdminPortalLogoLink subtitle="Ad tracking" />
-            <p className={adminEyebrowClass + " mt-4"}>Growth tools</p>
-            <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Ad Tracking HQ</h1>
-            <p className="mt-2 max-w-2xl text-sm text-white/55">
-              Generate campaign URLs, verify pixel wiring, and sync Google Ads and Meta performance into Match Fit.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/admin" className={adminSecondaryButtonClass}>
-              Back to Dashboard
-            </Link>
-          </div>
-        </header>
+    <AdminPortalShell
+      current="ad-tracking"
+      maxWidth="full"
+      title="Ad Tracking HQ"
+      description="Build tracking links, confirm your pixels are live, and see whether Meta and Google ads are driving sign-ups — without digging through developer settings."
+      contentClassName="space-y-6"
+    >
+        <AdminPortalBetaNotice className="mt-0" />
 
-        <AdminPortalBetaNotice className="mb-6" />
-        <AdminPortalNav current="ad-tracking" />
+        <section className={`${adminCardClass} border-[#FF7E00]/15 bg-[#FF7E00]/[0.04]`}>
+          <p className={adminSectionTitleClass}>Start here</p>
+          <h2 className="mt-2 text-lg font-bold">How to use this page</h2>
+          <ol className="mt-3 space-y-2 text-sm leading-relaxed text-white/60">
+            <li>
+              <strong className="text-white/85">Step 1 — Confirm tags:</strong> Check that Meta and Google IDs below match
+              what you see in Events Manager and Google Ads.
+            </li>
+            <li>
+              <strong className="text-white/85">Step 2 — Build links:</strong> Use the campaign link builder and paste the
+              final URL into your ad creative (not the homepage without tracking).
+            </li>
+            <li>
+              <strong className="text-white/85">Step 3 — Match conversions:</strong> In Meta and Google, create conversion
+              goals using the event names in the catalog — Match Fit fires these automatically on sign-up.
+            </li>
+            <li>
+              <strong className="text-white/85">Step 4 — Review results:</strong> Sync performance and compare ad platform
+              numbers with on-site attribution.
+            </li>
+          </ol>
+        </section>
+
         {error ? <AdminPortalAlert variant="error">{error}</AdminPortalAlert> : null}
         {syncMessage ? <AdminPortalAlert variant="info">{syncMessage}</AdminPortalAlert> : null}
+        {loading ? <AdminLoadingBar label="Loading ad tracking…" /> : null}
 
-        <div className="mt-8 space-y-8">
-          {/* Pixel status */}
+        <div className="space-y-8">
           <section className={adminCardClass}>
-            <p className={adminSectionTitleClass}>Connected pixels</p>
-            <h2 className="mt-2 text-lg font-bold">Live tags in the app</h2>
+            <p className={adminSectionTitleClass}>Connected Pixels</p>
+            <h2 className="mt-2 text-lg font-bold">Live Tags in the App</h2>
             <p className="mt-1 text-sm text-white/50">
-              These IDs match the Meta Pixel and Google Ads gtag loaded on every public page.
+              These are the tracking tags already running on match-fit.net. You do not need to paste code — use the IDs
+              here to verify setup in Meta Events Manager and Google Ads.
             </p>
             {config ? (
               <div className="mt-5 grid gap-4 lg:grid-cols-2">
@@ -243,35 +256,33 @@ export function AdTrackingClient() {
                   <p className="mt-2 text-xs text-white/45">{config.pixels.google.label}</p>
                   <div className="mt-3 space-y-1 text-[11px] text-white/50">
                     <p>
-                      Client signup:{" "}
+                      Client signup conversion:{" "}
                       {config.googleConversions.clientSignup.configured ? (
-                        <span className="text-[#9BE7B0]">{config.googleConversions.clientSignup.sendTo}</span>
+                        <span className="text-[#9BE7B0]">Connected</span>
                       ) : (
-                        <span className="text-white/35">Set {config.googleConversions.clientSignup.envKey}</span>
+                        <span className="text-white/35">Not configured — ask your developer to finish Google signup conversion setup</span>
                       )}
                     </p>
                     <p>
-                      Trainer signup:{" "}
+                      Trainer signup conversion:{" "}
                       {config.googleConversions.trainerSignup.configured ? (
-                        <span className="text-[#9BE7B0]">{config.googleConversions.trainerSignup.sendTo}</span>
+                        <span className="text-[#9BE7B0]">Connected</span>
                       ) : (
-                        <span className="text-white/35">Set {config.googleConversions.trainerSignup.envKey}</span>
+                        <span className="text-white/35">Not configured — ask your developer to finish Google signup conversion setup</span>
                       )}
                     </p>
                   </div>
                 </div>
               </div>
-            ) : (
-              <p className="mt-4 text-sm text-white/40">Loading pixel config…</p>
-            )}
+            ) : null}
           </section>
 
-          {/* URL builder */}
           <section className={adminCardClass}>
-            <p className={adminSectionTitleClass}>Campaign link builder</p>
-            <h2 className="mt-2 text-lg font-bold">Generate tracking URLs</h2>
+            <p className={adminSectionTitleClass}>Campaign Link Builder</p>
+            <h2 className="mt-2 text-lg font-bold">Generate Tracking URLs</h2>
             <p className="mt-1 text-sm text-white/50">
-              UTM parameters attach to landing pages and persist for 30 days in first-touch attribution reporting.
+              Pick a landing page and campaign preset. Copy the final URL into your ad — it tags visitors so Match Fit can
+              attribute sign-ups back to the right campaign for 30 days.
             </p>
 
             {config ? (
@@ -309,23 +320,38 @@ export function AdTrackingClient() {
                 </select>
               </label>
               <label className="block space-y-2">
-                <span className={adminLabelClass}>utm_source</span>
-                <input className={adminInputClassSm} value={utmSource} onChange={(e) => setUtmSource(e.target.value)} />
+                <span className={adminLabelClass}>Source (utm_source)</span>
+                <input
+                  className={adminInputClassSm}
+                  value={utmSource}
+                  onChange={(e) => setUtmSource(e.target.value)}
+                  placeholder="facebook, google, instagram"
+                />
               </label>
               <label className="block space-y-2">
-                <span className={adminLabelClass}>utm_medium</span>
-                <input className={adminInputClassSm} value={utmMedium} onChange={(e) => setUtmMedium(e.target.value)} />
+                <span className={adminLabelClass}>Medium (utm_medium)</span>
+                <input
+                  className={adminInputClassSm}
+                  value={utmMedium}
+                  onChange={(e) => setUtmMedium(e.target.value)}
+                  placeholder="paid_social, cpc"
+                />
               </label>
               <label className="block space-y-2">
-                <span className={adminLabelClass}>utm_campaign</span>
-                <input className={adminInputClassSm} value={utmCampaign} onChange={(e) => setUtmCampaign(e.target.value)} />
+                <span className={adminLabelClass}>Campaign (utm_campaign)</span>
+                <input
+                  className={adminInputClassSm}
+                  value={utmCampaign}
+                  onChange={(e) => setUtmCampaign(e.target.value)}
+                  placeholder="client_beta_launch"
+                />
               </label>
               <label className="block space-y-2">
-                <span className={adminLabelClass}>utm_content (optional)</span>
+                <span className={adminLabelClass}>Content (optional)</span>
                 <input className={adminInputClassSm} value={utmContent} onChange={(e) => setUtmContent(e.target.value)} />
               </label>
               <label className="block space-y-2 sm:col-span-2">
-                <span className={adminLabelClass}>utm_term (optional)</span>
+                <span className={adminLabelClass}>Keyword (optional)</span>
                 <input className={adminInputClassSm} value={utmTerm} onChange={(e) => setUtmTerm(e.target.value)} />
               </label>
             </div>
@@ -339,12 +365,12 @@ export function AdTrackingClient() {
             </div>
           </section>
 
-          {/* Event catalog */}
           <section className={adminCardClass}>
-            <p className={adminSectionTitleClass}>Event catalog</p>
-            <h2 className="mt-2 text-lg font-bold">Pixel events wired in Match Fit</h2>
+            <p className={adminSectionTitleClass}>Conversion Events</p>
+            <h2 className="mt-2 text-lg font-bold">Events Match Fit Sends Automatically</h2>
             <p className="mt-1 text-sm text-white/50">
-              Use these event names when creating conversion goals in Google Ads and Meta Ads Manager.
+              When someone signs up, Match Fit fires these events to Meta and Google. Create matching conversion actions in
+              each ad platform using the names below — no custom code required on your side.
             </p>
             {config ? (
               <div className="mt-5 overflow-x-auto">
@@ -377,14 +403,13 @@ export function AdTrackingClient() {
             ) : null}
           </section>
 
-          {/* Performance */}
           <section className={adminCardClass}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className={adminSectionTitleClass}>Performance</p>
-                <h2 className="mt-2 text-lg font-bold">Ad platform metrics (7 days)</h2>
+                <h2 className="mt-2 text-lg font-bold">Ad Platform Metrics (7 Days)</h2>
                 <p className="mt-1 text-sm text-white/50">
-                  Sync from Google Ads and Meta APIs, compared with on-site UTM attribution.
+                  Pull spend and clicks from Meta and Google, then compare with visitors who arrived via your tracking links.
                 </p>
               </div>
               <button type="button" className={adminAccentButtonClass} disabled={syncing} onClick={() => void syncPerformance()}>
@@ -421,13 +446,10 @@ export function AdTrackingClient() {
                         </span>
                       </div>
                       {!integration.configured ? (
-                        <ul className="mt-3 space-y-1 text-[11px] text-white/45">
-                          {integration.missingEnv.map((key) => (
-                            <li key={key} className="font-mono">
-                              {key}
-                            </li>
-                          ))}
-                        </ul>
+                        <p className="mt-3 text-[11px] leading-relaxed text-white/45">
+                          API sync is not set up yet. Ask your developer to add {integration.platform === "meta" ? "Meta" : "Google"} ad
+                          API credentials in production environment variables. Tracking links and on-site pixels still work.
+                        </p>
                       ) : null}
                     </div>
                   ))}
@@ -435,7 +457,7 @@ export function AdTrackingClient() {
 
                 {panel.attribution.length > 0 ? (
                   <div className="mt-6">
-                    <p className={adminSectionTitleClass}>UTM attribution (on-site)</p>
+                    <p className={adminSectionTitleClass}>On-Site Attribution</p>
                     <div className="mt-3 overflow-x-auto">
                       <table className="w-full min-w-[520px] text-left text-xs">
                         <thead>
@@ -467,18 +489,16 @@ export function AdTrackingClient() {
                   </p>
                 )}
               </>
-            ) : (
-              <p className="mt-4 text-sm text-white/40">Loading performance…</p>
-            )}
+            ) : null}
           </section>
 
-          {/* Verification snippets */}
           {config ? (
             <section className={adminCardClass}>
               <p className={adminSectionTitleClass}>Verification</p>
-              <h2 className="mt-2 text-lg font-bold">Tag snippets (already deployed)</h2>
+              <h2 className="mt-2 text-lg font-bold">Tag Snippets (Already Deployed)</h2>
               <p className="mt-1 text-sm text-white/50">
-                Reference only — these tags are already injected via the root layout. Use for ad platform verification flows.
+                Reference only if Meta or Google asks you to verify domain ownership. These tags are already live on every
+                public page.
               </p>
               <div className="mt-5 space-y-4">
                 {(["meta", "google"] as const).map((key) => (
@@ -496,7 +516,6 @@ export function AdTrackingClient() {
             </section>
           ) : null}
         </div>
-      </div>
-    </div>
+    </AdminPortalShell>
   );
 }

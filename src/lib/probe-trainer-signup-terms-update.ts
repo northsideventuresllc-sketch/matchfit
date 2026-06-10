@@ -1,5 +1,6 @@
 import { ensureTrainerRegisterSchema, isMissingTrainerRegisterSchemaError } from "@/lib/ensure-trainer-register-schema";
 import { prisma } from "@/lib/prisma";
+import { markTrainerPendingAfterTermsAcceptance } from "@/lib/trainer-pending-onboarding";
 import {
   ensureTrainerSignupTermsSchema,
   isMissingTrainerSignupTermsColumnError,
@@ -68,10 +69,7 @@ export async function probeTrainerSignupTermsUpdate(): Promise<TrainerSignupTerm
           privacyPolicyAcceptedAt: now,
         },
       });
-      await tx.trainerProfile.update({
-        where: { trainerId: trainer.id },
-        data: { hasSignedTOS: true, updatedAt: now },
-      });
+      await markTrainerPendingAfterTermsAcceptance(trainer.id, now, tx);
       await tx.trainerProfile.findUnique({
         where: { trainerId: trainer.id },
         select: {

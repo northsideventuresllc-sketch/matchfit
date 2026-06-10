@@ -2,22 +2,23 @@
  * Administrator dashboard section registry and layout preferences (client-safe).
  */
 
-export const ADMIN_DASHBOARD_LAYOUT_VERSION = 2 as const;
+export const ADMIN_DASHBOARD_LAYOUT_VERSION = 3 as const;
 const LEGACY_LAYOUT_VERSION = 1 as const;
+const PREV_LAYOUT_VERSION = 2 as const;
 
 export const ADMIN_DASHBOARD_SECTION_IDS = [
   "overview-kpis",
-  "revenue-snapshot",
-  "platform-health",
   "site-traffic",
-  "acquisition-funnel",
-  "ad-performance",
+  "client-pipeline",
   "trainer-pipeline",
-  "finances-detail",
+  "site-activity",
+  "premium-trainer-activity",
+  "financial-details",
+  "platform-health",
+  "ad-performance",
   "operational-alerts",
+  "automated-email-stats",
   "impersonation-audit",
-  "ai-visitor-insights",
-  "recent-signups",
   "recent-featured",
   "test-mode",
   "signup-log",
@@ -48,31 +49,50 @@ export const ADMIN_DASHBOARD_SECTIONS: AdminDashboardSectionMeta[] = [
   {
     id: "overview-kpis",
     label: "Member overview",
-    description: "Total members, active clients/trainers, subscribers, and 7-day site visitors.",
+    description:
+      "Total active members, subscribers, free trials, inactive accounts, pending trainers, and unique site visitors.",
     group: "Overview",
   },
   {
-    id: "revenue-snapshot",
-    label: "Revenue snapshot",
-    description: "Lifetime platform revenue and profit by category.",
-    group: "Overview",
+    id: "site-traffic",
+    label: "Site traffic",
+    description: "7-day page views, unique visitors, top pages, and public site analytics.",
+    group: "Analytics",
+  },
+  {
+    id: "client-pipeline",
+    label: "Client pipeline",
+    description: "Signup progress from 50% complete through free trial (subscribers move to Member overview).",
+    group: "Analytics",
+  },
+  {
+    id: "trainer-pipeline",
+    label: "Trainer pipeline",
+    description: "Onboarding stages from signup through live dashboard with per-trainer detail.",
+    group: "Analytics",
+  },
+  {
+    id: "site-activity",
+    label: "Site activity",
+    description: "Member-only logins and top product actions inside dashboards.",
+    group: "Analytics",
+  },
+  {
+    id: "premium-trainer-activity",
+    label: "Premium trainer activity",
+    description: "Premium trainers, featured slots, active ads, token revenue, and bidding updates.",
+    group: "Analytics",
+  },
+  {
+    id: "financial-details",
+    label: "Financial details",
+    description: "Revenue windows, trials, best sellers, and recent transactions.",
+    group: "Analytics",
   },
   {
     id: "platform-health",
     label: "Platform health",
     description: "Success rating, potential metrics, valuation, stability, security, and revenue projection.",
-    group: "Analytics",
-  },
-  {
-    id: "site-traffic",
-    label: "Site traffic",
-    description: "Page views, visitors, top pages, and link clicks (7 days).",
-    group: "Analytics",
-  },
-  {
-    id: "acquisition-funnel",
-    label: "Acquisition funnel",
-    description: "Signup funnel, logins, and top product actions.",
     group: "Analytics",
   },
   {
@@ -82,39 +102,21 @@ export const ADMIN_DASHBOARD_SECTIONS: AdminDashboardSectionMeta[] = [
     group: "Analytics",
   },
   {
-    id: "trainer-pipeline",
-    label: "Trainer pipeline",
-    description: "Onboarding stages from signup through live dashboard.",
-    group: "Analytics",
-  },
-  {
-    id: "finances-detail",
-    label: "Finances detail",
-    description: "Revenue windows, trials, best sellers, and recent transactions.",
-    group: "Analytics",
-  },
-  {
     id: "operational-alerts",
     label: "Operational alerts",
     description: "Background checks, billing grace, safety, and chat warnings.",
     group: "Analytics",
   },
   {
-    id: "impersonation-audit",
-    label: "Impersonation audit log",
-    description: "Recent supervised account access by administrators.",
-    group: "Activity",
-  },
-  {
-    id: "ai-visitor-insights",
-    label: "AI visitor insights",
-    description: "AI analysis of traffic patterns with signup recommendations.",
+    id: "automated-email-stats",
+    label: "Automated email stats",
+    description: "Transactional email delivery tracking (sent, skipped, failed).",
     group: "Analytics",
   },
   {
-    id: "recent-signups",
-    label: "Recent signups",
-    description: "Latest client and trainer registrations.",
+    id: "impersonation-audit",
+    label: "Impersonation audit log",
+    description: "Recent supervised account access by administrators.",
     group: "Activity",
   },
   {
@@ -132,7 +134,7 @@ export const ADMIN_DASHBOARD_SECTIONS: AdminDashboardSectionMeta[] = [
   {
     id: "signup-log",
     label: "Signup log",
-    description: "Paginated full registration history.",
+    description: "Paginated full registration history (real clients and trainers only).",
     group: "Operations",
   },
   {
@@ -144,6 +146,19 @@ export const ADMIN_DASHBOARD_SECTIONS: AdminDashboardSectionMeta[] = [
 ];
 
 const SECTION_ID_SET = new Set<string>(ADMIN_DASHBOARD_SECTION_IDS);
+
+const REMOVED_SECTION_IDS = new Set([
+  "revenue-snapshot",
+  "acquisition-funnel",
+  "finances-detail",
+  "ai-visitor-insights",
+  "recent-signups",
+]);
+
+const SECTION_ID_ALIASES: Record<string, AdminDashboardSectionId> = {
+  "finances-detail": "financial-details",
+  "acquisition-funnel": "site-activity",
+};
 
 export function isAdminDashboardSectionId(value: string): value is AdminDashboardSectionId {
   return SECTION_ID_SET.has(value);
@@ -162,7 +177,7 @@ export type AdminDashboardLayout = {
 export const DEFAULT_ADMIN_DASHBOARD_LAYOUT: AdminDashboardLayout = {
   version: ADMIN_DASHBOARD_LAYOUT_VERSION,
   order: [...ADMIN_DASHBOARD_SECTION_IDS],
-  hidden: [],
+  hidden: ["platform-health", "ad-performance", "recent-featured"],
   collapsed: [],
   density: "comfortable",
 };
@@ -186,18 +201,16 @@ export const ADMIN_DASHBOARD_LAYOUT_PRESETS: AdminDashboardLayoutPreset[] = [
   {
     id: "essential",
     label: "Essential overview",
-    description: "High-level KPIs, revenue, alerts, and recent signups only.",
+    description: "High-level KPIs, pipelines, alerts, and signup log only.",
     hidden: [
       "platform-health",
-      "site-traffic",
-      "acquisition-funnel",
-      "trainer-pipeline",
-      "finances-detail",
-      "ai-visitor-insights",
+      "ad-performance",
+      "premium-trainer-activity",
+      "financial-details",
+      "automated-email-stats",
       "impersonation-audit",
       "recent-featured",
       "test-mode",
-      "signup-log",
       "member-search",
     ],
     collapsed: [],
@@ -205,22 +218,23 @@ export const ADMIN_DASHBOARD_LAYOUT_PRESETS: AdminDashboardLayoutPreset[] = [
   {
     id: "analytics",
     label: "Analytics focus",
-    description: "Traffic, funnel, pipeline, and finances; hide day-to-day operations tools.",
+    description: "Traffic, pipelines, site activity, and finances; hide day-to-day operations tools.",
     hidden: ["test-mode", "signup-log", "member-search", "impersonation-audit", "recent-featured"],
-    collapsed: ["finances-detail", "ai-visitor-insights"],
+    collapsed: ["financial-details", "automated-email-stats"],
   },
   {
     id: "trust-safety",
     label: "Trust & safety",
     description: "Alerts, audit log, member search, and signup activity.",
     hidden: [
-      "revenue-snapshot",
       "platform-health",
       "site-traffic",
-      "acquisition-funnel",
+      "site-activity",
+      "client-pipeline",
       "trainer-pipeline",
-      "finances-detail",
-      "ai-visitor-insights",
+      "premium-trainer-activity",
+      "financial-details",
+      "automated-email-stats",
       "recent-featured",
       "test-mode",
     ],
@@ -233,12 +247,14 @@ export const ADMIN_DASHBOARD_LAYOUT_PRESETS: AdminDashboardLayoutPreset[] = [
     hidden: [
       "platform-health",
       "site-traffic",
-      "acquisition-funnel",
+      "site-activity",
+      "client-pipeline",
       "trainer-pipeline",
-      "finances-detail",
-      "ai-visitor-insights",
+      "premium-trainer-activity",
+      "financial-details",
+      "automated-email-stats",
     ],
-    collapsed: ["overview-kpis", "revenue-snapshot", "operational-alerts"],
+    collapsed: ["overview-kpis", "operational-alerts"],
   },
 ];
 
@@ -246,13 +262,20 @@ export function adminDashboardSectionDomId(id: AdminDashboardSectionId): string 
   return `admin-section-${id}`;
 }
 
+function normalizeSectionId(raw: string): AdminDashboardSectionId | null {
+  if (REMOVED_SECTION_IDS.has(raw)) return null;
+  if (isAdminDashboardSectionId(raw)) return raw;
+  const alias = SECTION_ID_ALIASES[raw];
+  return alias ?? null;
+}
+
 function normalizeOrder(orderRaw: unknown): AdminDashboardSectionId[] {
   const order: AdminDashboardSectionId[] = [];
   if (Array.isArray(orderRaw)) {
     for (const item of orderRaw) {
-      if (typeof item === "string" && isAdminDashboardSectionId(item) && !order.includes(item)) {
-        order.push(item);
-      }
+      if (typeof item !== "string") continue;
+      const id = normalizeSectionId(item);
+      if (id && !order.includes(id)) order.push(id);
     }
   }
   for (const id of ADMIN_DASHBOARD_SECTION_IDS) {
@@ -265,9 +288,9 @@ function normalizeHidden(hiddenRaw: unknown): AdminDashboardSectionId[] {
   const hidden: AdminDashboardSectionId[] = [];
   if (!Array.isArray(hiddenRaw)) return hidden;
   for (const item of hiddenRaw) {
-    if (typeof item === "string" && isAdminDashboardSectionId(item) && !hidden.includes(item)) {
-      hidden.push(item);
-    }
+    if (typeof item !== "string") continue;
+    const id = normalizeSectionId(item);
+    if (id && !hidden.includes(id)) hidden.push(id);
   }
   return hidden;
 }
@@ -276,9 +299,9 @@ function normalizeCollapsed(collapsedRaw: unknown): AdminDashboardSectionId[] {
   const collapsed: AdminDashboardSectionId[] = [];
   if (!Array.isArray(collapsedRaw)) return collapsed;
   for (const item of collapsedRaw) {
-    if (typeof item === "string" && isAdminDashboardSectionId(item) && !collapsed.includes(item)) {
-      collapsed.push(item);
-    }
+    if (typeof item !== "string") continue;
+    const id = normalizeSectionId(item);
+    if (id && !collapsed.includes(id)) collapsed.push(id);
   }
   return collapsed;
 }
@@ -291,7 +314,11 @@ export function parseAdminDashboardLayout(raw: unknown): AdminDashboardLayout {
   if (!raw || typeof raw !== "object") return { ...DEFAULT_ADMIN_DASHBOARD_LAYOUT };
 
   const obj = raw as Record<string, unknown>;
-  if (obj.version !== ADMIN_DASHBOARD_LAYOUT_VERSION && obj.version !== LEGACY_LAYOUT_VERSION) {
+  if (
+    obj.version !== ADMIN_DASHBOARD_LAYOUT_VERSION &&
+    obj.version !== PREV_LAYOUT_VERSION &&
+    obj.version !== LEGACY_LAYOUT_VERSION
+  ) {
     return { ...DEFAULT_ADMIN_DASHBOARD_LAYOUT };
   }
 
@@ -426,4 +453,4 @@ export function visibleSectionsByGroup(
     .filter((entry) => entry.sections.length > 0);
 }
 
-export const ADMIN_DASHBOARD_LAYOUT_STORAGE_KEY = "mf_admin_dashboard_layout_v2";
+export const ADMIN_DASHBOARD_LAYOUT_STORAGE_KEY = "mf_admin_dashboard_layout_v3";

@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
+import { markTrainerPendingAfterTermsAcceptance } from "@/lib/trainer-pending-onboarding";
 import { trainerAgreementsSchema } from "@/lib/validations/trainer-register";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
@@ -17,10 +17,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    await prisma.trainerProfile.update({
-      where: { trainerId },
-      data: { hasSignedTOS: true },
-    });
+    await markTrainerPendingAfterTermsAcceptance(trainerId);
 
     return NextResponse.json({ ok: true });
   } catch (e) {

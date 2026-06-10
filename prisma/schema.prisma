@@ -191,6 +191,78 @@ model SiteAnalyticsEvent {
   @@schema("public")
 }
 
+/// Anonymous signup wizard progress (50%+ field completion for admin pipelines).
+model SignupFormProgress {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// client | trainer
+  role String
+  /// Stable browser id from site analytics cookie.
+  visitorId String
+  email     String?
+  username  String?
+
+  /// JSON map of field name → filled (boolean).
+  fieldsJson String @default("{}")
+
+  /// started_signup | basic_info_complete | completed
+  stage String @default("started_signup")
+
+  @@unique([role, visitorId])
+  @@index([role, stage])
+  @@index([updatedAt])
+  @@map("signup_form_progress")
+  @@schema("public")
+}
+
+/// Audit log for automated transactional email sends (Resend).
+model TransactionalEmailDelivery {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  kind     String
+  audience String
+  toEmail  String
+  subject  String
+
+  /// sent | skipped_prefs | skipped_no_recipient | failed
+  status String
+  resendId String?
+  errorMessage String?
+
+  clientId  String?
+  trainerId String?
+
+  @@index([createdAt])
+  @@index([kind, createdAt])
+  @@index([status, createdAt])
+  @@map("transactional_email_deliveries")
+  @@schema("public")
+}
+
+/// Inbound support mail captured via Resend webhook (support@match-fit.net).
+model SupportInboxMessage {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  resendEmailId String? @unique
+  fromEmail     String
+  toEmail       String
+  subject       String
+  textBody      String?
+  htmlBody      String?
+
+  /// unread | read | archived
+  status String @default("unread")
+
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@map("support_inbox_messages")
+  @@schema("public")
+}
+
 /// Daily ad platform performance snapshot (Google Ads / Meta Ads API sync).
 model AdPlatformDailySnapshot {
   id        String   @id @default(cuid())

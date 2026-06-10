@@ -42,7 +42,7 @@ describe("match-fit-launch-exclude-accounts", () => {
       expect.arrayContaining(["coachjonny22", "demo_coach", "other"]),
     );
     expect(getMatchFitLaunchExcludeClientUsernames()).toEqual(
-      expect.arrayContaining(["jbfitness6299", "twofa_tester"]),
+      expect.arrayContaining(["jibbyjam22", "twofa_tester"]),
     );
     expect(getMatchFitLaunchExcludeEmails()).toEqual(
       expect.arrayContaining(["twofa_tester@example.test"]),

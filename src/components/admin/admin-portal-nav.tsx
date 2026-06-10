@@ -7,6 +7,7 @@ import {
 
 export type AdminPortalNavPage =
   | "dashboard"
+  | "support-inbox"
   | "settings"
   | "assistant"
   | "waitlists"
@@ -16,12 +17,13 @@ export type AdminPortalNavPage =
 
 const PAGES: { id: AdminPortalNavPage; href: string; label: string }[] = [
   { id: "dashboard", href: "/admin", label: "Dashboard" },
+  { id: "support-inbox", href: "/admin/support-inbox", label: "Support Inbox" },
   { id: "outreach", href: "/admin/outreach", label: "Outreach HQ" },
   { id: "content-calendar", href: "/admin/content-calendar", label: "Content Calendar" },
   { id: "ad-tracking", href: "/admin/ad-tracking", label: "Ad Tracking" },
-  { id: "settings", href: "/admin/settings", label: "Settings" },
   { id: "assistant", href: "/admin/assistant", label: "AI Assistant" },
   { id: "waitlists", href: "/admin/beta-waitlists", label: "Beta Waitlists" },
+  { id: "settings", href: "/admin/settings", label: "Settings" },
 ];
 
 function linkClassName(current: AdminPortalNavPage, page: AdminPortalNavPage, variant: "horizontal" | "sidebar") {
