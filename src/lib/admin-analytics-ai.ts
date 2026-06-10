@@ -107,8 +107,13 @@ function buildContextSummary(overview: AdminPortalOverview, traffic: AdminTraffi
       },
       successMetrics: {
         currentScore: overview.platformSummary.successRating.score,
-        potentialSuccessScore: overview.platformSummary.potentialSuccess.score,
-        potentialUplift: overview.platformSummary.potentialSuccess.uplift,
+        potentialRatingLow: overview.platformSummary.potentialRating.scoreLow,
+        potentialRatingHigh: overview.platformSummary.potentialRating.scoreHigh,
+        potentialScenarios: overview.platformSummary.potentialRating.scenarios.map((s) => ({
+          id: s.id,
+          label: s.label,
+          score: s.score,
+        })),
         valuationCents: overview.platformSummary.valuation.valuationCents,
         valuationMultiple: overview.platformSummary.valuation.revenueMultiple,
       },

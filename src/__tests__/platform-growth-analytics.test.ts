@@ -18,12 +18,14 @@ const baseInput = {
 };
 
 describe("platform-potential-rating", () => {
-  it("scores at or above current success rating", () => {
+  it("returns a conservative-to-optimistic range bracketing the current score", () => {
     const success = computePlatformSuccessRating(baseInput);
     const potential = computePlatformPotentialRating(baseInput);
-    expect(potential.score).toBeGreaterThanOrEqual(success.score);
-    expect(potential.successScore).toBe(success.score);
-    expect(potential.uplift).toBeGreaterThanOrEqual(0);
+    expect(potential.scoreLow).toBeLessThanOrEqual(potential.scoreHigh);
+    expect(potential.scoreLow).toBeLessThanOrEqual(success.score);
+    expect(potential.scoreHigh).toBeGreaterThanOrEqual(success.score);
+    expect(potential.currentScore).toBe(success.score);
+    expect(potential.scenarios).toHaveLength(2);
     expect(potential.recommendations.length).toBeGreaterThan(0);
   });
 });

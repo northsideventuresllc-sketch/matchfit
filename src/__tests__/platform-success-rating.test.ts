@@ -6,6 +6,7 @@ import {
   daysSinceLaunch,
   PLATFORM_LAUNCH_DATE,
   PLATFORM_MARKETING_BUDGET_USD,
+  PLATFORM_PERFORMANCE_GRACE_DAYS,
 } from "@/lib/platform-success-rating";
 
 describe("platform-success-rating", () => {
@@ -29,9 +30,9 @@ describe("platform-success-rating", () => {
     expect(result.meta.marketingBudgetUsd).toBe(PLATFORM_MARKETING_BUDGET_USD);
   });
 
-  it("increases score with stronger operational signals", () => {
+  it("increases score with stronger operational signals after the grace window", () => {
     const weak = computePlatformSuccessRating({
-      daysSinceLaunch: 1,
+      daysSinceLaunch: PLATFORM_PERFORMANCE_GRACE_DAYS,
       totalUsers: 10,
       activeUsers: 1,
       returningVisitorRatio: 0.1,
@@ -44,7 +45,7 @@ describe("platform-success-rating", () => {
       marketCompetitiveness: 0.2,
     });
     const strong = computePlatformSuccessRating({
-      daysSinceLaunch: 30,
+      daysSinceLaunch: PLATFORM_PERFORMANCE_GRACE_DAYS + 30,
       totalUsers: 100,
       activeUsers: 70,
       returningVisitorRatio: 0.5,
@@ -62,6 +63,31 @@ describe("platform-success-rating", () => {
   it("computes days since launch from fixed launch date", () => {
     const launchPlus7 = new Date(PLATFORM_LAUNCH_DATE.getTime() + 7 * 24 * 60 * 60 * 1000);
     expect(daysSinceLaunch(launchPlus7)).toBe(7);
+  });
+
+  it("is more forgiving during the 90-day performance grace window", () => {
+    const weakPerformance = {
+      daysSinceLaunch: 14,
+      totalUsers: 10,
+      activeUsers: 1,
+      returningVisitorRatio: 0.02,
+      revenuePerDayCents: 50,
+      grossProfitMargin: 0.1,
+      stabilityScore: 75,
+      securityScore: 80,
+      trainerPipelineCompletionRate: 0.05,
+      subscriptionConversionRate: 0.02,
+      marketCompetitiveness: 0.1,
+    };
+    const duringGrace = computePlatformSuccessRating(weakPerformance);
+    const afterGrace = computePlatformSuccessRating({
+      ...weakPerformance,
+      daysSinceLaunch: PLATFORM_PERFORMANCE_GRACE_DAYS,
+    });
+    expect(duringGrace.score).toBeGreaterThan(afterGrace.score);
+    expect(duringGrace.meta.performanceMetricsActive).toBe(false);
+    expect(duringGrace.meta.performanceGraceDaysRemaining).toBe(PLATFORM_PERFORMANCE_GRACE_DAYS - 14);
+    expect(afterGrace.meta.performanceMetricsActive).toBe(true);
   });
 
   it("computes market competitiveness proxy in 0-1 range", () => {
