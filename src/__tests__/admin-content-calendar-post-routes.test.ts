@@ -266,11 +266,15 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
   });
 
   it("returns 400 when POST action body is invalid JSON", async () => {
+  it("returns 400 when the request body is invalid JSON", async () => {
+  it("returns 400 when request body is malformed JSON", async () => {
     const res = await postAction(
       new Request("https://matchfit.test/api/admin/content-calendar/posts/post_1/actions", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: "{bad-json",
+        body: "{ invalid json",
+        body: "{bad json",
       }),
       params("post_1"),
     );
@@ -304,6 +308,7 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
   });
 
   it("dismisses missed prompt action", async () => {
+  it("dismisses a missed prompt", async () => {
     const res = await postAction(
       new Request("https://matchfit.test/api/admin/content-calendar/posts/post_1/actions", {
         method: "POST",
@@ -316,6 +321,7 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ ok: true });
     expect(mockDismissMissedPrompt).toHaveBeenCalledWith("post_1");
+    expect(mockRecordContentLearning).not.toHaveBeenCalled();
   });
 
   it("reschedules a post for the given date", async () => {
@@ -365,6 +371,8 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
   });
 
   it("returns 502 when regenerate returns no post payload", async () => {
+  it("returns 502 when post regeneration fails", async () => {
+  it("returns 502 when regenerate cannot create a post", async () => {
     mockRegenerateCalendarPost.mockResolvedValueOnce(null);
 
     const res = await postAction(
@@ -394,6 +402,20 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
         week_start: "2026-06-08",
         post_date: "2026-06-10",
         day_index: 2,
+  it("returns post:null when regenerated post cannot be found after upsert", async () => {
+    mockUpsertWeekPosts.mockResolvedValueOnce([
+      {
+        id: "post_2",
+        week_start: "2026-06-08",
+        post_date: "2026-06-10",
+        day_index: 2,
+  it("returns post=null when regenerated post is not found in persisted rows", async () => {
+    mockUpsertWeekPosts.mockResolvedValueOnce([
+      {
+        id: "post_other",
+        week_start: "2026-06-08",
+        post_date: "2026-06-10",
+        day_index: 3,
         post_type: "Video",
       },
     ]);
@@ -496,6 +518,11 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
   it("returns 500 when action handler throws", async () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     mockMarkPostPosted.mockRejectedValueOnce(new Error("boom"));
+  it("returns 500 when an action throws unexpectedly", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mockMarkPostPosted.mockRejectedValueOnce(new Error("write failed"));
+  it("returns 500 when action handler throws unexpectedly", async () => {
+    mockMarkPostPosted.mockRejectedValueOnce(new Error("db down"));
 
     const res = await postAction(
       new Request("https://matchfit.test/api/admin/content-calendar/posts/post_1/actions", {
@@ -510,5 +537,8 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     await expect(res.json()).resolves.toEqual({ error: "Action failed." });
 
     consoleSpy.mockRestore();
+    expect(consoleErrorSpy).toHaveBeenCalled();
+
+    consoleErrorSpy.mockRestore();
   });
 });

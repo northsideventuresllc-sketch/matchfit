@@ -1,0 +1,39 @@
+---
+description: Ship Match Fit changes through merge, CI green, and Vercel production deploy
+alwaysApply: true
+---
+
+# Deploy and PR workflow (required)
+
+When the owner asks to ship, push, or deploy — or when you finish deployable work — **do not stop at a local commit**. Work until production is live.
+
+## End state (definition of done)
+
+1. **`main` is green** — `npm run lint`, `npm run typecheck`, `npm run version:verify`, `npm run test`, `npm run build` all pass.
+2. **Open PRs resolved** — merge or close every open PR targeting `main` (prefer merge when CI passes and changes are not already on `main`; close stale/duplicate bot PRs with a short comment).
+3. **Vercel production deployed** — latest `main` commit shows **success** for `Vercel – match-fit-app` / `Vercel – matchfit` on GitHub commit status.
+4. **Version bumped** when product-facing code changed (see `.cursor/rules/product-version.mdc`).
+
+## Standard sequence
+
+1. **Pull** latest `main`: `git pull origin main`
+2. **Fix locally** any CI/Vercel blockers on `main` (typecheck, version verify, tests, build). Run `npx prisma generate` before typecheck if Prisma client is stale.
+3. **Commit and push** to `main` (or merge PRs, then update `main`).
+4. **List open PRs**: `gh pr list --state open`
+5. For each open PR:
+   - If **duplicate of `main`** or obsolete bot fix → **close** with reason.
+   - If **unique and CI green** → mark ready, **merge**, delete branch.
+   - If **CI failing** → fix on that branch or cherry-pick fix to `main`, re-run checks, then merge or close.
+6. **Verify deploy**: `gh api repos/northsideventuresllc-sketch/matchfit/commits/main/status` — state must be `success` and Vercel contexts green.
+7. **Report** to owner: commit SHA, product version, Vercel deployment links, and which PRs were merged/closed.
+
+## Do not stop early when
+
+- Open draft PRs remain with failing checks (unless explicitly closed as obsolete).
+- `main` CI or Vercel production is red or pending.
+- You only pushed a branch but production has not updated.
+
+## PR hygiene
+
+- Avoid leaving many parallel `cursor/automated-failure-resolution-*` drafts open — consolidate fixes on `main` and close duplicates.
+- After merging, confirm `main` still passes CI before considering the task complete.
