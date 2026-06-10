@@ -34,7 +34,6 @@ import { isMissingClientPlatformTrialColumnError } from "@/lib/ensure-client-pla
 import { isMissingTrainerRegisterSchemaError } from "@/lib/ensure-trainer-register-schema";
 import { isPrismaMissingColumnError, isPrismaMissingTableError } from "@/lib/prisma-missing-column";
 import { prisma } from "@/lib/prisma";
-import { computePotentialSuccessScore } from "@/lib/platform-potential-success";
 import {
   computeMarketCompetitivenessProxy,
   computePlatformSuccessRating,
@@ -1300,7 +1299,6 @@ export async function getAdminPlatformSummaryPanel(): Promise<AdminPlatformSumma
   };
 
   const successRating = computePlatformSuccessRating(ratingInput);
-  const potentialSuccess = computePotentialSuccessScore(ratingInput);
   const valuation = computePlatformValuation({
     activePlatformSubscribers: finances.activeSubscriptions,
     activeTrainerPremiumSubscribers: finances.premiumTrainers,
@@ -1309,26 +1307,7 @@ export async function getAdminPlatformSummaryPanel(): Promise<AdminPlatformSumma
     successScore: successRating.score,
   });
 
-  const successInput = {
-    daysSinceLaunch: launchDays,
-    totalUsers,
-    activeUsers,
-    returningVisitorRatio: returningRatio,
-    revenuePerDayCents: revenuePerDay,
-    grossProfitMargin: margin,
-    stabilityScore: stability.score,
-    securityScore: security.score,
-    trainerPipelineCompletionRate: trainerCompletion,
-    subscriptionConversionRate: subscriptionConversion,
-    marketCompetitiveness: computeMarketCompetitivenessProxy({
-      clientsTotal: userCounts.clientsTotal,
-      trainersTotal: userCounts.trainersTotal,
-      trainersLive: liveStage?.count ?? 0,
-      featuredToday: finances.featuredTrainersToday,
-    }),
-  };
-
-  const potentialRating = computePlatformPotentialRating(successInput);
+  const potentialRating = computePlatformPotentialRating(ratingInput);
 
   const revenue30d = finances.windows["30d"];
   let uniqueVisitors30d = 0;
@@ -1368,7 +1347,6 @@ export async function getAdminPlatformSummaryPanel(): Promise<AdminPlatformSumma
     lifetimeRevenueCents: lifetime.revenueCents,
     lifetimeGrossProfitCents: lifetime.grossProfitCents,
     successRating,
-    potentialSuccess,
     valuation,
     potentialRating,
     growthProjection,

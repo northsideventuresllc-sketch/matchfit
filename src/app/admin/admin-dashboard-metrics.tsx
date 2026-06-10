@@ -106,25 +106,23 @@ function MetricsSection(props: { title: string; description?: string; children: 
 }
 
 export function PlatformHealthSection({ panel }: { panel: AdminPlatformSummaryPanel }) {
-  const { successRating, potentialSuccess, valuation, potentialRating, growthProjection } = panel;
+  const { successRating, valuation, potentialRating, growthProjection } = panel;
   const [advancedStatsOpen, setAdvancedStatsOpen] = useState(false);
+  const successHint = successRating.meta.performanceMetricsActive
+    ? "Current composite score"
+    : `Build phase · performance metrics activate in ${successRating.meta.performanceGraceDaysRemaining} day${successRating.meta.performanceGraceDaysRemaining === 1 ? "" : "s"}`;
 
   return (
     <MetricsSection
       title="Platform health, success & valuation"
-      description={`Launch ${successRating.meta.launchDate} · Marketing from ${successRating.meta.marketingStartDate} ($${successRating.meta.marketingBudgetUsd} budget). Success rating reflects live signals; potential metrics model optimized levers; valuation blends ARR and marketplace heuristics.`}
+      description={`Launch ${successRating.meta.launchDate} · Marketing from ${successRating.meta.marketingStartDate} ($${successRating.meta.marketingBudgetUsd} budget). Success rating uses stability and security during the first 90 days post-launch; potential rating shows a conservative-to-optimistic range from scenario models.`}
     >
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Success rating (0–10)" value={successRating.score.toFixed(1)} hint="Current composite score" />
-        <StatCard
-          label="Potential success (0–10)"
-          value={potentialSuccess.score.toFixed(1)}
-          hint={`+${potentialSuccess.uplift.toFixed(1)} vs current · AI assistant projection`}
-        />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard label="Success rating (0–10)" value={successRating.score.toFixed(1)} hint={successHint} />
         <StatCard
           label="Potential rating (0–10)"
-          value={potentialRating.score.toFixed(1)}
-          hint={`+${potentialRating.uplift.toFixed(1)} vs current if key levers improve`}
+          value={`${potentialRating.scoreLow.toFixed(1)} – ${potentialRating.scoreHigh.toFixed(1)}`}
+          hint={`Current ${potentialRating.currentScore.toFixed(1)} · conservative to optimistic scenarios`}
         />
         <StatCard
           label="Est. platform valuation"

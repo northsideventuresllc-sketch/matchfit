@@ -24,7 +24,7 @@ describe("platform-valuation", () => {
 });
 
 describe("platform-potential-success", () => {
-  it("projects potential score at or above current score", () => {
+  it("deprecated wrapper returns optimistic ceiling at or above current score", () => {
     const result = computePotentialSuccessScore({
       daysSinceLaunch: 10,
       totalUsers: 30,

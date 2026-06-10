@@ -12,6 +12,20 @@
 export const PLATFORM_LAUNCH_DATE = new Date("2026-05-21T00:00:00.000Z");
 export const PLATFORM_MARKETING_START_DATE = new Date("2026-05-25T00:00:00.000Z");
 export const PLATFORM_MARKETING_BUDGET_USD = 70;
+/** Performance metrics (revenue, conversion, retention) do not penalize the score until this many days post-launch. */
+export const PLATFORM_PERFORMANCE_GRACE_DAYS = 90;
+/** Neutral normalized contribution for performance factors during the build-phase grace window. */
+const GRACE_NEUTRAL_NORMALIZED = 0.68;
+
+const PERFORMANCE_FACTOR_IDS = new Set([
+  "active_ratio",
+  "retention",
+  "revenue_per_day",
+  "margin",
+  "trainer_pipeline",
+  "subscription",
+  "market",
+]);
 
 export type PlatformSuccessRatingInput = {
   now?: Date;
@@ -47,6 +61,8 @@ export type PlatformSuccessRatingBreakdown = {
     marketingStartDate: string;
     marketingBudgetUsd: number;
     daysSinceLaunch: number;
+    performanceMetricsActive: boolean;
+    performanceGraceDaysRemaining: number;
   };
 };
 
@@ -94,7 +110,16 @@ export function computeMarketCompetitivenessProxy(args: {
   return clamp01(ratioScore * 0.45 + liveShare * 0.35 + clamp01(featuredShare) * 0.2);
 }
 
+function performanceGraceBlend(daysSinceLaunch: number): number {
+  if (daysSinceLaunch >= PLATFORM_PERFORMANCE_GRACE_DAYS) return 1;
+  if (daysSinceLaunch <= 0) return 0;
+  return daysSinceLaunch / PLATFORM_PERFORMANCE_GRACE_DAYS;
+}
+
 export function computePlatformSuccessRating(input: PlatformSuccessRatingInput): PlatformSuccessRatingBreakdown {
+  const graceBlend = performanceGraceBlend(input.daysSinceLaunch);
+  const performanceMetricsActive = graceBlend >= 1;
+
   const rawById: Record<string, number> = {
     maturity: input.daysSinceLaunch,
     active_ratio: input.totalUsers > 0 ? input.activeUsers / input.totalUsers : 0,
@@ -110,7 +135,10 @@ export function computePlatformSuccessRating(input: PlatformSuccessRatingInput):
 
   const factors = FACTORS.map((f) => {
     const raw = rawById[f.id] ?? 0;
-    const normalized = normalize(raw, f.target, f.invert);
+    let normalized = normalize(raw, f.target, f.invert);
+    if (PERFORMANCE_FACTOR_IDS.has(f.id)) {
+      normalized = graceBlend * normalized + (1 - graceBlend) * GRACE_NEUTRAL_NORMALIZED;
+    }
     const contribution = normalized * f.weight * 10;
     return {
       id: f.id,
@@ -123,6 +151,7 @@ export function computePlatformSuccessRating(input: PlatformSuccessRatingInput):
   });
 
   const score = Math.round(clamp01(factors.reduce((s, f) => s + f.contribution, 0) / 10) * 100) / 10;
+  const graceDaysRemaining = Math.max(0, PLATFORM_PERFORMANCE_GRACE_DAYS - input.daysSinceLaunch);
 
   return {
     score,
@@ -132,6 +161,8 @@ export function computePlatformSuccessRating(input: PlatformSuccessRatingInput):
       marketingStartDate: PLATFORM_MARKETING_START_DATE.toISOString().slice(0, 10),
       marketingBudgetUsd: PLATFORM_MARKETING_BUDGET_USD,
       daysSinceLaunch: input.daysSinceLaunch,
+      performanceMetricsActive,
+      performanceGraceDaysRemaining: graceDaysRemaining,
     },
   };
 }

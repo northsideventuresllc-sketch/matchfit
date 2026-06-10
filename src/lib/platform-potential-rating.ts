@@ -1,7 +1,8 @@
 /**
- * Potential success rating (0–10): what the platform could score if key uncontrolled
- * levers (traffic, stability, funnel conversion, retention) were optimized for the
- * current launch stage — without changing product fundamentals.
+ * Potential rating (0–10 range): unified forward-looking score for the admin dashboard.
+ *
+ * Merges the former "potential success" and "potential rating" models into one metric
+ * expressed as a conservative-to-optimistic range using scenario inputs.
  */
 
 import {
@@ -17,10 +18,24 @@ export type GrowthRecommendation = {
   impact: "high" | "medium" | "low";
 };
 
-export type PlatformPotentialRatingBreakdown = {
+export type PlatformPotentialScenario = {
+  id: "conservative" | "optimistic";
+  label: string;
   score: number;
-  successScore: number;
-  uplift: number;
+  assumptions: string[];
+};
+
+export type PlatformPotentialRatingInput = PlatformSuccessRatingInput & {
+  revenue30dCents?: number;
+};
+
+export type PlatformPotentialRatingBreakdown = {
+  /** Absolute lowest realistic score (stagnation / friction scenario). */
+  scoreLow: number;
+  /** Absolute highest realistic score (optimized levers at stage ceiling). */
+  scoreHigh: number;
+  currentScore: number;
+  scenarios: PlatformPotentialScenario[];
   optimizedFactors: {
     id: string;
     label: string;
@@ -29,6 +44,7 @@ export type PlatformPotentialRatingBreakdown = {
     gapLabel: string;
   }[];
   recommendations: GrowthRecommendation[];
+  assumptions: string[];
   meta: PlatformSuccessRatingBreakdown["meta"];
 };
 
@@ -44,6 +60,11 @@ type StageTargets = {
   activeUserRatio: number;
 };
 
+function clamp01(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(1, Math.max(0, n));
+}
+
 function stageTargets(daysSinceLaunch: number): StageTargets {
   const ramp = Math.min(1, daysSinceLaunch / 90);
   return {
@@ -56,6 +77,79 @@ function stageTargets(daysSinceLaunch: number): StageTargets {
     subscriptionConversionRate: 0.1 + ramp * 0.12,
     marketCompetitiveness: 0.5 + ramp * 0.28,
     activeUserRatio: 0.35 + ramp * 0.35,
+  };
+}
+
+function projectRevenuePerDayCents(input: PlatformPotentialRatingInput): number {
+  const current = Math.max(0, input.revenuePerDayCents);
+  const from30d =
+    input.revenue30dCents && input.revenue30dCents > 0 ? Math.round(input.revenue30dCents / 30) : 0;
+  const trendBoost = from30d > current ? Math.round(from30d * 1.15) : Math.round(current * 1.25);
+  return Math.max(current, trendBoost, 500);
+}
+
+/** Stagnation scenario — growth stalls, onboarding friction persists, no lever improvements. */
+function buildConservativeScenarioInput(input: PlatformPotentialRatingInput): PlatformSuccessRatingInput {
+  return {
+    ...input,
+    activeUsers: Math.max(0, Math.round(input.activeUsers * 0.82)),
+    returningVisitorRatio: clamp01(input.returningVisitorRatio * 0.72),
+    revenuePerDayCents: Math.max(0, Math.round(input.revenuePerDayCents * 0.72)),
+    grossProfitMargin: clamp01(input.grossProfitMargin * 0.9),
+    stabilityScore: Math.max(0, input.stabilityScore - 6),
+    securityScore: Math.max(0, input.securityScore - 4),
+    trainerPipelineCompletionRate: clamp01(input.trainerPipelineCompletionRate * 0.8),
+    subscriptionConversionRate: clamp01(input.subscriptionConversionRate * 0.78),
+    marketCompetitiveness: clamp01(input.marketCompetitiveness * 0.88),
+  };
+}
+
+/** Stage-target scenario — key levers reach realistic targets for the current launch window. */
+function buildStageOptimizedInput(
+  input: PlatformPotentialRatingInput,
+  targets: StageTargets,
+): PlatformSuccessRatingInput {
+  const optimizedActiveUsers = Math.max(
+    input.activeUsers,
+    Math.round(input.totalUsers * targets.activeUserRatio),
+  );
+
+  return {
+    ...input,
+    daysSinceLaunch: Math.max(input.daysSinceLaunch, 90),
+    activeUsers: optimizedActiveUsers,
+    returningVisitorRatio: Math.max(input.returningVisitorRatio, targets.returningVisitorRatio),
+    revenuePerDayCents: Math.max(input.revenuePerDayCents, targets.revenuePerDayUsd * 100),
+    grossProfitMargin: Math.max(input.grossProfitMargin, targets.grossProfitMargin),
+    stabilityScore: Math.max(input.stabilityScore, targets.stabilityScore),
+    securityScore: Math.max(input.securityScore, targets.securityScore),
+    trainerPipelineCompletionRate: Math.max(
+      input.trainerPipelineCompletionRate,
+      targets.trainerPipelineCompletionRate,
+    ),
+    subscriptionConversionRate: Math.max(
+      input.subscriptionConversionRate,
+      targets.subscriptionConversionRate,
+    ),
+    marketCompetitiveness: Math.max(input.marketCompetitiveness, targets.marketCompetitiveness),
+  };
+}
+
+/** Beta-ceiling scenario — optimistic engagement and revenue ramp with bounded beta ceilings. */
+function buildBetaCeilingInput(input: PlatformPotentialRatingInput): PlatformSuccessRatingInput {
+  return {
+    ...input,
+    daysSinceLaunch: Math.max(input.daysSinceLaunch, 90),
+    totalUsers: input.totalUsers,
+    activeUsers: input.totalUsers > 0 ? Math.min(input.totalUsers, Math.round(input.activeUsers * 1.35)) : 0,
+    returningVisitorRatio: clamp01(input.returningVisitorRatio * 1.3 + 0.1),
+    revenuePerDayCents: projectRevenuePerDayCents(input),
+    grossProfitMargin: clamp01(Math.max(input.grossProfitMargin, 0.45)),
+    stabilityScore: Math.min(100, input.stabilityScore + 8),
+    securityScore: Math.min(100, input.securityScore + 5),
+    trainerPipelineCompletionRate: clamp01(input.trainerPipelineCompletionRate * 1.4 + 0.15),
+    subscriptionConversionRate: clamp01(input.subscriptionConversionRate * 1.75 + 0.08),
+    marketCompetitiveness: clamp01(input.marketCompetitiveness * 1.2 + 0.05),
   };
 }
 
@@ -124,39 +218,21 @@ function recommendationForFactor(
   return { id, ...base, label: gapLabel ? `${base.label} (${gapLabel})` : base.label };
 }
 
-export function computePlatformPotentialRating(input: PlatformSuccessRatingInput): PlatformPotentialRatingBreakdown {
+export function computePlatformPotentialRating(
+  input: PlatformPotentialRatingInput,
+): PlatformPotentialRatingBreakdown {
   const success = computePlatformSuccessRating(input);
   const targets = stageTargets(input.daysSinceLaunch);
 
+  const conservativeScore = computePlatformSuccessRating(buildConservativeScenarioInput(input)).score;
+  const stageOptimizedScore = computePlatformSuccessRating(buildStageOptimizedInput(input, targets)).score;
+  const betaCeilingScore = computePlatformSuccessRating(buildBetaCeilingInput(input)).score;
+  const optimisticScore = Math.max(stageOptimizedScore, betaCeilingScore);
+
+  const scoreLow = Math.round(Math.min(conservativeScore, optimisticScore, success.score) * 10) / 10;
+  const scoreHigh = Math.round(Math.max(conservativeScore, optimisticScore, success.score) * 10) / 10;
+
   const activeRatio = input.totalUsers > 0 ? input.activeUsers / input.totalUsers : 0;
-  const optimizedActiveUsers = Math.max(
-    input.activeUsers,
-    Math.round(input.totalUsers * targets.activeUserRatio),
-  );
-
-  const optimizedInput: PlatformSuccessRatingInput = {
-    ...input,
-    activeUsers: optimizedActiveUsers,
-    returningVisitorRatio: Math.max(input.returningVisitorRatio, targets.returningVisitorRatio),
-    revenuePerDayCents: Math.max(input.revenuePerDayCents, targets.revenuePerDayUsd * 100),
-    grossProfitMargin: Math.max(input.grossProfitMargin, targets.grossProfitMargin),
-    stabilityScore: Math.max(input.stabilityScore, targets.stabilityScore),
-    securityScore: Math.max(input.securityScore, targets.securityScore),
-    trainerPipelineCompletionRate: Math.max(
-      input.trainerPipelineCompletionRate,
-      targets.trainerPipelineCompletionRate,
-    ),
-    subscriptionConversionRate: Math.max(
-      input.subscriptionConversionRate,
-      targets.subscriptionConversionRate,
-    ),
-    marketCompetitiveness: Math.max(input.marketCompetitiveness, targets.marketCompetitiveness),
-  };
-
-  const potential = computePlatformSuccessRating(optimizedInput);
-  const score = Math.max(success.score, potential.score);
-  const uplift = Math.round((score - success.score) * 10) / 10;
-
   const rawChecks: {
     id: string;
     label: string;
@@ -247,12 +323,37 @@ export function computePlatformPotentialRating(input: PlatformSuccessRatingInput
     });
   }
 
+  const scenarios: PlatformPotentialScenario[] = [
+    {
+      id: "conservative",
+      label: "Conservative (stagnation)",
+      score: conservativeScore,
+      assumptions: [
+        "Active users and return visits flatten without new retention touches",
+        "Revenue and conversion hold near current levels with mild friction drag",
+        "Stability and security scores dip slightly from unresolved operational alerts",
+      ],
+    },
+    {
+      id: "optimistic",
+      label: "Optimistic (levers optimized)",
+      score: optimisticScore,
+      assumptions: [
+        "Stage targets met for retention, pipeline completion, and subscription conversion",
+        "30d revenue trend projected forward with 15–25% growth headroom",
+        "90-day maturity ramp and realistic beta ceilings on engagement",
+      ],
+    },
+  ];
+
   return {
-    score,
-    successScore: success.score,
-    uplift,
+    scoreLow,
+    scoreHigh,
+    currentScore: success.score,
+    scenarios,
     optimizedFactors,
     recommendations: recommendations.slice(0, 5),
+    assumptions: scenarios.flatMap((s) => s.assumptions),
     meta: success.meta,
   };
 }
