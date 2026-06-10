@@ -26,7 +26,9 @@ import {
   launchTrainerCountWhere,
   activePendingClientRegistrationWhere,
   countLaunchClients,
+  countLaunchPendingTrainers,
   countLaunchTrainers,
+  getActivePendingClientRegistrationStats,
   countPendingClientRegistrations,
 } from "@/lib/launch-account-counts";
 
@@ -221,6 +223,24 @@ describe("launch-account-counts async", () => {
     );
   });
 
+  it("counts pending launch trainers with dashboard-not-live + onboarding gates", async () => {
+    mockTrainerCount.mockResolvedValue(6);
+
+    await expect(countLaunchPendingTrainers()).resolves.toBe(6);
+    expect(mockTrainerCount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          NOT: { profile: { is: { dashboardActivatedAt: { not: null } } } },
+          OR: expect.arrayContaining([
+            { termsAcceptedAt: { not: null } },
+            { profile: { is: { hasSignedTOS: true } } },
+            { profile: { is: { complianceWindowStartedAt: { not: null } } } },
+          ]),
+        }),
+      }),
+    );
+  });
+
   it("counts pending registrations with status and expiry guards", async () => {
     mockPendingClientRegistrationCount.mockResolvedValue(5);
 
@@ -289,6 +309,29 @@ describe("launch-account-counts async", () => {
     await expect(countLaunchClientsInTx(txClient)).resolves.toBe(19);
     expect(tx.trainer.count).toHaveBeenCalledWith({ where: launchTrainerCountWhere() });
     expect(tx.client.count).toHaveBeenCalledWith({ where: launchClientCountWhere() });
+  });
+  it("returns grouped pending registration stats by status", async () => {
+    const now = new Date("2026-06-09T12:30:00.000Z");
+    mockPendingClientRegistrationGroupBy.mockResolvedValue([
+      { status: "PENDING_2FA", _count: { _all: 3 } },
+      { status: "AWAITING_PAYMENT", _count: { _all: 2 } },
+    ]);
+
+    await expect(getActivePendingClientRegistrationStats(now)).resolves.toEqual({
+      total: 5,
+      byStatus: {
+        PENDING_2FA: 3,
+        AWAITING_PAYMENT: 2,
+      },
+    });
+    expect(mockPendingClientRegistrationGroupBy).toHaveBeenCalledWith({
+      by: ["status"],
+      where: {
+        status: { in: ["PENDING_2FA", "AWAITING_PAYMENT"] },
+        expiresAt: { gt: now },
+      },
+      _count: { _all: true },
+    });
   });
 });
 
