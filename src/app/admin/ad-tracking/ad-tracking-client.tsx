@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AdminPortalNav } from "@/components/admin/admin-portal-nav";
 import {
   AdminPortalAlert,
@@ -87,6 +87,81 @@ function PlatformBadge({ platform }: { platform: AdPlatform }) {
     <span className={`rounded-md border px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${color}`}>
       {label}
     </span>
+  );
+}
+
+const AD_TRACKING_TUTORIAL_STEPS = [
+  {
+    title: "Confirm Tags",
+    body: "Verify the Meta Pixel and Google Ads IDs in Connected Pixels match the tags in your ad accounts.",
+  },
+  {
+    title: "Build Links",
+    body: "Use the campaign link builder to generate UTM-tagged URLs for every ad creative and landing page test.",
+  },
+  {
+    title: "Match Conversions",
+    body: "Align Google Ads and Meta conversion goals with the event names in the event catalog below.",
+  },
+  {
+    title: "Review Results",
+    body: "Run Sync now after API credentials are set up to pull spend, clicks, and conversions into ad platform metrics.",
+  },
+] as const;
+
+function CollapsibleSection(props: {
+  eyebrow?: string;
+  title: string;
+  description?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(props.defaultOpen ?? false);
+
+  return (
+    <section className={adminCardClass}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-start justify-between gap-3 text-left"
+        aria-expanded={open}
+      >
+        <div>
+          {props.eyebrow ? <p className={adminSectionTitleClass}>{props.eyebrow}</p> : null}
+          <h2 className="mt-2 text-lg font-bold">{props.title}</h2>
+          {props.description ? <p className="mt-1 text-sm text-white/50">{props.description}</p> : null}
+        </div>
+        <span className="shrink-0 pt-1 text-xs font-semibold text-white/45">{open ? "Hide" : "Show"}</span>
+      </button>
+      {open ? <div className="mt-5 border-t border-white/[0.06] pt-5">{props.children}</div> : null}
+    </section>
+  );
+}
+
+function CollapsiblePanel(props: {
+  title: string;
+  description?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(props.defaultOpen ?? false);
+
+  return (
+    <div className="mt-5 rounded-xl border border-white/[0.08] bg-[#0E1016]/60">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition hover:bg-white/[0.03]"
+        aria-expanded={open}
+      >
+        <div>
+          <p className="text-sm font-semibold text-[#FFD34E]/90">{props.title}</p>
+          {props.description ? <p className="mt-1 text-xs text-white/45">{props.description}</p> : null}
+        </div>
+        <span className="shrink-0 text-xs text-white/45">{open ? "Hide" : "Show"}</span>
+      </button>
+      {open ? <div className="border-t border-white/[0.06] px-4 py-4">{props.children}</div> : null}
+    </div>
   );
 }
 
@@ -181,6 +256,9 @@ export function AdTrackingClient() {
     setUtmTerm("");
   }
 
+  const syncIntegrations = panel?.integrations ?? config?.integrations ?? [];
+  const syncSetupNeeded = syncIntegrations.some((integration) => !integration.configured);
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#0B0C0F] text-white">
       <AdminPortalBackdrop />
@@ -207,6 +285,22 @@ export function AdTrackingClient() {
         {syncMessage ? <AdminPortalAlert variant="info">{syncMessage}</AdminPortalAlert> : null}
 
         <div className="mt-8 space-y-8">
+          <CollapsibleSection eyebrow="Tutorial" title="How to Use This Page">
+            <ol className="space-y-4">
+              {AD_TRACKING_TUTORIAL_STEPS.map((step, index) => (
+                <li key={step.title} className="flex gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#FF7E00]/30 bg-[#FF7E00]/10 text-xs font-black text-[#FFD34E]">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <p className="font-semibold text-white/90">{step.title}</p>
+                    <p className="mt-1 text-sm text-white/55">{step.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </CollapsibleSection>
+
           {/* Pixel status */}
           <section className={adminCardClass}>
             <p className={adminSectionTitleClass}>Connected pixels</p>
@@ -388,9 +482,47 @@ export function AdTrackingClient() {
                 </p>
               </div>
               <button type="button" className={adminAccentButtonClass} disabled={syncing} onClick={() => void syncPerformance()}>
-                {syncing ? "Syncing…" : "Sync now"}
+                {syncing ? "Syncing…" : "Sync Now"}
               </button>
             </div>
+
+            {syncIntegrations.length > 0 ? (
+              <CollapsiblePanel
+                title="Set up Sync"
+                description="Add these environment variables so Sync Now can pull ad platform metrics from Google Ads and Meta."
+                defaultOpen={syncSetupNeeded}
+              >
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {syncIntegrations.map((integration) => (
+                    <div key={integration.platform} className={adminPanelClass + " p-4"}>
+                      <div className="flex items-center gap-2">
+                        <PlatformBadge platform={integration.platform} />
+                        <span
+                          className={
+                            integration.configured
+                              ? "text-[11px] font-bold text-[#9BE7B0]"
+                              : "text-[11px] font-bold text-white/40"
+                          }
+                        >
+                          {integration.configured ? "Ready" : "Missing credentials"}
+                        </span>
+                      </div>
+                      {integration.missingEnv.length > 0 ? (
+                        <ul className="mt-3 space-y-1 text-[11px] text-white/45">
+                          {integration.missingEnv.map((key) => (
+                            <li key={key} className="font-mono">
+                              {key}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-3 text-[11px] text-white/50">All required keys are configured.</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CollapsiblePanel>
+            ) : null}
 
             {panel ? (
               <>
@@ -420,7 +552,7 @@ export function AdTrackingClient() {
                           {integration.configured ? "API connected" : "Not configured"}
                         </span>
                       </div>
-                      {!integration.configured ? (
+                      {!integration.configured && !syncSetupNeeded ? (
                         <ul className="mt-3 space-y-1 text-[11px] text-white/45">
                           {integration.missingEnv.map((key) => (
                             <li key={key} className="font-mono">
@@ -474,13 +606,12 @@ export function AdTrackingClient() {
 
           {/* Verification snippets */}
           {config ? (
-            <section className={adminCardClass}>
-              <p className={adminSectionTitleClass}>Verification</p>
-              <h2 className="mt-2 text-lg font-bold">Tag snippets (already deployed)</h2>
-              <p className="mt-1 text-sm text-white/50">
-                Reference only — these tags are already injected via the root layout. Use for ad platform verification flows.
-              </p>
-              <div className="mt-5 space-y-4">
+            <CollapsibleSection
+              eyebrow="Verification"
+              title="Tag Snippets (Already Deployed)"
+              description="Reference only — these tags are already injected via the root layout. Use for ad platform verification flows."
+            >
+              <div className="space-y-4">
                 {(["meta", "google"] as const).map((key) => (
                   <div key={key} className={adminPanelClass + " p-4"}>
                     <div className="flex items-center justify-between gap-2">
@@ -493,7 +624,7 @@ export function AdTrackingClient() {
                   </div>
                 ))}
               </div>
-            </section>
+            </CollapsibleSection>
           ) : null}
         </div>
       </div>

@@ -54,7 +54,7 @@ export const AD_LANDING_PATHS: Record<AdLandingFunnel, { path: string; label: st
 export const AD_TRACKING_EVENTS: AdTrackingEvent[] = [
   {
     id: "page_view",
-    label: "Page view",
+    label: "Page View",
     description: "Every public page load and SPA navigation.",
     metaEvent: "PageView (+ MatchFitSiteVisit custom)",
     googleConversionKind: null,
@@ -63,7 +63,7 @@ export const AD_TRACKING_EVENTS: AdTrackingEvent[] = [
   },
   {
     id: "signup_step",
-    label: "Signup funnel step",
+    label: "Signup Funnel Step",
     description: "URL-based signup progress for client and trainer flows.",
     metaEvent: "MatchFitSignupStep + ViewContent",
     googleConversionKind: null,
@@ -81,7 +81,7 @@ export const AD_TRACKING_EVENTS: AdTrackingEvent[] = [
   },
   {
     id: "initiate_checkout",
-    label: "Initiate checkout",
+    label: "Initiate Checkout",
     description: "Stripe subscription checkout session started.",
     metaEvent: "InitiateCheckout",
     googleConversionKind: null,
@@ -90,7 +90,7 @@ export const AD_TRACKING_EVENTS: AdTrackingEvent[] = [
   },
   {
     id: "client_signup",
-    label: "Client paid signup",
+    label: "Client Paid Signup",
     description: "Primary paid conversion for client acquisition campaigns.",
     metaEvent: "Subscribe",
     googleConversionKind: "client_signup",
@@ -99,7 +99,7 @@ export const AD_TRACKING_EVENTS: AdTrackingEvent[] = [
   },
   {
     id: "trainer_signup",
-    label: "Trainer registration complete",
+    label: "Trainer Registration Complete",
     description: "Primary conversion for trainer acquisition campaigns.",
     metaEvent: "CompleteRegistration",
     googleConversionKind: "trainer_signup",
