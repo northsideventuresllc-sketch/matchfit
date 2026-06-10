@@ -233,7 +233,9 @@ export function AdminDashboardClient(props: {
   layoutLoadedFromServer: boolean;
   auditLog: AdminAuditLogRow[];
 }) {
-  const overview = props.initialOverview;
+  const [overview, setOverview] = useState(props.initialOverview);
+  const [auditLog, setAuditLog] = useState(props.auditLog);
+  const [refreshing, setRefreshing] = useState(false);
   const {
     memberOverview,
     revenue,
@@ -343,6 +345,32 @@ export function AdminDashboardClient(props: {
       if (layoutPersistTimerRef.current) clearTimeout(layoutPersistTimerRef.current);
     };
   }, []);
+
+  const refreshDashboard = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const [overviewRes, auditRes] = await Promise.all([
+        fetch("/api/admin/overview", { credentials: "include" }),
+        fetch("/api/admin/audit-log", { credentials: "include" }),
+      ]);
+      const overviewData = (await overviewRes.json()) as AdminPortalOverview & { error?: string };
+      const auditData = (await auditRes.json()) as { items?: AdminAuditLogRow[]; error?: string };
+      if (!overviewRes.ok) {
+        setError(overviewData.error ?? "Could not refresh dashboard stats.");
+        return;
+      }
+      setOverview(overviewData);
+      if (auditRes.ok) {
+        setAuditLog(auditData.items ?? []);
+      }
+      await loadSignupLog(0, true);
+      setError(null);
+    } catch {
+      setError("Could not refresh dashboard stats.");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadSignupLog]);
 
   const orderedVisibleSections = useMemo(() => visibleDashboardSections(layout), [layout]);
 
@@ -519,10 +547,10 @@ export function AdminDashboardClient(props: {
         return (
           <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
             <div className="space-y-2">
-              {props.auditLog.length === 0 ? (
+              {auditLog.length === 0 ? (
                 <p className="text-sm text-white/45">No impersonation events yet.</p>
               ) : (
-                props.auditLog.map((row) => (
+                auditLog.map((row) => (
                   <div key={row.id} className="rounded-xl border border-white/[0.06] bg-[#07080c]/80 px-3 py-2 text-xs">
                     <p className="text-white/85">
                       {row.action} · {row.targetRole} @{row.targetUsername ?? row.targetId.slice(0, 8)}
@@ -670,6 +698,14 @@ export function AdminDashboardClient(props: {
           <>
             <button
               type="button"
+              onClick={() => void refreshDashboard()}
+              disabled={refreshing || busyKey !== null}
+              className={adminPortalSecondaryButtonClass}
+            >
+              {refreshing ? "Refreshing…" : "Refresh"}
+            </button>
+            <button
+              type="button"
               onClick={() => {
                 setLayoutSaveError(null);
                 setLayoutPersistedHint(null);
@@ -690,17 +726,20 @@ export function AdminDashboardClient(props: {
           </>
         }
         footer={
-          <>
+          <div className="text-center">
             <p>
-              Impersonation is privileged and disclosed in our legal terms. Sign out and clear sessions when finished.
-              Prefer sandbox Stripe keys on staging.
+              Impersonation is privileged and disclosed in our{" "}
+              <Link href="/terms#platform-administration" className={adminPortalLinkClass}>
+                legal terms
+              </Link>
+              . Sign out and clear sessions when finished. Prefer sandbox Stripe keys on staging.
             </p>
             <p className="mt-3">
               <Link href="/admin/sign-up" className={adminPortalLinkClass}>
                 New Staff Onboarding Form
               </Link>
             </p>
-          </>
+          </div>
         }
       >
         <AdminDashboardSectionNav
