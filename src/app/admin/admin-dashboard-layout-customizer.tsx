@@ -122,8 +122,12 @@ export function AdminDashboardLayoutCustomizer(props: {
                           className="mt-0.5 size-4 shrink-0 rounded border-white/20 bg-[#050608] accent-[#FF7E00]"
                         />
                         <span className="min-w-0">
-                          <span className="block text-sm font-semibold text-white">{meta.label}</span>
-                          <span className="block text-[11px] leading-snug text-white/40">{meta.description}</span>
+                          <span className="block text-sm font-semibold uppercase tracking-wide text-white">
+                            {meta.label}
+                          </span>
+                          <span className="block text-[11px] leading-snug uppercase tracking-wide text-white/40">
+                            {meta.description}
+                          </span>
                         </span>
                       </label>
                       <div className="flex shrink-0 gap-1 sm:ml-2">
@@ -161,37 +165,38 @@ export function AdminDashboardLayoutCustomizer(props: {
             </p>
           ) : null}
           {props.persistedHint ? <p className="text-[11px] text-amber-200/80">{props.persistedHint}</p> : null}
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setDraft({ ...DEFAULT_ADMIN_DASHBOARD_LAYOUT })}
-              className={adminPortalSecondaryButtonClass}
-            >
-              Reset defaults
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                setDraft((prev) => ({
-                  ...prev,
-                  hidden: [],
-                }))
-              }
-              className={adminPortalSecondaryButtonClass}
-            >
-              Show all
-            </button>
-            <div className="flex-1" />
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setDraft({ ...DEFAULT_ADMIN_DASHBOARD_LAYOUT })}
+                className={adminPortalSecondaryButtonClass}
+              >
+                Reset Defaults
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    hidden: [],
+                  }))
+                }
+                className={adminPortalSecondaryButtonClass}
+              >
+                Show All
+              </button>
+              <button
+                type="button"
+                disabled={props.saving}
+                onClick={() => props.onSave(draft)}
+                className={adminPortalPrimaryButtonClass}
+              >
+                {props.saving ? "Saving…" : "Save Layout"}
+              </button>
+            </div>
             <button type="button" onClick={props.onClose} className={adminPortalSecondaryButtonClass}>
               Cancel
-            </button>
-            <button
-              type="button"
-              disabled={props.saving}
-              onClick={() => props.onSave(draft)}
-              className={adminPortalPrimaryButtonClass}
-            >
-              {props.saving ? "Saving…" : "Save layout"}
             </button>
           </div>
         </div>

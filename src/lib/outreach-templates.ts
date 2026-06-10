@@ -27,8 +27,16 @@ export function genericInviteTail(platform: OutreachPlatform, group: OutreachTar
 
 export function instagramPersonalizedOpener(group: OutreachTargetGroup, name: string, hook: string): string {
   const greeting = name ? `Hey ${name} 👋` : "Hey 👋";
+  // If the hook is already a full sentence (ends with period, !, or ?) use it directly as the opener body.
+  const hookIsSentence = /[.!?]$/.test(hook.trim());
   if (group === "ATL_LOCAL") {
+    if (hookIsSentence) {
+      return `${greeting}\n\n${hook}\n\n`;
+    }
     return `${greeting}\n\nCame across your page — ${hook}. Your training content and how you push your athletes is exactly what we're building around.\n\n`;
+  }
+  if (hookIsSentence) {
+    return `${greeting}\n\n${hook}\n\n`;
   }
   return `${greeting}\n\nYour online coaching content stands out — especially ${hook}. You clearly know how to get real results remotely.\n\n`;
 }

@@ -52,7 +52,6 @@ describe("admin overview + signups routes", () => {
     mockGetAdminPortalOverview.mockResolvedValue({
       userCounts: { clients: 12, trainers: 5 },
       revenue: { revenueCents: 0, grossProfitCents: 0, eventCount: 0, byCategory: {} },
-      recentSignups: [],
       recentFeatured: [],
     });
     mockGetAdminSignupLog.mockResolvedValue({ rows: [], total: 0 });
@@ -98,7 +97,6 @@ describe("admin overview + signups routes", () => {
           eventCount: 9,
           byCategory: {},
         },
-        recentSignups: [],
         recentFeatured: [],
       });
 
@@ -113,7 +111,6 @@ describe("admin overview + signups routes", () => {
           eventCount: 9,
           byCategory: {},
         },
-        recentSignups: [],
         recentFeatured: [],
       });
     });

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
+import { markTrainerPendingAfterTermsAcceptance } from "@/lib/trainer-pending-onboarding";
 import { mockRecordTrainerW9Intent } from "@/lib/trainer-onboarding-mocks";
 import { trainerLegalStepSchema } from "@/lib/validations/trainer-register";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
@@ -23,13 +24,14 @@ export async function PATCH(req: Request) {
       await mockRecordTrainerW9Intent({ trainerId });
     }
 
-    await prisma.trainerProfile.update({
-      where: { trainerId },
-      data: {
-        hasSignedTOS: true,
-        hasUploadedW9: body.w9Acknowledged ? true : undefined,
-      },
-    });
+    await markTrainerPendingAfterTermsAcceptance(trainerId);
+
+    if (body.w9Acknowledged) {
+      await prisma.trainerProfile.update({
+        where: { trainerId },
+        data: { hasUploadedW9: true },
+      });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (e) {

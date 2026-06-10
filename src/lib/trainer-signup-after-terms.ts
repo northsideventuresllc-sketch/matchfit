@@ -6,10 +6,8 @@ import { markTrainerWaitlistRegistered } from "@/lib/beta-waitlist-service";
 import { prisma } from "@/lib/prisma";
 import { sendTrainerWelcomeEmail } from "@/lib/trainer-welcome-email";
 import { resolveTrainerSignupNextPath } from "@/lib/trainer-signup-next-path";
-import {
-  trainerOnboardingFeeDeadlineAt,
-  TRAINER_ONBOARDING_FEE_DEADLINE_MS,
-} from "@/lib/trainer-onboarding-fee-deadline";
+import { markTrainerPendingAfterTermsAcceptance } from "@/lib/trainer-pending-onboarding";
+import { TRAINER_ONBOARDING_FEE_DEADLINE_MS } from "@/lib/trainer-onboarding-fee-deadline";
 import type { TrainerSignupParsed } from "@/lib/trainer-register-service";
 
 export type CreateTrainerAfterTermsResult =
@@ -30,30 +28,13 @@ export async function createTrainerAccountAfterTermsAcceptance(
   }
 
   const now = new Date();
-  const paymentDeadline = trainerOnboardingFeeDeadlineAt(now);
 
   const { id: trainerId, email } = await createTrainerRecord(body, {
     betaInviteEntryId: options?.betaInviteEntryId ?? null,
   });
 
   await prisma.$transaction(async (tx) => {
-    await tx.trainer.update({
-      where: { id: trainerId },
-      data: {
-        termsAcceptedAt: now,
-        privacyPolicyAcceptedAt: now,
-      },
-    });
-    await tx.trainerProfile.update({
-      where: { trainerId },
-      data: {
-        hasSignedTOS: true,
-        limitedDashboardUnlockedAt: now,
-        complianceWindowStartedAt: now,
-        onboardingFeePaymentDeadlineAt: paymentDeadline,
-        updatedAt: now,
-      },
-    });
+    await markTrainerPendingAfterTermsAcceptance(trainerId, now, tx);
   });
 
   if (options?.betaInviteEntryId) {

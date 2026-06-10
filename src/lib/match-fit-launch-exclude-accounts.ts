@@ -3,6 +3,11 @@ import {
   getMatchFitInternalQaTrainerEmails,
 } from "@/lib/match-fit-internal-qa";
 import { getMatchFitTestTrainerEmails } from "@/lib/match-fit-test-trainer-emails";
+import {
+  MATCH_FIT_EXCLUDE_NON_PRODUCTION_CLIENT_USERNAMES,
+  MATCH_FIT_EXCLUDE_NON_PRODUCTION_MEMBER_EMAILS,
+  MATCH_FIT_EXCLUDE_NON_PRODUCTION_TRAINER_USERNAMES,
+} from "@/lib/match-fit-production-member-excludes";
 import { TRAINER_DEV_FAKE_CPT_CERTIFICATION_PATH } from "@/lib/trainer-dev-cert-placeholders";
 
 /**
@@ -13,15 +18,16 @@ import { TRAINER_DEV_FAKE_CPT_CERTIFICATION_PATH } from "@/lib/trainer-dev-cert-
 export const MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX = "@example.test";
 
 export const MATCH_FIT_BUILTIN_LAUNCH_EXCLUDE_EMAILS = [
-  "jonnybooth22@gmail.com",
-  "jb@northsideventuresgroup.com",
-  "jb@match-fit.net",
-  "twofa_tester@example.test",
+  ...MATCH_FIT_EXCLUDE_NON_PRODUCTION_MEMBER_EMAILS,
 ] as const;
 
-export const MATCH_FIT_BUILTIN_LAUNCH_EXCLUDE_CLIENT_USERNAMES = ["jbfitness6299", "twofa_tester"] as const;
+export const MATCH_FIT_BUILTIN_LAUNCH_EXCLUDE_CLIENT_USERNAMES = [
+  ...MATCH_FIT_EXCLUDE_NON_PRODUCTION_CLIENT_USERNAMES,
+] as const;
 
-export const MATCH_FIT_BUILTIN_LAUNCH_EXCLUDE_TRAINER_USERNAMES = ["coachjonny22"] as const;
+export const MATCH_FIT_BUILTIN_LAUNCH_EXCLUDE_TRAINER_USERNAMES = [
+  ...MATCH_FIT_EXCLUDE_NON_PRODUCTION_TRAINER_USERNAMES,
+] as const;
 
 function parseCsvLower(raw: string | undefined): string[] {
   if (!raw?.trim()) return [];

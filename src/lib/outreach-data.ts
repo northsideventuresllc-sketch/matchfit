@@ -116,6 +116,53 @@ export async function softDeleteOutreachLead(platform: OutreachPlatform, id: str
   return prisma.outreachOtherLead.update({ where: { id }, data: { deletedAt: now } });
 }
 
+export type MassDeleteOutreachInput =
+  | { mode: "all" }
+  | { mode: "batch"; generationBatchId: string }
+  | { mode: "ids"; ids: string[] };
+
+export function buildMassDeleteOutreachWhere(input: MassDeleteOutreachInput) {
+  const where: { deletedAt: null; generationBatchId?: string; id?: { in: string[] } } = {
+    deletedAt: null,
+  };
+
+  if (input.mode === "batch") {
+    where.generationBatchId = input.generationBatchId;
+  } else if (input.mode === "ids") {
+    where.id = { in: input.ids };
+  }
+
+  return where;
+}
+
+export async function massSoftDeleteOutreachLeads(
+  platform: OutreachPlatform,
+  input: MassDeleteOutreachInput,
+): Promise<{ deletedCount: number }> {
+  const now = new Date();
+  const where = buildMassDeleteOutreachWhere(input);
+
+  if (input.mode === "ids" && input.ids.length === 0) {
+    return { deletedCount: 0 };
+  }
+
+  if (platform === "instagram") {
+    const result = await prisma.outreachInstagramLead.updateMany({ where, data: { deletedAt: now } });
+    return { deletedCount: result.count };
+  }
+  if (platform === "facebook") {
+    const result = await prisma.outreachFacebookLead.updateMany({ where, data: { deletedAt: now } });
+    return { deletedCount: result.count };
+  }
+  if (platform === "email") {
+    const result = await prisma.outreachEmailLead.updateMany({ where, data: { deletedAt: now } });
+    return { deletedCount: result.count };
+  }
+
+  const result = await prisma.outreachOtherLead.updateMany({ where, data: { deletedAt: now } });
+  return { deletedCount: result.count };
+}
+
 export async function updateOutreachLead(
   platform: OutreachPlatform,
   id: string,
@@ -348,4 +395,44 @@ export async function refreshAllOutreachClassifications() {
       }),
     ),
   ]);
+}
+
+export async function purgeArchivedOutreachLeads(): Promise<{
+  instagram: number;
+  facebook: number;
+  email: number;
+  other: number;
+}> {
+  const [instagram, facebook, email, other] = await Promise.all([
+    prisma.outreachInstagramLead.deleteMany({ where: { deletedAt: { not: null } } }),
+    prisma.outreachFacebookLead.deleteMany({ where: { deletedAt: { not: null } } }),
+    prisma.outreachEmailLead.deleteMany({ where: { deletedAt: { not: null } } }),
+    prisma.outreachOtherLead.deleteMany({ where: { deletedAt: { not: null } } }),
+  ]);
+  return {
+    instagram: instagram.count,
+    facebook: facebook.count,
+    email: email.count,
+    other: other.count,
+  };
+}
+
+export async function purgeActiveOutreachLeads(): Promise<{
+  instagram: number;
+  facebook: number;
+  email: number;
+  other: number;
+}> {
+  const [instagram, facebook, email, other] = await Promise.all([
+    prisma.outreachInstagramLead.deleteMany({ where: { deletedAt: null } }),
+    prisma.outreachFacebookLead.deleteMany({ where: { deletedAt: null } }),
+    prisma.outreachEmailLead.deleteMany({ where: { deletedAt: null } }),
+    prisma.outreachOtherLead.deleteMany({ where: { deletedAt: null } }),
+  ]);
+  return {
+    instagram: instagram.count,
+    facebook: facebook.count,
+    email: email.count,
+    other: other.count,
+  };
 }

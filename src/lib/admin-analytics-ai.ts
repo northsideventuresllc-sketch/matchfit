@@ -1,5 +1,7 @@
 import "server-only";
 
+import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
+
 import {
   sanitizeAssistantMessageForDisplay,
   type AdminAiAction,
@@ -124,7 +126,7 @@ function buildContextSummary(overview: AdminPortalOverview, traffic: AdminTraffi
         targetValue: g.targetValue,
         deadline: g.deadline?.toISOString() ?? null,
       })),
-      recentSignupCount: overview.recentSignups.length,
+      memberOverview: overview.memberOverview,
     },
     null,
     2,
@@ -159,7 +161,7 @@ function providerDisplayName(provider: AdminAiProviderId): string {
   return provider === "anthropic" ? "Anthropic (Claude)" : "OpenAI";
 }
 
-/** Sync env check for server pages and outreach/content AI helpers (no live probe). */
+/** Sync env check for server pages and outreach/content AI helpers (no live probe). Prefer {@link getAdminAiProviderStatusAsync} when platform_secrets may hold keys. */
 export function getAdminAiProviderStatus(): AdminAiProviderStatus {
   const provider = resolveAdminAiProvider();
   if (!provider) {
@@ -184,6 +186,11 @@ export function getAdminAiProviderStatus(): AdminAiProviderStatus {
       ? `${providerDisplayName(provider)} is configured for admin analytics.`
       : `${providerDisplayName(provider)} is not fully configured.`,
   };
+}
+
+export async function getAdminAiProviderStatusAsync(): Promise<AdminAiProviderStatus> {
+  await hydratePlatformEnvFromDatabase();
+  return getAdminAiProviderStatus();
 }
 
 async function probeAnthropicProvider(model: string, key: string): Promise<AdminAiProviderStatus> {
@@ -509,6 +516,12 @@ export async function getAdminAiHistory(
   }));
 }
 
+export const ADMIN_ANTHROPIC_MODEL_OPTIONS = [
+  { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
+  { id: "claude-opus-4-6", label: "Claude Opus 4.6" },
+  { id: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
+] as const;
+
 export async function runAdminAnalyticsAi(args: {
   action: AdminAiAction;
   administratorId: string;
@@ -517,7 +530,9 @@ export async function runAdminAnalyticsAi(args: {
   overview: AdminPortalOverview;
   traffic: AdminTrafficSnapshot;
   history?: HistoryTurn[];
+  modelOverride?: string;
 }): Promise<string> {
+  await hydratePlatformEnvFromDatabase();
   const goals = await prisma.adminGoal.findMany({
     where: { administratorId: args.administratorId, status: "ACTIVE" },
     orderBy: { createdAt: "desc" },
@@ -580,7 +595,10 @@ export async function runAdminAnalyticsAi(args: {
     .slice(-12)
     .map((t) => ({ role: t.role, content: t.content }));
 
-  const model = resolveAdminAiModel(provider);
+  const model =
+    provider === "anthropic" && args.modelOverride?.trim()
+      ? args.modelOverride.trim()
+      : resolveAdminAiModel(provider);
   const text =
     provider === "anthropic"
       ? await callAnthropicMessages({

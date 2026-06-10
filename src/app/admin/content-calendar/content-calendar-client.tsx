@@ -1,16 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AdminPortalNav } from "@/components/admin/admin-portal-nav";
+import { AdminPortalShell } from "@/components/admin/admin-portal-shell";
 import {
   AdminPortalAlert,
-  AdminPortalBackdrop,
   AdminPortalBetaNotice,
+  AdminLoadingBar,
   adminAccentButtonClass,
   adminInputClassSm,
   adminLabelClass,
-  adminLinkClass,
   adminPanelClass,
   adminPrimaryButtonClass,
   adminSecondaryButtonClass,
@@ -19,10 +17,12 @@ import {
   CONTENT_CALENDAR_CONTENT_TYPES,
   CONTENT_CALENDAR_DAYS_LONG,
   CONTENT_CALENDAR_DAYS_SHORT,
-  CONTENT_CALENDAR_PLATFORMS_GEN,
+  CONTENT_CALENDAR_GENERATOR_POST_TYPES,
+  CONTENT_CALENDAR_PLATFORMS_BY_TYPE,
   CONTENT_CALENDAR_POST_TYPES,
   CONTENT_CALENDAR_TONES,
   CONTENT_CALENDAR_TYPE_ICONS,
+  type ContentCalendarGeneratorPostType,
 } from "@/lib/content-calendar/constants";
 import {
   formatCalendarDate,
@@ -66,10 +66,74 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
   );
 }
 
+const REGENERATE_SUGGESTIONS = [
+  "Make it shorter and punchier",
+  "More energetic tone",
+  "Stronger Atlanta local angle",
+  "Better hashtags for reach",
+  "Clearer call to action",
+];
+
+function RegenerateFeedbackModal(props: {
+  title: string;
+  busy: boolean;
+  feedback: string;
+  onFeedbackChange: (value: string) => void;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={props.onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl border border-white/10 bg-[#12151C] p-5 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-sm font-black uppercase tracking-[0.12em] text-[#FFD34E]">{props.title}</p>
+        <p className="mt-2 text-sm text-white/55">
+          What should change? Pick a suggestion or describe the adjustments you want.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {REGENERATE_SUGGESTIONS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              className={adminSecondaryButtonClass}
+              onClick={() => props.onFeedbackChange(s)}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        <textarea
+          className={`${adminInputClassSm} mt-3`}
+          rows={4}
+          placeholder="Describe what to adjust (tone, length, audience, CTA, hashtags…)"
+          value={props.feedback}
+          onChange={(e) => props.onFeedbackChange(e.target.value)}
+        />
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <button type="button" className={adminSecondaryButtonClass} disabled={props.busy} onClick={props.onClose}>
+            Cancel
+          </button>
+          <button type="button" className={adminPrimaryButtonClass} disabled={props.busy} onClick={props.onConfirm}>
+            {props.busy ? "Regenerating…" : "Regenerate"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MissedPostBubble(props: {
   post: ClientContentPost;
   onReschedule: (id: string, newDate: string) => Promise<void>;
   onDismiss: (id: string) => Promise<void>;
+  onClose: () => void;
 }) {
   const [showPicker, setShowPicker] = useState(false);
   const [newDate, setNewDate] = useState(props.post.postDate);
@@ -77,7 +141,17 @@ function MissedPostBubble(props: {
 
   return (
     <div className="fixed bottom-6 right-6 z-50 max-w-sm rounded-2xl border border-[#FF7E00]/35 bg-[#12151C]/95 p-4 shadow-2xl backdrop-blur-xl">
-      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#FF7E00]">Missed post</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#FF7E00]">Missed post</p>
+        <button
+          type="button"
+          className="rounded-lg border border-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white/50 hover:text-white/80"
+          onClick={props.onClose}
+          aria-label="Close missed post notice"
+        >
+          Close
+        </button>
+      </div>
       <p className="mt-2 text-sm text-white/75">
         {props.post.postType} for {CONTENT_CALENDAR_DAYS_LONG[props.post.dayIndex]} was not marked posted. Change the
         post date?
@@ -138,6 +212,12 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
   const [scanning, setScanning] = useState(false);
   const [missedPosts, setMissedPosts] = useState<ClientContentPost[]>([]);
   const [drafts, setDrafts] = useState<Record<string, { caption: string; visualPrompt: string | null }>>({});
+  const [missedBubbleDismissed, setMissedBubbleDismissed] = useState(false);
+  const [regenModal, setRegenModal] = useState<
+    { mode: "single"; post: ClientContentPost } | { mode: "all" } | null
+  >(null);
+  const [regenFeedback, setRegenFeedback] = useState("");
+  const [regenBusy, setRegenBusy] = useState(false);
 
   const baseMonday = useMemo(() => new Date(`${weekStart}T00:00:00`), [weekStart]);
 
@@ -222,6 +302,95 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
     }
   }
 
+  async function deletePost(id: string) {
+    const res = await fetch(`/api/admin/content-calendar/posts/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const data = (await res.json()) as { error?: string };
+      setError(data.error ?? "Could not delete post.");
+      return;
+    }
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+  }
+
+  async function deleteAllPosts() {
+    const res = await fetch(`/api/admin/content-calendar/schedule?weekStart=${weekStart}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const data = (await res.json()) as { error?: string };
+      setError(data.error ?? "Could not delete posts.");
+      return;
+    }
+    setPosts([]);
+    setDrafts({});
+  }
+
+  async function confirmRegenerate() {
+    if (!regenModal) return;
+    setRegenBusy(true);
+    setError(null);
+    try {
+      if (regenModal.mode === "all") {
+        const res = await fetch("/api/admin/content-calendar/schedule", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            weekStart,
+            offset,
+            regenerateAll: true,
+            feedback: regenFeedback.trim() || undefined,
+          }),
+        });
+        const data = (await res.json()) as { posts?: ClientContentPost[]; error?: string };
+        if (!res.ok) throw new Error(data.error ?? "Regeneration failed.");
+        setPosts(data.posts ?? []);
+        const nextDrafts: Record<string, { caption: string; visualPrompt: string | null }> = {};
+        for (const p of data.posts ?? []) {
+          nextDrafts[p.id] = { caption: p.caption, visualPrompt: p.visualPrompt };
+        }
+        setDrafts(nextDrafts);
+      } else {
+        const post = regenModal.post;
+        const draft = drafts[post.id];
+        const res = await fetch(`/api/admin/content-calendar/posts/${post.id}/actions`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "regenerate",
+            weekStart,
+            offset,
+            dayIndex: post.dayIndex,
+            postType: post.postType,
+            feedback: regenFeedback.trim() || undefined,
+            existingCaption: draft?.caption ?? post.caption,
+            existingVisualPrompt: draft?.visualPrompt ?? post.visualPrompt,
+          }),
+        });
+        const data = (await res.json()) as { post?: ClientContentPost; error?: string };
+        if (!res.ok) throw new Error(data.error ?? "Regeneration failed.");
+        if (data.post) {
+          setPosts((prev) => prev.map((p) => (p.id === data.post!.id ? data.post! : p)));
+          setDrafts((prev) => ({
+            ...prev,
+            [data.post!.id]: { caption: data.post!.caption, visualPrompt: data.post!.visualPrompt },
+          }));
+        }
+      }
+      setRegenModal(null);
+      setRegenFeedback("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Regeneration failed.");
+    } finally {
+      setRegenBusy(false);
+    }
+  }
+
   async function markPosted(id: string) {
     const res = await fetch(`/api/admin/content-calendar/posts/${id}/actions`, {
       method: "POST",
@@ -297,45 +466,32 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
   const visibleDayIndexes =
     activeDay === null ? [0, 1, 2, 3, 4] : [activeDay];
 
-  const bubblePost = missedPosts[0];
+  const bubblePost = missedBubbleDismissed ? null : missedPosts[0];
 
   return (
-    <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] px-5 py-10 text-white sm:px-8 sm:py-12">
-      <AdminPortalBackdrop />
-      <div className="relative mx-auto max-w-6xl space-y-6">
-        <header className="space-y-4">
-          <AdminPortalNav current="content-calendar" />
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF7E00]">Match Fit</p>
-              <h1 className="mt-1 text-3xl font-black tracking-tight">Content Calendar</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/55">
-                Generate M–F Facebook and Threads posts with video, carousel, and static prompts. Learns from your edits
-                via{" "}
-                <Link href="https://supabase.com/dashboard/project/kxijunwgbrlfzvgkhklo" className={adminLinkClass}>
-                  NI Brain
-                </Link>
-                .{" "}
-                <Link href="/admin" className={adminLinkClass}>
-                  Back to dashboard
-                </Link>
-                .
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" className={adminSecondaryButtonClass} disabled={scanning} onClick={() => void runSocialScan()}>
-                {scanning ? "Scanning…" : "Scan social"}
-              </button>
-            </div>
-          </div>
-        </header>
-
-        <AdminPortalBetaNotice />
+    <AdminPortalShell
+      current="content-calendar"
+      maxWidth="full"
+      title="Content Calendar"
+      description="Generate M–F social posts with video, carousel, and static prompts for Instagram, Threads, Facebook, and TikTok."
+      headerActions={
+        <button
+          type="button"
+          className={adminSecondaryButtonClass}
+          disabled={scanning}
+          onClick={() => void runSocialScan()}
+        >
+          {scanning ? "Scanning…" : "Scan Social"}
+        </button>
+      }
+      contentClassName="space-y-6"
+    >
+        <AdminPortalBetaNotice className="mt-0" />
 
         {!props.aiStatus.niBrain ? (
           <AdminPortalAlert variant="info">
             NI Brain Supabase keys are not set. Add NI_BRAIN_SUPABASE_URL and NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY to
-            persist schedules and learning.
+            Vercel production env or store them in platform_secrets (via bootstrap script), then redeploy.
           </AdminPortalAlert>
         ) : null}
 
@@ -393,14 +549,33 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
               </div>
               <button
                 type="button"
-                className={`${adminPrimaryButtonClass} min-h-0 px-5 py-2.5 text-xs`}
+                className={adminPrimaryButtonClass}
                 disabled={generating || !props.aiStatus.configured}
                 onClick={() => void generateWeek()}
               >
-                {generating ? "Generating week…" : "Generate week"}
+                {generating ? "Generating Week…" : "Generate Week"}
+              </button>
+              <button
+                type="button"
+                className={adminSecondaryButtonClass}
+                disabled={!posts.length || generating}
+                onClick={() => {
+                  setRegenFeedback("");
+                  setRegenModal({ mode: "all" });
+                }}
+              >
+                Regenerate All
+              </button>
+              <button
+                type="button"
+                className={adminSecondaryButtonClass}
+                disabled={!posts.length}
+                onClick={() => void deleteAllPosts()}
+              >
+                Delete All
               </button>
               <button type="button" className={adminSecondaryButtonClass} onClick={exportWeek} disabled={!posts.length}>
-                Export week
+                Export Week
               </button>
               <p className="ml-auto max-w-xs text-[10px] leading-relaxed text-white/35">
                 Baseline rotation: Carousel→Atlanta Trainers · Static→Virtual Trainers · Video→Atlanta Clients ·
@@ -429,7 +604,8 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
               ))}
             </div>
 
-            {loading ? <p className="text-sm text-white/50">Loading schedule…</p> : null}
+            {loading ? <AdminLoadingBar label="Loading schedule…" /> : null}
+            {generating ? <AdminLoadingBar label="AI is generating your week…" /> : null}
 
             {!loading && posts.length === 0 ? (
               <p className={`${adminPanelClass} p-6 text-sm text-white/55`}>
@@ -452,7 +628,19 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
                   <div className="grid gap-4 sm:grid-cols-2">
                     {CONTENT_CALENDAR_POST_TYPES.map((type) => {
                       const post = dayPosts.find((p) => p.postType === type);
-                      if (!post) return null;
+                      if (!post) {
+                        return (
+                          <div
+                            key={`${di}-${type}`}
+                            className={`${adminPanelClass} flex min-h-[12rem] flex-col items-center justify-center p-4 opacity-35`}
+                          >
+                            <span className="text-xs font-black uppercase tracking-[0.1em] text-white/50">
+                              {CONTENT_CALENDAR_TYPE_ICONS[type]} {type}
+                            </span>
+                            <p className="mt-2 text-xs text-white/40">Not scheduled</p>
+                          </div>
+                        );
+                      }
                       const draft = drafts[post.id] ?? { caption: post.caption, visualPrompt: post.visualPrompt };
                       const promKey = post.id;
                       const isPromptOpen = expandedPrompt === promKey;
@@ -462,7 +650,10 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
                         missedPromptDismissed: post.missedPromptDismissed,
                       });
                       return (
-                        <article key={post.id} className={`${adminPanelClass} p-4 ${overdue ? "ring-1 ring-amber-400/40" : ""}`}>
+                        <article
+                          key={post.id}
+                          className={`${adminPanelClass} flex min-h-[12rem] flex-col p-4 ${overdue ? "ring-1 ring-amber-400/40" : ""}`}
+                        >
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <span className="text-xs font-black uppercase tracking-[0.1em] text-[#FFD34E]">
                               {CONTENT_CALENDAR_TYPE_ICONS[type]} {type}
@@ -473,9 +664,15 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
                           </div>
                           <p className="mt-2 text-[10px] uppercase tracking-wide text-white/35">{post.platforms}</p>
                           {post.hashtags.length ? (
-                            <p className="mt-1 text-[11px] text-white/40">
-                              {post.hashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}
-                            </p>
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                              <p className="text-[11px] text-white/40">
+                                {post.hashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}
+                              </p>
+                              <CopyButton
+                                text={post.hashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}
+                                label="Copy hashtags"
+                              />
+                            </div>
                           ) : null}
                           <textarea
                             className={`${adminInputClassSm} mt-3`}
@@ -512,8 +709,25 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
                             </>
                           ) : null}
                           <div className="mt-3 flex flex-wrap gap-2">
-                            <CopyButton text={draft.caption} label="Copy caption" />
-                            {draft.visualPrompt ? <CopyButton text={draft.visualPrompt} label="Copy prompt" /> : null}
+                            <CopyButton text={draft.caption} label="Copy Caption" />
+                            {draft.visualPrompt ? <CopyButton text={draft.visualPrompt} label="Copy Prompt" /> : null}
+                            <button
+                              type="button"
+                              className={adminSecondaryButtonClass}
+                              onClick={() => {
+                                setRegenFeedback("");
+                                setRegenModal({ mode: "single", post });
+                              }}
+                            >
+                              Regenerate
+                            </button>
+                            <button
+                              type="button"
+                              className={adminSecondaryButtonClass}
+                              onClick={() => void deletePost(post.id)}
+                            >
+                              Delete
+                            </button>
                             {(type === "Static" || type === "Carousel") && props.aiStatus.media ? (
                               <button
                                 type="button"
@@ -557,11 +771,27 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
         ) : (
           <GeneratorPanel configured={props.aiStatus.configured} />
         )}
-      </div>
+
+      {regenModal ? (
+        <RegenerateFeedbackModal
+          title={regenModal.mode === "all" ? "Regenerate entire week" : "Regenerate this post"}
+          busy={regenBusy}
+          feedback={regenFeedback}
+          onFeedbackChange={setRegenFeedback}
+          onClose={() => {
+            if (!regenBusy) {
+              setRegenModal(null);
+              setRegenFeedback("");
+            }
+          }}
+          onConfirm={() => void confirmRegenerate()}
+        />
+      ) : null}
 
       {bubblePost ? (
         <MissedPostBubble
           post={bubblePost}
+          onClose={() => setMissedBubbleDismissed(true)}
           onDismiss={async (id) => {
             await fetch(`/api/admin/content-calendar/posts/${id}/actions`, {
               method: "POST",
@@ -583,12 +813,12 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
           }}
         />
       ) : null}
-    </main>
+    </AdminPortalShell>
   );
 }
 
 function GeneratorPanel(props: { configured: boolean }) {
-  const [platform, setPlatform] = useState("Instagram");
+  const [postType, setPostType] = useState<ContentCalendarGeneratorPostType>("Carousel");
   const [contentType, setContentType] = useState("Trainer Recruitment");
   const [tone, setTone] = useState("Bold / Direct");
   const [customNote, setCustomNote] = useState("");
@@ -605,7 +835,7 @@ function GeneratorPanel(props: { configured: boolean }) {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ platform, contentType, tone, customNote }),
+        body: JSON.stringify({ postType, contentType, tone, customNote }),
       });
       const data = (await res.json()) as { result?: GeneratorResult; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Generation failed.");
@@ -625,19 +855,22 @@ function GeneratorPanel(props: { configured: boolean }) {
     <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
       <aside className={`${adminPanelClass} space-y-5 p-5`}>
         <div>
-          <p className={adminLabelClass}>Platform</p>
+          <p className={adminLabelClass}>Post type</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {CONTENT_CALENDAR_PLATFORMS_GEN.map((p) => (
+            {CONTENT_CALENDAR_GENERATOR_POST_TYPES.map((t) => (
               <button
-                key={p}
+                key={t}
                 type="button"
-                className={platform === p ? adminAccentButtonClass : adminSecondaryButtonClass}
-                onClick={() => setPlatform(p)}
+                className={postType === t ? adminAccentButtonClass : adminSecondaryButtonClass}
+                onClick={() => setPostType(t)}
               >
-                {p}
+                {CONTENT_CALENDAR_TYPE_ICONS[t]} {t}
               </button>
             ))}
           </div>
+          <p className="mt-2 text-[10px] leading-relaxed text-white/40">
+            Platforms: {CONTENT_CALENDAR_PLATFORMS_BY_TYPE[postType]}
+          </p>
         </div>
         <div>
           <p className={adminLabelClass}>Content type</p>
@@ -670,16 +903,22 @@ function GeneratorPanel(props: { configured: boolean }) {
           </div>
         </div>
         <div>
-          <p className={adminLabelClass}>Custom notes</p>
-          <textarea className={`${adminInputClassSm} mt-2`} rows={3} value={customNote} onChange={(e) => setCustomNote(e.target.value)} />
+          <p className={adminLabelClass}>Prompt</p>
+          <textarea
+            className={`${adminInputClassSm} mt-2`}
+            rows={3}
+            value={customNote}
+            onChange={(e) => setCustomNote(e.target.value)}
+            placeholder="What should this post focus on?"
+          />
         </div>
         <button
           type="button"
-          className={`${adminPrimaryButtonClass} min-h-0 py-2.5 text-xs`}
+          className={adminPrimaryButtonClass}
           disabled={loading || !props.configured}
           onClick={() => void generate()}
         >
-          {loading ? "Generating…" : "Generate post"}
+          {loading ? "Generating…" : "Generate Post"}
         </button>
         {error ? <p className="text-xs text-[#FFB4B4]">{error}</p> : null}
       </aside>
@@ -688,7 +927,7 @@ function GeneratorPanel(props: { configured: boolean }) {
         {!result && !loading ? (
           <p className="text-sm text-white/40">Select options and generate a single post with hook, body, CTA, and hashtags.</p>
         ) : null}
-        {loading ? <p className="text-sm text-white/50">Crafting your post…</p> : null}
+        {loading ? <AdminLoadingBar label="AI is crafting your post…" /> : null}
         {result ? (
           <div className="space-y-4">
             <div className="flex justify-between gap-3">
@@ -699,9 +938,17 @@ function GeneratorPanel(props: { configured: boolean }) {
               <p className="font-semibold text-[#FF7E00]">{result.hook}</p>
               <p className="mt-3">{result.body}</p>
               <p className="mt-3 font-medium text-[#FFD34E]">{result.cta}</p>
-              <p className="mt-3 text-xs text-white/40">
-                {result.hashtags?.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}
-              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <p className="text-xs text-white/40">
+                  {result.hashtags?.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}
+                </p>
+                {result.hashtags?.length ? (
+                  <CopyButton
+                    text={result.hashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}
+                    label="Copy hashtags"
+                  />
+                ) : null}
+              </div>
             </div>
             {result.dmScript ? (
               <div className="rounded-xl border border-white/[0.06] bg-black/20 p-4 text-sm italic text-white/55">

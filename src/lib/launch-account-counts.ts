@@ -2,12 +2,15 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { betaExcludeCapCountEmails, betaExcludeCapCountUsernames } from "@/lib/beta-launch-config";
 import {
-  getMatchFitDevPlaceholderCertPathPrefixes,
   getMatchFitLaunchExcludeClientUsernames,
   getMatchFitLaunchExcludeEmails,
   getMatchFitLaunchExcludeTrainerUsernames,
   MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX,
 } from "@/lib/match-fit-launch-exclude-accounts";
+import {
+  MATCH_FIT_EXCLUDE_NON_PRODUCTION_CLIENT_USERNAMES,
+  MATCH_FIT_EXCLUDE_NON_PRODUCTION_TRAINER_USERNAMES,
+} from "@/lib/match-fit-production-member-excludes";
 
 export const INTERNAL_SYNTHETIC_EMAIL_SUFFIX = "@internal.match-fit.invalid";
 
@@ -50,23 +53,13 @@ function launchUsernameInExcludeOr(usernames: string[]): AnyWhereOrItem[] {
   return [{ username: { in: usernames, mode: "insensitive" } }];
 }
 
-const DEV_CERT_PREFIXES = getMatchFitDevPlaceholderCertPathPrefixes();
-
-function launchDevCertExcludeOr(): AnyWhereOrItem[] {
-  return DEV_CERT_PREFIXES.flatMap((prefix) => [
-    { profile: { is: { certificationUrl: { startsWith: prefix, mode: "insensitive" } } } },
-    { profile: { is: { nutritionistCertificationUrl: { startsWith: prefix, mode: "insensitive" } } } },
-    { profile: { is: { specialistCertificationUrl: { startsWith: prefix, mode: "insensitive" } } } },
-  ]);
-}
-
 export const SYNTHETIC_TRAINER_USERNAME_PREFIX = "mfqst_";
 export const SYNTHETIC_CLIENT_USERNAME_PREFIX = "mfqsc_";
 
-const BUILTIN_LAUNCH_EXCLUDE_CLIENT_USERNAMES = ["jbfitness6299"] as const;
-const BUILTIN_LAUNCH_EXCLUDE_CLIENT_EMAILS = ["jonnybooth22@gmail.com"] as const;
-const BUILTIN_LAUNCH_EXCLUDE_TRAINER_USERNAMES = ["coachjonny22"] as const;
-const BUILTIN_LAUNCH_EXCLUDE_TRAINER_EMAILS = ["jb@northsideventuresgroup.com"] as const;
+const BUILTIN_LAUNCH_EXCLUDE_CLIENT_USERNAMES = [...MATCH_FIT_EXCLUDE_NON_PRODUCTION_CLIENT_USERNAMES] as const;
+const BUILTIN_LAUNCH_EXCLUDE_CLIENT_EMAILS: readonly string[] = [];
+const BUILTIN_LAUNCH_EXCLUDE_TRAINER_USERNAMES = [...MATCH_FIT_EXCLUDE_NON_PRODUCTION_TRAINER_USERNAMES] as const;
+const BUILTIN_LAUNCH_EXCLUDE_TRAINER_EMAILS: readonly string[] = ["jb@northsideventuresgroup.com"];
 
 export function getLaunchExcludeUsernames(role?: "client" | "trainer"): string[] {
   const ex = new Set<string>([...betaExcludeCapCountUsernames()].map((u) => u.toLowerCase()));
@@ -81,7 +74,8 @@ export function getLaunchExcludeUsernames(role?: "client" | "trainer"): string[]
   return [...ex];
 }
 
-export function launchTrainerCountWhere(): Prisma.TrainerWhereInput {
+/** Trainer rows that pass launch exclusion filters (may still be pre–Terms of Service). */
+export function launchTrainerAccountWhere(): Prisma.TrainerWhereInput {
   const usernameExcludes = [SYNTHETIC_TRAINER_USERNAME_PREFIX, ...getMatchFitLaunchExcludeTrainerUsernames()];
   const exactUsernameExcludes = getLaunchExcludeUsernames("trainer");
   return {
@@ -92,9 +86,19 @@ export function launchTrainerCountWhere(): Prisma.TrainerWhereInput {
         ...launchEmailExcludeOr("trainer"),
         ...launchUsernamePrefixExcludeOr(usernameExcludes),
         ...launchUsernameInExcludeOr(exactUsernameExcludes),
-        ...launchDevCertExcludeOr(),
       ] as Prisma.TrainerWhereInput[],
     },
+  };
+}
+
+/** Trainers counted on the platform after Terms — includes pending onboarding before dashboard is live. */
+export function launchTrainerCountWhere(): Prisma.TrainerWhereInput {
+  return {
+    ...launchTrainerAccountWhere(),
+    OR: [
+      { termsAcceptedAt: { not: null } },
+      { profile: { is: { hasSignedTOS: true } } },
+    ],
   };
 }
 
@@ -199,7 +203,7 @@ export function launchClientPlatformPaymentGraceWhere(now = new Date()): Prisma.
 /** Trainer account exists but marketplace dashboard is not live yet. */
 export function launchTrainerIncompleteSignupWhere(): Prisma.TrainerWhereInput {
   return {
-    ...launchTrainerCountWhere(),
+    ...launchTrainerAccountWhere(),
     profile: { is: { dashboardActivatedAt: null } },
   };
 }
@@ -221,9 +225,42 @@ export function launchTrainerBeforeRegistrationPaymentWhere(): Prisma.TrainerWhe
 /** Trainer row exists but Terms of Service not accepted yet. */
 export function launchTrainerBeforeTermsWhere(): Prisma.TrainerWhereInput {
   return {
-    ...launchTrainerCountWhere(),
-    profile: { is: { hasSignedTOS: false } },
+    ...launchTrainerAccountWhere(),
+    termsAcceptedAt: null,
+    NOT: {
+      profile: { is: { hasSignedTOS: true } },
+    },
   };
+}
+
+/**
+ * Pending trainers: accepted Terms or started onboarding, marketplace dashboard not live yet.
+ * Does not require the 7-day compliance window timestamp — that is tracked as a qualification.
+ */
+export function launchPendingTrainerWhere(): Prisma.TrainerWhereInput {
+  return {
+    ...launchTrainerAccountWhere(),
+    NOT: {
+      profile: { is: { dashboardActivatedAt: { not: null } } },
+    },
+    OR: [
+      { termsAcceptedAt: { not: null } },
+      { profile: { is: { hasSignedTOS: true } } },
+      { profile: { is: { complianceWindowStartedAt: { not: null } } } },
+      { profile: { is: { limitedDashboardUnlockedAt: { not: null } } } },
+      {
+        profile: {
+          is: {
+            registrationFeeHoldStatus: { in: ["HELD", "CAPTURED"] },
+          },
+        },
+      },
+    ],
+  };
+}
+
+export async function countLaunchPendingTrainers(): Promise<number> {
+  return prisma.trainer.count({ where: launchPendingTrainerWhere() });
 }
 
 export async function getActivePendingClientRegistrationStats(now = new Date()): Promise<{

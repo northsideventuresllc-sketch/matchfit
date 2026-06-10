@@ -11,6 +11,7 @@ import { MATCH_FIT_INTEGRATION_TEST_EMAIL_SUFFIX } from "@/lib/match-fit-launch-
 
 export type HomeUserCounts = {
   trainersTotal: number;
+  trainersPending: number;
   trainersActive: number;
   clientsTotal: number;
   clientsActive: number;
@@ -18,6 +19,7 @@ export type HomeUserCounts = {
 
 type CountRow = {
   trainers_total: bigint;
+  trainers_pending: bigint;
   trainers_active: bigint;
   clients_total: bigint;
   clients_active: bigint;
@@ -96,6 +98,7 @@ function isDatabaseUnavailable(e: unknown): boolean {
 
 const EMPTY_HOME_USER_COUNTS: HomeUserCounts = {
   trainersTotal: 0,
+  trainersPending: 0,
   trainersActive: 0,
   clientsTotal: 0,
   clientsActive: 0,
@@ -122,10 +125,31 @@ async function queryHomeUserCounts(
       (
         SELECT COUNT(*)::bigint
         FROM "trainers" t
+        LEFT JOIN "trainer_profiles" p ON p."trainerId" = t."id"
         WHERE t."deidentifiedAt" IS NULL
           ${trainerSynthClause}
           ${trainerEmailClause}
+          AND (
+            t."termsAcceptedAt" IS NOT NULL
+            OR p."hasSignedTOS" = true
+          )
       ) AS trainers_total,
+      (
+        SELECT COUNT(*)::bigint
+        FROM "trainers" t
+        LEFT JOIN "trainer_profiles" p ON p."trainerId" = t."id"
+        WHERE t."deidentifiedAt" IS NULL
+          ${trainerSynthClause}
+          ${trainerEmailClause}
+          AND (
+            p."hasSignedTOS" = true
+            OR t."termsAcceptedAt" IS NOT NULL
+            OR p."complianceWindowStartedAt" IS NOT NULL
+            OR p."limitedDashboardUnlockedAt" IS NOT NULL
+            OR p."registrationFeeHoldStatus" IN ('HELD', 'CAPTURED')
+          )
+          AND (p."dashboardActivatedAt" IS NULL OR p."trainerId" IS NULL)
+      ) AS trainers_pending,
       (
         SELECT COUNT(*)::bigint
         FROM "trainers" t
@@ -133,6 +157,7 @@ async function queryHomeUserCounts(
         WHERE t."deidentifiedAt" IS NULL
           ${trainerSynthClause}
           ${trainerEmailClause}
+          AND p."hasSignedTOS" = true
           AND p."dashboardActivatedAt" IS NOT NULL
           AND (
             p."dashboardActivatedAt" >= NOW() - INTERVAL '60 days'
@@ -192,11 +217,12 @@ async function queryHomeUserCounts(
 
   const row = rows[0];
   if (!row) {
-    return { trainersTotal: 0, trainersActive: 0, clientsTotal: 0, clientsActive: 0 };
+    return { trainersTotal: 0, trainersPending: 0, trainersActive: 0, clientsTotal: 0, clientsActive: 0 };
   }
 
   return {
     trainersTotal: Number(row.trainers_total),
+    trainersPending: Number(row.trainers_pending),
     trainersActive: Number(row.trainers_active),
     clientsTotal: Number(row.clients_total),
     clientsActive: Number(row.clients_active),
@@ -204,8 +230,9 @@ async function queryHomeUserCounts(
 }
 
 /**
- * Homepage marketing counters. Trainers "active": dashboard onboarding completed and either
- * activated in the last 60 days or platform activity (messages, sessions, FitHub, punch-ins) in the last 7 days.
+ * Homepage marketing counters. Trainers total: accepted Terms of Service (includes pending onboarding).
+ * Trainers pending: accepted Terms or started onboarding, dashboard not fully live.
+ * Trainers active: ToS accepted, dashboard live, and recent activity.
  * Clients "active": billing in good standing (no platform sub, active sub, or grace window) or a subscription
  * invoice paid in the last 14 days (`stripeLastSubscriptionInvoicePaidAt`, maintained by Stripe webhooks).
  *

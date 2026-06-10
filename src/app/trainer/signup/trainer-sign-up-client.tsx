@@ -18,6 +18,7 @@ import { useMetaSignupFunnelStep } from "@/hooks/use-meta-signup-funnel-step";
 import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { trackMetaLead } from "@/lib/meta-pixel-funnel";
 import { TRAINER_SIGNUP_FLOW_OVERVIEW } from "@/lib/trainer-signup-payment-messaging";
+import { useSignupProgressReport } from "@/lib/use-signup-progress-report";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 const inputClass =
@@ -89,6 +90,23 @@ export default function TrainerSignUpClient() {
   const [resendBusy, setResendBusy] = useState(false);
   const [resendNotice, setResendNotice] = useState<string | null>(null);
   const turnstile = useTurnstileGate();
+  const reportSignupProgress = useSignupProgressReport("trainer");
+
+  useEffect(() => {
+    reportSignupProgress(
+      {
+        firstName: Boolean(firstName.trim()),
+        lastName: Boolean(lastName.trim()),
+        username: Boolean(username.trim()),
+        phone: Boolean(phone.trim()),
+        email: Boolean(email.trim()),
+        password: Boolean(password),
+        serviceZipCode: Boolean(serviceZipCode.trim()),
+        agreedToTerms: false,
+      },
+      { email, username },
+    );
+  }, [firstName, lastName, username, phone, email, password, serviceZipCode, reportSignupProgress]);
 
   const wizardFunnelStep = useMemo(
     () =>

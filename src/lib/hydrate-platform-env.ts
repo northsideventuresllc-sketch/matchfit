@@ -13,7 +13,7 @@ import { resetStripeClient } from "@/lib/stripe-server";
 
 let hydratePromise: Promise<void> | null = null;
 
-/** Loads live Stripe + Resend config from `platform_secrets` when Vercel env has placeholders. */
+/** Loads live Stripe, Resend, Anthropic, and NI Brain config from `platform_secrets` when env is missing. */
 export async function hydratePlatformEnvFromDatabase(): Promise<void> {
   if (hydratePromise) return hydratePromise;
 
@@ -76,6 +76,16 @@ export async function hydratePlatformEnvFromDatabase(): Promise<void> {
     const anthropicModel = await readPlatformSecret("ANTHROPIC_ADMIN_ANALYTICS_MODEL");
     if (anthropicModel) {
       process.env.ANTHROPIC_ADMIN_ANALYTICS_MODEL = anthropicModel;
+    }
+
+    const niBrainUrl = await readPlatformSecret("NI_BRAIN_SUPABASE_URL");
+    if (niBrainUrl) {
+      process.env.NI_BRAIN_SUPABASE_URL = niBrainUrl;
+    }
+
+    const niBrainServiceRoleKey = await readPlatformSecret("NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY");
+    if (niBrainServiceRoleKey) {
+      process.env.NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY = niBrainServiceRoleKey;
     }
 
     resetStripeClient();

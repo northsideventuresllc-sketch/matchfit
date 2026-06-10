@@ -11,18 +11,28 @@ import {
   launchClientStripeTrialCountWhere,
   launchPlatformSubscriberCountWhere,
   launchTrainerBeforeRegistrationPaymentWhere,
+  launchTrainerBeforeTermsWhere,
   launchTrainerIncompleteSignupWhere,
+  launchPendingTrainerWhere,
   launchTrainerCountWhere,
   activePendingClientRegistrationWhere,
   countLaunchClients,
+  countLaunchPendingTrainers,
   countLaunchTrainers,
+  getActivePendingClientRegistrationStats,
   countPendingClientRegistrations,
 } from "@/lib/launch-account-counts";
 
-const { mockClientCount, mockTrainerCount, mockPendingClientRegistrationCount } = vi.hoisted(() => ({
+const {
+  mockClientCount,
+  mockTrainerCount,
+  mockPendingClientRegistrationCount,
+  mockPendingClientRegistrationGroupBy,
+} = vi.hoisted(() => ({
   mockClientCount: vi.fn(),
   mockTrainerCount: vi.fn(),
   mockPendingClientRegistrationCount: vi.fn(),
+  mockPendingClientRegistrationGroupBy: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -35,6 +45,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     pendingClientRegistration: {
       count: mockPendingClientRegistrationCount,
+      groupBy: mockPendingClientRegistrationGroupBy,
     },
   },
 }));
@@ -66,20 +77,22 @@ describe("launch account count exclusions", () => {
     expect(where.internalQaSyntheticPersona).toBe(false);
     expect(where.NOT?.OR).toEqual(
       expect.arrayContaining([
-        { username: { in: expect.arrayContaining(["jbfitness6299"]), mode: "insensitive" } },
+        { username: { in: expect.arrayContaining(["jibbyjam22"]), mode: "insensitive" } },
       ]),
     );
   });
 
-  it("always excludes owner dev/test client jbfitness6299 from launch counts", () => {
-    expect(getLaunchExcludeUsernames("client")).toContain("jbfitness6299");
-    expect(getLaunchExcludeEmails("client")).toContain("jonnybooth22@gmail.com");
+  it("always excludes owner dev/test clients from launch counts but keeps owner client jbfitness6299", () => {
+    expect(getLaunchExcludeUsernames("client")).toEqual(
+      expect.arrayContaining(["jibbyjam22", "jonnybronny22", "twofa_tester"]),
+    );
+    expect(getLaunchExcludeUsernames("client")).not.toContain("jbfitness6299");
+    expect(getLaunchExcludeEmails("client")).not.toContain("jonnybooth22@gmail.com");
 
     const clientWhere = launchClientCountWhere();
     expect(clientWhere.NOT).toEqual({
       OR: expect.arrayContaining([
-        { username: { in: expect.arrayContaining(["jbfitness6299"]), mode: "insensitive" } },
-        { email: { in: expect.arrayContaining(["jonnybooth22@gmail.com"]) } },
+        { username: { in: expect.arrayContaining(["jibbyjam22", "jonnybronny22"]), mode: "insensitive" } },
       ]),
     });
   });
@@ -101,12 +114,12 @@ describe("launch account count exclusions", () => {
 
     expect(getLaunchExcludeEmails()).toEqual(
       expect.arrayContaining([
-        "jonnybooth22@gmail.com",
         "staff@example.com",
         "coach@dev.com",
         "member@dev.com",
       ]),
     );
+    expect(getLaunchExcludeEmails()).not.toContain("jonnybooth22@gmail.com");
   });
 
   it("launch count filters exclude synthetic personas, builtins, and internal emails", () => {
@@ -115,13 +128,19 @@ describe("launch account count exclusions", () => {
     const trainerWhere = launchTrainerCountWhere();
     expect(trainerWhere.deidentifiedAt).toBeNull();
     expect(trainerWhere.internalQaSyntheticPersona).toBe(false);
+    expect(trainerWhere.OR).toEqual(
+      expect.arrayContaining([
+        { termsAcceptedAt: { not: null } },
+        { profile: { is: { hasSignedTOS: true } } },
+      ]),
+    );
     expect(trainerWhere.NOT?.OR).toEqual(
       expect.arrayContaining([
         { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" } },
         { email: { endsWith: ".invalid", mode: "insensitive" } },
-        { email: { in: expect.arrayContaining(["jonnybooth22@gmail.com", "qa-coach@example.com"]) } },
+        { email: { in: expect.arrayContaining(["qa-coach@example.com"]) } },
         { username: { startsWith: "mfqst_", mode: "insensitive" } },
-        { username: { startsWith: "coachjonny22", mode: "insensitive" } },
+        { username: { in: expect.arrayContaining(["coachjonny22", "jibbyjam22"]), mode: "insensitive" } },
       ]),
     );
 
@@ -130,8 +149,7 @@ describe("launch account count exclusions", () => {
     expect(clientWhere.NOT?.OR).toEqual(
       expect.arrayContaining([
         { email: { endsWith: INTERNAL_SYNTHETIC_EMAIL_SUFFIX, mode: "insensitive" } },
-        { email: { in: expect.arrayContaining(["jonnybooth22@gmail.com"]) } },
-        { username: { startsWith: "jbfitness6299", mode: "insensitive" } },
+        { username: { in: expect.arrayContaining(["jibbyjam22", "jonnybronny22"]), mode: "insensitive" } },
       ]),
     );
   });
@@ -152,6 +170,7 @@ describe("launch-account-counts async", () => {
     mockClientCount.mockReset();
     mockTrainerCount.mockReset();
     mockPendingClientRegistrationCount.mockReset();
+    mockPendingClientRegistrationGroupBy.mockReset();
     delete process.env.MATCH_FIT_BETA_EXCLUDE_CAP_COUNT_EMAILS;
   });
 
@@ -172,7 +191,7 @@ describe("launch-account-counts async", () => {
     );
   });
 
-  it("counts launch trainers with exclusion rules", async () => {
+  it("counts launch trainers with ToS and exclusion rules", async () => {
     mockTrainerCount.mockResolvedValue(9);
 
     await expect(countLaunchTrainers()).resolves.toBe(9);
@@ -180,6 +199,28 @@ describe("launch-account-counts async", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           internalQaSyntheticPersona: false,
+          OR: expect.arrayContaining([
+            { termsAcceptedAt: { not: null } },
+            { profile: { is: { hasSignedTOS: true } } },
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it("counts pending launch trainers with dashboard-not-live + onboarding gates", async () => {
+    mockTrainerCount.mockResolvedValue(6);
+
+    await expect(countLaunchPendingTrainers()).resolves.toBe(6);
+    expect(mockTrainerCount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          NOT: { profile: { is: { dashboardActivatedAt: { not: null } } } },
+          OR: expect.arrayContaining([
+            { termsAcceptedAt: { not: null } },
+            { profile: { is: { hasSignedTOS: true } } },
+            { profile: { is: { complianceWindowStartedAt: { not: null } } } },
+          ]),
         }),
       }),
     );
@@ -194,6 +235,30 @@ describe("launch-account-counts async", () => {
         status: { in: ["PENDING_2FA", "AWAITING_PAYMENT"] },
         expiresAt: { gt: expect.any(Date) },
       },
+    });
+  });
+
+  it("returns grouped pending registration stats by status", async () => {
+    const now = new Date("2026-06-09T12:30:00.000Z");
+    mockPendingClientRegistrationGroupBy.mockResolvedValue([
+      { status: "PENDING_2FA", _count: { _all: 3 } },
+      { status: "AWAITING_PAYMENT", _count: { _all: 2 } },
+    ]);
+
+    await expect(getActivePendingClientRegistrationStats(now)).resolves.toEqual({
+      total: 5,
+      byStatus: {
+        PENDING_2FA: 3,
+        AWAITING_PAYMENT: 2,
+      },
+    });
+    expect(mockPendingClientRegistrationGroupBy).toHaveBeenCalledWith({
+      by: ["status"],
+      where: {
+        status: { in: ["PENDING_2FA", "AWAITING_PAYMENT"] },
+        expiresAt: { gt: now },
+      },
+      _count: { _all: true },
     });
   });
 });
@@ -255,6 +320,38 @@ describe("admin funnel count filters", () => {
         limitedDashboardUnlockedAt: null,
         registrationFeeHoldStatus: { notIn: ["HELD", "CAPTURED"] },
       },
+    });
+  });
+
+  it("pending trainer filter includes ToS or onboarding started with dashboard not live", () => {
+    const where = launchPendingTrainerWhere();
+    expect(where.NOT).toEqual({
+      profile: { is: { dashboardActivatedAt: { not: null } } },
+    });
+    expect(where.OR).toEqual(
+      expect.arrayContaining([
+        { termsAcceptedAt: { not: null } },
+        { profile: { is: { hasSignedTOS: true } } },
+        { profile: { is: { complianceWindowStartedAt: { not: null } } } },
+      ]),
+    );
+  });
+
+  it("platform trainer count includes pending trainers who accepted Terms on the trainer row", () => {
+    const where = launchTrainerCountWhere();
+    expect(where.OR).toEqual(
+      expect.arrayContaining([
+        { termsAcceptedAt: { not: null } },
+        { profile: { is: { hasSignedTOS: true } } },
+      ]),
+    );
+  });
+
+  it("pre-tos trainer filter excludes termsAcceptedAt and signed profile rows", () => {
+    const where = launchTrainerBeforeTermsWhere();
+    expect(where.termsAcceptedAt).toBeNull();
+    expect(where.NOT).toEqual({
+      profile: { is: { hasSignedTOS: true } },
     });
   });
 });
