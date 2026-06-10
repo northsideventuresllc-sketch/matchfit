@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { TrainerSignupStepNav } from "@/components/trainer/trainer-signup-step-nav";
 import { TurnstileField } from "@/components/turnstile-field";
 import { trackGoogleAdsConversion } from "@/lib/google-ads";
 import { trackMetaConversion } from "@/lib/meta-pixel";
@@ -17,8 +17,6 @@ import { useBetaLaunchStatus } from "@/hooks/use-beta-launch-status";
 import { useMetaSignupFunnelStep } from "@/hooks/use-meta-signup-funnel-step";
 import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { trackMetaLead } from "@/lib/meta-pixel-funnel";
-import { TRAINER_SIGNUP_FLOW_OVERVIEW } from "@/lib/trainer-signup-payment-messaging";
-import { useSignupProgressReport } from "@/lib/use-signup-progress-report";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 const inputClass =
@@ -30,45 +28,31 @@ function countPhoneDigits(phone: string): number {
   return phone.replace(/\D/g, "").length;
 }
 
-function isValidSignupServiceZip(zip: string): boolean {
-  return /^\d{5}(-\d{4})?$/.test(zip.trim());
-}
-
 function simpleEmailValid(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
-function formatTrainerSignupFinishError(error: string, code?: string): string {
-  if (code === "SCHEMA_OUT_OF_DATE") {
-    return "Sign-up is temporarily unavailable while we finish a database update. Try again in a few minutes.";
-  }
-  if (code === "EMAIL_TAKEN") {
-    return "That email already has a Match Fit trainer account. Try signing in instead.";
-  }
-  if (code === "USERNAME_TAKEN") {
-    return "That username is already taken. Choose a different username above, then try Finish again.";
-  }
-  if (code === "INVALID_SERVICE_ZIP") {
-    return "Enter a valid US ZIP code (5 digits) in the form above, then try Finish again.";
-  }
-  if (code === "EMAIL_NOT_CONFIRMED") {
-    return "Your email is not confirmed yet. Check your inbox, or tap Resend verification email.";
-  }
-  if (code === "SUPABASE_AUTH_FAILED" || code === "SUPABASE_PASSWORD_SYNC_FAILED") {
-    return "We could not verify your password. Re-enter the password from the form above, then try Finish again.";
-  }
-  if (error.toLowerCase().includes("captcha")) {
-    return "Complete the security check below, then tap Finish sign-up with password again.";
-  }
-  return error;
-}
+export type TrainerSignupResumeAccount = {
+  firstName: string;
+  lastName: string;
+  username: string;
+  email: string;
+  phone: string;
+  hasSignedTOS: boolean;
+  signupFeeComplete: boolean;
+};
 
-export default function TrainerSignUpClient() {
+type TrainerSignUpClientProps = {
+  resumeAccount?: TrainerSignupResumeAccount;
+};
+
+export default function TrainerSignUpClient({ resumeAccount }: TrainerSignUpClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const betaInviteFromUrl = searchParams.get("betaInvite")?.trim() || "";
   const [serviceZipCode, setServiceZipCode] = useState("");
   const { status: betaStatus, loading: betaStatusLoading } = useBetaLaunchStatus();
+  const betaGatesOn = betaStatus?.gatesEnabled === true;
   const trainerCapFull =
     betaStatus?.gatesEnabled === true &&
     betaStatus.trainerWaitlistOpen === true &&
@@ -90,23 +74,6 @@ export default function TrainerSignUpClient() {
   const [resendBusy, setResendBusy] = useState(false);
   const [resendNotice, setResendNotice] = useState<string | null>(null);
   const turnstile = useTurnstileGate();
-  const reportSignupProgress = useSignupProgressReport("trainer");
-
-  useEffect(() => {
-    reportSignupProgress(
-      {
-        firstName: Boolean(firstName.trim()),
-        lastName: Boolean(lastName.trim()),
-        username: Boolean(username.trim()),
-        phone: Boolean(phone.trim()),
-        email: Boolean(email.trim()),
-        password: Boolean(password),
-        serviceZipCode: Boolean(serviceZipCode.trim()),
-        agreedToTerms: false,
-      },
-      { email, username },
-    );
-  }, [firstName, lastName, username, phone, email, password, serviceZipCode, reportSignupProgress]);
 
   const wizardFunnelStep = useMemo(
     () =>
@@ -126,13 +93,6 @@ export default function TrainerSignUpClient() {
     [verificationEmailSent],
   );
   useMetaSignupFunnelStep(wizardFunnelStep);
-
-  const resetTurnstile = turnstile.reset;
-
-  useEffect(() => {
-    if (!verificationEmailSent) return;
-    resetTurnstile();
-  }, [verificationEmailSent, resetTurnstile]);
 
   useEffect(() => {
     if (!betaInviteFromUrl) return;
@@ -185,100 +145,46 @@ export default function TrainerSignUpClient() {
     return { ok: true };
   }
 
-  async function finishTrainerSignupOnServer(registerCore: {
-    firstName: string;
-    lastName: string;
-    username: string;
-    phone: string;
-    email: string;
-    password: string;
-    stayLoggedIn: boolean;
-    serviceZipCode: string;
-    betaInviteToken?: string;
-    turnstileToken?: string | null;
-  }): Promise<{ ok: true } | { ok: false; error: string; code?: string }> {
-    const res = await fetch("/api/trainer/complete-supabase-signup", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        firstName: registerCore.firstName,
-        lastName: registerCore.lastName,
-        username: registerCore.username,
-        phone: registerCore.phone,
-        email: registerCore.email,
-        password: registerCore.password,
-        stayLoggedIn: registerCore.stayLoggedIn,
-        serviceZipCode: registerCore.serviceZipCode,
-        agreedToTerms: true,
-        ...(registerCore.betaInviteToken ? { betaInviteToken: registerCore.betaInviteToken } : {}),
-        ...(registerCore.turnstileToken ? { turnstileToken: registerCore.turnstileToken } : {}),
-      }),
-    });
-    const data = (await res.json()) as { error?: string; next?: string; code?: string };
-    if (!res.ok) {
-      return {
-        ok: false,
-        error: data.error ?? "Could not finish creating your account.",
-        code: data.code,
-      };
-    }
-    navigateWithFullLoad(data.next ?? "/trainer/signup/terms");
-    return { ok: true };
-  }
-
   async function handleContinueWithPassword() {
     setError(null);
     setResendNotice(null);
     const emailNorm = email.trim().toLowerCase();
-    if (!firstName.trim() || !lastName.trim()) {
-      setError("Enter your first and last name.");
-      return;
-    }
-    const u = username.trim();
-    if (!u || u.length < 3) {
-      setError("Username must be at least 3 characters.");
-      return;
-    }
-    if (!phone.trim() || countPhoneDigits(phone) < 10) {
-      setError("Enter a valid phone number.");
-      return;
-    }
     if (!emailNorm || !password) {
       setError("Enter your email and password, then try again.");
       return;
     }
-    if (!isValidSignupServiceZip(serviceZipCode)) {
-      setError("Enter a valid US ZIP code (5 digits).");
-      return;
-    }
-    const tsErr = turnstile.validateBeforeSubmit();
-    if (tsErr) {
-      setError(tsErr);
+    const supabase = tryCreateMatchFitSupabaseBrowserClient();
+    if (!supabase) {
+      setError("Supabase client could not be created.");
       return;
     }
     setBusy(true);
     try {
-      const result = await finishTrainerSignupOnServer({
+      const { error: signInErr } = await supabase.auth.signInWithPassword({ email: emailNorm, password });
+      if (signInErr) {
+        setError(
+          signInErr.message.includes("Email not confirmed")
+            ? "Your email is not confirmed yet. Wait for the verification link or try Resend after the cooldown."
+            : signInErr.message || "Could not sign in. Check your password and try again.",
+        );
+        setBusy(false);
+        return;
+      }
+      writeTrainerSignupDraft({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        username: u,
+        username: username.trim(),
         phone: phone.trim(),
         email: emailNorm,
         password,
+        agreedToTerms: true,
         stayLoggedIn,
         serviceZipCode: serviceZipCode.trim(),
         ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
-        turnstileToken: turnstile.getCaptchaToken() ?? null,
       });
-      if (!result.ok) {
-        setError(formatTrainerSignupFinishError(result.error, result.code));
-        turnstile.reset();
-        setBusy(false);
-      }
+      navigateWithFullLoad("/trainer/signup/complete");
     } catch {
       setError("Something went wrong. Try again.");
-      turnstile.reset();
       setBusy(false);
     }
   }
@@ -356,9 +262,12 @@ export default function TrainerSignUpClient() {
       setError("Passwords do not match.");
       return;
     }
-    if (!isValidSignupServiceZip(serviceZipCode)) {
-      setError("Enter a valid US ZIP code (5 digits).");
-      return;
+    if (betaGatesOn) {
+      const z = serviceZipCode.trim();
+      if (!/^\d{5}(-\d{4})?$/.test(z)) {
+        setError("Enter your primary Atlanta metro ZIP (5 digits).");
+        return;
+      }
     }
     const tsErr = turnstile.validateBeforeSubmit();
     if (tsErr) {
@@ -456,18 +365,6 @@ export default function TrainerSignUpClient() {
             }
             trackGoogleAdsConversion("trainer_signup");
             trackMetaConversion("trainer_signup");
-            writeTrainerSignupDraft({
-              firstName: firstName.trim(),
-              lastName: lastName.trim(),
-              username: u,
-              phone: phone.trim(),
-              email: emailNorm,
-              password,
-              agreedToTerms: true,
-              stayLoggedIn,
-              serviceZipCode: serviceZipCode.trim(),
-              ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
-            });
             navigateWithFullLoad(data.next ?? "/trainer/signup/terms");
             return;
           }
@@ -480,21 +377,10 @@ export default function TrainerSignUpClient() {
         }
 
         if (!delivery.ok) {
-          if (delivery.code === "EMAIL_ALREADY_CONFIRMED") {
-            const finished = await finishTrainerSignupOnServer({
-              ...registerCore,
-              turnstileToken,
-            });
-            if (!finished.ok) {
-              setError(formatTrainerSignupFinishError(finished.error, finished.code));
-              setResendNotice("Your email is verified. Use Finish sign-up with password below.");
-              setVerificationEmailSent(true);
-              turnstile.reset();
-            }
-            setBusy(false);
-            return;
-          }
           setError(delivery.error ?? "We could not send the verification email.");
+          if (delivery.code === "EMAIL_ALREADY_CONFIRMED") {
+            setResendNotice("Your email looks verified already — try Continue with password below.");
+          }
           turnstile.reset();
           setVerificationEmailSent(true);
           setBusy(false);
@@ -527,18 +413,6 @@ export default function TrainerSignUpClient() {
       }
       trackGoogleAdsConversion("trainer_signup");
       trackMetaConversion("trainer_signup");
-      writeTrainerSignupDraft({
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        username: u,
-        phone: phone.trim(),
-        email: emailNorm,
-        password,
-        agreedToTerms: true,
-        stayLoggedIn,
-        serviceZipCode: serviceZipCode.trim(),
-        ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
-      });
       navigateWithFullLoad(data.next ?? "/trainer/signup/terms");
     } catch {
       setError("Something went wrong. Try again.");
@@ -559,27 +433,18 @@ export default function TrainerSignUpClient() {
       />
 
       <div className="relative z-10 mx-auto max-w-xl px-5 pb-20 pt-10 sm:px-8 sm:pt-14">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <Link href="/trainer/dashboard/login" className="flex items-center gap-3 opacity-90 transition hover:opacity-100">
-            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl sm:h-14 sm:w-14">
-              <Image src="/logo.png" alt="Match Fit" fill className="object-contain" sizes="56px" />
-            </div>
-            <div className="leading-none">
-              <p className="text-sm font-black tracking-tight sm:text-base">
-                <span className="text-[#E8EAEF]">Match</span> <span className="text-[#E32B2B]">Fit</span>
-              </p>
-            </div>
-          </Link>
-          <Link
-            href="/trainer/dashboard/login"
-            className="text-xs font-semibold uppercase tracking-wide text-white/50 transition hover:text-white/75"
-          >
-            Back to Sign-In
-          </Link>
-        </header>
+        <TrainerSignupStepNav currentStep={1} showSaveForLater={Boolean(resumeAccount)} />
 
-        <h1 className="mt-10 text-2xl font-black tracking-tight sm:mt-12 sm:text-3xl">Create Your Trainer Account</h1>
-        <p className="mt-3 text-sm leading-relaxed text-white/60 sm:text-base">{TRAINER_SIGNUP_FLOW_OVERVIEW}</p>
+        {!resumeAccount ? (
+          <p className="mt-2 text-sm leading-relaxed text-white/55 sm:text-base">
+            Enter your account details first. Next you will review the trainer agreement, authorize the signup fee, then
+            finish certification and background screening from your dashboard.
+          </p>
+        ) : (
+          <p className="mt-2 text-sm leading-relaxed text-white/55 sm:text-base">
+            Your trainer account is created. Review your details below, then continue to the agreement or payment step.
+          </p>
+        )}
 
         {betaInviteReserved ? (
           <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100/95">
@@ -589,7 +454,53 @@ export default function TrainerSignUpClient() {
         ) : null}
 
         <div className="mt-8 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
-          {betaStatusLoading ? (
+          {resumeAccount ? (
+            <div className="space-y-5">
+              <dl className="grid gap-4 text-sm sm:grid-cols-2">
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-white/45">Name</dt>
+                  <dd className="mt-1 font-semibold text-white">
+                    {[resumeAccount.firstName, resumeAccount.lastName].filter(Boolean).join(" ")}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-white/45">Username</dt>
+                  <dd className="mt-1 font-semibold text-white">@{resumeAccount.username}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-white/45">Email</dt>
+                  <dd className="mt-1 text-white/85">{resumeAccount.email}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-white/45">Phone</dt>
+                  <dd className="mt-1 text-white/85">{resumeAccount.phone}</dd>
+                </div>
+              </dl>
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                {!resumeAccount.hasSignedTOS ? (
+                  <Link
+                    href="/trainer/signup/terms"
+                    className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F]"
+                  >
+                    Continue to Agreement
+                  </Link>
+                ) : !resumeAccount.signupFeeComplete ? (
+                  <Link
+                    href="/trainer/signup/payment"
+                    className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F]"
+                  >
+                    Continue to Payment
+                  </Link>
+                ) : null}
+                <Link
+                  href="/trainer/dashboard/login"
+                  className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold tracking-wide text-white transition hover:border-white/25"
+                >
+                  Sign In
+                </Link>
+              </div>
+            </div>
+          ) : betaStatusLoading ? (
             <p className="text-sm text-white/50">Checking availability…</p>
           ) : trainerCapFull ? (
             <BetaCapFullSignupNotice
@@ -626,8 +537,8 @@ export default function TrainerSignUpClient() {
             >
               <p className="text-base font-black tracking-tight text-emerald-50">Verification email sent</p>
               <p className="mt-3 rounded-xl border border-[#FFD34E]/35 bg-[#FFD34E]/10 px-4 py-3 text-sm leading-relaxed text-[#FFF4D0]">
-                <span className="font-semibold text-white">Already verified?</span> Skip waiting for email and tap{" "}
-                <span className="font-semibold">Finish sign-up with password</span> below.
+                <span className="font-semibold text-white">Already verified?</span> You do not need to wait for email.
+                Tap <span className="font-semibold">Continue with password</span> below to finish sign-up.
               </p>
               <p className="mt-3 text-sm leading-relaxed text-emerald-100/85">
                 We sent a message to <span className="font-semibold text-white">{email.trim()}</span>. Open it and tap
@@ -652,11 +563,11 @@ export default function TrainerSignUpClient() {
               </button>
               <button
                 type="button"
-                disabled={busy || (turnstile.enabled && !turnstile.ready)}
+                disabled={busy}
                 onClick={() => void handleContinueWithPassword()}
                 className="mt-3 min-h-[2.75rem] w-full rounded-xl border border-white/15 bg-white/5 px-4 text-xs font-black uppercase tracking-[0.08em] text-white/85 transition hover:bg-white/10 disabled:opacity-50"
               >
-                {busy ? "Please wait…" : turnstile.enabled && !turnstile.ready ? "Complete security check…" : "Finish sign-up with password"}
+                {busy ? "Please wait…" : "Continue with password"}
               </button>
               <p className="mt-3 text-[11px] leading-relaxed text-emerald-100/55">
                 Already confirmed your email? Use Continue with password. Otherwise wait 2 minutes between Resend attempts.
@@ -739,26 +650,24 @@ export default function TrainerSignUpClient() {
               />
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label htmlFor="tr-su-zip" className={labelClass}>
-                Primary service ZIP
-              </label>
-              <input
-                id="tr-su-zip"
-                type="text"
-                inputMode="numeric"
-                autoComplete="postal-code"
-                required
-                value={serviceZipCode}
-                onChange={(e) => setServiceZipCode(e.target.value)}
-                placeholder="94102"
-                className={inputClass}
-              />
-              <p className="text-xs leading-relaxed text-white/40">
-                Used for matching and your public profile. Anyone in the U.S. can sign up; in-person sessions are
-                available in the Atlanta metro area during beta.
-              </p>
-            </div>
+            {betaGatesOn ? (
+              <div className="flex flex-col gap-2">
+                <label htmlFor="tr-su-zip" className={labelClass}>
+                  Primary service ZIP (Atlanta metro)
+                </label>
+                <input
+                  id="tr-su-zip"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  required
+                  value={serviceZipCode}
+                  onChange={(e) => setServiceZipCode(e.target.value)}
+                  placeholder="30301"
+                  className={inputClass}
+                />
+              </div>
+            ) : null}
 
             <div className="flex flex-col gap-2">
               <label htmlFor="tr-su-email" className={labelClass}>
@@ -869,15 +778,17 @@ export default function TrainerSignUpClient() {
           )}
         </div>
 
-        <p className="mt-8 text-center text-xs text-white/40">
-          <button
-            type="button"
-            onClick={() => router.push("/trainer/dashboard/login")}
-            className="underline-offset-4 transition hover:text-white/60 hover:underline"
-          >
-            Already have an account?
-          </button>
-        </p>
+        {!resumeAccount ? (
+          <p className="mt-8 text-center text-xs text-white/40">
+            <button
+              type="button"
+              onClick={() => router.push("/trainer/dashboard/login")}
+              className="underline-offset-4 transition hover:text-white/60 hover:underline"
+            >
+              Already have an account?
+            </button>
+          </p>
+        ) : null}
       </div>
     </main>
   );

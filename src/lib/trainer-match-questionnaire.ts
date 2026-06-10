@@ -1,4 +1,3 @@
-import { inPersonServiceZipValidationError } from "@/lib/trainer-in-person-service-area";
 import { z } from "zod";
 
 export const BILLING_UNITS = [
@@ -160,11 +159,11 @@ export const trainerMatchQuestionnaireSchema = z
       });
     }
     if (data.offersInPerson) {
-      const zipErr = inPersonServiceZipValidationError(data.inPersonZip);
-      if (zipErr) {
+      const zip = data.inPersonZip?.trim() ?? "";
+      if (!/^\d{5}(-\d{4})?$/.test(zip)) {
         ctx.addIssue({
           code: "custom",
-          message: zipErr,
+          message: "Enter a valid US ZIP code (5 digits or ZIP+4) for your in-person service area.",
           path: ["inPersonZip"],
         });
       }

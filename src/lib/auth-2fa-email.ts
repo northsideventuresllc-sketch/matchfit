@@ -79,9 +79,6 @@ export async function send2FACode(
   userType: "CLIENT" | "TRAINER",
   opts?: Send2FACodeOptions,
 ): Promise<void> {
-  const { hydratePlatformEnvFromDatabase } = await import("@/lib/hydrate-platform-env");
-  await hydratePlatformEnvFromDatabase();
-
   const code = generateSixDigitNumericString();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
   const norm = normalizeEmail(email);

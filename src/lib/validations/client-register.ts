@@ -68,14 +68,13 @@ export const passwordPolicySchema = z
 export const registerProfileSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required.").max(80),
   lastName: z.string().trim().min(1, "Last name is required.").max(80),
-  preferredName: z.string().trim().max(80).optional(),
+  preferredName: z.string().trim().min(1, "Preferred name is required.").max(80),
   username: z
     .string()
     .trim()
     .min(3, "Username must be at least 3 characters.")
     .max(32)
-    .regex(/^[a-zA-Z0-9_]+$/, "Username may only use letters, numbers, and underscores.")
-    .optional(),
+    .regex(/^[a-zA-Z0-9_]+$/, "Username may only use letters, numbers, and underscores."),
   phone: z
     .string()
     .trim()

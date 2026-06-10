@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { generateOutreachLeads } from "@/lib/outreach-ai";
 import { requireAdminSession } from "@/lib/require-admin";
-
-export const maxDuration = 300;
 
 const bodySchema = z.object({
   platform: z.enum(["instagram", "facebook", "email", "other"]),
@@ -26,7 +23,6 @@ export async function POST(req: Request) {
   }
 
   try {
-    await hydratePlatformEnvFromDatabase();
     const result = await generateOutreachLeads({
       platform: parsed.data.platform,
       atlCount: parsed.data.atlCount,

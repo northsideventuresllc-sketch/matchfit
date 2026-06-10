@@ -3,11 +3,6 @@ import { redirect } from "next/navigation";
 import { DEFAULT_ADMIN_DASHBOARD_LAYOUT } from "@/lib/admin-dashboard-layout";
 import { loadAdminDashboardLayout } from "@/lib/admin-dashboard-layout-server";
 import { getAdminAuditLog, getAdminPortalOverview, type AdminPortalOverview } from "@/lib/admin-portal-data";
-import {
-  ensureAdminPortalSchema,
-  isAdminPortalConnectionError,
-  isAdminPortalSchemaError,
-} from "@/lib/ensure-admin-portal-schema";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/session";
 import { AdminDashboardClient } from "./admin-dashboard-client";
@@ -33,7 +28,6 @@ export default async function AdminHomePage() {
   let auditLog: Awaited<ReturnType<typeof getAdminAuditLog>> = [];
 
   try {
-    await ensureAdminPortalSchema();
     overview = await getAdminPortalOverview();
     auditLog = await getAdminAuditLog(25);
   } catch (e) {
@@ -47,11 +41,7 @@ export default async function AdminHomePage() {
       message.includes("admin_ai_messages");
     loadError = missingReportingTable
       ? "Administrator reporting tables could not be initialized. From the project root run `npm run db:migrate` (production) or `npm run db:push` (local), then reload. If this persists, check server logs for database permissions."
-      : isAdminPortalConnectionError(e)
-        ? "Could not reach the production database from Vercel. Confirm DATABASE_URL uses the Supabase transaction pooler (port 6543) and redeploy."
-        : isAdminPortalSchemaError(e)
-          ? "Administrator database permissions need repair. Reload once — the app will retry schema repair automatically."
-          : "Could not load the administrator dashboard. Check database connectivity and server logs.";
+      : "Could not load the administrator dashboard. Check database connectivity and server logs.";
   }
 
   if (loadError) {

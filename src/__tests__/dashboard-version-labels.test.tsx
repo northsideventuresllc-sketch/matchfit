@@ -49,8 +49,7 @@ import type { AdminPortalOverview } from "@/lib/admin-portal-types";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
 
 const EMPTY_OVERVIEW: AdminPortalOverview = {
-  computedAt: "2026-06-05T12:00:00.000Z",
-  userCounts: { trainersTotal: 7, trainersPending: 1, trainersActive: 5, clientsTotal: 12, clientsActive: 10 },
+  userCounts: { trainersTotal: 7, trainersActive: 5, clientsTotal: 12, clientsActive: 10 },
   revenue: {
     revenueCents: 0,
     grossProfitCents: 0,
@@ -69,66 +68,33 @@ const EMPTY_OVERVIEW: AdminPortalOverview = {
     pageViews: 0,
     uniqueVisitors: 0,
     linkClicks: 0,
-    formEvents: {
-      fieldFocus: 0,
-      submitAttempts: 0,
-      submitErrors: 0,
-      submitSuccesses: 0,
-    },
     topPages: [],
     topLinks: [],
     daily: [],
     recentEvents: [],
   },
-  memberOverview: {
-    totalActiveMembers: 0,
-    totalMembers: 0,
-    freeTrialClients: 0,
-    subscribedClients: 0,
-    inactiveClients: 0,
-    uniqueSiteVisitorsAllTime: 0,
-    pendingTrainers: 0,
-    compliantActiveTrainers: 0,
-    inactiveTrainers: 0,
-  },
+  recentSignups: [],
   recentFeatured: [],
-  siteActivity: {
-    activeMembersNow: 0,
+  funnel: {
+    homepageVisits: 0,
+    totalSiteVisits: 0,
+    clientSignupPageViews: 0,
+    clientsReachedSignupWithoutAccount: 0,
+    trainerSignupPageViews: 0,
+    trainersReachedSignupWithoutAccount: 0,
+    activeOnSiteNow: 0,
     clientLoginsByRecency: { h12: 0, h24: 0, d7: 0, d30: 0, d90: 0, d180: 0, d365: 0 },
     trainerLoginsByRecency: { h12: 0, h24: 0, d7: 0, d30: 0, d90: 0, d180: 0, d365: 0 },
+    pendingClientRegistrations: { total: 0, byStatus: {} },
+    incompleteTrainerSignups: 0,
+    trainersSignupBeforeBackgroundCheck: 0,
+    clientsInFreeTrial: 0,
+    activeClientSubscriptions: 0,
     topClientFunctions: [],
     topTrainerFunctions: [],
+    analyticsAvailable: false,
   },
-  adPerformance: {
-    windowDays: 7,
-    totals: {
-      meta: { spendCents: 0, clicks: 0, impressions: 0 },
-      google: { spendCents: 0, clicks: 0, impressions: 0 },
-      attributedPageViews: 0,
-      attributedSignupViews: 0,
-    },
-    integrations: [],
-    attribution: [],
-  },
-  clientPipeline: { stages: [], entries: [] },
-  pipeline: { totalInPipeline: 0, stages: [], pendingTrainers: [] },
-  premiumActivity: {
-    premiumTrainers: 0,
-    featuredSlotsToday: 0,
-    activeAdvertisements: 0,
-    tokenRevenueCents: 0,
-    recentBids: [],
-  },
-  emailStats: {
-    windowDays: 7,
-    totalAttempts: 0,
-    sent: 0,
-    skippedPrefs: 0,
-    skippedNoRecipient: 0,
-    failed: 0,
-    byKind: [],
-    recent: [],
-  },
+  pipeline: { totalInPipeline: 0, stages: [] },
   finances: {
     windows: {
       "24h": { revenueCents: 0, grossProfitCents: 0, byCategory: {}, platformFeesCents: 0, leadingRevenueFactor: null },
@@ -140,9 +106,6 @@ const EMPTY_OVERVIEW: AdminPortalOverview = {
     },
     lifetime: { revenueCents: 0, grossProfitCents: 0, byCategory: {}, platformFeesCents: 0, leadingRevenueFactor: null, eventCount: 0 },
     clientsInFreeTrial: 0,
-    clientsInPlatformTrial: 0,
-    clientsInStripeTrial: 0,
-    clientsInPlatformPaymentGrace: 0,
     pendingSubscriptionStop: null,
     paymentFailedInGrace: 0,
     clientsWithCard: 0,
@@ -155,7 +118,7 @@ const EMPTY_OVERVIEW: AdminPortalOverview = {
   },
   alerts: { groups: [] },
   platformSummary: {
-    userCounts: { trainersTotal: 0, trainersPending: 0, trainersActive: 0, clientsTotal: 0, clientsActive: 0 },
+    userCounts: { trainersTotal: 0, trainersActive: 0, clientsTotal: 0, clientsActive: 0 },
     stabilityScore: 0,
     stabilityNotes: [],
     securityScore: 0,
@@ -171,31 +134,6 @@ const EMPTY_OVERVIEW: AdminPortalOverview = {
         marketingBudgetUsd: 70,
         daysSinceLaunch: 0,
       },
-    },
-    potentialSuccess: {
-      score: 0,
-      currentScore: 0,
-      uplift: 0,
-      successRating: {
-        score: 0,
-        factors: [],
-        meta: {
-          launchDate: "2026-05-21",
-          marketingStartDate: "2026-05-25",
-          marketingBudgetUsd: 70,
-          daysSinceLaunch: 0,
-        },
-      },
-      assumptions: [],
-    },
-    valuation: {
-      valuationCents: 0,
-      subscriptionArrCents: 0,
-      transactionalArrCents: 0,
-      totalArrCents: 0,
-      revenueMultiple: 3,
-      networkValueCents: 0,
-      method: "Beta marketplace heuristic",
     },
     potentialRating: {
       score: 0,
@@ -268,6 +206,6 @@ describe("dashboard version labels", () => {
       />,
     );
 
-    expect(html).toContain(`v${MATCH_FIT_PRODUCT_VERSION_LABEL}`);
+    expect(html).toContain(`Version ${MATCH_FIT_PRODUCT_VERSION_LABEL}`);
   });
 });

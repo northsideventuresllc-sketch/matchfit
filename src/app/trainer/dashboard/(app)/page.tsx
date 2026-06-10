@@ -13,10 +13,6 @@ import { TRAINER_MATCH_QUESTIONNAIRES_PATH } from "@/lib/trainer-match-questionn
 import { trainerPublishedProfilePath } from "@/lib/trainer-public-profile-route";
 import { evaluateTrainerComplianceWindow } from "@/lib/trainer-compliance-window";
 import { hasTrainerFullPlatformAccess } from "@/lib/trainer-full-access";
-import {
-  trainerOnboardingFeeDaysRemaining,
-  trainerOnboardingFeeIsPaid,
-} from "@/lib/trainer-onboarding-fee-deadline";
 import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
 import { getSessionTrainerId } from "@/lib/session";
 import { isPrismaMissingColumnError, isPrismaUnknownModelFieldError } from "@/lib/prisma-missing-column";
@@ -75,8 +71,6 @@ export default async function TrainerDashboardHomePage() {
           registrationFeeHoldStatus: true,
           hasPaidRegistrationFee: true,
           hasPaidBackgroundFee: true,
-          onboardingFeePaymentDeadlineAt: true,
-          onboardingFeePaymentExpiredAt: true,
           complianceWindowStartedAt: true,
           complianceWindowPausedAt: true,
           complianceCertReuploadDeadlineAt: true,
@@ -112,10 +106,6 @@ export default async function TrainerDashboardHomePage() {
   const fullAccess = hasTrainerFullPlatformAccess(profile);
   const complianceWindow = profile ? evaluateTrainerComplianceWindow(profile) : null;
   const showCompliancePanel = Boolean(profile?.limitedDashboardUnlockedAt && !fullAccess);
-  const showOnboardingFeeBanner = Boolean(
-    profile && !trainerOnboardingFeeIsPaid(profile) && profile.limitedDashboardUnlockedAt,
-  );
-  const onboardingFeeDaysLeft = trainerOnboardingFeeDaysRemaining(profile);
 
   const QUICK_LINKS_JSON_COL = "dashboardQuickLinkIdsJson";
   let dashboardQuickLinkIds: TrainerDashboardQuickLinkId[] = [];
@@ -141,26 +131,6 @@ export default async function TrainerDashboardHomePage() {
           Signed in as <span className="text-white/75">@{trainer.username}</span>
         </p>
       </header>
-
-      {showOnboardingFeeBanner ? (
-        <section className="mx-auto max-w-2xl rounded-2xl border border-[#FF7E00]/35 bg-[#FF7E00]/10 px-5 py-4 text-sm leading-relaxed text-white/85">
-          <p className="font-black uppercase tracking-[0.12em] text-[#FFD34E]">Onboarding fee due</p>
-          <p className="mt-2">
-            Place your temporary signup fee hold within{" "}
-            <span className="font-semibold text-white">
-              {onboardingFeeDaysLeft === 0 ? "today" : `${onboardingFeeDaysLeft} day${onboardingFeeDaysLeft === 1 ? "" : "s"}`}
-            </span>{" "}
-            to keep your account active. You can upload certification and complete background screening while you finish
-            payment.
-          </p>
-          <Link
-            href="/trainer/signup/payment"
-            className="mt-4 inline-flex min-h-[2.75rem] items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-5 text-xs font-black uppercase tracking-[0.08em] text-[#0B0C0F]"
-          >
-            Place fee hold
-          </Link>
-        </section>
-      ) : null}
 
       {showCompliancePanel && complianceWindow && profile ? (
         <TrainerDashboardComplianceOnboarding

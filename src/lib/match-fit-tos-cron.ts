@@ -16,7 +16,6 @@ import { finalizeDueAccountDeletions } from "@/lib/account-deletion-grace";
 import { runClientPlatformBillingLifecycleJobs } from "@/lib/client-platform-lifecycle";
 import { runBetaWaitlistCronJobs } from "@/lib/beta-waitlist-service";
 import { processTrainerComplianceWindowExpirations } from "@/lib/trainer-compliance-window-cron";
-import { processTrainerOnboardingFeeDeadlineExpirations } from "@/lib/trainer-onboarding-fee-deadline-cron";
 
 export type TosCronSummary = {
   backgroundCheckWarningsSent: number;
@@ -47,7 +46,6 @@ export type TosCronSummary = {
     accountsDeactivated: number;
   };
   trainerComplianceWindowsExpired: number;
-  trainerOnboardingFeeDeadlinesExpired: number;
 };
 
 async function backfillApprovedBackgroundCheckTimestamps(): Promise<number> {
@@ -238,16 +236,10 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     console.error("[tos cron] client platform billing lifecycle", e);
   }
   let trainerComplianceWindowsExpired = 0;
-  let trainerOnboardingFeeDeadlinesExpired = 0;
   try {
     trainerComplianceWindowsExpired = await processTrainerComplianceWindowExpirations();
   } catch (e) {
     console.error("[tos cron] trainer compliance window", e);
-  }
-  try {
-    trainerOnboardingFeeDeadlinesExpired = await processTrainerOnboardingFeeDeadlineExpirations();
-  } catch (e) {
-    console.error("[tos cron] trainer onboarding fee deadline", e);
   }
   return {
     backgroundCheckClearedBackfill: backfill,
@@ -267,6 +259,5 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     accountDeletions,
     clientPlatformBilling,
     trainerComplianceWindowsExpired,
-    trainerOnboardingFeeDeadlinesExpired,
   };
 }

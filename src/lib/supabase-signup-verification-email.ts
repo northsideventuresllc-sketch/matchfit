@@ -1,4 +1,5 @@
 import "server-only";
+import { prisma } from "@/lib/prisma";
 import { MF_EMAIL_SITE } from "@/lib/match-fit-email-brand";
 import {
   escapeHtmlEmail,
@@ -7,7 +8,6 @@ import {
 } from "@/lib/match-fit-email-shell";
 import { sendMatchFitBrandedEmail } from "@/lib/match-fit-branded-email";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin-client";
-import { findSupabaseAuthUserByEmail } from "@/lib/supabase/find-auth-user-by-email";
 import { getSupabaseEmailCallbackUrl } from "@/lib/supabase/email-callback-url";
 
 export type SupabaseSignupVerificationRole = "trainer" | "client";
@@ -62,13 +62,13 @@ type AuthUserRow = {
 };
 
 async function findAuthUserByEmail(email: string): Promise<AuthUserRow | null> {
-  const user = await findSupabaseAuthUserByEmail(email);
-  if (!user) return null;
-  return {
-    id: user.id,
-    email_confirmed_at: user.email_confirmed_at,
-    raw_user_meta_data: user.raw_user_meta_data,
-  };
+  const rows = await prisma.$queryRaw<AuthUserRow[]>`
+    SELECT id, "email_confirmed_at", raw_user_meta_data
+    FROM auth.users
+    WHERE lower(email) = lower(${email})
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
 }
 
 function mapSupabaseAuthError(error: { message?: string; status?: number }): EnsureSupabaseAuthSignupUserResult {

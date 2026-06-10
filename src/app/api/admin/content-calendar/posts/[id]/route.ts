@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { updatePostCaption } from "@/lib/content-calendar/content-calendar-store";
-import { isNiBrainConfiguredAsync, recordContentLearning } from "@/lib/ni-brain-client";
+import { isNiBrainConfigured, recordContentLearning } from "@/lib/ni-brain-client";
 import { requireAdminSession } from "@/lib/require-admin";
 
 const patchSchema = z.object({
@@ -14,7 +14,7 @@ const patchSchema = z.object({
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const sess = await requireAdminSession();
   if (!sess) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-  if (!(await isNiBrainConfiguredAsync())) {
+  if (!isNiBrainConfigured()) {
     return NextResponse.json({ error: "NI Brain is not configured." }, { status: 503 });
   }
 

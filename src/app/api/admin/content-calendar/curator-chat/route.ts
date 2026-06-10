@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { generateSinglePost } from "@/lib/content-calendar/content-calendar-ai";
+import { runContentCuratorChat } from "@/lib/content-calendar/content-calendar-ai";
 import { requireAdminSession } from "@/lib/require-admin";
 
 const bodySchema = z.object({
-  platform: z.string().min(1),
-  contentType: z.string().min(1),
-  tone: z.string().min(1),
-  customNote: z.string().optional(),
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string().min(1).max(4000),
+      }),
+    )
+    .max(40),
 });
 
 export async function POST(req: Request) {
@@ -18,13 +22,13 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
 
   try {
-    const result = await generateSinglePost(parsed.data);
+    const result = await runContentCuratorChat(parsed.data.messages);
     if (!result) {
-      return NextResponse.json({ error: "Generation failed. Check AI API keys." }, { status: 502 });
+      return NextResponse.json({ error: "Curator unavailable. Check AI API keys." }, { status: 502 });
     }
     return NextResponse.json({ result });
   } catch (e) {
-    console.error("[content-calendar generate]", e);
-    return NextResponse.json({ error: "Generation failed." }, { status: 500 });
+    console.error("[content-calendar curator-chat]", e);
+    return NextResponse.json({ error: "Curator request failed." }, { status: 500 });
   }
 }

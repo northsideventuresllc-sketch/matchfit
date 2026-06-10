@@ -355,12 +355,7 @@ export async function getAdAttributionRows(windowDays = 7): Promise<AdAttributio
       signupPageViews: Number(r.signup_views),
     }));
   } catch (e) {
-    if (
-      isPrismaMissingColumnError(e, "utmSource") ||
-      isPrismaMissingTableError(e, "site_analytics_events")
-    ) {
-      return [];
-    }
+    if (isPrismaMissingColumnError(e) || isPrismaMissingTableError(e)) return [];
     throw e;
   }
 }
@@ -385,7 +380,7 @@ export async function getAdPerformancePanel(windowDays = 7): Promise<AdPerforman
       syncedAt: r.updatedAt.toISOString(),
     }));
   } catch (e) {
-    if (!isPrismaMissingTableError(e, "ad_platform_daily_snapshots")) throw e;
+    if (!isPrismaMissingTableError(e)) throw e;
   }
 
   const attribution = await getAdAttributionRows(days);
@@ -423,7 +418,7 @@ export async function getAdPerformancePanel(windowDays = 7): Promise<AdPerforman
     attributedPageViews = Number(pvRow[0]?.n ?? 0);
     attributedSignupViews = Number(signupRow[0]?.n ?? 0);
   } catch (e) {
-    if (!isPrismaMissingColumnError(e, "utmSource")) throw e;
+    if (!isPrismaMissingColumnError(e)) throw e;
   }
 
   return {

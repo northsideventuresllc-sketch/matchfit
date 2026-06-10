@@ -44,7 +44,7 @@ async function createClientSubscriptionCheckout(args: {
   const session = await args.stripe.checkout.sessions.create({
     mode: "subscription",
     customer_email: args.customerEmail,
-    payment_method_collection: "if_required",
+    payment_method_collection: "always",
     line_items: [{ price: args.priceId, quantity: 1 }],
     success_url: `${origin}${successPath}`,
     cancel_url: `${origin}/client/dashboard/billing?canceled=1`,

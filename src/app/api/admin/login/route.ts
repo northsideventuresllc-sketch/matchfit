@@ -1,12 +1,6 @@
 import { normalizeAdministratorCodeInput } from "@/lib/admin-code";
-import {
-  ensureAdminPortalSchema,
-  isAdminPortalConnectionError,
-  isAdminPortalSchemaError,
-} from "@/lib/ensure-admin-portal-schema";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
-import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { applyAdminSessionToNextResponse } from "@/lib/session";
 import { verifyTurnstileToken } from "@/lib/turnstile-verify";
 import { NextResponse } from "next/server";
@@ -30,23 +24,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: turn.error }, { status: turn.status });
     }
 
-    await ensureAdminPortalSchema();
-
     const code = normalizeAdministratorCodeInput(parsed.data.adminCode);
     const admin = await prisma.administrator.findUnique({ where: { adminCode: code } });
-
     const ok = admin ? await verifyPassword(parsed.data.password, admin.passwordHash) : false;
 
     await new Promise((r) => setTimeout(r, 320));
 
     if (!admin || !ok) {
-      return NextResponse.json(
-        {
-          error:
-            "Invalid administrator code or password. Sign in with your 8-character administrator code (not your email). If you recently requested access, wait for the approval email first.",
-        },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Invalid administrator code or password." }, { status: 401 });
     }
 
     const rememberMe = parsed.data.stayLoggedIn !== false;
@@ -57,29 +42,7 @@ export async function POST(req: Request) {
     await applyAdminSessionToNextResponse(res, admin.id, rememberMe, false);
     return res;
   } catch (e) {
-    if (isAdminPortalSchemaError(e)) {
-      try {
-        await ensureAdminPortalSchema();
-        return NextResponse.json(
-          { error: "Please try signing in again — we just finished a quick database update." },
-          { status: 503 },
-        );
-      } catch (repairErr) {
-        console.error("[admin login] schema repair failed", repairErr);
-      }
-    }
-    if (isAdminPortalConnectionError(e)) {
-      return NextResponse.json(
-        {
-          error:
-            "We could not reach the administrator database. This is usually a temporary connection issue — wait a minute and try again. If it persists, verify DATABASE_URL on Vercel uses the Supabase pooler URL (not db.*.supabase.co).",
-        },
-        { status: 503 },
-      );
-    }
-    const { message, status } = publicApiErrorFromUnknown(e, "Could Not Sign You In.", {
-      logLabel: "[admin login]",
-    });
-    return NextResponse.json({ error: message }, { status });
+    console.error("[admin login]", e);
+    return NextResponse.json({ error: "Could Not Sign You In." }, { status: 500 });
   }
 }

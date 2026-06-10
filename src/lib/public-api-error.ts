@@ -1,6 +1,5 @@
 import { Prisma } from "@/generated/prisma/client";
 import { httpStatusFromResendError } from "@/lib/resend-client";
-import { stripeApiErrorMessage } from "@/lib/stripe-api-error";
 import { isMissingClientPlatformTrialColumnError } from "@/lib/ensure-client-platform-trial-schema";
 import { isPrismaMissingColumnError, isPrismaMissingTableError } from "@/lib/prisma-missing-column";
 
@@ -24,16 +23,6 @@ export function publicApiErrorFromUnknown(
   if (e instanceof Prisma.PrismaClientKnownRequestError) {
     if (e.code === "P2034") {
       return { message: DB_BUSY_USER_MESSAGE, status: 503 };
-    }
-    if (e.code === "P2002") {
-      const target = Array.isArray(e.meta?.target) ? e.meta.target.join(",") : String(e.meta?.target ?? "");
-      if (target.includes("email")) {
-        return { message: "That email is already registered.", status: 409 };
-      }
-      if (target.includes("username")) {
-        return { message: "That username is already taken.", status: 409 };
-      }
-      return { message: "That account detail is already in use.", status: 409 };
     }
     if (e.code === "P2021" || e.code === "P2022") {
       return {
@@ -62,11 +51,6 @@ export function publicApiErrorFromUnknown(
     if (DB_BUSY_RE.test(e.message)) {
       return { message: DB_BUSY_USER_MESSAGE, status: 503 };
     }
-  }
-
-  const stripeMessage = stripeApiErrorMessage(e);
-  if (stripeMessage) {
-    return { message: stripeMessage, status: 502 };
   }
 
   if (e instanceof Error) {

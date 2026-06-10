@@ -6,7 +6,6 @@ import type {
   AdminAlertItem,
   AdminAlertSeverity,
   AdminAlertsPanel,
-  AdminClientPipelinePanel,
   AdminFinanceBestSeller,
   AdminFinanceRecentTransaction,
   AdminFinanceWindowKey,
@@ -15,53 +14,31 @@ import type {
   AdminLoginRecencyBuckets,
   AdminPlatformFunctionStat,
   AdminPlatformSummaryPanel,
-  AdminPremiumTrainerActivityPanel,
   AdminRevenueByCategory,
-  AdminSiteActivityPanel,
-  AdminTrainerPipelineEntry,
   AdminTrainerPipelinePanel,
   AdminTrainerPipelineStage,
   AdminTrafficFunnelPanel,
 } from "@/lib/admin-portal-types";
-import { getAdminEmailStatsPanel } from "@/lib/transactional-email-delivery-log";
-import {
-  listFilledSignupFields,
-  parseSignupFieldsJson,
-  signupFieldsForRole,
-} from "@/lib/signup-form-progress";
 import { getHomeUserCounts } from "@/lib/home-user-counts";
-import { isMissingClientPlatformTrialColumnError } from "@/lib/ensure-client-platform-trial-schema";
-import { isMissingTrainerRegisterSchemaError } from "@/lib/ensure-trainer-register-schema";
 import { isPrismaMissingColumnError, isPrismaMissingTableError } from "@/lib/prisma-missing-column";
 import { prisma } from "@/lib/prisma";
-import { computePotentialSuccessScore } from "@/lib/platform-potential-success";
 import {
   computeMarketCompetitivenessProxy,
   computePlatformSuccessRating,
   daysSinceLaunch,
 } from "@/lib/platform-success-rating";
-import { computePlatformValuation } from "@/lib/platform-valuation";
 import { computePlatformGrowthProjection } from "@/lib/platform-growth-projection";
 import { computePlatformPotentialRating } from "@/lib/platform-potential-rating";
 import type { PlatformRevenueCategory } from "@/lib/platform-revenue-accounting";
 import { LIVE_PLATFORM_REVENUE_WHERE, mergeLiveRevenueWhere } from "@/lib/platform-revenue-filters";
 import {
-  activePendingClientRegistrationWhere,
-  countLaunchPlatformSubscribers,
   countLaunchPremiumTrainers,
-  getActivePendingClientRegistrationStats,
+  countLaunchPlatformSubscribers,
   launchClientBillingGraceWhere,
   launchClientCountWhere,
   launchClientFreeTrialCountWhere,
-  launchClientPlatformPaymentGraceWhere,
-  launchClientPlatformTrialCountWhere,
-  launchClientStripeTrialCountWhere,
   launchClientWithCardWhere,
-  launchTrainerBeforeRegistrationPaymentWhere,
-  launchTrainerBeforeTermsWhere,
   launchTrainerCountWhere,
-  launchPendingTrainerWhere,
-  launchTrainerIncompleteSignupWhere,
 } from "@/lib/launch-account-counts";
 import { buildLaunchMetricsClientSqlFilter, buildLaunchMetricsTrainerSqlFilter } from "@/lib/admin-portal-list-filters";
 import { parseTopOffering } from "@/lib/admin-portal-parsers";
@@ -104,83 +81,6 @@ type CountRow = { n: bigint };
 
 function n(row: CountRow | undefined): number {
   return Number(row?.n ?? BigInt(0));
-}
-
-function isRecoverableAdminMetricsError(e: unknown): boolean {
-  if (isMissingClientPlatformTrialColumnError(e)) return true;
-  if (isMissingTrainerRegisterSchemaError(e)) return true;
-  if (isPrismaMissingTableError(e, "pending_client_registrations")) return true;
-  if (e instanceof Prisma.PrismaClientValidationError) return true;
-  return false;
-}
-
-async function safeClientCount(where: Prisma.ClientWhereInput, fallback = 0): Promise<number> {
-  try {
-    return await prisma.client.count({ where });
-  } catch (e) {
-    if (isRecoverableAdminMetricsError(e)) {
-      console.warn("[admin metrics] client count fallback", e);
-      return fallback;
-    }
-    throw e;
-  }
-}
-
-async function safeTrainerCount(where: Prisma.TrainerWhereInput, fallback = 0): Promise<number> {
-  try {
-    return await prisma.trainer.count({ where });
-  } catch (e) {
-    if (isRecoverableAdminMetricsError(e)) {
-      console.warn("[admin metrics] trainer count fallback", e);
-      return fallback;
-    }
-    throw e;
-  }
-}
-
-async function safePendingClientRegistrationStats(now: Date): Promise<{ total: number; byStatus: Record<string, number> }> {
-  try {
-    return await getActivePendingClientRegistrationStats(now);
-  } catch (e) {
-    if (isRecoverableAdminMetricsError(e)) {
-      console.warn("[admin metrics] pending client registration fallback", e);
-      return { total: 0, byStatus: {} };
-    }
-    throw e;
-  }
-}
-
-async function countTrainersBeforeRegistrationPayment(): Promise<number> {
-  try {
-    return await prisma.trainer.count({ where: launchTrainerBeforeRegistrationPaymentWhere() });
-  } catch (e) {
-    if (!isRecoverableAdminMetricsError(e)) throw e;
-    console.warn("[admin metrics] trainer pre-registration payment fallback to legacy background-fee filter", e);
-    return safeTrainerCount({
-      ...launchTrainerCountWhere(),
-      profile: { is: { hasPaidBackgroundFee: false, backgroundCheckStatus: "NOT_STARTED" } },
-    });
-  }
-}
-
-async function countClientFreeTrialBreakdown(now: Date): Promise<{
-  total: number;
-  platform: number;
-  stripe: number;
-}> {
-  try {
-    const [total, platform, stripe] = await Promise.all([
-      prisma.client.count({ where: launchClientFreeTrialCountWhere(now) }),
-      prisma.client.count({ where: launchClientPlatformTrialCountWhere(now) }),
-      prisma.client.count({ where: launchClientStripeTrialCountWhere() }),
-    ]);
-    return { total, platform, stripe };
-  } catch (e) {
-    if (!isRecoverableAdminMetricsError(e)) throw e;
-    console.warn("[admin metrics] free trial fallback to Stripe-only counts", e);
-    const stripe = await safeClientCount(launchClientStripeTrialCountWhere());
-    return { total: stripe, platform: 0, stripe };
-  }
 }
 
 function sinceFromWindow(key: AdminFinanceWindowKey, now = new Date()): Date {
@@ -355,9 +255,8 @@ async function countTopPlatformFunctions(role: "client" | "trainer"): Promise<Ad
     .map(({ key, label, count }) => ({ key, label, count }));
 }
 
-export async function getAdminTrafficFunnelPanel(now = new Date()): Promise<AdminTrafficFunnelPanel> {
+export async function getAdminTrafficFunnelPanel(): Promise<AdminTrafficFunnelPanel> {
   const analyticsOk = await analyticsAvailable();
-  const freeTrialPromise = countClientFreeTrialBreakdown(now);
   const [
     homepageVisits,
     totalSiteVisits,
@@ -368,17 +267,15 @@ export async function getAdminTrafficFunnelPanel(now = new Date()): Promise<Admi
     activeOnSiteNow,
     clientLoginsByRecency,
     trainerLoginsByRecency,
-    pendingClientRegistrations,
+    pendingByStatus,
     clientsTotal,
     trainersTotal,
     incompleteTrainerSignups,
-    trainersBeforeRegistrationPayment,
-    trainersBeforeTerms,
-    clientsInPlatformPaymentGrace,
+    trainersSignupBeforeBackgroundCheck,
+    clientsInFreeTrial,
     activeClientSubscriptions,
     topClientFunctions,
     topTrainerFunctions,
-    freeTrial,
   ] = await Promise.all([
     countAnalyticsPageViews(["/"]),
     countAnalyticsPageViews(null),
@@ -389,21 +286,29 @@ export async function getAdminTrafficFunnelPanel(now = new Date()): Promise<Admi
     countActiveOnSiteNow(),
     countLoginBuckets("clients"),
     countLoginBuckets("trainers"),
-    safePendingClientRegistrationStats(now),
-    safeClientCount(launchClientCountWhere()),
-    safeTrainerCount(launchTrainerCountWhere()),
-    safeTrainerCount(launchTrainerIncompleteSignupWhere()),
-    countTrainersBeforeRegistrationPayment(),
-    safeTrainerCount(launchTrainerBeforeTermsWhere()),
-    safeClientCount(launchClientPlatformPaymentGraceWhere(now)),
+    prisma.pendingClientRegistration.groupBy({ by: ["status"], _count: { _all: true } }),
+    prisma.client.count({ where: launchClientCountWhere() }),
+    prisma.trainer.count({ where: launchTrainerCountWhere() }),
+    prisma.trainer.count({
+      where: {
+        ...launchTrainerCountWhere(),
+        OR: [{ profile: { is: { dashboardActivatedAt: null } } }, { profile: { is: { backgroundCheckStatus: { not: "APPROVED" } } } }],
+      },
+    }),
+    prisma.trainer.count({
+      where: {
+        ...launchTrainerCountWhere(),
+        profile: { is: { hasPaidBackgroundFee: false, backgroundCheckStatus: "NOT_STARTED" } },
+      },
+    }),
+    prisma.client.count({ where: launchClientFreeTrialCountWhere() }),
     countLaunchPlatformSubscribers(),
     countTopPlatformFunctions("client"),
     countTopPlatformFunctions("trainer"),
-    freeTrialPromise,
   ]);
 
-  const pendingTotal = pendingClientRegistrations.total;
-  const pendingStatusMap = pendingClientRegistrations.byStatus;
+  const pendingTotal = pendingByStatus.reduce((s, r) => s + r._count._all, 0);
+  const pendingStatusMap = Object.fromEntries(pendingByStatus.map((r) => [r.status, r._count._all]));
 
   return {
     homepageVisits,
@@ -417,12 +322,8 @@ export async function getAdminTrafficFunnelPanel(now = new Date()): Promise<Admi
     trainerLoginsByRecency,
     pendingClientRegistrations: { total: pendingTotal, byStatus: pendingStatusMap },
     incompleteTrainerSignups,
-    trainersBeforeRegistrationPayment,
-    trainersBeforeTerms,
-    clientsInFreeTrial: freeTrial.total,
-    clientsInPlatformTrial: freeTrial.platform,
-    clientsInStripeTrial: freeTrial.stripe,
-    clientsInPlatformPaymentGrace,
+    trainersSignupBeforeBackgroundCheck,
+    clientsInFreeTrial,
     activeClientSubscriptions,
     topClientFunctions,
     topTrainerFunctions,
@@ -430,177 +331,15 @@ export async function getAdminTrafficFunnelPanel(now = new Date()): Promise<Admi
   };
 }
 
-export async function getAdminSiteActivityPanel(): Promise<AdminSiteActivityPanel> {
-  const [clientLoginsByRecency, trainerLoginsByRecency, topClientFunctions, topTrainerFunctions, activeMembersNow] =
-    await Promise.all([
-      countLoginBuckets("clients"),
-      countLoginBuckets("trainers"),
-      countTopPlatformFunctions("client"),
-      countTopPlatformFunctions("trainer"),
-      countActiveMembersNow(),
-    ]);
-
-  return {
-    activeMembersNow,
-    clientLoginsByRecency,
-    trainerLoginsByRecency,
-    topClientFunctions,
-    topTrainerFunctions,
-  };
-}
-
-async function countActiveMembersNow(): Promise<number> {
-  const since = new Date(Date.now() - 15 * 60 * 1000);
-  try {
-    const rows = await prisma.$queryRaw<CountRow[]>`
-      SELECT COUNT(DISTINCT "visitorId")::bigint AS n
-      FROM site_analytics_events
-      WHERE kind = 'PAGE_VIEW'
-        AND "createdAt" >= ${since}
-        AND (
-          path LIKE '/client/dashboard%'
-          OR path LIKE '/trainer/dashboard%'
-        )
-    `;
-    return n(rows[0]);
-  } catch {
-    return 0;
-  }
-}
-
-export async function getAdminClientPipelinePanel(now = new Date()): Promise<AdminClientPipelinePanel> {
-  const [startedSignup, basicInfoNoTos, freeTrial, progressRows, pendingRegs] = await Promise.all([
-    prisma.signupFormProgress.count({ where: { role: "client", stage: "started_signup" } }).catch(() => 0),
-    prisma.signupFormProgress.count({ where: { role: "client", stage: "basic_info_complete" } }).catch(() => 0),
-    safeClientCount(launchClientFreeTrialCountWhere(now)),
-    prisma.signupFormProgress
-      .findMany({
-        where: { role: "client", stage: { in: ["started_signup", "basic_info_complete"] } },
-        orderBy: { updatedAt: "desc" },
-        take: 20,
-      })
-      .catch(() => []),
-    prisma.pendingClientRegistration.findMany({
-      where: activePendingClientRegistrationWhere(now),
-      orderBy: { createdAt: "desc" },
-      take: 20,
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        firstName: true,
-        lastName: true,
-        createdAt: true,
-        status: true,
-      },
-    }),
-  ]);
-
-  const entries = [
-    ...progressRows.map((row) => {
-      const fields = parseSignupFieldsJson(row.fieldsJson);
-      const { filled, missing } = listFilledSignupFields("client", fields);
-      return {
-        id: row.id,
-        label: row.email || row.username || row.visitorId.slice(0, 8),
-        email: row.email,
-        username: row.username,
-        role: "client" as const,
-        filledFields: filled,
-        missingFields: missing,
-        createdAt: row.updatedAt.toISOString(),
-      };
-    }),
-    ...pendingRegs.map((row) => ({
-      id: row.id,
-      label: `${row.firstName} ${row.lastName}`.trim() || row.username,
-      email: row.email,
-      username: row.username,
-      role: "client" as const,
-      filledFields: signupFieldsForRole("client").filter((f) => f !== "agreedToTerms") as string[],
-      missingFields: ["agreedToTerms"],
-      createdAt: row.createdAt.toISOString(),
-    })),
-  ];
-
-  return {
-    stages: [
-      { id: "started_signup", label: "Started Sign Up", count: startedSignup + pendingRegs.length },
-      { id: "basic_info_no_tos", label: "Basic Info Complete, ToS Not Signed", count: basicInfoNoTos },
-      { id: "free_trial", label: "Clients in Free Trial", count: freeTrial },
-    ],
-    entries,
-  };
-}
-
-export async function getAdminPremiumTrainerActivityPanel(now = new Date()): Promise<AdminPremiumTrainerActivityPanel> {
-  const dayKey = todayFeaturedDayKey(now);
-  const since30d = sinceFromWindow("30d", now);
-
-  const [premiumTrainers, featuredSlotsToday, activeAdvertisements, tokenRevenue, recentBids] = await Promise.all([
-    countLaunchPremiumTrainers(),
-    prisma.featuredDailyAllocation.count({ where: { displayDayKey: dayKey } }),
-    prisma.trainerFitHubPostPromotion.count({
-      where: {
-        endsAt: { gt: now },
-        trainer: launchTrainerCountWhere(),
-      },
-    }),
-    prisma.platformRevenueEvent
-      .aggregate({
-        where: mergeLiveRevenueWhere({
-          category: "ONE_TIME_PURCHASE",
-          createdAt: { gte: since30d },
-          metaJson: { contains: "trainer_promo_tokens" },
-        }),
-        _sum: { revenueCents: true },
-      })
-      .then((r) => r._sum.revenueCents ?? 0)
-      .catch(() => 0),
-    prisma.featuredPlacementBid.findMany({
-      where: { displayDayKey: dayKey },
-      orderBy: { amountCents: "desc" },
-      take: 8,
-      select: {
-        amountCents: true,
-        regionZipPrefix: true,
-        displayDayKey: true,
-        trainer: { select: { username: true } },
-      },
-    }),
-  ]);
-
-  return {
-    premiumTrainers,
-    featuredSlotsToday,
-    activeAdvertisements,
-    tokenRevenueCents: tokenRevenue,
-    recentBids: recentBids.map((b) => ({
-      trainerUsername: b.trainer.username,
-      regionZipPrefix: b.regionZipPrefix,
-      amountCents: b.amountCents,
-      displayDayKey: b.displayDayKey,
-    })),
-  };
-}
-
-export { getAdminEmailStatsPanel };
-
 export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipelinePanel> {
   const trainerMetricsFilter = buildLaunchMetricsTrainerSqlFilter("t", "p");
   const baseWhere = Prisma.sql`t."deidentifiedAt" IS NULL ${trainerMetricsFilter}`;
 
-  const [startedSignup, basicInfoNoTos, signupCompleted, bgSubmitted, bgFailed, bgPassed, docsPending, live, pendingTrainerRows] =
-    await Promise.all([
-    prisma.signupFormProgress.count({ where: { role: "trainer", stage: "started_signup" } }).catch(() => 0),
-    prisma.signupFormProgress.count({ where: { role: "trainer", stage: "basic_info_complete" } }).catch(() => 0),
+  const [signupCompleted, bgSubmitted, bgFailed, bgPassed, docsPending, live] = await Promise.all([
     prisma.$queryRaw<CountRow[]>`
       SELECT COUNT(*)::bigint AS n FROM trainers t
       INNER JOIN trainer_profiles p ON p."trainerId" = t.id
-      WHERE ${baseWhere}
-        AND p."hasSignedTOS" = true
-        AND p."complianceWindowStartedAt" IS NOT NULL
-        AND p."dashboardActivatedAt" IS NULL
+      WHERE ${baseWhere} AND (p."hasSignedTOS" = true OR t."createdAt" IS NOT NULL)
     `,
     prisma.$queryRaw<CountRow[]>`
       SELECT COUNT(*)::bigint AS n FROM trainers t
@@ -641,48 +380,13 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
       INNER JOIN trainer_profiles p ON p."trainerId" = t.id
       WHERE ${baseWhere} AND p."dashboardActivatedAt" IS NOT NULL
     `,
-    prisma.trainer.findMany({
-      where: launchPendingTrainerWhere(),
-      orderBy: { createdAt: "desc" },
-      take: 40,
-      select: {
-        id: true,
-        username: true,
-        preferredName: true,
-        firstName: true,
-        lastName: true,
-        profile: {
-          select: {
-            hasPaidRegistrationFee: true,
-            registrationFeeHoldStatus: true,
-            backgroundCheckStatus: true,
-            backgroundCheckReviewStatus: true,
-            certificationReviewStatus: true,
-            nutritionistCertificationReviewStatus: true,
-            specialistCertificationReviewStatus: true,
-            otherCertificationReviewStatus: true,
-            certificationUrl: true,
-            nutritionistCertificationUrl: true,
-            specialistCertificationUrl: true,
-            otherCertificationUrl: true,
-          },
-        },
-      },
-    }),
   ]);
 
   const totalInPipeline = n(signupCompleted[0]);
   const pct = (count: number) => (totalInPipeline > 0 ? Math.round((count / totalInPipeline) * 1000) / 10 : 0);
 
   const stages: AdminTrainerPipelineStage[] = [
-    { id: "started_signup", label: "Started Sign Up", count: startedSignup, percentOfSignup: pct(startedSignup) },
-    {
-      id: "basic_info_no_tos",
-      label: "Basic Info Complete, ToS Not Signed",
-      count: basicInfoNoTos,
-      percentOfSignup: pct(basicInfoNoTos),
-    },
-    { id: "signup", label: "Pending trainers (7-day window)", count: n(signupCompleted[0]), percentOfSignup: pct(n(signupCompleted[0])) },
+    { id: "signup", label: "Completed first signup", count: n(signupCompleted[0]), percentOfSignup: pct(n(signupCompleted[0])) },
     { id: "bg_submitted", label: "Background check submitted / pending", count: n(bgSubmitted[0]), percentOfSignup: pct(n(bgSubmitted[0])) },
     { id: "bg_review", label: "Background check failed / in review", count: n(bgFailed[0]), percentOfSignup: pct(n(bgFailed[0])) },
     { id: "bg_passed", label: "Background check passed", count: n(bgPassed[0]), percentOfSignup: pct(n(bgPassed[0])) },
@@ -690,35 +394,7 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
     { id: "live", label: "Documents approved / live", count: n(live[0]), percentOfSignup: pct(n(live[0])) },
   ];
 
-  const pendingTrainers: AdminTrainerPipelineEntry[] = pendingTrainerRows.map((t) => {
-    const p = t.profile;
-    const hasDocs =
-      Boolean(p?.certificationUrl) ||
-      Boolean(p?.nutritionistCertificationUrl) ||
-      Boolean(p?.specialistCertificationUrl) ||
-      Boolean(p?.otherCertificationUrl);
-    const allApproved =
-      (!p?.certificationUrl || p.certificationReviewStatus === "APPROVED") &&
-      (!p?.nutritionistCertificationUrl || p.nutritionistCertificationReviewStatus === "APPROVED") &&
-      (!p?.specialistCertificationUrl || p.specialistCertificationReviewStatus === "APPROVED") &&
-      (!p?.otherCertificationUrl || p.otherCertificationReviewStatus === "APPROVED");
-    return {
-      trainerId: t.id,
-      username: t.username,
-      displayName:
-        t.preferredName?.trim() || [t.firstName, t.lastName].filter(Boolean).join(" ").trim() || t.username,
-      onboardingFeeCompleted:
-        Boolean(p?.hasPaidRegistrationFee) ||
-        p?.registrationFeeHoldStatus === "HELD" ||
-        p?.registrationFeeHoldStatus === "CAPTURED",
-      backgroundCheckStatus: p?.backgroundCheckStatus ?? "NOT_STARTED",
-      backgroundCheckReviewStatus: p?.backgroundCheckReviewStatus ?? null,
-      documentsComplete: hasDocs && allApproved,
-      documentsPending: hasDocs && !allApproved,
-    };
-  });
-
-  return { totalInPipeline, stages, pendingTrainers };
+  return { totalInPipeline, stages };
 }
 
 async function loadFinanceWindow(since: Date | null): Promise<AdminFinanceWindowSnapshot> {
@@ -914,10 +590,8 @@ export async function getAdminFinancesPanel(now = new Date()): Promise<AdminFina
     .catch(() => 0);
 
   const dayKey = todayFeaturedDayKey();
-  const freeTrialPromise = countClientFreeTrialBreakdown(now);
   const [
-    freeTrial,
-    clientsInPlatformPaymentGrace,
+    clientsInFreeTrial,
     paymentFailedInGrace,
     clientsWithCard,
     activeSubscriptions,
@@ -926,10 +600,9 @@ export async function getAdminFinancesPanel(now = new Date()): Promise<AdminFina
     featuredTrainersToday,
     bestSellers,
   ] = await Promise.all([
-    freeTrialPromise,
-    safeClientCount(launchClientPlatformPaymentGraceWhere(now)),
-    safeClientCount(launchClientBillingGraceWhere(now)),
-    safeClientCount(launchClientWithCardWhere()),
+    prisma.client.count({ where: launchClientFreeTrialCountWhere() }),
+    prisma.client.count({ where: launchClientBillingGraceWhere(now) }),
+    prisma.client.count({ where: launchClientWithCardWhere() }),
     countLaunchPlatformSubscribers(),
     loadRecentTransactions(20),
     countLaunchPremiumTrainers(),
@@ -940,10 +613,7 @@ export async function getAdminFinancesPanel(now = new Date()): Promise<AdminFina
   return {
     windows,
     lifetime: { ...lifetimeGrouped, eventCount: lifetimeEvents },
-    clientsInFreeTrial: freeTrial.total,
-    clientsInPlatformTrial: freeTrial.platform,
-    clientsInStripeTrial: freeTrial.stripe,
-    clientsInPlatformPaymentGrace,
+    clientsInFreeTrial,
     pendingSubscriptionStop: null,
     paymentFailedInGrace,
     clientsWithCard,
@@ -1271,14 +941,7 @@ export async function getAdminPlatformSummaryPanel(): Promise<AdminPlatformSumma
   const subscriptionConversion =
     userCounts.clientsTotal > 0 ? finances.activeSubscriptions / userCounts.clientsTotal : 0;
 
-  const marketCompetitiveness = computeMarketCompetitivenessProxy({
-    clientsTotal: userCounts.clientsTotal,
-    trainersTotal: userCounts.trainersTotal,
-    trainersLive: liveStage?.count ?? 0,
-    featuredToday: finances.featuredTrainersToday,
-  });
-
-  const ratingInput = {
+  const successRating = computePlatformSuccessRating({
     daysSinceLaunch: launchDays,
     totalUsers,
     activeUsers,
@@ -1289,18 +952,12 @@ export async function getAdminPlatformSummaryPanel(): Promise<AdminPlatformSumma
     securityScore: security.score,
     trainerPipelineCompletionRate: trainerCompletion,
     subscriptionConversionRate: subscriptionConversion,
-    marketCompetitiveness,
-    revenue30dCents: finances.windows["30d"].grossProfitCents,
-  };
-
-  const successRating = computePlatformSuccessRating(ratingInput);
-  const potentialSuccess = computePotentialSuccessScore(ratingInput);
-  const valuation = computePlatformValuation({
-    activePlatformSubscribers: finances.activeSubscriptions,
-    activeTrainerPremiumSubscribers: finances.premiumTrainers,
-    grossProfit30dCents: finances.windows["30d"].grossProfitCents,
-    activeUsers,
-    successScore: successRating.score,
+    marketCompetitiveness: computeMarketCompetitivenessProxy({
+      clientsTotal: userCounts.clientsTotal,
+      trainersTotal: userCounts.trainersTotal,
+      trainersLive: liveStage?.count ?? 0,
+      featuredToday: finances.featuredTrainersToday,
+    }),
   });
 
   const successInput = {
@@ -1362,8 +1019,6 @@ export async function getAdminPlatformSummaryPanel(): Promise<AdminPlatformSumma
     lifetimeRevenueCents: lifetime.revenueCents,
     lifetimeGrossProfitCents: lifetime.grossProfitCents,
     successRating,
-    potentialSuccess,
-    valuation,
     potentialRating,
     growthProjection,
   };

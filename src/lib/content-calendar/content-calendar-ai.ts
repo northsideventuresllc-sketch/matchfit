@@ -1,10 +1,11 @@
 import "server-only";
 
-import { getAdminAiProviderStatus, getAdminAiProviderStatusAsync } from "@/lib/admin-analytics-ai";
+import { getAdminAiProviderStatus } from "@/lib/admin-analytics-ai";
 import {
   CONTENT_CALENDAR_BRAND_FACTS,
   CONTENT_CALENDAR_DAYS_LONG,
   CONTENT_CALENDAR_PLATFORMS_BY_TYPE,
+  CONTENT_CALENDAR_POST_TYPES,
   type ContentCalendarPostType,
 } from "@/lib/content-calendar/constants";
 import { getContentCalendarRotation } from "@/lib/content-calendar/rotation";
@@ -29,8 +30,32 @@ export type GeneratedWeekPost = GeneratedPostContent & {
   platforms: string;
 };
 
+export type ContentCuratorBrief = {
+  goals: string[];
+  audiences: string[];
+  tones: string[];
+  themes: string[];
+  platforms: string[];
+  postCount: number | null;
+  notes: string;
+};
+
+export type ContentCuratorChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+export type ContentCuratorChatResult = {
+  assistantMessage: string;
+  confidence: number;
+  readyToGenerate: boolean;
+  brief: ContentCuratorBrief | null;
+};
+
+const CONTENT_CURATOR_CONFIDENCE_THRESHOLD = 0.95;
+
 async function callAi(system: string, user: string, maxTokens = 2000): Promise<string | null> {
-  const status = await getAdminAiProviderStatusAsync();
+  const status = getAdminAiProviderStatus();
   if (!status.configured) return null;
 
   if (status.provider === "anthropic") {
@@ -151,6 +176,167 @@ Target: Atlanta trainers and clients. Goal: match-fit.net signups.`;
   return text ? parseJsonBlock(text) : null;
 }
 
+function pickBatchSlots(count: number, offset: number): { dayIndex: number; postType: ContentCalendarPostType }[] {
+  const slots: { dayIndex: number; postType: ContentCalendarPostType }[] = [];
+  for (let di = 0; di < 5; di++) {
+    for (const postType of CONTENT_CALENDAR_POST_TYPES) {
+      slots.push({ dayIndex: di, postType });
+    }
+  }
+  const shift = ((offset % 20) + 20) % 20;
+  const rotated = [...slots.slice(shift), ...slots.slice(0, shift)];
+  return rotated.slice(0, Math.min(Math.max(1, count), 20));
+}
+
+export async function runContentCuratorChat(
+  messages: ContentCuratorChatMessage[],
+): Promise<ContentCuratorChatResult | null> {
+  const learning = await buildLearningContext();
+  const transcript = messages
+    .map((m) => `${m.role === "user" ? "Operator" : "Assistant"}: ${m.content}`)
+    .join("\n");
+
+  const system = `You are Match Fit's content calendar curator. Your job is to interview the operator until you are at least 95% confident you know what social content will work for their goals.
+${CONTENT_CALENDAR_BRAND_FACTS}
+${learning}
+
+Ask ONE focused question per turn when confidence is below 0.95. Cover: primary goal, target audience (Atlanta trainers/clients/virtual), tone, themes, platforms, and how many posts they want (if not stated).
+When confidence >= 0.95, summarize the plan in plain language and set readyToGenerate true.
+
+Respond ONLY with JSON:
+{
+  "assistantMessage": "your reply or question",
+  "confidence": 0.0,
+  "readyToGenerate": false,
+  "brief": {
+    "goals": ["signup growth"],
+    "audiences": ["Atlanta trainers"],
+    "tones": ["bold"],
+    "themes": ["beta urgency"],
+    "platforms": ["Instagram", "Threads"],
+    "postCount": 8,
+    "notes": "extra context"
+  }
+}
+Use null for brief until readyToGenerate is true. confidence is 0-1.`;
+
+  const user = transcript || "Operator opened the content curator. Greet them and ask your first question about their content goals.";
+  const text = await callAi(system, user, 1200);
+  const parsed = text
+    ? parseJsonBlock<{
+        assistantMessage?: string;
+        confidence?: number;
+        readyToGenerate?: boolean;
+        brief?: ContentCuratorBrief | null;
+      }>(text)
+    : null;
+
+  if (!parsed?.assistantMessage) {
+    return {
+      assistantMessage:
+        "What is the main goal for this batch of posts — trainer signups, client trials, brand awareness, or something else?",
+      confidence: 0,
+      readyToGenerate: false,
+      brief: null,
+    };
+  }
+
+  const confidence = Math.min(1, Math.max(0, Number(parsed.confidence) || 0));
+  const readyToGenerate = Boolean(parsed.readyToGenerate) && confidence >= CONTENT_CURATOR_CONFIDENCE_THRESHOLD;
+
+  return {
+    assistantMessage: parsed.assistantMessage,
+    confidence,
+    readyToGenerate,
+    brief: readyToGenerate && parsed.brief ? parsed.brief : null,
+  };
+}
+
+export async function generateBatchContent(args: {
+  weekStart: string;
+  offset: number;
+  postCount: number;
+  brief?: ContentCuratorBrief | null;
+}): Promise<GeneratedWeekPost[]> {
+  const slots = pickBatchSlots(args.postCount, args.offset);
+  const learning = await buildLearningContext();
+  const briefBlock = args.brief
+    ? `Operator brief (follow closely):
+Goals: ${args.brief.goals.join(", ")}
+Audiences: ${args.brief.audiences.join(", ")}
+Tones: ${args.brief.tones.join(", ")}
+Themes: ${args.brief.themes.join(", ")}
+Platforms: ${args.brief.platforms.join(", ")}
+Notes: ${args.brief.notes}`
+    : "No curator brief — use brand defaults and rotation targets.";
+
+  const slotPlan = slots
+    .map((s) => {
+      const rot = getContentCalendarRotation(s.dayIndex, args.offset);
+      return `dayIndex ${s.dayIndex} (${CONTENT_CALENDAR_DAYS_LONG[s.dayIndex]}), postType ${s.postType}, target ${rot[s.postType]}`;
+    })
+    .join("\n");
+
+  const system = `You are Match Fit's content calendar AI generating a custom batch (not a full 20-post week).
+${CONTENT_CALENDAR_BRAND_FACTS}
+${learning}
+
+${briefBlock}
+
+Generate exactly ${slots.length} posts for these slots:
+${slotPlan}
+
+Platform mapping: Carousel/Static→Instagram+Facebook captions+visual prompts; Video→Reels/TikTok with visual prompts; Text→Threads+Facebook (visualPrompt null).
+
+Respond ONLY with JSON array of ${slots.length} objects:
+[{"dayIndex":0,"postType":"Text","caption":"...","visualPrompt":null,"hashtags":["MatchFit"]}]`;
+
+  const user = `Generate ${slots.length} posts anchored to week starting ${args.weekStart}. Match Fit beta Atlanta focus. Hashtags without # in array.`;
+
+  const text = await callAi(system, user, Math.min(8000, 400 + slots.length * 350));
+  const parsed = text ? parseJsonBlock<GeneratedWeekPost[]>(text) : null;
+  if (!parsed || !Array.isArray(parsed) || parsed.length === 0) {
+    return fallbackBatch(slots, args.offset);
+  }
+
+  return slots.map((slot, i) => {
+    const row = parsed[i] ?? parsed[0];
+    const postType = (row.postType ?? slot.postType) as ContentCalendarPostType;
+    const dayIndex = typeof row.dayIndex === "number" ? row.dayIndex : slot.dayIndex;
+    const rot = getContentCalendarRotation(dayIndex, args.offset);
+    return {
+      dayIndex,
+      postType,
+      targetGroup: rot[postType],
+      platforms: CONTENT_CALENDAR_PLATFORMS_BY_TYPE[postType],
+      caption: row.caption ?? "",
+      visualPrompt: postType === "Text" ? null : (row.visualPrompt ?? ""),
+      hashtags: (row.hashtags ?? []).map((h) => String(h).replace(/^#/, "")),
+    };
+  });
+}
+
+function fallbackBatch(
+  slots: { dayIndex: number; postType: ContentCalendarPostType }[],
+  offset: number,
+): GeneratedWeekPost[] {
+  return slots.map((slot) => {
+    const rot = getContentCalendarRotation(slot.dayIndex, offset);
+    return {
+      dayIndex: slot.dayIndex,
+      postType: slot.postType,
+      targetGroup: rot[slot.postType],
+      platforms: CONTENT_CALENDAR_PLATFORMS_BY_TYPE[slot.postType],
+      caption: `${slot.postType} for ${rot[slot.postType]} — Match Fit beta in Atlanta. match-fit.net`,
+      visualPrompt:
+        slot.postType === "Text"
+          ? null
+          : `Dark #07080C background, orange #FF7E00 accents. ${slot.postType} for ${rot[slot.postType]}.`,
+      hashtags: ["MatchFit", "AtlantaFitness", "PersonalTrainer"],
+    };
+  });
+}
+
 export async function generateWeekContent(args: {
   weekStart: string;
   offset: number;
@@ -267,17 +453,6 @@ export async function generateStaticMedia(prompt: string): Promise<{ url: string
   return url ? { url } : null;
 }
 
-export async function getContentCalendarAiStatusAsync(): Promise<{
-  configured: boolean;
-  niBrain: boolean;
-  media: boolean;
-  message: string;
-}> {
-  const { hydratePlatformEnvFromDatabase } = await import("@/lib/hydrate-platform-env");
-  await hydratePlatformEnvFromDatabase();
-  return getContentCalendarAiStatus();
-}
-
 export function getContentCalendarAiStatus(): { configured: boolean; niBrain: boolean; media: boolean; message: string } {
   const ai = getAdminAiProviderStatus();
   const niBrain = Boolean(
@@ -286,7 +461,7 @@ export function getContentCalendarAiStatus(): { configured: boolean; niBrain: bo
   const media = Boolean(process.env.OPENAI_API_KEY?.trim());
   const parts: string[] = [];
   if (!ai.configured) parts.push("Add ANTHROPIC_API_KEY or OPENAI_API_KEY for generation.");
-  if (!niBrain) parts.push("Add NI Brain Supabase keys (Vercel env or platform_secrets) for learning persistence.");
+  if (!niBrain) parts.push("Add NI Brain Supabase keys for learning persistence.");
   if (!media) parts.push("Add OPENAI_API_KEY for static image generation.");
   return {
     configured: ai.configured,

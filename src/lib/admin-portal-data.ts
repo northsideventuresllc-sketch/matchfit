@@ -16,22 +16,16 @@ import type {
   AdminUserStats,
 } from "@/lib/admin-portal-types";
 import { ensureAdminReportingSchema } from "@/lib/ensure-admin-reporting-schema";
-import { ensureClientPlatformTrialSchema } from "@/lib/ensure-client-platform-trial-schema";
-import { ensureTrainerRegisterSchema } from "@/lib/ensure-trainer-register-schema";
 import { prisma } from "@/lib/prisma";
 import { formatFeaturedDisplayDayLabel } from "@/lib/featured-eastern-calendar";
 import { getHomeUserCounts } from "@/lib/home-user-counts";
 import { getPlatformRevenueTotals } from "@/lib/platform-revenue-events";
 import { scrubNonLivePlatformRevenueEvents } from "@/lib/platform-revenue-filters";
-import { getAdminMemberOverviewPanel } from "@/lib/admin-member-overview";
 import {
   getAdminAlertsPanel,
-  getAdminClientPipelinePanel,
-  getAdminEmailStatsPanel,
   getAdminFinancesPanel,
   getAdminPlatformSummaryPanel,
-  getAdminPremiumTrainerActivityPanel,
-  getAdminSiteActivityPanel,
+  getAdminTrafficFunnelPanel,
   getAdminTrainerPipelinePanel,
 } from "@/lib/admin-portal-metrics";
 import { getAdPerformancePanel } from "@/lib/ad-platform-performance";
@@ -386,15 +380,6 @@ export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
     console.error("[admin portal] ensureAdminReportingSchema", e);
   }
 
-  await Promise.all([
-    ensureClientPlatformTrialSchema().catch((e) => {
-      console.error("[admin portal] ensureClientPlatformTrialSchema", e);
-    }),
-    ensureTrainerRegisterSchema().catch((e) => {
-      console.error("[admin portal] ensureTrainerRegisterSchema", e);
-    }),
-  ]);
-
   await scrubNonLivePlatformRevenueEvents().catch((e) => {
     console.error("[admin portal] scrubNonLivePlatformRevenueEvents", e);
   });
@@ -402,49 +387,39 @@ export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
   const [
     traffic,
     userCounts,
-    memberOverview,
     revenue,
+    recentSignupsResult,
     recentFeatured,
-    siteActivity,
+    funnel,
     adPerformance,
-    clientPipeline,
     pipeline,
-    premiumActivity,
     finances,
-    emailStats,
     alerts,
     platformSummary,
   ] = await Promise.all([
     getAdminSiteTrafficSnapshot(7),
     getHomeUserCounts(),
-    getAdminMemberOverviewPanel(),
     getAdminRevenueSnapshot(),
+    getAdminSignupLog({ limit: 8, offset: 0 }),
     getAdminRecentFeatured(6),
-    getAdminSiteActivityPanel(),
+    getAdminTrafficFunnelPanel(),
     getAdPerformancePanel(7),
-    getAdminClientPipelinePanel(),
     getAdminTrainerPipelinePanel(),
-    getAdminPremiumTrainerActivityPanel(),
     getAdminFinancesPanel(),
-    getAdminEmailStatsPanel(7),
     getAdminAlertsPanel(),
     getAdminPlatformSummaryPanel(),
   ]);
 
   return {
-    computedAt: new Date().toISOString(),
     traffic,
     userCounts,
-    memberOverview,
     revenue,
+    recentSignups: recentSignupsResult.rows,
     recentFeatured,
-    siteActivity,
+    funnel,
     adPerformance,
-    clientPipeline,
     pipeline,
-    premiumActivity,
     finances,
-    emailStats,
     alerts,
     platformSummary,
   };

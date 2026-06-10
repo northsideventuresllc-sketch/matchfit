@@ -27,10 +27,9 @@ model Administrator {
   /// JSON admin dashboard layout: section order and visibility preferences.
   adminDashboardLayoutJson String?
 
-  auditLogs        AdministratorAuditLog[]
-  goals            AdminGoal[]
-  aiMessages       AdminAiMessage[]
-  aiConversations  AdminAiConversation[]
+  auditLogs   AdministratorAuditLog[]
+  goals       AdminGoal[]
+  aiMessages  AdminAiMessage[]
 
   @@map("administrators")
   @@schema("public")
@@ -113,24 +112,6 @@ model AdminGoal {
   @@schema("public")
 }
 
-/// Admin AI assistant chat thread (past conversations).
-model AdminAiConversation {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  administratorId String
-  administrator   Administrator @relation(fields: [administratorId], references: [id], onDelete: Cascade)
-
-  title String @default("New conversation")
-
-  messages AdminAiMessage[]
-
-  @@index([administratorId, updatedAt])
-  @@map("admin_ai_conversations")
-  @@schema("public")
-}
-
 /// Admin AI assistant conversation turns.
 model AdminAiMessage {
   id        String   @id @default(cuid())
@@ -139,15 +120,11 @@ model AdminAiMessage {
   administratorId String
   administrator   Administrator @relation(fields: [administratorId], references: [id], onDelete: Cascade)
 
-  conversationId String?
-  conversation   AdminAiConversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-
   role       String
   content    String
   actionType String?
 
   @@index([administratorId, createdAt])
-  @@index([conversationId, createdAt])
   @@map("admin_ai_messages")
   @@schema("public")
 }
@@ -157,7 +134,7 @@ model SiteAnalyticsEvent {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
 
-  /// PAGE_VIEW | LINK_CLICK | FORM_*
+  /// PAGE_VIEW | LINK_CLICK
   kind String
 
   /// Path on matchfit.app where the event occurred (no query string).
@@ -188,78 +165,6 @@ model SiteAnalyticsEvent {
   @@index([visitorId, createdAt])
   @@index([utmSource, utmCampaign, createdAt])
   @@map("site_analytics_events")
-  @@schema("public")
-}
-
-/// Anonymous signup wizard progress (50%+ field completion for admin pipelines).
-model SignupFormProgress {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  /// client | trainer
-  role String
-  /// Stable browser id from site analytics cookie.
-  visitorId String
-  email     String?
-  username  String?
-
-  /// JSON map of field name → filled (boolean).
-  fieldsJson String @default("{}")
-
-  /// started_signup | basic_info_complete | completed
-  stage String @default("started_signup")
-
-  @@unique([role, visitorId])
-  @@index([role, stage])
-  @@index([updatedAt])
-  @@map("signup_form_progress")
-  @@schema("public")
-}
-
-/// Audit log for automated transactional email sends (Resend).
-model TransactionalEmailDelivery {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-
-  kind     String
-  audience String
-  toEmail  String
-  subject  String
-
-  /// sent | skipped_prefs | skipped_no_recipient | failed
-  status String
-  resendId String?
-  errorMessage String?
-
-  clientId  String?
-  trainerId String?
-
-  @@index([createdAt])
-  @@index([kind, createdAt])
-  @@index([status, createdAt])
-  @@map("transactional_email_deliveries")
-  @@schema("public")
-}
-
-/// Inbound support mail captured via Resend webhook (support@match-fit.net).
-model SupportInboxMessage {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-
-  resendEmailId String? @unique
-  fromEmail     String
-  toEmail       String
-  subject       String
-  textBody      String?
-  htmlBody      String?
-
-  /// unread | read | archived
-  status String @default("unread")
-
-  @@index([createdAt])
-  @@index([status, createdAt])
-  @@map("support_inbox_messages")
   @@schema("public")
 }
 
@@ -1112,11 +1017,7 @@ model TrainerProfile {
 
   /// After signup fee is authorized (held); trainer may use the dashboard in limited mode.
   limitedDashboardUnlockedAt DateTime?
-  /// Onboarding fee must be authorized within 7 days of account creation (TOS acceptance).
-  onboardingFeePaymentDeadlineAt DateTime?
-  /// Set when the onboarding fee deadline passes without payment.
-  onboardingFeePaymentExpiredAt DateTime?
-  /// Seven-day cert + background-check window starts when the trainer account is created.
+  /// Seven-day cert + background-check window starts when signup payment is authorized.
   complianceWindowStartedAt DateTime?
   /// When both cert and BG are submitted, the 7-day window pauses until outcomes are known.
   complianceWindowPausedAt DateTime?
@@ -2103,16 +2004,6 @@ model BetaClientWaitlistEntry {
   @@index([email])
   @@index([desiredUsername])
   @@map("beta_client_waitlist_entries")
-  @@schema("public")
-}
-
-/// Server-only runtime secrets when Vercel env still has placeholders (Stripe bootstrap).
-model PlatformSecret {
-  key       String   @id
-  value     String
-  updatedAt DateTime @updatedAt
-
-  @@map("platform_secrets")
   @@schema("public")
 }
 

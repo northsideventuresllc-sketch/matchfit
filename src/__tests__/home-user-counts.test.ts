@@ -40,7 +40,6 @@ describe("getHomeUserCounts", () => {
     queryRawMock.mockResolvedValue([
       {
         trainers_total: 11n,
-        trainers_pending: 2n,
         trainers_active: 8n,
         clients_total: 22n,
         clients_active: 13n,
@@ -49,7 +48,6 @@ describe("getHomeUserCounts", () => {
 
     await expect(getHomeUserCounts()).resolves.toEqual({
       trainersTotal: 11,
-      trainersPending: 2,
       trainersActive: 8,
       clientsTotal: 22,
       clientsActive: 13,
@@ -62,7 +60,6 @@ describe("getHomeUserCounts", () => {
 
     await expect(getHomeUserCounts()).resolves.toEqual({
       trainersTotal: 0,
-      trainersPending: 0,
       trainersActive: 0,
       clientsTotal: 0,
       clientsActive: 0,
@@ -75,7 +72,6 @@ describe("getHomeUserCounts", () => {
       .mockResolvedValueOnce([
         {
           trainers_total: 3n,
-          trainers_pending: 1n,
           trainers_active: 2n,
           clients_total: 5n,
           clients_active: 4n,
@@ -84,7 +80,6 @@ describe("getHomeUserCounts", () => {
 
     await expect(getHomeUserCounts()).resolves.toEqual({
       trainersTotal: 3,
-      trainersPending: 1,
       trainersActive: 2,
       clientsTotal: 5,
       clientsActive: 4,
@@ -107,7 +102,6 @@ describe("getHomeUserCounts", () => {
 
       await expect(getHomeUserCounts()).resolves.toEqual({
         trainersTotal: 0,
-        trainersPending: 0,
         trainersActive: 0,
         clientsTotal: 0,
         clientsActive: 0,

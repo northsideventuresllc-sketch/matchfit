@@ -6,24 +6,11 @@ describe("resolveTrainerSignupNextPath", () => {
     expect(resolveTrainerSignupNextPath({ hasSignedTOS: false })).toBe("/trainer/signup/terms");
   });
 
-  it("routes to dashboard when TOS signed and limited dashboard unlocked", () => {
+  it("routes to payment when fee not held", () => {
     expect(
       resolveTrainerSignupNextPath({
         hasSignedTOS: true,
         registrationFeeHoldStatus: "NOT_STARTED",
-        limitedDashboardUnlockedAt: new Date().toISOString(),
-        onboardingFeePaymentDeadlineAt: new Date(Date.now() + 86400000).toISOString(),
-      }),
-    ).toBe("/trainer/dashboard");
-  });
-
-  it("routes to payment when onboarding fee deadline expired", () => {
-    expect(
-      resolveTrainerSignupNextPath({
-        hasSignedTOS: true,
-        registrationFeeHoldStatus: "NOT_STARTED",
-        limitedDashboardUnlockedAt: new Date().toISOString(),
-        onboardingFeePaymentDeadlineAt: new Date(Date.now() - 86400000).toISOString(),
       }),
     ).toBe("/trainer/signup/payment");
   });

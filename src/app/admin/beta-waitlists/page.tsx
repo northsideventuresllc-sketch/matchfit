@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { AdminPortalShell } from "@/components/admin/admin-portal-shell";
 import {
-  adminPortalLinkClass,
-  adminPortalSecondaryButtonClass,
-} from "@/components/admin/admin-portal-styles";
+  AdminPortalBackdrop,
+  adminLinkClass,
+  adminPanelClass,
+  adminSecondaryButtonClass,
+} from "@/components/admin/admin-portal-ui";
+import { AdminPortalNav } from "@/components/admin/admin-portal-nav";
 
 type Entry = {
   id: string;
@@ -86,62 +88,71 @@ export default function AdminBetaWaitlistsPage() {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   return (
-    <AdminPortalShell
-      current="waitlists"
-      maxWidth="5xl"
-      title="Beta Waitlists"
-      description="Separate trainer and client queues. Promotion runs on the 15-minute cron and when accounts are removed."
-      headerActions={
-        <>
-          <button
-            type="button"
-            disabled={refreshing}
-            onClick={() => void load()}
-            className={adminPortalSecondaryButtonClass}
-          >
-            {refreshing ? "Refreshing…" : "Refresh"}
-          </button>
-          <Link href="/admin" className={`self-center text-sm ${adminPortalLinkClass}`}>
-            Back to Dashboard
-          </Link>
-        </>
-      }
-    >
-      {caps?.gatesEnabled ? (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl border border-white/[0.08] bg-[#12151C]/75 px-4 py-3 backdrop-blur-xl">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">Trainers</p>
-            <p className="mt-1 text-lg font-black text-white">
-              {caps.trainerCount ?? "—"} signed up · {caps.trainerSlotsUsed ?? "—"} / {caps.trainerCap ?? "—"} slots
-              used
+    <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] px-5 py-10 text-white sm:px-8 sm:py-12">
+      <AdminPortalBackdrop />
+      <div className="relative z-10 mx-auto max-w-5xl space-y-8">
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-4">
+            <AdminPortalNav current="waitlists" />
+            <div>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF7E00]">Match Fit</p>
+            <h1 className="mt-2 text-2xl font-black sm:text-3xl">Beta waitlists</h1>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/55">
+              Separate trainer and client queues. Promotion runs on the 15-minute cron and when accounts are removed.
             </p>
-            {typeof caps.trainerSlotsRemaining === "number" ? (
-              <p className="mt-1 text-xs text-white/45">{caps.trainerSlotsRemaining} coach slots left</p>
-            ) : null}
+            </div>
           </div>
-          <div className="rounded-2xl border border-white/[0.08] bg-[#12151C]/75 px-4 py-3 backdrop-blur-xl">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">Clients</p>
-            <p className="mt-1 text-lg font-black text-white">
-              {caps.clientCount ?? "—"} signed up · {caps.clientSlotsUsed ?? "—"} / {caps.clientCap ?? "—"} slots used
-            </p>
-            {typeof caps.clientSlotsRemaining === "number" ? (
-              <p className="mt-1 text-xs text-white/45">{caps.clientSlotsRemaining} member slots left</p>
-            ) : null}
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              disabled={refreshing}
+              onClick={() => void load()}
+              className={adminSecondaryButtonClass}
+            >
+              {refreshing ? "Refreshing…" : "Refresh"}
+            </button>
+            <Link href="/admin" className={`text-sm ${adminLinkClass}`}>
+              ← Dashboard
+            </Link>
           </div>
-        </div>
-      ) : (
-        <p className="rounded-xl border border-amber-400/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
-          Beta gates are off in this environment (`MATCH_FIT_BETA_GATES_ENABLED` not set).
-        </p>
-      )}
+        </header>
 
-      {error ? (
-        <p className="rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]">{error}</p>
-      ) : null}
+        {caps?.gatesEnabled ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-white/[0.08] bg-[#12151C]/90 px-4 py-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">Trainers</p>
+              <p className="mt-1 text-lg font-black text-white">
+                {caps.trainerCount ?? "—"} signed up · {caps.trainerSlotsUsed ?? "—"} / {caps.trainerCap ?? "—"} slots
+                used
+              </p>
+              {typeof caps.trainerSlotsRemaining === "number" ? (
+                <p className="mt-1 text-xs text-white/45">{caps.trainerSlotsRemaining} coach slots left</p>
+              ) : null}
+            </div>
+            <div className="rounded-2xl border border-white/[0.08] bg-[#12151C]/90 px-4 py-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">Clients</p>
+              <p className="mt-1 text-lg font-black text-white">
+                {caps.clientCount ?? "—"} signed up · {caps.clientSlotsUsed ?? "—"} / {caps.clientCap ?? "—"} slots used
+              </p>
+              {typeof caps.clientSlotsRemaining === "number" ? (
+                <p className="mt-1 text-xs text-white/45">{caps.clientSlotsRemaining} member slots left</p>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <p className="rounded-xl border border-amber-400/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
+            Beta gates are off in this environment (`MATCH_FIT_BETA_GATES_ENABLED` not set).
+          </p>
+        )}
 
-      <WaitlistSection title="Trainer Waitlist" entries={trainers} zipKey="serviceZipCode" />
-      <WaitlistSection title="Client Waitlist" entries={clients} zipKey="homeZipCode" />
-    </AdminPortalShell>
+        {error ? (
+          <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">{error}</p>
+        ) : null}
+
+        <WaitlistSection title="Trainer waitlist" entries={trainers} zipKey="serviceZipCode" />
+        <WaitlistSection title="Client waitlist" entries={clients} zipKey="homeZipCode" />
+      </div>
+    </main>
   );
 }
 
@@ -155,7 +166,7 @@ function WaitlistSection({
   zipKey: "serviceZipCode" | "homeZipCode";
 }) {
   return (
-    <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/75 p-5 backdrop-blur-xl sm:p-6">
+    <section className={`${adminPanelClass} p-5 sm:p-6`}>
       <h2 className="text-xs font-black uppercase tracking-[0.18em] text-white/40">{title}</h2>
       <div className="mt-4 space-y-2">
         {!entries ? (
@@ -166,7 +177,7 @@ function WaitlistSection({
           entries.map((r) => (
             <div
               key={r.id}
-              className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.06] bg-[#080a0e]/80 px-3 py-2.5 text-sm"
+              className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-3 py-2.5 text-sm"
             >
               <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${statusClass(r.status)}`}>
                 {r.status}

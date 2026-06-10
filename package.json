@@ -1,6 +1,6 @@
 {
   "name": "match-fit-app",
-  "version": "1.4.6-beta",
+  "version": "1.3.0-beta",
   "private": true,
   "engines": {
     "node": ">=20.19.0 <23"
@@ -19,10 +19,6 @@
     "beta:preflight": "node --env-file=.env scripts/beta-launch-setup.mjs --preflight",
     "beta:preflight:production": "node --env-file=.env scripts/beta-launch-setup.mjs --preflight --production",
     "beta:vercel-env": "node scripts/vercel-env-push-beta.mjs",
-    "vercel:env:resend": "node scripts/vercel-env-set-resend-production.mjs",
-    "vercel:env:anthropic": "node scripts/vercel-env-set-anthropic-production.mjs",
-    "bootstrap:anthropic": "node scripts/bootstrap-anthropic-platform-secret.mjs",
-    "bootstrap:ni-brain": "node scripts/bootstrap-ni-brain-platform-secret.mjs",
     "db:locks": "sh scripts/show-sqlite-db-locks.sh",
     "test:watch": "vitest",
     "seed:dashboard-demo": "tsx --env-file=.env scripts/seed-demo-client-dashboard-showcase.js",
@@ -32,7 +28,6 @@
     "tos:alignment": "tsx scripts/tos-alignment-check.ts",
     "version:bump": "node scripts/bump-product-version.mjs",
     "version:verify": "node scripts/verify-product-version-bump.mjs",
-    "content:calendar:sync": "bash scripts/sync-matchfit-content-calendar.sh",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -54,7 +49,6 @@
     "resend": "^6.12.3",
     "server-only": "^0.0.1",
     "stripe": "^22.0.2",
-    "vercel": "^54.9.1",
     "web-push": "^3.6.7",
     "zod": "^4.3.6"
   },

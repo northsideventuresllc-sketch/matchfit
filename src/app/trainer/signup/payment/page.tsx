@@ -1,9 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
-import { stripeConfigHealth } from "@/lib/stripe-config";
-import { getStripePublishableKey } from "@/lib/stripe-publishable";
-import { trainerOnboardingFeeIsPaid } from "@/lib/trainer-onboarding-fee-deadline";
+import { resolveTrainerSignupNextPath } from "@/lib/trainer-signup-next-path";
 import TrainerSignupPaymentClient from "./trainer-signup-payment-client";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +21,6 @@ export default async function TrainerSignupPaymentPage() {
       limitedDashboardUnlockedAt: true,
       registrationFeePricingMode: true,
       registrationFeeWaived: true,
-      onboardingFeePaymentDeadlineAt: true,
     },
   });
 
@@ -31,17 +28,14 @@ export default async function TrainerSignupPaymentPage() {
     redirect("/trainer/signup/terms");
   }
 
-  if (trainerOnboardingFeeIsPaid(profile)) {
+  const next = resolveTrainerSignupNextPath(profile);
+  if (next === "/trainer/dashboard") {
     redirect("/trainer/dashboard");
   }
-
-  const stripeHealth = stripeConfigHealth();
 
   return (
     <TrainerSignupPaymentClient
       foundingPricing={profile.registrationFeePricingMode === "FOUNDING_BG_SURCHARGE_20PCT"}
-      stripePublishableKey={getStripePublishableKey()}
-      stripeSecretConfigured={stripeHealth.stripeSecretConfigured}
     />
   );
 }

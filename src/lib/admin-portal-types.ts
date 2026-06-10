@@ -1,10 +1,8 @@
 /** Client-safe types and helpers for the administrator dashboard (no Prisma / server imports). */
 
-import type { PlatformPotentialSuccessBreakdown } from "@/lib/platform-potential-success";
 import type { PlatformGrowthProjection } from "@/lib/platform-growth-projection";
 import type { PlatformPotentialRatingBreakdown } from "@/lib/platform-potential-rating";
 import type { PlatformSuccessRatingBreakdown } from "@/lib/platform-success-rating";
-import type { PlatformValuationBreakdown } from "@/lib/platform-valuation";
 import type { AdPerformancePanel } from "@/lib/ad-platform-performance";
 
 export type AdminUserStats = {
@@ -74,24 +72,12 @@ export type AdminTrafficSnapshot = {
   pageViews: number;
   uniqueVisitors: number;
   linkClicks: number;
-  formEvents: {
-    fieldFocus: number;
-    submitAttempts: number;
-    submitErrors: number;
-    submitSuccesses: number;
-  };
   topPages: AdminTrafficTopPage[];
   topLinks: AdminTrafficTopLink[];
   daily: AdminTrafficDayPoint[];
   recentEvents: {
     at: string;
-    kind:
-      | "PAGE_VIEW"
-      | "LINK_CLICK"
-      | "FORM_FIELD_FOCUS"
-      | "FORM_SUBMIT_ATTEMPT"
-      | "FORM_SUBMIT_ERROR"
-      | "FORM_SUBMIT_SUCCESS";
+    kind: "PAGE_VIEW" | "LINK_CLICK";
     path: string;
     target: string | null;
     label: string | null;
@@ -100,95 +86,9 @@ export type AdminTrafficSnapshot = {
 
 export type AdminHomeUserCounts = {
   trainersTotal: number;
-  trainersPending: number;
   trainersActive: number;
   clientsTotal: number;
   clientsActive: number;
-};
-
-export type AdminMemberOverviewPanel = {
-  totalActiveMembers: number;
-  totalMembers: number;
-  freeTrialClients: number;
-  subscribedClients: number;
-  inactiveClients: number;
-  uniqueSiteVisitorsAllTime: number;
-  pendingTrainers: number;
-  compliantActiveTrainers: number;
-  inactiveTrainers: number;
-};
-
-export type AdminPipelineStage = {
-  id: string;
-  label: string;
-  count: number;
-};
-
-export type AdminPipelineEntry = {
-  id: string;
-  label: string;
-  email: string | null;
-  username: string | null;
-  role: "client" | "trainer";
-  filledFields: string[];
-  missingFields: string[];
-  createdAt: string | null;
-};
-
-export type AdminClientPipelinePanel = {
-  stages: AdminPipelineStage[];
-  entries: AdminPipelineEntry[];
-};
-
-export type AdminTrainerPipelineEntry = {
-  trainerId: string;
-  username: string;
-  displayName: string;
-  onboardingFeeCompleted: boolean;
-  backgroundCheckStatus: string;
-  backgroundCheckReviewStatus: string | null;
-  documentsComplete: boolean;
-  documentsPending: boolean;
-};
-
-export type AdminTrainerPipelinePanel = {
-  totalInPipeline: number;
-  stages: AdminTrainerPipelineStage[];
-  pendingTrainers: AdminTrainerPipelineEntry[];
-};
-
-export type AdminSiteActivityPanel = {
-  activeMembersNow: number;
-  clientLoginsByRecency: AdminLoginRecencyBuckets;
-  trainerLoginsByRecency: AdminLoginRecencyBuckets;
-  topClientFunctions: AdminPlatformFunctionStat[];
-  topTrainerFunctions: AdminPlatformFunctionStat[];
-};
-
-export type AdminPremiumTrainerActivityPanel = {
-  premiumTrainers: number;
-  featuredSlotsToday: number;
-  activeAdvertisements: number;
-  tokenRevenueCents: number;
-  recentBids: { trainerUsername: string; regionZipPrefix: string; amountCents: number; displayDayKey: string }[];
-};
-
-export type AdminEmailStatsPanel = {
-  windowDays: number;
-  totalAttempts: number;
-  sent: number;
-  skippedPrefs: number;
-  skippedNoRecipient: number;
-  failed: number;
-  byKind: { kind: string; sent: number; failed: number }[];
-  recent: {
-    id: string;
-    at: string;
-    kind: string;
-    toEmail: string;
-    status: string;
-    subject: string;
-  }[];
 };
 
 export type AdminLoginRecencyBuckets = {
@@ -218,18 +118,9 @@ export type AdminTrafficFunnelPanel = {
   clientLoginsByRecency: AdminLoginRecencyBuckets;
   trainerLoginsByRecency: AdminLoginRecencyBuckets;
   pendingClientRegistrations: { total: number; byStatus: Record<string, number> };
-  /** Trainer account exists but marketplace dashboard is not live yet. */
   incompleteTrainerSignups: number;
-  /** Trainer has not paid registration fee / unlocked limited dashboard (new signup flow). */
-  trainersBeforeRegistrationPayment: number;
-  /** Trainer row exists but Terms of Service not accepted yet. */
-  trainersBeforeTerms: number;
-  /** Card-free founding trial or Stripe trial before first paid invoice. */
+  trainersSignupBeforeBackgroundCheck: number;
   clientsInFreeTrial: number;
-  clientsInPlatformTrial: number;
-  clientsInStripeTrial: number;
-  /** Post-trial window before card/subscription is required (card-free path). */
-  clientsInPlatformPaymentGrace: number;
   activeClientSubscriptions: number;
   topClientFunctions: AdminPlatformFunctionStat[];
   topTrainerFunctions: AdminPlatformFunctionStat[];
@@ -243,6 +134,10 @@ export type AdminTrainerPipelineStage = {
   percentOfSignup: number;
 };
 
+export type AdminTrainerPipelinePanel = {
+  totalInPipeline: number;
+  stages: AdminTrainerPipelineStage[];
+};
 
 export type AdminFinanceWindowKey = "24h" | "7d" | "30d" | "90d" | "1y" | "5y";
 
@@ -278,11 +173,7 @@ export type AdminFinancesPanel = {
   windows: Record<AdminFinanceWindowKey, AdminFinanceWindowSnapshot>;
   lifetime: AdminFinanceWindowSnapshot & { eventCount: number };
   clientsInFreeTrial: number;
-  clientsInPlatformTrial: number;
-  clientsInStripeTrial: number;
-  clientsInPlatformPaymentGrace: number;
   pendingSubscriptionStop: number | null;
-  /** Stripe subscription lapsed — billing retry grace (`subscriptionGraceUntil`). */
   paymentFailedInGrace: number;
   clientsWithCard: number;
   activeSubscriptions: number;
@@ -325,26 +216,20 @@ export type AdminPlatformSummaryPanel = {
   lifetimeRevenueCents: number;
   lifetimeGrossProfitCents: number;
   successRating: PlatformSuccessRatingBreakdown;
-  potentialSuccess: PlatformPotentialSuccessBreakdown;
-  valuation: PlatformValuationBreakdown;
   potentialRating: PlatformPotentialRatingBreakdown;
   growthProjection: PlatformGrowthProjection;
 };
 
 export type AdminPortalOverview = {
-  computedAt: string;
   traffic: AdminTrafficSnapshot;
   userCounts: AdminHomeUserCounts;
-  memberOverview: AdminMemberOverviewPanel;
   revenue: AdminRevenueSnapshot;
+  recentSignups: AdminSignupRow[];
   recentFeatured: AdminFeaturedSnapshot[];
-  siteActivity: AdminSiteActivityPanel;
+  funnel: AdminTrafficFunnelPanel;
   adPerformance: AdPerformancePanel;
-  clientPipeline: AdminClientPipelinePanel;
   pipeline: AdminTrainerPipelinePanel;
-  premiumActivity: AdminPremiumTrainerActivityPanel;
   finances: AdminFinancesPanel;
-  emailStats: AdminEmailStatsPanel;
   alerts: AdminAlertsPanel;
   platformSummary: AdminPlatformSummaryPanel;
 };

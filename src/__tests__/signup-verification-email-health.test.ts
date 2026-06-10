@@ -1,16 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
 import { GET } from "@/app/api/public/signup-verification-email-health/route";
-
-vi.mock("@/lib/resend-email-health", () => ({
-  resendEmailHealth: vi.fn(async () => ({
-    configured: true,
-    apiReachable: true,
-    fromAddress: "Match Fit <noreply@example.test>",
-    domainVerified: true,
-    loadedFromPlatformSecrets: true,
-    error: null,
-  })),
-}));
 
 describe("GET /api/public/signup-verification-email-health", () => {
   it("returns delivery configuration status", async () => {

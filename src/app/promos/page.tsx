@@ -216,13 +216,20 @@ export default async function PromosPage() {
               <p className="mt-5 text-pretty text-[15px] leading-relaxed text-white/65 sm:text-base">
                 Complete client sign-up and agree to the Terms of Service to start a{" "}
                 <span className="font-bold text-[#FFD34E]">{trialDays}-day free trial</span> with{" "}
-                <span className="font-semibold text-white/80">no card required at sign-up</span>.
+                <span className="font-semibold text-white/80">no card required at sign-up</span>. When the trial ends,
+                you have <span className="font-bold text-[#FFD34E]">14 days</span> to connect a card and subscribe.
+                If payment is not completed in that window, the account is deactivated until you pay to reactivate — a
+                new free trial is not offered on reactivation.
               </p>
 
               <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-semibold text-white/75">Free trial at sign-up</span>
                   <span className="text-white/55">{trialDays} days, no card</span>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-sm">
+                  <span className="font-bold text-[#FFD34E]">Payment grace after trial</span>
+                  <span className="font-bold text-[#FFD34E]">14 days</span>
                 </div>
               </div>
 
@@ -283,7 +290,7 @@ export default async function PromosPage() {
             </li>
             <li className="flex gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />
-              <span>Clients receive a {trialDays}-day free trial at sign-up (no card required).</span>
+              <span>Clients receive a {trialDays}-day free trial at sign-up (no card required), then 14 days to subscribe before deactivation.</span>
             </li>
             <li className="flex gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />

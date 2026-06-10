@@ -1,10 +1,5 @@
 import "server-only";
 import pg from "pg";
-import {
-  isSupabaseDirectDbHost,
-  isSupabasePoolerHost,
-  pgPoolConfigForConnectionString,
-} from "@/lib/supabase-database-url";
 
 function normalizeConnectionString(connectionString: string): string {
   try {
@@ -14,6 +9,15 @@ function normalizeConnectionString(connectionString: string): string {
     return url.toString();
   } catch {
     return connectionString;
+  }
+}
+
+function isSupabaseHost(connectionString: string): boolean {
+  try {
+    const host = new URL(connectionString).hostname;
+    return host.includes("supabase.com") || host.includes("supabase.co");
+  } catch {
+    return false;
   }
 }
 
@@ -67,71 +71,18 @@ export function deriveDirectPostgresUrlFromDatabaseUrl(databaseUrl: string): str
   }
 }
 
-function sessionPoolerUrlFromPoolerConnectionString(poolerUrl: string): string | null {
-  try {
-    const url = new URL(poolerUrl.trim());
-    if (!url.hostname.includes("pooler.supabase.com")) return null;
-    url.port = "5432";
-    url.searchParams.delete("pgbouncer");
-    return normalizeConnectionString(url.toString());
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Postgres URL for schema repair DDL (must be direct/session — not transaction pooler :6543).
- * On Vercel, prefer Supavisor session mode (:5432) because db.*.supabase.co is often unreachable.
- */
+/** Prefer DIRECT_URL, then a 5432 Supabase URL derived from DATABASE_URL. */
 export function directPostgresUrlForDdl(): string | null {
+  const explicit = process.env.DIRECT_URL?.trim();
+  if (explicit) return normalizeConnectionString(explicit);
   const databaseUrl = process.env.DATABASE_URL?.trim();
-  const directUrl = process.env.DIRECT_URL?.trim();
-  const onVercel = process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV);
-
-  if (onVercel && directUrl && isSupabasePoolerHost(directUrl)) {
-    const sessionPooler = sessionPoolerUrlFromPoolerConnectionString(directUrl);
-    if (sessionPooler) return sessionPooler;
-  }
-
-  if (databaseUrl && isSupabaseDirectDbHost(databaseUrl) && !onVercel) {
-    const fromDatabase = deriveDirectPostgresUrlFromDatabaseUrl(databaseUrl);
-    if (fromDatabase) return normalizeConnectionString(fromDatabase);
-  }
-
-  if (directUrl && isSupabaseDirectDbHost(directUrl)) {
-    return normalizeConnectionString(directUrl);
-  }
-
-  if (directUrl && !isSupabasePoolerHost(directUrl)) {
-    return normalizeConnectionString(directUrl);
-  }
-
-  if (databaseUrl) {
-    const derived = deriveDirectPostgresUrlFromDatabaseUrl(databaseUrl);
-    if (derived) return normalizeConnectionString(derived);
-  }
-
-  return null;
+  if (!databaseUrl) return null;
+  return deriveDirectPostgresUrlFromDatabaseUrl(databaseUrl);
 }
 
-export function directPostgresUrlSource():
-  | "DIRECT_URL"
-  | "derived_from_DATABASE_URL"
-  | "derived_from_direct_DATABASE_URL"
-  | "session_pooler_on_vercel"
-  | "missing" {
-  const databaseUrl = process.env.DATABASE_URL?.trim() ?? "";
-  const directUrl = process.env.DIRECT_URL?.trim();
-  const onVercel = process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV);
-
-  if (onVercel && directUrl && isSupabasePoolerHost(directUrl)) {
-    return "session_pooler_on_vercel";
-  }
-  if (databaseUrl && isSupabaseDirectDbHost(databaseUrl) && !onVercel) {
-    return "derived_from_direct_DATABASE_URL";
-  }
-  if (directUrl && !isSupabasePoolerHost(directUrl)) return "DIRECT_URL";
-  if (deriveDirectPostgresUrlFromDatabaseUrl(databaseUrl)) {
+export function directPostgresUrlSource(): "DIRECT_URL" | "derived_from_DATABASE_URL" | "missing" {
+  if (process.env.DIRECT_URL?.trim()) return "DIRECT_URL";
+  if (deriveDirectPostgresUrlFromDatabaseUrl(process.env.DATABASE_URL ?? "")) {
     return "derived_from_DATABASE_URL";
   }
   return "missing";
@@ -149,7 +100,8 @@ export async function runDirectPostgresDdl(sql: string): Promise<void> {
 
   const connectionString = normalizeConnectionString(raw);
   const pool = new pg.Pool({
-    ...pgPoolConfigForConnectionString(connectionString),
+    connectionString,
+    ssl: isSupabaseHost(raw) ? { rejectUnauthorized: false } : undefined,
     max: 1,
   });
 

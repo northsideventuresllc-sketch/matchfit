@@ -2,22 +2,14 @@
 
 import { useMemo, useState } from "react";
 import {
-  ADMIN_DASHBOARD_LAYOUT_PRESETS,
   type AdminDashboardLayout,
-  type AdminDashboardLayoutPresetId,
   DEFAULT_ADMIN_DASHBOARD_LAYOUT,
   type AdminDashboardSectionId,
-  applyLayoutPreset,
   isSectionVisible,
   moveSection,
   sectionsByGroup,
-  setLayoutDensity,
   setSectionVisible,
 } from "@/lib/admin-dashboard-layout";
-import {
-  adminPortalPrimaryButtonClass,
-  adminPortalSecondaryButtonClass,
-} from "@/components/admin/admin-portal-styles";
 
 export function AdminDashboardLayoutCustomizer(props: {
   layout: AdminDashboardLayout;
@@ -34,13 +26,9 @@ export function AdminDashboardLayoutCustomizer(props: {
     setDraft((prev) => setSectionVisible(prev, id, !isSectionVisible(prev, id)));
   }
 
-  function applyPreset(presetId: AdminDashboardLayoutPresetId) {
-    setDraft((prev) => applyLayoutPreset(prev, presetId));
-  }
-
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="admin-layout-customizer-title"
@@ -50,58 +38,21 @@ export function AdminDashboardLayoutCustomizer(props: {
       }}
     >
       <div
-        className="max-h-[min(92vh,44rem)] w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#12151C] shadow-2xl"
+        className="flex max-h-[min(92vh,42rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#12151C] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >
-        <div className="border-b border-white/[0.08] px-5 py-4">
+        <div className="shrink-0 border-b border-white/[0.08] px-5 py-4">
           <h2 id="admin-layout-customizer-title" className="text-lg font-black text-white">
-            Customize dashboard
+            Customize Dashboard
           </h2>
           <p className="mt-1 text-sm text-white/50">
-            Pick a preset, choose visible sections, set density, and reorder. Collapse state is saved when you expand or
-            collapse panels on the dashboard.
+            Choose which sections appear and their order. Saved to your staff account when the database column is
+            available; otherwise this browser only.
           </p>
         </div>
 
-        <div className="max-h-[min(62vh,30rem)] overflow-y-auto px-5 py-4">
-          <div className="mb-5">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FF7E00]/70">Quick presets</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {ADMIN_DASHBOARD_LAYOUT_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  title={preset.description}
-                  onClick={() => applyPreset(preset.id)}
-                  className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-white/70 transition hover:border-[#FF7E00]/35 hover:text-[#FFD34E]"
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="mb-5">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FF7E00]/70">Density</p>
-            <div className="mt-2 flex gap-2">
-              {(["comfortable", "compact"] as const).map((density) => (
-                <button
-                  key={density}
-                  type="button"
-                  onClick={() => setDraft((prev) => setLayoutDensity(prev, density))}
-                  className={`rounded-lg border px-3 py-2 text-[10px] font-bold uppercase tracking-wide transition ${
-                    draft.density === density
-                      ? "border-[#FF7E00]/40 bg-[#FF7E00]/15 text-[#FFD34E]"
-                      : "border-white/10 text-white/55 hover:bg-white/[0.05]"
-                  }`}
-                >
-                  {density}
-                </button>
-              ))}
-            </div>
-          </div>
-
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {(["Overview", "Analytics", "Activity", "Operations"] as const).map((groupName) => (
             <div key={groupName} className="mb-5 last:mb-0">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FF7E00]/60">{groupName}</p>
@@ -119,7 +70,7 @@ export function AdminDashboardLayoutCustomizer(props: {
                           type="checkbox"
                           checked={visible}
                           onChange={() => toggle(meta.id)}
-                          className="mt-0.5 size-4 shrink-0 rounded border-white/20 bg-[#050608] accent-[#FF7E00]"
+                          className="mt-0.5 size-4 shrink-0 rounded border-white/20 bg-[#0B0C0F] accent-[#FF7E00]"
                         />
                         <span className="min-w-0">
                           <span className="block text-sm font-semibold text-white">{meta.label}</span>
@@ -154,7 +105,7 @@ export function AdminDashboardLayoutCustomizer(props: {
           ))}
         </div>
 
-        <div className="space-y-2 border-t border-white/[0.08] px-5 py-4">
+        <div className="shrink-0 space-y-2 border-t border-white/[0.08] px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {props.saveError ? (
             <p className="text-sm text-[#FFB4B4]" role="alert">
               {props.saveError}
@@ -165,9 +116,9 @@ export function AdminDashboardLayoutCustomizer(props: {
             <button
               type="button"
               onClick={() => setDraft({ ...DEFAULT_ADMIN_DASHBOARD_LAYOUT })}
-              className={adminPortalSecondaryButtonClass}
+              className="rounded-lg border border-white/15 px-3 py-2 text-[11px] font-black uppercase tracking-[0.1em] text-white/70 hover:bg-white/[0.06]"
             >
-              Reset defaults
+              Reset Defaults
             </button>
             <button
               type="button"
@@ -177,21 +128,25 @@ export function AdminDashboardLayoutCustomizer(props: {
                   hidden: [],
                 }))
               }
-              className={adminPortalSecondaryButtonClass}
+              className="rounded-lg border border-white/15 px-3 py-2 text-[11px] font-black uppercase tracking-[0.1em] text-white/70 hover:bg-white/[0.06]"
             >
-              Show all
+              Show All
             </button>
             <div className="flex-1" />
-            <button type="button" onClick={props.onClose} className={adminPortalSecondaryButtonClass}>
+            <button
+              type="button"
+              onClick={props.onClose}
+              className="rounded-lg border border-white/15 px-3 py-2 text-[11px] font-black uppercase tracking-[0.1em] text-white/70 hover:bg-white/[0.06]"
+            >
               Cancel
             </button>
             <button
               type="button"
               disabled={props.saving}
               onClick={() => props.onSave(draft)}
-              className={adminPortalPrimaryButtonClass}
+              className="rounded-lg border border-[#FF7E00]/35 bg-[#FF7E00]/15 px-4 py-2 text-[11px] font-black uppercase tracking-[0.1em] text-[#FFD34E] hover:bg-[#FF7E00]/20 disabled:opacity-40"
             >
-              {props.saving ? "Saving…" : "Save layout"}
+              {props.saving ? "Saving…" : "Save Layout"}
             </button>
           </div>
         </div>

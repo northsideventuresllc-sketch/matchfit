@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { analyzeSocialPerformance } from "@/lib/content-calendar/content-calendar-ai";
-import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { requireAdminSession } from "@/lib/require-admin";
 
 export async function POST() {
@@ -8,7 +7,6 @@ export async function POST() {
   if (!sess) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   try {
-    await hydratePlatformEnvFromDatabase();
     const summary = await analyzeSocialPerformance();
     return NextResponse.json({ summary });
   } catch (e) {

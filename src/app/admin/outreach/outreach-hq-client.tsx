@@ -33,87 +33,8 @@ import {
   targetGroupLabel,
 } from "@/lib/outreach-types";
 import type { AdminAiProviderStatus } from "@/lib/admin-analytics-ai";
-import {
-  OUTREACH_PLATFORM_UI,
-  stageLabelForOutreachGenerate,
-} from "@/lib/outreach-platform-ui";
 
 type AnyLead = InstagramLeadRow | FacebookLeadRow | EmailLeadRow | OtherLeadRow;
-
-type OutreachBatchGroup = {
-  batchId: string | null;
-  label: string;
-  leads: AnyLead[];
-};
-
-function formatOutreachBatchLabel(batchId: string | null, leads: AnyLead[]): string {
-  if (!batchId) return `Manual / unknown batch (${leads.length})`;
-  const match = /^batch_(\d+)_/.exec(batchId);
-  if (match) {
-    const date = new Date(Number(match[1]));
-    if (!Number.isNaN(date.getTime())) {
-      return `${date.toLocaleString(undefined, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      })} · ${leads.length} lead${leads.length === 1 ? "" : "s"}`;
-    }
-  }
-  return `${batchId} · ${leads.length} lead${leads.length === 1 ? "" : "s"}`;
-}
-
-function OutreachGenerateProgressBar(props: { percent: number; stage: string; footnote: string }) {
-  return (
-    <div
-      className="space-y-2 rounded-xl border border-[#FF7E00]/25 bg-[#FF7E00]/[0.06] p-4"
-      role="progressbar"
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={props.percent}
-      aria-label="Lead generation progress"
-      aria-live="polite"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-[#FFD34E]">{props.stage}</p>
-        <p className="text-sm font-black tabular-nums text-white/85">{props.percent}%</p>
-      </div>
-      <div className="h-3 overflow-hidden rounded-full border border-white/10 bg-[#0E1016]/80">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-[#FF7E00] via-[#FF9A2E] to-[#FFD34E] transition-[width] duration-300 ease-out"
-          style={{ width: `${Math.max(0, Math.min(100, props.percent))}%` }}
-        />
-      </div>
-      <p className="text-[11px] text-white/45">{props.footnote}</p>
-    </div>
-  );
-}
-
-function groupLeadsByBatch(leads: AnyLead[]): OutreachBatchGroup[] {
-  const active = leads.filter((l) => !l.deletedAt);
-  const map = new Map<string, AnyLead[]>();
-
-  for (const lead of active) {
-    const key = lead.generationBatchId ?? "__none__";
-    const group = map.get(key) ?? [];
-    group.push(lead);
-    map.set(key, group);
-  }
-
-  return Array.from(map.entries())
-    .map(([key, batchLeads]) => {
-      const batchId = key === "__none__" ? null : key;
-      return {
-        batchId,
-        label: formatOutreachBatchLabel(batchId, batchLeads),
-        leads: batchLeads.sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        ),
-      };
-    })
-    .sort((a, b) => new Date(b.leads[0]?.createdAt ?? 0).getTime() - new Date(a.leads[0]?.createdAt ?? 0).getTime());
-}
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -146,9 +67,7 @@ function EditableBlock({
 }) {
   const [draft, setDraft] = useState(value);
   const [saving, setSaving] = useState(false);
-  useEffect(() => {
-    queueMicrotask(() => setDraft(value));
-  }, [value]);
+  useEffect(() => setDraft(value), [value]);
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
@@ -268,9 +187,6 @@ function PlatformTabPanel(props: {
   leads: AnyLead[];
   loading: boolean;
   generating: boolean;
-  generateProgress: number;
-  generateStage: string;
-  bulkDeleting: boolean;
   atlCount: number;
   virtualCount: number;
   onAtlCount: (n: number) => void;
@@ -279,125 +195,18 @@ function PlatformTabPanel(props: {
   onRefresh: () => void;
   onUpdate: (id: string, patch: Record<string, unknown>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
-  onBulkDelete: (
-    input: { mode: "all" } | { mode: "batch"; generationBatchId: string } | { mode: "ids"; ids: string[] },
-  ) => Promise<void>;
 }) {
   const activeLeads = props.leads.filter((l) => !l.deletedAt);
-  const batches = useMemo(() => groupLeadsByBatch(props.leads), [props.leads]);
-
-  const renderLead = (lead: AnyLead) => {
-    if (props.platform === "instagram") {
-      const ig = lead as InstagramLeadRow;
-      return (
-        <LeadBubble
-          key={ig.id}
-          platform="instagram"
-          lead={ig}
-          title={ig.handle}
-          linkHref={ig.profileUrl}
-          linkLabel="Open Instagram profile"
-          onUpdate={(patch) => props.onUpdate(ig.id, patch)}
-          onDelete={() => props.onDelete(ig.id)}
-        >
-          <EditableBlock
-            label="Instagram DM"
-            value={ig.dmText}
-            rows={6}
-            onSave={(dmText) => props.onUpdate(ig.id, { dmText })}
-          />
-          <EditableBlock
-            label="Comment (to grab attention)"
-            value={ig.commentText}
-            rows={2}
-            onSave={(commentText) => props.onUpdate(ig.id, { commentText })}
-          />
-          {ig.commentPostRef ? <p className="text-xs text-white/40">Comment on: {ig.commentPostRef}</p> : null}
-        </LeadBubble>
-      );
-    }
-    if (props.platform === "facebook") {
-      const fb = lead as FacebookLeadRow;
-      return (
-        <LeadBubble
-          key={fb.id}
-          platform="facebook"
-          lead={fb}
-          title={fb.pageName}
-          linkHref={fb.pageUrl}
-          linkLabel="Open Facebook page"
-          onUpdate={(patch) => props.onUpdate(fb.id, patch)}
-          onDelete={() => props.onDelete(fb.id)}
-        >
-          <EditableBlock
-            label="Page post"
-            value={fb.pagePostText}
-            rows={6}
-            onSave={(pagePostText) => props.onUpdate(fb.id, { pagePostText })}
-          />
-        </LeadBubble>
-      );
-    }
-    if (props.platform === "email") {
-      const em = lead as EmailLeadRow;
-      return (
-        <LeadBubble
-          key={em.id}
-          platform="email"
-          lead={em}
-          title={em.name}
-          linkHref={em.emailSourceUrl ?? undefined}
-          linkLabel={em.emailSourceUrl ? "Where email was found" : em.email}
-          onUpdate={(patch) => props.onUpdate(em.id, patch)}
-          onDelete={() => props.onDelete(em.id)}
-        >
-          <p className="text-sm text-white/55">
-            {em.email}
-            {em.businessName ? ` · ${em.businessName}` : ""}
-          </p>
-          <EditableBlock
-            label="Email subject"
-            value={em.emailSubject}
-            rows={1}
-            onSave={(emailSubject) => props.onUpdate(em.id, { emailSubject })}
-          />
-          <EditableBlock
-            label="Email body"
-            value={em.emailBody}
-            rows={8}
-            onSave={(emailBody) => props.onUpdate(em.id, { emailBody })}
-          />
-        </LeadBubble>
-      );
-    }
-    const ot = lead as OtherLeadRow;
-    return (
-      <LeadBubble
-        key={ot.id}
-        platform="other"
-        lead={ot}
-        title={ot.contactLabel}
-        linkHref={ot.contactUrl ?? undefined}
-        onUpdate={(patch) => props.onUpdate(ot.id, patch)}
-        onDelete={() => props.onDelete(ot.id)}
-      >
-        {ot.channelNotes ? <p className="text-xs text-white/45">{ot.channelNotes}</p> : null}
-        <EditableBlock
-          label="Outreach message"
-          value={ot.outreachText}
-          rows={6}
-          onSave={(outreachText) => props.onUpdate(ot.id, { outreachText })}
-        />
-      </LeadBubble>
-    );
-  };
 
   return (
     <div className="space-y-6">
       <section className={`${adminCardClass} space-y-4`}>
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Generate leads</p>
-          <p className="mt-2 text-sm text-white/55">{OUTREACH_PLATFORM_UI[props.platform].generateDescription}</p>
+          <p className="mt-2 text-sm text-white/55">
+            AI finds new fitness pro leads, skips ones already in the database, and drafts personalized outreach with a
+            shared invite tail for today&apos;s batch.
+          </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div>
@@ -436,100 +245,120 @@ function PlatformTabPanel(props: {
             Refresh
           </button>
         </div>
-        {props.generating || props.generateProgress > 0 ? (
-          <OutreachGenerateProgressBar
-            percent={props.generateProgress}
-            stage={props.generateStage}
-            footnote={OUTREACH_PLATFORM_UI[props.platform].progressFootnote}
-          />
-        ) : null}
       </section>
 
       {props.loading ? (
         <p className="text-sm text-white/45">Loading leads…</p>
       ) : activeLeads.length === 0 ? (
         <p className="rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-8 text-center text-sm text-white/45">
-          {OUTREACH_PLATFORM_UI[props.platform].emptyHint}
+          No active leads yet. Generate a batch to get started.
         </p>
       ) : (
-        <div className="space-y-6">
-          <section className={`${adminCardClass} space-y-3`}>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Active pulls</p>
-                <p className="mt-1 text-sm text-white/55">
-                  {activeLeads.length} lead{activeLeads.length === 1 ? "" : "s"} across {batches.length} pull
-                  {batches.length === 1 ? "" : "s"} on this tab.
-                </p>
-              </div>
-              <button
-                type="button"
-                disabled={props.bulkDeleting}
-                className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20 disabled:opacity-40"
-                onClick={() => {
-                  if (
-                    !confirm(
-                      `Move all ${activeLeads.length} active leads on this tab to the deleted archive? They stay on file for learning.`,
-                    )
-                  ) {
-                    return;
-                  }
-                  void props.onBulkDelete({ mode: "all" });
-                }}
+        <div className="space-y-4">
+          {activeLeads.map((lead) => {
+            if (props.platform === "instagram") {
+              const ig = lead as InstagramLeadRow;
+              return (
+                <LeadBubble
+                  key={ig.id}
+                  platform="instagram"
+                  lead={ig}
+                  title={ig.handle}
+                  linkHref={ig.profileUrl}
+                  linkLabel="Open Instagram profile"
+                  onUpdate={(patch) => props.onUpdate(ig.id, patch)}
+                  onDelete={() => props.onDelete(ig.id)}
+                >
+                  <EditableBlock
+                    label="Instagram DM"
+                    value={ig.dmText}
+                    rows={6}
+                    onSave={(dmText) => props.onUpdate(ig.id, { dmText })}
+                  />
+                  <EditableBlock
+                    label="Comment (to grab attention)"
+                    value={ig.commentText}
+                    rows={2}
+                    onSave={(commentText) => props.onUpdate(ig.id, { commentText })}
+                  />
+                  {ig.commentPostRef ? (
+                    <p className="text-xs text-white/40">Comment on: {ig.commentPostRef}</p>
+                  ) : null}
+                </LeadBubble>
+              );
+            }
+            if (props.platform === "facebook") {
+              const fb = lead as FacebookLeadRow;
+              return (
+                <LeadBubble
+                  key={fb.id}
+                  platform="facebook"
+                  lead={fb}
+                  title={fb.pageName}
+                  linkHref={fb.pageUrl}
+                  linkLabel="Open Facebook page"
+                  onUpdate={(patch) => props.onUpdate(fb.id, patch)}
+                  onDelete={() => props.onDelete(fb.id)}
+                >
+                  <EditableBlock
+                    label="Page post"
+                    value={fb.pagePostText}
+                    rows={6}
+                    onSave={(pagePostText) => props.onUpdate(fb.id, { pagePostText })}
+                  />
+                </LeadBubble>
+              );
+            }
+            if (props.platform === "email") {
+              const em = lead as EmailLeadRow;
+              return (
+                <LeadBubble
+                  key={em.id}
+                  platform="email"
+                  lead={em}
+                  title={em.name}
+                  linkHref={em.emailSourceUrl ?? undefined}
+                  linkLabel={em.emailSourceUrl ? "Where email was found" : em.email}
+                  onUpdate={(patch) => props.onUpdate(em.id, patch)}
+                  onDelete={() => props.onDelete(em.id)}
+                >
+                  <p className="text-sm text-white/55">{em.email}{em.businessName ? ` · ${em.businessName}` : ""}</p>
+                  <EditableBlock
+                    label="Email subject"
+                    value={em.emailSubject}
+                    rows={1}
+                    onSave={(emailSubject) => props.onUpdate(em.id, { emailSubject })}
+                  />
+                  <EditableBlock
+                    label="Email body"
+                    value={em.emailBody}
+                    rows={8}
+                    onSave={(emailBody) => props.onUpdate(em.id, { emailBody })}
+                  />
+                </LeadBubble>
+              );
+            }
+            const ot = lead as OtherLeadRow;
+            return (
+              <LeadBubble
+                key={ot.id}
+                platform="other"
+                lead={ot}
+                title={ot.contactLabel}
+                linkHref={ot.contactUrl ?? undefined}
+                onUpdate={(patch) => props.onUpdate(ot.id, patch)}
+                onDelete={() => props.onDelete(ot.id)}
               >
-                {props.bulkDeleting ? "Removing…" : `Delete all ${activeLeads.length} leads`}
-              </button>
-            </div>
-          </section>
-
-          {batches.map((batch) => (
-            <section key={batch.batchId ?? "__none__"} className="space-y-3">
-              <div className="flex flex-col gap-2 border-b border-white/[0.06] pb-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FF7E00]/80">Outreach pull</p>
-                  <p className="mt-1 text-sm font-semibold text-white/85">{batch.label}</p>
-                </div>
-                {batch.batchId ? (
-                  <button
-                    type="button"
-                    disabled={props.bulkDeleting}
-                    className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20 disabled:opacity-40"
-                    onClick={() => {
-                      if (
-                        !confirm(
-                          `Move this pull (${batch.leads.length} lead${batch.leads.length === 1 ? "" : "s"}) to the deleted archive? They stay on file for learning.`,
-                        )
-                      ) {
-                        return;
-                      }
-                      void props.onBulkDelete({ mode: "batch", generationBatchId: batch.batchId! });
-                    }}
-                  >
-                    {props.bulkDeleting ? "Removing…" : "Delete this pull"}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={props.bulkDeleting}
-                    className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20 disabled:opacity-40"
-                    onClick={() => {
-                      if (
-                        !confirm(
-                          `Move these ${batch.leads.length} unbatched lead${batch.leads.length === 1 ? "" : "s"} to the deleted archive?`,
-                        )
-                      ) {
-                        return;
-                      }
-                      void props.onBulkDelete({ mode: "ids", ids: batch.leads.map((l) => l.id) });
-                    }}
-                  >
-                    {props.bulkDeleting ? "Removing…" : "Delete unbatched leads"}
-                  </button>
-                )}
-              </div>
-              <div className="space-y-4">{batch.leads.map((lead) => renderLead(lead))}</div>
-            </section>
-          ))}
+                {ot.channelNotes ? <p className="text-xs text-white/45">{ot.channelNotes}</p> : null}
+                <EditableBlock
+                  label="Outreach message"
+                  value={ot.outreachText}
+                  rows={6}
+                  onSave={(outreachText) => props.onUpdate(ot.id, { outreachText })}
+                />
+              </LeadBubble>
+            );
+          })}
         </div>
       )}
     </div>
@@ -541,39 +370,28 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   const [leads, setLeads] = useState<AnyLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [generateProgress, setGenerateProgress] = useState(0);
-  const [generateStage, setGenerateStage] = useState("");
-  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [atlCount, setAtlCount] = useState(5);
   const [virtualCount, setVirtualCount] = useState(10);
   const [coworkJson, setCoworkJson] = useState<string | null>(null);
 
-  const loadLeads = useCallback(async (platform: OutreachPlatform, options?: { clearAlerts?: boolean }) => {
+  const loadLeads = useCallback(async (platform: OutreachPlatform) => {
     setLoading(true);
-    if (options?.clearAlerts) {
-      setError(null);
-      setSuccessMessage(null);
-    }
+    setError(null);
     try {
       const res = await fetch(`/api/admin/outreach/leads?platform=${platform}`, { credentials: "include" });
       if (!res.ok) throw new Error("Could not load leads.");
       const data = (await res.json()) as { leads?: AnyLead[] };
       setLeads(data.leads ?? []);
     } catch {
-      if (options?.clearAlerts) {
-        setError("Could not load outreach leads. Run db:migrate if tables are missing.");
-      }
+      setError("Could not load outreach leads. Run db:migrate if tables are missing.");
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    queueMicrotask(() => {
-      void loadLeads(tab, { clearAlerts: true });
-    });
+    void loadLeads(tab);
   }, [tab, loadLeads]);
 
   const stats = useMemo(() => {
@@ -585,34 +403,9 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     };
   }, [leads]);
 
-  useEffect(() => {
-    if (!generating) return;
-
-    const totalLeads = atlCount + virtualCount;
-    const estimatedMs =
-      tab === "instagram"
-        ? 18_000 + totalLeads * 3_500 * 2
-        : tab === "facebook"
-          ? 12_000 + totalLeads * 900 * 2
-          : 10_000 + totalLeads * 700 * 2;
-    const startedAt = Date.now();
-
-    const timer = window.setInterval(() => {
-      const elapsed = Date.now() - startedAt;
-      const next = Math.min(92, Math.round((elapsed / estimatedMs) * 92));
-      setGenerateProgress(next);
-      setGenerateStage(stageLabelForOutreachGenerate(tab, next));
-    }, 120);
-
-    return () => window.clearInterval(timer);
-  }, [generating, tab, atlCount, virtualCount]);
-
   const generate = async () => {
     setGenerating(true);
     setError(null);
-    setSuccessMessage(null);
-    setGenerateProgress(0);
-    setGenerateStage(stageLabelForOutreachGenerate(tab, 0));
     try {
       const res = await fetch("/api/admin/outreach/generate", {
         method: "POST",
@@ -620,56 +413,14 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ platform: tab, atlCount, virtualCount }),
       });
-      const data = (await res.json()) as {
-        error?: string;
-        message?: string;
-        leads?: unknown[];
-        verification?: {
-          parsed: number;
-          saved: number;
-          rejected: number;
-          rejectedSamples?: { handle: string; reason: string }[];
-        };
-      };
+      const data = (await res.json()) as { error?: string; message?: string; leads?: unknown[] };
       if (!res.ok) throw new Error(data.error ?? "Generation failed.");
-
-      const leadCount = data.leads?.length ?? 0;
-      if (leadCount === 0) {
-        setError(
-          data.message ??
-            (data.verification?.parsed
-              ? `No leads saved. ${data.verification.rejected} candidate(s) failed verification.`
-              : "No leads were generated. Try again."),
-        );
-        setSuccessMessage(null);
-      } else if (data.message) {
-        setSuccessMessage(data.message);
-        setError(null);
-      } else if (data.verification) {
-        setSuccessMessage(
-          `Saved ${data.verification.saved} verified lead(s)${
-            data.verification.rejected > 0 ? ` (${data.verification.rejected} skipped)` : ""
-          }.`,
-        );
-        setError(null);
-      } else {
-        setSuccessMessage(`Saved ${leadCount} new lead${leadCount === 1 ? "" : "s"}.`);
-        setError(null);
-      }
-
-      setGenerateProgress(96);
-      setGenerateStage("Refreshing leads…");
+      if (data.message && !data.leads?.length) setError(data.message);
       await loadLeads(tab);
-      setGenerateProgress(100);
-      setGenerateStage("Complete");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generation failed.");
     } finally {
       setGenerating(false);
-      window.setTimeout(() => {
-        setGenerateProgress(0);
-        setGenerateStage("");
-      }, 700);
     }
   };
 
@@ -693,32 +444,6 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     });
     if (!res.ok) throw new Error("Delete failed.");
     await loadLeads(tab);
-  };
-
-  const bulkDeleteLeads = async (
-    input: { mode: "all" } | { mode: "batch"; generationBatchId: string } | { mode: "ids"; ids: string[] },
-  ) => {
-    setBulkDeleting(true);
-    setError(null);
-    setSuccessMessage(null);
-    try {
-      const res = await fetch("/api/admin/outreach/leads/bulk-delete", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ platform: tab, ...input }),
-      });
-      const data = (await res.json()) as { error?: string; deletedCount?: number };
-      if (!res.ok) throw new Error(data.error ?? "Bulk delete failed.");
-      setSuccessMessage(
-        `Moved ${data.deletedCount ?? 0} lead${data.deletedCount === 1 ? "" : "s"} to the deleted archive.`,
-      );
-      await loadLeads(tab);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Bulk delete failed.");
-    } finally {
-      setBulkDeleting(false);
-    }
   };
 
   const loadCoworkBrief = async () => {
@@ -756,7 +481,6 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         ) : null}
 
         {error ? <AdminPortalAlert variant="error">{error}</AdminPortalAlert> : null}
-        {successMessage ? <AdminPortalAlert variant="success">{successMessage}</AdminPortalAlert> : null}
 
         <div className="grid gap-3 sm:grid-cols-3">
           <div className={`${adminPanelClass} p-4`}>
@@ -814,9 +538,6 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
           leads={leads}
           loading={loading}
           generating={generating}
-          generateProgress={generateProgress}
-          generateStage={generateStage}
-          bulkDeleting={bulkDeleting}
           atlCount={atlCount}
           virtualCount={virtualCount}
           onAtlCount={setAtlCount}
@@ -825,7 +546,6 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
           onRefresh={() => void loadLeads(tab)}
           onUpdate={updateLead}
           onDelete={deleteLead}
-          onBulkDelete={bulkDeleteLeads}
         />
 
         <AdminPortalBetaNotice />

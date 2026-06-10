@@ -1,24 +1,15 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { loadStripe, type StripeElementsOptions } from "@stripe/stripe-js";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { TrainerSignupStepNav } from "@/components/trainer/trainer-signup-step-nav";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
-import {
-  TRAINER_SIGNUP_PAYMENT_AFTER_HOLD_NOTE,
-  TRAINER_SIGNUP_PAYMENT_INTRO,
-  TRAINER_SIGNUP_PAYMENT_LOADING_MESSAGE,
-  TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE,
-  trainerSignupPaymentHoldExplanation,
-} from "@/lib/trainer-signup-payment-messaging";
-import { useStripePublishableKey } from "@/lib/use-stripe-publishable-key";
+import { getStripePublishableKey } from "@/lib/stripe-publishable";
 
 type Props = {
   foundingPricing: boolean;
-  stripePublishableKey?: string | null;
-  stripeSecretConfigured: boolean;
 };
 
 function PaymentForm({
@@ -49,7 +40,7 @@ function PaymentForm({
       }
       const piId = paymentIntent?.id;
       if (!piId) {
-        setError("Authorization completed but no payment id was returned.");
+        setError("Payment completed but no payment id was returned.");
         return;
       }
       const res = await fetch("/api/trainer/signup/confirm-payment", {
@@ -60,12 +51,12 @@ function PaymentForm({
       });
       const data = (await res.json()) as { error?: string; next?: string };
       if (!res.ok) {
-        setError(data.error ?? "Authorization succeeded but we could not update your account. Contact support.");
+        setError(data.error ?? "Payment succeeded but we could not update your account. Contact support.");
         return;
       }
       navigateWithFullLoad(data.next ?? "/trainer/dashboard");
     } catch {
-      setError("Something went wrong while processing your card authorization.");
+      setError("Something went wrong while processing payment.");
     } finally {
       setSubmitting(false);
     }
@@ -73,89 +64,63 @@ function PaymentForm({
 
   return (
     <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
-      <div className="space-y-3 rounded-xl border border-white/[0.08] bg-[#12151C]/60 px-4 py-4 text-sm leading-relaxed text-white/70">
-        <p>{trainerSignupPaymentHoldExplanation(foundingPricing ? "FOUNDING_BG_SURCHARGE_20PCT" : "STANDARD_100_MINUS_BG")}</p>
-        <p className="text-white/55">{TRAINER_SIGNUP_PAYMENT_AFTER_HOLD_NOTE}</p>
-      </div>
+      <p className="text-sm leading-relaxed text-white/65">
+        {foundingPricing ? (
+          <>
+            Founding coach pricing: you authorize the estimated background screening fee plus a 20% platform
+            surcharge and card processing. Match Fit captures this amount only after your certification and
+            background check are approved.
+          </>
+        ) : (
+          <>
+            You authorize the $100.00 platform registration fee plus card processing. Match Fit captures this
+            amount only after your certification and background check are approved.
+          </>
+        )}
+      </p>
       <p className="text-sm text-white/80">
-        Hold amount today (includes processing):{" "}
-        <span className="font-semibold text-[#FFD34E]">{amountLabel}</span>
+        Total due now: <span className="font-semibold text-[#FFD34E]">{amountLabel}</span>
       </p>
       <div className="rounded-xl border border-white/[0.08] bg-[#0E1016]/90 px-3 py-4">
         <PaymentElement />
       </div>
       {error ? <p className="text-sm text-rose-300">{error}</p> : null}
-      <button
-        type="submit"
-        disabled={!stripe || !elements || submitting}
-        className="flex min-h-[3rem] w-full items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] disabled:opacity-60"
-      >
-        {submitting ? "Authorizing…" : "Place signup fee hold"}
-      </button>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Link
+          href="/trainer/signup/terms"
+          className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold tracking-wide text-white transition hover:border-white/25"
+        >
+          Back to Agreement
+        </Link>
+        <button
+          type="submit"
+          disabled={!stripe || !elements || submitting}
+          className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] disabled:opacity-60"
+        >
+          {submitting ? "Processing…" : "Authorize signup fee"}
+        </button>
+      </div>
     </form>
   );
 }
 
-export default function TrainerSignupPaymentClient({
-  foundingPricing,
-  stripePublishableKey,
-  stripeSecretConfigured,
-}: Props) {
-  const { publishableKey, loading: publishableLoading } = useStripePublishableKey(stripePublishableKey);
-  const useEmbeddedCheckout = Boolean(publishableKey);
-  const useCheckoutRedirect = !useEmbeddedCheckout && stripeSecretConfigured;
+export default function TrainerSignupPaymentClient({ foundingPricing }: Props) {
+  const publishableKey = getStripePublishableKey();
+  const stripeConfigured = Boolean(publishableKey);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [amountLabel, setAmountLabel] = useState<string>("…");
-  const [initError, setInitError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(stripeConfigured);
+  const [initError, setInitError] = useState<string | null>(
+    stripeConfigured ? null : "Stripe is not configured for this environment.",
+  );
 
   const stripePromise = useMemo(
     () => (publishableKey ? loadStripe(publishableKey) : null),
     [publishableKey],
   );
 
-  const configUnavailable =
-    !publishableLoading && !stripeSecretConfigured ? TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE : null;
-  const checkoutUnavailable =
-    !publishableLoading &&
-    stripeSecretConfigured &&
-    !useCheckoutRedirect &&
-    !useEmbeddedCheckout
-      ? TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE
-      : null;
-  const displayInitError = initError ?? configUnavailable ?? checkoutUnavailable;
-
   useEffect(() => {
-    if (publishableLoading) return;
-    if (!stripeSecretConfigured || (!useCheckoutRedirect && !useEmbeddedCheckout)) return;
-
-    if (useCheckoutRedirect) {
-      let cancelled = false;
-      void fetch("/api/trainer/signup/create-checkout-session", {
-        method: "POST",
-        credentials: "include",
-      })
-        .then((r) => r.json())
-        .then((d: { url?: string; totalCents?: number; error?: string }) => {
-          if (cancelled) return;
-          if (!d.url) {
-            setInitError(d.error ?? TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
-            return;
-          }
-          if (typeof d.totalCents === "number" && d.totalCents > 0) {
-            setAmountLabel(`$${(d.totalCents / 100).toFixed(2)}`);
-          }
-          window.location.assign(d.url);
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setInitError(TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
-          }
-        });
-      return () => {
-        cancelled = true;
-      };
-    }
-
+    if (!stripeConfigured) return;
     let cancelled = false;
     void fetch("/api/trainer/signup/create-payment-intent", {
       method: "POST",
@@ -165,7 +130,7 @@ export default function TrainerSignupPaymentClient({
       .then((d: { clientSecret?: string; totalCents?: number; error?: string }) => {
         if (cancelled) return;
         if (!d.clientSecret) {
-          setInitError(d.error ?? TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
+          setInitError(d.error ?? "Could not initialize payment.");
           return;
         }
         setClientSecret(d.clientSecret);
@@ -174,71 +139,52 @@ export default function TrainerSignupPaymentClient({
         }
       })
       .catch(() => {
-        if (!cancelled) setInitError(TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
+        if (!cancelled) setInitError("Could not reach the payment server.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [publishableLoading, stripeSecretConfigured, useCheckoutRedirect, useEmbeddedCheckout]);
-
-  const redirecting =
-    useCheckoutRedirect && !publishableLoading && !displayInitError;
-  const loadingIntent =
-    useEmbeddedCheckout && !publishableLoading && !clientSecret && !displayInitError;
+  }, [stripeConfigured]);
 
   const options: StripeElementsOptions | undefined = clientSecret
     ? { clientSecret, appearance: { theme: "night", variables: { colorPrimary: "#FF7E00" } } }
     : undefined;
 
-  const loading = publishableLoading || loadingIntent || redirecting;
-
   return (
-    <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] px-5 py-10 text-white sm:px-8">
-      <div className="mx-auto max-w-lg">
-        <Link href="/trainer/signup/terms" className="inline-flex items-center gap-3">
-          <div className="relative h-10 w-10 overflow-hidden rounded-lg">
-            <Image src="/logo.png" alt="Match Fit" fill className="object-contain" sizes="40px" />
-          </div>
-          <span className="text-sm font-bold text-white/70">Back to agreement</span>
-        </Link>
+    <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] text-white antialiased">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(255,211,78,0.12),transparent_55%),radial-gradient(ellipse_90%_60%_at_100%_0%,rgba(255,126,0,0.08),transparent_50%)]"
+      />
 
-        <h1 className="mt-8 text-2xl font-black uppercase tracking-tight">Authorize signup fee</h1>
-        <p className="mt-3 text-sm leading-relaxed text-white/60">{TRAINER_SIGNUP_PAYMENT_INTRO}</p>
+      <div className="relative z-10 mx-auto max-w-lg px-5 pb-20 pt-10 sm:px-8 sm:pt-14">
+        <TrainerSignupStepNav currentStep={3} showSaveForLater />
 
-        <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-white/55">
-          <li>Your card receives a temporary hold for the total shown below (not an immediate charge).</li>
-          <li>You continue onboarding in your dashboard — certification upload, tax forms, background screening.</li>
-          <li>
-            Match Fit captures the fee only after certification and background screening are approved. If screening is
-            not approved, only the platform portion of the hold may be captured; the rest is released.
-          </li>
-        </ol>
+        <p className="mt-2 text-sm text-white/55">
+          Your card is authorized today. Match Fit captures the fee only after certification and background
+          screening are approved.
+        </p>
 
-        <div className="mt-8">
+        <div className="mt-8 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
           {loading ? (
-            <p className="text-sm text-white/50">
-              {redirecting
-                ? `Redirecting to secure Stripe checkout${amountLabel !== "…" ? ` for ${amountLabel}` : ""}…`
-                : TRAINER_SIGNUP_PAYMENT_LOADING_MESSAGE}
-            </p>
-          ) : displayInitError ? (
-            <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-4 text-sm leading-relaxed text-rose-100/95">
-              <p>{displayInitError}</p>
-              <p className="mt-3 text-xs text-rose-100/70">
-                This is a temporary platform setup issue on our side — not a problem with your card. You can refresh
-                this page in a few minutes or email{" "}
-                <a href="mailto:support@match-fit.net" className="font-semibold text-white underline-offset-2 hover:underline">
-                  support@match-fit.net
-                </a>{" "}
-                if it persists.
-              </p>
-            </div>
+            <p className="text-sm text-white/50">Loading secure checkout…</p>
+          ) : initError ? (
+            <p className="text-sm text-rose-300">{initError}</p>
           ) : clientSecret && stripePromise && options ? (
             <Elements stripe={stripePromise} options={options}>
               <PaymentForm amountLabel={amountLabel} foundingPricing={foundingPricing} />
             </Elements>
           ) : null}
         </div>
+
+        <p className="mt-6 text-center text-xs text-white/40">
+          <Link href="/trainer/signup" className="underline-offset-4 hover:text-white/60 hover:underline">
+            Back to account details
+          </Link>
+        </p>
       </div>
     </main>
   );

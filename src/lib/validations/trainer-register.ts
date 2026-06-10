@@ -31,13 +31,8 @@ export const trainerSignupSchema = z.object({
   agreedToTerms: z.boolean().optional(),
   stayLoggedIn: z.boolean().optional().default(true),
   turnstileToken: z.string().optional(),
-  /** Primary service ZIP for matching and profile (any valid US ZIP). */
-  serviceZipCode: z
-    .string()
-    .trim()
-    .min(1, "Enter a valid US ZIP code (5 digits).")
-    .max(12)
-    .regex(/^\d{5}(-\d{4})?$/, "Enter a valid US ZIP code (5 digits)."),
+  /** Required when Match Fit beta geo gates are enabled. */
+  serviceZipCode: z.string().trim().max(12).optional().default(""),
   betaInviteToken: z.string().optional(),
 });
 

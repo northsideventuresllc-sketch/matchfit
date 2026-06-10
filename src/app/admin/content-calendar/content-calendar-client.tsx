@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AdminPortalNav } from "@/components/admin/admin-portal-nav";
 import {
   AdminPortalAlert,
@@ -16,14 +16,12 @@ import {
   adminSecondaryButtonClass,
 } from "@/components/admin/admin-portal-ui";
 import {
-  CONTENT_CALENDAR_CONTENT_TYPES,
   CONTENT_CALENDAR_DAYS_LONG,
   CONTENT_CALENDAR_DAYS_SHORT,
-  CONTENT_CALENDAR_PLATFORMS_GEN,
   CONTENT_CALENDAR_POST_TYPES,
-  CONTENT_CALENDAR_TONES,
   CONTENT_CALENDAR_TYPE_ICONS,
 } from "@/lib/content-calendar/constants";
+import type { ContentCuratorBrief } from "@/lib/content-calendar/content-calendar-ai";
 import {
   formatCalendarDate,
   getContentCalendarRotation,
@@ -40,12 +38,9 @@ type AiStatus = {
   message: string;
 };
 
-type GeneratorResult = {
-  hook: string;
-  body: string;
-  cta: string;
-  hashtags: string[];
-  dmScript?: string;
+type CuratorMessage = {
+  role: "user" | "assistant";
+  content: string;
 };
 
 function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
@@ -63,6 +58,174 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
     >
       {copied ? "Copied" : label}
     </button>
+  );
+}
+
+function ContentCuratorChat(props: {
+  configured: boolean;
+  onBriefReady: (brief: ContentCuratorBrief) => void;
+}) {
+  const [open, setOpen] = useState(true);
+  const [messages, setMessages] = useState<CuratorMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [confidence, setConfidence] = useState(0);
+  const [ready, setReady] = useState(false);
+  const [brief, setBrief] = useState<ContentCuratorBrief | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const startedRef = useRef(false);
+
+  useEffect(() => {
+    if (!open || startedRef.current || !props.configured) return;
+    startedRef.current = true;
+    queueMicrotask(() => {
+      void sendToCurator([]);
+    });
+  }, [open, props.configured]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, busy]);
+
+  async function sendToCurator(history: CuratorMessage[]) {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/content-calendar/curator-chat", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: history }),
+      });
+      const data = (await res.json()) as {
+        result?: {
+          assistantMessage: string;
+          confidence: number;
+          readyToGenerate: boolean;
+          brief: ContentCuratorBrief | null;
+        };
+        error?: string;
+      };
+      if (!res.ok) throw new Error(data.error ?? "Curator request failed.");
+      const result = data.result;
+      if (!result) throw new Error("Curator returned no response.");
+      setMessages((prev) => [...prev, { role: "assistant", content: result.assistantMessage }]);
+      setConfidence(result.confidence);
+      setReady(result.readyToGenerate);
+      if (result.brief) {
+        setBrief(result.brief);
+        props.onBriefReady(result.brief);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Curator request failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submit() {
+    const text = input.trim();
+    if (!text || busy) return;
+    const nextHistory: CuratorMessage[] = [...messages, { role: "user", content: text }];
+    setMessages(nextHistory);
+    setInput("");
+    await sendToCurator(nextHistory);
+  }
+
+  const confidencePct = Math.round(confidence * 100);
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="fixed right-6 top-24 z-40 flex items-center gap-2 rounded-full border border-[#FF7E00]/35 bg-[#12151C]/95 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-[#FFD34E] shadow-xl backdrop-blur-xl"
+        onClick={() => setOpen(true)}
+      >
+        <span aria-hidden>✦</span> Content Curator
+        {ready ? <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-200">Ready</span> : null}
+      </button>
+    );
+  }
+
+  return (
+    <section className={`${adminPanelClass} overflow-hidden`}>
+      <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-3 sm:px-5">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[#FF7E00]">Content curator</p>
+          <p className="mt-0.5 text-sm text-white/55">
+            Chat until the assistant is 95% confident about your goals, then generate a tailored batch.
+          </p>
+        </div>
+        <button type="button" className={adminSecondaryButtonClass} onClick={() => setOpen(false)}>
+          Minimize
+        </button>
+      </div>
+
+      <div className="px-4 py-3 sm:px-5">
+        <div className="mb-3 flex items-center gap-3">
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+            <div
+              className={`h-full rounded-full transition-all ${ready ? "bg-emerald-400" : "bg-[#FF7E00]"}`}
+              style={{ width: `${Math.min(100, confidencePct)}%` }}
+            />
+          </div>
+          <span className="text-[11px] font-bold tabular-nums text-white/50">{confidencePct}% sure</span>
+        </div>
+
+        <div
+          ref={scrollRef}
+          className="max-h-64 space-y-3 overflow-y-auto rounded-xl border border-white/[0.06] bg-[#07080c]/80 p-3"
+        >
+          {messages.length === 0 && !busy ? (
+            <p className="text-sm text-white/40">Starting curator interview…</p>
+          ) : null}
+          {messages.map((m, i) => (
+            <div
+              key={`${m.role}-${i}`}
+              className={`rounded-lg px-3 py-2 text-sm leading-relaxed ${
+                m.role === "user"
+                  ? "ml-8 bg-[#FF7E00]/15 text-white/90"
+                  : "mr-8 border border-white/[0.06] bg-[#12151C] text-white/75"
+              }`}
+            >
+              {m.content}
+            </div>
+          ))}
+          {busy ? <p className="text-xs text-white/40">Thinking…</p> : null}
+        </div>
+
+        {error ? <p className="mt-2 text-xs text-[#FFB4B4]">{error}</p> : null}
+
+        {ready && brief ? (
+          <p className="mt-3 text-xs text-emerald-200/90">
+            Curator is ready — use <strong className="font-semibold">Generate batch</strong> below with your brief applied.
+          </p>
+        ) : null}
+
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <input
+            type="text"
+            className={`${adminInputClassSm} flex-1`}
+            placeholder="Answer the curator's question…"
+            value={input}
+            disabled={busy || !props.configured}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void submit();
+            }}
+          />
+          <button
+            type="button"
+            className={adminPrimaryButtonClass}
+            disabled={busy || !props.configured || !input.trim()}
+            onClick={() => void submit()}
+          >
+            Send
+          </button>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -84,11 +247,7 @@ function MissedPostBubble(props: {
       </p>
       {!showPicker ? (
         <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            className={adminAccentButtonClass}
-            onClick={() => setShowPicker(true)}
-          >
+          <button type="button" className={adminAccentButtonClass} onClick={() => setShowPicker(true)}>
             Yes
           </button>
           <button
@@ -125,7 +284,9 @@ function MissedPostBubble(props: {
 }
 
 export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
-  const [tab, setTab] = useState<"calendar" | "generator">("calendar");
+  const [generateMode, setGenerateMode] = useState<"week" | "count">("week");
+  const [postCount, setPostCount] = useState(8);
+  const [curatorBrief, setCuratorBrief] = useState<ContentCuratorBrief | null>(null);
   const [weekStart, setWeekStart] = useState(() => formatCalendarDate(getMondayOfWeek()));
   const [offset, setOffset] = useState(7);
   const [posts, setPosts] = useState<ClientContentPost[]>([]);
@@ -140,6 +301,7 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
   const [drafts, setDrafts] = useState<Record<string, { caption: string; visualPrompt: string | null }>>({});
 
   const baseMonday = useMemo(() => new Date(`${weekStart}T00:00:00`), [weekStart]);
+  const effectivePostCount = curatorBrief?.postCount ?? postCount;
 
   const loadSchedule = useCallback(async () => {
     setLoading(true);
@@ -177,15 +339,25 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
     });
   }, [loadSchedule, loadMissed]);
 
-  async function generateWeek() {
+  useEffect(() => {
+    if (curatorBrief?.postCount) setPostCount(curatorBrief.postCount);
+  }, [curatorBrief?.postCount]);
+
+  async function generateSchedule() {
     setGenerating(true);
     setError(null);
     try {
+      const body: Record<string, unknown> = { weekStart, offset };
+      if (generateMode === "count") {
+        body.postCount = effectivePostCount;
+        if (curatorBrief) body.curatorBrief = curatorBrief;
+      }
+
       const res = await fetch("/api/admin/content-calendar/schedule", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ weekStart, offset }),
+        body: JSON.stringify(body),
       });
       const data = (await res.json()) as { posts?: ClientContentPost[]; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Generation failed.");
@@ -294,9 +466,7 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
     void navigator.clipboard.writeText(out);
   }
 
-  const visibleDayIndexes =
-    activeDay === null ? [0, 1, 2, 3, 4] : [activeDay];
-
+  const visibleDayIndexes = activeDay === null ? [0, 1, 2, 3, 4] : [activeDay];
   const bubblePost = missedPosts[0];
 
   return (
@@ -332,10 +502,12 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
 
         <AdminPortalBetaNotice />
 
+        <ContentCuratorChat configured={props.aiStatus.configured} onBriefReady={setCuratorBrief} />
+
         {!props.aiStatus.niBrain ? (
           <AdminPortalAlert variant="info">
             NI Brain Supabase keys are not set. Add NI_BRAIN_SUPABASE_URL and NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY to
-            Vercel production env or store them in platform_secrets (via bootstrap script), then redeploy.
+            persist schedules and learning.
           </AdminPortalAlert>
         ) : null}
 
@@ -352,211 +524,227 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
           </section>
         ) : null}
 
-        <div className="flex gap-2 border-b border-white/[0.06] pb-1">
-          {(["calendar", "generator"] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              className={
-                tab === t
-                  ? "border-b-2 border-[#FF7E00] px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-[#FFD34E]"
-                  : "px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-white/40 hover:text-white/70"
-              }
-              onClick={() => setTab(t)}
-            >
-              {t === "calendar" ? "Weekly calendar" : "AI generator"}
-            </button>
-          ))}
-        </div>
-
-        {tab === "calendar" ? (
-          <div className="space-y-6">
-            <section className={`${adminPanelClass} flex flex-wrap items-end gap-4 p-5`}>
-              <div>
-                <label className={adminLabelClass}>Week start</label>
-                <input
-                  type="date"
-                  className={`${adminInputClassSm} mt-1`}
-                  value={weekStart}
-                  onChange={(e) => setWeekStart(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className={adminLabelClass}>Day offset</label>
-                <input
-                  type="number"
-                  min={0}
-                  className={`${adminInputClassSm} mt-1 w-20`}
-                  value={offset}
-                  onChange={(e) => setOffset(Number.parseInt(e.target.value, 10) || 0)}
-                />
-              </div>
-              <button
-                type="button"
-                className={`${adminPrimaryButtonClass} min-h-0 px-5 py-2.5 text-xs`}
-                disabled={generating || !props.aiStatus.configured}
-                onClick={() => void generateWeek()}
-              >
-                {generating ? "Generating week…" : "Generate week"}
-              </button>
-              <button type="button" className={adminSecondaryButtonClass} onClick={exportWeek} disabled={!posts.length}>
-                Export week
-              </button>
-              <p className="ml-auto max-w-xs text-[10px] leading-relaxed text-white/35">
-                Baseline rotation: Carousel→Atlanta Trainers · Static→Virtual Trainers · Video→Atlanta Clients ·
-                Text→Virtual Clients
-              </p>
-            </section>
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                className={activeDay === null ? adminAccentButtonClass : adminSecondaryButtonClass}
-                onClick={() => setActiveDay(null)}
-              >
-                All days
-              </button>
-              {CONTENT_CALENDAR_DAYS_SHORT.map((_, di) => (
+        <div className="space-y-6">
+          <section className={`${adminPanelClass} flex flex-wrap items-end gap-4 p-5`}>
+            <div className="w-full">
+              <p className={adminLabelClass}>Generate mode</p>
+              <div className="mt-2 flex flex-wrap gap-2">
                 <button
-                  key={di}
                   type="button"
-                  className={activeDay === di ? adminAccentButtonClass : adminSecondaryButtonClass}
-                  onClick={() => setActiveDay(activeDay === di ? null : di)}
+                  className={generateMode === "week" ? adminAccentButtonClass : adminSecondaryButtonClass}
+                  onClick={() => setGenerateMode("week")}
                 >
-                  {CONTENT_CALENDAR_DAYS_SHORT[di]}{" "}
-                  <span className="opacity-50">{shortCalendarDate(baseMonday, di)}</span>
+                  Full week (20 posts)
                 </button>
-              ))}
+                <button
+                  type="button"
+                  className={generateMode === "count" ? adminAccentButtonClass : adminSecondaryButtonClass}
+                  onClick={() => setGenerateMode("count")}
+                >
+                  By post count
+                </button>
+              </div>
             </div>
 
-            {loading ? <p className="text-sm text-white/50">Loading schedule…</p> : null}
-
-            {!loading && posts.length === 0 ? (
-              <p className={`${adminPanelClass} p-6 text-sm text-white/55`}>
-                No posts scheduled for this week. Click <strong className="text-[#FFD34E]">Generate week</strong> to
-                create 20 M–F posts (4 types × 5 days) with captions, hashtags, and visual prompts.
-              </p>
+            <div>
+              <label className={adminLabelClass}>Week start</label>
+              <input
+                type="date"
+                className={`${adminInputClassSm} mt-1`}
+                value={weekStart}
+                onChange={(e) => setWeekStart(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className={adminLabelClass}>Day offset</label>
+              <input
+                type="number"
+                min={0}
+                className={`${adminInputClassSm} mt-1 w-20`}
+                value={offset}
+                onChange={(e) => setOffset(Number.parseInt(e.target.value, 10) || 0)}
+              />
+            </div>
+            {generateMode === "count" ? (
+              <div>
+                <label className={adminLabelClass}>Post count</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  className={`${adminInputClassSm} mt-1 w-20`}
+                  value={effectivePostCount}
+                  onChange={(e) => setPostCount(Math.min(20, Math.max(1, Number.parseInt(e.target.value, 10) || 1)))}
+                />
+              </div>
             ) : null}
+            <button
+              type="button"
+              className={`${adminPrimaryButtonClass} min-h-0 px-5 py-2.5 text-xs`}
+              disabled={generating || !props.aiStatus.configured}
+              onClick={() => void generateSchedule()}
+            >
+              {generating
+                ? "Generating…"
+                : generateMode === "week"
+                  ? "Generate week"
+                  : `Generate ${effectivePostCount} posts`}
+            </button>
+            <button type="button" className={adminSecondaryButtonClass} onClick={exportWeek} disabled={!posts.length}>
+              Export week
+            </button>
+            <p className="ml-auto max-w-xs text-[10px] leading-relaxed text-white/35">
+              {generateMode === "week"
+                ? "Baseline rotation: Carousel→Atlanta Trainers · Static→Virtual Trainers · Video→Atlanta Clients · Text→Virtual Clients"
+                : "Batch mode spreads posts across weekdays without requiring a full 20-post week. Curator brief applies when ready."}
+            </p>
+          </section>
 
-            {visibleDayIndexes.map((di) => {
-              const rot = getContentCalendarRotation(di, offset);
-              const dayPosts = posts.filter((p) => p.dayIndex === di);
-              if (!dayPosts.length) return null;
-              return (
-                <section key={di} className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-2xl font-black text-[#FF7E00]">{CONTENT_CALENDAR_DAYS_LONG[di]}</h2>
-                    <span className="text-xs text-white/35">{shortCalendarDate(baseMonday, di)}</span>
-                    <div className="h-px flex-1 bg-[#FF7E00]/15" />
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {CONTENT_CALENDAR_POST_TYPES.map((type) => {
-                      const post = dayPosts.find((p) => p.postType === type);
-                      if (!post) return null;
-                      const draft = drafts[post.id] ?? { caption: post.caption, visualPrompt: post.visualPrompt };
-                      const promKey = post.id;
-                      const isPromptOpen = expandedPrompt === promKey;
-                      const overdue = shouldShowMissedPrompt({
-                        postDate: post.postDate,
-                        posted: post.posted,
-                        missedPromptDismissed: post.missedPromptDismissed,
-                      });
-                      return (
-                        <article key={post.id} className={`${adminPanelClass} p-4 ${overdue ? "ring-1 ring-amber-400/40" : ""}`}>
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span className="text-xs font-black uppercase tracking-[0.1em] text-[#FFD34E]">
-                              {CONTENT_CALENDAR_TYPE_ICONS[type]} {type}
-                            </span>
-                            <span className="rounded-md border border-white/10 px-2 py-0.5 text-[10px] text-white/45">
-                              {rot[type]}
-                            </span>
-                          </div>
-                          <p className="mt-2 text-[10px] uppercase tracking-wide text-white/35">{post.platforms}</p>
-                          {post.hashtags.length ? (
-                            <p className="mt-1 text-[11px] text-white/40">
-                              {post.hashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}
-                            </p>
-                          ) : null}
-                          <textarea
-                            className={`${adminInputClassSm} mt-3`}
-                            rows={5}
-                            value={draft.caption}
-                            onChange={(e) =>
-                              setDrafts((p) => ({ ...p, [post.id]: { ...draft, caption: e.target.value } }))
-                            }
-                            onBlur={() => void savePost(post)}
-                          />
-                          {draft.visualPrompt !== null ? (
-                            <>
-                              <button
-                                type="button"
-                                className={`${adminSecondaryButtonClass} mt-2`}
-                                onClick={() => setExpandedPrompt(isPromptOpen ? null : promKey)}
-                              >
-                                {isPromptOpen ? "Hide prompt" : "Visual prompt"}
-                              </button>
-                              {isPromptOpen ? (
-                                <textarea
-                                  className={`${adminInputClassSm} mt-2 border-dashed border-[#FF7E00]/25`}
-                                  rows={4}
-                                  value={draft.visualPrompt ?? ""}
-                                  onChange={(e) =>
-                                    setDrafts((p) => ({
-                                      ...p,
-                                      [post.id]: { ...draft, visualPrompt: e.target.value },
-                                    }))
-                                  }
-                                  onBlur={() => void savePost(post)}
-                                />
-                              ) : null}
-                            </>
-                          ) : null}
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            <CopyButton text={draft.caption} label="Copy caption" />
-                            {draft.visualPrompt ? <CopyButton text={draft.visualPrompt} label="Copy prompt" /> : null}
-                            {(type === "Static" || type === "Carousel") && props.aiStatus.media ? (
-                              <button
-                                type="button"
-                                className={adminAccentButtonClass}
-                                onClick={() => void generateMedia(post)}
-                              >
-                                Generate image
-                              </button>
-                            ) : null}
-                            {post.mediaUrl ? (
-                              <a
-                                href={post.mediaUrl}
-                                download={`match-fit-${post.postType.toLowerCase()}-${post.postDate}.png`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={adminSecondaryButtonClass}
-                              >
-                                Download media
-                              </a>
-                            ) : null}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={activeDay === null ? adminAccentButtonClass : adminSecondaryButtonClass}
+              onClick={() => setActiveDay(null)}
+            >
+              All days
+            </button>
+            {CONTENT_CALENDAR_DAYS_SHORT.map((_, di) => (
+              <button
+                key={di}
+                type="button"
+                className={activeDay === di ? adminAccentButtonClass : adminSecondaryButtonClass}
+                onClick={() => setActiveDay(activeDay === di ? null : di)}
+              >
+                {CONTENT_CALENDAR_DAYS_SHORT[di]}{" "}
+                <span className="opacity-50">{shortCalendarDate(baseMonday, di)}</span>
+              </button>
+            ))}
+          </div>
+
+          {loading ? <p className="text-sm text-white/50">Loading schedule…</p> : null}
+
+          {!loading && posts.length === 0 ? (
+            <p className={`${adminPanelClass} p-6 text-sm text-white/55`}>
+              No posts scheduled for this week. Use the curator above, then{" "}
+              <strong className="text-[#FFD34E]">
+                {generateMode === "week" ? "Generate week" : `Generate ${effectivePostCount} posts`}
+              </strong>{" "}
+              to create captions, hashtags, and visual prompts.
+            </p>
+          ) : null}
+
+          {visibleDayIndexes.map((di) => {
+            const rot = getContentCalendarRotation(di, offset);
+            const dayPosts = posts.filter((p) => p.dayIndex === di);
+            if (!dayPosts.length) return null;
+            return (
+              <section key={di} className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-2xl font-black text-[#FF7E00]">{CONTENT_CALENDAR_DAYS_LONG[di]}</h2>
+                  <span className="text-xs text-white/35">{shortCalendarDate(baseMonday, di)}</span>
+                  <div className="h-px flex-1 bg-[#FF7E00]/15" />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {CONTENT_CALENDAR_POST_TYPES.map((type) => {
+                    const post = dayPosts.find((p) => p.postType === type);
+                    if (!post) return null;
+                    const draft = drafts[post.id] ?? { caption: post.caption, visualPrompt: post.visualPrompt };
+                    const promKey = post.id;
+                    const isPromptOpen = expandedPrompt === promKey;
+                    const overdue = shouldShowMissedPrompt({
+                      postDate: post.postDate,
+                      posted: post.posted,
+                      missedPromptDismissed: post.missedPromptDismissed,
+                    });
+                    return (
+                      <article key={post.id} className={`${adminPanelClass} p-4 ${overdue ? "ring-1 ring-amber-400/40" : ""}`}>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-xs font-black uppercase tracking-[0.1em] text-[#FFD34E]">
+                            {CONTENT_CALENDAR_TYPE_ICONS[type]} {type}
+                          </span>
+                          <span className="rounded-md border border-white/10 px-2 py-0.5 text-[10px] text-white/45">
+                            {rot[type]}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-[10px] uppercase tracking-wide text-white/35">{post.platforms}</p>
+                        {post.hashtags.length ? (
+                          <p className="mt-1 text-[11px] text-white/40">
+                            {post.hashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}
+                          </p>
+                        ) : null}
+                        <textarea
+                          className={`${adminInputClassSm} mt-3`}
+                          rows={5}
+                          value={draft.caption}
+                          onChange={(e) =>
+                            setDrafts((p) => ({ ...p, [post.id]: { ...draft, caption: e.target.value } }))
+                          }
+                          onBlur={() => void savePost(post)}
+                        />
+                        {draft.visualPrompt !== null ? (
+                          <>
                             <button
                               type="button"
-                              className={`${adminAccentButtonClass} ml-auto`}
-                              onClick={() => void markPosted(post.id)}
+                              className={`${adminSecondaryButtonClass} mt-2`}
+                              onClick={() => setExpandedPrompt(isPromptOpen ? null : promKey)}
                             >
-                              Mark posted
+                              {isPromptOpen ? "Hide prompt" : "Visual prompt"}
                             </button>
-                          </div>
-                          {post.mediaUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={post.mediaUrl} alt="" className="mt-3 max-h-48 rounded-xl border border-white/10" />
+                            {isPromptOpen ? (
+                              <textarea
+                                className={`${adminInputClassSm} mt-2 border-dashed border-[#FF7E00]/25`}
+                                rows={4}
+                                value={draft.visualPrompt ?? ""}
+                                onChange={(e) =>
+                                  setDrafts((p) => ({
+                                    ...p,
+                                    [post.id]: { ...draft, visualPrompt: e.target.value },
+                                  }))
+                                }
+                                onBlur={() => void savePost(post)}
+                              />
+                            ) : null}
+                          </>
+                        ) : null}
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <CopyButton text={draft.caption} label="Copy caption" />
+                          {draft.visualPrompt ? <CopyButton text={draft.visualPrompt} label="Copy prompt" /> : null}
+                          {(type === "Static" || type === "Carousel") && props.aiStatus.media ? (
+                            <button type="button" className={adminAccentButtonClass} onClick={() => void generateMedia(post)}>
+                              Generate image
+                            </button>
                           ) : null}
-                        </article>
-                      );
-                    })}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
-        ) : (
-          <GeneratorPanel configured={props.aiStatus.configured} />
-        )}
+                          {post.mediaUrl ? (
+                            <a
+                              href={post.mediaUrl}
+                              download={`match-fit-${post.postType.toLowerCase()}-${post.postDate}.png`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={adminSecondaryButtonClass}
+                            >
+                              Download media
+                            </a>
+                          ) : null}
+                          <button
+                            type="button"
+                            className={`${adminAccentButtonClass} ml-auto`}
+                            onClick={() => void markPosted(post.id)}
+                          >
+                            Mark posted
+                          </button>
+                        </div>
+                        {post.mediaUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={post.mediaUrl} alt="" className="mt-3 max-h-48 rounded-xl border border-white/10" />
+                        ) : null}
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </div>
       </div>
 
       {bubblePost ? (
@@ -584,133 +772,5 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
         />
       ) : null}
     </main>
-  );
-}
-
-function GeneratorPanel(props: { configured: boolean }) {
-  const [platform, setPlatform] = useState("Instagram");
-  const [contentType, setContentType] = useState("Trainer Recruitment");
-  const [tone, setTone] = useState("Bold / Direct");
-  const [customNote, setCustomNote] = useState("");
-  const [result, setResult] = useState<GeneratorResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function generate() {
-    setLoading(true);
-    setError(null);
-    setResult(null);
-    try {
-      const res = await fetch("/api/admin/content-calendar/generate", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ platform, contentType, tone, customNote }),
-      });
-      const data = (await res.json()) as { result?: GeneratorResult; error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Generation failed.");
-      setResult(data.result ?? null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Generation failed.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const fullPost = result
-    ? `${result.hook}\n\n${result.body}\n\n${result.cta}\n\n${result.hashtags?.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}`
-    : "";
-
-  return (
-    <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
-      <aside className={`${adminPanelClass} space-y-5 p-5`}>
-        <div>
-          <p className={adminLabelClass}>Platform</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {CONTENT_CALENDAR_PLATFORMS_GEN.map((p) => (
-              <button
-                key={p}
-                type="button"
-                className={platform === p ? adminAccentButtonClass : adminSecondaryButtonClass}
-                onClick={() => setPlatform(p)}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <p className={adminLabelClass}>Content type</p>
-          <div className="mt-2 flex flex-col gap-1.5">
-            {CONTENT_CALENDAR_CONTENT_TYPES.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className={`${c === contentType ? adminAccentButtonClass : adminSecondaryButtonClass} text-left`}
-                onClick={() => setContentType(c)}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <p className={adminLabelClass}>Tone</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {CONTENT_CALENDAR_TONES.map((t) => (
-              <button
-                key={t}
-                type="button"
-                className={tone === t ? adminAccentButtonClass : adminSecondaryButtonClass}
-                onClick={() => setTone(t)}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <p className={adminLabelClass}>Custom notes</p>
-          <textarea className={`${adminInputClassSm} mt-2`} rows={3} value={customNote} onChange={(e) => setCustomNote(e.target.value)} />
-        </div>
-        <button
-          type="button"
-          className={`${adminPrimaryButtonClass} min-h-0 py-2.5 text-xs`}
-          disabled={loading || !props.configured}
-          onClick={() => void generate()}
-        >
-          {loading ? "Generating…" : "Generate post"}
-        </button>
-        {error ? <p className="text-xs text-[#FFB4B4]">{error}</p> : null}
-      </aside>
-
-      <section className={`${adminPanelClass} min-h-[320px] p-6`}>
-        {!result && !loading ? (
-          <p className="text-sm text-white/40">Select options and generate a single post with hook, body, CTA, and hashtags.</p>
-        ) : null}
-        {loading ? <p className="text-sm text-white/50">Crafting your post…</p> : null}
-        {result ? (
-          <div className="space-y-4">
-            <div className="flex justify-between gap-3">
-              <p className={adminLabelClass}>Full post</p>
-              <CopyButton text={fullPost} label="Copy full post" />
-            </div>
-            <div className="text-sm leading-relaxed text-white/75">
-              <p className="font-semibold text-[#FF7E00]">{result.hook}</p>
-              <p className="mt-3">{result.body}</p>
-              <p className="mt-3 font-medium text-[#FFD34E]">{result.cta}</p>
-              <p className="mt-3 text-xs text-white/40">
-                {result.hashtags?.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}
-              </p>
-            </div>
-            {result.dmScript ? (
-              <div className="rounded-xl border border-white/[0.06] bg-black/20 p-4 text-sm italic text-white/55">
-                {result.dmScript}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </section>
-    </div>
   );
 }

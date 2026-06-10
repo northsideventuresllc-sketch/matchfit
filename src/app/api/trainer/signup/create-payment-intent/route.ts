@@ -1,7 +1,5 @@
-import { hydrateStripeEnvFromDatabase } from "@/lib/hydrate-stripe-env";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
-import { isStripeSecretConfigured } from "@/lib/stripe-config";
 import { createTrainerSignupFeeHoldPaymentIntent } from "@/lib/trainer-signup-fee-hold";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
@@ -10,14 +8,9 @@ export const dynamic = "force-dynamic";
 
 export async function POST() {
   try {
-    await hydrateStripeEnvFromDatabase();
     const trainerId = await getSessionTrainerId();
     if (!trainerId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    if (!isStripeSecretConfigured()) {
-      return NextResponse.json({ error: "Billing is not configured." }, { status: 503 });
     }
 
     const trainer = await prisma.trainer.findUnique({
@@ -66,8 +59,8 @@ export async function POST() {
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Could not start payment.";
-    if (msg.includes("STRIPE_SECRET_KEY") || msg.includes("Billing is not configured")) {
-      return NextResponse.json({ error: "Billing is not configured." }, { status: 503 });
+    if (msg.includes("STRIPE_SECRET_KEY")) {
+      return NextResponse.json({ error: msg }, { status: 503 });
     }
     const { message, status } = publicApiErrorFromUnknown(e, "Could not start payment.", {
       logLabel: "[trainer signup payment intent]",

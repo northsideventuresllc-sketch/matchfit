@@ -7,8 +7,13 @@ import {
   type AdminDashboardLayout,
   serializeAdminDashboardLayout,
 } from "@/lib/admin-dashboard-layout";
-import { AdminPortalShell } from "@/components/admin/admin-portal-shell";
-import { adminPortalLinkClass, adminPortalPrimaryButtonClass } from "@/components/admin/admin-portal-styles";
+import { AdminPortalNav } from "@/components/admin/admin-portal-nav";
+import {
+  AdminPortalBackdrop,
+  adminAccentButtonClass,
+  adminLinkClass,
+  adminPanelClass,
+} from "@/components/admin/admin-portal-ui";
 import { AdminDashboardLayoutCustomizer } from "../admin-dashboard-layout-customizer";
 
 export function AdminSettingsClient(props: {
@@ -59,27 +64,40 @@ export function AdminSettingsClient(props: {
   );
 
   return (
-    <AdminPortalShell
-      current="settings"
-      maxWidth="3xl"
-      title="Dashboard Settings"
-      description="Choose presets, visible sections, and density for your dashboard. Collapse state is saved when you expand or collapse panels on the main dashboard. Test accounts and sandbox billing are always excluded from analytics totals."
-    >
-      <section className="rounded-2xl border border-white/[0.08] bg-[#12151C]/75 p-5 backdrop-blur-xl">
-        <p className="text-sm text-white/70">
-          Use the layout editor to show or hide sections such as site traffic, revenue, impersonation audit, and AI
-          insights.
-        </p>
-        <button type="button" onClick={() => setCustomizerOpen(true)} className={`mt-4 ${adminPortalPrimaryButtonClass}`}>
-          Edit Dashboard Layout
-        </button>
-        {message ? <p className="mt-4 text-sm text-emerald-200/90">{message}</p> : null}
-        <p className="mt-4 text-xs text-white/40">
-          <Link href="/admin" className={adminPortalLinkClass}>
-            Back to Dashboard
-          </Link>
-        </p>
-      </section>
+    <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] px-5 py-10 text-white sm:px-8 sm:py-12">
+      <AdminPortalBackdrop />
+      <div className="relative z-10 mx-auto max-w-3xl space-y-8">
+        <header className="space-y-4">
+          <AdminPortalNav current="settings" />
+          <div>
+            <h1 className="text-2xl font-black">Dashboard settings</h1>
+            <p className="mt-2 text-sm text-white/55">
+              Choose which metrics and tools appear on your administrator dashboard. Test accounts and sandbox billing
+              are always excluded from analytics totals.
+            </p>
+          </div>
+        </header>
+
+        <section className={`${adminPanelClass} p-5`}>
+          <p className="text-sm text-white/70">
+            Use the layout editor to show or hide sections such as site traffic, revenue, impersonation audit, and AI
+            insights.
+          </p>
+          <button
+            type="button"
+            onClick={() => setCustomizerOpen(true)}
+            className={`mt-4 ${adminAccentButtonClass} px-4 py-2.5 text-xs hover:bg-[#FF7E00]/15`}
+          >
+            Customize Dashboard
+          </button>
+          {message ? <p className="mt-4 text-sm text-emerald-200/90">{message}</p> : null}
+          <p className="mt-4 text-xs text-white/40">
+            <Link href="/admin" className={adminLinkClass}>
+              Back to dashboard
+            </Link>
+          </p>
+        </section>
+      </div>
 
       {customizerOpen ? (
         <AdminDashboardLayoutCustomizer
@@ -91,6 +109,6 @@ export function AdminSettingsClient(props: {
           onClose={() => setCustomizerOpen(false)}
         />
       ) : null}
-    </AdminPortalShell>
+    </main>
   );
 }

@@ -1,58 +1,47 @@
 import Link from "next/link";
-import {
-  adminPortalNavLinkActiveClass,
-  adminPortalNavLinkClass,
-  adminPortalNavLinkIdleClass,
-} from "@/components/admin/admin-portal-styles";
+import { adminNavLinkActiveClass, adminNavLinkClass } from "@/components/admin/admin-portal-ui";
 
-export type AdminPortalNavPage =
-  | "dashboard"
-  | "support-inbox"
-  | "settings"
-  | "assistant"
-  | "waitlists"
-  | "outreach"
-  | "content-calendar"
-  | "ad-tracking";
-
-const PAGES: { id: AdminPortalNavPage; href: string; label: string }[] = [
-  { id: "dashboard", href: "/admin", label: "Dashboard" },
-  { id: "support-inbox", href: "/admin/support-inbox", label: "Support Inbox" },
-  { id: "outreach", href: "/admin/outreach", label: "Outreach HQ" },
-  { id: "content-calendar", href: "/admin/content-calendar", label: "Content Calendar" },
-  { id: "ad-tracking", href: "/admin/ad-tracking", label: "Ad Tracking" },
-  { id: "settings", href: "/admin/settings", label: "Settings" },
-  { id: "assistant", href: "/admin/assistant", label: "AI Assistant" },
-  { id: "waitlists", href: "/admin/beta-waitlists", label: "Beta Waitlists" },
-];
-
-function linkClassName(current: AdminPortalNavPage, page: AdminPortalNavPage, variant: "horizontal" | "sidebar") {
-  const active = current === page;
-  const base = `${adminPortalNavLinkClass} ${active ? adminPortalNavLinkActiveClass : adminPortalNavLinkIdleClass}`;
-  if (variant === "sidebar") {
-    return `${base} block w-full text-left`;
-  }
-  return base;
-}
-
-export function AdminPortalNav(props: { current: AdminPortalNavPage; variant?: "horizontal" | "sidebar" }) {
-  const variant = props.variant ?? "horizontal";
-
+export function AdminPortalNav(props: {
+  current: "dashboard" | "settings" | "assistant" | "waitlists" | "outreach" | "content-calendar" | "ad-tracking";
+}) {
   return (
-    <nav
-      className={variant === "sidebar" ? "flex flex-col gap-1" : "flex flex-wrap gap-2"}
-      aria-label="Administrator portal"
-    >
-      {PAGES.map((page) => (
-        <Link
-          key={page.id}
-          href={page.href}
-          className={linkClassName(props.current, page.id, variant)}
-          aria-current={props.current === page.id ? "page" : undefined}
-        >
-          {page.label}
-        </Link>
-      ))}
+    <nav className="flex flex-wrap gap-2" aria-label="Admin portal">
+      <Link href="/admin" className={props.current === "dashboard" ? adminNavLinkActiveClass : adminNavLinkClass}>
+        Dashboard
+      </Link>
+      <Link
+        href="/admin/outreach"
+        className={props.current === "outreach" ? adminNavLinkActiveClass : adminNavLinkClass}
+      >
+        Outreach HQ
+      </Link>
+      <Link
+        href="/admin/content-calendar"
+        className={props.current === "content-calendar" ? adminNavLinkActiveClass : adminNavLinkClass}
+      >
+        Content Calendar
+      </Link>
+      <Link
+        href="/admin/ad-tracking"
+        className={props.current === "ad-tracking" ? adminNavLinkActiveClass : adminNavLinkClass}
+      >
+        Ad Tracking
+      </Link>
+      <Link href="/admin/settings" className={props.current === "settings" ? adminNavLinkActiveClass : adminNavLinkClass}>
+        Settings
+      </Link>
+      <Link
+        href="/admin/assistant"
+        className={props.current === "assistant" ? adminNavLinkActiveClass : adminNavLinkClass}
+      >
+        AI Assistant
+      </Link>
+      <Link
+        href="/admin/beta-waitlists"
+        className={props.current === "waitlists" ? adminNavLinkActiveClass : adminNavLinkClass}
+      >
+        Beta waitlists
+      </Link>
     </nav>
   );
 }
