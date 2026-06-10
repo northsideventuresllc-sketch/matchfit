@@ -107,6 +107,7 @@ function MetricsSection(props: { title: string; description?: string; children: 
 
 export function PlatformHealthSection({ panel }: { panel: AdminPlatformSummaryPanel }) {
   const { successRating, potentialSuccess, valuation, potentialRating, growthProjection } = panel;
+  const [advancedStatsOpen, setAdvancedStatsOpen] = useState(false);
 
   return (
     <MetricsSection
@@ -170,7 +171,7 @@ export function PlatformHealthSection({ panel }: { panel: AdminPlatformSummaryPa
           <ul className="mt-3 space-y-2 text-sm text-white/75">
             {potentialRating.recommendations.map((r) => (
               <li key={r.id}>
-                <span className="font-semibold text-white">{r.label}. </span>
+                <span className="font-semibold uppercase text-white">{r.label}. </span>
                 {r.action}
               </li>
             ))}
@@ -188,7 +189,7 @@ export function PlatformHealthSection({ panel }: { panel: AdminPlatformSummaryPa
           <ul className="mt-3 space-y-2 text-sm text-white/75">
             {growthProjection.revenueRecommendations.map((r) => (
               <li key={r.id}>
-                <span className="font-semibold text-white">{r.label}. </span>
+                <span className="font-semibold uppercase text-white">{r.label}. </span>
                 {r.action}
               </li>
             ))}
@@ -206,13 +207,25 @@ export function PlatformHealthSection({ panel }: { panel: AdminPlatformSummaryPa
         </div>
       </div>
 
-      <ul className="mt-4 space-y-1.5 text-[11px] text-white/45">
-        {successRating.factors.map((f) => (
-          <li key={f.id}>
-            {f.label}: raw {f.raw.toFixed(2)} → contribution {f.contribution.toFixed(2)} (weight {(f.weight * 100).toFixed(0)}%)
-          </li>
-        ))}
-      </ul>
+      <div className="mt-4 border-t border-white/[0.06] pt-4">
+        <button
+          type="button"
+          onClick={() => setAdvancedStatsOpen((open) => !open)}
+          className="text-xs font-semibold text-[#FF7E00] underline-offset-4 transition hover:text-[#FFD34E] hover:underline"
+        >
+          Advanced Statistics
+        </button>
+        {advancedStatsOpen ? (
+          <ul className="mt-3 space-y-1.5 text-[11px] text-white/45">
+            {successRating.factors.map((f) => (
+              <li key={f.id}>
+                {f.label}: raw {f.raw.toFixed(2)} → contribution {f.contribution.toFixed(2)} (weight{" "}
+                {(f.weight * 100).toFixed(0)}%)
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
     </MetricsSection>
   );
 }
@@ -508,7 +521,7 @@ export function TrainerPipelineSection({ pipeline }: { pipeline: AdminTrainerPip
   return (
     <MetricsSection
       title="Trainer onboarding pipeline"
-      description={`${pipeline.totalInPipeline} trainers past Terms of Service. Percentages relative to terms-accepted count.`}
+      description={`${pipeline.totalInPipeline} trainers past Terms of Service.`}
     >
       <ul className="space-y-2">
         {pipeline.stages.map((s) => (
@@ -517,9 +530,7 @@ export function TrainerPipelineSection({ pipeline }: { pipeline: AdminTrainerPip
             className="flex flex-col gap-1 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
           >
             <span className="text-sm text-white/80">{s.label}</span>
-            <span className="text-sm font-bold tabular-nums text-white">
-              {s.count} <span className="text-white/40">({s.percentOfSignup}%)</span>
-            </span>
+            <span className="text-sm font-bold tabular-nums text-white">{s.count}</span>
           </li>
         ))}
       </ul>

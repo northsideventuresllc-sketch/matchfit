@@ -1049,14 +1049,14 @@ export async function getAdminAlertsPanel(): Promise<AdminAlertsPanel> {
   const groups: AdminAlertGroup[] = [
     await loadAlertGroup(
       "failed_bg",
-      "Failed background checks",
+      "Failed Background Checks",
       severityFromCount(failedBgTrainers.length, 3, 1),
       failedBgItems,
       failedBgTrainers.length,
     ),
     await loadAlertGroup(
       "bug_reports",
-      "Bug reports",
+      "Bug Reports",
       severityFromCount(bugReports.length, 10, 3),
       bugReports.map((b) => ({
         id: b.id,
@@ -1070,7 +1070,7 @@ export async function getAdminAlertsPanel(): Promise<AdminAlertsPanel> {
     ),
     await loadAlertGroup(
       "product_ideas",
-      "Product ideas",
+      "Product Ideas",
       "info",
       productIdeas.map((p) => ({
         id: p.id,
@@ -1084,7 +1084,7 @@ export async function getAdminAlertsPanel(): Promise<AdminAlertsPanel> {
     ),
     await loadAlertGroup(
       "failed_payments",
-      "Failed payments (grace)",
+      "Failed Payments (Grace)",
       severityFromCount(failedPayments.length, 5, 1),
       failedPayments.map((c) => ({
         id: c.id,
@@ -1098,7 +1098,7 @@ export async function getAdminAlertsPanel(): Promise<AdminAlertsPanel> {
     ),
     await loadAlertGroup(
       "flagged_users",
-      "Flagged users & safety",
+      "Flagged Users & Safety",
       severityFromCount(suspendedClients + suspendedTrainers + openSafetyReports, 5, 1),
       [
         ...(suspendedClients > 0
@@ -1115,7 +1115,7 @@ export async function getAdminAlertsPanel(): Promise<AdminAlertsPanel> {
     ),
     await loadAlertGroup(
       "chat_warnings",
-      "Chat warnings (PII / contact leakage)",
+      "Chat Warnings (PII / Contact Leakage)",
       severityFromCount(chatContactWarnings.length, 3, 1),
       chatContactWarnings.map((c) => ({
         id: c.id,
@@ -1129,7 +1129,7 @@ export async function getAdminAlertsPanel(): Promise<AdminAlertsPanel> {
     ),
     await loadAlertGroup(
       "security",
-      "Security & compliance",
+      "Security & Compliance",
       RLS_ADVISORY_TABLE_COUNT > 0 || openDisputes > 3 ? "warning" : "info",
       [
         ...(RLS_ADVISORY_TABLE_COUNT > 0
