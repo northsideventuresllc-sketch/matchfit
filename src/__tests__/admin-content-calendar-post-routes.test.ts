@@ -265,6 +265,20 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     await expect(res.json()).resolves.toEqual({ error: "Invalid action." });
   });
 
+  it("returns 400 when request body is malformed JSON", async () => {
+    const res = await postAction(
+      new Request("https://matchfit.test/api/admin/content-calendar/posts/post_1/actions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{bad json",
+      }),
+      params("post_1"),
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "Invalid action." });
+  });
+
   it("marks a post as posted and records POSTED learning", async () => {
     const res = await postAction(
       new Request("https://matchfit.test/api/admin/content-calendar/posts/post_1/actions", {
@@ -287,6 +301,22 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
         }),
       }),
     );
+  });
+
+  it("dismisses a missed prompt", async () => {
+    const res = await postAction(
+      new Request("https://matchfit.test/api/admin/content-calendar/posts/post_1/actions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "dismiss_missed" }),
+      }),
+      params("post_1"),
+    );
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ ok: true });
+    expect(mockDismissMissedPrompt).toHaveBeenCalledWith("post_1");
+    expect(mockRecordContentLearning).not.toHaveBeenCalled();
   });
 
   it("reschedules a post for the given date", async () => {
@@ -333,6 +363,60 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
       existingCaption: undefined,
       existingVisualPrompt: undefined,
     });
+  });
+
+  it("returns 502 when regenerate cannot create a post", async () => {
+    mockRegenerateCalendarPost.mockResolvedValueOnce(null);
+
+    const res = await postAction(
+      new Request("https://matchfit.test/api/admin/content-calendar/posts/post_1/actions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "regenerate",
+          weekStart: "2026-06-08",
+          offset: 7,
+          dayIndex: 1,
+          postType: "Static",
+        }),
+      }),
+      params("post_1"),
+    );
+
+    expect(res.status).toBe(502);
+    await expect(res.json()).resolves.toEqual({ error: "Regeneration failed. Check AI API keys." });
+    expect(mockUpsertWeekPosts).not.toHaveBeenCalled();
+  });
+
+  it("returns post=null when regenerated post is not found in persisted rows", async () => {
+    mockUpsertWeekPosts.mockResolvedValueOnce([
+      {
+        id: "post_other",
+        week_start: "2026-06-08",
+        post_date: "2026-06-10",
+        day_index: 3,
+        post_type: "Video",
+      },
+    ]);
+
+    const res = await postAction(
+      new Request("https://matchfit.test/api/admin/content-calendar/posts/post_1/actions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "regenerate",
+          weekStart: "2026-06-08",
+          offset: 7,
+          dayIndex: 1,
+          postType: "Static",
+        }),
+      }),
+      params("post_1"),
+    );
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ post: null });
+    expect(mockSerializePostForClient).not.toHaveBeenCalled();
   });
 
   it("sets media status to failed when image generation fails", async () => {
@@ -408,5 +492,21 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
         editedText: "https://cdn.test/image.png",
       }),
     );
+  });
+
+  it("returns 500 when action handler throws unexpectedly", async () => {
+    mockMarkPostPosted.mockRejectedValueOnce(new Error("db down"));
+
+    const res = await postAction(
+      new Request("https://matchfit.test/api/admin/content-calendar/posts/post_1/actions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "posted" }),
+      }),
+      params("post_1"),
+    );
+
+    expect(res.status).toBe(500);
+    await expect(res.json()).resolves.toEqual({ error: "Action failed." });
   });
 });
