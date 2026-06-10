@@ -1,10 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   INTERNAL_SYNTHETIC_EMAIL_SUFFIX,
+  countLaunchPendingTrainers,
   getLaunchExcludeEmails,
+  getActivePendingClientRegistrationStats,
   getLaunchExcludeUsernames,
   isInternalSyntheticMatchFitEmail,
   launchClientCountWhere,
+  launchClientBillingGraceWhere,
   launchClientFreeTrialCountWhere,
   launchClientPlatformPaymentGraceWhere,
   launchClientPlatformTrialCountWhere,
@@ -16,15 +19,22 @@ import {
   launchPendingTrainerWhere,
   launchTrainerCountWhere,
   activePendingClientRegistrationWhere,
+  launchClientWithCardWhere,
   countLaunchClients,
   countLaunchTrainers,
   countPendingClientRegistrations,
 } from "@/lib/launch-account-counts";
 
-const { mockClientCount, mockTrainerCount, mockPendingClientRegistrationCount } = vi.hoisted(() => ({
+const {
+  mockClientCount,
+  mockTrainerCount,
+  mockPendingClientRegistrationCount,
+  mockPendingClientRegistrationGroupBy,
+} = vi.hoisted(() => ({
   mockClientCount: vi.fn(),
   mockTrainerCount: vi.fn(),
   mockPendingClientRegistrationCount: vi.fn(),
+  mockPendingClientRegistrationGroupBy: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -37,6 +47,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     pendingClientRegistration: {
       count: mockPendingClientRegistrationCount,
+      groupBy: mockPendingClientRegistrationGroupBy,
     },
   },
 }));
@@ -113,6 +124,13 @@ describe("launch account count exclusions", () => {
     expect(getLaunchExcludeEmails()).not.toContain("jonnybooth22@gmail.com");
   });
 
+  it("includes trainer-only built-in staff email when role is trainer", () => {
+    expect(getLaunchExcludeEmails("trainer")).toEqual(
+      expect.arrayContaining(["jb@northsideventuresgroup.com"]),
+    );
+    expect(getLaunchExcludeEmails("trainer")).not.toContain("jonnybooth22@gmail.com");
+  });
+
   it("launch count filters exclude synthetic personas, builtins, and internal emails", () => {
     process.env.MATCH_FIT_INTERNAL_QA_TRAINER_EMAILS = "qa-coach@example.com";
 
@@ -161,6 +179,7 @@ describe("launch-account-counts async", () => {
     mockClientCount.mockReset();
     mockTrainerCount.mockReset();
     mockPendingClientRegistrationCount.mockReset();
+    mockPendingClientRegistrationGroupBy.mockReset();
     delete process.env.MATCH_FIT_BETA_EXCLUDE_CAP_COUNT_EMAILS;
   });
 
@@ -209,6 +228,47 @@ describe("launch-account-counts async", () => {
       },
     });
   });
+
+  it("counts pending trainers using pending onboarding filter", async () => {
+    mockTrainerCount.mockResolvedValue(11);
+
+    await expect(countLaunchPendingTrainers()).resolves.toBe(11);
+    expect(mockTrainerCount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([
+            { termsAcceptedAt: { not: null } },
+            { profile: { is: { complianceWindowStartedAt: { not: null } } } },
+            { profile: { is: { limitedDashboardUnlockedAt: { not: null } } } },
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it("groups active pending registrations and returns per-status totals", async () => {
+    mockPendingClientRegistrationGroupBy.mockResolvedValue([
+      { status: "PENDING_2FA", _count: { _all: 2 } },
+      { status: "AWAITING_PAYMENT", _count: { _all: 3 } },
+    ]);
+    const now = new Date("2026-06-10T00:00:00.000Z");
+
+    await expect(getActivePendingClientRegistrationStats(now)).resolves.toEqual({
+      total: 5,
+      byStatus: {
+        PENDING_2FA: 2,
+        AWAITING_PAYMENT: 3,
+      },
+    });
+    expect(mockPendingClientRegistrationGroupBy).toHaveBeenCalledWith({
+      by: ["status"],
+      where: {
+        status: { in: ["PENDING_2FA", "AWAITING_PAYMENT"] },
+        expiresAt: { gt: now },
+      },
+      _count: { _all: true },
+    });
+  });
 });
 
 describe("admin funnel count filters", () => {
@@ -253,6 +313,17 @@ describe("admin funnel count filters", () => {
     const where = launchClientPlatformPaymentGraceWhere(now);
     expect(where.paymentGraceUntil).toEqual({ gt: now });
     expect(where.NOT).toEqual({ platformTrialEndsAt: { gt: now } });
+  });
+
+  it("billing grace requires subscription grace and no active subscription", () => {
+    const where = launchClientBillingGraceWhere(now);
+    expect(where.subscriptionGraceUntil).toEqual({ gte: now });
+    expect(where.stripeSubscriptionActive).toBe(false);
+  });
+
+  it("with-card filter requires stripe customer id", () => {
+    const where = launchClientWithCardWhere();
+    expect(where.stripeCustomerId).toEqual({ not: null });
   });
 
   it("incomplete trainer signup means dashboard not activated", () => {
