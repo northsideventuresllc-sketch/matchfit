@@ -4,6 +4,7 @@ import {
   sanitizeAssistantMessageForDisplay,
   type AdminAiAction,
 } from "@/lib/admin-assistant-labels";
+import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { prisma } from "@/lib/prisma";
 import type { AdminTrafficSnapshot } from "@/lib/site-analytics";
 import type { AdminPortalOverview } from "@/lib/admin-portal-data";
@@ -362,7 +363,13 @@ function fallbackForAction(
   }
 }
 
+export async function getAdminAiProviderStatusAsync(): Promise<AdminAiProviderStatus> {
+  await hydratePlatformEnvFromDatabase();
+  return getAdminAiProviderStatus();
+}
+
 export async function probeAdminAiProvider(): Promise<AdminAiProviderStatus> {
+  await hydratePlatformEnvFromDatabase();
   const provider = resolveAdminAiProvider();
 
   if (!provider) {

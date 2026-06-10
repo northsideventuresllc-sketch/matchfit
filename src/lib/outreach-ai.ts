@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getAdminAiProviderStatus } from "@/lib/admin-analytics-ai";
+import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import {
   getOutreachExclusionList,
   isExcludedValue,
@@ -85,6 +86,7 @@ function extractAnthropicText(data: { content?: { type: string; text?: string }[
 }
 
 async function callOutreachAi(system: string, user: string): Promise<OutreachAiResult> {
+  await hydratePlatformEnvFromDatabase();
   const status = getAdminAiProviderStatus();
   if (!status.configured) {
     return { text: null, usedWebSearch: false, provider: "none" };
@@ -199,6 +201,7 @@ export async function generateOutreachLeads(args: {
   skippedCount: number;
   message?: string;
 }> {
+  await hydratePlatformEnvFromDatabase();
   const batchId = `batch_${Date.now()}_${args.adminId.slice(0, 6)}`;
   const exclusions = await getOutreachExclusionList(args.platform);
   const learning = await buildOutreachLearningContext(args.platform);
