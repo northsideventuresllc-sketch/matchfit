@@ -95,7 +95,7 @@ describe("GET /api/admin/content-calendar/missed", () => {
       missedPromptDismissed: false,
     });
     expect(mockSerializePostForClient).toHaveBeenCalledTimes(1);
-    expect(mockSerializePostForClient).toHaveBeenCalledWith(
+    expect(mockSerializePostForClient.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
         id: "post_1",
       }),
