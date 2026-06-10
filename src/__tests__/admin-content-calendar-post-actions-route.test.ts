@@ -259,7 +259,6 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     expect(mockUpsertWeekPosts).not.toHaveBeenCalled();
   });
 
-  it("returns 400 when regenerate payload fails schema validation", async () => {
   it("returns null post when regenerated row is not found in upsert results", async () => {
     mockUpsertWeekPosts.mockResolvedValueOnce([
       {
@@ -291,8 +290,6 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
         action: "regenerate",
         weekStart: "2026-06-02",
         offset: 7,
-        dayIndex: 9,
-        postType: "Video",
         dayIndex: 5,
         postType: "Text",
       }),
