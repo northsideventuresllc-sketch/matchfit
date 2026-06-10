@@ -19,6 +19,9 @@ import {
   adminPortalSecondaryButtonClass,
 } from "@/components/admin/admin-portal-styles";
 
+const customizerFooterPrimaryButtonClass = `${adminPortalPrimaryButtonClass} px-3 py-2 text-[10px] tracking-[0.08em]`;
+const customizerFooterSecondaryButtonClass = `${adminPortalSecondaryButtonClass} px-3 py-2 text-[10px] tracking-[0.08em]`;
+
 export function AdminDashboardLayoutCustomizer(props: {
   layout: AdminDashboardLayout;
   saving: boolean;
@@ -40,7 +43,7 @@ export function AdminDashboardLayoutCustomizer(props: {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="admin-layout-customizer-title"
@@ -50,11 +53,11 @@ export function AdminDashboardLayoutCustomizer(props: {
       }}
     >
       <div
-        className="max-h-[min(92vh,44rem)] w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#12151C] shadow-2xl"
+        className="flex max-h-[min(calc(100dvh-2rem),44rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#12151C] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >
-        <div className="border-b border-white/[0.08] px-5 py-4">
+        <div className="shrink-0 border-b border-white/[0.08] px-5 py-4">
           <h2 id="admin-layout-customizer-title" className="text-lg font-black text-white">
             Customized Dashboard
           </h2>
@@ -64,7 +67,7 @@ export function AdminDashboardLayoutCustomizer(props: {
           </p>
         </div>
 
-        <div className="max-h-[min(62vh,30rem)] overflow-y-auto px-5 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
           <div className="mb-5">
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FF7E00]/70">Quick presets</p>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -158,44 +161,42 @@ export function AdminDashboardLayoutCustomizer(props: {
           ))}
         </div>
 
-        <div className="space-y-2 border-t border-white/[0.08] px-5 py-4">
+        <div className="shrink-0 space-y-2 border-t border-white/[0.08] bg-[#12151C] px-4 py-3">
           {props.saveError ? (
             <p className="text-sm text-[#FFB4B4]" role="alert">
               {props.saveError}
             </p>
           ) : null}
           {props.persistedHint ? <p className="text-[11px] text-amber-200/80">{props.persistedHint}</p> : null}
-          <div className="flex flex-col items-center gap-3">
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => setDraft({ ...DEFAULT_ADMIN_DASHBOARD_LAYOUT })}
-                className={adminPortalSecondaryButtonClass}
-              >
-                Reset Defaults
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    hidden: [],
-                  }))
-                }
-                className={adminPortalSecondaryButtonClass}
-              >
-                Show All
-              </button>
-              <button
-                type="button"
-                disabled={props.saving}
-                onClick={() => props.onSave(draft)}
-                className={adminPortalPrimaryButtonClass}
-              >
-                {props.saving ? "Saving…" : "Save Layout"}
-              </button>
-            </div>
-            <button type="button" onClick={props.onClose} className={adminPortalSecondaryButtonClass}>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setDraft({ ...DEFAULT_ADMIN_DASHBOARD_LAYOUT })}
+              className={customizerFooterSecondaryButtonClass}
+            >
+              Reset Defaults
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setDraft((prev) => ({
+                  ...prev,
+                  hidden: [],
+                }))
+              }
+              className={customizerFooterSecondaryButtonClass}
+            >
+              Show All
+            </button>
+            <button
+              type="button"
+              disabled={props.saving}
+              onClick={() => props.onSave(draft)}
+              className={customizerFooterPrimaryButtonClass}
+            >
+              {props.saving ? "Saving…" : "Save Layout"}
+            </button>
+            <button type="button" onClick={props.onClose} className={customizerFooterSecondaryButtonClass}>
               Cancel
             </button>
           </div>
