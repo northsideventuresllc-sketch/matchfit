@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-09** `1.4.13-beta` → `1.4.14-beta` (**patch** — Fix build-breaking TypeScript narrowing in admin content calendar and launch account counts)
 - **2026-06-10** `1.4.14-beta` → `1.5.0-beta` (**minor** — Outreach HQ registered trainer roster, archive purge, and exclusion list)
 - **2026-06-09** `1.4.13-beta` → `1.4.14-beta` (**patch** — Add regenerate action handler to content calendar posts route)
 - **2026-06-09** `1.4.12-beta` → `1.4.13-beta` (**patch** — Fix AI JSON parsing failure: enforce strict JSON-only output format in outreach generation prompt)
