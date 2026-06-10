@@ -29,7 +29,6 @@ const bodySchema = z.object({
   targetMetric: z.string().max(64).optional(),
   targetValue: z.number().int().positive().optional(),
   conversationId: z.string().max(64).optional(),
-  model: z.string().max(64).optional(),
 });
 
 export async function GET(req: Request) {
@@ -55,8 +54,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  const { action, message, goalTitle, goalDescription, targetMetric, targetValue, conversationId, model } =
-    parsed.data;
+  const { action, message, goalTitle, goalDescription, targetMetric, targetValue, conversationId } = parsed.data;
 
   let activeConversationId =
     conversationId && conversationId !== LEGACY_CONVERSATION_ID ? conversationId : undefined;
@@ -120,7 +118,6 @@ export async function POST(req: Request) {
     overview,
     traffic,
     history,
-    modelOverride: model,
   });
 
   await persistAdminAiTurn({
