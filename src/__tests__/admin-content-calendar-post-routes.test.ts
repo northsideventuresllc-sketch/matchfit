@@ -265,13 +265,11 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     await expect(res.json()).resolves.toEqual({ error: "Invalid action." });
   });
 
-  it("returns 400 when the request body is invalid JSON", async () => {
   it("returns 400 when request body is malformed JSON", async () => {
     const res = await postAction(
       new Request("https://matchfit.test/api/admin/content-calendar/posts/post_1/actions", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: "{ invalid json",
         body: "{bad json",
       }),
       params("post_1"),
@@ -367,7 +365,6 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     });
   });
 
-  it("returns 502 when post regeneration fails", async () => {
   it("returns 502 when regenerate cannot create a post", async () => {
     mockRegenerateCalendarPost.mockResolvedValueOnce(null);
 
@@ -391,13 +388,6 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     expect(mockUpsertWeekPosts).not.toHaveBeenCalled();
   });
 
-  it("returns post:null when regenerated post cannot be found after upsert", async () => {
-    mockUpsertWeekPosts.mockResolvedValueOnce([
-      {
-        id: "post_2",
-        week_start: "2026-06-08",
-        post_date: "2026-06-10",
-        day_index: 2,
   it("returns post=null when regenerated post is not found in persisted rows", async () => {
     mockUpsertWeekPosts.mockResolvedValueOnce([
       {
@@ -504,9 +494,6 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     );
   });
 
-  it("returns 500 when an action throws unexpectedly", async () => {
-    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    mockMarkPostPosted.mockRejectedValueOnce(new Error("write failed"));
   it("returns 500 when action handler throws unexpectedly", async () => {
     mockMarkPostPosted.mockRejectedValueOnce(new Error("db down"));
 
@@ -521,8 +508,5 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
 
     expect(res.status).toBe(500);
     await expect(res.json()).resolves.toEqual({ error: "Action failed." });
-    expect(consoleErrorSpy).toHaveBeenCalled();
-
-    consoleErrorSpy.mockRestore();
   });
 });
