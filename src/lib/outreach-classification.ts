@@ -43,10 +43,9 @@ export function classifyOutreachLead(input: OutreachTimeline): OutreachAutoClass
   const allowsFollowUp = input.platform !== "facebook";
 
   if (input.status === "OUTREACH_SENT") {
-    if (allowsFollowUp && daysSinceSent >= 3) return "FOLLOW_UP_NEEDED";
-    if (daysSinceSent <= 7) return "ACTIVE_LEAD";
-    if (allowsFollowUp && daysSinceSent >= 7 && daysSinceSent < 14) return "FOLLOW_UP_NEEDED";
     if (daysSinceSent >= 14) return "DEAD_LEAD";
+    if (allowsFollowUp && daysSinceSent >= 7) return "FOLLOW_UP_NEEDED";
+    if (allowsFollowUp && daysSinceSent >= 3) return "FOLLOW_UP_NEEDED";
     return "ACTIVE_LEAD";
   }
 
