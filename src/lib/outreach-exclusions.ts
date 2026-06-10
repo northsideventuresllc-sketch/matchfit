@@ -90,7 +90,6 @@ export async function getRegisteredTrainerOutreachExclusions(): Promise<string[]
     select: {
       email: true,
       username: true,
-      profile: { select: { socialInstagram: true } },
       socialInstagram: true,
     },
   });
@@ -100,7 +99,6 @@ export async function getRegisteredTrainerOutreachExclusions(): Promise<string[]
     const email = normalizeEmail(row.email);
     if (email) values.add(email);
     if (row.username.trim()) values.add(row.username.trim().toLowerCase());
-    const handle = normalizeInstagramHandle(row.profile?.socialInstagram);
     const handle = normalizeInstagramHandle(row.socialInstagram);
     if (handle) values.add(handle);
   }
