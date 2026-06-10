@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  mockGetAdminAiProviderStatusAsync,
+  mockGetAdminAiProviderStatus,
+  mockHydratePlatformEnvFromDatabase,
   mockBuildOutreachLearningContext,
   mockTrainerFindMany,
   mockOutreachInstagramLeadFindMany,
@@ -10,7 +11,8 @@ const {
   mockOutreachOtherLeadFindMany,
   mockOutreachOtherLeadCreate,
 } = vi.hoisted(() => ({
-  mockGetAdminAiProviderStatusAsync: vi.fn(),
+  mockGetAdminAiProviderStatus: vi.fn(),
+  mockHydratePlatformEnvFromDatabase: vi.fn(),
   mockBuildOutreachLearningContext: vi.fn(),
   mockTrainerFindMany: vi.fn(),
   mockOutreachInstagramLeadFindMany: vi.fn(),
@@ -21,7 +23,11 @@ const {
 }));
 
 vi.mock("@/lib/admin-analytics-ai", () => ({
-  getAdminAiProviderStatusAsync: mockGetAdminAiProviderStatusAsync,
+  getAdminAiProviderStatus: mockGetAdminAiProviderStatus,
+}));
+
+vi.mock("@/lib/hydrate-platform-env", () => ({
+  hydratePlatformEnvFromDatabase: mockHydratePlatformEnvFromDatabase,
 }));
 
 vi.mock("@/lib/outreach-learning", () => ({
@@ -65,6 +71,24 @@ function mockSuccessfulOpenAiCall(text: string) {
   return mockFetch;
 }
 
+function mockFailingAnthropicCall() {
+  const mockFetch = vi.fn().mockResolvedValue({
+    ok: false,
+    status: 500,
+    text: async () => "server_error",
+  });
+  vi.stubGlobal("fetch", mockFetch);
+  return mockFetch;
+}
+
+function extractAnthropicUserPrompt(mockFetch: ReturnType<typeof vi.fn>): string {
+  const requestInit = mockFetch.mock.calls[0]?.[1] as RequestInit;
+  const body = JSON.parse(String(requestInit.body)) as {
+    messages: Array<{ role: string; content: string }>;
+  };
+  return body.messages.find((m) => m.role === "user")?.content ?? "";
+}
+
 function extractOpenAiUserPrompt(mockFetch: ReturnType<typeof vi.fn>): string {
   const requestInit = mockFetch.mock.calls[0]?.[1] as RequestInit;
   const body = JSON.parse(String(requestInit.body)) as {
@@ -89,8 +113,10 @@ describe("outreach-ai generation prompts and parsing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.OPENAI_API_KEY = "test-openai-key";
+    process.env.ANTHROPIC_API_KEY = "sk-ant-test-key";
 
-    mockGetAdminAiProviderStatusAsync.mockResolvedValue({
+    mockHydratePlatformEnvFromDatabase.mockResolvedValue(undefined);
+    mockGetAdminAiProviderStatus.mockReturnValue({
       configured: true,
       provider: "openai",
       message: "ok",
@@ -107,7 +133,35 @@ describe("outreach-ai generation prompts and parsing", () => {
   afterEach(() => {
     if (originalOpenAiKey === undefined) delete process.env.OPENAI_API_KEY;
     else process.env.OPENAI_API_KEY = originalOpenAiKey;
+    delete process.env.ANTHROPIC_API_KEY;
     vi.unstubAllGlobals();
+  });
+
+  it("uses Anthropic web search for Instagram generation when configured", async () => {
+    mockGetAdminAiProviderStatus.mockReturnValue({
+      configured: true,
+      provider: "anthropic",
+      message: "ok",
+      model: "claude-sonnet-4-6",
+    });
+    const mockFetch = mockFailingAnthropicCall();
+
+    await generateOutreachLeads({
+      platform: "instagram",
+      atlCount: 1,
+      virtualCount: 0,
+      adminId: "admin_anthropic",
+    });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const requestInit = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse(String(requestInit.body)) as {
+      tools?: Array<{ type: string; name: string }>;
+      system: string;
+    };
+    expect(body.tools?.[0]).toMatchObject({ type: "web_search_20250305", name: "web_search" });
+    expect(body.system).toContain("Use web search before answering");
+    expect(extractAnthropicUserPrompt(mockFetch)).toContain("Respond with ONLY the JSON array");
   });
 
   it("loads Instagram exclusions from active and archived leads and lowercases entries", async () => {

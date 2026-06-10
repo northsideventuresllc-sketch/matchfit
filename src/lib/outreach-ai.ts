@@ -1,6 +1,7 @@
 import "server-only";
 
-import { getAdminAiProviderStatusAsync } from "@/lib/admin-analytics-ai";
+import { getAdminAiProviderStatus } from "@/lib/admin-analytics-ai";
+import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import {
   assessFitnessProfessionalLeadText,
   assessFitnessProfessionalProfile,
@@ -89,12 +90,30 @@ export type GeneratedOtherLead = {
   notes?: string;
 };
 
-type AiCallResult = { ok: true; text: string } | { ok: false; error: string };
+type OutreachAiResult = {
+  text: string | null;
+  usedWebSearch: boolean;
+  provider: string;
+  error?: string;
+};
 
-async function callAi(system: string, user: string): Promise<AiCallResult> {
-  const status = await getAdminAiProviderStatusAsync();
+function extractAnthropicText(data: { content?: { type: string; text?: string }[] }): string | null {
+  const blocks = data.content?.filter((block) => block.type === "text" && block.text?.trim()) ?? [];
+  if (blocks.length === 0) return null;
+  return blocks.map((block) => block.text!.trim()).join("\n\n");
+}
+
+/** Calls Anthropic with live web search when available; OpenAI is a weaker memory-only fallback. */
+async function callOutreachAi(system: string, user: string): Promise<OutreachAiResult> {
+  await hydratePlatformEnvFromDatabase();
+  const status = getAdminAiProviderStatus();
   if (!status.configured) {
-    return { ok: false, error: "AI provider not configured. Add ANTHROPIC_API_KEY or OPENAI_API_KEY." };
+    return {
+      text: null,
+      usedWebSearch: false,
+      provider: "none",
+      error: "AI provider not configured. Add ANTHROPIC_API_KEY or OPENAI_API_KEY.",
+    };
   }
 
   const outreachModel = resolveOutreachAiModel(status.provider);
@@ -102,8 +121,14 @@ async function callAi(system: string, user: string): Promise<AiCallResult> {
   if (status.provider === "anthropic") {
     const key = process.env.ANTHROPIC_API_KEY?.trim();
     if (!key) {
-      return { ok: false, error: "ANTHROPIC_API_KEY is missing on the server." };
+      return {
+        text: null,
+        usedWebSearch: false,
+        provider: "anthropic",
+        error: "ANTHROPIC_API_KEY is missing on the server.",
+      };
     }
+
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -113,32 +138,61 @@ async function callAi(system: string, user: string): Promise<AiCallResult> {
       },
       body: JSON.stringify({
         model: outreachModel,
-        max_tokens: 6000,
+        max_tokens: 8000,
         system,
         messages: [{ role: "user", content: user }],
-        temperature: 0.4,
+        temperature: 0.2,
+        tools: [
+          {
+            type: "web_search_20250305",
+            name: "web_search",
+            max_uses: 12,
+            user_location: {
+              type: "approximate",
+              city: "Atlanta",
+              region: "Georgia",
+              country: "US",
+              timezone: "America/New_York",
+            },
+          },
+        ],
       }),
     });
+
     if (!res.ok) {
       const detail = (await res.text().catch(() => "")).slice(0, 240);
-      console.error("[outreach-ai] Anthropic API error:", res.status, detail);
+      console.error("[outreach-ai] Anthropic web search request failed:", res.status, detail);
       return {
-        ok: false,
-        error: `Anthropic API rejected the request (HTTP ${res.status}). Check the API key and model (${outreachModel}).`,
+        text: null,
+        usedWebSearch: true,
+        provider: "anthropic",
+        error: `Anthropic web search failed (HTTP ${res.status}). Check the API key and model (${outreachModel}).`,
       };
     }
+
     const data = (await res.json()) as { content?: { type: string; text?: string }[] };
-    const text = data.content?.find((b) => b.type === "text")?.text ?? null;
+    const text = extractAnthropicText(data);
     if (!text?.trim()) {
-      return { ok: false, error: "Anthropic returned an empty response." };
+      return {
+        text: null,
+        usedWebSearch: true,
+        provider: "anthropic",
+        error: "Anthropic web search returned an empty response.",
+      };
     }
-    return { ok: true, text };
+    return { text, usedWebSearch: true, provider: "anthropic" };
   }
 
   const key = process.env.OPENAI_API_KEY?.trim();
   if (!key) {
-    return { ok: false, error: "OPENAI_API_KEY is missing on the server." };
+    return {
+      text: null,
+      usedWebSearch: false,
+      provider: "openai",
+      error: "OPENAI_API_KEY is missing on the server.",
+    };
   }
+
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -148,27 +202,66 @@ async function callAi(system: string, user: string): Promise<AiCallResult> {
     body: JSON.stringify({
       model: outreachModel,
       max_tokens: 6000,
-      temperature: 0.4,
+      temperature: 0.3,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
       ],
     }),
   });
+
   if (!res.ok) {
     const detail = (await res.text().catch(() => "")).slice(0, 240);
     console.error("[outreach-ai] OpenAI API error:", res.status, detail);
     return {
-      ok: false,
+      text: null,
+      usedWebSearch: false,
+      provider: "openai",
       error: `OpenAI API rejected the request (HTTP ${res.status}). Check the API key and model (${outreachModel}).`,
     };
   }
+
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   const text = data.choices?.[0]?.message?.content ?? null;
   if (!text?.trim()) {
-    return { ok: false, error: "OpenAI returned an empty response." };
+    return {
+      text: null,
+      usedWebSearch: false,
+      provider: "openai",
+      error: "OpenAI returned an empty response.",
+    };
   }
-  return { ok: true, text };
+  return { text, usedWebSearch: false, provider: "openai" };
+}
+
+function extractBalancedJsonArray(text: string): string | null {
+  const start = text.indexOf("[");
+  if (start < 0) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i += 1) {
+    const char = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === "[") depth += 1;
+    if (char === "]") {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+
+  return null;
 }
 
 function parseJsonArray<T>(raw: string): T[] {
@@ -189,13 +282,16 @@ function parseJsonArray<T>(raw: string): T[] {
     return null;
   };
 
-  const direct = tryParse(clean);
-  if (direct) return direct;
+  const candidates = [
+    clean,
+    extractBalancedJsonArray(clean),
+    clean.lastIndexOf("[") >= 0 ? extractBalancedJsonArray(clean.slice(clean.lastIndexOf("["))) : null,
+    clean.match(/\[[\s\S]*\]/)?.[0] ?? null,
+  ].filter((value): value is string => Boolean(value?.trim()));
 
-  const match = clean.match(/\[[\s\S]*\]/);
-  if (match) {
-    const nested = tryParse(match[0]);
-    if (nested) return nested;
+  for (const candidate of candidates) {
+    const parsed = tryParse(candidate.trim());
+    if (parsed) return parsed;
   }
 
   return [];
@@ -263,6 +359,8 @@ function buildOutreachSystemPrompt(platform: OutreachPlatform, learning: string)
     OUTREACH_BRAND_FACTS,
     learning,
     criteria,
+    "CRITICAL: Use web search before answering. Only return fitness professionals you can verify from live public web results.",
+    "Never invent Instagram handles, Facebook pages, or email addresses.",
     "OUTPUT FORMAT — CRITICAL: Your entire response must be a single raw JSON array starting with [ and ending with ]. No prose, no explanation, no markdown fences (no ```), no preamble, no postamble. If you add anything outside the JSON array the response is unusable.",
     "Never suggest handles, emails, or URLs already in the exclusion list.",
     platform === "instagram"
@@ -293,9 +391,11 @@ export async function generateOutreachLeads(args: {
   batchId: string;
   leads: unknown[];
   aiUsed: boolean;
+  usedWebSearch?: boolean;
   message?: string;
   verification?: OutreachLeadVerificationSummary;
 }> {
+  await hydratePlatformEnvFromDatabase();
   const batchId = `batch_${Date.now()}_${args.adminId.slice(0, 6)}`;
   let exclusions = await getExclusionList(args.platform);
   const learning = await buildOutreachLearningContext(args.platform);
@@ -307,6 +407,7 @@ export async function generateOutreachLeads(args: {
   let savedLeads: unknown[] = [];
   let lastVerification: OutreachLeadVerificationSummary | undefined;
   let lastAiError: string | undefined;
+  let usedWebSearch = false;
   let attempts = 0;
   let rejectionFeedback = "";
 
@@ -326,9 +427,14 @@ export async function generateOutreachLeads(args: {
       rejectionFeedback,
     );
 
-    const ai = await callAi(system, userPrompt);
-    if (!ai.ok) {
-      lastAiError = ai.error;
+    const ai = await callOutreachAi(system, userPrompt);
+    if (ai.usedWebSearch) usedWebSearch = true;
+    if (!ai.text) {
+      lastAiError =
+        ai.error ??
+        (ai.provider === "openai"
+          ? "OpenAI fallback cannot web-search real profiles. Add ANTHROPIC_API_KEY for verified Instagram discovery."
+          : "AI provider not configured or request failed.");
       break;
     }
 
@@ -357,6 +463,12 @@ export async function generateOutreachLeads(args: {
 
     if (saved.leads.length >= remainingAtl + remainingVirtual) break;
 
+    if ((saved.verification?.parsed ?? 0) === 0) {
+      rejectionFeedback =
+        "Your previous response was not a parseable JSON array. Return ONLY a raw JSON array of lead objects starting with [ and ending with ]. No prose, markdown fences, or explanation.";
+      continue;
+    }
+
     rejectionFeedback = buildRejectionFeedback(args.platform, saved.verification);
     if (!rejectionFeedback) break;
   }
@@ -370,8 +482,9 @@ export async function generateOutreachLeads(args: {
       message = lastAiError;
     } else if (args.platform === "instagram" && verification) {
       if (verification.parsed === 0) {
-        message =
-          "AI did not return parseable Instagram leads. Try generating again — the model may have returned prose instead of JSON.";
+        message = usedWebSearch
+          ? "Web search ran but the model returned prose instead of JSON. Try generating again — smaller counts (e.g. 3 ATL + 5 virtual) often help."
+          : "AI did not return parseable Instagram leads. Configure ANTHROPIC_API_KEY for live web search, then try again.";
       } else {
         const sampleReasons = verification.rejectedSamples
           .slice(0, 3)
@@ -390,6 +503,8 @@ export async function generateOutreachLeads(args: {
     }
   } else if (verification && verification.rejected > 0) {
     message = `Saved ${verification.saved} verified lead(s); skipped ${verification.rejected} that failed verification or niche fit.`;
+  } else if (!usedWebSearch && leads.length > 0) {
+    message = "Warning: OpenAI fallback used memory-only discovery. Prefer Anthropic for real verified profiles.";
   } else if (leads.length < targetCount && attempts > 1) {
     message = `Saved ${leads.length} of ${targetCount} requested lead(s) after ${attempts} research pass(es). Generate again for more.`;
   }
@@ -398,6 +513,7 @@ export async function generateOutreachLeads(args: {
     batchId,
     leads,
     aiUsed: !lastAiError,
+    usedWebSearch,
     message,
     verification,
   };
