@@ -266,13 +266,11 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
   });
 
   it("returns 400 when the request body is invalid JSON", async () => {
-  it("returns 400 when request body is malformed JSON", async () => {
     const res = await postAction(
       new Request("https://matchfit.test/api/admin/content-calendar/posts/post_1/actions", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: "{ invalid json",
-        body: "{bad json",
       }),
       params("post_1"),
     );
