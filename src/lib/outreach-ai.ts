@@ -59,6 +59,7 @@ export type GeneratedEmailLead = {
   emailSubject: string;
   emailBody: string;
   notes?: string;
+  sourceUrl?: string;
 };
 
 export type GeneratedOtherLead = {
@@ -71,6 +72,7 @@ export type GeneratedOtherLead = {
   likelihoodScore: number;
   outreachText: string;
   notes?: string;
+  sourceUrl?: string;
 };
 
 type OutreachAiResult = {

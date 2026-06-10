@@ -139,7 +139,6 @@ export async function createTrainerSignupFeeHoldPaymentIntents(args: {
     baseCents: split.baseCents,
     totalCents: computeTrainerSignupCombinedHoldCents(args.pricingMode),
     platformHoldCents,
-    backgroundCheckHoldCents,
   };
 }
 

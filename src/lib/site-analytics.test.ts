@@ -38,6 +38,11 @@ describe("site-analytics server helpers", () => {
       linkLabel: null,
       visitorId: "visitor_abc12345",
       sessionId: "session_abc12345",
+      utmSource: null,
+      utmMedium: null,
+      utmCampaign: null,
+      utmContent: null,
+      utmTerm: null,
     });
 
     expect(mockSiteAnalyticsCreate).toHaveBeenCalledWith({
