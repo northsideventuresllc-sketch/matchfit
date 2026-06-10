@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { HomeUserCounter } from "@/components/home-user-counter";
 import { AdminPortalShell } from "@/components/admin/admin-portal-shell";
+import type { HomeUserCounts } from "@/lib/home-user-counts";
 import {
   ADMIN_AI_QUICK_PROMPTS,
   formatConversationTimestamp,
@@ -82,7 +84,7 @@ export function AdminAssistantClient() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<AiStatus | null>(null);
   const [showHistory, setShowHistory] = useState(false);
-  const [statsLine, setStatsLine] = useState<string | null>(null);
+  const [userCounts, setUserCounts] = useState<HomeUserCounts | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const initialConversationSelected = useRef(false);
 
@@ -115,11 +117,9 @@ export function AdminAssistantClient() {
   useEffect(() => {
     void fetch("/api/admin/overview", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: { memberOverview?: { totalActiveMembers: number; subscribedClients: number; freeTrialClients: number }; traffic?: { uniqueVisitors: number } } | null) => {
-        if (!data?.memberOverview) return;
-        setStatsLine(
-          `${data.memberOverview.totalActiveMembers} active members · ${data.memberOverview.subscribedClients} subscribers · ${data.memberOverview.freeTrialClients} free trials · ${data.traffic?.uniqueVisitors ?? 0} visitors (7d)`,
-        );
+      .then((data: { userCounts?: HomeUserCounts } | null) => {
+        if (!data?.userCounts) return;
+        setUserCounts(data.userCounts);
       })
       .catch(() => {});
   }, []);
@@ -266,7 +266,7 @@ export function AdminAssistantClient() {
           onClick={() => void startNewChat()}
           className={adminPortalPrimaryButtonClass}
         >
-          New chat
+          NEW CONVERSATION
         </button>
       }
       contentClassName="flex flex-col gap-4 lg:gap-6"
@@ -285,17 +285,17 @@ export function AdminAssistantClient() {
         ) : null}
       </div>
 
-      {statsLine ? (
-        <div className="rounded-2xl border border-[#FF7E00]/20 bg-[#FF7E00]/[0.06] px-4 py-3">
+      {userCounts ? (
+        <div className="space-y-3">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#FFD34E]/80">Live stats snapshot</p>
-          <p className="mt-1 text-sm text-white/75">{statsLine}</p>
+          <HomeUserCounter {...userCounts} />
           <button
             type="button"
             disabled={busy}
             onClick={() => {
               setInput("Summarize current dashboard stats and highlight the top 3 actions I should take this week.");
             }}
-            className={`mt-3 ${adminPortalSecondaryButtonClass}`}
+            className={adminPortalSecondaryButtonClass}
           >
             Draft stats summary prompt
           </button>
