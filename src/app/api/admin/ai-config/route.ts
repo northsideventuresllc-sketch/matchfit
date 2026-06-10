@@ -3,9 +3,6 @@ import { z } from "zod";
 import { clearPlatformSecretCache } from "@/lib/platform-secrets";
 import { requireAdminSession } from "@/lib/require-admin";
 import { prisma } from "@/lib/prisma";
-import { requireAdminSession } from "@/lib/require-admin";
-import { prisma } from "@/lib/prisma";
-import { clearPlatformSecretCache } from "@/lib/platform-secrets";
 
 export const dynamic = "force-dynamic";
 
@@ -15,9 +12,6 @@ const bodySchema = z.object({
 });
 
 /** Store Anthropic keys in platform_secrets for Outreach HQ web search + admin AI. */
-});
-
-/** Admin bootstrap for Anthropic API key into platform_secrets (Outreach HQ, Content Calendar, analytics). */
 export async function POST(req: Request) {
   const admin = await requireAdminSession();
   if (!admin) {
@@ -51,8 +45,4 @@ export async function POST(req: Request) {
     ok: true,
     message: "Anthropic keys stored in platform_secrets. Outreach HQ can now web-search real profiles.",
   });
-  clearPlatformSecretCache();
-  process.env.ANTHROPIC_API_KEY = body.anthropicApiKey;
-
-  return NextResponse.json({ ok: true, message: "Anthropic API key stored for admin AI features." });
 }

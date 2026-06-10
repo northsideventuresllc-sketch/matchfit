@@ -35,13 +35,12 @@ function postJson(body: unknown): Request {
 describe("POST /api/admin/ai-config", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    delete process.env.ANTHROPIC_API_KEY;
     mockRequireAdminSession.mockResolvedValue({ adminId: "admin_123", testMode: false, rememberMe: true });
     mockPlatformSecretUpsert.mockResolvedValue({ key: "ANTHROPIC_API_KEY" });
   });
 
   afterEach(() => {
-    delete process.env.ANTHROPIC_API_KEY;
+    vi.restoreAllMocks();
   });
 
   it("returns 401 when the requester is not an authenticated admin", async () => {
@@ -64,22 +63,59 @@ describe("POST /api/admin/ai-config", () => {
     expect(mockClearPlatformSecretCache).not.toHaveBeenCalled();
   });
 
-  it("stores the key, clears cache, and hydrates process env on success", async () => {
-    const anthropicApiKey = "sk-ant-unit-test-key";
+  it("returns 400 when a provided anthropic model fails validation", async () => {
+    const res = await POST(
+      postJson({
+        anthropicApiKey: "sk-ant-unit-test-key",
+        anthropicModel: "x",
+      }),
+    );
 
-    const res = await POST(postJson({ anthropicApiKey }));
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "Invalid Anthropic key payload." });
+    expect(mockPlatformSecretUpsert).not.toHaveBeenCalled();
+    expect(mockClearPlatformSecretCache).not.toHaveBeenCalled();
+  });
+
+  it("stores only the Anthropic API key when anthropic model is blank", async () => {
+    const res = await POST(
+      postJson({
+        anthropicApiKey: "sk-ant-unit-test-key",
+        anthropicModel: "   ",
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockPlatformSecretUpsert).toHaveBeenCalledTimes(1);
+    expect(mockPlatformSecretUpsert).toHaveBeenCalledWith({
+      where: { key: "ANTHROPIC_API_KEY" },
+      create: { key: "ANTHROPIC_API_KEY", value: "sk-ant-unit-test-key" },
+      update: { value: "sk-ant-unit-test-key" },
+    });
+    expect(mockClearPlatformSecretCache).toHaveBeenCalledTimes(1);
+  });
+
+  it("stores the key and optional analytics model on success", async () => {
+    const anthropicApiKey = "sk-ant-unit-test-key";
+    const anthropicModel = "  claude-sonnet-4-6  ";
+
+    const res = await POST(postJson({ anthropicApiKey, anthropicModel }));
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({
       ok: true,
-      message: "Anthropic API key stored for admin AI features.",
+      message: "Anthropic keys stored in platform_secrets. Outreach HQ can now web-search real profiles.",
     });
-    expect(mockPlatformSecretUpsert).toHaveBeenCalledWith({
+    expect(mockPlatformSecretUpsert).toHaveBeenNthCalledWith(1, {
       where: { key: "ANTHROPIC_API_KEY" },
       create: { key: "ANTHROPIC_API_KEY", value: anthropicApiKey },
       update: { value: anthropicApiKey },
     });
+    expect(mockPlatformSecretUpsert).toHaveBeenNthCalledWith(2, {
+      where: { key: "ANTHROPIC_ADMIN_ANALYTICS_MODEL" },
+      create: { key: "ANTHROPIC_ADMIN_ANALYTICS_MODEL", value: "claude-sonnet-4-6" },
+      update: { value: "claude-sonnet-4-6" },
+    });
     expect(mockClearPlatformSecretCache).toHaveBeenCalledTimes(1);
-    expect(process.env.ANTHROPIC_API_KEY).toBe(anthropicApiKey);
   });
 });
