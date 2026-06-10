@@ -86,6 +86,7 @@ export type GeneratedEmailLead = {
   emailSubject: string;
   emailBody: string;
   notes?: string;
+  sourceUrl?: string;
 };
 
 export type GeneratedOtherLead = {
@@ -98,6 +99,13 @@ export type GeneratedOtherLead = {
   likelihoodScore: number;
   outreachText: string;
   notes?: string;
+  sourceUrl?: string;
+};
+
+type OutreachAiResult = {
+  text: string | null;
+  usedWebSearch: boolean;
+  provider: string;
 };
 
 type OutreachAiResult = {
@@ -148,6 +156,42 @@ async function callAi(system: string, user: string): Promise<AiCallResult> {
       body: JSON.stringify({
         model: status.model ?? "claude-sonnet-4-6",
         max_tokens: 8000,
+        system,
+        messages: [{ role: "user", content: user }],
+        temperature: 0.2,
+        tools: [
+          {
+            type: "web_search_20250305",
+            name: "web_search",
+            max_uses: 12,
+            user_location: {
+              type: "approximate",
+              city: "Atlanta",
+              region: "Georgia",
+              country: "US",
+              timezone: "America/New_York",
+            },
+          },
+        ],
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("[outreach-ai] Anthropic web search request failed:", res.status, await res.text().catch(() => ""));
+      return { text: null, usedWebSearch: true, provider: "anthropic" };
+    }
+
+    const data = (await res.json()) as { content?: { type: string; text?: string }[] };
+    return {
+      text: extractAnthropicText(data),
+      usedWebSearch: true,
+      provider: "anthropic",
+    };
+  }
+
+  const key = process.env.OPENAI_API_KEY?.trim();
+  if (!key) return { text: null, usedWebSearch: false, provider: "openai" };
+
         system,
         messages: [{ role: "user", content: user }],
         temperature: 0.2,
@@ -236,6 +280,12 @@ async function callAi(system: string, user: string): Promise<AiCallResult> {
     return { text: null, usedWebSearch: false, provider: "openai" };
   }
 
+  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  return {
+    text: data.choices?.[0]?.message?.content ?? null,
+    usedWebSearch: false,
+    provider: "openai",
+  };
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   return {
     text: data.choices?.[0]?.message?.content ?? null,
@@ -391,6 +441,8 @@ export async function generateOutreachLeads(args: {
   message?: string;
 }> {
   await hydratePlatformEnvFromDatabase();
+  const batchId = `batch_${Date.now()}_${args.adminId.slice(0, 6)}`;
+  const exclusions = await getOutreachExclusionList(args.platform);
   const batchId = `batch_${Date.now()}_${args.adminId.slice(0, 6)}`;
   const exclusions = await getOutreachExclusionList(args.platform);
   message?: string;
@@ -624,6 +676,20 @@ function buildPlatformPrompt(
   rejectionFeedback = "",
 ): string {
   const excl = exclusions.slice(0, 250).join(", ") || "none yet";
+  if (platform === "instagram") {
+    return `Use web search to find ${atlCount} ATL-local and ${virtualCount} virtual fitness trainer Instagram profiles for Match Fit outreach.
+
+Search ideas:
+- "Atlanta personal trainer instagram"
+- "Atlanta strength coach instagram site:instagram.com"
+- "online fitness coach instagram virtual training"
+
+Exclude handles/URLs already contacted or already on Match Fit: ${excl}
+
+Return ONLY profiles you verified via web search. Do not guess usernames.
+
+JSON schema per item:
+{"handle":"@username","profileUrl":"https://instagram.com/username","niche":"strength coaching","targetGroup":"ATL_LOCAL"|"VIRTUAL","whyMatchFit":"one sentence","likelihoodScore":72,"personalHook":"specific content detail from their profile","commentText":"short comment for their post","commentPostRef":"which post to comment on","sourceUrl":"https://...","notes":"optional"}
   if (platform === "instagram") {
     return `Use web search to find ${atlCount} ATL-local and ${virtualCount} virtual fitness trainer Instagram profiles for Match Fit outreach.
 
@@ -1051,6 +1117,10 @@ async function persistGeneratedLeads(
           businessName: item.businessName ?? null,
           niche: item.niche ?? null,
           emailSourceUrl: item.emailSourceUrl ?? item.sourceUrl ?? null,
+          targetGroup: group,
+          whyMatchFit: item.whyMatchFit ?? "Good fit for founding trainer roster.",
+          likelihoodScore: clampScore(item.likelihoodScore),
+          notes: item.sourceUrl?.trim() ? `Source: ${item.sourceUrl.trim()}` : item.notes ?? null,
           targetGroup: group,
           whyMatchFit: item.whyMatchFit ?? "Good fit for founding trainer roster.",
           likelihoodScore: clampScore(item.likelihoodScore),
