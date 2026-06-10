@@ -8,7 +8,7 @@ import {
   type ContentCalendarGeneratorPostType,
   type ContentCalendarPostType,
 } from "@/lib/content-calendar/constants";
-import { getContentCalendarRotation } from "@/lib/content-calendar/rotation";
+import { addWeekdays, formatCalendarDate, getContentCalendarRotation } from "@/lib/content-calendar/rotation";
 import {
   fetchNiBrainMatchFitContext,
   fetchRecentContentLearnings,
@@ -28,6 +28,15 @@ export type GeneratedWeekPost = GeneratedPostContent & {
   postType: ContentCalendarPostType;
   targetGroup: string;
   platforms: string;
+};
+
+export type BulkGeneratedDraft = GeneratedPostContent & {
+  tempId: string;
+  postType: ContentCalendarPostType;
+  targetGroup: string;
+  platforms: string;
+  postDate: string | null;
+  dayIndex: number;
 };
 
 async function callAi(system: string, user: string, maxTokens = 2000): Promise<string | null> {
@@ -259,6 +268,97 @@ function fallbackWeek(offset: number): GeneratedWeekPost[] {
     }
   }
   return posts;
+}
+
+export async function generateBulkContent(args: {
+  count: number;
+  scheduled: boolean;
+  targetGroups: string[];
+  customPrompt?: string;
+  weekStart: string;
+  offset?: number;
+}): Promise<BulkGeneratedDraft[]> {
+  const learning = await buildLearningContext();
+  const groups =
+    args.targetGroups.length > 0 ? args.targetGroups.join(", ") : "Atlanta Trainers, Virtual Trainers";
+  const promptNote =
+    args.customPrompt?.trim() ||
+    "Scan social media performance, ad statistics, and user activity to inform each post.";
+  const postTypes: ContentCalendarPostType[] = ["Carousel", "Static", "Video", "Text"];
+  const monday = new Date(`${args.weekStart}T00:00:00`);
+
+  const system = `You are Match Fit's bulk content generator AI.
+${CONTENT_CALENDAR_BRAND_FACTS}
+${learning}
+
+Generate ${args.count} distinct social posts for Match Fit. Target groups (rotate across posts): ${groups}.
+Scheduling mode: ${args.scheduled ? "scheduled — assign logical day_index 0-4 (Mon-Fri) spread across the week" : "unscheduled — use day_index 0 for all"}.
+Platform mapping: Carousel/Static→Instagram+Facebook; Video→Reels/TikTok; Text→Threads+Facebook (visualPrompt null for Text).
+
+Respond ONLY with JSON array of exactly ${args.count} objects:
+[{"dayIndex":0,"postType":"Carousel","targetGroup":"Atlanta Trainers","caption":"...","visualPrompt":"...","hashtags":["MatchFit"]}]
+postType: Carousel|Static|Video|Text. targetGroup must be one of the selected groups.`;
+
+  const user = `Operator guidance: ${promptNote}
+
+Week anchor: ${args.weekStart}. Create ${args.count} posts with varied hooks, CTAs, and hashtags (no # prefix in array).`;
+
+  const text = await callAi(system, user, Math.min(8000, 400 + args.count * 350));
+  const parsed = text ? parseJsonBlock<Omit<BulkGeneratedDraft, "tempId" | "platforms" | "postDate">[]>(text) : null;
+
+  if (!parsed || !Array.isArray(parsed) || parsed.length === 0) {
+    return fallbackBulkDrafts(args);
+  }
+
+  return parsed.slice(0, args.count).map((row, i) => {
+    const postType = (postTypes.includes(row.postType as ContentCalendarPostType)
+      ? row.postType
+      : postTypes[i % postTypes.length]) as ContentCalendarPostType;
+    const dayIndex = args.scheduled ? Math.min(4, Math.max(0, row.dayIndex ?? i % 5)) : 0;
+    const postDate = args.scheduled ? formatCalendarDate(addWeekdays(monday, dayIndex)) : null;
+    const targetGroup =
+      args.targetGroups.includes(row.targetGroup) ? row.targetGroup : args.targetGroups[i % args.targetGroups.length];
+
+    return {
+      tempId: `draft_${Date.now()}_${i}`,
+      dayIndex,
+      postType,
+      targetGroup,
+      platforms: CONTENT_CALENDAR_PLATFORMS_BY_TYPE[postType],
+      caption: row.caption ?? "",
+      visualPrompt: postType === "Text" ? null : (row.visualPrompt ?? ""),
+      hashtags: (row.hashtags ?? []).map((h) => String(h).replace(/^#/, "")),
+      postDate,
+    };
+  });
+}
+
+function fallbackBulkDrafts(args: {
+  count: number;
+  scheduled: boolean;
+  targetGroups: string[];
+  weekStart: string;
+}): BulkGeneratedDraft[] {
+  const postTypes: ContentCalendarPostType[] = ["Carousel", "Static", "Video", "Text"];
+  const groups = args.targetGroups.length ? args.targetGroups : ["Atlanta Trainers"];
+  const monday = new Date(`${args.weekStart}T00:00:00`);
+
+  return Array.from({ length: args.count }, (_, i) => {
+    const postType = postTypes[i % postTypes.length];
+    const dayIndex = args.scheduled ? i % 5 : 0;
+    const targetGroup = groups[i % groups.length];
+    return {
+      tempId: `draft_${Date.now()}_${i}`,
+      dayIndex,
+      postType,
+      targetGroup,
+      platforms: CONTENT_CALENDAR_PLATFORMS_BY_TYPE[postType],
+      caption: `${postType} for ${targetGroup} — Match Fit beta in Atlanta. match-fit.net`,
+      visualPrompt: postType === "Text" ? null : `Dark #07080C, orange #FF7E00. ${postType} for ${targetGroup}.`,
+      hashtags: ["MatchFit", "AtlantaFitness"],
+      postDate: args.scheduled ? formatCalendarDate(addWeekdays(monday, dayIndex)) : null,
+    };
+  });
 }
 
 export async function analyzeSocialPerformance(): Promise<string> {

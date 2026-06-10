@@ -5,7 +5,7 @@ import {
   CONTENT_CALENDAR_POST_TYPES,
 } from "@/lib/content-calendar/constants";
 import { addWeekdays, formatCalendarDate, getContentCalendarRotation } from "@/lib/content-calendar/rotation";
-import type { GeneratedWeekPost } from "@/lib/content-calendar/content-calendar-ai";
+import type { GeneratedWeekPost, BulkGeneratedDraft } from "@/lib/content-calendar/content-calendar-ai";
 import { createNiBrainClient, type ContentCalendarPostRow } from "@/lib/ni-brain-client";
 
 export async function loadWeekSchedule(weekStart: string): Promise<ContentCalendarPostRow[]> {
@@ -59,6 +59,10 @@ export async function upsertWeekPosts(args: {
       media_status: "none" as const,
       posted: false,
       missed_prompt_dismissed: false,
+      saved_to_hub_at: null,
+      is_scheduled: false,
+      purge_after_at: null,
+      bulk_session_id: null,
       admin_id: args.adminId,
       updated_at: new Date().toISOString(),
     };
@@ -88,14 +92,17 @@ export async function updatePostCaption(args: {
   if (error) throw new Error(error.message);
 }
 
-export async function markPostPosted(postId: string): Promise<void> {
+export async function markPostPosted(postId: string, autoPurgeAfter24h = false): Promise<void> {
   const client = createNiBrainClient();
+  const now = new Date();
+  const purgeAfter = autoPurgeAfter24h ? new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString() : null;
   const { error } = await client
     .from("match_fit_content_calendar_posts")
     .update({
       posted: true,
-      posted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      posted_at: now.toISOString(),
+      purge_after_at: purgeAfter,
+      updated_at: now.toISOString(),
     })
     .eq("id", postId);
   if (error) throw new Error(error.message);
@@ -171,6 +178,102 @@ export async function loadMissedPosts(): Promise<ContentCalendarPostRow[]> {
   );
 }
 
+export async function loadHubPosts(): Promise<ContentCalendarPostRow[]> {
+  const client = createNiBrainClient();
+  await purgeExpiredHubPosts();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("*")
+    .not("saved_to_hub_at", "is", null)
+    .eq("posted", false)
+    .order("saved_to_hub_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as ContentCalendarPostRow[];
+}
+
+export async function loadScheduledPosts(): Promise<ContentCalendarPostRow[]> {
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("*")
+    .eq("is_scheduled", true)
+    .eq("posted", false)
+    .order("post_date");
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as ContentCalendarPostRow[];
+}
+
+export async function purgeExpiredHubPosts(): Promise<number> {
+  const client = createNiBrainClient();
+  const now = new Date().toISOString();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("id")
+    .not("purge_after_at", "is", null)
+    .lte("purge_after_at", now);
+
+  if (error || !data?.length) return 0;
+
+  const ids = data.map((r) => r.id as string);
+  const { error: delErr } = await client.from("match_fit_content_calendar_posts").delete().in("id", ids);
+  if (delErr) throw new Error(delErr.message);
+  return ids.length;
+}
+
+export async function saveDraftToHub(args: {
+  draft: BulkGeneratedDraft;
+  weekStart: string;
+  scheduled: boolean;
+  adminId: string;
+  bulkSessionId: string;
+}): Promise<ContentCalendarPostRow> {
+  const client = createNiBrainClient();
+  const now = new Date().toISOString();
+  const postDate =
+    args.draft.postDate ??
+    (args.scheduled ? formatCalendarDate(addWeekdays(new Date(`${args.weekStart}T00:00:00`), args.draft.dayIndex)) : args.weekStart);
+
+  const row = {
+    week_start: args.weekStart,
+    post_date: postDate,
+    day_index: args.draft.dayIndex,
+    post_type: args.draft.postType,
+    target_group: args.draft.targetGroup,
+    platforms: args.draft.platforms,
+    caption: args.draft.caption,
+    visual_prompt: args.draft.visualPrompt,
+    hashtags: args.draft.hashtags ?? [],
+    media_status: "none" as const,
+    posted: false,
+    missed_prompt_dismissed: false,
+    saved_to_hub_at: now,
+    is_scheduled: args.scheduled,
+    purge_after_at: null,
+    bulk_session_id: args.bulkSessionId,
+    admin_id: args.adminId,
+    updated_at: now,
+  };
+
+  const { data, error } = await client.from("match_fit_content_calendar_posts").insert(row).select("*").single();
+  if (error) throw new Error(error.message);
+  return data as ContentCalendarPostRow;
+}
+
+export async function updateHubPostDate(args: { postId: string; postDate: string }): Promise<void> {
+  const client = createNiBrainClient();
+  const { error } = await client
+    .from("match_fit_content_calendar_posts")
+    .update({
+      post_date: args.postDate,
+      is_scheduled: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", args.postId);
+  if (error) throw new Error(error.message);
+}
+
 export function serializePostForClient(row: ContentCalendarPostRow) {
   return {
     id: row.id,
@@ -188,6 +291,10 @@ export function serializePostForClient(row: ContentCalendarPostRow) {
     posted: row.posted,
     postedAt: row.posted_at,
     missedPromptDismissed: row.missed_prompt_dismissed,
+    savedToHubAt: row.saved_to_hub_at ?? null,
+    isScheduled: row.is_scheduled ?? false,
+    purgeAfterAt: row.purge_after_at ?? null,
+    bulkSessionId: row.bulk_session_id ?? null,
   };
 }
 

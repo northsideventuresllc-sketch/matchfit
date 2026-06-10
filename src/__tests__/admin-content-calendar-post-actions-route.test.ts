@@ -142,7 +142,7 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ ok: true });
-    expect(mockMarkPostPosted).toHaveBeenCalledWith("post_1");
+    expect(mockMarkPostPosted).toHaveBeenCalledWith("post_1", false);
     expect(mockRecordContentLearning).toHaveBeenCalledWith(
       expect.objectContaining({
         signalType: "POSTED",
