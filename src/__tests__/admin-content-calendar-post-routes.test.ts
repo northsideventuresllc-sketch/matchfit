@@ -265,6 +265,7 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     await expect(res.json()).resolves.toEqual({ error: "Invalid action." });
   });
 
+  it("returns 400 when the request body is invalid JSON", async () => {
   it("returns 400 when POST action body is invalid JSON", async () => {
   it("returns 400 when the request body is invalid JSON", async () => {
   it("returns 400 when request body is malformed JSON", async () => {
@@ -272,6 +273,7 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
       new Request("https://matchfit.test/api/admin/content-calendar/posts/post_1/actions", {
         method: "POST",
         headers: { "content-type": "application/json" },
+        body: "{ invalid json",
         body: "{bad-json",
         body: "{ invalid json",
         body: "{bad json",
@@ -370,6 +372,7 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     });
   });
 
+  it("returns 502 when post regeneration fails", async () => {
   it("returns 502 when regenerate returns no post payload", async () => {
   it("returns 502 when post regeneration fails", async () => {
   it("returns 502 when regenerate cannot create a post", async () => {
@@ -395,6 +398,7 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     expect(mockUpsertWeekPosts).not.toHaveBeenCalled();
   });
 
+  it("returns post:null when regenerated post cannot be found after upsert", async () => {
   it("returns post null when regenerated row is not found in upserted records", async () => {
     mockUpsertWeekPosts.mockResolvedValueOnce([
       {
@@ -515,6 +519,9 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     );
   });
 
+  it("returns 500 when an action throws unexpectedly", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mockMarkPostPosted.mockRejectedValueOnce(new Error("write failed"));
   it("returns 500 when action handler throws", async () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     mockMarkPostPosted.mockRejectedValueOnce(new Error("boom"));

@@ -88,9 +88,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           posts: [regenerated],
           adminId: sess.adminId,
         });
-        const post = rows.find(
-          (r) => r.day_index === dayIndex && r.post_type === postType,
-        );
         const post = rows.find((r) => r.day_index === dayIndex && r.post_type === postType);
         return NextResponse.json({ post: post ? serializePostForClient(post) : null });
       }
