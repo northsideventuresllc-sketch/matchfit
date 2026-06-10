@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import { coerceTrainerBackgroundVendorStatus } from "@/lib/trainer-onboarding-status";
+import {
+  TRAINER_SIGNUP_BG_APPROVED_NOTE,
+  TRAINER_SIGNUP_BG_DENIED_NOTE,
+  TRAINER_SIGNUP_PLAN_B_ESCROW_NOTE,
+} from "@/lib/trainer-signup-payment-messaging";
 
 type Props = {
   backgroundCheckStatus: string;
@@ -77,18 +82,13 @@ export function TrainerBackgroundCheckPlanBPanel({
 
   if (bgStatus === "APPROVED") {
     return (
-      <p className="mt-3 text-sm text-emerald-200/85">
-        Background screening cleared. Your signup fee escrow has been applied per Match Fit policy.
-      </p>
+      <p className="mt-3 text-sm text-emerald-200/85">{TRAINER_SIGNUP_BG_APPROVED_NOTE}</p>
     );
   }
 
   if (bgStatus === "DENIED") {
     return (
-      <p className="mt-3 text-sm text-rose-200/90">
-        Screening did not clear. The background-check portion of your signup authorization was not applied. See Terms
-        for details.
-      </p>
+      <p className="mt-3 text-sm text-rose-200/90">{TRAINER_SIGNUP_BG_DENIED_NOTE}</p>
     );
   }
 
@@ -97,8 +97,7 @@ export function TrainerBackgroundCheckPlanBPanel({
       <div className="rounded-xl border border-amber-400/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/95">
         <p className="font-semibold text-amber-50">Backup screening (Checkr API pending)</p>
         <p className="mt-1 text-amber-100/85">
-          Match Fit is using our manual Checkr invitation process while the direct API finishes setup. Your signup fee
-          {signupEscrowActive ? " is held in Stripe" : ""} until screening is ordered and approved.
+          {TRAINER_SIGNUP_PLAN_B_ESCROW_NOTE}
           {!signupEscrowActive ? (
             <>
               {" "}

@@ -430,21 +430,22 @@ export default async function TermsPage() {
         <H2 id="trainer-terms">11. Trainer Registration, Compliance, and Public Profile</H2>
         <Ul>
           <Li>
-            Trainer registration may require a <Strong>one-time registration fee</Strong> plus applicable transaction fees,
-            as shown at checkout. <Strong>Standard pricing:</Strong> one hundred U.S. dollars ($100.00) minus the amount you
-            paid the independent background-check provider (when verified), plus processing fees.{" "}
-            <Strong>Founding-coach pricing (first {FOUNDING_TRAINER_CAP} Trainers):</Strong> twenty percent (20%) of the
-            verified background-check fee plus processing fees—not the full $100.00 model. Match Fit generally collects the
-            registration fee only after background screening clears and primary certification is approved, as implemented in
-            onboarding. At signup, your card is <Strong>authorized (held)</Strong> through our payment processor; Match Fit{" "}
-            <Strong>captures</Strong> the registration amount only after certification and background screening are approved.
+            Trainer registration may require <Strong>two temporary card authorizations (holds)</Strong> at signup through our
+            payment processor: a background-screening portion and a Match Fit platform onboarding portion, each plus applicable
+            transaction fees, as shown at checkout. <Strong>Standard pricing:</Strong> holds total up to one hundred U.S.
+            dollars ($100.00) split between the screening and platform portions, plus processing on each slice.{" "}
+            <Strong>Founding-coach pricing (first {FOUNDING_TRAINER_CAP} Trainers):</Strong> holds include the estimated
+            independent background-check amount plus a platform portion equal to twenty percent (20%) of that estimate (not the
+            full $100.00 split). Match Fit <Strong>captures</Strong> the screening hold when Checkr screening runs (whether it
+            clears or not) so we can pay the provider. The platform hold stays uncaptured until certification and background
+            screening review finish; if you are fully approved, Match Fit captures the platform hold. If you are not approved,
+            the platform hold is released.
           </Li>
           <Li>
-            <Strong>Background screening escrow:</Strong> A portion of your signup authorization is earmarked for the
-            independent background-check provider (for example, Checkr). If you do not complete background screening after we
-            send (or automate) your invitation, you do not receive credit for that background-check portion toward registration
-            pricing, and we may capture only the platform and processing portions of your authorization as implemented in the
-            product. Refunds of the background-check escrow slice are not guaranteed.
+            <Strong>Background screening escrow:</Strong> The screening hold is earmarked for the independent background-check
+            provider (for example, Checkr). Once screening runs, that hold is generally captured even if the result is not
+            approved. The platform hold is separate and is captured or released based on full compliance review as implemented in
+            the product. Refunds are not guaranteed except where required by law.
           </Li>
           <Li>
             <Strong>Backup screening process:</Strong> When our direct Checkr API integration is not yet active, Trainers

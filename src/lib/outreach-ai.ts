@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getAdminAiProviderStatus } from "@/lib/admin-analytics-ai";
+import { outreachAiProviderHint } from "@/lib/admin-ai-copy";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import {
   getOutreachExclusionList,
@@ -230,17 +231,13 @@ export async function generateOutreachLeads(args: {
   const ai = await callOutreachAi(system, userPrompt);
 
   if (!ai.text) {
-    const providerHint =
-      ai.provider === "openai"
-        ? " OpenAI fallback cannot web-search — set ANTHROPIC_API_KEY for real profile discovery."
-        : "";
     return {
       batchId,
       leads: [],
       aiUsed: false,
       usedWebSearch: ai.usedWebSearch,
       skippedCount: 0,
-      message: `AI provider not configured or request failed.${providerHint}`,
+      message: `AI provider not configured or request failed.${outreachAiProviderHint(ai.provider === "anthropic" || ai.provider === "openai" ? ai.provider : "none")}`,
     };
   }
 
@@ -258,9 +255,9 @@ export async function generateOutreachLeads(args: {
   if (saved.length === 0) {
     message = ai.usedWebSearch
       ? "Web search ran but no verifiable new leads passed validation. Try smaller counts or delete stale/fake rows and regenerate."
-      : "Generation completed without web search. Configure ANTHROPIC_API_KEY for verified real-profile discovery.";
+      : `Generation completed without web search.${outreachAiProviderHint("none")}`;
   } else if (!ai.usedWebSearch) {
-    message = "Warning: OpenAI fallback used memory-only discovery. Prefer Anthropic for real verified profiles.";
+    message = `Warning: OpenAI fallback used memory-only discovery.${outreachAiProviderHint("openai")}`;
   } else if (skippedCount > 0) {
     message = `Saved ${saved.length} verified lead(s); skipped ${skippedCount} duplicate or unverifiable result(s).`;
   }
@@ -563,9 +560,9 @@ export async function buildCoworkMorningBrief(): Promise<{
   return {
     generatedAt: new Date().toISOString(),
     instructions: [
-      "Claude Cowork morning workflow:",
-      "1. Open /admin/outreach and review today's Lead-status bubbles.",
-      "2. Instagram: open profile URL in a tab, send DM (dmText), post comment (commentText) on commentPostRef.",
+      "Claude Cowork morning workflow (Outreach HQ — external fitness pros only; registered trainers are on the Match Fit trainers tab):",
+      "1. Open /admin/outreach and review Lead-status bubbles (generate new batches with Anthropic web search if empty).",
+      "2. Instagram: open profileUrl in a tab, send dmText, post commentText on commentPostRef.",
       "3. Facebook: post pagePostText on pageUrl.",
       "4. Email: send emailBody with emailSubject.",
       "5. PATCH each lead status via /api/admin/outreach/leads/[id] when complete.",

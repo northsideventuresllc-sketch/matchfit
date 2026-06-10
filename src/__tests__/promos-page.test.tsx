@@ -2,9 +2,10 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getLaunchPromoStatsMock, getClientFoundingTrialDaysMock } = vi.hoisted(() => ({
+const { getLaunchPromoStatsMock, getClientFoundingTrialDaysMock, getClientPostCapTrialDaysMock } = vi.hoisted(() => ({
   getLaunchPromoStatsMock: vi.fn(),
   getClientFoundingTrialDaysMock: vi.fn(),
+  getClientPostCapTrialDaysMock: vi.fn(),
 }));
 
 vi.mock("next/image", () => ({
@@ -34,6 +35,7 @@ vi.mock("@/lib/launch-promo-stats", () => ({
 
 vi.mock("@/lib/match-fit-launch-promotions", () => ({
   getClientFoundingTrialDays: getClientFoundingTrialDaysMock,
+  getClientPostCapTrialDays: getClientPostCapTrialDaysMock,
 }));
 
 import PromosPage from "@/app/promos/page";
@@ -73,6 +75,7 @@ describe("promos page", () => {
     vi.clearAllMocks();
     getLaunchPromoStatsMock.mockResolvedValue(makeStats());
     getClientFoundingTrialDaysMock.mockReturnValue(14);
+    getClientPostCapTrialDaysMock.mockReturnValue(3);
   });
 
   it("renders product version and updated beta-reach copy", async () => {
@@ -88,6 +91,8 @@ describe("promos page", () => {
     expect(html).toContain("2 / 10");
     expect(html).toContain("14-day free trial");
     expect(html).toContain("no card required at sign-up");
+    expect(html).toContain("captures the screening hold when Checkr runs");
+    expect(html).toContain("3-day free trial");
   });
 
   it("shows sign-up CTAs when beta capacity is not full", async () => {

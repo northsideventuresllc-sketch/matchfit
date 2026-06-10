@@ -1,6 +1,8 @@
 import "server-only";
 
 import { getAdminAiProviderStatus } from "@/lib/admin-analytics-ai";
+import { contentCalendarAiNotConfiguredMessage } from "@/lib/admin-ai-copy";
+import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import {
   CONTENT_CALENDAR_BRAND_FACTS,
   CONTENT_CALENDAR_DAYS_LONG,
@@ -30,6 +32,7 @@ export type GeneratedWeekPost = GeneratedPostContent & {
 };
 
 async function callAi(system: string, user: string, maxTokens = 2000): Promise<string | null> {
+  await hydratePlatformEnvFromDatabase();
   const status = getAdminAiProviderStatus();
   if (!status.configured) return null;
 
@@ -228,7 +231,7 @@ Be concise. Bullet what's working, what's not, and 3 specific improvements for n
 Based on official profiles, operator edit patterns, and fitness marketplace best practices, summarize what's likely working vs underperforming for @theofficialmatchfit on Instagram, TikTok, Facebook, and Threads. Note content types (video, carousel, static, text) and Atlanta trainer recruitment focus.`;
 
   const text = await callAi(system, user, 1200);
-  const summary = text ?? "Connect ANTHROPIC_API_KEY or OPENAI_API_KEY to run social performance analysis.";
+  const summary = text ?? contentCalendarAiNotConfiguredMessage();
 
   await recordContentLearning({
     signalType: "SOCIAL_SCAN",
@@ -267,6 +270,16 @@ export async function generateStaticMedia(prompt: string): Promise<{ url: string
   return url ? { url } : null;
 }
 
+export async function getContentCalendarAiStatusAsync(): Promise<{
+  configured: boolean;
+  niBrain: boolean;
+  media: boolean;
+  message: string;
+}> {
+  await hydratePlatformEnvFromDatabase();
+  return getContentCalendarAiStatus();
+}
+
 export function getContentCalendarAiStatus(): { configured: boolean; niBrain: boolean; media: boolean; message: string } {
   const ai = getAdminAiProviderStatus();
   const niBrain = Boolean(
@@ -274,7 +287,7 @@ export function getContentCalendarAiStatus(): { configured: boolean; niBrain: bo
   );
   const media = Boolean(process.env.OPENAI_API_KEY?.trim());
   const parts: string[] = [];
-  if (!ai.configured) parts.push("Add ANTHROPIC_API_KEY or OPENAI_API_KEY for generation.");
+  if (!ai.configured) parts.push(contentCalendarAiNotConfiguredMessage());
   if (!niBrain) parts.push("Add NI Brain Supabase keys for learning persistence.");
   if (!media) parts.push("Add OPENAI_API_KEY for static image generation.");
   return {

@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { getLaunchPromoStats } from "@/lib/launch-promo-stats";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
-import { getClientFoundingTrialDays } from "@/lib/match-fit-launch-promotions";
+import { getClientFoundingTrialDays, getClientPostCapTrialDays } from "@/lib/match-fit-launch-promotions";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +23,7 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
 export default async function PromosPage() {
   const stats = await getLaunchPromoStats();
   const trialDays = getClientFoundingTrialDays();
+  const postCapTrialDays = getClientPostCapTrialDays();
 
   const {
     trainerCount,
@@ -132,9 +133,10 @@ export default async function PromosPage() {
               <p className="mt-5 text-pretty text-[15px] leading-relaxed text-white/65 sm:text-base">
                 The first{" "}
                 <span className="font-bold text-[#FFD34E]">{trainerFoundingMax} fitness professionals</span>{" "}
-                to join Match Fit pay only{" "}
-                <span className="font-bold text-[#FFD34E]">20% of their background check cost</span> for
-                onboarding (instead of the usual $100.00 platform fee minus the screening amount).{" "}
+                place two temporary card holds at signup: an estimated Checkr screening portion plus a platform portion
+                equal to <span className="font-bold text-[#FFD34E]">20% of that screening estimate</span> (instead of the
+                usual $100.00 split). Match Fit captures the screening hold when Checkr runs and captures the platform
+                hold only after full approval.{" "}
                 <span className="font-semibold text-white/70">10 of those spots are reserved for in-person coaches</span>{" "}
                 in the Atlanta metro area; the remaining{" "}
                 <span className="font-semibold text-white/70">20 spots are open to virtual coaches nationwide</span>.
@@ -279,11 +281,17 @@ export default async function PromosPage() {
           <ul className="mt-3 space-y-1.5">
             <li className="flex gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />
-              <span>Trainers pay the standard onboarding fee ($100.00 minus their background check amount).</span>
+              <span>
+                Trainers place standard signup holds (screening portion + platform balance up to $100.00). The screening
+                hold is captured when Checkr runs; the platform hold is captured only after full approval.
+              </span>
             </li>
             <li className="flex gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />
-              <span>Clients receive a {trialDays}-day free trial at sign-up (no card required).</span>
+              <span>
+                New clients receive a {postCapTrialDays}-day free trial at sign-up (no card required) once founding client
+                slots are full.
+              </span>
             </li>
             <li className="flex gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />

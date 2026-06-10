@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { ADMIN_AI_KEYS_HELP } from "@/lib/admin-ai-copy";
 import { clearPlatformSecretCache } from "@/lib/platform-secrets";
 import { requireAdminSession } from "@/lib/require-admin";
 import { prisma } from "@/lib/prisma";
@@ -43,6 +44,6 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     ok: true,
-    message: "Anthropic keys stored in platform_secrets. Outreach HQ can now web-search real profiles.",
+    message: `Anthropic keys stored in platform_secrets. Outreach HQ, AI Assistant, and content calendar will use them on the next request. ${ADMIN_AI_KEYS_HELP}`,
   });
 }

@@ -13,6 +13,7 @@ import {
   adminPortalPrimaryButtonClass,
   adminPortalSecondaryButtonClass,
 } from "@/components/admin/admin-portal-styles";
+import { ADMIN_ASSISTANT_SUMMARY } from "@/lib/admin-ai-copy";
 
 type ChatMessage = {
   id: string;
@@ -246,7 +247,7 @@ export function AdminAssistantClient() {
       current="assistant"
       maxWidth="full"
       title="AI Assistant"
-      description="Ask questions about traffic, sign-ups, goals, and platform health. Past chats are saved automatically."
+      description={ADMIN_ASSISTANT_SUMMARY}
       headerActions={
         <button
           type="button"

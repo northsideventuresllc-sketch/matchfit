@@ -9,6 +9,7 @@ import {
 } from "@/lib/admin-dashboard-layout";
 import { AdminPortalShell } from "@/components/admin/admin-portal-shell";
 import { adminPortalLinkClass, adminPortalPrimaryButtonClass } from "@/components/admin/admin-portal-styles";
+import { ADMIN_AI_KEYS_HELP } from "@/lib/admin-ai-copy";
 import { AdminDashboardLayoutCustomizer } from "../admin-dashboard-layout-customizer";
 
 export function AdminSettingsClient(props: {
@@ -65,6 +66,24 @@ export function AdminSettingsClient(props: {
       title="Dashboard Settings"
       description="Choose presets, visible sections, and density for your dashboard. Collapse state is saved when you expand or collapse panels on the main dashboard. Test accounts and sandbox billing are always excluded from analytics totals."
     >
+      <section className="rounded-2xl border border-white/[0.08] bg-[#12151C]/75 p-5 backdrop-blur-xl">
+        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">AI &amp; Outreach</p>
+        <p className="mt-2 text-sm text-white/70">
+          Outreach HQ (cold leads), the AI Assistant, and the content calendar share Anthropic/OpenAI keys.{" "}
+          {ADMIN_AI_KEYS_HELP}
+        </p>
+        <p className="mt-3 text-sm text-white/55">
+          <Link href="/admin/outreach" className={adminPortalLinkClass}>
+            Outreach HQ
+          </Link>{" "}
+          discovers external fitness pros via Anthropic web search.{" "}
+          <Link href="/admin" className={adminPortalLinkClass}>
+            Registered trainers
+          </Link>{" "}
+          live on the dashboard and in the Match Fit trainers tab — not in cold outreach lists.
+        </p>
+      </section>
+
       <section className="rounded-2xl border border-white/[0.08] bg-[#12151C]/75 p-5 backdrop-blur-xl">
         <p className="text-sm text-white/70">
           Use the layout editor to show or hide sections such as site traffic, revenue, impersonation audit, and AI

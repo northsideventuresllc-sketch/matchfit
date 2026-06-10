@@ -81,7 +81,7 @@ export async function createTrainerSignupFeeHoldCheckoutSession(args: {
           unit_amount: platformHoldCents,
           product_data: {
             name: "Match Fit trainer platform onboarding authorization",
-            description: `${modeLabel}. Match Fit captures the platform portion only after certification and background screening are approved.`,
+            description: `${modeLabel}. Screening hold captured when Checkr runs; platform hold captured only after certification and background screening are approved.`,
           },
         },
       },

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AdminPortalNav } from "@/components/admin/admin-portal-nav";
+import { AdminAiProviderStatusAlert } from "@/components/admin/admin-ai-provider-status-alert";
 import {
   AdminPortalAlert,
   AdminPortalBackdrop,
@@ -33,6 +34,12 @@ import {
   targetGroupLabel,
 } from "@/lib/outreach-types";
 import type { AdminAiProviderStatus } from "@/lib/admin-analytics-ai";
+import {
+  OUTREACH_HQ_GENERATE_HELP,
+  OUTREACH_HQ_PURGE_HELP,
+  OUTREACH_HQ_SUMMARY,
+  OUTREACH_REGISTERED_TRAINERS_HELP,
+} from "@/lib/admin-ai-copy";
 import type { RegisteredTrainerOutreachRow } from "@/lib/outreach-registered-trainers";
 
 type AnyLead = InstagramLeadRow | FacebookLeadRow | EmailLeadRow | OtherLeadRow;
@@ -207,10 +214,7 @@ function PlatformTabPanel(props: {
       <section className={`${adminCardClass} space-y-4`}>
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Generate leads</p>
-          <p className="mt-2 text-sm text-white/55">
-            AI uses live web search (Anthropic) to find real public fitness pro profiles, skips ones already in Outreach
-            HQ or already registered on Match Fit, and drafts personalized outreach with today&apos;s invite tail.
-          </p>
+          <p className="mt-2 text-sm text-white/55">{OUTREACH_HQ_GENERATE_HELP}</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div>
@@ -378,10 +382,7 @@ function RegisteredTrainersPanel(props: {
     <div className="space-y-6">
       <section className={`${adminCardClass} space-y-3`}>
         <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Match Fit roster</p>
-        <p className="text-sm text-white/55">
-          Real trainers who already signed up on Match Fit. This list is read-only here — manage accounts from the admin
-          dashboard. Cold outreach generation skips these handles automatically.
-        </p>
+        <p className="text-sm text-white/55">{OUTREACH_REGISTERED_TRAINERS_HELP}</p>
         <button type="button" className={adminSecondaryButtonClass} onClick={props.onRefresh}>
           Refresh roster
         </button>
@@ -593,8 +594,8 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF7E00]">Match Fit</p>
               <h1 className="mt-1 text-3xl font-black tracking-tight">Outreach HQ</h1>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/55">
-                Daily cold outreach for external fitness pros — not signed-up Match Fit trainers. Uses live web search to
-                find real Instagram/Facebook/email leads, then tracks copy, status, and Cowork morning briefs.
+                {OUTREACH_HQ_SUMMARY} Anthropic web search finds verified public profiles; track copy, status, and Cowork
+                morning briefs on the platform tabs.
               </p>
             </div>
             <Link href="/admin" className={adminSecondaryButtonClass}>
@@ -603,23 +604,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
           </div>
         </header>
 
-        {!props.aiStatus.configured ? (
-          <AdminPortalAlert variant="info">
-            {props.aiStatus.message} Lead generation needs ANTHROPIC_API_KEY (preferred for live web search) or
-            OPENAI_API_KEY as a weaker fallback.
-          </AdminPortalAlert>
-        ) : props.aiStatus.provider === "openai" ? (
-          <AdminPortalAlert variant="info">
-            OpenAI is configured, but Anthropic is preferred for Outreach HQ because it can web-search real fitness pro
-            profiles. Add ANTHROPIC_API_KEY for the same behavior as your Claude tool.
-          </AdminPortalAlert>
-        ) : props.aiStatus.working ? (
-          <AdminPortalAlert variant="info">
-            {props.aiStatus.message} Outreach generation will web-search real public fitness pro profiles.
-          </AdminPortalAlert>
-        ) : (
-          <AdminPortalAlert variant="info">{props.aiStatus.message}</AdminPortalAlert>
-        )}
+        <AdminAiProviderStatusAlert status={props.aiStatus} context="outreach" />
 
         {notice ? <AdminPortalAlert variant="info">{notice}</AdminPortalAlert> : null}
 
@@ -642,9 +627,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
 
         <section className={`${adminCardClass} space-y-3`}>
           <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Housekeeping</p>
-          <p className="text-sm text-white/55">
-            Clear archived fake batches from earlier OpenAI-only runs, then regenerate with Anthropic web search.
-          </p>
+          <p className="text-sm text-white/55">{OUTREACH_HQ_PURGE_HELP}</p>
           <button
             type="button"
             disabled={purging}

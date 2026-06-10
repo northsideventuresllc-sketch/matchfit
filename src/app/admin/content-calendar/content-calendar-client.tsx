@@ -310,8 +310,8 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF7E00]">Match Fit</p>
               <h1 className="mt-1 text-3xl font-black tracking-tight">Content Calendar</h1>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/55">
-                Generate M–F Facebook and Threads posts with video, carousel, and static prompts. Learns from your edits
-                via{" "}
+                Generate M–F Facebook and Threads posts with video, carousel, and static prompts. Text generation shares
+                Anthropic/OpenAI keys with Outreach HQ and the AI Assistant; schedules and learning persist via{" "}
                 <Link href="https://supabase.com/dashboard/project/kxijunwgbrlfzvgkhklo" className={adminLinkClass}>
                   NI Brain
                 </Link>

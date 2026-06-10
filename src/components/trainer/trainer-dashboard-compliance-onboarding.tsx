@@ -16,6 +16,11 @@ import {
 import { certificationsGatePassed } from "@/lib/trainer-onboarding-cert-gate";
 import { coerceTrainerBackgroundVendorStatus, coerceTrainerCptStatus } from "@/lib/trainer-onboarding-status";
 import type { TrainerComplianceWindowState } from "@/lib/trainer-compliance-window";
+import {
+  TRAINER_SIGNUP_COMPLIANCE_APPROVED_CAPTURE_NOTE,
+  TRAINER_SIGNUP_COMPLIANCE_DASHBOARD_INTRO,
+  TRAINER_SIGNUP_COMPLIANCE_ESCROW_BG_NOTE,
+} from "@/lib/trainer-signup-payment-messaging";
 
 type Props = {
   complianceWindow: TrainerComplianceWindowState;
@@ -122,10 +127,7 @@ export function TrainerDashboardComplianceOnboarding({
       <h2 className="mt-2 text-xl font-black tracking-tight text-white sm:text-2xl">
         Certification &amp; background screening
       </h2>
-      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/60">
-        Upload your credentials and complete Checkr screening to unlock messaging, services, premium tools, and client
-        discovery. Your signup fee stays on hold until both are approved.
-      </p>
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/60">{TRAINER_SIGNUP_COMPLIANCE_DASHBOARD_INTRO}</p>
 
       {complianceWindow.paused && !complianceWindow.humanReviewActive ? (
         <p className="mt-4 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100/90">
@@ -270,10 +272,7 @@ export function TrainerDashboardComplianceOnboarding({
                     onError={(m) => setError(m)}
                   />
                 ) : (
-                  <p className="text-sm text-white/60">
-                    Signup fee hold includes screening. Complete your Checkr invitation from email, or contact support if
-                    you need a new link.
-                  </p>
+                  <p className="text-sm text-white/60">{TRAINER_SIGNUP_COMPLIANCE_ESCROW_BG_NOTE}</p>
                 )}
               </div>
             ) : bgStatus === "APPROVED" ? (
@@ -284,7 +283,7 @@ export function TrainerDashboardComplianceOnboarding({
 
         {certsOk && bgStatus === "APPROVED" ? (
           <p className="text-center text-sm font-semibold text-emerald-200/90">
-            Compliance approved — full platform access unlocks after we capture your held signup fee.
+            {TRAINER_SIGNUP_COMPLIANCE_APPROVED_CAPTURE_NOTE}
           </p>
         ) : null}
       </div>

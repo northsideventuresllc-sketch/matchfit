@@ -4,6 +4,10 @@ import {
   sanitizeAssistantMessageForDisplay,
   type AdminAiAction,
 } from "@/lib/admin-assistant-labels";
+import {
+  adminAiConfiguredMessage,
+  adminAiNotConfiguredMessage,
+} from "@/lib/admin-ai-copy";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { prisma } from "@/lib/prisma";
 import type { AdminTrafficSnapshot } from "@/lib/site-analytics";
@@ -168,8 +172,7 @@ export function getAdminAiProviderStatus(): AdminAiProviderStatus {
       configured: false,
       working: false,
       model: resolveAnthropicModel(),
-      message:
-        "No AI provider configured. Add ANTHROPIC_API_KEY (preferred) or OPENAI_API_KEY to enable AI responses.",
+      message: adminAiNotConfiguredMessage(),
     };
   }
 
@@ -181,7 +184,7 @@ export function getAdminAiProviderStatus(): AdminAiProviderStatus {
     working: false,
     model,
     message: key
-      ? `${providerDisplayName(provider)} is configured for admin analytics.`
+      ? adminAiConfiguredMessage(provider, model)
       : `${providerDisplayName(provider)} is not fully configured.`,
   };
 }
@@ -219,7 +222,7 @@ async function probeAnthropicProvider(model: string, key: string): Promise<Admin
       configured: true,
       working: true,
       model,
-      message: `Connected to Anthropic (Claude). Full AI answers are available via ${model}.`,
+      message: `Connected to Anthropic (Claude) via ${model}.`,
     };
   } catch {
     return {
@@ -255,7 +258,7 @@ async function probeOpenAiProvider(model: string, key: string): Promise<AdminAiP
       configured: true,
       working: true,
       model,
-      message: `Connected to OpenAI. Full AI answers are available via ${model}.`,
+      message: `Connected to OpenAI via ${model}.`,
     };
   } catch {
     return {
@@ -378,7 +381,7 @@ export async function probeAdminAiProvider(): Promise<AdminAiProviderStatus> {
       configured: false,
       working: false,
       model: resolveAnthropicModel(),
-      message: "No AI provider is configured. Quick prompts still return built-in traffic insights.",
+      message: `${adminAiNotConfiguredMessage()} Quick prompts still return built-in traffic insights.`,
     };
   }
 

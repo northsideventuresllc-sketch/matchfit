@@ -5,6 +5,7 @@ import { isBackgroundCheckPlanBActive } from "@/lib/checkr-integration";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { trainerHasSignupBackgroundEscrow } from "@/lib/trainer-background-check-ui";
+import { TRAINER_SIGNUP_PLAN_B_ESCROW_NOTE } from "@/lib/trainer-signup-payment-messaging";
 
 export const dynamic = "force-dynamic";
 
@@ -51,8 +52,7 @@ export default async function TrainerBackgroundCheckRequestInvitePage() {
       <h1 className="mt-6 text-2xl font-black tracking-tight">Request Checkr screening</h1>
       <p className="mt-3 text-sm leading-relaxed text-white/65">
         Hi {trainer.firstName} — while our direct Checkr connection is being approved, Match Fit sends invitations
-        manually. Your signup fee stays held in Stripe until screening is ordered and approved. If you do not complete
-        screening, the background-check portion of that fee is not applied to your account (see Terms).
+        manually. {TRAINER_SIGNUP_PLAN_B_ESCROW_NOTE} See Terms for full billing details.
       </p>
       <div className="mt-8">
         <TrainerBackgroundCheckPlanBPanel

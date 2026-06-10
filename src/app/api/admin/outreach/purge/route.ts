@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       total,
       message:
         total > 0
-          ? `Removed ${total} outreach row(s). Generate with AI to refill with verified leads.`
+          ? `Removed ${total} archived outreach row(s). Use Generate with AI (Anthropic web search) to refill with verified external leads.`
           : "No outreach rows matched that purge scope.",
     });
   } catch (e) {

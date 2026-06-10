@@ -69,10 +69,10 @@ export function HomeBetaPromoBanner() {
                 <span className="font-semibold text-white/90">
                   First {trainerFoundingCap} fitness professionals:
                 </span>{" "}
-                your one-time onboarding fee will be{" "}
-                <span className="font-bold text-[#FFD34E]">20% of the background check cost</span> instead of the
-                background check fee being subtracted from the usual{" "}
-                <span className="font-semibold text-white/75">$100.00 onboarding fee</span>.
+                signup places two temporary holds — estimated Checkr screening plus a platform slice of{" "}
+                <span className="font-bold text-[#FFD34E]">20% of that screening estimate</span> (instead of the usual{" "}
+                <span className="font-semibold text-white/75">$100.00</span> split). Screening is captured when Checkr
+                runs; platform is captured only after full approval.
               </span>
             </li>
             <li className="flex min-w-0 gap-3">

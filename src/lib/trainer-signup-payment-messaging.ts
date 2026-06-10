@@ -57,3 +57,61 @@ export function trainerSignupPaymentAmountSummary(pricingMode: TrainerRegistrati
 export function trainerBackgroundCheckReferenceUsd(): string {
   return formatUsd(trainerBackgroundCheckAmountCents());
 }
+
+/** Agreement step — fee summary without enforcement legalese (details in Terms). */
+export const TRAINER_SIGNUP_AGREEMENT_BILLING_DOCUMENT = `During beta, signup places two temporary card holds in Stripe: a background screening portion and a Match Fit platform onboarding portion (plus card processing on each slice). Founding coaches (first slots) hold the estimated Checkr screening amount plus 20% of that estimate for the platform slice. Other coaches hold up to $100.00 split between screening and platform balances.
+
+When Checkr screening runs — whether it clears or not — Match Fit captures the screening hold to pay Checkr. The platform hold stays uncaptured until certification and screening review finish. If you are fully approved, the platform hold is captured. If you are not approved, the platform hold is released.
+
+You receive limited dashboard access after both holds are placed. Upload credentials and complete Checkr screening within the compliance window in the Terms of Service.`;
+
+export function getTrainerSignupAgreementBillingBullets(foundingCoachPricing: boolean): readonly string[] {
+  if (foundingCoachPricing) {
+    return [
+      "Founding coach signup: two card holds — estimated Checkr screening portion + 20% platform surcharge (+ processing on each slice).",
+      "Screening hold captured when Checkr runs; platform hold captured only after full approval (released if denied).",
+      "Limited dashboard until certification and background check are approved.",
+    ];
+  }
+  return [
+    "Standard signup: two card holds — screening portion + platform balance up to $100.00 (+ processing on each slice).",
+    "Screening hold captured when Checkr runs; platform hold captured only after full approval (released if denied).",
+    "Limited dashboard until certification and background check are approved.",
+  ];
+}
+
+export const TRAINER_SIGNUP_COMPLIANCE_DASHBOARD_INTRO =
+  "Upload credentials and complete Checkr screening to unlock messaging, services, premium tools, and client discovery. The platform onboarding hold stays uncaptured until you are fully approved; the screening hold is captured when Checkr runs.";
+
+export const TRAINER_SIGNUP_COMPLIANCE_APPROVED_CAPTURE_NOTE =
+  "Compliance approved — Match Fit captures your held platform onboarding fee. Your screening hold was already applied when Checkr screening ran.";
+
+export const TRAINER_SIGNUP_COMPLIANCE_ESCROW_BG_NOTE =
+  "Your signup holds include background screening. Complete your Checkr invitation from email, or contact support if you need a new link.";
+
+export const TRAINER_SIGNUP_COMPLIANCE_HOLD_PANEL_NOTE =
+  "Your platform onboarding fee is on hold. Match Fit captures the screening hold when Checkr runs and captures the platform hold only after certifications and background check are fully approved.";
+
+export function trainerSignupCompliancePageBillingCopy(args: {
+  signupHoldFlow: boolean;
+  foundingCoachPricing: boolean;
+  foundingCap: number;
+}): string {
+  if (args.signupHoldFlow) {
+    return args.foundingCoachPricing
+      ? `Signup placed two Stripe holds: an estimated Checkr screening portion and a platform portion (20% of that estimate for founding coaches in the first ${args.foundingCap} slots). The screening hold is captured when Checkr runs. The platform hold is captured only after full approval — otherwise it is released.`
+      : `Signup placed two Stripe holds: a screening portion and a platform balance (up to $100.00 total between them). The screening hold is captured when Checkr runs. The platform hold is captured only after full approval — otherwise it is released.`;
+  }
+  return args.foundingCoachPricing
+    ? `Place signup holds from the payment step: estimated Checkr screening plus 20% platform surcharge for founding coaches (first ${args.foundingCap} slots), plus processing on each slice.`
+    : "Place signup holds from the payment step: screening portion plus platform balance up to $100.00, plus processing on each slice.";
+}
+
+export const TRAINER_SIGNUP_BG_DENIED_NOTE =
+  "Screening did not clear. Match Fit captured the screening hold when Checkr ran; your platform onboarding hold was released per Terms.";
+
+export const TRAINER_SIGNUP_BG_APPROVED_NOTE =
+  "Background screening cleared. Your screening hold was captured when Checkr ran; your platform hold is captured after full compliance approval.";
+
+export const TRAINER_SIGNUP_PLAN_B_ESCROW_NOTE =
+  "Match Fit is using our manual Checkr invitation process while the direct API finishes setup. Both signup holds must be in place before screening is ordered — the screening hold is captured when Checkr runs.";

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { TRAINER_SIGNUP_COMPLIANCE_HOLD_PANEL_NOTE } from "@/lib/trainer-signup-payment-messaging";
 
 type Summary = {
   hasPaidRegistrationFee: boolean;
@@ -79,10 +80,7 @@ export function TrainerRegistrationFeePanel() {
 
   if (summary.signupFeeOnHold && summary.registrationFeeHoldStatus === "HELD") {
     return (
-      <p className="text-sm text-emerald-200/90">
-        Your platform onboarding fee is on hold. We capture the background-check portion when Checkr screening runs,
-        and capture the platform portion only after your certifications and background check are fully approved.
-      </p>
+      <p className="text-sm text-emerald-200/90">{TRAINER_SIGNUP_COMPLIANCE_HOLD_PANEL_NOTE}</p>
     );
   }
 
