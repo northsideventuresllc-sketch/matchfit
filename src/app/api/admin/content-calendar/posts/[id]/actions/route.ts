@@ -69,8 +69,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           existingCaption,
           existingVisualPrompt,
         } = parsed.data;
-        const { weekStart, offset, dayIndex, postType, feedback, existingCaption, existingVisualPrompt } =
-          parsed.data;
         const regenerated = await regenerateCalendarPost({
           weekStart,
           offset,
