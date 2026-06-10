@@ -99,7 +99,7 @@ describe("listRegisteredTrainersForOutreach", () => {
             firstName: "",
             lastName: "",
             email: "legacy@example.com",
-            socialInstagram: "@legacy-user",
+            socialInstagram: "@legacy.user",
             socialFacebook: null,
             fitnessNiches: null,
             createdAt: new Date("2026-06-02T08:30:00.000Z"),
@@ -126,8 +126,8 @@ describe("listRegisteredTrainersForOutreach", () => {
       expect(rows[0]).toMatchObject({
         username: "legacy-user",
         displayName: "legacy-user",
-        instagramHandle: "@legacy-user",
-        instagramUrl: "https://instagram.com/legacy-user",
+        instagramHandle: "@legacy.user",
+        instagramUrl: "https://instagram.com/legacy.user",
         facebookUrl: null,
         fitnessNiches: null,
       });
