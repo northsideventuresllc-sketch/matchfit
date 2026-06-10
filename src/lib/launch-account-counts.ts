@@ -57,9 +57,9 @@ export const SYNTHETIC_TRAINER_USERNAME_PREFIX = "mfqst_";
 export const SYNTHETIC_CLIENT_USERNAME_PREFIX = "mfqsc_";
 
 const BUILTIN_LAUNCH_EXCLUDE_CLIENT_USERNAMES = [...MATCH_FIT_EXCLUDE_NON_PRODUCTION_CLIENT_USERNAMES] as const;
-const BUILTIN_LAUNCH_EXCLUDE_CLIENT_EMAILS = [] as const;
+const BUILTIN_LAUNCH_EXCLUDE_CLIENT_EMAILS: readonly string[] = [];
 const BUILTIN_LAUNCH_EXCLUDE_TRAINER_USERNAMES = [...MATCH_FIT_EXCLUDE_NON_PRODUCTION_TRAINER_USERNAMES] as const;
-const BUILTIN_LAUNCH_EXCLUDE_TRAINER_EMAILS = ["jb@northsideventuresgroup.com"] as const;
+const BUILTIN_LAUNCH_EXCLUDE_TRAINER_EMAILS: readonly string[] = ["jb@northsideventuresgroup.com"];
 
 export function getLaunchExcludeUsernames(role?: "client" | "trainer"): string[] {
   const ex = new Set<string>([...betaExcludeCapCountUsernames()].map((u) => u.toLowerCase()));
