@@ -16,6 +16,7 @@ import {
   sleepMs,
   verifyInstagramProfile,
 } from "@/lib/instagram-profile-verify";
+import { getOutreachExclusionList } from "@/lib/outreach-exclusions";
 import { buildOutreachLearningContext } from "@/lib/outreach-learning";
 import {
   genericInviteTail,
@@ -201,29 +202,39 @@ function parseJsonArray<T>(raw: string): T[] {
 }
 
 async function getExclusionList(platform: OutreachPlatform): Promise<string[]> {
-  // Include soft-deleted leads — we never resurface a trainer that was already saved or dismissed.
+  const activeOnly = await getOutreachExclusionList(platform);
   if (platform === "instagram") {
-    const rows = await prisma.outreachInstagramLead.findMany({
+    const archived = await prisma.outreachInstagramLead.findMany({
+      where: { deletedAt: { not: null } },
       select: { handle: true, profileUrl: true },
     });
-    return rows.flatMap((r) => [r.handle.toLowerCase(), r.profileUrl.toLowerCase()]);
+    const archivedValues = archived.flatMap((r) => [r.handle.toLowerCase(), r.profileUrl.toLowerCase()]);
+    return [...new Set([...activeOnly, ...archivedValues])];
   }
   if (platform === "facebook") {
-    const rows = await prisma.outreachFacebookLead.findMany({
+    const archived = await prisma.outreachFacebookLead.findMany({
+      where: { deletedAt: { not: null } },
       select: { pageUrl: true, pageName: true },
     });
-    return rows.flatMap((r) => [r.pageUrl.toLowerCase(), r.pageName.toLowerCase()]);
+    const archivedValues = archived.flatMap((r) => [r.pageUrl.toLowerCase(), r.pageName.toLowerCase()]);
+    return [...new Set([...activeOnly, ...archivedValues])];
   }
   if (platform === "email") {
-    const rows = await prisma.outreachEmailLead.findMany({
+    const archived = await prisma.outreachEmailLead.findMany({
+      where: { deletedAt: { not: null } },
       select: { email: true },
     });
-    return rows.map((r) => r.email.toLowerCase());
+    const archivedValues = archived.map((r) => r.email.toLowerCase());
+    return [...new Set([...activeOnly, ...archivedValues])];
   }
-  const rows = await prisma.outreachOtherLead.findMany({
+  const archived = await prisma.outreachOtherLead.findMany({
+    where: { deletedAt: { not: null } },
     select: { contactLabel: true, contactUrl: true },
   });
-  return rows.flatMap((r) => [r.contactLabel.toLowerCase(), (r.contactUrl ?? "").toLowerCase()].filter(Boolean));
+  const archivedValues = archived.flatMap((r) =>
+    [r.contactLabel.toLowerCase(), (r.contactUrl ?? "").toLowerCase()].filter(Boolean),
+  );
+  return [...new Set([...activeOnly, ...archivedValues])];
 }
 
 function normalizeGroup(g: string): OutreachTargetGroup {

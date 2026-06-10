@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const {
   mockGetAdminAiProviderStatusAsync,
   mockBuildOutreachLearningContext,
+  mockTrainerFindMany,
   mockOutreachInstagramLeadFindMany,
   mockOutreachFacebookLeadFindMany,
   mockOutreachEmailLeadFindMany,
@@ -11,6 +12,7 @@ const {
 } = vi.hoisted(() => ({
   mockGetAdminAiProviderStatusAsync: vi.fn(),
   mockBuildOutreachLearningContext: vi.fn(),
+  mockTrainerFindMany: vi.fn(),
   mockOutreachInstagramLeadFindMany: vi.fn(),
   mockOutreachFacebookLeadFindMany: vi.fn(),
   mockOutreachEmailLeadFindMany: vi.fn(),
@@ -28,6 +30,7 @@ vi.mock("@/lib/outreach-learning", () => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    trainer: { findMany: mockTrainerFindMany },
     outreachInstagramLead: { findMany: mockOutreachInstagramLeadFindMany },
     outreachFacebookLead: { findMany: mockOutreachFacebookLeadFindMany },
     outreachEmailLead: { findMany: mockOutreachEmailLeadFindMany },
@@ -93,6 +96,7 @@ describe("outreach-ai generation prompts and parsing", () => {
       message: "ok",
     });
     mockBuildOutreachLearningContext.mockResolvedValue("learning-summary");
+    mockTrainerFindMany.mockResolvedValue([]);
     mockOutreachInstagramLeadFindMany.mockResolvedValue([]);
     mockOutreachFacebookLeadFindMany.mockResolvedValue([]);
     mockOutreachEmailLeadFindMany.mockResolvedValue([]);
@@ -106,10 +110,15 @@ describe("outreach-ai generation prompts and parsing", () => {
     vi.unstubAllGlobals();
   });
 
-  it("loads Instagram exclusions without deletedAt filtering and lowercases entries", async () => {
-    mockOutreachInstagramLeadFindMany.mockResolvedValueOnce([
-      { handle: "@CoachATL", profileUrl: "HTTPS://Instagram.com/CoachATL" },
-    ]);
+  it("loads Instagram exclusions from active and archived leads and lowercases entries", async () => {
+    mockOutreachInstagramLeadFindMany.mockImplementation((args: { where?: { deletedAt?: unknown } }) => {
+      if (args.where?.deletedAt === null) {
+        return Promise.resolve([
+          { handle: "@CoachATL", profileUrl: "HTTPS://Instagram.com/CoachATL" },
+        ]);
+      }
+      return Promise.resolve([]);
+    });
     const mockFetch = mockFailingOpenAiCall();
 
     await generateOutreachLeads({
@@ -119,21 +128,26 @@ describe("outreach-ai generation prompts and parsing", () => {
       adminId: "admin_1",
     });
 
-    const query = mockOutreachInstagramLeadFindMany.mock.calls[0]?.[0];
-    expect(query).toEqual({
+    const activeQuery = mockOutreachInstagramLeadFindMany.mock.calls[0]?.[0];
+    expect(activeQuery).toEqual({
+      where: { deletedAt: null },
       select: { handle: true, profileUrl: true },
     });
-    expect(query).not.toHaveProperty("where");
 
     const prompt = extractOpenAiUserPrompt(mockFetch);
     expect(prompt).toContain("@coachatl");
     expect(prompt).toContain("https://instagram.com/coachatl");
   });
 
-  it("loads Facebook exclusions without deletedAt filtering and lowercases entries", async () => {
-    mockOutreachFacebookLeadFindMany.mockResolvedValueOnce([
-      { pageUrl: "HTTPS://Facebook.com/StrongFit", pageName: "Strong Fit ATL" },
-    ]);
+  it("loads Facebook exclusions from active and archived leads and lowercases entries", async () => {
+    mockOutreachFacebookLeadFindMany.mockImplementation((args: { where?: { deletedAt?: unknown } }) => {
+      if (args.where?.deletedAt === null) {
+        return Promise.resolve([
+          { pageUrl: "HTTPS://Facebook.com/StrongFit", pageName: "Strong Fit ATL" },
+        ]);
+      }
+      return Promise.resolve([]);
+    });
     const mockFetch = mockFailingOpenAiCall();
 
     await generateOutreachLeads({
@@ -143,19 +157,24 @@ describe("outreach-ai generation prompts and parsing", () => {
       adminId: "admin_2",
     });
 
-    const query = mockOutreachFacebookLeadFindMany.mock.calls[0]?.[0];
-    expect(query).toEqual({
+    const activeQuery = mockOutreachFacebookLeadFindMany.mock.calls[0]?.[0];
+    expect(activeQuery).toEqual({
+      where: { deletedAt: null },
       select: { pageUrl: true, pageName: true },
     });
-    expect(query).not.toHaveProperty("where");
 
     const prompt = extractOpenAiUserPrompt(mockFetch);
     expect(prompt).toContain("https://facebook.com/strongfit");
     expect(prompt).toContain("strong fit atl");
   });
 
-  it("loads email exclusions without deletedAt filtering and lowercases entries", async () => {
-    mockOutreachEmailLeadFindMany.mockResolvedValueOnce([{ email: "COACH@MAIL.COM" }]);
+  it("loads email exclusions from active and archived leads and lowercases entries", async () => {
+    mockOutreachEmailLeadFindMany.mockImplementation((args: { where?: { deletedAt?: unknown } }) => {
+      if (args.where?.deletedAt === null) {
+        return Promise.resolve([{ email: "COACH@MAIL.COM" }]);
+      }
+      return Promise.resolve([]);
+    });
     const mockFetch = mockFailingOpenAiCall();
 
     await generateOutreachLeads({
@@ -165,20 +184,25 @@ describe("outreach-ai generation prompts and parsing", () => {
       adminId: "admin_3",
     });
 
-    const query = mockOutreachEmailLeadFindMany.mock.calls[0]?.[0];
-    expect(query).toEqual({
+    const activeQuery = mockOutreachEmailLeadFindMany.mock.calls[0]?.[0];
+    expect(activeQuery).toEqual({
+      where: { deletedAt: null },
       select: { email: true },
     });
-    expect(query).not.toHaveProperty("where");
 
     const prompt = extractOpenAiUserPrompt(mockFetch);
     expect(prompt).toContain("coach@mail.com");
   });
 
-  it("loads other-channel exclusions without deletedAt filtering and lowercases label/url", async () => {
-    mockOutreachOtherLeadFindMany.mockResolvedValueOnce([
-      { contactLabel: "Coach LinkedIn", contactUrl: "HTTPS://LinkedIn.com/in/CoachLinkedIn" },
-    ]);
+  it("loads other-channel exclusions from active and archived leads and lowercases label/url", async () => {
+    mockOutreachOtherLeadFindMany.mockImplementation((args: { where?: { deletedAt?: unknown } }) => {
+      if (args.where?.deletedAt === null) {
+        return Promise.resolve([
+          { contactLabel: "Coach LinkedIn", contactUrl: "HTTPS://LinkedIn.com/in/CoachLinkedIn" },
+        ]);
+      }
+      return Promise.resolve([]);
+    });
     const mockFetch = mockFailingOpenAiCall();
 
     await generateOutreachLeads({
@@ -188,11 +212,11 @@ describe("outreach-ai generation prompts and parsing", () => {
       adminId: "admin_4",
     });
 
-    const query = mockOutreachOtherLeadFindMany.mock.calls[0]?.[0];
-    expect(query).toEqual({
+    const activeQuery = mockOutreachOtherLeadFindMany.mock.calls[0]?.[0];
+    expect(activeQuery).toEqual({
+      where: { deletedAt: null },
       select: { contactLabel: true, contactUrl: true },
     });
-    expect(query).not.toHaveProperty("where");
 
     const prompt = extractOpenAiUserPrompt(mockFetch);
     expect(prompt).toContain("coach linkedin");
