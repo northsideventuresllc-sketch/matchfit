@@ -20,19 +20,18 @@ export async function POST(req: Request) {
     const archived =
       parsed.data.scope === "archived" || parsed.data.scope === "all"
         ? await purgeArchivedOutreachLeads()
-        : { instagram: 0, facebook: 0, email: 0, other: 0 };
+        : { instagram: 0, facebook: 0, email: 0 };
     const active =
       parsed.data.scope === "active" || parsed.data.scope === "all"
         ? await purgeActiveOutreachLeads()
-        : { instagram: 0, facebook: 0, email: 0, other: 0 };
+        : { instagram: 0, facebook: 0, email: 0 };
 
     const removed = {
       instagram: archived.instagram + active.instagram,
       facebook: archived.facebook + active.facebook,
       email: archived.email + active.email,
-      other: archived.other + active.other,
     };
-    const total = removed.instagram + removed.facebook + removed.email + removed.other;
+    const total = removed.instagram + removed.facebook + removed.email;
 
     return NextResponse.json({
       ok: true,

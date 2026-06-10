@@ -21,15 +21,13 @@ import type {
   EmailLeadRow,
   FacebookLeadRow,
   InstagramLeadRow,
-  OtherLeadRow,
   OutreachHubLead,
-  OutreachLeadStatus,
   OutreachPlatform,
 } from "@/lib/outreach-types";
 import {
   OUTREACH_CLASSIFICATION_LABELS,
   OUTREACH_PLATFORMS,
-  OUTREACH_STATUS_OPTIONS,
+  outreachStatusOptionsForPlatform,
   statusLabelForPlatform,
   targetGroupLabel,
 } from "@/lib/outreach-types";
@@ -40,7 +38,7 @@ import {
   stageLabelForOutreachGenerate,
 } from "@/lib/outreach-platform-ui";
 
-type AnyLead = InstagramLeadRow | FacebookLeadRow | EmailLeadRow | OtherLeadRow;
+type AnyLead = InstagramLeadRow | FacebookLeadRow | EmailLeadRow;
 type OutreachView = OutreachPlatform | "hub";
 
 type OutreachBatchGroup = {
@@ -196,9 +194,7 @@ function LeadBubble(props: {
   const [savingToHub, setSavingToHub] = useState(false);
   const isSaved = Boolean(props.lead.savedToHubAt);
   const classification = props.lead.autoClassification as keyof typeof OUTREACH_CLASSIFICATION_LABELS;
-  const statusOptions = OUTREACH_STATUS_OPTIONS.filter(
-    (s) => props.platform !== "facebook" || !["FOLLOW_UP_1", "FOLLOW_UP_2"].includes(s.id),
-  );
+  const statusOptions = outreachStatusOptionsForPlatform(props.platform);
 
   return (
     <article className={`${adminPanelClass} overflow-hidden`}>
@@ -241,7 +237,7 @@ function LeadBubble(props: {
             <select
               className={`${adminInputClassSm} w-full sm:w-auto`}
               value={props.lead.status}
-              onChange={(e) => void props.onUpdate({ status: e.target.value as OutreachLeadStatus })}
+              onChange={(e) => void props.onUpdate({ status: e.target.value })}
             >
               {statusOptions.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -397,27 +393,7 @@ function PlatformTabPanel(props: {
         </LeadBubble>
       );
     }
-    const ot = lead as OtherLeadRow;
-    return (
-      <LeadBubble
-        key={ot.id}
-        platform="other"
-        lead={ot}
-        title={ot.contactLabel}
-        linkHref={ot.contactUrl ?? undefined}
-        onUpdate={(patch) => props.onUpdate(ot.id, patch)}
-        onDelete={() => props.onDelete(ot.id)}
-        onSaveToHub={() => props.onSaveToHub(ot.id)}
-      >
-        {ot.channelNotes ? <p className="text-xs text-white/45">{ot.channelNotes}</p> : null}
-        <EditableBlock
-          label="Outreach message"
-          value={ot.outreachText}
-          rows={6}
-          onSave={(outreachText) => props.onUpdate(ot.id, { outreachText })}
-        />
-      </LeadBubble>
-    );
+    return null;
   };
 
   return (
@@ -678,27 +654,7 @@ function OutreachHubPanel(props: {
       );
     }
 
-    const ot = lead as OtherLeadRow;
-    return (
-      <LeadBubble
-        key={`${platform}-${ot.id}`}
-        platform="other"
-        lead={ot}
-        title={ot.contactLabel}
-        linkHref={ot.contactUrl ?? undefined}
-        onUpdate={(patch) => props.onUpdate(platform, ot.id, patch)}
-        onDelete={() => props.onDelete(platform, ot.id)}
-        onSaveToHub={() => props.onSaveToHub(platform, ot.id)}
-      >
-        {ot.channelNotes ? <p className="text-xs text-white/45">{ot.channelNotes}</p> : null}
-        <EditableBlock
-          label="Outreach message"
-          value={ot.outreachText}
-          rows={6}
-          onSave={(outreachText) => props.onUpdate(platform, ot.id, { outreachText })}
-        />
-      </LeadBubble>
-    );
+    return null;
   };
 
   return (

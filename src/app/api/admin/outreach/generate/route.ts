@@ -9,8 +9,10 @@ export const maxDuration = 300;
 
 const INSTAGRAM_MAX_LEADS_PER_RUN = 10;
 
+import { OUTREACH_PLATFORM_VALUES } from "@/lib/outreach-types";
+
 const bodySchema = z.object({
-  platform: z.enum(["instagram", "facebook", "email", "other"]),
+  platform: z.enum(OUTREACH_PLATFORM_VALUES),
   atlCount: z.number().int().min(0).max(20).default(5),
   virtualCount: z.number().int().min(0).max(20).default(10),
 });

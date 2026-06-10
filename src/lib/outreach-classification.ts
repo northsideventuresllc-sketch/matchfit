@@ -34,15 +34,37 @@ export function classifyOutreachLead(input: OutreachTimeline): OutreachAutoClass
     return "ACTIVE_LEAD";
   }
 
+  if (input.platform === "facebook") {
+    if (
+      input.status === "GROUP_JOIN_REQUESTED" ||
+      input.status === "GROUP_JOINED" ||
+      input.status === "POST_APPROVED"
+    ) {
+      return "ACTIVE_LEAD";
+    }
+    if (input.status === "POST_SUBMITTED_PENDING_REVIEW") {
+      const anchor = input.outreachSentAt ?? input.createdAt;
+      const daysWaiting = daysBetween(anchor, now);
+      if (daysWaiting >= 7) return "FOLLOW_UP_NEEDED";
+      return "ACTIVE_LEAD";
+    }
+    if (input.status === "OUTREACH_SENT") {
+      const daysSinceSent = daysBetween(input.outreachSentAt ?? input.createdAt, now);
+      if (daysSinceSent >= 14) return "DEAD_LEAD";
+      return "ACTIVE_LEAD";
+    }
+    return "STATUS_UNKNOWN";
+  }
+
   const sentAt = input.outreachSentAt ?? input.followUp1SentAt ?? input.followUp2SentAt;
   if (!sentAt) {
     return "STATUS_UNKNOWN";
   }
 
-  const daysSinceSent = daysBetween(sentAt, now);
-  const allowsFollowUp = input.platform !== "facebook";
+  const allowsFollowUp = true;
 
   if (input.status === "OUTREACH_SENT") {
+    const daysSinceSent = daysBetween(sentAt, now);
     if (daysSinceSent >= 14) return "DEAD_LEAD";
     if (allowsFollowUp && daysSinceSent >= 7) return "FOLLOW_UP_NEEDED";
     if (allowsFollowUp && daysSinceSent >= 3) return "FOLLOW_UP_NEEDED";
@@ -50,12 +72,14 @@ export function classifyOutreachLead(input: OutreachTimeline): OutreachAutoClass
   }
 
   if (input.status === "FOLLOW_UP_1") {
+    const daysSinceSent = daysBetween(input.followUp1SentAt ?? sentAt, now);
     if (allowsFollowUp && daysSinceSent >= 4) return "FOLLOW_UP_NEEDED";
     if (daysSinceSent >= 10) return "DEAD_LEAD";
     return "ACTIVE_LEAD";
   }
 
   if (input.status === "FOLLOW_UP_2") {
+    const daysSinceSent = daysBetween(input.followUp2SentAt ?? sentAt, now);
     if (daysSinceSent >= 7) return "DEAD_LEAD";
     return "FOLLOW_UP_NEEDED";
   }
@@ -80,8 +104,30 @@ export function classificationBadgeClass(c: OutreachAutoClassification): string 
   }
 }
 
+export function facebookStatusTimestampsForUpdate(
+  status: string,
+  existing: { outreachSentAt: Date | null; responseReceivedAt: Date | null },
+  now = new Date(),
+): { outreachSentAt: Date | null; responseReceivedAt: Date | null } {
+  const next = { ...existing };
+  const pipelineStatuses = [
+    "GROUP_JOIN_REQUESTED",
+    "GROUP_JOINED",
+    "POST_SUBMITTED_PENDING_REVIEW",
+    "POST_APPROVED",
+    "OUTREACH_SENT",
+  ];
+  if (pipelineStatuses.includes(status) && !next.outreachSentAt) {
+    next.outreachSentAt = now;
+  }
+  if (status === "RESPONSE_RECEIVED" && !next.responseReceivedAt) {
+    next.responseReceivedAt = now;
+  }
+  return next;
+}
+
 export function statusTimestampsForUpdate(
-  status: OutreachLeadStatus,
+  status: string,
   existing: {
     outreachSentAt: Date | null;
     followUp1SentAt: Date | null;

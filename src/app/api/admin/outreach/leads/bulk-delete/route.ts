@@ -1,21 +1,21 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { massSoftDeleteOutreachLeads } from "@/lib/outreach-data";
-import type { OutreachPlatform } from "@/lib/outreach-types";
+import { OUTREACH_PLATFORM_VALUES, type OutreachPlatform } from "@/lib/outreach-types";
 import { requireAdminSession } from "@/lib/require-admin";
 
 const bulkDeleteSchema = z.discriminatedUnion("mode", [
   z.object({
-    platform: z.enum(["instagram", "facebook", "email", "other"]),
+    platform: z.enum(OUTREACH_PLATFORM_VALUES),
     mode: z.literal("all"),
   }),
   z.object({
-    platform: z.enum(["instagram", "facebook", "email", "other"]),
+    platform: z.enum(OUTREACH_PLATFORM_VALUES),
     mode: z.literal("batch"),
     generationBatchId: z.string().trim().min(1).max(200),
   }),
   z.object({
-    platform: z.enum(["instagram", "facebook", "email", "other"]),
+    platform: z.enum(OUTREACH_PLATFORM_VALUES),
     mode: z.literal("ids"),
     ids: z.array(z.string().trim().min(1)).min(1).max(500),
   }),

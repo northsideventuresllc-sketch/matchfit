@@ -28,12 +28,6 @@ export const OUTREACH_PLATFORM_UI: Record<OutreachPlatform, OutreachPlatformUiCo
       "AI is researching fitness pros with publicly listed trainer or coaching emails.",
     emptyHint: "No trainer email leads yet. Generate a batch to find fitness pros with public emails.",
   },
-  other: {
-    generateDescription:
-      "AI finds fitness pros on other channels (LinkedIn, X, referrals) and drafts outreach copy with a Match Fit invite tail.",
-    progressFootnote: "AI is researching fitness pros on alternate outreach channels.",
-    emptyHint: "No other-channel leads yet. Generate a batch to get started.",
-  },
 };
 
 export function stageLabelForOutreachGenerate(platform: OutreachPlatform, percent: number): string {
@@ -56,16 +50,9 @@ export function stageLabelForOutreachGenerate(platform: OutreachPlatform, percen
     return "Almost done…";
   }
 
-  if (platform === "email") {
-    if (percent < 22) return "Starting trainer email research…";
-    if (percent < 45) return "Finding fitness pros with public emails…";
-    if (percent < 68) return "Validating contact details…";
-    if (percent < 86) return "Drafting personalized emails…";
-    return "Almost done…";
-  }
-
-  if (percent < 30) return "Starting AI lead research…";
-  if (percent < 60) return "Finding fitness pro contacts…";
-  if (percent < 85) return "Drafting outreach copy…";
+  if (percent < 22) return "Starting trainer email research…";
+  if (percent < 45) return "Finding fitness pros with public emails…";
+  if (percent < 68) return "Validating contact details…";
+  if (percent < 86) return "Drafting personalized emails…";
   return "Almost done…";
 }
