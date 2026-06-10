@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-09** `1.4.12-beta` → `1.4.13-beta` (**patch** — Fix content calendar post action type narrowing in build)
 - **2026-06-09** `1.4.13-beta` → `1.4.14-beta` (**patch** — Unblock CI for launch account exclude typing fix)
 - **2026-06-09** `1.4.13-beta` → `1.4.14-beta` (**patch** — Fix typecheck regressions in content calendar action handling)
 - **2026-06-09** `1.4.13-beta` → `1.4.14-beta` (**patch** — Fix build failure from empty launch exclude email tuple typing)
