@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-10** `1.5.0-beta` → `1.5.1-beta` (**patch** — Fix malformed content calendar action route and tests)
 - **2026-06-10** `1.4.13-beta` → `1.4.14-beta` (**patch** — Fix launch account count typecheck regression)
 - **2026-06-10** `1.5.0-beta` → `1.5.1-beta` (**patch** — Fix duplicate regenerate destructuring while adding test coverage)
 - **2026-06-10** `1.5.0-beta` → `1.5.1-beta` (**patch** — Fix regenerate action compile error and add coverage tests)
