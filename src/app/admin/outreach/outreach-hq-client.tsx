@@ -206,8 +206,8 @@ function PlatformTabPanel(props: {
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Generate leads</p>
           <p className="mt-2 text-sm text-white/55">
-            AI finds new fitness pro leads, skips ones already in the database, and drafts personalized outreach with a
-            shared invite tail for today&apos;s batch.
+            AI uses live web search (Anthropic) to find real public fitness pro profiles, skips ones already in Outreach
+            HQ or already registered on Match Fit, and drafts personalized outreach with today&apos;s invite tail.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -373,6 +373,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [atlCount, setAtlCount] = useState(5);
   const [virtualCount, setVirtualCount] = useState(10);
   const [coworkJson, setCoworkJson] = useState<string | null>(null);
@@ -410,6 +411,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   const generate = async () => {
     setGenerating(true);
     setError(null);
+    setNotice(null);
     try {
       const res = await fetch("/api/admin/outreach/generate", {
         method: "POST",
@@ -417,9 +419,18 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ platform: tab, atlCount, virtualCount }),
       });
-      const data = (await res.json()) as { error?: string; message?: string; leads?: unknown[] };
+      const data = (await res.json()) as {
+        error?: string;
+        message?: string;
+        leads?: unknown[];
+        usedWebSearch?: boolean;
+        skippedCount?: number;
+      };
       if (!res.ok) throw new Error(data.error ?? "Generation failed.");
-      if (data.message && !data.leads?.length) setError(data.message);
+      if (data.message) {
+        if (data.leads?.length) setNotice(data.message);
+        else setError(data.message);
+      }
       await loadLeads(tab);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generation failed.");
@@ -468,8 +479,8 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF7E00]">Match Fit</p>
               <h1 className="mt-1 text-3xl font-black tracking-tight">Outreach HQ</h1>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/55">
-                Daily trainer outreach by platform — AI lead discovery, editable copy, status tracking, and a Cowork
-                morning brief. Data lives in your Match Fit database (Supabase Postgres).
+                Daily cold outreach for external fitness pros — not signed-up Match Fit trainers. Uses live web search to
+                find real Instagram/Facebook/email leads, then tracks copy, status, and Cowork morning briefs.
               </p>
             </div>
             <Link href="/admin" className={adminSecondaryButtonClass}>
@@ -480,9 +491,17 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
 
         {!props.aiStatus.configured ? (
           <AdminPortalAlert variant="info">
-            {props.aiStatus.message} Lead generation needs ANTHROPIC_API_KEY or OPENAI_API_KEY on the server.
+            {props.aiStatus.message} Lead generation needs ANTHROPIC_API_KEY (preferred for live web search) or
+            OPENAI_API_KEY as a weaker fallback.
+          </AdminPortalAlert>
+        ) : props.aiStatus.provider === "openai" ? (
+          <AdminPortalAlert variant="info">
+            OpenAI is configured, but Anthropic is preferred for Outreach HQ because it can web-search real fitness pro
+            profiles. Add ANTHROPIC_API_KEY for the same behavior as your Claude tool.
           </AdminPortalAlert>
         ) : null}
+
+        {notice ? <AdminPortalAlert variant="info">{notice}</AdminPortalAlert> : null}
 
         {error ? <AdminPortalAlert variant="error">{error}</AdminPortalAlert> : null}
 
