@@ -12,3 +12,4 @@ alwaysApply: true
 - **Beta promos**: Home page leads with `HomeBetaPromoBanner`; full stats live on `/promos`.
 - **Social content calendar**: `content/social/matchfit-content-calendar.jsx` (sync from parent hub via `npm run content:calendar:sync`). Agents use `.cursor/skills/matchfit-social-content/SKILL.md`.
 - **Product version**: On every deployable task, bump via `npm run version:bump` and state it in completion — see `.cursor/rules/product-version.mdc` and `docs/MATCH_FIT_PRODUCT_VERSION.md`.
+- **Ship to production**: Merge/close open PRs, green CI, and Vercel deploy on `main` — see `.cursor/rules/deploy-and-merge-workflow.mdc`.

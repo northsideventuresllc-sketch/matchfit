@@ -17,14 +17,22 @@ import {
   launchTrainerCountWhere,
   activePendingClientRegistrationWhere,
   countLaunchClients,
+  countLaunchPendingTrainers,
   countLaunchTrainers,
+  getActivePendingClientRegistrationStats,
   countPendingClientRegistrations,
 } from "@/lib/launch-account-counts";
 
-const { mockClientCount, mockTrainerCount, mockPendingClientRegistrationCount } = vi.hoisted(() => ({
+const {
+  mockClientCount,
+  mockTrainerCount,
+  mockPendingClientRegistrationCount,
+  mockPendingClientRegistrationGroupBy,
+} = vi.hoisted(() => ({
   mockClientCount: vi.fn(),
   mockTrainerCount: vi.fn(),
   mockPendingClientRegistrationCount: vi.fn(),
+  mockPendingClientRegistrationGroupBy: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -37,6 +45,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     pendingClientRegistration: {
       count: mockPendingClientRegistrationCount,
+      groupBy: mockPendingClientRegistrationGroupBy,
     },
   },
 }));
@@ -161,6 +170,7 @@ describe("launch-account-counts async", () => {
     mockClientCount.mockReset();
     mockTrainerCount.mockReset();
     mockPendingClientRegistrationCount.mockReset();
+    mockPendingClientRegistrationGroupBy.mockReset();
     delete process.env.MATCH_FIT_BETA_EXCLUDE_CAP_COUNT_EMAILS;
   });
 
@@ -198,6 +208,24 @@ describe("launch-account-counts async", () => {
     );
   });
 
+  it("counts pending launch trainers with dashboard-not-live + onboarding gates", async () => {
+    mockTrainerCount.mockResolvedValue(6);
+
+    await expect(countLaunchPendingTrainers()).resolves.toBe(6);
+    expect(mockTrainerCount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          NOT: { profile: { is: { dashboardActivatedAt: { not: null } } } },
+          OR: expect.arrayContaining([
+            { termsAcceptedAt: { not: null } },
+            { profile: { is: { hasSignedTOS: true } } },
+            { profile: { is: { complianceWindowStartedAt: { not: null } } } },
+          ]),
+        }),
+      }),
+    );
+  });
+
   it("counts pending registrations with status and expiry guards", async () => {
     mockPendingClientRegistrationCount.mockResolvedValue(5);
 
@@ -207,6 +235,30 @@ describe("launch-account-counts async", () => {
         status: { in: ["PENDING_2FA", "AWAITING_PAYMENT"] },
         expiresAt: { gt: expect.any(Date) },
       },
+    });
+  });
+
+  it("returns grouped pending registration stats by status", async () => {
+    const now = new Date("2026-06-09T12:30:00.000Z");
+    mockPendingClientRegistrationGroupBy.mockResolvedValue([
+      { status: "PENDING_2FA", _count: { _all: 3 } },
+      { status: "AWAITING_PAYMENT", _count: { _all: 2 } },
+    ]);
+
+    await expect(getActivePendingClientRegistrationStats(now)).resolves.toEqual({
+      total: 5,
+      byStatus: {
+        PENDING_2FA: 3,
+        AWAITING_PAYMENT: 2,
+      },
+    });
+    expect(mockPendingClientRegistrationGroupBy).toHaveBeenCalledWith({
+      by: ["status"],
+      where: {
+        status: { in: ["PENDING_2FA", "AWAITING_PAYMENT"] },
+        expiresAt: { gt: now },
+      },
+      _count: { _all: true },
     });
   });
 });
