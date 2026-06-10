@@ -1,3 +1,8 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json"
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "src/app/api/admin/outreach/generate/route.ts": {
+      "maxDuration": 300
+    }
+  }
 }

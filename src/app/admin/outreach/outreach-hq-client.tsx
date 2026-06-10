@@ -33,6 +33,7 @@ import {
   targetGroupLabel,
 } from "@/lib/outreach-types";
 import type { AdminAiProviderStatus } from "@/lib/admin-analytics-ai";
+import { readJsonResponse } from "@/lib/read-json-response";
 import {
   OUTREACH_PLATFORM_UI,
   stageLabelForOutreachGenerate,
@@ -612,8 +613,8 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [atlCount, setAtlCount] = useState(5);
-  const [virtualCount, setVirtualCount] = useState(10);
+  const [atlCount, setAtlCount] = useState(3);
+  const [virtualCount, setVirtualCount] = useState(5);
   const [coworkJson, setCoworkJson] = useState<string | null>(null);
   const [registeredTrainers, setRegisteredTrainers] = useState<RegisteredTrainerOutreachRow[]>([]);
   const [purging, setPurging] = useState(false);
@@ -629,7 +630,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     try {
       const res = await fetch(`/api/admin/outreach/leads?platform=${platform}`, { credentials: "include" });
       if (!res.ok) throw new Error("Could not load leads.");
-      const data = (await res.json()) as { leads?: AnyLead[] };
+      const data = await readJsonResponse<{ leads?: AnyLead[] }>(res);
       setLeads(data.leads ?? []);
     } catch {
       if (options?.clearAlerts) {
@@ -646,7 +647,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     try {
       const res = await fetch("/api/admin/outreach/registered-trainers", { credentials: "include" });
       if (!res.ok) throw new Error("Could not load registered trainers.");
-      const data = (await res.json()) as { trainers?: RegisteredTrainerOutreachRow[] };
+      const data = await readJsonResponse<{ trainers?: RegisteredTrainerOutreachRow[] }>(res);
       setRegisteredTrainers(data.trainers ?? []);
     } catch {
       setError("Could not load registered Match Fit trainers.");
@@ -709,7 +710,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ platform: coldTab, atlCount, virtualCount }),
       });
-      const data = (await res.json()) as {
+      const data = await readJsonResponse<{
         error?: string;
         message?: string;
         leads?: unknown[];
@@ -719,7 +720,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
           rejected: number;
           rejectedSamples?: { handle: string; reason: string }[];
         };
-      };
+      }>(res);
       if (!res.ok) throw new Error(data.error ?? "Generation failed.");
 
       const leadCount = data.leads?.length ?? 0;
@@ -797,7 +798,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ platform: coldTab, ...input }),
       });
-      const data = (await res.json()) as { error?: string; deletedCount?: number };
+      const data = await readJsonResponse<{ error?: string; deletedCount?: number }>(res);
       if (!res.ok) throw new Error(data.error ?? "Bulk delete failed.");
       setSuccessMessage(
         `Moved ${data.deletedCount ?? 0} lead${data.deletedCount === 1 ? "" : "s"} to the deleted archive.`,
@@ -828,7 +829,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scope: "archived" }),
       });
-      const data = (await res.json()) as { error?: string; message?: string };
+      const data = await readJsonResponse<{ error?: string; message?: string }>(res);
       if (!res.ok) throw new Error(data.error ?? "Purge failed.");
       setSuccessMessage(data.message ?? "Archived outreach rows removed.");
       if (tab !== "registered") await loadLeads(coldTab);
@@ -842,7 +843,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   const loadCoworkBrief = async () => {
     const res = await fetch("/api/admin/outreach/cowork-brief", { credentials: "include" });
     if (!res.ok) return;
-    const data = await res.json();
+    const data = await readJsonResponse<unknown>(res);
     setCoworkJson(JSON.stringify(data, null, 2));
   };
 

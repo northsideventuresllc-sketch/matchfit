@@ -74,6 +74,29 @@ describe("POST /api/admin/outreach/generate", () => {
     expect(mockGenerateOutreachLeads).not.toHaveBeenCalled();
   });
 
+  it("returns 400 when instagram lead count exceeds the per-run timeout guard", async () => {
+    const response = await POST(postJson({ platform: "instagram", atlCount: 8, virtualCount: 5 }));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: expect.stringContaining("limited to 10 leads"),
+    });
+    expect(mockGenerateOutreachLeads).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for malformed JSON bodies", async () => {
+    const response = await POST(
+      new Request("https://matchfit.test/api/admin/outreach/generate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{not-json",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid JSON body." });
+  });
+
   it("hydrates platform env and returns generated leads for valid requests", async () => {
     const response = await POST(postJson({ platform: "email", atlCount: 3, virtualCount: 2 }));
 
@@ -99,7 +122,7 @@ describe("POST /api/admin/outreach/generate", () => {
     const response = await POST(postJson({ platform: "instagram", atlCount: 2, virtualCount: 1 }));
 
     expect(response.status).toBe(500);
-    await expect(response.json()).resolves.toEqual({ error: "Lead generation failed." });
+    await expect(response.json()).resolves.toEqual({ error: "provider unavailable" });
     expect(consoleSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
   });

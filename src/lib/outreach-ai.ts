@@ -29,7 +29,8 @@ import type { OutreachPlatform, OutreachTargetGroup } from "@/lib/outreach-types
 import { prisma } from "@/lib/prisma";
 import type { AdminAiProviderId } from "@/lib/admin-analytics-ai";
 
-const OUTREACH_AI_MAX_ATTEMPTS = 3;
+const OUTREACH_AI_MAX_ATTEMPTS = 2;
+const ANTHROPIC_OUTREACH_TIMEOUT_MS = 180_000;
 
 function resolveOutreachAiModel(provider: AdminAiProviderId): string {
   if (provider === "anthropic") {
@@ -129,58 +130,72 @@ async function callOutreachAi(system: string, user: string): Promise<OutreachAiR
       };
     }
 
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: outreachModel,
-        max_tokens: 8000,
-        system,
-        messages: [{ role: "user", content: user }],
-        temperature: 0.2,
-        tools: [
-          {
-            type: "web_search_20250305",
-            name: "web_search",
-            max_uses: 12,
-            user_location: {
-              type: "approximate",
-              city: "Atlanta",
-              region: "Georgia",
-              country: "US",
-              timezone: "America/New_York",
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": key,
+          "anthropic-version": "2023-06-01",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: outreachModel,
+          max_tokens: 8000,
+          system,
+          messages: [{ role: "user", content: user }],
+          temperature: 0.2,
+          tools: [
+            {
+              type: "web_search_20250305",
+              name: "web_search",
+              max_uses: 8,
+              user_location: {
+                type: "approximate",
+                city: "Atlanta",
+                region: "Georgia",
+                country: "US",
+                timezone: "America/New_York",
+              },
             },
-          },
-        ],
-      }),
-    });
+          ],
+        }),
+        signal: AbortSignal.timeout(ANTHROPIC_OUTREACH_TIMEOUT_MS),
+      });
 
-    if (!res.ok) {
-      const detail = (await res.text().catch(() => "")).slice(0, 240);
-      console.error("[outreach-ai] Anthropic web search request failed:", res.status, detail);
+      if (!res.ok) {
+        const detail = (await res.text().catch(() => "")).slice(0, 240);
+        console.error("[outreach-ai] Anthropic web search request failed:", res.status, detail);
+        return {
+          text: null,
+          usedWebSearch: true,
+          provider: "anthropic",
+          error: `Anthropic web search failed (HTTP ${res.status}). Check the API key and model (${outreachModel}).`,
+        };
+      }
+
+      const data = (await res.json()) as { content?: { type: string; text?: string }[] };
+      const text = extractAnthropicText(data);
+      if (!text?.trim()) {
+        return {
+          text: null,
+          usedWebSearch: true,
+          provider: "anthropic",
+          error: "Anthropic web search returned an empty response.",
+        };
+      }
+      return { text, usedWebSearch: true, provider: "anthropic" };
+    } catch (error) {
+      const timedOut = error instanceof Error && error.name === "TimeoutError";
+      console.error("[outreach-ai] Anthropic web search request error:", error);
       return {
         text: null,
         usedWebSearch: true,
         provider: "anthropic",
-        error: `Anthropic web search failed (HTTP ${res.status}). Check the API key and model (${outreachModel}).`,
+        error: timedOut
+          ? "Anthropic web search timed out. Try smaller lead counts (e.g. 2 ATL + 3 virtual)."
+          : "Anthropic web search failed unexpectedly. Try again with smaller counts.",
       };
     }
-
-    const data = (await res.json()) as { content?: { type: string; text?: string }[] };
-    const text = extractAnthropicText(data);
-    if (!text?.trim()) {
-      return {
-        text: null,
-        usedWebSearch: true,
-        provider: "anthropic",
-        error: "Anthropic web search returned an empty response.",
-      };
-    }
-    return { text, usedWebSearch: true, provider: "anthropic" };
   }
 
   const key = process.env.OPENAI_API_KEY?.trim();
@@ -697,8 +712,8 @@ async function persistGeneratedLeads(
       return [{ item, normalized }];
     });
 
-    const verifiedRows = await mapWithConcurrency(prepared, 2, async ({ item, normalized }, index) => {
-      if (index > 0) await sleepMs(450);
+    const verifiedRows = await mapWithConcurrency(prepared, 3, async ({ item, normalized }, index) => {
+      if (index > 0) await sleepMs(250);
 
       const verified = await verifyInstagramProfile(normalized.username);
       if (!verified.ok) {
