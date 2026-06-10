@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { clearPlatformSecretCache } from "@/lib/platform-secrets";
-import { requireAdminSession } from "@/lib/require-admin";
-import { prisma } from "@/lib/prisma";
 import { requireAdminSession } from "@/lib/require-admin";
 import { prisma } from "@/lib/prisma";
 import { clearPlatformSecretCache } from "@/lib/platform-secrets";
@@ -11,10 +8,6 @@ export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
   anthropicApiKey: z.string().startsWith("sk-ant-"),
-  anthropicModel: z.string().min(3).optional(),
-});
-
-/** Store Anthropic keys in platform_secrets for Outreach HQ web search + admin AI. */
 });
 
 /** Admin bootstrap for Anthropic API key into platform_secrets (Outreach HQ, Content Calendar, analytics). */
@@ -37,20 +30,6 @@ export async function POST(req: Request) {
     update: { value: body.anthropicApiKey },
   });
 
-  if (body.anthropicModel?.trim()) {
-    await prisma.platformSecret.upsert({
-      where: { key: "ANTHROPIC_ADMIN_ANALYTICS_MODEL" },
-      create: { key: "ANTHROPIC_ADMIN_ANALYTICS_MODEL", value: body.anthropicModel.trim() },
-      update: { value: body.anthropicModel.trim() },
-    });
-  }
-
-  clearPlatformSecretCache();
-
-  return NextResponse.json({
-    ok: true,
-    message: "Anthropic keys stored in platform_secrets. Outreach HQ can now web-search real profiles.",
-  });
   clearPlatformSecretCache();
   process.env.ANTHROPIC_API_KEY = body.anthropicApiKey;
 

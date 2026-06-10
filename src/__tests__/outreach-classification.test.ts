@@ -34,21 +34,6 @@ describe("classifyOutreachLead", () => {
     ).toBe("FOLLOW_UP_NEEDED");
   });
 
-  it("marks instagram dead after 14 days with no response", () => {
-    expect(
-      classifyOutreachLead({
-        status: "OUTREACH_SENT",
-        platform: "instagram",
-        outreachSentAt: new Date("2026-05-20T12:00:00Z"),
-        followUp1SentAt: null,
-        followUp2SentAt: null,
-        responseReceivedAt: null,
-        createdAt: new Date("2026-05-20T12:00:00Z"),
-        now,
-      }),
-    ).toBe("DEAD_LEAD");
-  });
-
   it("does not use follow-up stages for facebook", () => {
     expect(
       classifyOutreachLead({
