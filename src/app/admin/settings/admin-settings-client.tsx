@@ -66,7 +66,8 @@ export function AdminSettingsClient(props: {
       description="Choose presets, visible sections, and density for your dashboard. Collapse state is saved when you expand or collapse panels on the main dashboard. Test accounts and sandbox billing are always excluded from analytics totals."
     >
       <section className="rounded-2xl border border-white/[0.08] bg-[#12151C]/75 p-5 backdrop-blur-xl">
-        <p className="text-sm text-white/70">
+        <h2 className="text-lg font-black text-white">Customized Dashboard</h2>
+        <p className="mt-2 text-sm text-white/70">
           Use the layout editor to show or hide sections such as site traffic, revenue, impersonation audit, and AI
           insights.
         </p>

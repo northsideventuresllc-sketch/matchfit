@@ -521,14 +521,11 @@ export function TrainerPipelineSection({ pipeline }: { pipeline: AdminTrainerPip
       title="Trainer onboarding pipeline"
       description={`${pipeline.totalInPipeline} trainers past Terms of Service.`}
     >
-      <ul className="space-y-2">
+      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {pipeline.stages.map((s) => (
-          <li
-            key={s.id}
-            className="flex flex-col gap-1 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <span className="text-sm text-white/80">{s.label}</span>
-            <span className="text-sm font-bold tabular-nums text-white">{s.count}</span>
+          <li key={s.id} className="rounded-xl border border-[#FF7E00]/25 bg-[#FF7E00]/[0.06] px-3 py-2.5">
+            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#FFD34E]/80">{s.label}</p>
+            <p className="mt-1 text-2xl font-black tabular-nums text-white">{s.count}</p>
           </li>
         ))}
       </ul>

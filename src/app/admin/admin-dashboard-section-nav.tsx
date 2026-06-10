@@ -92,7 +92,7 @@ export function AdminDashboardSectionNav(props: {
                   <li key={section.id}>
                     <a
                       href={`#${adminDashboardSectionDomId(section.id)}`}
-                      className={`block rounded-lg px-2 py-1.5 text-[11px] font-semibold transition ${
+                      className={`block rounded-lg px-2 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] transition ${
                         isActive
                           ? "bg-[#FF7E00]/15 text-[#FFD34E]"
                           : "text-white/55 hover:bg-white/[0.05] hover:text-white/85"
