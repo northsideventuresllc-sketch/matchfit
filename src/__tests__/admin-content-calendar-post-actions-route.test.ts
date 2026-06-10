@@ -260,6 +260,32 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
   });
 
   it("returns 400 when regenerate payload fails schema validation", async () => {
+  it("returns null post when regenerated row is not found in upsert results", async () => {
+    mockUpsertWeekPosts.mockResolvedValueOnce([
+      {
+        id: "row_other",
+        day_index: 0,
+        post_type: "Carousel",
+      },
+    ]);
+
+    const res = await POST(
+      postJson({
+        action: "regenerate",
+        weekStart: "2026-06-02",
+        offset: 7,
+        dayIndex: 4,
+        postType: "Text",
+      }),
+      routeCtx,
+    );
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ post: null });
+    expect(mockSerializePostForClient).not.toHaveBeenCalled();
+  });
+
+  it("rejects regenerate payloads with out-of-range dayIndex", async () => {
     const res = await POST(
       postJson({
         action: "regenerate",
@@ -267,6 +293,8 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
         offset: 7,
         dayIndex: 9,
         postType: "Video",
+        dayIndex: 5,
+        postType: "Text",
       }),
       routeCtx,
     );
