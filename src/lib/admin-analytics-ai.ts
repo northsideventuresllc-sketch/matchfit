@@ -1,7 +1,5 @@
 import "server-only";
 
-import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
-
 import {
   sanitizeAssistantMessageForDisplay,
   type AdminAiAction,
@@ -368,11 +366,6 @@ function fallbackForAction(
         ? fallbackFreeformReply(args.traffic)
         : fallbackVisitorInsights(args.traffic);
   }
-}
-
-export async function getAdminAiProviderStatusAsync(): Promise<AdminAiProviderStatus> {
-  await hydratePlatformEnvFromDatabase();
-  return getAdminAiProviderStatus();
 }
 
 export async function probeAdminAiProvider(): Promise<AdminAiProviderStatus> {
