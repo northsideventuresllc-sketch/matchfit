@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-10** `1.5.0-beta` → `1.5.1-beta` (**patch** — Fix CI parse and typecheck regressions in outreach/content calendar)
 - **2026-06-10** `1.5.0-beta` → `1.5.1-beta` (**patch** — Fix regenerate action compile error and add coverage tests)
 - **2026-06-10** `1.3.2-beta` → `1.3.3-beta` (**patch** — Fix outreach reliability typecheck blockers)
 - **2026-06-09** `1.4.14-beta` → `1.4.15-beta` (**patch** — Fix TypeScript never inference in launch account excludes)
