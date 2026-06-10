@@ -33,8 +33,10 @@ import {
   targetGroupLabel,
 } from "@/lib/outreach-types";
 import type { AdminAiProviderStatus } from "@/lib/admin-analytics-ai";
+import type { RegisteredTrainerOutreachRow } from "@/lib/outreach-registered-trainers";
 
 type AnyLead = InstagramLeadRow | FacebookLeadRow | EmailLeadRow | OtherLeadRow;
+type OutreachView = OutreachPlatform | "registered";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -206,8 +208,8 @@ function PlatformTabPanel(props: {
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Generate leads</p>
           <p className="mt-2 text-sm text-white/55">
-            AI finds new fitness pro leads, skips ones already in the database, and drafts personalized outreach with a
-            shared invite tail for today&apos;s batch.
+            AI uses live web search (Anthropic) to find real public fitness pro profiles, skips ones already in Outreach
+            HQ or already registered on Match Fit, and drafts personalized outreach with today&apos;s invite tail.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -367,15 +369,83 @@ function PlatformTabPanel(props: {
   );
 }
 
+function RegisteredTrainersPanel(props: {
+  trainers: RegisteredTrainerOutreachRow[];
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <section className={`${adminCardClass} space-y-3`}>
+        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Match Fit roster</p>
+        <p className="text-sm text-white/55">
+          Real trainers who already signed up on Match Fit. This list is read-only here — manage accounts from the admin
+          dashboard. Cold outreach generation skips these handles automatically.
+        </p>
+        <button type="button" className={adminSecondaryButtonClass} onClick={props.onRefresh}>
+          Refresh roster
+        </button>
+      </section>
+
+      {props.loading ? (
+        <p className="text-sm text-white/45">Loading registered trainers…</p>
+      ) : props.trainers.length === 0 ? (
+        <p className="rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-8 text-center text-sm text-white/45">
+          No registered trainers yet.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {props.trainers.map((trainer) => (
+            <article key={trainer.id} className={`${adminPanelClass} p-4 sm:p-5`}>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 space-y-1">
+                  <h3 className="text-lg font-black tracking-tight text-white">{trainer.displayName}</h3>
+                  <p className="text-sm text-white/55">
+                    @{trainer.username}
+                    {trainer.fitnessNiches ? ` · ${trainer.fitnessNiches}` : ""}
+                  </p>
+                  <p className="text-xs text-white/40">{trainer.email}</p>
+                  <div className="flex flex-wrap gap-3 pt-1 text-xs">
+                    {trainer.instagramUrl ? (
+                      <a href={trainer.instagramUrl} target="_blank" rel="noreferrer" className={adminLinkClass}>
+                        {trainer.instagramHandle ?? "Instagram"}
+                      </a>
+                    ) : null}
+                    {trainer.facebookUrl ? (
+                      <a href={trainer.facebookUrl} target="_blank" rel="noreferrer" className={adminLinkClass}>
+                        Facebook
+                      </a>
+                    ) : null}
+                    <Link href="/admin" className={adminLinkClass}>
+                      Open admin dashboard
+                    </Link>
+                  </div>
+                </div>
+                <p className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-white/35">
+                  Joined {new Date(trainer.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
-  const [tab, setTab] = useState<OutreachPlatform>("instagram");
+  const [tab, setTab] = useState<OutreachView>("instagram");
   const [leads, setLeads] = useState<AnyLead[]>([]);
+  const [registeredTrainers, setRegisteredTrainers] = useState<RegisteredTrainerOutreachRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [purging, setPurging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [atlCount, setAtlCount] = useState(5);
   const [virtualCount, setVirtualCount] = useState(10);
   const [coworkJson, setCoworkJson] = useState<string | null>(null);
+  const coldTab = tab === "registered" ? "instagram" : tab;
 
   const loadLeads = useCallback(async (platform: OutreachPlatform) => {
     setLoading(true);
@@ -392,11 +462,27 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     }
   }, []);
 
+  const loadRegisteredTrainers = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/outreach/registered-trainers", { credentials: "include" });
+      if (!res.ok) throw new Error("Could not load registered trainers.");
+      const data = (await res.json()) as { trainers?: RegisteredTrainerOutreachRow[] };
+      setRegisteredTrainers(data.trainers ?? []);
+    } catch {
+      setError("Could not load registered Match Fit trainers.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     queueMicrotask(() => {
-      void loadLeads(tab);
+      if (tab === "registered") void loadRegisteredTrainers();
+      else void loadLeads(tab);
     });
-  }, [tab, loadLeads]);
+  }, [tab, loadLeads, loadRegisteredTrainers]);
 
   const stats = useMemo(() => {
     const active = leads.filter((l) => !l.deletedAt);
@@ -410,21 +496,60 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   const generate = async () => {
     setGenerating(true);
     setError(null);
+    setNotice(null);
     try {
       const res = await fetch("/api/admin/outreach/generate", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ platform: tab, atlCount, virtualCount }),
+        body: JSON.stringify({ platform: coldTab, atlCount, virtualCount }),
       });
-      const data = (await res.json()) as { error?: string; message?: string; leads?: unknown[] };
+      const data = (await res.json()) as {
+        error?: string;
+        message?: string;
+        leads?: unknown[];
+        usedWebSearch?: boolean;
+        skippedCount?: number;
+      };
       if (!res.ok) throw new Error(data.error ?? "Generation failed.");
-      if (data.message && !data.leads?.length) setError(data.message);
-      await loadLeads(tab);
+      if (data.message) {
+        if (data.leads?.length) setNotice(data.message);
+        else setError(data.message);
+      }
+      await loadLeads(coldTab);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generation failed.");
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const purgeStaleLeads = async () => {
+    if (
+      !confirm(
+        "Permanently remove archived (soft-deleted) outreach rows? Active leads stay untouched. This clears fake/stale batches from the archive.",
+      )
+    ) {
+      return;
+    }
+    setPurging(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/admin/outreach/purge", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scope: "archived" }),
+      });
+      const data = (await res.json()) as { error?: string; message?: string };
+      if (!res.ok) throw new Error(data.error ?? "Purge failed.");
+      setNotice(data.message ?? "Archived outreach rows removed.");
+      if (tab !== "registered") await loadLeads(coldTab);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Purge failed.");
+    } finally {
+      setPurging(false);
     }
   };
 
@@ -433,10 +558,10 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
       method: "PATCH",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ platform: tab, ...patch }),
+      body: JSON.stringify({ platform: coldTab, ...patch }),
     });
     if (!res.ok) throw new Error("Update failed.");
-    await loadLeads(tab);
+    await loadLeads(coldTab);
   };
 
   const deleteLead = async (id: string) => {
@@ -444,10 +569,10 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
       method: "DELETE",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ platform: tab }),
+      body: JSON.stringify({ platform: coldTab }),
     });
     if (!res.ok) throw new Error("Delete failed.");
-    await loadLeads(tab);
+    await loadLeads(coldTab);
   };
 
   const loadCoworkBrief = async () => {
@@ -468,8 +593,8 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF7E00]">Match Fit</p>
               <h1 className="mt-1 text-3xl font-black tracking-tight">Outreach HQ</h1>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/55">
-                Daily trainer outreach by platform — AI lead discovery, editable copy, status tracking, and a Cowork
-                morning brief. Data lives in your Match Fit database (Supabase Postgres).
+                Daily cold outreach for external fitness pros — not signed-up Match Fit trainers. Uses live web search to
+                find real Instagram/Facebook/email leads, then tracks copy, status, and Cowork morning briefs.
               </p>
             </div>
             <Link href="/admin" className={adminSecondaryButtonClass}>
@@ -480,9 +605,23 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
 
         {!props.aiStatus.configured ? (
           <AdminPortalAlert variant="info">
-            {props.aiStatus.message} Lead generation needs ANTHROPIC_API_KEY or OPENAI_API_KEY on the server.
+            {props.aiStatus.message} Lead generation needs ANTHROPIC_API_KEY (preferred for live web search) or
+            OPENAI_API_KEY as a weaker fallback.
           </AdminPortalAlert>
-        ) : null}
+        ) : props.aiStatus.provider === "openai" ? (
+          <AdminPortalAlert variant="info">
+            OpenAI is configured, but Anthropic is preferred for Outreach HQ because it can web-search real fitness pro
+            profiles. Add ANTHROPIC_API_KEY for the same behavior as your Claude tool.
+          </AdminPortalAlert>
+        ) : props.aiStatus.working ? (
+          <AdminPortalAlert variant="info">
+            {props.aiStatus.message} Outreach generation will web-search real public fitness pro profiles.
+          </AdminPortalAlert>
+        ) : (
+          <AdminPortalAlert variant="info">{props.aiStatus.message}</AdminPortalAlert>
+        )}
+
+        {notice ? <AdminPortalAlert variant="info">{notice}</AdminPortalAlert> : null}
 
         {error ? <AdminPortalAlert variant="error">{error}</AdminPortalAlert> : null}
 
@@ -500,6 +639,21 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
             <p className="mt-1 text-2xl font-black tabular-nums text-emerald-200">{stats.responses}</p>
           </div>
         </div>
+
+        <section className={`${adminCardClass} space-y-3`}>
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Housekeeping</p>
+          <p className="text-sm text-white/55">
+            Clear archived fake batches from earlier OpenAI-only runs, then regenerate with Anthropic web search.
+          </p>
+          <button
+            type="button"
+            disabled={purging}
+            className={adminSecondaryButtonClass}
+            onClick={() => void purgeStaleLeads()}
+          >
+            {purging ? "Purging archive…" : "Purge archived stale leads"}
+          </button>
+        </section>
 
         <section className={`${adminCardClass} space-y-3`}>
           <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Claude Cowork</p>
@@ -535,22 +689,41 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
               {p.label}
             </button>
           ))}
+          <button
+            type="button"
+            className={
+              tab === "registered"
+                ? "rounded-lg border border-[#FF7E00]/40 bg-[#FF7E00]/10 px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#FFD34E]"
+                : adminSecondaryButtonClass
+            }
+            onClick={() => setTab("registered")}
+          >
+            Match Fit trainers
+          </button>
         </nav>
 
-        <PlatformTabPanel
-          platform={tab}
-          leads={leads}
-          loading={loading}
-          generating={generating}
-          atlCount={atlCount}
-          virtualCount={virtualCount}
-          onAtlCount={setAtlCount}
-          onVirtualCount={setVirtualCount}
-          onGenerate={() => void generate()}
-          onRefresh={() => void loadLeads(tab)}
-          onUpdate={updateLead}
-          onDelete={deleteLead}
-        />
+        {tab === "registered" ? (
+          <RegisteredTrainersPanel
+            trainers={registeredTrainers}
+            loading={loading}
+            onRefresh={() => void loadRegisteredTrainers()}
+          />
+        ) : (
+          <PlatformTabPanel
+            platform={tab}
+            leads={leads}
+            loading={loading}
+            generating={generating}
+            atlCount={atlCount}
+            virtualCount={virtualCount}
+            onAtlCount={setAtlCount}
+            onVirtualCount={setVirtualCount}
+            onGenerate={() => void generate()}
+            onRefresh={() => void loadLeads(tab)}
+            onUpdate={updateLead}
+            onDelete={deleteLead}
+          />
+        )}
 
         <AdminPortalBetaNotice />
       </div>
