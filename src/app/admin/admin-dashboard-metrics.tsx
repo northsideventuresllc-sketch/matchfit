@@ -691,79 +691,121 @@ function platformModeLabel(mode: AdminBackgroundChecksPanel["platformMode"]): st
   return "Unconfigured";
 }
 
-function BackgroundCheckRow({
-  entry,
-  highlight,
+function queueBadgeClass(kind: AdminBackgroundCheckEntry["queueKind"]): string {
+  switch (kind) {
+    case "awaiting_manual_invite":
+      return "border-amber-400/35 bg-amber-500/15 text-amber-100";
+    case "automated_invite_sent":
+      return "border-sky-400/30 bg-sky-500/10 text-sky-100";
+    case "manual_invite_sent":
+      return "border-emerald-400/25 bg-emerald-500/10 text-emerald-100";
+    case "plan_a_pending":
+      return "border-violet-400/25 bg-violet-500/10 text-violet-100";
+    case "failed":
+      return "border-[#E32B2B]/30 bg-[#E32B2B]/10 text-[#FFB4B4]";
+    default:
+      return "border-white/10 bg-white/[0.04] text-white/60";
+  }
+}
+
+function BackgroundCheckQueueTable({
+  entries,
+  confirmingId,
   onConfirmInviteSent,
-  confirming,
 }: {
-  entry: AdminBackgroundCheckEntry;
-  highlight?: "critical" | "info";
-  onConfirmInviteSent?: (trainerId: string) => void;
-  confirming?: boolean;
+  entries: AdminBackgroundCheckEntry[];
+  confirmingId: string | null;
+  onConfirmInviteSent: (trainerId: string) => void;
 }) {
-  const border =
-    highlight === "critical"
-      ? "border-amber-400/35 bg-amber-500/[0.08]"
-      : highlight === "info"
-        ? "border-sky-400/20 bg-sky-500/[0.05]"
-        : "border-white/[0.06] bg-[#07080c]/80";
+  if (entries.length === 0) {
+    return (
+      <p className="rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-6 text-center text-sm text-white/45">
+        No active background check activity in the queue.
+      </p>
+    );
+  }
 
   return (
-    <li className={`rounded-xl border px-3 py-3 ${border}`}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="font-semibold text-white">
-            {entry.displayName}{" "}
-            <span className="font-mono text-xs font-normal text-white/45">@{entry.username}</span>
-          </p>
-          <p className="mt-0.5 text-[11px] text-white/55">{entry.email}</p>
-          <p className="mt-2 text-[10px] font-black uppercase tracking-[0.12em] text-white/40">{entry.queueLabel}</p>
-        </div>
-        {entry.canConfirmInviteSent && onConfirmInviteSent ? (
-          <button
-            type="button"
-            disabled={confirming}
-            onClick={() => onConfirmInviteSent(entry.trainerId)}
-            className="shrink-0 rounded-lg border border-amber-300/40 bg-amber-500/20 px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-amber-50 transition hover:bg-amber-500/30 disabled:opacity-50"
-          >
-            {confirming ? "Saving…" : "Confirm invite sent"}
-          </button>
-        ) : null}
-      </div>
-      <dl className="mt-3 grid gap-2 text-[11px] text-white/50 sm:grid-cols-2">
-        {entry.inviteRequestedAt ? (
-          <div>
-            <dt className="text-[10px] font-black uppercase tracking-[0.1em] text-white/35">Invite requested</dt>
-            <dd className="mt-0.5 text-white/70">{formatBgTimestamp(entry.inviteRequestedAt)}</dd>
-          </div>
-        ) : null}
-        {entry.inviteSentAt ? (
-          <div>
-            <dt className="text-[10px] font-black uppercase tracking-[0.1em] text-white/35">Invite sent</dt>
-            <dd className="mt-0.5 text-white/70">{formatBgTimestamp(entry.inviteSentAt)}</dd>
-          </div>
-        ) : null}
-        {entry.latestEmail ? (
-          <div className="sm:col-span-2">
-            <dt className="text-[10px] font-black uppercase tracking-[0.1em] text-white/35">Latest automated email</dt>
-            <dd className="mt-0.5 text-white/70">
-              {formatBgTimestamp(entry.latestEmail.sentAt)} · {entry.latestEmail.toEmail} · {entry.latestEmail.kind}
-            </dd>
-          </div>
-        ) : null}
-        <div>
-          <dt className="text-[10px] font-black uppercase tracking-[0.1em] text-white/35">Screening status</dt>
-          <dd className="mt-0.5 font-mono text-white/70">{entry.backgroundCheckStatus}</dd>
-        </div>
-        {entry.checkrCandidateId ? (
-          <div>
-            <dt className="text-[10px] font-black uppercase tracking-[0.1em] text-white/35">Checkr candidate</dt>
-            <dd className="mt-0.5 truncate font-mono text-[10px] text-white/55">{entry.checkrCandidateId}</dd>
-          </div>
-        ) : null}
-      </dl>
-    </li>
+    <div className="overflow-x-auto rounded-xl border border-white/[0.06] bg-[#0E1016]/80">
+      <table className="w-full min-w-[960px] text-left text-[11px] text-white/55">
+        <thead>
+          <tr className="border-b border-white/10 text-[10px] font-black uppercase tracking-[0.12em] text-white/35">
+            <th className="px-4 py-3 pr-3">Trainer</th>
+            <th className="px-3 py-3">Email</th>
+            <th className="px-3 py-3">Queue</th>
+            <th className="px-3 py-3 whitespace-nowrap">Invite requested</th>
+            <th className="px-3 py-3 whitespace-nowrap">Invite sent</th>
+            <th className="px-3 py-3">Latest email</th>
+            <th className="px-3 py-3 whitespace-nowrap">Screening</th>
+            <th className="px-4 py-3 pl-3 text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((entry) => {
+            const rowHighlight =
+              entry.queueKind === "awaiting_manual_invite"
+                ? "bg-amber-500/[0.06]"
+                : entry.queueKind === "automated_invite_sent"
+                  ? "bg-sky-500/[0.04]"
+                  : "";
+
+            return (
+              <tr key={entry.trainerId} className={`border-b border-white/[0.04] align-top ${rowHighlight}`}>
+                <td className="px-4 py-3 pr-3">
+                  <p className="font-semibold text-white">{entry.displayName}</p>
+                  <p className="mt-0.5 font-mono text-[10px] text-white/40">@{entry.username}</p>
+                </td>
+                <td className="max-w-[12rem] px-3 py-3">
+                  <p className="truncate text-white/70">{entry.email}</p>
+                </td>
+                <td className="px-3 py-3">
+                  <span
+                    className={`inline-block max-w-[11rem] rounded-md border px-2 py-1 text-[10px] font-black uppercase leading-snug tracking-[0.08em] ${queueBadgeClass(entry.queueKind)}`}
+                  >
+                    {entry.queueLabel}
+                  </span>
+                </td>
+                <td className="px-3 py-3 whitespace-nowrap tabular-nums text-white/70">
+                  {formatBgTimestamp(entry.inviteRequestedAt)}
+                </td>
+                <td className="px-3 py-3 whitespace-nowrap tabular-nums text-white/70">
+                  {formatBgTimestamp(entry.inviteSentAt)}
+                </td>
+                <td className="max-w-[14rem] px-3 py-3">
+                  {entry.latestEmail ? (
+                    <>
+                      <p className="truncate text-white/70">{entry.latestEmail.toEmail}</p>
+                      <p className="mt-0.5 whitespace-nowrap tabular-nums text-[10px] text-white/40">
+                        {formatBgTimestamp(entry.latestEmail.sentAt)}
+                      </p>
+                    </>
+                  ) : (
+                    <span className="text-white/35">—</span>
+                  )}
+                </td>
+                <td className="px-3 py-3">
+                  <span className="font-mono text-[10px] text-white/70">{entry.backgroundCheckStatus}</span>
+                </td>
+                <td className="px-4 py-3 pl-3 text-right">
+                  {entry.canConfirmInviteSent ? (
+                    <button
+                      type="button"
+                      disabled={confirmingId === entry.trainerId}
+                      onClick={() => onConfirmInviteSent(entry.trainerId)}
+                      className="inline-flex rounded-lg border border-amber-300/40 bg-amber-500/20 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-amber-50 transition hover:bg-amber-500/30 disabled:opacity-50"
+                    >
+                      {confirmingId === entry.trainerId ? "Saving…" : "Confirm sent"}
+                    </button>
+                  ) : (
+                    <span className="text-white/25">—</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -803,94 +845,64 @@ export function BackgroundChecksSection({
       title="Background checks"
       description="See who is waiting for a manual Checkr link and when automated invites were emailed."
     >
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <span className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/60">
-          {platformModeLabel(panel.platformMode)}
-        </span>
-        <StatCard
-          label="Awaiting manual invite"
-          value={panel.summary.awaitingManualInvite}
-          accent={panel.summary.awaitingManualInvite > 0 ? "orange" : "default"}
-          hint="Send Checkr link from dashboard, then confirm"
-        />
-        <StatCard
-          label="Automated invites sent"
-          value={panel.summary.automatedInvitesSent}
-          hint="Invitation emailed automatically via Checkr API"
-        />
-        <StatCard label="Manual invites confirmed" value={panel.summary.manualInvitesSent} />
-        <StatCard label="Paid, awaiting Checkr" value={panel.summary.planAPending} />
-      </div>
-
-      {actionError ? (
-        <p className="mb-4 rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-2 text-sm text-[#FFB4B4]">
-          {actionError}
-        </p>
-      ) : null}
-
-      {panel.awaitingManualInvite.length > 0 ? (
-        <div className="mb-5">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-amber-200/80">
-            Action required — waiting for Checkr link
-          </p>
-          <ul className="mt-2 space-y-2">
-            {panel.awaitingManualInvite.map((entry) => (
-              <BackgroundCheckRow
-                key={entry.trainerId}
-                entry={entry}
-                highlight="critical"
-                onConfirmInviteSent={confirmInviteSent}
-                confirming={confirmingId === entry.trainerId}
-              />
-            ))}
-          </ul>
+      <div className="space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-[#07080c]/80 px-4 py-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/35">Active screening mode</p>
+            <p className="mt-1 text-sm font-semibold text-white">{platformModeLabel(panel.platformMode)}</p>
+          </div>
+          {panel.summary.awaitingManualInvite > 0 ? (
+            <span className="rounded-md border border-amber-400/35 bg-amber-500/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-amber-100">
+              {panel.summary.awaitingManualInvite} awaiting manual invite
+            </span>
+          ) : (
+            <span className="rounded-md border border-emerald-400/25 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-emerald-100">
+              Manual queue clear
+            </span>
+          )}
         </div>
-      ) : (
-        <p className="mb-5 rounded-xl border border-emerald-400/20 bg-emerald-500/[0.06] px-3 py-2 text-[11px] text-emerald-100/85">
-          No trainers are waiting for a manual Checkr invite right now.
-        </p>
-      )}
 
-      {panel.automatedInvitesSent.length > 0 ? (
-        <div className="mb-5">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-sky-200/75">
-            Automated invites sent
-          </p>
-          <ul className="mt-2 space-y-2">
-            {panel.automatedInvitesSent.map((entry) => (
-              <BackgroundCheckRow key={entry.trainerId} entry={entry} highlight="info" />
-            ))}
-          </ul>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label="Awaiting manual invite"
+            value={panel.summary.awaitingManualInvite}
+            accent={panel.summary.awaitingManualInvite > 0 ? "orange" : "default"}
+            hint="Send Checkr link from dashboard, then confirm"
+          />
+          <StatCard
+            label="Automated invites sent"
+            value={panel.summary.automatedInvitesSent}
+            hint="Invitation emailed automatically via Checkr API"
+          />
+          <StatCard label="Manual invites confirmed" value={panel.summary.manualInvitesSent} accent="emerald" />
+          <StatCard label="Paid, awaiting Checkr" value={panel.summary.planAPending} accent="violet" />
         </div>
-      ) : null}
 
-      {panel.manualInvitesSent.length > 0 ? (
-        <div className="mb-5">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">
-            Manual invites confirmed sent
+        {actionError ? (
+          <p className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-2 text-sm text-[#FFB4B4]">
+            {actionError}
           </p>
-          <ul className="mt-2 space-y-2">
-            {panel.manualInvitesSent.map((entry) => (
-              <BackgroundCheckRow key={entry.trainerId} entry={entry} />
-            ))}
-          </ul>
-        </div>
-      ) : null}
+        ) : null}
 
-      {panel.planAPending.length > 0 ? (
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Paid, awaiting Checkr</p>
-          <ul className="mt-2 space-y-2">
-            {panel.planAPending.map((entry) => (
-              <BackgroundCheckRow key={entry.trainerId} entry={entry} />
-            ))}
-          </ul>
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Screening queue</p>
+              <p className="mt-1 text-xs text-white/40">
+                Sorted by urgency — action-required trainers appear first.
+              </p>
+            </div>
+            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-white/35">
+              {panel.activeEntries.length} active
+            </p>
+          </div>
+          <BackgroundCheckQueueTable
+            entries={panel.activeEntries}
+            confirmingId={confirmingId}
+            onConfirmInviteSent={confirmInviteSent}
+          />
         </div>
-      ) : null}
-
-      {panel.activeEntries.length === 0 ? (
-        <p className="text-[11px] text-white/40">No active background check activity in the queue.</p>
-      ) : null}
+      </div>
     </MetricsSection>
   );
 }
