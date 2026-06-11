@@ -8,13 +8,14 @@ import {
   serializePostForClient,
   updatePostMedia,
   upsertWeekPosts,
+  updateHubPostDate,
 } from "@/lib/content-calendar/content-calendar-store";
 import type { ContentCalendarPostType } from "@/lib/content-calendar/constants";
 import { isNiBrainConfiguredAsync, recordContentLearning } from "@/lib/ni-brain-client";
 import { requireAdminSession } from "@/lib/require-admin";
 
 const actionSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("posted") }),
+  z.object({ action: z.literal("posted"), autoPurgeAfter24h: z.boolean().optional() }),
   z.object({ action: z.literal("dismiss_missed") }),
   z.object({
     action: z.literal("reschedule"),
@@ -23,6 +24,10 @@ const actionSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("generate_media"),
     prompt: z.string().min(10).max(4000),
+  }),
+  z.object({
+    action: z.literal("update_post_date"),
+    postDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   }),
   z.object({
     action: z.literal("regenerate"),
@@ -50,8 +55,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   try {
     switch (parsed.data.action) {
       case "posted":
-        await markPostPosted(id);
+        await markPostPosted(id, parsed.data.autoPurgeAfter24h === true);
         await recordContentLearning({ signalType: "POSTED", postId: id, meta: { postedAt: new Date().toISOString() } });
+        return NextResponse.json({ ok: true });
+      case "update_post_date":
+        await updateHubPostDate({ postId: id, postDate: parsed.data.postDate });
         return NextResponse.json({ ok: true });
       case "dismiss_missed":
         await dismissMissedPrompt(id);

@@ -29,6 +29,12 @@ export const CONTENT_CALENDAR_GROUPS = [
   "Virtual Clients",
 ] as const;
 
+/** Max posts in one bulk generation run (shown in UI warning). */
+export const CONTENT_CALENDAR_BULK_MAX_COUNT = 20;
+
+export const CONTENT_CALENDAR_BULK_DEFAULT_PROMPT =
+  "Scan social media performance, ad statistics, and user activity to inform each post.";
+
 export type ContentCalendarGroup = (typeof CONTENT_CALENDAR_GROUPS)[number];
 
 export const CONTENT_CALENDAR_POST_TYPES = ["Carousel", "Static", "Video", "Text"] as const;

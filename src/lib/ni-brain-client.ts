@@ -19,6 +19,10 @@ export type ContentCalendarPostRow = {
   posted: boolean;
   posted_at: string | null;
   missed_prompt_dismissed: boolean;
+  saved_to_hub_at: string | null;
+  is_scheduled: boolean;
+  purge_after_at: string | null;
+  bulk_session_id: string | null;
   created_at: string;
   updated_at: string;
   admin_id: string | null;
