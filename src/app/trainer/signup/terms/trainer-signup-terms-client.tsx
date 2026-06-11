@@ -126,8 +126,9 @@ export default function TrainerSignupTermsClient() {
         <h1 className="mt-8 text-2xl font-black uppercase tracking-tight sm:text-3xl">Trainer agreement</h1>
         <p className="mt-2 text-sm text-white/55">
           Read the summary below, then open the full Terms of Service and Privacy Policy. When you agree, your Match Fit
-          trainer account is created automatically. You have 7 days to place your onboarding fee hold while you upload
-          certification and complete background screening.
+          trainer account is created automatically. You have 7 days from sign-up to begin onboarding—pay your background
+          check through our portal and start certification and screening. You cannot sell services until every requirement
+          is completed.
         </p>
 
         <article className="mt-6 max-h-[min(50vh,28rem)] overflow-y-auto rounded-2xl border border-white/[0.08] bg-[#12151C]/90 p-5 text-sm leading-relaxed text-white/70">

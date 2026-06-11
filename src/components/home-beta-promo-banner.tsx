@@ -1,9 +1,17 @@
 import Link from "next/link";
-import { getTrainerFoundingBgPercentMax } from "@/lib/match-fit-launch-promotion-caps";
 import { MATCH_FIT_PRODUCT_VERSION_ANNOUNCE } from "@/lib/match-fit-product-version";
+import { getTrainerFoundingBgPercentMax } from "@/lib/match-fit-launch-promotion-caps";
+import { getClientFoundingTrialDays } from "@/lib/match-fit-launch-promotions";
+import {
+  TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE,
+  trainerFoundingPromoHeadline,
+  trainerSignupOnboardingBeginDeadlineLabel,
+  trainerSignupPremiumPromoBenefitLabel,
+} from "@/lib/trainer-signup-promo-copy";
 
 export function HomeBetaPromoBanner() {
   const trainerFoundingCap = getTrainerFoundingBgPercentMax();
+  const clientTrialDays = getClientFoundingTrialDays();
 
   return (
     <section
@@ -69,10 +77,8 @@ export function HomeBetaPromoBanner() {
                 <span className="font-semibold text-white/90">
                   First {trainerFoundingCap} fitness professionals:
                 </span>{" "}
-                your one-time onboarding fee will be{" "}
-                <span className="font-bold text-[#FFD34E]">20% of the background check cost</span> instead of the
-                background check fee being subtracted from the usual{" "}
-                <span className="font-semibold text-white/75">$100.00 onboarding fee</span>.
+                {trainerFoundingPromoHeadline(trainerFoundingCap)}{" "}
+                {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}
               </span>
             </li>
             <li className="flex min-w-0 gap-3">
@@ -83,10 +89,16 @@ export function HomeBetaPromoBanner() {
               <span className="min-w-0 flex-1 text-left [overflow-wrap:anywhere]">
                 <span className="font-semibold text-white/90">All new clients:</span> complete sign-up and agree to the
                 Terms of Service to start a{" "}
-                <span className="font-bold text-[#FFD34E]">14-day free trial with no card required</span>.
+                <span className="font-bold text-[#FFD34E]">{clientTrialDays}-day free trial with no card required</span>.
               </span>
             </li>
           </ul>
+          <p className="text-left text-xs leading-relaxed text-white/50 [overflow-wrap:anywhere] sm:text-[13px]">
+            <span className="font-semibold text-white/70">Trainer reminder:</span> begin onboarding within{" "}
+            {trainerSignupOnboardingBeginDeadlineLabel()} of sign-up and pay your background check through our portal to
+            keep your <span className="font-semibold text-white/75">{trainerSignupPremiumPromoBenefitLabel()}</span>{" "}
+            active while you finish compliance.
+          </p>
         </div>
 
         <p className="mt-4 max-w-3xl text-pretty text-left text-sm leading-relaxed text-white/60 [overflow-wrap:anywhere] sm:text-[15px]">

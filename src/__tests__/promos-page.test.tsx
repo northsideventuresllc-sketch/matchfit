@@ -94,6 +94,8 @@ describe("promos page", () => {
     expect(html).toContain("2 / 10");
     expect(html).toContain("14-day free trial");
     expect(html).toContain("no card required at sign-up");
+    expect(html).toContain("60 days of Premium status");
+    expect(html).toContain("cannot sell or offer services");
   });
 
   it("shows sign-up CTAs when beta capacity is not full", async () => {

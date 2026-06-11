@@ -7,6 +7,7 @@ import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
 import { getTrainerFoundingBgPercentMax } from "@/lib/match-fit-launch-promotion-caps";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
+import { trainerFoundingPromoHeadline, TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE } from "@/lib/trainer-signup-promo-copy";
 
 const TRAINER_FOUNDING_CAP = getTrainerFoundingBgPercentMax();
 
@@ -139,10 +140,10 @@ export default function TrainerWaitlistPage() {
         {/* Founding-member promo notice */}
         <div className="mt-4 rounded-2xl border border-[#FF7E00]/20 bg-[#12151C]/75 px-4 py-3 backdrop-blur-xl">
           <p className="text-xs leading-relaxed text-white/55">
-            <span className="font-semibold text-[#FF7E00]">Note:</span> Founding member promos (20%
-            BG fee / 14-day free trial) apply only to the first {TRAINER_FOUNDING_CAP} trainers who sign up
-            directly.
-            Waitlist users receive standard pricing when their slot opens.
+            <span className="font-semibold text-[#FF7E00]">Note:</span> Founding coach promos (
+            {trainerFoundingPromoHeadline(TRAINER_FOUNDING_CAP)} {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}) apply only
+            to the first {TRAINER_FOUNDING_CAP} trainers who sign up directly. Waitlist users receive standard pricing when
+            their slot opens.
           </p>
         </div>
 
