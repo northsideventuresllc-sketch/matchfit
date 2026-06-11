@@ -50,7 +50,7 @@ function StatCard(props: { label: string; value: string | number; hint?: string;
 
 export function MemberOverviewSection({ panel }: { panel: AdminMemberOverviewPanel }) {
   const cards: { label: string; value: number; hint?: string; accent?: "default" | "orange" | "violet" | "emerald" }[] = [
-    { label: "Total Active Members", value: panel.totalActiveMembers, hint: "Past signup + ToS; trial, processing, or good standing", accent: "orange" },
+    { label: "Total Active Members", value: panel.totalActiveMembers, hint: "Past signup + ToS; trial, processing, or good standing (excludes test/QA accounts)", accent: "orange" },
     { label: "Total Members", value: panel.totalMembers, hint: "All clients and trainers (excludes test/QA)" },
     { label: "Free Trial Clients", value: panel.freeTrialClients, accent: "violet" },
     { label: "Subscribed Clients", value: panel.subscribedClients, hint: "Live billing in good standing", accent: "emerald" },

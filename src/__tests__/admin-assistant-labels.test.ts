@@ -63,6 +63,6 @@ describe("formatAssistantStatsSnapshot", () => {
     expect(result.line).toBe(
       "64 total active members · 12 subscribed clients · 20 active trainers · 4 pending trainers · 7 free trials · 99 visitors (7d)",
     );
-    expect(result.hint).toContain("matches dashboard");
+    expect(result.hint).toContain("excludes owner test");
   });
 });

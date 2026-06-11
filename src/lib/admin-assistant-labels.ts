@@ -113,6 +113,6 @@ export function formatAssistantStatsSnapshot(input: AssistantStatsSnapshotInput)
 } {
   return {
     line: `${input.totalActiveMembers} total active members · ${input.subscribedClients} subscribed clients · ${input.compliantActiveTrainers} active trainers · ${input.pendingTrainers} pending trainers · ${input.freeTrialClients} free trials · ${input.uniqueVisitors7d} visitors (7d)`,
-    hint: "Total active members = clients in good standing + onboarded active trainers + pending trainers (matches dashboard).",
+    hint: "Total active members = clients in good standing + onboarded active trainers + pending trainers (excludes owner test/QA accounts).",
   };
 }

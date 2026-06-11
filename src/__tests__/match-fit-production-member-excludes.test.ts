@@ -10,15 +10,16 @@ import {
 } from "@/lib/match-fit-production-member-excludes";
 
 describe("match-fit production member excludes", () => {
-  it("excludes QA portals like jibbyjam22 and coachjonny22 but not owner client jbfitness6299", () => {
+  it("excludes owner dev/QA portals including jbfitness6299 and jibbyjam22", () => {
     const clientUsernames = getMatchFitLaunchExcludeClientUsernames();
     const trainerUsernames = getMatchFitLaunchExcludeTrainerUsernames();
     const emails = getLaunchExcludeEmails();
 
-    expect(clientUsernames).toEqual(expect.arrayContaining(["jibbyjam22", "jonnybronny22", "twofa_tester"]));
+    expect(clientUsernames).toEqual(
+      expect.arrayContaining(["jbfitness6299", "jibbyjam22", "jonnybronny22", "twofa_tester"]),
+    );
     expect(trainerUsernames).toEqual(expect.arrayContaining(["coachjonny22", "jibbyjam22"]));
-    expect(clientUsernames).not.toContain("jbfitness6299");
-    expect(emails).not.toContain("jonnybooth22@gmail.com");
+    expect(emails).toContain("jonnybooth22@gmail.com");
     expect(emails).toContain("jb@northsideventuresgroup.com");
   });
 
