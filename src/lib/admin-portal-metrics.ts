@@ -700,12 +700,12 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
       count: basicInfoNoTos,
       percentOfSignup: pct(basicInfoNoTos),
     },
-    { id: "signup", label: "Pending trainers (onboarding)", count: n(signupCompleted[0]), percentOfSignup: pct(n(signupCompleted[0])) },
-    { id: "bg_submitted", label: "Background check submitted / pending", count: n(bgSubmitted[0]), percentOfSignup: pct(n(bgSubmitted[0])) },
-    { id: "bg_review", label: "Background check failed / in review", count: n(bgFailed[0]), percentOfSignup: pct(n(bgFailed[0])) },
-    { id: "bg_passed", label: "Background check passed", count: n(bgPassed[0]), percentOfSignup: pct(n(bgPassed[0])) },
-    { id: "docs_pending", label: "Documents uploaded, not approved", count: n(docsPending[0]), percentOfSignup: pct(n(docsPending[0])) },
-    { id: "live", label: "Documents approved / live", count: n(live[0]), percentOfSignup: pct(n(live[0])) },
+    { id: "signup", label: "Pending Trainers (Onboarding)", count: n(signupCompleted[0]), percentOfSignup: pct(n(signupCompleted[0])) },
+    { id: "bg_submitted", label: "Background Check Submitted/Pending", count: n(bgSubmitted[0]), percentOfSignup: pct(n(bgSubmitted[0])) },
+    { id: "bg_review", label: "Background Check Submitted/In Review", count: n(bgFailed[0]), percentOfSignup: pct(n(bgFailed[0])) },
+    { id: "bg_passed", label: "Background Check Passed", count: n(bgPassed[0]), percentOfSignup: pct(n(bgPassed[0])) },
+    { id: "docs_pending", label: "Documents Uploaded/Not Approved", count: n(docsPending[0]), percentOfSignup: pct(n(docsPending[0])) },
+    { id: "live", label: "Documents Approved/LIVE", count: n(live[0]), percentOfSignup: pct(n(live[0])) },
   ];
 
   const pendingTrainers: AdminTrainerPipelineEntry[] = pendingTrainerRows.map((t) => {

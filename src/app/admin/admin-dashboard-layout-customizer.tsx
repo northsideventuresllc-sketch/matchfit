@@ -56,7 +56,7 @@ export function AdminDashboardLayoutCustomizer(props: {
       >
         <div className="border-b border-white/[0.08] px-5 py-4">
           <h2 id="admin-layout-customizer-title" className="text-lg font-black text-white">
-            Customize dashboard
+            Customized Dashboard
           </h2>
           <p className="mt-1 text-sm text-white/50">
             Pick a preset, choose visible sections, set density, and reorder. Collapse state is saved when you expand or
