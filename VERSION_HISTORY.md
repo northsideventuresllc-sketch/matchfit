@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-11** `1.7.0-beta` → `1.7.1-beta` (**patch** — Trainer pipeline onboarding fee captured-only qualification)
 - **2026-06-11** `1.6.8-beta` → `1.7.0-beta` (**minor** — Outreach HQ dead lead archive, delete-reason learning, and per-admin AI memory)
 - **2026-06-11** `1.6.7-beta` → `1.6.8-beta` (**patch** — Exclude owner test accounts from member stats; add deidentify script)
 - **2026-06-11** `1.6.6-beta` → `1.6.7-beta` (**patch** — Outreach HQ schema self-heal for missing savedToHubAt column)
