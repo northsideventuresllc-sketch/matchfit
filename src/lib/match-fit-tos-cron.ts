@@ -17,6 +17,7 @@ import { runClientPlatformBillingLifecycleJobs } from "@/lib/client-platform-lif
 import { runBetaWaitlistCronJobs } from "@/lib/beta-waitlist-service";
 import { processTrainerComplianceWindowExpirations } from "@/lib/trainer-compliance-window-cron";
 import { processTrainerOnboardingFeeDeadlineExpirations } from "@/lib/trainer-onboarding-fee-deadline-cron";
+import { processOutreachArchiveJobs } from "@/lib/outreach-archive";
 
 export type TosCronSummary = {
   backgroundCheckWarningsSent: number;
@@ -48,6 +49,10 @@ export type TosCronSummary = {
   };
   trainerComplianceWindowsExpired: number;
   trainerOnboardingFeeDeadlinesExpired: number;
+  outreachArchive: {
+    archivedCount: number;
+    purgedCount: number;
+  };
 };
 
 async function backfillApprovedBackgroundCheckTimestamps(): Promise<number> {
@@ -249,6 +254,12 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   } catch (e) {
     console.error("[tos cron] trainer onboarding fee deadline", e);
   }
+  let outreachArchive = { archivedCount: 0, purgedCount: 0 };
+  try {
+    outreachArchive = await processOutreachArchiveJobs();
+  } catch (e) {
+    console.error("[tos cron] outreach archive", e);
+  }
   return {
     backgroundCheckClearedBackfill: backfill,
     backgroundCheckWarningsSent: warnings,
@@ -268,5 +279,6 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     clientPlatformBilling,
     trainerComplianceWindowsExpired,
     trainerOnboardingFeeDeadlinesExpired,
+    outreachArchive,
   };
 }

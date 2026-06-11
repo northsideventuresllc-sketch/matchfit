@@ -5,11 +5,17 @@ const {
   mockListOutreachHubLeads,
   mockBuildOutreachHubCsv,
   mockMassSaveOutreachLeadsToHub,
+  mockBuildMassSaveOutreachWhere,
+  mockOutreachInstagramFindMany,
+  mockRecordOutreachSavedToHubSignal,
 } = vi.hoisted(() => ({
   mockRequireAdminSession: vi.fn(),
   mockListOutreachHubLeads: vi.fn(),
   mockBuildOutreachHubCsv: vi.fn(),
   mockMassSaveOutreachLeadsToHub: vi.fn(),
+  mockBuildMassSaveOutreachWhere: vi.fn(),
+  mockOutreachInstagramFindMany: vi.fn(),
+  mockRecordOutreachSavedToHubSignal: vi.fn(),
 }));
 
 vi.mock("@/lib/require-admin", () => ({
@@ -20,6 +26,19 @@ vi.mock("@/lib/outreach-data", () => ({
   listOutreachHubLeads: mockListOutreachHubLeads,
   buildOutreachHubCsv: mockBuildOutreachHubCsv,
   massSaveOutreachLeadsToHub: mockMassSaveOutreachLeadsToHub,
+  buildMassSaveOutreachWhere: mockBuildMassSaveOutreachWhere,
+}));
+
+vi.mock("@/lib/outreach-learning", () => ({
+  recordOutreachSavedToHubSignal: mockRecordOutreachSavedToHubSignal,
+}));
+
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    outreachInstagramLead: { findMany: mockOutreachInstagramFindMany },
+    outreachFacebookLead: { findMany: vi.fn().mockResolvedValue([]) },
+    outreachEmailLead: { findMany: vi.fn().mockResolvedValue([]) },
+  },
 }));
 
 import { GET as getOutreachHub } from "@/app/api/admin/outreach/hub/route";
@@ -45,6 +64,19 @@ describe("admin outreach hub routes", () => {
     mockListOutreachHubLeads.mockResolvedValue([]);
     mockBuildOutreachHubCsv.mockReturnValue("Platform,Name\ninstagram,coach");
     mockMassSaveOutreachLeadsToHub.mockResolvedValue({ savedCount: 2 });
+    mockBuildMassSaveOutreachWhere.mockReturnValue({ deletedAt: null });
+    mockOutreachInstagramFindMany.mockResolvedValue([
+      {
+        id: "ig_1",
+        handle: "coach_j",
+        niche: "Strength",
+        targetGroup: "ATL_LOCAL",
+        whyMatchFit: "Active",
+        likelihoodScore: 80,
+        status: "LEAD",
+      },
+    ]);
+    mockRecordOutreachSavedToHubSignal.mockResolvedValue(undefined);
   });
 
   describe("GET /api/admin/outreach/hub", () => {

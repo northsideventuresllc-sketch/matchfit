@@ -394,7 +394,7 @@ export async function generateOutreachLeads(args: {
   await hydratePlatformEnvFromDatabase();
   const batchId = `batch_${Date.now()}_${args.adminId.slice(0, 6)}`;
   let exclusions = await getExclusionList(args.platform);
-  const learning = await buildOutreachLearningContext(args.platform);
+  const learning = await buildOutreachLearningContext(args.platform, args.adminId);
   const tailAtl = genericInviteTail(args.platform, "ATL_LOCAL");
   const tailVirtual = genericInviteTail(args.platform, "VIRTUAL");
   const targetCount = args.atlCount + args.virtualCount;

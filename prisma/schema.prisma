@@ -2156,9 +2156,13 @@ model OutreachInstagramLead {
   generationBatchId  String?
   createdByAdminId   String?
   savedToHubAt       DateTime?
+  deadLeadAt         DateTime?
+  archivedAt         DateTime?
+  archivePurgeAfterAt DateTime?
 
   @@index([deletedAt, status, createdAt])
   @@index([deletedAt, savedToHubAt])
+  @@index([archivedAt, archivePurgeAfterAt])
   @@index([handle])
   @@map("outreach_instagram_leads")
   @@schema("public")
@@ -2194,9 +2198,13 @@ model OutreachFacebookLead {
   generationBatchId  String?
   createdByAdminId   String?
   savedToHubAt       DateTime?
+  deadLeadAt         DateTime?
+  archivedAt         DateTime?
+  archivePurgeAfterAt DateTime?
 
   @@index([deletedAt, status, createdAt])
   @@index([deletedAt, savedToHubAt])
+  @@index([archivedAt, archivePurgeAfterAt])
   @@index([pageUrl])
   @@map("outreach_facebook_leads")
   @@schema("public")
@@ -2235,9 +2243,13 @@ model OutreachEmailLead {
   generationBatchId  String?
   createdByAdminId   String?
   savedToHubAt       DateTime?
+  deadLeadAt         DateTime?
+  archivedAt         DateTime?
+  archivePurgeAfterAt DateTime?
 
   @@index([deletedAt, status, createdAt])
   @@index([deletedAt, savedToHubAt])
+  @@index([archivedAt, archivePurgeAfterAt])
   @@index([email])
   @@map("outreach_email_leads")
   @@schema("public")
@@ -2290,12 +2302,14 @@ model OutreachLearningSignal {
   platform     String
   signalType   String
   leadId       String?
+  adminId      String?
   originalText String?
   editedText   String?
   outcome      String?
   metaJson     String?
 
   @@index([platform, signalType, createdAt])
+  @@index([adminId, signalType, createdAt])
   @@map("outreach_learning_signals")
   @@schema("public")
 }

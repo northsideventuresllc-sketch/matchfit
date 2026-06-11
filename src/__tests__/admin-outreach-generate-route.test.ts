@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockRequireAdminSession, mockHydratePlatformEnvFromDatabase, mockGenerateOutreachLeads } =
-  vi.hoisted(() => ({
-    mockRequireAdminSession: vi.fn(),
-    mockHydratePlatformEnvFromDatabase: vi.fn(),
-    mockGenerateOutreachLeads: vi.fn(),
-  }));
+const {
+  mockRequireAdminSession,
+  mockHydratePlatformEnvFromDatabase,
+  mockGenerateOutreachLeads,
+  mockEnsureOutreachHubSchema,
+} = vi.hoisted(() => ({
+  mockRequireAdminSession: vi.fn(),
+  mockHydratePlatformEnvFromDatabase: vi.fn(),
+  mockGenerateOutreachLeads: vi.fn(),
+  mockEnsureOutreachHubSchema: vi.fn(),
+}));
 
 vi.mock("@/lib/require-admin", () => ({
   requireAdminSession: mockRequireAdminSession,
@@ -17,6 +22,10 @@ vi.mock("@/lib/hydrate-platform-env", () => ({
 
 vi.mock("@/lib/outreach-ai", () => ({
   generateOutreachLeads: mockGenerateOutreachLeads,
+}));
+
+vi.mock("@/lib/ensure-outreach-hub-schema", () => ({
+  ensureOutreachHubSchema: mockEnsureOutreachHubSchema,
 }));
 
 import { POST } from "@/app/api/admin/outreach/generate/route";
@@ -43,6 +52,7 @@ describe("POST /api/admin/outreach/generate", () => {
       leads: [{ id: "lead_1" }],
       aiUsed: true,
     });
+    mockEnsureOutreachHubSchema.mockResolvedValue(undefined);
   });
 
   it("returns 401 when the requester is not an authenticated admin", async () => {

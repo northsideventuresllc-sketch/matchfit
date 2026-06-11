@@ -8,7 +8,8 @@ export type OutreachLeadStatus =
   | "OUTREACH_SENT"
   | "FOLLOW_UP_1"
   | "FOLLOW_UP_2"
-  | "RESPONSE_RECEIVED";
+  | "RESPONSE_RECEIVED"
+  | "DEAD_LEAD";
 
 /** Facebook group/page outreach pipeline */
 export type FacebookLeadStatus =
@@ -17,7 +18,8 @@ export type FacebookLeadStatus =
   | "GROUP_JOINED"
   | "POST_SUBMITTED_PENDING_REVIEW"
   | "POST_APPROVED"
-  | "RESPONSE_RECEIVED";
+  | "RESPONSE_RECEIVED"
+  | "DEAD_LEAD";
 
 export type OutreachAutoClassification =
   | "ACTIVE_LEAD"
@@ -37,6 +39,7 @@ export const OUTREACH_STATUS_OPTIONS: { id: OutreachLeadStatus; label: string }[
   { id: "FOLLOW_UP_1", label: "1× follow-up sent" },
   { id: "FOLLOW_UP_2", label: "2× follow-up sent" },
   { id: "RESPONSE_RECEIVED", label: "Response received" },
+  { id: "DEAD_LEAD", label: "Dead Lead" },
 ];
 
 export const FACEBOOK_OUTREACH_STATUS_OPTIONS: { id: FacebookLeadStatus; label: string }[] = [
@@ -46,6 +49,7 @@ export const FACEBOOK_OUTREACH_STATUS_OPTIONS: { id: FacebookLeadStatus; label: 
   { id: "POST_SUBMITTED_PENDING_REVIEW", label: "Post Submitted/Pending Review" },
   { id: "POST_APPROVED", label: "Post Approved" },
   { id: "RESPONSE_RECEIVED", label: "Response Received" },
+  { id: "DEAD_LEAD", label: "Dead Lead" },
 ];
 
 export const OUTREACH_CLASSIFICATION_LABELS: Record<OutreachAutoClassification, string> = {
@@ -80,6 +84,9 @@ export type InstagramLeadRow = {
   createdAt: string;
   deletedAt: string | null;
   savedToHubAt: string | null;
+  deadLeadAt: string | null;
+  archivedAt: string | null;
+  archivePurgeAfterAt: string | null;
 };
 
 export type FacebookLeadRow = {
@@ -103,6 +110,9 @@ export type FacebookLeadRow = {
   createdAt: string;
   deletedAt: string | null;
   savedToHubAt: string | null;
+  deadLeadAt: string | null;
+  archivedAt: string | null;
+  archivePurgeAfterAt: string | null;
 };
 
 export type EmailLeadRow = {
@@ -130,6 +140,30 @@ export type EmailLeadRow = {
   createdAt: string;
   deletedAt: string | null;
   savedToHubAt: string | null;
+  deadLeadAt: string | null;
+  archivedAt: string | null;
+  archivePurgeAfterAt: string | null;
+};
+
+export type OutreachLeadProfileSnapshot = {
+  platform: OutreachPlatform;
+  niche?: string | null;
+  targetGroup?: string;
+  whyMatchFit?: string;
+  likelihoodScore?: number;
+  handle?: string;
+  pageName?: string;
+  name?: string;
+  email?: string;
+  status?: string;
+};
+
+export type OutreachArchiveLead = {
+  platform: OutreachPlatform;
+  archivedAt: string | null;
+  deadLeadAt: string | null;
+  archivePurgeAfterAt: string | null;
+  lead: InstagramLeadRow | FacebookLeadRow | EmailLeadRow;
 };
 
 export type OutreachHubLead = {
@@ -174,6 +208,7 @@ export const INSTAGRAM_EMAIL_STATUS_VALUES = [
   "FOLLOW_UP_1",
   "FOLLOW_UP_2",
   "RESPONSE_RECEIVED",
+  "DEAD_LEAD",
 ] as const;
 
 export const FACEBOOK_STATUS_VALUES = [
@@ -183,4 +218,11 @@ export const FACEBOOK_STATUS_VALUES = [
   "POST_SUBMITTED_PENDING_REVIEW",
   "POST_APPROVED",
   "RESPONSE_RECEIVED",
+  "DEAD_LEAD",
 ] as const;
+
+/** Hours after dead-lead label before a lead moves to archive. */
+export const OUTREACH_DEAD_LEAD_ARCHIVE_HOURS = 48;
+
+/** Days archived leads are kept per admin account before purge. */
+export const OUTREACH_ARCHIVE_RETENTION_DAYS = 60;

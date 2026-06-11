@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { softDeleteOutreachLead, updateOutreachLead } from "@/lib/outreach-data";
-import { recordOutreachEditSignal } from "@/lib/outreach-learning";
+import { leadProfileForPlatform } from "@/lib/outreach-lead-profile";
+import {
+  recordOutreachDeadLeadSignal,
+  recordOutreachDeleteReasonSignal,
+  recordOutreachEditSignal,
+  recordOutreachSavedToHubSignal,
+} from "@/lib/outreach-learning";
 import type { OutreachPlatform } from "@/lib/outreach-types";
 import { requireAdminSession } from "@/lib/require-admin";
 import { prisma } from "@/lib/prisma";
@@ -34,6 +40,7 @@ const patchSchema = z
 
 const deleteSchema = z.object({
   platform: z.enum(OUTREACH_PLATFORM_VALUES),
+  deleteReason: z.string().trim().min(3).max(2000),
 });
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -56,6 +63,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         await recordOutreachEditSignal({
           platform: "instagram",
           leadId: id,
+          adminId: sess.adminId,
           field: "dmText",
           originalText: existing.dmText,
           editedText: patch.dmText,
@@ -66,11 +74,28 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         await recordOutreachEditSignal({
           platform: "instagram",
           leadId: id,
+          adminId: sess.adminId,
           field: "commentText",
           originalText: existing.commentText,
           editedText: patch.commentText,
         });
         (patch as Record<string, unknown>).commentTextEdited = true;
+      }
+      if (patch.saveToHub === true && !existing.savedToHubAt) {
+        await recordOutreachSavedToHubSignal({
+          platform: "instagram",
+          leadId: id,
+          adminId: sess.adminId,
+          profile: leadProfileForPlatform("instagram", existing),
+        });
+      }
+      if (patch.status === "DEAD_LEAD" && existing.status !== "DEAD_LEAD") {
+        await recordOutreachDeadLeadSignal({
+          platform: "instagram",
+          leadId: id,
+          adminId: sess.adminId,
+          profile: leadProfileForPlatform("instagram", { ...existing, status: "DEAD_LEAD" }),
+        });
       }
     } else if (platform === "facebook") {
       const existing = await prisma.outreachFacebookLead.findUnique({ where: { id } });
@@ -79,11 +104,28 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         await recordOutreachEditSignal({
           platform: "facebook",
           leadId: id,
+          adminId: sess.adminId,
           field: "pagePostText",
           originalText: existing.pagePostText,
           editedText: patch.pagePostText,
         });
         (patch as Record<string, unknown>).pagePostTextEdited = true;
+      }
+      if (patch.saveToHub === true && !existing.savedToHubAt) {
+        await recordOutreachSavedToHubSignal({
+          platform: "facebook",
+          leadId: id,
+          adminId: sess.adminId,
+          profile: leadProfileForPlatform("facebook", existing),
+        });
+      }
+      if (patch.status === "DEAD_LEAD" && existing.status !== "DEAD_LEAD") {
+        await recordOutreachDeadLeadSignal({
+          platform: "facebook",
+          leadId: id,
+          adminId: sess.adminId,
+          profile: leadProfileForPlatform("facebook", { ...existing, status: "DEAD_LEAD" }),
+        });
       }
     } else if (platform === "email") {
       const existing = await prisma.outreachEmailLead.findUnique({ where: { id } });
@@ -92,11 +134,28 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         await recordOutreachEditSignal({
           platform: "email",
           leadId: id,
+          adminId: sess.adminId,
           field: "emailBody",
           originalText: existing.emailBody,
           editedText: patch.emailBody,
         });
         (patch as Record<string, unknown>).emailBodyEdited = true;
+      }
+      if (patch.saveToHub === true && !existing.savedToHubAt) {
+        await recordOutreachSavedToHubSignal({
+          platform: "email",
+          leadId: id,
+          adminId: sess.adminId,
+          profile: leadProfileForPlatform("email", existing),
+        });
+      }
+      if (patch.status === "DEAD_LEAD" && existing.status !== "DEAD_LEAD") {
+        await recordOutreachDeadLeadSignal({
+          platform: "email",
+          leadId: id,
+          adminId: sess.adminId,
+          profile: leadProfileForPlatform("email", { ...existing, status: "DEAD_LEAD" }),
+        });
       }
     }
 
@@ -116,11 +175,48 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
   const { id } = await ctx.params;
   const parsed = deleteSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Please provide a reason why this lead was deleted (at least 3 characters)." },
+      { status: 400 },
+    );
   }
 
+  const { platform, deleteReason } = parsed.data;
+
   try {
-    await softDeleteOutreachLead(parsed.data.platform as OutreachPlatform, id);
+    if (platform === "instagram") {
+      const existing = await prisma.outreachInstagramLead.findUnique({ where: { id } });
+      if (!existing) return NextResponse.json({ error: "Not found." }, { status: 404 });
+      await recordOutreachDeleteReasonSignal({
+        platform: "instagram",
+        leadId: id,
+        adminId: sess.adminId,
+        reason: deleteReason,
+        profile: leadProfileForPlatform("instagram", existing),
+      });
+    } else if (platform === "facebook") {
+      const existing = await prisma.outreachFacebookLead.findUnique({ where: { id } });
+      if (!existing) return NextResponse.json({ error: "Not found." }, { status: 404 });
+      await recordOutreachDeleteReasonSignal({
+        platform: "facebook",
+        leadId: id,
+        adminId: sess.adminId,
+        reason: deleteReason,
+        profile: leadProfileForPlatform("facebook", existing),
+      });
+    } else if (platform === "email") {
+      const existing = await prisma.outreachEmailLead.findUnique({ where: { id } });
+      if (!existing) return NextResponse.json({ error: "Not found." }, { status: 404 });
+      await recordOutreachDeleteReasonSignal({
+        platform: "email",
+        leadId: id,
+        adminId: sess.adminId,
+        reason: deleteReason,
+        profile: leadProfileForPlatform("email", existing),
+      });
+    }
+
+    await softDeleteOutreachLead(platform as OutreachPlatform, id);
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("[outreach lead DELETE]", e);

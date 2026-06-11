@@ -4,6 +4,21 @@ import { classifyOutreachLead } from "@/lib/outreach-classification";
 const now = new Date("2026-06-06T12:00:00Z");
 
 describe("classifyOutreachLead", () => {
+  it("returns dead lead when status is DEAD_LEAD", () => {
+    expect(
+      classifyOutreachLead({
+        status: "DEAD_LEAD",
+        platform: "instagram",
+        outreachSentAt: null,
+        followUp1SentAt: null,
+        followUp2SentAt: null,
+        responseReceivedAt: null,
+        createdAt: new Date("2026-06-05T12:00:00Z"),
+        now,
+      }),
+    ).toBe("DEAD_LEAD");
+  });
+
   it("marks fresh leads as active", () => {
     expect(
       classifyOutreachLead({

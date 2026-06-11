@@ -21,11 +21,14 @@ import type {
   EmailLeadRow,
   FacebookLeadRow,
   InstagramLeadRow,
+  OutreachArchiveLead,
   OutreachHubLead,
   OutreachPlatform,
 } from "@/lib/outreach-types";
 import {
+  OUTREACH_ARCHIVE_RETENTION_DAYS,
   OUTREACH_CLASSIFICATION_LABELS,
+  OUTREACH_DEAD_LEAD_ARCHIVE_HOURS,
   OUTREACH_PLATFORMS,
   outreachStatusOptionsForPlatform,
   statusLabelForPlatform,
@@ -39,7 +42,13 @@ import {
 } from "@/lib/outreach-platform-ui";
 
 type AnyLead = InstagramLeadRow | FacebookLeadRow | EmailLeadRow;
-type OutreachView = OutreachPlatform | "hub";
+type OutreachView = OutreachPlatform | "hub" | "archive";
+
+type DeleteReasonPromptState = {
+  title: string;
+  description: string;
+  onConfirm: (reason: string) => Promise<void>;
+};
 
 type OutreachBatchGroup = {
   batchId: string | null;
@@ -116,6 +125,63 @@ function groupLeadsByBatch(leads: AnyLead[]): OutreachBatchGroup[] {
     .sort((a, b) => new Date(b.leads[0]?.createdAt ?? 0).getTime() - new Date(a.leads[0]?.createdAt ?? 0).getTime());
 }
 
+function DeleteReasonModal(props: {
+  open: boolean;
+  title: string;
+  description: string;
+  submitting: boolean;
+  onCancel: () => void;
+  onConfirm: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    if (props.open) queueMicrotask(() => setReason(""));
+  }, [props.open]);
+
+  if (!props.open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+      <div className={`${adminCardClass} w-full max-w-lg space-y-4 p-5`} role="dialog" aria-modal="true">
+        <div>
+          <h2 className="text-lg font-black text-white">{props.title}</h2>
+          <p className="mt-2 text-sm text-white/55">{props.description}</p>
+        </div>
+        <div>
+          <label className={adminLabelClass} htmlFor="outreach-delete-reason">
+            Why is this lead being deleted?
+          </label>
+          <textarea
+            id="outreach-delete-reason"
+            className={`${adminInputClassSm} mt-2`}
+            rows={4}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g. Not a fitness professional, wrong audience, duplicate profile…"
+          />
+          <p className="mt-2 text-xs text-white/40">
+            This reason is saved to NI Brain so the AI learns what to avoid in future lead generation.
+          </p>
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" className={adminSecondaryButtonClass} disabled={props.submitting} onClick={props.onCancel}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20 disabled:opacity-40"
+            disabled={props.submitting || reason.trim().length < 3}
+            onClick={() => props.onConfirm(reason.trim())}
+          >
+            {props.submitting ? "Deleting…" : "Delete lead"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -183,18 +249,19 @@ function LeadBubble(props: {
   platform: OutreachPlatform;
   lead: AnyLead;
   onUpdate: (patch: Record<string, unknown>) => Promise<void>;
-  onDelete: () => Promise<void>;
+  onDelete: () => void;
   onSaveToHub: () => Promise<void>;
   children: ReactNode;
   title: string;
   linkHref?: string;
   linkLabel?: string;
+  hideSave?: boolean;
 }) {
-  const [deleting, setDeleting] = useState(false);
   const [savingToHub, setSavingToHub] = useState(false);
   const isSaved = Boolean(props.lead.savedToHubAt);
   const classification = props.lead.autoClassification as keyof typeof OUTREACH_CLASSIFICATION_LABELS;
   const statusOptions = outreachStatusOptionsForPlatform(props.platform);
+  const isDeadLead = props.lead.status === "DEAD_LEAD";
 
   return (
     <article className={`${adminPanelClass} overflow-hidden`}>
@@ -246,30 +313,36 @@ function LeadBubble(props: {
               ))}
             </select>
             <div className="flex flex-wrap gap-2 sm:justify-end">
+              {!props.hideSave ? (
+                <button
+                  type="button"
+                  disabled={savingToHub || isSaved}
+                  className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-40"
+                  onClick={() => {
+                    setSavingToHub(true);
+                    void props.onSaveToHub().finally(() => setSavingToHub(false));
+                  }}
+                >
+                  {isSaved ? "Saved to hub" : savingToHub ? "Saving…" : "Save"}
+                </button>
+              ) : null}
               <button
                 type="button"
-                disabled={savingToHub || isSaved}
-                className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-40"
-                onClick={() => {
-                  setSavingToHub(true);
-                  void props.onSaveToHub().finally(() => setSavingToHub(false));
-                }}
+                className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20"
+                onClick={props.onDelete}
               >
-                {isSaved ? "Saved to hub" : savingToHub ? "Saving…" : "Save"}
-              </button>
-              <button
-                type="button"
-                disabled={deleting}
-                className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20 disabled:opacity-40"
-                onClick={() => {
-                  if (!confirm("Move this outreach to deleted archive? It stays on file for learning.")) return;
-                  setDeleting(true);
-                  void props.onDelete().finally(() => setDeleting(false));
-                }}
-              >
-                {deleting ? "Removing…" : "Delete"}
+                Delete
               </button>
             </div>
+            {isDeadLead && props.lead.deadLeadAt ? (
+              <p className="text-[10px] text-white/40">
+                Dead lead — moves to archive after {OUTREACH_DEAD_LEAD_ARCHIVE_HOURS}h (
+                {new Date(
+                  new Date(props.lead.deadLeadAt).getTime() + OUTREACH_DEAD_LEAD_ARCHIVE_HOURS * 3_600_000,
+                ).toLocaleString()}
+                ).
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
@@ -294,11 +367,11 @@ function PlatformTabPanel(props: {
   onGenerate: () => void;
   onRefresh: () => void;
   onUpdate: (id: string, patch: Record<string, unknown>) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
+  onDelete: (id: string) => void;
   onSaveToHub: (id: string) => Promise<void>;
   onBulkDelete: (
     input: { mode: "all" } | { mode: "batch"; generationBatchId: string } | { mode: "ids"; ids: string[] },
-  ) => Promise<void>;
+  ) => void;
   onBulkSave: (
     input: { mode: "all" } | { mode: "batch"; generationBatchId: string } | { mode: "ids"; ids: string[] },
   ) => Promise<void>;
@@ -488,16 +561,7 @@ function PlatformTabPanel(props: {
                   type="button"
                   disabled={props.bulkDeleting}
                   className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20 disabled:opacity-40"
-                  onClick={() => {
-                    if (
-                      !confirm(
-                        `Move all ${activeLeads.length} active leads on this tab to the deleted archive? They stay on file for learning.`,
-                      )
-                    ) {
-                      return;
-                    }
-                    void props.onBulkDelete({ mode: "all" });
-                  }}
+                  onClick={() => props.onBulkDelete({ mode: "all" })}
                 >
                   {props.bulkDeleting ? "Removing…" : `Delete all ${activeLeads.length} leads`}
                 </button>
@@ -517,16 +581,9 @@ function PlatformTabPanel(props: {
                     type="button"
                     disabled={props.bulkDeleting}
                     className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20 disabled:opacity-40"
-                    onClick={() => {
-                      if (
-                        !confirm(
-                          `Move this pull (${batch.leads.length} lead${batch.leads.length === 1 ? "" : "s"}) to the deleted archive? They stay on file for learning.`,
-                        )
-                      ) {
-                        return;
-                      }
-                      void props.onBulkDelete({ mode: "batch", generationBatchId: batch.batchId! });
-                    }}
+                    onClick={() =>
+                      props.onBulkDelete({ mode: "batch", generationBatchId: batch.batchId! })
+                    }
                   >
                     {props.bulkDeleting ? "Removing…" : "Delete this pull"}
                   </button>
@@ -535,16 +592,9 @@ function PlatformTabPanel(props: {
                     type="button"
                     disabled={props.bulkDeleting}
                     className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20 disabled:opacity-40"
-                    onClick={() => {
-                      if (
-                        !confirm(
-                          `Move these ${batch.leads.length} unbatched lead${batch.leads.length === 1 ? "" : "s"} to the deleted archive?`,
-                        )
-                      ) {
-                        return;
-                      }
-                      void props.onBulkDelete({ mode: "ids", ids: batch.leads.map((l) => l.id) });
-                    }}
+                    onClick={() =>
+                      props.onBulkDelete({ mode: "ids", ids: batch.leads.map((l) => l.id) })
+                    }
                   >
                     {props.bulkDeleting ? "Removing…" : "Delete unbatched leads"}
                   </button>
@@ -559,12 +609,88 @@ function PlatformTabPanel(props: {
   );
 }
 
+function archiveLeadTitle(entry: OutreachArchiveLead): string {
+  if (entry.platform === "instagram") return (entry.lead as InstagramLeadRow).handle;
+  if (entry.platform === "facebook") return (entry.lead as FacebookLeadRow).pageName;
+  return (entry.lead as EmailLeadRow).name;
+}
+
+function OutreachArchivePanel(props: {
+  entries: OutreachArchiveLead[];
+  loading: boolean;
+  revivingId: string | null;
+  onRefresh: () => void;
+  onRevive: (platform: OutreachPlatform, id: string) => Promise<void>;
+  onOpenHub: () => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <section className={`${adminCardClass} space-y-3`}>
+        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Dead lead archive</p>
+        <p className="text-sm text-white/55">
+          Leads marked Dead Lead are archived after {OUTREACH_DEAD_LEAD_ARCHIVE_HOURS} hours. Archived rows are cleared
+          every {OUTREACH_ARCHIVE_RETENTION_DAYS} days per account. Revived leads return to Outreach Hub — not the
+          generation pages.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={adminSecondaryButtonClass} onClick={props.onRefresh}>
+            Refresh archive
+          </button>
+          <button type="button" className={adminAccentButtonClass} onClick={props.onOpenHub}>
+            Open Outreach Hub
+          </button>
+        </div>
+      </section>
+
+      {props.loading ? (
+        <p className="text-sm text-white/45">Loading archive…</p>
+      ) : props.entries.length === 0 ? (
+        <p className="rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-8 text-center text-sm text-white/45">
+          No archived dead leads yet. Mark a lead as Dead Lead and it will appear here after{" "}
+          {OUTREACH_DEAD_LEAD_ARCHIVE_HOURS} hours.
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {props.entries.map((entry) => (
+            <article key={`${entry.platform}-${entry.lead.id}`} className={`${adminPanelClass} p-4 sm:p-5`}>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-2">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#FF7E00]/70">
+                    {OUTREACH_PLATFORMS.find((p) => p.id === entry.platform)?.label ?? entry.platform}
+                  </p>
+                  <h3 className="text-lg font-black text-white">{archiveLeadTitle(entry)}</h3>
+                  <p className="text-sm text-white/55">{entry.lead.whyMatchFit}</p>
+                  <p className="text-xs text-white/40">
+                    Archived {entry.archivedAt ? new Date(entry.archivedAt).toLocaleString() : "—"}
+                    {entry.archivePurgeAfterAt
+                      ? ` · Purges ${new Date(entry.archivePurgeAfterAt).toLocaleDateString()}`
+                      : ""}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={props.revivingId === entry.lead.id}
+                  className={adminAccentButtonClass}
+                  onClick={() => void props.onRevive(entry.platform, entry.lead.id)}
+                >
+                  {props.revivingId === entry.lead.id ? "Reviving…" : "Revive to hub"}
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OutreachHubPanel(props: {
   entries: OutreachHubLead[];
   loading: boolean;
   onRefresh: () => void;
+  onOpenArchive: () => void;
   onUpdate: (platform: OutreachPlatform, id: string, patch: Record<string, unknown>) => Promise<void>;
-  onDelete: (platform: OutreachPlatform, id: string) => Promise<void>;
+  onDelete: (platform: OutreachPlatform, id: string) => void;
   onSaveToHub: (platform: OutreachPlatform, id: string) => Promise<void>;
 }) {
   const renderEntry = (entry: OutreachHubLead) => {
@@ -583,6 +709,7 @@ function OutreachHubPanel(props: {
           onUpdate={(patch) => props.onUpdate(platform, ig.id, patch)}
           onDelete={() => props.onDelete(platform, ig.id)}
           onSaveToHub={() => props.onSaveToHub(platform, ig.id)}
+          hideSave
         >
           <EditableBlock label="Instagram DM" value={ig.dmText} rows={6} onSave={(dmText) => props.onUpdate(platform, ig.id, { dmText })} />
           <EditableBlock
@@ -609,6 +736,7 @@ function OutreachHubPanel(props: {
           onUpdate={(patch) => props.onUpdate(platform, fb.id, patch)}
           onDelete={() => props.onDelete(platform, fb.id)}
           onSaveToHub={() => props.onSaveToHub(platform, fb.id)}
+          hideSave
         >
           <EditableBlock
             label="Page post"
@@ -633,6 +761,7 @@ function OutreachHubPanel(props: {
           onUpdate={(patch) => props.onUpdate(platform, em.id, patch)}
           onDelete={() => props.onDelete(platform, em.id)}
           onSaveToHub={() => props.onSaveToHub(platform, em.id)}
+          hideSave
         >
           <p className="text-sm text-white/55">
             {em.email}
@@ -671,6 +800,9 @@ function OutreachHubPanel(props: {
           </a>
           <button type="button" className={adminSecondaryButtonClass} onClick={props.onRefresh}>
             Refresh hub
+          </button>
+          <button type="button" className={adminSecondaryButtonClass} onClick={props.onOpenArchive}>
+            View archive
           </button>
         </div>
       </section>
@@ -716,9 +848,13 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   const [atlCount, setAtlCount] = useState(3);
   const [virtualCount, setVirtualCount] = useState(5);
   const [hubEntries, setHubEntries] = useState<OutreachHubLead[]>([]);
+  const [archiveEntries, setArchiveEntries] = useState<OutreachArchiveLead[]>([]);
   const [purging, setPurging] = useState(false);
+  const [revivingId, setRevivingId] = useState<string | null>(null);
+  const [deletePrompt, setDeletePrompt] = useState<DeleteReasonPromptState | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
-  const coldTab = tab === "hub" ? "instagram" : tab;
+  const coldTab = tab === "hub" || tab === "archive" ? "instagram" : tab;
 
   const loadLeads = useCallback(async (platform: OutreachPlatform, options?: { clearAlerts?: boolean }) => {
     setLoading(true);
@@ -734,6 +870,26 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     } catch {
       if (options?.clearAlerts) {
         setError("Could not load outreach leads. The database may still be updating — refresh in a moment.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadArchiveEntries = useCallback(async (options?: { clearAlerts?: boolean }) => {
+    setLoading(true);
+    if (options?.clearAlerts) {
+      setError(null);
+      setSuccessMessage(null);
+    }
+    try {
+      const res = await fetch("/api/admin/outreach/archive", { credentials: "include" });
+      if (!res.ok) throw new Error("Could not load archive.");
+      const data = await readJsonResponse<{ entries?: OutreachArchiveLead[] }>(res);
+      setArchiveEntries(data.entries ?? []);
+    } catch {
+      if (options?.clearAlerts) {
+        setError("Could not load dead lead archive.");
       }
     } finally {
       setLoading(false);
@@ -764,11 +920,13 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     queueMicrotask(() => {
       if (tab === "hub") {
         void loadHubEntries({ clearAlerts: true });
+      } else if (tab === "archive") {
+        void loadArchiveEntries({ clearAlerts: true });
       } else {
         void loadLeads(tab, { clearAlerts: true });
       }
     });
-  }, [tab, loadLeads, loadHubEntries]);
+  }, [tab, loadLeads, loadHubEntries, loadArchiveEntries]);
 
   const stats = useMemo(() => {
     const active = leads.filter((l) => !l.deletedAt);
@@ -780,7 +938,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   }, [leads]);
 
   useEffect(() => {
-    if (!generating || tab === "hub") return;
+    if (!generating || tab === "hub" || tab === "archive") return;
 
     const totalLeads = atlCount + virtualCount;
     const estimatedMs =
@@ -882,19 +1040,45 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     }
   };
 
-  const deleteLead = async (id: string, platform: OutreachPlatform = coldTab) => {
+  const deleteLeadWithReason = async (
+    id: string,
+    platform: OutreachPlatform,
+    deleteReason: string,
+  ) => {
     const res = await fetch(`/api/admin/outreach/leads/${id}`, {
       method: "DELETE",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ platform }),
+      body: JSON.stringify({ platform, deleteReason }),
     });
-    if (!res.ok) throw new Error("Delete failed.");
+    const data = await readJsonResponse<{ error?: string }>(res);
+    if (!res.ok) throw new Error(data.error ?? "Delete failed.");
     if (tab === "hub") {
       await loadHubEntries();
+    } else if (tab === "archive") {
+      await loadArchiveEntries();
     } else {
-      await loadLeads(coldTab);
+      await loadLeads(platform);
     }
+  };
+
+  const promptDeleteLead = (id: string, platform: OutreachPlatform = coldTab) => {
+    setDeletePrompt({
+      title: "Delete lead",
+      description: "Tell the AI why this lead should not have been generated. This helps Match Fit avoid similar profiles.",
+      onConfirm: async (reason) => {
+        setDeleteSubmitting(true);
+        try {
+          await deleteLeadWithReason(id, platform, reason);
+          setSuccessMessage("Lead deleted. Reason saved for AI learning.");
+          setDeletePrompt(null);
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "Delete failed.");
+        } finally {
+          setDeleteSubmitting(false);
+        }
+      },
+    });
   };
 
   const saveLeadToHub = async (id: string, platform: OutreachPlatform = coldTab) => {
@@ -939,29 +1123,67 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     }
   };
 
-  const bulkDeleteLeads = async (
+  const bulkDeleteLeads = (
     input: { mode: "all" } | { mode: "batch"; generationBatchId: string } | { mode: "ids"; ids: string[] },
   ) => {
-    setBulkDeleting(true);
+    const countLabel =
+      input.mode === "all"
+        ? "all active leads on this tab"
+        : input.mode === "batch"
+          ? "this outreach pull"
+          : `${input.ids.length} selected lead${input.ids.length === 1 ? "" : "s"}`;
+
+    setDeletePrompt({
+      title: "Delete leads",
+      description: `Why are you deleting ${countLabel}? The reason is saved for each lead so the AI learns what to avoid.`,
+      onConfirm: async (reason) => {
+        setBulkDeleting(true);
+        setDeleteSubmitting(true);
+        setError(null);
+        setSuccessMessage(null);
+        try {
+          const res = await fetch("/api/admin/outreach/leads/bulk-delete", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ platform: coldTab, ...input, deleteReason: reason }),
+          });
+          const data = await readJsonResponse<{ error?: string; deletedCount?: number }>(res);
+          if (!res.ok) throw new Error(data.error ?? "Bulk delete failed.");
+          setSuccessMessage(
+            `Deleted ${data.deletedCount ?? 0} lead${data.deletedCount === 1 ? "" : "s"}. Reasons saved for AI learning.`,
+          );
+          setDeletePrompt(null);
+          await loadLeads(coldTab);
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "Bulk delete failed.");
+        } finally {
+          setBulkDeleting(false);
+          setDeleteSubmitting(false);
+        }
+      },
+    });
+  };
+
+  const reviveArchivedLead = async (platform: OutreachPlatform, id: string) => {
+    setRevivingId(id);
     setError(null);
     setSuccessMessage(null);
     try {
-      const res = await fetch("/api/admin/outreach/leads/bulk-delete", {
+      const res = await fetch("/api/admin/outreach/archive/revive", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ platform: coldTab, ...input }),
+        body: JSON.stringify({ platform, id }),
       });
-      const data = await readJsonResponse<{ error?: string; deletedCount?: number }>(res);
-      if (!res.ok) throw new Error(data.error ?? "Bulk delete failed.");
-      setSuccessMessage(
-        `Moved ${data.deletedCount ?? 0} lead${data.deletedCount === 1 ? "" : "s"} to the deleted archive.`,
-      );
-      await loadLeads(coldTab);
+      const data = await readJsonResponse<{ error?: string; message?: string }>(res);
+      if (!res.ok) throw new Error(data.error ?? "Revive failed.");
+      setSuccessMessage(data.message ?? "Lead revived to Outreach Hub.");
+      await loadArchiveEntries();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Bulk delete failed.");
+      setError(e instanceof Error ? e.message : "Revive failed.");
     } finally {
-      setBulkDeleting(false);
+      setRevivingId(null);
     }
   };
 
@@ -1046,16 +1268,22 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         <section className={`${adminCardClass} space-y-3`}>
           <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Housekeeping</p>
           <p className="text-sm text-white/55">
-            Clear archived fake batches from earlier runs, then regenerate with verified AI lead discovery.
+            Clear soft-deleted fake batches from earlier runs, then regenerate with verified AI lead discovery. Dead leads
+            marked in the status dropdown move to the archive after {OUTREACH_DEAD_LEAD_ARCHIVE_HOURS} hours.
           </p>
-          <button
-            type="button"
-            disabled={purging}
-            className={adminSecondaryButtonClass}
-            onClick={() => void purgeStaleLeads()}
-          >
-            {purging ? "Purging archive…" : "Purge archived stale leads"}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={purging}
+              className={adminSecondaryButtonClass}
+              onClick={() => void purgeStaleLeads()}
+            >
+              {purging ? "Purging…" : "Purge deleted stale leads"}
+            </button>
+            <button type="button" className={adminSecondaryButtonClass} onClick={() => setTab("archive")}>
+              Open dead lead archive
+            </button>
+          </div>
         </section>
 
         <nav className="flex flex-wrap gap-2" aria-label="Outreach platform">
@@ -1084,6 +1312,17 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
           >
             OUTREACH HUB
           </button>
+          <button
+            type="button"
+            className={
+              tab === "archive"
+                ? "rounded-lg border border-[#FF7E00]/40 bg-[#FF7E00]/10 px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#FFD34E]"
+                : adminSecondaryButtonClass
+            }
+            onClick={() => setTab("archive")}
+          >
+            Archive
+          </button>
         </nav>
 
         {tab === "hub" ? (
@@ -1091,9 +1330,19 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
             entries={hubEntries}
             loading={loading}
             onRefresh={() => void loadHubEntries()}
+            onOpenArchive={() => setTab("archive")}
             onUpdate={(platform, id, patch) => updateLead(id, patch, platform)}
-            onDelete={(platform, id) => deleteLead(id, platform)}
+            onDelete={(platform, id) => promptDeleteLead(id, platform)}
             onSaveToHub={(platform, id) => saveLeadToHub(id, platform)}
+          />
+        ) : tab === "archive" ? (
+          <OutreachArchivePanel
+            entries={archiveEntries}
+            loading={loading}
+            revivingId={revivingId}
+            onRefresh={() => void loadArchiveEntries()}
+            onRevive={reviveArchivedLead}
+            onOpenHub={() => setTab("hub")}
           />
         ) : (
           <PlatformTabPanel
@@ -1112,12 +1361,25 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
             onGenerate={() => void generate()}
             onRefresh={() => void loadLeads(tab)}
             onUpdate={updateLead}
-            onDelete={deleteLead}
+            onDelete={(id) => promptDeleteLead(id, tab)}
             onSaveToHub={saveLeadToHub}
             onBulkDelete={bulkDeleteLeads}
             onBulkSave={bulkSaveLeads}
           />
         )}
+
+        <DeleteReasonModal
+          open={deletePrompt != null}
+          title={deletePrompt?.title ?? "Delete lead"}
+          description={deletePrompt?.description ?? ""}
+          submitting={deleteSubmitting}
+          onCancel={() => {
+            if (!deleteSubmitting) setDeletePrompt(null);
+          }}
+          onConfirm={(reason) => {
+            void deletePrompt?.onConfirm(reason);
+          }}
+        />
 
         <AdminPortalBetaNotice />
       </div>
