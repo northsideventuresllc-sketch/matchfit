@@ -6,6 +6,12 @@ import {
   getTrainerFoundingBgPercentMax,
 } from "@/lib/match-fit-launch-promotions";
 import {
+  TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE,
+  TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS,
+  TRAINER_SIGNUP_PREMIUM_PROMO_DAYS,
+  TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL,
+} from "@/lib/trainer-signup-promo-copy";
+import {
   CLIENT_PAYMENT_GRACE_DAYS,
   CLIENT_PLATFORM_TRIAL_DAYS,
 } from "@/lib/client-platform-trial-constants";
@@ -181,10 +187,14 @@ export default async function TermsPage() {
         </P>
         <P>
           <Strong>Founding trainer promotions (while caps last):</Strong> The first{" "}
-          <Strong>{FOUNDING_TRAINER_CAP} Trainers</Strong> who complete registration may pay a reduced one-time platform
-          registration amount equal to <Strong>twenty percent (20%)</Strong> of the background-check fee they paid to the
-          independent screening provider (plus transaction fees), instead of the standard one hundred U.S. dollar ($100.00)
-          registration model described in Section 11.
+          <Strong>{FOUNDING_TRAINER_CAP} Trainers</Strong> who complete registration receive{" "}
+          <Strong>{TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days</Strong> of complimentary Premium Page access starting at
+          sign-up. During this promo, Trainers pay only the independent background-check fee through Match Fit&apos;s
+          portal (plus transaction fees)—not the standard {TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL} platform
+          registration fee described in Section 11. Trainers must{" "}
+          <Strong>begin onboarding within {TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} calendar days</Strong> of account
+          creation (including paying the background check through our portal and starting certification and screening
+          steps). {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}
         </P>
 
         <H2 id="fees-and-payments">3. Fees, Administrative Charges, and Payment Processing</H2>
@@ -430,14 +440,20 @@ export default async function TermsPage() {
         <H2 id="trainer-terms">11. Trainer Registration, Compliance, and Public Profile</H2>
         <Ul>
           <Li>
-            Trainer registration may require a <Strong>one-time registration fee</Strong> plus applicable transaction fees,
-            as shown at checkout. <Strong>Standard pricing:</Strong> one hundred U.S. dollars ($100.00) minus the amount you
-            paid the independent background-check provider (when verified), plus processing fees.{" "}
-            <Strong>Founding-coach pricing (first {FOUNDING_TRAINER_CAP} Trainers):</Strong> twenty percent (20%) of the
-            verified background-check fee plus processing fees—not the full $100.00 model. Match Fit generally collects the
-            registration fee only after background screening clears and primary certification is approved, as implemented in
-            onboarding. At signup, your card is <Strong>authorized (held)</Strong> through our payment processor; Match Fit{" "}
-            <Strong>captures</Strong> the registration amount only after certification and background screening are approved.
+            Trainer registration may require payment of the independent background-check fee through Match Fit&apos;s
+            portal plus applicable transaction fees, as shown at checkout.{" "}
+            <Strong>Founding-coach promo (first {FOUNDING_TRAINER_CAP} Trainers):</Strong> pay only the background-check
+            fee through our portal (plus processing)—no {TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL} platform
+            registration fee—and receive <Strong>{TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days</Strong> of Premium Page access
+            at sign-up. Trainers must begin onboarding within{" "}
+            <Strong>{TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} calendar days</Strong> of account creation and may not offer
+            or sell services until all onboarding requirements are completed.{" "}
+            <Strong>Standard pricing (after founding caps):</Strong> {TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL} minus
+            the amount you paid the independent background-check provider (when verified), plus processing fees. Match Fit
+            generally collects any platform registration amount only after background screening clears and primary
+            certification is approved, as implemented in onboarding. At signup, your card may be{" "}
+            <Strong>authorized (held)</Strong> through our payment processor; Match Fit <Strong>captures</Strong> amounts
+            only according to the pricing tier and approval rules in effect when you registered.
           </Li>
           <Li>
             <Strong>Background screening escrow:</Strong> A portion of your signup authorization is earmarked for the

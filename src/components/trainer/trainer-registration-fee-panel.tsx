@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE,
+  TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS,
+  TRAINER_SIGNUP_PREMIUM_PROMO_DAYS,
+  TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL,
+} from "@/lib/trainer-signup-promo-copy";
 
 type Summary = {
   hasPaidRegistrationFee: boolean;
@@ -80,8 +86,8 @@ export function TrainerRegistrationFeePanel() {
   if (summary.signupFeeOnHold && summary.registrationFeeHoldStatus === "HELD") {
     return (
       <p className="text-sm text-emerald-200/90">
-        Your platform onboarding fee is on hold. We capture the background-check portion when Checkr screening runs,
-        and capture the platform portion only after your certifications and background check are fully approved.
+        Your background check payment is on hold. Match Fit captures it when Checkr screening runs. During the founding
+        coach promo there is no separate {TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL} platform registration fee.
       </p>
     );
   }
@@ -101,8 +107,10 @@ export function TrainerRegistrationFeePanel() {
       <p className="text-sm leading-relaxed text-white/65">
         {summary.foundingPricing ? (
           <>
-            Founding coach pricing: pay <span className="font-semibold text-white">20%</span> of your verified background
-            check amount ({bgLabel} paid to Checkr) plus an estimated card processing fee.
+            Founding coach promo: pay your verified background check amount ({bgLabel} to Checkr) through our portal plus
+            an estimated card processing fee. You receive {TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Premium Page access
+            at sign-up with no {TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL} platform registration fee. Begin onboarding
+            within {TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up. {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}
           </>
         ) : (
           <>

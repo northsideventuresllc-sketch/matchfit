@@ -1154,11 +1154,11 @@ export default function TrainerOnboardingClient() {
             <div className="space-y-5 text-sm leading-relaxed text-white/70">
               {profile?.registrationFeeWaived ? (
                 <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-[13px] leading-relaxed text-emerald-100/95">
-                  <p className="font-semibold text-emerald-50">Founding coach slot</p>
+                  <p className="font-semibold text-emerald-50">Founding coach promo</p>
                   <p className="mt-1 text-emerald-100/85">
-                    You are in the first <span className="font-semibold text-white">10 coaches</span>: after screening
-                    clears, Match Fit charges <span className="font-semibold text-white">20%</span> of your verified
-                    Checkr background-check amount (plus processing)—not the full $100 platform fee.
+                    You receive 60 days of Premium Page access at sign-up and pay only your background check through
+                    Match Fit&apos;s portal (no $100.00 platform registration fee). Begin onboarding within 7 days of
+                    sign-up. You cannot sell services until every requirement is completed.
                   </p>
                 </div>
               ) : null}

@@ -3,6 +3,13 @@ import Link from "next/link";
 import { getLaunchPromoStats } from "@/lib/launch-promo-stats";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
 import { getClientFoundingTrialDays } from "@/lib/match-fit-launch-promotions";
+import {
+  TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE,
+  trainerFoundingPromoParagraph,
+  trainerSignupOnboardingBeginDeadlineLabel,
+  trainerSignupPremiumPromoBenefitLabel,
+  trainerStandardOnboardingFeeAfterCapLabel,
+} from "@/lib/trainer-signup-promo-copy";
 
 export const dynamic = "force-dynamic";
 
@@ -119,7 +126,7 @@ export default async function PromosPage() {
                     For fitness professionals
                   </p>
                   <h2 className="mt-2 text-xl font-black uppercase tracking-wide text-white sm:text-2xl">
-                    Founding Coach Pricing
+                    Founding Coach Promo
                   </h2>
                 </div>
                 <span
@@ -134,15 +141,23 @@ export default async function PromosPage() {
               </div>
 
               <p className="mt-5 text-pretty text-[15px] leading-relaxed text-white/65 sm:text-base">
-                The first{" "}
-                <span className="font-bold text-[#FFD34E]">{trainerFoundingMax} fitness professionals</span>{" "}
-                to join Match Fit pay only{" "}
-                <span className="font-bold text-[#FFD34E]">20% of their background check cost</span> for
-                onboarding (instead of the usual $100.00 platform fee minus the screening amount).{" "}
+                {trainerFoundingPromoParagraph(trainerFoundingMax)}{" "}
                 <span className="font-semibold text-white/70">10 of those spots are reserved for in-person coaches</span>{" "}
                 in the Atlanta metro area; the remaining{" "}
                 <span className="font-semibold text-white/70">20 spots are open to virtual coaches nationwide</span>.
               </p>
+
+              <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 text-sm text-white/60">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-semibold text-white/75">Premium status at sign-up</span>
+                  <span className="text-[#FFD34E]">{trainerSignupPremiumPromoBenefitLabel()}</span>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <span className="font-semibold text-white/75">Onboarding must begin within</span>
+                  <span>{trainerSignupOnboardingBeginDeadlineLabel()} of sign-up</span>
+                </div>
+                <p className="mt-3 text-xs leading-relaxed text-white/50">{TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}</p>
+              </div>
 
               <div className="mt-6 space-y-2">
                 <div className="flex items-center justify-between text-xs">
@@ -291,7 +306,10 @@ export default async function PromosPage() {
           <ul className="mt-3 space-y-1.5">
             <li className="flex gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />
-              <span>Trainers pay the standard onboarding fee ($100.00 minus their background check amount).</span>
+              <span>
+                Trainers pay the standard onboarding fee ({trainerStandardOnboardingFeeAfterCapLabel()}) and do not
+                receive the {trainerSignupPremiumPromoBenefitLabel()} promo.
+              </span>
             </li>
             <li className="flex gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />

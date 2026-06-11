@@ -85,8 +85,11 @@ export default async function PrivacyPage() {
           public marketing and product pages (such as page views and link clicks), and store your in-app activity
           (including chats and social posts) on our systems. Client sign-up includes a 14-day platform access trial with
           no card required; after the trial, you have 14 days to subscribe before the account is deactivated until paid
-          reactivation. You may adjust optional visibility of some profile fields and request in-product account
-          deletion, which schedules removal after a grace period as described in Section 7, while preserving the
+          reactivation. Trainers in the founding coach promo receive 60 days of Premium Page access at sign-up, pay only
+          their background check through our portal (not the standard $100.00 platform registration fee during the
+          promo), must begin onboarding within 7 days of sign-up, and cannot sell services until all onboarding
+          requirements are completed. You may adjust optional visibility of some profile fields and request in-product
+          account deletion, which schedules removal after a grace period as described in Section 7, while preserving the
           minimum data we need for trust, safety, and legal compliance. We use reasonable technical and organizational
           measures to protect personal information. We do not sell your personal information as that term is commonly
           defined in U.S. state privacy laws.

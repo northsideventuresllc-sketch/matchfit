@@ -9,6 +9,13 @@ import { TrainerComplianceW9EmailSelfService } from "@/components/trainer/traine
 import { TrainerComplianceW9DownloadButton } from "@/components/trainer/trainer-compliance-w9-download-button";
 import { TrainerRegistrationFeePanel } from "@/components/trainer/trainer-registration-fee-panel";
 import { getTrainerFoundingBgPercentMax } from "@/lib/match-fit-launch-promotion-caps";
+import {
+  TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE,
+  TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS,
+  TRAINER_SIGNUP_PREMIUM_PROMO_DAYS,
+  TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL,
+  trainerStandardOnboardingFeeAfterCapLabel,
+} from "@/lib/trainer-signup-promo-copy";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { backgroundCheckStatusLabel, certificationReviewStatusLabel } from "@/lib/trainer-compliance-status-copy";
 import { prisma } from "@/lib/prisma";
@@ -154,16 +161,18 @@ export default async function TrainerComplianceDetailsPage() {
         <p className="mt-3 text-sm text-white/55">
           {signupHoldFlow ? (
             <>
-              Your signup fee is authorized (held) in Stripe at registration; Match Fit captures it after background
-              screening and certifications are approved. If you do not complete screening, the background-check portion is
-              not applied (see Terms). Founding coaches (first {getTrainerFoundingBgPercentMax()}) pay 20% of the Checkr
-              fee; later coaches pay $100 minus the screening credit.
+              During the founding coach promo, pay only your background check through Match Fit&apos;s portal (plus
+              processing)—no {TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL} platform registration fee—and receive{" "}
+              {TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Premium Page access at sign-up. Begin onboarding within{" "}
+              {TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up. {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE} After
+              founding caps, coaches pay the standard {trainerStandardOnboardingFeeAfterCapLabel()} through Stripe once
+              screening and certifications are approved.
             </>
           ) : (
             <>
               After your background check clears and certifications are approved, pay the one-time Match Fit registration
-              amount through Stripe. Founding coaches (first {getTrainerFoundingBgPercentMax()}) pay 20% of the Checkr fee;
-              later coaches pay $100 minus the screening credit.
+              amount through Stripe. Founding coaches (first {getTrainerFoundingBgPercentMax()}) follow the promo above;
+              later coaches pay {trainerStandardOnboardingFeeAfterCapLabel()}.
             </>
           )}
         </p>

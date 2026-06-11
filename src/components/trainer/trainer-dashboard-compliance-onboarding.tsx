@@ -16,6 +16,7 @@ import {
 import { certificationsGatePassed } from "@/lib/trainer-onboarding-cert-gate";
 import { coerceTrainerBackgroundVendorStatus, coerceTrainerCptStatus } from "@/lib/trainer-onboarding-status";
 import type { TrainerComplianceWindowState } from "@/lib/trainer-compliance-window";
+import { TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL } from "@/lib/trainer-signup-promo-copy";
 
 type Props = {
   complianceWindow: TrainerComplianceWindowState;
@@ -123,8 +124,10 @@ export function TrainerDashboardComplianceOnboarding({
         Certification &amp; background screening
       </h2>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/60">
-        Upload your credentials and complete Checkr screening to unlock messaging, services, premium tools, and client
-        discovery. Your signup fee stays on hold until both are approved.
+        Upload your credentials and complete Checkr screening to unlock messaging, services, and client discovery. Pay
+        your background check through our portal during the founding promo—there is no {TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL}{" "}
+        platform registration fee while the promo is active. You cannot sell or offer services until every requirement
+        is approved.
       </p>
 
       {complianceWindow.paused && !complianceWindow.humanReviewActive ? (

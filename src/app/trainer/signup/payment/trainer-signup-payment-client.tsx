@@ -114,8 +114,9 @@ function PaymentForm({
         </div>
       ) : (
         <p className="rounded-xl border border-white/[0.08] bg-[#12151C]/60 px-4 py-4 text-sm leading-relaxed text-white/70">
-          Step 2 of 2: authorize the background screening hold. Match Fit captures this portion when Checkr screening
-          runs, even if the result is not approved.
+          {foundingPricing
+            ? "Authorize your background screening payment through Match Fit. Match Fit captures this amount when Checkr screening runs."
+            : "Step 2 of 2: authorize the background screening hold. Match Fit captures this portion when Checkr screening runs, even if the result is not approved."}
         </p>
       )}
       <p className="text-sm text-white/80">
@@ -134,8 +135,12 @@ function PaymentForm({
         {submitting
           ? "Authorizing…"
           : step === "platform"
-            ? "Place platform hold (step 1 of 2)"
-            : "Place background screening hold (step 2 of 2)"}
+            ? foundingPricing
+              ? "Continue to background check"
+              : "Place platform hold (step 1 of 2)"
+            : foundingPricing
+              ? "Pay background check"
+              : "Place background screening hold (step 2 of 2)"}
       </button>
     </form>
   );
@@ -275,15 +280,26 @@ export default function TrainerSignupPaymentClient({
           <span className="text-sm font-bold text-white/70">Back to agreement</span>
         </Link>
 
-        <h1 className="mt-8 text-2xl font-black uppercase tracking-tight">Authorize signup fee</h1>
+        <h1 className="mt-8 text-2xl font-black uppercase tracking-tight">
+          {foundingPricing ? "Pay background check" : "Authorize signup fee"}
+        </h1>
         <p className="mt-3 text-sm leading-relaxed text-white/60">{TRAINER_SIGNUP_PAYMENT_INTRO}</p>
 
-        <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-white/55">
-          <li>Step 1: platform onboarding hold (released if you are not fully approved).</li>
-          <li>Step 2: background screening hold (captured when Checkr screening runs).</li>
-          <li>After both holds are placed, continue certification and background screening in your dashboard.</li>
-          <li>When certification and screening are fully approved, Match Fit captures the platform hold.</li>
-        </ol>
+        {foundingPricing ? (
+          <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-white/55">
+            <li>Pay your background check through Match Fit&apos;s portal (plus card processing).</li>
+            <li>Begin onboarding within 7 days of sign-up, including certification uploads and Checkr screening.</li>
+            <li>You receive 60 days of Premium Page access at sign-up with no $100.00 platform registration fee.</li>
+            <li>You cannot sell or offer services until every onboarding requirement is completed.</li>
+          </ol>
+        ) : (
+          <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-white/55">
+            <li>Step 1: platform onboarding hold (released if you are not fully approved).</li>
+            <li>Step 2: background screening hold (captured when Checkr screening runs).</li>
+            <li>After both holds are placed, continue certification and background screening in your dashboard.</li>
+            <li>When certification and screening are fully approved, Match Fit captures the platform hold.</li>
+          </ol>
+        )}
 
         <div className="mt-8">
           {loading ? (

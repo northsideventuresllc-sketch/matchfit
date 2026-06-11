@@ -17,6 +17,7 @@ import {
   trainerOnboardingFeeDaysRemaining,
   trainerOnboardingFeeIsPaid,
 } from "@/lib/trainer-onboarding-fee-deadline";
+import { TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS } from "@/lib/trainer-signup-promo-copy";
 import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
 import { getSessionTrainerId } from "@/lib/session";
 import { isPrismaMissingColumnError, isPrismaUnknownModelFieldError } from "@/lib/prisma-missing-column";
@@ -144,20 +145,21 @@ export default async function TrainerDashboardHomePage() {
 
       {showOnboardingFeeBanner ? (
         <section className="mx-auto max-w-2xl rounded-2xl border border-[#FF7E00]/35 bg-[#FF7E00]/10 px-5 py-4 text-sm leading-relaxed text-white/85">
-          <p className="font-black uppercase tracking-[0.12em] text-[#FFD34E]">Onboarding fee due</p>
+          <p className="font-black uppercase tracking-[0.12em] text-[#FFD34E]">Begin onboarding</p>
           <p className="mt-2">
-            Place your temporary signup fee hold within{" "}
+            Start onboarding within{" "}
             <span className="font-semibold text-white">
               {onboardingFeeDaysLeft === 0 ? "today" : `${onboardingFeeDaysLeft} day${onboardingFeeDaysLeft === 1 ? "" : "s"}`}
             </span>{" "}
-            to keep your account active. You can upload certification and complete background screening while you finish
-            payment.
+            of sign-up ({TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS}-day window). Pay your background check through our portal
+            and upload certification to keep your account active. You cannot sell services until every requirement is
+            completed.
           </p>
           <Link
             href="/trainer/signup/payment"
             className="mt-4 inline-flex min-h-[2.75rem] items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-5 text-xs font-black uppercase tracking-[0.08em] text-[#0B0C0F]"
           >
-            Place fee hold
+            Pay background check
           </Link>
         </section>
       ) : null}

@@ -36,7 +36,7 @@ export async function createTrainerRegistrationFeeCheckoutSession(args: {
 
   const modeLabel =
     args.pricingMode === "FOUNDING_BG_SURCHARGE_20PCT"
-      ? "Founding coach — 20% of background check"
+      ? "Founding coach — background check through Match Fit"
       : "Platform registration (after background check credit)";
 
   const metadata: Record<string, string> = {

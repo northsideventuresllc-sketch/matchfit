@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-11** `1.8.5-beta` → `1.8.6-beta` (**patch** — Align trainer founding promo UI copy: 60-day Premium, background-check-only fee, 7-day onboarding start, no selling until complete)
 - **2026-06-11** `1.8.4-beta` → `1.8.5-beta` (**patch**)
 - **2026-06-11** `1.8.3-beta` → `1.8.4-beta` (**patch** — Fix CI blockers: lint, typecheck, dual beta pool promo stats)
 - **2026-06-11** `1.8.2-beta` → `1.8.3-beta` (**patch** — Content Hub save schema self-heal and actionable errors)

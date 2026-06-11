@@ -2,6 +2,13 @@ import type { TrainerRegistrationPricingMode } from "@/lib/match-fit-launch-prom
 import { computeTrainerSignupEscrowSplit } from "@/lib/trainer-signup-escrow-split";
 import { trainerBackgroundCheckAmountCents } from "@/lib/trainer-background-check-fee";
 import { TRAINER_PLATFORM_REGISTRATION_FEE_CENTS } from "@/lib/trainer-platform-registration-fee";
+import {
+  TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE,
+  TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS,
+  TRAINER_SIGNUP_PREMIUM_PROMO_DAYS,
+  TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL,
+  trainerSignupPremiumPromoBenefitLabel,
+} from "@/lib/trainer-signup-promo-copy";
 
 function formatUsd(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -9,11 +16,11 @@ function formatUsd(cents: number): string {
 
 /** Short overview on the first signup page — no payment jargon yet. */
 export const TRAINER_SIGNUP_FLOW_OVERVIEW =
-  "How trainer signup works: (1) enter your account details and verify email, (2) accept the trainer agreement — your account is created automatically, (3) finish certification and background screening from your dashboard within 7 days, and place your onboarding fee holds before the deadline. Match Fit captures the background-check portion when Checkr screening runs, and captures the platform portion only after your documents and background check are approved.";
+  `How trainer signup works: (1) enter your account details and verify email, (2) accept the trainer agreement — your account is created automatically, (3) begin onboarding within ${TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up by paying your background check through our portal and uploading certification from your dashboard. Founding coaches receive ${trainerSignupPremiumPromoBenefitLabel()} at sign-up and do not pay the ${TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL} platform registration fee during the promo. ${TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}`;
 
 /** Payment step headline helper text — explains hold vs charge. */
 export const TRAINER_SIGNUP_PAYMENT_INTRO =
-  "This step places two temporary holds on your card: one for background screening and one for the Match Fit platform onboarding fee. Your bank may list them as pending — Match Fit does not capture (charge) them until the rules below are met.";
+  "This step pays your background check through Match Fit's portal (plus card processing). During the founding coach promo, there is no separate platform registration fee hold. Match Fit does not capture charges until the rules below are met.";
 
 export function trainerSignupPaymentHoldExplanation(pricingMode: TrainerRegistrationPricingMode): string {
   const split = computeTrainerSignupEscrowSplit(pricingMode);
@@ -21,15 +28,15 @@ export function trainerSignupPaymentHoldExplanation(pricingMode: TrainerRegistra
   const platformLabel = formatUsd(split.platformEscrowCents);
 
   if (pricingMode === "FOUNDING_BG_SURCHARGE_20PCT") {
-    return `Founding coach pricing: today's holds include an estimated ${bgLabel} background screening portion plus a ${platformLabel} Match Fit platform portion (20% of the screening estimate), plus card processing on each slice. When Checkr screening completes — whether it clears or not — the screening portion is captured so Match Fit can pay Checkr. The platform portion stays on hold until certification and screening review finish. If you are fully approved, the platform portion is captured. If you are not approved, the platform hold is released.`;
+    return `Founding coach promo: pay an estimated ${bgLabel} background screening fee through Match Fit's portal (plus card processing). You receive ${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Premium Page access at sign-up and do not pay the ${TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL} platform registration fee during this promo. When Checkr screening completes, the screening portion is captured so Match Fit can pay Checkr. You must begin onboarding within ${TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up. ${TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}`;
   }
 
   const listPrice = formatUsd(TRAINER_PLATFORM_REGISTRATION_FEE_CENTS);
-  return `Standard pricing: today's holds total up to ${listPrice} — an estimated ${bgLabel} background screening portion plus a ${platformLabel} Match Fit platform balance, plus card processing on each slice. When Checkr screening completes, the screening portion is captured for Checkr. The platform portion stays on hold until review finishes. If you are fully approved, the platform portion is captured. If you are not approved, the platform hold is released.`;
+  return `Standard pricing: today's holds total up to ${listPrice} — an estimated ${bgLabel} background screening portion plus a ${platformLabel} Match Fit platform balance, plus card processing on each slice. When Checkr screening completes, the screening portion is captured for Checkr. The platform portion stays on hold until review finishes. If you are fully approved, the platform portion is captured. If you are not approved, the platform hold is released. You must begin onboarding within ${TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up. ${TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}`;
 }
 
 export const TRAINER_SIGNUP_PAYMENT_AFTER_HOLD_NOTE =
-  "After both holds are placed, you'll unlock your limited dashboard to upload certification, tax forms, and complete background screening. Uncaptured holds expire automatically per your card issuer's rules.";
+  "After payment is set up, you'll unlock your limited dashboard to upload certification, tax forms, and complete background screening. You still cannot sell services until every onboarding requirement is approved.";
 
 export function trainerSignupPaymentAfterHoldNote(): string {
   return TRAINER_SIGNUP_PAYMENT_AFTER_HOLD_NOTE;
