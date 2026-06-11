@@ -85,3 +85,34 @@ export function formatMessageTimestamp(iso: string): string {
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
+
+export const NEW_CONVERSATION_TITLE = "NEW CONVERSATION";
+
+/** Display default conversation titles in all caps for the operator UI. */
+export function formatConversationTitleForDisplay(title: string | null | undefined): string {
+  const trimmed = (title ?? "").trim();
+  if (!trimmed || trimmed.toLowerCase() === "new conversation" || trimmed.toLowerCase() === "start a conversation") {
+    return NEW_CONVERSATION_TITLE;
+  }
+  return trimmed;
+}
+
+export type AssistantStatsSnapshotInput = {
+  totalActiveMembers: number;
+  subscribedClients: number;
+  compliantActiveTrainers: number;
+  pendingTrainers: number;
+  freeTrialClients: number;
+  uniqueVisitors7d: number;
+};
+
+/** Matches dashboard member overview semantics — not live online users. */
+export function formatAssistantStatsSnapshot(input: AssistantStatsSnapshotInput): {
+  line: string;
+  hint: string;
+} {
+  return {
+    line: `${input.totalActiveMembers} total active members · ${input.subscribedClients} subscribed clients · ${input.compliantActiveTrainers} active trainers · ${input.pendingTrainers} pending trainers · ${input.freeTrialClients} free trials · ${input.uniqueVisitors7d} visitors (7d)`,
+    hint: "Total active members = clients in good standing + onboarded active trainers + pending trainers (matches dashboard).",
+  };
+}

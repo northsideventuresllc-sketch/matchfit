@@ -193,23 +193,23 @@ export function AdTrackingClient() {
         <AdminPortalBetaNotice className="mt-0" />
 
         <section className={`${adminCardClass} border-[#FF7E00]/15 bg-[#FF7E00]/[0.04]`}>
-          <p className={adminSectionTitleClass}>Start here</p>
+          <p className={adminSectionTitleClass}>INSTRUCTIONS</p>
           <h2 className="mt-2 text-lg font-bold">How to use this page</h2>
           <ol className="mt-3 space-y-2 text-sm leading-relaxed text-white/60">
             <li>
-              <strong className="text-white/85">Step 1 — Confirm tags:</strong> Check that Meta and Google IDs below match
+              <strong className="text-white/85">Step 1 — Confirm Tags:</strong> Check that Meta and Google IDs below match
               what you see in Events Manager and Google Ads.
             </li>
             <li>
-              <strong className="text-white/85">Step 2 — Build links:</strong> Use the campaign link builder and paste the
+              <strong className="text-white/85">Step 2 — Build Links:</strong> Use the campaign link builder and paste the
               final URL into your ad creative (not the homepage without tracking).
             </li>
             <li>
-              <strong className="text-white/85">Step 3 — Match conversions:</strong> In Meta and Google, create conversion
+              <strong className="text-white/85">Step 3 — Match Conversions:</strong> In Meta and Google, create conversion
               goals using the event names in the catalog — Match Fit fires these automatically on sign-up.
             </li>
             <li>
-              <strong className="text-white/85">Step 4 — Review results:</strong> Sync performance and compare ad platform
+              <strong className="text-white/85">Step 4 — Review Results:</strong> Sync performance and compare ad platform
               numbers with on-site attribution.
             </li>
           </ol>

@@ -4,9 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AdminPortalShell } from "@/components/admin/admin-portal-shell";
 import {
   ADMIN_AI_QUICK_PROMPTS,
+  formatAssistantStatsSnapshot,
+  formatConversationTitleForDisplay,
   formatConversationTimestamp,
   formatMessageTimestamp,
   formatUserMessageForDisplay,
+  NEW_CONVERSATION_TITLE,
 } from "@/lib/admin-assistant-labels";
 import {
   adminPortalCardClass,
@@ -87,6 +90,7 @@ export function AdminAssistantClient() {
   const [showPastChats, setShowPastChats] = useState(false);
   const [showQuickPrompts, setShowQuickPrompts] = useState(true);
   const [statsLine, setStatsLine] = useState<string | null>(null);
+  const [statsHint, setStatsHint] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const initialConversationSelected = useRef(false);
 
@@ -128,14 +132,23 @@ export function AdminAssistantClient() {
               totalActiveMembers: number;
               subscribedClients: number;
               freeTrialClients: number;
+              compliantActiveTrainers: number;
+              pendingTrainers: number;
             };
             traffic?: { uniqueVisitors: number };
           } | null,
         ) => {
           if (!data?.memberOverview) return;
-          setStatsLine(
-            `${data.memberOverview.totalActiveMembers} active members · ${data.memberOverview.subscribedClients} subscribers · ${data.memberOverview.freeTrialClients} free trials · ${data.traffic?.uniqueVisitors ?? 0} visitors (7d)`,
-          );
+          const snapshot = formatAssistantStatsSnapshot({
+            totalActiveMembers: data.memberOverview.totalActiveMembers,
+            subscribedClients: data.memberOverview.subscribedClients,
+            compliantActiveTrainers: data.memberOverview.compliantActiveTrainers,
+            pendingTrainers: data.memberOverview.pendingTrainers,
+            freeTrialClients: data.memberOverview.freeTrialClients,
+            uniqueVisitors7d: data.traffic?.uniqueVisitors ?? 0,
+          });
+          setStatsLine(snapshot.line);
+          setStatsHint(snapshot.hint);
         },
       )
       .catch(() => {});
@@ -282,7 +295,7 @@ export function AdminAssistantClient() {
       description="Ask questions about traffic, sign-ups, goals, and platform health."
       headerActions={
         <button type="button" onClick={() => void startNewChat()} className={adminPortalPrimaryButtonClass}>
-          New Chat
+          {NEW_CONVERSATION_TITLE}
         </button>
       }
       contentClassName="flex flex-col gap-4 lg:gap-6"
@@ -291,8 +304,8 @@ export function AdminAssistantClient() {
         <div className="border-b border-white/[0.06] px-4 py-3 sm:px-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-white/90">
-                {activeConversation?.title ?? "Start a conversation"}
+              <p className="text-sm font-semibold uppercase tracking-[0.08em] text-white/90">
+                {formatConversationTitleForDisplay(activeConversation?.title)}
               </p>
               <p className="mt-1 text-xs text-white/45">
                 {activeConversation
@@ -476,6 +489,7 @@ export function AdminAssistantClient() {
           <div className="rounded-2xl border border-[#FF7E00]/20 bg-[#FF7E00]/[0.06] px-4 py-3">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#FFD34E]/90">Live Stats Snapshot</p>
             <p className="mt-1 text-sm text-white/75">{statsLine}</p>
+            {statsHint ? <p className="mt-1 text-[11px] text-white/40">{statsHint}</p> : null}
             <button
               type="button"
               disabled={busy}

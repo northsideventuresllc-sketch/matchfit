@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatAssistantStatsSnapshot,
+  formatConversationTitleForDisplay,
   formatUserMessageForDisplay,
   sanitizeAssistantMessageForDisplay,
 } from "@/lib/admin-assistant-labels";
@@ -32,5 +34,35 @@ describe("formatUserMessageForDisplay", () => {
     expect(formatUserMessageForDisplay("How are trainer sign-ups trending?", "freeform")).toBe(
       "How are trainer sign-ups trending?",
     );
+  });
+});
+
+describe("formatConversationTitleForDisplay", () => {
+  it("shows NEW CONVERSATION for default titles", () => {
+    expect(formatConversationTitleForDisplay("New conversation")).toBe("NEW CONVERSATION");
+    expect(formatConversationTitleForDisplay("Start a conversation")).toBe("NEW CONVERSATION");
+    expect(formatConversationTitleForDisplay(null)).toBe("NEW CONVERSATION");
+  });
+
+  it("preserves custom conversation titles", () => {
+    expect(formatConversationTitleForDisplay("Weekly sign-up review")).toBe("Weekly sign-up review");
+  });
+});
+
+describe("formatAssistantStatsSnapshot", () => {
+  it("uses dashboard-aligned member labels and includes trainer breakdown", () => {
+    const result = formatAssistantStatsSnapshot({
+      totalActiveMembers: 64,
+      subscribedClients: 12,
+      compliantActiveTrainers: 20,
+      pendingTrainers: 4,
+      freeTrialClients: 7,
+      uniqueVisitors7d: 99,
+    });
+
+    expect(result.line).toBe(
+      "64 total active members · 12 subscribed clients · 20 active trainers · 4 pending trainers · 7 free trials · 99 visitors (7d)",
+    );
+    expect(result.hint).toContain("matches dashboard");
   });
 });
