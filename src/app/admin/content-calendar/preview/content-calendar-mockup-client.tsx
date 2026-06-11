@@ -11,7 +11,6 @@ import {
 } from "@/lib/content-calendar/constants";
 import type { ClientContentPost } from "@/lib/content-calendar/content-calendar-store";
 import {
-  BulkContentGeneratorPanel,
   ContentGeneratorPanel,
   ContentHubPanel,
   ScheduleCalendar,

@@ -52,17 +52,6 @@ function mockFailingOpenAiCall() {
   return mockFetch;
 }
 
-function mockSuccessfulOpenAiCall(text: string) {
-  const mockFetch = vi.fn().mockResolvedValue({
-    ok: true,
-    json: async () => ({
-      choices: [{ message: { content: text } }],
-    }),
-  });
-  vi.stubGlobal("fetch", mockFetch);
-  return mockFetch;
-}
-
 function mockFailingAnthropicCall() {
   const mockFetch = vi.fn().mockResolvedValue({
     ok: false,

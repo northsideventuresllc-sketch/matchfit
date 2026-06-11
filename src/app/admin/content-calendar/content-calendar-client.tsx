@@ -31,17 +31,16 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
   const [hubPosts, setHubPosts] = useState<ClientContentPost[]>([]);
   const [scheduledPosts, setScheduledPosts] = useState<ClientContentPost[]>([]);
   const [hubLoading, setHubLoading] = useState(false);
-  const [autoPurge, setAutoPurge] = useState(false);
+  const [autoPurge, setAutoPurge] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return localStorage.getItem(AUTO_PURGE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
   const [promptDismissedIds, setPromptDismissedIds] = useState<Set<string>>(new Set());
   const [promptBusy, setPromptBusy] = useState(false);
-
-  useEffect(() => {
-    try {
-      setAutoPurge(localStorage.getItem(AUTO_PURGE_KEY) === "1");
-    } catch {
-      /* ignore */
-    }
-  }, []);
 
   const loadHub = useCallback(async () => {
     setHubLoading(true);
