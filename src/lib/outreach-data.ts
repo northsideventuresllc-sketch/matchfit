@@ -5,6 +5,7 @@ import type {
   EmailLeadRow,
   FacebookLeadRow,
   InstagramLeadRow,
+  OutreachArchiveLead,
   OutreachHubLead,
   OutreachLeadStatus,
   OutreachPlatform,
@@ -46,6 +47,9 @@ function serializeInstagramLead(
     createdAt: r.createdAt.toISOString(),
     deletedAt: serializeDate(r.deletedAt),
     savedToHubAt: serializeDate(r.savedToHubAt),
+    deadLeadAt: serializeDate(r.deadLeadAt),
+    archivedAt: serializeDate(r.archivedAt),
+    archivePurgeAfterAt: serializeDate(r.archivePurgeAfterAt),
     outreachSentAt: serializeDate(r.outreachSentAt),
     followUp1SentAt: serializeDate(r.followUp1SentAt),
     followUp2SentAt: serializeDate(r.followUp2SentAt),
@@ -70,6 +74,9 @@ function serializeFacebookLead(
     createdAt: r.createdAt.toISOString(),
     deletedAt: serializeDate(r.deletedAt),
     savedToHubAt: serializeDate(r.savedToHubAt),
+    deadLeadAt: serializeDate(r.deadLeadAt),
+    archivedAt: serializeDate(r.archivedAt),
+    archivePurgeAfterAt: serializeDate(r.archivePurgeAfterAt),
     outreachSentAt: serializeDate(r.outreachSentAt),
     responseReceivedAt: serializeDate(r.responseReceivedAt),
   };
@@ -92,6 +99,9 @@ function serializeEmailLead(
     createdAt: r.createdAt.toISOString(),
     deletedAt: serializeDate(r.deletedAt),
     savedToHubAt: serializeDate(r.savedToHubAt),
+    deadLeadAt: serializeDate(r.deadLeadAt),
+    archivedAt: serializeDate(r.archivedAt),
+    archivePurgeAfterAt: serializeDate(r.archivePurgeAfterAt),
     outreachSentAt: serializeDate(r.outreachSentAt),
     followUp1SentAt: serializeDate(r.followUp1SentAt),
     followUp2SentAt: serializeDate(r.followUp2SentAt),
@@ -99,9 +109,17 @@ function serializeEmailLead(
   };
 }
 
+/** Active generation-page leads: not saved to hub, not dead, not archived. */
+const generationLeadWhere = {
+  deletedAt: null,
+  savedToHubAt: null,
+  archivedAt: null,
+  status: { not: "DEAD_LEAD" },
+} as const;
+
 export async function listOutreachLeads(platform: OutreachPlatform, includeDeleted = false) {
   await ensureOutreachReady();
-  const where = includeDeleted ? {} : { deletedAt: null };
+  const where = includeDeleted ? {} : generationLeadWhere;
 
   if (platform === "instagram") {
     const rows = await prisma.outreachInstagramLead.findMany({
@@ -124,9 +142,52 @@ export async function listOutreachLeads(platform: OutreachPlatform, includeDelet
   return [];
 }
 
+export async function listOutreachArchiveLeads(): Promise<OutreachArchiveLead[]> {
+  await ensureOutreachReady();
+  const archiveWhere = { deletedAt: null, archivedAt: { not: null } as const };
+
+  const [instagram, facebook, email] = await Promise.all([
+    prisma.outreachInstagramLead.findMany({ where: archiveWhere, orderBy: { archivedAt: "desc" } }),
+    prisma.outreachFacebookLead.findMany({ where: archiveWhere, orderBy: { archivedAt: "desc" } }),
+    prisma.outreachEmailLead.findMany({ where: archiveWhere, orderBy: { archivedAt: "desc" } }),
+  ]);
+
+  const combined: OutreachArchiveLead[] = [
+    ...instagram.map((r) => ({
+      platform: "instagram" as const,
+      archivedAt: r.archivedAt!.toISOString(),
+      deadLeadAt: serializeDate(r.deadLeadAt),
+      archivePurgeAfterAt: serializeDate(r.archivePurgeAfterAt),
+      lead: serializeInstagramLead(r),
+    })),
+    ...facebook.map((r) => ({
+      platform: "facebook" as const,
+      archivedAt: r.archivedAt!.toISOString(),
+      deadLeadAt: serializeDate(r.deadLeadAt),
+      archivePurgeAfterAt: serializeDate(r.archivePurgeAfterAt),
+      lead: serializeFacebookLead(r),
+    })),
+    ...email.map((r) => ({
+      platform: "email" as const,
+      archivedAt: r.archivedAt!.toISOString(),
+      deadLeadAt: serializeDate(r.deadLeadAt),
+      archivePurgeAfterAt: serializeDate(r.archivePurgeAfterAt),
+      lead: serializeEmailLead(r),
+    })),
+  ];
+
+  return combined.sort(
+    (a, b) => new Date(b.archivedAt ?? 0).getTime() - new Date(a.archivedAt ?? 0).getTime(),
+  );
+}
+
 export async function listOutreachHubLeads(): Promise<OutreachHubLead[]> {
   await ensureOutreachReady();
-  const hubWhere = { deletedAt: null, savedToHubAt: { not: null } as const };
+  const hubWhere = {
+    deletedAt: null,
+    savedToHubAt: { not: null } as const,
+    archivedAt: null,
+  };
 
   const [instagram, facebook, email] = await Promise.all([
     prisma.outreachInstagramLead.findMany({ where: hubWhere, orderBy: { savedToHubAt: "desc" } }),
@@ -240,8 +301,15 @@ export type MassDeleteOutreachInput =
   | { mode: "ids"; ids: string[] };
 
 export function buildMassDeleteOutreachWhere(input: MassDeleteOutreachInput) {
-  const where: { deletedAt: null; generationBatchId?: string; id?: { in: string[] } } = {
-    deletedAt: null,
+  const where: {
+    deletedAt: null;
+    savedToHubAt: null;
+    archivedAt: null;
+    status: { not: string };
+    generationBatchId?: string;
+    id?: { in: string[] };
+  } = {
+    ...generationLeadWhere,
   };
 
   if (input.mode === "batch") {
@@ -352,6 +420,8 @@ export async function updateOutreachLead(
       ...stamps,
       createdAt: existing.createdAt,
     });
+    const deadLeadAt =
+      status === "DEAD_LEAD" && !existing.deadLeadAt ? new Date() : status !== "DEAD_LEAD" ? null : undefined;
     return prisma.outreachInstagramLead.update({
       where: { id },
       data: {
@@ -362,6 +432,7 @@ export async function updateOutreachLead(
         commentTextEdited: patch.commentTextEdited === true ? true : undefined,
         autoClassification,
         savedToHubAt: patch.saveToHub === true ? new Date() : undefined,
+        deadLeadAt,
         ...stamps,
       },
     });
@@ -375,6 +446,8 @@ export async function updateOutreachLead(
       outreachSentAt: existing.outreachSentAt,
       responseReceivedAt: existing.responseReceivedAt,
     });
+    const deadLeadAt =
+      status === "DEAD_LEAD" && !existing.deadLeadAt ? new Date() : status !== "DEAD_LEAD" ? null : undefined;
     return prisma.outreachFacebookLead.update({
       where: { id },
       data: {
@@ -391,6 +464,7 @@ export async function updateOutreachLead(
           createdAt: existing.createdAt,
         }),
         savedToHubAt: patch.saveToHub === true ? new Date() : undefined,
+        deadLeadAt,
         outreachSentAt: stamps.outreachSentAt,
         responseReceivedAt: stamps.responseReceivedAt,
       },
@@ -407,6 +481,8 @@ export async function updateOutreachLead(
       followUp2SentAt: existing.followUp2SentAt,
       responseReceivedAt: existing.responseReceivedAt,
     });
+    const deadLeadAt =
+      status === "DEAD_LEAD" && !existing.deadLeadAt ? new Date() : status !== "DEAD_LEAD" ? null : undefined;
     return prisma.outreachEmailLead.update({
       where: { id },
       data: {
@@ -421,6 +497,7 @@ export async function updateOutreachLead(
           createdAt: existing.createdAt,
         }),
         savedToHubAt: patch.saveToHub === true ? new Date() : undefined,
+        deadLeadAt,
         ...stamps,
       },
     });

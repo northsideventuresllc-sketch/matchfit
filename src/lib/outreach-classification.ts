@@ -20,6 +20,10 @@ export type OutreachTimeline = {
 export function classifyOutreachLead(input: OutreachTimeline): OutreachAutoClassification {
   const now = input.now ?? new Date();
 
+  if (input.status === "DEAD_LEAD") {
+    return "DEAD_LEAD";
+  }
+
   if (input.responseReceivedAt) {
     return "ACTIVE_LEAD";
   }

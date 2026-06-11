@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { massSaveOutreachLeadsToHub } from "@/lib/outreach-data";
+import { buildMassSaveOutreachWhere, massSaveOutreachLeadsToHub } from "@/lib/outreach-data";
+import { leadProfileForPlatform } from "@/lib/outreach-lead-profile";
+import { recordOutreachSavedToHubSignal } from "@/lib/outreach-learning";
 import { OUTREACH_PLATFORM_VALUES, type OutreachPlatform } from "@/lib/outreach-types";
 import { requireAdminSession } from "@/lib/require-admin";
+import { prisma } from "@/lib/prisma";
 
 const bulkSaveSchema = z.discriminatedUnion("mode", [
   z.object({
@@ -31,9 +34,43 @@ export async function POST(req: Request) {
   }
 
   const { platform, ...input } = parsed.data;
+  const outreachPlatform = platform as OutreachPlatform;
 
   try {
-    const { savedCount } = await massSaveOutreachLeadsToHub(platform as OutreachPlatform, input);
+    const where = { ...buildMassSaveOutreachWhere(input), savedToHubAt: null };
+    if (outreachPlatform === "instagram") {
+      const rows = await prisma.outreachInstagramLead.findMany({ where });
+      for (const row of rows) {
+        await recordOutreachSavedToHubSignal({
+          platform: "instagram",
+          leadId: row.id,
+          adminId: sess.adminId,
+          profile: leadProfileForPlatform("instagram", row),
+        });
+      }
+    } else if (outreachPlatform === "facebook") {
+      const rows = await prisma.outreachFacebookLead.findMany({ where });
+      for (const row of rows) {
+        await recordOutreachSavedToHubSignal({
+          platform: "facebook",
+          leadId: row.id,
+          adminId: sess.adminId,
+          profile: leadProfileForPlatform("facebook", row),
+        });
+      }
+    } else if (outreachPlatform === "email") {
+      const rows = await prisma.outreachEmailLead.findMany({ where });
+      for (const row of rows) {
+        await recordOutreachSavedToHubSignal({
+          platform: "email",
+          leadId: row.id,
+          adminId: sess.adminId,
+          profile: leadProfileForPlatform("email", row),
+        });
+      }
+    }
+
+    const { savedCount } = await massSaveOutreachLeadsToHub(outreachPlatform, input);
     return NextResponse.json({ ok: true, savedCount });
   } catch (e) {
     console.error("[outreach leads bulk-save]", e);

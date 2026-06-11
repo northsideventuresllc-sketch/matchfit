@@ -7,8 +7,13 @@ import {
 import type { OutreachHubLead } from "@/lib/outreach-types";
 
 describe("buildMassDeleteOutreachWhere", () => {
-  it("scopes delete-all to active leads only", () => {
-    expect(buildMassDeleteOutreachWhere({ mode: "all" })).toEqual({ deletedAt: null });
+  it("scopes delete-all to active generation leads only", () => {
+    expect(buildMassDeleteOutreachWhere({ mode: "all" })).toEqual({
+      deletedAt: null,
+      savedToHubAt: null,
+      archivedAt: null,
+      status: { not: "DEAD_LEAD" },
+    });
   });
 
   it("scopes delete-batch to a generation batch", () => {
@@ -16,6 +21,9 @@ describe("buildMassDeleteOutreachWhere", () => {
       buildMassDeleteOutreachWhere({ mode: "batch", generationBatchId: "batch_123_admin" }),
     ).toEqual({
       deletedAt: null,
+      savedToHubAt: null,
+      archivedAt: null,
+      status: { not: "DEAD_LEAD" },
       generationBatchId: "batch_123_admin",
     });
   });
@@ -23,6 +31,9 @@ describe("buildMassDeleteOutreachWhere", () => {
   it("scopes delete-ids to selected active leads", () => {
     expect(buildMassDeleteOutreachWhere({ mode: "ids", ids: ["a", "b"] })).toEqual({
       deletedAt: null,
+      savedToHubAt: null,
+      archivedAt: null,
+      status: { not: "DEAD_LEAD" },
       id: { in: ["a", "b"] },
     });
   });
@@ -30,9 +41,17 @@ describe("buildMassDeleteOutreachWhere", () => {
 
 describe("buildMassSaveOutreachWhere", () => {
   it("uses the same active-lead scope as bulk delete", () => {
-    expect(buildMassSaveOutreachWhere({ mode: "all" })).toEqual({ deletedAt: null });
+    expect(buildMassSaveOutreachWhere({ mode: "all" })).toEqual({
+      deletedAt: null,
+      savedToHubAt: null,
+      archivedAt: null,
+      status: { not: "DEAD_LEAD" },
+    });
     expect(buildMassSaveOutreachWhere({ mode: "batch", generationBatchId: "batch_1" })).toEqual({
       deletedAt: null,
+      savedToHubAt: null,
+      archivedAt: null,
+      status: { not: "DEAD_LEAD" },
       generationBatchId: "batch_1",
     });
   });
@@ -69,6 +88,9 @@ describe("buildOutreachHubCsv", () => {
           createdAt: "2026-06-08T12:00:00.000Z",
           deletedAt: null,
           savedToHubAt: "2026-06-09T12:00:00.000Z",
+          deadLeadAt: null,
+          archivedAt: null,
+          archivePurgeAfterAt: null,
         },
       },
     ];

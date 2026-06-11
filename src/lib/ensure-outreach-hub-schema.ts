@@ -215,6 +215,48 @@ CREATE INDEX IF NOT EXISTS "outreach_email_leads_deletedAt_savedToHubAt_idx"
   ON "outreach_email_leads"("deletedAt", "savedToHubAt");
 `;
 
+const OUTREACH_DEAD_LEAD_ARCHIVE_DDL = `
+ALTER TABLE "outreach_instagram_leads"
+  ADD COLUMN IF NOT EXISTS "deadLeadAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "archivedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "archivePurgeAfterAt" TIMESTAMP(3);
+ALTER TABLE "outreach_facebook_leads"
+  ADD COLUMN IF NOT EXISTS "deadLeadAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "archivedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "archivePurgeAfterAt" TIMESTAMP(3);
+ALTER TABLE "outreach_email_leads"
+  ADD COLUMN IF NOT EXISTS "deadLeadAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "archivedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "archivePurgeAfterAt" TIMESTAMP(3);
+
+ALTER TABLE "outreach_learning_signals"
+  ADD COLUMN IF NOT EXISTS "adminId" TEXT;
+
+CREATE INDEX IF NOT EXISTS "outreach_instagram_leads_archivedAt_archivePurgeAfterAt_idx"
+  ON "outreach_instagram_leads"("archivedAt", "archivePurgeAfterAt");
+CREATE INDEX IF NOT EXISTS "outreach_facebook_leads_archivedAt_archivePurgeAfterAt_idx"
+  ON "outreach_facebook_leads"("archivedAt", "archivePurgeAfterAt");
+CREATE INDEX IF NOT EXISTS "outreach_email_leads_archivedAt_archivePurgeAfterAt_idx"
+  ON "outreach_email_leads"("archivedAt", "archivePurgeAfterAt");
+CREATE INDEX IF NOT EXISTS "outreach_learning_signals_adminId_signalType_createdAt_idx"
+  ON "outreach_learning_signals"("adminId", "signalType", "createdAt");
+`;
+
+async function countOutreachDeadLeadArchiveColumns(): Promise<number> {
+  const rows = await prisma.$queryRaw<{ count: bigint }[]>`
+    SELECT COUNT(*)::bigint AS "count"
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name IN (
+        'outreach_instagram_leads',
+        'outreach_facebook_leads',
+        'outreach_email_leads'
+      )
+      AND column_name = 'deadLeadAt'
+  `;
+  return Number(rows[0]?.count ?? 0);
+}
+
 /**
  * Applies outreach HQ DDL idempotently when production missed
  * `20260606120000_outreach_hq` and/or `20260609120000_outreach_hub_saved_at`.
@@ -224,16 +266,26 @@ export async function ensureOutreachHubSchema(): Promise<void> {
     await runOutreachDdl(OUTREACH_HQ_BASE_DDL);
   }
 
-  if ((await countOutreachHubSavedAtColumns()) >= OUTREACH_LEAD_TABLES.length) {
+  if ((await countOutreachHubSavedAtColumns()) < OUTREACH_LEAD_TABLES.length) {
+    await runOutreachDdl(OUTREACH_HUB_SAVED_AT_DDL);
+    const savedReady = await countOutreachHubSavedAtColumns();
+    if (savedReady < OUTREACH_LEAD_TABLES.length) {
+      throw new Error(
+        `[ensureOutreachHubSchema] savedToHubAt columns still missing after DDL (${savedReady}/${OUTREACH_LEAD_TABLES.length}). Set DIRECT_URL on the server and redeploy.`,
+      );
+    }
+  }
+
+  if ((await countOutreachDeadLeadArchiveColumns()) >= OUTREACH_LEAD_TABLES.length) {
     return;
   }
 
-  await runOutreachDdl(OUTREACH_HUB_SAVED_AT_DDL);
+  await runOutreachDdl(OUTREACH_DEAD_LEAD_ARCHIVE_DDL);
 
-  const ready = await countOutreachHubSavedAtColumns();
-  if (ready < OUTREACH_LEAD_TABLES.length) {
+  const archiveReady = await countOutreachDeadLeadArchiveColumns();
+  if (archiveReady < OUTREACH_LEAD_TABLES.length) {
     throw new Error(
-      `[ensureOutreachHubSchema] savedToHubAt columns still missing after DDL (${ready}/${OUTREACH_LEAD_TABLES.length}). Set DIRECT_URL on the server and redeploy.`,
+      `[ensureOutreachHubSchema] deadLeadAt columns still missing after DDL (${archiveReady}/${OUTREACH_LEAD_TABLES.length}). Set DIRECT_URL on the server and redeploy.`,
     );
   }
 }
