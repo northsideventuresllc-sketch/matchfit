@@ -1,0 +1,51 @@
+---
+description: Record Match Fit build knowledge to NI Brain (Northside Intelligence Brain)
+alwaysApply: true
+---
+
+# NI Brain learning (required on deployable work)
+
+NI Brain is the Northside Intelligence knowledge base (Supabase project `kxijunwgbrlfzvgkhklo`). Match Fit must continuously teach it how Northside tools are built.
+
+## When to record
+
+On any task that ships schema, architecture, workflows, or notable product logic:
+
+1. After finishing, call or extend `@/lib/ni-brain-client` helpers (`recordNiBrainLearning`, `recordNiBrainDecision`, `recordNiBrainBuildEvent`) when the change is architectural or operational.
+2. Run `npm run ni-brain:sync` when Prisma models, migrations, or core `src/lib/*` patterns change materially.
+3. Version bumps already log via `npm run version:bump` → `scripts/ni-brain-record-version.mjs`.
+
+## What to upload
+
+- Schema summaries (model names, migration ids), portal/workflow decisions, lib module conventions
+- Operator learnings (content calendar edits, outreach tone/outcomes)
+- Product version + reason from `version:bump`
+
+## Never upload
+
+- Passwords, API keys, JWTs, `DATABASE_URL`, Stripe secrets, user PII
+- Full source dumps — summarize patterns and decisions only
+- Raw `.env` contents
+
+## Env (server + scripts)
+
+```bash
+NI_BRAIN_SUPABASE_URL=https://kxijunwgbrlfzvgkhklo.supabase.co
+NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY=<service_role from Northside Intelligence Brain only>
+```
+
+The service role JWT `ref` must be `kxijunwgbrlfzvgkhklo` — not the Match Fit app project (`qtesdsxrfggdlxdaraaq`).
+
+## Tables
+
+| Table | Use |
+|-------|-----|
+| `Context` | `MATCH FIT — BUILD CONTEXT` auto-sync |
+| `Learnings` | Distilled lessons |
+| `Decisions` | Architecture / product decisions |
+| `arm3_weekly_logs` | Build events (`tool_slug`: `match-fit`) |
+| `match_fit_content_*` | Content calendar |
+
+## Completion
+
+On deployable tasks, state whether NI Brain was updated (sync run, learning recorded, or skipped because keys unset).

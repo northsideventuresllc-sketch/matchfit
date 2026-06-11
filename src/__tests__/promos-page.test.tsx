@@ -51,12 +51,18 @@ function makeStats(overrides?: Partial<LaunchPromoStats>): LaunchPromoStats {
     clientFoundingRemaining: 43,
     trainerFoundingActive: true,
     clientFoundingActive: true,
-    trainerBetaCap: 10,
+    trainerBetaCap: 30,
     clientBetaCap: 50,
-    trainerBetaSlotsUsed: 3,
+    trainerBetaSlotsUsed: 13,
     clientBetaSlotsUsed: 12,
-    trainerBetaSlotsRemaining: 7,
+    trainerBetaSlotsRemaining: 17,
     clientBetaSlotsRemaining: 38,
+    trainerBetaCapAtlanta: 10,
+    trainerBetaCapVirtual: 20,
+    trainerBetaSlotsUsedAtlanta: 3,
+    trainerBetaSlotsUsedVirtual: 10,
+    trainerBetaSlotsRemainingAtlanta: 7,
+    trainerBetaSlotsRemainingVirtual: 10,
     trainerWaitlistOpen: false,
     clientWaitlistOpen: false,
     ...overrides,
@@ -106,7 +112,8 @@ describe("promos page", () => {
     expect(html).toContain("Sign Up as a Client");
     expect(html).not.toContain("Join Trainer Waitlist");
     expect(html).not.toContain("Join Client Waitlist");
-    expect(html).toContain("Beta membership capacity: 3 / 10 slots used (7 open)");
+    expect(html).toContain("Atlanta in-person beta pool: 3 / 10 slots used (7 open)");
+    expect(html).toContain("Nationwide virtual/DIY beta pool: 10 / 20 slots used (10 open)");
     expect(html).toContain("Beta membership capacity: 12 / 50 slots used (38 open)");
   });
 
@@ -115,7 +122,8 @@ describe("promos page", () => {
       makeStats({
         trainerWaitlistOpen: true,
         clientWaitlistOpen: true,
-        trainerBetaSlotsRemaining: 0,
+        trainerBetaSlotsRemainingAtlanta: 0,
+        trainerBetaSlotsRemainingVirtual: 0,
         clientBetaSlotsRemaining: 0,
       }),
     );
@@ -126,7 +134,8 @@ describe("promos page", () => {
     expect(html).toContain("Join Trainer Waitlist");
     expect(html).toContain('href="/waitlist/client"');
     expect(html).toContain("Join Client Waitlist");
-    expect(html).toContain("Beta membership capacity: 3 / 10 slots used (full — waitlist open)");
+    expect(html).toContain("Atlanta in-person beta pool: 3 / 10 slots used (full)");
+    expect(html).toContain("Nationwide virtual/DIY beta pool: 10 / 20 slots used (full)");
     expect(html).toContain("Beta membership capacity: 12 / 50 slots used (full — waitlist open)");
     expect(html).not.toContain("Sign Up as a Trainer");
     expect(html).not.toContain("Sign Up as a Client");

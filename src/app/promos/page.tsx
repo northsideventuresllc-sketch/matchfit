@@ -33,10 +33,14 @@ export default async function PromosPage() {
     clientFoundingRemaining,
     trainerFoundingActive,
     clientFoundingActive,
-    trainerBetaCap,
     clientBetaCap,
-    trainerBetaSlotsRemaining,
     clientBetaSlotsRemaining,
+    trainerBetaCapAtlanta,
+    trainerBetaCapVirtual,
+    trainerBetaSlotsUsedAtlanta,
+    trainerBetaSlotsUsedVirtual,
+    trainerBetaSlotsRemainingAtlanta,
+    trainerBetaSlotsRemainingVirtual,
     trainerWaitlistOpen,
     clientWaitlistOpen,
   } = stats;
@@ -159,12 +163,20 @@ export default async function PromosPage() {
               </div>
 
               {stats.gatesEnabled ? (
-                <p className="mt-4 text-[11px] text-white/40">
-                  Beta membership capacity: {stats.trainerBetaSlotsUsed} / {trainerBetaCap} slots used
-                  {trainerBetaSlotsRemaining > 0
-                    ? ` (${trainerBetaSlotsRemaining} open)`
-                    : " (full — waitlist open)"}
-                </p>
+                <div className="mt-4 space-y-1 text-[11px] text-white/40">
+                  <p>
+                    Atlanta in-person beta pool: {trainerBetaSlotsUsedAtlanta} / {trainerBetaCapAtlanta} slots used
+                    {trainerBetaSlotsRemainingAtlanta > 0
+                      ? ` (${trainerBetaSlotsRemainingAtlanta} open)`
+                      : " (full)"}
+                  </p>
+                  <p>
+                    Nationwide virtual/DIY beta pool: {trainerBetaSlotsUsedVirtual} / {trainerBetaCapVirtual} slots used
+                    {trainerBetaSlotsRemainingVirtual > 0
+                      ? ` (${trainerBetaSlotsRemainingVirtual} open)`
+                      : " (full)"}
+                  </p>
+                </div>
               ) : null}
 
               <div className="mt-6">

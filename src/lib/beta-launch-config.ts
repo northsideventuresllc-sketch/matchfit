@@ -40,6 +40,19 @@ export function betaMaxTrainers(): number {
   return parsePositiveInt(process.env.MATCH_FIT_BETA_MAX_TRAINERS, 10);
 }
 
+/** Atlanta in-person trainer cap during beta. Legacy `MATCH_FIT_BETA_MAX_TRAINERS` maps here when unset. */
+export function betaMaxTrainersAtlanta(): number {
+  return parsePositiveInt(
+    process.env.MATCH_FIT_BETA_MAX_TRAINERS_ATLANTA,
+    betaMaxTrainers(),
+  );
+}
+
+/** Nationwide virtual/DIY trainer cap during beta. */
+export function betaMaxTrainersVirtual(): number {
+  return parsePositiveInt(process.env.MATCH_FIT_BETA_MAX_TRAINERS_VIRTUAL, 20);
+}
+
 export function betaMaxClients(): number {
   return parsePositiveInt(process.env.MATCH_FIT_BETA_MAX_CLIENTS, 50);
 }

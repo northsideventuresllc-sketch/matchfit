@@ -91,6 +91,15 @@ function mergeLaunchDefaults(map, { local }) {
   }
 
   map.set("MATCH_FIT_BETA_GATES_ENABLED", "1");
+  if (!map.get("MATCH_FIT_BETA_MAX_TRAINERS_ATLANTA")) {
+    map.set(
+      "MATCH_FIT_BETA_MAX_TRAINERS_ATLANTA",
+      map.get("MATCH_FIT_BETA_MAX_TRAINERS") || "10",
+    );
+  }
+  if (!map.get("MATCH_FIT_BETA_MAX_TRAINERS_VIRTUAL")) {
+    map.set("MATCH_FIT_BETA_MAX_TRAINERS_VIRTUAL", "20");
+  }
   if (!map.get("MATCH_FIT_BETA_MAX_TRAINERS")) map.set("MATCH_FIT_BETA_MAX_TRAINERS", "10");
   if (!map.get("MATCH_FIT_BETA_MAX_CLIENTS")) map.set("MATCH_FIT_BETA_MAX_CLIENTS", "50");
 

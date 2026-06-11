@@ -1069,6 +1069,8 @@ model TrainerProfile {
   registrationFeePaidCents Int?
   /// Primary service ZIP (Atlanta beta); used for matching and display.
   serviceZipCode String?
+  /// When Atlanta in-person slots are full, overflow trainers keep a virtual-only founding slot.
+  virtualOnlyBetaSlot Boolean @default(false)
   /// Vendor pipeline: NOT_STARTED | PENDING | APPROVED | NEEDS_FURTHER_REVIEW | DENIED
   backgroundCheckStatus String @default("NOT_STARTED")
 
@@ -2073,6 +2075,8 @@ model BetaTrainerWaitlistEntry {
   inviteToken     String?   @unique
   invitedAt       DateTime?
   slotExpiresAt   DateTime?
+  /// atlanta | virtual — pool the invite reserves when both caps can diverge.
+  invitedBetaPool String?
 
   registeredTrainerId String? @unique
 

@@ -1,0 +1,42 @@
+# Push Match Fit build knowledge to NI Brain after merges to main.
+# Requires repository secrets:
+#   NI_BRAIN_SUPABASE_URL=https://kxijunwgbrlfzvgkhklo.supabase.co
+#   NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY=<Northside Intelligence Brain service_role>
+
+name: NI Brain Match Fit sync
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "prisma/**"
+      - "src/lib/**"
+      - "package.json"
+      - "AGENTS.md"
+      - "scripts/ni-brain-*.mjs"
+  workflow_dispatch: {}
+
+jobs:
+  ni-brain-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync build context to NI Brain
+        env:
+          NI_BRAIN_SUPABASE_URL: ${{ secrets.NI_BRAIN_SUPABASE_URL }}
+          NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -z "$NI_BRAIN_SUPABASE_URL" ] || [ -z "$NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "Skipping: set NI_BRAIN_SUPABASE_URL and NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY repository secrets."
+            exit 0
+          fi
+          npm run ni-brain:sync
