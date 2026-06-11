@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-11** `1.7.3-beta` → `1.7.4-beta` (**patch** — Bulk content generator two-step wizard with per-type counts and audience assignment modes)
 - **2026-06-11** `1.7.1-beta` → `1.7.2-beta` (**patch** — Member Overview All Members Total metric fix)
 - **2026-06-11** `1.7.0-beta` → `1.7.1-beta` (**patch** — Trainer pipeline onboarding fee captured-only qualification)
 - **2026-06-11** `1.6.8-beta` → `1.7.0-beta` (**minor** — Outreach HQ dead lead archive, delete-reason learning, and per-admin AI memory)
