@@ -81,8 +81,7 @@ const EMPTY_OVERVIEW: AdminPortalOverview = {
     recentEvents: [],
   },
   memberOverview: {
-    totalActiveMembers: 0,
-    totalMembers: 0,
+    allMembersTotal: 0,
     freeTrialClients: 0,
     subscribedClients: 0,
     inactiveClients: 0,

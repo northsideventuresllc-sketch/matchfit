@@ -4,6 +4,8 @@ const {
   mockClientCount,
   mockTrainerCount,
   mockQueryRaw,
+  mockCountLaunchClients,
+  mockCountLaunchTrainers,
   mockCountLaunchPlatformSubscribers,
   mockLaunchClientBillingGraceWhere,
   mockLaunchClientCountWhere,
@@ -16,6 +18,8 @@ const {
   mockClientCount: vi.fn(),
   mockTrainerCount: vi.fn(),
   mockQueryRaw: vi.fn(),
+  mockCountLaunchClients: vi.fn(),
+  mockCountLaunchTrainers: vi.fn(),
   mockCountLaunchPlatformSubscribers: vi.fn(),
   mockLaunchClientBillingGraceWhere: vi.fn(),
   mockLaunchClientCountWhere: vi.fn(),
@@ -42,6 +46,8 @@ vi.mock("@/lib/launch-account-counts", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/launch-account-counts")>();
   return {
     ...actual,
+    countLaunchClients: mockCountLaunchClients,
+    countLaunchTrainers: mockCountLaunchTrainers,
     countLaunchPlatformSubscribers: mockCountLaunchPlatformSubscribers,
     launchClientBillingGraceWhere: mockLaunchClientBillingGraceWhere,
     launchClientCountWhere: mockLaunchClientCountWhere,
@@ -79,6 +85,8 @@ describe("admin-member-overview", () => {
       trainersActive: 20,
       trainersPending: 4,
     });
+    mockCountLaunchClients.mockResolvedValue(1);
+    mockCountLaunchTrainers.mockResolvedValue(0);
     mockCountLaunchPlatformSubscribers.mockResolvedValue(12);
     mockClientCount.mockImplementation((args?: { where?: Record<string, unknown> }) => {
       const w = args?.where;
@@ -104,8 +112,7 @@ describe("admin-member-overview", () => {
     const result = await getAdminMemberOverviewPanel(new Date("2026-06-09T12:00:00.000Z"));
 
     expect(result).toEqual({
-      totalActiveMembers: 64,
-      totalMembers: 130,
+      allMembersTotal: 1,
       freeTrialClients: 7,
       subscribedClients: 12,
       inactiveClients: 9,

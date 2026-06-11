@@ -52,7 +52,7 @@ describe("formatConversationTitleForDisplay", () => {
 describe("formatAssistantStatsSnapshot", () => {
   it("uses dashboard-aligned member labels and includes trainer breakdown", () => {
     const result = formatAssistantStatsSnapshot({
-      totalActiveMembers: 64,
+      allMembersTotal: 1,
       subscribedClients: 12,
       compliantActiveTrainers: 20,
       pendingTrainers: 4,
@@ -61,8 +61,8 @@ describe("formatAssistantStatsSnapshot", () => {
     });
 
     expect(result.line).toBe(
-      "64 total active members · 12 subscribed clients · 20 active trainers · 4 pending trainers · 7 free trials · 99 visitors (7d)",
+      "1 all members total · 12 subscribed clients · 20 active trainers · 4 pending trainers · 7 free trials · 99 visitors (7d)",
     );
-    expect(result.hint).toContain("excludes owner test");
+    expect(result.hint).toContain("excludes test/QA");
   });
 });

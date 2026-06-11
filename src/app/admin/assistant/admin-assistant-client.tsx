@@ -129,7 +129,7 @@ export function AdminAssistantClient() {
         (
           data: {
             memberOverview?: {
-              totalActiveMembers: number;
+              allMembersTotal: number;
               subscribedClients: number;
               freeTrialClients: number;
               compliantActiveTrainers: number;
@@ -140,7 +140,7 @@ export function AdminAssistantClient() {
         ) => {
           if (!data?.memberOverview) return;
           const snapshot = formatAssistantStatsSnapshot({
-            totalActiveMembers: data.memberOverview.totalActiveMembers,
+            allMembersTotal: data.memberOverview.allMembersTotal,
             subscribedClients: data.memberOverview.subscribedClients,
             compliantActiveTrainers: data.memberOverview.compliantActiveTrainers,
             pendingTrainers: data.memberOverview.pendingTrainers,

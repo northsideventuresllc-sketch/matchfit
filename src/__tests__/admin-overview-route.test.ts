@@ -68,8 +68,7 @@ describe("GET /api/admin/overview", () => {
       },
       recentFeatured: [],
       memberOverview: {
-        totalActiveMembers: 0,
-        totalMembers: 0,
+        allMembersTotal: 0,
         freeTrialClients: 0,
         subscribedClients: 0,
         inactiveClients: 0,

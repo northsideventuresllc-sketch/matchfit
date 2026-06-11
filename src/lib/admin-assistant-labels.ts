@@ -98,7 +98,7 @@ export function formatConversationTitleForDisplay(title: string | null | undefin
 }
 
 export type AssistantStatsSnapshotInput = {
-  totalActiveMembers: number;
+  allMembersTotal: number;
   subscribedClients: number;
   compliantActiveTrainers: number;
   pendingTrainers: number;
@@ -112,7 +112,7 @@ export function formatAssistantStatsSnapshot(input: AssistantStatsSnapshotInput)
   hint: string;
 } {
   return {
-    line: `${input.totalActiveMembers} total active members · ${input.subscribedClients} subscribed clients · ${input.compliantActiveTrainers} active trainers · ${input.pendingTrainers} pending trainers · ${input.freeTrialClients} free trials · ${input.uniqueVisitors7d} visitors (7d)`,
-    hint: "Total active members = clients in good standing + onboarded active trainers + pending trainers (excludes owner test/QA accounts).",
+    line: `${input.allMembersTotal} all members total · ${input.subscribedClients} subscribed clients · ${input.compliantActiveTrainers} active trainers · ${input.pendingTrainers} pending trainers · ${input.freeTrialClients} free trials · ${input.uniqueVisitors7d} visitors (7d)`,
+    hint: "All members total = real clients + trainers with Terms accepted (excludes test/QA and deleted accounts).",
   };
 }

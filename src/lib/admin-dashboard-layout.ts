@@ -50,7 +50,7 @@ export const ADMIN_DASHBOARD_SECTIONS: AdminDashboardSectionMeta[] = [
     id: "overview-kpis",
     label: "Member overview",
     description:
-      "Total active members, subscribers, free trials, inactive accounts, pending trainers, and unique site visitors.",
+      "All members total, subscribers, free trials, inactive accounts, pending trainers, and unique site visitors.",
     group: "Overview",
   },
   {
