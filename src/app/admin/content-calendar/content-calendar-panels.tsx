@@ -17,9 +17,21 @@ import {
   CONTENT_CALENDAR_BULK_DEFAULT_PROMPT,
   CONTENT_CALENDAR_BULK_MAX_COUNT,
   CONTENT_CALENDAR_GROUPS,
+  CONTENT_CALENDAR_POST_TYPES,
   CONTENT_CALENDAR_TYPE_ICONS,
   type ContentCalendarGroup,
+  type ContentCalendarPostType,
 } from "@/lib/content-calendar/constants";
+import {
+  assignDefaultScheduleAudiences,
+  assignRandomAudiences,
+  buildBulkSlots,
+  bulkTypeCountsTotal,
+  initialAudienceMap,
+  type BulkAssignmentMode,
+  type BulkContentSlot,
+  type BulkTypeCounts,
+} from "@/lib/content-calendar/bulk-content-slots";
 import type { ClientContentPost } from "@/lib/content-calendar/content-calendar-store";
 import { formatCalendarDate, getMondayOfWeek } from "@/lib/content-calendar/rotation";
 import { isPostMissed } from "@/lib/content-calendar/schedule-utils";
@@ -94,12 +106,28 @@ function DraftBubble(props: {
   );
 }
 
+function bulkAssignmentToggleClass(active: boolean) {
+  return active
+    ? "border-[#FF7E00]/50 bg-[#FF7E00]/20 text-[#FFD34E] shadow-[0_0_20px_-4px_rgba(255,126,0,0.45)]"
+    : "border-white/12 bg-white/[0.03] text-white/55 hover:border-white/20 hover:bg-white/[0.06]";
+}
+
 export function BulkContentGeneratorPanel(props: { configured: boolean; onHubRefresh: () => void }) {
-  const [count, setCount] = useState(4);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [typeCounts, setTypeCounts] = useState<BulkTypeCounts>(() => ({
+    Video: 2,
+    Static: 2,
+    Carousel: 2,
+    Text: 2,
+  }));
   const [scheduleMode, setScheduleMode] = useState<"scheduled" | "unscheduled">("scheduled");
-  const [targetGroups, setTargetGroups] = useState<ContentCalendarGroup[]>([...CONTENT_CALENDAR_GROUPS]);
   const [customPrompt, setCustomPrompt] = useState("");
   const [weekStart] = useState(() => formatCalendarDate(getMondayOfWeek()));
+  const [slots, setSlots] = useState<BulkContentSlot[]>([]);
+  const [audienceBySlot, setAudienceBySlot] = useState<Record<string, ContentCalendarGroup>>({});
+  const [assignmentMode, setAssignmentMode] = useState<BulkAssignmentMode | null>(null);
+  const [assigningAudiences, setAssigningAudiences] = useState(false);
+  const [manualEditNotice, setManualEditNotice] = useState(false);
   const [drafts, setDrafts] = useState<BulkGeneratedDraft[]>([]);
   const [bulkSessionId, setBulkSessionId] = useState<string | null>(null);
   const [scheduledPosts, setScheduledPosts] = useState<ClientContentPost[]>([]);
@@ -107,6 +135,8 @@ export function BulkContentGeneratorPanel(props: { configured: boolean; onHubRef
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const totalPosts = useMemo(() => bulkTypeCountsTotal(typeCounts), [typeCounts]);
 
   const loadScheduled = useCallback(async () => {
     const res = await fetch("/api/admin/content-calendar/hub?view=scheduled", { credentials: "include" });
@@ -119,29 +149,103 @@ export function BulkContentGeneratorPanel(props: { configured: boolean; onHubRef
     queueMicrotask(() => void loadScheduled());
   }, [loadScheduled]);
 
-  function toggleGroup(group: ContentCalendarGroup) {
-    setTargetGroups((prev) =>
-      prev.includes(group) ? prev.filter((g) => g !== group) : [...prev, group],
-    );
+  function setTypeCount(postType: ContentCalendarPostType, value: number) {
+    const next = Math.max(0, Math.min(CONTENT_CALENDAR_BULK_MAX_COUNT, value));
+    setTypeCounts((prev) => {
+      const otherTotal = bulkTypeCountsTotal(prev) - (prev[postType] ?? 0);
+      const capped = Math.min(next, CONTENT_CALENDAR_BULK_MAX_COUNT - otherTotal);
+      return { ...prev, [postType]: capped };
+    });
+  }
+
+  function goToAudienceStep() {
+    if (totalPosts < 1) {
+      setError("Add at least one post to generate.");
+      return;
+    }
+    const nextSlots = buildBulkSlots(typeCounts);
+    setSlots(nextSlots);
+    setAudienceBySlot(initialAudienceMap(nextSlots));
+    setAssignmentMode(null);
+    setManualEditNotice(false);
+    setError(null);
+    setStep(2);
+  }
+
+  function toggleAssignmentMode(mode: BulkAssignmentMode) {
+    if (assignmentMode === mode) {
+      setAssignmentMode(null);
+      setManualEditNotice(false);
+      return;
+    }
+    setAssignmentMode(mode);
+    setManualEditNotice(false);
+    if (mode === "randomize") {
+      setAudienceBySlot(assignRandomAudiences(slots));
+    } else if (mode === "default_schedule") {
+      setAudienceBySlot(assignDefaultScheduleAudiences(slots));
+    } else {
+      void applyAiChoiceAssignments();
+    }
+  }
+
+  async function applyAiChoiceAssignments() {
+    setAssigningAudiences(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/content-calendar/bulk-assign-audiences", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: slots.map((slot) => ({ id: slot.id, postType: slot.postType })),
+        }),
+      });
+      const data = (await res.json()) as { assignments?: Record<string, string>; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "AI audience assignment failed.");
+      const next: Record<string, ContentCalendarGroup> = {};
+      for (const slot of slots) {
+        const group = data.assignments?.[slot.id];
+        next[slot.id] = CONTENT_CALENDAR_GROUPS.includes(group as ContentCalendarGroup)
+          ? (group as ContentCalendarGroup)
+          : audienceBySlot[slot.id] ?? CONTENT_CALENDAR_GROUPS[0];
+      }
+      setAudienceBySlot(next);
+    } catch (e) {
+      setAssignmentMode(null);
+      setError(e instanceof Error ? e.message : "AI audience assignment failed.");
+    } finally {
+      setAssigningAudiences(false);
+    }
+  }
+
+  function handleManualAudienceAttempt() {
+    if (assignmentMode) {
+      setManualEditNotice(true);
+    }
+  }
+
+  function setSlotAudience(slotId: string, group: ContentCalendarGroup) {
+    setAudienceBySlot((prev) => ({ ...prev, [slotId]: group }));
   }
 
   async function generate() {
-    if (!targetGroups.length) {
-      setError("Select at least one target group.");
-      return;
-    }
+    if (!slots.length) return;
     setGenerating(true);
     setError(null);
     setSuccess(null);
     try {
+      const items = slots.map((slot) => ({
+        postType: slot.postType,
+        targetGroup: audienceBySlot[slot.id] ?? CONTENT_CALENDAR_GROUPS[0],
+      }));
       const res = await fetch("/api/admin/content-calendar/bulk-generate", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          count,
+          items,
           scheduled: scheduleMode === "scheduled",
-          targetGroups,
           customPrompt: customPrompt.trim() || undefined,
           weekStart,
         }),
@@ -154,6 +258,7 @@ export function BulkContentGeneratorPanel(props: { configured: boolean; onHubRef
       if (!res.ok) throw new Error(data.error ?? "Generation failed.");
       setDrafts(data.drafts ?? []);
       setBulkSessionId(data.bulkSessionId ?? null);
+      setStep(1);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generation failed.");
     } finally {
@@ -192,89 +297,180 @@ export function BulkContentGeneratorPanel(props: { configured: boolean; onHubRef
 
   return (
     <div className="space-y-8">
-      <section className={`${adminCardClass} space-y-5 p-5`}>
-        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Bulk generation setup</p>
+      {step === 1 ? (
+        <section className={`${adminCardClass} space-y-5 p-5`}>
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Bulk generation setup</p>
+          <p className="text-sm text-white/55">
+            Choose how many posts to generate for each content type, then continue to assign target audiences.
+          </p>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <label className={adminLabelClass}>Number of posts to generate</label>
-            <input
-              type="number"
-              min={1}
-              max={CONTENT_CALENDAR_BULK_MAX_COUNT}
-              className={`${adminInputClass} mt-1`}
-              value={count}
-              onChange={(e) =>
-                setCount(Math.min(CONTENT_CALENDAR_BULK_MAX_COUNT, Math.max(1, Number(e.target.value) || 1)))
-              }
-            />
-          </div>
-          <div>
-            <label className={adminLabelClass}>Scheduling</label>
-            <select
-              className={`${adminInputClassSm} mt-1 w-full`}
-              value={scheduleMode}
-              onChange={(e) => setScheduleMode(e.target.value as "scheduled" | "unscheduled")}
-            >
-              <option value="scheduled">Scheduled (assign to calendar days)</option>
-              <option value="unscheduled">Non-scheduled (set dates in Content Hub)</option>
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <p className={adminLabelClass}>Target groups (select multiple)</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {CONTENT_CALENDAR_GROUPS.map((group) => (
-              <label
-                key={group}
-                className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold ${
-                  targetGroups.includes(group)
-                    ? "border-[#FF7E00]/40 bg-[#FF7E00]/10 text-[#FFD34E]"
-                    : "border-white/10 bg-white/[0.03] text-white/55"
-                }`}
-              >
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {CONTENT_CALENDAR_POST_TYPES.map((postType) => (
+              <div key={postType}>
+                <label className={adminLabelClass}>
+                  {CONTENT_CALENDAR_TYPE_ICONS[postType]} {postType} posts
+                </label>
                 <input
-                  type="checkbox"
-                  className="accent-[#FF7E00]"
-                  checked={targetGroups.includes(group)}
-                  onChange={() => toggleGroup(group)}
+                  type="number"
+                  min={0}
+                  max={CONTENT_CALENDAR_BULK_MAX_COUNT}
+                  className={`${adminInputClass} mt-1`}
+                  value={typeCounts[postType]}
+                  onChange={(e) => setTypeCount(postType, Number(e.target.value) || 0)}
                 />
-                {group}
-              </label>
+              </div>
             ))}
           </div>
-        </div>
 
-        <div>
-          <label className={adminLabelClass}>Optional prompt (what should posts be about?)</label>
-          <textarea
-            className={`${adminInputClassSm} mt-2`}
-            rows={3}
-            value={customPrompt}
-            onChange={(e) => setCustomPrompt(e.target.value)}
-            placeholder={CONTENT_CALENDAR_BULK_DEFAULT_PROMPT}
-          />
-          <p className="mt-1 text-[10px] text-white/35">Default: {CONTENT_CALENDAR_BULK_DEFAULT_PROMPT}</p>
-        </div>
+          <p className="text-xs text-white/45">
+            Total: <strong className="text-[#FFD34E]">{totalPosts}</strong> / {CONTENT_CALENDAR_BULK_MAX_COUNT} posts
+          </p>
 
-        <button
-          type="button"
-          className={adminPrimaryButtonClass}
-          disabled={generating || !props.configured || !targetGroups.length}
-          onClick={() => void generate()}
-        >
-          {generating ? "Generating…" : "Generate bulk content"}
-        </button>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className={adminLabelClass}>Scheduling</label>
+              <select
+                className={`${adminInputClassSm} mt-1 w-full`}
+                value={scheduleMode}
+                onChange={(e) => setScheduleMode(e.target.value as "scheduled" | "unscheduled")}
+              >
+                <option value="scheduled">Scheduled (assign to calendar days)</option>
+                <option value="unscheduled">Non-scheduled (set dates in Content Hub)</option>
+              </select>
+            </div>
+          </div>
 
-        <p className="rounded-lg border border-amber-400/20 bg-amber-500/[0.06] px-3 py-2 text-[11px] leading-relaxed text-amber-100/80">
-          ⚠ You can generate up to <strong>{CONTENT_CALENDAR_BULK_MAX_COUNT}</strong> posts in one run. Larger batches
-          use more AI tokens and take longer — save the ones you want to Content Hub before generating again.
-        </p>
+          <div>
+            <label className={adminLabelClass}>Optional prompt (what should posts be about?)</label>
+            <textarea
+              className={`${adminInputClassSm} mt-2`}
+              rows={3}
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              placeholder={CONTENT_CALENDAR_BULK_DEFAULT_PROMPT}
+            />
+            <p className="mt-1 text-[10px] text-white/35">Default: {CONTENT_CALENDAR_BULK_DEFAULT_PROMPT}</p>
+          </div>
 
-        {error ? <p className="text-sm text-[#FFB4B4]">{error}</p> : null}
-        {success ? <p className="text-sm text-emerald-200">{success}</p> : null}
-      </section>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              className={adminPrimaryButtonClass}
+              disabled={totalPosts < 1}
+              onClick={goToAudienceStep}
+            >
+              Next
+            </button>
+          </div>
+
+          <p className="rounded-lg border border-amber-400/20 bg-amber-500/[0.06] px-3 py-2 text-[11px] leading-relaxed text-amber-100/80">
+            You can generate up to <strong>{CONTENT_CALENDAR_BULK_MAX_COUNT}</strong> posts in one run. Larger batches
+            use more AI tokens and take longer — save the ones you want to Content Hub before generating again.
+          </p>
+
+          {error ? <p className="text-sm text-[#FFB4B4]">{error}</p> : null}
+        </section>
+      ) : (
+        <section className={`${adminCardClass} space-y-5 p-5`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Assign target audiences</p>
+            <button
+              type="button"
+              className={adminSecondaryButtonClass}
+              onClick={() => {
+                setStep(1);
+                setAssignmentMode(null);
+                setManualEditNotice(false);
+              }}
+            >
+              Back
+            </button>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["randomize", "Randomize"],
+                ["default_schedule", "Default Schedule"],
+                ["ai_choice", "AI Choice"],
+              ] as const
+            ).map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                disabled={assigningAudiences && mode === "ai_choice"}
+                className={`rounded-xl border px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.1em] transition ${bulkAssignmentToggleClass(assignmentMode === mode)} disabled:opacity-40`}
+                onClick={() => toggleAssignmentMode(mode)}
+              >
+                {mode === "ai_choice" && assigningAudiences ? "Scanning…" : label}
+              </button>
+            ))}
+          </div>
+
+          {assignmentMode ? (
+            <p className="text-[11px] text-white/45">
+              {assignmentMode === "randomize"
+                ? "Target audiences are randomly assigned to each post."
+                : assignmentMode === "default_schedule"
+                  ? "Target audiences follow the content schedule rotation."
+                  : "Target audiences are assigned from a social media scan."}
+            </p>
+          ) : null}
+
+          {manualEditNotice ? (
+            <p className="rounded-lg border border-amber-400/25 bg-amber-500/[0.08] px-3 py-2 text-xs text-amber-100/90">
+              Deselect the option at the top to manually choose a target audience for each post.
+            </p>
+          ) : null}
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {slots.map((slot) => (
+              <div
+                key={slot.id}
+                className={`flex items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-[#0E1016]/80 px-4 py-3 ${
+                  assignmentMode ? "opacity-80" : ""
+                }`}
+              >
+                <span className="text-sm font-semibold text-white/80">
+                  {CONTENT_CALENDAR_TYPE_ICONS[slot.postType]} {slot.label}
+                </span>
+                <div
+                  className="min-w-[10rem] shrink-0"
+                  onClick={handleManualAudienceAttempt}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") handleManualAudienceAttempt();
+                  }}
+                  role="presentation"
+                >
+                  <select
+                    className={`${adminInputClassSm} w-full ${assignmentMode ? "cursor-not-allowed opacity-50" : ""}`}
+                    value={audienceBySlot[slot.id] ?? CONTENT_CALENDAR_GROUPS[0]}
+                    disabled={!!assignmentMode || assigningAudiences}
+                    onChange={(e) => setSlotAudience(slot.id, e.target.value as ContentCalendarGroup)}
+                  >
+                    {CONTENT_CALENDAR_GROUPS.map((group) => (
+                      <option key={group} value={group}>
+                        {group}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            className={adminPrimaryButtonClass}
+            disabled={generating || !props.configured || assigningAudiences}
+            onClick={() => void generate()}
+          >
+            {generating ? "Generating…" : "Generate"}
+          </button>
+
+          {error ? <p className="text-sm text-[#FFB4B4]">{error}</p> : null}
+        </section>
+      )}
 
       {generating ? <AdminLoadingBar label="AI is generating your bulk content…" /> : null}
 
@@ -296,6 +492,8 @@ export function BulkContentGeneratorPanel(props: { configured: boolean; onHubRef
           </div>
         </section>
       ) : null}
+
+      {success ? <p className="text-sm text-emerald-200">{success}</p> : null}
 
       <ScheduleCalendar posts={scheduledPosts} title="Scheduled content calendar" />
     </div>
