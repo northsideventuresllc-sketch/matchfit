@@ -4,7 +4,8 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
-- **2026-06-11** `1.7.9-beta` → `1.8.0-beta` (**minor** — Pre-verified coach discovery, Meet Our Coaches homepage section, slimmer client signup)
+- **2026-06-11** `1.7.9-beta` → `1.8.0-beta` (**minor** — Pre-verified coach discovery, Meet Our Coaches homepage section, slimmer client signup, dual trainer beta pools, NI Brain sync)
+- **2026-06-11** `1.7.9-beta` → `1.7.10-beta` (**patch** — Content Hub save fix and bulk approval UX)
 - **2026-06-11** `1.7.8-beta` → `1.7.9-beta` (**patch** — Align admin background checks section layout with queue table)
 - **2026-06-11** `1.7.7-beta` → `1.7.8-beta` (**patch** — Remove Plan B wording from admin background checks UI)
 - **2026-06-11** `1.7.5-beta` → `1.7.7-beta` (**patch** — Align Member Overview and Trainer Pipeline pending trainer counts)
