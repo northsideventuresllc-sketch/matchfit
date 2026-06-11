@@ -36,6 +36,7 @@ import {
   getAdminTrainerPipelinePanel,
 } from "@/lib/admin-portal-metrics";
 import { getAdPerformancePanel } from "@/lib/ad-platform-performance";
+import { getAdminBackgroundChecksPanel } from "@/lib/admin-background-checks-panel";
 import { getAdminSiteTrafficSnapshot } from "@/lib/site-analytics";
 
 export type {
@@ -420,6 +421,7 @@ export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
     emailStats,
     alerts,
     platformSummary,
+    backgroundChecks,
   ] = await Promise.all([
     getAdminSiteTrafficSnapshot(7),
     getHomeUserCounts(),
@@ -435,6 +437,7 @@ export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
     getAdminEmailStatsPanel(7),
     getAdminAlertsPanel(),
     getAdminPlatformSummaryPanel(),
+    getAdminBackgroundChecksPanel(),
   ]);
 
   return {
@@ -453,5 +456,6 @@ export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
     emailStats,
     alerts,
     platformSummary,
+    backgroundChecks,
   };
 }

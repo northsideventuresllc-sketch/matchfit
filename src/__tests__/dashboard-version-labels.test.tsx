@@ -153,6 +153,23 @@ const EMPTY_OVERVIEW: AdminPortalOverview = {
     bestSellers: [],
   },
   alerts: { groups: [] },
+  backgroundChecks: {
+    platformMode: "plan_b",
+    planBActive: true,
+    awaitingManualInvite: [],
+    automatedInvitesSent: [],
+    manualInvitesSent: [],
+    planAPending: [],
+    activeEntries: [],
+    summary: {
+      awaitingManualInvite: 0,
+      automatedInvitesSent: 0,
+      manualInvitesSent: 0,
+      planAPending: 0,
+      screeningInProgress: 0,
+      failed: 0,
+    },
+  },
   platformSummary: {
     userCounts: { trainersTotal: 0, trainersPending: 0, trainersActive: 0, clientsTotal: 0, clientsActive: 0 },
     stabilityScore: 0,
