@@ -10,6 +10,19 @@ import type {
   OutreachPlatform,
 } from "@/lib/outreach-types";
 import { prisma } from "@/lib/prisma";
+import { ensureOutreachHubSchema } from "@/lib/ensure-outreach-hub-schema";
+
+let outreachSchemaReady: Promise<void> | null = null;
+
+async function ensureOutreachReady(): Promise<void> {
+  if (!outreachSchemaReady) {
+    outreachSchemaReady = ensureOutreachHubSchema().catch((error) => {
+      outreachSchemaReady = null;
+      throw error;
+    });
+  }
+  await outreachSchemaReady;
+}
 
 function serializeDate(d: Date | null): string | null {
   return d ? d.toISOString() : null;
@@ -87,6 +100,7 @@ function serializeEmailLead(
 }
 
 export async function listOutreachLeads(platform: OutreachPlatform, includeDeleted = false) {
+  await ensureOutreachReady();
   const where = includeDeleted ? {} : { deletedAt: null };
 
   if (platform === "instagram") {
@@ -111,6 +125,7 @@ export async function listOutreachLeads(platform: OutreachPlatform, includeDelet
 }
 
 export async function listOutreachHubLeads(): Promise<OutreachHubLead[]> {
+  await ensureOutreachReady();
   const hubWhere = { deletedAt: null, savedToHubAt: { not: null } as const };
 
   const [instagram, facebook, email] = await Promise.all([
@@ -205,6 +220,7 @@ export function buildOutreachHubCsv(leads: OutreachHubLead[]): string {
 }
 
 export async function softDeleteOutreachLead(platform: OutreachPlatform, id: string) {
+  await ensureOutreachReady();
   const now = new Date();
   if (platform === "instagram") {
     return prisma.outreachInstagramLead.update({ where: { id }, data: { deletedAt: now } });
@@ -241,6 +257,7 @@ export async function massSoftDeleteOutreachLeads(
   platform: OutreachPlatform,
   input: MassDeleteOutreachInput,
 ): Promise<{ deletedCount: number }> {
+  await ensureOutreachReady();
   const now = new Date();
   const where = buildMassDeleteOutreachWhere(input);
 
@@ -271,6 +288,7 @@ export function buildMassSaveOutreachWhere(input: MassSaveOutreachInput) {
 }
 
 export async function saveOutreachLeadToHub(platform: OutreachPlatform, id: string) {
+  await ensureOutreachReady();
   const now = new Date();
   if (platform === "instagram") {
     return prisma.outreachInstagramLead.update({ where: { id }, data: { savedToHubAt: now } });
@@ -288,6 +306,7 @@ export async function massSaveOutreachLeadsToHub(
   platform: OutreachPlatform,
   input: MassSaveOutreachInput,
 ): Promise<{ savedCount: number }> {
+  await ensureOutreachReady();
   const now = new Date();
   const where = buildMassSaveOutreachWhere(input);
 
@@ -316,6 +335,7 @@ export async function updateOutreachLead(
   id: string,
   patch: Record<string, unknown>,
 ) {
+  await ensureOutreachReady();
   if (platform === "instagram") {
     const existing = await prisma.outreachInstagramLead.findUnique({ where: { id } });
     if (!existing) return null;
@@ -414,6 +434,7 @@ export async function purgeArchivedOutreachLeads(): Promise<{
   facebook: number;
   email: number;
 }> {
+  await ensureOutreachReady();
   const [instagram, facebook, email] = await Promise.all([
     prisma.outreachInstagramLead.deleteMany({ where: { deletedAt: { not: null } } }),
     prisma.outreachFacebookLead.deleteMany({ where: { deletedAt: { not: null } } }),
@@ -431,6 +452,7 @@ export async function purgeActiveOutreachLeads(): Promise<{
   facebook: number;
   email: number;
 }> {
+  await ensureOutreachReady();
   const [instagram, facebook, email] = await Promise.all([
     prisma.outreachInstagramLead.deleteMany({ where: { deletedAt: null } }),
     prisma.outreachFacebookLead.deleteMany({ where: { deletedAt: null } }),
@@ -444,6 +466,7 @@ export async function purgeActiveOutreachLeads(): Promise<{
 }
 
 export async function refreshAllOutreachClassifications() {
+  await ensureOutreachReady();
   const [ig, fb, em] = await Promise.all([
     prisma.outreachInstagramLead.findMany({ where: { deletedAt: null } }),
     prisma.outreachFacebookLead.findMany({ where: { deletedAt: null } }),

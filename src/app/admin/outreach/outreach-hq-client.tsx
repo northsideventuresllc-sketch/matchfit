@@ -733,7 +733,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
       setLeads(data.leads ?? []);
     } catch {
       if (options?.clearAlerts) {
-        setError("Could not load outreach leads. Run db:migrate if tables are missing.");
+        setError("Could not load outreach leads. The database may still be updating — refresh in a moment.");
       }
     } finally {
       setLoading(false);

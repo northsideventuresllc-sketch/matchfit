@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
+import { ensureOutreachHubSchema } from "@/lib/ensure-outreach-hub-schema";
 import { generateOutreachLeads } from "@/lib/outreach-ai";
 import { requireAdminSession } from "@/lib/require-admin";
 
@@ -49,6 +50,7 @@ export async function POST(req: Request) {
 
   try {
     await hydratePlatformEnvFromDatabase();
+    await ensureOutreachHubSchema();
     const result = await generateOutreachLeads({
       platform: parsed.data.platform,
       atlCount: parsed.data.atlCount,
