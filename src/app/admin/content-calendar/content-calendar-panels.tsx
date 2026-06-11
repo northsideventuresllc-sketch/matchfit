@@ -36,8 +36,25 @@ import type { ClientContentPost } from "@/lib/content-calendar/content-calendar-
 import { formatCalendarDate, getMondayOfWeek } from "@/lib/content-calendar/rotation";
 import { isPostMissed } from "@/lib/content-calendar/schedule-utils";
 
-export function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
+export function CopyButton({
+  text,
+  label = "Copy",
+  disabled = false,
+  disabledHint = "Save to Content Hub to copy",
+}: {
+  text: string;
+  label?: string;
+  disabled?: boolean;
+  disabledHint?: string;
+}) {
   const [copied, setCopied] = useState(false);
+  if (disabled) {
+    return (
+      <span className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white/30">
+        {disabledHint}
+      </span>
+    );
+  }
   return (
     <button
       type="button"
@@ -59,8 +76,8 @@ function DraftBubble(props: {
   onSave: () => Promise<void>;
   onDelete: () => void;
   saving: boolean;
+  saveDisabled: boolean;
 }) {
-  const full = `${props.draft.caption}\n\n${props.draft.hashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}`;
   return (
     <article className={`${adminPanelClass} p-4 sm:p-5`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -74,15 +91,16 @@ function DraftBubble(props: {
           ) : (
             <p className="text-[10px] text-white/35">Unscheduled</p>
           )}
+          <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-amber-200/70">Pending approval</p>
         </div>
         <div className="flex gap-2">
           <button
             type="button"
-            disabled={props.saving}
+            disabled={props.saving || props.saveDisabled}
             className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-40"
             onClick={() => void props.onSave()}
           >
-            {props.saving ? "Saving…" : "Save"}
+            {props.saving ? "Saving…" : "Approve & save"}
           </button>
           <button
             type="button"
@@ -100,7 +118,12 @@ function DraftBubble(props: {
         </p>
       ) : null}
       <div className="mt-3 flex flex-wrap gap-2">
-        <CopyButton text={full} label="Copy post" />
+        <CopyButton
+          text={`${props.draft.caption}\n\n${props.draft.hashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}`}
+          label="Copy post"
+          disabled
+          disabledHint="Approve & save to copy"
+        />
       </div>
     </article>
   );
@@ -112,7 +135,11 @@ function bulkAssignmentToggleClass(active: boolean) {
     : "border-white/12 bg-white/[0.03] text-white/55 hover:border-white/20 hover:bg-white/[0.06]";
 }
 
-export function BulkContentGeneratorPanel(props: { configured: boolean; onHubRefresh: () => void }) {
+export function BulkContentGeneratorPanel(props: {
+  configured: boolean;
+  niBrainConfigured: boolean;
+  onHubRefresh: () => void;
+}) {
   const [step, setStep] = useState<1 | 2>(1);
   const [typeCounts, setTypeCounts] = useState<BulkTypeCounts>(() => ({
     Video: 2,
@@ -133,8 +160,11 @@ export function BulkContentGeneratorPanel(props: { configured: boolean; onHubRef
   const [scheduledPosts, setScheduledPosts] = useState<ClientContentPost[]>([]);
   const [generating, setGenerating] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [bulkSaving, setBulkSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const saveDisabled = !props.niBrainConfigured;
 
   const totalPosts = useMemo(() => bulkTypeCountsTotal(typeCounts), [typeCounts]);
 
@@ -256,8 +286,9 @@ export function BulkContentGeneratorPanel(props: { configured: boolean; onHubRef
         error?: string;
       };
       if (!res.ok) throw new Error(data.error ?? "Generation failed.");
+      const sessionId = data.bulkSessionId ?? `bulk_${Date.now()}_local`;
       setDrafts(data.drafts ?? []);
-      setBulkSessionId(data.bulkSessionId ?? null);
+      setBulkSessionId(sessionId);
       setStep(1);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generation failed.");
@@ -267,7 +298,14 @@ export function BulkContentGeneratorPanel(props: { configured: boolean; onHubRef
   }
 
   async function saveDraft(draft: BulkGeneratedDraft) {
-    if (!bulkSessionId) return;
+    if (!bulkSessionId) {
+      setError("Missing bulk session — regenerate your batch to save posts.");
+      return;
+    }
+    if (saveDisabled) {
+      setError("NI Brain is not configured — add NI Brain Supabase keys to save to Content Hub.");
+      return;
+    }
     setSavingId(draft.tempId);
     setError(null);
     try {
@@ -293,6 +331,42 @@ export function BulkContentGeneratorPanel(props: { configured: boolean; onHubRef
     } finally {
       setSavingId(null);
     }
+  }
+
+  async function saveAllDrafts() {
+    if (drafts.length === 0 || bulkSaving) return;
+    if (!bulkSessionId) {
+      setError("Missing bulk session — regenerate your batch to save posts.");
+      return;
+    }
+    if (saveDisabled) {
+      setError("NI Brain is not configured — add NI Brain Supabase keys to save to Content Hub.");
+      return;
+    }
+    setBulkSaving(true);
+    setError(null);
+    setSuccess(null);
+    const pending = [...drafts];
+    let saved = 0;
+    try {
+      for (const draft of pending) {
+        await saveDraft(draft);
+        saved += 1;
+      }
+      if (saved > 0) {
+        setSuccess(`Saved ${saved} post${saved === 1 ? "" : "s"} to Content Hub.`);
+      }
+    } finally {
+      setBulkSaving(false);
+      setSavingId(null);
+    }
+  }
+
+  function deleteAllDrafts() {
+    if (drafts.length === 0) return;
+    setDrafts([]);
+    setSuccess(null);
+    setError(null);
   }
 
   return (
@@ -476,15 +550,41 @@ export function BulkContentGeneratorPanel(props: { configured: boolean; onHubRef
 
       {drafts.length > 0 ? (
         <section className="space-y-3">
-          <p className="text-sm font-semibold text-white/70">
-            Generated {drafts.length} post{drafts.length === 1 ? "" : "s"} — Save to Content Hub or Delete
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-white/70">
+              Generated {drafts.length} post{drafts.length === 1 ? "" : "s"} — review and approve to save to Content Hub
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={bulkSaving || savingId !== null || saveDisabled}
+                className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-40"
+                onClick={() => void saveAllDrafts()}
+              >
+                {bulkSaving ? "Saving all…" : `Save all (${drafts.length})`}
+              </button>
+              <button
+                type="button"
+                disabled={bulkSaving || savingId !== null}
+                className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20 disabled:opacity-40"
+                onClick={deleteAllDrafts}
+              >
+                Delete all
+              </button>
+            </div>
+          </div>
+          {saveDisabled ? (
+            <p className="rounded-lg border border-amber-400/25 bg-amber-500/[0.08] px-3 py-2 text-xs text-amber-100/90">
+              NI Brain Supabase keys are required to save posts to Content Hub.
+            </p>
+          ) : null}
           <div className="grid gap-4 lg:grid-cols-2">
             {drafts.map((draft) => (
               <DraftBubble
                 key={draft.tempId}
                 draft={draft}
-                saving={savingId === draft.tempId}
+                saving={savingId === draft.tempId || bulkSaving}
+                saveDisabled={saveDisabled}
                 onSave={() => saveDraft(draft)}
                 onDelete={() => setDrafts((prev) => prev.filter((d) => d.tempId !== draft.tempId))}
               />
@@ -594,7 +694,10 @@ export function ContentHubPanel(props: {
                   {post.visualPrompt}
                 </p>
               ) : null}
-              <CopyButton text={post.caption} label="Copy caption" />
+              <CopyButton
+                text={`${post.caption}\n\n${post.hashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}`}
+                label="Copy post"
+              />
             </article>
           ))}
         </div>

@@ -205,11 +205,13 @@ function EditableBlock({
   value,
   onSave,
   rows = 4,
+  allowCopy = false,
 }: {
   label: string;
   value: string;
   onSave: (v: string) => Promise<void>;
   rows?: number;
+  allowCopy?: boolean;
 }) {
   const [draft, setDraft] = useState(value);
   const [saving, setSaving] = useState(false);
@@ -220,7 +222,13 @@ function EditableBlock({
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
         <p className={adminLabelClass}>{label}</p>
-        <CopyButton text={draft} />
+        {allowCopy ? (
+          <CopyButton text={draft} />
+        ) : (
+          <span className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white/30">
+            Save to hub to copy
+          </span>
+        )}
       </div>
       <textarea
         className={adminInputClassSm}
@@ -398,12 +406,14 @@ function PlatformTabPanel(props: {
             label="Instagram DM"
             value={ig.dmText}
             rows={6}
+            allowCopy={Boolean(ig.savedToHubAt)}
             onSave={(dmText) => props.onUpdate(ig.id, { dmText })}
           />
           <EditableBlock
             label="Comment (to grab attention)"
             value={ig.commentText}
             rows={2}
+            allowCopy={Boolean(ig.savedToHubAt)}
             onSave={(commentText) => props.onUpdate(ig.id, { commentText })}
           />
           {ig.commentPostRef ? <p className="text-xs text-white/40">Comment on: {ig.commentPostRef}</p> : null}
@@ -428,6 +438,7 @@ function PlatformTabPanel(props: {
             label="Page post"
             value={fb.pagePostText}
             rows={6}
+            allowCopy={Boolean(fb.savedToHubAt)}
             onSave={(pagePostText) => props.onUpdate(fb.id, { pagePostText })}
           />
         </LeadBubble>
@@ -455,12 +466,14 @@ function PlatformTabPanel(props: {
             label="Email subject"
             value={em.emailSubject}
             rows={1}
+            allowCopy={Boolean(em.savedToHubAt)}
             onSave={(emailSubject) => props.onUpdate(em.id, { emailSubject })}
           />
           <EditableBlock
             label="Email body"
             value={em.emailBody}
             rows={8}
+            allowCopy={Boolean(em.savedToHubAt)}
             onSave={(emailBody) => props.onUpdate(em.id, { emailBody })}
           />
         </LeadBubble>

@@ -30,7 +30,7 @@ export async function GET(req: Request) {
 const saveSchema = z.object({
   draft: z.object({
     tempId: z.string(),
-    dayIndex: z.number().int().min(0).max(4),
+    dayIndex: z.number().int().min(0).max(99),
     postType: z.enum(["Carousel", "Static", "Video", "Text"]),
     targetGroup: z.string(),
     platforms: z.string(),

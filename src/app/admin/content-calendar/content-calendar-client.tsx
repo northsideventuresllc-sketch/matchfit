@@ -227,7 +227,11 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
 
       {tab === "generator" ? <ContentGeneratorPanel configured={props.aiStatus.configured} /> : null}
       {tab === "bulk" ? (
-        <BulkContentGeneratorPanel configured={props.aiStatus.configured} onHubRefresh={() => void loadHub()} />
+        <BulkContentGeneratorPanel
+          configured={props.aiStatus.configured}
+          niBrainConfigured={props.aiStatus.niBrain}
+          onHubRefresh={() => void loadHub()}
+        />
       ) : null}
       {tab === "hub" ? (
         <ContentHubPanel

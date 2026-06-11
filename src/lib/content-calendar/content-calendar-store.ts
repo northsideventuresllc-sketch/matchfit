@@ -222,6 +222,31 @@ export async function purgeExpiredHubPosts(): Promise<number> {
   return ids.length;
 }
 
+/** Avoid unique (week_start, day_index, post_type) collisions when saving multiple hub drafts. */
+export async function resolveUniqueHubDayIndex(args: {
+  weekStart: string;
+  postType: ContentCalendarPostRow["post_type"];
+  preferredDayIndex: number;
+}): Promise<number> {
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("day_index")
+    .eq("week_start", args.weekStart)
+    .eq("post_type", args.postType);
+
+  if (error) throw new Error(error.message);
+
+  const used = new Set((data ?? []).map((row) => Number(row.day_index)));
+  if (!used.has(args.preferredDayIndex)) return args.preferredDayIndex;
+
+  for (let dayIndex = 0; dayIndex < 100; dayIndex += 1) {
+    if (!used.has(dayIndex)) return dayIndex;
+  }
+
+  throw new Error(`No available slot for ${args.postType} posts in week ${args.weekStart}.`);
+}
+
 export async function saveDraftToHub(args: {
   draft: BulkGeneratedDraft;
   weekStart: string;
@@ -231,14 +256,21 @@ export async function saveDraftToHub(args: {
 }): Promise<ContentCalendarPostRow> {
   const client = createNiBrainClient();
   const now = new Date().toISOString();
+  const dayIndex = await resolveUniqueHubDayIndex({
+    weekStart: args.weekStart,
+    postType: args.draft.postType,
+    preferredDayIndex: args.draft.dayIndex,
+  });
   const postDate =
     args.draft.postDate ??
-    (args.scheduled ? formatCalendarDate(addWeekdays(new Date(`${args.weekStart}T00:00:00`), args.draft.dayIndex)) : args.weekStart);
+    (args.scheduled
+      ? formatCalendarDate(addWeekdays(new Date(`${args.weekStart}T00:00:00`), Math.min(4, dayIndex)))
+      : args.weekStart);
 
   const row = {
     week_start: args.weekStart,
     post_date: postDate,
-    day_index: args.draft.dayIndex,
+    day_index: dayIndex,
     post_type: args.draft.postType,
     target_group: args.draft.targetGroup,
     platforms: args.draft.platforms,
