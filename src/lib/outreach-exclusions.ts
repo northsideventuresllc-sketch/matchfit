@@ -73,15 +73,7 @@ export async function getOutreachExclusionList(platform: OutreachPlatform): Prom
     return [...values];
   }
 
-  const rows = await prisma.outreachOtherLead.findMany({
-    where: activeOnly,
-    select: { contactLabel: true, contactUrl: true },
-  });
-  for (const row of rows) {
-    values.add(row.contactLabel.toLowerCase());
-    if (row.contactUrl) values.add(row.contactUrl.toLowerCase());
-  }
-  return [...values];
+  return [];
 }
 
 export async function getRegisteredTrainerOutreachExclusions(): Promise<string[]> {

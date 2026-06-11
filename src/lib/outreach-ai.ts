@@ -79,18 +79,6 @@ export type GeneratedEmailLead = {
   notes?: string;
 };
 
-export type GeneratedOtherLead = {
-  contactLabel: string;
-  contactUrl: string;
-  channelNotes: string;
-  niche: string;
-  targetGroup: OutreachTargetGroup;
-  whyMatchFit: string;
-  likelihoodScore: number;
-  outreachText: string;
-  notes?: string;
-};
-
 type OutreachAiResult = {
   text: string | null;
   usedWebSearch: boolean;
@@ -338,14 +326,7 @@ async function getExclusionList(platform: OutreachPlatform): Promise<string[]> {
     const archivedValues = archived.map((r) => r.email.toLowerCase());
     return [...new Set([...activeOnly, ...archivedValues])];
   }
-  const archived = await prisma.outreachOtherLead.findMany({
-    where: { deletedAt: { not: null } },
-    select: { contactLabel: true, contactUrl: true },
-  });
-  const archivedValues = archived.flatMap((r) =>
-    [r.contactLabel.toLowerCase(), (r.contactUrl ?? "").toLowerCase()].filter(Boolean),
-  );
-  return [...new Set([...activeOnly, ...archivedValues])];
+  return activeOnly;
 }
 
 function normalizeGroup(g: string): OutreachTargetGroup {
@@ -671,14 +652,8 @@ JSON schema:
 Generic tail ATL: "${tailAtl}"
 Generic tail Virtual: "${tailVirtual}"`;
   }
-  return `Find ${atlCount + virtualCount} other-channel fitness pro leads (LinkedIn, X, referrals).
-Exclude: ${excl}
-${retryBlock}
 
-JSON schema:
-{"contactLabel":"Name or handle","contactUrl":"https://...","channelNotes":"LinkedIn etc","niche":"coaching","targetGroup":"ATL_LOCAL"|"VIRTUAL","whyMatchFit":"one sentence","likelihoodScore":55,"personalHook":"detail","notes":"optional"}
-
-Generic tail: "${tailAtl}"`;
+  throw new Error(`Unsupported outreach platform: ${platform}`);
 }
 
 async function persistGeneratedLeads(
@@ -960,30 +935,7 @@ async function persistGeneratedLeads(
     };
   }
 
-  const items = parseJsonArray<GeneratedOtherLead & { personalHook?: string }>(raw);
-  const created = [];
-  for (const item of items) {
-    const group = normalizeGroup(item.targetGroup ?? "ATL_LOCAL");
-    const tail = group === "ATL_LOCAL" ? tailAtl : tailVirtual;
-    const row = await prisma.outreachOtherLead.create({
-      data: {
-        contactLabel: item.contactLabel ?? "Contact",
-        contactUrl: item.contactUrl ?? null,
-        channelNotes: item.channelNotes ?? null,
-        niche: item.niche ?? null,
-        targetGroup: group,
-        whyMatchFit: item.whyMatchFit ?? "Potential Match Fit trainer.",
-        likelihoodScore: clampScore(item.likelihoodScore),
-        notes: item.notes ?? null,
-        outreachText: item.outreachText ?? tail,
-        genericInviteTail: tail,
-        generationBatchId: batchId,
-        createdByAdminId: adminId,
-      },
-    });
-    created.push(row);
-  }
-  return { leads: created };
+  throw new Error(`Unsupported outreach platform: ${platform}`);
 }
 
 function clampScore(n: number | undefined): number {
@@ -997,9 +949,8 @@ export async function buildCoworkMorningBrief(): Promise<{
   instagram: unknown[];
   facebook: unknown[];
   email: unknown[];
-  other: unknown[];
 }> {
-  const [ig, fb, em, other] = await Promise.all([
+  const [ig, fb, em] = await Promise.all([
     prisma.outreachInstagramLead.findMany({
       where: { deletedAt: null, status: "LEAD" },
       orderBy: { createdAt: "desc" },
@@ -1014,11 +965,6 @@ export async function buildCoworkMorningBrief(): Promise<{
       where: { deletedAt: null, status: "LEAD" },
       orderBy: { createdAt: "desc" },
       take: 30,
-    }),
-    prisma.outreachOtherLead.findMany({
-      where: { deletedAt: null, status: "LEAD" },
-      orderBy: { createdAt: "desc" },
-      take: 20,
     }),
   ]);
 
@@ -1036,6 +982,5 @@ export async function buildCoworkMorningBrief(): Promise<{
     instagram: ig,
     facebook: fb,
     email: em,
-    other: other,
   };
 }

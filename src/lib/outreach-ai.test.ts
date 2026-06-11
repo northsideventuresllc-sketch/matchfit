@@ -8,8 +8,6 @@ const {
   mockOutreachInstagramLeadFindMany,
   mockOutreachFacebookLeadFindMany,
   mockOutreachEmailLeadFindMany,
-  mockOutreachOtherLeadFindMany,
-  mockOutreachOtherLeadCreate,
 } = vi.hoisted(() => ({
   mockGetAdminAiProviderStatus: vi.fn(),
   mockHydratePlatformEnvFromDatabase: vi.fn(),
@@ -18,8 +16,6 @@ const {
   mockOutreachInstagramLeadFindMany: vi.fn(),
   mockOutreachFacebookLeadFindMany: vi.fn(),
   mockOutreachEmailLeadFindMany: vi.fn(),
-  mockOutreachOtherLeadFindMany: vi.fn(),
-  mockOutreachOtherLeadCreate: vi.fn(),
 }));
 
 vi.mock("@/lib/admin-analytics-ai", () => ({
@@ -40,10 +36,6 @@ vi.mock("@/lib/prisma", () => ({
     outreachInstagramLead: { findMany: mockOutreachInstagramLeadFindMany },
     outreachFacebookLead: { findMany: mockOutreachFacebookLeadFindMany },
     outreachEmailLead: { findMany: mockOutreachEmailLeadFindMany },
-    outreachOtherLead: {
-      findMany: mockOutreachOtherLeadFindMany,
-      create: mockOutreachOtherLeadCreate,
-    },
     outreachDailyTemplate: { createMany: vi.fn() },
   },
 }));
@@ -126,8 +118,6 @@ describe("outreach-ai generation prompts and parsing", () => {
     mockOutreachInstagramLeadFindMany.mockResolvedValue([]);
     mockOutreachFacebookLeadFindMany.mockResolvedValue([]);
     mockOutreachEmailLeadFindMany.mockResolvedValue([]);
-    mockOutreachOtherLeadFindMany.mockResolvedValue([]);
-    mockOutreachOtherLeadCreate.mockReset();
   });
 
   afterEach(() => {
@@ -248,33 +238,15 @@ describe("outreach-ai generation prompts and parsing", () => {
     expect(prompt).toContain("coach@mail.com");
   });
 
-  it("loads other-channel exclusions from active and archived leads and lowercases label/url", async () => {
-    mockOutreachOtherLeadFindMany.mockImplementation((args: { where?: { deletedAt?: unknown } }) => {
-      if (args.where?.deletedAt === null) {
-        return Promise.resolve([
-          { contactLabel: "Coach LinkedIn", contactUrl: "HTTPS://LinkedIn.com/in/CoachLinkedIn" },
-        ]);
-      }
-      return Promise.resolve([]);
-    });
-    const mockFetch = mockFailingOpenAiCall();
-
-    await generateOutreachLeads({
-      platform: "other",
-      atlCount: 1,
-      virtualCount: 0,
-      adminId: "admin_4",
-    });
-
-    const activeQuery = mockOutreachOtherLeadFindMany.mock.calls[0]?.[0];
-    expect(activeQuery).toEqual({
-      where: { deletedAt: null },
-      select: { contactLabel: true, contactUrl: true },
-    });
-
-    const prompt = extractOpenAiUserPrompt(mockFetch);
-    expect(prompt).toContain("coach linkedin");
-    expect(prompt).toContain("https://linkedin.com/in/coachlinkedin");
+  it("rejects unsupported outreach platforms", async () => {
+    await expect(
+      generateOutreachLeads({
+        platform: "other" as "instagram",
+        atlCount: 1,
+        virtualCount: 0,
+        adminId: "admin_4",
+      }),
+    ).rejects.toThrow(/Unsupported outreach platform/);
   });
 
   it("enforces strict raw JSON output instructions in the OpenAI system and Instagram prompts", async () => {
@@ -293,103 +265,5 @@ describe("outreach-ai generation prompts and parsing", () => {
 
     const userPrompt = extractOpenAiUserPrompt(mockFetch);
     expect(userPrompt).toContain("Respond with ONLY the JSON array. No text before or after the array.");
-  });
-
-  it("parses object-wrapped lead arrays from AI output and persists other-channel leads", async () => {
-    mockOutreachOtherLeadCreate.mockResolvedValueOnce({
-      id: "other_1",
-      contactLabel: "Coach LinkedIn",
-      targetGroup: "ATL_LOCAL",
-    });
-
-    mockSuccessfulOpenAiCall(
-      JSON.stringify({
-        leads: [
-          {
-            contactLabel: "Coach LinkedIn",
-            contactUrl: "https://linkedin.com/in/coach-linkedin",
-            channelNotes: "LinkedIn outreach",
-            niche: "Strength coaching",
-            targetGroup: "ATL_LOCAL",
-            whyMatchFit: "Active trainer with clear online coaching funnel.",
-            likelihoodScore: 83,
-            outreachText: "Custom message",
-          },
-        ],
-      }),
-    );
-
-    const result = await generateOutreachLeads({
-      platform: "other",
-      atlCount: 1,
-      virtualCount: 0,
-      adminId: "admin_parse_1",
-    });
-
-    expect(result.aiUsed).toBe(true);
-    expect(result.leads).toEqual([
-      {
-        id: "other_1",
-        contactLabel: "Coach LinkedIn",
-        targetGroup: "ATL_LOCAL",
-      },
-    ]);
-    expect(mockOutreachOtherLeadCreate).toHaveBeenCalledTimes(1);
-    expect(mockOutreachOtherLeadCreate).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        contactLabel: "Coach LinkedIn",
-        contactUrl: "https://linkedin.com/in/coach-linkedin",
-        targetGroup: "ATL_LOCAL",
-        createdByAdminId: "admin_parse_1",
-      }),
-    });
-  });
-
-  it("parses fenced JSON arrays with preamble text and still persists leads", async () => {
-    mockOutreachOtherLeadCreate.mockResolvedValueOnce({
-      id: "other_2",
-      contactLabel: "Coach Threads",
-      targetGroup: "VIRTUAL",
-    });
-
-    mockSuccessfulOpenAiCall(`Use this list:
-\`\`\`json
-[
-  {
-    "contactLabel": "Coach Threads",
-    "contactUrl": "https://threads.net/@coachthreads",
-    "channelNotes": "Threads profile",
-    "niche": "Online body recomposition",
-    "targetGroup": "VIRTUAL",
-    "whyMatchFit": "Publishes recent client check-ins and conversion posts.",
-    "likelihoodScore": 76,
-    "outreachText": "Another custom message"
-  }
-]
-\`\`\``);
-
-    const result = await generateOutreachLeads({
-      platform: "other",
-      atlCount: 0,
-      virtualCount: 1,
-      adminId: "admin_parse_2",
-    });
-
-    expect(result.aiUsed).toBe(true);
-    expect(result.leads).toEqual([
-      {
-        id: "other_2",
-        contactLabel: "Coach Threads",
-        targetGroup: "VIRTUAL",
-      },
-    ]);
-    expect(mockOutreachOtherLeadCreate).toHaveBeenCalledTimes(1);
-    expect(mockOutreachOtherLeadCreate).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        contactLabel: "Coach Threads",
-        targetGroup: "VIRTUAL",
-        createdByAdminId: "admin_parse_2",
-      }),
-    });
   });
 });

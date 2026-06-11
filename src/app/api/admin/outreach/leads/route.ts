@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { listOutreachLeads } from "@/lib/outreach-data";
-import type { OutreachPlatform } from "@/lib/outreach-types";
+import { OUTREACH_PLATFORM_VALUES, type OutreachPlatform } from "@/lib/outreach-types";
 import { requireAdminSession } from "@/lib/require-admin";
 
 const querySchema = z.object({
-  platform: z.enum(["instagram", "facebook", "email", "other"]),
+  platform: z.enum(OUTREACH_PLATFORM_VALUES),
   includeDeleted: z.enum(["0", "1"]).optional(),
 });
 

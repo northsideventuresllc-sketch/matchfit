@@ -48,13 +48,11 @@ describe("admin outreach maintenance routes", () => {
       instagram: 1,
       facebook: 2,
       email: 0,
-      other: 0,
     });
     mockPurgeActiveOutreachLeads.mockResolvedValue({
       instagram: 0,
       facebook: 0,
       email: 0,
-      other: 0,
     });
     mockListRegisteredTrainersForOutreach.mockResolvedValue([]);
   });
@@ -87,7 +85,7 @@ describe("admin outreach maintenance routes", () => {
       await expect(response.json()).resolves.toEqual({
         ok: true,
         scope: "archived",
-        removed: { instagram: 1, facebook: 2, email: 0, other: 0 },
+        removed: { instagram: 1, facebook: 2, email: 0 },
         total: 3,
         message: "Removed 3 outreach row(s). Generate with AI to refill with verified leads.",
       });
@@ -100,13 +98,11 @@ describe("admin outreach maintenance routes", () => {
         instagram: 2,
         facebook: 0,
         email: 1,
-        other: 1,
       });
       mockPurgeActiveOutreachLeads.mockResolvedValueOnce({
         instagram: 1,
         facebook: 3,
         email: 0,
-        other: 2,
       });
 
       const response = await purgeOutreach(postPurgeJson({ scope: "all" }));
@@ -115,9 +111,9 @@ describe("admin outreach maintenance routes", () => {
       await expect(response.json()).resolves.toEqual({
         ok: true,
         scope: "all",
-        removed: { instagram: 3, facebook: 3, email: 1, other: 3 },
-        total: 10,
-        message: "Removed 10 outreach row(s). Generate with AI to refill with verified leads.",
+        removed: { instagram: 3, facebook: 3, email: 1 },
+        total: 7,
+        message: "Removed 7 outreach row(s). Generate with AI to refill with verified leads.",
       });
       expect(mockPurgeArchivedOutreachLeads).toHaveBeenCalledTimes(1);
       expect(mockPurgeActiveOutreachLeads).toHaveBeenCalledTimes(1);
@@ -130,7 +126,7 @@ describe("admin outreach maintenance routes", () => {
       await expect(response.json()).resolves.toEqual({
         ok: true,
         scope: "active",
-        removed: { instagram: 0, facebook: 0, email: 0, other: 0 },
+        removed: { instagram: 0, facebook: 0, email: 0 },
         total: 0,
         message: "No outreach rows matched that purge scope.",
       });

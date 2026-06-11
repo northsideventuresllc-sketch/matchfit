@@ -2155,8 +2155,10 @@ model OutreachInstagramLead {
   commentTextEdited  Boolean @default(false)
   generationBatchId  String?
   createdByAdminId   String?
+  savedToHubAt       DateTime?
 
   @@index([deletedAt, status, createdAt])
+  @@index([deletedAt, savedToHubAt])
   @@index([handle])
   @@map("outreach_instagram_leads")
   @@schema("public")
@@ -2191,8 +2193,10 @@ model OutreachFacebookLead {
   pagePostTextEdited Boolean @default(false)
   generationBatchId  String?
   createdByAdminId   String?
+  savedToHubAt       DateTime?
 
   @@index([deletedAt, status, createdAt])
+  @@index([deletedAt, savedToHubAt])
   @@index([pageUrl])
   @@map("outreach_facebook_leads")
   @@schema("public")
@@ -2230,8 +2234,10 @@ model OutreachEmailLead {
   emailBodyEdited    Boolean @default(false)
   generationBatchId  String?
   createdByAdminId   String?
+  savedToHubAt       DateTime?
 
   @@index([deletedAt, status, createdAt])
+  @@index([deletedAt, savedToHubAt])
   @@index([email])
   @@map("outreach_email_leads")
   @@schema("public")
@@ -2267,8 +2273,10 @@ model OutreachOtherLead {
   outreachTextEdited Boolean @default(false)
   generationBatchId  String?
   createdByAdminId   String?
+  savedToHubAt       DateTime?
 
   @@index([deletedAt, status, createdAt])
+  @@index([deletedAt, savedToHubAt])
   @@map("outreach_other_leads")
   @@schema("public")
 }

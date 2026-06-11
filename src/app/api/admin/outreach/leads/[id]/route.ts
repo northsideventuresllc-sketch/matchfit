@@ -6,19 +6,34 @@ import type { OutreachPlatform } from "@/lib/outreach-types";
 import { requireAdminSession } from "@/lib/require-admin";
 import { prisma } from "@/lib/prisma";
 
-const patchSchema = z.object({
-  platform: z.enum(["instagram", "facebook", "email", "other"]),
-  status: z.enum(["LEAD", "OUTREACH_SENT", "FOLLOW_UP_1", "FOLLOW_UP_2", "RESPONSE_RECEIVED"]).optional(),
-  dmText: z.string().max(8000).optional(),
-  commentText: z.string().max(2000).optional(),
-  pagePostText: z.string().max(8000).optional(),
-  emailSubject: z.string().max(500).optional(),
-  emailBody: z.string().max(8000).optional(),
-  outreachText: z.string().max(8000).optional(),
-});
+import {
+  FACEBOOK_STATUS_VALUES,
+  INSTAGRAM_EMAIL_STATUS_VALUES,
+  OUTREACH_PLATFORM_VALUES,
+} from "@/lib/outreach-types";
+
+const patchSchema = z
+  .object({
+    platform: z.enum(OUTREACH_PLATFORM_VALUES),
+    status: z.string().optional(),
+    dmText: z.string().max(8000).optional(),
+    commentText: z.string().max(2000).optional(),
+    pagePostText: z.string().max(8000).optional(),
+    emailSubject: z.string().max(500).optional(),
+    emailBody: z.string().max(8000).optional(),
+    saveToHub: z.literal(true).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.status) return;
+    const allowed =
+      data.platform === "facebook" ? FACEBOOK_STATUS_VALUES : INSTAGRAM_EMAIL_STATUS_VALUES;
+    if (!(allowed as readonly string[]).includes(data.status)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid status for platform.", path: ["status"] });
+    }
+  });
 
 const deleteSchema = z.object({
-  platform: z.enum(["instagram", "facebook", "email", "other"]),
+  platform: z.enum(OUTREACH_PLATFORM_VALUES),
 });
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -82,19 +97,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           editedText: patch.emailBody,
         });
         (patch as Record<string, unknown>).emailBodyEdited = true;
-      }
-    } else {
-      const existing = await prisma.outreachOtherLead.findUnique({ where: { id } });
-      if (!existing) return NextResponse.json({ error: "Not found." }, { status: 404 });
-      if (patch.outreachText && patch.outreachText !== existing.outreachText) {
-        await recordOutreachEditSignal({
-          platform: "other",
-          leadId: id,
-          field: "outreachText",
-          originalText: existing.outreachText,
-          editedText: patch.outreachText,
-        });
-        (patch as Record<string, unknown>).outreachTextEdited = true;
       }
     }
 

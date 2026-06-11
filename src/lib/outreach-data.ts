@@ -1,11 +1,89 @@
 import "server-only";
 
-import { classifyOutreachLead, statusTimestampsForUpdate } from "@/lib/outreach-classification";
-import type { OutreachLeadStatus, OutreachPlatform } from "@/lib/outreach-types";
+import { classifyOutreachLead, facebookStatusTimestampsForUpdate, statusTimestampsForUpdate } from "@/lib/outreach-classification";
+import type {
+  EmailLeadRow,
+  FacebookLeadRow,
+  InstagramLeadRow,
+  OutreachHubLead,
+  OutreachLeadStatus,
+  OutreachPlatform,
+} from "@/lib/outreach-types";
 import { prisma } from "@/lib/prisma";
 
 function serializeDate(d: Date | null): string | null {
   return d ? d.toISOString() : null;
+}
+
+function serializeInstagramLead(
+  r: Awaited<ReturnType<typeof prisma.outreachInstagramLead.findMany>>[number],
+): InstagramLeadRow {
+  const autoClassification = classifyOutreachLead({
+    status: r.status,
+    platform: "instagram",
+    outreachSentAt: r.outreachSentAt,
+    followUp1SentAt: r.followUp1SentAt,
+    followUp2SentAt: r.followUp2SentAt,
+    responseReceivedAt: r.responseReceivedAt,
+    createdAt: r.createdAt,
+  });
+  return {
+    ...r,
+    autoClassification,
+    createdAt: r.createdAt.toISOString(),
+    deletedAt: serializeDate(r.deletedAt),
+    savedToHubAt: serializeDate(r.savedToHubAt),
+    outreachSentAt: serializeDate(r.outreachSentAt),
+    followUp1SentAt: serializeDate(r.followUp1SentAt),
+    followUp2SentAt: serializeDate(r.followUp2SentAt),
+    responseReceivedAt: serializeDate(r.responseReceivedAt),
+  };
+}
+
+function serializeFacebookLead(
+  r: Awaited<ReturnType<typeof prisma.outreachFacebookLead.findMany>>[number],
+): FacebookLeadRow {
+  return {
+    ...r,
+    autoClassification: classifyOutreachLead({
+      status: r.status,
+      platform: "facebook",
+      outreachSentAt: r.outreachSentAt,
+      followUp1SentAt: null,
+      followUp2SentAt: null,
+      responseReceivedAt: r.responseReceivedAt,
+      createdAt: r.createdAt,
+    }),
+    createdAt: r.createdAt.toISOString(),
+    deletedAt: serializeDate(r.deletedAt),
+    savedToHubAt: serializeDate(r.savedToHubAt),
+    outreachSentAt: serializeDate(r.outreachSentAt),
+    responseReceivedAt: serializeDate(r.responseReceivedAt),
+  };
+}
+
+function serializeEmailLead(
+  r: Awaited<ReturnType<typeof prisma.outreachEmailLead.findMany>>[number],
+): EmailLeadRow {
+  return {
+    ...r,
+    autoClassification: classifyOutreachLead({
+      status: r.status,
+      platform: "email",
+      outreachSentAt: r.outreachSentAt,
+      followUp1SentAt: r.followUp1SentAt,
+      followUp2SentAt: r.followUp2SentAt,
+      responseReceivedAt: r.responseReceivedAt,
+      createdAt: r.createdAt,
+    }),
+    createdAt: r.createdAt.toISOString(),
+    deletedAt: serializeDate(r.deletedAt),
+    savedToHubAt: serializeDate(r.savedToHubAt),
+    outreachSentAt: serializeDate(r.outreachSentAt),
+    followUp1SentAt: serializeDate(r.followUp1SentAt),
+    followUp2SentAt: serializeDate(r.followUp2SentAt),
+    responseReceivedAt: serializeDate(r.responseReceivedAt),
+  };
 }
 
 export async function listOutreachLeads(platform: OutreachPlatform, includeDeleted = false) {
@@ -16,90 +94,114 @@ export async function listOutreachLeads(platform: OutreachPlatform, includeDelet
       where,
       orderBy: { createdAt: "desc" },
     });
-    return rows.map((r) => {
-      const autoClassification = classifyOutreachLead({
-        status: r.status,
-        platform: "instagram",
-        outreachSentAt: r.outreachSentAt,
-        followUp1SentAt: r.followUp1SentAt,
-        followUp2SentAt: r.followUp2SentAt,
-        responseReceivedAt: r.responseReceivedAt,
-        createdAt: r.createdAt,
-      });
-      return {
-        ...r,
-        autoClassification,
-        createdAt: r.createdAt.toISOString(),
-        deletedAt: serializeDate(r.deletedAt),
-        outreachSentAt: serializeDate(r.outreachSentAt),
-        followUp1SentAt: serializeDate(r.followUp1SentAt),
-        followUp2SentAt: serializeDate(r.followUp2SentAt),
-        responseReceivedAt: serializeDate(r.responseReceivedAt),
-      };
-    });
+    return rows.map((r) => serializeInstagramLead(r));
   }
 
   if (platform === "facebook") {
     const rows = await prisma.outreachFacebookLead.findMany({ where, orderBy: { createdAt: "desc" } });
-    return rows.map((r) => ({
-      ...r,
-      autoClassification: classifyOutreachLead({
-        status: r.status,
-        platform: "facebook",
-        outreachSentAt: r.outreachSentAt,
-        followUp1SentAt: null,
-        followUp2SentAt: null,
-        responseReceivedAt: r.responseReceivedAt,
-        createdAt: r.createdAt,
-      }),
-      createdAt: r.createdAt.toISOString(),
-      deletedAt: serializeDate(r.deletedAt),
-      outreachSentAt: serializeDate(r.outreachSentAt),
-      responseReceivedAt: serializeDate(r.responseReceivedAt),
-    }));
+    return rows.map((r) => serializeFacebookLead(r));
   }
 
   if (platform === "email") {
     const rows = await prisma.outreachEmailLead.findMany({ where, orderBy: { createdAt: "desc" } });
-    return rows.map((r) => ({
-      ...r,
-      autoClassification: classifyOutreachLead({
-        status: r.status,
-        platform: "email",
-        outreachSentAt: r.outreachSentAt,
-        followUp1SentAt: r.followUp1SentAt,
-        followUp2SentAt: r.followUp2SentAt,
-        responseReceivedAt: r.responseReceivedAt,
-        createdAt: r.createdAt,
-      }),
-      createdAt: r.createdAt.toISOString(),
-      deletedAt: serializeDate(r.deletedAt),
-      outreachSentAt: serializeDate(r.outreachSentAt),
-      followUp1SentAt: serializeDate(r.followUp1SentAt),
-      followUp2SentAt: serializeDate(r.followUp2SentAt),
-      responseReceivedAt: serializeDate(r.responseReceivedAt),
-    }));
+    return rows.map((r) => serializeEmailLead(r));
   }
 
-  const rows = await prisma.outreachOtherLead.findMany({ where, orderBy: { createdAt: "desc" } });
-  return rows.map((r) => ({
-    ...r,
-    autoClassification: classifyOutreachLead({
-      status: r.status,
-      platform: "other",
-      outreachSentAt: r.outreachSentAt,
-      followUp1SentAt: r.followUp1SentAt,
-      followUp2SentAt: r.followUp2SentAt,
-      responseReceivedAt: r.responseReceivedAt,
-      createdAt: r.createdAt,
-    }),
-    createdAt: r.createdAt.toISOString(),
-    deletedAt: serializeDate(r.deletedAt),
-    outreachSentAt: serializeDate(r.outreachSentAt),
-    followUp1SentAt: serializeDate(r.followUp1SentAt),
-    followUp2SentAt: serializeDate(r.followUp2SentAt),
-    responseReceivedAt: serializeDate(r.responseReceivedAt),
-  }));
+  return [];
+}
+
+export async function listOutreachHubLeads(): Promise<OutreachHubLead[]> {
+  const hubWhere = { deletedAt: null, savedToHubAt: { not: null } as const };
+
+  const [instagram, facebook, email] = await Promise.all([
+    prisma.outreachInstagramLead.findMany({ where: hubWhere, orderBy: { savedToHubAt: "desc" } }),
+    prisma.outreachFacebookLead.findMany({ where: hubWhere, orderBy: { savedToHubAt: "desc" } }),
+    prisma.outreachEmailLead.findMany({ where: hubWhere, orderBy: { savedToHubAt: "desc" } }),
+  ]);
+
+  const combined: OutreachHubLead[] = [
+    ...instagram.map((r) => ({
+      platform: "instagram" as const,
+      savedToHubAt: r.savedToHubAt!.toISOString(),
+      lead: serializeInstagramLead(r),
+    })),
+    ...facebook.map((r) => ({
+      platform: "facebook" as const,
+      savedToHubAt: r.savedToHubAt!.toISOString(),
+      lead: serializeFacebookLead(r),
+    })),
+    ...email.map((r) => ({
+      platform: "email" as const,
+      savedToHubAt: r.savedToHubAt!.toISOString(),
+      lead: serializeEmailLead(r),
+    })),
+  ];
+
+  return combined.sort(
+    (a, b) => new Date(b.savedToHubAt).getTime() - new Date(a.savedToHubAt).getTime(),
+  );
+}
+
+function csvEscape(value: string | number | null | undefined): string {
+  const text = value == null ? "" : String(value);
+  if (/[",\n\r]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function hubLeadDisplayName(entry: OutreachHubLead): string {
+  if (entry.platform === "instagram") return (entry.lead as InstagramLeadRow).handle;
+  if (entry.platform === "facebook") return (entry.lead as FacebookLeadRow).pageName;
+  return (entry.lead as EmailLeadRow).name;
+}
+
+function hubLeadContact(entry: OutreachHubLead): string {
+  if (entry.platform === "instagram") return (entry.lead as InstagramLeadRow).profileUrl;
+  if (entry.platform === "facebook") return (entry.lead as FacebookLeadRow).pageUrl;
+  return (entry.lead as EmailLeadRow).email;
+}
+
+function hubLeadOutreachCopy(entry: OutreachHubLead): string {
+  if (entry.platform === "instagram") {
+    const lead = entry.lead as InstagramLeadRow;
+    return `DM: ${lead.dmText}\nComment: ${lead.commentText}`;
+  }
+  if (entry.platform === "facebook") return (entry.lead as FacebookLeadRow).pagePostText;
+  const lead = entry.lead as EmailLeadRow;
+  return `Subject: ${lead.emailSubject}\n\n${lead.emailBody}`;
+}
+
+export function buildOutreachHubCsv(leads: OutreachHubLead[]): string {
+  const headers = [
+    "Platform",
+    "Name",
+    "Contact",
+    "Target Group",
+    "Status",
+    "Classification",
+    "Likelihood Score",
+    "Why Match Fit",
+    "Outreach Copy",
+    "Saved To Hub At",
+    "Created At",
+  ];
+
+  const rows = leads.map((entry) => [
+    entry.platform,
+    hubLeadDisplayName(entry),
+    hubLeadContact(entry),
+    "targetGroup" in entry.lead ? entry.lead.targetGroup : "",
+    entry.lead.status,
+    entry.lead.autoClassification,
+    entry.lead.likelihoodScore,
+    entry.lead.whyMatchFit,
+    hubLeadOutreachCopy(entry),
+    entry.savedToHubAt,
+    entry.lead.createdAt,
+  ]);
+
+  return [headers, ...rows].map((row) => row.map((cell) => csvEscape(cell)).join(",")).join("\n");
 }
 
 export async function softDeleteOutreachLead(platform: OutreachPlatform, id: string) {
@@ -113,7 +215,7 @@ export async function softDeleteOutreachLead(platform: OutreachPlatform, id: str
   if (platform === "email") {
     return prisma.outreachEmailLead.update({ where: { id }, data: { deletedAt: now } });
   }
-  return prisma.outreachOtherLead.update({ where: { id }, data: { deletedAt: now } });
+  throw new Error(`Unsupported outreach platform: ${platform}`);
 }
 
 export type MassDeleteOutreachInput =
@@ -159,8 +261,54 @@ export async function massSoftDeleteOutreachLeads(
     return { deletedCount: result.count };
   }
 
-  const result = await prisma.outreachOtherLead.updateMany({ where, data: { deletedAt: now } });
-  return { deletedCount: result.count };
+  throw new Error(`Unsupported outreach platform: ${platform}`);
+}
+
+export type MassSaveOutreachInput = MassDeleteOutreachInput;
+
+export function buildMassSaveOutreachWhere(input: MassSaveOutreachInput) {
+  return buildMassDeleteOutreachWhere(input);
+}
+
+export async function saveOutreachLeadToHub(platform: OutreachPlatform, id: string) {
+  const now = new Date();
+  if (platform === "instagram") {
+    return prisma.outreachInstagramLead.update({ where: { id }, data: { savedToHubAt: now } });
+  }
+  if (platform === "facebook") {
+    return prisma.outreachFacebookLead.update({ where: { id }, data: { savedToHubAt: now } });
+  }
+  if (platform === "email") {
+    return prisma.outreachEmailLead.update({ where: { id }, data: { savedToHubAt: now } });
+  }
+  throw new Error(`Unsupported outreach platform: ${platform}`);
+}
+
+export async function massSaveOutreachLeadsToHub(
+  platform: OutreachPlatform,
+  input: MassSaveOutreachInput,
+): Promise<{ savedCount: number }> {
+  const now = new Date();
+  const where = buildMassSaveOutreachWhere(input);
+
+  if (input.mode === "ids" && input.ids.length === 0) {
+    return { savedCount: 0 };
+  }
+
+  if (platform === "instagram") {
+    const result = await prisma.outreachInstagramLead.updateMany({ where, data: { savedToHubAt: now } });
+    return { savedCount: result.count };
+  }
+  if (platform === "facebook") {
+    const result = await prisma.outreachFacebookLead.updateMany({ where, data: { savedToHubAt: now } });
+    return { savedCount: result.count };
+  }
+  if (platform === "email") {
+    const result = await prisma.outreachEmailLead.updateMany({ where, data: { savedToHubAt: now } });
+    return { savedCount: result.count };
+  }
+
+  throw new Error(`Unsupported outreach platform: ${platform}`);
 }
 
 export async function updateOutreachLead(
@@ -193,6 +341,7 @@ export async function updateOutreachLead(
         dmTextEdited: patch.dmTextEdited === true ? true : undefined,
         commentTextEdited: patch.commentTextEdited === true ? true : undefined,
         autoClassification,
+        savedToHubAt: patch.saveToHub === true ? new Date() : undefined,
         ...stamps,
       },
     });
@@ -202,10 +351,8 @@ export async function updateOutreachLead(
     const existing = await prisma.outreachFacebookLead.findUnique({ where: { id } });
     if (!existing) return null;
     const status = typeof patch.status === "string" ? patch.status : existing.status;
-    const stamps = statusTimestampsForUpdate(status as OutreachLeadStatus, {
+    const stamps = facebookStatusTimestampsForUpdate(status, {
       outreachSentAt: existing.outreachSentAt,
-      followUp1SentAt: null,
-      followUp2SentAt: null,
       responseReceivedAt: existing.responseReceivedAt,
     });
     return prisma.outreachFacebookLead.update({
@@ -217,12 +364,15 @@ export async function updateOutreachLead(
         autoClassification: classifyOutreachLead({
           status,
           platform: "facebook",
-          ...stamps,
+          outreachSentAt: stamps.outreachSentAt,
           followUp1SentAt: null,
           followUp2SentAt: null,
+          responseReceivedAt: stamps.responseReceivedAt,
           createdAt: existing.createdAt,
         }),
-        ...stamps,
+        savedToHubAt: patch.saveToHub === true ? new Date() : undefined,
+        outreachSentAt: stamps.outreachSentAt,
+        responseReceivedAt: stamps.responseReceivedAt,
       },
     });
   }
@@ -231,7 +381,7 @@ export async function updateOutreachLead(
     const existing = await prisma.outreachEmailLead.findUnique({ where: { id } });
     if (!existing) return null;
     const status = typeof patch.status === "string" ? patch.status : existing.status;
-    const stamps = statusTimestampsForUpdate(status as OutreachLeadStatus, {
+    const stamps = statusTimestampsForUpdate(status, {
       outreachSentAt: existing.outreachSentAt,
       followUp1SentAt: existing.followUp1SentAt,
       followUp2SentAt: existing.followUp2SentAt,
@@ -250,54 +400,29 @@ export async function updateOutreachLead(
           ...stamps,
           createdAt: existing.createdAt,
         }),
+        savedToHubAt: patch.saveToHub === true ? new Date() : undefined,
         ...stamps,
       },
     });
   }
 
-  const existing = await prisma.outreachOtherLead.findUnique({ where: { id } });
-  if (!existing) return null;
-  const status = typeof patch.status === "string" ? patch.status : existing.status;
-  const stamps = statusTimestampsForUpdate(status as "LEAD", {
-    outreachSentAt: existing.outreachSentAt,
-    followUp1SentAt: existing.followUp1SentAt,
-    followUp2SentAt: existing.followUp2SentAt,
-    responseReceivedAt: existing.responseReceivedAt,
-  });
-  return prisma.outreachOtherLead.update({
-    where: { id },
-    data: {
-      outreachText: typeof patch.outreachText === "string" ? patch.outreachText : undefined,
-      status,
-      outreachTextEdited: patch.outreachTextEdited === true ? true : undefined,
-      autoClassification: classifyOutreachLead({
-        status,
-        platform: "other",
-        ...stamps,
-        createdAt: existing.createdAt,
-      }),
-      ...stamps,
-    },
-  });
+  return null;
 }
 
 export async function purgeArchivedOutreachLeads(): Promise<{
   instagram: number;
   facebook: number;
   email: number;
-  other: number;
 }> {
-  const [instagram, facebook, email, other] = await Promise.all([
+  const [instagram, facebook, email] = await Promise.all([
     prisma.outreachInstagramLead.deleteMany({ where: { deletedAt: { not: null } } }),
     prisma.outreachFacebookLead.deleteMany({ where: { deletedAt: { not: null } } }),
     prisma.outreachEmailLead.deleteMany({ where: { deletedAt: { not: null } } }),
-    prisma.outreachOtherLead.deleteMany({ where: { deletedAt: { not: null } } }),
   ]);
   return {
     instagram: instagram.count,
     facebook: facebook.count,
     email: email.count,
-    other: other.count,
   };
 }
 
@@ -305,28 +430,24 @@ export async function purgeActiveOutreachLeads(): Promise<{
   instagram: number;
   facebook: number;
   email: number;
-  other: number;
 }> {
-  const [instagram, facebook, email, other] = await Promise.all([
+  const [instagram, facebook, email] = await Promise.all([
     prisma.outreachInstagramLead.deleteMany({ where: { deletedAt: null } }),
     prisma.outreachFacebookLead.deleteMany({ where: { deletedAt: null } }),
     prisma.outreachEmailLead.deleteMany({ where: { deletedAt: null } }),
-    prisma.outreachOtherLead.deleteMany({ where: { deletedAt: null } }),
   ]);
   return {
     instagram: instagram.count,
     facebook: facebook.count,
     email: email.count,
-    other: other.count,
   };
 }
 
 export async function refreshAllOutreachClassifications() {
-  const [ig, fb, em, ot] = await Promise.all([
+  const [ig, fb, em] = await Promise.all([
     prisma.outreachInstagramLead.findMany({ where: { deletedAt: null } }),
     prisma.outreachFacebookLead.findMany({ where: { deletedAt: null } }),
     prisma.outreachEmailLead.findMany({ where: { deletedAt: null } }),
-    prisma.outreachOtherLead.findMany({ where: { deletedAt: null } }),
   ]);
 
   await Promise.all([
@@ -369,22 +490,6 @@ export async function refreshAllOutreachClassifications() {
           autoClassification: classifyOutreachLead({
             status: r.status,
             platform: "email",
-            outreachSentAt: r.outreachSentAt,
-            followUp1SentAt: r.followUp1SentAt,
-            followUp2SentAt: r.followUp2SentAt,
-            responseReceivedAt: r.responseReceivedAt,
-            createdAt: r.createdAt,
-          }),
-        },
-      }),
-    ),
-    ...ot.map((r) =>
-      prisma.outreachOtherLead.update({
-        where: { id: r.id },
-        data: {
-          autoClassification: classifyOutreachLead({
-            status: r.status,
-            platform: "other",
             outreachSentAt: r.outreachSentAt,
             followUp1SentAt: r.followUp1SentAt,
             followUp2SentAt: r.followUp2SentAt,

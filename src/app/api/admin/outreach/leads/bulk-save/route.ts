@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { massSoftDeleteOutreachLeads } from "@/lib/outreach-data";
+import { massSaveOutreachLeadsToHub } from "@/lib/outreach-data";
 import { OUTREACH_PLATFORM_VALUES, type OutreachPlatform } from "@/lib/outreach-types";
 import { requireAdminSession } from "@/lib/require-admin";
 
-const bulkDeleteSchema = z.discriminatedUnion("mode", [
+const bulkSaveSchema = z.discriminatedUnion("mode", [
   z.object({
     platform: z.enum(OUTREACH_PLATFORM_VALUES),
     mode: z.literal("all"),
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
   const sess = await requireAdminSession();
   if (!sess) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
-  const parsed = bulkDeleteSchema.safeParse(await req.json().catch(() => null));
+  const parsed = bulkSaveSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
@@ -33,10 +33,10 @@ export async function POST(req: Request) {
   const { platform, ...input } = parsed.data;
 
   try {
-    const { deletedCount } = await massSoftDeleteOutreachLeads(platform as OutreachPlatform, input);
-    return NextResponse.json({ ok: true, deletedCount });
+    const { savedCount } = await massSaveOutreachLeadsToHub(platform as OutreachPlatform, input);
+    return NextResponse.json({ ok: true, savedCount });
   } catch (e) {
-    console.error("[outreach leads bulk-delete]", e);
-    return NextResponse.json({ error: "Could not delete outreach leads." }, { status: 500 });
+    console.error("[outreach leads bulk-save]", e);
+    return NextResponse.json({ error: "Could not save outreach leads to hub." }, { status: 500 });
   }
 }

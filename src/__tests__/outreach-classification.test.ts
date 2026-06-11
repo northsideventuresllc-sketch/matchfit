@@ -49,10 +49,10 @@ describe("classifyOutreachLead", () => {
     ).toBe("DEAD_LEAD");
   });
 
-  it("does not use follow-up stages for facebook", () => {
+  it("does not use instagram-style follow-up stages for facebook pipeline statuses", () => {
     expect(
       classifyOutreachLead({
-        status: "OUTREACH_SENT",
+        status: "POST_SUBMITTED_PENDING_REVIEW",
         platform: "facebook",
         outreachSentAt: new Date("2026-05-20T12:00:00Z"),
         followUp1SentAt: null,
@@ -61,7 +61,7 @@ describe("classifyOutreachLead", () => {
         createdAt: new Date("2026-05-20T12:00:00Z"),
         now,
       }),
-    ).toBe("DEAD_LEAD");
+    ).toBe("FOLLOW_UP_NEEDED");
   });
 
   it("keeps responded leads active", () => {
