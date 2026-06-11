@@ -34,6 +34,7 @@ import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { AdminDashboardLayoutCustomizer } from "./admin-dashboard-layout-customizer";
 import {
   AutomatedEmailStatsSection,
+  BackgroundChecksSection,
   ClientPipelineSection,
   FinancialDetailsSection,
   MemberOverviewSection,
@@ -249,6 +250,7 @@ export function AdminDashboardClient(props: {
     emailStats,
     alerts,
     platformSummary,
+    backgroundChecks,
   } = overview;
 
   const layoutStorageKey = `${ADMIN_DASHBOARD_LAYOUT_STORAGE_KEY}:${props.administratorId}`;
@@ -555,6 +557,13 @@ export function AdminDashboardClient(props: {
         );
       case "operational-alerts":
         return <OperationalAlertsSection alerts={alerts} />;
+      case "background-checks":
+        return (
+          <BackgroundChecksSection
+            panel={backgroundChecks}
+            onRefresh={() => void refreshSection("background-checks")}
+          />
+        );
       case "impersonation-audit":
         return (
           <div className="rounded-2xl border border-white/[0.08] bg-[#0c0f14]/90 p-5">
@@ -778,6 +787,7 @@ export function AdminDashboardClient(props: {
                 "financial-details",
                 "automated-email-stats",
                 "operational-alerts",
+                "background-checks",
               ].includes(sectionId);
 
               return (

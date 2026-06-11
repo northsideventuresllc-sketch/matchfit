@@ -17,6 +17,7 @@ export const ADMIN_DASHBOARD_SECTION_IDS = [
   "platform-health",
   "ad-performance",
   "operational-alerts",
+  "background-checks",
   "automated-email-stats",
   "impersonation-audit",
   "recent-featured",
@@ -106,6 +107,13 @@ export const ADMIN_DASHBOARD_SECTIONS: AdminDashboardSectionMeta[] = [
     label: "Operational alerts",
     description: "Background checks, billing grace, safety, and chat warnings.",
     group: "Analytics",
+  },
+  {
+    id: "background-checks",
+    label: "Background checks",
+    description:
+      "Plan B manual Checkr invite queue, automated Plan A invite timestamps, trainer email, and screening status.",
+    group: "Operations",
   },
   {
     id: "automated-email-stats",
@@ -225,7 +233,7 @@ export const ADMIN_DASHBOARD_LAYOUT_PRESETS: AdminDashboardLayoutPreset[] = [
   {
     id: "trust-safety",
     label: "Trust & safety",
-    description: "Alerts, audit log, member search, and signup activity.",
+    description: "Background checks, alerts, audit log, member search, and signup activity.",
     hidden: [
       "platform-health",
       "site-traffic",
@@ -238,7 +246,7 @@ export const ADMIN_DASHBOARD_LAYOUT_PRESETS: AdminDashboardLayoutPreset[] = [
       "recent-featured",
       "test-mode",
     ],
-    collapsed: ["signup-log"],
+    collapsed: ["signup-log", "impersonation-audit"],
   },
   {
     id: "operations",
@@ -254,7 +262,7 @@ export const ADMIN_DASHBOARD_LAYOUT_PRESETS: AdminDashboardLayoutPreset[] = [
       "financial-details",
       "automated-email-stats",
     ],
-    collapsed: ["overview-kpis", "operational-alerts"],
+    collapsed: ["overview-kpis", "operational-alerts", "background-checks"],
   },
 ];
 

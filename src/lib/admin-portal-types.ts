@@ -332,6 +332,60 @@ export type AdminPlatformSummaryPanel = {
   growthProjection: PlatformGrowthProjection;
 };
 
+export type AdminBackgroundCheckPlatformMode = "plan_a" | "plan_b" | "unconfigured";
+
+export type AdminBackgroundCheckQueueKind =
+  | "awaiting_manual_invite"
+  | "automated_invite_sent"
+  | "manual_invite_sent"
+  | "plan_a_pending"
+  | "screening_in_progress"
+  | "approved"
+  | "failed"
+  | "other";
+
+export type AdminBackgroundCheckEntry = {
+  trainerId: string;
+  username: string;
+  displayName: string;
+  email: string;
+  backgroundCheckStatus: string;
+  backgroundCheckReviewStatus: string | null;
+  inviteRequestedAt: string | null;
+  inviteSentAt: string | null;
+  checkrCandidateId: string | null;
+  checkrReportId: string | null;
+  clearedAt: string | null;
+  queueKind: AdminBackgroundCheckQueueKind;
+  queueLabel: string;
+  waitingSince: string | null;
+  latestEmail: {
+    kind: string;
+    toEmail: string;
+    sentAt: string;
+    subject: string;
+  } | null;
+  canConfirmInviteSent: boolean;
+};
+
+export type AdminBackgroundChecksPanel = {
+  platformMode: AdminBackgroundCheckPlatformMode;
+  planBActive: boolean;
+  awaitingManualInvite: AdminBackgroundCheckEntry[];
+  automatedInvitesSent: AdminBackgroundCheckEntry[];
+  manualInvitesSent: AdminBackgroundCheckEntry[];
+  planAPending: AdminBackgroundCheckEntry[];
+  activeEntries: AdminBackgroundCheckEntry[];
+  summary: {
+    awaitingManualInvite: number;
+    automatedInvitesSent: number;
+    manualInvitesSent: number;
+    planAPending: number;
+    screeningInProgress: number;
+    failed: number;
+  };
+};
+
 export type AdminPortalOverview = {
   computedAt: string;
   traffic: AdminTrafficSnapshot;
@@ -348,6 +402,7 @@ export type AdminPortalOverview = {
   emailStats: AdminEmailStatsPanel;
   alerts: AdminAlertsPanel;
   platformSummary: AdminPlatformSummaryPanel;
+  backgroundChecks: AdminBackgroundChecksPanel;
 };
 
 export function formatUsdFromCents(cents: number): string {

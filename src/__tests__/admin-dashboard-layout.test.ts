@@ -27,6 +27,7 @@ describe("admin-dashboard-layout", () => {
     expect(parsed.collapsed).toEqual([]);
     expect(parsed.density).toBe("comfortable");
     expect(parsed.order).toContain("platform-health");
+    expect(parsed.order).toContain("background-checks");
     expect(visibleDashboardSections(parsed)).not.toContain("signup-log");
   });
 
