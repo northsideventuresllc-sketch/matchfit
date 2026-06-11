@@ -12,6 +12,8 @@ import pg from "pg";
 
 const url = process.env.NI_BRAIN_SUPABASE_URL?.trim();
 const serviceRoleKey = process.env.NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY?.trim();
+const databaseUrl = process.env.NI_BRAIN_DATABASE_URL?.trim();
+const databasePassword = process.env.NI_BRAIN_DATABASE_PASSWORD?.trim();
 const connectionString =
   process.env.DIRECT_URL?.trim() || process.env.DATABASE_URL?.trim() || process.env.SUPABASE_DATABASE_POOLER_URL?.trim();
 
@@ -78,6 +80,18 @@ async function upsert(key, value) {
 async function main() {
   await upsert("NI_BRAIN_SUPABASE_URL", url);
   await upsert("NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY", serviceRoleKey);
+  if (databaseUrl) {
+    await upsert("NI_BRAIN_DATABASE_URL", databaseUrl);
+  } else if (databasePassword) {
+    await upsert("NI_BRAIN_DATABASE_PASSWORD", databasePassword);
+    console.log(
+      "Stored NI_BRAIN_DATABASE_PASSWORD — production will derive the Postgres URL for Content Hub schema repair.",
+    );
+  } else {
+    console.warn(
+      "Tip: set NI_BRAIN_DATABASE_PASSWORD or NI_BRAIN_DATABASE_URL so Content Hub can auto-apply NI Brain migrations.",
+    );
+  }
   console.log("Done. Production hydrates these on next serverless cold start.");
 }
 

@@ -16,11 +16,19 @@ const sql = readFileSync(join(__dirname, "ni-brain-content-hub-migration.sql"), 
 const databaseUrl =
   process.env.NI_BRAIN_DATABASE_URL?.trim() ||
   process.env.NI_BRAIN_DIRECT_URL?.trim() ||
+  (() => {
+    const password = process.env.NI_BRAIN_DATABASE_PASSWORD?.trim();
+    const supabaseUrl = process.env.NI_BRAIN_SUPABASE_URL?.trim();
+    if (!password || !supabaseUrl) return "";
+    const ref = supabaseUrl.match(/https?:\/\/([a-z0-9-]+)\.supabase\.co/i)?.[1];
+    if (!ref) return "";
+    return `postgresql://postgres:${encodeURIComponent(password)}@db.${ref}.supabase.co:5432/postgres`;
+  })() ||
   process.env.DIRECT_URL?.trim();
 
 if (!databaseUrl) {
   console.error(
-    "Set NI_BRAIN_DATABASE_URL to the NI Brain Postgres connection string (Supabase → Settings → Database).",
+    "Set NI_BRAIN_DATABASE_URL or NI_BRAIN_DATABASE_PASSWORD (Supabase → Settings → Database) to run the migration.",
   );
   process.exit(1);
 }

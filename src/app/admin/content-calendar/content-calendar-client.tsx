@@ -41,6 +41,12 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
   });
   const [promptDismissedIds, setPromptDismissedIds] = useState<Set<string>>(new Set());
   const [promptBusy, setPromptBusy] = useState(false);
+  const [schemaRepairing, setSchemaRepairing] = useState(false);
+  const [schemaRepairMessage, setSchemaRepairMessage] = useState<string | null>(null);
+
+  const showSchemaRepair =
+    Boolean(error) &&
+    /Content Hub columns are missing|NI_BRAIN_DATABASE_URL|NI_BRAIN_DATABASE_PASSWORD|saved_to_hub_at/i.test(error ?? "");
 
   const loadHub = useCallback(async () => {
     setHubLoading(true);
@@ -91,6 +97,26 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
     );
     return candidate ?? null;
   }, [tabPosts, promptDismissedIds]);
+
+  async function repairContentHubSchema() {
+    setSchemaRepairing(true);
+    setSchemaRepairMessage(null);
+    try {
+      const res = await fetch("/api/admin/content-calendar/hub/schema-repair", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = (await res.json()) as { message?: string; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Schema repair failed.");
+      setSchemaRepairMessage(data.message ?? "Content Hub schema repaired.");
+      setError(null);
+      await loadHub();
+    } catch (e) {
+      setSchemaRepairMessage(e instanceof Error ? e.message : "Schema repair failed.");
+    } finally {
+      setSchemaRepairing(false);
+    }
+  }
 
   async function runSocialScan() {
     setScanning(true);
@@ -200,6 +226,32 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
       ) : null}
 
       {error ? <AdminPortalAlert>{error}</AdminPortalAlert> : null}
+
+      {showSchemaRepair ? (
+        <AdminPortalAlert variant="info">
+          <p className="text-sm leading-relaxed">
+            Content Hub needs a one-time database update on NI Brain. Add{" "}
+            <strong>NI_BRAIN_DATABASE_PASSWORD</strong> (from Supabase → NI Brain project → Settings → Database) to
+            Vercel production env or run <code className="text-[#FFD34E]">npm run bootstrap:ni-brain</code> with that
+            password, redeploy, then click repair below.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className={adminSecondaryButtonClass}
+              disabled={schemaRepairing}
+              onClick={() => void repairContentHubSchema()}
+            >
+              {schemaRepairing ? "Repairing schema…" : "Repair Content Hub schema"}
+            </button>
+            {schemaRepairMessage ? <span className="text-sm text-white/70">{schemaRepairMessage}</span> : null}
+          </div>
+        </AdminPortalAlert>
+      ) : null}
+
+      {schemaRepairMessage && !showSchemaRepair ? (
+        <AdminPortalAlert variant="info">{schemaRepairMessage}</AdminPortalAlert>
+      ) : null}
 
       {socialSummary ? (
         <section className="rounded-2xl border border-white/[0.06] bg-[#12151C]/90 p-5">

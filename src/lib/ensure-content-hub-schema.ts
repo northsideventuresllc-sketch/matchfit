@@ -2,6 +2,7 @@ import "server-only";
 
 import pg from "pg";
 import { createNiBrainClient } from "@/lib/ni-brain-client";
+import { resolveNiBrainDatabaseUrlForDdl } from "@/lib/ni-brain-database-url";
 import { pgPoolConfigForConnectionString } from "@/lib/supabase-database-url";
 
 const CONTENT_HUB_COLUMNS = [
@@ -30,7 +31,7 @@ CREATE INDEX IF NOT EXISTS idx_content_calendar_purge
 /** True when NI Brain/PostgREST reports Content Hub columns are absent. */
 export function isMissingContentHubSchemaError(e: unknown): boolean {
   const message = e instanceof Error ? e.message : String(e);
-  if (/Content Hub columns are missing|NI_BRAIN_DATABASE_URL/i.test(message)) return true;
+  if (/Content Hub columns are missing|NI_BRAIN_DATABASE_URL|NI_BRAIN_DATABASE_PASSWORD/i.test(message)) return true;
   if (!CONTENT_HUB_COLUMNS.some((column) => message.includes(column))) return false;
   return (
     /does not exist|42703|PGRST204|schema cache/i.test(message) ||
@@ -52,10 +53,10 @@ async function runNiBrainContentHubDdl(): Promise<void> {
   const { hydratePlatformEnvFromDatabase } = await import("@/lib/hydrate-platform-env");
   await hydratePlatformEnvFromDatabase();
 
-  const databaseUrl = process.env.NI_BRAIN_DATABASE_URL?.trim();
+  const databaseUrl = resolveNiBrainDatabaseUrlForDdl();
   if (!databaseUrl) {
     throw new Error(
-      "Content Hub columns are missing on NI Brain. Set NI_BRAIN_DATABASE_URL in Vercel env or platform_secrets, then redeploy — or run: npm run migrate:ni-brain-content-hub",
+      "Content Hub columns are missing on NI Brain. Add NI_BRAIN_DATABASE_URL or NI_BRAIN_DATABASE_PASSWORD to Vercel env or platform_secrets (Supabase → Settings → Database), then redeploy — or run: npm run migrate:ni-brain-content-hub",
     );
   }
 

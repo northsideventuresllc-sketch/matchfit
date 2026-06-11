@@ -93,6 +93,11 @@ export async function hydratePlatformEnvFromDatabase(): Promise<void> {
       process.env.NI_BRAIN_DATABASE_URL = niBrainDatabaseUrl;
     }
 
+    const niBrainDatabasePassword = await readPlatformSecret("NI_BRAIN_DATABASE_PASSWORD");
+    if (niBrainDatabasePassword) {
+      process.env.NI_BRAIN_DATABASE_PASSWORD = niBrainDatabasePassword;
+    }
+
     resetStripeClient();
   })();
 
