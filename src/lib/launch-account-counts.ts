@@ -233,30 +233,49 @@ export function launchTrainerBeforeTermsWhere(): Prisma.TrainerWhereInput {
   };
 }
 
+/** Shared OR: trainer accepted Terms or started onboarding before marketplace dashboard is live. */
+export const TRAINER_PENDING_ONBOARDING_OR: Prisma.TrainerWhereInput[] = [
+  { termsAcceptedAt: { not: null } },
+  { profile: { is: { hasSignedTOS: true } } },
+  { profile: { is: { complianceWindowStartedAt: { not: null } } } },
+  { profile: { is: { limitedDashboardUnlockedAt: { not: null } } } },
+  {
+    profile: {
+      is: {
+        registrationFeeHoldStatus: { in: ["HELD", "CAPTURED"] },
+      },
+    },
+  },
+];
+
+/**
+ * Pending onboarding trainers on top of a launch/admin account filter.
+ * Uses AND so account exclusions (test/QA rows) are not overwritten by dashboard NOT.
+ */
+export function trainerPendingOnboardingWhere(
+  accountWhere: Prisma.TrainerWhereInput,
+): Prisma.TrainerWhereInput {
+  return {
+    AND: [
+      accountWhere,
+      {
+        NOT: {
+          profile: { is: { dashboardActivatedAt: { not: null } } },
+        },
+      },
+      {
+        OR: TRAINER_PENDING_ONBOARDING_OR,
+      },
+    ],
+  };
+}
+
 /**
  * Pending trainers: accepted Terms or started onboarding, marketplace dashboard not live yet.
  * Does not require the 7-day compliance window timestamp — that is tracked as a qualification.
  */
 export function launchPendingTrainerWhere(): Prisma.TrainerWhereInput {
-  return {
-    ...launchTrainerAccountWhere(),
-    NOT: {
-      profile: { is: { dashboardActivatedAt: { not: null } } },
-    },
-    OR: [
-      { termsAcceptedAt: { not: null } },
-      { profile: { is: { hasSignedTOS: true } } },
-      { profile: { is: { complianceWindowStartedAt: { not: null } } } },
-      { profile: { is: { limitedDashboardUnlockedAt: { not: null } } } },
-      {
-        profile: {
-          is: {
-            registrationFeeHoldStatus: { in: ["HELD", "CAPTURED"] },
-          },
-        },
-      },
-    ],
-  };
+  return trainerPendingOnboardingWhere(launchTrainerAccountWhere());
 }
 
 export async function countLaunchPendingTrainers(): Promise<number> {

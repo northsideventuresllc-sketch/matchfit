@@ -68,7 +68,7 @@ import {
 } from "@/lib/launch-account-counts";
 import {
   adminPendingTrainerWhere,
-  buildAdminPortalTrainerDirectorySqlFilter,
+  buildAdminPortalTrainerSqlFilter,
   buildLaunchMetricsClientSqlFilter,
   buildLaunchMetricsTrainerSqlFilter,
 } from "@/lib/admin-portal-list-filters";
@@ -623,12 +623,14 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
     console.warn("[admin trainer pipeline] pending record repair skipped:", e);
   });
 
-  const trainerMetricsFilter = buildAdminPortalTrainerDirectorySqlFilter();
-  const baseWhere = Prisma.sql`TRUE ${trainerMetricsFilter}`;
+  const trainerMetricsFilter = buildAdminPortalTrainerSqlFilter();
+  const baseWhere = Prisma.sql`t."deidentifiedAt" IS NULL ${trainerMetricsFilter}`;
 
   const ownerTestTrainerSignupWhere = ownerTestExcludedSignupProgressWhere("trainer");
 
-  const [startedSignup, basicInfoNoTos, signupCompleted, bgSubmitted, bgFailed, bgPassed, docsPending, live, pendingTrainerRows] =
+  const pendingTrainerCountPromise = prisma.trainer.count({ where: adminPendingTrainerWhere() });
+
+  const [startedSignup, basicInfoNoTos, pendingTrainerCount, bgSubmitted, bgFailed, bgPassed, docsPending, live, pendingTrainerRows] =
     await Promise.all([
     prisma.signupFormProgress
       .count({ where: { role: "trainer", stage: "started_signup", ...ownerTestTrainerSignupWhere } })
@@ -636,19 +638,7 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
     prisma.signupFormProgress
       .count({ where: { role: "trainer", stage: "basic_info_complete", ...ownerTestTrainerSignupWhere } })
       .catch(() => 0),
-    prisma.$queryRaw<CountRow[]>`
-      SELECT COUNT(*)::bigint AS n FROM trainers t
-      LEFT JOIN trainer_profiles p ON p."trainerId" = t.id
-      WHERE ${baseWhere}
-        AND (p."dashboardActivatedAt" IS NULL OR p."trainerId" IS NULL)
-        AND (
-          p."hasSignedTOS" = true
-          OR t."termsAcceptedAt" IS NOT NULL
-          OR p."complianceWindowStartedAt" IS NOT NULL
-          OR p."limitedDashboardUnlockedAt" IS NOT NULL
-          OR p."registrationFeeHoldStatus" IN ('HELD', 'CAPTURED')
-        )
-    `,
+    pendingTrainerCountPromise,
     prisma.$queryRaw<CountRow[]>`
       SELECT COUNT(*)::bigint AS n FROM trainers t
       LEFT JOIN trainer_profiles p ON p."trainerId" = t.id
@@ -722,7 +712,7 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
     }),
   ]);
 
-  const totalInPipeline = n(signupCompleted[0]);
+  const totalInPipeline = pendingTrainerCount;
   const pct = (count: number) => (totalInPipeline > 0 ? Math.round((count / totalInPipeline) * 1000) / 10 : 0);
 
   const stages: AdminTrainerPipelineStage[] = [
@@ -733,7 +723,7 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
       count: basicInfoNoTos,
       percentOfSignup: pct(basicInfoNoTos),
     },
-    { id: "signup", label: "Pending Trainers (Onboarding)", count: n(signupCompleted[0]), percentOfSignup: pct(n(signupCompleted[0])) },
+    { id: "signup", label: "Pending Trainers (Onboarding)", count: pendingTrainerCount, percentOfSignup: pct(pendingTrainerCount) },
     { id: "bg_submitted", label: "Background Check Submitted/Pending", count: n(bgSubmitted[0]), percentOfSignup: pct(n(bgSubmitted[0])) },
     { id: "bg_review", label: "Background Check Submitted/In Review", count: n(bgFailed[0]), percentOfSignup: pct(n(bgFailed[0])) },
     { id: "bg_passed", label: "Background Check Passed", count: n(bgPassed[0]), percentOfSignup: pct(n(bgPassed[0])) },

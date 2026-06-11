@@ -54,9 +54,12 @@ vi.mock("@/lib/launch-account-counts", async (importOriginal) => {
     launchClientFreeTrialCountWhere: mockLaunchClientFreeTrialCountWhere,
     launchClientPlatformPaymentGraceWhere: mockLaunchClientPlatformPaymentGraceWhere,
     launchTrainerCountWhere: mockLaunchTrainerCountWhere,
-    launchPendingTrainerWhere: vi.fn(() => ({ __tag: "launch-pending" })),
   };
 });
+
+vi.mock("@/lib/admin-portal-list-filters", () => ({
+  adminPendingTrainerWhere: vi.fn(() => ({ __tag: "admin-pending" })),
+}));
 
 vi.mock("@/lib/home-user-counts", () => ({
   getHomeUserCounts: mockGetHomeUserCounts,
@@ -95,7 +98,7 @@ describe("admin-member-overview", () => {
       return Promise.resolve(40);
     });
     mockTrainerCount.mockImplementation((args?: { where?: Record<string, unknown> }) => {
-      if (args?.where?.__tag === "launch-pending") return Promise.resolve(4);
+      if (args?.where?.__tag === "admin-pending") return Promise.resolve(4);
       const profileIs = (args?.where?.profile as { is?: { dashboardActivatedAt?: { not?: unknown } } } | undefined)?.is;
       if (profileIs && "dashboardActivatedAt" in profileIs && "not" in (profileIs.dashboardActivatedAt ?? {})) {
         return Promise.resolve(30);

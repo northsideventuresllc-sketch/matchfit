@@ -77,13 +77,20 @@ describe("admin portal list filters", () => {
 
   it("admin pending trainer filter matches onboarding-started trainers without live dashboard", () => {
     const where = adminPendingTrainerWhere();
-    expect(where.NOT).toEqual({
-      profile: { is: { dashboardActivatedAt: { not: null } } },
-    });
-    expect(where.OR).toEqual(
+    expect(where.AND).toEqual(
       expect.arrayContaining([
-        { termsAcceptedAt: { not: null } },
-        { profile: { is: { hasSignedTOS: true } } },
+        expect.objectContaining({ deidentifiedAt: null }),
+        {
+          NOT: {
+            profile: { is: { dashboardActivatedAt: { not: null } } },
+          },
+        },
+        {
+          OR: expect.arrayContaining([
+            { termsAcceptedAt: { not: null } },
+            { profile: { is: { hasSignedTOS: true } } },
+          ]),
+        },
       ]),
     );
   });

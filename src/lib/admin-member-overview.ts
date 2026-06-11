@@ -10,9 +10,9 @@ import {
   launchClientCountWhere,
   launchClientFreeTrialCountWhere,
   launchClientPlatformPaymentGraceWhere,
-  launchPendingTrainerWhere,
   launchTrainerCountWhere,
 } from "@/lib/launch-account-counts";
+import { adminPendingTrainerWhere } from "@/lib/admin-portal-list-filters";
 import { getHomeUserCounts } from "@/lib/home-user-counts";
 import { isPrismaMissingTableError } from "@/lib/prisma-missing-column";
 
@@ -104,7 +104,7 @@ export async function getAdminMemberOverviewPanel(now = new Date()): Promise<Adm
     prisma.client.count({ where: launchClientInactiveSubscriberWhere(now) }),
     countUniqueSiteVisitorsAllTime(),
     countInactiveTrainers(),
-    prisma.trainer.count({ where: launchPendingTrainerWhere() }),
+    prisma.trainer.count({ where: adminPendingTrainerWhere() }),
   ]);
 
   return {

@@ -6,6 +6,7 @@ import {
   SYNTHETIC_TRAINER_USERNAME_PREFIX,
   getLaunchExcludeEmails,
   getLaunchExcludeUsernames,
+  trainerPendingOnboardingWhere,
 } from "@/lib/launch-account-counts";
 import {
   getMatchFitDevPlaceholderCertPathPrefixes,
@@ -144,29 +145,10 @@ export function adminPortalTrainerDirectoryWhereLegacy(): Prisma.TrainerWhereInp
 }
 
 /**
- * Pending trainers for admin pipeline — includes deidentified accounts and trainers without profiles.
- * Dev-placeholder certification URLs do not exclude rows (admin-only view).
+ * Pending trainers for admin metrics and pipeline — real members only (excludes test/QA and deidentified).
  */
 export function adminPendingTrainerWhere(): Prisma.TrainerWhereInput {
-  return {
-    ...adminPortalTrainerDirectoryWhere(),
-    NOT: {
-      profile: { is: { dashboardActivatedAt: { not: null } } },
-    },
-    OR: [
-      { termsAcceptedAt: { not: null } },
-      { profile: { is: { hasSignedTOS: true } } },
-      { profile: { is: { complianceWindowStartedAt: { not: null } } } },
-      { profile: { is: { limitedDashboardUnlockedAt: { not: null } } } },
-      {
-        profile: {
-          is: {
-            registrationFeeHoldStatus: { in: ["HELD", "CAPTURED"] },
-          },
-        },
-      },
-    ],
-  };
+  return trainerPendingOnboardingWhere(adminPortalTrainerListWhere());
 }
 
 function sqlInList(values: string[]): PrismaNamespace.Sql {
