@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-11** `1.6.7-beta` → `1.6.8-beta` (**patch** — Exclude owner test accounts from member stats; add deidentify script)
 - **2026-06-11** `1.6.6-beta` → `1.6.7-beta` (**patch** — Outreach HQ schema self-heal for missing savedToHubAt column)
 - **2026-06-11** `1.6.5-beta` → `1.6.6-beta` (**patch** — Fix CI lint blockers for deploy)
 - **2026-06-11** `1.6.4-beta` → `1.6.5-beta` (**patch** — Outreach Hub, Content Calendar overhaul, and admin UI fixes (deploy bundle))
