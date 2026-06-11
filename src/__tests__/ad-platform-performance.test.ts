@@ -1,10 +1,27 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   getAdPlatformIntegrationStatus,
   parseMetaConversions,
 } from "@/lib/ad-platform-performance";
 
+const envSnapshot = { ...process.env };
+
 describe("ad-platform-performance", () => {
+  beforeEach(() => {
+    process.env = { ...envSnapshot };
+    delete process.env.META_ADS_ACCESS_TOKEN;
+    delete process.env.META_AD_ACCOUNT_ID;
+    delete process.env.GOOGLE_ADS_CUSTOMER_ID;
+    delete process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
+    delete process.env.GOOGLE_ADS_CLIENT_ID;
+    delete process.env.GOOGLE_ADS_CLIENT_SECRET;
+    delete process.env.GOOGLE_ADS_REFRESH_TOKEN;
+  });
+
+  afterEach(() => {
+    process.env = envSnapshot;
+  });
+
   it("reports missing env vars when integrations are not configured", () => {
     const statuses = getAdPlatformIntegrationStatus();
     expect(statuses).toHaveLength(2);

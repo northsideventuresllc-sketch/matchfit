@@ -4,20 +4,24 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 const {
   getFeaturedTrainersForHomepageMock,
+  getMeetOurCoachesForHomepageMock,
   clientFindUniqueMock,
   redirectStayLoggedInClientToDashboardMock,
   getSessionClientIdMock,
   getSessionTrainerIdMock,
   featuredCarouselPropsMock,
+  homeMeetCoachesPropsMock,
   homeLoginMenuPropsMock,
   homeInfoSectionsPropsMock,
 } = vi.hoisted(() => ({
   getFeaturedTrainersForHomepageMock: vi.fn(),
+  getMeetOurCoachesForHomepageMock: vi.fn(),
   clientFindUniqueMock: vi.fn(),
   redirectStayLoggedInClientToDashboardMock: vi.fn(),
   getSessionClientIdMock: vi.fn(),
   getSessionTrainerIdMock: vi.fn(),
   featuredCarouselPropsMock: vi.fn(),
+  homeMeetCoachesPropsMock: vi.fn(),
   homeLoginMenuPropsMock: vi.fn(),
   homeInfoSectionsPropsMock: vi.fn(),
 }));
@@ -80,8 +84,19 @@ vi.mock("@/components/home-login-menu", () => ({
   },
 }));
 
+vi.mock("@/components/home-meet-our-coaches-section", () => ({
+  HomeMeetOurCoachesSection: ({ coaches }: { coaches: unknown[] }) => {
+    homeMeetCoachesPropsMock({ coaches });
+    return <div data-meet-our-coaches-count={coaches.length} />;
+  },
+}));
+
 vi.mock("@/lib/featured-homepage-data", () => ({
   getFeaturedTrainersForHomepage: getFeaturedTrainersForHomepageMock,
+}));
+
+vi.mock("@/lib/home-meet-coaches-data", () => ({
+  getMeetOurCoachesForHomepage: getMeetOurCoachesForHomepageMock,
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -115,6 +130,7 @@ describe("app/page Home component", () => {
     vi.clearAllMocks();
     process.env = { ...originalEnv };
     getFeaturedTrainersForHomepageMock.mockResolvedValue([]);
+    getMeetOurCoachesForHomepageMock.mockResolvedValue([]);
     redirectStayLoggedInClientToDashboardMock.mockResolvedValue(undefined);
     getSessionClientIdMock.mockResolvedValue(null);
     getSessionTrainerIdMock.mockResolvedValue(null);
@@ -136,7 +152,9 @@ describe("app/page Home component", () => {
     expect(redirectStayLoggedInClientToDashboardMock).not.toHaveBeenCalled();
     expect(clientFindUniqueMock).not.toHaveBeenCalled();
     expect(getFeaturedTrainersForHomepageMock).not.toHaveBeenCalled();
+    expect(getMeetOurCoachesForHomepageMock).not.toHaveBeenCalled();
     expect(featuredCarouselPropsMock).toHaveBeenCalledWith({ trainers: [] });
+    expect(homeMeetCoachesPropsMock).toHaveBeenCalledWith({ coaches: [] });
     expect(homeLoginMenuPropsMock).toHaveBeenCalledWith({
       homeAuth: { clientLoggedIn: false, trainerLoggedIn: true },
     });
@@ -149,9 +167,11 @@ describe("app/page Home component", () => {
     process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test";
 
     const featuredRows = [{ id: "trainer-1" }];
+    const meetCoaches = [{ username: "coachjon", firstName: "Jon" }];
     getSessionClientIdMock.mockResolvedValue("client-1");
     clientFindUniqueMock.mockResolvedValue({ zipCode: " 30324 " });
     getFeaturedTrainersForHomepageMock.mockResolvedValue(featuredRows);
+    getMeetOurCoachesForHomepageMock.mockResolvedValue(meetCoaches);
 
     await renderHome(Promise.resolve({ zip: " 30301 " }));
 
@@ -161,7 +181,9 @@ describe("app/page Home component", () => {
       select: { zipCode: true },
     });
     expect(getFeaturedTrainersForHomepageMock).toHaveBeenCalledWith({ zipInput: "30324" });
+    expect(getMeetOurCoachesForHomepageMock).toHaveBeenCalledWith(8);
     expect(featuredCarouselPropsMock).toHaveBeenCalledWith({ trainers: featuredRows });
+    expect(homeMeetCoachesPropsMock).toHaveBeenCalledWith({ coaches: meetCoaches });
     expect(homeLoginMenuPropsMock).toHaveBeenCalledWith({
       homeAuth: { clientLoggedIn: true, trainerLoggedIn: false },
     });
@@ -177,6 +199,7 @@ describe("app/page Home component", () => {
 
     expect(clientFindUniqueMock).not.toHaveBeenCalled();
     expect(getFeaturedTrainersForHomepageMock).toHaveBeenCalledWith({ zipInput: "30318" });
+    expect(getMeetOurCoachesForHomepageMock).toHaveBeenCalledWith(8);
   });
 
   it("passes null zip to featured trainer lookup when neither query nor profile zip are valid", async () => {
@@ -188,5 +211,6 @@ describe("app/page Home component", () => {
     await renderHome(Promise.resolve({ zip: "   " }));
 
     expect(getFeaturedTrainersForHomepageMock).toHaveBeenCalledWith({ zipInput: null });
+    expect(getMeetOurCoachesForHomepageMock).toHaveBeenCalledWith(8);
   });
 });
