@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-11** `1.8.3-beta` → `1.8.4-beta` (**patch**)
 - **2026-06-11** `1.8.2-beta` → `1.8.3-beta` (**patch** — Content Hub save schema self-heal and actionable errors)
 - **2026-06-11** `1.8.1-beta` → `1.8.2-beta` (**patch** — Fix home page test mocks for Meet Our Coaches section)
 - **2026-06-11** `1.8.0-beta` → `1.8.1-beta` (**patch** — Fix Outreach HQ [object Object] error display)

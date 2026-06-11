@@ -6,6 +6,7 @@ import { ClientCoachReviewPanel } from "@/components/client/client-coach-review-
 import { TrainerMatchAnswersPreview } from "@/components/trainer/trainer-match-answers-preview";
 import { TrainerProfileCopyLinkButton } from "@/components/trainer/trainer-profile-copy-link-button";
 import { TrainerSocialBrandIcon } from "@/components/trainer/trainer-social-brand-icons";
+import type { TrainerSocialPlatform } from "@/lib/trainer-social-urls";
 import type { TrainerVerificationBadge } from "@/lib/trainer-client-discovery";
 import { TrainerVerificationBadgePill } from "@/components/trainer/trainer-verification-badge";
 
