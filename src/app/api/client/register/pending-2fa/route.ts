@@ -1,5 +1,4 @@
-import { enrichClientRegisterProfile } from "@/lib/client-register-profile-enrich";
-import { isEmailTaken, isUsernameTaken } from "@/lib/client-queries";
+import { isEmailTaken, resolveClientRegistrationUsername } from "@/lib/client-queries";
 import { ensureClientPlatformTrialSchema } from "@/lib/ensure-client-platform-trial-schema";
 import { deliverSignupOtp } from "@/lib/deliver-otp";
 import { generateSixDigitCode, hashOtp } from "@/lib/otp";
@@ -40,13 +39,22 @@ export async function POST(req: Request) {
     if (!turn.ok) {
       return NextResponse.json({ error: turn.error }, { status: turn.status });
     }
-    const body = await enrichClientRegisterProfile(parsed.data);
+    const body = parsed.data;
     if (!isAtLeast18(body.dateOfBirth)) {
       return NextResponse.json({ error: "You must be at least 18 years old." }, { status: 400 });
     }
 
-    const username = body.username.trim();
     const email = body.email.trim().toLowerCase();
+
+    const usernameResolved = await resolveClientRegistrationUsername({
+      firstName: body.firstName,
+      email,
+      betaInviteToken: body.betaInviteToken,
+    });
+    if ("error" in usernameResolved) {
+      return NextResponse.json({ error: usernameResolved.error }, { status: 409 });
+    }
+    const username = usernameResolved.username;
 
     const gate = await evaluateBetaClientRegistrationGate({
       zipCode: body.zipCode,
@@ -58,9 +66,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: gate.error, code: gate.code }, { status: gate.status });
     }
 
-    if (await isUsernameTaken(username)) {
-      return NextResponse.json({ error: "That username is already taken." }, { status: 409 });
-    }
     if (await isEmailTaken(email)) {
       return NextResponse.json({ error: "That email is already registered." }, { status: 409 });
     }
@@ -72,15 +77,22 @@ export async function POST(req: Request) {
 
     const method = "EMAIL" as const;
 
-    const pending = await createClientRegistrationHold(body, {
-      betaClientWaitlistEntryId: gate.betaClientWaitlistEntryId,
-      status: "PENDING_2FA",
-      twoFactorEnabled: true,
-      twoFactorMethod: method,
-      otpHash,
-      otpExpiresAt,
-      expiresAt,
-    });
+    const pending = await createClientRegistrationHold(
+      {
+        ...body,
+        preferredName: null,
+        username,
+      },
+      {
+        betaClientWaitlistEntryId: gate.betaClientWaitlistEntryId,
+        status: "PENDING_2FA",
+        twoFactorEnabled: true,
+        twoFactorMethod: method,
+        otpHash,
+        otpExpiresAt,
+        expiresAt,
+      },
+    );
 
     try {
       await deliverSignupOtp("EMAIL", {

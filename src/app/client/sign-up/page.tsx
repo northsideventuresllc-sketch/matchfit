@@ -10,16 +10,13 @@ import { tryCreateMatchFitSupabaseBrowserClient } from "@/lib/supabase/browser-c
 import { useMetaSignupFunnelStep } from "@/hooks/use-meta-signup-funnel-step";
 import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { trackMetaLead } from "@/lib/meta-pixel-funnel";
-import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
 import {
-  bindFormFieldFocus,
-  trackFormSubmitAttempt,
-  trackFormSubmitError,
-  trackFormSubmitSuccess,
-} from "@/lib/site-analytics-form";
+  trackClientSignupFormEvent,
+  type ClientSignupFormFieldId,
+} from "@/lib/client-signup-form-analytics";
+import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
 import { BetaCapFullSignupNotice } from "@/components/beta-cap-full-signup-notice";
 import { useBetaLaunchStatus } from "@/hooks/use-beta-launch-status";
-import { useSignupProgressReport } from "@/lib/use-signup-progress-report";
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -29,8 +26,6 @@ const inputClass =
 const dateInputClass = `${inputClass} mf-date-input appearance-none`;
 
 const labelClass = "text-left text-xs font-semibold uppercase tracking-wide text-white/50 [overflow-wrap:anywhere]";
-
-const CLIENT_SIGNUP_FORM = { path: "/client/sign-up", formId: "client_sign_up" };
 
 function formatLocalYmd(d: Date): string {
   const y = d.getFullYear();
@@ -118,23 +113,6 @@ function ClientSignUpPageInner() {
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [betaInviteReserved, setBetaInviteReserved] = useState<string | null>(null);
   const turnstile = useTurnstileGate();
-  const reportSignupProgress = useSignupProgressReport("client");
-
-  useEffect(() => {
-    reportSignupProgress(
-      {
-        firstName: Boolean(firstName.trim()),
-        lastName: Boolean(lastName.trim()),
-        phone: Boolean(phone.trim()),
-        email: Boolean(email.trim()),
-        password: Boolean(password),
-        zipCode: Boolean(zipCode.trim()),
-        dateOfBirth: Boolean(dateOfBirth),
-        agreedToTerms,
-      },
-      { email, username: undefined },
-    );
-  }, [firstName, lastName, phone, email, password, zipCode, dateOfBirth, agreedToTerms, reportSignupProgress]);
 
   const wizardFunnelStep = useMemo(() => {
     if (wizardStep === 1) {
@@ -189,6 +167,10 @@ function ClientSignUpPageInner() {
     return true;
   }
 
+  function trackFieldFocus(field: ClientSignupFormFieldId) {
+    trackClientSignupFormEvent("FORM_FIELD_FOCUS", { field });
+  }
+
   function buildProfilePayload() {
     const fn = firstName.trim();
     const ln = lastName.trim();
@@ -209,12 +191,14 @@ function ClientSignUpPageInner() {
   function validateStep1(): boolean {
     setError(null);
     setErrorCode(null);
+    trackClientSignupFormEvent("FORM_SUBMIT_ATTEMPT");
     if (!firstName.trim()) {
       setError("First name is required.");
       return false;
     }
     if (!lastName.trim()) {
       setError("Last name is required.");
+      trackClientSignupFormEvent("FORM_SUBMIT_ERROR", { error: "Last name is required." });
       return false;
     }
     if (!phone.trim()) {
@@ -236,6 +220,7 @@ function ClientSignUpPageInner() {
     const pwMsg = describePasswordPolicyViolations(password);
     if (pwMsg) {
       setError(pwMsg);
+      trackClientSignupFormEvent("FORM_SUBMIT_ERROR", { error: pwMsg });
       return false;
     }
     if (!zipCode.trim()) {
@@ -260,11 +245,7 @@ function ClientSignUpPageInner() {
 
   function handleStep1Next(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    trackFormSubmitAttempt(CLIENT_SIGNUP_FORM);
-    if (!validateStep1()) {
-      trackFormSubmitError(CLIENT_SIGNUP_FORM, "validation_failed");
-      return;
-    }
+    if (!validateStep1()) return;
     setWizardStep(2);
     setAwaitingCode(false);
     setPendingId(null);
@@ -275,7 +256,6 @@ function ClientSignUpPageInner() {
   async function handleSkip2fa() {
     setError(null);
     if (!assertTurnstileOrSetError()) return;
-    trackFormSubmitAttempt(CLIENT_SIGNUP_FORM);
     setBusy(true);
     try {
       const res = await fetch("/api/client/register", {
@@ -286,7 +266,6 @@ function ClientSignUpPageInner() {
       const data = (await res.json()) as { error?: string; next?: string; code?: string };
       if (!res.ok) {
         setErrorCode(data.code ?? null);
-        trackFormSubmitError(CLIENT_SIGNUP_FORM, data.code ?? "register_failed");
         setError(
           data.code === "BETA_CLIENT_CAP"
             ? (data.error ?? "Memberships are full for this beta.")
@@ -314,7 +293,7 @@ function ClientSignUpPageInner() {
         }
       }
       trackMetaLead("client");
-      trackFormSubmitSuccess(CLIENT_SIGNUP_FORM);
+      trackClientSignupFormEvent("FORM_SUBMIT_SUCCESS");
       navigateWithFullLoad(data.next ?? "/client/dashboard/preferences/onboarding");
     } catch {
       setError("Something went wrong. Try again.");
@@ -378,7 +357,6 @@ function ClientSignUpPageInner() {
       const data = (await res.json()) as { error?: string; next?: string };
       if (!res.ok) {
         setError(data.error ?? "Verification failed.");
-        trackFormSubmitError(CLIENT_SIGNUP_FORM, "verify_failed");
         turnstile.reset();
         return;
       }
@@ -401,7 +379,7 @@ function ClientSignUpPageInner() {
         }
       }
       trackMetaLead("client");
-      trackFormSubmitSuccess(CLIENT_SIGNUP_FORM);
+      trackClientSignupFormEvent("FORM_SUBMIT_SUCCESS");
       navigateWithFullLoad(data.next ?? "/client/dashboard/preferences/onboarding");
     } catch {
       setError("Something went wrong. Try again.");
@@ -447,7 +425,7 @@ function ClientSignUpPageInner() {
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-white/55 sm:text-base">
           {wizardStep === 1
-            ? "Tell us a bit about yourself. Your default username comes from your email (you can change it later in settings). After you agree to the Terms of Service, your account starts with a 14-day free trial — no card required at sign-up. U.S. beta — anyone in the United States can sign up. You must be 18 or older."
+            ? "Tell us a bit about yourself. After you agree to the Terms of Service, your account starts with a 14-day free trial — no card required at sign-up. U.S. beta — anyone in the United States can sign up. You must be 18 or older."
             : awaitingCode
               ? "Check your inbox for a verification email with your code."
               : "Add an extra layer of security, or skip and turn this on later in settings."}
@@ -455,8 +433,9 @@ function ClientSignUpPageInner() {
 
         {betaInviteReserved ? (
           <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100/95">
-            Beta invite active — complete sign-up with the invited email before your slot expires. Your username will
-            be reserved as <span className="font-semibold text-white">@{betaInviteReserved}</span>.
+            Beta invite active — complete sign-up with{" "}
+            <span className="font-semibold text-white">@{betaInviteReserved}</span> and the invited email before your slot
+            expires.
           </p>
         ) : null}
 
@@ -518,7 +497,7 @@ function ClientSignUpPageInner() {
                     required
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    onFocus={bindFormFieldFocus(CLIENT_SIGNUP_FORM, "firstName")}
+                    onFocus={() => trackFieldFocus("firstName")}
                     className={inputClass}
                   />
                 </div>
@@ -533,7 +512,7 @@ function ClientSignUpPageInner() {
                     required
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
-                    onFocus={bindFormFieldFocus(CLIENT_SIGNUP_FORM, "lastName")}
+                    onFocus={() => trackFieldFocus("lastName")}
                     className={inputClass}
                   />
                 </div>
@@ -550,7 +529,7 @@ function ClientSignUpPageInner() {
                   required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  onFocus={bindFormFieldFocus(CLIENT_SIGNUP_FORM, "phone")}
+                  onFocus={() => trackFieldFocus("phone")}
                   placeholder="(555) 555-5555"
                   className={inputClass}
                 />
@@ -567,7 +546,7 @@ function ClientSignUpPageInner() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  onFocus={bindFormFieldFocus(CLIENT_SIGNUP_FORM, "email")}
+                  onFocus={() => trackFieldFocus("email")}
                   placeholder="you@example.com"
                   className={inputClass}
                 />
@@ -585,7 +564,7 @@ function ClientSignUpPageInner() {
                   minLength={8}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  onFocus={bindFormFieldFocus(CLIENT_SIGNUP_FORM, "password")}
+                  onFocus={() => trackFieldFocus("password")}
                   placeholder="At least 8 characters"
                   className={inputClass}
                 />
@@ -617,6 +596,7 @@ function ClientSignUpPageInner() {
                     required
                     value={zipCode}
                     onChange={(e) => setZipCode(e.target.value)}
+                    onFocus={() => trackFieldFocus("zipCode")}
                     placeholder="90210 or 30301"
                     pattern="[0-9]{5}(-[0-9]{4})?"
                     title="Enter a valid US ZIP code"
@@ -635,6 +615,7 @@ function ClientSignUpPageInner() {
                     max={maxDob}
                     value={dateOfBirth}
                     onChange={(e) => setDateOfBirth(e.target.value)}
+                    onFocus={() => trackFieldFocus("dateOfBirth")}
                     style={{ colorScheme: "dark" }}
                     className={dateInputClass}
                   />
@@ -661,6 +642,7 @@ function ClientSignUpPageInner() {
                   required
                   checked={agreedToTerms}
                   onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  onFocus={() => trackFieldFocus("agreedToTerms")}
                   className="mt-1 h-4 w-4 shrink-0 accent-[#FF7E00] focus:ring-2 focus:ring-[#FF7E00]/40 focus:ring-offset-0"
                 />
                 <label htmlFor="su-terms" className="text-sm leading-relaxed text-white/70">

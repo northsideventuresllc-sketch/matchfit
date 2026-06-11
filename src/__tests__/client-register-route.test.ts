@@ -5,7 +5,7 @@ const {
   ensureClientPlatformTrialSchemaMock,
   purgeExpiredRegistrationHoldsMock,
   evaluateBetaClientRegistrationGateMock,
-  isUsernameTakenMock,
+  resolveClientRegistrationUsernameMock,
   isEmailTakenMock,
   findDeactivatedClientForReactivationMock,
   finalizeClientRegistrationFromSignupMock,
@@ -15,7 +15,7 @@ const {
   ensureClientPlatformTrialSchemaMock: vi.fn(),
   purgeExpiredRegistrationHoldsMock: vi.fn(),
   evaluateBetaClientRegistrationGateMock: vi.fn(),
-  isUsernameTakenMock: vi.fn(),
+  resolveClientRegistrationUsernameMock: vi.fn(),
   isEmailTakenMock: vi.fn(),
   findDeactivatedClientForReactivationMock: vi.fn(),
   finalizeClientRegistrationFromSignupMock: vi.fn(),
@@ -36,7 +36,7 @@ vi.mock("@/lib/beta-client-register-gate", () => ({
 }));
 
 vi.mock("@/lib/client-queries", () => ({
-  isUsernameTaken: isUsernameTakenMock,
+  resolveClientRegistrationUsername: resolveClientRegistrationUsernameMock,
   isEmailTaken: isEmailTakenMock,
   findDeactivatedClientForReactivation: findDeactivatedClientForReactivationMock,
 }));
@@ -58,8 +58,6 @@ import { POST } from "@/app/api/client/register/route";
 const validBody = {
   firstName: "Test",
   lastName: "User",
-  preferredName: "Test",
-  username: "newclient",
   phone: "4045550100",
   email: "newclient@example.com",
   password: "TestPass1!",
@@ -79,13 +77,13 @@ describe("POST /api/client/register", () => {
     verifyTurnstileTokenMock.mockResolvedValue({ ok: true });
     findDeactivatedClientForReactivationMock.mockResolvedValue(null);
     evaluateBetaClientRegistrationGateMock.mockResolvedValue({ ok: true, betaClientWaitlistEntryId: null });
-    isUsernameTakenMock.mockResolvedValue(false);
+    resolveClientRegistrationUsernameMock.mockResolvedValue({ username: "test1234" });
     isEmailTakenMock.mockResolvedValue(false);
     finalizeClientRegistrationFromSignupMock.mockResolvedValue({ ok: true, clientId: "client_123" });
     applyClientSessionToNextResponseMock.mockResolvedValue(undefined);
   });
 
-  it("creates the client and attaches the session cookie to the returned NextResponse", async () => {
+  it("creates the client with a server-generated username", async () => {
     const res = await POST(
       new Request("https://match-fit.net/api/client/register", {
         method: "POST",
@@ -95,17 +93,17 @@ describe("POST /api/client/register", () => {
     );
 
     expect(res.status).toBe(200);
-    await expect(res.json()).resolves.toEqual({
-      ok: true,
-      clientId: "client_123",
-      next: "/client/dashboard/preferences/onboarding",
+    expect(resolveClientRegistrationUsernameMock).toHaveBeenCalledWith({
+      firstName: "Test",
+      email: "newclient@example.com",
+      betaInviteToken: undefined,
     });
-
-    expect(finalizeClientRegistrationFromSignupMock).toHaveBeenCalledOnce();
-    expect(applyClientSessionToNextResponseMock).toHaveBeenCalledOnce();
-    const [responseArg, clientId, stayLoggedIn] = applyClientSessionToNextResponseMock.mock.calls[0] ?? [];
-    expect(responseArg).toBeInstanceOf(NextResponse);
-    expect(clientId).toBe("client_123");
-    expect(stayLoggedIn).toBe(true);
+    expect(finalizeClientRegistrationFromSignupMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        preferredName: null,
+        username: "test1234",
+      }),
+      expect.any(Object),
+    );
   });
 });

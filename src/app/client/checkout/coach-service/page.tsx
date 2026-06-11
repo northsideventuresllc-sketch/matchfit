@@ -2,10 +2,18 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CoachServiceCheckoutClient } from "./coach-service-checkout-client";
 import { adminFeeCentsFromBaseSubtotalCents } from "@/lib/platform-fees";
+import {
+  BETA_CLIENT_IN_PERSON_CHECKOUT_MESSAGE,
+  evaluateClientInPersonBetaCheckoutGate,
+} from "@/lib/beta-client-in-person-checkout-gate";
 import { prisma } from "@/lib/prisma";
 import { isPrismaMissingColumnError } from "@/lib/prisma-missing-column";
 import { getSessionClientId } from "@/lib/session";
-import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import {
+  isTrainerVisibleInClientDiscovery,
+  trainerBookableBlockedMessage,
+  trainerDiscoveryProfileSelect,
+} from "@/lib/trainer-client-discovery";
 import { formatTrainerServicePriceUsd } from "@/lib/trainer-service-price-display";
 import {
   evaluateCoachServiceCheckoutPolicy,
@@ -22,18 +30,8 @@ import { isTrainerClientInteractionRestricted } from "@/lib/user-block-queries";
 const PROFILE_CHECKOUT_COL = "clientsCanPurchaseServicesFromProfile";
 
 const coachCheckoutProfileSelect = {
-  dashboardActivatedAt: true,
+  ...trainerDiscoveryProfileSelect,
   serviceOfferingsJson: true,
-  hasSignedTOS: true,
-  hasUploadedW9: true,
-  backgroundCheckStatus: true,
-  backgroundCheckClearedAt: true,
-  onboardingTrackCpt: true,
-  onboardingTrackNutrition: true,
-  onboardingTrackSpecialist: true,
-  certificationReviewStatus: true,
-  nutritionistCertificationReviewStatus: true,
-  specialistCertificationReviewStatus: true,
 } as const;
 
 type PageProps = {
@@ -79,6 +77,11 @@ export default async function CoachServiceCheckoutPage({ searchParams }: PagePro
     redirect(`/client?next=${encodeURIComponent(returnPath)}`);
   }
 
+  const clientRow = await prisma.client.findUnique({
+    where: { id: clientId },
+    select: { zipCode: true },
+  });
+
   let trainer;
   try {
     trainer = await prisma.trainer.findUnique({
@@ -109,18 +112,27 @@ export default async function CoachServiceCheckoutPage({ searchParams }: PagePro
   }
 
   const profile = trainer?.profile ?? null;
-  const published =
-    profile &&
-    profile.dashboardActivatedAt != null &&
-    !trainer?.deidentifiedAt &&
-    isTrainerComplianceComplete(profile);
-
-  if (!trainer || !profile || !published) {
+  if (!trainer || !profile || trainer.deidentifiedAt || !isTrainerVisibleInClientDiscovery(profile)) {
     return (
       <main className="min-h-dvh bg-[#0B0C0F] px-5 py-12 text-white antialiased">
         <p className="text-sm text-white/60">This coach profile is not available for checkout.</p>
         <Link href="/client/dashboard" className="mt-6 inline-block text-sm font-semibold text-[#FF7E00] hover:underline">
           Go to dashboard
+        </Link>
+      </main>
+    );
+  }
+
+  const bookableBlock = trainerBookableBlockedMessage(profile);
+  if (bookableBlock) {
+    return (
+      <main className="min-h-dvh bg-[#0B0C0F] px-5 py-12 text-white antialiased">
+        <p className="max-w-md text-sm leading-relaxed text-white/70">{bookableBlock}</p>
+        <Link
+          href={`/trainers/${encodeURIComponent(trainer.username)}`}
+          className="mt-6 inline-block text-sm font-semibold text-[#FF7E00] hover:underline"
+        >
+          Back to profile
         </Link>
       </main>
     );
@@ -193,6 +205,25 @@ export default async function CoachServiceCheckoutPage({ searchParams }: PagePro
     );
   }
   const sku = resolved.sku;
+
+  const inPersonGate = evaluateClientInPersonBetaCheckoutGate({
+    clientZipCode: clientRow?.zipCode,
+    delivery: line.delivery,
+  });
+  if (!inPersonGate.allowed) {
+    return (
+      <main className="min-h-dvh bg-[#0B0C0F] px-5 py-12 text-white antialiased">
+        <p className="text-sm leading-relaxed text-white/70">{BETA_CLIENT_IN_PERSON_CHECKOUT_MESSAGE}</p>
+        <Link
+          href={`/trainers/${encodeURIComponent(trainer.username)}`}
+          className="mt-6 inline-block text-sm font-semibold text-[#FF7E00] hover:underline"
+        >
+          View virtual packages
+        </Link>
+      </main>
+    );
+  }
+
   const baseCents = Math.round(sku.priceUsd * 100);
   const adminCents = adminFeeCentsFromBaseSubtotalCents(baseCents);
   const serviceSubtotalLabel = formatTrainerServicePriceUsd(sku.priceUsd);

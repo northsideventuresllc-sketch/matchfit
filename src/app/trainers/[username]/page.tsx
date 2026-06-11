@@ -15,7 +15,13 @@ import { getTrainerPublicReviewSummary } from "@/lib/client-trainer-reviews";
 import { prisma } from "@/lib/prisma";
 import { isPrismaMissingColumnError } from "@/lib/prisma-missing-column";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
-import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import {
+  isTrainerBookableForClients,
+  isTrainerVisibleInClientDiscovery,
+  trainerBookableBlockedMessage,
+  trainerDiscoveryProfileSelect,
+  trainerVerificationBadgeForClient,
+} from "@/lib/trainer-client-discovery";
 import { isTrainerHiddenFromPublicMarketplace } from "@/lib/match-fit-public-marketplace-hidden";
 import {
   trainerOffersNutritionServices,
@@ -51,16 +57,7 @@ const trainerPublicOuterSelect = {
 } as const;
 
 const trainerPublicProfileSelect = {
-  dashboardActivatedAt: true,
-  hasSignedTOS: true,
-  hasUploadedW9: true,
-  backgroundCheckStatus: true,
-  onboardingTrackCpt: true,
-  onboardingTrackNutrition: true,
-  onboardingTrackSpecialist: true,
-  certificationReviewStatus: true,
-  nutritionistCertificationReviewStatus: true,
-  specialistCertificationReviewStatus: true,
+  ...trainerDiscoveryProfileSelect,
   matchQuestionnaireStatus: true,
   aiMatchProfileText: true,
   serviceOfferingsJson: true,
@@ -151,26 +148,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       accountDeletionFinalizeAt: true,
       internalQaSyntheticPersona: true,
       profile: {
-        select: {
-          dashboardActivatedAt: true,
-          hasSignedTOS: true,
-          hasUploadedW9: true,
-          backgroundCheckStatus: true,
-          onboardingTrackCpt: true,
-          onboardingTrackNutrition: true,
-          onboardingTrackSpecialist: true,
-          certificationReviewStatus: true,
-          nutritionistCertificationReviewStatus: true,
-          specialistCertificationReviewStatus: true,
-        },
+        select: trainerDiscoveryProfileSelect,
       },
     },
   });
   const published =
-    trainer?.profile?.dashboardActivatedAt != null &&
+    trainer?.profile &&
     !trainer.deidentifiedAt &&
     !trainer.accountDeletionFinalizeAt &&
-    isTrainerComplianceComplete(trainer.profile);
+    isTrainerVisibleInClientDiscovery(trainer.profile);
   if (!trainer || !published || isTrainerHiddenFromPublicMarketplace(trainer)) {
     return {
       title: `Coach | Match Fit`,
@@ -237,10 +223,13 @@ export default async function TrainerPublicProfilePage({ params, searchParams }:
   }
 
   const published =
-    trainer.profile.dashboardActivatedAt != null && isTrainerComplianceComplete(trainer.profile);
+    isTrainerVisibleInClientDiscovery(trainer.profile);
   if (!published) {
     notFound();
   }
+
+  const verificationBadge = trainerVerificationBadgeForClient(trainer.profile);
+  const bookableForClients = isTrainerBookableForClients(trainer.profile);
 
   const vis = parseTrainerOptionalProfileVisibility(trainer.optionalProfileVisibilityJson);
 
@@ -279,7 +268,14 @@ export default async function TrainerPublicProfilePage({ params, searchParams }:
 
   let checkoutLinkContext: "profile" | "chat" | null = null;
   const disableClientActions = sessionTrainerId != null && sessionTrainerId === trainer.id;
-  if (browseableServices && browseableServices.length > 0 && clientId && !disableClientActions && officialChatStartedAt) {
+  if (
+    bookableForClients &&
+    browseableServices &&
+    browseableServices.length > 0 &&
+    clientId &&
+    !disableClientActions &&
+    officialChatStartedAt
+  ) {
     checkoutLinkContext = allowProfileCheckout ? "profile" : "chat";
   }
 
@@ -328,7 +324,11 @@ export default async function TrainerPublicProfilePage({ params, searchParams }:
       clientIsSignedIn={Boolean(clientId)}
       checkoutNotice={checkoutNotice}
       showClientPrivacyMenu={Boolean(clientId) && !disableClientActions}
-      availabilityHref={`/trainers/${encodeURIComponent(trainer.username)}/availability`}
+      availabilityHref={
+        bookableForClients ? `/trainers/${encodeURIComponent(trainer.username)}/availability` : undefined
+      }
+      verificationBadge={verificationBadge}
+      servicesPreviewOnly={!bookableForClients}
     />
   );
 }

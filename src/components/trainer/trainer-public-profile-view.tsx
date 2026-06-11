@@ -6,7 +6,8 @@ import { ClientCoachReviewPanel } from "@/components/client/client-coach-review-
 import { TrainerMatchAnswersPreview } from "@/components/trainer/trainer-match-answers-preview";
 import { TrainerProfileCopyLinkButton } from "@/components/trainer/trainer-profile-copy-link-button";
 import { TrainerSocialBrandIcon } from "@/components/trainer/trainer-social-brand-icons";
-import type { TrainerSocialPlatform } from "@/lib/trainer-social-urls";
+import type { TrainerVerificationBadge } from "@/lib/trainer-client-discovery";
+import { TrainerVerificationBadgePill } from "@/components/trainer/trainer-verification-badge";
 
 export type TrainerPublicSocialLink = {
   platform: TrainerSocialPlatform;
@@ -76,6 +77,9 @@ export type TrainerPublicProfileViewProps = {
   showClientPrivacyMenu?: boolean;
   /** Public availability summary page (set from the trainer dashboard). */
   availabilityHref?: string;
+  verificationBadge?: TrainerVerificationBadge | null;
+  /** Pre-verified coaches show package previews without checkout links. */
+  servicesPreviewOnly?: boolean;
 };
 
 function chip(text: string) {
@@ -171,6 +175,11 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Coach</p>
                 <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">{props.displayName}</h1>
                 <p className="mt-1 text-sm font-semibold text-white/50">@{props.username}</p>
+                {props.verificationBadge ? (
+                  <div className="mt-2 flex justify-center sm:justify-start">
+                    <TrainerVerificationBadgePill badge={props.verificationBadge} />
+                  </div>
+                ) : null}
                 {props.reviewSummary.windowCount > 0 && props.reviewSummary.averageStars != null ? (
                   <p className="mt-2 inline-flex items-center rounded-full border border-[#FFD34E]/35 bg-[#FFD34E]/[0.1] px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-[#FFD34E]">
                     {props.reviewSummary.averageStars.toFixed(1)}★ trainer · {props.reviewSummary.windowCount} recent
@@ -239,7 +248,9 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
                 <p className="mt-2 text-xs text-white/45">
                   {preview
                     ? "Transparent pricing on your live profile. Clients tap a row to review totals and pay when checkout is enabled for them."
-                    : props.browseableServices && props.browseableServices.length > 0
+                    : props.servicesPreviewOnly
+                      ? "Packages preview while this coach finishes verification — message them now; checkout unlocks when they are verified."
+                      : props.browseableServices && props.browseableServices.length > 0
                       ? !props.clientIsSignedIn
                         ? "Sign in to message this coach and purchase packages once your chat is open."
                         : !props.officialChatMatched
@@ -260,6 +271,7 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
                       }))
                   ).map((row, i) => {
                     const canLinkCheckout =
+                      !props.servicesPreviewOnly &&
                       props.servicesCheckoutLinkContext != null &&
                       Boolean(props.browseableServices && props.browseableServices.length > 0) &&
                       !preview &&
@@ -305,6 +317,11 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
                               {i + 1}
                             </span>
                             <span className="min-w-0 flex-1">{row.label}</span>
+                            {props.servicesPreviewOnly ? (
+                              <span className="shrink-0 self-center text-[10px] font-black uppercase tracking-[0.12em] text-white/40">
+                                Coming soon
+                              </span>
+                            ) : null}
                           </div>
                         )}
                       </li>

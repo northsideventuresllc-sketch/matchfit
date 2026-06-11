@@ -4,7 +4,10 @@ import { redirect, notFound } from "next/navigation";
 import { ClientTrainerChatThreadClient } from "@/components/client/client-trainer-chat-thread-client";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
-import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import {
+  isTrainerVisibleInClientDiscovery,
+  trainerDiscoveryProfileSelect,
+} from "@/lib/trainer-client-discovery";
 import { safeInternalNextPath } from "@/lib/safe-internal-next-path";
 import { isTrainerClientChatBlocked } from "@/lib/user-block-queries";
 
@@ -36,18 +39,7 @@ export default async function ClientTrainerMessagesPage({ params }: Props) {
       preferredName: true,
       profileImageUrl: true,
       profile: {
-        select: {
-          dashboardActivatedAt: true,
-          hasSignedTOS: true,
-          hasUploadedW9: true,
-          backgroundCheckStatus: true,
-          onboardingTrackCpt: true,
-          onboardingTrackNutrition: true,
-          onboardingTrackSpecialist: true,
-          certificationReviewStatus: true,
-          nutritionistCertificationReviewStatus: true,
-          specialistCertificationReviewStatus: true,
-        },
+        select: trainerDiscoveryProfileSelect,
       },
     },
   });
@@ -56,9 +48,7 @@ export default async function ClientTrainerMessagesPage({ params }: Props) {
     notFound();
   }
 
-  const published =
-    trainer.profile.dashboardActivatedAt != null && isTrainerComplianceComplete(trainer.profile);
-  if (!published) {
+  if (!isTrainerVisibleInClientDiscovery(trainer.profile)) {
     notFound();
   }
 

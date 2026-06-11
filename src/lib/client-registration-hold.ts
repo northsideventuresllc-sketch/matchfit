@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 export type ClientRegistrationHoldBody = {
   firstName: string;
   lastName: string;
-  preferredName: string;
+  preferredName: string | null;
   username: string;
   phone: string;
   email: string;
@@ -41,7 +41,7 @@ export async function createClientRegistrationHold(
     data: {
       firstName: body.firstName,
       lastName: body.lastName,
-      preferredName: body.preferredName,
+      preferredName: body.preferredName?.trim() || null,
       username,
       phone: body.phone.trim(),
       email,

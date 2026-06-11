@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
-import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import {
+  isTrainerVisibleInClientDiscovery,
+  trainerBookableBlockedMessage,
+  trainerDiscoveryProfileSelect,
+} from "@/lib/trainer-client-discovery";
 import { isTrainerClientChatBlocked } from "@/lib/user-block-queries";
 import { clientGiftTokensToTrainer } from "@/lib/trainer-promo-tokens";
 
@@ -27,23 +31,16 @@ export async function POST(req: Request, ctx: RouteContext) {
       select: {
         id: true,
         profile: {
-          select: {
-            dashboardActivatedAt: true,
-            hasSignedTOS: true,
-            hasUploadedW9: true,
-            backgroundCheckStatus: true,
-            onboardingTrackCpt: true,
-            onboardingTrackNutrition: true,
-            onboardingTrackSpecialist: true,
-            certificationReviewStatus: true,
-            nutritionistCertificationReviewStatus: true,
-            specialistCertificationReviewStatus: true,
-          },
+          select: trainerDiscoveryProfileSelect,
         },
       },
     });
-    if (!trainer?.profile || trainer.profile.dashboardActivatedAt == null || !isTrainerComplianceComplete(trainer.profile)) {
+    if (!trainer?.profile || !isTrainerVisibleInClientDiscovery(trainer.profile)) {
       return NextResponse.json({ error: "Coach not found." }, { status: 404 });
+    }
+    const bookableBlock = trainerBookableBlockedMessage(trainer.profile);
+    if (bookableBlock) {
+      return NextResponse.json({ error: bookableBlock, code: "TRAINER_VERIFICATION_IN_PROGRESS" }, { status: 403 });
     }
     if (await isTrainerClientChatBlocked(trainer.id, clientId)) {
       return NextResponse.json({ error: "Unavailable." }, { status: 403 });

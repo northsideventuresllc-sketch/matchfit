@@ -7,7 +7,7 @@ const {
   isBrowsePassCooldownActiveMock,
   isWithinNotInterestedHistoryWindowMock,
   effectiveBrowsePassAtMock,
-  isTrainerComplianceCompleteMock,
+  isTrainerVisibleInClientDiscoveryMock,
   getSessionClientIdMock,
   getTrainerIdsHiddenFromClientMatchFeedMock,
   isMatchFitInternalQaClientEmailMock,
@@ -24,7 +24,7 @@ const {
   isBrowsePassCooldownActiveMock: vi.fn(),
   isWithinNotInterestedHistoryWindowMock: vi.fn(),
   effectiveBrowsePassAtMock: vi.fn(),
-  isTrainerComplianceCompleteMock: vi.fn(),
+  isTrainerVisibleInClientDiscoveryMock: vi.fn(),
   getSessionClientIdMock: vi.fn(),
   getTrainerIdsHiddenFromClientMatchFeedMock: vi.fn(),
   isMatchFitInternalQaClientEmailMock: vi.fn(),
@@ -50,8 +50,15 @@ vi.mock("@/lib/client-trainer-browse", () => ({
   isWithinNotInterestedHistoryWindow: isWithinNotInterestedHistoryWindowMock,
 }));
 
-vi.mock("@/lib/trainer-compliance-complete", () => ({
-  isTrainerComplianceComplete: isTrainerComplianceCompleteMock,
+vi.mock("@/lib/trainer-client-discovery", () => ({
+  isTrainerVisibleInClientDiscovery: isTrainerVisibleInClientDiscoveryMock,
+  trainerVerificationBadgeForClient: vi.fn().mockReturnValue("verified"),
+  clientDiscoveryVisibleTrainerProfileWhere: vi.fn(),
+  trainerDiscoveryProfileSelect: {},
+}));
+
+vi.mock("@/lib/match-fit-public-marketplace-hidden", () => ({
+  publicMarketplaceVisibleTrainerWhere: vi.fn().mockReturnValue({}),
 }));
 
 vi.mock("@/lib/account-deletion-grace", () => ({
@@ -116,7 +123,8 @@ type MockTrainer = {
   profileImageUrl: string | null;
   fitnessNiches: string[];
   profile: {
-    dashboardActivatedAt: Date;
+    dashboardActivatedAt: Date | null;
+    limitedDashboardUnlockedAt?: Date | null;
     hasSignedTOS: boolean;
     hasUploadedW9: boolean;
     backgroundCheckStatus: "CLEAR";
@@ -142,6 +150,7 @@ function buildTrainer(overrides: Partial<MockTrainer> & Pick<MockTrainer, "id" |
     fitnessNiches: overrides.fitnessNiches ?? ["General Fitness"],
     profile: {
       dashboardActivatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      limitedDashboardUnlockedAt: new Date("2026-01-01T00:00:00.000Z"),
       hasSignedTOS: true,
       hasUploadedW9: true,
       backgroundCheckStatus: "CLEAR",
@@ -187,7 +196,7 @@ describe("GET /api/client/trainers/browse", () => {
     trainerPassesStrictBrowseMock.mockImplementation(
       (_prefs: unknown, metrics: { score: number }): boolean => metrics.score >= 80,
     );
-    isTrainerComplianceCompleteMock.mockReturnValue(true);
+    isTrainerVisibleInClientDiscoveryMock.mockReturnValue(true);
     isBrowsePassCooldownActiveMock.mockReturnValue(false);
     isWithinNotInterestedHistoryWindowMock.mockReturnValue(true);
     effectiveBrowsePassAtMock.mockReturnValue(new Date("2026-02-01T00:00:00.000Z"));
@@ -341,6 +350,38 @@ describe("GET /api/client/trainers/browse", () => {
       "trainer_synthetic",
       "trainer_strength",
     ]);
+  });
+
+  it("includes pre-verified coaches when discovery visibility passes", async () => {
+    isTrainerVisibleInClientDiscoveryMock.mockImplementation(
+      (prof: { dashboardActivatedAt?: Date | null }) => prof?.dashboardActivatedAt == null,
+    );
+    trainerFindManyMock.mockResolvedValueOnce([
+      buildTrainer({
+        id: "trainer_pre",
+        username: "coach-pre",
+        preferredName: "Sam",
+        fitnessNiches: ["Strength"],
+        profile: {
+          dashboardActivatedAt: null,
+          limitedDashboardUnlockedAt: new Date("2026-01-15T00:00:00.000Z"),
+          hasSignedTOS: true,
+          hasUploadedW9: false,
+          backgroundCheckStatus: "PENDING",
+          certificationReviewStatus: "PENDING",
+          nutritionistCertificationReviewStatus: "NOT_APPLICABLE",
+          specialistCertificationReviewStatus: "NOT_APPLICABLE",
+          aiMatchProfileText: "Pre-verified coach",
+        },
+      }),
+    ]);
+
+    const response = await GET(makeRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.trainers).toHaveLength(1);
+    expect(body.trainers[0].id).toBe("trainer_pre");
   });
 
   it("returns 500 when data loading throws unexpectedly", async () => {

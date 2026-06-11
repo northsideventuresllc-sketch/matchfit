@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import {
+  isTrainerVisibleInClientDiscovery,
+  trainerDiscoveryProfileSelect,
+} from "@/lib/trainer-client-discovery";
 import { getSessionClientId } from "@/lib/session";
 import { NextResponse } from "next/server";
 
@@ -21,22 +24,11 @@ export async function POST(req: Request) {
       select: {
         id: true,
         profile: {
-          select: {
-            dashboardActivatedAt: true,
-            hasSignedTOS: true,
-            hasUploadedW9: true,
-            backgroundCheckStatus: true,
-            onboardingTrackCpt: true,
-            onboardingTrackNutrition: true,
-            onboardingTrackSpecialist: true,
-            certificationReviewStatus: true,
-            nutritionistCertificationReviewStatus: true,
-            specialistCertificationReviewStatus: true,
-          },
+          select: trainerDiscoveryProfileSelect,
         },
       },
     });
-    if (!trainer?.profile || trainer.profile.dashboardActivatedAt == null || !isTrainerComplianceComplete(trainer.profile)) {
+    if (!trainer?.profile || !isTrainerVisibleInClientDiscovery(trainer.profile)) {
       return NextResponse.json({ error: "Coach not found or not available." }, { status: 404 });
     }
 

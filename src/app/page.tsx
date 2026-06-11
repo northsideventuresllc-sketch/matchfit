@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { HomeMeetOurCoachesSection } from "@/components/home-meet-our-coaches-section";
 import { FeaturedTrainersCarousel } from "@/components/featured-trainers-carousel";
 import { HomeBetaPromoBanner } from "@/components/home-beta-promo-banner";
 import { HomeBrandBanner } from "@/components/home-brand-banner";
@@ -8,6 +9,7 @@ import { HomeLoginMenu } from "@/components/home-login-menu";
 import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
 import type { FeaturedTrainerCard } from "@/lib/featured-homepage-data";
 import { getFeaturedTrainersForHomepage } from "@/lib/featured-homepage-data";
+import { getMeetOurCoachesForHomepage } from "@/lib/home-meet-coaches-data";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
 import { prisma } from "@/lib/prisma";
 import { redirectStayLoggedInClientToDashboard } from "@/lib/redirect-stay-logged-in-client";
@@ -32,6 +34,7 @@ export default async function Home({ searchParams }: HomeProps) {
   };
 
   let featuredTrainers: FeaturedTrainerCard[] = [];
+  let meetOurCoaches: Awaited<ReturnType<typeof getMeetOurCoachesForHomepage>> = [];
 
   if (hasDb) {
     let zipForFeatured = zipFromQuery;
@@ -43,7 +46,10 @@ export default async function Home({ searchParams }: HomeProps) {
       if (client?.zipCode?.trim()) zipForFeatured = client.zipCode.trim();
     }
 
-    featuredTrainers = await getFeaturedTrainersForHomepage({ zipInput: zipForFeatured });
+    [featuredTrainers, meetOurCoaches] = await Promise.all([
+      getFeaturedTrainersForHomepage({ zipInput: zipForFeatured }),
+      getMeetOurCoachesForHomepage(8),
+    ]);
   }
 
   return (
@@ -157,6 +163,8 @@ export default async function Home({ searchParams }: HomeProps) {
         </section>
 
         <FeaturedTrainersCarousel trainers={featuredTrainers} />
+
+        <HomeMeetOurCoachesSection coaches={meetOurCoaches} />
 
         <HomeInfoSections homeAuth={homeAuth} />
       </div>

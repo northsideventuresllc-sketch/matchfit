@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { getSessionClientId } from "@/lib/session";
-import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import { isTrainerVisibleInClientDiscovery, trainerDiscoveryProfileSelect } from "@/lib/trainer-client-discovery";
 import { conversationArchiveMetaForActor, purgeExpiredArchivedConversations } from "@/lib/trainer-client-conversation-archive";
 import { getTrainerIdsWithChatBlockedForClient } from "@/lib/user-block-queries";
 import { NextResponse } from "next/server";
@@ -41,18 +41,7 @@ export async function GET() {
               preferredName: true,
               profileImageUrl: true,
               profile: {
-                select: {
-                  dashboardActivatedAt: true,
-                  hasSignedTOS: true,
-                  hasUploadedW9: true,
-                  backgroundCheckStatus: true,
-                  onboardingTrackCpt: true,
-                  onboardingTrackNutrition: true,
-                  onboardingTrackSpecialist: true,
-                  certificationReviewStatus: true,
-                  nutritionistCertificationReviewStatus: true,
-                  specialistCertificationReviewStatus: true,
-                },
+                select: trainerDiscoveryProfileSelect,
               },
             },
           },
@@ -70,18 +59,7 @@ export async function GET() {
               preferredName: true,
               profileImageUrl: true,
               profile: {
-                select: {
-                  dashboardActivatedAt: true,
-                  hasSignedTOS: true,
-                  hasUploadedW9: true,
-                  backgroundCheckStatus: true,
-                  onboardingTrackCpt: true,
-                  onboardingTrackNutrition: true,
-                  onboardingTrackSpecialist: true,
-                  certificationReviewStatus: true,
-                  nutritionistCertificationReviewStatus: true,
-                  specialistCertificationReviewStatus: true,
-                },
+                select: trainerDiscoveryProfileSelect,
               },
             },
           },
@@ -107,18 +85,7 @@ export async function GET() {
               preferredName: true,
               profileImageUrl: true,
               profile: {
-                select: {
-                  dashboardActivatedAt: true,
-                  hasSignedTOS: true,
-                  hasUploadedW9: true,
-                  backgroundCheckStatus: true,
-                  onboardingTrackCpt: true,
-                  onboardingTrackNutrition: true,
-                  onboardingTrackSpecialist: true,
-                  certificationReviewStatus: true,
-                  nutritionistCertificationReviewStatus: true,
-                  specialistCertificationReviewStatus: true,
-                },
+                select: trainerDiscoveryProfileSelect,
               },
             },
           },
@@ -161,7 +128,7 @@ export async function GET() {
     for (const n of nudges) {
       const t = n.trainer;
       if (chatBlockedTrainerIds.has(n.trainerId)) continue;
-      if (!t.profile || t.profile.dashboardActivatedAt == null || !isTrainerComplianceComplete(t.profile)) continue;
+      if (!t.profile || !isTrainerVisibleInClientDiscovery(t.profile)) continue;
       const conv = convByTrainerId.get(n.trainerId);
       if (conv?.archivedAt) continue;
       activeByUser.set(t.username, {
@@ -178,7 +145,7 @@ export async function GET() {
     for (const s of saved) {
       const t = s.trainer;
       if (chatBlockedTrainerIds.has(s.trainerId)) continue;
-      if (!t.profile || t.profile.dashboardActivatedAt == null || !isTrainerComplianceComplete(t.profile)) continue;
+      if (!t.profile || !isTrainerVisibleInClientDiscovery(t.profile)) continue;
       const conv = convByTrainerId.get(s.trainerId);
       if (conv?.archivedAt) continue;
       const existing = activeByUser.get(t.username);
@@ -204,7 +171,7 @@ export async function GET() {
 
     for (const conv of convs) {
       const t = conv.trainer;
-      if (!t.profile || t.profile.dashboardActivatedAt == null || !isTrainerComplianceComplete(t.profile)) continue;
+      if (!t.profile || !isTrainerVisibleInClientDiscovery(t.profile)) continue;
       if (chatBlockedTrainerIds.has(t.id)) continue;
       const at = conv.messages[0]?.createdAt.toISOString() ?? conv.updatedAt.toISOString();
       const chatOpen = Boolean(conv.officialChatStartedAt);

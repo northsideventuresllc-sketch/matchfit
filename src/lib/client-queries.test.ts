@@ -18,8 +18,13 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
+vi.mock("@/lib/beta-waitlist-service", () => ({
+  getValidBetaInvite: vi.fn().mockResolvedValue(null),
+}));
+
 import {
   findClientByIdentifier,
+  generateUniqueClientUsername,
   isEmailTaken,
   isEmailTakenByAnother,
   isPhoneTakenByAnother,
@@ -95,6 +100,16 @@ describe("client-queries", () => {
 
   it("returns false when username has no active holders", async () => {
     await expect(isUsernameTaken("available-name")).resolves.toBe(false);
+  });
+
+  it("generates unique usernames with numeric suffix on collision", async () => {
+    clientFindFirstMock
+      .mockResolvedValueOnce({ id: "client_taken" })
+      .mockResolvedValueOnce(null);
+    pendingClientRegistrationFindFirstMock.mockResolvedValue(null);
+    betaClientWaitlistEntryFindFirstMock.mockResolvedValue(null);
+
+    await expect(generateUniqueClientUsername("Alex")).resolves.toMatch(/^alex\d{4}$/);
   });
 
   it("lowercases and trims email before checking active holds", async () => {

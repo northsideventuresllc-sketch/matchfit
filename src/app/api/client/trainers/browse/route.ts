@@ -10,7 +10,12 @@ import {
   isBrowsePassCooldownActive,
   isWithinNotInterestedHistoryWindow,
 } from "@/lib/client-trainer-browse";
-import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import {
+  clientDiscoveryVisibleTrainerProfileWhere,
+  isTrainerVisibleInClientDiscovery,
+  trainerDiscoveryProfileSelect,
+  trainerVerificationBadgeForClient,
+} from "@/lib/trainer-client-discovery";
 import { marketplaceActiveTrainerWhere } from "@/lib/account-deletion-grace";
 import { publicMarketplaceVisibleTrainerWhere } from "@/lib/match-fit-public-marketplace-hidden";
 import { prisma } from "@/lib/prisma";
@@ -59,9 +64,7 @@ export async function GET(req: Request) {
     const trainers = await prisma.trainer.findMany({
       where: {
         ...publicMarketplaceVisibleTrainerWhere(),
-        profile: {
-          dashboardActivatedAt: { not: null },
-        },
+        profile: clientDiscoveryVisibleTrainerProfileWhere(),
       },
       select: {
         id: true,
@@ -74,25 +77,14 @@ export async function GET(req: Request) {
         fitnessNiches: true,
         profile: {
           select: {
-            dashboardActivatedAt: true,
-            hasSignedTOS: true,
-            hasUploadedW9: true,
-            backgroundCheckStatus: true,
-            onboardingTrackCpt: true,
-            onboardingTrackNutrition: true,
-            onboardingTrackSpecialist: true,
-            certificationReviewStatus: true,
-            nutritionistCertificationReviewStatus: true,
-            specialistCertificationReviewStatus: true,
+            ...trainerDiscoveryProfileSelect,
             aiMatchProfileText: true,
           },
         },
       },
     });
 
-    const published = trainers.filter(
-      (t) => t.profile && t.profile.dashboardActivatedAt != null && isTrainerComplianceComplete(t.profile),
-    );
+    const published = trainers.filter((t) => t.profile && isTrainerVisibleInClientDiscovery(t.profile));
 
     const scored = published.map((t) => {
       const profile = t.profile!;
@@ -122,6 +114,7 @@ export async function GET(req: Request) {
           deliveryOk: metrics.deliveryOk,
           strictPass: trainerPassesStrictBrowse(prefs, metrics),
         },
+        verificationBadge: trainerVerificationBadgeForClient(profile),
       };
     });
 
@@ -134,7 +127,7 @@ export async function GET(req: Request) {
         where: {
           ...marketplaceActiveTrainerWhere,
           internalQaSyntheticPersona: true,
-          profile: { dashboardActivatedAt: { not: null } },
+          profile: clientDiscoveryVisibleTrainerProfileWhere(),
         },
         select: {
           id: true,
@@ -147,23 +140,14 @@ export async function GET(req: Request) {
           fitnessNiches: true,
           profile: {
             select: {
-              dashboardActivatedAt: true,
-              hasSignedTOS: true,
-              hasUploadedW9: true,
-              backgroundCheckStatus: true,
-              onboardingTrackCpt: true,
-              onboardingTrackNutrition: true,
-              onboardingTrackSpecialist: true,
-              certificationReviewStatus: true,
-              nutritionistCertificationReviewStatus: true,
-              specialistCertificationReviewStatus: true,
+              ...trainerDiscoveryProfileSelect,
               aiMatchProfileText: true,
             },
           },
         },
       });
       const synPublished = syntheticRaw.filter(
-        (t) => t.profile && t.profile.dashboardActivatedAt != null && isTrainerComplianceComplete(t.profile),
+        (t) => t.profile && isTrainerVisibleInClientDiscovery(t.profile),
       );
       const synScored = synPublished.map((t) => {
         const profile = t.profile!;
@@ -193,6 +177,7 @@ export async function GET(req: Request) {
             deliveryOk: metrics.deliveryOk,
             strictPass: trainerPassesStrictBrowse(prefs, metrics),
           },
+          verificationBadge: trainerVerificationBadgeForClient(profile),
         };
       });
       const synFiltered = relaxed ? synScored : synScored.filter((r) => r.match.strictPass);

@@ -1,11 +1,16 @@
 import { evaluateCoachServiceCheckoutPolicy } from "@/lib/coach-service-checkout-policy";
+import { evaluateClientInPersonBetaCheckoutGate } from "@/lib/beta-client-in-person-checkout-gate";
 import { getAppOriginFromRequest } from "@/lib/app-origin";
 import { prisma } from "@/lib/prisma";
 import { isPrismaMissingColumnError } from "@/lib/prisma-missing-column";
 import { getSessionClientId } from "@/lib/session";
 import { createTrainerServiceSaleStripeCheckoutSession } from "@/lib/stripe-trainer-service-sale-checkout";
-import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
-import { parseTrainerServiceOfferingsJson, resolveServiceCheckoutSku } from "@/lib/trainer-service-offerings";
+import {
+  isTrainerBookableForClients,
+  isTrainerVisibleInClientDiscovery,
+  trainerBookableBlockedMessage,
+  trainerDiscoveryProfileSelect,
+} from "@/lib/trainer-client-discovery";
 import { isTrainerClientInteractionRestricted } from "@/lib/user-block-queries";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -33,7 +38,7 @@ export async function POST(req: Request, ctx: RouteContext) {
 
     const client = await prisma.client.findUnique({
       where: { id: clientId },
-      select: { id: true, email: true, deidentifiedAt: true },
+      select: { id: true, email: true, deidentifiedAt: true, zipCode: true },
     });
     if (!client?.email?.trim() || client.deidentifiedAt) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
@@ -80,6 +85,7 @@ export async function POST(req: Request, ctx: RouteContext) {
             profile: {
               select: {
                 dashboardActivatedAt: true,
+                limitedDashboardUnlockedAt: true,
                 serviceOfferingsJson: true,
                 hasSignedTOS: true,
                 hasUploadedW9: true,
@@ -101,14 +107,13 @@ export async function POST(req: Request, ctx: RouteContext) {
     }
 
     const profile = trainer?.profile ?? null;
-    const published =
-      profile &&
-      profile.dashboardActivatedAt != null &&
-      !trainer?.deidentifiedAt &&
-      isTrainerComplianceComplete(profile);
-
-    if (!trainer || !profile || !published) {
+    if (!trainer || !profile || trainer.deidentifiedAt || !isTrainerVisibleInClientDiscovery(profile)) {
       return NextResponse.json({ error: "Coach not found." }, { status: 404 });
+    }
+
+    const bookableBlock = trainerBookableBlockedMessage(profile);
+    if (bookableBlock) {
+      return NextResponse.json({ error: bookableBlock, code: "TRAINER_VERIFICATION_IN_PROGRESS" }, { status: 403 });
     }
 
     if (await isTrainerClientInteractionRestricted(trainer.id, clientId)) {
@@ -132,6 +137,14 @@ export async function POST(req: Request, ctx: RouteContext) {
       return NextResponse.json({ error: resolved.error }, { status: 400 });
     }
     const sku = resolved.sku;
+
+    const inPersonGate = evaluateClientInPersonBetaCheckoutGate({
+      clientZipCode: client.zipCode,
+      delivery: line.delivery,
+    });
+    if (!inPersonGate.allowed) {
+      return NextResponse.json({ error: inPersonGate.message, code: inPersonGate.code }, { status: 403 });
+    }
 
     const conv = await prisma.trainerClientConversation.findUnique({
       where: { trainerId_clientId: { trainerId: trainer.id, clientId } },

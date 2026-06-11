@@ -7,7 +7,10 @@ import {
   purgeExpiredArchivedConversations,
 } from "@/lib/trainer-client-conversation-archive";
 import { getSessionClientId } from "@/lib/session";
-import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import {
+  isTrainerVisibleInClientDiscovery,
+  trainerDiscoveryProfileSelect,
+} from "@/lib/trainer-client-discovery";
 import { canAuthorSendChatMessage } from "@/lib/trainer-client-chat-rules";
 import { loadChatScopedClientPendingBookings } from "@/lib/marketplace-governance-overview";
 import { buildClientChatTokenTipContext } from "@/lib/trainer-promo-tokens";
@@ -34,23 +37,11 @@ export async function GET(_req: Request, ctx: RouteContext) {
       select: {
         id: true,
         profile: {
-          select: {
-            dashboardActivatedAt: true,
-            hasSignedTOS: true,
-            hasUploadedW9: true,
-            backgroundCheckStatus: true,
-            backgroundCheckClearedAt: true,
-            onboardingTrackCpt: true,
-            onboardingTrackNutrition: true,
-            onboardingTrackSpecialist: true,
-            certificationReviewStatus: true,
-            nutritionistCertificationReviewStatus: true,
-            specialistCertificationReviewStatus: true,
-          },
+          select: trainerDiscoveryProfileSelect,
         },
       },
     });
-    if (!trainer?.profile || trainer.profile.dashboardActivatedAt == null || !isTrainerComplianceComplete(trainer.profile)) {
+    if (!trainer?.profile || !isTrainerVisibleInClientDiscovery(trainer.profile)) {
       return NextResponse.json({ error: "Coach not found." }, { status: 404 });
     }
 
@@ -160,23 +151,11 @@ export async function POST(req: Request, ctx: RouteContext) {
         id: true,
         internalQaSyntheticPersona: true,
         profile: {
-          select: {
-            dashboardActivatedAt: true,
-            hasSignedTOS: true,
-            hasUploadedW9: true,
-            backgroundCheckStatus: true,
-            backgroundCheckClearedAt: true,
-            onboardingTrackCpt: true,
-            onboardingTrackNutrition: true,
-            onboardingTrackSpecialist: true,
-            certificationReviewStatus: true,
-            nutritionistCertificationReviewStatus: true,
-            specialistCertificationReviewStatus: true,
-          },
+          select: trainerDiscoveryProfileSelect,
         },
       },
     });
-    if (!trainer?.profile || trainer.profile.dashboardActivatedAt == null || !isTrainerComplianceComplete(trainer.profile)) {
+    if (!trainer?.profile || !isTrainerVisibleInClientDiscovery(trainer.profile)) {
       return NextResponse.json({ error: "Coach not found." }, { status: 404 });
     }
 

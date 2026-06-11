@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { TrainerVerificationBadgePill } from "@/components/trainer/trainer-verification-badge";
+import type { TrainerVerificationBadge } from "@/lib/trainer-client-discovery";
 
 type TrainerRow = {
   username: string;
@@ -11,6 +13,7 @@ type TrainerRow = {
   fitnessNiches: string | null;
   score: number;
   match: { nicheHits: number; serviceOk: boolean; deliveryOk: boolean; strictPass: boolean };
+  verificationBadge?: TrainerVerificationBadge | null;
   inquiryStatus?: "PENDING_TRAINER" | "DECLINED";
   passedAt?: string;
 };
@@ -258,6 +261,9 @@ export function FindTrainersClient() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm font-bold text-white/90">{t.displayName}</p>
+                    {t.verificationBadge ? (
+                      <TrainerVerificationBadgePill badge={t.verificationBadge} />
+                    ) : null}
                     {t.inquiryStatus === "PENDING_TRAINER" ? (
                       <span className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-amber-100">
                         Awaiting coach
@@ -352,6 +358,9 @@ export function FindTrainersClient() {
                 </div>
                 <div className="space-y-2 p-5">
                   <p className="text-xl font-black text-white">{current.displayName}</p>
+                  {current.verificationBadge ? (
+                    <TrainerVerificationBadgePill badge={current.verificationBadge} className="mt-1" />
+                  ) : null}
                   <Link
                     href={`/trainers/${encodeURIComponent(current.username)}`}
                     className="mt-0.5 inline-block text-xs font-semibold text-[#FF7E00] underline-offset-2 hover:underline"

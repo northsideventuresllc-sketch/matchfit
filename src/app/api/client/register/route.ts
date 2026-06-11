@@ -1,5 +1,4 @@
-import { enrichClientRegisterProfile } from "@/lib/client-register-profile-enrich";
-import { isEmailTaken, isUsernameTaken, findDeactivatedClientForReactivation } from "@/lib/client-queries";
+import { isEmailTaken, findDeactivatedClientForReactivation, resolveClientRegistrationUsername } from "@/lib/client-queries";
 import { ensureClientPlatformTrialSchema } from "@/lib/ensure-client-platform-trial-schema";
 import { BetaCapExceededError } from "@/lib/beta-cap-enforcement";
 import { finalizeClientRegistrationFromSignup } from "@/lib/client-register-finalize";
@@ -38,12 +37,11 @@ export async function POST(req: Request) {
     if (!turn.ok) {
       return NextResponse.json({ error: turn.error }, { status: turn.status });
     }
-    const body = await enrichClientRegisterProfile(parsed.data);
+    const body = parsed.data;
     if (!isAtLeast18(body.dateOfBirth)) {
       return NextResponse.json({ error: "You must be at least 18 years old." }, { status: 400 });
     }
 
-    const username = body.username.trim();
     const email = body.email.trim().toLowerCase();
 
     const deactivated = await findDeactivatedClientForReactivation(email);
@@ -59,6 +57,16 @@ export async function POST(req: Request) {
       );
     }
 
+    const usernameResolved = await resolveClientRegistrationUsername({
+      firstName: body.firstName,
+      email,
+      betaInviteToken: body.betaInviteToken,
+    });
+    if ("error" in usernameResolved) {
+      return NextResponse.json({ error: usernameResolved.error }, { status: 409 });
+    }
+    const username = usernameResolved.username;
+
     const gate = await evaluateBetaClientRegistrationGate({
       zipCode: body.zipCode,
       email,
@@ -69,18 +77,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: gate.error, code: gate.code }, { status: gate.status });
     }
 
-    if (await isUsernameTaken(username)) {
-      return NextResponse.json({ error: "That username is already taken." }, { status: 409 });
-    }
     if (await isEmailTaken(email)) {
       return NextResponse.json({ error: "That email is already registered." }, { status: 409 });
     }
 
-    const result = await finalizeClientRegistrationFromSignup(body, {
-      betaClientWaitlistEntryId: gate.betaClientWaitlistEntryId,
-      twoFactorEnabled: false,
-      twoFactorMethod: "NONE",
-    });
+    const result = await finalizeClientRegistrationFromSignup(
+      {
+        ...body,
+        preferredName: null,
+        username,
+      },
+      {
+        betaClientWaitlistEntryId: gate.betaClientWaitlistEntryId,
+        twoFactorEnabled: false,
+        twoFactorMethod: "NONE",
+      },
+    );
     if (!result.ok) {
       return NextResponse.json(
         { error: result.error, code: result.code },
