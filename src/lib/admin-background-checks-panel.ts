@@ -94,11 +94,11 @@ function queueLabel(kind: AdminBackgroundCheckQueueKind): string {
     case "awaiting_manual_invite":
       return "Awaiting manual Checkr invite";
     case "automated_invite_sent":
-      return "Automated invite sent (Plan A / API)";
+      return "Automated invite sent";
     case "manual_invite_sent":
       return "Manual invite confirmed sent";
     case "plan_a_pending":
-      return "Plan A — paid, awaiting Checkr";
+      return "Paid, awaiting Checkr";
     case "screening_in_progress":
       return "Screening in progress";
     case "approved":

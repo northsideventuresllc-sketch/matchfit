@@ -686,8 +686,8 @@ function formatBgTimestamp(iso: string | null): string {
 }
 
 function platformModeLabel(mode: AdminBackgroundChecksPanel["platformMode"]): string {
-  if (mode === "plan_a") return "Plan A — automated Checkr API";
-  if (mode === "plan_b") return "Plan B — manual invite backup";
+  if (mode === "plan_a") return "Automated Checkr API";
+  if (mode === "plan_b") return "Manual Checkr invite flow";
   return "Unconfigured";
 }
 
@@ -801,7 +801,7 @@ export function BackgroundChecksSection({
   return (
     <MetricsSection
       title="Background checks"
-      description="See who is waiting for a manual Checkr link (Plan B) and when automated Plan A invites were emailed."
+      description="See who is waiting for a manual Checkr link and when automated invites were emailed."
     >
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <span className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/60">
@@ -811,15 +811,15 @@ export function BackgroundChecksSection({
           label="Awaiting manual invite"
           value={panel.summary.awaitingManualInvite}
           accent={panel.summary.awaitingManualInvite > 0 ? "orange" : "default"}
-          hint="Plan B — send Checkr link from dashboard, then confirm"
+          hint="Send Checkr link from dashboard, then confirm"
         />
         <StatCard
           label="Automated invites sent"
           value={panel.summary.automatedInvitesSent}
-          hint="Plan A / API — invitation emailed automatically"
+          hint="Invitation emailed automatically via Checkr API"
         />
         <StatCard label="Manual invites confirmed" value={panel.summary.manualInvitesSent} />
-        <StatCard label="Plan A pending" value={panel.summary.planAPending} />
+        <StatCard label="Paid, awaiting Checkr" value={panel.summary.planAPending} />
       </div>
 
       {actionError ? (
@@ -854,7 +854,7 @@ export function BackgroundChecksSection({
       {panel.automatedInvitesSent.length > 0 ? (
         <div className="mb-5">
           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-sky-200/75">
-            Automated invites sent (Plan A / API)
+            Automated invites sent
           </p>
           <ul className="mt-2 space-y-2">
             {panel.automatedInvitesSent.map((entry) => (
@@ -879,7 +879,7 @@ export function BackgroundChecksSection({
 
       {panel.planAPending.length > 0 ? (
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Plan A — paid, awaiting Checkr</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Paid, awaiting Checkr</p>
           <ul className="mt-2 space-y-2">
             {panel.planAPending.map((entry) => (
               <BackgroundCheckRow key={entry.trainerId} entry={entry} />

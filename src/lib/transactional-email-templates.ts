@@ -219,7 +219,7 @@ export function buildTransactionalEmail(
       const confirmUrl = c(ctx.confirmInviteSentUrl, "https://match-fit.net/api/background-check/plan-b/staff-action?token=sample");
       const subject = `[Match Fit] Send Checkr invite — ${trainerName}`;
       const text = [
-        "A trainer requested a Checkr background screening invitation (Plan B — API backup).",
+        "A trainer requested a Checkr background screening invitation.",
         "",
         `Name: ${trainerName}`,
         `Email: ${trainerEmail}`,
@@ -278,7 +278,7 @@ export function buildTransactionalEmail(
       const denyUrl = c(ctx.denyUrl, "https://match-fit.net/api/background-check/plan-b/staff-action?token=sampledeny");
       const subject = `[Match Fit] Background check ready for review — ${trainerName}`;
       const text = [
-        "A trainer background check needs staff approval (Plan B backup flow).",
+        "A trainer background check needs staff approval.",
         "",
         `Trainer: ${trainerName} (${c(ctx.trainerEmail, "coach@example.com")})`,
         `Report id: ${c(ctx.reportId, "—")}`,

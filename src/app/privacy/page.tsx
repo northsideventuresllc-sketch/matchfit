@@ -165,8 +165,8 @@ export default async function PrivacyPage() {
           </Li>
           <Li>
             <Strong>Compliance and Verification:</Strong> certification and nutrition credential files you upload,
-            onboarding track selections, background check pipeline status (including Plan B invite request and sent
-            timestamps when our Checkr API backup flow is active), signup fee hold status, W-9 or tax information you submit
+            onboarding track selections, background check pipeline status (including invite request and sent
+            timestamps when manual Checkr screening is active), signup fee hold status, W-9 or tax information you submit
             through our flows, and related review statuses.
           </Li>
           <Li>

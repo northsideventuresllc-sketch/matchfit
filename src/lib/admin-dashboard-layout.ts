@@ -112,7 +112,7 @@ export const ADMIN_DASHBOARD_SECTIONS: AdminDashboardSectionMeta[] = [
     id: "background-checks",
     label: "Background checks",
     description:
-      "Plan B manual Checkr invite queue, automated Plan A invite timestamps, trainer email, and screening status.",
+      "Manual Checkr invite queue, automated invite timestamps, trainer email, and screening status.",
     group: "Operations",
   },
   {
