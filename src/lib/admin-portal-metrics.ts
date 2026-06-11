@@ -25,6 +25,11 @@ import type {
 } from "@/lib/admin-portal-types";
 import { getAdminEmailStatsPanel } from "@/lib/transactional-email-delivery-log";
 import {
+  filterOwnerTestIdentities,
+  ownerTestExcludedPendingRegistrationWhere,
+  ownerTestExcludedSignupProgressWhere,
+} from "@/lib/owner-test-account-exclusion";
+import {
   listFilledSignupFields,
   parseSignupFieldsJson,
   signupFieldsForRole,
@@ -474,19 +479,33 @@ async function countActiveMembersNow(): Promise<number> {
 }
 
 export async function getAdminClientPipelinePanel(now = new Date()): Promise<AdminClientPipelinePanel> {
+  const ownerTestSignupWhere = ownerTestExcludedSignupProgressWhere("client");
+  const ownerTestPendingWhere = ownerTestExcludedPendingRegistrationWhere();
+  const pendingRegistrationWhere = {
+    AND: [activePendingClientRegistrationWhere(now), ownerTestPendingWhere],
+  };
+
   const [startedSignup, basicInfoNoTos, freeTrial, progressRows, pendingRegs] = await Promise.all([
-    prisma.signupFormProgress.count({ where: { role: "client", stage: "started_signup" } }).catch(() => 0),
-    prisma.signupFormProgress.count({ where: { role: "client", stage: "basic_info_complete" } }).catch(() => 0),
+    prisma.signupFormProgress
+      .count({ where: { role: "client", stage: "started_signup", ...ownerTestSignupWhere } })
+      .catch(() => 0),
+    prisma.signupFormProgress
+      .count({ where: { role: "client", stage: "basic_info_complete", ...ownerTestSignupWhere } })
+      .catch(() => 0),
     safeClientCount(launchClientFreeTrialCountWhere(now)),
     prisma.signupFormProgress
       .findMany({
-        where: { role: "client", stage: { in: ["started_signup", "basic_info_complete"] } },
+        where: {
+          role: "client",
+          stage: { in: ["started_signup", "basic_info_complete"] },
+          ...ownerTestSignupWhere,
+        },
         orderBy: { updatedAt: "desc" },
         take: 20,
       })
       .catch(() => []),
     prisma.pendingClientRegistration.findMany({
-      where: activePendingClientRegistrationWhere(now),
+      where: pendingRegistrationWhere,
       orderBy: { createdAt: "desc" },
       take: 20,
       select: {
@@ -502,7 +521,11 @@ export async function getAdminClientPipelinePanel(now = new Date()): Promise<Adm
   ]);
 
   const entries = [
-    ...progressRows.map((row) => {
+    ...filterOwnerTestIdentities(progressRows, (row) => ({
+      username: row.username,
+      email: row.email,
+      role: "client" as const,
+    })).map((row) => {
       const fields = parseSignupFieldsJson(row.fieldsJson);
       const { filled, missing } = listFilledSignupFields("client", fields);
       return {
@@ -516,7 +539,11 @@ export async function getAdminClientPipelinePanel(now = new Date()): Promise<Adm
         createdAt: row.updatedAt.toISOString(),
       };
     }),
-    ...pendingRegs.map((row) => ({
+    ...filterOwnerTestIdentities(pendingRegs, (row) => ({
+      username: row.username,
+      email: row.email,
+      role: "client" as const,
+    })).map((row) => ({
       id: row.id,
       label: `${row.firstName} ${row.lastName}`.trim() || row.username,
       email: row.email,
@@ -599,10 +626,16 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
   const trainerMetricsFilter = buildAdminPortalTrainerDirectorySqlFilter();
   const baseWhere = Prisma.sql`TRUE ${trainerMetricsFilter}`;
 
+  const ownerTestTrainerSignupWhere = ownerTestExcludedSignupProgressWhere("trainer");
+
   const [startedSignup, basicInfoNoTos, signupCompleted, bgSubmitted, bgFailed, bgPassed, docsPending, live, pendingTrainerRows] =
     await Promise.all([
-    prisma.signupFormProgress.count({ where: { role: "trainer", stage: "started_signup" } }).catch(() => 0),
-    prisma.signupFormProgress.count({ where: { role: "trainer", stage: "basic_info_complete" } }).catch(() => 0),
+    prisma.signupFormProgress
+      .count({ where: { role: "trainer", stage: "started_signup", ...ownerTestTrainerSignupWhere } })
+      .catch(() => 0),
+    prisma.signupFormProgress
+      .count({ where: { role: "trainer", stage: "basic_info_complete", ...ownerTestTrainerSignupWhere } })
+      .catch(() => 0),
     prisma.$queryRaw<CountRow[]>`
       SELECT COUNT(*)::bigint AS n FROM trainers t
       LEFT JOIN trainer_profiles p ON p."trainerId" = t.id
@@ -708,7 +741,10 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
     { id: "live", label: "Documents Approved/LIVE", count: n(live[0]), percentOfSignup: pct(n(live[0])) },
   ];
 
-  const pendingTrainers: AdminTrainerPipelineEntry[] = pendingTrainerRows.map((t) => {
+  const pendingTrainers: AdminTrainerPipelineEntry[] = filterOwnerTestIdentities(
+    pendingTrainerRows,
+    (t) => ({ username: t.username, role: "trainer" }),
+  ).map((t) => {
     const qualifications = buildTrainerPendingQualifications({
       termsAcceptedAt: t.termsAcceptedAt,
       profile: t.profile,

@@ -30,6 +30,7 @@
     "seed:test-accounts": "node --env-file=.env scripts/seed-match-fit-dev-test-accounts.js",
     "deidentify:username": "node --env-file=.env npx tsx scripts/deidentify-usernames.ts",
     "purge:test-accounts": "node --env-file=.env npx tsx scripts/purge-launch-test-accounts.ts",
+    "wipe:owner-test-accounts": "node --env-file=.env npx tsx scripts/wipe-owner-test-accounts.ts",
     "reset:owner-portals": "node --env-file=.env npx tsx scripts/reset-owner-portal-passwords.ts",
     "tos:alignment": "tsx scripts/tos-alignment-check.ts",
     "version:bump": "node scripts/bump-product-version.mjs",

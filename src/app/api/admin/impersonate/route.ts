@@ -11,6 +11,7 @@ import {
   verifyAdminSessionToken,
 } from "@/lib/session";
 import { logAdministratorAuditEvent } from "@/lib/administrator-audit-log";
+import { isOwnerTestAccountUsername } from "@/lib/owner-test-account-exclusion";
 import { verifyTurnstileToken } from "@/lib/turnstile-verify";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -56,7 +57,7 @@ export async function POST(req: Request) {
         where: { id: userId },
         select: { id: true, username: true, deidentifiedAt: true },
       });
-      if (!client || client.deidentifiedAt) {
+      if (!client || client.deidentifiedAt || isOwnerTestAccountUsername(client.username, "client")) {
         return NextResponse.json({ error: "Client not found." }, { status: 404 });
       }
       targetUsername = client.username;
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
         where: { id: userId },
         select: { id: true, username: true, deidentifiedAt: true },
       });
-      if (!trainer || trainer.deidentifiedAt) {
+      if (!trainer || trainer.deidentifiedAt || isOwnerTestAccountUsername(trainer.username, "trainer")) {
         return NextResponse.json({ error: "Trainer not found." }, { status: 404 });
       }
       targetUsername = trainer.username;

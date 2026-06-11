@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   mockClientFindUnique,
+  mockTrainerFindUnique,
   mockPrismaTransaction,
   mockClientTwoFactorDeleteMany,
   mockWebPushDeleteMany,
@@ -17,6 +18,7 @@ const {
   mockPromoteBetaWaitlistIfCapacity,
 } = vi.hoisted(() => ({
   mockClientFindUnique: vi.fn(),
+  mockTrainerFindUnique: vi.fn(),
   mockPrismaTransaction: vi.fn(),
   mockClientTwoFactorDeleteMany: vi.fn(),
   mockWebPushDeleteMany: vi.fn(),
@@ -36,6 +38,9 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     client: {
       findUnique: mockClientFindUnique,
+    },
+    trainer: {
+      findUnique: mockTrainerFindUnique,
     },
     $transaction: mockPrismaTransaction,
   },
@@ -62,6 +67,7 @@ describe("account-deletion deidentify helpers", () => {
     mockHashPassword.mockResolvedValue("hashed-password");
     mockPromoteBetaWaitlistIfCapacity.mockResolvedValue(undefined);
     mockGetStripe.mockReturnValue(undefined);
+    mockTrainerFindUnique.mockResolvedValue({ id: "trainer_exists" });
 
     mockClientTwoFactorDeleteMany.mockResolvedValue({ count: 0 });
     mockWebPushDeleteMany.mockResolvedValue({ count: 0 });
@@ -172,6 +178,7 @@ describe("account-deletion deidentify helpers", () => {
   });
 
   it("deidentifies trainer data and associated profile/feed records", async () => {
+    mockTrainerFindUnique.mockResolvedValueOnce({ id: "trainer_123" });
     mockConversationFindMany.mockResolvedValueOnce([{ id: "conv_tr_1" }]);
 
     await expect(deidentifyTrainerAccount("trainer_123")).resolves.toBeUndefined();
@@ -238,6 +245,7 @@ describe("account-deletion deidentify helpers", () => {
   });
 
   it("skips trainer chat redaction when no conversations exist", async () => {
+    mockTrainerFindUnique.mockResolvedValueOnce({ id: "trainer_no_convos" });
     mockConversationFindMany.mockResolvedValueOnce([]);
 
     await expect(deidentifyTrainerAccount("trainer_no_convos")).resolves.toBeUndefined();

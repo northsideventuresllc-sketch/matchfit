@@ -7,6 +7,7 @@ import {
   adminPortalTrainerDirectoryWhereLegacy,
   redactEmailForAdminPortal,
 } from "@/lib/admin-portal-list-filters";
+import { filterOwnerTestIdentities } from "@/lib/owner-test-account-exclusion";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/session";
 import {
@@ -105,8 +106,19 @@ export async function GET(req: Request) {
             return loadTrainers(adminPortalTrainerDirectoryWhereLegacy());
           });
 
+    const visibleClients = filterOwnerTestIdentities(clients, (c) => ({
+      username: c.username,
+      email: c.email,
+      role: "client" as const,
+    }));
+    const visibleTrainers = filterOwnerTestIdentities(trainers, (t) => ({
+      username: t.username,
+      email: t.email,
+      role: "trainer" as const,
+    }));
+
     return NextResponse.json({
-      clients: clients.map((c) => ({
+      clients: visibleClients.map((c) => ({
         kind: "client" as const,
         id: c.id,
         username: c.username,
@@ -117,7 +129,7 @@ export async function GET(req: Request) {
           c.username,
         createdAt: c.createdAt.toISOString(),
       })),
-      trainers: trainers.map((t) => {
+      trainers: visibleTrainers.map((t) => {
         const membershipStatus = resolveTrainerMembershipStatus({
           trainer: { termsAcceptedAt: t.termsAcceptedAt, deidentifiedAt: t.deidentifiedAt },
           profile: t.profile,

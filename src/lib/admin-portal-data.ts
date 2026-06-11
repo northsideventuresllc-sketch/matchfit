@@ -8,6 +8,7 @@ import {
   buildAdminPortalTrainerSqlFilterLegacy,
   redactEmailForAdminPortal,
 } from "@/lib/admin-portal-list-filters";
+import { filterOwnerTestIdentities } from "@/lib/owner-test-account-exclusion";
 import type {
   AdminFeaturedSnapshot,
   AdminPortalOverview,
@@ -248,7 +249,12 @@ export async function getAdminSignupLog(opts: {
       countSignupUnionTotal(),
     ]);
     const stats = await loadStatsForSignups(unionRows);
-    return { rows: unionRowsToSignupRows(unionRows, stats), total };
+    const visibleRows = filterOwnerTestIdentities(unionRows, (row) => ({
+      username: row.username,
+      email: row.email,
+      role: row.kind,
+    }));
+    return { rows: unionRowsToSignupRows(visibleRows, stats), total };
   } catch (e) {
     if (!isMissingInternalQaSyntheticPersonaColumn(e)) throw e;
     return getAdminSignupLogWithoutSyntheticFilter({ limit, offset });

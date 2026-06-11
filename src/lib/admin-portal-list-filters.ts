@@ -113,7 +113,7 @@ function adminPortalTrainerListWhereBase(
   };
 }
 
-/** Prisma filter: real members + owner test accounts; excludes synthetic / QA fake personas. */
+/** Prisma filter: real members only; excludes owner test portals, synthetic / QA fake personas. */
 export function adminPortalClientListWhere(): Prisma.ClientWhereInput {
   return adminPortalClientListWhereBase(true);
 }
@@ -123,7 +123,7 @@ export function adminPortalClientListWhereLegacy(): Prisma.ClientWhereInput {
   return adminPortalClientListWhereBase(false);
 }
 
-/** Prisma filter: real trainers + owner test account; excludes synthetic QA personas (signup log). */
+/** Prisma filter: real trainers only; excludes owner test portals and synthetic QA personas (signup log). */
 export function adminPortalTrainerListWhere(): Prisma.TrainerWhereInput {
   return adminPortalTrainerListWhereBase(true, false);
 }

@@ -4,9 +4,11 @@
  * Dry run:  `node --env-file=.env npx tsx scripts/deidentify-usernames.ts jibbyjam22`
  * Apply:    `node --env-file=.env npx tsx scripts/deidentify-usernames.ts jibbyjam22 --apply`
  */
-import { deidentifyClientAccount, deidentifyTrainerAccount } from "../src/lib/account-deletion";
-import { scrubNonLivePlatformRevenueEvents } from "../src/lib/platform-revenue-filters";
-import { prisma } from "../src/lib/prisma";
+import {
+  deidentifyClientAccountWithDb,
+  deidentifyTrainerAccountWithDb,
+} from "../src/lib/account-deidentify-core";
+import { createPrismaClient } from "./create-prisma-client.mjs";
 
 const APPLY = process.argv.includes("--apply");
 const usernames = process.argv
@@ -14,6 +16,8 @@ const usernames = process.argv
   .filter((arg) => arg !== "--apply")
   .map((u) => u.trim().replace(/^@/, "").toLowerCase())
   .filter(Boolean);
+
+const prisma = createPrismaClient();
 
 async function main() {
   if (usernames.length === 0) {
@@ -49,20 +53,33 @@ async function main() {
   }
 
   for (const t of trainers) {
-    await deidentifyTrainerAccount(t.id);
+    await deidentifyTrainerAccountWithDb(prisma, t.id);
     console.log(`Deidentified trainer ${t.username}`);
   }
   for (const c of clients) {
-    await deidentifyClientAccount(c.id);
+    await deidentifyClientAccountWithDb(prisma, c.id);
     console.log(`Deidentified client ${c.username}`);
   }
 
-  const scrubbed = await scrubNonLivePlatformRevenueEvents();
-  console.log(`Scrubbed ${scrubbed} non-live platform revenue row(s).`);
+  const signupDeleted = await prisma.signupFormProgress.deleteMany({
+    where: {
+      OR: usernames.flatMap((username) => [
+        { username: { equals: username, mode: "insensitive" as const } },
+        { email: { contains: username, mode: "insensitive" as const } },
+      ]),
+    },
+  });
+  const pendingDeleted = await prisma.pendingClientRegistration.deleteMany({
+    where: {
+      OR: usernames.map((username) => ({ username: { equals: username, mode: "insensitive" as const } })),
+    },
+  });
+
+  console.log(`Deleted ${signupDeleted.count} signup progress row(s) and ${pendingDeleted.count} pending registration(s).`);
   console.log("\nDeidentification complete.");
 }
 
-main()
+void main()
   .catch((e) => {
     console.error(e);
     process.exit(1);

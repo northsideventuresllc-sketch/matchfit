@@ -7,7 +7,10 @@
  * Dry run: `node --env-file=.env npx tsx scripts/purge-launch-test-accounts.ts`
  * Apply:    `node --env-file=.env npx tsx scripts/purge-launch-test-accounts.ts --apply`
  */
-import { deidentifyClientAccount, deidentifyTrainerAccount } from "../src/lib/account-deletion";
+import {
+  deidentifyClientAccountWithDb,
+  deidentifyTrainerAccountWithDb,
+} from "../src/lib/account-deidentify-core";
 import {
   getMatchFitLaunchExcludeClientUsernames,
   getMatchFitLaunchExcludeEmails,
@@ -19,9 +22,10 @@ import {
   SYNTHETIC_CLIENT_USERNAME_PREFIX,
   SYNTHETIC_TRAINER_USERNAME_PREFIX,
 } from "../src/lib/launch-account-counts";
-import { prisma } from "../src/lib/prisma";
+import { createPrismaClient } from "./create-prisma-client.mjs";
 
 const APPLY = process.argv.includes("--apply");
+const prisma = createPrismaClient();
 
 function syntheticTrainerWhere() {
   const excludeEmails = getMatchFitLaunchExcludeEmails();
@@ -87,10 +91,10 @@ async function main() {
   }
 
   for (const t of trainers) {
-    await deidentifyTrainerAccount(t.id);
+    await deidentifyTrainerAccountWithDb(prisma, t.id);
   }
   for (const c of clients) {
-    await deidentifyClientAccount(c.id);
+    await deidentifyClientAccountWithDb(prisma, c.id);
   }
 
   await prisma.trainer.updateMany({
@@ -124,4 +128,6 @@ void main()
     console.error(e);
     process.exit(1);
   })
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
