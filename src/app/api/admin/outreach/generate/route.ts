@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { formatUserFacingError } from "@/lib/read-json-response";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { ensureOutreachHubSchema } from "@/lib/ensure-outreach-hub-schema";
 import { generateOutreachLeads } from "@/lib/outreach-ai";
@@ -60,7 +61,7 @@ export async function POST(req: Request) {
     return NextResponse.json(result);
   } catch (e) {
     console.error("[outreach generate]", e);
-    const message = e instanceof Error ? e.message : "Lead generation failed.";
+    const message = formatUserFacingError(e, "Lead generation failed.");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

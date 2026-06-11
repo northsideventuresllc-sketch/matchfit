@@ -1,3 +1,40 @@
+/** Turn API/proxy error payloads into a readable string for UI alerts. */
+export function formatUserFacingError(value: unknown, fallback = "Something went wrong."): string {
+  if (value == null || value === "") return fallback;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed || fallback;
+  }
+  if (value instanceof Error) {
+    const trimmed = value.message.trim();
+    return trimmed && trimmed !== "[object Object]" ? trimmed : fallback;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.message === "string" && obj.message.trim()) return obj.message.trim();
+    if (typeof obj.error === "string" && obj.error.trim()) return obj.error.trim();
+    if (obj.error != null) {
+      const nested = formatUserFacingError(obj.error, "");
+      if (nested) return nested;
+    }
+    if (Array.isArray(obj.issues) && obj.issues.length > 0) {
+      const first = obj.issues[0] as { message?: string };
+      if (typeof first.message === "string" && first.message.trim()) return first.message.trim();
+    }
+    try {
+      const serialized = JSON.stringify(value);
+      if (serialized && serialized !== "{}" && serialized !== "[]") return serialized;
+    } catch {
+      /* ignore circular refs */
+    }
+  }
+  const asString = String(value);
+  return asString === "[object Object]" ? fallback : asString.trim() || fallback;
+}
+
 /** Parse a fetch Response as JSON, with clear errors when the server returns HTML/plain text. */
 export async function readJsonResponse<T>(res: Response): Promise<T> {
   const text = await res.text();

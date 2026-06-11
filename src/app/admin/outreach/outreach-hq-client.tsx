@@ -35,7 +35,7 @@ import {
   targetGroupLabel,
 } from "@/lib/outreach-types";
 import type { AdminAiProviderStatus } from "@/lib/admin-analytics-ai";
-import { readJsonResponse } from "@/lib/read-json-response";
+import { formatUserFacingError, readJsonResponse } from "@/lib/read-json-response";
 import {
   OUTREACH_PLATFORM_UI,
   stageLabelForOutreachGenerate,
@@ -986,8 +986,8 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         body: JSON.stringify({ platform: coldTab, atlCount, virtualCount }),
       });
       const data = await readJsonResponse<{
-        error?: string;
-        message?: string;
+        error?: unknown;
+        message?: unknown;
         leads?: unknown[];
         verification?: {
           parsed: number;
@@ -996,19 +996,27 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
           rejectedSamples?: { handle: string; reason: string }[];
         };
       }>(res);
-      if (!res.ok) throw new Error(data.error ?? "Generation failed.");
+      if (!res.ok) {
+        throw new Error(formatUserFacingError(data.error, "Generation failed."));
+      }
 
       const leadCount = data.leads?.length ?? 0;
       if (leadCount === 0) {
-        setError(
-          data.message ??
-            (data.verification?.parsed
-              ? `No leads saved. ${data.verification.rejected} candidate(s) failed verification.`
-              : "No leads were generated. Try again."),
-        );
+        const rejectionHint =
+          data.verification?.parsed && data.verification.rejected > 0
+            ? `No leads saved. ${data.verification.rejected} candidate(s) failed verification.${
+                data.verification.rejectedSamples?.length
+                  ? ` Examples: ${data.verification.rejectedSamples
+                      .slice(0, 3)
+                      .map((sample) => `${sample.handle}: ${sample.reason}`)
+                      .join("; ")}`
+                  : ""
+              }`
+            : "No leads were generated. Try again.";
+        setError(formatUserFacingError(data.message, rejectionHint));
         setSuccessMessage(null);
       } else if (data.message) {
-        setSuccessMessage(data.message);
+        setSuccessMessage(formatUserFacingError(data.message, "Generation completed."));
         setError(null);
       } else if (data.verification) {
         setSuccessMessage(
@@ -1028,7 +1036,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
       setGenerateProgress(100);
       setGenerateStage("Complete");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Generation failed.");
+      setError(formatUserFacingError(e, "Generation failed."));
     } finally {
       setGenerating(false);
       window.setTimeout(() => {
@@ -1065,7 +1073,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
       body: JSON.stringify({ platform, deleteReason }),
     });
     const data = await readJsonResponse<{ error?: string }>(res);
-    if (!res.ok) throw new Error(data.error ?? "Delete failed.");
+    if (!res.ok) throw new Error(formatUserFacingError(data.error, "Delete failed."));
     if (tab === "hub") {
       await loadHubEntries();
     } else if (tab === "archive") {
@@ -1086,7 +1094,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
           setSuccessMessage("Lead deleted. Reason saved for AI learning.");
           setDeletePrompt(null);
         } catch (e) {
-          setError(e instanceof Error ? e.message : "Delete failed.");
+          setError(formatUserFacingError(e, "Delete failed."));
         } finally {
           setDeleteSubmitting(false);
         }
@@ -1124,13 +1132,13 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         body: JSON.stringify({ platform: coldTab, ...input }),
       });
       const data = await readJsonResponse<{ error?: string; savedCount?: number }>(res);
-      if (!res.ok) throw new Error(data.error ?? "Bulk save failed.");
+      if (!res.ok) throw new Error(formatUserFacingError(data.error, "Bulk save failed."));
       setSuccessMessage(
         `Saved ${data.savedCount ?? 0} lead${data.savedCount === 1 ? "" : "s"} to Outreach Hub.`,
       );
       await loadLeads(coldTab);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Bulk save failed.");
+      setError(formatUserFacingError(e, "Bulk save failed."));
     } finally {
       setBulkSaving(false);
     }
@@ -1162,14 +1170,14 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
             body: JSON.stringify({ platform: coldTab, ...input, deleteReason: reason }),
           });
           const data = await readJsonResponse<{ error?: string; deletedCount?: number }>(res);
-          if (!res.ok) throw new Error(data.error ?? "Bulk delete failed.");
+          if (!res.ok) throw new Error(formatUserFacingError(data.error, "Bulk delete failed."));
           setSuccessMessage(
             `Deleted ${data.deletedCount ?? 0} lead${data.deletedCount === 1 ? "" : "s"}. Reasons saved for AI learning.`,
           );
           setDeletePrompt(null);
           await loadLeads(coldTab);
         } catch (e) {
-          setError(e instanceof Error ? e.message : "Bulk delete failed.");
+          setError(formatUserFacingError(e, "Bulk delete failed."));
         } finally {
           setBulkDeleting(false);
           setDeleteSubmitting(false);
@@ -1190,11 +1198,11 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         body: JSON.stringify({ platform, id }),
       });
       const data = await readJsonResponse<{ error?: string; message?: string }>(res);
-      if (!res.ok) throw new Error(data.error ?? "Revive failed.");
+      if (!res.ok) throw new Error(formatUserFacingError(data.error, "Revive failed."));
       setSuccessMessage(data.message ?? "Lead revived to Outreach Hub.");
       await loadArchiveEntries();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Revive failed.");
+      setError(formatUserFacingError(e, "Revive failed."));
     } finally {
       setRevivingId(null);
     }
@@ -1219,7 +1227,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         body: JSON.stringify({ scope: "archived" }),
       });
       const data = await readJsonResponse<{ error?: string; message?: string }>(res);
-      if (!res.ok) throw new Error(data.error ?? "Purge failed.");
+      if (!res.ok) throw new Error(formatUserFacingError(data.error, "Purge failed."));
       setSuccessMessage(data.message ?? "Archived outreach rows removed.");
       if (tab === "hub") {
         await loadHubEntries();
@@ -1227,7 +1235,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         await loadLeads(coldTab);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Purge failed.");
+      setError(formatUserFacingError(e, "Purge failed."));
     } finally {
       setPurging(false);
     }

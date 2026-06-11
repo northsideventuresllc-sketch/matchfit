@@ -1,9 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { readJsonResponse } from "@/lib/read-json-response";
+import { formatUserFacingError, readJsonResponse } from "@/lib/read-json-response";
 
 function response(body: string, init?: ResponseInit): Response {
   return new Response(body, init);
 }
+
+describe("formatUserFacingError", () => {
+  it("returns strings as-is", () => {
+    expect(formatUserFacingError("Provider unavailable")).toBe("Provider unavailable");
+  });
+
+  it("extracts nested message objects from proxy errors", () => {
+    expect(formatUserFacingError({ message: "Function timed out." })).toBe("Function timed out.");
+    expect(formatUserFacingError({ error: { message: "Anthropic rate limited." } })).toBe(
+      "Anthropic rate limited.",
+    );
+  });
+
+  it("avoids [object Object] for opaque objects", () => {
+    expect(formatUserFacingError({ code: "UNKNOWN" }, "Generation failed.")).toBe('{"code":"UNKNOWN"}');
+    expect(formatUserFacingError(new Error({ message: "hidden" } as unknown as string), "Fallback.")).toBe(
+      "Fallback.",
+    );
+  });
+});
 
 describe("readJsonResponse", () => {
   it("parses valid JSON objects", async () => {
