@@ -88,6 +88,11 @@ export async function hydratePlatformEnvFromDatabase(): Promise<void> {
       process.env.NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY = niBrainServiceRoleKey;
     }
 
+    const niBrainDatabaseUrl = await readPlatformSecret("NI_BRAIN_DATABASE_URL");
+    if (niBrainDatabaseUrl) {
+      process.env.NI_BRAIN_DATABASE_URL = niBrainDatabaseUrl;
+    }
+
     resetStripeClient();
   })();
 

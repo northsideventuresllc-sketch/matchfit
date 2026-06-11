@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import type { BulkGeneratedDraft } from "@/lib/content-calendar/content-calendar-ai";
 import { loadHubPosts, loadScheduledPosts, serializePostForClient } from "@/lib/content-calendar/content-calendar-store";
+import { ensureContentHubSchema, isMissingContentHubSchemaError } from "@/lib/ensure-content-hub-schema";
 import { isNiBrainConfiguredAsync } from "@/lib/ni-brain-client";
+import { formatUserFacingError } from "@/lib/read-json-response";
 import { requireAdminSession } from "@/lib/require-admin";
 
 export async function GET(req: Request) {
@@ -15,6 +17,7 @@ export async function GET(req: Request) {
   const view = new URL(req.url).searchParams.get("view") ?? "hub";
 
   try {
+    await ensureContentHubSchema();
     if (view === "scheduled") {
       const posts = await loadScheduledPosts();
       return NextResponse.json({ posts: posts.map(serializePostForClient) });
@@ -23,7 +26,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ posts: posts.map(serializePostForClient), total: posts.length });
   } catch (e) {
     console.error("[content-calendar hub GET]", e);
-    return NextResponse.json({ error: "Could not load content hub." }, { status: 500 });
+    return NextResponse.json(
+      { error: formatUserFacingError(e, "Could not load content hub.") },
+      { status: isMissingContentHubSchemaError(e) ? 503 : 500 },
+    );
   }
 }
 
@@ -32,12 +38,12 @@ const saveSchema = z.object({
     tempId: z.string(),
     dayIndex: z.number().int().min(0).max(99),
     postType: z.enum(["Carousel", "Static", "Video", "Text"]),
-    targetGroup: z.string(),
-    platforms: z.string(),
+    targetGroup: z.string().min(1),
+    platforms: z.string().min(1),
     caption: z.string(),
-    visualPrompt: z.string().nullable(),
-    hashtags: z.array(z.string()),
-    postDate: z.string().nullable(),
+    visualPrompt: z.string().nullable().optional().default(null),
+    hashtags: z.array(z.string()).default([]),
+    postDate: z.string().nullable().optional().default(null),
   }),
   weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   scheduled: z.boolean(),
@@ -53,10 +59,14 @@ export async function POST(req: Request) {
 
   const parsed = saveSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+    return NextResponse.json(
+      { error: formatUserFacingError(parsed.error.flatten(), "Invalid request.") },
+      { status: 400 },
+    );
   }
 
   try {
+    await ensureContentHubSchema();
     const { saveDraftToHub } = await import("@/lib/content-calendar/content-calendar-store");
     const row = await saveDraftToHub({
       draft: parsed.data.draft as BulkGeneratedDraft,
@@ -68,6 +78,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ post: serializePostForClient(row) });
   } catch (e) {
     console.error("[content-calendar hub POST]", e);
-    return NextResponse.json({ error: "Could not save to content hub." }, { status: 500 });
+    return NextResponse.json(
+      { error: formatUserFacingError(e, "Could not save to content hub.") },
+      { status: isMissingContentHubSchemaError(e) ? 503 : 500 },
+    );
   }
 }

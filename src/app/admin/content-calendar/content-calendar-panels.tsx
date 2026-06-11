@@ -34,6 +34,7 @@ import {
 } from "@/lib/content-calendar/bulk-content-slots";
 import type { ClientContentPost } from "@/lib/content-calendar/content-calendar-store";
 import { formatCalendarDate, getMondayOfWeek } from "@/lib/content-calendar/rotation";
+import { formatUserFacingError } from "@/lib/read-json-response";
 import { isPostMissed } from "@/lib/content-calendar/schedule-utils";
 
 export function CopyButton({
@@ -297,17 +298,19 @@ export function BulkContentGeneratorPanel(props: {
     }
   }
 
-  async function saveDraft(draft: BulkGeneratedDraft) {
+  async function saveDraft(draft: BulkGeneratedDraft, options?: { bulk?: boolean }): Promise<boolean> {
     if (!bulkSessionId) {
       setError("Missing bulk session — regenerate your batch to save posts.");
-      return;
+      return false;
     }
     if (saveDisabled) {
       setError("NI Brain is not configured — add NI Brain Supabase keys to save to Content Hub.");
-      return;
+      return false;
     }
     setSavingId(draft.tempId);
-    setError(null);
+    if (!options?.bulk) {
+      setError(null);
+    }
     try {
       const res = await fetch("/api/admin/content-calendar/hub", {
         method: "POST",
@@ -320,16 +323,22 @@ export function BulkContentGeneratorPanel(props: {
           bulkSessionId,
         }),
       });
-      const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Save failed.");
+      const data = (await res.json()) as { error?: unknown };
+      if (!res.ok) throw new Error(formatUserFacingError(data.error, "Save failed."));
       setDrafts((prev) => prev.filter((d) => d.tempId !== draft.tempId));
-      setSuccess("Saved to Content Hub.");
-      props.onHubRefresh();
-      void loadScheduled();
+      if (!options?.bulk) {
+        setSuccess("Saved to Content Hub.");
+        props.onHubRefresh();
+        void loadScheduled();
+      }
+      return true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed.");
+      setError(formatUserFacingError(e, "Save failed."));
+      return false;
     } finally {
-      setSavingId(null);
+      if (!options?.bulk) {
+        setSavingId(null);
+      }
     }
   }
 
@@ -348,13 +357,22 @@ export function BulkContentGeneratorPanel(props: {
     setSuccess(null);
     const pending = [...drafts];
     let saved = 0;
+    let failed = 0;
     try {
       for (const draft of pending) {
-        await saveDraft(draft);
-        saved += 1;
+        const ok = await saveDraft(draft, { bulk: true });
+        if (ok) saved += 1;
+        else failed += 1;
       }
       if (saved > 0) {
+        props.onHubRefresh();
+        void loadScheduled();
+      }
+      if (saved > 0 && failed === 0) {
         setSuccess(`Saved ${saved} post${saved === 1 ? "" : "s"} to Content Hub.`);
+      } else if (saved > 0) {
+        setSuccess(`Saved ${saved} of ${pending.length} posts to Content Hub.`);
+        setError(`${failed} post${failed === 1 ? "" : "s"} could not be saved — see the error above.`);
       }
     } finally {
       setBulkSaving(false);
@@ -585,7 +603,9 @@ export function BulkContentGeneratorPanel(props: {
                 draft={draft}
                 saving={savingId === draft.tempId || bulkSaving}
                 saveDisabled={saveDisabled}
-                onSave={() => saveDraft(draft)}
+                onSave={async () => {
+                  await saveDraft(draft);
+                }}
                 onDelete={() => setDrafts((prev) => prev.filter((d) => d.tempId !== draft.tempId))}
               />
             ))}

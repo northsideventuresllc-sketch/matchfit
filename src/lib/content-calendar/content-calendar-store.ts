@@ -261,11 +261,9 @@ export async function saveDraftToHub(args: {
     postType: args.draft.postType,
     preferredDayIndex: args.draft.dayIndex,
   });
-  const postDate =
-    args.draft.postDate ??
-    (args.scheduled
-      ? formatCalendarDate(addWeekdays(new Date(`${args.weekStart}T00:00:00`), Math.min(4, dayIndex)))
-      : args.weekStart);
+  const postDate = args.scheduled
+    ? formatCalendarDate(addWeekdays(new Date(`${args.weekStart}T00:00:00`), Math.min(4, dayIndex)))
+    : args.draft.postDate ?? args.weekStart;
 
   const row = {
     week_start: args.weekStart,
@@ -285,6 +283,7 @@ export async function saveDraftToHub(args: {
     purge_after_at: null,
     bulk_session_id: args.bulkSessionId,
     admin_id: args.adminId,
+    created_at: now,
     updated_at: now,
   };
 
