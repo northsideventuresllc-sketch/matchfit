@@ -73,11 +73,39 @@ describe("trainer membership status", () => {
     ).toEqual({
       termsAccepted: true,
       complianceWindowStarted: false,
-      onboardingFeeCompleted: true,
+      onboardingFeeCompleted: false,
+      onboardingFeeHoldPlaced: true,
       backgroundCheckStatus: "PENDING",
       backgroundCheckReviewStatus: null,
       documentsComplete: false,
       documentsPending: true,
+    });
+  });
+
+  it("marks onboarding fee completed only when captured or explicitly paid", () => {
+    expect(
+      buildTrainerPendingQualifications({
+        termsAcceptedAt: new Date("2026-06-01T00:00:00.000Z"),
+        profile: {
+          hasPaidRegistrationFee: true,
+          registrationFeeHoldStatus: "HELD",
+        },
+      }),
+    ).toMatchObject({
+      onboardingFeeCompleted: true,
+      onboardingFeeHoldPlaced: true,
+    });
+
+    expect(
+      buildTrainerPendingQualifications({
+        termsAcceptedAt: new Date("2026-06-01T00:00:00.000Z"),
+        profile: {
+          registrationFeeHoldStatus: "CAPTURED",
+        },
+      }),
+    ).toMatchObject({
+      onboardingFeeCompleted: true,
+      onboardingFeeHoldPlaced: true,
     });
   });
 });

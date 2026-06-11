@@ -566,7 +566,13 @@ export function TrainerPipelineSection({ pipeline }: { pipeline: AdminTrainerPip
             ) : null}
             <p>Terms accepted: {selected.termsAccepted ? "Yes" : "No"}</p>
             <p className="mt-1">7-day compliance window started: {selected.complianceWindowStarted ? "Yes" : "No"}</p>
-            <p className="mt-1">Onboarding fee completed: {selected.onboardingFeeCompleted ? "Yes" : "No"}</p>
+            <p className="mt-1">Onboarding fee paid: {selected.onboardingFeeCompleted ? "Yes" : "No"}</p>
+            <p className="mt-1">
+              Onboarding fee hold placed: {selected.onboardingFeeHoldPlaced ? "Yes" : "No"}
+              {!selected.onboardingFeeCompleted && selected.onboardingFeeHoldPlaced ? (
+                <span className="text-white/45"> (hold only — not captured yet)</span>
+              ) : null}
+            </p>
             <p className="mt-1">Background check: {selected.backgroundCheckStatus}</p>
             {selected.backgroundCheckReviewStatus ? (
               <p className="mt-1">BG review: {selected.backgroundCheckReviewStatus}</p>

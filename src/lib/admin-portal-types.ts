@@ -147,6 +147,7 @@ export type AdminTrainerPipelineEntry = {
   termsAccepted: boolean;
   complianceWindowStarted: boolean;
   onboardingFeeCompleted: boolean;
+  onboardingFeeHoldPlaced: boolean;
   backgroundCheckStatus: string;
   backgroundCheckReviewStatus: string | null;
   documentsComplete: boolean;

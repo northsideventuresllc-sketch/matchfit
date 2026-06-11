@@ -1,5 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
-import { trainerOnboardingFeeIsPaid } from "@/lib/trainer-onboarding-fee-deadline";
+import { trainerOnboardingFeeIsCaptured, trainerOnboardingFeeIsPaid } from "@/lib/trainer-onboarding-fee-deadline";
 
 export type TrainerMembershipStatus = "pre_tos" | "pending" | "active" | "deidentified";
 
@@ -87,7 +87,10 @@ export function buildAdminClientSearchClause(query: string): Prisma.ClientWhereI
 export type TrainerPendingQualifications = {
   termsAccepted: boolean;
   complianceWindowStarted: boolean;
+  /** Platform onboarding fee captured or marked paid (not a pending card hold). */
   onboardingFeeCompleted: boolean;
+  /** Card hold placed for platform onboarding fee (may still be uncaptured). */
+  onboardingFeeHoldPlaced: boolean;
   backgroundCheckStatus: string;
   backgroundCheckReviewStatus: string | null;
   documentsComplete: boolean;
@@ -129,10 +132,14 @@ export function buildTrainerPendingQualifications(input: {
   return {
     termsAccepted,
     complianceWindowStarted: Boolean(p?.complianceWindowStartedAt),
-    onboardingFeeCompleted:
-      Boolean(p?.hasPaidRegistrationFee) ||
-      p?.registrationFeeHoldStatus === "HELD" ||
-      p?.registrationFeeHoldStatus === "CAPTURED",
+    onboardingFeeCompleted: trainerOnboardingFeeIsCaptured({
+      hasPaidRegistrationFee: p?.hasPaidRegistrationFee ?? undefined,
+      registrationFeeHoldStatus: p?.registrationFeeHoldStatus ?? undefined,
+    }),
+    onboardingFeeHoldPlaced: trainerOnboardingFeeIsPaid({
+      hasPaidRegistrationFee: p?.hasPaidRegistrationFee ?? undefined,
+      registrationFeeHoldStatus: p?.registrationFeeHoldStatus ?? undefined,
+    }),
     backgroundCheckStatus: p?.backgroundCheckStatus ?? "NOT_STARTED",
     backgroundCheckReviewStatus: p?.backgroundCheckReviewStatus ?? null,
     documentsComplete: hasDocs && allApproved,

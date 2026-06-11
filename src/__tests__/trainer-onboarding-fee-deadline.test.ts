@@ -3,6 +3,7 @@ import {
   isTrainerOnboardingFeePaymentOverdue,
   trainerOnboardingFeeDeadlineAt,
   trainerOnboardingFeeDaysRemaining,
+  trainerOnboardingFeeIsCaptured,
   trainerOnboardingFeeIsPaid,
   TRAINER_ONBOARDING_FEE_DEADLINE_MS,
 } from "@/lib/trainer-onboarding-fee-deadline";
@@ -19,6 +20,13 @@ describe("trainer onboarding fee deadline helpers", () => {
     expect(trainerOnboardingFeeIsPaid({ registrationFeeHoldStatus: " held " })).toBe(true);
     expect(trainerOnboardingFeeIsPaid({ registrationFeeHoldStatus: "CAPTURED" })).toBe(true);
     expect(trainerOnboardingFeeIsPaid({ registrationFeeHoldStatus: "not_started" })).toBe(false);
+  });
+
+  it("treats captured or explicit paid as completed fee, not hold-only", () => {
+    expect(trainerOnboardingFeeIsCaptured({ hasPaidRegistrationFee: true })).toBe(true);
+    expect(trainerOnboardingFeeIsCaptured({ registrationFeeHoldStatus: "CAPTURED" })).toBe(true);
+    expect(trainerOnboardingFeeIsCaptured({ registrationFeeHoldStatus: "HELD" })).toBe(false);
+    expect(trainerOnboardingFeeIsCaptured({ registrationFeeHoldStatus: "NOT_STARTED" })).toBe(false);
   });
 
   it("flags overdue only when unpaid and now is past a valid deadline", () => {

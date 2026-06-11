@@ -17,6 +17,16 @@ export function trainerOnboardingFeeIsPaid(prof: TrainerOnboardingFeeDeadlinePro
   return hold === "HELD" || hold === "CAPTURED";
 }
 
+/** True only when the platform onboarding fee was captured or explicitly marked paid (not merely held). */
+export function trainerOnboardingFeeIsCaptured(
+  prof: TrainerOnboardingFeeDeadlineProfile | null | undefined,
+): boolean {
+  if (!prof) return false;
+  if (prof.hasPaidRegistrationFee) return true;
+  const hold = (prof.registrationFeeHoldStatus ?? "NOT_STARTED").trim().toUpperCase();
+  return hold === "CAPTURED";
+}
+
 export function isTrainerOnboardingFeePaymentOverdue(
   prof: TrainerOnboardingFeeDeadlineProfile | null | undefined,
   now = new Date(),
