@@ -28,6 +28,16 @@ import type {
   OutreachPlatform,
 } from "@/lib/outreach-types";
 import {
+  DEFAULT_OUTREACH_HUB_FILTERS,
+  filterOutreachHubLeads,
+  HUB_CLASSIFICATION_FILTER_OPTIONS,
+  HUB_PLATFORM_FILTER_OPTIONS,
+  HUB_TARGET_GROUP_FILTER_OPTIONS,
+  hubStatusFilterOptions,
+  outreachHubFiltersActive,
+  type OutreachHubFilterState,
+} from "@/lib/outreach-hub-filters";
+import {
   EMAIL_COPY_FIELDS,
   FACEBOOK_COPY_FIELDS,
   INSTAGRAM_COPY_FIELDS,
@@ -969,6 +979,30 @@ function OutreachHubPanel(props: {
     feedback?: string,
   ) => Promise<void>;
 }) {
+  const [filters, setFilters] = useState<OutreachHubFilterState>(DEFAULT_OUTREACH_HUB_FILTERS);
+
+  const statusOptions = useMemo(() => hubStatusFilterOptions(filters.platform), [filters.platform]);
+
+  const filteredEntries = useMemo(
+    () => filterOutreachHubLeads(props.entries, filters),
+    [props.entries, filters],
+  );
+
+  const filtersActive = outreachHubFiltersActive(filters);
+
+  const updateFilter = <K extends keyof OutreachHubFilterState>(key: K, value: OutreachHubFilterState[K]) => {
+    setFilters((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === "platform") {
+        const validStatuses = new Set(hubStatusFilterOptions(value as OutreachHubFilterState["platform"]).map((o) => o.id));
+        if (!validStatuses.has(next.status)) {
+          next.status = "all";
+        }
+      }
+      return next;
+    });
+  };
+
   const fieldKey = (platform: OutreachPlatform | "other", id: string) => `${platform}:${id}`;
 
   const renderEntry = (entry: OutreachHubLead) => {
@@ -1090,18 +1124,169 @@ function OutreachHubPanel(props: {
         </div>
       </section>
 
+      <section className={`${adminCardClass} space-y-4`}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Filters</p>
+          {filtersActive ? (
+            <button
+              type="button"
+              className={adminSecondaryButtonClass}
+              onClick={() => setFilters(DEFAULT_OUTREACH_HUB_FILTERS)}
+            >
+              Clear filters
+            </button>
+          ) : null}
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <label className="space-y-1.5">
+            <span className={adminLabelClass}>Platform</span>
+            <select
+              className={`${adminInputClassSm} w-full`}
+              value={filters.platform}
+              onChange={(e) => updateFilter("platform", e.target.value as OutreachHubFilterState["platform"])}
+            >
+              {HUB_PLATFORM_FILTER_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1.5">
+            <span className={adminLabelClass}>Status</span>
+            <select
+              className={`${adminInputClassSm} w-full`}
+              value={filters.status}
+              onChange={(e) => updateFilter("status", e.target.value)}
+            >
+              {statusOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1.5">
+            <span className={adminLabelClass}>Classification</span>
+            <select
+              className={`${adminInputClassSm} w-full`}
+              value={filters.classification}
+              onChange={(e) =>
+                updateFilter("classification", e.target.value as OutreachHubFilterState["classification"])
+              }
+            >
+              {HUB_CLASSIFICATION_FILTER_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1.5">
+            <span className={adminLabelClass}>Audience</span>
+            <select
+              className={`${adminInputClassSm} w-full`}
+              value={filters.targetGroup}
+              onChange={(e) => updateFilter("targetGroup", e.target.value as OutreachHubFilterState["targetGroup"])}
+            >
+              {HUB_TARGET_GROUP_FILTER_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1.5">
+            <span className={adminLabelClass}>Saved from</span>
+            <input
+              type="date"
+              className={`${adminInputClassSm} w-full`}
+              value={filters.savedFrom}
+              onChange={(e) => updateFilter("savedFrom", e.target.value)}
+            />
+          </label>
+          <label className="space-y-1.5">
+            <span className={adminLabelClass}>Saved through</span>
+            <input
+              type="date"
+              className={`${adminInputClassSm} w-full`}
+              value={filters.savedTo}
+              onChange={(e) => updateFilter("savedTo", e.target.value)}
+            />
+          </label>
+        </div>
+        <label className="block space-y-1.5">
+          <span className={adminLabelClass}>Search</span>
+          <input
+            type="search"
+            className={`${adminInputClass} w-full`}
+            placeholder="Search handle, page, name, email, or niche…"
+            value={filters.search}
+            onChange={(e) => updateFilter("search", e.target.value)}
+          />
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className={adminSecondaryButtonClass}
+            onClick={() =>
+              setFilters({
+                ...DEFAULT_OUTREACH_HUB_FILTERS,
+                classification: "FOLLOW_UP_NEEDED",
+              })
+            }
+          >
+            Needs follow-up
+          </button>
+          <button
+            type="button"
+            className={adminSecondaryButtonClass}
+            onClick={() =>
+              setFilters({
+                ...DEFAULT_OUTREACH_HUB_FILTERS,
+                status: "RESPONSE_RECEIVED",
+              })
+            }
+          >
+            Responses received
+          </button>
+          <button
+            type="button"
+            className={adminSecondaryButtonClass}
+            onClick={() => {
+              const today = new Date();
+              const weekAgo = new Date(today);
+              weekAgo.setDate(weekAgo.getDate() - 7);
+              setFilters({
+                ...DEFAULT_OUTREACH_HUB_FILTERS,
+                savedFrom: weekAgo.toISOString().slice(0, 10),
+                savedTo: today.toISOString().slice(0, 10),
+              });
+            }}
+          >
+            Saved last 7 days
+          </button>
+        </div>
+      </section>
+
       {props.loading ? (
         <p className="text-sm text-white/45">Loading saved contacts…</p>
       ) : props.entries.length === 0 ? (
         <p className="rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-8 text-center text-sm text-white/45">
           No saved contacts yet. Use Save on any lead bubble to add them here.
         </p>
+      ) : filteredEntries.length === 0 ? (
+        <p className="rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-8 text-center text-sm text-white/45">
+          No contacts match the current filters. Try clearing filters or broadening your search.
+        </p>
       ) : (
         <div className="space-y-4">
           <p className="text-sm text-white/55">
-            {props.entries.length} saved contact{props.entries.length === 1 ? "" : "s"} across all platforms.
+            {filtersActive
+              ? `Showing ${filteredEntries.length} of ${props.entries.length} saved contact${props.entries.length === 1 ? "" : "s"}.`
+              : `${props.entries.length} saved contact${props.entries.length === 1 ? "" : "s"} across all platforms.`}
           </p>
-          {props.entries.map((entry) => (
+          {filteredEntries.map((entry) => (
             <div key={`${entry.platform}-${entry.lead.id}`} className="space-y-2">
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#FF7E00]/70">
                 {entry.platform === "other"
@@ -1233,35 +1418,39 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
 
   const loadHubEntries = useCallback(
     async (options?: { clearAlerts?: boolean; allowSchemaRepair?: boolean }) => {
-      setLoading(true);
-      if (options?.clearAlerts) {
-        setError(null);
-        setSuccessMessage(null);
-      }
-      try {
-        const res = await fetch("/api/admin/outreach/hub", { credentials: "include" });
-        const data = await readJsonResponse<{ error?: string; entries?: OutreachHubLead[]; leads?: OutreachHubLead[] }>(
-          res,
-        );
-        if (!res.ok) {
-          if (res.status === 503 && options?.allowSchemaRepair !== false) {
-            const repaired = await repairOutreachSchema();
-            if (repaired) {
-              await loadHubEntries({ ...options, allowSchemaRepair: false });
-              return;
+      async function fetchHubEntries(fetchOptions?: { clearAlerts?: boolean; allowSchemaRepair?: boolean }) {
+        setLoading(true);
+        if (fetchOptions?.clearAlerts) {
+          setError(null);
+          setSuccessMessage(null);
+        }
+        try {
+          const res = await fetch("/api/admin/outreach/hub", { credentials: "include" });
+          const data = await readJsonResponse<{ error?: string; entries?: OutreachHubLead[]; leads?: OutreachHubLead[] }>(
+            res,
+          );
+          if (!res.ok) {
+            if (res.status === 503 && fetchOptions?.allowSchemaRepair !== false) {
+              const repaired = await repairOutreachSchema();
+              if (repaired) {
+                await fetchHubEntries({ ...fetchOptions, allowSchemaRepair: false });
+                return;
+              }
             }
+            throw new Error(formatUserFacingError(data.error, "Could not load outreach hub."));
           }
-          throw new Error(formatUserFacingError(data.error, "Could not load outreach hub."));
+          setHubEntries(data.leads ?? data.entries ?? []);
+          void loadPipelineStats();
+        } catch (e) {
+          if (fetchOptions?.clearAlerts) {
+            setError(formatUserFacingError(e, "Could not load Outreach Hub saved contacts."));
+          }
+        } finally {
+          setLoading(false);
         }
-        setHubEntries(data.leads ?? data.entries ?? []);
-        void loadPipelineStats();
-      } catch (e) {
-        if (options?.clearAlerts) {
-          setError(formatUserFacingError(e, "Could not load Outreach Hub saved contacts."));
-        }
-      } finally {
-        setLoading(false);
       }
+
+      await fetchHubEntries(options);
     },
     [loadPipelineStats, repairOutreachSchema],
   );
