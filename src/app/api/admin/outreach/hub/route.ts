@@ -4,6 +4,7 @@ import {
   ensureOutreachHubSchema,
   isMissingOutreachHubSchemaError,
 } from "@/lib/ensure-outreach-hub-schema";
+import { formatUserFacingError } from "@/lib/read-json-response";
 import { requireAdminSession } from "@/lib/require-admin";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,11 @@ export async function GET() {
         { status: 503 },
       );
     }
-    return NextResponse.json({ error: "Could not load outreach hub." }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: formatUserFacingError(e, "Could not load outreach hub."),
+      },
+      { status: 500 },
+    );
   }
 }

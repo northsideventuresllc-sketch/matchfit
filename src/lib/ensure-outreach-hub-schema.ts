@@ -13,12 +13,21 @@ const OUTREACH_LEAD_TABLES = [
 export const OUTREACH_HUB_SAVED_AT_COLUMN = "savedToHubAt";
 export const OUTREACH_ARCHIVE_COLUMNS = ["archivedAt", "deadLeadAt", "archivePurgeAfterAt"] as const;
 
+export const OUTREACH_FOLLOW_UP_COPY_COLUMNS = [
+  { table: "outreach_instagram_leads", column: "followUp1DmText" },
+  { table: "outreach_email_leads", column: "followUp1EmailSubject" },
+] as const;
+
 /** True when Postgres/Prisma reports outreach hub columns or tables are absent. */
 export function isMissingOutreachHubSchemaError(e: unknown): boolean {
   const message = e instanceof Error ? e.message : String(e);
+  if (message.includes("[ensureOutreachHubSchema]")) {
+    return true;
+  }
   const mentionsOutreachColumn =
     message.includes(OUTREACH_HUB_SAVED_AT_COLUMN) ||
-    OUTREACH_ARCHIVE_COLUMNS.some((column) => message.includes(column));
+    OUTREACH_ARCHIVE_COLUMNS.some((column) => message.includes(column)) ||
+    OUTREACH_FOLLOW_UP_COPY_COLUMNS.some(({ column }) => message.includes(column));
   if (
     mentionsOutreachColumn ||
     message.includes("outreach_instagram_leads") ||
@@ -265,8 +274,10 @@ async function countOutreachFollowUpCopyColumns(): Promise<number> {
     SELECT COUNT(*)::bigint AS "count"
     FROM information_schema.columns
     WHERE table_schema = 'public'
-      AND table_name IN ('outreach_instagram_leads', 'outreach_email_leads')
-      AND column_name = 'followUp1DmText'
+      AND (
+        (table_name = 'outreach_instagram_leads' AND column_name = 'followUp1DmText')
+        OR (table_name = 'outreach_email_leads' AND column_name = 'followUp1EmailSubject')
+      )
   `;
   return Number(rows[0]?.count ?? 0);
 }

@@ -228,7 +228,11 @@ export async function listOutreachArchiveLeads(): Promise<OutreachArchiveLead[]>
 
 export async function listOutreachHubLeads(): Promise<OutreachHubLead[]> {
   await ensureOutreachReady();
-  await backfillOutreachHubLeads();
+  try {
+    await backfillOutreachHubLeads();
+  } catch (e) {
+    console.error("[listOutreachHubLeads] backfill skipped:", e);
+  }
   const hubWhere = {
     deletedAt: null,
     savedToHubAt: { not: null } as const,

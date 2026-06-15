@@ -24,6 +24,24 @@ describe("isMissingOutreachHubSchemaError", () => {
     expect(isMissingOutreachHubSchemaError(err)).toBe(true);
   });
 
+  it("detects ensureOutreachHubSchema repair errors", () => {
+    expect(
+      isMissingOutreachHubSchemaError(
+        new Error(
+          "[ensureOutreachHubSchema] follow-up copy columns still missing after DDL (1/2). Set DIRECT_URL on the server and redeploy.",
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("detects missing follow-up email column messages", () => {
+    expect(
+      isMissingOutreachHubSchemaError(
+        new Error('column "followUp1EmailSubject" of relation "outreach_email_leads" does not exist'),
+      ),
+    ).toBe(true);
+  });
+
   it("returns false for unrelated errors", () => {
     expect(isMissingOutreachHubSchemaError(new Error("connection refused"))).toBe(false);
   });
