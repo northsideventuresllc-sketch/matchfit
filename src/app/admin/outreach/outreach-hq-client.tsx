@@ -1247,8 +1247,17 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
           if (res.status === 503 && options?.allowSchemaRepair !== false) {
             const repaired = await repairOutreachSchema();
             if (repaired) {
-              await loadHubEntries({ ...options, allowSchemaRepair: false });
-              return;
+              const retryRes = await fetch("/api/admin/outreach/hub", { credentials: "include" });
+              const retryData = await readJsonResponse<{
+                error?: string;
+                entries?: OutreachHubLead[];
+                leads?: OutreachHubLead[];
+              }>(retryRes);
+              if (retryRes.ok) {
+                setHubEntries(retryData.leads ?? retryData.entries ?? []);
+                void loadPipelineStats();
+                return;
+              }
             }
           }
           throw new Error(formatUserFacingError(data.error, "Could not load outreach hub."));
