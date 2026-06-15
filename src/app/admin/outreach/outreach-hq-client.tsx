@@ -21,7 +21,6 @@ import type {
   EmailLeadRow,
   FacebookLeadRow,
   InstagramLeadRow,
-  LegacyOtherLeadRow,
   OutreachArchiveLead,
   OutreachCopyField,
   OutreachHubLead,
@@ -1018,68 +1017,6 @@ function OutreachArchivePanel(props: {
   );
 }
 
-function LegacyOtherHubCard(props: {
-  lead: LegacyOtherLeadRow;
-  hubMeta?: { platformLabel: string; savedToHubAt: string };
-  expanded: boolean;
-  onToggleExpanded: () => void;
-}) {
-  return (
-    <article className={`${adminPanelClass} overflow-hidden`}>
-      <div className="space-y-3 p-4 sm:p-5">
-        <div className="flex items-start gap-3">
-          <LeadCollapseToggle
-            expanded={props.expanded}
-            onToggle={props.onToggleExpanded}
-            label={props.lead.contactLabel}
-          />
-          <div className="min-w-0 space-y-2">
-            {props.hubMeta ? (
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#FF7E00]/70">
-                {props.hubMeta.platformLabel}
-                {" · Saved "}
-                {new Date(props.hubMeta.savedToHubAt).toLocaleString()}
-              </p>
-            ) : null}
-            <h3 className="text-lg font-black tracking-tight text-white">{props.lead.contactLabel}</h3>
-            {!props.expanded && props.lead.channelNotes ? (
-              <p className="text-xs text-white/45">{props.lead.channelNotes}</p>
-            ) : null}
-          </div>
-        </div>
-        {props.expanded ? (
-          <>
-            {props.lead.contactUrl ? (
-              <a href={props.lead.contactUrl} target="_blank" rel="noreferrer" className={`${adminLinkClass} text-sm`}>
-                {props.lead.contactUrl}
-              </a>
-            ) : null}
-            {props.lead.channelNotes ? (
-              <p className="text-sm text-white/55">{props.lead.channelNotes}</p>
-            ) : null}
-            <p className="text-sm leading-relaxed text-[#FF7E00]/90">
-              <span className="font-semibold text-[#FF7E00]">Why Match Fit: </span>
-              {props.lead.whyMatchFit}
-            </p>
-            {props.lead.outreachText.trim() ? (
-              <div className="space-y-2">
-                <p className={adminLabelClass}>Outreach copy</p>
-                <p className="whitespace-pre-wrap rounded-xl border border-white/[0.06] bg-[#0E1016]/80 p-3 text-sm text-white/80">
-                  {props.lead.outreachText}
-                </p>
-              </div>
-            ) : null}
-            <p className="text-[11px] text-white/40">
-              Legacy contact from the retired Other platform. Re-save under Instagram, Facebook, or Email if you still
-              need active follow-up tooling.
-            </p>
-          </>
-        ) : null}
-      </div>
-    </article>
-  );
-}
-
 function OutreachHubPanel(props: {
   entries: OutreachHubLead[];
   loading: boolean;
@@ -1124,9 +1061,9 @@ function OutreachHubPanel(props: {
     });
   };
 
-  const fieldKey = (platform: OutreachPlatform | "other", id: string) => `${platform}:${id}`;
+  const fieldKey = (platform: OutreachPlatform, id: string) => `${platform}:${id}`;
 
-  const toggleLeadExpanded = (platform: OutreachPlatform | "other", id: string) => {
+  const toggleLeadExpanded = (platform: OutreachPlatform, id: string) => {
     const key = leadEntryKey(platform, id);
     setExpandedLeadIds((prev) => {
       const next = new Set(prev);
@@ -1139,10 +1076,7 @@ function OutreachHubPanel(props: {
   const renderEntry = (entry: OutreachHubLead) => {
     const { platform, lead, savedToHubAt } = entry;
     const genSet = props.generatingFields[fieldKey(platform, lead.id)] ?? new Set<string>();
-    const platformLabel =
-      platform === "other"
-        ? "Legacy · Other"
-        : (OUTREACH_PLATFORMS.find((p) => p.id === platform)?.label ?? platform);
+    const platformLabel = OUTREACH_PLATFORMS.find((p) => p.id === platform)?.label ?? platform;
     const hubMeta = { platformLabel, savedToHubAt };
     const expanded = expandedLeadIds.has(leadEntryKey(platform, lead.id));
     const toggleExpanded = () => toggleLeadExpanded(platform, lead.id);
@@ -1210,18 +1144,6 @@ function OutreachHubPanel(props: {
           onUpdate={(patch) => props.onUpdate(platform, em.id, patch)}
           onDelete={() => props.onDelete(platform, em.id)}
           onGenerateCopy={(fields, feedback) => props.onGenerateCopy(platform, em.id, fields, feedback)}
-        />
-      );
-    }
-
-    if (platform === "other") {
-      return (
-        <LegacyOtherHubCard
-          key={`other-${lead.id}`}
-          lead={lead as LegacyOtherLeadRow}
-          hubMeta={hubMeta}
-          expanded={expanded}
-          onToggleExpanded={toggleExpanded}
         />
       );
     }

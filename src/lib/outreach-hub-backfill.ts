@@ -40,22 +40,11 @@ export async function backfillOutreachHubLeads(): Promise<OutreachHubBackfillSum
         data: { savedToHubAt: savedAt },
       });
       savedToHubAtFromSignals += result.count;
-    } else if (signal.platform === "other") {
-      const result = await prisma.outreachOtherLead.updateMany({
-        where: { id: signal.leadId, savedToHubAt: null, deletedAt: null },
-        data: { savedToHubAt: savedAt },
-      });
-      savedToHubAtFromSignals += result.count;
     }
   }
 
-  const legacyOther = await prisma.outreachOtherLead.updateMany({
-    where: { deletedAt: null, savedToHubAt: null },
-    data: { savedToHubAt: new Date() },
-  });
-
   return {
     savedToHubAtFromSignals,
-    legacyOtherLeadsTagged: legacyOther.count,
+    legacyOtherLeadsTagged: 0,
   };
 }

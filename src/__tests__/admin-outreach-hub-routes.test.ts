@@ -85,7 +85,7 @@ describe("admin outreach hub routes", () => {
     mockIsMissingOutreachHubSchemaError.mockReturnValue(false);
     mockBackfillOutreachHubLeads.mockResolvedValue({
       savedToHubAtFromSignals: 0,
-      legacyOtherLeadsTagged: 1,
+      legacyOtherLeadsTagged: 0,
     });
     mockListOutreachHubLeads.mockResolvedValue([]);
     mockGetOutreachPipelineStats.mockResolvedValue({

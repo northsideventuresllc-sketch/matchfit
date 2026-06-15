@@ -4,13 +4,11 @@ const {
   mockOutreachInstagramUpdateMany,
   mockOutreachFacebookUpdateMany,
   mockOutreachEmailUpdateMany,
-  mockOutreachOtherUpdateMany,
   mockLearningFindMany,
 } = vi.hoisted(() => ({
   mockOutreachInstagramUpdateMany: vi.fn(),
   mockOutreachFacebookUpdateMany: vi.fn(),
   mockOutreachEmailUpdateMany: vi.fn(),
-  mockOutreachOtherUpdateMany: vi.fn(),
   mockLearningFindMany: vi.fn(),
 }));
 
@@ -19,7 +17,6 @@ vi.mock("@/lib/prisma", () => ({
     outreachInstagramLead: { updateMany: mockOutreachInstagramUpdateMany },
     outreachFacebookLead: { updateMany: mockOutreachFacebookUpdateMany },
     outreachEmailLead: { updateMany: mockOutreachEmailUpdateMany },
-    outreachOtherLead: { updateMany: mockOutreachOtherUpdateMany },
     outreachLearningSignal: { findMany: mockLearningFindMany },
   },
 }));
@@ -32,7 +29,6 @@ describe("backfillOutreachHubLeads", () => {
     mockOutreachInstagramUpdateMany.mockResolvedValue({ count: 1 });
     mockOutreachFacebookUpdateMany.mockResolvedValue({ count: 0 });
     mockOutreachEmailUpdateMany.mockResolvedValue({ count: 0 });
-    mockOutreachOtherUpdateMany.mockResolvedValue({ count: 1 });
     mockLearningFindMany.mockResolvedValue([
       {
         leadId: "ig_missing",
@@ -46,7 +42,7 @@ describe("backfillOutreachHubLeads", () => {
     const summary = await backfillOutreachHubLeads();
 
     expect(summary.savedToHubAtFromSignals).toBe(1);
-    expect(summary.legacyOtherLeadsTagged).toBe(1);
+    expect(summary.legacyOtherLeadsTagged).toBe(0);
     expect(mockOutreachInstagramUpdateMany).toHaveBeenCalledTimes(1);
     expect(mockOutreachInstagramUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({

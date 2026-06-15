@@ -11,7 +11,7 @@ import {
   OUTREACH_STATUS_OPTIONS,
 } from "@/lib/outreach-types";
 
-export type OutreachHubPlatformFilter = "all" | OutreachPlatform | "other";
+export type OutreachHubPlatformFilter = "all" | OutreachPlatform;
 
 export type OutreachHubFilterState = {
   platform: OutreachHubPlatformFilter;
@@ -91,23 +91,16 @@ export function hubLeadSearchText(entry: OutreachHubLead): string {
     return [fb.pageName, fb.pageUrl, fb.audience].join(" ").toLowerCase();
   }
 
-  if (platform === "email") {
-    const em = lead as { name: string; email: string; businessName: string };
-    return [em.name, em.email, em.businessName].join(" ").toLowerCase();
-  }
-
-  const other = lead as { contactLabel: string; contactUrl: string; channelNotes: string };
-  return [other.contactLabel, other.contactUrl, other.channelNotes].join(" ").toLowerCase();
+  const em = lead as { name: string; email: string; businessName: string };
+  return [em.name, em.email, em.businessName].join(" ").toLowerCase();
 }
 
 function leadTargetGroup(entry: OutreachHubLead): string | null {
-  if (entry.platform === "other") return null;
   const lead = entry.lead as { targetGroup?: string };
   return lead.targetGroup ?? null;
 }
 
 function leadClassification(entry: OutreachHubLead): string {
-  if (entry.platform === "other") return "STATUS_UNKNOWN";
   const lead = entry.lead as { autoClassification?: string };
   return lead.autoClassification ?? "STATUS_UNKNOWN";
 }
@@ -182,5 +175,4 @@ export function filterOutreachHubLeads(
 export const HUB_PLATFORM_FILTER_OPTIONS: { id: OutreachHubPlatformFilter; label: string }[] = [
   { id: "all", label: "All platforms" },
   ...OUTREACH_PLATFORMS.map((p) => ({ id: p.id as OutreachHubPlatformFilter, label: p.label })),
-  { id: "other", label: "Legacy · Other" },
 ];

@@ -199,9 +199,9 @@ export type OutreachArchiveLead = {
 };
 
 export type OutreachHubLead = {
-  platform: OutreachPlatform | "other";
+  platform: OutreachPlatform;
   savedToHubAt: string;
-  lead: InstagramLeadRow | FacebookLeadRow | EmailLeadRow | LegacyOtherLeadRow;
+  lead: InstagramLeadRow | FacebookLeadRow | EmailLeadRow;
 };
 
 export function targetGroupLabel(group: string): string {
