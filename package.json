@@ -1,6 +1,6 @@
 {
   "name": "match-fit-app",
-  "version": "1.9.2-beta",
+  "version": "1.9.3-beta",
   "private": true,
   "engines": {
     "node": ">=20.19.0 <23"
@@ -21,6 +21,7 @@
     "beta:vercel-env": "node scripts/vercel-env-push-beta.mjs",
     "vercel:env:resend": "node scripts/vercel-env-set-resend-production.mjs",
     "vercel:env:anthropic": "node scripts/vercel-env-set-anthropic-production.mjs",
+    "vercel:env:ad-platform": "node scripts/vercel-env-set-ad-platform-production.mjs",
     "vercel:env:ni-brain-db": "node scripts/vercel-env-set-ni-brain-database-password.mjs",
     "bootstrap:anthropic": "node scripts/bootstrap-anthropic-platform-secret.mjs",
     "bootstrap:ni-brain": "node scripts/bootstrap-ni-brain-platform-secret.mjs",
@@ -61,7 +62,6 @@
     "resend": "^6.12.3",
     "server-only": "^0.0.1",
     "stripe": "^22.0.2",
-    "vercel": "^54.12.2",
     "web-push": "^3.6.7",
     "zod": "^4.3.6"
   },
@@ -78,6 +78,7 @@
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5",
+    "vercel": "^54.14.0",
     "vitest": "^3.2.4"
   }
 }

@@ -197,11 +197,21 @@ export async function fetchGoogleAdsDailySnapshot(dayKey: string): Promise<{
   rawJson: string;
 } | null> {
   const customerId = process.env.GOOGLE_ADS_CUSTOMER_ID?.trim()?.replace(/-/g, "");
+  const loginCustomerId = process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID?.trim()?.replace(/-/g, "");
   const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN?.trim();
   if (!customerId || !developerToken) return null;
 
   const accessToken = await getGoogleAdsAccessToken();
   if (!accessToken) return null;
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${accessToken}`,
+    "developer-token": developerToken,
+    "Content-Type": "application/json",
+  };
+  if (loginCustomerId) {
+    headers["login-customer-id"] = loginCustomerId;
+  }
 
   const query = `
     SELECT
@@ -217,11 +227,7 @@ export async function fetchGoogleAdsDailySnapshot(dayKey: string): Promise<{
     `https://googleads.googleapis.com/v18/customers/${customerId}/googleAds:search`,
     {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "developer-token": developerToken,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({ query }),
       cache: "no-store",
     },

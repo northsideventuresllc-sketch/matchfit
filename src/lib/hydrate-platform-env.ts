@@ -13,7 +13,7 @@ import { resetStripeClient } from "@/lib/stripe-server";
 
 let hydratePromise: Promise<void> | null = null;
 
-/** Loads live Stripe, Resend, Anthropic, and NI Brain config from `platform_secrets` when env is missing. */
+/** Loads live Stripe, Resend, Anthropic, NI Brain, and ad platform config from `platform_secrets` when env is missing. */
 export async function hydratePlatformEnvFromDatabase(): Promise<void> {
   if (hydratePromise) return hydratePromise;
 
@@ -96,6 +96,22 @@ export async function hydratePlatformEnvFromDatabase(): Promise<void> {
     const niBrainDatabasePassword = await readPlatformSecret("NI_BRAIN_DATABASE_PASSWORD");
     if (niBrainDatabasePassword) {
       process.env.NI_BRAIN_DATABASE_PASSWORD = niBrainDatabasePassword;
+    }
+
+    for (const adKey of [
+      "META_ADS_ACCESS_TOKEN",
+      "META_AD_ACCOUNT_ID",
+      "GOOGLE_ADS_CUSTOMER_ID",
+      "GOOGLE_ADS_LOGIN_CUSTOMER_ID",
+      "GOOGLE_ADS_DEVELOPER_TOKEN",
+      "GOOGLE_ADS_REFRESH_TOKEN",
+      "GOOGLE_ADS_CLIENT_ID",
+      "GOOGLE_ADS_CLIENT_SECRET",
+    ] as const) {
+      const adValue = await readPlatformSecret(adKey);
+      if (adValue && !process.env[adKey]?.trim()) {
+        process.env[adKey] = adValue;
+      }
     }
 
     resetStripeClient();

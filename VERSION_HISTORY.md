@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-15** `1.9.2-beta` → `1.9.3-beta` (**patch** — Ad platform env hydration and Google Ads MCC login-customer-id support)
 - **2026-06-15** `1.9.1-beta` → `1.9.2-beta` (**patch** — Remove legacy LinkedIn/Other contacts from Outreach Hub)
 - **2026-06-15** `1.9.0-beta` → `1.9.1-beta` (**patch** — Collapsible Outreach HQ leads and archive hub deletes immediately)
 - **2026-06-15** `1.8.7-beta` → `1.9.0-beta` (**minor** — Outreach Hub filters for status, date range, platform, classification, and search)
