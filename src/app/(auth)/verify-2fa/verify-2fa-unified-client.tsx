@@ -3,6 +3,12 @@
 import Link from "next/link";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
+import {
+  MatchFitBrandPageBackground,
+  matchFitAuthCardClass,
+  matchFitBrandPageMainClass,
+} from "@/components/match-fit-brand-page-background";
+import { MatchFitGradientButton } from "@/components/match-fit-gradient-cta";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
 import { resend2FACodeAction, verify2FAAction, type Verify2FAResult } from "@/lib/auth-2fa";
 
@@ -19,17 +25,9 @@ const MOCK_BANNER =
 function VerifySubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="group relative isolate flex min-h-[3.25rem] w-full items-center justify-center overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.35)] transition active:translate-y-px disabled:opacity-50 dark:shadow-[0_20px_50px_-18px_rgba(255,126,0,0.25)]"
-    >
-      <span
-        aria-hidden
-        className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]"
-      />
-      <span className="relative">{pending ? "Verifying…" : "Verify"}</span>
-    </button>
+    <MatchFitGradientButton type="submit" disabled={pending}>
+      {pending ? "Verifying…" : "Verify"}
+    </MatchFitGradientButton>
   );
 }
 
@@ -123,12 +121,10 @@ export function Verify2faUnifiedClient({
   const errorMessage = state?.error ?? null;
 
   return (
-    <main className="relative min-h-dvh overflow-x-hidden bg-[var(--background)] text-[var(--foreground)] antialiased">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(255,211,78,0.12),transparent_55%),radial-gradient(ellipse_90%_60%_at_100%_0%,rgba(255,126,0,0.08),transparent_50%),radial-gradient(ellipse_70%_50%_at_0%_100%,rgba(227,43,43,0.06),transparent_55%)] dark:opacity-100 opacity-80"
-      />
-      <div className="relative z-10 mx-auto flex min-h-dvh max-w-lg flex-col px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
+    <main className={`${matchFitBrandPageMainClass} bg-[var(--background)] text-[var(--foreground)]`}>
+      <MatchFitBrandPageBackground />
+
+      <div className="relative z-10 mx-auto flex min-h-svh max-w-lg flex-col px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
         <header className="flex items-center justify-between gap-4">
           <Link
             href="/"
@@ -155,7 +151,7 @@ export function Verify2faUnifiedClient({
           ) : null}
 
           <div className="mx-auto mt-10 w-full max-w-md">
-            <div className="rounded-3xl border border-black/10 bg-white/80 p-6 shadow-xl backdrop-blur-xl dark:border-white/[0.08] dark:bg-[#12151C]/90 dark:shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] sm:p-8">
+            <div className={`${matchFitAuthCardClass} border-black/10 bg-white dark:border-white/[0.08] dark:bg-[#12151C] md:dark:bg-[#12151C]/90`}>
               {errorMessage ? (
                 <p
                   className="mb-4 rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-900 dark:text-red-100"

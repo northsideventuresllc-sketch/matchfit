@@ -4,6 +4,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useRef, useState } from "react";
+import {
+  MatchFitBrandPageBackground,
+  matchFitAuthCardClass,
+  matchFitBrandPageMainClass,
+} from "@/components/match-fit-brand-page-background";
+import { MatchFitGradientButton } from "@/components/match-fit-gradient-cta";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import type { TrainerPostAuthPath } from "@/lib/trainer-post-auth-redirect";
@@ -81,17 +87,10 @@ export default function TrainerLoginPortal({
   }
 
   return (
-    <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] text-white antialiased">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(255,211,78,0.14),transparent_55%),radial-gradient(ellipse_90%_60%_at_100%_0%,rgba(255,126,0,0.1),transparent_50%),radial-gradient(ellipse_70%_50%_at_0%_100%,rgba(227,43,43,0.08),transparent_55%)]"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(45,52,64,0.35)_0%,transparent_40%,transparent_75%,rgba(11,12,15,0.92)_100%)]"
-      />
+    <main className={matchFitBrandPageMainClass}>
+      <MatchFitBrandPageBackground />
 
-      <div className="relative z-10 mx-auto flex min-h-dvh max-w-lg flex-col px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
+      <div className="relative z-10 mx-auto flex min-h-svh max-w-lg flex-col px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
         <header className="flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-3 opacity-90 transition hover:opacity-100">
             <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl sm:h-14 sm:w-14">
@@ -116,7 +115,7 @@ export default function TrainerLoginPortal({
           </p>
 
           <div className="mx-auto mt-10 w-full max-w-md">
-            <div className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl sm:p-8">
+            <div className={matchFitAuthCardClass}>
               {error ? (
                 <p
                   className="mb-4 rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]"
@@ -199,21 +198,9 @@ export default function TrainerLoginPortal({
                   </div>
                 ) : null}
 
-                <button
-                  type="submit"
-                  disabled={busy}
-                  className="group relative isolate mt-1 flex min-h-[3.25rem] w-full items-center justify-center overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition active:translate-y-px disabled:opacity-50"
-                >
-                  <span
-                    aria-hidden
-                    className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]"
-                  />
-                  <span
-                    aria-hidden
-                    className="absolute inset-px rounded-[0.65rem] bg-white/10 opacity-0 transition group-hover:opacity-100"
-                  />
-                  <span className="relative">{busy ? "Signing in…" : "Continue"}</span>
-                </button>
+                <MatchFitGradientButton type="submit" disabled={busy} className="mt-1">
+                  {busy ? "Signing in…" : "Continue"}
+                </MatchFitGradientButton>
               </form>
 
               <div className="relative my-8 flex items-center gap-4">

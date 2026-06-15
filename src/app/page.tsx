@@ -4,6 +4,10 @@ import { HomeBrandBanner } from "@/components/home-brand-banner";
 import { HomeInfoSections } from "@/components/home-info-sections";
 import { HomeLoginMenu } from "@/components/home-login-menu";
 import { HomeUserCounter } from "@/components/home-user-counter";
+import {
+  MatchFitBrandPageBackground,
+  matchFitBrandPageMainClass,
+} from "@/components/match-fit-brand-page-background";
 import { getFeaturedTrainersForHomepage } from "@/lib/featured-homepage-data";
 import { getHomeUserCounts } from "@/lib/home-user-counts";
 import { prisma } from "@/lib/prisma";
@@ -39,17 +43,10 @@ export default async function Home({ searchParams }: HomeProps) {
   ]);
 
   return (
-    <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] text-white antialiased">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(255,211,78,0.18),transparent_55%),radial-gradient(ellipse_90%_60%_at_100%_0%,rgba(255,126,0,0.12),transparent_50%),radial-gradient(ellipse_70%_50%_at_0%_100%,rgba(227,43,43,0.1),transparent_55%)]"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(45,52,64,0.35)_0%,transparent_35%,transparent_70%,rgba(11,12,15,0.9)_100%)]"
-      />
+    <main className={matchFitBrandPageMainClass}>
+      <MatchFitBrandPageBackground />
 
-      <div className="relative z-10 mx-auto flex min-h-dvh max-w-6xl flex-col px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14 lg:px-10">
+      <div className="relative z-10 mx-auto flex min-h-svh max-w-6xl flex-col px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14 lg:px-10">
         <header className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl sm:h-16 sm:w-16">

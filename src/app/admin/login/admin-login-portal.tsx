@@ -3,6 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useRef, useState } from "react";
+import {
+  MatchFitBrandPageBackground,
+  matchFitAdminAuthCardClass,
+  matchFitAdminPageMainClass,
+} from "@/components/match-fit-brand-page-background";
 import { TurnstileWidget, type TurnstileWidgetHandle } from "@/components/turnstile-widget";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 
@@ -59,13 +64,10 @@ export default function AdminLoginPortal() {
   }
 
   return (
-    <main className="relative min-h-dvh overflow-x-hidden bg-[#050608] text-white antialiased">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_100%_70%_at_50%_-15%,rgba(34,211,238,0.12),transparent_55%),radial-gradient(ellipse_80%_50%_at_100%_0%,rgba(59,130,246,0.08),transparent_50%)]"
-      />
+    <main className={matchFitAdminPageMainClass}>
+      <MatchFitBrandPageBackground variant="admin" />
 
-      <div className="relative z-10 mx-auto flex min-h-dvh max-w-lg flex-col px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
+      <div className="relative z-10 mx-auto flex min-h-svh max-w-lg flex-col px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
         <header className="flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-3 opacity-90 transition hover:opacity-100">
             <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl sm:h-14 sm:w-14">
@@ -93,7 +95,7 @@ export default function AdminLoginPortal() {
           </p>
 
           <div className="mx-auto mt-10 w-full max-w-md">
-            <div className="rounded-3xl border border-white/[0.08] bg-[#0c0f14]/95 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:p-8">
+            <div className={matchFitAdminAuthCardClass}>
               {error ? (
                 <p
                   className="mb-4 rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]"
@@ -160,13 +162,9 @@ export default function AdminLoginPortal() {
                 <button
                   type="submit"
                   disabled={busy}
-                  className="group relative isolate mt-1 flex min-h-[3.25rem] w-full items-center justify-center overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-[0.08em] text-[#050608] shadow-[0_20px_50px_-18px_rgba(34,211,238,0.35)] transition active:translate-y-px disabled:opacity-50"
+                  className="mf-gradient-cta mt-1 flex min-h-[3.25rem] w-full touch-manipulation items-center justify-center rounded-xl bg-[linear-gradient(135deg,#67e8f9_0%,#38bdf8_45%,#6366f1_100%)] px-4 text-sm font-black uppercase tracking-[0.08em] text-[#050608] transition disabled:opacity-50 max-md:shadow-none md:shadow-[0_20px_50px_-18px_rgba(34,211,238,0.35)] md:hover:opacity-95 md:active:opacity-90"
                 >
-                  <span
-                    aria-hidden
-                    className="absolute inset-0 bg-[linear-gradient(135deg,#67e8f9_0%,#38bdf8_45%,#6366f1_100%)]"
-                  />
-                  <span className="relative">{busy ? "Signing in…" : "Continue"}</span>
+                  {busy ? "Signing in…" : "Continue"}
                 </button>
               </form>
 

@@ -73,3 +73,32 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/*
+ * iOS Safari scroll compositing: nested absolute gradient layers inside isolate +
+ * transform buttons can bleed as a full-screen color blob while scrolling.
+ * These guards apply site-wide on touch devices until all CTAs use mf-gradient-cta.
+ */
+@media (hover: none) and (pointer: coarse) {
+  .mf-gradient-cta {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button.relative.isolate,
+  a.relative.isolate {
+    contain: paint;
+    isolation: auto;
+  }
+
+  [class*="active:translate"] {
+    transform: none !important;
+  }
+
+  .backdrop-blur-xl,
+  .backdrop-blur-lg,
+  .backdrop-blur-md,
+  .backdrop-blur {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}

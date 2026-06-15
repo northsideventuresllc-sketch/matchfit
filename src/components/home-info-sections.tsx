@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { HomeCtaLogoutBar } from "@/components/home-cta-logout-bar";
 import { HomeTrainerServiceTypesSection } from "@/components/home-trainer-service-types-section";
+import { MatchFitGradientLink } from "@/components/match-fit-gradient-cta";
 import {
   CLIENT_SIGN_UP_PATH,
   TRAINER_SIGN_UP_PATH,
@@ -545,31 +546,25 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           id="cta"
           className="mx-auto flex w-full max-w-xl flex-col gap-4 sm:flex-row sm:justify-center"
         >
-          <Link
+          <MatchFitGradientLink
             href={CLIENT_SIGN_UP_PATH}
             title="Client sign up"
-            className="group relative isolate flex min-h-[3.75rem] flex-1 items-center justify-center overflow-hidden rounded-2xl px-6 text-center text-base font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_24px_60px_-18px_rgba(227,43,43,0.55)] transition duration-200 active:translate-y-px sm:min-h-[4rem] sm:flex-none sm:min-w-[220px] sm:text-[0.95rem]"
+            size="lg"
+            fullWidth={false}
+            className="flex-1 rounded-2xl text-center sm:flex-none sm:min-w-[220px]"
           >
-            <span
-              aria-hidden
-              className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]"
-            />
-            <span
-              aria-hidden
-              className="absolute inset-px rounded-[0.9rem] bg-white/10 opacity-0 transition group-hover:opacity-100"
-            />
-            <span className="relative">Find My Match</span>
-          </Link>
+            Find My Match
+          </MatchFitGradientLink>
 
           <Link
             href={TRAINER_SIGN_UP_PATH}
             title="Trainer sign up"
-            className="group relative flex min-h-[3.75rem] flex-1 items-center justify-center overflow-hidden rounded-2xl px-6 text-center text-base font-black uppercase tracking-[0.08em] text-white shadow-[0_20px_60px_-22px_rgba(0,0,0,0.9)] transition duration-200 active:translate-y-px sm:min-h-[4rem] sm:flex-none sm:min-w-[240px] sm:text-[0.95rem]"
+            className="group relative flex min-h-[3.75rem] flex-1 items-center justify-center overflow-hidden rounded-2xl px-6 text-center text-base font-black uppercase tracking-[0.08em] text-white shadow-[0_20px_60px_-22px_rgba(0,0,0,0.9)] transition duration-200 max-md:shadow-none sm:min-h-[4rem] sm:flex-none sm:min-w-[240px] sm:text-[0.95rem] md:active:translate-y-px"
           >
             <span aria-hidden className="absolute inset-0 rounded-2xl bg-[#12151C]" />
             <span
               aria-hidden
-              className="absolute inset-0 rounded-2xl bg-[linear-gradient(135deg,rgba(255,211,78,0.35),rgba(255,126,0,0.2),rgba(227,43,43,0.35))] opacity-70 blur-xl transition group-hover:opacity-100"
+              className="absolute inset-0 rounded-2xl bg-[linear-gradient(135deg,rgba(255,211,78,0.35),rgba(255,126,0,0.2),rgba(227,43,43,0.35))] opacity-70 transition group-hover:opacity-100 max-md:blur-none md:blur-xl"
             />
             <span className="absolute inset-0 rounded-2xl bg-[linear-gradient(135deg,#FFD34E,#FF7E00,#E32B2B)] p-[1.5px]">
               <span className="flex h-full w-full items-center justify-center rounded-[0.925rem] bg-[#0E1016] px-2">
