@@ -78,7 +78,7 @@ export function AdminPortalShell({
 }) {
   return (
     <main
-      className={`relative min-h-svh overflow-x-hidden overscroll-y-none bg-[#0B0C0F] px-5 py-10 text-white antialiased sm:px-8 sm:py-12 ${className}`}
+      className={`relative min-h-svh overflow-x-hidden bg-[#0B0C0F] px-5 py-10 text-white antialiased sm:px-8 sm:py-12 ${className}`}
     >
       <AdminPortalBackdrop />
       <div className={`relative z-10 mx-auto ${maxWidth}`}>{children}</div>

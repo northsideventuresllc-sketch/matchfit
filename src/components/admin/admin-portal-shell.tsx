@@ -91,9 +91,9 @@ export function AdminPortalShell(props: AdminPortalShellProps) {
       <div aria-hidden className={adminPortalBackgroundLayers.topAccent} />
       <div aria-hidden className={adminPortalBackgroundLayers.vignette} />
 
-      <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[90rem]">
-        <aside className="hidden w-56 shrink-0 flex-col border-r border-white/[0.06] bg-[#0B0C0F]/80 lg:flex xl:w-60">
-          <div className="sticky top-0 flex max-h-dvh flex-col gap-6 overflow-y-auto px-4 py-8">
+      <div className="relative z-10 mx-auto flex w-full max-w-[90rem] items-start">
+        <aside className="hidden w-56 shrink-0 self-start border-r border-white/[0.06] bg-[#0B0C0F]/80 lg:block xl:w-60">
+          <div className="sticky top-0 flex max-h-svh flex-col gap-6 overflow-y-auto overscroll-y-contain px-4 py-8">
             {useBuiltInNav ? (
               <div>
                 <p className={adminPortalEyebrowClass}>Match Fit</p>
