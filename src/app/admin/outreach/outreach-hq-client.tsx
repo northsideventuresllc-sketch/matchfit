@@ -21,6 +21,7 @@ import type {
   EmailLeadRow,
   FacebookLeadRow,
   InstagramLeadRow,
+  LegacyOtherLeadRow,
   OutreachArchiveLead,
   OutreachCopyField,
   OutreachHubLead,
@@ -913,6 +914,42 @@ function OutreachArchivePanel(props: {
   );
 }
 
+function LegacyOtherHubCard(props: { lead: LegacyOtherLeadRow }) {
+  return (
+    <article className={`${adminPanelClass} overflow-hidden`}>
+      <div className="space-y-3 p-4 sm:p-5">
+        <div className="space-y-2">
+          <h3 className="text-lg font-black tracking-tight text-white">{props.lead.contactLabel}</h3>
+          {props.lead.contactUrl ? (
+            <a href={props.lead.contactUrl} target="_blank" rel="noreferrer" className={`${adminLinkClass} text-sm`}>
+              {props.lead.contactUrl}
+            </a>
+          ) : null}
+          {props.lead.channelNotes ? (
+            <p className="text-sm text-white/55">{props.lead.channelNotes}</p>
+          ) : null}
+          <p className="text-sm leading-relaxed text-[#FF7E00]/90">
+            <span className="font-semibold text-[#FF7E00]">Why Match Fit: </span>
+            {props.lead.whyMatchFit}
+          </p>
+        </div>
+        {props.lead.outreachText.trim() ? (
+          <div className="space-y-2">
+            <p className={adminLabelClass}>Outreach copy</p>
+            <p className="whitespace-pre-wrap rounded-xl border border-white/[0.06] bg-[#0E1016]/80 p-3 text-sm text-white/80">
+              {props.lead.outreachText}
+            </p>
+          </div>
+        ) : null}
+        <p className="text-[11px] text-white/40">
+          Legacy contact from the retired Other platform. Re-save under Instagram, Facebook, or Email if you still need
+          active follow-up tooling.
+        </p>
+      </div>
+    </article>
+  );
+}
+
 function OutreachHubPanel(props: {
   entries: OutreachHubLead[];
   loading: boolean;
@@ -932,7 +969,7 @@ function OutreachHubPanel(props: {
     feedback?: string,
   ) => Promise<void>;
 }) {
-  const fieldKey = (platform: OutreachPlatform, id: string) => `${platform}:${id}`;
+  const fieldKey = (platform: OutreachPlatform | "other", id: string) => `${platform}:${id}`;
 
   const renderEntry = (entry: OutreachHubLead) => {
     const { platform, lead } = entry;
@@ -994,6 +1031,10 @@ function OutreachHubPanel(props: {
           onGenerateCopy={(fields, feedback) => props.onGenerateCopy(platform, em.id, fields, feedback)}
         />
       );
+    }
+
+    if (platform === "other") {
+      return <LegacyOtherHubCard key={`other-${lead.id}`} lead={lead as LegacyOtherLeadRow} />;
     }
 
     return null;
@@ -1063,7 +1104,9 @@ function OutreachHubPanel(props: {
           {props.entries.map((entry) => (
             <div key={`${entry.platform}-${entry.lead.id}`} className="space-y-2">
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#FF7E00]/70">
-                {OUTREACH_PLATFORMS.find((p) => p.id === entry.platform)?.label ?? entry.platform}
+                {entry.platform === "other"
+                  ? "Legacy · Other"
+                  : (OUTREACH_PLATFORMS.find((p) => p.id === entry.platform)?.label ?? entry.platform)}
                 {" · Saved "}
                 {new Date(entry.savedToHubAt).toLocaleString()}
               </p>

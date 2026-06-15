@@ -151,6 +151,32 @@ export type EmailLeadRow = {
   archivePurgeAfterAt: string | null;
 };
 
+/** Legacy rows from the retired "Other" outreach platform (LinkedIn, etc.). */
+export type LegacyOtherLeadRow = {
+  id: string;
+  contactLabel: string;
+  contactUrl: string | null;
+  channelNotes: string | null;
+  niche: string | null;
+  targetGroup: string;
+  whyMatchFit: string;
+  likelihoodScore: number;
+  notes: string | null;
+  outreachText: string;
+  genericInviteTail: string | null;
+  status: string;
+  autoClassification: string;
+  outreachSentAt: string | null;
+  followUp1SentAt: string | null;
+  followUp2SentAt: string | null;
+  responseReceivedAt: string | null;
+  outreachTextEdited: boolean;
+  generationBatchId: string | null;
+  createdAt: string;
+  deletedAt: string | null;
+  savedToHubAt: string | null;
+};
+
 export type OutreachLeadProfileSnapshot = {
   platform: OutreachPlatform;
   niche?: string | null;
@@ -173,9 +199,9 @@ export type OutreachArchiveLead = {
 };
 
 export type OutreachHubLead = {
-  platform: OutreachPlatform;
+  platform: OutreachPlatform | "other";
   savedToHubAt: string;
-  lead: InstagramLeadRow | FacebookLeadRow | EmailLeadRow;
+  lead: InstagramLeadRow | FacebookLeadRow | EmailLeadRow | LegacyOtherLeadRow;
 };
 
 export function targetGroupLabel(group: string): string {

@@ -3,6 +3,7 @@ import {
   ensureOutreachHubSchema,
   isMissingOutreachHubSchemaError,
 } from "@/lib/ensure-outreach-hub-schema";
+import { backfillOutreachHubLeads } from "@/lib/outreach-hub-backfill";
 import { formatUserFacingError } from "@/lib/read-json-response";
 import { requireAdminSession } from "@/lib/require-admin";
 
@@ -14,9 +15,11 @@ export async function POST() {
 
   try {
     await ensureOutreachHubSchema();
+    const backfill = await backfillOutreachHubLeads();
     return NextResponse.json({
       ok: true,
-      message: "Outreach Hub schema is ready (saved contacts + archive columns).",
+      backfill,
+      message: `Outreach Hub repaired. Restored ${backfill.restoredDeletedHubLeads} deleted hub lead(s), backfilled ${backfill.savedToHubAtFromSignals} saved timestamp(s), and tagged ${backfill.legacyOtherLeadsTagged} legacy contact(s).`,
     });
   } catch (e) {
     console.error("[outreach hub schema-repair]", e);

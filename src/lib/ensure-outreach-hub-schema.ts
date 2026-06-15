@@ -211,6 +211,9 @@ ALTER TABLE "outreach_facebook_leads"
 ALTER TABLE "outreach_email_leads"
   ADD COLUMN IF NOT EXISTS "savedToHubAt" TIMESTAMP(3);
 
+ALTER TABLE "outreach_other_leads"
+  ADD COLUMN IF NOT EXISTS "savedToHubAt" TIMESTAMP(3);
+
 CREATE INDEX IF NOT EXISTS "outreach_instagram_leads_deletedAt_savedToHubAt_idx"
   ON "outreach_instagram_leads"("deletedAt", "savedToHubAt");
 CREATE INDEX IF NOT EXISTS "outreach_facebook_leads_deletedAt_savedToHubAt_idx"

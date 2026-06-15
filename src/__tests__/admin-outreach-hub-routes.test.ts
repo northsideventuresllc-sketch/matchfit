@@ -11,6 +11,7 @@ const {
   mockRecordOutreachSavedToHubSignal,
   mockEnsureOutreachHubSchema,
   mockIsMissingOutreachHubSchemaError,
+  mockBackfillOutreachHubLeads,
 } = vi.hoisted(() => ({
   mockRequireAdminSession: vi.fn(),
   mockListOutreachHubLeads: vi.fn(),
@@ -22,6 +23,7 @@ const {
   mockRecordOutreachSavedToHubSignal: vi.fn(),
   mockEnsureOutreachHubSchema: vi.fn(),
   mockIsMissingOutreachHubSchemaError: vi.fn(),
+  mockBackfillOutreachHubLeads: vi.fn(),
 }));
 
 vi.mock("@/lib/require-admin", () => ({
@@ -43,6 +45,10 @@ vi.mock("@/lib/outreach-learning", () => ({
 vi.mock("@/lib/ensure-outreach-hub-schema", () => ({
   ensureOutreachHubSchema: mockEnsureOutreachHubSchema,
   isMissingOutreachHubSchemaError: mockIsMissingOutreachHubSchemaError,
+}));
+
+vi.mock("@/lib/outreach-hub-backfill", () => ({
+  backfillOutreachHubLeads: mockBackfillOutreachHubLeads,
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -77,6 +83,11 @@ describe("admin outreach hub routes", () => {
     });
     mockEnsureOutreachHubSchema.mockResolvedValue(undefined);
     mockIsMissingOutreachHubSchemaError.mockReturnValue(false);
+    mockBackfillOutreachHubLeads.mockResolvedValue({
+      restoredDeletedHubLeads: 1,
+      savedToHubAtFromSignals: 0,
+      legacyOtherLeadsTagged: 1,
+    });
     mockListOutreachHubLeads.mockResolvedValue([]);
     mockGetOutreachPipelineStats.mockResolvedValue({
       total: 12,
