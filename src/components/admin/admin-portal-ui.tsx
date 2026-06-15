@@ -20,7 +20,7 @@ export const adminEyebrowClass = "text-xs font-bold uppercase tracking-[0.22em] 
 export const adminSectionTitleClass = "text-[11px] font-black uppercase tracking-[0.18em] text-white/40";
 
 export const adminPanelClass =
-  "rounded-2xl border border-white/[0.08] bg-[#12151C]/90 shadow-[0_34px_90px_-48px_rgba(227,43,43,0.35)] backdrop-blur-xl";
+  "rounded-2xl border border-white/[0.08] bg-[#12151C] shadow-[0_34px_90px_-48px_rgba(227,43,43,0.35)] max-md:[backdrop-filter:none] md:bg-[#12151C]/90 md:backdrop-blur-xl";
 
 export const adminPanelInnerClass =
   "rounded-xl border border-white/[0.06] bg-[#0E1016]/80";
@@ -28,7 +28,7 @@ export const adminPanelInnerClass =
 export const adminCardClass = `${adminPanelClass} p-5 sm:p-6`;
 
 export const adminPrimaryButtonClass =
-  "inline-flex min-h-[2.75rem] shrink-0 items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-5 py-2.5 text-xs font-black uppercase tracking-[0.1em] text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition hover:brightness-105 active:translate-y-px disabled:opacity-45 disabled:grayscale-[0.3]";
+  "mf-gradient-cta inline-flex min-h-[2.75rem] shrink-0 items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-5 py-2.5 text-xs font-black uppercase tracking-[0.1em] text-[#0B0C0F] touch-manipulation transition max-md:shadow-none md:shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] md:hover:opacity-95 md:active:opacity-90 disabled:opacity-45 disabled:grayscale-[0.3]";
 
 export const adminSecondaryButtonClass =
   "rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 text-xs font-black uppercase tracking-[0.1em] text-white/80 transition hover:border-white/25 hover:bg-white/[0.07] disabled:opacity-40";
@@ -41,11 +41,11 @@ export function AdminPortalBackdrop() {
     <>
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(255,211,78,0.14),transparent_55%),radial-gradient(ellipse_90%_60%_at_100%_0%,rgba(255,126,0,0.1),transparent_50%),radial-gradient(ellipse_70%_50%_at_0%_100%,rgba(227,43,43,0.06),transparent_55%)]"
+        className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(255,211,78,0.14),transparent_55%),radial-gradient(ellipse_90%_60%_at_100%_0%,rgba(255,126,0,0.1),transparent_50%),radial-gradient(ellipse_70%_50%_at_0%_100%,rgba(227,43,43,0.06),transparent_55%)]"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(45,52,64,0.28)_0%,transparent_38%,transparent_72%,rgba(11,12,15,0.92)_100%)]"
+        className="pointer-events-none fixed inset-0 -z-10 bg-[linear-gradient(180deg,rgba(45,52,64,0.28)_0%,transparent_38%,transparent_72%,rgba(11,12,15,0.92)_100%)]"
       />
     </>
   );
@@ -78,7 +78,7 @@ export function AdminPortalShell({
 }) {
   return (
     <main
-      className={`relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] px-5 py-10 text-white antialiased sm:px-8 sm:py-12 ${className}`}
+      className={`relative min-h-svh overflow-x-hidden overscroll-y-none bg-[#0B0C0F] px-5 py-10 text-white antialiased sm:px-8 sm:py-12 ${className}`}
     >
       <AdminPortalBackdrop />
       <div className={`relative z-10 mx-auto ${maxWidth}`}>{children}</div>
@@ -162,11 +162,7 @@ export function AdminPrimaryButton({
 }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button type="button" className={`${adminPrimaryButtonClass} ${className}`} {...rest}>
-      <span
-        aria-hidden
-        className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]"
-      />
-      <span className="relative">{children}</span>
+      {children}
     </button>
   );
 }

@@ -68,7 +68,7 @@ export default function AdminLoginPortal() {
       <div aria-hidden className={adminPortalBackgroundLayers.warmGlow} />
       <div aria-hidden className={adminPortalBackgroundLayers.vignette} />
 
-      <div className="relative z-10 mx-auto flex min-h-dvh max-w-lg flex-col px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
+      <div className="relative z-10 mx-auto flex min-h-svh max-w-lg flex-col px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
         <header className="flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-3 opacity-90 transition hover:opacity-100">
             <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl sm:h-14 sm:w-14">
@@ -96,7 +96,7 @@ export default function AdminLoginPortal() {
           </p>
 
           <div className="mx-auto mt-10 w-full max-w-md">
-            <div className="rounded-3xl border border-white/[0.08] bg-[#12151C]/95 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:p-8">
+            <div className="rounded-3xl border border-white/[0.08] bg-[#12151C] p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.9)] max-md:[backdrop-filter:none] md:bg-[#12151C]/95 md:backdrop-blur-xl sm:p-8">
               {error ? (
                 <p
                   className="mb-4 rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]"
