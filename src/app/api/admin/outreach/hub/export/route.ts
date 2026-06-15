@@ -1,5 +1,11 @@
 import { buildOutreachHubCsv, listOutreachHubLeads } from "@/lib/outreach-data";
+import {
+  ensureOutreachHubSchema,
+  isMissingOutreachHubSchemaError,
+} from "@/lib/ensure-outreach-hub-schema";
 import { requireAdminSession } from "@/lib/require-admin";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const sess = await requireAdminSession();
@@ -8,6 +14,7 @@ export async function GET() {
   }
 
   try {
+    await ensureOutreachHubSchema();
     const leads = await listOutreachHubLeads();
     const csv = buildOutreachHubCsv(leads);
     const stamp = new Date().toISOString().slice(0, 10);
@@ -21,6 +28,12 @@ export async function GET() {
     });
   } catch (e) {
     console.error("[outreach hub export GET]", e);
+    if (isMissingOutreachHubSchemaError(e)) {
+      return new Response(
+        "Outreach Hub schema is still updating. Repair schema in Outreach HQ, then retry export.",
+        { status: 503 },
+      );
+    }
     return new Response("Could not export outreach hub.", { status: 500 });
   }
 }

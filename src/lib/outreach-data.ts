@@ -218,6 +218,44 @@ export async function listOutreachHubLeads(): Promise<OutreachHubLead[]> {
   );
 }
 
+export type OutreachPipelineStats = {
+  total: number;
+  followUp: number;
+  responses: number;
+  hubSaved: number;
+  archived: number;
+};
+
+/** Aggregate active pipeline + hub/archive counts across all outreach platforms. */
+export async function getOutreachPipelineStats(): Promise<OutreachPipelineStats> {
+  await ensureOutreachReady();
+  const platforms: OutreachPlatform[] = ["instagram", "facebook", "email"];
+  let total = 0;
+  let followUp = 0;
+  let responses = 0;
+
+  for (const platform of platforms) {
+    const leads = await listOutreachLeads(platform);
+    const active = leads.filter((lead) => !lead.deletedAt);
+    total += active.length;
+    followUp += active.filter((lead) => lead.autoClassification === "FOLLOW_UP_NEEDED").length;
+    responses += active.filter((lead) => lead.status === "RESPONSE_RECEIVED").length;
+  }
+
+  const [hubSaved, archived] = await Promise.all([
+    listOutreachHubLeads(),
+    listOutreachArchiveLeads(),
+  ]);
+
+  return {
+    total,
+    followUp,
+    responses,
+    hubSaved: hubSaved.length,
+    archived: archived.length,
+  };
+}
+
 function csvEscape(value: string | number | null | undefined): string {
   const text = value == null ? "" : String(value);
   if (/[",\n\r]/.test(text)) {

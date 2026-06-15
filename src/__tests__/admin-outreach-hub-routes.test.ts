@@ -3,19 +3,25 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   mockRequireAdminSession,
   mockListOutreachHubLeads,
+  mockGetOutreachPipelineStats,
   mockBuildOutreachHubCsv,
   mockMassSaveOutreachLeadsToHub,
   mockBuildMassSaveOutreachWhere,
   mockOutreachInstagramFindMany,
   mockRecordOutreachSavedToHubSignal,
+  mockEnsureOutreachHubSchema,
+  mockIsMissingOutreachHubSchemaError,
 } = vi.hoisted(() => ({
   mockRequireAdminSession: vi.fn(),
   mockListOutreachHubLeads: vi.fn(),
+  mockGetOutreachPipelineStats: vi.fn(),
   mockBuildOutreachHubCsv: vi.fn(),
   mockMassSaveOutreachLeadsToHub: vi.fn(),
   mockBuildMassSaveOutreachWhere: vi.fn(),
   mockOutreachInstagramFindMany: vi.fn(),
   mockRecordOutreachSavedToHubSignal: vi.fn(),
+  mockEnsureOutreachHubSchema: vi.fn(),
+  mockIsMissingOutreachHubSchemaError: vi.fn(),
 }));
 
 vi.mock("@/lib/require-admin", () => ({
@@ -24,6 +30,7 @@ vi.mock("@/lib/require-admin", () => ({
 
 vi.mock("@/lib/outreach-data", () => ({
   listOutreachHubLeads: mockListOutreachHubLeads,
+  getOutreachPipelineStats: mockGetOutreachPipelineStats,
   buildOutreachHubCsv: mockBuildOutreachHubCsv,
   massSaveOutreachLeadsToHub: mockMassSaveOutreachLeadsToHub,
   buildMassSaveOutreachWhere: mockBuildMassSaveOutreachWhere,
@@ -31,6 +38,11 @@ vi.mock("@/lib/outreach-data", () => ({
 
 vi.mock("@/lib/outreach-learning", () => ({
   recordOutreachSavedToHubSignal: mockRecordOutreachSavedToHubSignal,
+}));
+
+vi.mock("@/lib/ensure-outreach-hub-schema", () => ({
+  ensureOutreachHubSchema: mockEnsureOutreachHubSchema,
+  isMissingOutreachHubSchemaError: mockIsMissingOutreachHubSchemaError,
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -43,6 +55,8 @@ vi.mock("@/lib/prisma", () => ({
 
 import { GET as getOutreachHub } from "@/app/api/admin/outreach/hub/route";
 import { GET as exportOutreachHub } from "@/app/api/admin/outreach/hub/export/route";
+import { POST as repairOutreachHubSchema } from "@/app/api/admin/outreach/hub/schema-repair/route";
+import { GET as getOutreachStats } from "@/app/api/admin/outreach/stats/route";
 import { POST as bulkSaveOutreachLeads } from "@/app/api/admin/outreach/leads/bulk-save/route";
 
 function postBulkSaveJson(body: unknown): Request {
@@ -61,7 +75,16 @@ describe("admin outreach hub routes", () => {
       testMode: false,
       rememberMe: false,
     });
+    mockEnsureOutreachHubSchema.mockResolvedValue(undefined);
+    mockIsMissingOutreachHubSchemaError.mockReturnValue(false);
     mockListOutreachHubLeads.mockResolvedValue([]);
+    mockGetOutreachPipelineStats.mockResolvedValue({
+      total: 12,
+      followUp: 3,
+      responses: 1,
+      hubSaved: 4,
+      archived: 2,
+    });
     mockBuildOutreachHubCsv.mockReturnValue("Platform,Name\ninstagram,coach");
     mockMassSaveOutreachLeadsToHub.mockResolvedValue({ savedCount: 2 });
     mockBuildMassSaveOutreachWhere.mockReturnValue({ deletedAt: null });
@@ -86,6 +109,11 @@ describe("admin outreach hub routes", () => {
       expect(response.status).toBe(401);
     });
 
+    it("ensures schema before listing hub leads", async () => {
+      await getOutreachHub();
+      expect(mockEnsureOutreachHubSchema).toHaveBeenCalled();
+    });
+
     it("returns saved hub leads for authorized admins", async () => {
       mockListOutreachHubLeads.mockResolvedValueOnce([
         {
@@ -105,7 +133,26 @@ describe("admin outreach hub routes", () => {
             lead: { id: "ig_1", handle: "coach_j" },
           },
         ],
+        entries: [
+          {
+            platform: "instagram",
+            savedToHubAt: "2026-06-09T12:00:00.000Z",
+            lead: { id: "ig_1", handle: "coach_j" },
+          },
+        ],
         total: 1,
+      });
+    });
+
+    it("returns 503 when outreach hub schema is still updating", async () => {
+      const schemaError = new Error("savedToHubAt does not exist");
+      mockEnsureOutreachHubSchema.mockRejectedValueOnce(schemaError);
+      mockIsMissingOutreachHubSchemaError.mockReturnValueOnce(true);
+
+      const response = await getOutreachHub();
+      expect(response.status).toBe(503);
+      await expect(response.json()).resolves.toMatchObject({
+        error: expect.stringContaining("Outreach Hub database schema"),
       });
     });
   });
@@ -114,9 +161,55 @@ describe("admin outreach hub routes", () => {
     it("returns a CSV attachment for authorized admins", async () => {
       const response = await exportOutreachHub();
       expect(response.status).toBe(200);
+      expect(mockEnsureOutreachHubSchema).toHaveBeenCalled();
       expect(response.headers.get("Content-Type")).toContain("text/csv");
       expect(response.headers.get("Content-Disposition")).toContain("attachment");
       await expect(response.text()).resolves.toBe("Platform,Name\ninstagram,coach");
+    });
+  });
+
+  describe("POST /api/admin/outreach/hub/schema-repair", () => {
+    it("returns ok when schema repair succeeds", async () => {
+      const response = await repairOutreachHubSchema();
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({ ok: true });
+      expect(mockEnsureOutreachHubSchema).toHaveBeenCalled();
+    });
+
+    it("returns 503 when schema repair cannot complete", async () => {
+      const schemaError = new Error("deadLeadAt columns still missing");
+      mockEnsureOutreachHubSchema.mockRejectedValueOnce(schemaError);
+      mockIsMissingOutreachHubSchemaError.mockReturnValueOnce(true);
+
+      const response = await repairOutreachHubSchema();
+      expect(response.status).toBe(503);
+    });
+  });
+
+  describe("GET /api/admin/outreach/stats", () => {
+    it("returns pipeline stats for authorized admins", async () => {
+      const response = await getOutreachStats();
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({
+        stats: {
+          total: 12,
+          followUp: 3,
+          responses: 1,
+          hubSaved: 4,
+          archived: 2,
+        },
+      });
+      expect(mockEnsureOutreachHubSchema).toHaveBeenCalled();
+      expect(mockGetOutreachPipelineStats).toHaveBeenCalled();
+    });
+
+    it("returns 503 when stats cannot load due to schema drift", async () => {
+      const schemaError = new Error("archivedAt does not exist");
+      mockEnsureOutreachHubSchema.mockRejectedValueOnce(schemaError);
+      mockIsMissingOutreachHubSchemaError.mockReturnValueOnce(true);
+
+      const response = await getOutreachStats();
+      expect(response.status).toBe(503);
     });
   });
 

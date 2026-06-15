@@ -11,12 +11,16 @@ const OUTREACH_LEAD_TABLES = [
 ] as const;
 
 export const OUTREACH_HUB_SAVED_AT_COLUMN = "savedToHubAt";
+export const OUTREACH_ARCHIVE_COLUMNS = ["archivedAt", "deadLeadAt", "archivePurgeAfterAt"] as const;
 
 /** True when Postgres/Prisma reports outreach hub columns or tables are absent. */
 export function isMissingOutreachHubSchemaError(e: unknown): boolean {
   const message = e instanceof Error ? e.message : String(e);
-  if (
+  const mentionsOutreachColumn =
     message.includes(OUTREACH_HUB_SAVED_AT_COLUMN) ||
+    OUTREACH_ARCHIVE_COLUMNS.some((column) => message.includes(column));
+  if (
+    mentionsOutreachColumn ||
     message.includes("outreach_instagram_leads") ||
     message.includes("outreach_facebook_leads") ||
     message.includes("outreach_email_leads")

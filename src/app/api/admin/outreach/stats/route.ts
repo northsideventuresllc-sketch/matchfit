@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listOutreachHubLeads } from "@/lib/outreach-data";
+import { getOutreachPipelineStats } from "@/lib/outreach-data";
 import {
   ensureOutreachHubSchema,
   isMissingOutreachHubSchemaError,
@@ -14,19 +14,19 @@ export async function GET() {
 
   try {
     await ensureOutreachHubSchema();
-    const leads = await listOutreachHubLeads();
-    return NextResponse.json({ leads, entries: leads, total: leads.length });
+    const stats = await getOutreachPipelineStats();
+    return NextResponse.json({ stats });
   } catch (e) {
-    console.error("[outreach hub GET]", e);
+    console.error("[outreach stats GET]", e);
     if (isMissingOutreachHubSchemaError(e)) {
       return NextResponse.json(
         {
           error:
-            "Outreach Hub database schema is still updating. Use Repair Outreach Hub schema, or confirm DIRECT_URL is set on the server.",
+            "Outreach database schema is still updating. Use Repair Outreach Hub schema, or confirm DIRECT_URL is set on the server.",
         },
         { status: 503 },
       );
     }
-    return NextResponse.json({ error: "Could not load outreach hub." }, { status: 500 });
+    return NextResponse.json({ error: "Could not load outreach stats." }, { status: 500 });
   }
 }

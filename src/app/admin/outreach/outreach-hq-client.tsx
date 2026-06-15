@@ -48,6 +48,22 @@ import {
 type AnyLead = InstagramLeadRow | FacebookLeadRow | EmailLeadRow;
 type OutreachView = OutreachPlatform | "hub" | "archive";
 
+type OutreachPipelineStats = {
+  total: number;
+  followUp: number;
+  responses: number;
+  hubSaved: number;
+  archived: number;
+};
+
+const EMPTY_PIPELINE_STATS: OutreachPipelineStats = {
+  total: 0,
+  followUp: 0,
+  responses: 0,
+  hubSaved: 0,
+  archived: 0,
+};
+
 type DeleteReasonPromptState = {
   title: string;
   description: string;
@@ -901,10 +917,12 @@ function OutreachHubPanel(props: {
   entries: OutreachHubLead[];
   loading: boolean;
   purging: boolean;
+  schemaRepairing: boolean;
   generatingFields: Record<string, Set<string>>;
   onRefresh: () => void;
   onOpenArchive: () => void;
   onPurgeStale: () => void;
+  onRepairSchema: () => void;
   onUpdate: (platform: OutreachPlatform, id: string, patch: Record<string, unknown>) => Promise<void>;
   onDelete: (platform: OutreachPlatform, id: string) => void;
   onGenerateCopy: (
@@ -1020,6 +1038,14 @@ function OutreachHubPanel(props: {
           <button type="button" className={adminSecondaryButtonClass} onClick={props.onOpenArchive}>
             Open dead lead archive
           </button>
+          <button
+            type="button"
+            disabled={props.schemaRepairing}
+            className={adminSecondaryButtonClass}
+            onClick={props.onRepairSchema}
+          >
+            {props.schemaRepairing ? "Repairing schema…" : "Repair Outreach Hub schema"}
+          </button>
         </div>
       </section>
 
@@ -1066,12 +1092,61 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   const [hubEntries, setHubEntries] = useState<OutreachHubLead[]>([]);
   const [generatingFields, setGeneratingFields] = useState<Record<string, Set<string>>>({});
   const [archiveEntries, setArchiveEntries] = useState<OutreachArchiveLead[]>([]);
+  const [pipelineStats, setPipelineStats] = useState<OutreachPipelineStats>(EMPTY_PIPELINE_STATS);
+  const [schemaRepairing, setSchemaRepairing] = useState(false);
+  const [schemaRepairMessage, setSchemaRepairMessage] = useState<string | null>(null);
   const [purging, setPurging] = useState(false);
   const [revivingId, setRevivingId] = useState<string | null>(null);
   const [deletePrompt, setDeletePrompt] = useState<DeleteReasonPromptState | null>(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
   const coldTab = tab === "hub" || tab === "archive" ? "instagram" : tab;
+
+  const repairOutreachSchema = useCallback(async () => {
+    setSchemaRepairing(true);
+    setSchemaRepairMessage(null);
+    try {
+      const res = await fetch("/api/admin/outreach/hub/schema-repair", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await readJsonResponse<{ error?: string; message?: string }>(res);
+      if (!res.ok) {
+        throw new Error(formatUserFacingError(data.error, "Schema repair failed."));
+      }
+      setSchemaRepairMessage(data.message ?? "Outreach Hub schema repaired.");
+      return true;
+    } catch (e) {
+      setError(formatUserFacingError(e, "Could not repair Outreach Hub schema."));
+      return false;
+    } finally {
+      setSchemaRepairing(false);
+    }
+  }, []);
+
+  const loadPipelineStats = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/outreach/stats", { credentials: "include" });
+      const data = await readJsonResponse<{ error?: string; stats?: OutreachPipelineStats }>(res);
+      if (!res.ok) {
+        if (res.status === 503) {
+          const repaired = await repairOutreachSchema();
+          if (repaired) {
+            const retry = await fetch("/api/admin/outreach/stats", { credentials: "include" });
+            const retryData = await readJsonResponse<{ stats?: OutreachPipelineStats }>(retry);
+            if (retry.ok && retryData.stats) {
+              setPipelineStats(retryData.stats);
+              return;
+            }
+          }
+        }
+        return;
+      }
+      if (data.stats) setPipelineStats(data.stats);
+    } catch {
+      // Stats are supplementary — tab loads surface hard errors.
+    }
+  }, [repairOutreachSchema]);
 
   const loadLeads = useCallback(async (platform: OutreachPlatform, options?: { clearAlerts?: boolean }) => {
     setLoading(true);
@@ -1113,51 +1188,59 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     }
   }, []);
 
-  const loadHubEntries = useCallback(async (options?: { clearAlerts?: boolean }) => {
-    setLoading(true);
-    if (options?.clearAlerts) {
-      setError(null);
-      setSuccessMessage(null);
-    }
-    try {
-      const res = await fetch("/api/admin/outreach/hub", { credentials: "include" });
-      if (!res.ok) throw new Error("Could not load outreach hub.");
-      const data = await readJsonResponse<{ entries?: OutreachHubLead[]; leads?: OutreachHubLead[] }>(res);
-      setHubEntries(data.leads ?? data.entries ?? []);
-    } catch {
+  const loadHubEntries = useCallback(
+    async (options?: { clearAlerts?: boolean; allowSchemaRepair?: boolean }) => {
+      setLoading(true);
       if (options?.clearAlerts) {
-        setError("Could not load Outreach Hub saved contacts.");
+        setError(null);
+        setSuccessMessage(null);
       }
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      try {
+        const res = await fetch("/api/admin/outreach/hub", { credentials: "include" });
+        const data = await readJsonResponse<{ error?: string; entries?: OutreachHubLead[]; leads?: OutreachHubLead[] }>(
+          res,
+        );
+        if (!res.ok) {
+          if (res.status === 503 && options?.allowSchemaRepair !== false) {
+            const repaired = await repairOutreachSchema();
+            if (repaired) {
+              await loadHubEntries({ ...options, allowSchemaRepair: false });
+              return;
+            }
+          }
+          throw new Error(formatUserFacingError(data.error, "Could not load outreach hub."));
+        }
+        setHubEntries(data.leads ?? data.entries ?? []);
+        void loadPipelineStats();
+      } catch (e) {
+        if (options?.clearAlerts) {
+          setError(formatUserFacingError(e, "Could not load Outreach Hub saved contacts."));
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loadPipelineStats, repairOutreachSchema],
+  );
 
   useEffect(() => {
     queueMicrotask(() => {
-      void loadHubEntries();
-      if (tab === "archive") {
-        void loadArchiveEntries({ clearAlerts: true });
-      } else if (tab !== "hub") {
-        void loadLeads(tab, { clearAlerts: true });
-      } else {
+      void loadPipelineStats();
+      if (tab === "hub") {
         void loadHubEntries({ clearAlerts: true });
+      } else if (tab === "archive") {
+        void loadArchiveEntries({ clearAlerts: true });
+      } else {
+        void loadLeads(tab, { clearAlerts: true });
       }
     });
-  }, [tab, loadLeads, loadHubEntries, loadArchiveEntries]);
+  }, [tab, loadLeads, loadHubEntries, loadArchiveEntries, loadPipelineStats]);
 
   useEffect(() => {
     queueMicrotask(() => setSelectedIds(new Set()));
   }, [tab, leads]);
 
-  const stats = useMemo(() => {
-    const active = hubEntries.filter((e) => !e.lead.deletedAt);
-    return {
-      total: active.length,
-      followUp: active.filter((e) => e.lead.autoClassification === "FOLLOW_UP_NEEDED").length,
-      responses: active.filter((e) => e.lead.status === "RESPONSE_RECEIVED").length,
-    };
-  }, [hubEntries]);
+  const stats = pipelineStats;
 
   useEffect(() => {
     if (!generating || tab === "hub" || tab === "archive") return;
@@ -1242,6 +1325,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
       setGenerateProgress(96);
       setGenerateStage("Refreshing leads…");
       await loadLeads(coldTab);
+      void loadPipelineStats();
       setGenerateProgress(100);
       setGenerateStage("Complete");
     } catch (e) {
@@ -1267,6 +1351,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
       await loadHubEntries();
     } else {
       await loadLeads(coldTab);
+      void loadPipelineStats();
     }
   };
 
@@ -1287,8 +1372,10 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
       await loadHubEntries();
     } else if (tab === "archive") {
       await loadArchiveEntries();
+      void loadPipelineStats();
     } else {
       await loadLeads(platform);
+      void loadPipelineStats();
     }
   };
 
@@ -1321,9 +1408,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     if (!res.ok) throw new Error("Save failed.");
     setSuccessMessage("Saved to Outreach Hub.");
     await loadHubEntries();
-    if (tab === "hub") {
-      await loadHubEntries();
-    } else {
+    if (tab !== "hub") {
       await loadLeads(coldTab);
     }
   };
@@ -1387,6 +1472,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
           );
           setDeletePrompt(null);
           await loadLeads(coldTab);
+          void loadPipelineStats();
         } catch (e) {
           setError(formatUserFacingError(e, "Bulk delete failed."));
         } finally {
@@ -1412,6 +1498,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
       if (!res.ok) throw new Error(formatUserFacingError(data.error, "Revive failed."));
       setSuccessMessage(data.message ?? "Lead revived to Outreach Hub.");
       await loadArchiveEntries();
+      void loadPipelineStats();
     } catch (e) {
       setError(formatUserFacingError(e, "Revive failed."));
     } finally {
@@ -1494,6 +1581,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         await loadHubEntries();
       } else {
         await loadLeads(coldTab);
+        void loadPipelineStats();
       }
     } catch (e) {
       setError(formatUserFacingError(e, "Purge failed."));
@@ -1531,10 +1619,11 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
 
         {error ? <AdminPortalAlert variant="error">{error}</AdminPortalAlert> : null}
         {successMessage ? <AdminPortalAlert variant="success">{successMessage}</AdminPortalAlert> : null}
+        {schemaRepairMessage ? <AdminPortalAlert variant="info">{schemaRepairMessage}</AdminPortalAlert> : null}
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className={`${adminPanelClass} p-4`}>
-            <p className={adminLabelClass}>Hub contacts</p>
+            <p className={adminLabelClass}>Active leads (all platforms)</p>
             <p className="mt-1 text-2xl font-black tabular-nums">{stats.total}</p>
           </div>
           <div className={`${adminPanelClass} p-4`}>
@@ -1544,6 +1633,11 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
           <div className={`${adminPanelClass} p-4`}>
             <p className={adminLabelClass}>Responses</p>
             <p className="mt-1 text-2xl font-black tabular-nums text-emerald-200">{stats.responses}</p>
+          </div>
+          <div className={`${adminPanelClass} p-4`}>
+            <p className={adminLabelClass}>Saved to Outreach Hub</p>
+            <p className="mt-1 text-2xl font-black tabular-nums text-[#FFD34E]">{stats.hubSaved}</p>
+            <p className="mt-1 text-[11px] text-white/40">{stats.archived} archived</p>
           </div>
         </div>
 
@@ -1591,10 +1685,12 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
             entries={hubEntries}
             loading={loading}
             purging={purging}
+            schemaRepairing={schemaRepairing}
             generatingFields={generatingFields}
             onRefresh={() => void loadHubEntries()}
             onOpenArchive={() => setTab("archive")}
             onPurgeStale={() => void purgeStaleLeads()}
+            onRepairSchema={() => void repairOutreachSchema()}
             onUpdate={(platform, id, patch) => updateLead(id, patch, platform)}
             onDelete={(platform, id) => promptDeleteLead(id, platform)}
             onGenerateCopy={generateLeadCopy}
