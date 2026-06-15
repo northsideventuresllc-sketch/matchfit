@@ -210,8 +210,8 @@ export default async function PrivacyPage() {
         <Ul>
           <Li>
             <Strong>Waitlist:</Strong> email address, ZIP code, and status if you join a Trainer or Client waitlist when beta
-            capacity is full. Client waitlist sign-up is open to U.S. ZIP codes; trainer waitlist sign-up may require a
-            service ZIP in our Atlanta metro in-person launch area.
+            capacity is full. Client waitlist sign-up is open to U.S. ZIP codes; trainer waitlist sign-up is open to
+            fitness professionals anywhere in the United States.
           </Li>
           <Li>
             <Strong>Invite tokens:</Strong> time-limited signup links and slot reservation timestamps when we invite you from

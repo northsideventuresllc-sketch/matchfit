@@ -168,13 +168,8 @@ export default async function TermsPage() {
           sign-up before the reserved slot may be released to the next waitlisted person.
         </P>
         <P>
-          <Strong>Geographic availability during beta:</Strong> During the current beta rollout,{" "}
-          <Strong>Clients anywhere in the United States</Strong> may create an account and join the client waitlist
-          when capacity gates apply. <Strong>In-person (mobile) sessions</Strong> with coaches are launching first in
-          our published Atlanta metropolitan service area (approximately fifteen to twenty road miles from downtown
-          Atlanta, as implemented in our ZIP allowlist for coach service areas). Trainer sign-up and trainer waitlist
-          flows may still require a service ZIP inside that Atlanta metro area while in-person coaching expands. We
-          may expand in-person regions over time and will describe availability in-product.
+          During the current beta, trainers and clients anywhere in the United States may sign up. In-person sessions
+          will be enabled by region as beta activity grows.
         </P>
         <P>
           <Strong>Client sign-up trial:</Strong> After you complete client sign-up and agree to these Terms, your account

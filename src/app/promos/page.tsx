@@ -142,9 +142,9 @@ export default async function PromosPage() {
 
               <p className="mt-5 text-pretty text-[15px] leading-relaxed text-white/65 sm:text-base">
                 {trainerFoundingPromoParagraph(trainerFoundingMax)}{" "}
-                <span className="font-semibold text-white/70">10 of those spots are reserved for in-person coaches</span>{" "}
-                in the Atlanta metro area; the remaining{" "}
-                <span className="font-semibold text-white/70">20 spots are open to virtual coaches nationwide</span>.
+                <span className="font-semibold text-white/70">
+                  All 30 founding spots are open to fitness professionals and coaches across the United States
+                </span>.
               </p>
 
               <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 text-sm text-white/60">
