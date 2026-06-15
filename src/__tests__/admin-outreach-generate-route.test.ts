@@ -75,17 +75,17 @@ describe("POST /api/admin/outreach/generate", () => {
     expect(mockGenerateOutreachLeads).not.toHaveBeenCalled();
   });
 
-  it("returns 400 when both lead counts are zero", async () => {
-    const response = await POST(postJson({ platform: "facebook", atlCount: 0, virtualCount: 0 }));
+  it("returns 400 when lead count is zero", async () => {
+    const response = await POST(postJson({ platform: "facebook", leadCount: 0 }));
 
     expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({ error: "Set at least one lead count." });
+    await expect(response.json()).resolves.toEqual({ error: "Set a lead count of at least 1." });
     expect(mockHydratePlatformEnvFromDatabase).not.toHaveBeenCalled();
     expect(mockGenerateOutreachLeads).not.toHaveBeenCalled();
   });
 
   it("returns 400 when instagram lead count exceeds the per-run timeout guard", async () => {
-    const response = await POST(postJson({ platform: "instagram", atlCount: 8, virtualCount: 5 }));
+    const response = await POST(postJson({ platform: "instagram", leadCount: 11 }));
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({
@@ -108,7 +108,7 @@ describe("POST /api/admin/outreach/generate", () => {
   });
 
   it("hydrates platform env and returns generated leads for valid requests", async () => {
-    const response = await POST(postJson({ platform: "email", atlCount: 3, virtualCount: 2 }));
+    const response = await POST(postJson({ platform: "email", leadCount: 5 }));
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
@@ -119,8 +119,7 @@ describe("POST /api/admin/outreach/generate", () => {
     expect(mockHydratePlatformEnvFromDatabase).toHaveBeenCalledTimes(1);
     expect(mockGenerateOutreachLeads).toHaveBeenCalledWith({
       platform: "email",
-      atlCount: 3,
-      virtualCount: 2,
+      leadCount: 5,
       adminId: "admin_42",
     });
   });

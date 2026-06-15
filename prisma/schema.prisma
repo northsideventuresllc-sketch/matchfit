@@ -2142,6 +2142,8 @@ model OutreachInstagramLead {
 
   dmText           String
   commentText      String
+  followUp1DmText  String   @default("")
+  followUp2DmText  String   @default("")
   commentPostRef   String?
   genericInviteTail String?
 
@@ -2233,6 +2235,10 @@ model OutreachEmailLead {
 
   emailSubject     String
   emailBody        String
+  followUp1EmailSubject String @default("")
+  followUp1EmailBody    String @default("")
+  followUp2EmailSubject String @default("")
+  followUp2EmailBody    String @default("")
   genericInviteTail String?
 
   status           String   @default("LEAD")

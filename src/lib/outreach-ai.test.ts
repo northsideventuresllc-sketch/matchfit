@@ -127,8 +127,7 @@ describe("outreach-ai generation prompts and parsing", () => {
 
     await generateOutreachLeads({
       platform: "instagram",
-      atlCount: 1,
-      virtualCount: 0,
+      leadCount: 1,
       adminId: "admin_anthropic",
     });
 
@@ -156,8 +155,7 @@ describe("outreach-ai generation prompts and parsing", () => {
 
     await generateOutreachLeads({
       platform: "instagram",
-      atlCount: 1,
-      virtualCount: 0,
+      leadCount: 1,
       adminId: "admin_1",
     });
 
@@ -185,8 +183,7 @@ describe("outreach-ai generation prompts and parsing", () => {
 
     await generateOutreachLeads({
       platform: "facebook",
-      atlCount: 1,
-      virtualCount: 0,
+      leadCount: 1,
       adminId: "admin_2",
     });
 
@@ -212,8 +209,7 @@ describe("outreach-ai generation prompts and parsing", () => {
 
     await generateOutreachLeads({
       platform: "email",
-      atlCount: 1,
-      virtualCount: 0,
+      leadCount: 1,
       adminId: "admin_3",
     });
 
@@ -231,8 +227,7 @@ describe("outreach-ai generation prompts and parsing", () => {
     await expect(
       generateOutreachLeads({
         platform: "other" as "instagram",
-        atlCount: 1,
-        virtualCount: 0,
+        leadCount: 1,
         adminId: "admin_4",
       }),
     ).rejects.toThrow(/Unsupported outreach platform/);
@@ -243,8 +238,7 @@ describe("outreach-ai generation prompts and parsing", () => {
 
     await generateOutreachLeads({
       platform: "instagram",
-      atlCount: 1,
-      virtualCount: 0,
+      leadCount: 1,
       adminId: "admin_prompt",
     });
 
@@ -253,6 +247,6 @@ describe("outreach-ai generation prompts and parsing", () => {
     expect(systemPrompt).toContain("If you add anything outside the JSON array the response is unusable.");
 
     const userPrompt = extractOpenAiUserPrompt(mockFetch);
-    expect(userPrompt).toContain("Respond with ONLY the JSON array. No text before or after the array.");
+    expect(userPrompt).toContain("Respond with ONLY the JSON array.");
   });
 });

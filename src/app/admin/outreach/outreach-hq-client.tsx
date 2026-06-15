@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminPortalNav } from "@/components/admin/admin-portal-nav";
 import {
   AdminPortalAlert,
@@ -22,10 +22,14 @@ import type {
   FacebookLeadRow,
   InstagramLeadRow,
   OutreachArchiveLead,
+  OutreachCopyField,
   OutreachHubLead,
   OutreachPlatform,
 } from "@/lib/outreach-types";
 import {
+  EMAIL_COPY_FIELDS,
+  FACEBOOK_COPY_FIELDS,
+  INSTAGRAM_COPY_FIELDS,
   OUTREACH_ARCHIVE_RETENTION_DAYS,
   OUTREACH_CLASSIFICATION_LABELS,
   OUTREACH_DEAD_LEAD_ARCHIVE_HOURS,
@@ -182,6 +186,61 @@ function DeleteReasonModal(props: {
   );
 }
 
+function RegenerateFeedbackModal(props: {
+  open: boolean;
+  title: string;
+  submitting: boolean;
+  onCancel: () => void;
+  onConfirm: (feedback: string) => void;
+}) {
+  const [feedback, setFeedback] = useState("");
+
+  useEffect(() => {
+    if (props.open) queueMicrotask(() => setFeedback(""));
+  }, [props.open]);
+
+  if (!props.open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+      <div className={`${adminCardClass} w-full max-w-lg space-y-4 p-5`} role="dialog" aria-modal="true">
+        <div>
+          <h2 className="text-lg font-black text-white">{props.title}</h2>
+          <p className="mt-2 text-sm text-white/55">
+            Optional: tell the AI what to change. Feedback is saved to NI Brain for future generations.
+          </p>
+        </div>
+        <div>
+          <label className={adminLabelClass} htmlFor="outreach-regenerate-feedback">
+            Regeneration feedback (optional)
+          </label>
+          <textarea
+            id="outreach-regenerate-feedback"
+            className={`${adminInputClassSm} mt-2`}
+            rows={4}
+            value={feedback}
+            onChange={(e) => setFeedback(e.target.value)}
+            placeholder="e.g. Shorter opener, less emoji, mention virtual clients…"
+          />
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" className={adminSecondaryButtonClass} disabled={props.submitting} onClick={props.onCancel}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className={adminAccentButtonClass}
+            disabled={props.submitting}
+            onClick={() => props.onConfirm(feedback.trim())}
+          >
+            {props.submitting ? "Regenerating…" : "Regenerate"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -200,76 +259,215 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function EditableBlock({
-  label,
-  value,
-  onSave,
-  rows = 4,
-  allowCopy = false,
-}: {
+function CopyFieldBlock(props: {
   label: string;
+  field: OutreachCopyField;
   value: string;
-  onSave: (v: string) => Promise<void>;
   rows?: number;
-  allowCopy?: boolean;
+  generating: boolean;
+  onSave: (v: string) => Promise<void>;
+  onGenerate: (feedback?: string) => Promise<void>;
 }) {
-  const [draft, setDraft] = useState(value);
+  const [draft, setDraft] = useState(props.value);
   const [saving, setSaving] = useState(false);
+  const [regenerateOpen, setRegenerateOpen] = useState(false);
+  const [localGenerating, setLocalGenerating] = useState(false);
+
   useEffect(() => {
-    queueMicrotask(() => setDraft(value));
-  }, [value]);
+    queueMicrotask(() => setDraft(props.value));
+  }, [props.value]);
+
+  const hasText = draft.trim().length > 0;
+  const busy = props.generating || localGenerating;
+
+  const runGenerate = async (feedback?: string) => {
+    setLocalGenerating(true);
+    try {
+      await props.onGenerate(feedback);
+    } finally {
+      setLocalGenerating(false);
+      setRegenerateOpen(false);
+    }
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <p className={adminLabelClass}>{label}</p>
-        {allowCopy ? (
-          <CopyButton text={draft} />
-        ) : (
-          <span className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white/30">
-            Save to hub to copy
-          </span>
-        )}
+        <p className={adminLabelClass}>{props.label}</p>
+        <CopyButton text={draft} />
       </div>
       <textarea
         className={adminInputClassSm}
-        rows={rows}
+        rows={props.rows ?? 4}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
       />
-      {draft !== value ? (
-        <button
-          type="button"
-          disabled={saving}
-          className={adminAccentButtonClass}
-          onClick={() => {
-            setSaving(true);
-            void onSave(draft).finally(() => setSaving(false));
-          }}
-        >
-          {saving ? "Saving…" : "Save edit"}
-        </button>
-      ) : null}
+      <div className="flex flex-wrap gap-2">
+        {!hasText ? (
+          <button
+            type="button"
+            disabled={busy}
+            className={adminAccentButtonClass}
+            onClick={() => void runGenerate()}
+          >
+            {busy ? "Generating…" : "Generate"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={busy}
+            className={adminSecondaryButtonClass}
+            onClick={() => setRegenerateOpen(true)}
+          >
+            {busy ? "Regenerating…" : "Re-generate"}
+          </button>
+        )}
+        {draft !== props.value ? (
+          <button
+            type="button"
+            disabled={saving}
+            className={adminAccentButtonClass}
+            onClick={() => {
+              setSaving(true);
+              void props.onSave(draft).finally(() => setSaving(false));
+            }}
+          >
+            {saving ? "Saving…" : "Save edit"}
+          </button>
+        ) : null}
+      </div>
+      <RegenerateFeedbackModal
+        open={regenerateOpen}
+        title={`Re-generate ${props.label}`}
+        submitting={busy}
+        onCancel={() => {
+          if (!busy) setRegenerateOpen(false);
+        }}
+        onConfirm={(feedback) => {
+          void runGenerate(feedback || undefined);
+        }}
+      />
     </div>
   );
 }
 
-function LeadBubble(props: {
-  platform: OutreachPlatform;
+function GenerationLeadCard(props: {
   lead: AnyLead;
-  onUpdate: (patch: Record<string, unknown>) => Promise<void>;
-  onDelete: () => void;
+  platform: OutreachPlatform;
+  selected: boolean;
+  onToggleSelect: () => void;
   onSaveToHub: () => Promise<void>;
-  children: ReactNode;
+  onDelete: () => void;
   title: string;
   linkHref?: string;
   linkLabel?: string;
-  hideSave?: boolean;
+  subtitle?: string;
 }) {
   const [savingToHub, setSavingToHub] = useState(false);
   const isSaved = Boolean(props.lead.savedToHubAt);
+
+  return (
+    <article className={`${adminPanelClass} overflow-hidden`}>
+      <div className="p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <input
+              type="checkbox"
+              className="mt-1.5 h-4 w-4 shrink-0 accent-[#FF7E00]"
+              checked={props.selected}
+              onChange={props.onToggleSelect}
+              aria-label={`Select ${props.title}`}
+            />
+            <div className="min-w-0 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-lg font-black tracking-tight text-white">{props.title}</h3>
+                {"targetGroup" in props.lead ? (
+                  <span className="rounded-full border border-[#FF7E00]/25 bg-[#FF7E00]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#FFD34E]">
+                    {targetGroupLabel(props.lead.targetGroup)}
+                  </span>
+                ) : null}
+              </div>
+              {props.linkHref ? (
+                <a
+                  href={props.linkHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`${adminLinkClass} text-sm`}
+                >
+                  {props.linkLabel ?? props.linkHref}
+                </a>
+              ) : null}
+              {props.subtitle ? <p className="text-sm text-white/55">{props.subtitle}</p> : null}
+              <p className="text-sm leading-relaxed text-[#FF7E00]/90">
+                <span className="font-semibold text-[#FF7E00]">Why Match Fit: </span>
+                {props.lead.whyMatchFit}
+              </p>
+              <p className="text-xs text-white/45">
+                Response likelihood:{" "}
+                <span className="font-bold tabular-nums text-white/80">{props.lead.likelihoodScore}%</span>
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+            <button
+              type="button"
+              disabled={savingToHub || isSaved}
+              className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-40"
+              onClick={() => {
+                setSavingToHub(true);
+                void props.onSaveToHub().finally(() => setSavingToHub(false));
+              }}
+            >
+              {isSaved ? "Saved to hub" : savingToHub ? "Saving…" : "Save"}
+            </button>
+            <button
+              type="button"
+              className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20"
+              onClick={props.onDelete}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function HubLeadBubble(props: {
+  platform: OutreachPlatform;
+  lead: AnyLead;
+  generatingFields: Set<string>;
+  onUpdate: (patch: Record<string, unknown>) => Promise<void>;
+  onDelete: () => void;
+  onGenerateCopy: (fields: OutreachCopyField[], feedback?: string) => Promise<void>;
+  title: string;
+  linkHref?: string;
+  linkLabel?: string;
+  subtitle?: string;
+  copyFields: { key: OutreachCopyField; label: string; rows: number }[];
+}) {
   const classification = props.lead.autoClassification as keyof typeof OUTREACH_CLASSIFICATION_LABELS;
   const statusOptions = outreachStatusOptionsForPlatform(props.platform);
   const isDeadLead = props.lead.status === "DEAD_LEAD";
+
+  const fieldValues = props.copyFields.map((f) => String((props.lead as Record<string, unknown>)[f.key] ?? ""));
+  const allEmpty = fieldValues.every((v) => v.trim().length === 0);
+  const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [bulkRegenerateOpen, setBulkRegenerateOpen] = useState(false);
+
+  const runBulk = async (feedback?: string) => {
+    setBulkGenerating(true);
+    try {
+      await props.onGenerateCopy(
+        props.copyFields.map((f) => f.key),
+        feedback,
+      );
+    } finally {
+      setBulkGenerating(false);
+      setBulkRegenerateOpen(false);
+    }
+  };
 
   return (
     <article className={`${adminPanelClass} overflow-hidden`}>
@@ -290,22 +488,14 @@ function LeadBubble(props: {
               </span>
             </div>
             {props.linkHref ? (
-              <a
-                href={props.linkHref}
-                target="_blank"
-                rel="noreferrer"
-                className={`${adminLinkClass} text-sm`}
-              >
+              <a href={props.linkHref} target="_blank" rel="noreferrer" className={`${adminLinkClass} text-sm`}>
                 {props.linkLabel ?? props.linkHref}
               </a>
             ) : null}
+            {props.subtitle ? <p className="text-sm text-white/55">{props.subtitle}</p> : null}
             <p className="text-sm leading-relaxed text-[#FF7E00]/90">
               <span className="font-semibold text-[#FF7E00]">Why Match Fit: </span>
               {props.lead.whyMatchFit}
-            </p>
-            <p className="text-xs text-white/45">
-              Response likelihood:{" "}
-              <span className="font-bold tabular-nums text-white/80">{props.lead.likelihoodScore}%</span>
             </p>
           </div>
           <div className="flex shrink-0 flex-col gap-2 sm:items-end">
@@ -321,19 +511,25 @@ function LeadBubble(props: {
               ))}
             </select>
             <div className="flex flex-wrap gap-2 sm:justify-end">
-              {!props.hideSave ? (
+              {allEmpty ? (
                 <button
                   type="button"
-                  disabled={savingToHub || isSaved}
-                  className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-40"
-                  onClick={() => {
-                    setSavingToHub(true);
-                    void props.onSaveToHub().finally(() => setSavingToHub(false));
-                  }}
+                  disabled={bulkGenerating}
+                  className={adminAccentButtonClass}
+                  onClick={() => void runBulk()}
                 >
-                  {isSaved ? "Saved to hub" : savingToHub ? "Saving…" : "Save"}
+                  {bulkGenerating ? "Generating…" : "Generate all"}
                 </button>
-              ) : null}
+              ) : (
+                <button
+                  type="button"
+                  disabled={bulkGenerating}
+                  className={adminSecondaryButtonClass}
+                  onClick={() => setBulkRegenerateOpen(true)}
+                >
+                  {bulkGenerating ? "Regenerating…" : "Re-generate all"}
+                </button>
+              )}
               <button
                 type="button"
                 className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20"
@@ -354,7 +550,36 @@ function LeadBubble(props: {
           </div>
         </div>
       </div>
-      <div className="space-y-4 p-4 sm:p-5">{props.children}</div>
+      <div className="space-y-4 p-4 sm:p-5">
+        {props.copyFields.map((field) => (
+          <CopyFieldBlock
+            key={field.key}
+            label={field.label}
+            field={field.key}
+            value={String((props.lead as Record<string, unknown>)[field.key] ?? "")}
+            rows={field.rows}
+            generating={props.generatingFields.has(field.key) || bulkGenerating}
+            onSave={(value) => props.onUpdate({ [field.key]: value })}
+            onGenerate={(feedback) => props.onGenerateCopy([field.key], feedback)}
+          />
+        ))}
+        {"commentPostRef" in props.lead && (props.lead as InstagramLeadRow).commentPostRef ? (
+          <p className="text-xs text-white/40">
+            Comment on: {(props.lead as InstagramLeadRow).commentPostRef}
+          </p>
+        ) : null}
+      </div>
+      <RegenerateFeedbackModal
+        open={bulkRegenerateOpen}
+        title="Re-generate all outreach copy"
+        submitting={bulkGenerating}
+        onCancel={() => {
+          if (!bulkGenerating) setBulkRegenerateOpen(false);
+        }}
+        onConfirm={(feedback) => {
+          void runBulk(feedback || undefined);
+        }}
+      />
     </article>
   );
 }
@@ -368,13 +593,13 @@ function PlatformTabPanel(props: {
   generateStage: string;
   bulkDeleting: boolean;
   bulkSaving: boolean;
-  atlCount: number;
-  virtualCount: number;
-  onAtlCount: (n: number) => void;
-  onVirtualCount: (n: number) => void;
+  leadCount: number;
+  selectedIds: Set<string>;
+  onLeadCount: (n: number) => void;
+  onToggleSelect: (id: string) => void;
+  onToggleSelectAll: (ids: string[]) => void;
   onGenerate: () => void;
   onRefresh: () => void;
-  onUpdate: (id: string, patch: Record<string, unknown>) => Promise<void>;
   onDelete: (id: string) => void;
   onSaveToHub: (id: string) => Promise<void>;
   onBulkDelete: (
@@ -386,97 +611,53 @@ function PlatformTabPanel(props: {
 }) {
   const activeLeads = props.leads.filter((l) => !l.deletedAt);
   const batches = useMemo(() => groupLeadsByBatch(props.leads), [props.leads]);
+  const selectedActive = activeLeads.filter((l) => props.selectedIds.has(l.id));
+  const allSelected = activeLeads.length > 0 && selectedActive.length === activeLeads.length;
+  const hasSelection = selectedActive.length > 0;
 
   const renderLead = (lead: AnyLead) => {
+    const common = {
+      key: lead.id,
+      lead,
+      platform: props.platform,
+      selected: props.selectedIds.has(lead.id),
+      onToggleSelect: () => props.onToggleSelect(lead.id),
+      onDelete: () => props.onDelete(lead.id),
+      onSaveToHub: () => props.onSaveToHub(lead.id),
+    };
+
     if (props.platform === "instagram") {
       const ig = lead as InstagramLeadRow;
       return (
-        <LeadBubble
-          key={ig.id}
-          platform="instagram"
-          lead={ig}
+        <GenerationLeadCard
+          {...common}
           title={ig.handle}
           linkHref={ig.profileUrl}
           linkLabel="Open Instagram profile"
-          onUpdate={(patch) => props.onUpdate(ig.id, patch)}
-          onDelete={() => props.onDelete(ig.id)}
-          onSaveToHub={() => props.onSaveToHub(ig.id)}
-        >
-          <EditableBlock
-            label="Instagram DM"
-            value={ig.dmText}
-            rows={6}
-            allowCopy={Boolean(ig.savedToHubAt)}
-            onSave={(dmText) => props.onUpdate(ig.id, { dmText })}
-          />
-          <EditableBlock
-            label="Comment (to grab attention)"
-            value={ig.commentText}
-            rows={2}
-            allowCopy={Boolean(ig.savedToHubAt)}
-            onSave={(commentText) => props.onUpdate(ig.id, { commentText })}
-          />
-          {ig.commentPostRef ? <p className="text-xs text-white/40">Comment on: {ig.commentPostRef}</p> : null}
-        </LeadBubble>
+        />
       );
     }
     if (props.platform === "facebook") {
       const fb = lead as FacebookLeadRow;
       return (
-        <LeadBubble
-          key={fb.id}
-          platform="facebook"
-          lead={fb}
+        <GenerationLeadCard
+          {...common}
           title={fb.pageName}
           linkHref={fb.pageUrl}
           linkLabel="Open Facebook page"
-          onUpdate={(patch) => props.onUpdate(fb.id, patch)}
-          onDelete={() => props.onDelete(fb.id)}
-          onSaveToHub={() => props.onSaveToHub(fb.id)}
-        >
-          <EditableBlock
-            label="Page post"
-            value={fb.pagePostText}
-            rows={6}
-            allowCopy={Boolean(fb.savedToHubAt)}
-            onSave={(pagePostText) => props.onUpdate(fb.id, { pagePostText })}
-          />
-        </LeadBubble>
+        />
       );
     }
     if (props.platform === "email") {
       const em = lead as EmailLeadRow;
       return (
-        <LeadBubble
-          key={em.id}
-          platform="email"
-          lead={em}
+        <GenerationLeadCard
+          {...common}
           title={em.name}
           linkHref={em.emailSourceUrl ?? undefined}
           linkLabel={em.emailSourceUrl ? "Where email was found" : em.email}
-          onUpdate={(patch) => props.onUpdate(em.id, patch)}
-          onDelete={() => props.onDelete(em.id)}
-          onSaveToHub={() => props.onSaveToHub(em.id)}
-        >
-          <p className="text-sm text-white/55">
-            {em.email}
-            {em.businessName ? ` · ${em.businessName}` : ""}
-          </p>
-          <EditableBlock
-            label="Email subject"
-            value={em.emailSubject}
-            rows={1}
-            allowCopy={Boolean(em.savedToHubAt)}
-            onSave={(emailSubject) => props.onUpdate(em.id, { emailSubject })}
-          />
-          <EditableBlock
-            label="Email body"
-            value={em.emailBody}
-            rows={8}
-            allowCopy={Boolean(em.savedToHubAt)}
-            onSave={(emailBody) => props.onUpdate(em.id, { emailBody })}
-          />
-        </LeadBubble>
+          subtitle={[em.email, em.businessName].filter(Boolean).join(" · ")}
+        />
       );
     }
     return null;
@@ -491,25 +672,14 @@ function PlatformTabPanel(props: {
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <label className={adminLabelClass}>ATL local count</label>
+            <label className={adminLabelClass}>Lead count (US)</label>
             <input
               type="number"
-              min={0}
+              min={1}
               max={20}
               className={adminInputClass}
-              value={props.atlCount}
-              onChange={(e) => props.onAtlCount(Number(e.target.value))}
-            />
-          </div>
-          <div>
-            <label className={adminLabelClass}>Virtual count</label>
-            <input
-              type="number"
-              min={0}
-              max={20}
-              className={adminInputClass}
-              value={props.virtualCount}
-              onChange={(e) => props.onVirtualCount(Number(e.target.value))}
+              value={props.leadCount}
+              onChange={(e) => props.onLeadCount(Number(e.target.value))}
             />
           </div>
         </div>
@@ -550,14 +720,30 @@ function PlatformTabPanel(props: {
                 <p className="mt-1 text-sm text-white/55">
                   {activeLeads.length} lead{activeLeads.length === 1 ? "" : "s"} across {batches.length} pull
                   {batches.length === 1 ? "" : "s"} on this tab.
+                  {hasSelection ? ` ${selectedActive.length} selected.` : ""}
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-2 text-xs text-white/55">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-[#FF7E00]"
+                    checked={allSelected}
+                    onChange={() =>
+                      props.onToggleSelectAll(allSelected ? [] : activeLeads.map((l) => l.id))
+                    }
+                  />
+                  Select all
+                </label>
                 <button
                   type="button"
-                  disabled={props.bulkSaving}
+                  disabled={props.bulkSaving || (hasSelection && selectedActive.length === 0)}
                   className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-40"
                   onClick={() => {
+                    if (hasSelection) {
+                      void props.onBulkSave({ mode: "ids", ids: selectedActive.map((l) => l.id) });
+                      return;
+                    }
                     if (
                       !confirm(
                         `Save all ${activeLeads.length} active lead${activeLeads.length === 1 ? "" : "s"} on this tab to Outreach Hub?`,
@@ -568,15 +754,29 @@ function PlatformTabPanel(props: {
                     void props.onBulkSave({ mode: "all" });
                   }}
                 >
-                  {props.bulkSaving ? "Saving…" : `Save all ${activeLeads.length} leads`}
+                  {props.bulkSaving
+                    ? "Saving…"
+                    : hasSelection
+                      ? `Save selected (${selectedActive.length})`
+                      : `Save all ${activeLeads.length} leads`}
                 </button>
                 <button
                   type="button"
                   disabled={props.bulkDeleting}
                   className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20 disabled:opacity-40"
-                  onClick={() => props.onBulkDelete({ mode: "all" })}
+                  onClick={() => {
+                    if (hasSelection) {
+                      props.onBulkDelete({ mode: "ids", ids: selectedActive.map((l) => l.id) });
+                      return;
+                    }
+                    props.onBulkDelete({ mode: "all" });
+                  }}
                 >
-                  {props.bulkDeleting ? "Removing…" : `Delete all ${activeLeads.length} leads`}
+                  {props.bulkDeleting
+                    ? "Removing…"
+                    : hasSelection
+                      ? `Delete selected (${selectedActive.length})`
+                      : `Delete all ${activeLeads.length} leads`}
                 </button>
               </div>
             </div>
@@ -700,99 +900,81 @@ function OutreachArchivePanel(props: {
 function OutreachHubPanel(props: {
   entries: OutreachHubLead[];
   loading: boolean;
+  purging: boolean;
+  generatingFields: Record<string, Set<string>>;
   onRefresh: () => void;
   onOpenArchive: () => void;
+  onPurgeStale: () => void;
   onUpdate: (platform: OutreachPlatform, id: string, patch: Record<string, unknown>) => Promise<void>;
   onDelete: (platform: OutreachPlatform, id: string) => void;
-  onSaveToHub: (platform: OutreachPlatform, id: string) => Promise<void>;
+  onGenerateCopy: (
+    platform: OutreachPlatform,
+    id: string,
+    fields: OutreachCopyField[],
+    feedback?: string,
+  ) => Promise<void>;
 }) {
+  const fieldKey = (platform: OutreachPlatform, id: string) => `${platform}:${id}`;
+
   const renderEntry = (entry: OutreachHubLead) => {
     const { platform, lead } = entry;
+    const genSet = props.generatingFields[fieldKey(platform, lead.id)] ?? new Set<string>();
 
     if (platform === "instagram") {
       const ig = lead as InstagramLeadRow;
       return (
-        <LeadBubble
+        <HubLeadBubble
           key={`${platform}-${ig.id}`}
           platform="instagram"
           lead={ig}
           title={ig.handle}
           linkHref={ig.profileUrl}
           linkLabel="Open Instagram profile"
+          copyFields={INSTAGRAM_COPY_FIELDS}
+          generatingFields={genSet}
           onUpdate={(patch) => props.onUpdate(platform, ig.id, patch)}
           onDelete={() => props.onDelete(platform, ig.id)}
-          onSaveToHub={() => props.onSaveToHub(platform, ig.id)}
-          hideSave
-        >
-          <EditableBlock label="Instagram DM" value={ig.dmText} rows={6} onSave={(dmText) => props.onUpdate(platform, ig.id, { dmText })} />
-          <EditableBlock
-            label="Comment (to grab attention)"
-            value={ig.commentText}
-            rows={2}
-            onSave={(commentText) => props.onUpdate(platform, ig.id, { commentText })}
-          />
-          {ig.commentPostRef ? <p className="text-xs text-white/40">Comment on: {ig.commentPostRef}</p> : null}
-        </LeadBubble>
+          onGenerateCopy={(fields, feedback) => props.onGenerateCopy(platform, ig.id, fields, feedback)}
+        />
       );
     }
 
     if (platform === "facebook") {
       const fb = lead as FacebookLeadRow;
       return (
-        <LeadBubble
+        <HubLeadBubble
           key={`${platform}-${fb.id}`}
           platform="facebook"
           lead={fb}
           title={fb.pageName}
           linkHref={fb.pageUrl}
           linkLabel="Open Facebook page"
+          copyFields={FACEBOOK_COPY_FIELDS}
+          generatingFields={genSet}
           onUpdate={(patch) => props.onUpdate(platform, fb.id, patch)}
           onDelete={() => props.onDelete(platform, fb.id)}
-          onSaveToHub={() => props.onSaveToHub(platform, fb.id)}
-          hideSave
-        >
-          <EditableBlock
-            label="Page post"
-            value={fb.pagePostText}
-            rows={6}
-            onSave={(pagePostText) => props.onUpdate(platform, fb.id, { pagePostText })}
-          />
-        </LeadBubble>
+          onGenerateCopy={(fields, feedback) => props.onGenerateCopy(platform, fb.id, fields, feedback)}
+        />
       );
     }
 
     if (platform === "email") {
       const em = lead as EmailLeadRow;
       return (
-        <LeadBubble
+        <HubLeadBubble
           key={`${platform}-${em.id}`}
           platform="email"
           lead={em}
           title={em.name}
           linkHref={em.emailSourceUrl ?? undefined}
           linkLabel={em.emailSourceUrl ? "Where email was found" : em.email}
+          subtitle={[em.email, em.businessName].filter(Boolean).join(" · ")}
+          copyFields={EMAIL_COPY_FIELDS}
+          generatingFields={genSet}
           onUpdate={(patch) => props.onUpdate(platform, em.id, patch)}
           onDelete={() => props.onDelete(platform, em.id)}
-          onSaveToHub={() => props.onSaveToHub(platform, em.id)}
-          hideSave
-        >
-          <p className="text-sm text-white/55">
-            {em.email}
-            {em.businessName ? ` · ${em.businessName}` : ""}
-          </p>
-          <EditableBlock
-            label="Email subject"
-            value={em.emailSubject}
-            rows={1}
-            onSave={(emailSubject) => props.onUpdate(platform, em.id, { emailSubject })}
-          />
-          <EditableBlock
-            label="Email body"
-            value={em.emailBody}
-            rows={8}
-            onSave={(emailBody) => props.onUpdate(platform, em.id, { emailBody })}
-          />
-        </LeadBubble>
+          onGenerateCopy={(fields, feedback) => props.onGenerateCopy(platform, em.id, fields, feedback)}
+        />
       );
     }
 
@@ -804,8 +986,8 @@ function OutreachHubPanel(props: {
       <section className={`${adminCardClass} space-y-3`}>
         <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Outreach Hub</p>
         <p className="text-sm text-white/55">
-          Saved contacts from every platform — your working list for follow-up. Download a CSV anytime for spreadsheets
-          or external tools.
+          Saved contacts from every platform — generate outreach copy here, track status, and follow up. Download a CSV
+          anytime for spreadsheets or external tools.
         </p>
         <div className="flex flex-wrap gap-2">
           <a href="/api/admin/outreach/hub/export" className={adminAccentButtonClass}>
@@ -816,6 +998,27 @@ function OutreachHubPanel(props: {
           </button>
           <button type="button" className={adminSecondaryButtonClass} onClick={props.onOpenArchive}>
             View archive
+          </button>
+        </div>
+      </section>
+
+      <section className={`${adminCardClass} space-y-3`}>
+        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Housekeeping</p>
+        <p className="text-sm text-white/55">
+          Clear soft-deleted fake batches from earlier runs. Dead leads marked in the status dropdown move to the archive
+          after {OUTREACH_DEAD_LEAD_ARCHIVE_HOURS} hours.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={props.purging}
+            className={adminSecondaryButtonClass}
+            onClick={props.onPurgeStale}
+          >
+            {props.purging ? "Purging…" : "Purge deleted stale leads"}
+          </button>
+          <button type="button" className={adminSecondaryButtonClass} onClick={props.onOpenArchive}>
+            Open dead lead archive
           </button>
         </div>
       </section>
@@ -858,9 +1061,10 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   const [bulkSaving, setBulkSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [atlCount, setAtlCount] = useState(3);
-  const [virtualCount, setVirtualCount] = useState(5);
+  const [leadCount, setLeadCount] = useState(8);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [hubEntries, setHubEntries] = useState<OutreachHubLead[]>([]);
+  const [generatingFields, setGeneratingFields] = useState<Record<string, Set<string>>>({});
   const [archiveEntries, setArchiveEntries] = useState<OutreachArchiveLead[]>([]);
   const [purging, setPurging] = useState(false);
   const [revivingId, setRevivingId] = useState<string | null>(null);
@@ -931,29 +1135,34 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
 
   useEffect(() => {
     queueMicrotask(() => {
-      if (tab === "hub") {
-        void loadHubEntries({ clearAlerts: true });
-      } else if (tab === "archive") {
+      void loadHubEntries();
+      if (tab === "archive") {
         void loadArchiveEntries({ clearAlerts: true });
-      } else {
+      } else if (tab !== "hub") {
         void loadLeads(tab, { clearAlerts: true });
+      } else {
+        void loadHubEntries({ clearAlerts: true });
       }
     });
   }, [tab, loadLeads, loadHubEntries, loadArchiveEntries]);
 
+  useEffect(() => {
+    queueMicrotask(() => setSelectedIds(new Set()));
+  }, [tab, leads]);
+
   const stats = useMemo(() => {
-    const active = leads.filter((l) => !l.deletedAt);
+    const active = hubEntries.filter((e) => !e.lead.deletedAt);
     return {
       total: active.length,
-      followUp: active.filter((l) => l.autoClassification === "FOLLOW_UP_NEEDED").length,
-      responses: active.filter((l) => l.status === "RESPONSE_RECEIVED").length,
+      followUp: active.filter((e) => e.lead.autoClassification === "FOLLOW_UP_NEEDED").length,
+      responses: active.filter((e) => e.lead.status === "RESPONSE_RECEIVED").length,
     };
-  }, [leads]);
+  }, [hubEntries]);
 
   useEffect(() => {
     if (!generating || tab === "hub" || tab === "archive") return;
 
-    const totalLeads = atlCount + virtualCount;
+    const totalLeads = leadCount;
     const estimatedMs =
       coldTab === "instagram"
         ? 18_000 + totalLeads * 3_500 * 2
@@ -970,7 +1179,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     }, 120);
 
     return () => window.clearInterval(timer);
-  }, [generating, tab, coldTab, atlCount, virtualCount]);
+  }, [generating, tab, coldTab, leadCount]);
 
   const generate = async () => {
     setGenerating(true);
@@ -983,7 +1192,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ platform: coldTab, atlCount, virtualCount }),
+        body: JSON.stringify({ platform: coldTab, leadCount }),
       });
       const data = await readJsonResponse<{
         error?: unknown;
@@ -1000,8 +1209,8 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         throw new Error(formatUserFacingError(data.error, "Generation failed."));
       }
 
-      const leadCount = data.leads?.length ?? 0;
-      if (leadCount === 0) {
+      const savedLeadCount = data.leads?.length ?? 0;
+      if (savedLeadCount === 0) {
         const rejectionHint =
           data.verification?.parsed && data.verification.rejected > 0
             ? `No leads saved. ${data.verification.rejected} candidate(s) failed verification.${
@@ -1026,7 +1235,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         );
         setError(null);
       } else {
-        setSuccessMessage(`Saved ${leadCount} new lead${leadCount === 1 ? "" : "s"}.`);
+        setSuccessMessage(`Saved ${savedLeadCount} new lead${savedLeadCount === 1 ? "" : "s"}.`);
         setError(null);
       }
 
@@ -1111,6 +1320,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     });
     if (!res.ok) throw new Error("Save failed.");
     setSuccessMessage("Saved to Outreach Hub.");
+    await loadHubEntries();
     if (tab === "hub") {
       await loadHubEntries();
     } else {
@@ -1137,6 +1347,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         `Saved ${data.savedCount ?? 0} lead${data.savedCount === 1 ? "" : "s"} to Outreach Hub.`,
       );
       await loadLeads(coldTab);
+      await loadHubEntries();
     } catch (e) {
       setError(formatUserFacingError(e, "Bulk save failed."));
     } finally {
@@ -1208,6 +1419,56 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     }
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (ids: string[]) => {
+    setSelectedIds(new Set(ids));
+  };
+
+  const generateLeadCopy = async (
+    platform: OutreachPlatform,
+    id: string,
+    fields: OutreachCopyField[],
+    feedback?: string,
+  ) => {
+    const key = `${platform}:${id}`;
+    setGeneratingFields((prev) => ({
+      ...prev,
+      [key]: new Set([...(prev[key] ?? []), ...fields]),
+    }));
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/outreach/leads/${id}/generate-copy`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ platform, fields, feedback }),
+      });
+      const data = await readJsonResponse<{ error?: string }>(res);
+      if (!res.ok) throw new Error(formatUserFacingError(data.error, "Copy generation failed."));
+      await loadHubEntries();
+      setSuccessMessage(`Generated ${fields.length} outreach field${fields.length === 1 ? "" : "s"}.`);
+    } catch (e) {
+      setError(formatUserFacingError(e, "Copy generation failed."));
+    } finally {
+      setGeneratingFields((prev) => {
+        const next = { ...prev };
+        const current = new Set(next[key] ?? []);
+        for (const field of fields) current.delete(field);
+        if (current.size === 0) delete next[key];
+        else next[key] = current;
+        return next;
+      });
+    }
+  };
+
   const purgeStaleLeads = async () => {
     if (
       !confirm(
@@ -1273,7 +1534,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
 
         <div className="grid gap-3 sm:grid-cols-3">
           <div className={`${adminPanelClass} p-4`}>
-            <p className={adminLabelClass}>Active leads</p>
+            <p className={adminLabelClass}>Hub contacts</p>
             <p className="mt-1 text-2xl font-black tabular-nums">{stats.total}</p>
           </div>
           <div className={`${adminPanelClass} p-4`}>
@@ -1285,27 +1546,6 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
             <p className="mt-1 text-2xl font-black tabular-nums text-emerald-200">{stats.responses}</p>
           </div>
         </div>
-
-        <section className={`${adminCardClass} space-y-3`}>
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Housekeeping</p>
-          <p className="text-sm text-white/55">
-            Clear soft-deleted fake batches from earlier runs, then regenerate with verified AI lead discovery. Dead leads
-            marked in the status dropdown move to the archive after {OUTREACH_DEAD_LEAD_ARCHIVE_HOURS} hours.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={purging}
-              className={adminSecondaryButtonClass}
-              onClick={() => void purgeStaleLeads()}
-            >
-              {purging ? "Purging…" : "Purge deleted stale leads"}
-            </button>
-            <button type="button" className={adminSecondaryButtonClass} onClick={() => setTab("archive")}>
-              Open dead lead archive
-            </button>
-          </div>
-        </section>
 
         <nav className="flex flex-wrap gap-2" aria-label="Outreach platform">
           {OUTREACH_PLATFORMS.map((p) => (
@@ -1350,11 +1590,14 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
           <OutreachHubPanel
             entries={hubEntries}
             loading={loading}
+            purging={purging}
+            generatingFields={generatingFields}
             onRefresh={() => void loadHubEntries()}
             onOpenArchive={() => setTab("archive")}
+            onPurgeStale={() => void purgeStaleLeads()}
             onUpdate={(platform, id, patch) => updateLead(id, patch, platform)}
             onDelete={(platform, id) => promptDeleteLead(id, platform)}
-            onSaveToHub={(platform, id) => saveLeadToHub(id, platform)}
+            onGenerateCopy={generateLeadCopy}
           />
         ) : tab === "archive" ? (
           <OutreachArchivePanel
@@ -1375,13 +1618,13 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
             generateStage={generateStage}
             bulkDeleting={bulkDeleting}
             bulkSaving={bulkSaving}
-            atlCount={atlCount}
-            virtualCount={virtualCount}
-            onAtlCount={setAtlCount}
-            onVirtualCount={setVirtualCount}
+            leadCount={leadCount}
+            selectedIds={selectedIds}
+            onLeadCount={setLeadCount}
+            onToggleSelect={toggleSelect}
+            onToggleSelectAll={toggleSelectAll}
             onGenerate={() => void generate()}
             onRefresh={() => void loadLeads(tab)}
-            onUpdate={updateLead}
             onDelete={(id) => promptDeleteLead(id, tab)}
             onSaveToHub={saveLeadToHub}
             onBulkDelete={bulkDeleteLeads}

@@ -427,6 +427,8 @@ export async function updateOutreachLead(
       data: {
         dmText: typeof patch.dmText === "string" ? patch.dmText : undefined,
         commentText: typeof patch.commentText === "string" ? patch.commentText : undefined,
+        followUp1DmText: typeof patch.followUp1DmText === "string" ? patch.followUp1DmText : undefined,
+        followUp2DmText: typeof patch.followUp2DmText === "string" ? patch.followUp2DmText : undefined,
         status,
         dmTextEdited: patch.dmTextEdited === true ? true : undefined,
         commentTextEdited: patch.commentTextEdited === true ? true : undefined,
@@ -488,6 +490,12 @@ export async function updateOutreachLead(
       data: {
         emailSubject: typeof patch.emailSubject === "string" ? patch.emailSubject : undefined,
         emailBody: typeof patch.emailBody === "string" ? patch.emailBody : undefined,
+        followUp1EmailSubject:
+          typeof patch.followUp1EmailSubject === "string" ? patch.followUp1EmailSubject : undefined,
+        followUp1EmailBody: typeof patch.followUp1EmailBody === "string" ? patch.followUp1EmailBody : undefined,
+        followUp2EmailSubject:
+          typeof patch.followUp2EmailSubject === "string" ? patch.followUp2EmailSubject : undefined,
+        followUp2EmailBody: typeof patch.followUp2EmailBody === "string" ? patch.followUp2EmailBody : undefined,
         status,
         emailBodyEdited: patch.emailBodyEdited === true ? true : undefined,
         autoClassification: classifyOutreachLead({
@@ -504,6 +512,20 @@ export async function updateOutreachLead(
   }
 
   return null;
+}
+
+export async function getOutreachHubStats(): Promise<{
+  total: number;
+  followUp: number;
+  responses: number;
+}> {
+  const entries = await listOutreachHubLeads();
+  const active = entries.filter((e) => !e.lead.deletedAt);
+  return {
+    total: active.length,
+    followUp: active.filter((e) => e.lead.autoClassification === "FOLLOW_UP_NEEDED").length,
+    responses: active.filter((e) => e.lead.status === "RESPONSE_RECEIVED").length,
+  };
 }
 
 export async function purgeArchivedOutreachLeads(): Promise<{
