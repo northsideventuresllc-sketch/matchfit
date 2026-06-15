@@ -7,7 +7,8 @@ export type OutreachNiBrainSignalType =
   | "EDIT_DIFF"
   | "DELETE_REASON"
   | "SAVED_TO_HUB"
-  | "DEAD_LEAD_PATTERN";
+  | "DEAD_LEAD_PATTERN"
+  | "REGENERATE_FEEDBACK";
 
 export async function recordOutreachNiBrainLearning(args: {
   signalType: OutreachNiBrainSignalType;
@@ -85,6 +86,10 @@ export async function fetchRecentOutreachNiBrainLearnings(
       }
       if (row.signal_type === "DEAD_LEAD_PATTERN" && row.edited_text) {
         lines.push(`Dead lead warning pattern: ${truncate(row.edited_text, 160)}`);
+      }
+      if (row.signal_type === "REGENERATE_FEEDBACK" && row.edited_text) {
+        const field = (row.meta_json as { field?: string } | null)?.field ?? "copy";
+        lines.push(`Regenerate feedback for ${field}: ${truncate(row.edited_text, 160)}`);
       }
     }
     return lines.slice(0, 12);

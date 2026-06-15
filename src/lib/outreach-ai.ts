@@ -21,8 +21,6 @@ import { getOutreachExclusionList } from "@/lib/outreach-exclusions";
 import { buildOutreachLearningContext } from "@/lib/outreach-learning";
 import {
   genericInviteTail,
-  instagramPersonalizedOpener,
-  emailSubject,
   OUTREACH_BRAND_FACTS,
 } from "@/lib/outreach-templates";
 import type { OutreachPlatform, OutreachTargetGroup } from "@/lib/outreach-types";
@@ -329,9 +327,6 @@ async function getExclusionList(platform: OutreachPlatform): Promise<string[]> {
   return activeOnly;
 }
 
-function normalizeGroup(g: string): OutreachTargetGroup {
-  return g === "ATL_LOCAL" || g === "ATL Local" || g === "ATL" ? "ATL_LOCAL" : "VIRTUAL";
-}
 
 export type OutreachLeadVerificationSummary = {
   parsed: number;
@@ -380,8 +375,7 @@ function buildOutreachSystemPrompt(platform: OutreachPlatform, learning: string)
 
 export async function generateOutreachLeads(args: {
   platform: OutreachPlatform;
-  atlCount: number;
-  virtualCount: number;
+  leadCount: number;
   adminId: string;
 }): Promise<{
   batchId: string;
@@ -395,9 +389,8 @@ export async function generateOutreachLeads(args: {
   const batchId = `batch_${Date.now()}_${args.adminId.slice(0, 6)}`;
   let exclusions = await getExclusionList(args.platform);
   const learning = await buildOutreachLearningContext(args.platform, args.adminId);
-  const tailAtl = genericInviteTail(args.platform, "ATL_LOCAL");
   const tailVirtual = genericInviteTail(args.platform, "VIRTUAL");
-  const targetCount = args.atlCount + args.virtualCount;
+  const targetCount = args.leadCount;
   const system = buildOutreachSystemPrompt(args.platform, learning);
 
   let savedLeads: unknown[] = [];
@@ -409,16 +402,13 @@ export async function generateOutreachLeads(args: {
 
   while (attempts < OUTREACH_AI_MAX_ATTEMPTS && savedLeads.length < targetCount) {
     attempts += 1;
-    const remainingAtl = Math.max(0, args.atlCount - countSavedByGroup(savedLeads, "ATL_LOCAL"));
-    const remainingVirtual = Math.max(0, args.virtualCount - countSavedByGroup(savedLeads, "VIRTUAL"));
-    if (remainingAtl === 0 && remainingVirtual === 0) break;
+    const remaining = Math.max(0, targetCount - savedLeads.length);
+    if (remaining === 0) break;
 
     const userPrompt = buildPlatformPrompt(
       args.platform,
-      remainingAtl,
-      remainingVirtual,
+      remaining,
       exclusions,
-      tailAtl,
       tailVirtual,
       rejectionFeedback,
     );
@@ -439,7 +429,6 @@ export async function generateOutreachLeads(args: {
       ai.text,
       batchId,
       args.adminId,
-      tailAtl,
       tailVirtual,
     );
     lastVerification = {
@@ -457,7 +446,7 @@ export async function generateOutreachLeads(args: {
     savedLeads = [...savedLeads, ...saved.leads];
     exclusions = [...exclusions, ...collectExclusionsFromLeads(args.platform, saved.leads)];
 
-    if (saved.leads.length >= remainingAtl + remainingVirtual) break;
+    if (saved.leads.length >= remaining) break;
 
     if ((saved.verification?.parsed ?? 0) === 0) {
       rejectionFeedback =
@@ -515,14 +504,6 @@ export async function generateOutreachLeads(args: {
   };
 }
 
-function countSavedByGroup(leads: unknown[], group: OutreachTargetGroup): number {
-  return leads.filter((lead) => {
-    if (!lead || typeof lead !== "object") return false;
-    const targetGroup = (lead as { targetGroup?: string }).targetGroup;
-    return normalizeGroup(targetGroup ?? "VIRTUAL") === group;
-  }).length;
-}
-
 function collectExclusionsFromLeads(platform: OutreachPlatform, leads: unknown[]): string[] {
   return leads.flatMap((lead) => {
     if (!lead || typeof lead !== "object") return [];
@@ -566,10 +547,8 @@ function buildRejectionFeedback(
 
 function buildPlatformPrompt(
   platform: OutreachPlatform,
-  atlCount: number,
-  virtualCount: number,
+  leadCount: number,
   exclusions: string[],
-  tailAtl: string,
   tailVirtual: string,
   rejectionFeedback = "",
 ): string {
@@ -577,80 +556,50 @@ function buildPlatformPrompt(
   const retryBlock = rejectionFeedback ? `\n\n${rejectionFeedback}\n` : "";
 
   if (platform === "instagram") {
-    return `Find ${atlCount} ATL-local and ${virtualCount} virtual fitness professionals on Instagram for Match Fit trainer outreach.
+    return `Find ${leadCount} US-based fitness professionals on Instagram for Match Fit trainer outreach.
 Already in database (exclude): ${excl}
 ${retryBlock}
 ${OUTREACH_INSTAGRAM_CRITERIA}
 
-For ATL_LOCAL: Atlanta metro personal trainers, strength coaches, gym-based coaches, or hybrid coaches with local presence.
-For VIRTUAL: online coaches, remote personal trainers, nutrition coaches, and virtual training brands run by an individual coach.
+Focus on personal trainers, online coaches, nutrition coaches, and hybrid coaches based in the United States.
 
-QUALITY BAR — every lead must meet this standard. Study these examples:
+QUALITY BAR:
+- personalHook must reference a SPECIFIC recent post or content piece.
+- whyMatchFit must state a concrete business signal: follower count, credential, open spots, active booking link, client results content.
+- commentPostRef must describe a post: topic + how recent.
 
-EXAMPLE 1 (Virtual, @rachelratios):
-- niche: "Women's body recomposition / fat loss without tracking"
-- whyMatchFit: "Highly engaged despite 1.2K followers. Distinct 'no food diary' methodology is a real hook. Currently has 2 open coaching spots — actively looking for clients right now."
-- personalHook: "Your Feb→May recomp results and the 30+ client system behind it — that's a real methodology, not just motivation content. The fact that you have 2 spots open right now is exactly why I'm reaching out."
-- commentText: "The glutes built vs padded breakdown is such an important distinction — this is what real recomp looks like 🔥"
-- commentPostRef: "Feb→May body recomp results post (17 hours ago)"
-
-EXAMPLE 2 (ATL Local, @customcorefitness):
-- niche: "Personal training / full-body / bootcamp"
-- whyMatchFit: "3.9K followers, ATL Personal Trainer in bio, runs a Saturday bootcamp at a specific ATL address. Active community with live conversations in comments."
-- personalHook: "Saw someone asking about cost in the comments on the Saturday bootcamp post and you replied right away — that's the kind of active community Match Fit is built to support."
-- commentText: "A Saturday bootcamp at a real location with a real community — this is what ATL fitness needs more of 💪"
-- commentPostRef: "Saturday bootcamp promotion post (12 hours ago)"
-
-EXAMPLE 3 (Virtual, @isasmithfit):
-- niche: "Competition prep / nutrition / online coaching"
-- whyMatchFit: "Registered Dietitian + Online Coach — rare credential combo. 7.6K followers with strong comp prep content. RD credential is a major differentiator on a marketplace."
-- personalHook: "An RD who also coaches comp prep is a rare combo — most athletes have to juggle two separate professionals. That's a real edge on a marketplace where clients are searching by specialty."
-- commentText: "RD + prep coach is such a powerful combo — your clients are getting the full picture 🙌"
-- commentPostRef: "Back to work prep season post (today)"
-
-RULES FOR QUALITY:
-- personalHook must reference a SPECIFIC recent post or content piece — never generic praise. Name what the post was about.
-- whyMatchFit must state a concrete business signal: follower count, credential, open spots, active booking link, client results content, named location.
-- commentText must be specific to what commentPostRef contains — no generic "great content" lines.
-- commentPostRef must describe the post: topic + how recent (e.g. "3-phase transformation case study (posted yesterday)").
-- Prefer coaches who are actively building a client business (booking links, open spots announcements, DM CTAs, recent client result posts).
-
-Return ONLY a JSON array. Each item MUST be a real public profile you are confident exists.
+Return ONLY a JSON array. Do NOT draft DM or comment copy — lead discovery only.
 
 JSON schema per item:
-{"handle":"@username","profileUrl":"https://www.instagram.com/username/","niche":"specific niche","targetGroup":"ATL_LOCAL"|"VIRTUAL","whyMatchFit":"concrete business signal in 1-2 sentences","likelihoodScore":72,"personalHook":"specific reference to a recent post or content piece","commentText":"specific comment tied to commentPostRef","commentPostRef":"post topic + recency","notes":"optional — credential, specialty, or recent milestone"}
+{"handle":"@username","profileUrl":"https://www.instagram.com/username/","niche":"specific niche","targetGroup":"VIRTUAL","whyMatchFit":"concrete business signal in 1-2 sentences","likelihoodScore":72,"personalHook":"specific reference to a recent post or content piece","commentPostRef":"post topic + recency","notes":"optional"}
 
-Generic invite tail for ATL: "${tailAtl}"
-Generic invite tail for Virtual: "${tailVirtual}"
+Generic invite tail (for later copy generation): "${tailVirtual}"
 
-Respond with ONLY the JSON array. No text before or after the array.`;
+Respond with ONLY the JSON array.`;
   }
   if (platform === "facebook") {
-    return `Find ${atlCount} ATL-local and ${virtualCount} virtual Facebook pages or trainer-focused groups for Match Fit outreach.
+    return `Find ${leadCount} US-based Facebook pages or trainer-focused groups for Match Fit outreach.
 Already in database (exclude): ${excl}
 ${retryBlock}
 ${OUTREACH_FACEBOOK_CRITERIA}
 
-For ATL_LOCAL: Atlanta-area trainer groups, local gym communities, metro fitness business pages where coaches participate.
-For VIRTUAL: online coaching communities, remote trainer groups, or virtual fitness business pages.
-
 JSON schema:
-{"pageName":"name","pageUrl":"https://facebook.com/groups/...","audience":"TRAINER"|"CLIENT","niche":"personal training","targetGroup":"ATL_LOCAL"|"VIRTUAL","whyMatchFit":"one sentence","likelihoodScore":65,"pagePostText":"full post with personalized opener + generic tail","notes":"optional"}
+{"pageName":"name","pageUrl":"https://facebook.com/groups/...","audience":"TRAINER"|"CLIENT","niche":"personal training","targetGroup":"VIRTUAL","whyMatchFit":"one sentence","likelihoodScore":65,"notes":"optional"}
 
-Generic tail ATL: "${tailAtl}"
-Generic tail Virtual: "${tailVirtual}"`;
+Do NOT draft page post copy — lead discovery only.
+Generic tail: "${tailVirtual}"`;
   }
   if (platform === "email") {
-    return `Find ${atlCount} ATL-local and ${virtualCount} virtual fitness professionals with public contact emails.
+    return `Find ${leadCount} US-based fitness professionals with public contact emails.
 Already in database (exclude): ${excl}
 ${retryBlock}
 ${OUTREACH_EMAIL_CRITERIA}
 
 JSON schema:
-{"name":"First Last","email":"trainer@domain.com","businessName":"Gym or brand","niche":"strength coaching","emailSourceUrl":"where email was found","targetGroup":"ATL_LOCAL"|"VIRTUAL","whyMatchFit":"one sentence","likelihoodScore":60,"personalHook":"specific detail","notes":"optional"}
+{"name":"First Last","email":"trainer@domain.com","businessName":"Gym or brand","niche":"strength coaching","emailSourceUrl":"where email was found","targetGroup":"VIRTUAL","whyMatchFit":"one sentence","likelihoodScore":60,"personalHook":"specific detail","notes":"optional"}
 
-Generic tail ATL: "${tailAtl}"
-Generic tail Virtual: "${tailVirtual}"`;
+Do NOT draft email copy — lead discovery only.
+Generic tail: "${tailVirtual}"`;
   }
 
   throw new Error(`Unsupported outreach platform: ${platform}`);
@@ -661,7 +610,6 @@ async function persistGeneratedLeads(
   raw: string,
   batchId: string,
   adminId: string,
-  tailAtl: string,
   tailVirtual: string,
 ): Promise<{ leads: unknown[]; verification?: OutreachLeadVerificationSummary }> {
   if (platform === "instagram") {
@@ -708,26 +656,23 @@ async function persistGeneratedLeads(
         };
       }
 
-      const group = normalizeGroup(item.targetGroup ?? "VIRTUAL");
-      const tail = group === "ATL_LOCAL" ? tailAtl : tailVirtual;
       const hook =
         item.personalHook ??
         verified.biography?.slice(0, 120) ??
         item.whyMatchFit ??
         "your coaching content";
-      const opener = instagramPersonalizedOpener(group, verified.username, hook);
-      const dmText = `${opener}${tail}`;
       const row = await prisma.outreachInstagramLead.create({
         data: {
           handle: `@${verified.username}`,
           profileUrl: verified.profileUrl,
           niche: item.niche ?? fitness.niche,
-          targetGroup: group,
+          targetGroup: "VIRTUAL",
           whyMatchFit: item.whyMatchFit ?? "Strong fit for Match Fit founding trainer roster.",
           likelihoodScore: clampScore(item.likelihoodScore),
           notes:
             [
               item.notes,
+              hook ? `Hook: ${hook}` : null,
               verified.fullName ? `Verified as ${verified.fullName}` : null,
               verified.categoryName ? `IG category: ${verified.categoryName}` : null,
               `Fitness fit: ${fitness.tier} (${fitness.fitnessScore})`,
@@ -735,10 +680,12 @@ async function persistGeneratedLeads(
             ]
               .filter(Boolean)
               .join(" · ") || null,
-          dmText,
-          commentText: item.commentText ?? `Love the coaching you're putting out 🔥`,
+          dmText: "",
+          commentText: "",
+          followUp1DmText: "",
+          followUp2DmText: "",
           commentPostRef: item.commentPostRef ?? "Latest post",
-          genericInviteTail: tail,
+          genericInviteTail: tailVirtual,
           generationBatchId: batchId,
           createdByAdminId: adminId,
         },
@@ -752,25 +699,16 @@ async function persistGeneratedLeads(
     }
 
     try {
-      await prisma.outreachDailyTemplate.createMany({
-        data: [
-          {
-            platform: "instagram",
-            targetGroup: "ATL_LOCAL",
-            genericInviteTail: tailAtl,
-            generationBatchId: `${batchId}_atl`,
-          },
-          {
-            platform: "instagram",
-            targetGroup: "VIRTUAL",
-            genericInviteTail: tailVirtual,
-            generationBatchId: `${batchId}_virt`,
-          },
-        ],
-        skipDuplicates: true,
+      await prisma.outreachDailyTemplate.create({
+        data: {
+          platform: "instagram",
+          targetGroup: "VIRTUAL",
+          genericInviteTail: tailVirtual,
+          generationBatchId: `${batchId}_us`,
+        },
       });
     } catch (e) {
-      console.warn("[outreach-ai] outreachDailyTemplate createMany skipped:", e);
+      console.warn("[outreach-ai] outreachDailyTemplate create skipped:", e);
     }
 
     return {
@@ -812,23 +750,13 @@ async function persistGeneratedLeads(
         continue;
       }
 
-      const group = normalizeGroup(item.targetGroup ?? "ATL_LOCAL");
-      const tail = group === "ATL_LOCAL" ? tailAtl : tailVirtual;
-      const opener =
-        item.pagePostText?.split("\n\n")[0] ??
-        `👋 Calling Atlanta fitness trainers — Match Fit is hand-selecting founding coaches for beta.`;
-      const pagePostText =
-        item.pagePostText && item.pagePostText.includes(tail)
-          ? item.pagePostText
-          : `${opener}\n\n${tail}`;
-
       const row = await prisma.outreachFacebookLead.create({
         data: {
           pageName: item.pageName ?? "Facebook group",
           pageUrl: verified.pageUrl,
           audience: item.audience === "CLIENT" ? "CLIENT" : "TRAINER",
           niche: item.niche ?? fitness.niche,
-          targetGroup: group,
+          targetGroup: "VIRTUAL",
           whyMatchFit: item.whyMatchFit ?? "Active audience for Match Fit.",
           likelihoodScore: clampScore(item.likelihoodScore),
           notes:
@@ -839,8 +767,8 @@ async function persistGeneratedLeads(
             ]
               .filter(Boolean)
               .join(" · ") || null,
-          pagePostText,
-          genericInviteTail: tail,
+          pagePostText: "",
+          genericInviteTail: tailVirtual,
           generationBatchId: batchId,
           createdByAdminId: adminId,
         },
@@ -895,11 +823,6 @@ async function persistGeneratedLeads(
         continue;
       }
 
-      const group = normalizeGroup(item.targetGroup ?? "ATL_LOCAL");
-      const tail = group === "ATL_LOCAL" ? tailAtl : tailVirtual;
-      const first = (item.name ?? "there").split(" ")[0];
-      const hook = item.personalHook ?? item.whyMatchFit;
-      const body = `Hey ${first},\n\nI'm Jonny, founder of Match Fit. ${hook}\n\n${tail}`;
       const row = await prisma.outreachEmailLead.create({
         data: {
           name: item.name ?? "Trainer",
@@ -907,16 +830,25 @@ async function persistGeneratedLeads(
           businessName: item.businessName ?? null,
           niche: item.niche ?? fitness.niche,
           emailSourceUrl: item.emailSourceUrl ?? null,
-          targetGroup: group,
+          targetGroup: "VIRTUAL",
           whyMatchFit: item.whyMatchFit ?? "Good fit for founding trainer roster.",
           likelihoodScore: clampScore(item.likelihoodScore),
           notes:
-            [item.notes, `Fitness fit: ${fitness.tier} (${fitness.fitnessScore})`, "Public email format verified."]
+            [
+              item.notes,
+              item.personalHook ? `Hook: ${item.personalHook}` : null,
+              `Fitness fit: ${fitness.tier} (${fitness.fitnessScore})`,
+              "Public email format verified.",
+            ]
               .filter(Boolean)
               .join(" · ") || null,
-          emailSubject: item.emailSubject ?? emailSubject(group),
-          emailBody: item.emailBody ?? body,
-          genericInviteTail: tail,
+          emailSubject: "",
+          emailBody: "",
+          followUp1EmailSubject: "",
+          followUp1EmailBody: "",
+          followUp2EmailSubject: "",
+          followUp2EmailBody: "",
+          genericInviteTail: tailVirtual,
           generationBatchId: batchId,
           createdByAdminId: adminId,
         },

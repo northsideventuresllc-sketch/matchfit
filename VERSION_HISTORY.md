@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-15** `1.8.6-beta` → `1.8.7-beta` (**patch** — Outreach HQ: hub-only copy generation, US lead count, follow-up fields, hub stats)
 - **2026-06-11** `1.8.5-beta` → `1.8.6-beta` (**patch** — Align trainer founding promo UI copy: 60-day Premium, background-check-only fee, 7-day onboarding start, no selling until complete)
 - **2026-06-11** `1.8.4-beta` → `1.8.5-beta` (**patch**)
 - **2026-06-11** `1.8.3-beta` → `1.8.4-beta` (**patch** — Fix CI blockers: lint, typecheck, dual beta pool promo stats)

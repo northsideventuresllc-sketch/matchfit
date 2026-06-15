@@ -24,9 +24,15 @@ const patchSchema = z
     status: z.string().optional(),
     dmText: z.string().max(8000).optional(),
     commentText: z.string().max(2000).optional(),
+    followUp1DmText: z.string().max(8000).optional(),
+    followUp2DmText: z.string().max(8000).optional(),
     pagePostText: z.string().max(8000).optional(),
     emailSubject: z.string().max(500).optional(),
     emailBody: z.string().max(8000).optional(),
+    followUp1EmailSubject: z.string().max(500).optional(),
+    followUp1EmailBody: z.string().max(8000).optional(),
+    followUp2EmailSubject: z.string().max(500).optional(),
+    followUp2EmailBody: z.string().max(8000).optional(),
     saveToHub: z.literal(true).optional(),
   })
   .superRefine((data, ctx) => {

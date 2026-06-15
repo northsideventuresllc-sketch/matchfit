@@ -1,11 +1,12 @@
 import type { OutreachPlatform, OutreachTargetGroup } from "@/lib/outreach-types";
 
 export const OUTREACH_BRAND_FACTS = [
-  "Match Fit (match-fit.net) is a fitness marketplace launching in Atlanta.",
+  "Match Fit (match-fit.net) is a US fitness marketplace for trainers and clients.",
   "Clients: $10/mo, 14-day free trial, no card upfront.",
   "Trainers: beta founding pricing, athletes find and book you.",
   "Founder voice: Jonny / JB — direct, real, confident, not salesy.",
   "Beta roster is selective; early trainers get visibility before public launch.",
+  "Focus on US-based fitness professionals and clients nationwide.",
 ].join("\n");
 
 export function genericInviteTail(platform: OutreachPlatform, group: OutreachTargetGroup): string {

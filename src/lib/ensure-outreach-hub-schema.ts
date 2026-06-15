@@ -242,6 +242,28 @@ CREATE INDEX IF NOT EXISTS "outreach_learning_signals_adminId_signalType_created
   ON "outreach_learning_signals"("adminId", "signalType", "createdAt");
 `;
 
+const OUTREACH_FOLLOW_UP_COPY_DDL = `
+ALTER TABLE "outreach_instagram_leads"
+  ADD COLUMN IF NOT EXISTS "followUp1DmText" TEXT NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS "followUp2DmText" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "outreach_email_leads"
+  ADD COLUMN IF NOT EXISTS "followUp1EmailSubject" TEXT NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS "followUp1EmailBody" TEXT NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS "followUp2EmailSubject" TEXT NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS "followUp2EmailBody" TEXT NOT NULL DEFAULT '';
+`;
+
+async function countOutreachFollowUpCopyColumns(): Promise<number> {
+  const rows = await prisma.$queryRaw<{ count: bigint }[]>`
+    SELECT COUNT(*)::bigint AS "count"
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name IN ('outreach_instagram_leads', 'outreach_email_leads')
+      AND column_name = 'followUp1DmText'
+  `;
+  return Number(rows[0]?.count ?? 0);
+}
+
 async function countOutreachDeadLeadArchiveColumns(): Promise<number> {
   const rows = await prisma.$queryRaw<{ count: bigint }[]>`
     SELECT COUNT(*)::bigint AS "count"
@@ -276,16 +298,27 @@ export async function ensureOutreachHubSchema(): Promise<void> {
     }
   }
 
-  if ((await countOutreachDeadLeadArchiveColumns()) >= OUTREACH_LEAD_TABLES.length) {
+  if ((await countOutreachDeadLeadArchiveColumns()) < OUTREACH_LEAD_TABLES.length) {
+    await runOutreachDdl(OUTREACH_DEAD_LEAD_ARCHIVE_DDL);
+
+    const archiveReady = await countOutreachDeadLeadArchiveColumns();
+    if (archiveReady < OUTREACH_LEAD_TABLES.length) {
+      throw new Error(
+        `[ensureOutreachHubSchema] deadLeadAt columns still missing after DDL (${archiveReady}/${OUTREACH_LEAD_TABLES.length}). Set DIRECT_URL on the server and redeploy.`,
+      );
+    }
+  }
+
+  if ((await countOutreachFollowUpCopyColumns()) >= 2) {
     return;
   }
 
-  await runOutreachDdl(OUTREACH_DEAD_LEAD_ARCHIVE_DDL);
+  await runOutreachDdl(OUTREACH_FOLLOW_UP_COPY_DDL);
 
-  const archiveReady = await countOutreachDeadLeadArchiveColumns();
-  if (archiveReady < OUTREACH_LEAD_TABLES.length) {
+  const followUpReady = await countOutreachFollowUpCopyColumns();
+  if (followUpReady < 2) {
     throw new Error(
-      `[ensureOutreachHubSchema] deadLeadAt columns still missing after DDL (${archiveReady}/${OUTREACH_LEAD_TABLES.length}). Set DIRECT_URL on the server and redeploy.`,
+      `[ensureOutreachHubSchema] follow-up copy columns still missing after DDL (${followUpReady}/2). Set DIRECT_URL on the server and redeploy.`,
     );
   }
 }

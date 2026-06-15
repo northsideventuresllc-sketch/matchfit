@@ -120,6 +120,36 @@ export async function recordOutreachDeadLeadSignal(args: {
   });
 }
 
+export async function recordOutreachRegenerateFeedbackSignal(args: {
+  platform: OutreachPlatform;
+  leadId: string;
+  adminId: string;
+  field: string;
+  feedback: string;
+  previousText: string;
+}): Promise<void> {
+  await prisma.outreachLearningSignal.create({
+    data: {
+      platform: args.platform,
+      signalType: "REGENERATE_FEEDBACK",
+      leadId: args.leadId,
+      adminId: args.adminId,
+      originalText: args.previousText.slice(0, 8000),
+      editedText: args.feedback.slice(0, 8000),
+      metaJson: JSON.stringify({ field: args.field }),
+    },
+  });
+  await recordOutreachNiBrainLearning({
+    signalType: "REGENERATE_FEEDBACK",
+    platform: args.platform,
+    leadId: args.leadId,
+    adminId: args.adminId,
+    originalText: args.previousText,
+    editedText: args.feedback,
+    meta: { field: args.field },
+  });
+}
+
 export async function recordOutreachOutcomeSignal(args: {
   platform: OutreachPlatform;
   leadId: string;

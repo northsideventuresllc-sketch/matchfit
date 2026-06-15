@@ -70,6 +70,8 @@ export type InstagramLeadRow = {
   notes: string | null;
   dmText: string;
   commentText: string;
+  followUp1DmText: string;
+  followUp2DmText: string;
   commentPostRef: string | null;
   genericInviteTail: string | null;
   status: string;
@@ -128,6 +130,10 @@ export type EmailLeadRow = {
   notes: string | null;
   emailSubject: string;
   emailBody: string;
+  followUp1EmailSubject: string;
+  followUp1EmailBody: string;
+  followUp2EmailSubject: string;
+  followUp2EmailBody: string;
   genericInviteTail: string | null;
   status: string;
   autoClassification: string;
@@ -173,8 +179,41 @@ export type OutreachHubLead = {
 };
 
 export function targetGroupLabel(group: string): string {
-  return group === "ATL_LOCAL" ? "ATL local" : "Virtual";
+  if (group === "ATL_LOCAL") return "US · local";
+  return "US";
 }
+
+/** Copy fields that can be AI-generated per platform in Outreach Hub. */
+export type InstagramCopyField = "dmText" | "commentText" | "followUp1DmText" | "followUp2DmText";
+export type FacebookCopyField = "pagePostText";
+export type EmailCopyField =
+  | "emailSubject"
+  | "emailBody"
+  | "followUp1EmailSubject"
+  | "followUp1EmailBody"
+  | "followUp2EmailSubject"
+  | "followUp2EmailBody";
+export type OutreachCopyField = InstagramCopyField | FacebookCopyField | EmailCopyField;
+
+export const INSTAGRAM_COPY_FIELDS: { key: InstagramCopyField; label: string; rows: number }[] = [
+  { key: "dmText", label: "First DM", rows: 6 },
+  { key: "commentText", label: "Comment", rows: 2 },
+  { key: "followUp1DmText", label: "First follow-up DM", rows: 5 },
+  { key: "followUp2DmText", label: "Second follow-up DM", rows: 5 },
+];
+
+export const FACEBOOK_COPY_FIELDS: { key: FacebookCopyField; label: string; rows: number }[] = [
+  { key: "pagePostText", label: "Page post", rows: 6 },
+];
+
+export const EMAIL_COPY_FIELDS: { key: EmailCopyField; label: string; rows: number }[] = [
+  { key: "emailSubject", label: "First email subject", rows: 1 },
+  { key: "emailBody", label: "First email", rows: 8 },
+  { key: "followUp1EmailSubject", label: "First follow-up subject", rows: 1 },
+  { key: "followUp1EmailBody", label: "First follow-up email", rows: 6 },
+  { key: "followUp2EmailSubject", label: "Second follow-up subject", rows: 1 },
+  { key: "followUp2EmailBody", label: "Second follow-up email", rows: 6 },
+];
 
 export function outreachStatusOptionsForPlatform(
   platform: OutreachPlatform,

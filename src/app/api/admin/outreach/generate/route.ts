@@ -13,11 +13,18 @@ const INSTAGRAM_MAX_LEADS_PER_RUN = 10;
 
 import { OUTREACH_PLATFORM_VALUES } from "@/lib/outreach-types";
 
-const bodySchema = z.object({
-  platform: z.enum(OUTREACH_PLATFORM_VALUES),
-  atlCount: z.number().int().min(0).max(20).default(5),
-  virtualCount: z.number().int().min(0).max(20).default(10),
-});
+const bodySchema = z
+  .object({
+    platform: z.enum(OUTREACH_PLATFORM_VALUES),
+    leadCount: z.number().int().min(0).max(20).optional(),
+    atlCount: z.number().int().min(0).max(20).optional(),
+    virtualCount: z.number().int().min(0).max(20).optional(),
+  })
+  .transform((data) => {
+    const leadCount =
+      data.leadCount ?? ((data.atlCount ?? 0) + (data.virtualCount ?? 0) || 8);
+    return { platform: data.platform, leadCount };
+  });
 
 export async function POST(req: Request) {
   const sess = await requireAdminSession();
@@ -35,15 +42,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  const totalLeads = parsed.data.atlCount + parsed.data.virtualCount;
-  if (totalLeads === 0) {
-    return NextResponse.json({ error: "Set at least one lead count." }, { status: 400 });
+  const { platform, leadCount } = parsed.data;
+
+  if (leadCount === 0) {
+    return NextResponse.json({ error: "Set a lead count of at least 1." }, { status: 400 });
   }
 
-  if (parsed.data.platform === "instagram" && totalLeads > INSTAGRAM_MAX_LEADS_PER_RUN) {
+  if (platform === "instagram" && leadCount > INSTAGRAM_MAX_LEADS_PER_RUN) {
     return NextResponse.json(
       {
-        error: `Instagram generation is limited to ${INSTAGRAM_MAX_LEADS_PER_RUN} leads per run to avoid server timeouts. Lower ATL + virtual counts and generate again.`,
+        error: `Instagram generation is limited to ${INSTAGRAM_MAX_LEADS_PER_RUN} leads per run to avoid server timeouts. Lower the count and generate again.`,
       },
       { status: 400 },
     );
@@ -53,9 +61,8 @@ export async function POST(req: Request) {
     await hydratePlatformEnvFromDatabase();
     await ensureOutreachHubSchema();
     const result = await generateOutreachLeads({
-      platform: parsed.data.platform,
-      atlCount: parsed.data.atlCount,
-      virtualCount: parsed.data.virtualCount,
+      platform,
+      leadCount,
       adminId: sess.adminId,
     });
     return NextResponse.json(result);
