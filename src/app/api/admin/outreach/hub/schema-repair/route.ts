@@ -19,7 +19,7 @@ export async function POST() {
     return NextResponse.json({
       ok: true,
       backfill,
-      message: `Outreach Hub repaired. Restored ${backfill.restoredDeletedHubLeads} deleted hub lead(s), backfilled ${backfill.savedToHubAtFromSignals} saved timestamp(s), and tagged ${backfill.legacyOtherLeadsTagged} legacy contact(s).`,
+      message: `Outreach Hub repaired. Backfilled ${backfill.savedToHubAtFromSignals} saved timestamp(s) and tagged ${backfill.legacyOtherLeadsTagged} legacy contact(s).`,
     });
   } catch (e) {
     console.error("[outreach hub schema-repair]", e);

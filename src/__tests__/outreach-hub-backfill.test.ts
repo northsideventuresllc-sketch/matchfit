@@ -42,25 +42,13 @@ describe("backfillOutreachHubLeads", () => {
     ]);
   });
 
-  it("restores deleted hub leads and backfills saved timestamps from signals", async () => {
-    mockOutreachInstagramUpdateMany
-      .mockResolvedValueOnce({ count: 1 })
-      .mockResolvedValueOnce({ count: 1 });
-
+  it("backfills saved timestamps from signals without restoring deleted hub leads", async () => {
     const summary = await backfillOutreachHubLeads();
 
-    expect(summary.restoredDeletedHubLeads).toBe(1);
     expect(summary.savedToHubAtFromSignals).toBe(1);
     expect(summary.legacyOtherLeadsTagged).toBe(1);
-    expect(mockOutreachInstagramUpdateMany).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        where: expect.objectContaining({ savedToHubAt: { not: null }, deletedAt: { not: null } }),
-        data: { deletedAt: null },
-      }),
-    );
-    expect(mockOutreachInstagramUpdateMany).toHaveBeenNthCalledWith(
-      2,
+    expect(mockOutreachInstagramUpdateMany).toHaveBeenCalledTimes(1);
+    expect(mockOutreachInstagramUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "ig_missing", savedToHubAt: null, deletedAt: null },
       }),

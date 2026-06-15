@@ -3,31 +3,15 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 
 export type OutreachHubBackfillSummary = {
-  restoredDeletedHubLeads: number;
   savedToHubAtFromSignals: number;
   legacyOtherLeadsTagged: number;
 };
 
 /**
- * Idempotent repair for outreach rows saved before hub migrations or hidden by
- * soft-delete after bulk-save. Safe to run on every schema-repair / hub load.
+ * Idempotent repair for outreach rows saved before hub migrations. Safe to run on
+ * every schema-repair / hub load.
  */
 export async function backfillOutreachHubLeads(): Promise<OutreachHubBackfillSummary> {
-  const [igRestored, fbRestored, emRestored] = await Promise.all([
-    prisma.outreachInstagramLead.updateMany({
-      where: { savedToHubAt: { not: null }, deletedAt: { not: null }, archivedAt: null },
-      data: { deletedAt: null },
-    }),
-    prisma.outreachFacebookLead.updateMany({
-      where: { savedToHubAt: { not: null }, deletedAt: { not: null }, archivedAt: null },
-      data: { deletedAt: null },
-    }),
-    prisma.outreachEmailLead.updateMany({
-      where: { savedToHubAt: { not: null }, deletedAt: { not: null }, archivedAt: null },
-      data: { deletedAt: null },
-    }),
-  ]);
-
   const signalRows = await prisma.outreachLearningSignal.findMany({
     where: { signalType: "SAVED_TO_HUB", leadId: { not: null } },
     select: { leadId: true, platform: true, createdAt: true },
@@ -71,7 +55,6 @@ export async function backfillOutreachHubLeads(): Promise<OutreachHubBackfillSum
   });
 
   return {
-    restoredDeletedHubLeads: igRestored.count + fbRestored.count + emRestored.count,
     savedToHubAtFromSignals,
     legacyOtherLeadsTagged: legacyOther.count,
   };

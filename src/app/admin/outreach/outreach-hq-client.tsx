@@ -81,6 +81,28 @@ type DeleteReasonPromptState = {
   onConfirm: (reason: string) => Promise<void>;
 };
 
+function leadEntryKey(platform: string, id: string) {
+  return `${platform}:${id}`;
+}
+
+function LeadCollapseToggle(props: {
+  expanded: boolean;
+  onToggle: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-[#0E1016]/80 text-white/70 transition hover:border-[#FF7E00]/30 hover:text-[#FFD34E]"
+      onClick={props.onToggle}
+      aria-expanded={props.expanded}
+      aria-label={props.expanded ? `Collapse ${props.label}` : `Expand ${props.label}`}
+    >
+      <span className={`inline-block text-sm transition-transform ${props.expanded ? "rotate-90" : ""}`}>▸</span>
+    </button>
+  );
+}
+
 type OutreachBatchGroup = {
   batchId: string | null;
   label: string;
@@ -389,6 +411,8 @@ function GenerationLeadCard(props: {
   linkHref?: string;
   linkLabel?: string;
   subtitle?: string;
+  expanded: boolean;
+  onToggleExpanded: () => void;
 }) {
   const [savingToHub, setSavingToHub] = useState(false);
   const isSaved = Boolean(props.lead.savedToHubAt);
@@ -405,6 +429,11 @@ function GenerationLeadCard(props: {
               onChange={props.onToggleSelect}
               aria-label={`Select ${props.title}`}
             />
+            <LeadCollapseToggle
+              expanded={props.expanded}
+              onToggle={props.onToggleExpanded}
+              label={props.title}
+            />
             <div className="min-w-0 space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-lg font-black tracking-tight text-white">{props.title}</h3>
@@ -414,7 +443,13 @@ function GenerationLeadCard(props: {
                   </span>
                 ) : null}
               </div>
-              {props.linkHref ? (
+              {!props.expanded ? (
+                <p className="text-xs text-white/45">
+                  {statusLabelForPlatform(props.lead.status, props.platform)} · Likelihood{" "}
+                  {props.lead.likelihoodScore}%
+                </p>
+              ) : null}
+              {props.expanded && props.linkHref ? (
                 <a
                   href={props.linkHref}
                   target="_blank"
@@ -424,15 +459,19 @@ function GenerationLeadCard(props: {
                   {props.linkLabel ?? props.linkHref}
                 </a>
               ) : null}
-              {props.subtitle ? <p className="text-sm text-white/55">{props.subtitle}</p> : null}
-              <p className="text-sm leading-relaxed text-[#FF7E00]/90">
-                <span className="font-semibold text-[#FF7E00]">Why Match Fit: </span>
-                {props.lead.whyMatchFit}
-              </p>
-              <p className="text-xs text-white/45">
-                Response likelihood:{" "}
-                <span className="font-bold tabular-nums text-white/80">{props.lead.likelihoodScore}%</span>
-              </p>
+              {props.expanded && props.subtitle ? <p className="text-sm text-white/55">{props.subtitle}</p> : null}
+              {props.expanded ? (
+                <>
+                  <p className="text-sm leading-relaxed text-[#FF7E00]/90">
+                    <span className="font-semibold text-[#FF7E00]">Why Match Fit: </span>
+                    {props.lead.whyMatchFit}
+                  </p>
+                  <p className="text-xs text-white/45">
+                    Response likelihood:{" "}
+                    <span className="font-bold tabular-nums text-white/80">{props.lead.likelihoodScore}%</span>
+                  </p>
+                </>
+              ) : null}
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
@@ -473,6 +512,9 @@ function HubLeadBubble(props: {
   linkLabel?: string;
   subtitle?: string;
   copyFields: { key: OutreachCopyField; label: string; rows: number }[];
+  hubMeta?: { platformLabel: string; savedToHubAt: string };
+  expanded: boolean;
+  onToggleExpanded: () => void;
 }) {
   const classification = props.lead.autoClassification as keyof typeof OUTREACH_CLASSIFICATION_LABELS;
   const statusOptions = outreachStatusOptionsForPlatform(props.platform);
@@ -500,30 +542,51 @@ function HubLeadBubble(props: {
     <article className={`${adminPanelClass} overflow-hidden`}>
       <div className="border-b border-white/[0.06] p-4 sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-lg font-black tracking-tight text-white">{props.title}</h3>
-              {"targetGroup" in props.lead ? (
-                <span className="rounded-full border border-[#FF7E00]/25 bg-[#FF7E00]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#FFD34E]">
-                  {targetGroupLabel(props.lead.targetGroup)}
-                </span>
+          <div className="flex min-w-0 items-start gap-3">
+            <LeadCollapseToggle
+              expanded={props.expanded}
+              onToggle={props.onToggleExpanded}
+              label={props.title}
+            />
+            <div className="min-w-0 space-y-2">
+              {props.hubMeta ? (
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#FF7E00]/70">
+                  {props.hubMeta.platformLabel}
+                  {" · Saved "}
+                  {new Date(props.hubMeta.savedToHubAt).toLocaleString()}
+                </p>
               ) : null}
-              <span
-                className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${classificationBadgeClass(classification)}`}
-              >
-                {OUTREACH_CLASSIFICATION_LABELS[classification] ?? classification}
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-lg font-black tracking-tight text-white">{props.title}</h3>
+                {"targetGroup" in props.lead ? (
+                  <span className="rounded-full border border-[#FF7E00]/25 bg-[#FF7E00]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#FFD34E]">
+                    {targetGroupLabel(props.lead.targetGroup)}
+                  </span>
+                ) : null}
+                <span
+                  className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${classificationBadgeClass(classification)}`}
+                >
+                  {OUTREACH_CLASSIFICATION_LABELS[classification] ?? classification}
+                </span>
+              </div>
+              {!props.expanded ? (
+                <p className="text-xs text-white/45">
+                  {statusLabelForPlatform(props.lead.status, props.platform)}
+                </p>
+              ) : null}
+              {props.expanded && props.linkHref ? (
+                <a href={props.linkHref} target="_blank" rel="noreferrer" className={`${adminLinkClass} text-sm`}>
+                  {props.linkLabel ?? props.linkHref}
+                </a>
+              ) : null}
+              {props.expanded && props.subtitle ? <p className="text-sm text-white/55">{props.subtitle}</p> : null}
+              {props.expanded ? (
+                <p className="text-sm leading-relaxed text-[#FF7E00]/90">
+                  <span className="font-semibold text-[#FF7E00]">Why Match Fit: </span>
+                  {props.lead.whyMatchFit}
+                </p>
+              ) : null}
             </div>
-            {props.linkHref ? (
-              <a href={props.linkHref} target="_blank" rel="noreferrer" className={`${adminLinkClass} text-sm`}>
-                {props.linkLabel ?? props.linkHref}
-              </a>
-            ) : null}
-            {props.subtitle ? <p className="text-sm text-white/55">{props.subtitle}</p> : null}
-            <p className="text-sm leading-relaxed text-[#FF7E00]/90">
-              <span className="font-semibold text-[#FF7E00]">Why Match Fit: </span>
-              {props.lead.whyMatchFit}
-            </p>
           </div>
           <div className="flex shrink-0 flex-col gap-2 sm:items-end">
             <select
@@ -538,25 +601,27 @@ function HubLeadBubble(props: {
               ))}
             </select>
             <div className="flex flex-wrap gap-2 sm:justify-end">
-              {allEmpty ? (
-                <button
-                  type="button"
-                  disabled={bulkGenerating}
-                  className={adminAccentButtonClass}
-                  onClick={() => void runBulk()}
-                >
-                  {bulkGenerating ? "Generating…" : "Generate all"}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  disabled={bulkGenerating}
-                  className={adminSecondaryButtonClass}
-                  onClick={() => setBulkRegenerateOpen(true)}
-                >
-                  {bulkGenerating ? "Regenerating…" : "Re-generate all"}
-                </button>
-              )}
+              {props.expanded ? (
+                allEmpty ? (
+                  <button
+                    type="button"
+                    disabled={bulkGenerating}
+                    className={adminAccentButtonClass}
+                    onClick={() => void runBulk()}
+                  >
+                    {bulkGenerating ? "Generating…" : "Generate all"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={bulkGenerating}
+                    className={adminSecondaryButtonClass}
+                    onClick={() => setBulkRegenerateOpen(true)}
+                  >
+                    {bulkGenerating ? "Regenerating…" : "Re-generate all"}
+                  </button>
+                )
+              ) : null}
               <button
                 type="button"
                 className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4] hover:bg-[#E32B2B]/20"
@@ -565,7 +630,7 @@ function HubLeadBubble(props: {
                 Delete
               </button>
             </div>
-            {isDeadLead && props.lead.deadLeadAt ? (
+            {props.expanded && isDeadLead && props.lead.deadLeadAt ? (
               <p className="text-[10px] text-white/40">
                 Dead lead — moves to archive after {OUTREACH_DEAD_LEAD_ARCHIVE_HOURS}h (
                 {new Date(
@@ -577,25 +642,27 @@ function HubLeadBubble(props: {
           </div>
         </div>
       </div>
-      <div className="space-y-4 p-4 sm:p-5">
-        {props.copyFields.map((field) => (
-          <CopyFieldBlock
-            key={field.key}
-            label={field.label}
-            field={field.key}
-            value={String((props.lead as Record<string, unknown>)[field.key] ?? "")}
-            rows={field.rows}
-            generating={props.generatingFields.has(field.key) || bulkGenerating}
-            onSave={(value) => props.onUpdate({ [field.key]: value })}
-            onGenerate={(feedback) => props.onGenerateCopy([field.key], feedback)}
-          />
-        ))}
-        {"commentPostRef" in props.lead && (props.lead as InstagramLeadRow).commentPostRef ? (
-          <p className="text-xs text-white/40">
-            Comment on: {(props.lead as InstagramLeadRow).commentPostRef}
-          </p>
-        ) : null}
-      </div>
+      {props.expanded ? (
+        <div className="space-y-4 p-4 sm:p-5">
+          {props.copyFields.map((field) => (
+            <CopyFieldBlock
+              key={field.key}
+              label={field.label}
+              field={field.key}
+              value={String((props.lead as Record<string, unknown>)[field.key] ?? "")}
+              rows={field.rows}
+              generating={props.generatingFields.has(field.key) || bulkGenerating}
+              onSave={(value) => props.onUpdate({ [field.key]: value })}
+              onGenerate={(feedback) => props.onGenerateCopy([field.key], feedback)}
+            />
+          ))}
+          {"commentPostRef" in props.lead && (props.lead as InstagramLeadRow).commentPostRef ? (
+            <p className="text-xs text-white/40">
+              Comment on: {(props.lead as InstagramLeadRow).commentPostRef}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       <RegenerateFeedbackModal
         open={bulkRegenerateOpen}
         title="Re-generate all outreach copy"
@@ -641,6 +708,7 @@ function PlatformTabPanel(props: {
   const selectedActive = activeLeads.filter((l) => props.selectedIds.has(l.id));
   const allSelected = activeLeads.length > 0 && selectedActive.length === activeLeads.length;
   const hasSelection = selectedActive.length > 0;
+  const [expandedLeadIds, setExpandedLeadIds] = useState<Set<string>>(new Set());
 
   const renderLead = (lead: AnyLead) => {
     const common = {
@@ -651,6 +719,16 @@ function PlatformTabPanel(props: {
       onToggleSelect: () => props.onToggleSelect(lead.id),
       onDelete: () => props.onDelete(lead.id),
       onSaveToHub: () => props.onSaveToHub(lead.id),
+      expanded: expandedLeadIds.has(leadEntryKey(props.platform, lead.id)),
+      onToggleExpanded: () => {
+        const key = leadEntryKey(props.platform, lead.id);
+        setExpandedLeadIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(key)) next.delete(key);
+          else next.add(key);
+          return next;
+        });
+      },
     };
 
     if (props.platform === "instagram") {
@@ -764,6 +842,22 @@ function PlatformTabPanel(props: {
                 </label>
                 <button
                   type="button"
+                  className={adminSecondaryButtonClass}
+                  onClick={() =>
+                    setExpandedLeadIds(new Set(activeLeads.map((lead) => leadEntryKey(props.platform, lead.id))))
+                  }
+                >
+                  Expand all
+                </button>
+                <button
+                  type="button"
+                  className={adminSecondaryButtonClass}
+                  onClick={() => setExpandedLeadIds(new Set())}
+                >
+                  Collapse all
+                </button>
+                <button
+                  type="button"
                   disabled={props.bulkSaving || (hasSelection && selectedActive.length === 0)}
                   className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-40"
                   onClick={() => {
@@ -868,9 +962,10 @@ function OutreachArchivePanel(props: {
       <section className={`${adminCardClass} space-y-3`}>
         <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Dead lead archive</p>
         <p className="text-sm text-white/55">
-          Leads marked Dead Lead are archived after {OUTREACH_DEAD_LEAD_ARCHIVE_HOURS} hours. Archived rows are cleared
-          every {OUTREACH_ARCHIVE_RETENTION_DAYS} days per account. Revived leads return to Outreach Hub — not the
-          generation pages.
+          Leads deleted from Outreach Hub or marked Dead Lead appear here. Dead leads marked in the status dropdown
+          also move here after {OUTREACH_DEAD_LEAD_ARCHIVE_HOURS} hours. Archived rows are cleared every{" "}
+          {OUTREACH_ARCHIVE_RETENTION_DAYS} days per account. Revived leads return to Outreach Hub — not the generation
+          pages.
         </p>
         <div className="flex flex-wrap gap-2">
           <button type="button" className={adminSecondaryButtonClass} onClick={props.onRefresh}>
@@ -886,8 +981,7 @@ function OutreachArchivePanel(props: {
         <p className="text-sm text-white/45">Loading archive…</p>
       ) : props.entries.length === 0 ? (
         <p className="rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-8 text-center text-sm text-white/45">
-          No archived dead leads yet. Mark a lead as Dead Lead and it will appear here after{" "}
-          {OUTREACH_DEAD_LEAD_ARCHIVE_HOURS} hours.
+          No archived leads yet. Delete a contact from Outreach Hub or mark a lead as Dead Lead and it will appear here.
         </p>
       ) : (
         <div className="space-y-4">
@@ -924,37 +1018,63 @@ function OutreachArchivePanel(props: {
   );
 }
 
-function LegacyOtherHubCard(props: { lead: LegacyOtherLeadRow }) {
+function LegacyOtherHubCard(props: {
+  lead: LegacyOtherLeadRow;
+  hubMeta?: { platformLabel: string; savedToHubAt: string };
+  expanded: boolean;
+  onToggleExpanded: () => void;
+}) {
   return (
     <article className={`${adminPanelClass} overflow-hidden`}>
       <div className="space-y-3 p-4 sm:p-5">
-        <div className="space-y-2">
-          <h3 className="text-lg font-black tracking-tight text-white">{props.lead.contactLabel}</h3>
-          {props.lead.contactUrl ? (
-            <a href={props.lead.contactUrl} target="_blank" rel="noreferrer" className={`${adminLinkClass} text-sm`}>
-              {props.lead.contactUrl}
-            </a>
-          ) : null}
-          {props.lead.channelNotes ? (
-            <p className="text-sm text-white/55">{props.lead.channelNotes}</p>
-          ) : null}
-          <p className="text-sm leading-relaxed text-[#FF7E00]/90">
-            <span className="font-semibold text-[#FF7E00]">Why Match Fit: </span>
-            {props.lead.whyMatchFit}
-          </p>
-        </div>
-        {props.lead.outreachText.trim() ? (
-          <div className="space-y-2">
-            <p className={adminLabelClass}>Outreach copy</p>
-            <p className="whitespace-pre-wrap rounded-xl border border-white/[0.06] bg-[#0E1016]/80 p-3 text-sm text-white/80">
-              {props.lead.outreachText}
-            </p>
+        <div className="flex items-start gap-3">
+          <LeadCollapseToggle
+            expanded={props.expanded}
+            onToggle={props.onToggleExpanded}
+            label={props.lead.contactLabel}
+          />
+          <div className="min-w-0 space-y-2">
+            {props.hubMeta ? (
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#FF7E00]/70">
+                {props.hubMeta.platformLabel}
+                {" · Saved "}
+                {new Date(props.hubMeta.savedToHubAt).toLocaleString()}
+              </p>
+            ) : null}
+            <h3 className="text-lg font-black tracking-tight text-white">{props.lead.contactLabel}</h3>
+            {!props.expanded && props.lead.channelNotes ? (
+              <p className="text-xs text-white/45">{props.lead.channelNotes}</p>
+            ) : null}
           </div>
+        </div>
+        {props.expanded ? (
+          <>
+            {props.lead.contactUrl ? (
+              <a href={props.lead.contactUrl} target="_blank" rel="noreferrer" className={`${adminLinkClass} text-sm`}>
+                {props.lead.contactUrl}
+              </a>
+            ) : null}
+            {props.lead.channelNotes ? (
+              <p className="text-sm text-white/55">{props.lead.channelNotes}</p>
+            ) : null}
+            <p className="text-sm leading-relaxed text-[#FF7E00]/90">
+              <span className="font-semibold text-[#FF7E00]">Why Match Fit: </span>
+              {props.lead.whyMatchFit}
+            </p>
+            {props.lead.outreachText.trim() ? (
+              <div className="space-y-2">
+                <p className={adminLabelClass}>Outreach copy</p>
+                <p className="whitespace-pre-wrap rounded-xl border border-white/[0.06] bg-[#0E1016]/80 p-3 text-sm text-white/80">
+                  {props.lead.outreachText}
+                </p>
+              </div>
+            ) : null}
+            <p className="text-[11px] text-white/40">
+              Legacy contact from the retired Other platform. Re-save under Instagram, Facebook, or Email if you still
+              need active follow-up tooling.
+            </p>
+          </>
         ) : null}
-        <p className="text-[11px] text-white/40">
-          Legacy contact from the retired Other platform. Re-save under Instagram, Facebook, or Email if you still need
-          active follow-up tooling.
-        </p>
       </div>
     </article>
   );
@@ -980,6 +1100,7 @@ function OutreachHubPanel(props: {
   ) => Promise<void>;
 }) {
   const [filters, setFilters] = useState<OutreachHubFilterState>(DEFAULT_OUTREACH_HUB_FILTERS);
+  const [expandedLeadIds, setExpandedLeadIds] = useState<Set<string>>(new Set());
 
   const statusOptions = useMemo(() => hubStatusFilterOptions(filters.platform), [filters.platform]);
 
@@ -1005,9 +1126,26 @@ function OutreachHubPanel(props: {
 
   const fieldKey = (platform: OutreachPlatform | "other", id: string) => `${platform}:${id}`;
 
+  const toggleLeadExpanded = (platform: OutreachPlatform | "other", id: string) => {
+    const key = leadEntryKey(platform, id);
+    setExpandedLeadIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
   const renderEntry = (entry: OutreachHubLead) => {
-    const { platform, lead } = entry;
+    const { platform, lead, savedToHubAt } = entry;
     const genSet = props.generatingFields[fieldKey(platform, lead.id)] ?? new Set<string>();
+    const platformLabel =
+      platform === "other"
+        ? "Legacy · Other"
+        : (OUTREACH_PLATFORMS.find((p) => p.id === platform)?.label ?? platform);
+    const hubMeta = { platformLabel, savedToHubAt };
+    const expanded = expandedLeadIds.has(leadEntryKey(platform, lead.id));
+    const toggleExpanded = () => toggleLeadExpanded(platform, lead.id);
 
     if (platform === "instagram") {
       const ig = lead as InstagramLeadRow;
@@ -1021,6 +1159,9 @@ function OutreachHubPanel(props: {
           linkLabel="Open Instagram profile"
           copyFields={INSTAGRAM_COPY_FIELDS}
           generatingFields={genSet}
+          hubMeta={hubMeta}
+          expanded={expanded}
+          onToggleExpanded={toggleExpanded}
           onUpdate={(patch) => props.onUpdate(platform, ig.id, patch)}
           onDelete={() => props.onDelete(platform, ig.id)}
           onGenerateCopy={(fields, feedback) => props.onGenerateCopy(platform, ig.id, fields, feedback)}
@@ -1040,6 +1181,9 @@ function OutreachHubPanel(props: {
           linkLabel="Open Facebook page"
           copyFields={FACEBOOK_COPY_FIELDS}
           generatingFields={genSet}
+          hubMeta={hubMeta}
+          expanded={expanded}
+          onToggleExpanded={toggleExpanded}
           onUpdate={(patch) => props.onUpdate(platform, fb.id, patch)}
           onDelete={() => props.onDelete(platform, fb.id)}
           onGenerateCopy={(fields, feedback) => props.onGenerateCopy(platform, fb.id, fields, feedback)}
@@ -1060,6 +1204,9 @@ function OutreachHubPanel(props: {
           subtitle={[em.email, em.businessName].filter(Boolean).join(" · ")}
           copyFields={EMAIL_COPY_FIELDS}
           generatingFields={genSet}
+          hubMeta={hubMeta}
+          expanded={expanded}
+          onToggleExpanded={toggleExpanded}
           onUpdate={(patch) => props.onUpdate(platform, em.id, patch)}
           onDelete={() => props.onDelete(platform, em.id)}
           onGenerateCopy={(fields, feedback) => props.onGenerateCopy(platform, em.id, fields, feedback)}
@@ -1068,7 +1215,15 @@ function OutreachHubPanel(props: {
     }
 
     if (platform === "other") {
-      return <LegacyOtherHubCard key={`other-${lead.id}`} lead={lead as LegacyOtherLeadRow} />;
+      return (
+        <LegacyOtherHubCard
+          key={`other-${lead.id}`}
+          lead={lead as LegacyOtherLeadRow}
+          hubMeta={hubMeta}
+          expanded={expanded}
+          onToggleExpanded={toggleExpanded}
+        />
+      );
     }
 
     return null;
@@ -1230,6 +1385,22 @@ function OutreachHubPanel(props: {
             type="button"
             className={adminSecondaryButtonClass}
             onClick={() =>
+              setExpandedLeadIds(new Set(filteredEntries.map((entry) => leadEntryKey(entry.platform, entry.lead.id))))
+            }
+          >
+            Expand all leads
+          </button>
+          <button
+            type="button"
+            className={adminSecondaryButtonClass}
+            onClick={() => setExpandedLeadIds(new Set())}
+          >
+            Collapse all leads
+          </button>
+          <button
+            type="button"
+            className={adminSecondaryButtonClass}
+            onClick={() =>
               setFilters({
                 ...DEFAULT_OUTREACH_HUB_FILTERS,
                 classification: "FOLLOW_UP_NEEDED",
@@ -1287,16 +1458,7 @@ function OutreachHubPanel(props: {
               : `${props.entries.length} saved contact${props.entries.length === 1 ? "" : "s"} across all platforms.`}
           </p>
           {filteredEntries.map((entry) => (
-            <div key={`${entry.platform}-${entry.lead.id}`} className="space-y-2">
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#FF7E00]/70">
-                {entry.platform === "other"
-                  ? "Legacy · Other"
-                  : (OUTREACH_PLATFORMS.find((p) => p.id === entry.platform)?.label ?? entry.platform)}
-                {" · Saved "}
-                {new Date(entry.savedToHubAt).toLocaleString()}
-              </p>
-              {renderEntry(entry)}
-            </div>
+            <div key={`${entry.platform}-${entry.lead.id}`}>{renderEntry(entry)}</div>
           ))}
         </div>
       )}
@@ -1602,6 +1764,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     if (!res.ok) throw new Error(formatUserFacingError(data.error, "Delete failed."));
     if (tab === "hub") {
       await loadHubEntries();
+      void loadPipelineStats();
     } else if (tab === "archive") {
       await loadArchiveEntries();
       void loadPipelineStats();
@@ -1612,14 +1775,21 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   };
 
   const promptDeleteLead = (id: string, platform: OutreachPlatform = coldTab) => {
+    const fromHub = tab === "hub";
     setDeletePrompt({
-      title: "Delete lead",
-      description: "Tell the AI why this lead should not have been generated. This helps Match Fit avoid similar profiles.",
+      title: fromHub ? "Remove from Outreach Hub" : "Delete lead",
+      description: fromHub
+        ? "This removes the contact from Outreach Hub and moves it to the archive. Tell the AI why this lead should not have been pursued."
+        : "Tell the AI why this lead should not have been generated. This helps Match Fit avoid similar profiles.",
       onConfirm: async (reason) => {
         setDeleteSubmitting(true);
         try {
           await deleteLeadWithReason(id, platform, reason);
-          setSuccessMessage("Lead deleted. Reason saved for AI learning.");
+          setSuccessMessage(
+            fromHub
+              ? "Removed from Outreach Hub and moved to archive."
+              : "Lead deleted. Reason saved for AI learning.",
+          );
           setDeletePrompt(null);
         } catch (e) {
           setError(formatUserFacingError(e, "Delete failed."));
