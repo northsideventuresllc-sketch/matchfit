@@ -28,6 +28,43 @@ function purgeAfterFromArchived(archivedAt: Date): Date {
   return new Date(archivedAt.getTime() + OUTREACH_ARCHIVE_RETENTION_DAYS * MS_DAY);
 }
 
+/** Immediately archives a hub-saved lead when an admin deletes it from Outreach Hub. */
+export async function archiveHubOutreachLeadOnAdminDelete(
+  platform: OutreachPlatform,
+  id: string,
+): Promise<boolean> {
+  await ensureReady();
+  const now = new Date();
+  const data = {
+    status: "DEAD_LEAD",
+    deadLeadAt: now,
+    archivedAt: now,
+    archivePurgeAfterAt: purgeAfterFromArchived(now),
+    autoClassification: "DEAD_LEAD",
+    deletedAt: null,
+  };
+
+  if (platform === "instagram") {
+    const row = await prisma.outreachInstagramLead.findUnique({ where: { id } });
+    if (!row?.savedToHubAt) return false;
+    await prisma.outreachInstagramLead.update({ where: { id }, data });
+    return true;
+  }
+  if (platform === "facebook") {
+    const row = await prisma.outreachFacebookLead.findUnique({ where: { id } });
+    if (!row?.savedToHubAt) return false;
+    await prisma.outreachFacebookLead.update({ where: { id }, data });
+    return true;
+  }
+  if (platform === "email") {
+    const row = await prisma.outreachEmailLead.findUnique({ where: { id } });
+    if (!row?.savedToHubAt) return false;
+    await prisma.outreachEmailLead.update({ where: { id }, data });
+    return true;
+  }
+  return false;
+}
+
 export async function processOutreachArchiveJobs(now = new Date()): Promise<OutreachArchiveJobSummary> {
   await ensureReady();
   const cutoff = archiveCutoff(now);

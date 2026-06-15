@@ -5,7 +5,6 @@ import type {
   EmailLeadRow,
   FacebookLeadRow,
   InstagramLeadRow,
-  LegacyOtherLeadRow,
   OutreachArchiveLead,
   OutreachHubLead,
   OutreachLeadStatus,
@@ -117,43 +116,6 @@ function serializeEmailLead(
   };
 }
 
-function serializeLegacyOtherLead(
-  r: Awaited<ReturnType<typeof prisma.outreachOtherLead.findMany>>[number],
-) {
-  return {
-    id: r.id,
-    contactLabel: r.contactLabel,
-    contactUrl: r.contactUrl,
-    channelNotes: r.channelNotes,
-    niche: r.niche,
-    targetGroup: r.targetGroup,
-    whyMatchFit: r.whyMatchFit,
-    likelihoodScore: r.likelihoodScore,
-    notes: r.notes,
-    outreachText: r.outreachText,
-    genericInviteTail: r.genericInviteTail,
-    status: r.status,
-    autoClassification: classifyOutreachLead({
-      status: r.status,
-      platform: "instagram",
-      outreachSentAt: r.outreachSentAt,
-      followUp1SentAt: r.followUp1SentAt,
-      followUp2SentAt: r.followUp2SentAt,
-      responseReceivedAt: r.responseReceivedAt,
-      createdAt: r.createdAt,
-    }),
-    outreachSentAt: serializeDate(r.outreachSentAt),
-    followUp1SentAt: serializeDate(r.followUp1SentAt),
-    followUp2SentAt: serializeDate(r.followUp2SentAt),
-    responseReceivedAt: serializeDate(r.responseReceivedAt),
-    outreachTextEdited: r.outreachTextEdited,
-    generationBatchId: r.generationBatchId,
-    createdAt: r.createdAt.toISOString(),
-    deletedAt: serializeDate(r.deletedAt),
-    savedToHubAt: serializeDate(r.savedToHubAt),
-  };
-}
-
 /** Active generation-page leads: not saved to hub, not dead, not archived. */
 const generationLeadWhere = {
   deletedAt: null,
@@ -238,16 +200,11 @@ export async function listOutreachHubLeads(): Promise<OutreachHubLead[]> {
     savedToHubAt: { not: null } as const,
     archivedAt: null,
   };
-  const legacyOtherWhere = {
-    deletedAt: null,
-    savedToHubAt: { not: null } as const,
-  };
 
-  const [instagram, facebook, email, other] = await Promise.all([
+  const [instagram, facebook, email] = await Promise.all([
     prisma.outreachInstagramLead.findMany({ where: hubWhere, orderBy: { savedToHubAt: "desc" } }),
     prisma.outreachFacebookLead.findMany({ where: hubWhere, orderBy: { savedToHubAt: "desc" } }),
     prisma.outreachEmailLead.findMany({ where: hubWhere, orderBy: { savedToHubAt: "desc" } }),
-    prisma.outreachOtherLead.findMany({ where: legacyOtherWhere, orderBy: { savedToHubAt: "desc" } }),
   ]);
 
   const combined: OutreachHubLead[] = [
@@ -265,11 +222,6 @@ export async function listOutreachHubLeads(): Promise<OutreachHubLead[]> {
       platform: "email" as const,
       savedToHubAt: r.savedToHubAt!.toISOString(),
       lead: serializeEmailLead(r),
-    })),
-    ...other.map((r) => ({
-      platform: "other" as const,
-      savedToHubAt: r.savedToHubAt!.toISOString(),
-      lead: serializeLegacyOtherLead(r),
     })),
   ];
 
@@ -327,14 +279,12 @@ function csvEscape(value: string | number | null | undefined): string {
 function hubLeadDisplayName(entry: OutreachHubLead): string {
   if (entry.platform === "instagram") return (entry.lead as InstagramLeadRow).handle;
   if (entry.platform === "facebook") return (entry.lead as FacebookLeadRow).pageName;
-  if (entry.platform === "other") return (entry.lead as LegacyOtherLeadRow).contactLabel;
   return (entry.lead as EmailLeadRow).name;
 }
 
 function hubLeadContact(entry: OutreachHubLead): string {
   if (entry.platform === "instagram") return (entry.lead as InstagramLeadRow).profileUrl;
   if (entry.platform === "facebook") return (entry.lead as FacebookLeadRow).pageUrl;
-  if (entry.platform === "other") return (entry.lead as LegacyOtherLeadRow).contactUrl ?? "";
   return (entry.lead as EmailLeadRow).email;
 }
 
@@ -344,7 +294,6 @@ function hubLeadOutreachCopy(entry: OutreachHubLead): string {
     return `DM: ${lead.dmText}\nComment: ${lead.commentText}`;
   }
   if (entry.platform === "facebook") return (entry.lead as FacebookLeadRow).pagePostText;
-  if (entry.platform === "other") return (entry.lead as LegacyOtherLeadRow).outreachText;
   const lead = entry.lead as EmailLeadRow;
   return `Subject: ${lead.emailSubject}\n\n${lead.emailBody}`;
 }
