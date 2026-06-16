@@ -136,12 +136,13 @@ export default async function PromosPage() {
               <p className="mt-5 text-pretty text-[15px] leading-relaxed text-white/65 sm:text-base">
                 The first{" "}
                 <span className="font-bold text-[#FFD34E]">{trainerFoundingMax} fitness professionals</span>{" "}
-                to join Match Fit pay only{" "}
-                <span className="font-bold text-[#FFD34E]">20% of their background check cost</span> for
-                onboarding (instead of the usual $100.00 platform fee minus the screening amount).{" "}
+                to join Match Fit receive{" "}
+                <span className="font-bold text-[#FFD34E]">platform-covered Checkr background screening</span> and pay
+                only <span className="font-bold text-[#FFD34E]">20% of the standard screening estimate</span> for the
+                Match Fit platform onboarding slice (instead of the usual $100.00 platform fee minus the screening
+                amount).{" "}
                 <span className="font-semibold text-white/70">10 of those spots are reserved for in-person coaches</span>{" "}
-                in the Atlanta metro area; the remaining{" "}
-                <span className="font-semibold text-white/70">20 spots are open to virtual coaches nationwide</span>.
+                in the Atlanta metro area; additional beta trainer slots may be virtual coaches nationwide.
               </p>
 
               <div className="mt-6 space-y-2">

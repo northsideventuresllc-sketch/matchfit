@@ -6,6 +6,10 @@ import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-
 import { loadStripe, type StripeElementsOptions } from "@stripe/stripe-js";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
+import type { TrainerRegistrationPricingMode } from "@/lib/match-fit-launch-promotion-caps";
+import {
+  isTrainerBackgroundCheckPlatformCovered,
+} from "@/lib/trainer-registration-pricing-mode";
 import {
   TRAINER_SIGNUP_PAYMENT_AFTER_HOLD_NOTE,
   TRAINER_SIGNUP_PAYMENT_INTRO,
@@ -16,7 +20,7 @@ import {
 import { useStripePublishableKey } from "@/lib/use-stripe-publishable-key";
 
 type Props = {
-  foundingPricing: boolean;
+  pricingMode: TrainerRegistrationPricingMode;
   stripePublishableKey?: string | null;
   stripeSecretConfigured: boolean;
 };
@@ -25,15 +29,17 @@ type PaymentStep = "platform" | "background_check";
 
 function PaymentForm({
   amountLabel,
-  foundingPricing,
+  pricingMode,
   step,
+  backgroundCheckHoldRequired,
   backgroundCheckPaymentIntentId,
   onPlatformAuthorized,
   onBackgroundCheckAuthorized,
 }: {
   amountLabel: string;
-  foundingPricing: boolean;
+  pricingMode: TrainerRegistrationPricingMode;
   step: PaymentStep;
+  backgroundCheckHoldRequired: boolean;
   backgroundCheckPaymentIntentId: string | null;
   onPlatformAuthorized: () => void;
   onBackgroundCheckAuthorized: (next?: string) => void;
@@ -42,6 +48,7 @@ function PaymentForm({
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const bgCovered = isTrainerBackgroundCheckPlatformCovered(pricingMode);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -64,7 +71,7 @@ function PaymentForm({
       }
 
       if (step === "platform") {
-        if (!backgroundCheckPaymentIntentId) {
+        if (backgroundCheckHoldRequired && !backgroundCheckPaymentIntentId) {
           setError("Background screening authorization is missing. Refresh and try again.");
           return;
         }
@@ -74,12 +81,18 @@ function PaymentForm({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             paymentIntentId: piId,
-            backgroundCheckPaymentIntentId,
+            ...(backgroundCheckPaymentIntentId
+              ? { backgroundCheckPaymentIntentId }
+              : {}),
           }),
         });
         const platformData = (await platformRes.json()) as { error?: string };
         if (!platformRes.ok) {
           setError(platformData.error ?? "Platform authorization succeeded but we could not update your account.");
+          return;
+        }
+        if (!backgroundCheckHoldRequired) {
+          navigateWithFullLoad("/trainer/dashboard");
           return;
         }
         onPlatformAuthorized();
@@ -109,7 +122,7 @@ function PaymentForm({
     <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
       {step === "platform" ? (
         <div className="space-y-3 rounded-xl border border-white/[0.08] bg-[#12151C]/60 px-4 py-4 text-sm leading-relaxed text-white/70">
-          <p>{trainerSignupPaymentHoldExplanation(foundingPricing ? "FOUNDING_BG_SURCHARGE_20PCT" : "STANDARD_100_MINUS_BG")}</p>
+          <p>{trainerSignupPaymentHoldExplanation(pricingMode)}</p>
           <p className="text-white/55">{TRAINER_SIGNUP_PAYMENT_AFTER_HOLD_NOTE}</p>
         </div>
       ) : (
@@ -134,7 +147,9 @@ function PaymentForm({
         {submitting
           ? "Authorizing…"
           : step === "platform"
-            ? "Place platform hold (step 1 of 2)"
+            ? bgCovered || !backgroundCheckHoldRequired
+              ? "Place platform hold"
+              : "Place platform hold (step 1 of 2)"
             : "Place background screening hold (step 2 of 2)"}
       </button>
     </form>
@@ -142,10 +157,11 @@ function PaymentForm({
 }
 
 export default function TrainerSignupPaymentClient({
-  foundingPricing,
+  pricingMode,
   stripePublishableKey,
   stripeSecretConfigured,
 }: Props) {
+  const bgCovered = isTrainerBackgroundCheckPlatformCovered(pricingMode);
   const { publishableKey, loading: publishableLoading } = useStripePublishableKey(stripePublishableKey);
   const useEmbeddedCheckout = Boolean(publishableKey);
   const useCheckoutRedirect = !useEmbeddedCheckout && stripeSecretConfigured;
@@ -154,6 +170,7 @@ export default function TrainerSignupPaymentClient({
   const [amountLabel, setAmountLabel] = useState<string>("…");
   const [backgroundCheckPaymentIntentId, setBackgroundCheckPaymentIntentId] = useState<string | null>(null);
   const [backgroundCheckClientSecret, setBackgroundCheckClientSecret] = useState<string | null>(null);
+  const [backgroundCheckHoldRequired, setBackgroundCheckHoldRequired] = useState(!bgCovered);
   const [initError, setInitError] = useState<string | null>(null);
 
   const stripePromise = useMemo(
@@ -214,20 +231,27 @@ export default function TrainerSignupPaymentClient({
         (d: {
           clientSecret?: string;
           paymentIntentId?: string;
-          backgroundCheckClientSecret?: string;
-          backgroundCheckPaymentIntentId?: string;
+          backgroundCheckClientSecret?: string | null;
+          backgroundCheckPaymentIntentId?: string | null;
+          backgroundCheckHoldRequired?: boolean;
           totalCents?: number;
           platformHoldCents?: number;
           error?: string;
         }) => {
           if (cancelled) return;
-          if (!d.clientSecret || !d.paymentIntentId || !d.backgroundCheckClientSecret || !d.backgroundCheckPaymentIntentId) {
+          const holdRequired = d.backgroundCheckHoldRequired ?? true;
+          setBackgroundCheckHoldRequired(holdRequired);
+          if (!d.clientSecret || !d.paymentIntentId) {
+            setInitError(d.error ?? TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
+            return;
+          }
+          if (holdRequired && (!d.backgroundCheckClientSecret || !d.backgroundCheckPaymentIntentId)) {
             setInitError(d.error ?? TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
             return;
           }
           setClientSecret(d.clientSecret);
-          setBackgroundCheckPaymentIntentId(d.backgroundCheckPaymentIntentId);
-          setBackgroundCheckClientSecret(d.backgroundCheckClientSecret);
+          setBackgroundCheckPaymentIntentId(d.backgroundCheckPaymentIntentId ?? null);
+          setBackgroundCheckClientSecret(d.backgroundCheckClientSecret ?? null);
           if (typeof d.platformHoldCents === "number" && d.platformHoldCents > 0) {
             setAmountLabel(`$${(d.platformHoldCents / 100).toFixed(2)}`);
           } else if (typeof d.totalCents === "number" && d.totalCents > 0) {
@@ -280,8 +304,18 @@ export default function TrainerSignupPaymentClient({
 
         <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-white/55">
           <li>Step 1: platform onboarding hold (released if you are not fully approved).</li>
-          <li>Step 2: background screening hold (captured when Checkr screening runs).</li>
-          <li>After both holds are placed, continue certification and background screening in your dashboard.</li>
+          {backgroundCheckHoldRequired ? (
+            <li>Step 2: background screening hold (captured when Checkr screening runs).</li>
+          ) : (
+            <li>
+              Founding coach benefit: Match Fit covers your Checkr background screening — no separate screening hold
+              on your card.
+            </li>
+          )}
+          <li>
+            After {backgroundCheckHoldRequired ? "both holds are placed" : "your platform hold is placed"}, continue
+            certification and background screening in your dashboard.
+          </li>
           <li>When certification and screening are fully approved, Match Fit captures the platform hold.</li>
         </ol>
 
@@ -308,8 +342,9 @@ export default function TrainerSignupPaymentClient({
             <Elements key={`${step}-${clientSecret}`} stripe={stripePromise} options={options}>
               <PaymentForm
                 amountLabel={amountLabel}
-                foundingPricing={foundingPricing}
+                pricingMode={pricingMode}
                 step={step}
+                backgroundCheckHoldRequired={backgroundCheckHoldRequired}
                 backgroundCheckPaymentIntentId={backgroundCheckPaymentIntentId}
                 onPlatformAuthorized={handlePlatformAuthorized}
                 onBackgroundCheckAuthorized={handleBackgroundCheckAuthorized}

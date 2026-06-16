@@ -54,6 +54,7 @@ type TrainerMe = {
     hasUploadedW9: boolean;
     hasPaidBackgroundFee: boolean;
     registrationFeeWaived: boolean;
+    registrationFeePricingMode?: string | null;
     backgroundCheckStatus: string;
     certificationUrl: string | null;
     otherCertificationUrl: string | null;
@@ -1156,9 +1157,10 @@ export default function TrainerOnboardingClient() {
                 <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-[13px] leading-relaxed text-emerald-100/95">
                   <p className="font-semibold text-emerald-50">Founding coach slot</p>
                   <p className="mt-1 text-emerald-100/85">
-                    You are in the first <span className="font-semibold text-white">10 coaches</span>: after screening
-                    clears, Match Fit charges <span className="font-semibold text-white">20%</span> of your verified
-                    Checkr background-check amount (plus processing)—not the full $100 platform fee.
+                    You are in the first <span className="font-semibold text-white">10 coaches</span>: Match Fit covers
+                    your Checkr background screening. After screening clears, we charge{" "}
+                    <span className="font-semibold text-white">20%</span> of the verified screening amount for the
+                    platform onboarding slice (plus processing)—not the full $100 platform fee.
                   </p>
                 </div>
               ) : null}
@@ -1243,6 +1245,7 @@ export default function TrainerOnboardingClient() {
                 const escrow = trainerHasSignupBackgroundEscrow({
                   registrationFeeHoldStatus: profile?.registrationFeeHoldStatus,
                   hasPaidBackgroundFee: profile?.hasPaidBackgroundFee,
+                  registrationFeePricingMode: profile?.registrationFeePricingMode,
                 });
                 if (planB) {
                   return (

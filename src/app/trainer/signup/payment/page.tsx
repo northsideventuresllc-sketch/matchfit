@@ -4,6 +4,7 @@ import { getSessionTrainerId } from "@/lib/session";
 import { stripeConfigHealth } from "@/lib/stripe-config";
 import { getStripePublishableKey } from "@/lib/stripe-publishable";
 import { trainerOnboardingFeeIsPaid } from "@/lib/trainer-onboarding-fee-deadline";
+import { parseTrainerRegistrationPricingMode } from "@/lib/trainer-registration-pricing-mode";
 import TrainerSignupPaymentClient from "./trainer-signup-payment-client";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +40,7 @@ export default async function TrainerSignupPaymentPage() {
 
   return (
     <TrainerSignupPaymentClient
-      foundingPricing={profile.registrationFeePricingMode === "FOUNDING_BG_SURCHARGE_20PCT"}
+      pricingMode={parseTrainerRegistrationPricingMode(profile.registrationFeePricingMode)}
       stripePublishableKey={getStripePublishableKey()}
       stripeSecretConfigured={stripeHealth.stripeSecretConfigured}
     />

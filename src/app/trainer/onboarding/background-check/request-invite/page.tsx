@@ -29,6 +29,7 @@ export default async function TrainerBackgroundCheckRequestInvitePage() {
           backgroundCheckInviteSentAt: true,
           registrationFeeHoldStatus: true,
           hasPaidBackgroundFee: true,
+          registrationFeePricingMode: true,
         },
       },
     },
@@ -41,6 +42,7 @@ export default async function TrainerBackgroundCheckRequestInvitePage() {
   const escrow = trainerHasSignupBackgroundEscrow({
     registrationFeeHoldStatus: trainer.profile.registrationFeeHoldStatus,
     hasPaidBackgroundFee: trainer.profile.hasPaidBackgroundFee,
+    registrationFeePricingMode: trainer.profile.registrationFeePricingMode,
   });
 
   return (

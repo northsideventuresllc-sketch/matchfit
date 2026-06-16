@@ -1063,7 +1063,7 @@ model TrainerProfile {
   backgroundCheckEscrowCents Int?
   /// Platform registration portion of signup hold (cents).
   platformEscrowCents Int?
-  /// FOUNDING_BG_SURCHARGE_20PCT | STANDARD_100_MINUS_BG — set at trainer signup from launch slot.
+  /// FOUNDING_BG_COVERED | FOUNDING_BG_SURCHARGE_20PCT | STANDARD_100_MINUS_BG — set at trainer signup from launch slot.
   registrationFeePricingMode String @default("FOUNDING_BG_SURCHARGE_20PCT")
   hasPaidRegistrationFee Boolean @default(false)
   registrationFeePaidCents Int?

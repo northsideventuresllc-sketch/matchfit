@@ -20,8 +20,8 @@ export function trainerSignupPaymentHoldExplanation(pricingMode: TrainerRegistra
   const bgLabel = formatUsd(split.backgroundCheckEscrowCents);
   const platformLabel = formatUsd(split.platformEscrowCents);
 
-  if (pricingMode === "FOUNDING_BG_SURCHARGE_20PCT") {
-    return `Founding coach pricing: today's holds include an estimated ${bgLabel} background screening portion plus a ${platformLabel} Match Fit platform portion (20% of the screening estimate), plus card processing on each slice. When Checkr screening completes — whether it clears or not — the screening portion is captured so Match Fit can pay Checkr. The platform portion stays on hold until certification and screening review finish. If you are fully approved, the platform portion is captured. If you are not approved, the platform hold is released.`;
+  if (pricingMode === "FOUNDING_BG_COVERED" || pricingMode === "FOUNDING_BG_SURCHARGE_20PCT") {
+    return `Founding coach pricing: Match Fit covers your Checkr background screening. Today's hold is only the ${platformLabel} Match Fit platform portion (20% of the standard screening estimate), plus card processing. Match Fit captures the platform portion only after certification and screening review finish. If you are fully approved, the platform hold is captured. If you are not approved, the platform hold is released.`;
   }
 
   const listPrice = formatUsd(TRAINER_PLATFORM_REGISTRATION_FEE_CENTS);

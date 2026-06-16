@@ -2,7 +2,7 @@
 
 export const TRAINER_SIGNUP_AGREEMENT_DOCUMENT = `Match Fit connects fitness professionals with clients who discover coaches through the platform. You agree to provide accurate information during signup, certification review, and background screening.
 
-During beta, founding coaches pay the independent background screening fee plus 20% of that amount and a card processing fee at signup. Other coaches pay a $100.00 platform registration fee plus processing at signup. Your card is authorized at signup (held in Stripe); Match Fit captures the registration amount only after your certification and background check are approved. If you do not complete background screening after your Checkr invitation is sent, the background-check portion of that authorization is not applied to your account (see Terms).
+During beta, the first 10 founding coaches receive platform-covered Checkr background screening and pay only 20% of the standard screening estimate (plus processing) for the Match Fit platform onboarding slice at signup. Other coaches pay a $100.00 platform registration fee plus processing at signup. Your card is authorized at signup (held in Stripe); Match Fit captures the registration amount only after your certification and background check are approved. If you do not complete background screening after your Checkr invitation is sent, no background-check charge applies for founding coaches with platform-covered screening (see Terms).
 
 You will have limited dashboard access right after payment. To unlock messaging, client discovery, services, and premium tools, upload your credentials and complete Checkr background screening within the compliance window described in the Terms of Service.
 
@@ -17,7 +17,7 @@ export const TRAINER_ONBOARDING_AGREEMENT_COUNT = 1;
 export function getTrainerOnboardingAgreementBullets(foundingCoachPricing: boolean): readonly string[] {
   if (foundingCoachPricing) {
     return [
-      "Founding coach signup: background screening fee + 20% platform surcharge + card processing (authorized at signup, captured after approval).",
+      "Founding coach signup (first 10): Match Fit covers Checkr background screening; you authorize only the 20% platform onboarding slice plus card processing (captured after approval).",
       "Limited dashboard until certification and background check are approved.",
       "Full Terms of Service and Privacy Policy govern enforcement, fees, and account policies.",
     ];

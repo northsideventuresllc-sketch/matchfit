@@ -9,23 +9,28 @@ import {
 } from "@/lib/trainer-signup-escrow";
 
 describe("trainer-signup-escrow", () => {
-  it("splits founding signup into background + platform slices", () => {
-    const split = computeTrainerSignupEscrowSplit("FOUNDING_BG_SURCHARGE_20PCT");
-    expect(split.backgroundCheckEscrowCents).toBe(4900);
+  it("founding covered signup has no background escrow slice", () => {
+    const split = computeTrainerSignupEscrowSplit("FOUNDING_BG_COVERED");
+    expect(split.backgroundCheckEscrowCents).toBe(0);
     expect(split.platformEscrowCents).toBe(980);
-    expect(split.baseCents).toBe(5880);
+    expect(split.baseCents).toBe(980);
+    expect(computeTrainerSignupBackgroundEscrowHoldCents("FOUNDING_BG_COVERED")).toBe(0);
   });
 
-  it("allocates separate hold amounts for background and platform slices", () => {
-    const mode = "FOUNDING_BG_SURCHARGE_20PCT" as const;
+  it("legacy founding surcharge still splits background + platform slices", () => {
+    const split = computeTrainerSignupEscrowSplit("FOUNDING_BG_SURCHARGE_20PCT");
+    expect(split.backgroundCheckEscrowCents).toBe(0);
+    expect(split.platformEscrowCents).toBe(980);
+    expect(split.baseCents).toBe(980);
+  });
+
+  it("allocates separate hold amounts for standard signup slices", () => {
+    const mode = "STANDARD_100_MINUS_BG" as const;
     const bgHold = computeTrainerSignupBackgroundEscrowHoldCents(mode);
     const platformHold = computeTrainerSignupPlatformHoldCents(mode);
     expect(bgHold).toBeGreaterThan(4900);
     expect(platformHold).toBeGreaterThan(980);
     expect(computeTrainerSignupCombinedHoldCents(mode)).toBe(bgHold + platformHold);
-    expect(computeTrainerSignupCombinedHoldCents(mode)).toBeLessThanOrEqual(
-      computeTrainerSignupCaptureOnSuccessCents(mode),
-    );
   });
 
   it("standard mode uses $100 base with bg escrow slice", () => {

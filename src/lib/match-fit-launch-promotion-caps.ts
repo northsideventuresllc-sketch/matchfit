@@ -10,17 +10,27 @@ function parsePositiveInt(raw: string | undefined, fallback: number, max: number
   return Math.min(max, n);
 }
 
-export type TrainerRegistrationPricingMode = "FOUNDING_BG_SURCHARGE_20PCT" | "STANDARD_100_MINUS_BG";
+export type TrainerRegistrationPricingMode =
+  | "FOUNDING_BG_COVERED"
+  | "FOUNDING_BG_SURCHARGE_20PCT"
+  | "STANDARD_100_MINUS_BG";
 
-/** First N trainers pay 20% of Checkr background fee (not $100 minus BG). Default 30. */
+/** First N trainers receive platform-covered background screening. Default 10. */
+export function getTrainerFoundingBgCoveredMax(): number {
+  const explicit = process.env.MATCH_FIT_TRAINER_FOUNDING_BG_COVERED_MAX?.trim();
+  if (explicit) return parsePositiveInt(explicit, 10, 1_000_000);
+  return parsePositiveInt(process.env.MATCH_FIT_TRAINER_FOUNDING_BG_PERCENT_MAX, 10, 1_000_000);
+}
+
+/** @deprecated Use getTrainerFoundingBgCoveredMax */
 export function getTrainerFoundingBgPercentMax(): number {
-  return parsePositiveInt(process.env.MATCH_FIT_TRAINER_FOUNDING_BG_PERCENT_MAX, 30, 1_000_000);
+  return getTrainerFoundingBgCoveredMax();
 }
 
 /** @deprecated Use getTrainerFoundingBgPercentMax — kept for env migration. */
 export function getTrainerFoundingRegistrationWaiverMax(): number {
   const legacy = process.env.MATCH_FIT_TRAINER_FOUNDING_REGISTRATION_WAIVER_MAX?.trim();
-  if (legacy) return parsePositiveInt(legacy, 30, 1_000_000);
+  if (legacy) return parsePositiveInt(legacy, 10, 1_000_000);
   return getTrainerFoundingBgPercentMax();
 }
 
@@ -47,7 +57,12 @@ export function isNextClientEligibleForFoundingTrial(clientCount: number): boole
 }
 
 export function isTrainerFoundingBgPercentTier(trainerCountBeforeInsert: number): boolean {
-  return trainerCountBeforeInsert < getTrainerFoundingBgPercentMax();
+  return trainerCountBeforeInsert < getTrainerFoundingBgCoveredMax();
+}
+
+/** Whether the next trainer signup receives platform-covered background screening. */
+export function isTrainerFoundingBgCoveredTier(trainerCountBeforeInsert: number): boolean {
+  return isTrainerFoundingBgPercentTier(trainerCountBeforeInsert);
 }
 
 /** @deprecated Use isTrainerFoundingBgPercentTier */

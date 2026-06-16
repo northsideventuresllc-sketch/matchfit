@@ -17,11 +17,10 @@ describe("trainer-signup-payment-messaging", () => {
     expect(TRAINER_SIGNUP_PAYMENT_INTRO).toMatch(/does not capture/i);
   });
 
-  it("describes founding escrow split without implying immediate platform charge", () => {
-    const copy = trainerSignupPaymentHoldExplanation("FOUNDING_BG_SURCHARGE_20PCT");
-    expect(copy).toMatch(/screening portion/i);
-    expect(copy).toMatch(/platform portion stays on hold/i);
-    expect(copy).toMatch(/screening portion is captured/i);
+  it("describes founding covered pricing without a trainer background hold", () => {
+    const copy = trainerSignupPaymentHoldExplanation("FOUNDING_BG_COVERED");
+    expect(copy).toMatch(/covers your Checkr background screening/i);
+    expect(copy).toMatch(/platform portion only after certification/i);
     expect(copy).not.toMatch(/charged today/i);
   });
 });

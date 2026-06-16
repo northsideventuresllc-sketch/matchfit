@@ -56,7 +56,9 @@ export async function GET() {
     hasPaidRegistrationFee: registrationPaid,
     signupFeeOnHold,
     registrationFeeHoldStatus: hold,
-    foundingPricing: profile.registrationFeePricingMode === "FOUNDING_BG_SURCHARGE_20PCT",
+    foundingPricing:
+      profile.registrationFeePricingMode === "FOUNDING_BG_COVERED" ||
+      profile.registrationFeePricingMode === "FOUNDING_BG_SURCHARGE_20PCT",
     backgroundCheckPaidCents: bgCents,
     canPay: !signupFeeOnHold && bgOk && certsOk && !registrationPaid && dueCents > 0,
     dueCents,

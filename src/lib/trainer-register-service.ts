@@ -32,8 +32,10 @@ export async function createTrainerRecord(
         await assertTrainerBetaSlotInTransaction(tx, options?.betaInviteEntryId ?? null);
         const trainerCountBefore = await countLaunchTrainersInTx(tx);
         const registrationFeePricingMode = trainerRegistrationPricingModeForNewTrainer(trainerCountBefore);
-        /** Legacy UI flag: true for founding tier (20% of Checkr BG), not a full $100 waiver. */
-        const registrationFeeWaived = registrationFeePricingMode === "FOUNDING_BG_SURCHARGE_20PCT";
+        /** Legacy UI flag: true for founding tier (platform-covered BG + 20% platform slice). */
+        const registrationFeeWaived =
+          registrationFeePricingMode === "FOUNDING_BG_COVERED" ||
+          registrationFeePricingMode === "FOUNDING_BG_SURCHARGE_20PCT";
 
         const trainer = await tx.trainer.create({
           data: {
