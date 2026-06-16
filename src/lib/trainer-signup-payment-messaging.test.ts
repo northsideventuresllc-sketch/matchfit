@@ -15,15 +15,16 @@ describe("trainer-signup-payment-messaging", () => {
 
   it("explains background check payment on the payment step", () => {
     expect(TRAINER_SIGNUP_PAYMENT_INTRO).toMatch(/background check through Match Fit/i);
-    expect(TRAINER_SIGNUP_PAYMENT_INTRO).toMatch(/no separate platform registration fee hold/i);
+    expect(TRAINER_SIGNUP_PAYMENT_INTRO).toMatch(/does not capture charges until/i);
   });
 
-  it("describes founding promo without implying a platform fee during promo", () => {
+  it("describes founding promo without referencing a separate platform fee", () => {
     const copy = trainerSignupPaymentHoldExplanation("FOUNDING_BG_SURCHARGE_20PCT");
     expect(copy).toMatch(/background screening fee/i);
     expect(copy).toMatch(/60 days of Premium Page access/i);
     expect(copy).toMatch(/cannot sell/i);
-    expect(copy).toMatch(/do not pay the \$100\.00 platform registration fee during this promo/i);
+    expect(copy).not.toMatch(/\$100/i);
+    expect(copy).not.toMatch(/platform registration fee/i);
   });
 });
 

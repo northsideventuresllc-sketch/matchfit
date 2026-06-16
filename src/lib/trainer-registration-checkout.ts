@@ -25,7 +25,7 @@ export async function createTrainerRegistrationFeeCheckoutSession(args: {
     backgroundCheckVendorPaidCents: args.backgroundCheckVendorPaidCents,
   });
   if (error || dueCents <= 0) {
-    throw new Error(error ?? "No registration fee is due.");
+    throw new Error(error ?? "No onboarding payment is due.");
   }
 
   const breakdown = computeCheckoutFeeBreakdown({
@@ -37,7 +37,7 @@ export async function createTrainerRegistrationFeeCheckoutSession(args: {
   const modeLabel =
     args.pricingMode === "FOUNDING_BG_SURCHARGE_20PCT"
       ? "Founding coach — background check through Match Fit"
-      : "Platform registration (after background check credit)";
+      : "Onboarding payment (after background check)";
 
   const metadata: Record<string, string> = {
     purpose: "trainer_registration_fee",

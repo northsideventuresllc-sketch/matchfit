@@ -1157,8 +1157,8 @@ export default function TrainerOnboardingClient() {
                   <p className="font-semibold text-emerald-50">Founding coach promo</p>
                   <p className="mt-1 text-emerald-100/85">
                     You receive 60 days of Premium Page access at sign-up and pay only your background check through
-                    Match Fit&apos;s portal (no $100.00 platform registration fee). Begin onboarding within 7 days of
-                    sign-up. You cannot sell services until every requirement is completed.
+                    Match Fit&apos;s portal. Begin onboarding within 7 days of sign-up. You cannot sell services until
+                    every requirement is completed.
                   </p>
                 </div>
               ) : null}

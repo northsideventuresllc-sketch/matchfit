@@ -5,7 +5,7 @@ import {
   TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE,
   TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS,
   TRAINER_SIGNUP_PREMIUM_PROMO_DAYS,
-  TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL,
+  trainerStandardOnboardingAfterCapLabel,
 } from "@/lib/trainer-signup-promo-copy";
 
 type Summary = {
@@ -38,13 +38,13 @@ export function TrainerRegistrationFeePanel() {
         const data = (await res.json()) as Summary & { error?: string };
         if (cancelled) return;
         if (!res.ok) {
-          setError(data.error ?? "Could not load registration billing.");
+          setError(data.error ?? "Could not load onboarding payment.");
           setSummary(null);
           return;
         }
         setSummary(data);
       } catch {
-        if (!cancelled) setError("Network error loading registration billing.");
+        if (!cancelled) setError("Network error loading onboarding payment.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -76,7 +76,7 @@ export function TrainerRegistrationFeePanel() {
   }
 
   if (loading) {
-    return <p className="text-sm text-white/50">Loading registration billing…</p>;
+    return <p className="text-sm text-white/50">Loading onboarding payment…</p>;
   }
 
   if (!summary) {
@@ -87,7 +87,7 @@ export function TrainerRegistrationFeePanel() {
     return (
       <p className="text-sm text-emerald-200/90">
         Your background check payment is on hold. Match Fit captures it when Checkr screening runs. During the founding
-        coach promo there is no separate {TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL} platform registration fee.
+        coach promo you pay only your background check through our portal.
       </p>
     );
   }
@@ -95,7 +95,7 @@ export function TrainerRegistrationFeePanel() {
   if (summary.hasPaidRegistrationFee) {
     return (
       <p className="text-sm text-emerald-200/90">
-        Platform registration fee paid. Thank you — your compliance record is up to date for billing.
+        Onboarding payment complete. Thank you — your compliance record is up to date for billing.
       </p>
     );
   }
@@ -109,13 +109,12 @@ export function TrainerRegistrationFeePanel() {
           <>
             Founding coach promo: pay your verified background check amount ({bgLabel} to Checkr) through our portal plus
             an estimated card processing fee. You receive {TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Premium Page access
-            at sign-up with no {TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL} platform registration fee. Begin onboarding
-            within {TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up. {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}
+            at sign-up. Begin onboarding within {TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up.{" "}
+            {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}
           </>
         ) : (
           <>
-            Standard pricing: <span className="font-semibold text-white">$100.00</span> minus your background check
-            credit ({bgLabel}) plus an estimated card processing fee.
+            Standard pricing: onboarding fees as shown at checkout ({trainerStandardOnboardingAfterCapLabel()}).
           </>
         )}
       </p>
@@ -134,11 +133,11 @@ export function TrainerRegistrationFeePanel() {
           onClick={() => void startCheckout()}
           className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/15 px-5 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/60 disabled:opacity-50"
         >
-          {busy ? "Starting checkout…" : "Pay registration fee"}
+          {busy ? "Starting checkout…" : "Pay at checkout"}
         </button>
       ) : (
         <p className="text-xs text-white/45">
-          Complete background check and certification approval before paying the platform registration fee.
+          Complete background check and certification approval before completing onboarding payment.
         </p>
       )}
     </div>

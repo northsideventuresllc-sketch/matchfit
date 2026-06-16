@@ -289,7 +289,7 @@ export default function TrainerSignupPaymentClient({
           <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-white/55">
             <li>Pay your background check through Match Fit&apos;s portal (plus card processing).</li>
             <li>Begin onboarding within 7 days of sign-up, including certification uploads and Checkr screening.</li>
-            <li>You receive 60 days of Premium Page access at sign-up with no $100.00 platform registration fee.</li>
+            <li>You receive 60 days of Premium Page access at sign-up.</li>
             <li>You cannot sell or offer services until every onboarding requirement is completed.</li>
           </ol>
         ) : (

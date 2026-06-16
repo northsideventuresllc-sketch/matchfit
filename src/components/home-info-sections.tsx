@@ -310,7 +310,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           <span className="font-bold text-[#FFD34E]">premium access at $20.00 per month</span> when they want the
           platform to work harder on visibility and workflow. During the founding coach promo, new trainers receive{" "}
           <span className="font-bold text-[#FFD34E]">60 days of Premium status at sign-up</span>, pay only their
-          background check through our portal (no $100.00 platform fee), must begin onboarding within 7 days, and cannot
+          background check through our portal, must begin onboarding within 7 days, and cannot
           sell services until every requirement is completed.
         </p>
         <ul className="list-none space-y-3 border-t border-white/[0.08] pt-4">

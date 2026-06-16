@@ -48,17 +48,17 @@ export async function POST(req: Request) {
         {
           error:
             hold === "HELD"
-              ? "Your signup registration fee is on hold until certification and background check are approved."
-              : "Registration fee already paid.",
+              ? "Your signup onboarding payment is on hold until certification and background check are approved."
+              : "Onboarding payment already complete.",
         },
         { status: 400 },
       );
     }
     if (!certificationsGatePassed(profile)) {
-      return NextResponse.json({ error: "Complete certification review before paying the registration fee." }, { status: 400 });
+      return NextResponse.json({ error: "Complete certification review before completing onboarding payment." }, { status: 400 });
     }
     if (profile.backgroundCheckStatus !== "APPROVED" || !profile.hasPaidBackgroundFee) {
-      return NextResponse.json({ error: "Background check must be cleared and paid before registration billing." }, { status: 400 });
+      return NextResponse.json({ error: "Background check must be cleared and paid before onboarding billing." }, { status: 400 });
     }
     const bgCents = profile.backgroundCheckVendorPaidCents ?? 0;
     if (bgCents <= 0) {

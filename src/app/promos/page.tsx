@@ -8,7 +8,7 @@ import {
   trainerFoundingPromoParagraph,
   trainerSignupOnboardingBeginDeadlineLabel,
   trainerSignupPremiumPromoBenefitLabel,
-  trainerStandardOnboardingFeeAfterCapLabel,
+  trainerStandardOnboardingAfterCapLabel,
 } from "@/lib/trainer-signup-promo-copy";
 
 export const dynamic = "force-dynamic";
@@ -307,7 +307,7 @@ export default async function PromosPage() {
             <li className="flex gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />
               <span>
-                Trainers pay the standard onboarding fee ({trainerStandardOnboardingFeeAfterCapLabel()}) and do not
+                Trainers pay the standard onboarding fee ({trainerStandardOnboardingAfterCapLabel()}) and do not
                 receive the {trainerSignupPremiumPromoBenefitLabel()} promo.
               </span>
             </li>

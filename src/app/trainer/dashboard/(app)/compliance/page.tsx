@@ -13,8 +13,7 @@ import {
   TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE,
   TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS,
   TRAINER_SIGNUP_PREMIUM_PROMO_DAYS,
-  TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL,
-  trainerStandardOnboardingFeeAfterCapLabel,
+  trainerStandardOnboardingAfterCapLabel,
 } from "@/lib/trainer-signup-promo-copy";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { backgroundCheckStatusLabel, certificationReviewStatusLabel } from "@/lib/trainer-compliance-status-copy";
@@ -157,22 +156,21 @@ export default async function TrainerComplianceDetailsPage() {
       </header>
 
       <section className="rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 backdrop-blur-xl sm:p-8">
-        <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Platform registration fee</h2>
+        <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Onboarding payment</h2>
         <p className="mt-3 text-sm text-white/55">
           {signupHoldFlow ? (
             <>
               During the founding coach promo, pay only your background check through Match Fit&apos;s portal (plus
-              processing)—no {TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL} platform registration fee—and receive{" "}
-              {TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Premium Page access at sign-up. Begin onboarding within{" "}
-              {TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up. {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE} After
-              founding caps, coaches pay the standard {trainerStandardOnboardingFeeAfterCapLabel()} through Stripe once
-              screening and certifications are approved.
+              processing) and receive {TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Premium Page access at sign-up. Begin
+              onboarding within {TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up.{" "}
+              {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE} After founding caps, coaches pay{" "}
+              {trainerStandardOnboardingAfterCapLabel()} through Stripe once screening and certifications are approved.
             </>
           ) : (
             <>
-              After your background check clears and certifications are approved, pay the one-time Match Fit registration
-              amount through Stripe. Founding coaches (first {getTrainerFoundingBgPercentMax()}) follow the promo above;
-              later coaches pay {trainerStandardOnboardingFeeAfterCapLabel()}.
+              After your background check clears and certifications are approved, pay the onboarding amount shown at
+              checkout through Stripe. Founding coaches (first {getTrainerFoundingBgPercentMax()}) follow the promo above;
+              later coaches pay {trainerStandardOnboardingAfterCapLabel()}.
             </>
           )}
         </p>

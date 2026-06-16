@@ -9,7 +9,7 @@ import {
   TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE,
   TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS,
   TRAINER_SIGNUP_PREMIUM_PROMO_DAYS,
-  TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL,
+  trainerStandardOnboardingAfterCapLabel,
 } from "@/lib/trainer-signup-promo-copy";
 import {
   CLIENT_PAYMENT_GRACE_DAYS,
@@ -190,8 +190,7 @@ export default async function TermsPage() {
           <Strong>{FOUNDING_TRAINER_CAP} Trainers</Strong> who complete registration receive{" "}
           <Strong>{TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days</Strong> of complimentary Premium Page access starting at
           sign-up. During this promo, Trainers pay only the independent background-check fee through Match Fit&apos;s
-          portal (plus transaction fees)—not the standard {TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL} platform
-          registration fee described in Section 11. Trainers must{" "}
+          portal (plus transaction fees). Trainers must{" "}
           <Strong>begin onboarding within {TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} calendar days</Strong> of account
           creation (including paying the background check through our portal and starting certification and screening
           steps). {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}
@@ -443,15 +442,13 @@ export default async function TermsPage() {
             Trainer registration may require payment of the independent background-check fee through Match Fit&apos;s
             portal plus applicable transaction fees, as shown at checkout.{" "}
             <Strong>Founding-coach promo (first {FOUNDING_TRAINER_CAP} Trainers):</Strong> pay only the background-check
-            fee through our portal (plus processing)—no {TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL} platform
-            registration fee—and receive <Strong>{TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days</Strong> of Premium Page access
-            at sign-up. Trainers must begin onboarding within{" "}
+            fee through our portal (plus processing) and receive <Strong>{TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days</Strong>{" "}
+            of Premium Page access at sign-up. Trainers must begin onboarding within{" "}
             <Strong>{TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} calendar days</Strong> of account creation and may not offer
             or sell services until all onboarding requirements are completed.{" "}
-            <Strong>Standard pricing (after founding caps):</Strong> {TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL} minus
-            the amount you paid the independent background-check provider (when verified), plus processing fees. Match Fit
-            generally collects any platform registration amount only after background screening clears and primary
-            certification is approved, as implemented in onboarding. At signup, your card may be{" "}
+            <Strong>Standard pricing (after founding caps):</Strong> {trainerStandardOnboardingAfterCapLabel()}. Match Fit
+            generally collects onboarding amounts only after background screening clears and primary certification is
+            approved, as implemented in onboarding. At signup, your card may be{" "}
             <Strong>authorized (held)</Strong> through our payment processor; Match Fit <Strong>captures</Strong> amounts
             only according to the pricing tier and approval rules in effect when you registered.
           </Li>

@@ -11,9 +11,6 @@ export const TRAINER_SIGNUP_PREMIUM_PROMO_DAYS = 60;
 /** Trainers must begin onboarding (background check + compliance steps) within this window after sign-up. */
 export const TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS = 7;
 
-/** Standard platform registration fee shown after founding caps (not charged during the active promo). */
-export const TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL = "$100.00";
-
 export function trainerSignupPremiumPromoBenefitLabel(): string {
   return `${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Premium status`;
 }
@@ -24,7 +21,7 @@ export function trainerSignupOnboardingBeginDeadlineLabel(): string {
 
 /** One sentence for hero / banner trainer promo bullets. */
 export function trainerFoundingPromoHeadline(trainerCap = getTrainerFoundingBgPercentMax()): string {
-  return `The first ${trainerCap} fitness professionals receive ${trainerSignupPremiumPromoBenefitLabel()} at sign-up, pay only their background check through our portal (no ${TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL} platform fee), and must begin onboarding within ${trainerSignupOnboardingBeginDeadlineLabel()} of creating an account.`;
+  return `The first ${trainerCap} fitness professionals receive ${trainerSignupPremiumPromoBenefitLabel()} at sign-up, pay only their background check through our portal, and must begin onboarding within ${trainerSignupOnboardingBeginDeadlineLabel()} of creating an account.`;
 }
 
 /** Selling restriction repeated wherever trainers learn promo rules. */
@@ -36,7 +33,7 @@ export function trainerFoundingPromoParagraph(trainerCap = getTrainerFoundingBgP
   return `${trainerFoundingPromoHeadline(trainerCap)} ${TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}`;
 }
 
-/** Post-cap standard trainer onboarding fee (unchanged business rule). */
-export function trainerStandardOnboardingFeeAfterCapLabel(): string {
-  return `${TRAINER_SIGNUP_STANDARD_PLATFORM_FEE_LABEL} minus their background check amount`;
+/** Post-cap onboarding summary — fees shown at checkout when caps are reached. */
+export function trainerStandardOnboardingAfterCapLabel(): string {
+  return "background check through our portal plus card processing (as shown at checkout)";
 }

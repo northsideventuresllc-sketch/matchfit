@@ -35,7 +35,7 @@ export function computeTrainerRegistrationDueCents(args: {
   if (due <= 0) {
     return {
       dueCents: 0,
-      error: "No platform registration balance is due after your background check credit.",
+      error: "No onboarding balance is due after your background check payment.",
     };
   }
   return { dueCents: due };
