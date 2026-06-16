@@ -4,7 +4,6 @@ import {
   TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE,
   TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS,
   TRAINER_SIGNUP_PREMIUM_PROMO_DAYS,
-  trainerStandardOnboardingAfterCapLabel,
 } from "@/lib/trainer-signup-promo-copy";
 
 export const TRAINER_SIGNUP_AGREEMENT_DOCUMENT = `Match Fit connects fitness professionals with clients who discover coaches through the platform. You agree to provide accurate information during signup, certification review, and background screening.

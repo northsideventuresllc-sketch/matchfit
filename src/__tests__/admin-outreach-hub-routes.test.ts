@@ -89,11 +89,11 @@ describe("admin outreach hub routes", () => {
     });
     mockListOutreachHubLeads.mockResolvedValue([]);
     mockGetOutreachPipelineStats.mockResolvedValue({
-      total: 12,
-      followUp: 3,
-      responses: 1,
-      hubSaved: 4,
+      totalInHub: 4,
       archived: 2,
+      activeLeads: { all: 3, instagram: 1, facebook: 1, email: 1 },
+      followUpNeeded: { all: 2, instagram: 1, facebook: 0, email: 1 },
+      responses: { all: 1, instagram: 0, facebook: 1, email: 0 },
     });
     mockBuildOutreachHubCsv.mockReturnValue("Platform,Name\ninstagram,coach");
     mockMassSaveOutreachLeadsToHub.mockResolvedValue({ savedCount: 2 });
@@ -202,11 +202,11 @@ describe("admin outreach hub routes", () => {
       expect(response.status).toBe(200);
       await expect(response.json()).resolves.toEqual({
         stats: {
-          total: 12,
-          followUp: 3,
-          responses: 1,
-          hubSaved: 4,
+          totalInHub: 4,
           archived: 2,
+          activeLeads: { all: 3, instagram: 1, facebook: 1, email: 1 },
+          followUpNeeded: { all: 2, instagram: 1, facebook: 0, email: 1 },
+          responses: { all: 1, instagram: 0, facebook: 1, email: 0 },
         },
       });
       expect(mockEnsureOutreachHubSchema).toHaveBeenCalled();

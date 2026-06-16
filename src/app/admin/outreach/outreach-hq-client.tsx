@@ -54,24 +54,25 @@ import {
   OUTREACH_PLATFORM_UI,
   stageLabelForOutreachGenerate,
 } from "@/lib/outreach-platform-ui";
+import {
+  computeOutreachHubStats,
+  isOutreachHubMetricNotApplicable,
+  OUTREACH_HUB_STAT_PLATFORM_BUTTONS,
+  resolveOutreachHubMetricCount,
+  type OutreachHubMetricCounts,
+  type OutreachHubStats,
+  type OutreachHubStatsPlatformFilter,
+} from "@/lib/outreach-hub-stats";
 
 type AnyLead = InstagramLeadRow | FacebookLeadRow | EmailLeadRow;
 type OutreachView = OutreachPlatform | "hub" | "archive";
 
-type OutreachPipelineStats = {
-  total: number;
-  followUp: number;
-  responses: number;
-  hubSaved: number;
-  archived: number;
-};
-
-const EMPTY_PIPELINE_STATS: OutreachPipelineStats = {
-  total: 0,
-  followUp: 0,
-  responses: 0,
-  hubSaved: 0,
+const EMPTY_HUB_STATS: OutreachHubStats = {
+  totalInHub: 0,
   archived: 0,
+  activeLeads: { all: 0, instagram: 0, facebook: 0, email: 0 },
+  followUpNeeded: { all: 0, instagram: 0, facebook: 0, email: 0 },
+  responses: { all: 0, instagram: 0, facebook: 0, email: 0 },
 };
 
 type DeleteReasonPromptState = {
@@ -99,6 +100,43 @@ function LeadCollapseToggle(props: {
     >
       <span className={`inline-block text-sm transition-transform ${props.expanded ? "rotate-90" : ""}`}>▸</span>
     </button>
+  );
+}
+
+function OutreachHubMetricStatCard(props: {
+  label: string;
+  metric: "activeLeads" | "followUpNeeded" | "responses";
+  counts: OutreachHubMetricCounts;
+  platformFilter: OutreachHubStatsPlatformFilter;
+  onPlatformFilter: (platform: OutreachHubStatsPlatformFilter) => void;
+  valueClassName?: string;
+}) {
+  const notApplicable = isOutreachHubMetricNotApplicable(props.metric, props.platformFilter);
+  const value = notApplicable ? null : resolveOutreachHubMetricCount(props.counts, props.platformFilter);
+
+  return (
+    <div className={`${adminPanelClass} p-4`}>
+      <p className={adminLabelClass}>{props.label}</p>
+      <p className={`mt-1 text-2xl font-black tabular-nums ${props.valueClassName ?? ""}`}>
+        {notApplicable ? "N/A" : value}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {OUTREACH_HUB_STAT_PLATFORM_BUTTONS.map((button) => (
+          <button
+            key={button.id}
+            type="button"
+            className={
+              props.platformFilter === button.id
+                ? "rounded-md border border-[#FF7E00]/40 bg-[#FF7E00]/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[#FFD34E]"
+                : "rounded-md border border-white/[0.08] bg-[#0E1016]/80 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white/55 hover:border-white/15 hover:text-white/80"
+            }
+            onClick={() => props.onPlatformFilter(button.id)}
+          >
+            {button.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -1404,7 +1442,10 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   const [hubEntries, setHubEntries] = useState<OutreachHubLead[]>([]);
   const [generatingFields, setGeneratingFields] = useState<Record<string, Set<string>>>({});
   const [archiveEntries, setArchiveEntries] = useState<OutreachArchiveLead[]>([]);
-  const [pipelineStats, setPipelineStats] = useState<OutreachPipelineStats>(EMPTY_PIPELINE_STATS);
+  const [pipelineStats, setPipelineStats] = useState<OutreachHubStats>(EMPTY_HUB_STATS);
+  const [activeLeadsPlatform, setActiveLeadsPlatform] = useState<OutreachHubStatsPlatformFilter>("all");
+  const [followUpPlatform, setFollowUpPlatform] = useState<OutreachHubStatsPlatformFilter>("all");
+  const [responsesPlatform, setResponsesPlatform] = useState<OutreachHubStatsPlatformFilter>("all");
   const [schemaRepairing, setSchemaRepairing] = useState(false);
   const [schemaRepairMessage, setSchemaRepairMessage] = useState<string | null>(null);
   const [purging, setPurging] = useState(false);
@@ -1439,13 +1480,13 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   const loadPipelineStats = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/outreach/stats", { credentials: "include" });
-      const data = await readJsonResponse<{ error?: string; stats?: OutreachPipelineStats }>(res);
+      const data = await readJsonResponse<{ error?: string; stats?: OutreachHubStats }>(res);
       if (!res.ok) {
         if (res.status === 503) {
           const repaired = await repairOutreachSchema();
           if (repaired) {
             const retry = await fetch("/api/admin/outreach/stats", { credentials: "include" });
-            const retryData = await readJsonResponse<{ stats?: OutreachPipelineStats }>(retry);
+            const retryData = await readJsonResponse<{ stats?: OutreachHubStats }>(retry);
             if (retry.ok && retryData.stats) {
               setPipelineStats(retryData.stats);
               return;
@@ -1501,9 +1542,15 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   }, []);
 
   const loadHubEntries = useCallback(
-    async (options?: { clearAlerts?: boolean; allowSchemaRepair?: boolean }) => {
-      async function fetchHubEntries(fetchOptions?: { clearAlerts?: boolean; allowSchemaRepair?: boolean }) {
-        setLoading(true);
+    async (options?: { clearAlerts?: boolean; allowSchemaRepair?: boolean; silent?: boolean }) => {
+      async function fetchHubEntries(fetchOptions?: {
+        clearAlerts?: boolean;
+        allowSchemaRepair?: boolean;
+        silent?: boolean;
+      }) {
+        if (!fetchOptions?.silent) {
+          setLoading(true);
+        }
         if (fetchOptions?.clearAlerts) {
           setError(null);
           setSuccessMessage(null);
@@ -1530,7 +1577,9 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
             setError(formatUserFacingError(e, "Could not load Outreach Hub saved contacts."));
           }
         } finally {
-          setLoading(false);
+          if (!fetchOptions?.silent) {
+            setLoading(false);
+          }
         }
       }
 
@@ -1542,12 +1591,14 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   useEffect(() => {
     queueMicrotask(() => {
       void loadPipelineStats();
-      if (tab === "hub") {
-        void loadHubEntries({ clearAlerts: true });
-      } else if (tab === "archive") {
+      if (tab === "archive") {
         void loadArchiveEntries({ clearAlerts: true });
+        void loadHubEntries({ silent: true });
+      } else if (tab === "hub") {
+        void loadHubEntries({ clearAlerts: true });
       } else {
         void loadLeads(tab, { clearAlerts: true });
+        void loadHubEntries({ silent: true });
       }
     });
   }, [tab, loadLeads, loadHubEntries, loadArchiveEntries, loadPipelineStats]);
@@ -1556,7 +1607,10 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     queueMicrotask(() => setSelectedIds(new Set()));
   }, [tab, leads]);
 
-  const stats = pipelineStats;
+  const hubStats = useMemo(
+    () => computeOutreachHubStats(hubEntries, pipelineStats.archived),
+    [hubEntries, pipelineStats.archived],
+  );
 
   useEffect(() => {
     if (!generating || tab === "hub" || tab === "archive") return;
@@ -1946,22 +2000,33 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         {schemaRepairMessage ? <AdminPortalAlert variant="info">{schemaRepairMessage}</AdminPortalAlert> : null}
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <OutreachHubMetricStatCard
+            label="Active leads"
+            metric="activeLeads"
+            counts={hubStats.activeLeads}
+            platformFilter={activeLeadsPlatform}
+            onPlatformFilter={setActiveLeadsPlatform}
+          />
+          <OutreachHubMetricStatCard
+            label="Follow-up needed"
+            metric="followUpNeeded"
+            counts={hubStats.followUpNeeded}
+            platformFilter={followUpPlatform}
+            onPlatformFilter={setFollowUpPlatform}
+            valueClassName="text-amber-200"
+          />
+          <OutreachHubMetricStatCard
+            label="Responses"
+            metric="responses"
+            counts={hubStats.responses}
+            platformFilter={responsesPlatform}
+            onPlatformFilter={setResponsesPlatform}
+            valueClassName="text-emerald-200"
+          />
           <div className={`${adminPanelClass} p-4`}>
-            <p className={adminLabelClass}>Active leads (all platforms)</p>
-            <p className="mt-1 text-2xl font-black tabular-nums">{stats.total}</p>
-          </div>
-          <div className={`${adminPanelClass} p-4`}>
-            <p className={adminLabelClass}>Follow-up needed</p>
-            <p className="mt-1 text-2xl font-black tabular-nums text-amber-200">{stats.followUp}</p>
-          </div>
-          <div className={`${adminPanelClass} p-4`}>
-            <p className={adminLabelClass}>Responses</p>
-            <p className="mt-1 text-2xl font-black tabular-nums text-emerald-200">{stats.responses}</p>
-          </div>
-          <div className={`${adminPanelClass} p-4`}>
-            <p className={adminLabelClass}>Saved to Outreach Hub</p>
-            <p className="mt-1 text-2xl font-black tabular-nums text-[#FFD34E]">{stats.hubSaved}</p>
-            <p className="mt-1 text-[11px] text-white/40">{stats.archived} archived</p>
+            <p className={adminLabelClass}>Total currently in Outreach Hub</p>
+            <p className="mt-1 text-2xl font-black tabular-nums text-[#FFD34E]">{hubStats.totalInHub}</p>
+            <p className="mt-1 text-[11px] text-white/40">{hubStats.archived} archived</p>
           </div>
         </div>
 
