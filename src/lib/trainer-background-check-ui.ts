@@ -1,5 +1,10 @@
 import { isBackgroundCheckPlanBActive, isCheckrApiFullyConfigured } from "@/lib/checkr-integration";
 
+import {
+  isTrainerBackgroundCheckPlatformCovered,
+  parseTrainerRegistrationPricingMode,
+} from "@/lib/trainer-registration-pricing-mode";
+
 export type TrainerBackgroundCheckUiMode = "plan_b" | "checkr_api" | "unconfigured";
 
 export function resolveTrainerBackgroundCheckUiMode(): TrainerBackgroundCheckUiMode {
@@ -14,16 +19,12 @@ export function trainerHasSignupBackgroundEscrow(args: {
   backgroundCheckEscrowHoldStatus?: string | null;
   backgroundCheckEscrowPaymentIntentId?: string | null;
   hasPaidBackgroundFee?: boolean;
+  registrationFeePricingMode?: string | null;
 }): boolean {
+  const pricingMode = parseTrainerRegistrationPricingMode(args.registrationFeePricingMode);
+  if (isTrainerBackgroundCheckPlatformCovered(pricingMode)) return false;
   if (args.hasPaidBackgroundFee) return true;
   const bgHold = (args.backgroundCheckEscrowHoldStatus ?? "").trim().toUpperCase();
   if (bgHold === "HELD" || bgHold === "CAPTURED") return true;
-  const platformHold = (args.registrationFeeHoldStatus ?? "").trim().toUpperCase();
-  if (
-    (platformHold === "HELD" || platformHold === "CAPTURED") &&
-    !args.backgroundCheckEscrowPaymentIntentId?.trim()
-  ) {
-    return true;
-  }
   return false;
 }

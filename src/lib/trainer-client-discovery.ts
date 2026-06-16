@@ -57,7 +57,9 @@ export function trainerBookableBlockedMessage(
 }
 
 /** Prisma filter: trainers visible on client discovery surfaces (pre-verified + fully activated). */
-export function clientDiscoveryVisibleTrainerProfileWhere(): Prisma.TrainerProfileNullableScalarRelationFilter {
+export function clientDiscoveryVisibleTrainerProfileWhere(): {
+  is: Prisma.TrainerProfileWhereInput;
+} {
   return {
     is: {
       hasSignedTOS: true,

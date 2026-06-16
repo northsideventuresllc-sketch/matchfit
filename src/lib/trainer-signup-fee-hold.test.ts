@@ -73,7 +73,7 @@ describe("trainer-signup-fee-hold", () => {
     const result = await createTrainerSignupFeeHoldPaymentIntents({
       trainerId: "trainer_1",
       email: "coach@example.com",
-      pricingMode: "FOUNDING_BG_SURCHARGE_20PCT",
+      pricingMode: "STANDARD_100_MINUS_BG",
     });
 
     expect(mockPaymentIntentsCreate).toHaveBeenCalledTimes(2);
@@ -118,7 +118,31 @@ describe("trainer-signup-fee-hold", () => {
       totalCents: 6880,
       platformHoldCents: 1980,
       backgroundCheckHoldCents: 4900,
+      backgroundCheckHoldRequired: true,
     });
+  });
+
+  it("skips background escrow intent for founding covered pricing", async () => {
+    mockComputeTrainerSignupEscrowSplit.mockReturnValueOnce({
+      baseCents: 980,
+      platformEscrowCents: 980,
+      backgroundCheckEscrowCents: 0,
+    });
+    mockComputeTrainerSignupBackgroundEscrowHoldCents.mockReturnValueOnce(0);
+    mockPaymentIntentsCreate.mockResolvedValueOnce({
+      id: "pi_platform_only",
+      client_secret: "cs_platform_only",
+    });
+
+    const result = await createTrainerSignupFeeHoldPaymentIntents({
+      trainerId: "trainer_1",
+      email: "coach@example.com",
+      pricingMode: "FOUNDING_BG_COVERED",
+    });
+
+    expect(mockPaymentIntentsCreate).toHaveBeenCalledTimes(1);
+    expect(result.backgroundCheckPaymentIntentId).toBeNull();
+    expect(result.backgroundCheckHoldRequired).toBe(false);
   });
 
   it("throws when Stripe is not configured", async () => {
@@ -128,7 +152,7 @@ describe("trainer-signup-fee-hold", () => {
       createTrainerSignupFeeHoldPaymentIntents({
         trainerId: "trainer_1",
         email: "coach@example.com",
-        pricingMode: "FOUNDING_BG_SURCHARGE_20PCT",
+        pricingMode: "FOUNDING_BG_COVERED",
       }),
     ).rejects.toThrow("STRIPE_SECRET_KEY is not configured.");
   });

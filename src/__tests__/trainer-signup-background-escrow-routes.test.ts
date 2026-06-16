@@ -88,7 +88,7 @@ describe("trainer signup background escrow routes", () => {
       client_secret: "cs_signup_hold_1",
       metadata: {
         trainerId: "trainer_1",
-        pricingMode: "FOUNDING_BG_SURCHARGE_20PCT",
+        pricingMode: "FOUNDING_BG_COVERED",
       },
     });
     mockIsTrainerSignupBackgroundEscrowPaymentIntent.mockReturnValue(true);
@@ -235,7 +235,7 @@ describe("trainer signup background escrow routes", () => {
       paymentIntentId: "pi_platform_1",
       pendingBackgroundCheckEscrowPaymentIntentId: "pi_bg_1",
       paidCents: 0,
-      pricingMode: "FOUNDING_BG_SURCHARGE_20PCT",
+      pricingMode: "FOUNDING_BG_COVERED",
     });
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({

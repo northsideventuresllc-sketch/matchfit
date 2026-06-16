@@ -7,6 +7,7 @@ import {
   computeTrainerSignupPlatformHoldCents,
   signupEscrowMetadata,
 } from "@/lib/trainer-signup-escrow";
+import { trainerSignupRequiresBackgroundEscrowHold } from "@/lib/trainer-registration-pricing-mode";
 import { getStripe } from "@/lib/stripe-server";
 
 /** Legacy combined signup hold (single PaymentIntent for full signup total). */
@@ -19,12 +20,13 @@ export const TRAINER_SIGNUP_BG_ESCROW_PURPOSE = "trainer_signup_bg_escrow";
 export type TrainerSignupFeeHoldIntents = {
   platformClientSecret: string;
   platformPaymentIntentId: string;
-  backgroundCheckClientSecret: string;
-  backgroundCheckPaymentIntentId: string;
+  backgroundCheckClientSecret: string | null;
+  backgroundCheckPaymentIntentId: string | null;
   baseCents: number;
   totalCents: number;
   platformHoldCents: number;
   backgroundCheckHoldCents: number;
+  backgroundCheckHoldRequired: boolean;
 };
 
 function isManualCaptureReady(status: string): boolean {
@@ -82,9 +84,12 @@ export async function createTrainerSignupBackgroundEscrowPaymentIntent(args: {
   trainerId: string;
   email: string;
   pricingMode: TrainerRegistrationPricingMode;
-}): Promise<{ clientSecret: string; paymentIntentId: string; holdCents: number }> {
+}): Promise<{ clientSecret: string; paymentIntentId: string; holdCents: number } | null> {
   const split = computeTrainerSignupEscrowSplit(args.pricingMode);
   const holdCents = computeTrainerSignupBackgroundEscrowHoldCents(args.pricingMode);
+  if (!trainerSignupRequiresBackgroundEscrowHold(args.pricingMode) || holdCents <= 0) {
+    return null;
+  }
   const escrowMeta = signupEscrowMetadata(args.pricingMode);
   const pi = await createManualCapturePaymentIntent({
     amountCents: holdCents,
@@ -113,7 +118,10 @@ export async function createTrainerSignupFeeHoldPaymentIntents(args: {
   const backgroundCheckHoldCents = computeTrainerSignupBackgroundEscrowHoldCents(args.pricingMode);
   const escrowMeta = signupEscrowMetadata(args.pricingMode);
 
-  const backgroundCheck = await createTrainerSignupBackgroundEscrowPaymentIntent(args);
+  const backgroundCheckHoldRequired = trainerSignupRequiresBackgroundEscrowHold(args.pricingMode);
+  const backgroundCheck = backgroundCheckHoldRequired
+    ? await createTrainerSignupBackgroundEscrowPaymentIntent(args)
+    : null;
 
   const platform = await createManualCapturePaymentIntent({
     amountCents: platformHoldCents,
@@ -125,7 +133,8 @@ export async function createTrainerSignupFeeHoldPaymentIntents(args: {
       holdSlice: "platform",
       platformEscrowCents: String(split.platformEscrowCents),
       platformHoldCents: String(platformHoldCents),
-      backgroundCheckPaymentIntentId: backgroundCheck.paymentIntentId,
+      backgroundCheckPaymentIntentId: backgroundCheck?.paymentIntentId ?? "",
+      backgroundCheckHoldRequired: backgroundCheckHoldRequired ? "1" : "0",
       ...escrowMeta,
     },
   });
@@ -133,12 +142,13 @@ export async function createTrainerSignupFeeHoldPaymentIntents(args: {
   return {
     platformClientSecret: platform.clientSecret,
     platformPaymentIntentId: platform.paymentIntentId,
-    backgroundCheckClientSecret: backgroundCheck.clientSecret,
-    backgroundCheckPaymentIntentId: backgroundCheck.paymentIntentId,
+    backgroundCheckClientSecret: backgroundCheck?.clientSecret ?? null,
+    backgroundCheckPaymentIntentId: backgroundCheck?.paymentIntentId ?? null,
     baseCents: split.baseCents,
     totalCents: computeTrainerSignupCombinedHoldCents(args.pricingMode),
     platformHoldCents,
     backgroundCheckHoldCents,
+    backgroundCheckHoldRequired,
   };
 }
 

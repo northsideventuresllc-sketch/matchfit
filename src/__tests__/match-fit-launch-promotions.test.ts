@@ -27,7 +27,7 @@ describe("match-fit-launch-promotions", () => {
 
   it("uses defaults for client trial caps", () => {
     expect(getClientFoundingTrialMaxClients()).toBe(150);
-    expect(getClientFoundingTrialDays()).toBe(14);
+    expect(getClientFoundingTrialDays()).toBe(60);
     expect(getClientPostCapTrialDays()).toBe(3);
     expect(isNextClientEligibleForFoundingTrial(0)).toBe(true);
     expect(isNextClientEligibleForFoundingTrial(149)).toBe(true);
@@ -47,22 +47,30 @@ describe("match-fit-launch-promotions", () => {
   });
 
   it("uses defaults for trainer founding BG tier", () => {
-    expect(getTrainerFoundingBgPercentMax()).toBe(30);
-    expect(getTrainerFoundingRegistrationWaiverMax()).toBe(30);
+    expect(getTrainerFoundingBgPercentMax()).toBe(10);
+    expect(getTrainerFoundingRegistrationWaiverMax()).toBe(10);
     expect(isTrainerFoundingBgPercentTier(0)).toBe(true);
-    expect(isTrainerFoundingBgPercentTier(29)).toBe(true);
-    expect(isTrainerFoundingBgPercentTier(30)).toBe(false);
+    expect(isTrainerFoundingBgPercentTier(9)).toBe(true);
+    expect(isTrainerFoundingBgPercentTier(10)).toBe(false);
   });
 });
 
 describe("trainer-registration-fee", () => {
-  it("founding tier charges 20% of Checkr amount", () => {
+  it("founding covered tier charges 20% of Checkr amount", () => {
+    const r = computeTrainerRegistrationDueCents({
+      pricingMode: "FOUNDING_BG_COVERED",
+      backgroundCheckVendorPaidCents: 4900,
+    });
+    expect(r.dueCents).toBe(980);
+    expect(r.error).toBeUndefined();
+  });
+
+  it("legacy founding surcharge mode still charges 20%", () => {
     const r = computeTrainerRegistrationDueCents({
       pricingMode: "FOUNDING_BG_SURCHARGE_20PCT",
       backgroundCheckVendorPaidCents: 4900,
     });
     expect(r.dueCents).toBe(980);
-    expect(r.error).toBeUndefined();
   });
 
   it("standard tier charges $100 minus background check", () => {

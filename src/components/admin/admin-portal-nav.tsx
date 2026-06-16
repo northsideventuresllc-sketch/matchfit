@@ -13,11 +13,13 @@ export type AdminPortalNavPage =
   | "waitlists"
   | "outreach"
   | "content-calendar"
-  | "ad-tracking";
+  | "ad-tracking"
+  | "email-templates";
 
 const PAGES: { id: AdminPortalNavPage; href: string; label: string }[] = [
   { id: "dashboard", href: "/admin", label: "Dashboard" },
   { id: "support-inbox", href: "/admin/support-inbox", label: "Support Inbox" },
+  { id: "email-templates", href: "/admin/email-templates", label: "Email Templates" },
   { id: "outreach", href: "/admin/outreach", label: "Outreach HQ" },
   { id: "content-calendar", href: "/admin/content-calendar", label: "Content Calendar" },
   { id: "ad-tracking", href: "/admin/ad-tracking", label: "Ad Tracking" },

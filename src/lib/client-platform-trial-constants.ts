@@ -1,5 +1,5 @@
 /** Card-free platform access after client sign-up. */
-export const CLIENT_PLATFORM_TRIAL_DAYS = 14;
+export const CLIENT_PLATFORM_TRIAL_DAYS = 60;
 
 /** Window after trial ends to add a card and subscribe before deactivation. */
 export const CLIENT_PAYMENT_GRACE_DAYS = 14;

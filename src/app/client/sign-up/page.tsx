@@ -17,6 +17,7 @@ import {
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
 import { BetaCapFullSignupNotice } from "@/components/beta-cap-full-signup-notice";
 import { useBetaLaunchStatus } from "@/hooks/use-beta-launch-status";
+import { CLIENT_PLATFORM_TRIAL_DAYS } from "@/lib/client-platform-trial-constants";
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -425,7 +426,7 @@ function ClientSignUpPageInner() {
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-white/55 sm:text-base">
           {wizardStep === 1
-            ? "Tell us a bit about yourself. After you agree to the Terms of Service, your account starts with a 14-day free trial — no card required at sign-up. U.S. beta — anyone in the United States can sign up. You must be 18 or older."
+            ? `Tell us a bit about yourself. After you agree to the Terms of Service, your account starts with a ${CLIENT_PLATFORM_TRIAL_DAYS}-day free trial — no card required at sign-up. U.S. beta — anyone in the United States can sign up. You must be 18 or older.`
             : awaitingCode
               ? "Check your inbox for a verification email with your code."
               : "Add an extra layer of security, or skip and turn this on later in settings."}

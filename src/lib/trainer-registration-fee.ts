@@ -1,7 +1,8 @@
 import {
-  getTrainerFoundingBgPercentMax,
+  getTrainerFoundingBgCoveredMax,
   type TrainerRegistrationPricingMode,
 } from "@/lib/match-fit-launch-promotion-caps";
+
 import { TRAINER_PLATFORM_REGISTRATION_FEE_CENTS } from "@/lib/trainer-platform-registration-fee";
 
 export { TRAINER_PLATFORM_REGISTRATION_FEE_CENTS } from "@/lib/trainer-platform-registration-fee";
@@ -9,8 +10,8 @@ export { TRAINER_PLATFORM_REGISTRATION_FEE_CENTS } from "@/lib/trainer-platform-
 export function trainerRegistrationPricingModeForNewTrainer(
   trainerCountBeforeInsert: number,
 ): TrainerRegistrationPricingMode {
-  return trainerCountBeforeInsert < getTrainerFoundingBgPercentMax()
-    ? "FOUNDING_BG_SURCHARGE_20PCT"
+  return trainerCountBeforeInsert < getTrainerFoundingBgCoveredMax()
+    ? "FOUNDING_BG_COVERED"
     : "STANDARD_100_MINUS_BG";
 }
 
@@ -27,7 +28,7 @@ export function computeTrainerRegistrationDueCents(args: {
   if (bg <= 0) {
     return { dueCents: 0, error: "Background check payment amount is not recorded yet." };
   }
-  if (args.pricingMode === "FOUNDING_BG_SURCHARGE_20PCT") {
+  if (args.pricingMode === "FOUNDING_BG_COVERED" || args.pricingMode === "FOUNDING_BG_SURCHARGE_20PCT") {
     const due = Math.max(1, Math.round(bg * 0.2));
     return { dueCents: due };
   }

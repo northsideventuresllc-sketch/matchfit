@@ -40,7 +40,7 @@ async function createRegisteredClient(args: {
       data: {
         firstName: body.firstName,
         lastName: body.lastName,
-        preferredName: body.preferredName?.trim() || "",
+        preferredName: body.preferredName?.trim() || body.firstName.trim(),
         username,
         phone: body.phone.trim(),
         email,
@@ -72,7 +72,7 @@ async function createRegisteredClient(args: {
       data: {
         firstName: body.firstName,
         lastName: body.lastName,
-        preferredName: body.preferredName?.trim() || "",
+        preferredName: body.preferredName?.trim() || body.firstName.trim(),
         username,
         phone: body.phone.trim(),
         email,

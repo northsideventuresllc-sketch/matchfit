@@ -26,8 +26,8 @@ export function trainerSignupPaymentHoldExplanation(pricingMode: TrainerRegistra
   const bgLabel = formatUsd(split.backgroundCheckEscrowCents);
   const platformLabel = formatUsd(split.platformEscrowCents);
 
-  if (pricingMode === "FOUNDING_BG_SURCHARGE_20PCT") {
-    return `Founding coach promo: pay an estimated ${bgLabel} background screening fee through Match Fit's portal (plus card processing). You receive ${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Premium Page access at sign-up. When Checkr screening completes, the screening portion is captured so Match Fit can pay Checkr. You must begin onboarding within ${TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up. ${TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}`;
+  if (pricingMode === "FOUNDING_BG_COVERED" || pricingMode === "FOUNDING_BG_SURCHARGE_20PCT") {
+    return `Founding coach pricing: Match Fit covers your Checkr background screening. Today's hold is only the ${platformLabel} Match Fit platform portion (20% of the standard screening estimate), plus card processing. Match Fit captures the platform portion only after certification and screening review finish. If you are fully approved, the platform hold is captured. If you are not approved, the platform hold is released. You must begin onboarding within ${TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up. You receive ${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Premium Page access at sign-up. ${TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}`;
   }
 
   const listPrice = formatUsd(TRAINER_PLATFORM_REGISTRATION_FEE_CENTS);

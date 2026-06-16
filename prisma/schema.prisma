@@ -31,8 +31,46 @@ model Administrator {
   goals            AdminGoal[]
   aiMessages       AdminAiMessage[]
   aiConversations  AdminAiConversation[]
+  emailTemplateOverrides     TransactionalEmailTemplateOverride[]
+  emailTemplateChangesRequested PendingTransactionalEmailTemplateChange[]
 
   @@map("administrators")
+  @@schema("public")
+}
+
+/// Active admin-edited overrides for automated transactional emails (keyed by kind).
+model TransactionalEmailTemplateOverride {
+  id        String   @id @default(cuid())
+  kind      String   @unique
+  fieldsJson String
+  updatedAt DateTime @updatedAt
+
+  updatedByAdminId String?
+  updatedByAdmin   Administrator? @relation(fields: [updatedByAdminId], references: [id], onDelete: SetNull)
+
+  @@map("transactional_email_template_overrides")
+  @@schema("public")
+}
+
+/// Pending email template edits from non-owner admins awaiting jb@match-fit.net approval.
+model PendingTransactionalEmailTemplateChange {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  kind       String
+  fieldsJson String
+  /// PENDING | APPROVED | DENIED
+  status     String @default("PENDING")
+
+  requestedByAdminId String
+  requestedByAdmin   Administrator @relation(fields: [requestedByAdminId], references: [id], onDelete: Cascade)
+
+  reviewNotes String?
+  reviewedAt  DateTime?
+
+  @@index([kind, status])
+  @@index([requestedByAdminId])
+  @@map("pending_transactional_email_template_changes")
   @@schema("public")
 }
 
@@ -1063,7 +1101,7 @@ model TrainerProfile {
   backgroundCheckEscrowCents Int?
   /// Platform registration portion of signup hold (cents).
   platformEscrowCents Int?
-  /// FOUNDING_BG_SURCHARGE_20PCT | STANDARD_100_MINUS_BG — set at trainer signup from launch slot.
+  /// FOUNDING_BG_COVERED | FOUNDING_BG_SURCHARGE_20PCT | STANDARD_100_MINUS_BG — set at trainer signup from launch slot.
   registrationFeePricingMode String @default("FOUNDING_BG_SURCHARGE_20PCT")
   hasPaidRegistrationFee Boolean @default(false)
   registrationFeePaidCents Int?

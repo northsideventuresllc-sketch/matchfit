@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { isStripeSecretConfigured } from "@/lib/stripe-config";
 import { createTrainerSignupFeeHoldPaymentIntents } from "@/lib/trainer-signup-fee-hold";
+import { parseTrainerRegistrationPricingMode } from "@/lib/trainer-registration-pricing-mode";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
 
@@ -53,10 +54,7 @@ export async function POST() {
       return NextResponse.json({ error: "Signup fee already authorized." }, { status: 400 });
     }
 
-    const pricingMode =
-      profile.registrationFeePricingMode === "STANDARD_100_MINUS_BG"
-        ? "STANDARD_100_MINUS_BG"
-        : "FOUNDING_BG_SURCHARGE_20PCT";
+    const pricingMode = parseTrainerRegistrationPricingMode(profile.registrationFeePricingMode);
 
     const intents = await createTrainerSignupFeeHoldPaymentIntents({
       trainerId,
@@ -69,6 +67,7 @@ export async function POST() {
       paymentIntentId: intents.platformPaymentIntentId,
       backgroundCheckClientSecret: intents.backgroundCheckClientSecret,
       backgroundCheckPaymentIntentId: intents.backgroundCheckPaymentIntentId,
+      backgroundCheckHoldRequired: intents.backgroundCheckHoldRequired,
       baseCents: intents.baseCents,
       totalCents: intents.totalCents,
       platformHoldCents: intents.platformHoldCents,

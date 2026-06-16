@@ -47,9 +47,9 @@ export async function getLaunchPromoStats(): Promise<LaunchPromoStats> {
   const gatesEnabled = isBetaLaunchGatesEnabled();
   const trainerFoundingMax = getTrainerFoundingBgPercentMax();
   const clientFoundingMax = getClientFoundingTrialMaxClients();
-  const trainerBetaCap = betaMaxTrainersAtlanta() + betaMaxTrainersVirtual();
   const trainerBetaCapAtlanta = betaMaxTrainersAtlanta();
   const trainerBetaCapVirtual = betaMaxTrainersVirtual();
+  const trainerBetaCap = trainerBetaCapAtlanta + trainerBetaCapVirtual;
   const clientBetaCap = betaMaxClients();
 
   const [trainerCount, clientCount, trainerUsed, clientUsed, atlantaUsed, virtualUsed] = await Promise.all([

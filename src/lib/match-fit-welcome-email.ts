@@ -1,7 +1,7 @@
 import { Resend } from "resend";
 import { appBaseUrlForEmail, formatTransactionalEmailSubject } from "@/lib/match-fit-email-shell";
 import { prisma } from "@/lib/prisma";
-import { buildTransactionalEmail } from "@/lib/transactional-email-templates";
+import { buildTransactionalEmailWithOverrides } from "@/lib/transactional-email-template-store";
 import { clientAllowsTransactionalEmailKind } from "@/lib/transactional-email-prefs";
 import { parseClientNotificationPrefsJson } from "@/lib/client-notification-prefs";
 import {
@@ -53,7 +53,7 @@ export async function sendMatchFitWelcomeEmail(input: SendWelcomeEmailInput): Pr
   const dashboardUrl = `${base.replace(/\/$/, "")}/client`;
   const firstName = input.firstName?.trim() ? input.firstName.trim().slice(0, 80) : "there";
 
-  const { subject: subj, text, html } = buildTransactionalEmail("CLIENT_WELCOME", {
+  const { subject: subj, text, html } = await buildTransactionalEmailWithOverrides("CLIENT_WELCOME", {
     firstName,
     dashboardUrl,
   });

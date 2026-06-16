@@ -1,4 +1,8 @@
 import { LegalPageFooterNav } from "@/components/legal-page-footer-nav";
+import {
+  CLIENT_PAYMENT_GRACE_DAYS,
+  CLIENT_PLATFORM_TRIAL_DAYS,
+} from "@/lib/client-platform-trial-constants";
 import { LEGAL_EFFECTIVE_DATE_DISPLAY } from "@/lib/legal-effective-date";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 
@@ -83,8 +87,8 @@ export default async function PrivacyPage() {
           subscriptions and certain coach payments through Stripe, send security and transactional messages through email
           infrastructure, deliver optional browser Web Push alerts when you opt in, collect limited usage analytics on
           public marketing and product pages (such as page views and link clicks), and store your in-app activity
-          (including chats and social posts) on our systems. Client sign-up includes a 14-day platform access trial with
-          no card required; after the trial, you have 14 days to subscribe before the account is deactivated until paid
+          (including chats and social posts) on our systems. Client sign-up includes a {CLIENT_PLATFORM_TRIAL_DAYS}-day platform access trial with
+          no card required; after the trial, you have {CLIENT_PAYMENT_GRACE_DAYS} days to subscribe before the account is deactivated until paid
           reactivation. Trainers in the founding coach promo receive 60 days of Premium Page access at sign-up, pay only
           their background check through our portal, must begin onboarding within 7 days of sign-up, and cannot sell
           services until all onboarding requirements are completed. You may adjust optional visibility of some profile fields and request in-product

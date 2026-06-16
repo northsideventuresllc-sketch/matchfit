@@ -1,7 +1,8 @@
 import { formatTransactionalEmailSubject } from "@/lib/match-fit-email-shell";
 import { RESEND_DEV_INBOX } from "@/lib/resend-client";
 import { sendMatchFitBrandedEmail } from "@/lib/match-fit-branded-email";
-import { buildTransactionalEmail, sampleContextForTransactionalEmail } from "@/lib/transactional-email-templates";
+import { buildTransactionalEmailWithOverrides } from "@/lib/transactional-email-template-store";
+import { sampleContextForTransactionalEmail } from "@/lib/transactional-email-templates";
 import { transactionalEmailKindSampleLabel, TRANSACTIONAL_EMAIL_KINDS } from "@/lib/transactional-email-kinds";
 import { NextResponse } from "next/server";
 
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
   for (const kind of TRANSACTIONAL_EMAIL_KINDS) {
     try {
       const ctx = sampleContextForTransactionalEmail(kind);
-      const { subject, text, html } = buildTransactionalEmail(kind, ctx);
+      const { subject, text, html } = await buildTransactionalEmailWithOverrides(kind, ctx);
       await sendMatchFitBrandedEmail({
         to,
         subject: formatTransactionalEmailSubject(

@@ -18,13 +18,13 @@ describe("trainer-signup-payment-messaging", () => {
     expect(TRAINER_SIGNUP_PAYMENT_INTRO).toMatch(/does not capture charges until/i);
   });
 
-  it("describes founding promo without referencing a separate platform fee", () => {
-    const copy = trainerSignupPaymentHoldExplanation("FOUNDING_BG_SURCHARGE_20PCT");
-    expect(copy).toMatch(/background screening fee/i);
+  it("describes founding covered pricing without a trainer background hold", () => {
+    const copy = trainerSignupPaymentHoldExplanation("FOUNDING_BG_COVERED");
+    expect(copy).toMatch(/covers your Checkr background screening/i);
+    expect(copy).toMatch(/platform portion only after certification/i);
     expect(copy).toMatch(/60 days of Premium Page access/i);
     expect(copy).toMatch(/cannot sell/i);
-    expect(copy).not.toMatch(/\$100/i);
-    expect(copy).not.toMatch(/platform registration fee/i);
+    expect(copy).not.toMatch(/charged today/i);
   });
 });
 

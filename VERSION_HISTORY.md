@@ -4,11 +4,13 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-16** `1.9.4-beta` → `1.10.0-beta` (**minor** — Admin Email Templates page with edit, preview, and approval workflow; founding coach background-check coverage)
 - **2026-06-16** `1.9.3-beta` → `1.9.4-beta` (**patch** — Outreach HQ hub stats with per-platform filters)
+- **2026-06-16** `1.9.0-beta` → `1.9.1-beta` (**patch** — Extend BETA client free trial from 14 to 60 days)
 - **2026-06-15** `1.9.2-beta` → `1.9.3-beta` (**patch** — Ad platform env hydration and Google Ads MCC login-customer-id support)
 - **2026-06-15** `1.9.1-beta` → `1.9.2-beta` (**patch** — Remove legacy LinkedIn/Other contacts from Outreach Hub)
 - **2026-06-15** `1.9.0-beta` → `1.9.1-beta` (**patch** — Collapsible Outreach HQ leads and archive hub deletes immediately)
-- **2026-06-15** `1.8.7-beta` → `1.9.0-beta` (**minor** — Outreach Hub filters for status, date range, platform, classification, and search)
+- **2026-06-15** `1.8.7-beta` → `1.9.0-beta` (**minor** — Outreach Hub filters for status, date range, platform, classification, and search; home page client/trainer reorg; first 10 founding coaches get platform-covered background checks)
 - **2026-06-15** `1.8.6-beta` → `1.8.7-beta` (**patch** — Outreach HQ: hub-only copy generation, US lead count, follow-up fields, hub stats)
 - **2026-06-11** `1.8.5-beta` → `1.8.6-beta` (**patch** — Align trainer founding promo UI copy: 60-day Premium, background-check-only fee, 7-day onboarding start, no selling until complete)
 - **2026-06-11** `1.8.4-beta` → `1.8.5-beta` (**patch**)

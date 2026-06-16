@@ -8,7 +8,7 @@ import {
 
 export const TRAINER_SIGNUP_AGREEMENT_DOCUMENT = `Match Fit connects fitness professionals with clients who discover coaches through the platform. You agree to provide accurate information during signup, certification review, and background screening.
 
-During the founding coach promo, you receive ${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Premium Page access at sign-up and pay only your independent background screening fee through Match Fit's portal (plus card processing). You must begin onboarding within ${TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of creating your account, including paying the background check through our portal and starting certification and screening steps. ${TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}
+During beta, the first 10 founding coaches receive platform-covered Checkr background screening and pay only 20% of the standard screening estimate (plus processing) for the Match Fit platform onboarding slice at signup. You receive ${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Premium Page access at sign-up. You must begin onboarding within ${TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of creating your account, including starting certification and screening steps. ${TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE} Other coaches pay a $100.00 platform registration fee plus processing at signup. Your card is authorized at signup (held in Stripe); Match Fit captures the registration amount only after your certification and background check are approved. If you do not complete background screening after your Checkr invitation is sent, no background-check charge applies for founding coaches with platform-covered screening (see Terms).
 
 After founding caps are reached, other coaches follow the onboarding fees shown at checkout in the Terms of Service. Your card may be authorized at signup when a hold is required; Match Fit captures charges only according to the rules in the Terms.
 
@@ -25,7 +25,8 @@ export const TRAINER_ONBOARDING_AGREEMENT_COUNT = 1;
 export function getTrainerOnboardingAgreementBullets(foundingCoachPricing: boolean): readonly string[] {
   if (foundingCoachPricing) {
     return [
-      `Founding coach promo: ${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Premium Page access at sign-up; pay only the background screening fee through Match Fit's portal.`,
+      "Founding coach signup (first 10): Match Fit covers Checkr background screening; you authorize only the 20% platform onboarding slice plus card processing (captured after approval).",
+      `${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Premium Page access at sign-up.`,
       `Begin onboarding within ${TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up. ${TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}`,
       "Limited dashboard until certification and background check are approved.",
       "Full Terms of Service and Privacy Policy govern enforcement, fees, and account policies.",

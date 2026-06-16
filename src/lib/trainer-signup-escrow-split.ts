@@ -13,12 +13,15 @@ export function computeTrainerSignupEscrowSplit(
   pricingMode: TrainerRegistrationPricingMode,
 ): TrainerSignupEscrowSplit {
   const bg = trainerBackgroundCheckAmountCents();
-  if (pricingMode === "FOUNDING_BG_SURCHARGE_20PCT") {
+  if (
+    pricingMode === "FOUNDING_BG_COVERED" ||
+    pricingMode === "FOUNDING_BG_SURCHARGE_20PCT"
+  ) {
     const platform = Math.max(1, Math.round(bg * 0.2));
     return {
-      backgroundCheckEscrowCents: bg,
+      backgroundCheckEscrowCents: 0,
       platformEscrowCents: platform,
-      baseCents: bg + platform,
+      baseCents: platform,
     };
   }
   const platform = Math.max(0, TRAINER_PLATFORM_REGISTRATION_FEE_CENTS - bg);

@@ -169,7 +169,7 @@ describe("trainer signup payment routes", () => {
       metadata: {
         purpose: "trainer_signup_platform_hold",
         trainerId: "trainer_1",
-        pricingMode: "FOUNDING_BG_SURCHARGE_20PCT",
+        pricingMode: "FOUNDING_BG_COVERED",
       },
     });
 
@@ -380,9 +380,7 @@ describe("trainer signup payment routes", () => {
 
   it("returns 400 from confirm-platform-hold when payload is invalid", async () => {
     const res = await postConfirmPlatformHold(
-      jsonPost("https://example.test/api/trainer/signup/confirm-platform-hold", {
-        paymentIntentId: "pi_platform",
-      }),
+      jsonPost("https://example.test/api/trainer/signup/confirm-platform-hold", {}),
     );
 
     expect(res.status).toBe(400);
@@ -415,7 +413,7 @@ describe("trainer signup payment routes", () => {
       paymentIntentId: "pi_platform",
       pendingBackgroundCheckEscrowPaymentIntentId: "pi_bg_pending",
       paidCents: 1980,
-      pricingMode: "FOUNDING_BG_SURCHARGE_20PCT",
+      pricingMode: "FOUNDING_BG_COVERED",
     });
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({
@@ -495,7 +493,7 @@ describe("trainer signup payment routes", () => {
         metadata: {
           purpose: "trainer_signup_platform_hold",
           trainerId: "trainer_1",
-          pricingMode: "FOUNDING_BG_SURCHARGE_20PCT",
+          pricingMode: "STANDARD_100_MINUS_BG",
         },
       })
       .mockResolvedValueOnce({
@@ -528,7 +526,7 @@ describe("trainer signup payment routes", () => {
       paymentIntentId: "pi_platform",
       backgroundCheckEscrowPaymentIntentId: "pi_bg_confirmed",
       paidCents: 6880,
-      pricingMode: "FOUNDING_BG_SURCHARGE_20PCT",
+      pricingMode: "STANDARD_100_MINUS_BG",
     });
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({

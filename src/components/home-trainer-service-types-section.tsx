@@ -105,25 +105,30 @@ const innerSummaryRowClass = "flex w-full items-center gap-2";
 const chevronClass =
   "inline-flex size-6 shrink-0 items-center justify-center rounded-md border border-white/[0.1] text-[10px] font-bold text-white/45 transition-transform duration-200";
 
-export function HomeTrainerServiceTypesSection() {
-  return (
-    <section
-      id="trainer-service-types"
-      className="relative scroll-mt-28 overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/75 p-7 shadow-[0_34px_90px_-50px_rgba(227,43,43,0.45)] backdrop-blur-xl sm:p-9"
-    >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-20 -top-28 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,rgba(255,126,0,0.22),transparent_68%)]"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -bottom-8 -left-12 h-48 w-48 rounded-full bg-[radial-gradient(circle_at_center,rgba(227,43,43,0.18),transparent_72%)]"
-      />
-      <div className="relative">
-        <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF7E00]">For trainers</p>
-        <h2 className="mt-3 text-balance text-xl font-black uppercase leading-tight tracking-wide text-white sm:text-2xl md:text-[1.65rem]">
-          Trainer services you can list on Match Fit
-        </h2>
+export function HomeTrainerServiceTypesSection({ embedded = false }: { embedded?: boolean }) {
+  const catalogue = (
+    <>
+      {!embedded ? (
+        <>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -right-20 -top-28 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,rgba(255,126,0,0.22),transparent_68%)]"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -bottom-8 -left-12 h-48 w-48 rounded-full bg-[radial-gradient(circle_at_center,rgba(227,43,43,0.18),transparent_72%)]"
+          />
+        </>
+      ) : null}
+      <div className={embedded ? "relative p-7 sm:p-9" : "relative"}>
+        {!embedded ? (
+          <>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF7E00]">For trainers</p>
+            <h2 className="mt-3 text-balance text-xl font-black uppercase leading-tight tracking-wide text-white sm:text-2xl md:text-[1.65rem]">
+              Trainer services you can list on Match Fit
+            </h2>
+          </>
+        ) : null}
 
         <details className="group/intro mt-4 rounded-2xl border border-white/[0.07] bg-[#0E1016]/60">
           <summary
@@ -263,6 +268,19 @@ export function HomeTrainerServiceTypesSection() {
           </div>
         </details>
       </div>
+    </>
+  );
+
+  if (embedded) {
+    return catalogue;
+  }
+
+  return (
+    <section
+      id="trainer-service-types"
+      className="relative scroll-mt-28 overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/75 p-7 shadow-[0_34px_90px_-50px_rgba(227,43,43,0.45)] backdrop-blur-xl sm:p-9"
+    >
+      {catalogue}
     </section>
   );
 }

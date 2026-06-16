@@ -9,7 +9,7 @@ const {
   clientAllowsTransactionalEmailKindMock,
   trainerAllowsTransactionalEmailKindMock,
   sendMatchFitBrandedEmailMock,
-  buildTransactionalEmailMock,
+  buildTransactionalEmailWithOverridesMock,
   isMandatoryTransactionalEmailKindMock,
 } = vi.hoisted(() => ({
   clientFindUniqueMock: vi.fn(),
@@ -19,7 +19,7 @@ const {
   clientAllowsTransactionalEmailKindMock: vi.fn(),
   trainerAllowsTransactionalEmailKindMock: vi.fn(),
   sendMatchFitBrandedEmailMock: vi.fn(),
-  buildTransactionalEmailMock: vi.fn(),
+  buildTransactionalEmailWithOverridesMock: vi.fn(),
   isMandatoryTransactionalEmailKindMock: vi.fn(),
 }));
 
@@ -46,8 +46,8 @@ vi.mock("@/lib/match-fit-branded-email", () => ({
   sendMatchFitBrandedEmail: sendMatchFitBrandedEmailMock,
 }));
 
-vi.mock("@/lib/transactional-email-templates", () => ({
-  buildTransactionalEmail: buildTransactionalEmailMock,
+vi.mock("@/lib/transactional-email-template-store", () => ({
+  buildTransactionalEmailWithOverrides: buildTransactionalEmailWithOverridesMock,
 }));
 
 vi.mock("@/lib/transactional-email-kinds", () => ({
@@ -65,7 +65,7 @@ describe("sendTransactionalEmailIfAllowed", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     isMandatoryTransactionalEmailKindMock.mockReturnValue(false);
-    buildTransactionalEmailMock.mockReturnValue({
+    buildTransactionalEmailWithOverridesMock.mockResolvedValue({
       subject: "Subject line",
       text: "Text body",
       html: "<p>Html body</p>",
@@ -142,7 +142,7 @@ describe("sendTransactionalEmailIfAllowed", () => {
     });
 
     expect(result).toEqual({ sent: true });
-    expect(buildTransactionalEmailMock).toHaveBeenCalledWith("PASSWORD_RESET", {
+    expect(buildTransactionalEmailWithOverridesMock).toHaveBeenCalledWith("PASSWORD_RESET", {
       resetUrl: "https://example.test/reset",
     });
     expect(sendMatchFitBrandedEmailMock).toHaveBeenCalledWith({

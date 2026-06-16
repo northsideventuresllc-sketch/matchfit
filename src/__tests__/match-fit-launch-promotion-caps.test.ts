@@ -18,6 +18,7 @@ describe("match-fit-launch-promotion-caps", () => {
     delete process.env.MATCH_FIT_CLIENT_FOUNDING_TRIAL_DAYS;
     delete process.env.MATCH_FIT_CLIENT_POST_CAP_TRIAL_DAYS;
     delete process.env.MATCH_FIT_TRAINER_FOUNDING_BG_PERCENT_MAX;
+    delete process.env.MATCH_FIT_TRAINER_FOUNDING_BG_COVERED_MAX;
     delete process.env.MATCH_FIT_TRAINER_FOUNDING_REGISTRATION_WAIVER_MAX;
   });
 
@@ -26,10 +27,10 @@ describe("match-fit-launch-promotion-caps", () => {
   });
 
   it("uses expected defaults when env values are unset", () => {
-    expect(getTrainerFoundingBgPercentMax()).toBe(30);
-    expect(getTrainerFoundingRegistrationWaiverMax()).toBe(30);
+    expect(getTrainerFoundingBgPercentMax()).toBe(10);
+    expect(getTrainerFoundingRegistrationWaiverMax()).toBe(10);
     expect(getClientFoundingTrialMaxClients()).toBe(150);
-    expect(getClientFoundingTrialDays()).toBe(14);
+    expect(getClientFoundingTrialDays()).toBe(60);
     expect(getClientPostCapTrialDays()).toBe(3);
   });
 
@@ -40,10 +41,10 @@ describe("match-fit-launch-promotion-caps", () => {
     process.env.MATCH_FIT_CLIENT_FOUNDING_TRIAL_DAYS = "";
     process.env.MATCH_FIT_CLIENT_POST_CAP_TRIAL_DAYS = " ";
 
-    expect(getTrainerFoundingBgPercentMax()).toBe(30);
-    expect(getTrainerFoundingRegistrationWaiverMax()).toBe(30);
+    expect(getTrainerFoundingBgPercentMax()).toBe(10);
+    expect(getTrainerFoundingRegistrationWaiverMax()).toBe(10);
     expect(getClientFoundingTrialMaxClients()).toBe(150);
-    expect(getClientFoundingTrialDays()).toBe(14);
+    expect(getClientFoundingTrialDays()).toBe(60);
     expect(getClientPostCapTrialDays()).toBe(3);
   });
 

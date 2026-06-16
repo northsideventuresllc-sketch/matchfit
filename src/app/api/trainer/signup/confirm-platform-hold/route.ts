@@ -6,6 +6,7 @@ import {
   retrieveTrainerSignupPaymentIntent,
   trainerSignupPaymentIntentReady,
 } from "@/lib/trainer-signup-fee-hold";
+import { parseTrainerRegistrationPricingMode } from "@/lib/trainer-registration-pricing-mode";
 import { getStripe } from "@/lib/stripe-server";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
@@ -13,7 +14,7 @@ import { z } from "zod";
 
 const bodySchema = z.object({
   paymentIntentId: z.string().min(1),
-  backgroundCheckPaymentIntentId: z.string().min(1),
+  backgroundCheckPaymentIntentId: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -44,15 +45,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Payment has not completed yet." }, { status: 400 });
     }
 
-    const pricingMode =
-      pi.metadata?.pricingMode === "STANDARD_100_MINUS_BG"
-        ? "STANDARD_100_MINUS_BG"
-        : "FOUNDING_BG_SURCHARGE_20PCT";
+    const pricingMode = parseTrainerRegistrationPricingMode(pi.metadata?.pricingMode);
 
     await applyTrainerSignupPlatformHoldAuthorized({
       trainerId,
       paymentIntentId: pi.id,
-      pendingBackgroundCheckEscrowPaymentIntentId: parsed.data.backgroundCheckPaymentIntentId,
+      pendingBackgroundCheckEscrowPaymentIntentId:
+        parsed.data.backgroundCheckPaymentIntentId?.trim() || null,
       paidCents: typeof pi.amount === "number" ? pi.amount : 0,
       pricingMode,
     });
