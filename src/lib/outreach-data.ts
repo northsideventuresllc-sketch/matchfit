@@ -13,6 +13,7 @@ import type {
 import { prisma } from "@/lib/prisma";
 import { ensureOutreachHubSchema } from "@/lib/ensure-outreach-hub-schema";
 import { backfillOutreachHubLeads } from "@/lib/outreach-hub-backfill";
+import { computeOutreachHubStats, type OutreachHubStats } from "@/lib/outreach-hub-stats";
 
 let outreachSchemaReady: Promise<void> | null = null;
 
@@ -230,42 +231,18 @@ export async function listOutreachHubLeads(): Promise<OutreachHubLead[]> {
   );
 }
 
-export type OutreachPipelineStats = {
-  total: number;
-  followUp: number;
-  responses: number;
-  hubSaved: number;
-  archived: number;
-};
+export type OutreachPipelineStats = OutreachHubStats;
 
-/** Aggregate active pipeline + hub/archive counts across all outreach platforms. */
+/** Aggregate Outreach Hub metrics plus archive count. */
 export async function getOutreachPipelineStats(): Promise<OutreachPipelineStats> {
   await ensureOutreachReady();
-  const platforms: OutreachPlatform[] = ["instagram", "facebook", "email"];
-  let total = 0;
-  let followUp = 0;
-  let responses = 0;
 
-  for (const platform of platforms) {
-    const leads = await listOutreachLeads(platform);
-    const active = leads.filter((lead) => !lead.deletedAt);
-    total += active.length;
-    followUp += active.filter((lead) => lead.autoClassification === "FOLLOW_UP_NEEDED").length;
-    responses += active.filter((lead) => lead.status === "RESPONSE_RECEIVED").length;
-  }
-
-  const [hubSaved, archived] = await Promise.all([
+  const [hubEntries, archived] = await Promise.all([
     listOutreachHubLeads(),
     listOutreachArchiveLeads(),
   ]);
 
-  return {
-    total,
-    followUp,
-    responses,
-    hubSaved: hubSaved.length,
-    archived: archived.length,
-  };
+  return computeOutreachHubStats(hubEntries, archived.length);
 }
 
 function csvEscape(value: string | number | null | undefined): string {
