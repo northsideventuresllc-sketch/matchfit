@@ -391,7 +391,7 @@ describe("GET /api/client/trainers/browse", () => {
     const response = await GET(makeRequest());
 
     expect(response.status).toBe(500);
-    await expect(response.json()).resolves.toEqual({ error: "Could not load trainers." });
+    await expect(response.json()).resolves.toEqual({ error: "Could not load Fitness Pros." });
 
     errorSpy.mockRestore();
   });

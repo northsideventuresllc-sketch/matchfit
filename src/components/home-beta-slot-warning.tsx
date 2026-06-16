@@ -35,13 +35,13 @@ export function HomeBetaSlotWarning() {
           </Link>{" "}
           &amp;{" "}
           <Link href="/waitlist/trainer" className="font-semibold text-[#FFD34E] underline-offset-2 hover:underline">
-            trainers
+            Fitness Pros
           </Link>{" "}
           — you will be notified when new spots open.
         </>
       ) : trainerFull ? (
         <>
-          <span className="font-bold text-amber-300">Trainer spots are full.</span> Trainers:{" "}
+          <span className="font-bold text-amber-300">Fitness Pro spots are full.</span> Fitness Pros:{" "}
           <Link href="/waitlist/trainer" className="font-semibold text-[#FFD34E] underline-offset-2 hover:underline">
             join the waitlist
           </Link>{" "}
@@ -64,7 +64,7 @@ export function HomeBetaSlotWarning() {
           {trainerLeft !== null && trainerLeft <= 3 && trainerLeft > 0 ? (
             <>
               {" "}
-              Only <span className="font-bold text-[#FFD34E]">{trainerLeft}</span> trainer{" "}
+              Only <span className="font-bold text-[#FFD34E]">{trainerLeft}</span> Fitness Pro{" "}
               {trainerLeft === 1 ? "spot" : "spots"} remaining!
             </>
           ) : null}
@@ -75,7 +75,7 @@ export function HomeBetaSlotWarning() {
           up; in-person sessions launch first in Atlanta. Limited founding slots remain.{" "}
           {trainerLeft !== null && (
             <>
-              <span className="font-bold text-[#FFD34E]">{trainerLeft}</span> trainer{" "}
+              <span className="font-bold text-[#FFD34E]">{trainerLeft}</span> Fitness Pro{" "}
               {trainerLeft === 1 ? "spot" : "spots"}
             </>
           )}

@@ -1,6 +1,6 @@
 import { LegalPageFooterNav } from "@/components/legal-page-footer-nav";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
-import { betaInviteSlotDays, betaMaxClients, betaMaxTrainers } from "@/lib/beta-launch-config";
+import { betaInviteSlotDays, betaMaxClients, betaMaxFitness Pros } from "@/lib/beta-launch-config";
 import { LEGAL_EFFECTIVE_DATE_DISPLAY } from "@/lib/legal-effective-date";
 import {
   getTrainerFoundingBgPercentMax,
@@ -101,9 +101,9 @@ export default async function TermsPage() {
           these Terms. If you do not agree, do not use the Service.
         </P>
         <P>
-          The Service is a technology platform that helps clients discover independent personal trainers (&quot;Trainers&quot;
+          The Service is a technology platform that helps clients discover independent fitness professionals (&quot;Fitness Pros&quot;
           or &quot;Coaches&quot;) and purchase certain offerings (such as sessions, programs, subscriptions, and optional
-          promotional products) facilitated through the Service. <Strong>Trainers are independent contractors, not employees
+          promotional products) facilitated through the Service. <Strong>Fitness Pros are independent contractors, not employees
           or agents of Match Fit.</Strong> Match Fit does not provide personal training, medical advice, or nutrition therapy.
         </P>
 
@@ -122,20 +122,20 @@ export default async function TermsPage() {
             subscriptions, and related features.
           </Li>
           <Li>
-            <Strong>Trainer:</Strong> An independent professional who registers for a trainer account, completes onboarding
+            <Strong>Fitness Pro:</Strong> An independent professional who registers for a Fitness Pro account, completes onboarding
             requirements we specify, and may offer services through the Service.
           </Li>
           <Li>
             <Strong>Session:</Strong> A booked mobile (in-person at an agreed location) or virtual (online) personal training
-            appointment between a Client and a Trainer, priced and confirmed through flows available in the Service as
+            appointment between a Client and a Fitness Pro, priced and confirmed through flows available in the Service as
             implemented from time to time.
           </Li>
           <Li>
             <Strong>DIY Plan:</Strong> Remote programming or related deliverables priced on a recurring or trial basis as
-            offered by a Trainer through the Service.
+            offered by a Fitness Pro through the Service.
           </Li>
           <Li>
-            <Strong>Platform Subscription:</Strong> Recurring Client access to the nationwide trainer database and related
+            <Strong>Platform Subscription:</Strong> Recurring Client access to the nationwide Fitness Pro directory and related
             client features, billed as described at checkout or in-product.
           </Li>
         </Ul>
@@ -160,8 +160,8 @@ export default async function TermsPage() {
 
         <H2 id="beta-launch">2A. Beta Launch, Service Area, Waitlist, and Capacity</H2>
         <P>
-          Match Fit may operate in a limited <Strong>beta</Strong> phase. During beta we may cap how many Trainers and
-          Clients can register (for example, up to <Strong>{BETA_MAX_TRAINERS} Trainers</Strong> and{" "}
+          Match Fit may operate in a limited <Strong>beta</Strong> phase. During beta we may cap how many Fitness Pros and
+          Clients can register (for example, up to <Strong>{BETA_MAX_TRAINERS} Fitness Pros</Strong> and{" "}
           <Strong>{BETA_MAX_CLIENTS} Clients</Strong> when those gates are enabled in production). When caps are full, you
           may join a <Strong>waitlist</Strong> with your email and ZIP code; we may email time-limited invites when capacity
           opens. Invited users typically have on the order of <Strong>{BETA_INVITE_SLOT_DAYS} days</Strong> to complete
@@ -172,7 +172,7 @@ export default async function TermsPage() {
           <Strong>Clients anywhere in the United States</Strong> may create an account and join the client waitlist
           when capacity gates apply. <Strong>In-person (mobile) sessions</Strong> with coaches are launching first in
           our published Atlanta metropolitan service area (approximately fifteen to twenty road miles from downtown
-          Atlanta, as implemented in our ZIP allowlist for coach service areas). Trainer sign-up and trainer waitlist
+          Atlanta, as implemented in our ZIP allowlist for coach service areas). Fitness Pro sign-up and Fitness Pro waitlist
           flows may still require a service ZIP inside that Atlanta metro area while in-person coaching expands. We
           may expand in-person regions over time and will describe availability in-product.
         </P>
@@ -186,11 +186,11 @@ export default async function TermsPage() {
           offered if you previously consumed the sign-up trial.
         </P>
         <P>
-          <Strong>Founding trainer promotions (while caps last):</Strong> The first{" "}
-          <Strong>{FOUNDING_TRAINER_CAP} Trainers</Strong> who complete registration receive{" "}
+          <Strong>Founding Fitness Pro promotions (while caps last):</Strong> The first{" "}
+          <Strong>{FOUNDING_TRAINER_CAP} Fitness Pros</Strong> who complete registration receive{" "}
           <Strong>{TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days</Strong> of complimentary Premium Page access starting at
-          sign-up. During this promo, Trainers pay only the independent background-check fee through Match Fit&apos;s
-          portal (plus transaction fees). Trainers must{" "}
+          sign-up. During this promo, Fitness Pros pay only the independent background-check fee through Match Fit&apos;s
+          portal (plus transaction fees). Fitness Pros must{" "}
           <Strong>begin onboarding within {TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} calendar days</Strong> of account
           creation (including paying the background check through our portal and starting certification and screening
           steps). {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}
@@ -200,7 +200,7 @@ export default async function TermsPage() {
         <P>
           <Strong>Administrative Fee (Non-Subscription Purchases):</Strong> For Clients, purchases other than the recurring
           Platform subscription (for example, per-session bookings, DIY plans, trial weeks, tips where enabled, premium
-          trainer content subscriptions offered in-product, trainer-side registration or premium fees, match-boost or token
+          Fitness Pro content subscriptions offered in-product, Fitness Pro–side registration or premium fees, match-boost or token
           purchases, and similar one-time or non-platform-subscription charges) include a{" "}
           <Strong>
             {PLATFORM_ADMIN_FEE_PERCENT}% administrative fee
@@ -209,7 +209,7 @@ export default async function TermsPage() {
           platform operations, payments infrastructure, dispute tooling, and marketplace services. Unless a separate refund
           policy below states otherwise for a specific scenario, <Strong>
             any portion of the {PLATFORM_ADMIN_FEE_PERCENT}% administrative fee that has
-          been collected is non-refundable</Strong> when a refund of the underlying trainer compensation or service price is
+          been collected is non-refundable</Strong> when a refund of the underlying Fitness Pro compensation or service price is
           approved (for example, approved no-show or service-not-delivered outcomes described below).
         </P>
         <P>
@@ -222,7 +222,7 @@ export default async function TermsPage() {
           pricing when arranging services off-platform.
         </P>
         <P>
-          <Strong>Trainer Premium Subscription:</Strong> Where we offer a Trainer premium plan at a stated monthly price
+          <Strong>Fitness Pro Premium Subscription:</Strong> Where we offer a Fitness Pro premium plan at a stated monthly price
           (for example, twenty U.S. dollars ($20.00) per month), applicable payment processor costs may be included in that
           advertised price as described at checkout.
         </P>
@@ -247,15 +247,15 @@ export default async function TermsPage() {
 
         <H2 id="session-policies">5. Mobile and Virtual Sessions</H2>
         <P>
-          <Strong>Location and Tools:</Strong> For <Strong>mobile (in-person)</Strong> sessions, the Client and Trainer agree
+          <Strong>Location and Tools:</Strong> For <Strong>mobile (in-person)</Strong> sessions, the Client and Fitness Pro agree
           on place and time. Match Fit does not monitor or control where training occurs. For <Strong>virtual</Strong>{" "}
-          sessions, Trainers may connect third-party meeting tools (such as Zoom, Google Meet, or Microsoft Teams) as offered
-          in-product; those providers&apos; terms apply to the video session itself. Clients must use meeting links Trainers
+          sessions, Fitness Pros may connect third-party meeting tools (such as Zoom, Google Meet, or Microsoft Teams) as offered
+          in-product; those providers&apos; terms apply to the video session itself. Clients must use meeting links Fitness Pros
           share in Match Fit chat (Zoom, Microsoft Teams, or Google Meet as offered)—not personal FaceTime invites, private
           phone numbers, or off-platform email meeting links for virtual coaching arranged through the Service.
         </P>
         <P>
-          <Strong>Compensation:</Strong> Sessions are generally compensated on a per-session basis at the Trainer&apos;s
+          <Strong>Compensation:</Strong> Sessions are generally compensated on a per-session basis at the Fitness Pro&apos;s
           published rate plus the administrative fee and transaction fee described in Section 3. Optional tips, if offered,
           are separate line items subject to the same processing mechanics unless stated otherwise at checkout.
         </P>
@@ -267,7 +267,7 @@ export default async function TermsPage() {
           automatically as implemented.
         </P>
         <P>
-          <Strong>No Show Refunds:</Strong> If the Client marks <Strong>No Show</Strong> for the Trainer in accordance with
+          <Strong>No Show Refunds:</Strong> If the Client marks <Strong>No Show</Strong> for the Fitness Pro in accordance with
           in-product rules, the Client may be eligible for a refund of the session price paid for the personal training
           portion, <Strong>excluding the non-refundable {PLATFORM_ADMIN_FEE_PERCENT}% administrative fee</Strong> and any non-refundable processing
           costs we are not able to recover from the processor.
@@ -280,36 +280,36 @@ export default async function TermsPage() {
         </P>
         <P>
           <Strong>Safety and Conduct Reports:</Strong> If a Client feels unsafe or mistreated, the Client should report it
-          through Service tools or support. We may suspend a Trainer&apos;s account pending a good-faith investigation and
+          through Service tools or support. We may suspend a Fitness Pro&apos;s account pending a good-faith investigation and
           restrict booking or platform use until the matter is resolved.
         </P>
 
         <H2 id="governed-marketplace">5A. Governed Marketplace: Ledger, Gates, Punch-In, Suspensions</H2>
         <P>
-          <Strong>Trainer payout math:</Strong> For each paid purchase, the Service records net ledger pools after the{" "}
+          <Strong>Fitness Pro payout math:</Strong> For each paid purchase, the Service records net ledger pools after the{" "}
           <Strong>administrative fee</Strong> and <Strong>estimated card processing</Strong> described in Section 3.{" "}
           <Strong>Coach services and optional add-ons are split into separate pools</Strong> so refunds and disputes can be
           applied per line item. Per completed unit (session, purchased hour credit, or add-on unit as priced), the
-          Trainer&apos;s accrual is the corresponding net pool divided by the purchased count of that line (with separate
+          Fitness Pro&apos;s accrual is the corresponding net pool divided by the purchased count of that line (with separate
           denominators for hourly add-on bundles when metadata is provided at checkout).
         </P>
         <P>
           <Strong>Two gates and payout buffer:</Strong> For booked sessions, payout release generally requires{" "}
           <Strong>both</Strong> (a) client-side completion confirmation or automatic silence after the post-session Gate A
-          window and (b) the Trainer marking the session complete (Gate B). After both are satisfied, a{" "}
+          window and (b) the Fitness Pro marking the session complete (Gate B). After both are satisfied, a{" "}
           <Strong>{PAYOUT_BUFFER_AFTER_BOTH_GATES_HOURS} hours</Strong> dispute buffer runs; Clients may dispute during that window for human
-          review. Trainers must also record a <Strong>SESSION STARTED</Strong> geolocation punch-in at arrival before Gate B
+          review. Fitness Pros must also record a <Strong>SESSION STARTED</Strong> geolocation punch-in at arrival before Gate B
           can close, as enforced in-product.
         </P>
         <P>
-          <Strong>Punch-in compliance:</Strong> Trainers should allow device location access. The Service may evaluate
+          <Strong>Punch-in compliance:</Strong> Fitness Pros should allow device location access. The Service may evaluate
           missed punch-ins after each session window; <Strong>{TOS_PUNCH_MISS_SUSPEND_STREAK} consecutive missed punch-ins</Strong> may trigger
-          suspension pending review. Separately, <Strong>{TOS_PAYOUT_DISPUTE_SUSPEND_THRESHOLD} payout disputes</Strong> opened against a Trainer in a
+          suspension pending review. Separately, <Strong>{TOS_PAYOUT_DISPUTE_SUSPEND_THRESHOLD} payout disputes</Strong> opened against a Fitness Pro in a
           rolling <Strong>{TOS_PAYOUT_DISPUTE_ROLLING_DAYS}-day</Strong> window, or a serious <Strong>Client safety report</Strong> that results in suspension, may
-          suspend the Trainer pending review.
+          suspend the Fitness Pro pending review.
         </P>
         <P>
-          <Strong>Suspension marketplace effects:</Strong> When a Trainer is suspended under these rules, the Service may
+          <Strong>Suspension marketplace effects:</Strong> When a Fitness Pro is suspended under these rules, the Service may
           cancel upcoming confirmed bookings, notify matched Clients, restrict contactability, and process refunds of net
           attributed amounts toward the card where Stripe allows (administrative and processing portions may be retained).
           When a suspension is lifted after review, matched Clients may be notified that the account was restored.
@@ -317,25 +317,25 @@ export default async function TermsPage() {
 
         <H2 id="diy-policies">6. DIY Plans and Trial Weeks</H2>
         <P>
-          DIY offerings are priced by the Trainer, typically on a monthly basis, with the <Strong>{PLATFORM_ADMIN_FEE_PERCENT}% administrative fee
-          applied to the monthly price</Strong> at checkout (plus transaction fees under Section 3). Trainers may offer a{" "}
+          DIY offerings are priced by the Fitness Pro, typically on a monthly basis, with the <Strong>{PLATFORM_ADMIN_FEE_PERCENT}% administrative fee
+          applied to the monthly price</Strong> at checkout (plus transaction fees under Section 3). Fitness Pros may offer a{" "}
           <Strong>trial week</Strong> priced at approximately one-quarter (¼) of the monthly plan price plus administrative
           and processing fees as shown at checkout.
         </P>
         <Ul>
           <Li>
-            After the Trainer has the information we require, the Trainer is expected to deliver the first workout within{" "}
+            After the Fitness Pro has the information we require, the Fitness Pro is expected to deliver the first workout within{" "}
             <Strong>five (5) business days</Strong> unless Match Fit or support has approved a different timeline for a
             larger engagement. Separately, a <Strong>fourteen (14) calendar day</Strong> wall-clock deadline may apply to the
             first DIY deliverable upload as implemented in Client Management.
           </Li>
           <Li>
             If the calendar deadline passes without an upload, the Client may be prompted on next login to attest whether
-            the DIY was still received. If the Client reports non-delivery, the Trainer may have <Strong>twenty-four
+            the DIY was still received. If the Client reports non-delivery, the Fitness Pro may have <Strong>twenty-four
             (24) hours</Strong> to upload or request a time extension; extensions require Client approval within{" "}
             <Strong>forty-eight (48) hours</Strong> or they may auto-approve. If the Client declines an extension, the net DIY
             purchase amount (excluding non-refundable administrative and processing portions) may be refunded and the
-            Trainer forfeits that payout for the engagement.
+            Fitness Pro forfeits that payout for the engagement.
           </Li>
           <Li>
             The Client has <Strong>forty-eight (48) hours</Strong> after that delivery window to confirm receipt in-product.
@@ -379,7 +379,7 @@ export default async function TermsPage() {
           </Li>
           <Li>
             If you pause your subscription after a bill date as allowed in-product, you may lose access to the trainer
-            database until you resume. Trainers you work with may receive notices consistent with product behavior when a
+            database until you resume. Fitness Pros you work with may receive notices consistent with product behavior when a
             subscription will not renew.
           </Li>
           <Li>
@@ -409,7 +409,7 @@ export default async function TermsPage() {
           </Li>
           <Li>
             You acknowledge that off-platform sharing (for example, in person) is outside our control but may violate these
-            Terms or Trainer obligations below.
+            Terms or Fitness Pro obligations below.
           </Li>
           <Li>
             Discovery history features (for example, storing left swipes for a limited period and recording right swipes) run
@@ -424,26 +424,26 @@ export default async function TermsPage() {
           not abusive, defamatory, or discriminatory. We may remove content that violates policy or law.
         </P>
         <P>
-          Premium Trainers may publish content (such as posts, photos, or videos) to Fit Hub or related surfaces. Clients may
-          subscribe to premium trainer feeds where offered, filter feeds, and cancel those subscriptions at any time subject
+          Premium Fitness Pros may publish content (such as posts, photos, or videos) to Fit Hub or related surfaces. Clients may
+          subscribe to premium Fitness Pro feeds where offered, filter feeds, and cancel those subscriptions at any time subject
           to billing cycles. Content may be moderated for appropriateness and safety.
         </P>
 
         <H2 id="learning-features">10. Matching, Goals, and Product Analytics</H2>
         <P>
-          The Service may use questionnaires, match preferences, and usage signals to suggest Trainers and improve the
+          The Service may use questionnaires, match preferences, and usage signals to suggest Fitness Pros and improve the
           product. Features may include goal-setting tools and behavioral or preference modeling to personalize experiences.
           Details about data practices appear in our Privacy Policy.
         </P>
 
-        <H2 id="trainer-terms">11. Trainer Registration, Compliance, and Public Profile</H2>
+        <H2 id="trainer-terms">11. Fitness Pro Registration, Compliance, and Public Profile</H2>
         <Ul>
           <Li>
-            Trainer registration may require payment of the independent background-check fee through Match Fit&apos;s
+            Fitness Pro registration may require payment of the independent background-check fee through Match Fit&apos;s
             portal plus applicable transaction fees, as shown at checkout.{" "}
-            <Strong>Founding-coach promo (first {FOUNDING_TRAINER_CAP} Trainers):</Strong> pay only the background-check
+            <Strong>Founding-coach promo (first {FOUNDING_TRAINER_CAP} Fitness Pros):</Strong> pay only the background-check
             fee through our portal (plus processing) and receive <Strong>{TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days</Strong>{" "}
-            of Premium Page access at sign-up. Trainers must begin onboarding within{" "}
+            of Premium Page access at sign-up. Fitness Pros must begin onboarding within{" "}
             <Strong>{TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} calendar days</Strong> of account creation and may not offer
             or sell services until all onboarding requirements are completed.{" "}
             <Strong>Standard pricing (after founding caps):</Strong> {trainerStandardOnboardingAfterCapLabel()}. Match Fit
@@ -465,28 +465,28 @@ export default async function TermsPage() {
             review may update your status when results are available.
           </Li>
           <Li>
-            To appear publicly, Trainers may need to complete tax documentation (such as IRS Form W-9 or successor forms),
+            To appear publicly, Fitness Pros may need to complete tax documentation (such as IRS Form W-9 or successor forms),
             accept Trainer-specific terms presented in onboarding, upload valid primary certification (for example, CPT) and
             optional additional credentials, complete a background check through a provider they select from options we make
             available, and satisfy other verification steps we add over time.
           </Li>
           <Li>
-            Trainers must keep certifications current and renew background checks at intervals we specify (for example,{" "}
+            Fitness Pros must keep certifications current and renew background checks at intervals we specify (for example,{" "}
             <Strong>every twelve (12) months</Strong>). Accounts may be suspended until credentials are updated. If
             requirements are not satisfied within a notice period we communicate (for example, <Strong>sixty (60)
             days</Strong>), we may close the account and delete associated data in accordance with our retention policies and
             applicable law.
           </Li>
           <Li>
-            Trainers may work at other facilities; Match Fit does not supervise in-person exchanges of contact information
+            Fitness Pros may work at other facilities; Match Fit does not supervise in-person exchanges of contact information
             away from the Service.
           </Li>
         </Ul>
 
-        <H2 id="trainer-conduct-payouts">12. Trainer Conduct, Communication Policy, Payouts, and Taxes</H2>
+        <H2 id="trainer-conduct-payouts">12. Fitness Pro Conduct, Communication Policy, Payouts, and Taxes</H2>
         <Ul>
           <Li>
-            <Strong>Off-Platform Payments:</Strong> Any Trainer found soliciting or accepting payments off-platform for
+            <Strong>Off-Platform Payments:</Strong> Any Fitness Pro found soliciting or accepting payments off-platform for
             clients first discovered through Match Fit agrees to pay a <Strong>{usdCents(OFF_PLATFORM_LIQUIDATED_DAMAGES_USD)} Liquidated Damages Fee</Strong> per
             occurrence, in addition to other remedies available to Match Fit under these Terms or applicable law.
           </Li>
@@ -498,50 +498,50 @@ export default async function TermsPage() {
             tax-record associations as reasonably available.
           </Li>
           <Li>
-            <Strong>DIY Timelines:</Strong> Trainers agree to meet DIY delivery timelines described in Section 6 or escalated
+            <Strong>DIY Timelines:</Strong> Fitness Pros agree to meet DIY delivery timelines described in Section 6 or escalated
             timelines approved by Match Fit support. Failure may result in Clients receiving refunds of service amounts (with
             the administrative fee treated as non-refundable to Clients as stated) and loss of corresponding payout.
           </Li>
           <Li>
-            <Strong>Independent Business:</Strong> Trainers set their own prices and service structures (per session for
-            mobile/virtual where applicable; monthly or recurring models for DIY where applicable). Trainers receive the
+            <Strong>Independent Business:</Strong> Fitness Pros set their own prices and service structures (per session for
+            mobile/virtual where applicable; monthly or recurring models for DIY where applicable). Fitness Pros receive the
             Trainer-set portion of eligible charges per payout rules we publish; Match Fit retains the administrative fee
             component and processor fees as priced at checkout.
           </Li>
           <Li>
             <Strong>Payouts:</Strong> Funds may be held until the Client confirms completion or a dispute window passes, as
-            implemented in payout logic. Tips, where supported, are directed to Trainers according to in-product rules. You
+            implemented in payout logic. Tips, where supported, are directed to Fitness Pros according to in-product rules. You
             must complete payout elections correctly to receive funds.
           </Li>
           <Li>
             <Strong>Complaints and Investigations:</Strong> When a complaint is filed that warrants review, we may suspend a
-            Trainer pending investigation. We aim to investigate fairly and resolve matters promptly, but timelines vary by
+            Fitness Pro pending investigation. We aim to investigate fairly and resolve matters promptly, but timelines vary by
             complexity.
           </Li>
           <Li>
-            <Strong>Taxes:</Strong> Trainers are independent contractors responsible for their own taxes. Match Fit may issue
-            IRS Form 1099 (or successor forms) as required. Trainers must notify us of form errors with enough time before tax
-            filing deadlines for us to attempt corrections. Match Fit is not liable for a Trainer&apos;s failure to file
+            <Strong>Taxes:</Strong> Fitness Pros are independent contractors responsible for their own taxes. Match Fit may issue
+            IRS Form 1099 (or successor forms) as required. Fitness Pros must notify us of form errors with enough time before tax
+            filing deadlines for us to attempt corrections. Match Fit is not liable for a Fitness Pro&apos;s failure to file
             taxes.
           </Li>
           <Li>
-            <Strong>Premium Billing:</Strong> If a Trainer selects a premium plan, they must keep the payment method current.
+            <Strong>Premium Billing:</Strong> If a Fitness Pro selects a premium plan, they must keep the payment method current.
             If billing fails beyond a stated grace period (for example, <Strong>seventy-two (72) consecutive hours</Strong>),
             premium features may be demoted until payment succeeds.
           </Li>
         </Ul>
 
-        <H2 id="trainer-matching-products">13. Trainer Discovery Limits and Optional Purchases</H2>
+        <H2 id="trainer-matching-products">13. Fitness Pro Discovery Limits and Optional Purchases</H2>
         <P>
-          Trainers may receive periodic batches of client matches (for example,{" "}
+          Fitness Pros may receive periodic batches of client matches (for example,{" "}
           <Strong>{STANDARD_MATCH_BATCH_SIZE} matches every {MATCH_BATCH_WINDOW_HOURS} hours</Strong>) as
-          implemented. Trainers may purchase additional match visibility or related boosts where we offer them. Premium plans
+          implemented. Fitness Pros may purchase additional match visibility or related boosts where we offer them. Premium plans
           may include unlimited or expanded matching as described at signup.
         </P>
 
         <H2 id="featured-placement">14. Featured Home Placement and Sponsored Visibility</H2>
         <P>
-          Premium Page coaches may participate in regional programs to appear in public featured-trainer modules. Components may
+          Premium Page coaches may participate in regional programs to appear in public featured–Fitness Pro modules. Components may
           include: (1) a <Strong>daily random allocation</Strong> among eligible entrants sharing the same three-digit U.S. ZIP
           code prefix derived from the coach&apos;s published in-person service ZIP, and (2) a limited number of{" "}
           <Strong>sponsored placements</Strong> per region per day awarded to qualifying bids. Cutoffs and display windows use
@@ -563,7 +563,7 @@ export default async function TermsPage() {
         <H2 id="prohibited-use">15. Prohibited Use</H2>
         <Ul>
           <Li>
-            <Strong>Off-Platform Fee Circumvention:</Strong> Trainers must not solicit or accept payment outside Match Fit
+            <Strong>Off-Platform Fee Circumvention:</Strong> Fitness Pros must not solicit or accept payment outside Match Fit
             for relationships that began through the Service. The <Strong>{usdCents(OFF_PLATFORM_LIQUIDATED_DAMAGES_USD)} Liquidated Damages Fee</Strong> described
             in Section 12 applies per substantiated occurrence.
           </Li>
@@ -585,13 +585,13 @@ export default async function TermsPage() {
         <P>
           The Service is provided &quot;as is&quot; and &quot;as available.&quot; To the maximum extent permitted by law,
           Match Fit disclaims all warranties, whether express, implied, or statutory, including implied warranties of
-          merchantability, fitness for a particular purpose, and non-infringement. We do not warrant that trainers are
+          merchantability, fitness for a particular purpose, and non-infringement. We do not warrant that Fitness Pros are
           licensed in every jurisdiction where a client may be located, that sessions will be error-free, or that outcomes
           will meet expectations.
         </P>
         <P>
           Fitness activities involve inherent risks. Clients should consult qualified health professionals before beginning
-          programs. Trainers are responsible for professional scope of practice and for obtaining appropriate insurance for
+          programs. Fitness Pros are responsible for professional scope of practice and for obtaining appropriate insurance for
           their businesses.
         </P>
 
@@ -616,7 +616,7 @@ export default async function TermsPage() {
           profits, data, or goodwill, arising from or related to these Terms or the Service, even if advised of the
           possibility. Our aggregate liability for claims arising out of or relating to the Service or these Terms is limited
           to the greater of (a) one hundred U.S. dollars ($100) or (b) the amounts you paid to Match Fit for platform fees
-          (excluding amounts passed through to trainers or processors) in the three (3) months before the event giving rise
+          (excluding amounts passed through to Fitness Pros or processors) in the three (3) months before the event giving rise
           to liability. Some jurisdictions do not allow certain limitations; in those cases, limits apply to the fullest extent
           allowed.
         </P>
@@ -624,8 +624,8 @@ export default async function TermsPage() {
         <H2 id="indemnity">19. Indemnity</H2>
         <P>
           You will defend, indemnify, and hold harmless Match Fit and its affiliates from claims, damages, losses, and expenses
-          (including reasonable attorneys&apos; fees) arising from your content, your services as a Trainer, your use of
-          trainer services as a Client, your violation of these Terms, or your violation of third-party rights.
+          (including reasonable attorneys&apos; fees) arising from your content, your services as a Fitness Pro, your use of
+          Fitness Pro services as a Client, your violation of these Terms, or your violation of third-party rights.
         </P>
 
         <H2 id="termination">20. Suspension, Termination, and Reinstatement</H2>

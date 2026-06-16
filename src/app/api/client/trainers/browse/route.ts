@@ -300,6 +300,6 @@ export async function GET(req: Request) {
     });
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Could not load trainers." }, { status: 500 });
+    return NextResponse.json({ error: "Could not load Fitness Pros." }, { status: 500 });
   }
 }

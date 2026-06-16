@@ -98,7 +98,7 @@ export function HomeLoginMenu({ homeAuth }: Props) {
                   className={itemClass}
                   onClick={() => setOpen(false)}
                 >
-                  Trainer Dashboard
+                  Fitness Pro Dashboard
                 </Link>
               ) : null}
               <div className="mx-3 my-2 border-t border-dashed border-white/[0.2]" role="separator" />
@@ -123,7 +123,7 @@ export function HomeLoginMenu({ homeAuth }: Props) {
                 className={itemClass}
                 onClick={() => setOpen(false)}
               >
-                Trainer Sign In
+                Fitness Pro Sign In
               </Link>
               <Link href={ADMIN_SIGN_IN_PATH} role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
                 Admin Portal
@@ -133,7 +133,7 @@ export function HomeLoginMenu({ homeAuth }: Props) {
                 Client Sign Up
               </Link>
               <Link href={TRAINER_SIGN_UP_PATH} role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
-                Trainer Sign Up
+                Fitness Pro Sign Up
               </Link>
             </>
           )}

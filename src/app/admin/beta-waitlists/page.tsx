@@ -64,7 +64,7 @@ export default function AdminBetaWaitlistsPage() {
       const cj = (await cl.json()) as { entries?: Entry[]; error?: string };
       const capsJson = (await st.json()) as CapStatus;
       if (!tr.ok) {
-        setError(tj.error ?? "Could not load trainer waitlist.");
+        setError(tj.error ?? "Could not load Fitness Pro waitlist.");
         return;
       }
       if (!cl.ok) {
@@ -90,7 +90,7 @@ export default function AdminBetaWaitlistsPage() {
       current="waitlists"
       maxWidth="5xl"
       title="Beta Waitlists"
-      description="Separate trainer and client queues. Promotion runs on the 15-minute cron and when accounts are removed."
+      description="Separate Fitness Pro and client queues. Promotion runs on the 15-minute cron and when accounts are removed."
       headerActions={
         <>
           <button
@@ -110,7 +110,7 @@ export default function AdminBetaWaitlistsPage() {
       {caps?.gatesEnabled ? (
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-2xl border border-white/[0.08] bg-[#12151C]/75 px-4 py-3 backdrop-blur-xl">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">Trainers</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">Fitness Pros</p>
             <p className="mt-1 text-lg font-black text-white">
               {caps.trainerCount ?? "—"} signed up · {caps.trainerSlotsUsed ?? "—"} / {caps.trainerCap ?? "—"} slots
               used
@@ -139,7 +139,7 @@ export default function AdminBetaWaitlistsPage() {
         <p className="rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]">{error}</p>
       ) : null}
 
-      <WaitlistSection title="Trainer Waitlist" entries={trainers} zipKey="serviceZipCode" />
+      <WaitlistSection title="Fitness Pro Waitlist" entries={trainers} zipKey="serviceZipCode" />
       <WaitlistSection title="Client Waitlist" entries={clients} zipKey="homeZipCode" />
     </AdminPortalShell>
   );

@@ -68,7 +68,7 @@ export default async function ClientDashboardProfilePreviewPage() {
           <p className="text-sm text-white/45">@{client.username}</p>
           <p className="mt-4 text-sm leading-relaxed text-white/75">{client.bio?.trim() || "No bio yet."}</p>
           <p className="mt-4 text-xs text-white/40">
-            Trainer discovery:{" "}
+            Fitness Pro discovery:{" "}
             <span className="font-semibold text-white/70">{client.allowTrainerDiscovery ? "On" : "Off"}</span>
           </p>
         </div>

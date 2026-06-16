@@ -47,7 +47,7 @@ export function formatInPersonCoverageForDisplay(raw: string): string {
 }
 
 /**
- * Parses plain-text AI match profile into sections for a readable dashboard layout.
+ * Parses plain-text match profile into sections for a readable dashboard layout.
  * Tolerant of minor format drift (extra blank lines).
  */
 export function parseAiMatchProfileForDisplay(raw: string): AiMatchProfileDisplayBlock[] {

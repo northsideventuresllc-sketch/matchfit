@@ -43,7 +43,7 @@ function formatTrainerSignupFinishError(error: string, code?: string): string {
     return "Sign-up is temporarily unavailable while we finish a database update. Try again in a few minutes.";
   }
   if (code === "EMAIL_TAKEN") {
-    return "That email already has a Match Fit trainer account. Try signing in instead.";
+    return "That email already has a Match Fit Fitness Pro account. Try signing in instead.";
   }
   if (code === "USERNAME_TAKEN") {
     return "That username is already taken. Choose a different username above, then try Finish again.";
@@ -578,7 +578,7 @@ export default function TrainerSignUpClient() {
           </Link>
         </header>
 
-        <h1 className="mt-10 text-2xl font-black tracking-tight sm:mt-12 sm:text-3xl">Create Your Trainer Account</h1>
+        <h1 className="mt-10 text-2xl font-black tracking-tight sm:mt-12 sm:text-3xl">Create Your Fitness Pro Account</h1>
         <p className="mt-3 text-sm leading-relaxed text-white/60 sm:text-base">{TRAINER_SIGNUP_FLOW_OVERVIEW}</p>
 
         {betaInviteReserved ? (
@@ -611,7 +611,7 @@ export default function TrainerSignUpClient() {
                 <>
                   {" "}
                   <Link href="/waitlist/trainer" className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
-                    Join the trainer waitlist
+                    Join the Fitness Pro waitlist
                   </Link>
                 </>
               ) : null}
@@ -632,7 +632,7 @@ export default function TrainerSignUpClient() {
               <p className="mt-3 text-sm leading-relaxed text-emerald-100/85">
                 We sent a message to <span className="font-semibold text-white">{email.trim()}</span>. Open it and tap
                 <span className="font-semibold"> Confirm your email</span>. You will return here to finish security check,
-                then you will continue to the trainer agreement and payment steps.
+                then you will continue to the Fitness Pro agreement and payment steps.
               </p>
               <p className="mt-3 text-xs leading-relaxed text-emerald-100/60">
                 Did not get it? Check spam, then use Resend below. The link expires after a while.

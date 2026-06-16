@@ -23,7 +23,7 @@ export function TrainerPremiumHubSummary(props: Props) {
         className={`rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#FF7E00]/[0.08] via-[#12151C] to-[#0E1016] p-5 text-left shadow-[0_20px_60px_-30px_rgba(0,0,0,0.75)] ${wrap}`}
       >
         <p className="text-sm leading-relaxed text-white/75">
-          <span className="font-semibold text-white/90">Premium trainers</span> unlock featured placement options, a FitHub
+          <span className="font-semibold text-white/90">Premium Fitness Pros</span> unlock featured placement options, a FitHub
           studio for posts clients actually see, and promotion tokens for regional boosts—plus one hub to manage it all.
           Treating those surfaces as part of your business plan is one of the fastest ways to get in front of serious
           clients.
@@ -58,7 +58,7 @@ export function TrainerPremiumHubSummary(props: Props) {
 
       <div className="relative space-y-4 text-center">
         <p className="text-sm leading-relaxed text-white/70">
-          Being a <span className="font-semibold text-white">premium trainer</span> means you get the full growth stack:
+          Being a <span className="font-semibold text-white">premium Fitness Pro</span> means you get the full growth stack:
           tools to compete for featured placement, a professional pipeline to publish to FitHub, and token-based boosts so
           the right clients see your best work—not just a badge.
         </p>
@@ -79,7 +79,7 @@ export function TrainerPremiumHubSummary(props: Props) {
 
       <div className="relative mt-6 grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-white/[0.08] bg-[#12151C]/90 p-4 text-center">
-          <p className="text-sm font-semibold text-white">Featured Trainer</p>
+          <p className="text-sm font-semibold text-white">Featured Fitness Pro</p>
           <p className="mt-2 text-sm font-semibold text-[#FF7E00]">Placement &amp; Auctions</p>
           <p className="mx-auto mt-2 max-w-[14rem] text-xs leading-relaxed text-white/45">
             Manage eligibility, daily raffle entry, and auction bids so you can surface in client-facing featured

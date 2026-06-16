@@ -383,7 +383,7 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
             </button>
           </div>
           <div className="border-t border-white/[0.06] pt-4 text-left">
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#E32B2B]/80">Report trainer</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#E32B2B]/80">Report Fitness Pro</p>
             <select
               value={reportCat}
               onChange={(e) => setReportCat(e.target.value)}
@@ -407,7 +407,7 @@ export function ClientTrainerChatThreadClient(props: { trainerUsername: string }
               onClick={() => void reportTrainer()}
               className="mt-2 inline-flex min-h-[2.5rem] items-center justify-center rounded-xl border border-[#E32B2B]/40 bg-[#E32B2B]/12 px-4 text-xs font-black uppercase tracking-[0.1em] text-[#FFB4B4]"
             >
-              Submit report & suspend trainer
+              Submit report & suspend Fitness Pro
             </button>
           </div>
         </div>

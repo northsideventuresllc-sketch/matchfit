@@ -2128,7 +2128,7 @@ export default function TrainerOnboardingClient() {
                 showSectionTitle
               />
               <p className="rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-3 text-xs text-white/55">
-                You can change your profile, social links, and photo anytime from your trainer dashboard.
+                You can change your profile, social links, and photo anytime from your Fitness Pro dashboard.
               </p>
               <div className="flex flex-wrap gap-3">
                 <button

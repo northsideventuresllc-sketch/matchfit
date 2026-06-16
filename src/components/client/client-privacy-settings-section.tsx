@@ -204,7 +204,7 @@ export function ClientPrivacySettingsSection() {
             <div className="space-y-3">
               <Toggle
                 label="Show Bio on Public Profile"
-                description="When off, your bio is hidden on the public page trainers may open from discovery."
+                description="When off, your bio is hidden on the public page Fitness Pros may open from discovery."
                 checked={showBio}
                 disabled={saving}
                 onChange={(checked) => {

@@ -93,11 +93,11 @@ export default function TrainerSignupCompletePage() {
           </span>
         </Link>
 
-        <h1 className="text-2xl font-black tracking-tight">Continue to trainer agreement</h1>
+        <h1 className="text-2xl font-black tracking-tight">Continue to Fitness Pro agreement</h1>
         <p className="mt-3 text-sm leading-relaxed text-white/55">
           {turnstile.enabled
-            ? "Complete the security check, then continue to the trainer agreement. Your Match Fit account is created when you accept."
-            : "We are verifying your email confirmation before the trainer agreement step."}
+            ? "Complete the security check, then continue to the Fitness Pro agreement. Your Match Fit account is created when you accept."
+            : "We are verifying your email confirmation before the Fitness Pro agreement step."}
         </p>
 
         {error ? (

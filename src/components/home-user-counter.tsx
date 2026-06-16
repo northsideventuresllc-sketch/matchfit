@@ -14,12 +14,12 @@ export function HomeUserCounter({
 }: HomeUserCounterProps) {
   const stats = [
     {
-      label: "Trainers signed up",
+      label: "Fitness Pros signed up",
       value: trainersTotal,
       hint: "All coach accounts on Match Fit (excluding removed profiles).",
     },
     {
-      label: "Active trainers",
+      label: "Active Fitness Pros",
       value: trainersActive,
       hint: "Completed onboarding and either activated in the last 60 days or recent sessions, messages, FitHub, or check-ins.",
     },
@@ -64,7 +64,7 @@ export function HomeUserCounter({
           ))}
         </div>
         <p className="mt-4 text-center text-[0.65rem] leading-relaxed text-white/35 sm:text-xs">
-          Active trainers include new onboardings in the past 60 days or coaches with platform activity in the past
+          Active Fitness Pros include new onboardings in the past 60 days or coaches with platform activity in the past
           week. Active clients have billing in good standing or paid a subscription invoice in the past 14 days.
         </p>
       </div>
