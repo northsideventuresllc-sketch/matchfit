@@ -8,8 +8,12 @@ const {
   isBetaLaunchGatesEnabledMock,
   betaMaxClientsMock,
   betaMaxTrainersMock,
+  betaMaxTrainersAtlantaMock,
+  betaMaxTrainersVirtualMock,
   getTrainerFoundingBgPercentMaxMock,
   getClientFoundingTrialMaxClientsMock,
+  countAtlantaPoolTrainersMock,
+  countVirtualPoolTrainersMock,
 } = vi.hoisted(() => ({
   countLaunchClientsMock: vi.fn(),
   countLaunchTrainersMock: vi.fn(),
@@ -18,8 +22,12 @@ const {
   isBetaLaunchGatesEnabledMock: vi.fn(),
   betaMaxClientsMock: vi.fn(),
   betaMaxTrainersMock: vi.fn(),
+  betaMaxTrainersAtlantaMock: vi.fn(),
+  betaMaxTrainersVirtualMock: vi.fn(),
   getTrainerFoundingBgPercentMaxMock: vi.fn(),
   getClientFoundingTrialMaxClientsMock: vi.fn(),
+  countAtlantaPoolTrainersMock: vi.fn(),
+  countVirtualPoolTrainersMock: vi.fn(),
 }));
 
 vi.mock("@/lib/launch-account-counts", () => ({
@@ -35,7 +43,14 @@ vi.mock("@/lib/beta-waitlist-service", () => ({
 vi.mock("@/lib/beta-launch-config", () => ({
   betaMaxClients: betaMaxClientsMock,
   betaMaxTrainers: betaMaxTrainersMock,
+  betaMaxTrainersAtlanta: betaMaxTrainersAtlantaMock,
+  betaMaxTrainersVirtual: betaMaxTrainersVirtualMock,
   isBetaLaunchGatesEnabled: isBetaLaunchGatesEnabledMock,
+}));
+
+vi.mock("@/lib/beta-trainer-pool", () => ({
+  countAtlantaPoolTrainers: countAtlantaPoolTrainersMock,
+  countVirtualPoolTrainers: countVirtualPoolTrainersMock,
 }));
 
 vi.mock("@/lib/match-fit-launch-promotions", () => ({
@@ -51,12 +66,16 @@ describe("getLaunchPromoStats", () => {
     isBetaLaunchGatesEnabledMock.mockReturnValue(true);
     betaMaxTrainersMock.mockReturnValue(100);
     betaMaxClientsMock.mockReturnValue(50);
+    betaMaxTrainersAtlantaMock.mockReturnValue(10);
+    betaMaxTrainersVirtualMock.mockReturnValue(20);
     getTrainerFoundingBgPercentMaxMock.mockReturnValue(30);
     getClientFoundingTrialMaxClientsMock.mockReturnValue(150);
     countLaunchTrainersMock.mockResolvedValue(2);
     countLaunchClientsMock.mockResolvedValue(12);
     trainerBetaSlotsUsedMock.mockResolvedValue(3);
     clientBetaSlotsUsedMock.mockResolvedValue(4);
+    countAtlantaPoolTrainersMock.mockResolvedValue(3);
+    countVirtualPoolTrainersMock.mockResolvedValue(5);
   });
 
   it("derives founding remaining from launch counts (excludes test accounts at source)", async () => {

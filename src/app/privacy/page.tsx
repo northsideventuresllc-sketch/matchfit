@@ -1,4 +1,8 @@
 import { LegalPageFooterNav } from "@/components/legal-page-footer-nav";
+import {
+  CLIENT_PAYMENT_GRACE_DAYS,
+  CLIENT_PLATFORM_TRIAL_DAYS,
+} from "@/lib/client-platform-trial-constants";
 import { LEGAL_EFFECTIVE_DATE_DISPLAY } from "@/lib/legal-effective-date";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 
@@ -83,8 +87,8 @@ export default async function PrivacyPage() {
           subscriptions and certain coach payments through Stripe, send security and transactional messages through email
           infrastructure, deliver optional browser Web Push alerts when you opt in, collect limited usage analytics on
           public marketing and product pages (such as page views and link clicks), and store your in-app activity
-          (including chats and social posts) on our systems. Client sign-up includes a 14-day platform access trial with
-          no card required; after the trial, you have 14 days to subscribe before the account is deactivated until paid
+          (including chats and social posts) on our systems. Client sign-up includes a {CLIENT_PLATFORM_TRIAL_DAYS}-day platform access trial with
+          no card required; after the trial, you have {CLIENT_PAYMENT_GRACE_DAYS} days to subscribe before the account is deactivated until paid
           reactivation. You may adjust optional visibility of some profile fields and request in-product account
           deletion, which schedules removal after a grace period as described in Section 7, while preserving the
           minimum data we need for trust, safety, and legal compliance. We use reasonable technical and organizational

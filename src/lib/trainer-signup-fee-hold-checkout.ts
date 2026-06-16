@@ -52,6 +52,8 @@ export async function createTrainerSignupFeeHoldCheckoutSession(args: {
       ? "Founding coach signup fee hold"
       : "Trainer signup fee hold";
 
+  const backgroundCheckPaymentIntentId = backgroundCheck?.paymentIntentId ?? "";
+
   const paymentIntentMetadata = {
     purpose: TRAINER_SIGNUP_PLATFORM_HOLD_PURPOSE,
     trainerId: args.trainerId,
@@ -59,7 +61,7 @@ export async function createTrainerSignupFeeHoldCheckoutSession(args: {
     holdSlice: "platform",
     platformEscrowCents: String(split.platformEscrowCents),
     platformHoldCents: String(platformHoldCents),
-    backgroundCheckPaymentIntentId: backgroundCheck.paymentIntentId,
+    backgroundCheckPaymentIntentId,
     ...escrowMeta,
     ...feeMetadataFromBreakdown({
       baseCents: split.platformEscrowCents,
@@ -95,7 +97,7 @@ export async function createTrainerSignupFeeHoldCheckoutSession(args: {
       purpose: TRAINER_SIGNUP_PLATFORM_HOLD_PURPOSE,
       trainerId: args.trainerId,
       pricingMode: args.pricingMode,
-      backgroundCheckPaymentIntentId: backgroundCheck.paymentIntentId,
+      backgroundCheckPaymentIntentId,
     },
     success_url: `${origin}/trainer/signup/payment/return?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/trainer/signup/payment?canceled=1`,
@@ -109,7 +111,7 @@ export async function createTrainerSignupFeeHoldCheckoutSession(args: {
     url: session.url,
     baseCents: split.baseCents,
     totalCents: platformHoldCents + backgroundCheckHoldCents,
-    backgroundCheckPaymentIntentId: backgroundCheck.paymentIntentId,
+    backgroundCheckPaymentIntentId,
   };
 }
 

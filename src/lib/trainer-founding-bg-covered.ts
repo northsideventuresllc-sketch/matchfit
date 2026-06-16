@@ -91,30 +91,32 @@ export function buildFoundingBgCoveredTrainerEmail(args: {
     "Great news: you are in Match Fit's first 10 founding coaches. Match Fit is covering your Checkr background screening fee.",
     "",
     "What you need to do:",
-    `1. Sign in to your trainer dashboard: ${onboardingUrl}`,
-    "2. Complete certification uploads if you have not already.",
-    `3. Request your Checkr invitation: ${requestInviteUrl}`,
-    "4. Complete the Checkr form when the invitation email arrives (check spam/promotions).",
     "",
-    "After screening clears and your credentials are approved, Match Fit captures only the small founding platform onboarding slice you authorized at signup — not the full $100 registration fee.",
+    `Sign in to your trainer onboarding dashboard: ${onboardingUrl}`,
+    "Upload any outstanding certification documents (if you have not already).",
+    `Request your Checkr screening invitation: ${requestInviteUrl}`,
+    "Complete Checkr when the invitation email arrives (check spam/promotions folders).",
     "",
-    "Questions? Reply to support@match-fit.net.",
+    "After screening clears and your credentials are approved, Match Fit captures only the small founding platform onboarding slice you authorized at signup.",
     "",
-    "— Match Fit Team",
+    "Questions? Email support@match-fit.net.",
+    "",
+    "Match Fit Team",
   ].join("\n");
 
   const html = `<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;line-height:1.55;color:#111;">
 <p>Hi ${name},</p>
 <p><strong>Great news:</strong> you are in Match Fit's first 10 founding coaches. <strong>Match Fit is covering your Checkr background screening fee.</strong></p>
-<ol>
-<li><a href="${onboardingUrl}">Open your trainer onboarding dashboard</a></li>
-<li>Upload any outstanding certification documents.</li>
+<p><strong>What you need to do:</strong></p>
+<ul>
+<li><a href="${onboardingUrl}">Sign in to your trainer onboarding dashboard</a></li>
+<li>Upload any outstanding certification documents (if you have not already).</li>
 <li><a href="${requestInviteUrl}">Request your Checkr screening invitation</a></li>
-<li>Complete Checkr when the invitation email arrives (check spam/promotions).</li>
-</ol>
-<p>After screening clears and your credentials are approved, Match Fit captures only the small founding platform onboarding slice you authorized at signup — not the full $100 registration fee.</p>
+<li>Complete Checkr when the invitation email arrives (check spam/promotions folders).</li>
+</ul>
+<p>After screening clears and your credentials are approved, Match Fit captures only the small founding platform onboarding slice you authorized at signup.</p>
 <p>Questions? Email <a href="mailto:support@match-fit.net">support@match-fit.net</a>.</p>
-<p>— Match Fit Team</p>
+<p>Match Fit Team</p>
 </body></html>`;
 
   return { subject, text, html };

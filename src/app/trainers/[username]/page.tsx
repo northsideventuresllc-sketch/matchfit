@@ -18,7 +18,6 @@ import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 import {
   isTrainerBookableForClients,
   isTrainerVisibleInClientDiscovery,
-  trainerBookableBlockedMessage,
   trainerDiscoveryProfileSelect,
   trainerVerificationBadgeForClient,
 } from "@/lib/trainer-client-discovery";

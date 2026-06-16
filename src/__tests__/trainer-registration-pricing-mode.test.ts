@@ -39,7 +39,7 @@ describe("trainer-founding-bg-covered email", () => {
   it("builds onboarding instructions", () => {
     const email = buildFoundingBgCoveredTrainerEmail({ firstName: "Kristian" });
     expect(email.subject).toContain("background check is covered");
-    expect(email.text).toContain("Request your Checkr invitation");
+    expect(email.text).toContain("Request your Checkr screening invitation");
     expect(email.html).toContain("match-fit.net/trainer/onboarding");
   });
 });

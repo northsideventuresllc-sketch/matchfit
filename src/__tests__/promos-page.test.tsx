@@ -78,7 +78,7 @@ describe("promos page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getLaunchPromoStatsMock.mockResolvedValue(makeStats());
-    getClientFoundingTrialDaysMock.mockReturnValue(14);
+    getClientFoundingTrialDaysMock.mockReturnValue(60);
   });
 
   it("renders product version and updated beta-reach copy", async () => {
@@ -92,7 +92,7 @@ describe("promos page", () => {
     expect(html).toContain("virtual coaches only");
     expect(html).toContain("7 / 50");
     expect(html).toContain("2 / 10");
-    expect(html).toContain("14-day free trial");
+    expect(html).toContain("60-day free trial");
     expect(html).toContain("no card required at sign-up");
   });
 

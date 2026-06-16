@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CLIENT_PLATFORM_TRIAL_DAYS } from "@/lib/client-platform-trial-constants";
 
 export const metadata = {
   title: "Email verified · Match Fit",
@@ -11,7 +12,7 @@ export default function ClientSignUpCompletePage() {
       <div className="mx-auto max-w-md">
         <h1 className="text-2xl font-black tracking-tight">Email verified</h1>
         <p className="mt-4 text-sm leading-relaxed text-white/60">
-          Your email is verified. Continue client sign-up to finish your profile and start your 14-day free trial — no
+          Your email is verified. Continue client sign-up to finish your profile and start your {CLIENT_PLATFORM_TRIAL_DAYS}-day free trial — no
           card required at sign-up.
         </p>
         <Link

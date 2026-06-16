@@ -1,12 +1,17 @@
-import { betaMaxClients, betaMaxTrainers, isBetaLaunchGatesEnabled } from "@/lib/beta-launch-config";
+import { betaMaxClients, betaMaxTrainers, betaMaxTrainersAtlanta, betaMaxTrainersVirtual, isBetaLaunchGatesEnabled } from "@/lib/beta-launch-config";
 import {
   clientBetaSlotsUsed,
   trainerBetaSlotsUsed,
 } from "@/lib/beta-waitlist-service";
 import {
+  countAtlantaPoolTrainers,
+  countVirtualPoolTrainers,
+} from "@/lib/beta-trainer-pool";
+import {
   countLaunchClients,
   countLaunchTrainers,
 } from "@/lib/launch-account-counts";
+import { prisma } from "@/lib/prisma";
 import {
   getClientFoundingTrialMaxClients,
   getTrainerFoundingBgPercentMax,
@@ -28,6 +33,12 @@ export type LaunchPromoStats = {
   clientBetaSlotsUsed: number;
   trainerBetaSlotsRemaining: number;
   clientBetaSlotsRemaining: number;
+  trainerBetaCapAtlanta: number;
+  trainerBetaCapVirtual: number;
+  trainerBetaSlotsUsedAtlanta: number;
+  trainerBetaSlotsUsedVirtual: number;
+  trainerBetaSlotsRemainingAtlanta: number;
+  trainerBetaSlotsRemainingVirtual: number;
   trainerWaitlistOpen: boolean;
   clientWaitlistOpen: boolean;
 };
@@ -39,12 +50,16 @@ export async function getLaunchPromoStats(): Promise<LaunchPromoStats> {
   const clientFoundingMax = getClientFoundingTrialMaxClients();
   const trainerBetaCap = betaMaxTrainers();
   const clientBetaCap = betaMaxClients();
+  const trainerBetaCapAtlanta = betaMaxTrainersAtlanta();
+  const trainerBetaCapVirtual = betaMaxTrainersVirtual();
 
-  const [trainerCount, clientCount, trainerUsed, clientUsed] = await Promise.all([
+  const [trainerCount, clientCount, trainerUsed, clientUsed, atlantaUsed, virtualUsed] = await Promise.all([
     countLaunchTrainers(),
     countLaunchClients(),
     gatesEnabled ? trainerBetaSlotsUsed() : Promise.resolve(0),
     gatesEnabled ? clientBetaSlotsUsed() : Promise.resolve(0),
+    gatesEnabled ? countAtlantaPoolTrainers(prisma) : Promise.resolve(0),
+    gatesEnabled ? countVirtualPoolTrainers(prisma) : Promise.resolve(0),
   ]);
 
   const trainerFoundingRemaining = Math.max(0, trainerFoundingMax - trainerCount);
@@ -66,6 +81,12 @@ export async function getLaunchPromoStats(): Promise<LaunchPromoStats> {
     clientBetaSlotsUsed: clientUsed,
     trainerBetaSlotsRemaining: Math.max(0, trainerBetaCap - trainerUsed),
     clientBetaSlotsRemaining: Math.max(0, clientBetaCap - clientUsed),
+    trainerBetaCapAtlanta,
+    trainerBetaCapVirtual,
+    trainerBetaSlotsUsedAtlanta: atlantaUsed,
+    trainerBetaSlotsUsedVirtual: virtualUsed,
+    trainerBetaSlotsRemainingAtlanta: Math.max(0, trainerBetaCapAtlanta - atlantaUsed),
+    trainerBetaSlotsRemainingVirtual: Math.max(0, trainerBetaCapVirtual - virtualUsed),
     trainerWaitlistOpen: gatesEnabled && trainerUsed >= trainerBetaCap,
     clientWaitlistOpen: gatesEnabled && clientUsed >= clientBetaCap,
   };

@@ -39,9 +39,9 @@ export function getClientFoundingTrialMaxClients(): number {
   return parsePositiveInt(process.env.MATCH_FIT_CLIENT_FOUNDING_TRIAL_MAX_CLIENTS, 150, 1_000_000);
 }
 
-/** Founding trial length (days). Default 14. */
+/** Founding trial length (days). Default 60. */
 export function getClientFoundingTrialDays(): number {
-  return parsePositiveInt(process.env.MATCH_FIT_CLIENT_FOUNDING_TRIAL_DAYS, 14, 730);
+  return parsePositiveInt(process.env.MATCH_FIT_CLIENT_FOUNDING_TRIAL_DAYS, 60, 730);
 }
 
 /** Legacy Stripe checkout (pending registration holds): optional short trial with card on file. Default 3. */

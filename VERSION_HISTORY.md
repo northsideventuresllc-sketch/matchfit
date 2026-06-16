@@ -4,6 +4,8 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-16** `1.9.1-beta` → `1.10.0-beta` (**minor** — Admin Email Templates page with edit, preview, and approval workflow)
+- **2026-06-16** `1.9.0-beta` → `1.9.1-beta` (**patch** — Extend BETA client free trial from 14 to 60 days)
 - **2026-06-16** `1.8.2-beta` → `1.9.0-beta` (**minor** — Home page client/trainer reorg with collapsible sections; first 10 founding coaches get platform-covered background checks)
 - **2026-06-11** `1.8.1-beta` → `1.8.2-beta` (**patch** — Fix home page test mocks for Meet Our Coaches section)
 - **2026-06-11** `1.8.0-beta` → `1.8.1-beta` (**patch** — Fix Outreach HQ [object Object] error display)

@@ -7,6 +7,7 @@ import { TrainerMatchAnswersPreview } from "@/components/trainer/trainer-match-a
 import { TrainerProfileCopyLinkButton } from "@/components/trainer/trainer-profile-copy-link-button";
 import { TrainerSocialBrandIcon } from "@/components/trainer/trainer-social-brand-icons";
 import type { TrainerVerificationBadge } from "@/lib/trainer-client-discovery";
+import type { TrainerSocialPlatform } from "@/lib/trainer-social-urls";
 import { TrainerVerificationBadgePill } from "@/components/trainer/trainer-verification-badge";
 
 export type TrainerPublicSocialLink = {

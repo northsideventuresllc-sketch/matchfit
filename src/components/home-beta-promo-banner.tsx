@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CLIENT_PLATFORM_TRIAL_DAYS } from "@/lib/client-platform-trial-constants";
 import { getTrainerFoundingBgPercentMax } from "@/lib/match-fit-launch-promotion-caps";
 import { MATCH_FIT_PRODUCT_VERSION_ANNOUNCE } from "@/lib/match-fit-product-version";
 
@@ -83,7 +84,7 @@ export function HomeBetaPromoBanner() {
               <span className="min-w-0 flex-1 text-left [overflow-wrap:anywhere]">
                 <span className="font-semibold text-white/90">All new clients:</span> complete sign-up and agree to the
                 Terms of Service to start a{" "}
-                <span className="font-bold text-[#FFD34E]">14-day free trial with no card required</span>.
+                <span className="font-bold text-[#FFD34E]">{CLIENT_PLATFORM_TRIAL_DAYS}-day free trial with no card required</span>.
               </span>
             </li>
           </ul>

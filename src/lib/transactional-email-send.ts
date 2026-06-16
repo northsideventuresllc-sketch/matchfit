@@ -3,7 +3,7 @@ import { parseClientNotificationPrefsJson } from "@/lib/client-notification-pref
 import { parseTrainerNotificationPrefsJson } from "@/lib/trainer-notification-prefs";
 import { sendMatchFitBrandedEmail } from "@/lib/match-fit-branded-email";
 import { MATCH_FIT_REPLY_TO } from "@/lib/resend-client";
-import { buildTransactionalEmail } from "@/lib/transactional-email-templates";
+import { buildTransactionalEmailWithOverrides } from "@/lib/transactional-email-template-store";
 import type { TransactionalEmailKind } from "@/lib/transactional-email-kinds";
 import { isMandatoryTransactionalEmailKind } from "@/lib/transactional-email-kinds";
 import { clientAllowsTransactionalEmailKind, trainerAllowsTransactionalEmailKind } from "@/lib/transactional-email-prefs";
@@ -31,7 +31,7 @@ export type SendTransactionalEmailResult =
  */
 export async function sendTransactionalEmailIfAllowed(params: SendTransactionalEmailParams): Promise<SendTransactionalEmailResult> {
   const to = params.to?.trim();
-  const { subject } = buildTransactionalEmail(params.kind, params.variables);
+  const { subject } = await buildTransactionalEmailWithOverrides(params.kind, params.variables);
 
   if (!to) {
     void logTransactionalEmailDelivery({
@@ -87,7 +87,7 @@ export async function sendTransactionalEmailIfAllowed(params: SendTransactionalE
     }
   }
 
-  const { text, html } = buildTransactionalEmail(params.kind, params.variables);
+  const { text, html } = await buildTransactionalEmailWithOverrides(params.kind, params.variables);
   try {
     const resendId = await sendMatchFitBrandedEmail({
       to,

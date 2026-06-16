@@ -30,7 +30,7 @@ describe("match-fit-launch-promotion-caps", () => {
     expect(getTrainerFoundingBgPercentMax()).toBe(10);
     expect(getTrainerFoundingRegistrationWaiverMax()).toBe(10);
     expect(getClientFoundingTrialMaxClients()).toBe(150);
-    expect(getClientFoundingTrialDays()).toBe(14);
+    expect(getClientFoundingTrialDays()).toBe(60);
     expect(getClientPostCapTrialDays()).toBe(3);
   });
 
@@ -44,7 +44,7 @@ describe("match-fit-launch-promotion-caps", () => {
     expect(getTrainerFoundingBgPercentMax()).toBe(10);
     expect(getTrainerFoundingRegistrationWaiverMax()).toBe(10);
     expect(getClientFoundingTrialMaxClients()).toBe(150);
-    expect(getClientFoundingTrialDays()).toBe(14);
+    expect(getClientFoundingTrialDays()).toBe(60);
     expect(getClientPostCapTrialDays()).toBe(3);
   });
 

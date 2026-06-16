@@ -27,7 +27,7 @@ describe("match-fit-launch-promotions", () => {
 
   it("uses defaults for client trial caps", () => {
     expect(getClientFoundingTrialMaxClients()).toBe(150);
-    expect(getClientFoundingTrialDays()).toBe(14);
+    expect(getClientFoundingTrialDays()).toBe(60);
     expect(getClientPostCapTrialDays()).toBe(3);
     expect(isNextClientEligibleForFoundingTrial(0)).toBe(true);
     expect(isNextClientEligibleForFoundingTrial(149)).toBe(true);

@@ -6,11 +6,13 @@ import { isPrismaMissingColumnError } from "@/lib/prisma-missing-column";
 import { getSessionClientId } from "@/lib/session";
 import { createTrainerServiceSaleStripeCheckoutSession } from "@/lib/stripe-trainer-service-sale-checkout";
 import {
-  isTrainerBookableForClients,
   isTrainerVisibleInClientDiscovery,
   trainerBookableBlockedMessage,
-  trainerDiscoveryProfileSelect,
 } from "@/lib/trainer-client-discovery";
+import {
+  parseTrainerServiceOfferingsJson,
+  resolveServiceCheckoutSku,
+} from "@/lib/trainer-service-offerings-document";
 import { isTrainerClientInteractionRestricted } from "@/lib/user-block-queries";
 import { NextResponse } from "next/server";
 import { z } from "zod";
