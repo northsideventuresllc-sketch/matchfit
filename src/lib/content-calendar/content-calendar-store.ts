@@ -5,6 +5,7 @@ import {
   CONTENT_CALENDAR_POST_TYPES,
 } from "@/lib/content-calendar/constants";
 import { addWeekdays, formatCalendarDate, getContentCalendarRotation } from "@/lib/content-calendar/rotation";
+import { normalizeTargetGroup } from "@/lib/content-calendar/content-rules";
 import type { GeneratedWeekPost, BulkGeneratedDraft } from "@/lib/content-calendar/content-calendar-ai";
 import { createNiBrainClient, type ContentCalendarPostRow } from "@/lib/ni-brain-client";
 
@@ -77,19 +78,30 @@ export async function upsertWeekPosts(args: {
   return (data ?? []) as ContentCalendarPostRow[];
 }
 
+export async function updatePostFields(args: {
+  postId: string;
+  caption?: string;
+  visualPrompt?: string | null;
+  hashtags?: string[];
+}): Promise<void> {
+  const client = createNiBrainClient();
+  const patch: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+  if (args.caption !== undefined) patch.caption = args.caption;
+  if (args.visualPrompt !== undefined) patch.visual_prompt = args.visualPrompt;
+  if (args.hashtags !== undefined) patch.hashtags = args.hashtags;
+  const { error } = await client.from("match_fit_content_calendar_posts").update(patch).eq("id", args.postId);
+  if (error) throw new Error(error.message);
+}
+
+/** @deprecated Use updatePostFields */
 export async function updatePostCaption(args: {
   postId: string;
   caption: string;
   visualPrompt?: string | null;
 }): Promise<void> {
-  const client = createNiBrainClient();
-  const patch: Record<string, unknown> = {
-    caption: args.caption,
-    updated_at: new Date().toISOString(),
-  };
-  if (args.visualPrompt !== undefined) patch.visual_prompt = args.visualPrompt;
-  const { error } = await client.from("match_fit_content_calendar_posts").update(patch).eq("id", args.postId);
-  if (error) throw new Error(error.message);
+  await updatePostFields(args);
 }
 
 export async function markPostPosted(postId: string, autoPurgeAfter24h = false): Promise<void> {
@@ -312,7 +324,7 @@ export function serializePostForClient(row: ContentCalendarPostRow) {
     postDate: row.post_date,
     dayIndex: row.day_index,
     postType: row.post_type,
-    targetGroup: row.target_group,
+    targetGroup: normalizeTargetGroup(row.target_group),
     platforms: row.platforms,
     caption: row.caption,
     visualPrompt: row.visual_prompt,

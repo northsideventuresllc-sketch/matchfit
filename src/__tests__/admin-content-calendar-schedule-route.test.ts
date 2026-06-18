@@ -69,7 +69,7 @@ describe("/api/admin/content-calendar/schedule route", () => {
       {
         dayIndex: 0,
         postType: "Text",
-        targetGroup: "Atlanta Trainers",
+        targetGroup: "Fitness Pros",
         platforms: "Threads",
         caption: "Caption",
         visualPrompt: null,
@@ -79,7 +79,7 @@ describe("/api/admin/content-calendar/schedule route", () => {
     mockRegenerateCalendarPost.mockResolvedValue({
       dayIndex: 2,
       postType: "Video",
-      targetGroup: "Virtual Trainers",
+      targetGroup: "Clients",
       platforms: "Instagram Reels",
       caption: "Regenerated",
       visualPrompt: "Visual",
