@@ -297,11 +297,19 @@ export type AdminFinancesPanel = {
 
 export type AdminAlertSeverity = "critical" | "warning" | "info";
 
+export type AdminAlertField = {
+  label: string;
+  value: string;
+};
+
 export type AdminAlertItem = {
   id: string;
   severity: AdminAlertSeverity;
   title: string;
   detail: string;
+  fullDetail: string;
+  filingLabel: string;
+  fields: AdminAlertField[];
   href: string | null;
   createdAt: string | null;
 };
@@ -309,6 +317,7 @@ export type AdminAlertItem = {
 export type AdminAlertGroup = {
   id: string;
   label: string;
+  description: string;
   severity: AdminAlertSeverity;
   items: AdminAlertItem[];
   total: number;
