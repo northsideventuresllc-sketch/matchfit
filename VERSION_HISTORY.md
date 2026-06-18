@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-18** `1.10.0-beta` → `1.11.0-beta` (**minor** — Admin operational alerts expandable category bubbles with full report modals)
 - **2026-06-16** `1.9.4-beta` → `1.10.0-beta` (**minor** — Admin Email Templates page with edit, preview, and approval workflow; founding coach background-check coverage)
 - **2026-06-16** `1.9.3-beta` → `1.9.4-beta` (**patch** — Outreach HQ hub stats with per-platform filters)
 - **2026-06-16** `1.9.0-beta` → `1.9.1-beta` (**patch** — Extend BETA client free trial from 14 to 60 days)

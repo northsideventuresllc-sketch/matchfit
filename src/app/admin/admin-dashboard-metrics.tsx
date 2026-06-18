@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import type {
-  AdminAlertsPanel,
   AdminBackgroundCheckEntry,
   AdminBackgroundChecksPanel,
   AdminClientPipelinePanel,
@@ -907,42 +906,5 @@ export function BackgroundChecksSection({
   );
 }
 
-export function OperationalAlertsSection({ alerts }: { alerts: AdminAlertsPanel }) {
-  return (
-    <MetricsSection title="Operational alerts" description="Trust, safety, billing, and product feedback queues.">
-      <div className="space-y-4">
-        {alerts.groups.map((g) => (
-          <div key={g.id} className="rounded-xl border border-white/[0.06] bg-[#0E1016]/80 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-white">{g.label}</p>
-              <span
-                className={`rounded-md px-1.5 py-0.5 text-[10px] font-black uppercase ${
-                  g.severity === "critical"
-                    ? "bg-[#E32B2B]/20 text-[#FFB4B4]"
-                    : g.severity === "warning"
-                      ? "bg-amber-500/20 text-amber-100"
-                      : "bg-white/10 text-white/55"
-                }`}
-              >
-                {g.severity} · {g.total}
-              </span>
-            </div>
-            {g.items.length === 0 ? (
-              <p className="mt-2 text-[11px] text-white/40">No items in preview.</p>
-            ) : (
-              <ul className="mt-2 space-y-1.5">
-                {g.items.map((item) => (
-                  <li key={item.id} className="text-[11px] text-white/50">
-                    <span className="font-medium text-white/75">{item.title}</span>
-                    {item.detail ? ` — ${item.detail}` : ""}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        ))}
-      </div>
-    </MetricsSection>
-  );
-}
+export { OperationalAlertsSection } from "@/app/admin/operational-alerts-section";
 
