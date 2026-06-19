@@ -13,7 +13,7 @@ import { resetStripeClient } from "@/lib/stripe-server";
 
 let hydratePromise: Promise<void> | null = null;
 
-/** Loads live Stripe, Resend, Anthropic, NI Brain, and ad platform config from `platform_secrets` when env is missing. */
+/** Loads live Stripe, Resend, Anthropic, OpenAI, NI Brain, and ad platform config from `platform_secrets` when env is missing. */
 export async function hydratePlatformEnvFromDatabase(): Promise<void> {
   if (hydratePromise) return hydratePromise;
 
@@ -76,6 +76,16 @@ export async function hydratePlatformEnvFromDatabase(): Promise<void> {
     const anthropicModel = await readPlatformSecret("ANTHROPIC_ADMIN_ANALYTICS_MODEL");
     if (anthropicModel) {
       process.env.ANTHROPIC_ADMIN_ANALYTICS_MODEL = anthropicModel;
+    }
+
+    const openAiKey = await readPlatformSecret("OPENAI_API_KEY");
+    if (openAiKey) {
+      process.env.OPENAI_API_KEY = openAiKey;
+    }
+
+    const openAiModel = await readPlatformSecret("OPENAI_ADMIN_ANALYTICS_MODEL");
+    if (openAiModel) {
+      process.env.OPENAI_ADMIN_ANALYTICS_MODEL = openAiModel;
     }
 
     const niBrainUrl = await readPlatformSecret("NI_BRAIN_SUPABASE_URL");

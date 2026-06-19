@@ -1,6 +1,7 @@
 import "server-only";
 
-import { getAdminAiProviderStatus, getAdminAiProviderStatusAsync } from "@/lib/admin-analytics-ai";
+import { getAdminAiProviderStatus } from "@/lib/admin-analytics-ai";
+import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import {
   CONTENT_CALENDAR_BRAND_FACTS,
   CONTENT_CALENDAR_DAYS_LONG,
@@ -63,54 +64,102 @@ function applyPostRules(content: GeneratedPostContent, postType: ContentCalendar
   };
 }
 
-async function callAi(system: string, user: string, maxTokens = 2000): Promise<string | null> {
-  const status = await getAdminAiProviderStatusAsync();
-  if (!status.configured) return null;
+async function callAi(
+  system: string,
+  user: string,
+  maxTokens = 2000,
+): Promise<{ text: string | null; error: string | null }> {
+  await hydratePlatformEnvFromDatabase();
+  const status = getAdminAiProviderStatus();
+  if (!status.configured) {
+    return { text: null, error: status.message };
+  }
+
+  const timeoutMs = 90_000;
+
 
   if (status.provider === "anthropic") {
     const key = process.env.ANTHROPIC_API_KEY?.trim();
-    if (!key) return null;
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: status.model ?? "claude-sonnet-4-20250514",
-        max_tokens: maxTokens,
-        system,
-        messages: [{ role: "user", content: user }],
-        temperature: 0.55,
-      }),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { content?: { type: string; text?: string }[] };
-    return data.content?.find((b) => b.type === "text")?.text ?? null;
+    if (!key) {
+      return { text: null, error: "ANTHROPIC_API_KEY is missing on the server." };
+    }
+    const model = status.model;
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": key,
+          "anthropic-version": "2023-06-01",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: maxTokens,
+          system,
+          messages: [{ role: "user", content: user }],
+          temperature: 0.55,
+        }),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (!res.ok) {
+        const detail = (await res.text().catch(() => "")).slice(0, 240);
+        console.error("[content-calendar-ai] Anthropic error", res.status, detail);
+        return {
+          text: null,
+          error: `Anthropic request failed (${res.status}). Check ANTHROPIC_API_KEY and model ${model}.`,
+        };
+      }
+      const data = (await res.json()) as { content?: { type: string; text?: string }[] };
+      const text = data.content?.find((b) => b.type === "text")?.text?.trim() ?? null;
+      return text
+        ? { text, error: null }
+        : { text: null, error: "Anthropic returned an empty response. Try again." };
+    } catch (e) {
+      console.error("[content-calendar-ai] Anthropic request failed", e);
+      return { text: null, error: "Could not reach Anthropic. Try again in a moment." };
+    }
   }
 
   const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) return null;
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_ADMIN_ANALYTICS_MODEL?.trim() || "gpt-4o-mini",
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      temperature: 0.55,
-      max_tokens: maxTokens,
-    }),
-  });
-  if (!res.ok) return null;
-  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  return data.choices?.[0]?.message?.content ?? null;
+  if (!key) {
+    return { text: null, error: "OPENAI_API_KEY is missing on the server." };
+  }
+  const model = status.model;
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        temperature: 0.55,
+        max_tokens: maxTokens,
+      }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!res.ok) {
+      const detail = (await res.text().catch(() => "")).slice(0, 240);
+      console.error("[content-calendar-ai] OpenAI error", res.status, detail);
+      return {
+        text: null,
+        error: `OpenAI request failed (${res.status}). Check OPENAI_API_KEY and model ${model}.`,
+      };
+    }
+    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+    const text = data.choices?.[0]?.message?.content?.trim() ?? null;
+    return text
+      ? { text, error: null }
+      : { text: null, error: "OpenAI returned an empty response. Try again." };
+  } catch (e) {
+    console.error("[content-calendar-ai] OpenAI request failed", e);
+    return { text: null, error: "Could not reach OpenAI. Try again in a moment." };
+  }
 }
 
 function parseJsonBlock<T>(text: string): T | null {
@@ -141,7 +190,7 @@ ${CONTENT_CALENDAR_AI_RULES}
 ${learning}
 Return ONLY JSON: {"hashtags":["tag1","tag2",...]} with exactly ${CONTENT_CALENDAR_MAX_HASHTAGS} tags (or fewer). Mix broad fitness and niche tags trending around ${args.postDate}. No # prefix. No Atlanta/local geo tags.`;
   const user = `Research best hashtags for ${args.postType} post targeting ${targetGroup} to publish on ${args.postDate}.`;
-  const text = await callAi(system, user, 600);
+  const { text } = await callAi(system, user, 600);
   const parsed = text ? parseJsonBlock<{ hashtags?: string[] }>(text) : null;
   const tags = normalizeHashtags(parsed?.hashtags ?? []);
   if (tags.length) {
@@ -178,7 +227,7 @@ Platforms: ${platforms}.
 ${args.existingCaption ? `Previous caption:\n${args.existingCaption}` : ""}
 ${args.existingVisualPrompt ? `Previous visual prompt:\n${args.existingVisualPrompt}` : ""}
 ${args.feedback ? `Operator feedback — apply these changes:\n${args.feedback}` : "Improve hook, clarity, and hashtags while keeping the same intent."}`;
-  const text = await callAi(system, user, 2500);
+  const { text } = await callAi(system, user, 2500);
   const parsed = text ? parseJsonBlock<{ caption?: string; visualPrompt?: string | null; hashtags?: string[] }>(text) : null;
   if (!parsed) return null;
   const content = applyPostRules(
@@ -198,13 +247,20 @@ ${args.feedback ? `Operator feedback — apply these changes:\n${args.feedback}`
   };
 }
 
+export type GenerateSinglePostResult =
+  | {
+      ok: true;
+      data: { hook: string; body: string; cta: string; hashtags: string[]; dmScript?: string };
+    }
+  | { ok: false; error: string };
+
 export async function generateSinglePost(args: {
   postType?: ContentCalendarGeneratorPostType;
   platform?: string;
   contentType: string;
   tone: string;
   customNote?: string;
-}): Promise<{ hook: string; body: string; cta: string; hashtags: string[]; dmScript?: string } | null> {
+}): Promise<GenerateSinglePostResult> {
   const learning = await buildContentGenerationContext();
   const system = `You are a social media strategist for Match Fit.
 ${CONTENT_CALENDAR_BRAND_FACTS}
@@ -220,19 +276,32 @@ Respond ONLY with JSON: {"hook":"","body":"","cta":"","hashtags":["tag1"],"dmScr
 ${args.postType === "Text" ? "Text-only post: no visual or video prompt. Write for Threads/Facebook — concise, conversational caption structure." : ""}
 ${args.customNote ? `Prompt: ${args.customNote}` : ""}
 Target: Fitness Pros and clients. Goal: match-fit.net signups.`;
-  const text = await callAi(system, user);
-  const parsed = text ? parseJsonBlock<{ hook?: string; body?: string; cta?: string; hashtags?: string[]; dmScript?: string }>(text) : null;
-  if (!parsed) return null;
+  const { text, error } = await callAi(system, user);
+  if (!text) {
+    return { ok: false, error: error ?? "AI provider did not return a response." };
+  }
+  const parsed = parseJsonBlock<{ hook?: string; body?: string; cta?: string; hashtags?: string[]; dmScript?: string }>(
+    text,
+  );
+  if (!parsed?.hook?.trim() || !parsed.body?.trim()) {
+    return {
+      ok: false,
+      error: "AI returned a response but it could not be parsed. Try generating again.",
+    };
+  }
   const enforced = enforceGeneratedPostContent({
     caption: [parsed.hook, parsed.body, parsed.cta].filter(Boolean).join("\n\n"),
     hashtags: parsed.hashtags ?? [],
   });
   return {
-    hook: normalizeFitnessProLanguage(parsed.hook ?? ""),
-    body: normalizeFitnessProLanguage(parsed.body ?? ""),
-    cta: normalizeFitnessProLanguage(parsed.cta ?? ""),
-    hashtags: enforced.hashtags,
-    dmScript: parsed.dmScript ? normalizeFitnessProLanguage(parsed.dmScript) : undefined,
+    ok: true,
+    data: {
+      hook: normalizeFitnessProLanguage(parsed.hook ?? ""),
+      body: normalizeFitnessProLanguage(parsed.body ?? ""),
+      cta: normalizeFitnessProLanguage(parsed.cta ?? ""),
+      hashtags: enforced.hashtags,
+      dmScript: parsed.dmScript ? normalizeFitnessProLanguage(parsed.dmScript) : undefined,
+    },
   };
 }
 
@@ -266,7 +335,7 @@ dayIndex 0=Mon..4=Fri. postType one of Carousel|Static|Video|Text. targetGroup m
 
   const user = `Generate a full M-F content week starting ${args.weekStart}. Include day-of-week variety and founding beta urgency aligned with live promos. Hashtags without # in array.`;
 
-  const text = await callAi(system, user, 8000);
+  const { text } = await callAi(system, user, 8000);
   const parsed = text ? parseJsonBlock<GeneratedWeekPost[]>(text) : null;
   if (!parsed || !Array.isArray(parsed)) return fallbackWeek(args.offset);
 
@@ -352,7 +421,7 @@ ${socialScan.summary}
 Assign target audiences for these ${items.length} posts:
 ${slotList}`;
 
-  const text = await callAi(system, user, Math.min(4000, 200 + items.length * 80));
+  const { text } = await callAi(system, user, Math.min(4000, 200 + items.length * 80));
   const parsed = text ? parseJsonBlock<{ targetGroup: string }[]>(text) : null;
 
   const result: Record<number, string> = {};
@@ -402,7 +471,7 @@ ${slotSpec}
 
 Create ${count} posts with varied hooks, CTAs, and hashtags (no # prefix in array).`;
 
-  const text = await callAi(system, user, Math.min(8000, 400 + count * 350));
+  const { text } = await callAi(system, user, Math.min(8000, 400 + count * 350));
   const parsed = text ? parseJsonBlock<Omit<BulkGeneratedDraft, "tempId" | "platforms" | "postDate">[]>(text) : null;
 
   if (!parsed || !Array.isArray(parsed) || parsed.length === 0) {
@@ -487,7 +556,7 @@ ${socialScan.summary}
 
 Summarize performance for @theofficialmatchfit on Instagram, TikTok, Facebook, and Threads. Note content types (video, carousel, static, text) and Fitness Pro recruitment vs client acquisition focus.`;
 
-  const text = await callAi(system, user, 1200);
+  const { text } = await callAi(system, user, 1200);
   const summary = text ?? "Connect ANTHROPIC_API_KEY or OPENAI_API_KEY to run social performance analysis.";
 
   await recordContentLearning({
@@ -500,6 +569,7 @@ Summarize performance for @theofficialmatchfit on Instagram, TikTok, Facebook, a
 }
 
 export async function generateStaticMedia(prompt: string): Promise<{ url: string } | null> {
+  await hydratePlatformEnvFromDatabase();
   const key = process.env.OPENAI_API_KEY?.trim();
   if (!key) return null;
 
