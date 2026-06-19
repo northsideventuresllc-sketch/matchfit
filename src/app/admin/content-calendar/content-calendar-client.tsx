@@ -125,22 +125,10 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
       const res = await fetch("/api/admin/content-calendar/social-scan", {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ includeAnalysis: true }),
       });
-      const data = (await res.json()) as {
-        summary?: string;
-        website?: { summary?: string };
-        social?: { summary?: string };
-        error?: string;
-      };
+      const data = (await res.json()) as { summary?: string; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Scan failed.");
-      const parts = [
-        data.website?.summary ? `Website / promos:\n${data.website.summary}` : "",
-        data.social?.summary ? `\nSocial profiles:\n${data.social.summary}` : "",
-        data.summary ? `\nAnalysis:\n${data.summary}` : "",
-      ].filter(Boolean);
-      setSocialSummary(parts.join("\n\n") || null);
+      setSocialSummary(data.summary ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Scan failed.");
     } finally {
@@ -219,7 +207,7 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
           disabled={scanning}
           onClick={() => void runSocialScan()}
         >
-          {scanning ? "Scanning…" : "Scan Website & Social"}
+          {scanning ? "Scanning…" : "Scan Social"}
         </button>
       }
       contentClassName="space-y-6"

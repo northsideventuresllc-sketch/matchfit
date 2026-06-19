@@ -17,21 +17,11 @@ import {
   CONTENT_CALENDAR_BULK_DEFAULT_PROMPT,
   CONTENT_CALENDAR_BULK_MAX_COUNT,
   CONTENT_CALENDAR_GROUPS,
-  CONTENT_CALENDAR_GENERATOR_POST_TYPES,
-  CONTENT_CALENDAR_PLATFORMS_BY_TYPE,
   CONTENT_CALENDAR_POST_TYPES,
   CONTENT_CALENDAR_TYPE_ICONS,
-  type ContentCalendarGeneratorPostType,
   type ContentCalendarGroup,
   type ContentCalendarPostType,
 } from "@/lib/content-calendar/constants";
-import {
-  CONTENT_CALENDAR_MAX_HASHTAGS,
-  CONTENT_CALENDAR_REPURPOSE_CHAR_LIMIT,
-  formatHashtagsForPost,
-  normalizeHashtags,
-  repurposePostLength,
-} from "@/lib/content-calendar/content-rules";
 import {
   assignDefaultScheduleAudiences,
   assignRandomAudiences,
@@ -82,135 +72,13 @@ export function CopyButton({
   );
 }
 
-type EditablePostValues = {
-  caption: string;
-  visualPrompt: string | null;
-  hashtags: string[];
-};
-
-function parseHashtagInput(raw: string): string[] {
-  return normalizeHashtags(
-    raw
-      .split(/[\s,]+/)
-      .map((t) => t.trim())
-      .filter(Boolean),
-  );
-}
-
-export function EditablePostFields(props: {
-  postType: ContentCalendarPostType;
-  values: EditablePostValues;
-  onChange: (next: EditablePostValues) => void;
-  onSave?: () => Promise<void>;
-  saving?: boolean;
-  saveLabel?: string;
-  readOnly?: boolean;
-}) {
-  const charCount = repurposePostLength(props.values.caption, props.values.hashtags);
-  const overLimit = charCount > CONTENT_CALENDAR_REPURPOSE_CHAR_LIMIT;
-  const hashtagText = props.values.hashtags.join(" ");
-
-  return (
-    <div className="mt-3 space-y-3">
-      <div>
-        <div className="flex items-center justify-between gap-2">
-          <label className={adminLabelClass}>Caption</label>
-          <span className={`text-[10px] ${overLimit ? "text-[#FFB4B4]" : "text-white/35"}`}>
-            {charCount}/{CONTENT_CALENDAR_REPURPOSE_CHAR_LIMIT}
-          </span>
-        </div>
-        <textarea
-          className={`${adminInputClassSm} mt-1 min-h-[96px] w-full`}
-          rows={4}
-          value={props.values.caption}
-          readOnly={props.readOnly}
-          onChange={(e) => props.onChange({ ...props.values, caption: e.target.value })}
-        />
-      </div>
-
-      {props.postType !== "Text" ? (
-        <div>
-          <label className={adminLabelClass}>
-            {props.postType === "Video" ? "Video prompt" : "Visual prompt"}
-          </label>
-          <textarea
-            className={`${adminInputClassSm} mt-1 min-h-[72px] w-full`}
-            rows={3}
-            value={props.values.visualPrompt ?? ""}
-            readOnly={props.readOnly}
-            placeholder="Shot list, on-screen text, or generation prompt…"
-            onChange={(e) =>
-              props.onChange({
-                ...props.values,
-                visualPrompt: e.target.value.trim() ? e.target.value : null,
-              })
-            }
-          />
-        </div>
-      ) : null}
-
-      <div>
-        <div className="flex items-center justify-between gap-2">
-          <label className={adminLabelClass}>Hashtags (max {CONTENT_CALENDAR_MAX_HASHTAGS})</label>
-          <span className="text-[10px] text-white/35">{props.values.hashtags.length}/{CONTENT_CALENDAR_MAX_HASHTAGS}</span>
-        </div>
-        <input
-          className={`${adminInputClassSm} mt-1 w-full`}
-          value={hashtagText}
-          readOnly={props.readOnly}
-          placeholder="MatchFit FitnessApp BetaLaunch"
-          onChange={(e) =>
-            props.onChange({
-              ...props.values,
-              hashtags: parseHashtagInput(e.target.value),
-            })
-          }
-        />
-      </div>
-
-      {props.onSave ? (
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            className={adminPrimaryButtonClass}
-            disabled={props.saving || overLimit || props.readOnly}
-            onClick={() => void props.onSave?.()}
-          >
-            {props.saving ? "Saving…" : (props.saveLabel ?? "Save edits")}
-          </button>
-          <CopyButton
-            text={`${props.values.caption}\n\n${formatHashtagsForPost(props.values.hashtags)}`}
-            label="Copy post"
-          />
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 function DraftBubble(props: {
   draft: BulkGeneratedDraft;
-  onSave: (draft: BulkGeneratedDraft) => Promise<void>;
+  onSave: () => Promise<void>;
   onDelete: () => void;
   saving: boolean;
   saveDisabled: boolean;
 }) {
-  const [prevDraft, setPrevDraft] = useState(props.draft);
-  const [values, setValues] = useState<EditablePostValues>({
-    caption: props.draft.caption,
-    visualPrompt: props.draft.visualPrompt,
-    hashtags: props.draft.hashtags,
-  });
-
-  if (props.draft !== prevDraft) {
-    setPrevDraft(props.draft);
-    setValues({
-      caption: props.draft.caption,
-      visualPrompt: props.draft.visualPrompt,
-      hashtags: props.draft.hashtags,
-    });
-  }
-
   return (
     <article className={`${adminPanelClass} p-4 sm:p-5`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -231,7 +99,7 @@ function DraftBubble(props: {
             type="button"
             disabled={props.saving || props.saveDisabled}
             className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-40"
-            onClick={() => void props.onSave({ ...props.draft, ...values })}
+            onClick={() => void props.onSave()}
           >
             {props.saving ? "Saving…" : "Approve & save"}
           </button>
@@ -244,8 +112,20 @@ function DraftBubble(props: {
           </button>
         </div>
       </div>
-
-      <EditablePostFields postType={props.draft.postType} values={values} onChange={setValues} />
+      <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-white/75">{props.draft.caption}</p>
+      {props.draft.visualPrompt ? (
+        <p className="mt-2 rounded-lg border border-dashed border-[#FF7E00]/20 bg-black/20 p-3 text-xs text-white/50">
+          {props.draft.visualPrompt}
+        </p>
+      ) : null}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <CopyButton
+          text={`${props.draft.caption}\n\n${props.draft.hashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}`}
+          label="Copy post"
+          disabled
+          disabledHint="Approve & save to copy"
+        />
+      </div>
     </article>
   );
 }
@@ -513,8 +393,7 @@ export function BulkContentGeneratorPanel(props: {
         <section className={`${adminCardClass} space-y-5 p-5`}>
           <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Bulk generation setup</p>
           <p className="text-sm text-white/55">
-            Choose how many posts to generate for each content type, then continue to assign target audiences (Fitness
-            Pros or Clients).
+            Choose how many posts to generate for each content type, then continue to assign target audiences.
           </p>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -625,8 +504,8 @@ export function BulkContentGeneratorPanel(props: {
               {assignmentMode === "randomize"
                 ? "Target audiences are randomly assigned to each post."
                 : assignmentMode === "default_schedule"
-                  ? "Target audiences follow the content schedule rotation (Fitness Pros / Clients)."
-                  : "Target audiences are assigned from a live social profile scan."}
+                  ? "Target audiences follow the content schedule rotation."
+                  : "Target audiences are assigned from a social media scan."}
             </p>
           ) : null}
 
@@ -691,8 +570,7 @@ export function BulkContentGeneratorPanel(props: {
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm font-semibold text-white/70">
-              Generated {drafts.length} post{drafts.length === 1 ? "" : "s"} — edit caption, prompt, and hashtags, then
-              approve to save
+              Generated {drafts.length} post{drafts.length === 1 ? "" : "s"} — review and approve to save to Content Hub
             </p>
             <div className="flex flex-wrap gap-2">
               <button
@@ -725,8 +603,8 @@ export function BulkContentGeneratorPanel(props: {
                 draft={draft}
                 saving={savingId === draft.tempId || bulkSaving}
                 saveDisabled={saveDisabled}
-                onSave={async (edited) => {
-                  await saveDraft(edited);
+                onSave={async () => {
+                  await saveDraft(draft);
                 }}
                 onDelete={() => setDrafts((prev) => prev.filter((d) => d.tempId !== draft.tempId))}
               />
@@ -739,119 +617,6 @@ export function BulkContentGeneratorPanel(props: {
 
       <ScheduleCalendar posts={scheduledPosts} title="Scheduled content calendar" />
     </div>
-  );
-}
-
-function HubPostCard(props: {
-  post: ClientContentPost;
-  dateDraft: string;
-  onDateDraftChange: (date: string) => void;
-  onMarkPosted: () => Promise<void>;
-  onDelete: () => Promise<void>;
-  onUpdatePostDate: (date: string) => Promise<void>;
-  onSaved: () => void;
-}) {
-  const [prevPost, setPrevPost] = useState(props.post);
-  const [values, setValues] = useState<EditablePostValues>({
-    caption: props.post.caption,
-    visualPrompt: props.post.visualPrompt,
-    hashtags: props.post.hashtags,
-  });
-  const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
-
-  if (props.post !== prevPost) {
-    setPrevPost(props.post);
-    setValues({
-      caption: props.post.caption,
-      visualPrompt: props.post.visualPrompt,
-      hashtags: props.post.hashtags,
-    });
-  }
-
-  async function saveEdits() {
-    setSaving(true);
-    setSaveMessage(null);
-    try {
-      const res = await fetch(`/api/admin/content-calendar/posts/${props.post.id}`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          caption: values.caption,
-          visualPrompt: values.visualPrompt,
-          hashtags: values.hashtags,
-          originalCaption: props.post.caption,
-          originalVisualPrompt: props.post.visualPrompt,
-          originalHashtags: props.post.hashtags,
-        }),
-      });
-      const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Could not save edits.");
-      setSaveMessage("Saved — learning uploaded to NI Brain.");
-      props.onSaved();
-    } catch (e) {
-      setSaveMessage(e instanceof Error ? e.message : "Could not save edits.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <article className={`${adminPanelClass} p-4 sm:p-5`}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <span className="text-xs font-black uppercase tracking-[0.1em] text-[#FFD34E]">
-            {CONTENT_CALENDAR_TYPE_ICONS[props.post.postType]} {props.post.postType}
-          </span>
-          <p className="mt-1 text-[10px] uppercase text-white/40">{props.post.targetGroup}</p>
-        </div>
-        <div className="flex gap-2">
-          <button type="button" className={adminAccentButtonClass} onClick={() => void props.onMarkPosted()}>
-            Mark posted
-          </button>
-          <button
-            type="button"
-            className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4]"
-            onClick={() => void props.onDelete()}
-          >
-            Delete
-          </button>
-        </div>
-      </div>
-      <div className="mt-3">
-        <label className={adminLabelClass}>Post date</label>
-        <div className="mt-1 flex gap-2">
-          <input
-            type="date"
-            className={adminInputClassSm}
-            value={props.dateDraft}
-            onChange={(e) => props.onDateDraftChange(e.target.value)}
-          />
-          <button
-            type="button"
-            className={adminSecondaryButtonClass}
-            onClick={() => void props.onUpdatePostDate(props.dateDraft)}
-          >
-            Save date
-          </button>
-        </div>
-      </div>
-
-      <EditablePostFields
-        postType={props.post.postType}
-        values={values}
-        onChange={setValues}
-        onSave={saveEdits}
-        saving={saving}
-        saveLabel="Save edits"
-      />
-      {saveMessage ? (
-        <p className={`mt-2 text-xs ${saveMessage.startsWith("Saved") ? "text-emerald-200" : "text-[#FFB4B4]"}`}>
-          {saveMessage}
-        </p>
-      ) : null}
-    </article>
   );
 }
 
@@ -878,8 +643,8 @@ export function ContentHubPanel(props: {
       <section className={`${adminCardClass} space-y-4 p-5`}>
         <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Content Hub</p>
         <p className="text-sm text-white/55">
-          Saved posts from bulk generation. Edit caption, video/visual prompt, and hashtags — saves upload learnings to
-          NI Brain. Set a post date, mark as posted when live, and optionally auto-remove posted items after 24 hours.
+          Saved posts from bulk generation. Set a post date, mark as posted when live, and optionally auto-remove posted
+          items after 24 hours.
         </p>
         <label className="flex cursor-pointer items-center gap-3 text-sm text-white/70">
           <input
@@ -904,16 +669,56 @@ export function ContentHubPanel(props: {
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {props.posts.map((post) => (
-            <HubPostCard
-              key={post.id}
-              post={post}
-              dateDraft={dateDrafts[post.id] ?? post.postDate}
-              onDateDraftChange={(date) => setDateDrafts((d) => ({ ...d, [post.id]: date }))}
-              onMarkPosted={() => props.onMarkPosted(post.id)}
-              onDelete={() => props.onDelete(post.id)}
-              onUpdatePostDate={(date) => props.onUpdatePostDate(post.id, date)}
-              onSaved={props.onRefresh}
-            />
+            <article key={post.id} className={`${adminPanelClass} p-4 sm:p-5`}>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <span className="text-xs font-black uppercase tracking-[0.1em] text-[#FFD34E]">
+                    {CONTENT_CALENDAR_TYPE_ICONS[post.postType]} {post.postType}
+                  </span>
+                  <p className="mt-1 text-[10px] uppercase text-white/40">{post.targetGroup}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button type="button" className={adminAccentButtonClass} onClick={() => void props.onMarkPosted(post.id)}>
+                    Mark posted
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-[#E32B2B]/30 bg-[#E32B2B]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#FFB4B4]"
+                    onClick={() => void props.onDelete(post.id)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+              <div className="mt-3">
+                <label className={adminLabelClass}>Post date</label>
+                <div className="mt-1 flex gap-2">
+                  <input
+                    type="date"
+                    className={adminInputClassSm}
+                    value={dateDrafts[post.id] ?? post.postDate}
+                    onChange={(e) => setDateDrafts((d) => ({ ...d, [post.id]: e.target.value }))}
+                  />
+                  <button
+                    type="button"
+                    className={adminSecondaryButtonClass}
+                    onClick={() => void props.onUpdatePostDate(post.id, dateDrafts[post.id] ?? post.postDate)}
+                  >
+                    Save date
+                  </button>
+                </div>
+              </div>
+              <p className="mt-3 whitespace-pre-wrap text-sm text-white/75">{post.caption}</p>
+              {post.visualPrompt ? (
+                <p className="mt-2 rounded-lg border border-dashed border-white/10 p-3 text-xs text-white/45">
+                  {post.visualPrompt}
+                </p>
+              ) : null}
+              <CopyButton
+                text={`${post.caption}\n\n${post.hashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}`}
+                label="Copy post"
+              />
+            </article>
           ))}
         </div>
       )}
@@ -1025,8 +830,8 @@ export function UnpostedPromptModal(props: {
 }
 
 export function ContentGeneratorPanel(props: { configured: boolean }) {
-  const [postType, setPostType] = useState<ContentCalendarGeneratorPostType>("Carousel");
-  const [contentType, setContentType] = useState("Fitness Pro Recruitment");
+  const [postType, setPostType] = useState<"Carousel" | "Static" | "Video">("Carousel");
+  const [contentType, setContentType] = useState("Trainer Recruitment");
   const [tone, setTone] = useState("Bold / Direct");
   const [customNote, setCustomNote] = useState("");
   const [result, setResult] = useState<{
@@ -1040,7 +845,7 @@ export function ContentGeneratorPanel(props: { configured: boolean }) {
   const [error, setError] = useState<string | null>(null);
 
   const CONTENT_TYPES = [
-    "Fitness Pro Recruitment",
+    "Trainer Recruitment",
     "Brand Awareness",
     "FitHub Feature",
     "Client Pain Point",
@@ -1048,7 +853,7 @@ export function ContentGeneratorPanel(props: { configured: boolean }) {
     "Social Proof",
   ];
   const TONES = ["Hype / Energetic", "Professional", "Conversational", "Bold / Direct"];
-  const POST_TYPES = CONTENT_CALENDAR_GENERATOR_POST_TYPES;
+  const POST_TYPES = ["Carousel", "Static", "Video"] as const;
 
   async function generate() {
     setLoading(true);
@@ -1093,10 +898,6 @@ export function ContentGeneratorPanel(props: { configured: boolean }) {
               </button>
             ))}
           </div>
-          <p className="mt-2 text-[10px] text-white/40">
-            Platforms: {CONTENT_CALENDAR_PLATFORMS_BY_TYPE[postType]}
-            {postType === "Text" ? " — caption only, no visual prompt" : ""}
-          </p>
         </div>
         <div>
           <p className={adminLabelClass}>Content type</p>
@@ -1145,7 +946,7 @@ export function ContentGeneratorPanel(props: { configured: boolean }) {
       </aside>
       <section className={`${adminPanelClass} min-h-[320px] p-6`}>
         {!result && !loading ? (
-          <p className="text-sm text-white/40">Single-post generator — hook, body, CTA, and hashtags (max 5).</p>
+          <p className="text-sm text-white/40">Single-post generator — hook, body, CTA, and hashtags.</p>
         ) : null}
         {loading ? <AdminLoadingBar label="AI is crafting your post…" /> : null}
         {result ? (

@@ -20,14 +20,10 @@ import { marketplaceActiveTrainerWhere } from "@/lib/account-deletion-grace";
 import { publicMarketplaceVisibleTrainerWhere } from "@/lib/match-fit-public-marketplace-hidden";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
-import {
-  clientHasFullPlanAccess,
-  freemiumGateError,
-  loadClientPlanGate,
-} from "@/lib/client-plan-access";
+import { requireClientNotFreemiumGated } from "@/lib/client-plan-gate";
+import { getTrainerIdsHiddenFromClientMatchFeed } from "@/lib/user-block-queries";
 import { isMatchFitInternalQaClientEmail } from "@/lib/match-fit-internal-qa";
 import { refreshInternalQaClientSimulationIfNeeded } from "@/lib/internal-qa-simulation";
-import { getTrainerIdsHiddenFromClientMatchFeed } from "@/lib/user-block-queries";
 import { NextResponse } from "next/server";
 
 function coachDisplayName(trainer: {
@@ -64,9 +60,9 @@ export async function GET(req: Request) {
     const scrollTab =
       scrollTabRaw === "interested" || scrollTabRaw === "passed" ? scrollTabRaw : ("new" as const);
 
-    const plan = await loadClientPlanGate(clientId);
-    if (plan && !clientHasFullPlanAccess(plan) && feed === "scroll") {
-      return NextResponse.json(freemiumGateError("FREEMIUM_NO_SCROLL"), { status: 403 });
+    if (feed === "scroll") {
+      const scrollGate = await requireClientNotFreemiumGated(clientId, "FREEMIUM_NO_SCROLL");
+      if (scrollGate) return scrollGate;
     }
 
     const prefs = parseClientMatchPreferencesJson(client.matchPreferencesJson);

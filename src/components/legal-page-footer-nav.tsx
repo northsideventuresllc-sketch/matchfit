@@ -38,7 +38,7 @@ export function LegalPageFooterNav(props: { role: LegalPageFooterRole }) {
           Previous page
         </button>
         <Link href="/trainer/dashboard" className={linkClass}>
-          Fitness Pro dashboard
+          Trainer dashboard
         </Link>
       </nav>
     );
@@ -55,7 +55,7 @@ export function LegalPageFooterNav(props: { role: LegalPageFooterRole }) {
           Client sign up
         </Link>
         <Link href="/trainer/signup" className={linkClass}>
-          Fitness Pro sign up
+          Trainer sign up
         </Link>
       </nav>
     </div>

@@ -1,9 +1,5 @@
 import { clientConfirmBooking } from "@/lib/trainer-client-booking-service";
-import {
-  clientHasFullPlanAccess,
-  freemiumGateError,
-  loadClientPlanGate,
-} from "@/lib/client-plan-access";
+import { requireClientNotFreemiumGated } from "@/lib/client-plan-gate";
 import { getSessionClientId } from "@/lib/session";
 import { NextResponse } from "next/server";
 
@@ -17,11 +13,9 @@ export async function POST(_req: Request, ctx: Ctx) {
     if (!clientId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
+    const bookingGate = await requireClientNotFreemiumGated(clientId, "FREEMIUM_NO_BOOKING");
+    if (bookingGate) return bookingGate;
     const { bookingId } = await ctx.params;
-    const plan = await loadClientPlanGate(clientId);
-    if (plan && !clientHasFullPlanAccess(plan)) {
-      return NextResponse.json(freemiumGateError("FREEMIUM_NO_BOOKING"), { status: 403 });
-    }
     const res = await clientConfirmBooking({ bookingId, clientId });
     if ("error" in res) {
       return NextResponse.json({ error: res.error }, { status: 400 });

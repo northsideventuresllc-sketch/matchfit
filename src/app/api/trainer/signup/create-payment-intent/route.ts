@@ -23,13 +23,10 @@ export async function POST() {
 
     const trainer = await prisma.trainer.findUnique({
       where: { id: trainerId },
-      select: { email: true, deidentifiedAt: true, registrationFeeDeferred: true },
+      select: { email: true, deidentifiedAt: true },
     });
     if (!trainer || trainer.deidentifiedAt) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-    if (trainer.registrationFeeDeferred) {
-      return NextResponse.json({ error: "You chose the deferred fee option. Continue with background screening authorization." }, { status: 400 });
     }
 
     const profile = await prisma.trainerProfile.findUnique({

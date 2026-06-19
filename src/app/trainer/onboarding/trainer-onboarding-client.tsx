@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { TRAINER_ONBOARDING_AGREEMENT_COUNT, getTrainerOnboardingAgreementBullets } from "@/app/trainer/onboarding/trainer-agreement-bullets";
+import { TRAINER_ONBOARDING_AGREEMENT_COUNT, getTrainerOnboardingAgreementBulletsLegacy } from "@/app/trainer/onboarding/trainer-agreement-bullets";
 import { CREDIBLE_CPT_ORGANIZATIONS } from "@/app/trainer/onboarding/credible-cpt-organizations";
 import { CREDIBLE_NUTRITION_CREDENTIALS } from "@/app/trainer/onboarding/credible-nutrition-credentials";
 import { OnboardingCertStatusLegend } from "@/app/trainer/onboarding/onboarding-cert-status-legend";
@@ -296,7 +296,7 @@ export default function TrainerOnboardingClient() {
   const profile = trainer?.profile;
 
   const agreementBullets = useMemo(
-    () => getTrainerOnboardingAgreementBullets(profile?.registrationFeeWaived ? "founding" : "standard"),
+    () => getTrainerOnboardingAgreementBulletsLegacy(profile?.registrationFeeWaived ?? false),
     [profile?.registrationFeeWaived],
   );
 

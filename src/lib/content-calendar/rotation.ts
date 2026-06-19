@@ -5,7 +5,7 @@ import {
   type ContentCalendarPostType,
 } from "@/lib/content-calendar/constants";
 
-/** Baseline: Carousel→Fitness Pros · Static→Clients · Video→Fitness Pros · Text→Clients (alternates by day). */
+/** Baseline: Carousel→ATL Trainers · Static→Virtual Trainers · Video→ATL Clients · Text→Virtual Clients */
 export function getContentCalendarRotation(
   dayIndex: number,
   offset: number,

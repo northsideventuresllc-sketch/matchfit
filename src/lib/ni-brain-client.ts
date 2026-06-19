@@ -98,9 +98,6 @@ export async function fetchRecentContentLearnings(limit = 8): Promise<string[]> 
     if (row.signal_type === "SOCIAL_SCAN" && row.edited_text) {
       lines.push(`Social insight: ${truncate(row.edited_text, 180)}`);
     }
-    if (row.signal_type === "WEBSITE_SCAN" && row.edited_text) {
-      lines.push(`Website/promo scan: ${truncate(row.edited_text, 180)}`);
-    }
   }
 
   for (const l of learnings ?? []) {
@@ -111,13 +108,7 @@ export async function fetchRecentContentLearnings(limit = 8): Promise<string[]> 
 }
 
 export async function recordContentLearning(args: {
-  signalType:
-    | "EDIT_DIFF"
-    | "POSTED"
-    | "HASHTAG_RESEARCH"
-    | "SOCIAL_SCAN"
-    | "WEBSITE_SCAN"
-    | "MEDIA_GENERATED";
+  signalType: "EDIT_DIFF" | "POSTED" | "HASHTAG_RESEARCH" | "SOCIAL_SCAN" | "MEDIA_GENERATED" | "WEBSITE_SCAN";
   postId?: string;
   originalText?: string;
   editedText?: string;

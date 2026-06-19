@@ -264,7 +264,7 @@ export function AdTrackingClient() {
                       )}
                     </p>
                     <p>
-                      Fitness Pro signup conversion:{" "}
+                      Trainer signup conversion:{" "}
                       {config.googleConversions.trainerSignup.configured ? (
                         <span className="text-[#9BE7B0]">Connected</span>
                       ) : (

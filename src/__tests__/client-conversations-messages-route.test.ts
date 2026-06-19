@@ -45,6 +45,10 @@ vi.mock("@/lib/session", () => ({
   getSessionClientId: getSessionClientIdMock,
 }));
 
+vi.mock("@/lib/client-plan-gate", () => ({
+  requireClientNotFreemiumGated: vi.fn().mockResolvedValue(null),
+}));
+
 import { GET } from "@/app/api/client/conversations/[username]/messages/route";
 
 describe("GET /api/client/conversations/[username]/messages", () => {

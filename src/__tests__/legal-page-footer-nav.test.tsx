@@ -57,7 +57,7 @@ describe("LegalPageFooterNav", () => {
     expect(html).toContain('data-component="match-fit-social-links"');
     expect(html).toContain("Back to Home");
     expect(html).toContain("Client sign up");
-    expect(html).toContain("Fitness Pro sign up");
+    expect(html).toContain("Trainer sign up");
     expect(html).not.toContain("Previous page");
     expect(matchFitSocialLinksMock).toHaveBeenCalledWith({ variant: "compact" });
   });
