@@ -217,6 +217,7 @@ Respond ONLY with JSON: {"hook":"","body":"","cta":"","hashtags":["tag1"],"dmScr
       ? CONTENT_CALENDAR_PLATFORMS_BY_TYPE[args.postType]
       : (args.platform ?? "Instagram");
   const user = `Generate a ${args.tone} ${args.contentType} ${args.postType ? `${args.postType} ` : ""}post for ${platformLabel}.
+${args.postType === "Text" ? "Text-only post: no visual or video prompt. Write for Threads/Facebook — concise, conversational caption structure." : ""}
 ${args.customNote ? `Prompt: ${args.customNote}` : ""}
 Target: Fitness Pros and clients. Goal: match-fit.net signups.`;
   const text = await callAi(system, user);

@@ -17,8 +17,11 @@ import {
   CONTENT_CALENDAR_BULK_DEFAULT_PROMPT,
   CONTENT_CALENDAR_BULK_MAX_COUNT,
   CONTENT_CALENDAR_GROUPS,
+  CONTENT_CALENDAR_GENERATOR_POST_TYPES,
+  CONTENT_CALENDAR_PLATFORMS_BY_TYPE,
   CONTENT_CALENDAR_POST_TYPES,
   CONTENT_CALENDAR_TYPE_ICONS,
+  type ContentCalendarGeneratorPostType,
   type ContentCalendarGroup,
   type ContentCalendarPostType,
 } from "@/lib/content-calendar/constants";
@@ -1022,7 +1025,7 @@ export function UnpostedPromptModal(props: {
 }
 
 export function ContentGeneratorPanel(props: { configured: boolean }) {
-  const [postType, setPostType] = useState<"Carousel" | "Static" | "Video">("Carousel");
+  const [postType, setPostType] = useState<ContentCalendarGeneratorPostType>("Carousel");
   const [contentType, setContentType] = useState("Fitness Pro Recruitment");
   const [tone, setTone] = useState("Bold / Direct");
   const [customNote, setCustomNote] = useState("");
@@ -1045,7 +1048,7 @@ export function ContentGeneratorPanel(props: { configured: boolean }) {
     "Social Proof",
   ];
   const TONES = ["Hype / Energetic", "Professional", "Conversational", "Bold / Direct"];
-  const POST_TYPES = ["Carousel", "Static", "Video"] as const;
+  const POST_TYPES = CONTENT_CALENDAR_GENERATOR_POST_TYPES;
 
   async function generate() {
     setLoading(true);
@@ -1090,6 +1093,10 @@ export function ContentGeneratorPanel(props: { configured: boolean }) {
               </button>
             ))}
           </div>
+          <p className="mt-2 text-[10px] text-white/40">
+            Platforms: {CONTENT_CALENDAR_PLATFORMS_BY_TYPE[postType]}
+            {postType === "Text" ? " — caption only, no visual prompt" : ""}
+          </p>
         </div>
         <div>
           <p className={adminLabelClass}>Content type</p>

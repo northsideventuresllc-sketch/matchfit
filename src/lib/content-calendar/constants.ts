@@ -51,7 +51,7 @@ export const CONTENT_CALENDAR_PLATFORMS_BY_TYPE: Record<ContentCalendarPostType,
 };
 
 /** Post types available in the AI generator (maps to platforms automatically). */
-export const CONTENT_CALENDAR_GENERATOR_POST_TYPES = ["Carousel", "Static", "Video"] as const;
+export const CONTENT_CALENDAR_GENERATOR_POST_TYPES = ["Carousel", "Static", "Video", "Text"] as const;
 
 export type ContentCalendarGeneratorPostType = (typeof CONTENT_CALENDAR_GENERATOR_POST_TYPES)[number];
 

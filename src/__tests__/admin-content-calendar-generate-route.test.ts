@@ -114,6 +114,24 @@ describe("POST /api/admin/content-calendar/generate", () => {
     });
   });
 
+  it("accepts Text post type for single-post generation", async () => {
+    const res = await POST(
+      postJson({
+        postType: "Text",
+        contentType: "brand awareness",
+        tone: "conversational",
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockGenerateSinglePost).toHaveBeenCalledWith({
+      postType: "Text",
+      contentType: "brand awareness",
+      tone: "conversational",
+      customNote: undefined,
+    });
+  });
+
   it("returns 500 when generation throws", async () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     mockGenerateSinglePost.mockRejectedValueOnce(new Error("upstream offline"));
