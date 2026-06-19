@@ -1,0 +1,50 @@
+---
+description: Agents must configure Stripe/Vercel billing env by default after shipping billing features
+alwaysApply: true
+---
+
+# Billing setup is the agent default
+
+When a task ships or touches **Stripe billing**, **client VIP**, **client membership**, or **trainer payment env**, do **not** stop at documenting where keys live. **Run the setup scripts** and push env to Vercel before marking the task complete.
+
+## Client VIP ($10/month)
+
+1. **Ensure Stripe price exists** (idempotent):
+   ```bash
+   npm run stripe:setup:client-vip
+   ```
+   Creates/reuses product **Match Fit Client VIP** with lookup key `match_fit_client_vip_monthly` and writes `MATCH_FIT_CLIENT_VIP_STRIPE_PRICE_ID` to `.env` and `.beta-launch-secrets.local`.
+
+2. **Push to Vercel** (production + preview):
+   ```bash
+   VERCEL_TOKEN=... npm run vercel:env:client-vip
+   ```
+   Or one step: `VERCEL_TOKEN=... npm run stripe:setup:client-vip:vercel`
+
+3. **Verify** (when Stripe keys are in `.env`):
+   ```bash
+   node --env-file=.env scripts/verify-stripe-env.mjs
+   ```
+
+## Full beta Stripe bundle
+
+After filling `.env` / `.beta-launch-secrets.local`:
+```bash
+npm run beta:vercel-env
+```
+Includes `MATCH_FIT_CLIENT_VIP_STRIPE_PRICE_ID` alongside other production keys.
+
+## Stripe webhook (production)
+
+Endpoint: `POST https://match-fit.net/api/webhooks/stripe`
+
+Required events for VIP: `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted` (plus existing checkout/invoice events).
+
+VIP checkout uses `metadata.purpose=client_vip` — separate from legacy `STRIPE_PRICE_ID` membership flow.
+
+## Completion checklist (billing tasks)
+
+- [ ] Stripe product/price ensured via `stripe:setup:client-vip`
+- [ ] `MATCH_FIT_CLIENT_VIP_STRIPE_PRICE_ID` on Vercel production (+ preview)
+- [ ] `verify-stripe-env.mjs` passes when keys available
+- [ ] Owner told the live `price_…` id (not secret values)
