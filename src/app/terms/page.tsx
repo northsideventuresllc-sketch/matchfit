@@ -1,6 +1,6 @@
 import { LegalPageFooterNav } from "@/components/legal-page-footer-nav";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
-import { betaInviteSlotDays, betaMaxClients, betaMaxFitness Pros } from "@/lib/beta-launch-config";
+import { betaInviteSlotDays, betaMaxClients, betaMaxTrainers } from "@/lib/beta-launch-config";
 import { LEGAL_EFFECTIVE_DATE_DISPLAY } from "@/lib/legal-effective-date";
 import {
   getTrainerFoundingBgPercentMax,
