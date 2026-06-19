@@ -352,21 +352,7 @@ export async function syncTrainerComplianceWindow(trainerId: string): Promise<vo
 
   if (trainerComplianceWindowComplete(refreshed)) {
     await captureTrainerBackgroundCheckEscrowIfReady(trainerId);
-    const deferredTrainer = await prisma.trainer.findUnique({
-      where: { id: trainerId },
-      select: {
-        registrationFeeDeferred: true,
-        registrationFeeDeferredBalanceCents: true,
-      },
-    });
-    const pricingMode = resolveTrainerSignupPricingMode(refreshed);
-    if (
-      deferredTrainer?.registrationFeeDeferred &&
-      deferredTrainer.registrationFeeDeferredBalanceCents === 0 &&
-      refreshed.registrationFeeHoldStatus !== "HELD"
-    ) {
-      await activateTrainerDeferredFeeOnCompliance(trainerId, pricingMode);
-    } else if (refreshed.registrationFeeHoldStatus === "HELD") {
+    if (refreshed.registrationFeeHoldStatus === "HELD") {
       const latest = await prisma.trainerProfile.findUnique({
         where: { trainerId },
         select: profileSelect,
@@ -374,6 +360,8 @@ export async function syncTrainerComplianceWindow(trainerId: string): Promise<vo
       if (latest) {
         await captureTrainerSignupPlatformOnComplianceSuccess(trainerId, latest);
       }
+    } else if (refreshed.registrationFeeHoldStatus === "DEFERRED") {
+      await activateTrainerDeferredFeeOnCompliance(trainerId);
     }
     await maybeActivateTrainerDashboard(trainerId);
     return;

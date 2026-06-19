@@ -91,6 +91,11 @@ vi.mock("@/lib/session", () => ({
   getSessionClientId: getSessionClientIdMock,
 }));
 
+vi.mock("@/lib/client-plan-gate", () => ({
+  requireClientNotFreemiumGated: vi.fn().mockResolvedValue(null),
+  requireClientSwipeAllowed: vi.fn().mockResolvedValue(null),
+}));
+
 vi.mock("@/lib/user-block-queries", () => ({
   getTrainerIdsHiddenFromClientMatchFeed: getTrainerIdsHiddenFromClientMatchFeedMock,
 }));
@@ -110,19 +115,6 @@ vi.mock("@/lib/match-fit-public-marketplace-hidden", () => ({
 vi.mock("@/lib/internal-qa-simulation", () => ({
   refreshInternalQaClientSimulationIfNeeded: refreshInternalQaClientSimulationIfNeededMock,
 }));
-
-vi.mock("@/lib/client-plan-access", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/client-plan-access")>();
-  return {
-    ...actual,
-    loadClientPlanGate: vi.fn().mockResolvedValue({
-      clientPlanTier: "FREEMIUM",
-      vipSubscriptionActive: false,
-      stripeSubscriptionActive: false,
-      platformTrialEndsAt: new Date(Date.now() + 86_400_000),
-    }),
-  };
-});
 
 import { GET } from "@/app/api/client/trainers/browse/route";
 

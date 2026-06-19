@@ -1,12 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  mockRequireAdminSession,
-  mockGetContentCalendarAiStatusAsync,
-  mockGenerateSinglePost,
-} = vi.hoisted(() => ({
+const { mockRequireAdminSession, mockHydratePlatformEnvFromDatabase, mockGenerateSinglePost } = vi.hoisted(() => ({
   mockRequireAdminSession: vi.fn(),
-  mockGetContentCalendarAiStatusAsync: vi.fn(),
+  mockHydratePlatformEnvFromDatabase: vi.fn(),
   mockGenerateSinglePost: vi.fn(),
 }));
 
@@ -14,9 +10,12 @@ vi.mock("@/lib/require-admin", () => ({
   requireAdminSession: mockRequireAdminSession,
 }));
 
+vi.mock("@/lib/hydrate-platform-env", () => ({
+  hydratePlatformEnvFromDatabase: mockHydratePlatformEnvFromDatabase,
+}));
+
 vi.mock("@/lib/content-calendar/content-calendar-ai", () => ({
   generateSinglePost: mockGenerateSinglePost,
-  getContentCalendarAiStatusAsync: mockGetContentCalendarAiStatusAsync,
 }));
 
 import { POST } from "@/app/api/admin/content-calendar/generate/route";
@@ -37,20 +36,12 @@ describe("POST /api/admin/content-calendar/generate", () => {
       testMode: false,
       rememberMe: true,
     });
-    mockGetContentCalendarAiStatusAsync.mockResolvedValue({
-      configured: true,
-      niBrain: true,
-      media: true,
-      message: "Content calendar AI ready.",
-    });
+    mockHydratePlatformEnvFromDatabase.mockResolvedValue(undefined);
     mockGenerateSinglePost.mockResolvedValue({
-      ok: true,
-      data: {
-        hook: "Hook",
-        body: "Body",
-        cta: "CTA",
-        hashtags: ["MatchFit"],
-      },
+      hook: "Hook",
+      body: "Body",
+      cta: "CTA",
+      hashtags: ["MatchFit"],
     });
   });
 
@@ -66,7 +57,7 @@ describe("POST /api/admin/content-calendar/generate", () => {
 
     expect(res.status).toBe(401);
     await expect(res.json()).resolves.toEqual({ error: "Unauthorized." });
-    expect(mockGetContentCalendarAiStatusAsync).not.toHaveBeenCalled();
+    expect(mockHydratePlatformEnvFromDatabase).not.toHaveBeenCalled();
   });
 
   it("returns 400 when payload validation fails", async () => {
@@ -74,37 +65,12 @@ describe("POST /api/admin/content-calendar/generate", () => {
 
     expect(res.status).toBe(400);
     await expect(res.json()).resolves.toEqual({ error: "Invalid request." });
-    expect(mockGetContentCalendarAiStatusAsync).not.toHaveBeenCalled();
+    expect(mockHydratePlatformEnvFromDatabase).not.toHaveBeenCalled();
     expect(mockGenerateSinglePost).not.toHaveBeenCalled();
   });
 
-  it("returns 503 when AI is not configured", async () => {
-    mockGetContentCalendarAiStatusAsync.mockResolvedValueOnce({
-      configured: false,
-      niBrain: false,
-      media: false,
-      message: "Add ANTHROPIC_API_KEY or OPENAI_API_KEY for generation.",
-    });
-
-    const res = await POST(
-      postJson({
-        contentType: "trainer testimonial",
-        tone: "confident",
-      }),
-    );
-
-    expect(res.status).toBe(503);
-    await expect(res.json()).resolves.toEqual({
-      error: "Add ANTHROPIC_API_KEY or OPENAI_API_KEY for generation.",
-    });
-    expect(mockGenerateSinglePost).not.toHaveBeenCalled();
-  });
-
-  it("returns 502 with provider error when generation fails", async () => {
-    mockGenerateSinglePost.mockResolvedValueOnce({
-      ok: false,
-      error: "Anthropic request failed (401). Check ANTHROPIC_API_KEY and model claude-sonnet-4-6.",
-    });
+  it("returns 502 when generation returns null", async () => {
+    mockGenerateSinglePost.mockResolvedValueOnce(null);
 
     const res = await POST(
       postJson({
@@ -115,9 +81,7 @@ describe("POST /api/admin/content-calendar/generate", () => {
     );
 
     expect(res.status).toBe(502);
-    await expect(res.json()).resolves.toEqual({
-      error: "Anthropic request failed (401). Check ANTHROPIC_API_KEY and model claude-sonnet-4-6.",
-    });
+    await expect(res.json()).resolves.toEqual({ error: "Generation failed. Check AI API keys." });
   });
 
   it("returns generated content for valid requests", async () => {
@@ -128,7 +92,7 @@ describe("POST /api/admin/content-calendar/generate", () => {
       hashtags: ["MatchFit", "AtlantaFitness"],
       dmScript: "Send us START",
     };
-    mockGenerateSinglePost.mockResolvedValueOnce({ ok: true, data: generated });
+    mockGenerateSinglePost.mockResolvedValueOnce(generated);
 
     const res = await POST(
       postJson({
@@ -141,7 +105,7 @@ describe("POST /api/admin/content-calendar/generate", () => {
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ result: generated });
-    expect(mockGetContentCalendarAiStatusAsync).toHaveBeenCalledTimes(1);
+    expect(mockHydratePlatformEnvFromDatabase).toHaveBeenCalledTimes(1);
     expect(mockGenerateSinglePost).toHaveBeenCalledWith({
       postType: "Static",
       contentType: "brand awareness",

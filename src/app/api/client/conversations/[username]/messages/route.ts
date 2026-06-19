@@ -1,17 +1,13 @@
 import { parseChatAttachmentJson } from "@/lib/chat-attachment";
 import { runOutboundChatComplianceMonitoring } from "@/lib/chat-compliance-monitor";
 import { getChatContactLeakageBlockReason } from "@/lib/chat-leakage-detection";
-import {
-  clientHasFullPlanAccess,
-  freemiumGateError,
-  loadClientPlanGate,
-} from "@/lib/client-plan-access";
 import { prisma } from "@/lib/prisma";
 import {
   conversationArchiveMetaForActor,
   purgeExpiredArchivedConversations,
 } from "@/lib/trainer-client-conversation-archive";
 import { getSessionClientId } from "@/lib/session";
+import { requireClientNotFreemiumGated } from "@/lib/client-plan-gate";
 import {
   isTrainerVisibleInClientDiscovery,
   trainerDiscoveryProfileSelect,
@@ -34,6 +30,9 @@ export async function GET(_req: Request, ctx: RouteContext) {
     if (!clientId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
+
+    const chatGate = await requireClientNotFreemiumGated(clientId, "FREEMIUM_NO_CHAT");
+    if (chatGate) return chatGate;
 
     const { username } = await ctx.params;
     const handle = decodeURIComponent(username).trim();
@@ -148,6 +147,9 @@ export async function POST(req: Request, ctx: RouteContext) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
+    const chatGate = await requireClientNotFreemiumGated(clientId, "FREEMIUM_NO_CHAT");
+    if (chatGate) return chatGate;
+
     const { username } = await ctx.params;
     const handle = decodeURIComponent(username).trim();
     const trainer = await prisma.trainer.findUnique({
@@ -166,11 +168,6 @@ export async function POST(req: Request, ctx: RouteContext) {
 
     if (await isTrainerClientChatBlocked(trainer.id, clientId)) {
       return NextResponse.json({ error: "Messaging is blocked for this thread." }, { status: 403 });
-    }
-
-    const plan = await loadClientPlanGate(clientId);
-    if (plan && !clientHasFullPlanAccess(plan)) {
-      return NextResponse.json(freemiumGateError("FREEMIUM_NO_CHAT"), { status: 403 });
     }
 
     const bodyRaw = (await req.json()) as { body?: string };

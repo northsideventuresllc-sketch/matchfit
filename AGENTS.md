@@ -68,11 +68,6 @@ After seeding, admin portal is at `/admin/login`. Use staff code `jobo0602` with
 - Sync from parent hub: `npm run content:calendar:sync` (see `content/social/README.md`)
 - Skill: `.cursor/skills/matchfit-social-content/SKILL.md`
 
-### Product copy (user-facing)
-
-- **Matching:** Say **algorithmic matching** — not AI matching / AI-powered matching — in marketing, legal summaries, and onboarding. See `.cursor/rules/matchfit-product-copy.mdc`.
-- **Professionals on the platform:** Say **Fitness Pro(s)** when referring to all non-client coaches, trainers, nutritionists, and specialists. Keep **trainer** only for personal-training-specific session copy or code identifiers (`/trainer/` routes, `trainerId`, etc.).
-
 ### Product version (required on deployable tasks)
 
 Match Fit uses `major.minor.patch` with optional **BETA** (`package.json` → `src/lib/match-fit-product-version.ts`). **Bump on every production deploy** in the same PR — the owner does not need to ask.

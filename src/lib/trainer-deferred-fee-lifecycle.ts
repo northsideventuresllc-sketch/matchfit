@@ -1,83 +1,80 @@
-import { prisma } from "@/lib/prisma";
-import { banTrainerDeferredFee } from "@/lib/trainer-deferred-fee";
+import {
+  banTrainerDeferredFee,
+  DEFERRED_FEE_GRACE_HOURS,
+} from "@/lib/trainer-deferred-fee";
 import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
-
-const MS_PER_HOUR = 60 * 60 * 1000;
+import { prisma } from "@/lib/prisma";
 
 export type TrainerDeferredFeeLifecycleSummary = {
   graceStarted: number;
   banned: number;
 };
 
+const MS_PER_HOUR = 60 * 60 * 1000;
+
 export async function runTrainerDeferredFeeLifecycleJobs(): Promise<TrainerDeferredFeeLifecycleSummary> {
   const now = new Date();
   let graceStarted = 0;
   let banned = 0;
 
-  const needsGrace = await prisma.trainer.findMany({
+  const enteringGrace = await prisma.trainer.findMany({
     where: {
       registrationFeeDeferred: true,
       registrationFeeDeferredBalanceCents: { gt: 0 },
       registrationFeeDeferredDeadlineAt: { lte: now },
       registrationFeeGraceDeadlineAt: null,
       registrationFeeDeferredBannedAt: null,
-      deidentifiedAt: null,
+      accountDeactivatedAt: null,
     },
     select: { id: true, email: true },
   });
 
-  for (const trainer of needsGrace) {
-    const graceDeadline = new Date(now.getTime() + 72 * MS_PER_HOUR);
+  for (const trainer of enteringGrace) {
+    const graceDeadline = new Date(now.getTime() + DEFERRED_FEE_GRACE_HOURS * MS_PER_HOUR);
     await prisma.trainer.update({
       where: { id: trainer.id },
       data: { registrationFeeGraceDeadlineAt: graceDeadline },
     });
     graceStarted += 1;
 
-    if (trainer.email?.trim()) {
-      void sendTransactionalEmailIfAllowed({
-        kind: "TRAINER_DEFERRED_FEE_GRACE_STARTED",
-        to: trainer.email.trim(),
-        audience: "TRAINER",
-        trainerId: trainer.id,
-        variables: {
-          graceDeadlineLabel: graceDeadline.toLocaleDateString("en-US", { dateStyle: "long" }),
-          trainerDashboardUrl:
-            process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") + "/trainer/dashboard/billing" ||
-            "https://match-fit.net/trainer/dashboard/billing",
-        },
-      }).catch((e) => console.error("[trainer-deferred-fee-lifecycle] grace email failed:", e));
-    }
+    const origin = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") || "https://match-fit.net";
+    void sendTransactionalEmailIfAllowed({
+      kind: "TRAINER_DEFERRED_FEE_GRACE_STARTED",
+      to: trainer.email,
+      audience: "TRAINER",
+      trainerId: trainer.id,
+      variables: {
+        graceHours: String(DEFERRED_FEE_GRACE_HOURS),
+        trainerDashboardUrl: `${origin}/trainer/dashboard/billing`,
+      },
+    }).catch((e) => console.error("[deferred fee cron] grace email failed:", e));
   }
 
-  const needsBan = await prisma.trainer.findMany({
+  const graceExpired = await prisma.trainer.findMany({
     where: {
       registrationFeeDeferred: true,
       registrationFeeDeferredBalanceCents: { gt: 0 },
       registrationFeeGraceDeadlineAt: { lte: now },
       registrationFeeDeferredBannedAt: null,
-      deidentifiedAt: null,
     },
     select: { id: true, email: true },
   });
 
-  for (const trainer of needsBan) {
+  for (const trainer of graceExpired) {
     await banTrainerDeferredFee(trainer.id);
     banned += 1;
 
-    if (trainer.email?.trim()) {
-      void sendTransactionalEmailIfAllowed({
-        kind: "TRAINER_DEFERRED_FEE_BANNED",
-        to: trainer.email.trim(),
-        audience: "TRAINER",
-        trainerId: trainer.id,
-        variables: {
-          trainerDashboardUrl:
-            process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") + "/trainer/dashboard" ||
-            "https://match-fit.net/trainer/dashboard",
-        },
-      }).catch((e) => console.error("[trainer-deferred-fee-lifecycle] ban email failed:", e));
-    }
+    const origin = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") || "https://match-fit.net";
+    void sendTransactionalEmailIfAllowed({
+      kind: "TRAINER_DEFERRED_FEE_BANNED",
+      to: trainer.email,
+      audience: "TRAINER",
+      trainerId: trainer.id,
+      variables: {
+        supportEmail: process.env.MATCH_FIT_SUPPORT_EMAIL?.trim() || "support@match-fit.net",
+        trainerDashboardUrl: `${origin}/trainer/dashboard`,
+      },
+    }).catch((e) => console.error("[deferred fee cron] ban email failed:", e));
   }
 
   return { graceStarted, banned };

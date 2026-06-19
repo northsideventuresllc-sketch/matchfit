@@ -1,19 +1,11 @@
-import type { TrainerRegistrationPricingMode } from "@/lib/match-fit-launch-promotion-caps";
 import { createHash } from "node:crypto";
-import { prisma } from "@/lib/prisma";
+import { computeTrainerRegistrationDueCents } from "@/lib/trainer-registration-fee";
 import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
-import { computeTrainerSignupEscrowSplit } from "@/lib/trainer-signup-escrow";
-import {
-  DEFERRED_FEE_DAYS,
-  DEFERRED_FEE_GRACE_HOURS,
-  DEFERRED_FEE_MIN_WITHHOLD_PCT,
-} from "@/lib/trainer-deferred-fee-constants";
+import { prisma } from "@/lib/prisma";
 
-export {
-  DEFERRED_FEE_DAYS,
-  DEFERRED_FEE_GRACE_HOURS,
-  DEFERRED_FEE_MIN_WITHHOLD_PCT,
-} from "@/lib/trainer-deferred-fee-constants";
+export const DEFERRED_FEE_DAYS = 60;
+export const DEFERRED_FEE_GRACE_HOURS = 72;
+export const DEFERRED_FEE_MIN_WITHHOLD_PCT = 20;
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MS_PER_HOUR = 60 * 60 * 1000;
@@ -29,10 +21,12 @@ export function computeWithholdAmountCents(
   withholdPct: number,
   remainingBalanceCents: number,
 ): number {
-  if (remainingBalanceCents <= 0 || payoutCents <= 0) return 0;
-  const pct = Math.min(100, Math.max(DEFERRED_FEE_MIN_WITHHOLD_PCT, withholdPct));
-  const raw = Math.ceil((payoutCents * pct) / 100);
-  return Math.min(raw, remainingBalanceCents);
+  const pct = Math.min(100, Math.max(DEFERRED_FEE_MIN_WITHHOLD_PCT, Math.floor(withholdPct)));
+  const gross = Math.max(0, Math.floor(payoutCents));
+  const balance = Math.max(0, Math.floor(remainingBalanceCents));
+  if (balance <= 0 || gross <= 0) return 0;
+  const raw = Math.ceil(gross * (pct / 100));
+  return Math.min(balance, raw);
 }
 
 export async function applyWithholdToPayout(
@@ -49,7 +43,7 @@ export async function applyWithholdToPayout(
     },
   });
   if (!trainer?.registrationFeeDeferred || trainer.registrationFeeDeferredBalanceCents <= 0) {
-    return { netPayoutCents: grossPayoutCents, withheld: 0 };
+    return { netPayoutCents: Math.max(0, grossPayoutCents), withheld: 0 };
   }
 
   const withheld = computeWithholdAmountCents(
@@ -57,39 +51,35 @@ export async function applyWithholdToPayout(
     trainer.registrationFeeWithholdPct,
     trainer.registrationFeeDeferredBalanceCents,
   );
+  const netPayoutCents = Math.max(0, grossPayoutCents - withheld);
   const newBalance = Math.max(0, trainer.registrationFeeDeferredBalanceCents - withheld);
-  const cleared = newBalance === 0;
 
   await prisma.trainer.update({
     where: { id: trainerId },
     data: {
       registrationFeeDeferredBalanceCents: newBalance,
-      ...(cleared
+      ...(newBalance === 0
         ? {
             registrationFeeDeferred: false,
-            registrationFeeDeferredStartAt: null,
-            registrationFeeDeferredDeadlineAt: null,
-            registrationFeeGraceDeadlineAt: null,
           }
         : {}),
     },
   });
 
-  if (cleared && trainer.email?.trim()) {
+  if (newBalance === 0 && withheld > 0) {
+    const origin = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") || "https://match-fit.net";
     void sendTransactionalEmailIfAllowed({
       kind: "TRAINER_DEFERRED_FEE_CLEARED",
-      to: trainer.email.trim(),
+      to: trainer.email,
       audience: "TRAINER",
       trainerId,
       variables: {
-        trainerDashboardUrl:
-          process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") + "/trainer/dashboard" ||
-          "https://match-fit.net/trainer/dashboard",
+        trainerDashboardUrl: `${origin}/trainer/dashboard`,
       },
-    }).catch((e) => console.error("[trainer-deferred-fee] cleared email failed:", e));
+    }).catch((e) => console.error("[deferred fee] cleared email failed:", e));
   }
 
-  return { netPayoutCents: Math.max(0, grossPayoutCents - withheld), withheld };
+  return { netPayoutCents, withheld };
 }
 
 export function isTrainerDeferredFeeBanned(trainer: { registrationFeeDeferredBannedAt: Date | null }): boolean {
@@ -101,33 +91,29 @@ function hashSsn(ssnRaw: string): string {
   return createHash("sha256").update(normalized).digest("hex");
 }
 
-function extractSsnFromW9Json(w9Json: string | null | undefined): string | null {
-  if (!w9Json?.trim()) return null;
-  try {
-    const parsed = JSON.parse(w9Json) as { tinType?: string; tin?: string };
-    const tinType = (parsed.tinType ?? "").trim().toUpperCase();
-    const tin = (parsed.tin ?? "").trim();
-    if (tinType === "SSN" && tin) return tin;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 export async function banTrainerDeferredFee(trainerId: string): Promise<void> {
-  const now = new Date();
   const profile = await prisma.trainerProfile.findUnique({
     where: { trainerId },
     select: { w9Json: true },
   });
-  const ssnRaw = extractSsnFromW9Json(profile?.w9Json);
-  const banSsnHash = ssnRaw ? hashSsn(ssnRaw) : null;
 
+  let ssnHash: string | null = null;
+  if (profile?.w9Json) {
+    try {
+      const parsed = JSON.parse(profile.w9Json) as { tin?: string };
+      const tin = typeof parsed.tin === "string" ? parsed.tin.trim() : "";
+      if (tin) ssnHash = hashSsn(tin);
+    } catch {
+      /* ignore malformed w9 */
+    }
+  }
+
+  const now = new Date();
   await prisma.trainer.update({
     where: { id: trainerId },
     data: {
       registrationFeeDeferredBannedAt: now,
-      registrationFeeDeferredBanSsnHash: banSsnHash,
+      registrationFeeDeferredBanSsnHash: ssnHash ?? undefined,
       accountDeactivatedAt: now,
       safetySuspended: true,
       safetySuspendedAt: now,
@@ -138,83 +124,60 @@ export async function banTrainerDeferredFee(trainerId: string): Promise<void> {
 export async function checkSsnAlreadyBanned(ssnRaw: string): Promise<boolean> {
   const hash = hashSsn(ssnRaw);
   const hit = await prisma.trainer.findFirst({
-    where: { registrationFeeDeferredBanSsnHash: hash },
+    where: {
+      registrationFeeDeferredBanSsnHash: hash,
+      registrationFeeDeferredBannedAt: { not: null },
+    },
     select: { id: true },
   });
   return Boolean(hit);
 }
 
-export async function initializeTrainerDeferredFee(args: {
-  trainerId: string;
-  balanceCents: number;
-  withholdPct: number;
-}): Promise<void> {
-  const now = new Date();
-  const { deadlineAt } = computeDeferredFeeDeadlines(now);
-  const withholdPct = Math.min(100, Math.max(DEFERRED_FEE_MIN_WITHHOLD_PCT, args.withholdPct));
-
-  await prisma.$transaction([
-    prisma.trainer.update({
-      where: { id: args.trainerId },
-      data: {
-        registrationFeeDeferred: true,
-        registrationFeeDeferredBalanceCents: args.balanceCents,
-        registrationFeeDeferredStartAt: now,
-        registrationFeeDeferredDeadlineAt: deadlineAt,
-        registrationFeeGraceDeadlineAt: null,
-        registrationFeeWithholdPct: withholdPct,
-      },
-    }),
-    prisma.trainerProfile.update({
-      where: { trainerId: args.trainerId },
-      data: {
-        registrationFeeHoldStatus: "DEFERRED",
-        hasPaidRegistrationFee: false,
-        updatedAt: now,
-      },
-    }),
-  ]);
-}
-
-export async function applyTrainerDeferredSignupChoice(args: {
-  trainerId: string;
-  withholdPct: number;
-}): Promise<void> {
-  const withholdPct = Math.min(100, Math.max(DEFERRED_FEE_MIN_WITHHOLD_PCT, args.withholdPct));
-  const now = new Date();
-  await prisma.$transaction([
-    prisma.trainer.update({
-      where: { id: args.trainerId },
-      data: {
-        registrationFeeDeferred: true,
-        registrationFeeDeferredBalanceCents: 0,
-        registrationFeeWithholdPct: withholdPct,
-      },
-    }),
-    prisma.trainerProfile.update({
-      where: { trainerId: args.trainerId },
-      data: {
-        limitedDashboardUnlockedAt: now,
-        complianceWindowStartedAt: now,
-        updatedAt: now,
-      },
-    }),
-  ]);
-}
-
-export async function activateTrainerDeferredFeeOnCompliance(
-  trainerId: string,
-  pricingMode: TrainerRegistrationPricingMode,
-): Promise<void> {
-  const split = computeTrainerSignupEscrowSplit(pricingMode);
+/** Initialize deferred balance when compliance completes for a deferred-fee trainer. */
+export async function activateTrainerDeferredFeeOnCompliance(trainerId: string): Promise<void> {
   const trainer = await prisma.trainer.findUnique({
     where: { id: trainerId },
-    select: { registrationFeeWithholdPct: true },
+    select: { registrationFeeDeferred: true },
   });
-  if (!trainer) return;
-  await initializeTrainerDeferredFee({
-    trainerId,
-    balanceCents: split.platformEscrowCents,
-    withholdPct: trainer.registrationFeeWithholdPct,
+  if (!trainer?.registrationFeeDeferred) return;
+
+  const profile = await prisma.trainerProfile.findUnique({
+    where: { trainerId },
+    select: {
+      registrationFeePricingMode: true,
+      backgroundCheckVendorPaidCents: true,
+      registrationFeeHoldStatus: true,
+    },
+  });
+  if (!profile || profile.registrationFeeHoldStatus !== "DEFERRED") return;
+
+  const bgPaid = profile.backgroundCheckVendorPaidCents ?? 0;
+  const { dueCents } = computeTrainerRegistrationDueCents({
+    pricingMode: "STANDARD_100_MINUS_BG",
+    backgroundCheckVendorPaidCents: bgPaid > 0 ? bgPaid : 4900,
+  });
+  if (dueCents <= 0) return;
+
+  const now = new Date();
+  const { deadlineAt, graceDeadlineAt } = computeDeferredFeeDeadlines(now);
+
+  await prisma.trainer.update({
+    where: { id: trainerId },
+    data: {
+      registrationFeeDeferred: true,
+      registrationFeeDeferredBalanceCents: dueCents,
+      registrationFeeDeferredStartAt: now,
+      registrationFeeDeferredDeadlineAt: deadlineAt,
+      registrationFeeGraceDeadlineAt: null,
+    },
+  });
+
+  await prisma.trainerProfile.update({
+    where: { trainerId },
+    data: {
+      hasPaidRegistrationFee: true,
+      registrationFeePaidCents: 0,
+      updatedAt: now,
+    },
   });
 }

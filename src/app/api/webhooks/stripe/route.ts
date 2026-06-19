@@ -1,5 +1,10 @@
 import { finalizeRegistrationAfterPayment } from "@/lib/billing-finalize";
 import {
+  activateVipFromWebhook,
+  deactivateVip,
+  resolveClientIdFromVipSubscription,
+} from "@/lib/client-vip-subscription";
+import {
   notifyClientMembershipTrialEnding,
   notifyTrainerRegistrationFeeReceipt,
 } from "@/lib/client-membership-email-notify";
@@ -38,11 +43,6 @@ import {
 } from "@/lib/trainer-promo-tokens";
 import { computeCheckoutFeeBreakdown } from "@/lib/stripe-checkout-line-items";
 import { hydrateStripeEnvFromDatabase } from "@/lib/hydrate-stripe-env";
-import {
-  activateVipFromWebhook,
-  deactivateVip,
-  deactivateVipBySubscriptionId,
-} from "@/lib/client-vip-subscription";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 
@@ -316,34 +316,32 @@ export async function POST(req: Request) {
     }
     if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
       const sub = event.data.object as Stripe.Subscription;
-      const purpose = String(sub.metadata?.purpose ?? "").trim();
-      if (purpose === "client_vip") {
-        const clientId = String(sub.metadata?.clientId ?? "").trim();
-        const status = String(sub.status ?? "").trim();
-        if (event.type === "customer.subscription.deleted" || status === "canceled" || status === "unpaid") {
+      if (sub.id) {
+        const purpose = sub.metadata?.purpose?.trim();
+        if (purpose === "client_vip") {
+          const clientId = await resolveClientIdFromVipSubscription(sub);
           if (clientId) {
-            await deactivateVip(clientId);
-          } else if (sub.id) {
-            await deactivateVipBySubscriptionId(sub.id);
+            const st = String(sub.status ?? "");
+            if (event.type === "customer.subscription.deleted" || st === "canceled" || st === "unpaid") {
+              await deactivateVip(clientId);
+            } else if (st === "active" || st === "trialing") {
+              await activateVipFromWebhook(sub.id);
+            }
           }
-        } else if (status === "active" || status === "trialing") {
-          if (sub.id) {
-            await activateVipFromWebhook(sub.id);
-          }
+        } else {
+          await syncClientSubscriptionFromStripe(sub.id);
+          void notifyClientSubscriptionStripeEvent({
+            stripeSubscriptionId: sub.id,
+            stripeEventType: event.type,
+          });
         }
-      } else if (sub.id) {
-        await syncClientSubscriptionFromStripe(sub.id);
-        void notifyClientSubscriptionStripeEvent({
-          stripeSubscriptionId: sub.id,
-          stripeEventType: event.type,
-        });
       }
     }
     if (event.type === "customer.subscription.created") {
       const sub = event.data.object as Stripe.Subscription;
-      if (String(sub.metadata?.purpose ?? "").trim() === "client_vip") {
-        const status = String(sub.status ?? "").trim();
-        if ((status === "active" || status === "trialing") && sub.id) {
+      if (sub.metadata?.purpose?.trim() === "client_vip" && sub.id) {
+        const st = String(sub.status ?? "");
+        if (st === "active" || st === "trialing") {
           await activateVipFromWebhook(sub.id);
         }
       }

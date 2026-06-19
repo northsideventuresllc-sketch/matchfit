@@ -1,10 +1,4 @@
 import { getAppOriginFromRequest } from "@/lib/app-origin";
-import {
-  clientHasFullPlanAccess,
-  freemiumGateError,
-  loadClientPlanGate,
-  recordSwipe,
-} from "@/lib/client-plan-access";
 import { prisma } from "@/lib/prisma";
 import {
   isTrainerVisibleInClientDiscovery,
@@ -13,6 +7,7 @@ import {
 } from "@/lib/trainer-client-discovery";
 import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
 import { getSessionClientId } from "@/lib/session";
+import { requireClientSwipeAllowed } from "@/lib/client-plan-gate";
 import { NextResponse } from "next/server";
 
 function coachDisplayName(trainer: {
@@ -99,17 +94,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Coach not found or not available." }, { status: 404 });
     }
 
-    const plan = await loadClientPlanGate(clientId);
-    if (plan && !clientHasFullPlanAccess(plan)) {
-      try {
-        await recordSwipe(clientId);
-      } catch (e) {
-        if (e instanceof Error && e.message === "SWIPE_LIMIT_REACHED") {
-          return NextResponse.json(freemiumGateError("FREEMIUM_SWIPE_LIMIT"), { status: 403 });
-        }
-        throw e;
-      }
-    }
+    const swipeGate = await requireClientSwipeAllowed(clientId);
+    if (swipeGate) return swipeGate;
 
     const prior = await prisma.clientSavedTrainer.findUnique({
       where: { clientId_trainerId: { clientId, trainerId: trainer.id } },

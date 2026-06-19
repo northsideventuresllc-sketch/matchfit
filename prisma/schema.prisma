@@ -400,14 +400,14 @@ model Client {
   /// True once the client consumed their one-time platform trial (reactivation requires payment).
   platformTrialConsumed Boolean @default(false)
 
-  /// FREEMIUM | VIP — tier after platform trial; VIP unlocks full client features.
+  /// FREEMIUM | VIP — VIP unlocks full platform access at $10/month.
   clientPlanTier String @default("FREEMIUM")
-  /// Stripe subscription ID for client VIP plan ($10/month).
+  /// Stripe subscription id for VIP plan (separate from legacy platform subscription).
   vipSubscriptionId String?
   vipSubscriptionActive Boolean @default(false)
   /// Rolling swipe counter for FREEMIUM tier (see `lib/client-plan-access.ts`).
   freemiumSwipeCount Int @default(0)
-  /// Start of current 12-hour FREEMIUM swipe window.
+  /// Start of the current 12-hour FREEMIUM swipe window.
   freemiumSwipeWindowStartAt DateTime?
 
   /// Short public-style bio; never expose private address to trainer APIs.
@@ -666,20 +666,6 @@ model Trainer {
   deidentifiedAt DateTime?
   accountDeletionRequestedAt DateTime?
   accountDeletionFinalizeAt  DateTime?
-  /// Set when deferred registration fee ban or other hard blocks apply.
-  accountDeactivatedAt DateTime?
-
-  /// Standard-tier trainer chose deferred platform fee (withhold from payouts).
-  registrationFeeDeferred Boolean @default(false)
-  registrationFeeDeferredBalanceCents Int @default(0)
-  registrationFeeDeferredStartAt DateTime?
-  registrationFeeDeferredDeadlineAt DateTime?
-  registrationFeeGraceDeadlineAt DateTime?
-  /// Trainer-chosen withhold % (minimum 20, maximum 100).
-  registrationFeeWithholdPct Int @default(20)
-  registrationFeeDeferredBannedAt DateTime?
-  /// SHA-256 hash of W-9 SSN at ban time for re-registration blocking.
-  registrationFeeDeferredBanSsnHash String?
 
   profile           TrainerProfile?
   twoFactorChannels TrainerTwoFactorChannel[]
@@ -703,6 +689,21 @@ model Trainer {
 
   safetySuspended   Boolean   @default(false)
   safetySuspendedAt DateTime?
+
+  /// When set, trainer login and dashboard access are blocked (e.g. deferred fee ban).
+  accountDeactivatedAt DateTime?
+
+  /// Standard-tier deferred platform registration fee (trainers 31+ / post-beta).
+  registrationFeeDeferred Boolean @default(false)
+  registrationFeeDeferredBalanceCents Int @default(0)
+  registrationFeeDeferredStartAt DateTime?
+  registrationFeeDeferredDeadlineAt DateTime?
+  registrationFeeGraceDeadlineAt DateTime?
+  /// Trainer-chosen payout withhold % (minimum 20, maximum 100).
+  registrationFeeWithholdPct Int @default(20)
+  registrationFeeDeferredBannedAt DateTime?
+  /// SHA-256 hash of W-9 SSN/TIN at ban time — blocks re-registration.
+  registrationFeeDeferredBanSsnHash String?
 
   /// Internal QA only: synthetic persona rows for trainer-owner sandbox (never visible to real users).
   internalQaSyntheticPersona Boolean @default(false)
@@ -1192,7 +1193,7 @@ model TrainerProfile {
   complianceWindowExpiredAt DateTime?
   /// Stripe PaymentIntent id for platform onboarding hold (manual capture until full compliance).
   registrationFeeHoldPaymentIntentId String?
-  /// NOT_STARTED | HELD | CAPTURED | CANCELED
+  /// NOT_STARTED | HELD | CAPTURED | CANCELED | DEFERRED
   registrationFeeHoldStatus String @default("NOT_STARTED")
   /// Stripe PaymentIntent id for background-check escrow (manual capture when Checkr screening completes).
   backgroundCheckEscrowPaymentIntentId String?
@@ -1531,9 +1532,6 @@ model BookedTrainingSession {
   allocatedNetAddonCents Int @default(0)
 
   disputeOpenedAt DateTime?
-
-  /// JSON snapshot when deferred registration fee withhold applies at payout settlement.
-  payoutWithholdMetaJson String?
 
   /// Set when marketplace cron evaluated punch-in compliance for this session (idempotent miss counter).
   punchMissEvaluatedAt DateTime?

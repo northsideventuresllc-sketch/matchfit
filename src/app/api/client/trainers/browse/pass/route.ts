@@ -1,15 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import {
-  clientHasFullPlanAccess,
-  freemiumGateError,
-  loadClientPlanGate,
-  recordSwipe,
-} from "@/lib/client-plan-access";
-import {
   isTrainerVisibleInClientDiscovery,
   trainerDiscoveryProfileSelect,
 } from "@/lib/trainer-client-discovery";
 import { getSessionClientId } from "@/lib/session";
+import { requireClientSwipeAllowed } from "@/lib/client-plan-gate";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -38,18 +33,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Coach not found or not available." }, { status: 404 });
     }
 
-    const plan = await loadClientPlanGate(clientId);
-    if (plan && !clientHasFullPlanAccess(plan)) {
-      try {
-        await recordSwipe(clientId);
-      } catch (e) {
-        if (e instanceof Error && e.message === "SWIPE_LIMIT_REACHED") {
-          return NextResponse.json(freemiumGateError("FREEMIUM_SWIPE_LIMIT"), { status: 403 });
-        }
-        throw e;
-      }
-    }
-
     const conv = await prisma.trainerClientConversation.findUnique({
       where: { trainerId_clientId: { trainerId: trainer.id, clientId } },
       select: { officialChatStartedAt: true },
@@ -57,6 +40,9 @@ export async function POST(req: Request) {
     if (conv?.officialChatStartedAt) {
       return NextResponse.json({ error: "You are already connected with this coach." }, { status: 400 });
     }
+
+    const swipeGate = await requireClientSwipeAllowed(clientId);
+    if (swipeGate) return swipeGate;
 
     const now = new Date();
     await prisma.clientTrainerBrowsePass.upsert({

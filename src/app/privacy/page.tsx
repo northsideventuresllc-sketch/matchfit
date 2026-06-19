@@ -89,7 +89,7 @@ export default async function PrivacyPage() {
           public marketing and product pages (such as page views and link clicks), and store your in-app activity
           (including chats and social posts) on our systems. Client sign-up includes a {CLIENT_PLATFORM_TRIAL_DAYS}-day platform access trial with
           no card required; after the trial, you have {CLIENT_PAYMENT_GRACE_DAYS} days to subscribe before the account is deactivated until paid
-          reactivation. Fitness Pros in the founding coach promo receive 60 days of Premium Page access at sign-up, pay only
+          reactivation. Trainers in the founding coach promo receive 60 days of Premium Page access at sign-up, pay only
           their background check through our portal, must begin onboarding within 7 days of sign-up, and cannot sell
           services until all onboarding requirements are completed. You may adjust optional visibility of some profile fields and request in-product
           account deletion, which schedules removal after a grace period as described in Section 7, while preserving the
@@ -99,7 +99,7 @@ export default async function PrivacyPage() {
         </P>
 
         <H2 id="collect">2. Information We Collect</H2>
-        <P>Depending on whether you are a client, a Fitness Pro, or a visitor, we may collect:</P>
+        <P>Depending on whether you are a client, a trainer (coach), or a visitor, we may collect:</P>
 
         <h3 className="mt-6 text-sm font-bold text-white/90">2.1 Account and Authentication</h3>
         <Ul>
@@ -111,7 +111,7 @@ export default async function PrivacyPage() {
             <Strong>Credentials and Security:</Strong> password (stored using one-way hashing—we do not store your
             plaintext password), two-factor authentication settings, verification codes (stored as hashes or transient
             values, not plaintext in our database), session identifiers in HTTP-only cookies, and &quot;stay logged
-            in&quot; preferences. We do not write plaintext one-time codes to routine application logs. Some Fitness Pro sign-up
+            in&quot; preferences. We do not write plaintext one-time codes to routine application logs. Some Trainer sign-up
             and email-verification flows may use <Strong>Supabase Auth</Strong> (hosted authentication) before your Match Fit
             account is created; Supabase processes credentials and confirmation links under its own policies when you use
             those flows.
@@ -139,7 +139,7 @@ export default async function PrivacyPage() {
             process protected health information (PHI) under HIPAA, and does not provide medical advice.
           </Li>
           <Li>
-            <Strong>Mailing Address (Optional):</Strong> if you provide it for your own records. Fitness Pro–facing APIs and
+            <Strong>Mailing Address (Optional):</Strong> if you provide it for your own records. Trainer-facing APIs and
             discovery surfaces are built so coaches do not receive your full street address; they may see general
             location information consistent with how you use discovery (for example ZIP or regional pool identifiers), not
             your complete mailing address.
@@ -152,16 +152,16 @@ export default async function PrivacyPage() {
           </Li>
           <Li>
             <Strong>Social and Engagement on Fit Hub:</Strong> likes, comments, reposts, shares, and content reports you
-            submit about Fitness Pro posts.
+            submit about trainer posts.
           </Li>
           <Li>
-            <Strong>Fitness Pro Relationships:</Strong> saved Fitness Pros, conversation and message content, Fitness Pro
+            <Strong>Trainer Relationships:</Strong> saved trainers, conversation and message content, trainer
             &quot;nudges,&quot; relationship stage labels we display in the product, and optional token &quot;gifts&quot;
-            you send to Fitness Pros subject to product rules.
+            you send to trainers subject to product rules.
           </Li>
         </Ul>
 
-        <h3 className="mt-6 text-sm font-bold text-white/90">2.3 Fitness Pro–Specific Data</h3>
+        <h3 className="mt-6 text-sm font-bold text-white/90">2.3 Trainer-Specific Data</h3>
         <Ul>
           <Li>
             <Strong>Professional Profile:</Strong> bio, photo, pronouns, demographics you choose to disclose (for
@@ -177,7 +177,7 @@ export default async function PrivacyPage() {
           </Li>
           <Li>
             <Strong>Onboarding Questionnaire:</Strong> structured answers, optional Additional Questionnaires, and plain
-            text or derived &quot;match profile&quot; text generated from your responses to improve discovery and
+            text or derived &quot;AI match profile&quot; text generated from your responses to improve discovery and
             pairing.
           </Li>
           <Li>
@@ -212,9 +212,9 @@ export default async function PrivacyPage() {
         <h3 className="mt-6 text-sm font-bold text-white/90">2.4 Beta Waitlist and Launch Gates</h3>
         <Ul>
           <Li>
-            <Strong>Waitlist:</Strong> email address, ZIP code, and status if you join a Fitness Pro or Client waitlist when beta
-            capacity is full. Client waitlist sign-up is open to U.S. ZIP codes; Fitness Pro waitlist sign-up is open to
-            Fitness Pros anywhere in the United States.
+            <Strong>Waitlist:</Strong> email address, ZIP code, and status if you join a Trainer or Client waitlist when beta
+            capacity is full. Client waitlist sign-up is open to U.S. ZIP codes; trainer waitlist sign-up may require a
+            service ZIP in our Atlanta metro in-person launch area.
           </Li>
           <Li>
             <Strong>Invite tokens:</Strong> time-limited signup links and slot reservation timestamps when we invite you from
@@ -297,7 +297,7 @@ export default async function PrivacyPage() {
           <Li>Verify identity or eligibility where required for coach onboarding, compliance, or risk controls;</Li>
           <Li>
             Operate beta capacity limits, waitlists, founding promotions, and geographic eligibility for in-person
-            services and Fitness Pro onboarding during limited launches;
+            services and trainer onboarding during limited launches;
           </Li>
           <Li>Detect, investigate, and prevent fraud, abuse, and violations of our Terms or policies;</Li>
           <Li>Communicate service, billing, and policy updates;</Li>
@@ -339,7 +339,7 @@ export default async function PrivacyPage() {
                 tooling;
               </Li>
               <Li>
-                <Strong>Supabase</Strong> for hosted authentication on certain Fitness Pro sign-up and OAuth callback flows when
+                <Strong>Supabase</Strong> for hosted authentication on certain Trainer sign-up and OAuth callback flows when
                 enabled;
               </Li>
               <Li>
@@ -347,7 +347,7 @@ export default async function PrivacyPage() {
               </Li>
               <Li>
                 <Strong>OpenAI</Strong> (or comparable providers), when configured, for optional chat trust-and-safety
-                classification and certain Fitness Pro dashboard pricing-assist features;
+                classification and certain trainer dashboard pricing-assist features;
               </Li>
               <Li>
                 <Strong>Resend</Strong> (or comparable email infrastructure) for transactional and security email;
@@ -400,7 +400,7 @@ export default async function PrivacyPage() {
           cancel), we cancel active paid subscriptions through Stripe where your account has them and de-identify personal
           fields on your user record (for example name, contact information, and profile content stored on that record)
           so you can no longer sign in. We may replace chat message bodies you authored with a short placeholder, set
-          Fitness Pro–authored Fit Hub content to private and strip associated media and captions from public view, and clear
+          trainer-authored Fit Hub content to private and strip associated media and captions from public view, and clear
           certain compliance payloads on coach profiles, while retaining the underlying row identifiers needed for
           foreign keys and minimum enforcement, trust, or billing audit trails. After finalization, deletion is intended to
           be irreversible.
@@ -462,16 +462,16 @@ export default async function PrivacyPage() {
 
         <H2 id="third-party">12. Third-Party Links and Embedded Services</H2>
         <P>
-          Fitness Pros may link to external social networks or websites. Payment flows may embed or redirect to Stripe. Those
+          Trainers may link to external social networks or websites. Payment flows may embed or redirect to Stripe. Those
           third parties have their own privacy policies. We are not responsible for their practices.
         </P>
 
         <H2 id="ai">13. Automated Processing and Matching</H2>
         <P>
           We may use algorithms and, where product features enable it, machine-assisted processing to rank or suggest
-          coaches, personalize questionnaires, generate Fitness Pro–facing match profile text from questionnaire answers, flag
-          chat messages for trust-and-safety review, and assist Fitness Pros with optional pricing guidance in the dashboard.
-          These processes use information you or Fitness Pros provide in the Service. They are not used for decisions that
+          coaches, personalize questionnaires, generate trainer-facing match profile text from questionnaire answers, flag
+          chat messages for trust-and-safety review, and assist trainers with optional pricing guidance in the dashboard.
+          These processes use information you or trainers provide in the Service. They are not used for decisions that
           produce legal or similarly significant effects solely by automated means beyond what is inherent to operating a
           fitness marketplace, unless we disclose otherwise in-product and provide any rights required by law.
         </P>

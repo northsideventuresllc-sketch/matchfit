@@ -38,6 +38,7 @@ export const TRANSACTIONAL_EMAIL_KINDS = [
   "TRAINER_DEFERRED_FEE_GRACE_STARTED",
   "TRAINER_DEFERRED_FEE_BANNED",
   "TRAINER_DEFERRED_FEE_CLEARED",
+  "CLIENT_VIP_SUBSCRIPTION_STARTED",
 ] as const;
 
 export type TransactionalEmailKind = (typeof TRANSACTIONAL_EMAIL_KINDS)[number];
@@ -76,9 +77,10 @@ const TRANSACTIONAL_EMAIL_KIND_SAMPLE_LABELS: Record<TransactionalEmailKind, str
   CLIENT_MEMBERSHIP_TRIAL_ENDING: "Stripe trial ending",
   CLIENT_PLATFORM_PAYMENT_GRACE_STARTED: "Platform payment grace started",
   TRAINER_REGISTRATION_FEE_RECEIPT: "Trainer registration receipt",
-  TRAINER_DEFERRED_FEE_GRACE_STARTED: "Deferred fee grace started",
-  TRAINER_DEFERRED_FEE_BANNED: "Deferred fee account banned",
+  TRAINER_DEFERRED_FEE_GRACE_STARTED: "Deferred fee grace period",
+  TRAINER_DEFERRED_FEE_BANNED: "Deferred fee account ban",
   TRAINER_DEFERRED_FEE_CLEARED: "Deferred fee balance cleared",
+  CLIENT_VIP_SUBSCRIPTION_STARTED: "VIP subscription started",
 };
 
 export function transactionalEmailKindSampleLabel(kind: TransactionalEmailKind): string {

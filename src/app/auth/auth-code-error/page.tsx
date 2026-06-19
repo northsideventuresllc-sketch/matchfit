@@ -24,7 +24,7 @@ export default function AuthCodeErrorPage() {
             href="/trainer/signup"
             className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-5 text-sm font-black text-[#0B0C0F]"
           >
-            Fitness Pro sign-up
+            Trainer sign-up
           </Link>
         </div>
         <p className="mt-10 text-xs text-white/35">
