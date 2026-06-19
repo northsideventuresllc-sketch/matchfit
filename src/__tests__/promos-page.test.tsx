@@ -87,9 +87,8 @@ describe("promos page", () => {
     expect(html).toContain(`Version ${MATCH_FIT_PRODUCT_VERSION_LABEL}`);
     expect(html).toContain("Beta reach:");
     expect(html).toContain("United States");
-    expect(html).toContain("Atlanta metro area");
-    expect(html).toContain("15–20 miles");
-    expect(html).toContain("virtual coaches only");
+    expect(html).toContain("Up to 30 Fitness Pros");
+    expect(html).toContain("In-person sessions roll out by region");
     expect(html).toContain("7 / 50");
     expect(html).toContain("2 / 10");
     expect(html).toContain("60-day free trial");
@@ -114,8 +113,7 @@ describe("promos page", () => {
     expect(html).toContain("Sign Up as a Client");
     expect(html).not.toContain("Join Fitness Pro Waitlist");
     expect(html).not.toContain("Join Client Waitlist");
-    expect(html).toContain("Atlanta in-person beta pool: 3 / 10 slots used (7 open)");
-    expect(html).toContain("Nationwide virtual/DIY beta pool: 10 / 20 slots used (10 open)");
+    expect(html).not.toContain("Atlanta in-person beta pool");
     expect(html).toContain("Beta membership capacity: 12 / 50 slots used (38 open)");
   });
 
@@ -136,8 +134,7 @@ describe("promos page", () => {
     expect(html).toContain("Join Fitness Pro Waitlist");
     expect(html).toContain('href="/waitlist/client"');
     expect(html).toContain("Join Client Waitlist");
-    expect(html).toContain("Atlanta in-person beta pool: 3 / 10 slots used (full)");
-    expect(html).toContain("Nationwide virtual/DIY beta pool: 10 / 20 slots used (full)");
+    expect(html).not.toContain("Atlanta in-person beta pool");
     expect(html).toContain("Beta membership capacity: 12 / 50 slots used (full — waitlist open)");
     expect(html).not.toContain("Sign Up as a Fitness Pro");
     expect(html).not.toContain("Sign Up as a Client");
