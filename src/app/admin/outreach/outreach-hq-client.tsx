@@ -1979,7 +1979,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF7E00]">Match Fit</p>
               <h1 className="mt-1 text-3xl font-black tracking-tight">Outreach HQ</h1>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/55">
-                Daily trainer outreach by platform — AI lead discovery, editable copy, status tracking, and a saved
+                Daily Fitness Pro outreach by platform — AI lead discovery, editable copy, status tracking, and a saved
                 Outreach Hub. Data lives in your Match Fit database (Supabase Postgres).
               </p>
             </div>

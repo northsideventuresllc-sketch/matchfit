@@ -145,7 +145,7 @@ export default async function Home({ searchParams }: HomeProps) {
           </p>
 
           <p className="mt-6 max-w-xl text-pretty text-base leading-relaxed text-white/60 sm:text-lg">
-            The fitness matchmaking platform that connects clients with the right coaches—and gives trainers
+            The fitness matchmaking platform that connects clients with the right coaches—and gives Fitness Pros
             the tools to grow their brands and client base without the usual friction.
           </p>
           <p className="mt-4 text-sm text-white/40">
@@ -155,7 +155,7 @@ export default async function Home({ searchParams }: HomeProps) {
             >
               Learn how it works
             </a>{" "}
-            or scroll to explore trainers, pricing, and session types.
+            or scroll to explore Fitness Pros, pricing, and session types.
           </p>
         </section>
 

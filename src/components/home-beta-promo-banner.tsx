@@ -94,7 +94,7 @@ export function HomeBetaPromoBanner() {
             </li>
           </ul>
           <p className="text-left text-xs leading-relaxed text-white/50 [overflow-wrap:anywhere] sm:text-[13px]">
-            <span className="font-semibold text-white/70">Trainer reminder:</span> begin onboarding within{" "}
+            <span className="font-semibold text-white/70">Fitness Pro reminder:</span> begin onboarding within{" "}
             {trainerSignupOnboardingBeginDeadlineLabel()} of sign-up and pay your background check through our portal to
             keep your <span className="font-semibold text-white/75">{trainerSignupPremiumPromoBenefitLabel()}</span>{" "}
             active while you finish compliance.

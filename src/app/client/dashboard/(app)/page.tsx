@@ -253,7 +253,7 @@ export default async function ClientDashboardHomePage() {
       <ClientDashboardHomeSection
         title="Coach Nudges"
         titleClassName="text-[#FF7E00]"
-        subtitle="Coaches who want to work with you can send you a nudge. Trainers who nudged you will appear here."
+        subtitle="Coaches who want to work with you can send you a nudge. Fitness Pros who nudged you will appear here."
       >
         {nudges.length === 0 ? (
           <p className="text-center text-sm text-white/40">
@@ -334,7 +334,7 @@ export default async function ClientDashboardHomePage() {
           <Link href="/client/settings" className="text-[#FF7E00] underline-offset-2 hover:underline">
             Account Settings
           </Link>{" "}
-          under Profile. Trainers only see what you place on your public client page.
+          under Profile. Fitness Pros only see what you place on your public client page.
         </p>
       </ClientDashboardHomeSection>
 

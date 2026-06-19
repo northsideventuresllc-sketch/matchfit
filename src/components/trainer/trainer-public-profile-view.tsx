@@ -48,7 +48,7 @@ export type TrainerPublicProfileViewProps = {
   certificationBadges: string[];
   socialLinks: TrainerPublicSocialLink[];
   fullProfileUrl: string;
-  /** Client account, trainer dashboard, or client portal when signed out. */
+  /** Client account, Fitness Pro dashboard, or client portal when signed out. */
   backToDashboardHref: string;
   messageHref: string;
   /** When true (coach viewing own `/trainers/...` link), client CTAs are non-interactive preview only. */
@@ -76,7 +76,7 @@ export type TrainerPublicProfileViewProps = {
   checkoutNotice?: "success" | "canceled" | null;
   /** Logged-in client (not previewing own link): discreet feed & privacy controls in the header. */
   showClientPrivacyMenu?: boolean;
-  /** Public availability summary page (set from the trainer dashboard). */
+  /** Public availability summary page (set from the Fitness Pro dashboard). */
   availabilityHref?: string;
   verificationBadge?: TrainerVerificationBadge | null;
   /** Pre-verified coaches show package previews without checkout links. */
@@ -183,7 +183,7 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
                 ) : null}
                 {props.reviewSummary.windowCount > 0 && props.reviewSummary.averageStars != null ? (
                   <p className="mt-2 inline-flex items-center rounded-full border border-[#FFD34E]/35 bg-[#FFD34E]/[0.1] px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-[#FFD34E]">
-                    {props.reviewSummary.averageStars.toFixed(1)}★ trainer · {props.reviewSummary.windowCount} recent
+                    {props.reviewSummary.averageStars.toFixed(1)}★ Fitness Pro · {props.reviewSummary.windowCount} recent
                   </p>
                 ) : (
                   <p className="mt-2 text-sm font-semibold text-white/45">No reviews posted yet.</p>

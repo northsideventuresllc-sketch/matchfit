@@ -47,7 +47,7 @@ export const AD_TRACKING_PIXELS = {
 export const AD_LANDING_PATHS: Record<AdLandingFunnel, { path: string; label: string }> = {
   homepage: { path: "/", label: "Homepage" },
   client: { path: "/client/sign-up", label: "Client sign-up" },
-  trainer: { path: "/trainer/signup", label: "Trainer sign-up" },
+  trainer: { path: "/trainer/signup", label: "Fitness Pro sign-up" },
 };
 
 /** Events already wired in the product — use these names in Ads Manager / Google conversion goals. */
@@ -64,7 +64,7 @@ export const AD_TRACKING_EVENTS: AdTrackingEvent[] = [
   {
     id: "signup_step",
     label: "Signup funnel step",
-    description: "URL-based signup progress for client and trainer flows.",
+    description: "URL-based signup progress for client and Fitness Pro flows.",
     metaEvent: "MatchFitSignupStep + ViewContent",
     googleConversionKind: null,
     funnel: "both",
@@ -77,7 +77,7 @@ export const AD_TRACKING_EVENTS: AdTrackingEvent[] = [
     metaEvent: "Lead",
     googleConversionKind: null,
     funnel: "both",
-    trigger: "Client/trainer registration form submit",
+    trigger: "Client/Fitness Pro registration form submit",
   },
   {
     id: "initiate_checkout",
@@ -99,12 +99,12 @@ export const AD_TRACKING_EVENTS: AdTrackingEvent[] = [
   },
   {
     id: "trainer_signup",
-    label: "Trainer registration complete",
-    description: "Primary conversion for trainer acquisition campaigns.",
+    label: "Fitness Pro registration complete",
+    description: "Primary conversion for Fitness Pro acquisition campaigns.",
     metaEvent: "CompleteRegistration",
     googleConversionKind: "trainer_signup",
     funnel: "trainer",
-    trigger: "Trainer account created (same as Google trainer_signup)",
+    trigger: "Fitness Pro account created (same as Google trainer_signup)",
   },
 ];
 
@@ -120,7 +120,7 @@ export const AD_UTM_PRESETS: AdUtmPreset[] = [
   },
   {
     id: "meta_trainer_beta",
-    label: "Meta — trainer beta",
+    label: "Meta — Fitness Pro beta",
     platform: "meta",
     utm_source: "facebook",
     utm_medium: "paid_social",
@@ -147,7 +147,7 @@ export const AD_UTM_PRESETS: AdUtmPreset[] = [
   },
   {
     id: "google_search_trainer",
-    label: "Google — search trainer",
+    label: "Google — search Fitness Pro",
     platform: "google",
     utm_source: "google",
     utm_medium: "cpc",

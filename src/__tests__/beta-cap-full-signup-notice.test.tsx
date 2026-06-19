@@ -48,9 +48,9 @@ describe("BetaCapFullSignupNotice", () => {
     );
 
     expect(html).toContain("Coach slots are full for this beta");
-    expect(html).toContain("All trainer slots for the Atlanta metro beta are taken.");
-    expect(html).toContain(">Join the trainer waitlist<");
-    expect(html).toContain("Trainers signed up: 50 / 50");
+    expect(html).toContain("All Fitness Pro slots for the Atlanta metro beta are taken.");
+    expect(html).toContain(">Join the Fitness Pro waitlist<");
+    expect(html).toContain("Fitness Pros signed up: 50 / 50");
   });
 
   it("shows reserved-slot suffix only when used slots differ from signup count", () => {

@@ -109,10 +109,10 @@ describe("promos page", () => {
     const html = await renderPromos();
 
     expect(html).toContain('href="/trainer/signup"');
-    expect(html).toContain("Sign Up as a Trainer");
+    expect(html).toContain("Sign Up as a Fitness Pro");
     expect(html).toContain('href="/client/sign-up"');
     expect(html).toContain("Sign Up as a Client");
-    expect(html).not.toContain("Join Trainer Waitlist");
+    expect(html).not.toContain("Join Fitness Pro Waitlist");
     expect(html).not.toContain("Join Client Waitlist");
     expect(html).toContain("Atlanta in-person beta pool: 3 / 10 slots used (7 open)");
     expect(html).toContain("Nationwide virtual/DIY beta pool: 10 / 20 slots used (10 open)");
@@ -133,13 +133,13 @@ describe("promos page", () => {
     const html = await renderPromos();
 
     expect(html).toContain('href="/waitlist/trainer"');
-    expect(html).toContain("Join Trainer Waitlist");
+    expect(html).toContain("Join Fitness Pro Waitlist");
     expect(html).toContain('href="/waitlist/client"');
     expect(html).toContain("Join Client Waitlist");
     expect(html).toContain("Atlanta in-person beta pool: 3 / 10 slots used (full)");
     expect(html).toContain("Nationwide virtual/DIY beta pool: 10 / 20 slots used (full)");
     expect(html).toContain("Beta membership capacity: 12 / 50 slots used (full — waitlist open)");
-    expect(html).not.toContain("Sign Up as a Trainer");
+    expect(html).not.toContain("Sign Up as a Fitness Pro");
     expect(html).not.toContain("Sign Up as a Client");
   });
 

@@ -149,7 +149,7 @@ export function TrainerDashboardShell(props: TrainerDashboardShellProps) {
 
         {/* Desktop horizontal nav — hidden on mobile */}
         <nav
-          aria-label="Trainer Dashboard"
+          aria-label="Fitness Pro Dashboard"
           className="mb-8 hidden flex-wrap justify-center gap-2 rounded-2xl border border-white/[0.07] bg-[#0E1016]/60 p-1.5 backdrop-blur-md sm:flex"
         >
           {navItems.map((item) => {
@@ -205,7 +205,7 @@ export function TrainerDashboardShell(props: TrainerDashboardShellProps) {
 
       {/* Mobile bottom tab bar — visible only on mobile */}
       <nav
-        aria-label="Trainer Navigation"
+        aria-label="Fitness Pro navigation"
         className="fixed inset-x-0 bottom-0 z-50 flex items-stretch border-t border-white/[0.08] bg-[#07080C]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl sm:hidden"
       >
         {BOTTOM_NAV.map((item) => {

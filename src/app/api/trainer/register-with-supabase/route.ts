@@ -16,7 +16,7 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 /**
- * Completes Match Fit trainer registration after Supabase email confirmation.
+ * Completes Match Fit Fitness Pro registration after Supabase email confirmation.
  * Requires `Authorization: Bearer <supabase_access_token>` where the token email matches the signup payload.
  */
 export async function POST(req: Request) {

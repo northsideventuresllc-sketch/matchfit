@@ -14,7 +14,7 @@ const FEED_STYLES: { value: TrainerFithubFeedStyle; label: string; hint: string 
   {
     value: "ALGORITHMIC",
     label: "Algorithmic",
-    hint: "Blend of engagement and recency so trending trainer content surfaces first.",
+    hint: "Blend of engagement and recency so trending Fitness Pro content surfaces first.",
   },
   { value: "NEWEST", label: "Newest First", hint: "Strict reverse chronological order." },
 ];
@@ -58,7 +58,7 @@ export function TrainerFitHubSettingsForm() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-white/90">Feed Generation</h2>
-        <p className="text-xs text-white/45">Control how trainer posts are ordered in your FitHub feed.</p>
+        <p className="text-xs text-white/45">Control how Fitness Pro posts are ordered in your FitHub feed.</p>
         <ul className="space-y-2">
           {FEED_STYLES.map((row) => (
             <li key={row.value}>
@@ -88,7 +88,7 @@ export function TrainerFitHubSettingsForm() {
             [
               ["showTextPosts", "Text Posts", "Written updates and long captions."] as const,
               ["showImagePosts", "Photo Posts", "Still frames and image carousels."] as const,
-              ["showVideoPosts", "Video Posts", "Clips and short-form video from trainers."] as const,
+              ["showVideoPosts", "Video Posts", "Clips and short-form video from Fitness Pros."] as const,
             ] as const
           ).map(([key, label, hint]) => (
             <li
@@ -127,8 +127,8 @@ export function TrainerFitHubSettingsForm() {
           </li>
           <li className="flex items-start justify-between gap-4 rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-3">
             <div>
-              <p className="text-sm font-semibold text-white/90">Hide Back-to-Back Posts from the Same Trainer</p>
-              <p className="mt-1 text-xs text-white/45">Keeps your feed varied when one trainer has many recent posts.</p>
+              <p className="text-sm font-semibold text-white/90">Hide Back-to-Back Posts from the Same Fitness Pro</p>
+              <p className="mt-1 text-xs text-white/45">Keeps your feed varied when one Fitness Pro has many recent posts.</p>
             </div>
             <input
               type="checkbox"

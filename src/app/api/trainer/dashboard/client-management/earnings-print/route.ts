@@ -67,7 +67,7 @@ export async function GET(req: Request) {
 </head>
 <body>
   <h1>Match Fit — earnings summary (${year})</h1>
-  <p>Trainer: ${esc(display)} (@${esc(trainer.username)})</p>
+  <p>Fitness Pro: ${esc(display)} (@${esc(trainer.username)})</p>
   <p class="muted">Use your browser Print dialog → Save as PDF. Figures reflect checkout rows on file; bank settlement may differ.</p>
   <table>
     <thead>

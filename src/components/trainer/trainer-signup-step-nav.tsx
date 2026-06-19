@@ -28,7 +28,7 @@ export function TrainerSignupStepNav({ currentStep, showSaveForLater = false }: 
             <p className="text-sm font-black tracking-tight sm:text-base">
               <span className="text-[#E8EAEF]">Match</span> <span className="text-[#E32B2B]">Fit</span>
             </p>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-white/40">Trainer sign-up</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-white/40">Fitness Pro sign-up</p>
           </div>
         </Link>
         <Link
@@ -41,7 +41,7 @@ export function TrainerSignupStepNav({ currentStep, showSaveForLater = false }: 
 
       <nav
         className="mt-10 flex flex-wrap items-center gap-2"
-        aria-label="Trainer sign-up steps"
+        aria-label="Fitness Pro sign-up steps"
       >
         {TRAINER_SIGNUP_STEPS.map((step) => {
           const isCurrent = step.id === currentStep;
@@ -63,7 +63,7 @@ export function TrainerSignupStepNav({ currentStep, showSaveForLater = false }: 
         })}
       </nav>
 
-      <h1 className="mt-6 text-2xl font-black tracking-tight sm:text-3xl">{stepMeta?.title ?? "Trainer sign-up"}</h1>
+      <h1 className="mt-6 text-2xl font-black tracking-tight sm:text-3xl">{stepMeta?.title ?? "Fitness Pro sign-up"}</h1>
       <p className="mt-2 text-sm text-white/55 sm:text-base">
         Step {currentStep} of {TRAINER_SIGNUP_STEP_COUNT}
       </p>

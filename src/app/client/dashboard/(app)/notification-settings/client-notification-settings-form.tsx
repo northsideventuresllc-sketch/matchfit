@@ -28,7 +28,7 @@ const EMAIL_ROWS: {
 ];
 
 const ROWS: { key: ClientPushNotificationPrefKey; label: string; hint: string }[] = [
-  { key: "pushNudge", label: "Coach Nudges", hint: "When a trainer nudges you from discovery." },
+  { key: "pushNudge", label: "Coach Nudges", hint: "When a Fitness Pro nudges you from discovery." },
   { key: "pushNewMatch", label: "New Fitness Matches", hint: "When you save a coach or a match is suggested." },
   {
     key: "pushDailyQuestionnaire",
@@ -124,7 +124,7 @@ export function ClientNotificationSettingsForm() {
       <div className="rounded-2xl border border-white/[0.06] bg-[#0E1016]/50 px-4 py-3">
         <p className="text-sm font-semibold text-white/90">Coach Package Receipts</p>
         <p className="mt-1 text-xs text-white/45">
-          After you pay a trainer on Match Fit, how (or if) we send a duplicate receipt by email or Web Push. You always
+          After you pay a Fitness Pro on Match Fit, how (or if) we send a duplicate receipt by email or Web Push. You always
           get an in-app Billing notification.
         </p>
         <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-10">

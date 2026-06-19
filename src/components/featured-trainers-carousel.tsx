@@ -98,7 +98,7 @@ export function FeaturedTrainersCarousel({ trainers }: { trainers?: FeaturedTrai
           id="featured-trainers-heading"
           className="mt-2 text-balance text-xl font-black uppercase tracking-wide text-white sm:text-2xl"
         >
-          Featured trainers in your area
+          Featured Fitness Pros in your area
         </h2>
         <p className="mx-auto mt-3 max-w-2xl text-pretty text-sm leading-relaxed text-white/55 sm:text-base">
           Coaches in your ZIP area (first three digits).{" "}
@@ -124,7 +124,7 @@ export function FeaturedTrainersCarousel({ trainers }: { trainers?: FeaturedTrai
 
           <button
             type="button"
-            aria-label="Previous trainer"
+            aria-label="Previous Fitness Pro"
             className="absolute left-1 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/[0.12] bg-[#0B0C0F]/75 text-white/85 shadow-lg backdrop-blur-sm transition hover:border-white/25 hover:bg-[#0B0C0F]/90 hover:text-white sm:left-2 sm:h-11 sm:w-11"
             onClick={() => setIndex((i) => (i - 1 + n) % n)}
           >
@@ -132,7 +132,7 @@ export function FeaturedTrainersCarousel({ trainers }: { trainers?: FeaturedTrai
           </button>
           <button
             type="button"
-            aria-label="Next trainer"
+            aria-label="Next Fitness Pro"
             className="absolute right-1 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/[0.12] bg-[#0B0C0F]/75 text-white/85 shadow-lg backdrop-blur-sm transition hover:border-white/25 hover:bg-[#0B0C0F]/90 hover:text-white sm:right-2 sm:h-11 sm:w-11"
             onClick={() => setIndex((i) => (i + 1) % n)}
           >

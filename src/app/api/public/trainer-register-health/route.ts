@@ -43,7 +43,7 @@ export async function GET() {
 
   let message: string;
   if (healthy) {
-    message = "Trainer sign-up schema and Supabase admin lookup are ready.";
+    message = "Fitness Pro sign-up schema and Supabase admin lookup are ready.";
   } else if (!databaseUrlConfigured) {
     message = "DATABASE_URL is missing in Vercel Production environment variables.";
   } else if (!supabaseAdminConfigured) {
@@ -51,13 +51,13 @@ export async function GET() {
   } else if (!authLookupOk) {
     message = `Supabase admin user lookup failed${authLookupError ? `: ${authLookupError}` : "."}`;
   } else if (!insertProbe.ok) {
-    message = `Trainer sign-up insert probe failed (${insertProbe.code}).`;
+    message = `Fitness Pro sign-up insert probe failed (${insertProbe.code}).`;
   } else if (!termsProbe.ok) {
-    message = `Trainer agreement save probe failed (${termsProbe.code}).`;
+    message = `Fitness Pro agreement save probe failed (${termsProbe.code}).`;
   } else if (trainerProfileColumnsFound < TRAINER_REGISTER_PROFILE_COLUMNS_REQUIRED || trainerTermsColumnsFound < 2 || termsAcceptedAtNullable !== true) {
     message = `Trainer signup schema is out of date (profileColumns=${trainerProfileColumnsFound}/${TRAINER_REGISTER_PROFILE_COLUMNS_REQUIRED}, termsAcceptedAtNullable=${String(termsAcceptedAtNullable)}). The next sign-up attempt should auto-repair.`;
   } else {
-    message = "Trainer sign-up health check failed.";
+    message = "Fitness Pro sign-up health check failed.";
   }
 
   return NextResponse.json({

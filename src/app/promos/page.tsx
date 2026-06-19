@@ -199,14 +199,14 @@ export default async function PromosPage() {
                     href="/waitlist/trainer"
                     className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/15 px-6 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/60"
                   >
-                    Join Trainer Waitlist
+                    Join Fitness Pro Waitlist
                   </Link>
                 ) : (
                   <Link
                     href="/trainer/signup"
                     className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-6 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] transition hover:opacity-90"
                   >
-                    Sign Up as a Trainer
+                    Sign Up as a Fitness Pro
                   </Link>
                 )}
               </div>
@@ -306,7 +306,7 @@ export default async function PromosPage() {
             <li className="flex gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />
               <span>
-                Trainers pay the standard onboarding fee ({trainerStandardOnboardingAfterCapLabel()}) and do not
+                Fitness Pros pay the standard onboarding fee ({trainerStandardOnboardingAfterCapLabel()}) and do not
                 receive the {trainerSignupPremiumPromoBenefitLabel()} promo.
               </span>
             </li>
@@ -341,7 +341,7 @@ export default async function PromosPage() {
             href="/trainer/signup"
             className="inline-flex min-h-8 items-center justify-center rounded-lg border border-white/[0.12] bg-white/[0.03] px-3 text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-white/60 transition hover:border-white/[0.22] hover:text-white/85"
           >
-            Trainer Sign Up
+            Fitness Pro Sign Up
           </Link>
           <Link
             href="/terms"

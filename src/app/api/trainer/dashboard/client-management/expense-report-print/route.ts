@@ -70,7 +70,7 @@ export async function GET(req: Request) {
 </head>
 <body>
   <h1>Match Fit — business expenses (${year})</h1>
-  <p>Trainer: ${esc(display)} (@${esc(trainer.username)})</p>
+  <p>Fitness Pro: ${esc(display)} (@${esc(trainer.username)})</p>
   <p class="muted">Not tax advice. Use Print → Save as PDF. Confirm deductibility with a qualified tax professional.</p>
   <h2 style="font-size:14px;margin-top:20px">By category</h2>
   <table><thead><tr><th>Category</th><th>Total</th></tr></thead><tbody>${cats || "<tr><td colspan=\"2\">No expenses logged.</td></tr>"}</tbody></table>

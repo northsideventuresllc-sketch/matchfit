@@ -51,7 +51,7 @@ export const MATCH_QUESTIONNAIRE_SECTIONS = [
     title: "Philosophy & Confirmation",
     summary: "Narrative plus accuracy attestation.",
     disclaimer:
-      "This narrative may feed search previews and AI matching. Keep it truthful, professional, and updated when your approach changes.",
+      "This narrative may feed search previews and algorithmic matching. Keep it truthful, professional, and updated when your approach changes.",
   },
 ] as const;
 

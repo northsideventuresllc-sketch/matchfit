@@ -35,7 +35,7 @@ describe("FeaturedTrainersCarousel", () => {
   it("renders trainer details and strips query params from profile images", () => {
     const html = renderToStaticMarkup(<FeaturedTrainersCarousel trainers={[buildTrainer()]} />);
 
-    expect(html).toContain("Featured trainers in your area");
+    expect(html).toContain("Featured Fitness Pros in your area");
     expect(html).toContain("Sponsored");
     expect(html).toContain('src="https://cdn.example.com/profile.jpg"');
     expect(html).toContain('href="/trainers/coach-one"');

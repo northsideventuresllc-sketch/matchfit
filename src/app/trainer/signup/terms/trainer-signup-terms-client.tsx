@@ -53,7 +53,7 @@ export default function TrainerSignupTermsClient() {
     e.preventDefault();
     setError(null);
     if (!accepted) {
-      setError("Please confirm that you agree to the Trainer Agreement and Terms of Service.");
+      setError("Please confirm that you agree to the Fitness Pro Agreement and Terms of Service.");
       return;
     }
     if (draft) {
@@ -123,10 +123,10 @@ export default function TrainerSignupTermsClient() {
           <span className="text-sm font-bold text-white/70">Back to account details</span>
         </Link>
 
-        <h1 className="mt-8 text-2xl font-black uppercase tracking-tight sm:text-3xl">Trainer agreement</h1>
+        <h1 className="mt-8 text-2xl font-black uppercase tracking-tight sm:text-3xl">Fitness Pro agreement</h1>
         <p className="mt-2 text-sm text-white/55">
           Read the summary below, then open the full Terms of Service and Privacy Policy. When you agree, your Match Fit
-          trainer account is created automatically. You have 7 days from sign-up to begin onboarding—pay your background
+          Fitness Pro account is created automatically. You have 7 days from sign-up to begin onboarding—pay your background
           check through our portal and start certification and screening. You cannot sell services until every requirement
           is completed.
         </p>
@@ -159,7 +159,7 @@ export default function TrainerSignupTermsClient() {
               className="mt-1 h-4 w-4 shrink-0 accent-[#FF7E00]"
             />
             <span className="text-sm leading-relaxed text-white/80">
-              I have read and agree to the Trainer Agreement, Terms of Service, and Privacy Policy.
+              I have read and agree to the Fitness Pro Agreement, Terms of Service, and Privacy Policy.
             </span>
           </label>
           {draft ? (
