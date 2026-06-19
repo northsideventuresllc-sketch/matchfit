@@ -1,5 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import {
+  clientHasFullPlanAccess,
+  freemiumGateError,
+  loadClientPlanGate,
+  recordSwipe,
+} from "@/lib/client-plan-access";
+import {
   isTrainerVisibleInClientDiscovery,
   trainerDiscoveryProfileSelect,
 } from "@/lib/trainer-client-discovery";
@@ -30,6 +36,18 @@ export async function POST(req: Request) {
     });
     if (!trainer?.profile || !isTrainerVisibleInClientDiscovery(trainer.profile)) {
       return NextResponse.json({ error: "Coach not found or not available." }, { status: 404 });
+    }
+
+    const plan = await loadClientPlanGate(clientId);
+    if (plan && !clientHasFullPlanAccess(plan)) {
+      try {
+        await recordSwipe(clientId);
+      } catch (e) {
+        if (e instanceof Error && e.message === "SWIPE_LIMIT_REACHED") {
+          return NextResponse.json(freemiumGateError("FREEMIUM_SWIPE_LIMIT"), { status: 403 });
+        }
+        throw e;
+      }
     }
 
     const conv = await prisma.trainerClientConversation.findUnique({

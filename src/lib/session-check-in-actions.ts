@@ -5,6 +5,7 @@ import {
   TOS_PAYOUT_DISPUTE_SUSPEND_THRESHOLD,
 } from "@/lib/tos-governance-thresholds";
 import { suspendTrainerForGovernance } from "@/lib/trainer-suspension-marketplace";
+import { applyWithholdToPayout } from "@/lib/trainer-deferred-fee";
 import { deadlineBeforeSession } from "@/lib/trainer-client-booking-service";
 import {
   checkInWindowStartAt,
@@ -806,15 +807,32 @@ export async function settleSessionsPastPayoutBuffer(now = new Date()): Promise<
       disputeOpenedAt: null,
       fulfillmentStatus: "GATES_IN_PAYOUT_BUFFER",
     },
-    select: { id: true, conversationId: true },
+    select: {
+      id: true,
+      conversationId: true,
+      trainerId: true,
+      allocatedCoachServiceCents: true,
+      allocatedNetAddonCents: true,
+      payoutWithholdMetaJson: true,
+    },
   });
   let n = 0;
   for (const r of rows) {
+    const grossPayoutCents = Math.max(0, r.allocatedCoachServiceCents + r.allocatedNetAddonCents);
+    const { netPayoutCents, withheld } = await applyWithholdToPayout(r.trainerId, grossPayoutCents);
     await prisma.bookedTrainingSession.update({
       where: { id: r.id },
       data: {
         fulfillmentStatus: "SESSION_PAYMENT_ROUTE_CLEARED",
         sessionClosedAt: now,
+        payoutWithholdMetaJson:
+          withheld > 0
+            ? JSON.stringify({
+                grossPayoutCents,
+                netPayoutCents,
+                withheldCents: withheld,
+              })
+            : r.payoutWithholdMetaJson,
         updatedAt: now,
       },
     });

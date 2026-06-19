@@ -1,6 +1,11 @@
 import { parseChatAttachmentJson } from "@/lib/chat-attachment";
 import { runOutboundChatComplianceMonitoring } from "@/lib/chat-compliance-monitor";
 import { getChatContactLeakageBlockReason } from "@/lib/chat-leakage-detection";
+import {
+  clientHasFullPlanAccess,
+  freemiumGateError,
+  loadClientPlanGate,
+} from "@/lib/client-plan-access";
 import { prisma } from "@/lib/prisma";
 import {
   conversationArchiveMetaForActor,
@@ -161,6 +166,11 @@ export async function POST(req: Request, ctx: RouteContext) {
 
     if (await isTrainerClientChatBlocked(trainer.id, clientId)) {
       return NextResponse.json({ error: "Messaging is blocked for this thread." }, { status: 403 });
+    }
+
+    const plan = await loadClientPlanGate(clientId);
+    if (plan && !clientHasFullPlanAccess(plan)) {
+      return NextResponse.json(freemiumGateError("FREEMIUM_NO_CHAT"), { status: 403 });
     }
 
     const bodyRaw = (await req.json()) as { body?: string };

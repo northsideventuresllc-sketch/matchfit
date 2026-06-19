@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 export type ClientPlatformLifecycleSummary = {
   paymentGraceStarted: number;
   accountsDeactivated: number;
+  freemiumDowngrades: number;
 };
 
 const platformBillingSelect = {
@@ -16,6 +17,8 @@ const platformBillingSelect = {
   paymentGraceUntil: true,
   accountDeactivatedAt: true,
   platformTrialConsumed: true,
+  vipSubscriptionActive: true,
+  clientPlanTier: true,
 } as const;
 
 async function startPaymentGraceForClient(
@@ -32,6 +35,7 @@ async function startPaymentGraceForClient(
     data: {
       paymentGraceUntil,
       platformTrialConsumed: true,
+      clientPlanTier: "FREEMIUM",
     },
   });
   void notifyClientPlatformPaymentGraceStarted({
@@ -46,6 +50,7 @@ export async function runClientPlatformBillingLifecycleJobs(): Promise<ClientPla
   const now = new Date();
   let paymentGraceStarted = 0;
   let accountsDeactivated = 0;
+  let freemiumDowngrades = 0;
 
   const trialExpired = await prisma.client.findMany({
     where: {
@@ -75,6 +80,9 @@ export async function runClientPlatformBillingLifecycleJobs(): Promise<ClientPla
   });
 
   for (const client of graceExpired) {
+    if ((client.clientPlanTier ?? "").trim().toUpperCase() === "FREEMIUM") {
+      continue;
+    }
     await prisma.client.update({
       where: { id: client.id },
       data: {
@@ -85,7 +93,27 @@ export async function runClientPlatformBillingLifecycleJobs(): Promise<ClientPla
     accountsDeactivated += 1;
   }
 
-  return { paymentGraceStarted, accountsDeactivated };
+  const freemiumCandidates = await prisma.client.findMany({
+    where: {
+      deidentifiedAt: null,
+      accountDeactivatedAt: null,
+      platformTrialConsumed: true,
+      stripeSubscriptionActive: false,
+      vipSubscriptionActive: false,
+      NOT: { clientPlanTier: "FREEMIUM" },
+    },
+    select: { id: true },
+  });
+
+  for (const client of freemiumCandidates) {
+    await prisma.client.update({
+      where: { id: client.id },
+      data: { clientPlanTier: "FREEMIUM" },
+    });
+    freemiumDowngrades += 1;
+  }
+
+  return { paymentGraceStarted, accountsDeactivated, freemiumDowngrades };
 }
 
 /** Lazy lifecycle sync for a single client on login or dashboard access. */
@@ -108,6 +136,9 @@ export async function syncClientPlatformBillingLifecycle(clientId: string): Prom
   }
 
   if (client.paymentGraceUntil && client.paymentGraceUntil.getTime() <= now.getTime()) {
+    if ((client.clientPlanTier ?? "").trim().toUpperCase() === "FREEMIUM") {
+      return;
+    }
     await prisma.client.update({
       where: { id: client.id },
       data: {

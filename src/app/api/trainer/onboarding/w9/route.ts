@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
+import { checkSsnAlreadyBanned } from "@/lib/trainer-deferred-fee";
 import { mockRecordTrainerW9Intent } from "@/lib/trainer-onboarding-mocks";
 import { maybeActivateTrainerDashboard } from "@/lib/trainer-onboarding-dashboard";
 import { trainerW9StepSchema } from "@/lib/validations/trainer-register";
@@ -19,6 +20,16 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: msg }, { status: 400 });
     }
     const body = parsed.data;
+
+    if (body.tinType === "SSN" && body.tin?.trim()) {
+      const banned = await checkSsnAlreadyBanned(body.tin.trim());
+      if (banned) {
+        return NextResponse.json(
+          { error: "TRAINER_SSN_BANNED", message: "This account is ineligible for registration." },
+          { status: 403 },
+        );
+      }
+    }
 
     await mockRecordTrainerW9Intent({ trainerId });
 

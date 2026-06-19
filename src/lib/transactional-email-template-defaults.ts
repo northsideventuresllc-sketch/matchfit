@@ -385,6 +385,41 @@ const DEFAULTS: Record<TransactionalEmailKind, TransactionalEmailTemplateFields>
     textBody: "We received your trainer registration payment of {{amount}}.\n\nView compliance: {{trainerDashboardUrl}}\n\n— Match Fit",
     ...STANDARD_CTA("Compliance dashboard", "trainerDashboardUrl"),
   },
+  TRAINER_DEFERRED_FEE_GRACE_STARTED: {
+    subject: "Deferred platform fee — 72-hour grace — Match Fit",
+    preheader: "Complete your balance before {{graceDeadlineLabel}}.",
+    title: "Grace period started",
+    bodyParagraphs: [
+      "Your deferred platform fee balance was not cleared by the 60-day deadline.",
+      'You have until <strong style="color:#E8EAEF">{{graceDeadlineLabel}}</strong> to pay the remaining balance or your account will be banned for one year.',
+    ],
+    textBody:
+      "Your deferred platform fee balance was not cleared by the 60-day deadline.\n\nGrace ends {{graceDeadlineLabel}}.\n\nBilling: {{trainerDashboardUrl}}\n\n— Match Fit",
+    ...STANDARD_CTA("Open billing", "trainerDashboardUrl"),
+  },
+  TRAINER_DEFERRED_FEE_BANNED: {
+    subject: "Account suspended — Match Fit",
+    preheader: "Deferred platform fee not paid.",
+    title: "Account suspended",
+    bodyParagraphs: [
+      "Your deferred platform fee balance was not paid during the grace period.",
+      "Your Fitness Pro account is suspended for one year per Match Fit Terms.",
+    ],
+    textBody:
+      "Your deferred platform fee balance was not paid during the grace period. Your account is suspended for one year.\n\n— Match Fit",
+    ...STANDARD_CTA("Contact support", "trainerDashboardUrl"),
+  },
+  TRAINER_DEFERRED_FEE_CLEARED: {
+    subject: "Platform fee balance cleared — Match Fit",
+    preheader: "Deferred fee paid in full.",
+    title: "Balance cleared",
+    bodyParagraphs: [
+      "Your deferred platform fee balance is paid in full.",
+      "Payout withholdings for this balance have ended.",
+    ],
+    textBody: "Your deferred platform fee balance is paid in full.\n\nDashboard: {{trainerDashboardUrl}}\n\n— Match Fit",
+    ...STANDARD_CTA("Open dashboard", "trainerDashboardUrl"),
+  },
 };
 
 const PLACEHOLDERS: Record<TransactionalEmailKind, string[]> = {
@@ -421,6 +456,9 @@ const PLACEHOLDERS: Record<TransactionalEmailKind, string[]> = {
   CLIENT_MEMBERSHIP_TRIAL_ENDING: ["trialEndLabel", "monthlyUsd", "dashboardUrl"],
   CLIENT_PLATFORM_PAYMENT_GRACE_STARTED: ["paymentGraceDays", "paymentGraceUntilLabel", "monthlyUsd", "dashboardUrl"],
   TRAINER_REGISTRATION_FEE_RECEIPT: ["amount", "trainerDashboardUrl"],
+  TRAINER_DEFERRED_FEE_GRACE_STARTED: ["graceDeadlineLabel", "trainerDashboardUrl"],
+  TRAINER_DEFERRED_FEE_BANNED: ["trainerDashboardUrl"],
+  TRAINER_DEFERRED_FEE_CLEARED: ["trainerDashboardUrl"],
 };
 
 export function getDefaultTransactionalEmailTemplateFields(kind: TransactionalEmailKind): TransactionalEmailTemplateFields {

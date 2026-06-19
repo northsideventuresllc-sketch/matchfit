@@ -19,6 +19,7 @@ import {
 import type { TrainerRegistrationPricingMode } from "@/lib/match-fit-launch-promotions";
 import { computeTrainerSignupEscrowSplit } from "@/lib/trainer-signup-escrow";
 import { maybeActivateTrainerDashboard } from "@/lib/trainer-onboarding-dashboard";
+import { activateTrainerDeferredFeeOnCompliance } from "@/lib/trainer-deferred-fee";
 
 type ProfileRow = {
   trainerId: string;
@@ -351,7 +352,21 @@ export async function syncTrainerComplianceWindow(trainerId: string): Promise<vo
 
   if (trainerComplianceWindowComplete(refreshed)) {
     await captureTrainerBackgroundCheckEscrowIfReady(trainerId);
-    if (refreshed.registrationFeeHoldStatus === "HELD") {
+    const deferredTrainer = await prisma.trainer.findUnique({
+      where: { id: trainerId },
+      select: {
+        registrationFeeDeferred: true,
+        registrationFeeDeferredBalanceCents: true,
+      },
+    });
+    const pricingMode = resolveTrainerSignupPricingMode(refreshed);
+    if (
+      deferredTrainer?.registrationFeeDeferred &&
+      deferredTrainer.registrationFeeDeferredBalanceCents === 0 &&
+      refreshed.registrationFeeHoldStatus !== "HELD"
+    ) {
+      await activateTrainerDeferredFeeOnCompliance(trainerId, pricingMode);
+    } else if (refreshed.registrationFeeHoldStatus === "HELD") {
       const latest = await prisma.trainerProfile.findUnique({
         where: { trainerId },
         select: profileSelect,

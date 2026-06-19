@@ -296,7 +296,7 @@ export default function TrainerOnboardingClient() {
   const profile = trainer?.profile;
 
   const agreementBullets = useMemo(
-    () => getTrainerOnboardingAgreementBullets(profile?.registrationFeeWaived ?? false),
+    () => getTrainerOnboardingAgreementBullets(profile?.registrationFeeWaived ? "founding" : "standard"),
     [profile?.registrationFeeWaived],
   );
 

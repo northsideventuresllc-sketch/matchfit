@@ -17,6 +17,8 @@ import {
   TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE,
   trainerSignupPaymentHoldExplanation,
 } from "@/lib/trainer-signup-payment-messaging";
+import { DEFERRED_FEE_MIN_WITHHOLD_PCT } from "@/lib/trainer-deferred-fee-constants";
+import { computeTrainerSignupBackgroundEscrowHoldCents, computeTrainerSignupPlatformHoldCents } from "@/lib/trainer-signup-escrow";
 import { useStripePublishableKey } from "@/lib/use-stripe-publishable-key";
 
 type Props = {
@@ -26,6 +28,28 @@ type Props = {
 };
 
 type PaymentStep = "platform" | "background_check";
+type FeeChoice = "choose" | "pay_now" | "defer";
+
+function DeferredPaymentForm({
+  amountLabel,
+  onBackgroundCheckAuthorized,
+}: {
+  amountLabel: string;
+  onBackgroundCheckAuthorized: (next?: string) => void;
+}) {
+  return (
+    <PaymentForm
+      amountLabel={amountLabel}
+      pricingMode="STANDARD_100_MINUS_BG"
+      step="background_check"
+      backgroundCheckHoldRequired={true}
+      backgroundCheckPaymentIntentId={null}
+      onPlatformAuthorized={() => undefined}
+      onBackgroundCheckAuthorized={onBackgroundCheckAuthorized}
+      skipPlatformStep
+    />
+  );
+}
 
 function PaymentForm({
   amountLabel,
@@ -35,6 +59,7 @@ function PaymentForm({
   backgroundCheckPaymentIntentId,
   onPlatformAuthorized,
   onBackgroundCheckAuthorized,
+  skipPlatformStep = false,
 }: {
   amountLabel: string;
   pricingMode: TrainerRegistrationPricingMode;
@@ -43,6 +68,7 @@ function PaymentForm({
   backgroundCheckPaymentIntentId: string | null;
   onPlatformAuthorized: () => void;
   onBackgroundCheckAuthorized: (next?: string) => void;
+  skipPlatformStep?: boolean;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -70,7 +96,7 @@ function PaymentForm({
         return;
       }
 
-      if (step === "platform") {
+      if (step === "platform" && !skipPlatformStep) {
         if (backgroundCheckHoldRequired && !backgroundCheckPaymentIntentId) {
           setError("Background screening authorization is missing. Refresh and try again.");
           return;
@@ -165,6 +191,12 @@ export default function TrainerSignupPaymentClient({
   const { publishableKey, loading: publishableLoading } = useStripePublishableKey(stripePublishableKey);
   const useEmbeddedCheckout = Boolean(publishableKey);
   const useCheckoutRedirect = !useEmbeddedCheckout && stripeSecretConfigured;
+  const isStandard = pricingMode === "STANDARD_100_MINUS_BG";
+  const platformDueLabel = `$${(computeTrainerSignupPlatformHoldCents("STANDARD_100_MINUS_BG") / 100).toFixed(2)}`;
+  const deferredBalanceLabel = `$${(computeTrainerSignupPlatformHoldCents("STANDARD_100_MINUS_BG") / 100).toFixed(2)}`;
+  const [feeChoice, setFeeChoice] = useState<FeeChoice>(isStandard ? "choose" : "pay_now");
+  const [withholdPct, setWithholdPct] = useState(DEFERRED_FEE_MIN_WITHHOLD_PCT);
+  const [deferSubmitting, setDeferSubmitting] = useState(false);
   const [step, setStep] = useState<PaymentStep>("platform");
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [amountLabel, setAmountLabel] = useState<string>("…");
@@ -191,6 +223,7 @@ export default function TrainerSignupPaymentClient({
 
   useEffect(() => {
     if (publishableLoading) return;
+    if (feeChoice !== "pay_now") return;
     if (!stripeSecretConfigured || (!useCheckoutRedirect && !useEmbeddedCheckout)) return;
 
     if (useCheckoutRedirect) {
@@ -265,12 +298,52 @@ export default function TrainerSignupPaymentClient({
     return () => {
       cancelled = true;
     };
-  }, [publishableLoading, stripeSecretConfigured, useCheckoutRedirect, useEmbeddedCheckout]);
+  }, [publishableLoading, stripeSecretConfigured, useCheckoutRedirect, useEmbeddedCheckout, feeChoice]);
+
+  async function startDeferredSignup() {
+    setDeferSubmitting(true);
+    setInitError(null);
+    try {
+      const res = await fetch("/api/trainer/signup/choose-deferred-fee", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ withholdPct }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        backgroundCheckClientSecret?: string | null;
+        backgroundCheckHoldRequired?: boolean;
+      };
+      if (!res.ok) {
+        setInitError(data.error ?? TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
+        return;
+      }
+      const bgHoldCents = computeTrainerSignupBackgroundEscrowHoldCents("STANDARD_100_MINUS_BG");
+      setAmountLabel(`$${(bgHoldCents / 100).toFixed(2)}`);
+      setBackgroundCheckHoldRequired(data.backgroundCheckHoldRequired ?? true);
+      setStep("background_check");
+      setFeeChoice("defer");
+      if (data.backgroundCheckClientSecret) {
+        setClientSecret(data.backgroundCheckClientSecret);
+      } else {
+        setInitError(TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
+      }
+    } catch {
+      setInitError(TRAINER_SIGNUP_PAYMENT_UNAVAILABLE_MESSAGE);
+    } finally {
+      setDeferSubmitting(false);
+    }
+  }
 
   const redirecting =
-    useCheckoutRedirect && !publishableLoading && !displayInitError;
+    feeChoice === "pay_now" && useCheckoutRedirect && !publishableLoading && !displayInitError;
   const loadingIntent =
-    useEmbeddedCheckout && !publishableLoading && !clientSecret && !displayInitError;
+    feeChoice !== "choose" &&
+    useEmbeddedCheckout &&
+    !publishableLoading &&
+    !clientSecret &&
+    !displayInitError;
 
   const options: StripeElementsOptions | undefined = clientSecret
     ? { clientSecret, appearance: { theme: "night", variables: { colorPrimary: "#FF7E00" } } }
@@ -320,7 +393,47 @@ export default function TrainerSignupPaymentClient({
         </ol>
 
         <div className="mt-8">
-          {loading ? (
+          {isStandard && feeChoice === "choose" ? (
+            <div className="space-y-4">
+              <p className="text-sm text-white/70">Choose how you want to handle your platform onboarding fee.</p>
+              <button
+                type="button"
+                onClick={() => setFeeChoice("pay_now")}
+                className="w-full rounded-xl border border-white/10 bg-[#12151C]/80 px-4 py-4 text-left text-sm text-white/80 hover:border-[#FFD34E]/40"
+              >
+                <span className="block font-black uppercase tracking-[0.08em] text-[#FFD34E]">Pay now</span>
+                <span className="mt-2 block">Pay {platformDueLabel} today (authorized now, captured after approval).</span>
+              </button>
+              <div className="rounded-xl border border-white/10 bg-[#12151C]/80 px-4 py-4 text-sm text-white/80">
+                <span className="block font-black uppercase tracking-[0.08em] text-[#FFD34E]">Defer</span>
+                <p className="mt-2 leading-relaxed">
+                  Pay $0 today. Match Fit withholds at least {DEFERRED_FEE_MIN_WITHHOLD_PCT}% of each payout until your{" "}
+                  {deferredBalanceLabel} balance is cleared. Full balance due within 60 days of completing onboarding.
+                  Missing the deadline results in a 1-year account ban.
+                </p>
+                <label className="mt-4 block text-xs uppercase tracking-[0.12em] text-white/45">
+                  Withhold percentage ({DEFERRED_FEE_MIN_WITHHOLD_PCT}–100%)
+                </label>
+                <input
+                  type="range"
+                  min={DEFERRED_FEE_MIN_WITHHOLD_PCT}
+                  max={100}
+                  value={withholdPct}
+                  onChange={(e) => setWithholdPct(Number(e.target.value))}
+                  className="mt-2 w-full"
+                />
+                <p className="mt-1 text-xs text-white/55">{withholdPct}% of each payout</p>
+                <button
+                  type="button"
+                  disabled={deferSubmitting}
+                  onClick={() => void startDeferredSignup()}
+                  className="mt-4 flex min-h-[3rem] w-full items-center justify-center rounded-xl border border-[#FFD34E]/40 bg-[#FFD34E]/10 text-sm font-black uppercase tracking-[0.08em] text-[#FFD34E] disabled:opacity-60"
+                >
+                  {deferSubmitting ? "Starting…" : "Continue with deferred fee"}
+                </button>
+              </div>
+            </div>
+          ) : loading ? (
             <p className="text-sm text-white/50">
               {redirecting
                 ? `Redirecting to secure Stripe checkout${amountLabel !== "…" ? ` for ${amountLabel}` : ""}…`
@@ -340,15 +453,22 @@ export default function TrainerSignupPaymentClient({
             </div>
           ) : clientSecret && stripePromise && options ? (
             <Elements key={`${step}-${clientSecret}`} stripe={stripePromise} options={options}>
-              <PaymentForm
-                amountLabel={amountLabel}
-                pricingMode={pricingMode}
-                step={step}
-                backgroundCheckHoldRequired={backgroundCheckHoldRequired}
-                backgroundCheckPaymentIntentId={backgroundCheckPaymentIntentId}
-                onPlatformAuthorized={handlePlatformAuthorized}
-                onBackgroundCheckAuthorized={handleBackgroundCheckAuthorized}
-              />
+              {feeChoice === "defer" ? (
+                <DeferredPaymentForm
+                  amountLabel={amountLabel}
+                  onBackgroundCheckAuthorized={handleBackgroundCheckAuthorized}
+                />
+              ) : (
+                <PaymentForm
+                  amountLabel={amountLabel}
+                  pricingMode={pricingMode}
+                  step={step}
+                  backgroundCheckHoldRequired={backgroundCheckHoldRequired}
+                  backgroundCheckPaymentIntentId={backgroundCheckPaymentIntentId}
+                  onPlatformAuthorized={handlePlatformAuthorized}
+                  onBackgroundCheckAuthorized={handleBackgroundCheckAuthorized}
+                />
+              )}
             </Elements>
           ) : null}
         </div>

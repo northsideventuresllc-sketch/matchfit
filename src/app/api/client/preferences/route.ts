@@ -3,6 +3,11 @@ import {
   parseClientMatchPreferencesJson,
   serializeClientMatchPreferences,
 } from "@/lib/client-match-preferences";
+import {
+  clientHasFullPlanAccess,
+  freemiumGateError,
+  loadClientPlanGate,
+} from "@/lib/client-plan-access";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
 import { NextResponse } from "next/server";
@@ -74,6 +79,10 @@ export async function PATCH(req: Request) {
     }
 
     if (body.markComplete === true) {
+      const plan = await loadClientPlanGate(clientId);
+      if (plan && !clientHasFullPlanAccess(plan)) {
+        return NextResponse.json(freemiumGateError("FREEMIUM_NO_QUESTIONNAIRE"), { status: 403 });
+      }
       const prefs = parseClientMatchPreferencesJson(
         data.matchPreferencesJson ?? client.matchPreferencesJson ?? undefined,
       );

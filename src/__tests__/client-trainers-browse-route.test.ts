@@ -111,6 +111,19 @@ vi.mock("@/lib/internal-qa-simulation", () => ({
   refreshInternalQaClientSimulationIfNeeded: refreshInternalQaClientSimulationIfNeededMock,
 }));
 
+vi.mock("@/lib/client-plan-access", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/client-plan-access")>();
+  return {
+    ...actual,
+    loadClientPlanGate: vi.fn().mockResolvedValue({
+      clientPlanTier: "FREEMIUM",
+      vipSubscriptionActive: false,
+      stripeSubscriptionActive: false,
+      platformTrialEndsAt: new Date(Date.now() + 86_400_000),
+    }),
+  };
+});
+
 import { GET } from "@/app/api/client/trainers/browse/route";
 
 type MockTrainer = {

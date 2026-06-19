@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-19** `1.12.3-beta` → `1.13.0-beta` (**minor** — Client freemium/VIP tiers and trainer deferred registration fee option)
 - **2026-06-19** `1.12.2-beta` → `1.12.3-beta` (**patch** — Add Text post type to single content generator)
 - **2026-06-19** `1.12.1-beta` → `1.12.2-beta` (**patch** — Remove Atlanta geo split from promos, terms, and privacy copy)
 - **2026-06-19** `1.12.0-beta` → `1.12.1-beta` (**patch** — Site-wide Fitness Pros terminology and algorithmic matching copy)

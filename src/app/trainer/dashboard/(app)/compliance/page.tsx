@@ -140,7 +140,13 @@ export default async function TrainerComplianceDetailsPage() {
   const nutLabel = certificationReviewStatusLabel(profile.nutritionistCertificationReviewStatus);
   const specLabel = certificationReviewStatusLabel(profile.specialistCertificationReviewStatus);
 
-  const agreementBullets = getTrainerOnboardingAgreementBullets(Boolean(profile.registrationFeeWaived));
+  const agreementBullets = getTrainerOnboardingAgreementBullets(
+    profile.registrationFeeHoldStatus === "DEFERRED"
+      ? "deferred"
+      : profile.registrationFeeWaived
+        ? "founding"
+        : "standard",
+  );
   const hold = (profile.registrationFeeHoldStatus ?? "NOT_STARTED").trim().toUpperCase();
   const signupHoldFlow = hold === "HELD" || hold === "CAPTURED";
 

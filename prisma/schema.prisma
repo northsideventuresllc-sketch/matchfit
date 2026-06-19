@@ -400,6 +400,16 @@ model Client {
   /// True once the client consumed their one-time platform trial (reactivation requires payment).
   platformTrialConsumed Boolean @default(false)
 
+  /// FREEMIUM | VIP — tier after platform trial; VIP unlocks full client features.
+  clientPlanTier String @default("FREEMIUM")
+  /// Stripe subscription ID for client VIP plan ($10/month).
+  vipSubscriptionId String?
+  vipSubscriptionActive Boolean @default(false)
+  /// Rolling swipe counter for FREEMIUM tier (see `lib/client-plan-access.ts`).
+  freemiumSwipeCount Int @default(0)
+  /// Start of current 12-hour FREEMIUM swipe window.
+  freemiumSwipeWindowStartAt DateTime?
+
   /// Short public-style bio; never expose private address to trainer APIs.
   bio String?
 
@@ -656,6 +666,20 @@ model Trainer {
   deidentifiedAt DateTime?
   accountDeletionRequestedAt DateTime?
   accountDeletionFinalizeAt  DateTime?
+  /// Set when deferred registration fee ban or other hard blocks apply.
+  accountDeactivatedAt DateTime?
+
+  /// Standard-tier trainer chose deferred platform fee (withhold from payouts).
+  registrationFeeDeferred Boolean @default(false)
+  registrationFeeDeferredBalanceCents Int @default(0)
+  registrationFeeDeferredStartAt DateTime?
+  registrationFeeDeferredDeadlineAt DateTime?
+  registrationFeeGraceDeadlineAt DateTime?
+  /// Trainer-chosen withhold % (minimum 20, maximum 100).
+  registrationFeeWithholdPct Int @default(20)
+  registrationFeeDeferredBannedAt DateTime?
+  /// SHA-256 hash of W-9 SSN at ban time for re-registration blocking.
+  registrationFeeDeferredBanSsnHash String?
 
   profile           TrainerProfile?
   twoFactorChannels TrainerTwoFactorChannel[]
@@ -1507,6 +1531,9 @@ model BookedTrainingSession {
   allocatedNetAddonCents Int @default(0)
 
   disputeOpenedAt DateTime?
+
+  /// JSON snapshot when deferred registration fee withhold applies at payout settlement.
+  payoutWithholdMetaJson String?
 
   /// Set when marketplace cron evaluated punch-in compliance for this session (idempotent miss counter).
   punchMissEvaluatedAt DateTime?

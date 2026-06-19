@@ -43,6 +43,9 @@ export function trainerAllowsTransactionalEmailKind(
     case "COACH_PACKAGE_SALE":
       return prefs.emailPurchases;
     case "TRAINER_PAYOUT":
+    case "TRAINER_DEFERRED_FEE_GRACE_STARTED":
+    case "TRAINER_DEFERRED_FEE_BANNED":
+    case "TRAINER_DEFERRED_FEE_CLEARED":
       return prefs.emailPayouts;
     case "SUBSCRIPTION_MANAGEMENT_UPDATE":
     case "PAYMENT_FAILED":
