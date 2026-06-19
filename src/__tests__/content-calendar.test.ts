@@ -1,62 +1,61 @@
 import { describe, expect, it } from "vitest";
-import { getContentCalendarRotation } from "@/lib/content-calendar/rotation";
 import {
-  estDateString,
-  isPostMissed,
-  shouldShowMissedPrompt,
-} from "@/lib/content-calendar/schedule-utils";
+  CONTENT_CALENDAR_MAX_HASHTAGS,
+  CONTENT_CALENDAR_REPURPOSE_CHAR_LIMIT,
+  enforceGeneratedPostContent,
+  fitCaptionForRepurpose,
+  normalizeFitnessProLanguage,
+  normalizeHashtags,
+  normalizeTargetGroup,
+  repurposePostLength,
+} from "@/lib/content-calendar/content-rules";
+import { getContentCalendarRotation } from "@/lib/content-calendar/rotation";
 
 describe("getContentCalendarRotation", () => {
-  it("rotates four target groups across post types with offset", () => {
-    const base = getContentCalendarRotation(0, 7);
-    expect(base.Carousel).toBe("Virtual Clients");
-    expect(base.Static).toBe("Atlanta Trainers");
-    expect(base.Video).toBe("Virtual Trainers");
-    expect(base.Text).toBe("Atlanta Clients");
+  it("rotates Fitness Pros and Clients across post types with offset", () => {
+    const base = getContentCalendarRotation(0, 1);
+    expect(base.Carousel).toBe("Clients");
+    expect(base.Static).toBe("Fitness Pros");
+    expect(base.Video).toBe("Clients");
+    expect(base.Text).toBe("Fitness Pros");
   });
 
-  it("advances groups by weekday index", () => {
+  it("advances audiences by weekday index", () => {
     const mon = getContentCalendarRotation(0, 0);
     const tue = getContentCalendarRotation(1, 0);
-    expect(mon.Carousel).toBe("Atlanta Trainers");
-    expect(tue.Carousel).toBe("Virtual Trainers");
+    expect(mon.Carousel).toBe("Fitness Pros");
+    expect(tue.Carousel).toBe("Clients");
   });
 });
 
-describe("schedule-utils EST missed posts", () => {
-  it("marks post missed after 11:59pm EST on scheduled date", () => {
-    const postDate = "2026-06-02";
-    const beforeDeadline = new Date("2026-06-03T03:59:00.000Z");
-    const afterDeadline = new Date("2026-06-03T04:01:00.000Z");
-    expect(isPostMissed({ postDate, posted: false, now: beforeDeadline })).toBe(false);
-    expect(isPostMissed({ postDate, posted: false, now: afterDeadline })).toBe(true);
-    expect(isPostMissed({ postDate, posted: true, now: afterDeadline })).toBe(false);
+describe("content-rules", () => {
+  it("maps legacy audience labels to Fitness Pros or Clients", () => {
+    expect(normalizeTargetGroup("Atlanta Trainers")).toBe("Fitness Pros");
+    expect(normalizeTargetGroup("Virtual Clients")).toBe("Clients");
   });
 
-  it("shows missed prompt on the calendar day after the scheduled post date", () => {
-    const postDate = "2026-06-02";
-    const beforeDeadline = new Date("2026-06-03T03:30:00.000Z");
-    const nextDay = new Date("2026-06-04T05:00:00.000Z");
-    expect(
-      shouldShowMissedPrompt({
-        postDate,
-        posted: false,
-        missedPromptDismissed: false,
-        now: beforeDeadline,
-      }),
-    ).toBe(false);
-    expect(
-      shouldShowMissedPrompt({
-        postDate,
-        posted: false,
-        missedPromptDismissed: false,
-        now: nextDay,
-      }),
-    ).toBe(true);
+  it("caps hashtags at five", () => {
+    expect(normalizeHashtags(["a", "b", "c", "d", "e", "f"])).toEqual(["a", "b", "c", "d", "e"]);
   });
 
-  it("formats EST calendar date", () => {
-    const d = new Date("2026-06-03T15:00:00.000Z");
-    expect(estDateString(d)).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  it("normalizes trainer language to Fitness Pros", () => {
+    expect(normalizeFitnessProLanguage("Atlanta trainers wanted")).toBe("Atlanta Fitness Pros wanted");
+  });
+
+  it("fits caption within repurpose limit including hashtags", () => {
+    const hashtags = ["MatchFit", "Beta"];
+    const longCaption = "x".repeat(CONTENT_CALENDAR_REPURPOSE_CHAR_LIMIT);
+    const fitted = fitCaptionForRepurpose(longCaption, hashtags);
+    expect(repurposePostLength(fitted, hashtags)).toBeLessThanOrEqual(CONTENT_CALENDAR_REPURPOSE_CHAR_LIMIT);
+  });
+
+  it("enforces generated post content rules", () => {
+    const result = enforceGeneratedPostContent({
+      caption: "Join our trainers today!",
+      hashtags: ["one", "two", "three", "four", "five", "six"],
+    });
+    expect(result.hashtags).toHaveLength(CONTENT_CALENDAR_MAX_HASHTAGS);
+    expect(result.caption).toContain("Fitness Pros");
+    expect(result.withinLimit).toBe(true);
   });
 });

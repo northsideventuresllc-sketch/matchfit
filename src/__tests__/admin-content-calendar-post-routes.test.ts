@@ -4,7 +4,7 @@ const {
   mockRequireAdminSession,
   mockIsNiBrainConfiguredAsync,
   mockRecordContentLearning,
-  mockUpdatePostCaption,
+  mockUpdatePostFields,
   mockDeletePost,
   mockMarkPostPosted,
   mockDismissMissedPrompt,
@@ -18,7 +18,7 @@ const {
   mockRequireAdminSession: vi.fn(),
   mockIsNiBrainConfiguredAsync: vi.fn(),
   mockRecordContentLearning: vi.fn(),
-  mockUpdatePostCaption: vi.fn(),
+  mockUpdatePostFields: vi.fn(),
   mockDeletePost: vi.fn(),
   mockMarkPostPosted: vi.fn(),
   mockDismissMissedPrompt: vi.fn(),
@@ -45,7 +45,8 @@ vi.mock("@/lib/content-calendar/content-calendar-ai", () => ({
 }));
 
 vi.mock("@/lib/content-calendar/content-calendar-store", () => ({
-  updatePostCaption: mockUpdatePostCaption,
+  updatePostFields: mockUpdatePostFields,
+  updatePostCaption: mockUpdatePostFields,
   deletePost: mockDeletePost,
   markPostPosted: mockMarkPostPosted,
   dismissMissedPrompt: mockDismissMissedPrompt,
@@ -71,7 +72,7 @@ describe("/api/admin/content-calendar/posts/[id] route", () => {
       rememberMe: true,
     });
     mockIsNiBrainConfiguredAsync.mockResolvedValue(true);
-    mockUpdatePostCaption.mockResolvedValue(undefined);
+    mockUpdatePostFields.mockResolvedValue(undefined);
     mockDeletePost.mockResolvedValue(undefined);
     mockRecordContentLearning.mockResolvedValue(undefined);
   });
@@ -120,7 +121,7 @@ describe("/api/admin/content-calendar/posts/[id] route", () => {
 
     expect(res.status).toBe(400);
     await expect(res.json()).resolves.toEqual({ error: "Invalid request." });
-    expect(mockUpdatePostCaption).not.toHaveBeenCalled();
+    expect(mockUpdatePostFields).not.toHaveBeenCalled();
   });
 
   it("updates caption and records learning diffs for caption and visual prompt changes", async () => {
@@ -139,11 +140,16 @@ describe("/api/admin/content-calendar/posts/[id] route", () => {
     );
 
     expect(res.status).toBe(200);
-    await expect(res.json()).resolves.toEqual({ ok: true });
-    expect(mockUpdatePostCaption).toHaveBeenCalledWith({
+    await expect(res.json()).resolves.toEqual({
+      ok: true,
+      caption: "New caption",
+      visualPrompt: "new visual prompt",
+    });
+    expect(mockUpdatePostFields).toHaveBeenCalledWith({
       postId: "post_1",
       caption: "New caption",
       visualPrompt: "new visual prompt",
+      hashtags: undefined,
     });
     expect(mockRecordContentLearning).toHaveBeenCalledTimes(2);
     expect(mockRecordContentLearning).toHaveBeenNthCalledWith(
@@ -198,7 +204,7 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     mockRegenerateCalendarPost.mockResolvedValue({
       dayIndex: 1,
       postType: "Static",
-      targetGroup: "Atlanta Trainers",
+      targetGroup: "Fitness Pros",
       platforms: "Instagram",
       caption: "Regenerated caption",
       visualPrompt: "Regenerated visual",

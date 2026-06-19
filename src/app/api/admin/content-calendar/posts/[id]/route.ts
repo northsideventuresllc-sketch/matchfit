@@ -1,14 +1,21 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { updatePostCaption } from "@/lib/content-calendar/content-calendar-store";
+import {
+  CONTENT_CALENDAR_MAX_HASHTAGS,
+  enforceGeneratedPostContent,
+  normalizeHashtags,
+} from "@/lib/content-calendar/content-rules";
+import { updatePostFields } from "@/lib/content-calendar/content-calendar-store";
 import { isNiBrainConfiguredAsync, recordContentLearning } from "@/lib/ni-brain-client";
 import { requireAdminSession } from "@/lib/require-admin";
 
 const patchSchema = z.object({
   caption: z.string().max(8000).optional(),
   visualPrompt: z.string().max(8000).nullable().optional(),
+  hashtags: z.array(z.string().max(100)).max(CONTENT_CALENDAR_MAX_HASHTAGS).optional(),
   originalCaption: z.string().optional(),
   originalVisualPrompt: z.string().nullable().optional(),
+  originalHashtags: z.array(z.string()).optional(),
 });
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -42,39 +49,72 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (!parsed.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
 
   try {
-    if (parsed.data.caption !== undefined) {
-      await updatePostCaption({
-        postId: id,
-        caption: parsed.data.caption,
-        visualPrompt: parsed.data.visualPrompt,
+    const data = parsed.data;
+    const hasUpdates =
+      data.caption !== undefined || data.visualPrompt !== undefined || data.hashtags !== undefined;
+    if (!hasUpdates) {
+      return NextResponse.json({ error: "No fields to update." }, { status: 400 });
+    }
+
+    let caption = data.caption;
+    let hashtags = data.hashtags !== undefined ? normalizeHashtags(data.hashtags) : undefined;
+    if (caption !== undefined || hashtags !== undefined) {
+      const enforced = enforceGeneratedPostContent({
+        caption: caption ?? data.originalCaption ?? "",
+        hashtags: hashtags ?? normalizeHashtags(data.originalHashtags),
       });
-      if (
-        parsed.data.originalCaption !== undefined &&
-        parsed.data.originalCaption.trim() !== parsed.data.caption.trim()
-      ) {
+      if (caption !== undefined) caption = enforced.caption;
+      if (hashtags !== undefined || data.hashtags !== undefined) hashtags = enforced.hashtags;
+    }
+
+    await updatePostFields({
+      postId: id,
+      caption,
+      visualPrompt: data.visualPrompt,
+      hashtags,
+    });
+
+    if (
+      data.originalCaption !== undefined &&
+      caption !== undefined &&
+      data.originalCaption.trim() !== caption.trim()
+    ) {
+      await recordContentLearning({
+        signalType: "EDIT_DIFF",
+        postId: id,
+        originalText: data.originalCaption,
+        editedText: caption,
+        meta: { field: "caption" },
+      });
+    }
+    if (
+      data.visualPrompt !== undefined &&
+      data.originalVisualPrompt !== undefined &&
+      (data.originalVisualPrompt ?? "").trim() !== (data.visualPrompt ?? "").trim()
+    ) {
+      await recordContentLearning({
+        signalType: "EDIT_DIFF",
+        postId: id,
+        originalText: data.originalVisualPrompt ?? "",
+        editedText: data.visualPrompt ?? "",
+        meta: { field: "visualPrompt" },
+      });
+    }
+    if (data.originalHashtags !== undefined && hashtags !== undefined) {
+      const orig = normalizeHashtags(data.originalHashtags).join(",");
+      const next = hashtags.join(",");
+      if (orig !== next) {
         await recordContentLearning({
           signalType: "EDIT_DIFF",
           postId: id,
-          originalText: parsed.data.originalCaption,
-          editedText: parsed.data.caption,
-          meta: { field: "caption" },
-        });
-      }
-      if (
-        parsed.data.visualPrompt !== undefined &&
-        parsed.data.originalVisualPrompt !== undefined &&
-        (parsed.data.originalVisualPrompt ?? "").trim() !== (parsed.data.visualPrompt ?? "").trim()
-      ) {
-        await recordContentLearning({
-          signalType: "EDIT_DIFF",
-          postId: id,
-          originalText: parsed.data.originalVisualPrompt ?? "",
-          editedText: parsed.data.visualPrompt ?? "",
-          meta: { field: "visualPrompt" },
+          originalText: data.originalHashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" "),
+          editedText: hashtags.map((h) => `#${h}`).join(" "),
+          meta: { field: "hashtags" },
         });
       }
     }
-    return NextResponse.json({ ok: true });
+
+    return NextResponse.json({ ok: true, caption, visualPrompt: data.visualPrompt, hashtags });
   } catch (e) {
     console.error("[content-calendar post PATCH]", e);
     return NextResponse.json({ error: "Could not save post." }, { status: 500 });

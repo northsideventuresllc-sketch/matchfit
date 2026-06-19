@@ -7,7 +7,7 @@ export const CONTENT_CALENDAR_PLATFORMS_GEN = [
 ] as const;
 
 export const CONTENT_CALENDAR_CONTENT_TYPES = [
-  "Trainer Recruitment",
+  "Fitness Pro Recruitment",
   "Brand Awareness",
   "FitHub Feature",
   "Client Pain Point",
@@ -22,18 +22,13 @@ export const CONTENT_CALENDAR_TONES = [
   "Bold / Direct",
 ] as const;
 
-export const CONTENT_CALENDAR_GROUPS = [
-  "Atlanta Trainers",
-  "Virtual Trainers",
-  "Atlanta Clients",
-  "Virtual Clients",
-] as const;
+export const CONTENT_CALENDAR_GROUPS = ["Fitness Pros", "Clients"] as const;
 
 /** Max posts in one bulk generation run (shown in UI warning). */
 export const CONTENT_CALENDAR_BULK_MAX_COUNT = 20;
 
 export const CONTENT_CALENDAR_BULK_DEFAULT_PROMPT =
-  "Scan social media performance, ad statistics, and user activity to inform each post.";
+  "Scan social profiles, website promos, ad statistics, and user activity to inform each post.";
 
 export type ContentCalendarGroup = (typeof CONTENT_CALENDAR_GROUPS)[number];
 
@@ -63,8 +58,9 @@ export type ContentCalendarGeneratorPostType = (typeof CONTENT_CALENDAR_GENERATO
 export const CONTENT_CALENDAR_DAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const;
 export const CONTENT_CALENDAR_DAYS_LONG = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] as const;
 
-export const CONTENT_CALENDAR_BRAND_FACTS = `Match Fit — two-sided fitness marketplace connecting personal trainers with clients in Atlanta.
-Beta v1.2+, Atlanta focus. Clients: $10/month. Trainer premium from $20/month. 20% platform fee on sessions.
-Features: swipe-based discovery, Fit Hub social feed, AI matching, virtual + in-person.
+export const CONTENT_CALENDAR_BRAND_FACTS = `Match Fit — two-sided fitness marketplace connecting Fitness Pros with clients.
+Beta v1.2+. Clients: $10/month. Fitness Pro premium from $20/month. 20% platform fee on sessions.
+Features: swipe-based discovery, Fit Hub social feed, AI matching, virtual + in-person (in-person launch limited to Atlanta operationally — do NOT lead marketing with geography).
 Brand: bold, direct, real — no fluff. Colors: dark #07080C, orange #FF7E00. Handle: @theofficialmatchfit
-Goal: grow beta trainers and clients. Site: match-fit.net`;
+Universal language: always "Fitness Pros" (never trainers/personal trainers/coaches as the primary label).
+Goal: grow beta Fitness Pros and clients. Site: match-fit.net`;

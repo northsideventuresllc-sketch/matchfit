@@ -1,0 +1,25 @@
+name: Match Fit content calendar sync
+
+on:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  content-calendar-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke content calendar sync cron
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ secrets.MATCH_FIT_APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$APP_URL" ]; then
+            echo "Skipping: set repository secrets CRON_SECRET and MATCH_FIT_APP_URL (e.g. https://match-fit.net)."
+            exit 0
+          fi
+          URL="${APP_URL%/}/api/cron/content-calendar-sync"
+          echo "GET $URL"
+          curl -fsS -X GET \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "$URL"

@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-18** `1.11.0-beta` → `1.12.0-beta` (**minor** — Content calendar: Fitness Pros/Clients schedule, editable prompts, website and social scans)
 - **2026-06-18** `1.10.0-beta` → `1.11.0-beta` (**minor** — Admin operational alerts expandable category bubbles with full report modals)
 - **2026-06-16** `1.9.4-beta` → `1.10.0-beta` (**minor** — Admin Email Templates page with edit, preview, and approval workflow; founding coach background-check coverage)
 - **2026-06-16** `1.9.3-beta` → `1.9.4-beta` (**patch** — Outreach HQ hub stats with per-platform filters)
