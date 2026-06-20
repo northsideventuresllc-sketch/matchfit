@@ -159,7 +159,7 @@ export async function activateTrainerDeferredFeeOnCompliance(trainerId: string):
   if (dueCents <= 0) return;
 
   const now = new Date();
-  const { deadlineAt, graceDeadlineAt } = computeDeferredFeeDeadlines(now);
+  const { deadlineAt } = computeDeferredFeeDeadlines(now);
 
   await prisma.trainer.update({
     where: { id: trainerId },
