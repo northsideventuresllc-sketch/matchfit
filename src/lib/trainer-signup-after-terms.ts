@@ -37,6 +37,10 @@ export async function createTrainerAccountAfterTermsAcceptance(
     await markTrainerPendingAfterTermsAcceptance(trainerId, now, tx);
   });
 
+  await prisma.trainerDraft
+    .deleteMany({ where: { email: email.toLowerCase() } })
+    .catch((err) => console.error("[createTrainerAccountAfterTermsAcceptance] draft cleanup failed:", err));
+
   if (options?.betaInviteEntryId) {
     await markTrainerWaitlistRegistered(options.betaInviteEntryId, trainerId);
   }
