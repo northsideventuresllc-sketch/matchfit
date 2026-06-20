@@ -23,12 +23,27 @@ describe("hydratePlatformEnvFromDatabase", () => {
     delete process.env.NI_BRAIN_SUPABASE_URL;
     delete process.env.NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY;
     delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENAI_API_KEY;
   });
 
   afterEach(() => {
     delete process.env.NI_BRAIN_SUPABASE_URL;
     delete process.env.NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY;
     delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+  });
+
+  it("prefers a valid Anthropic env key over platform_secrets", async () => {
+    process.env.ANTHROPIC_API_KEY = "sk-ant-from-env";
+    readPlatformSecret.mockImplementation(async (key: string) => {
+      if (key === "ANTHROPIC_API_KEY") return "sk-ant-from-db";
+      return null;
+    });
+
+    const { hydratePlatformEnvFromDatabase } = await import("@/lib/hydrate-platform-env");
+    await hydratePlatformEnvFromDatabase();
+
+    expect(process.env.ANTHROPIC_API_KEY).toBe("sk-ant-from-env");
   });
 
   it("hydrates NI Brain and Anthropic keys from platform_secrets", async () => {

@@ -4,11 +4,13 @@ import pg from "pg";
 import { directPostgresUrlForDdl } from "@/lib/direct-postgres-ddl";
 import { pgPoolConfigForConnectionString } from "@/lib/supabase-database-url";
 import { clearPlatformSecretCache } from "@/lib/platform-secrets";
+import { resetHydratePlatformEnvCache } from "@/lib/hydrate-platform-env";
 
 export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
   anthropicApiKey: z.string().startsWith("sk-ant-"),
+  anthropicModel: z.string().min(1).optional(),
 });
 
 async function upsertPlatformSecret(key: string, value: string): Promise<void> {
@@ -57,7 +59,12 @@ export async function POST(req: Request) {
     }
 
     await upsertPlatformSecret("ANTHROPIC_API_KEY", body.anthropicApiKey);
+    await upsertPlatformSecret(
+      "ANTHROPIC_ADMIN_ANALYTICS_MODEL",
+      body.anthropicModel?.trim() || "claude-sonnet-4-6",
+    );
     clearPlatformSecretCache();
+    resetHydratePlatformEnvCache();
 
     return NextResponse.json({ ok: true, message: "Anthropic API key stored in platform_secrets." });
   } catch (e) {
