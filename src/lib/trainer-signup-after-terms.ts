@@ -8,6 +8,7 @@ import { sendTrainerWelcomeEmail } from "@/lib/trainer-welcome-email";
 import { resolveTrainerSignupNextPath } from "@/lib/trainer-signup-next-path";
 import { markTrainerPendingAfterTermsAcceptance } from "@/lib/trainer-pending-onboarding";
 import { TRAINER_ONBOARDING_FEE_DEADLINE_MS } from "@/lib/trainer-onboarding-fee-deadline";
+import { trackServerConversion } from "@/lib/server-conversion-tracking";
 import type { TrainerSignupParsed } from "@/lib/trainer-register-service";
 
 export type CreateTrainerAfterTermsResult =
@@ -62,6 +63,10 @@ export async function createTrainerAccountAfterTermsAcceptance(
     firstName: body.firstName,
     trainerId,
   }).catch((err) => console.error("[createTrainerAccountAfterTermsAcceptance] welcome email failed:", err));
+
+  void trackServerConversion({ event: "trainer_tos_accepted", userId: trainerId, email }).catch((err) =>
+    console.error("[createTrainerAccountAfterTermsAcceptance] tracking failed:", err),
+  );
 
   return {
     ok: true,

@@ -10,6 +10,7 @@ import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supa
 import { findSupabaseAuthUserByEmail } from "@/lib/supabase/find-auth-user-by-email";
 import { getSupabaseEmailCallbackUrl } from "@/lib/supabase/email-callback-url";
 import { prisma } from "@/lib/prisma";
+import { trackServerConversion } from "@/lib/server-conversion-tracking";
 
 /**
  * Trainer sign-up fields safe to rescue server-side (never the plaintext password).
@@ -158,6 +159,11 @@ async function ensureSupabaseAuthSignupUser(args: {
         code: "CREATE_USER_FAILED",
         error: "Could not create your sign-up session. Try again in a moment.",
       };
+    }
+    if (args.role === "trainer") {
+      void trackServerConversion({ event: "trainer_signup_started", userId, email }).catch((err) =>
+        console.error("[ensureSupabaseAuthSignupUser] tracking failed:", err),
+      );
     }
     return { ok: true, userId };
   }
