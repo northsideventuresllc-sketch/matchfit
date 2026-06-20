@@ -39,6 +39,7 @@ The local dev database uses `postgresql://matchfit:matchfit@localhost:5432/match
 | Beta launch local setup | `npm run beta:setup` (creates `.env`, enables gates, `db push`) |
 | Beta production env check | `npm run beta:preflight:production` (after Stripe/Resend keys in `.env`) |
 | Push beta env to Vercel | `npm run beta:vercel-env` (after `npx vercel link`) |
+| Client VIP Stripe price | `npm run stripe:setup:client-vip` then `VERCEL_TOKEN=... npm run vercel:env:client-vip` |
 
 ### Scheduled jobs (waitlist + TOS cron)
 

@@ -1,6 +1,6 @@
 {
   "name": "match-fit-app",
-  "version": "1.13.0-beta",
+  "version": "1.13.1-beta",
   "private": true,
   "engines": {
     "node": ">=20.19.0 <23"
@@ -19,6 +19,9 @@
     "beta:preflight": "node --env-file=.env scripts/beta-launch-setup.mjs --preflight",
     "beta:preflight:production": "node --env-file=.env scripts/beta-launch-setup.mjs --preflight --production",
     "beta:vercel-env": "node scripts/vercel-env-push-beta.mjs",
+    "stripe:setup:client-vip": "node --env-file=.env scripts/setup-client-vip-stripe.mjs",
+    "stripe:setup:client-vip:vercel": "node --env-file=.env scripts/setup-client-vip-stripe.mjs --push-vercel",
+    "vercel:env:client-vip": "node scripts/vercel-env-set-client-vip-price.mjs --from-secrets-file",
     "vercel:env:resend": "node scripts/vercel-env-set-resend-production.mjs",
     "vercel:env:anthropic": "node scripts/vercel-env-set-anthropic-production.mjs",
     "vercel:env:ad-platform": "node scripts/vercel-env-set-ad-platform-production.mjs",

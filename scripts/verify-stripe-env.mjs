@@ -12,17 +12,22 @@ function mask(key) {
 const secret = process.env.STRIPE_SECRET_KEY?.trim();
 const publishable = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim();
 const webhook = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+const vipPrice = process.env.MATCH_FIT_CLIENT_VIP_STRIPE_PRICE_ID?.trim();
 const bgUsd = process.env.NEXT_PUBLIC_TRAINER_BACKGROUND_CHECK_FEE_USD?.trim();
 
 const errors = [];
 if (!secret) errors.push("STRIPE_SECRET_KEY is missing");
 if (!publishable) errors.push("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is missing");
 if (!webhook) errors.push("STRIPE_WEBHOOK_SECRET is missing");
+if (!vipPrice) errors.push("MATCH_FIT_CLIENT_VIP_STRIPE_PRICE_ID is missing (run npm run stripe:setup:client-vip)");
 if (!bgUsd) errors.push("NEXT_PUBLIC_TRAINER_BACKGROUND_CHECK_FEE_USD is missing");
 
 if (secret && !secret.startsWith("sk_")) errors.push("STRIPE_SECRET_KEY should start with sk_");
 if (publishable && !publishable.startsWith("pk_")) errors.push("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY should start with pk_");
 if (webhook && !webhook.startsWith("whsec_")) errors.push("STRIPE_WEBHOOK_SECRET should start with whsec_");
+if (vipPrice && !vipPrice.startsWith("price_")) {
+  errors.push("MATCH_FIT_CLIENT_VIP_STRIPE_PRICE_ID should start with price_");
+}
 
 if (errors.length) {
   console.error("Stripe env check failed:");
@@ -38,6 +43,7 @@ console.log("Stripe env OK");
 console.log(`  secret:      ${mask(secret)} (${mode})`);
 console.log(`  publishable: ${mask(publishable)} (${publishable.includes("_live_") ? "live" : "test"})`);
 console.log(`  webhook:     ${mask(webhook)}`);
+console.log(`  vip price:   ${mask(vipPrice)}`);
 console.log(`  bg fee USD:  ${bgUsd}`);
 console.log(`  account id:  ${account.id}`);
 
