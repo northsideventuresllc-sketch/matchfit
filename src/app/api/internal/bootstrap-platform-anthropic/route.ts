@@ -41,21 +41,27 @@ async function upsertPlatformSecret(key: string, value: string): Promise<void> {
   }
 }
 
-/** Bootstrap or rotate Anthropic admin AI key in platform_secrets. Authorized by Bearer anthropicApiKey. */
+/**
+ * Bootstrap or rotate Anthropic admin AI key in platform_secrets.
+ * Protect with `MATCHFIT_INTERNAL_TOOLS_SECRET` (see `.env.example`).
+ */
 export async function POST(req: Request) {
   try {
+    const secret = process.env.MATCHFIT_INTERNAL_TOOLS_SECRET?.trim();
+    if (!secret || secret.length < 16) {
+      return NextResponse.json({ error: "Internal tools are not configured." }, { status: 503 });
+    }
     const auth = req.headers.get("authorization")?.trim() ?? "";
     const bearer = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length).trim() : "";
+    if (bearer !== secret) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
 
     let body: z.infer<typeof bodySchema>;
     try {
       body = bodySchema.parse(await req.json());
     } catch {
       return NextResponse.json({ error: "Invalid Anthropic payload." }, { status: 400 });
-    }
-
-    if (!bearer || bearer !== body.anthropicApiKey) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
     await upsertPlatformSecret("ANTHROPIC_API_KEY", body.anthropicApiKey);
