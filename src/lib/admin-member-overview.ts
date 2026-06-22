@@ -1,27 +1,34 @@
 import "server-only";
 
-import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   countLaunchClients,
-  countLaunchPlatformSubscribers,
   countLaunchTrainers,
-  launchClientBillingGraceWhere,
-  launchClientCountWhere,
-  launchClientFreeTrialCountWhere,
-  launchClientPlatformPaymentGraceWhere,
+  launchClientActiveAccountWhere,
+  launchClientActiveVipWhere,
+  launchClientFreePlanWhere,
+  launchClientPlatformTrialCountWhere,
+  launchClientSubscribedPlansWhere,
   launchTrainerCountWhere,
 } from "@/lib/launch-account-counts";
 import { adminPendingTrainerWhere } from "@/lib/admin-portal-list-filters";
 import { getHomeUserCounts } from "@/lib/home-user-counts";
 import { isPrismaMissingTableError } from "@/lib/prisma-missing-column";
 
+/** Clients with no login (or profile update) activity within this window count as inactive. */
+export const ADMIN_CLIENT_INACTIVITY_DAYS = 30;
+
 export type AdminMemberOverviewPanel = {
   /** Non-test clients + trainers with Terms accepted; excludes deidentified accounts. */
   allMembersTotal: number;
-  freeTrialClients: number;
+  /** Complimentary card-free VIP trial at sign-up. */
+  vipTrialClients: number;
+  /** Active clients on Free or VIP plans (excludes VIP trial). */
   subscribedClients: number;
+  /** Launch clients inactive for {@link ADMIN_CLIENT_INACTIVITY_DAYS}+ days. */
   inactiveClients: number;
+  freePlanClients: number;
+  activeVipClients: number;
   uniqueSiteVisitorsAllTime: number;
   pendingTrainers: number;
   compliantActiveTrainers: number;
@@ -32,26 +39,6 @@ type CountRow = { n: bigint };
 
 function n(row: CountRow | undefined): number {
   return Number(row?.n ?? BigInt(0));
-}
-
-/** Clients who subscribed but are outside billing grace and not in trial. */
-function launchClientInactiveSubscriberWhere(now = new Date()): Prisma.ClientWhereInput {
-  return {
-    ...launchClientCountWhere(),
-    accountDeactivatedAt: null,
-    OR: [
-      { stripeLastSubscriptionInvoicePaidAt: { not: null } },
-      { AND: [{ stripeSubscriptionId: { not: null } }, { stripeSubscriptionId: { not: "" } }] },
-    ],
-    stripeSubscriptionActive: false,
-    NOT: {
-      OR: [
-        launchClientFreeTrialCountWhere(now),
-        launchClientPlatformPaymentGraceWhere(now),
-        launchClientBillingGraceWhere(now),
-      ],
-    },
-  };
 }
 
 /** Onboarded trainers without recent activity (inverse of home active trainers). */
@@ -86,22 +73,36 @@ async function countUniqueSiteVisitorsAllTime(): Promise<number> {
   }
 }
 
+export async function countInactiveLaunchClients(now = new Date()): Promise<number> {
+  const threshold = new Date(now.getTime() - ADMIN_CLIENT_INACTIVITY_DAYS * 24 * 60 * 60 * 1000);
+  return prisma.client.count({
+    where: {
+      ...launchClientActiveAccountWhere(),
+      updatedAt: { lt: threshold },
+    },
+  });
+}
+
 export async function getAdminMemberOverviewPanel(now = new Date()): Promise<AdminMemberOverviewPanel> {
   const userCounts = await getHomeUserCounts();
 
   const [
     allMembersTotal,
-    freeTrialClients,
+    vipTrialClients,
     subscribedClients,
     inactiveClients,
+    freePlanClients,
+    activeVipClients,
     uniqueSiteVisitorsAllTime,
     inactiveTrainers,
     pendingTrainers,
   ] = await Promise.all([
     countAllMembersTotal(),
-    prisma.client.count({ where: launchClientFreeTrialCountWhere(now) }),
-    countLaunchPlatformSubscribers(),
-    prisma.client.count({ where: launchClientInactiveSubscriberWhere(now) }),
+    prisma.client.count({ where: launchClientPlatformTrialCountWhere(now) }),
+    prisma.client.count({ where: launchClientSubscribedPlansWhere(now) }),
+    countInactiveLaunchClients(now),
+    prisma.client.count({ where: launchClientFreePlanWhere(now) }),
+    prisma.client.count({ where: launchClientActiveVipWhere() }),
     countUniqueSiteVisitorsAllTime(),
     countInactiveTrainers(),
     prisma.trainer.count({ where: adminPendingTrainerWhere() }),
@@ -109,9 +110,11 @@ export async function getAdminMemberOverviewPanel(now = new Date()): Promise<Adm
 
   return {
     allMembersTotal,
-    freeTrialClients,
+    vipTrialClients,
     subscribedClients,
     inactiveClients,
+    freePlanClients,
+    activeVipClients,
     uniqueSiteVisitorsAllTime,
     pendingTrainers,
     compliantActiveTrainers: userCounts.trainersActive,

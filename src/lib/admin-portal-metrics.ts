@@ -34,6 +34,7 @@ import {
   parseSignupFieldsJson,
   signupFieldsForRole,
 } from "@/lib/signup-form-progress";
+import { ADMIN_CLIENT_INACTIVITY_DAYS, countInactiveLaunchClients } from "@/lib/admin-member-overview";
 import { getHomeUserCounts } from "@/lib/home-user-counts";
 import { isMissingClientPlatformTrialColumnError } from "@/lib/ensure-client-platform-trial-schema";
 import { isMissingTrainerRegisterSchemaError } from "@/lib/ensure-trainer-register-schema";
@@ -58,6 +59,9 @@ import {
   launchClientCountWhere,
   launchClientFreeTrialCountWhere,
   launchClientPlatformPaymentGraceWhere,
+  launchClientActiveAccountWhere,
+  launchClientActiveVipWhere,
+  launchClientFreePlanWhere,
   launchClientPlatformTrialCountWhere,
   launchClientStripeTrialCountWhere,
   launchClientWithCardWhere,
@@ -485,14 +489,18 @@ export async function getAdminClientPipelinePanel(now = new Date()): Promise<Adm
     AND: [activePendingClientRegistrationWhere(now), ownerTestPendingWhere],
   };
 
-  const [startedSignup, basicInfoNoTos, freeTrial, progressRows, pendingRegs] = await Promise.all([
+  const [startedSignup, basicInfoNoTos, vipTrial, freePlan, activeVip, inactiveClients, progressRows, pendingRegs] =
+    await Promise.all([
     prisma.signupFormProgress
       .count({ where: { role: "client", stage: "started_signup", ...ownerTestSignupWhere } })
       .catch(() => 0),
     prisma.signupFormProgress
       .count({ where: { role: "client", stage: "basic_info_complete", ...ownerTestSignupWhere } })
       .catch(() => 0),
-    safeClientCount(launchClientFreeTrialCountWhere(now)),
+    safeClientCount(launchClientPlatformTrialCountWhere(now)),
+    safeClientCount(launchClientFreePlanWhere(now)),
+    safeClientCount(launchClientActiveVipWhere()),
+    countInactiveLaunchClients(now),
     prisma.signupFormProgress
       .findMany({
         where: {
@@ -559,7 +567,14 @@ export async function getAdminClientPipelinePanel(now = new Date()): Promise<Adm
     stages: [
       { id: "started_signup", label: "Started Sign Up", count: startedSignup + pendingRegs.length },
       { id: "basic_info_no_tos", label: "Basic Info Complete, ToS Not Signed", count: basicInfoNoTos },
-      { id: "free_trial", label: "Clients in Free Trial", count: freeTrial },
+      { id: "vip_trial", label: "VIP Clients (FREE trial)", count: vipTrial },
+      { id: "free_plan", label: "Free Plan Clients", count: freePlan },
+      { id: "active_vip", label: "Active VIP Clients", count: activeVip },
+      {
+        id: "inactive",
+        label: `Inactive Clients (${ADMIN_CLIENT_INACTIVITY_DAYS}+ days)`,
+        count: inactiveClients,
+      },
     ],
     entries,
   };

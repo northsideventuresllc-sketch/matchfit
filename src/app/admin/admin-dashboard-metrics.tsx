@@ -57,9 +57,11 @@ export function MemberOverviewSection({ panel }: { panel: AdminMemberOverviewPan
       hint: "Real clients and Fitness Pros past signup (excludes test/QA and deleted accounts)",
       accent: "orange",
     },
-    { label: "Free Trial Clients", value: panel.freeTrialClients, accent: "violet" },
-    { label: "Subscribed Clients", value: panel.subscribedClients, hint: "Live billing in good standing", accent: "emerald" },
-    { label: "Inactive Clients", value: panel.inactiveClients, hint: "Subscribed previously; outside billing grace" },
+    { label: "VIP Clients (FREE trial)", value: panel.vipTrialClients, hint: "Complimentary card-free VIP trial at sign-up", accent: "violet" },
+    { label: "Subscribed Clients", value: panel.subscribedClients, hint: "Active Free + VIP clients (excludes VIP trial)", accent: "emerald" },
+    { label: "Free Plan Clients", value: panel.freePlanClients, hint: "On Free plan after trial" },
+    { label: "Active VIP Clients", value: panel.activeVipClients, hint: "Paying VIP subscriptions", accent: "emerald" },
+    { label: "Inactive Clients", value: panel.inactiveClients, hint: "No profile activity for 30+ days" },
     { label: "Unique Site Visitors", value: panel.uniqueSiteVisitorsAllTime, hint: "All-time distinct visitors" },
     { label: "Pending Fitness Pros", value: panel.pendingTrainers, hint: "Accepted Terms or onboarding started" },
     { label: "Compliant Active Fitness Pros", value: panel.compliantActiveTrainers, hint: "Fully onboarded + recent activity", accent: "emerald" },
@@ -373,9 +375,9 @@ export function ClientPipelineSection({ panel }: { panel: AdminClientPipelinePan
   return (
     <MetricsSection
       title="Client pipeline"
-      description="From 50%+ signup completion through free trial. Subscribers appear in Member overview."
+      description="From 50%+ signup completion through plan status. VIP trial, Free, VIP, and inactive counts mirror Member overview."
     >
-      <ul className="grid gap-2 sm:grid-cols-3">
+      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {panel.stages.map((s) => (
           <li key={s.id} className="rounded-xl border border-violet-400/20 bg-violet-500/[0.06] px-3 py-2.5">
             <p className="text-[10px] font-black uppercase tracking-[0.12em] text-violet-200/70">{s.label}</p>

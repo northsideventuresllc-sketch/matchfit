@@ -56,13 +56,13 @@ describe("formatAssistantStatsSnapshot", () => {
       subscribedClients: 12,
       compliantActiveTrainers: 20,
       pendingTrainers: 4,
-      freeTrialClients: 7,
+      vipTrialClients: 7,
       uniqueVisitors7d: 99,
     });
 
     expect(result.line).toBe(
-      "1 all members total · 12 subscribed clients · 20 active trainers · 4 pending trainers · 7 free trials · 99 visitors (7d)",
+      "1 all members total · 12 subscribed clients · 20 active trainers · 4 pending trainers · 7 VIP trials · 99 visitors (7d)",
     );
-    expect(result.hint).toContain("excludes test/QA");
+    expect(result.hint).toContain("Subscribed clients");
   });
 });

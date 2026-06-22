@@ -102,7 +102,7 @@ export type AssistantStatsSnapshotInput = {
   subscribedClients: number;
   compliantActiveTrainers: number;
   pendingTrainers: number;
-  freeTrialClients: number;
+  vipTrialClients: number;
   uniqueVisitors7d: number;
 };
 
@@ -112,7 +112,7 @@ export function formatAssistantStatsSnapshot(input: AssistantStatsSnapshotInput)
   hint: string;
 } {
   return {
-    line: `${input.allMembersTotal} all members total · ${input.subscribedClients} subscribed clients · ${input.compliantActiveTrainers} active trainers · ${input.pendingTrainers} pending trainers · ${input.freeTrialClients} free trials · ${input.uniqueVisitors7d} visitors (7d)`,
-    hint: "All members total = real clients + trainers with Terms accepted (excludes test/QA and deleted accounts).",
+    line: `${input.allMembersTotal} all members total · ${input.subscribedClients} subscribed clients · ${input.compliantActiveTrainers} active trainers · ${input.pendingTrainers} pending trainers · ${input.vipTrialClients} VIP trials · ${input.uniqueVisitors7d} visitors (7d)`,
+    hint: "Subscribed clients = active Free + VIP plans (excludes complimentary VIP trial).",
   };
 }
