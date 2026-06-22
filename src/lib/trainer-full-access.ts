@@ -25,7 +25,7 @@ export function hasTrainerLimitedDashboardAccess(
 ): boolean {
   if (!prof) return false;
   const hold = (prof.registrationFeeHoldStatus ?? "NOT_STARTED").trim().toUpperCase();
-  if (hold === "HELD" || hold === "CAPTURED") return true;
+  if (hold === "HELD" || hold === "CAPTURED" || hold === "DEFERRED") return true;
   if (prof.hasPaidRegistrationFee) return true;
   return Boolean(prof.limitedDashboardUnlockedAt);
 }
@@ -39,7 +39,7 @@ export function hasTrainerFullPlatformAccess(prof: TrainerAccessProfile | null |
   if (!isTrainerComplianceComplete(prof)) return false;
   const hold = (prof.registrationFeeHoldStatus ?? "").trim().toUpperCase();
   if (hold === "HELD") return false;
-  return Boolean(prof.hasPaidRegistrationFee) || hold === "CAPTURED";
+  return Boolean(prof.hasPaidRegistrationFee) || hold === "CAPTURED" || hold === "DEFERRED";
 }
 
 export function trainerFitHubPromoActive(prof: TrainerAccessProfile | null | undefined, now = new Date()): boolean {

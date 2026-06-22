@@ -27,6 +27,80 @@ type Props = {
 
 type PaymentStep = "platform" | "background_check";
 
+type FeeChoice = "pay_now" | "defer" | null;
+
+function DeferredFeeChoicePanel({
+  dueLabel,
+  onSelectPayNow,
+  onSelectDefer,
+}: {
+  dueLabel: string;
+  onSelectPayNow: () => void;
+  onSelectDefer: (withholdPct: number) => void;
+}) {
+  const [withholdPct, setWithholdPct] = useState(20);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleDefer() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      onSelectDefer(withholdPct);
+    } catch {
+      setError("Could not start deferred signup.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-white/[0.08] bg-[#12151C]/60 px-4 py-4 text-sm leading-relaxed text-white/70">
+        <p className="font-semibold text-white/90">Choose how to pay your platform fee</p>
+        <p className="mt-2">
+          Standard tier coaches can pay {dueLabel} today or defer and repay from future payouts within 60 days of
+          completing onboarding.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onSelectPayNow}
+        className="flex min-h-[3rem] w-full items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/10 text-sm font-black uppercase tracking-[0.08em] text-[#FFD34E]"
+      >
+        Pay now — {dueLabel} today
+      </button>
+      <div className="rounded-xl border border-white/[0.08] bg-[#12151C]/60 px-4 py-4 space-y-3">
+        <p className="text-sm font-semibold text-white/85">Defer — pay $0 platform fee today</p>
+        <p className="text-xs leading-relaxed text-white/55">
+          Match Fit withholds at least 20% of each payout until your {dueLabel} balance is cleared. Full balance due
+          within 60 days of completing onboarding. Missing the deadline results in a 1-year account ban.
+        </p>
+        <label className="block text-xs text-white/60">
+          Withhold percentage ({withholdPct}%)
+          <input
+            type="range"
+            min={20}
+            max={100}
+            value={withholdPct}
+            onChange={(e) => setWithholdPct(parseInt(e.target.value, 10))}
+            className="mt-2 w-full accent-[#FF7E00]"
+          />
+        </label>
+        <button
+          type="button"
+          disabled={submitting}
+          onClick={() => void handleDefer()}
+          className="flex min-h-[3rem] w-full items-center justify-center rounded-xl bg-white/10 text-sm font-black uppercase tracking-[0.08em] text-white disabled:opacity-60"
+        >
+          {submitting ? "Starting…" : "Defer platform fee"}
+        </button>
+      </div>
+      {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+    </div>
+  );
+}
+
 function PaymentForm({
   amountLabel,
   pricingMode,
@@ -162,9 +236,12 @@ export default function TrainerSignupPaymentClient({
   stripeSecretConfigured,
 }: Props) {
   const bgCovered = isTrainerBackgroundCheckPlatformCovered(pricingMode);
+  const isStandardTier = pricingMode === "STANDARD_100_MINUS_BG";
   const { publishableKey, loading: publishableLoading } = useStripePublishableKey(stripePublishableKey);
   const useEmbeddedCheckout = Boolean(publishableKey);
   const useCheckoutRedirect = !useEmbeddedCheckout && stripeSecretConfigured;
+  const [feeChoice, setFeeChoice] = useState<FeeChoice>(isStandardTier ? null : "pay_now");
+  const [deferredDueLabel, setDeferredDueLabel] = useState("$100.00");
   const [step, setStep] = useState<PaymentStep>("platform");
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [amountLabel, setAmountLabel] = useState<string>("…");
@@ -191,6 +268,7 @@ export default function TrainerSignupPaymentClient({
 
   useEffect(() => {
     if (publishableLoading) return;
+    if (feeChoice !== "pay_now") return;
     if (!stripeSecretConfigured || (!useCheckoutRedirect && !useEmbeddedCheckout)) return;
 
     if (useCheckoutRedirect) {
@@ -265,7 +343,38 @@ export default function TrainerSignupPaymentClient({
     return () => {
       cancelled = true;
     };
-  }, [publishableLoading, stripeSecretConfigured, useCheckoutRedirect, useEmbeddedCheckout]);
+  }, [publishableLoading, stripeSecretConfigured, useCheckoutRedirect, useEmbeddedCheckout, feeChoice]);
+
+  async function startDeferredFlow(withholdPct: number) {
+    const res = await fetch("/api/trainer/signup/select-deferred-fee", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ withholdPct }),
+    });
+    const data = (await res.json()) as {
+      error?: string;
+      dueLabel?: string;
+      backgroundCheckClientSecret?: string;
+      backgroundCheckPaymentIntentId?: string;
+      backgroundCheckHoldCents?: number;
+    };
+    if (!res.ok) {
+      throw new Error(data.error ?? "Could not start deferred signup.");
+    }
+    if (data.dueLabel) setDeferredDueLabel(data.dueLabel);
+    if (!data.backgroundCheckClientSecret || !data.backgroundCheckPaymentIntentId) {
+      throw new Error("Background screening authorization is missing.");
+    }
+    setFeeChoice("defer");
+    setStep("background_check");
+    setBackgroundCheckPaymentIntentId(data.backgroundCheckPaymentIntentId);
+    setBackgroundCheckClientSecret(data.backgroundCheckClientSecret);
+    setClientSecret(data.backgroundCheckClientSecret);
+    if (typeof data.backgroundCheckHoldCents === "number" && data.backgroundCheckHoldCents > 0) {
+      setAmountLabel(`$${(data.backgroundCheckHoldCents / 100).toFixed(2)}`);
+    }
+  }
 
   const redirecting =
     useCheckoutRedirect && !publishableLoading && !displayInitError;
@@ -320,7 +429,13 @@ export default function TrainerSignupPaymentClient({
         </ol>
 
         <div className="mt-8">
-          {loading ? (
+          {isStandardTier && feeChoice === null ? (
+            <DeferredFeeChoicePanel
+              dueLabel={deferredDueLabel}
+              onSelectPayNow={() => setFeeChoice("pay_now")}
+              onSelectDefer={(pct) => void startDeferredFlow(pct).catch((e: Error) => setInitError(e.message))}
+            />
+          ) : loading ? (
             <p className="text-sm text-white/50">
               {redirecting
                 ? `Redirecting to secure Stripe checkout${amountLabel !== "…" ? ` for ${amountLabel}` : ""}…`

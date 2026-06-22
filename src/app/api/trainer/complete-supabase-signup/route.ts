@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Validates Supabase email confirmation and signup fields, then routes to terms
- * (Match Fit trainer row is created when the trainer agreement is accepted).
+ * (Match Fit trainer row is created when the Fitness Pro agreement is accepted).
  */
 export async function POST(req: Request) {
   try {

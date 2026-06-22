@@ -4,6 +4,14 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-22** `1.13.1-beta` → `1.13.2-beta` (**patch** — Add TrainerDraft migration for server-side signup resume)
+- **2026-06-19** `1.13.0-beta` → `1.13.1-beta` (**patch** — Default client VIP Stripe setup scripts and billing agent rule)
+- **2026-06-19** `1.12.3-beta` → `1.13.0-beta` (**minor** — Client freemium/VIP tiers and trainer deferred registration fee option)
+- **2026-06-19** `1.12.2-beta` → `1.12.3-beta` (**patch** — Add Text post type to single content generator)
+- **2026-06-19** `1.12.1-beta` → `1.12.2-beta` (**patch** — Remove Atlanta geo split from promos, terms, and privacy copy)
+- **2026-06-19** `1.12.0-beta` → `1.12.1-beta` (**patch** — Site-wide Fitness Pros terminology and algorithmic matching copy)
+- **2026-06-18** `1.11.0-beta` → `1.12.0-beta` (**minor** — Content calendar: Fitness Pros/Clients schedule, editable prompts, website and social scans)
+- **2026-06-18** `1.10.0-beta` → `1.11.0-beta` (**minor** — Admin operational alerts expandable category bubbles with full report modals)
 - **2026-06-16** `1.9.4-beta` → `1.10.0-beta` (**minor** — Admin Email Templates page with edit, preview, and approval workflow; founding coach background-check coverage)
 - **2026-06-16** `1.9.3-beta` → `1.9.4-beta` (**patch** — Outreach HQ hub stats with per-platform filters)
 - **2026-06-16** `1.9.0-beta` → `1.9.1-beta` (**patch** — Extend BETA client free trial from 14 to 60 days)

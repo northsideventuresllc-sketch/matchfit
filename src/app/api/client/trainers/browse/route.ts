@@ -20,6 +20,7 @@ import { marketplaceActiveTrainerWhere } from "@/lib/account-deletion-grace";
 import { publicMarketplaceVisibleTrainerWhere } from "@/lib/match-fit-public-marketplace-hidden";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
+import { requireClientNotFreemiumGated } from "@/lib/client-plan-gate";
 import { getTrainerIdsHiddenFromClientMatchFeed } from "@/lib/user-block-queries";
 import { isMatchFitInternalQaClientEmail } from "@/lib/match-fit-internal-qa";
 import { refreshInternalQaClientSimulationIfNeeded } from "@/lib/internal-qa-simulation";
@@ -58,6 +59,11 @@ export async function GET(req: Request) {
     const scrollTabRaw = url.searchParams.get("scrollTab");
     const scrollTab =
       scrollTabRaw === "interested" || scrollTabRaw === "passed" ? scrollTabRaw : ("new" as const);
+
+    if (feed === "scroll") {
+      const scrollGate = await requireClientNotFreemiumGated(clientId, "FREEMIUM_NO_SCROLL");
+      if (scrollGate) return scrollGate;
+    }
 
     const prefs = parseClientMatchPreferencesJson(client.matchPreferencesJson);
 
@@ -300,6 +306,6 @@ export async function GET(req: Request) {
     });
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Could not load trainers." }, { status: 500 });
+    return NextResponse.json({ error: "Could not load Fitness Pros." }, { status: 500 });
   }
 }

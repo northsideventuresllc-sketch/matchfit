@@ -5,6 +5,7 @@ import {
   TOS_PAYOUT_DISPUTE_SUSPEND_THRESHOLD,
 } from "@/lib/tos-governance-thresholds";
 import { suspendTrainerForGovernance } from "@/lib/trainer-suspension-marketplace";
+import { applyWithholdToPayout } from "@/lib/trainer-deferred-fee";
 import { deadlineBeforeSession } from "@/lib/trainer-client-booking-service";
 import {
   checkInWindowStartAt,
@@ -806,23 +807,48 @@ export async function settleSessionsPastPayoutBuffer(now = new Date()): Promise<
       disputeOpenedAt: null,
       fulfillmentStatus: "GATES_IN_PAYOUT_BUFFER",
     },
-    select: { id: true, conversationId: true },
+    select: {
+      id: true,
+      conversationId: true,
+      trainerId: true,
+      allocatedCoachServiceCents: true,
+      allocatedNetAddonCents: true,
+    },
   });
   let n = 0;
   for (const r of rows) {
+    const grossPayoutCents = Math.max(0, r.allocatedCoachServiceCents + r.allocatedNetAddonCents);
+    const { netPayoutCents, withheld } = await applyWithholdToPayout(r.trainerId, grossPayoutCents);
+
+    let netService = r.allocatedCoachServiceCents;
+    let netAddon = r.allocatedNetAddonCents;
+    if (withheld > 0 && grossPayoutCents > 0) {
+      const serviceShare = r.allocatedCoachServiceCents / grossPayoutCents;
+      const serviceWithheld = Math.round(withheld * serviceShare);
+      netService = Math.max(0, r.allocatedCoachServiceCents - serviceWithheld);
+      netAddon = Math.max(0, r.allocatedNetAddonCents - (withheld - serviceWithheld));
+    }
+
     await prisma.bookedTrainingSession.update({
       where: { id: r.id },
       data: {
         fulfillmentStatus: "SESSION_PAYMENT_ROUTE_CLEARED",
         sessionClosedAt: now,
+        allocatedCoachServiceCents: netService,
+        allocatedNetAddonCents: netAddon,
+        trainerAmountCents: netPayoutCents,
         updatedAt: now,
       },
     });
     n += 1;
     if (r.conversationId) {
+      const withholdNote =
+        withheld > 0
+          ? ` Deferred platform fee withhold: $${(withheld / 100).toFixed(2)} (net payout $${(netPayoutCents / 100).toFixed(2)}).`
+          : "";
       await appendSystemChat({
         conversationId: r.conversationId,
-        body: `Match Fit: payout buffer expired without a dispute freeze. Ledger payout may proceed outbound per payout ops (subject to connected accounts / treasury).`,
+        body: `Match Fit: payout buffer expired without a dispute freeze. Ledger payout may proceed outbound per payout ops (subject to connected accounts / treasury).${withholdNote}`,
       });
     }
   }

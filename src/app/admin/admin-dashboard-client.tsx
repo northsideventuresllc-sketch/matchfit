@@ -652,7 +652,7 @@ export function AdminDashboardClient(props: {
             />
             {q.trim().length < 2 ? (
               <p className="text-sm text-white/45">
-                Type at least 2 characters to search real members, including pending trainers.
+                Type at least 2 characters to search real members, including pending Fitness Pros.
               </p>
             ) : (
               <div className="grid gap-6 lg:grid-cols-2">
@@ -664,7 +664,7 @@ export function AdminDashboardClient(props: {
                   onImpersonate={impersonate}
                 />
                 <AdminDirectoryUserTable
-                  title="Trainers"
+                  title="Fitness Pros"
                   kind="trainer"
                   list={rows?.trainers ?? []}
                   busyKey={busyKey}

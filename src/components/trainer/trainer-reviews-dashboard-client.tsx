@@ -146,7 +146,7 @@ export function TrainerReviewsDashboardClient() {
         {data.profileAverageStars != null && data.profileWindowCount > 0 ? (
           <div className="mt-4 flex justify-center">
             <p className="inline-flex rounded-full border border-[#FFD34E]/35 bg-[#FFD34E]/[0.1] px-4 py-2 text-sm font-black text-[#FFD34E]">
-              {data.profileAverageStars.toFixed(1)}★ trainer · {data.profileWindowCount} in Public Window
+              {data.profileAverageStars.toFixed(1)}★ Fitness Pro · {data.profileWindowCount} in Public Window
             </p>
           </div>
         ) : (

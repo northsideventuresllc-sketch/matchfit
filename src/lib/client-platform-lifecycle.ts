@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 export type ClientPlatformLifecycleSummary = {
   paymentGraceStarted: number;
   accountsDeactivated: number;
+  freemiumDowngrades: number;
 };
 
 const platformBillingSelect = {
@@ -16,6 +17,8 @@ const platformBillingSelect = {
   paymentGraceUntil: true,
   accountDeactivatedAt: true,
   platformTrialConsumed: true,
+  vipSubscriptionActive: true,
+  clientPlanTier: true,
 } as const;
 
 async function startPaymentGraceForClient(
@@ -85,7 +88,28 @@ export async function runClientPlatformBillingLifecycleJobs(): Promise<ClientPla
     accountsDeactivated += 1;
   }
 
-  return { paymentGraceStarted, accountsDeactivated };
+  const freemiumCandidates = await prisma.client.findMany({
+    where: {
+      deidentifiedAt: null,
+      accountDeactivatedAt: null,
+      platformTrialConsumed: true,
+      stripeSubscriptionActive: false,
+      vipSubscriptionActive: false,
+      clientPlanTier: { not: "FREEMIUM" },
+    },
+    select: { id: true },
+  });
+
+  let freemiumDowngrades = 0;
+  for (const client of freemiumCandidates) {
+    await prisma.client.update({
+      where: { id: client.id },
+      data: { clientPlanTier: "FREEMIUM" },
+    });
+    freemiumDowngrades += 1;
+  }
+
+  return { paymentGraceStarted, accountsDeactivated, freemiumDowngrades };
 }
 
 /** Lazy lifecycle sync for a single client on login or dashboard access. */

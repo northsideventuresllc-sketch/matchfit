@@ -30,8 +30,8 @@ export default function TrainerSignupCompletePage() {
   const turnstile = useTurnstileGate();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [draft, setDraft] = useState<TrainerSupabaseSignupDraft | null>(() => readTrainerSignupDraft());
-  const [checkingServerDraft, setCheckingServerDraft] = useState(false);
+  const [draft] = useState<TrainerSupabaseSignupDraft | null>(() => readTrainerSignupDraft());
+  const [checkingServerDraft, setCheckingServerDraft] = useState(() => readTrainerSignupDraft() == null);
   const [recovered, setRecovered] = useState<{ email: string; fields: RecoveredDraftFields } | null>(null);
   const [recoverPassword, setRecoverPassword] = useState("");
 
@@ -88,7 +88,6 @@ export default function TrainerSignupCompletePage() {
     // confirmed their email in a new tab/device, recover what the server saved
     // when the verification email was sent (everything except the password).
     let cancelled = false;
-    setCheckingServerDraft(true);
     void fetch("/api/trainer/onboarding/draft", { credentials: "include" })
       .then((res) => (res.ok ? res.json() : null))
       .then((body: { data?: RecoveredDraftFields | null; email?: string | null } | null) => {

@@ -1,4 +1,5 @@
 import { fithubPostPublicInteractSelect, isFitHubPostPubliclyInteractable } from "@/lib/fithub-public-feed";
+import { requireClientNotFreemiumGated } from "@/lib/client-plan-gate";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
 import { NextResponse } from "next/server";
@@ -16,6 +17,8 @@ export async function POST(_req: Request, ctx: Ctx) {
     if (!clientId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
+    const fitHubGate = await requireClientNotFreemiumGated(clientId, "FREEMIUM_NO_FITHUB_INTERACT");
+    if (fitHubGate) return fitHubGate;
     const { id: postId } = await ctx.params;
     const post = await prisma.trainerFitHubPost.findUnique({
       where: { id: postId },

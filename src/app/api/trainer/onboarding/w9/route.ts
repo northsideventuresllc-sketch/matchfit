@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { mockRecordTrainerW9Intent } from "@/lib/trainer-onboarding-mocks";
+import { checkSsnAlreadyBanned } from "@/lib/trainer-deferred-fee";
 import { maybeActivateTrainerDashboard } from "@/lib/trainer-onboarding-dashboard";
 import { trainerW9StepSchema } from "@/lib/validations/trainer-register";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
@@ -19,6 +20,13 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: msg }, { status: 400 });
     }
     const body = parsed.data;
+
+    if (await checkSsnAlreadyBanned(body.tin)) {
+      return NextResponse.json(
+        { error: "TRAINER_SSN_BANNED", message: "This account is ineligible for registration." },
+        { status: 403 },
+      );
+    }
 
     await mockRecordTrainerW9Intent({ trainerId });
 

@@ -987,184 +987,500 @@ export async function getAdminFinancesPanel(now = new Date()): Promise<AdminFina
   };
 }
 
+const ADMIN_ALERTS_LIST_LIMIT = 100;
+
+function formatAlertFilingDate(iso: string | null | undefined): string {
+  if (!iso) return "Undated";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "Undated";
+  return date.toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function trainerDisplayName(args: {
+  username: string;
+  preferredName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+}): string {
+  const legal = [args.firstName, args.lastName].filter(Boolean).join(" ").trim();
+  return args.preferredName?.trim() || legal || `@${args.username}`;
+}
+
+function reporterLabel(args: {
+  anonymous: boolean;
+  reporterName: string | null;
+  reporterEmail: string | null;
+}): string {
+  if (args.anonymous) return "Anonymous reporter";
+  const name = args.reporterName?.trim();
+  const email = args.reporterEmail?.trim();
+  if (name && email) return `${name} (${email})`;
+  return name || email || "Unknown reporter";
+}
+
+function parseChatSignals(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? parsed.map((value) => String(value)) : [];
+  } catch {
+    return [];
+  }
+}
+
 async function loadAlertGroup(
   id: string,
   label: string,
+  description: string,
   severity: AdminAlertSeverity,
   items: AdminAlertItem[],
   total: number,
 ): Promise<AdminAlertGroup> {
-  return { id, label, severity, items, total };
+  return { id, label, description, severity, items, total };
 }
 
 export async function getAdminAlertsPanel(): Promise<AdminAlertsPanel> {
-  const limit = 8;
+  const failedBgWhere = {
+    ...launchTrainerCountWhere(),
+    profile: {
+      is: {
+        OR: [
+          { backgroundCheckStatus: { in: ["DENIED", "NEEDS_FURTHER_REVIEW"] } },
+          { backgroundCheckReviewStatus: { in: ["DENIED", "NEEDS_FURTHER_REVIEW", "REJECTED"] } },
+        ],
+      },
+    },
+  };
+
+  const chatContactWhere = {
+    status: "PENDING" as const,
+    OR: [
+      { matchedSignalsJson: { contains: "phone" } },
+      { matchedSignalsJson: { contains: "email" } },
+      { matchedSignalsJson: { contains: "PHONE" } },
+      { matchedSignalsJson: { contains: "EMAIL" } },
+    ],
+  };
 
   const [
     failedBgTrainers,
+    failedBgTotal,
     bugReports,
+    bugReportsTotal,
     productIdeas,
+    productIdeasTotal,
     failedPayments,
-    suspendedClients,
-    suspendedTrainers,
-    openSafetyReports,
-    pendingChatReviews,
+    failedPaymentsTotal,
+    suspendedClientRows,
+    suspendedTrainerRows,
+    suspendedClientsTotal,
+    suspendedTrainersTotal,
+    safetyReports,
+    safetyReportsTotal,
     chatContactWarnings,
+    pendingChatReviewsTotal,
     openDisputes,
+    openDisputesTotal,
   ] = await Promise.all([
     prisma.trainer.findMany({
-      where: {
-        ...launchTrainerCountWhere(),
-        profile: {
-          is: {
-            OR: [
-              { backgroundCheckStatus: { in: ["DENIED", "NEEDS_FURTHER_REVIEW"] } },
-              { backgroundCheckReviewStatus: { in: ["DENIED", "NEEDS_FURTHER_REVIEW", "REJECTED"] } },
-            ],
-          },
-        },
-      },
-      take: limit,
+      where: failedBgWhere,
+      take: ADMIN_ALERTS_LIST_LIMIT,
       orderBy: { createdAt: "desc" },
-      select: { id: true, username: true, preferredName: true, firstName: true, lastName: true, profile: { select: { backgroundCheckStatus: true } } },
+      select: {
+        id: true,
+        username: true,
+        preferredName: true,
+        firstName: true,
+        lastName: true,
+        createdAt: true,
+        profile: { select: { backgroundCheckStatus: true, backgroundCheckReviewStatus: true } },
+      },
     }),
-    prisma.clientBugReport.findMany({ orderBy: { createdAt: "desc" }, take: limit, select: { id: true, createdAt: true, category: true, description: true } }),
-    prisma.productIdeaSubmission.findMany({ orderBy: { createdAt: "desc" }, take: limit, select: { id: true, createdAt: true, category: true, description: true } }),
+    prisma.trainer.count({ where: failedBgWhere }),
+    prisma.clientBugReport.findMany({
+      orderBy: { createdAt: "desc" },
+      take: ADMIN_ALERTS_LIST_LIMIT,
+      select: {
+        id: true,
+        createdAt: true,
+        category: true,
+        description: true,
+        anonymous: true,
+        reporterName: true,
+        reporterEmail: true,
+      },
+    }),
+    prisma.clientBugReport.count(),
+    prisma.productIdeaSubmission.findMany({
+      orderBy: { createdAt: "desc" },
+      take: ADMIN_ALERTS_LIST_LIMIT,
+      select: {
+        id: true,
+        createdAt: true,
+        category: true,
+        description: true,
+        anonymous: true,
+        reporterName: true,
+        reporterEmail: true,
+      },
+    }),
+    prisma.productIdeaSubmission.count(),
     prisma.client.findMany({
       where: launchClientBillingGraceWhere(new Date()),
-      take: limit,
+      take: ADMIN_ALERTS_LIST_LIMIT,
       orderBy: { subscriptionGraceUntil: "asc" },
-      select: { id: true, username: true, subscriptionGraceUntil: true },
+      select: { id: true, username: true, subscriptionGraceUntil: true, createdAt: true },
+    }),
+    prisma.client.count({ where: launchClientBillingGraceWhere(new Date()) }),
+    prisma.client.findMany({
+      where: { safetySuspended: true, ...launchClientCountWhere() },
+      take: ADMIN_ALERTS_LIST_LIMIT,
+      orderBy: { createdAt: "desc" },
+      select: { id: true, username: true, createdAt: true },
+    }),
+    prisma.trainer.findMany({
+      where: { safetySuspended: true, ...launchTrainerCountWhere() },
+      take: ADMIN_ALERTS_LIST_LIMIT,
+      orderBy: { createdAt: "desc" },
+      select: { id: true, username: true, preferredName: true, firstName: true, lastName: true, createdAt: true },
     }),
     prisma.client.count({ where: { safetySuspended: true, ...launchClientCountWhere() } }),
     prisma.trainer.count({ where: { safetySuspended: true, ...launchTrainerCountWhere() } }),
+    prisma.safetyReport.findMany({
+      where: { status: "PENDING" },
+      take: ADMIN_ALERTS_LIST_LIMIT,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        createdAt: true,
+        category: true,
+        details: true,
+        reporterIsTrainer: true,
+        reporterId: true,
+        subjectIsTrainer: true,
+        subjectId: true,
+      },
+    }),
     prisma.safetyReport.count({ where: { status: "PENDING" } }),
     prisma.chatAdminReviewItem.findMany({
-      where: { status: "PENDING" },
+      where: chatContactWhere,
+      take: ADMIN_ALERTS_LIST_LIMIT,
       orderBy: { createdAt: "desc" },
-      take: limit,
-      select: { id: true, createdAt: true, matchedSignalsJson: true, bodyExcerpt: true },
-    }),
-    prisma.chatAdminReviewItem.findMany({
-      where: {
-        status: "PENDING",
-        OR: [
-          { matchedSignalsJson: { contains: "phone" } },
-          { matchedSignalsJson: { contains: "email" } },
-          { matchedSignalsJson: { contains: "PHONE" } },
-          { matchedSignalsJson: { contains: "EMAIL" } },
-        ],
+      select: {
+        id: true,
+        createdAt: true,
+        conversationId: true,
+        authorRole: true,
+        matchedSignalsJson: true,
+        bodyExcerpt: true,
       },
-      take: limit,
+    }),
+    prisma.chatAdminReviewItem.count({ where: { status: "PENDING" } }),
+    prisma.sessionPayoutDispute.findMany({
+      where: { status: "PENDING_ADMIN" },
+      take: ADMIN_ALERTS_LIST_LIMIT,
       orderBy: { createdAt: "desc" },
-      select: { id: true, createdAt: true, bodyExcerpt: true },
+      select: {
+        id: true,
+        createdAt: true,
+        bookedTrainingSessionId: true,
+        clientId: true,
+        answeredWasRescheduled: true,
+        answeredWasCancelled: true,
+        answeredReasonDetail: true,
+      },
     }),
     prisma.sessionPayoutDispute.count({ where: { status: "PENDING_ADMIN" } }),
   ]);
 
-  const failedBgItems: AdminAlertItem[] = failedBgTrainers.map((t) => ({
-    id: t.id,
-    severity: "critical" as const,
-    title: `@${t.username}`,
-    detail: `Background check: ${t.profile?.backgroundCheckStatus ?? "unknown"}`,
-    href: `/admin`,
-    createdAt: null,
-  }));
+  const failedBgItems: AdminAlertItem[] = failedBgTrainers.map((trainer) => {
+    const bgStatus = trainer.profile?.backgroundCheckStatus ?? "unknown";
+    const reviewStatus = trainer.profile?.backgroundCheckReviewStatus ?? "not reviewed";
+    const displayName = trainerDisplayName(trainer);
+    const createdAt = trainer.createdAt.toISOString();
+    return {
+      id: trainer.id,
+      severity: "critical" as const,
+      title: displayName,
+      detail: `Background check ${bgStatus.toLowerCase().replaceAll("_", " ")}`,
+      fullDetail: `${displayName} (@${trainer.username}) requires background-check review. Screening status is ${bgStatus}; manual review status is ${reviewStatus}.`,
+      filingLabel: `Screening · ${formatAlertFilingDate(createdAt)}`,
+      fields: [
+        { label: "Trainer", value: displayName },
+        { label: "Username", value: `@${trainer.username}` },
+        { label: "Screening status", value: bgStatus },
+        { label: "Review status", value: reviewStatus },
+        { label: "Trainer ID", value: trainer.id },
+      ],
+      href: "/admin",
+      createdAt,
+    };
+  });
+
+  const bugReportItems: AdminAlertItem[] = bugReports.map((report) => {
+    const createdAt = report.createdAt.toISOString();
+    const reporter = reporterLabel(report);
+    return {
+      id: report.id,
+      severity: "warning" as const,
+      title: report.category,
+      detail: report.description.slice(0, 120),
+      fullDetail: report.description,
+      filingLabel: `Bug report · ${formatAlertFilingDate(createdAt)}`,
+      fields: [
+        { label: "Category", value: report.category },
+        { label: "Reporter", value: reporter },
+        { label: "Submitted", value: formatAlertFilingDate(createdAt) },
+        { label: "Report ID", value: report.id },
+      ],
+      href: null,
+      createdAt,
+    };
+  });
+
+  const productIdeaItems: AdminAlertItem[] = productIdeas.map((idea) => {
+    const createdAt = idea.createdAt.toISOString();
+    const reporter = reporterLabel(idea);
+    return {
+      id: idea.id,
+      severity: "info" as const,
+      title: idea.category,
+      detail: idea.description.slice(0, 120),
+      fullDetail: idea.description,
+      filingLabel: `Product idea · ${formatAlertFilingDate(createdAt)}`,
+      fields: [
+        { label: "Category", value: idea.category },
+        { label: "Submitter", value: reporter },
+        { label: "Submitted", value: formatAlertFilingDate(createdAt) },
+        { label: "Submission ID", value: idea.id },
+      ],
+      href: null,
+      createdAt,
+    };
+  });
+
+  const failedPaymentItems: AdminAlertItem[] = failedPayments.map((client) => {
+    const graceUntil = client.subscriptionGraceUntil?.toISOString() ?? null;
+    const graceLabel = formatAlertFilingDate(graceUntil);
+    return {
+      id: client.id,
+      severity: "critical" as const,
+      title: `@${client.username}`,
+      detail: `Grace until ${graceLabel}`,
+      fullDetail: `Client @${client.username} is in billing grace. Subscription access remains until ${graceLabel}, after which the account should be treated as inactive unless payment recovers.`,
+      filingLabel: `Billing grace · ${graceLabel}`,
+      fields: [
+        { label: "Client", value: `@${client.username}` },
+        { label: "Grace ends", value: graceLabel },
+        { label: "Client ID", value: client.id },
+      ],
+      href: "/admin",
+      createdAt: graceUntil,
+    };
+  });
+
+  const flaggedUserItems: AdminAlertItem[] = [
+    ...suspendedClientRows.map((client) => {
+      const createdAt = client.createdAt.toISOString();
+      return {
+        id: `client-suspended-${client.id}`,
+        severity: "warning" as const,
+        title: `@${client.username}`,
+        detail: "Client account on safety hold",
+        fullDetail: `Client @${client.username} is suspended for safety review. Restore access only after the safety workflow is complete.`,
+        filingLabel: `Safety hold · Client · ${formatAlertFilingDate(createdAt)}`,
+        fields: [
+          { label: "Account type", value: "Client" },
+          { label: "Username", value: `@${client.username}` },
+          { label: "Client ID", value: client.id },
+          { label: "Suspended since", value: formatAlertFilingDate(createdAt) },
+        ],
+        href: "/admin",
+        createdAt,
+      };
+    }),
+    ...suspendedTrainerRows.map((trainer) => {
+      const createdAt = trainer.createdAt.toISOString();
+      const displayName = trainerDisplayName(trainer);
+      return {
+        id: `trainer-suspended-${trainer.id}`,
+        severity: "warning" as const,
+        title: displayName,
+        detail: "Trainer account on safety hold",
+        fullDetail: `${displayName} (@${trainer.username}) is suspended for safety review. Restore access only after the safety workflow is complete.`,
+        filingLabel: `Safety hold · Trainer · ${formatAlertFilingDate(createdAt)}`,
+        fields: [
+          { label: "Account type", value: "Trainer" },
+          { label: "Trainer", value: displayName },
+          { label: "Username", value: `@${trainer.username}` },
+          { label: "Trainer ID", value: trainer.id },
+          { label: "Suspended since", value: formatAlertFilingDate(createdAt) },
+        ],
+        href: "/admin",
+        createdAt,
+      };
+    }),
+    ...safetyReports.map((report) => {
+      const createdAt = report.createdAt.toISOString();
+      const reporterType = report.reporterIsTrainer ? "Trainer" : "Client";
+      const subjectType = report.subjectIsTrainer ? "Trainer" : "Client";
+      return {
+        id: report.id,
+        severity: "warning" as const,
+        title: report.category,
+        detail: report.details.slice(0, 120),
+        fullDetail: report.details,
+        filingLabel: `Safety report · ${formatAlertFilingDate(createdAt)}`,
+        fields: [
+          { label: "Category", value: report.category },
+          { label: "Reporter", value: `${reporterType} · ${report.reporterId}` },
+          { label: "Subject", value: `${subjectType} · ${report.subjectId}` },
+          { label: "Submitted", value: formatAlertFilingDate(createdAt) },
+          { label: "Report ID", value: report.id },
+        ],
+        href: null,
+        createdAt,
+      };
+    }),
+  ].sort((a, b) => {
+    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return bTime - aTime;
+  });
+
+  const chatWarningItems: AdminAlertItem[] = chatContactWarnings.map((item) => {
+    const createdAt = item.createdAt.toISOString();
+    const signals = parseChatSignals(item.matchedSignalsJson);
+    const signalSummary = signals.length > 0 ? signals.join(", ") : "Contact leakage signal";
+    return {
+      id: item.id,
+      severity: "warning" as const,
+      title: "Contact signal detected",
+      detail: item.bodyExcerpt.slice(0, 100),
+      fullDetail: item.bodyExcerpt,
+      filingLabel: `Chat review · ${formatAlertFilingDate(createdAt)}`,
+      fields: [
+        { label: "Author role", value: item.authorRole },
+        { label: "Matched signals", value: signalSummary },
+        { label: "Conversation ID", value: item.conversationId },
+        { label: "Flagged", value: formatAlertFilingDate(createdAt) },
+        { label: "Review ID", value: item.id },
+      ],
+      href: null,
+      createdAt,
+    };
+  });
+
+  const securityItems: AdminAlertItem[] = [
+    ...(RLS_ADVISORY_TABLE_COUNT > 0
+      ? [
+          {
+            id: "rls-advisory",
+            severity: "warning" as const,
+            title: "RLS advisory",
+            detail: `${RLS_ADVISORY_TABLE_COUNT} Supabase tables flagged (internal)`,
+            fullDetail: `${RLS_ADVISORY_TABLE_COUNT} Supabase table(s) are flagged by the internal RLS advisory scan. Review row-level security policies before the next production deploy.`,
+            filingLabel: "Compliance · RLS advisory",
+            fields: [
+              { label: "Advisory type", value: "Row-level security" },
+              { label: "Tables flagged", value: String(RLS_ADVISORY_TABLE_COUNT) },
+            ],
+            href: null,
+            createdAt: null,
+          },
+        ]
+      : []),
+    ...openDisputes.map((dispute) => {
+      const createdAt = dispute.createdAt.toISOString();
+      const outcome = dispute.answeredWasCancelled
+        ? "Client reported cancellation"
+        : dispute.answeredWasRescheduled
+          ? "Client reported reschedule"
+          : "Client reported a payout issue";
+      return {
+        id: dispute.id,
+        severity: "info" as const,
+        title: "Payout dispute",
+        detail: outcome,
+        fullDetail: dispute.answeredReasonDetail,
+        filingLabel: `Payout dispute · ${formatAlertFilingDate(createdAt)}`,
+        fields: [
+          { label: "Outcome reported", value: outcome },
+          { label: "Session ID", value: dispute.bookedTrainingSessionId },
+          { label: "Client ID", value: dispute.clientId },
+          { label: "Opened", value: formatAlertFilingDate(createdAt) },
+          { label: "Dispute ID", value: dispute.id },
+        ],
+        href: null,
+        createdAt,
+      };
+    }),
+  ];
+
+  const flaggedUsersTotal = suspendedClientsTotal + suspendedTrainersTotal + safetyReportsTotal;
+  const securityTotal = RLS_ADVISORY_TABLE_COUNT + openDisputesTotal;
 
   const groups: AdminAlertGroup[] = [
     await loadAlertGroup(
       "failed_bg",
       "Failed Background Checks",
-      severityFromCount(failedBgTrainers.length, 3, 1),
+      "Trainers blocked by screening or manual review.",
+      severityFromCount(failedBgTotal, 3, 1),
       failedBgItems,
-      failedBgTrainers.length,
+      failedBgTotal,
     ),
     await loadAlertGroup(
       "bug_reports",
       "Bug Reports",
-      severityFromCount(bugReports.length, 10, 3),
-      bugReports.map((b) => ({
-        id: b.id,
-        severity: "warning" as const,
-        title: b.category,
-        detail: b.description.slice(0, 120),
-        href: null,
-        createdAt: b.createdAt.toISOString(),
-      })),
-      bugReports.length,
+      "Client-submitted defects and broken flows.",
+      severityFromCount(bugReportsTotal, 10, 3),
+      bugReportItems,
+      bugReportsTotal,
     ),
     await loadAlertGroup(
       "product_ideas",
       "Product Ideas",
+      "Feature requests and product feedback from members.",
       "info",
-      productIdeas.map((p) => ({
-        id: p.id,
-        severity: "info" as const,
-        title: p.category,
-        detail: p.description.slice(0, 120),
-        href: null,
-        createdAt: p.createdAt.toISOString(),
-      })),
-      productIdeas.length,
+      productIdeaItems,
+      productIdeasTotal,
     ),
     await loadAlertGroup(
       "failed_payments",
       "Failed Payments (Grace)",
-      severityFromCount(failedPayments.length, 5, 1),
-      failedPayments.map((c) => ({
-        id: c.id,
-        severity: "critical" as const,
-        title: `@${c.username}`,
-        detail: `Grace until ${c.subscriptionGraceUntil?.toISOString() ?? "unknown"}`,
-        href: `/admin`,
-        createdAt: c.subscriptionGraceUntil?.toISOString() ?? null,
-      })),
-      failedPayments.length,
+      "Clients still inside the billing grace window.",
+      severityFromCount(failedPaymentsTotal, 5, 1),
+      failedPaymentItems,
+      failedPaymentsTotal,
     ),
     await loadAlertGroup(
       "flagged_users",
       "Flagged Users & Safety",
-      severityFromCount(suspendedClients + suspendedTrainers + openSafetyReports, 5, 1),
-      [
-        ...(suspendedClients > 0
-          ? [{ id: "clients-suspended", severity: "warning" as const, title: "Suspended clients", detail: `${suspendedClients} client(s) on safety hold`, href: "/admin", createdAt: null }]
-          : []),
-        ...(suspendedTrainers > 0
-          ? [{ id: "trainers-suspended", severity: "warning" as const, title: "Suspended trainers", detail: `${suspendedTrainers} trainer(s) on safety hold`, href: "/admin", createdAt: null }]
-          : []),
-        ...(openSafetyReports > 0
-          ? [{ id: "safety-open", severity: "warning" as const, title: "Open safety reports", detail: `${openSafetyReports} pending review`, href: "/admin", createdAt: null }]
-          : []),
-      ],
-      suspendedClients + suspendedTrainers + openSafetyReports,
+      "Suspended accounts and open safety reports.",
+      severityFromCount(flaggedUsersTotal, 5, 1),
+      flaggedUserItems,
+      flaggedUsersTotal,
     ),
     await loadAlertGroup(
       "chat_warnings",
       "Chat Warnings (PII / Contact Leakage)",
+      "Pending chat review items with contact-sharing signals.",
       severityFromCount(chatContactWarnings.length, 3, 1),
-      chatContactWarnings.map((c) => ({
-        id: c.id,
-        severity: "warning" as const,
-        title: "Contact signal detected",
-        detail: c.bodyExcerpt.slice(0, 100),
-        href: null,
-        createdAt: c.createdAt.toISOString(),
-      })),
-      pendingChatReviews.length,
+      chatWarningItems,
+      pendingChatReviewsTotal,
     ),
     await loadAlertGroup(
       "security",
       "Security & Compliance",
-      RLS_ADVISORY_TABLE_COUNT > 0 || openDisputes > 3 ? "warning" : "info",
-      [
-        ...(RLS_ADVISORY_TABLE_COUNT > 0
-          ? [{ id: "rls-advisory", severity: "warning" as const, title: "RLS advisory", detail: `${RLS_ADVISORY_TABLE_COUNT} Supabase tables flagged (internal)`, href: null, createdAt: null }]
-          : []),
-        ...(openDisputes > 0
-          ? [{ id: "disputes", severity: "info" as const, title: "Open payout disputes", detail: `${openDisputes} awaiting admin`, href: null, createdAt: null }]
-          : []),
-      ],
-      RLS_ADVISORY_TABLE_COUNT + openDisputes,
+      "Payout disputes and internal compliance advisories.",
+      RLS_ADVISORY_TABLE_COUNT > 0 || openDisputesTotal > 3 ? "warning" : "info",
+      securityItems,
+      securityTotal,
     ),
   ];
 

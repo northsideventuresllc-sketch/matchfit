@@ -108,7 +108,7 @@ export async function fetchRecentContentLearnings(limit = 8): Promise<string[]> 
 }
 
 export async function recordContentLearning(args: {
-  signalType: "EDIT_DIFF" | "POSTED" | "HASHTAG_RESEARCH" | "SOCIAL_SCAN" | "MEDIA_GENERATED";
+  signalType: "EDIT_DIFF" | "POSTED" | "HASHTAG_RESEARCH" | "SOCIAL_SCAN" | "MEDIA_GENERATED" | "WEBSITE_SCAN";
   postId?: string;
   originalText?: string;
   editedText?: string;

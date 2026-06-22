@@ -7,6 +7,7 @@ import {
   purgeExpiredArchivedConversations,
 } from "@/lib/trainer-client-conversation-archive";
 import { getSessionClientId } from "@/lib/session";
+import { requireClientNotFreemiumGated } from "@/lib/client-plan-gate";
 import {
   isTrainerVisibleInClientDiscovery,
   trainerDiscoveryProfileSelect,
@@ -29,6 +30,9 @@ export async function GET(_req: Request, ctx: RouteContext) {
     if (!clientId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
+
+    const chatGate = await requireClientNotFreemiumGated(clientId, "FREEMIUM_NO_CHAT");
+    if (chatGate) return chatGate;
 
     const { username } = await ctx.params;
     const handle = decodeURIComponent(username).trim();
@@ -142,6 +146,9 @@ export async function POST(req: Request, ctx: RouteContext) {
     if (!clientId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
+
+    const chatGate = await requireClientNotFreemiumGated(clientId, "FREEMIUM_NO_CHAT");
+    if (chatGate) return chatGate;
 
     const { username } = await ctx.params;
     const handle = decodeURIComponent(username).trim();

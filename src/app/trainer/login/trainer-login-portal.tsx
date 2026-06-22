@@ -103,11 +103,11 @@ export default function TrainerLoginPortal({
 
         <div className="mt-12 flex flex-1 flex-col sm:mt-16">
           <h1 className="text-center text-2xl font-black tracking-tight text-white sm:text-3xl">
-            {variant === "dashboard" ? "Trainer Dashboard" : "Trainer Portal"}
+            {variant === "dashboard" ? "Fitness Pro Dashboard" : "Fitness Pro Portal"}
           </h1>
           <p className="mx-auto mt-3 max-w-md text-center text-sm leading-relaxed text-white/55 sm:text-base">
             {variant === "dashboard"
-              ? "Sign in to open your trainer dashboard. Two-factor authentication uses the same secure delivery channels as client accounts."
+              ? "Sign in to open your Fitness Pro dashboard. Two-factor authentication uses the same secure delivery channels as client accounts."
               : "Sign in to continue onboarding. Two-factor authentication uses the same secure delivery channels as client accounts."}
           </p>
 
@@ -208,7 +208,7 @@ export default function TrainerLoginPortal({
 
               <div className="relative my-8 flex items-center gap-4">
                 <span className="h-px flex-1 bg-white/10" />
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-white/35">New Trainer?</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-white/35">New Fitness Pro?</span>
                 <span className="h-px flex-1 bg-white/10" />
               </div>
 
@@ -216,7 +216,7 @@ export default function TrainerLoginPortal({
                 href="/trainer/signup"
                 className="flex min-h-[3.25rem] w-full items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-white/25 hover:bg-white/[0.07]"
               >
-                Create Trainer Account
+                Create Fitness Pro Account
               </Link>
             </div>
 

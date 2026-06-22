@@ -9,7 +9,7 @@ const CATEGORIES = [
   { value: "MESSAGING_OR_CHAT", label: "Messaging or Chat" },
   { value: "FIT_HUB_OR_SOCIAL", label: "Fit Hub or Social" },
   { value: "BILLING_OR_PAYMENTS", label: "Billing or Payments" },
-  { value: "TRAINER_TOOLS", label: "Trainer Tools" },
+  { value: "TRAINER_TOOLS", label: "Fitness Pro Tools" },
   { value: "CLIENT_TOOLS", label: "Client Tools" },
   { value: "OTHER", label: "Other" },
 ] as const;

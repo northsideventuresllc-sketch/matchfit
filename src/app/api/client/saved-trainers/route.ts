@@ -7,6 +7,7 @@ import {
 } from "@/lib/trainer-client-discovery";
 import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
 import { getSessionClientId } from "@/lib/session";
+import { requireClientSwipeAllowed } from "@/lib/client-plan-gate";
 import { NextResponse } from "next/server";
 
 function coachDisplayName(trainer: {
@@ -92,6 +93,9 @@ export async function POST(req: Request) {
     if (!trainer?.profile || !isTrainerVisibleInClientDiscovery(trainer.profile)) {
       return NextResponse.json({ error: "Coach not found or not available." }, { status: 404 });
     }
+
+    const swipeGate = await requireClientSwipeAllowed(clientId);
+    if (swipeGate) return swipeGate;
 
     const prior = await prisma.clientSavedTrainer.findUnique({
       where: { clientId_trainerId: { clientId, trainerId: trainer.id } },

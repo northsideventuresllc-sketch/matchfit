@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import type {
-  AdminAlertsPanel,
   AdminBackgroundCheckEntry,
   AdminBackgroundChecksPanel,
   AdminClientPipelinePanel,
@@ -55,16 +54,16 @@ export function MemberOverviewSection({ panel }: { panel: AdminMemberOverviewPan
     {
       label: "All Members Total",
       value: panel.allMembersTotal,
-      hint: "Real clients and trainers past signup (excludes test/QA and deleted accounts)",
+      hint: "Real clients and Fitness Pros past signup (excludes test/QA and deleted accounts)",
       accent: "orange",
     },
     { label: "Free Trial Clients", value: panel.freeTrialClients, accent: "violet" },
     { label: "Subscribed Clients", value: panel.subscribedClients, hint: "Live billing in good standing", accent: "emerald" },
     { label: "Inactive Clients", value: panel.inactiveClients, hint: "Subscribed previously; outside billing grace" },
     { label: "Unique Site Visitors", value: panel.uniqueSiteVisitorsAllTime, hint: "All-time distinct visitors" },
-    { label: "Pending Trainers", value: panel.pendingTrainers, hint: "Accepted Terms or onboarding started" },
-    { label: "Compliant Active Trainers", value: panel.compliantActiveTrainers, hint: "Fully onboarded + recent activity", accent: "emerald" },
-    { label: "Inactive Trainers", value: panel.inactiveTrainers, hint: "Onboarded but no recent platform activity" },
+    { label: "Pending Fitness Pros", value: panel.pendingTrainers, hint: "Accepted Terms or onboarding started" },
+    { label: "Compliant Active Fitness Pros", value: panel.compliantActiveTrainers, hint: "Fully onboarded + recent activity", accent: "emerald" },
+    { label: "Inactive Fitness Pros", value: panel.inactiveTrainers, hint: "Onboarded but no recent platform activity" },
   ];
 
   return (
@@ -158,7 +157,7 @@ export function PlatformHealthSection({ panel }: { panel: AdminPlatformSummaryPa
         <StatCard
           label="Annualized subscription ARR"
           value={formatUsdFromCents(valuation.subscriptionArrCents)}
-          hint="Client $10/mo + trainer premium $20/mo"
+          hint="Client $10/mo + Fitness Pro premium $20/mo"
         />
         <StatCard
           label="Annualized 30d gross profit"
@@ -338,7 +337,7 @@ export function SiteActivitySection({ panel }: { panel: AdminSiteActivityPanel }
       </div>
       <div className="mt-5 grid gap-6 lg:grid-cols-2">
         <LoginRecencyGrid title="Client logins by recency" buckets={panel.clientLoginsByRecency} />
-        <LoginRecencyGrid title="Trainer logins by recency" buckets={panel.trainerLoginsByRecency} />
+        <LoginRecencyGrid title="Fitness Pro logins by recency" buckets={panel.trainerLoginsByRecency} />
       </div>
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <div>
@@ -353,7 +352,7 @@ export function SiteActivitySection({ panel }: { panel: AdminSiteActivityPanel }
           </ul>
         </div>
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Top trainer actions (7d)</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Top Fitness Pro actions (7d)</p>
           <ul className="mt-2 space-y-1 text-[11px] text-white/50">
             {panel.topTrainerFunctions.map((f) => (
               <li key={f.key} className="flex justify-between">
@@ -414,9 +413,9 @@ export function ClientPipelineSection({ panel }: { panel: AdminClientPipelinePan
 
 export function PremiumTrainerActivitySection({ panel }: { panel: AdminPremiumTrainerActivityPanel }) {
   return (
-    <MetricsSection title="Premium trainer activity" description="Premium studio, featured slots, ads, tokens, and bidding.">
+    <MetricsSection title="Premium Fitness Pro activity" description="Premium studio, featured slots, ads, tokens, and bidding.">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <StatCard label="Premium trainers" value={panel.premiumTrainers} accent="orange" />
+        <StatCard label="Premium Fitness Pros" value={panel.premiumTrainers} accent="orange" />
         <StatCard label="Featured slots today" value={panel.featuredSlotsToday} />
         <StatCard label="Active advertisements" value={panel.activeAdvertisements} />
         <StatCard label="Token revenue (30d)" value={formatUsdFromCents(panel.tokenRevenueCents)} accent="emerald" />
@@ -524,8 +523,8 @@ export function TrainerPipelineSection({ pipeline }: { pipeline: AdminTrainerPip
 
   return (
     <MetricsSection
-      title="Trainer onboarding pipeline"
-      description={`${pipeline.totalInPipeline} trainers past Terms of Service.`}
+      title="Fitness Pro onboarding pipeline"
+      description={`${pipeline.totalInPipeline} Fitness Pros past Terms of Service.`}
     >
       <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {pipeline.stages.map((s) => (
@@ -536,10 +535,10 @@ export function TrainerPipelineSection({ pipeline }: { pipeline: AdminTrainerPip
         ))}
       </ul>
       <div className="mt-5">
-        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Pending trainers</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Pending Fitness Pros</p>
         <div className="mt-2 max-h-56 space-y-1.5 overflow-y-auto">
           {pipeline.pendingTrainers.length === 0 ? (
-            <p className="text-sm text-white/45">No pending trainers.</p>
+            <p className="text-sm text-white/45">No pending Fitness Pros.</p>
           ) : (
             pipeline.pendingTrainers.map((t) => (
               <button
@@ -615,7 +614,7 @@ export function FinancesDetailSection({ finances, embedded }: { finances: AdminF
         <StatCard label="Clients with card on file" value={finances.clientsWithCard} />
         <StatCard label="Active subscriptions" value={finances.activeSubscriptions} hint="Live Stripe billing" />
         <StatCard
-          label="Premium trainers"
+          label="Premium Fitness Pros"
           value={finances.premiumTrainers}
           hint="Premium studio enabled (`premiumStudioEnabledAt` set)"
         />
@@ -730,7 +729,7 @@ function BackgroundCheckQueueTable({
       <table className="w-full min-w-[960px] text-left text-[11px] text-white/55">
         <thead>
           <tr className="border-b border-white/10 text-[10px] font-black uppercase tracking-[0.12em] text-white/35">
-            <th className="px-4 py-3 pr-3">Trainer</th>
+            <th>Fitness Pro</th>
             <th className="px-3 py-3">Email</th>
             <th className="px-3 py-3">Queue</th>
             <th className="px-3 py-3 whitespace-nowrap">Invite requested</th>
@@ -889,7 +888,7 @@ export function BackgroundChecksSection({
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Screening queue</p>
               <p className="mt-1 text-xs text-white/40">
-                Sorted by urgency — action-required trainers appear first.
+                Sorted by urgency — action-required Fitness Pros appear first.
               </p>
             </div>
             <p className="text-[10px] font-black uppercase tracking-[0.12em] text-white/35">
@@ -907,42 +906,5 @@ export function BackgroundChecksSection({
   );
 }
 
-export function OperationalAlertsSection({ alerts }: { alerts: AdminAlertsPanel }) {
-  return (
-    <MetricsSection title="Operational alerts" description="Trust, safety, billing, and product feedback queues.">
-      <div className="space-y-4">
-        {alerts.groups.map((g) => (
-          <div key={g.id} className="rounded-xl border border-white/[0.06] bg-[#0E1016]/80 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-white">{g.label}</p>
-              <span
-                className={`rounded-md px-1.5 py-0.5 text-[10px] font-black uppercase ${
-                  g.severity === "critical"
-                    ? "bg-[#E32B2B]/20 text-[#FFB4B4]"
-                    : g.severity === "warning"
-                      ? "bg-amber-500/20 text-amber-100"
-                      : "bg-white/10 text-white/55"
-                }`}
-              >
-                {g.severity} · {g.total}
-              </span>
-            </div>
-            {g.items.length === 0 ? (
-              <p className="mt-2 text-[11px] text-white/40">No items in preview.</p>
-            ) : (
-              <ul className="mt-2 space-y-1.5">
-                {g.items.map((item) => (
-                  <li key={item.id} className="text-[11px] text-white/50">
-                    <span className="font-medium text-white/75">{item.title}</span>
-                    {item.detail ? ` — ${item.detail}` : ""}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        ))}
-      </div>
-    </MetricsSection>
-  );
-}
+export { OperationalAlertsSection } from "@/app/admin/operational-alerts-section";
 

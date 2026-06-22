@@ -1,0 +1,36 @@
+---
+description: Match Fit product copy — algorithmic matching and Fitness Pro terminology
+alwaysApply: true
+---
+
+# Match Fit product copy
+
+## Do not market with heavy AI language
+
+Match Fit uses algorithms and structured signals for discovery and matching. **Do not** position the product as an "AI platform" or "AI-powered matching" in user-facing marketing, legal summaries, onboarding, or homepage copy.
+
+| Prefer | Avoid (user-facing) |
+|--------|---------------------|
+| algorithmic matching | AI matching, AI-assisted matching, AI-powered matching |
+| algorithmic surfacing / ranking | AI learns how you behave |
+| match profile / discovery profile | AI match profile |
+| structured questionnaire signals | AI suggests coaches |
+
+**OK to keep "AI"** only for internal admin tools (AI Assistant, Outreach HQ generation, content calendar generation, optional listing price check) — label them as operator tools, not core product marketing.
+
+Internal code names (`aiMatchProfileText`, etc.) may stay; do not surface those names to users.
+
+## Fitness Pro vs trainer
+
+**Fitness Pro** / **Fitness Pros** — canonical label for all non-client professionals on the platform (personal trainers, coaches, nutritionists, specialists).
+
+| Use **Fitness Pro(s)** | Keep **trainer** |
+|------------------------|------------------|
+| Marketplace, signup, waitlist, admin metrics | Assigned coach in a session ("your trainer" in PT/DIY copy) |
+| Directory, discovery, Fit Hub author role | Personal training industry positioning |
+| Legal defined term for platform professionals | Service types: "personal training", CPT, "Certified Personal Trainer" badge |
+| Sign-up CTAs, counters, featured listings | Code routes (`/trainer/`), API fields, DB columns |
+
+**Trainer Dashboard** → **Fitness Pro Dashboard** in user-facing nav when referring to the pro portal product.
+
+When editing Terms or Privacy, update the defined **Fitness Pro** term consistently; coordinate section headings with legal meaning.

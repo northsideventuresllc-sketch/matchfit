@@ -14,6 +14,7 @@ import {
 } from "@/lib/trainer-background-check-renewal";
 import { finalizeDueAccountDeletions } from "@/lib/account-deletion-grace";
 import { runClientPlatformBillingLifecycleJobs } from "@/lib/client-platform-lifecycle";
+import { runTrainerDeferredFeeLifecycleJobs } from "@/lib/trainer-deferred-fee-lifecycle";
 import { runBetaWaitlistCronJobs } from "@/lib/beta-waitlist-service";
 import { processTrainerComplianceWindowExpirations } from "@/lib/trainer-compliance-window-cron";
 import { processTrainerOnboardingFeeDeadlineExpirations } from "@/lib/trainer-onboarding-fee-deadline-cron";
@@ -46,6 +47,11 @@ export type TosCronSummary = {
   clientPlatformBilling: {
     paymentGraceStarted: number;
     accountsDeactivated: number;
+    freemiumDowngrades: number;
+  };
+  trainerDeferredFee: {
+    graceStarted: number;
+    banned: number;
   };
   trainerComplianceWindowsExpired: number;
   trainerOnboardingFeeDeadlinesExpired: number;
@@ -236,11 +242,17 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   } catch (e) {
     console.error("[tos cron] account deletion finalize", e);
   }
-  let clientPlatformBilling = { paymentGraceStarted: 0, accountsDeactivated: 0 };
+  let clientPlatformBilling = { paymentGraceStarted: 0, accountsDeactivated: 0, freemiumDowngrades: 0 };
   try {
     clientPlatformBilling = await runClientPlatformBillingLifecycleJobs();
   } catch (e) {
     console.error("[tos cron] client platform billing lifecycle", e);
+  }
+  let trainerDeferredFee = { graceStarted: 0, banned: 0 };
+  try {
+    trainerDeferredFee = await runTrainerDeferredFeeLifecycleJobs();
+  } catch (e) {
+    console.error("[tos cron] trainer deferred fee lifecycle", e);
   }
   let trainerComplianceWindowsExpired = 0;
   let trainerOnboardingFeeDeadlinesExpired = 0;
@@ -277,6 +289,7 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     betaWaitlist,
     accountDeletions,
     clientPlatformBilling,
+    trainerDeferredFee,
     trainerComplianceWindowsExpired,
     trainerOnboardingFeeDeadlinesExpired,
     outreachArchive,

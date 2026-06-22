@@ -4,6 +4,7 @@ import {
   trainerDiscoveryProfileSelect,
 } from "@/lib/trainer-client-discovery";
 import { getSessionClientId } from "@/lib/session";
+import { requireClientSwipeAllowed } from "@/lib/client-plan-gate";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -39,6 +40,9 @@ export async function POST(req: Request) {
     if (conv?.officialChatStartedAt) {
       return NextResponse.json({ error: "You are already connected with this coach." }, { status: 400 });
     }
+
+    const swipeGate = await requireClientSwipeAllowed(clientId);
+    if (swipeGate) return swipeGate;
 
     const now = new Date();
     await prisma.clientTrainerBrowsePass.upsert({

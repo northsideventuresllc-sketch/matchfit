@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getTrainerOnboardingAgreementBullets } from "@/app/trainer/onboarding/trainer-agreement-bullets";
+import { getTrainerOnboardingAgreementBulletsLegacy } from "@/app/trainer/onboarding/trainer-agreement-bullets";
 import { TrainerComplianceCertCarousel } from "@/components/trainer/trainer-compliance-cert-carousel";
 import { TrainerComplianceCertReferenceDetails } from "@/components/trainer/trainer-compliance-cert-reference-details";
 import { TrainerComplianceCertTracksForm } from "@/components/trainer/trainer-compliance-cert-tracks-form";
@@ -140,7 +140,7 @@ export default async function TrainerComplianceDetailsPage() {
   const nutLabel = certificationReviewStatusLabel(profile.nutritionistCertificationReviewStatus);
   const specLabel = certificationReviewStatusLabel(profile.specialistCertificationReviewStatus);
 
-  const agreementBullets = getTrainerOnboardingAgreementBullets(Boolean(profile.registrationFeeWaived));
+  const agreementBullets = getTrainerOnboardingAgreementBulletsLegacy(Boolean(profile.registrationFeeWaived));
   const hold = (profile.registrationFeeHoldStatus ?? "NOT_STARTED").trim().toUpperCase();
   const signupHoldFlow = hold === "HELD" || hold === "CAPTURED";
 

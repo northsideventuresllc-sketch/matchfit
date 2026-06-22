@@ -237,7 +237,7 @@ describe("trainer signup payment routes", () => {
 
     expect(res.status).toBe(400);
     await expect(res.json()).resolves.toEqual({
-      error: "Accept the trainer agreement before payment.",
+      error: "Accept the Fitness Pro agreement before payment.",
     });
   });
 

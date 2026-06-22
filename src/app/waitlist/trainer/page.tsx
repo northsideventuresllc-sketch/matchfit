@@ -127,7 +127,7 @@ export default function TrainerWaitlistPage() {
         <div className="mt-8">
           <h1 className="text-2xl font-black tracking-tight sm:text-3xl">
             <span className="bg-gradient-to-r from-[#FFD34E] via-[#FF7E00] to-[#E32B2B] bg-clip-text text-transparent">
-              Trainer Waitlist
+              Fitness Pro Waitlist
             </span>
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-white/60">
@@ -142,7 +142,7 @@ export default function TrainerWaitlistPage() {
           <p className="text-xs leading-relaxed text-white/55">
             <span className="font-semibold text-[#FF7E00]">Note:</span> Founding coach promos (
             {trainerFoundingPromoHeadline(TRAINER_FOUNDING_CAP)} {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}) apply only
-            to the first {TRAINER_FOUNDING_CAP} trainers who sign up directly. Waitlist users receive standard pricing when
+            to the first {TRAINER_FOUNDING_CAP} Fitness Pros who sign up directly. Waitlist users receive standard pricing when
             their slot opens.
           </p>
         </div>
@@ -152,7 +152,7 @@ export default function TrainerWaitlistPage() {
         {/* Gates-closed banner */}
         {gatesOn === false ? (
           <p className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-50">
-            Trainer waitlist is not open right now.{" "}
+            Fitness Pro waitlist is not open right now.{" "}
             <Link
               href="/trainer/signup"
               className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline"

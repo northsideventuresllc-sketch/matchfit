@@ -12,7 +12,7 @@ export function getContentCalendarRotation(
 ): Record<ContentCalendarPostType, ContentCalendarGroup> {
   const result = {} as Record<ContentCalendarPostType, ContentCalendarGroup>;
   CONTENT_CALENDAR_POST_TYPES.forEach((type, i) => {
-    result[type] = CONTENT_CALENDAR_GROUPS[(i + offset + dayIndex) % 4];
+    result[type] = CONTENT_CALENDAR_GROUPS[(i + offset + dayIndex) % CONTENT_CALENDAR_GROUPS.length];
   });
   return result;
 }

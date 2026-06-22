@@ -91,6 +91,11 @@ vi.mock("@/lib/session", () => ({
   getSessionClientId: getSessionClientIdMock,
 }));
 
+vi.mock("@/lib/client-plan-gate", () => ({
+  requireClientNotFreemiumGated: vi.fn().mockResolvedValue(null),
+  requireClientSwipeAllowed: vi.fn().mockResolvedValue(null),
+}));
+
 vi.mock("@/lib/user-block-queries", () => ({
   getTrainerIdsHiddenFromClientMatchFeed: getTrainerIdsHiddenFromClientMatchFeedMock,
 }));
@@ -391,7 +396,7 @@ describe("GET /api/client/trainers/browse", () => {
     const response = await GET(makeRequest());
 
     expect(response.status).toBe(500);
-    await expect(response.json()).resolves.toEqual({ error: "Could not load trainers." });
+    await expect(response.json()).resolves.toEqual({ error: "Could not load Fitness Pros." });
 
     errorSpy.mockRestore();
   });

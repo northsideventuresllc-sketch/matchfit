@@ -540,7 +540,7 @@ export const ProfileSettingsPanel = forwardRef<ProfileSettingsPanelRef, PanelPro
 
       <CollapsibleSettingsSection
         title="Name, Bio & Private Address"
-        description="Update how your name appears, add a short bio, and keep a private mailing address on file. Your address is never shown to trainers or other clients."
+        description="Update how your name appears, add a short bio, and keep a private mailing address on file. Your address is never shown to Fitness Pros or other clients."
         defaultOpen={false}
       >
         <form

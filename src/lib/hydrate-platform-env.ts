@@ -13,7 +13,21 @@ import { resetStripeClient } from "@/lib/stripe-server";
 
 let hydratePromise: Promise<void> | null = null;
 
-/** Loads live Stripe, Resend, Anthropic, NI Brain, and ad platform config from `platform_secrets` when env is missing. */
+function isValidAnthropicApiKey(key: string | null | undefined): boolean {
+  return Boolean(key?.trim().startsWith("sk-ant-"));
+}
+
+function isValidOpenAiApiKey(key: string | null | undefined): boolean {
+  const trimmed = key?.trim();
+  return Boolean(trimmed && (trimmed.startsWith("sk-") || trimmed.startsWith("sk-proj-")));
+}
+
+/** Clears cached platform env hydration (call after rotating platform_secrets). */
+export function resetHydratePlatformEnvCache(): void {
+  hydratePromise = null;
+}
+
+/** Loads live Stripe, Resend, Anthropic, OpenAI, NI Brain, and ad platform config from `platform_secrets` when env is missing. */
 export async function hydratePlatformEnvFromDatabase(): Promise<void> {
   if (hydratePromise) return hydratePromise;
 
@@ -68,14 +82,32 @@ export async function hydratePlatformEnvFromDatabase(): Promise<void> {
       if (resolved) process.env.RESEND_FROM_EMAIL = resolved;
     }
 
-    const anthropicKey = await readPlatformSecret("ANTHROPIC_API_KEY");
-    if (anthropicKey) {
-      process.env.ANTHROPIC_API_KEY = anthropicKey;
+    if (!isValidAnthropicApiKey(process.env.ANTHROPIC_API_KEY)) {
+      const anthropicKey = await readPlatformSecret("ANTHROPIC_API_KEY");
+      if (anthropicKey) {
+        process.env.ANTHROPIC_API_KEY = anthropicKey;
+      }
     }
 
-    const anthropicModel = await readPlatformSecret("ANTHROPIC_ADMIN_ANALYTICS_MODEL");
-    if (anthropicModel) {
-      process.env.ANTHROPIC_ADMIN_ANALYTICS_MODEL = anthropicModel;
+    if (!process.env.ANTHROPIC_ADMIN_ANALYTICS_MODEL?.trim()) {
+      const anthropicModel = await readPlatformSecret("ANTHROPIC_ADMIN_ANALYTICS_MODEL");
+      if (anthropicModel) {
+        process.env.ANTHROPIC_ADMIN_ANALYTICS_MODEL = anthropicModel;
+      }
+    }
+
+    if (!isValidOpenAiApiKey(process.env.OPENAI_API_KEY)) {
+      const openAiKey = await readPlatformSecret("OPENAI_API_KEY");
+      if (openAiKey) {
+        process.env.OPENAI_API_KEY = openAiKey;
+      }
+    }
+
+    if (!process.env.OPENAI_ADMIN_ANALYTICS_MODEL?.trim()) {
+      const openAiModel = await readPlatformSecret("OPENAI_ADMIN_ANALYTICS_MODEL");
+      if (openAiModel) {
+        process.env.OPENAI_ADMIN_ANALYTICS_MODEL = openAiModel;
+      }
     }
 
     const niBrainUrl = await readPlatformSecret("NI_BRAIN_SUPABASE_URL");

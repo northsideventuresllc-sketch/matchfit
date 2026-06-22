@@ -1,4 +1,5 @@
 import { clientConfirmBooking } from "@/lib/trainer-client-booking-service";
+import { requireClientNotFreemiumGated } from "@/lib/client-plan-gate";
 import { getSessionClientId } from "@/lib/session";
 import { NextResponse } from "next/server";
 
@@ -12,6 +13,8 @@ export async function POST(_req: Request, ctx: Ctx) {
     if (!clientId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
+    const bookingGate = await requireClientNotFreemiumGated(clientId, "FREEMIUM_NO_BOOKING");
+    if (bookingGate) return bookingGate;
     const { bookingId } = await ctx.params;
     const res = await clientConfirmBooking({ bookingId, clientId });
     if ("error" in res) {

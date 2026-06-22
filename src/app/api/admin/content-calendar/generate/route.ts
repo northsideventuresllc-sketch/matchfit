@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { generateSinglePost } from "@/lib/content-calendar/content-calendar-ai";
+import { CONTENT_CALENDAR_GENERATOR_POST_TYPES } from "@/lib/content-calendar/constants";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { requireAdminSession } from "@/lib/require-admin";
 
 const bodySchema = z.object({
-  postType: z.enum(["Carousel", "Static", "Video"]).optional(),
+  postType: z.enum(CONTENT_CALENDAR_GENERATOR_POST_TYPES).optional(),
   platform: z.string().min(1).optional(),
   contentType: z.string().min(1),
   tone: z.string().min(1),

@@ -59,7 +59,7 @@ export async function PATCH(req: Request) {
     if (!trainerId) {
       if (!parsed.data.signup) {
         return NextResponse.json(
-          { error: "Sign-up details are required before accepting the trainer agreement." },
+          { error: "Sign-up details are required before accepting the Fitness Pro agreement." },
           { status: 400 },
         );
       }

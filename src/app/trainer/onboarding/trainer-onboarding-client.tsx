@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { TRAINER_ONBOARDING_AGREEMENT_COUNT, getTrainerOnboardingAgreementBullets } from "@/app/trainer/onboarding/trainer-agreement-bullets";
+import { TRAINER_ONBOARDING_AGREEMENT_COUNT, getTrainerOnboardingAgreementBulletsLegacy } from "@/app/trainer/onboarding/trainer-agreement-bullets";
 import { CREDIBLE_CPT_ORGANIZATIONS } from "@/app/trainer/onboarding/credible-cpt-organizations";
 import { CREDIBLE_NUTRITION_CREDENTIALS } from "@/app/trainer/onboarding/credible-nutrition-credentials";
 import { OnboardingCertStatusLegend } from "@/app/trainer/onboarding/onboarding-cert-status-legend";
@@ -296,7 +296,7 @@ export default function TrainerOnboardingClient() {
   const profile = trainer?.profile;
 
   const agreementBullets = useMemo(
-    () => getTrainerOnboardingAgreementBullets(profile?.registrationFeeWaived ?? false),
+    () => getTrainerOnboardingAgreementBulletsLegacy(profile?.registrationFeeWaived ?? false),
     [profile?.registrationFeeWaived],
   );
 
@@ -2128,7 +2128,7 @@ export default function TrainerOnboardingClient() {
                 showSectionTitle
               />
               <p className="rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-3 text-xs text-white/55">
-                You can change your profile, social links, and photo anytime from your trainer dashboard.
+                You can change your profile, social links, and photo anytime from your Fitness Pro dashboard.
               </p>
               <div className="flex flex-wrap gap-3">
                 <button

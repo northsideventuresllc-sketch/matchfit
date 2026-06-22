@@ -8,7 +8,7 @@ const BANNER_BUBBLE_LABELS = [
   "DIY workout programs",
   "Nutrition coaching",
   "Individualized. Experience.",
-  "Experienced trainers",
+  "Experienced Fitness Pros",
   "Certified coaches",
   "Goal-focused support",
 ] as const;

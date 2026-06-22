@@ -42,12 +42,6 @@ export default async function PromosPage() {
     clientFoundingActive,
     clientBetaCap,
     clientBetaSlotsRemaining,
-    trainerBetaCapAtlanta,
-    trainerBetaCapVirtual,
-    trainerBetaSlotsUsedAtlanta,
-    trainerBetaSlotsUsedVirtual,
-    trainerBetaSlotsRemainingAtlanta,
-    trainerBetaSlotsRemainingVirtual,
     trainerWaitlistOpen,
     clientWaitlistOpen,
   } = stats;
@@ -102,14 +96,9 @@ export default async function PromosPage() {
           </p>
           <div className="mx-auto mt-6 max-w-xl rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 text-left text-xs leading-relaxed text-white/50 sm:text-[13px]">
             <span className="font-semibold text-[#FF7E00]/90">Beta reach:</span>{" "}
-            <span className="font-semibold text-white/70">Up to 30 fitness professionals</span> can join during beta —
-            {" "}<span className="font-semibold text-white/70">10 offering in-person sessions</span> in the Atlanta metro area
-            (within approximately 15&ndash;20 miles of downtown Atlanta) and{" "}
-            <span className="font-semibold text-white/70">20 offering virtual coaching</span> to clients anywhere in the
-            United States.{" "}
-            <span className="font-semibold text-white/70">Up to 150 clients</span> can join during beta &mdash;
-            Atlanta-area clients may book in-person or virtual sessions; clients outside Atlanta are matched with
-            virtual coaches only.
+            <span className="font-semibold text-white/70">Up to 30 Fitness Pros</span> and{" "}
+            <span className="font-semibold text-white/70">up to 150 clients</span> can join during beta across the United
+            States. In-person sessions roll out by region as beta activity grows; virtual coaching is available nationwide.
           </div>
         </div>
 
@@ -142,8 +131,10 @@ export default async function PromosPage() {
 
               <p className="mt-5 text-pretty text-[15px] leading-relaxed text-white/65 sm:text-base">
                 {trainerFoundingPromoParagraph(trainerFoundingMax)}{" "}
-                <span className="font-semibold text-white/70">10 of those spots are reserved for in-person coaches</span>{" "}
-                in the Atlanta metro area; additional beta trainer slots may be virtual coaches nationwide.
+                <span className="font-semibold text-white/70">
+                  All {trainerFoundingMax} founding spots are open to Fitness Pros across the United States
+                </span>
+                .
               </p>
 
               <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 text-sm text-white/60">
@@ -176,37 +167,20 @@ export default async function PromosPage() {
                 )}
               </div>
 
-              {stats.gatesEnabled ? (
-                <div className="mt-4 space-y-1 text-[11px] text-white/40">
-                  <p>
-                    Atlanta in-person beta pool: {trainerBetaSlotsUsedAtlanta} / {trainerBetaCapAtlanta} slots used
-                    {trainerBetaSlotsRemainingAtlanta > 0
-                      ? ` (${trainerBetaSlotsRemainingAtlanta} open)`
-                      : " (full)"}
-                  </p>
-                  <p>
-                    Nationwide virtual/DIY beta pool: {trainerBetaSlotsUsedVirtual} / {trainerBetaCapVirtual} slots used
-                    {trainerBetaSlotsRemainingVirtual > 0
-                      ? ` (${trainerBetaSlotsRemainingVirtual} open)`
-                      : " (full)"}
-                  </p>
-                </div>
-              ) : null}
-
               <div className="mt-6">
                 {trainerCapFull ? (
                   <Link
                     href="/waitlist/trainer"
                     className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/15 px-6 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/60"
                   >
-                    Join Trainer Waitlist
+                    Join Fitness Pro Waitlist
                   </Link>
                 ) : (
                   <Link
                     href="/trainer/signup"
                     className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-6 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] transition hover:opacity-90"
                   >
-                    Sign Up as a Trainer
+                    Sign Up as a Fitness Pro
                   </Link>
                 )}
               </div>
@@ -306,7 +280,7 @@ export default async function PromosPage() {
             <li className="flex gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />
               <span>
-                Trainers pay the standard onboarding fee ({trainerStandardOnboardingAfterCapLabel()}) and do not
+                Fitness Pros pay the standard onboarding fee ({trainerStandardOnboardingAfterCapLabel()}) and do not
                 receive the {trainerSignupPremiumPromoBenefitLabel()} promo.
               </span>
             </li>
@@ -341,7 +315,7 @@ export default async function PromosPage() {
             href="/trainer/signup"
             className="inline-flex min-h-8 items-center justify-center rounded-lg border border-white/[0.12] bg-white/[0.03] px-3 text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-white/60 transition hover:border-white/[0.22] hover:text-white/85"
           >
-            Trainer Sign Up
+            Fitness Pro Sign Up
           </Link>
           <Link
             href="/terms"

@@ -3,6 +3,7 @@ import {
   parseClientMatchPreferencesJson,
   serializeClientMatchPreferences,
 } from "@/lib/client-match-preferences";
+import { requireClientNotFreemiumGated } from "@/lib/client-plan-gate";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
 import { NextResponse } from "next/server";
@@ -74,6 +75,9 @@ export async function PATCH(req: Request) {
     }
 
     if (body.markComplete === true) {
+      const questionnaireGate = await requireClientNotFreemiumGated(clientId, "FREEMIUM_NO_QUESTIONNAIRE");
+      if (questionnaireGate) return questionnaireGate;
+
       const prefs = parseClientMatchPreferencesJson(
         data.matchPreferencesJson ?? client.matchPreferencesJson ?? undefined,
       );

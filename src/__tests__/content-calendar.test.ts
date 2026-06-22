@@ -9,17 +9,17 @@ import {
 describe("getContentCalendarRotation", () => {
   it("rotates four target groups across post types with offset", () => {
     const base = getContentCalendarRotation(0, 7);
-    expect(base.Carousel).toBe("Virtual Clients");
-    expect(base.Static).toBe("Atlanta Trainers");
-    expect(base.Video).toBe("Virtual Trainers");
-    expect(base.Text).toBe("Atlanta Clients");
+    expect(base.Carousel).toBe("Clients");
+    expect(base.Static).toBe("Fitness Pros");
+    expect(base.Video).toBe("Clients");
+    expect(base.Text).toBe("Fitness Pros");
   });
 
   it("advances groups by weekday index", () => {
     const mon = getContentCalendarRotation(0, 0);
     const tue = getContentCalendarRotation(1, 0);
-    expect(mon.Carousel).toBe("Atlanta Trainers");
-    expect(tue.Carousel).toBe("Virtual Trainers");
+    expect(mon.Carousel).toBe("Fitness Pros");
+    expect(tue.Carousel).toBe("Clients");
   });
 });
 

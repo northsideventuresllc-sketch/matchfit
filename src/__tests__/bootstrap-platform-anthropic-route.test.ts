@@ -105,13 +105,16 @@ describe("POST /api/internal/bootstrap-platform-anthropic", () => {
       1,
       expect.stringContaining("CREATE TABLE IF NOT EXISTS public.platform_secrets"),
     );
-    expect(mockQuery).toHaveBeenNthCalledWith(
-      2,
+    expect(mockQuery).toHaveBeenCalledWith(
       expect.stringContaining("INSERT INTO public.platform_secrets"),
       ["ANTHROPIC_API_KEY", anthropicApiKey],
     );
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining("INSERT INTO public.platform_secrets"),
+      ["ANTHROPIC_ADMIN_ANALYTICS_MODEL", "claude-sonnet-4-6"],
+    );
     expect(mockClearPlatformSecretCache).toHaveBeenCalledTimes(1);
-    expect(mockEnd).toHaveBeenCalledTimes(1);
+    expect(mockEnd).toHaveBeenCalledTimes(2);
   });
 
   it("returns 500 when no direct database URL is available", async () => {

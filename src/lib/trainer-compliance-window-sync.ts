@@ -19,6 +19,7 @@ import {
 import type { TrainerRegistrationPricingMode } from "@/lib/match-fit-launch-promotions";
 import { computeTrainerSignupEscrowSplit } from "@/lib/trainer-signup-escrow";
 import { maybeActivateTrainerDashboard } from "@/lib/trainer-onboarding-dashboard";
+import { activateTrainerDeferredFeeOnCompliance } from "@/lib/trainer-deferred-fee";
 
 type ProfileRow = {
   trainerId: string;
@@ -359,6 +360,8 @@ export async function syncTrainerComplianceWindow(trainerId: string): Promise<vo
       if (latest) {
         await captureTrainerSignupPlatformOnComplianceSuccess(trainerId, latest);
       }
+    } else if (refreshed.registrationFeeHoldStatus === "DEFERRED") {
+      await activateTrainerDeferredFeeOnCompliance(trainerId);
     }
     await maybeActivateTrainerDashboard(trainerId);
     return;
