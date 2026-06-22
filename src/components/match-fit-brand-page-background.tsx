@@ -32,10 +32,10 @@ export function MatchFitBrandPageBackground({ variant = "brand" }: MatchFitBrand
 }
 
 export const matchFitBrandPageMainClass =
-  "relative min-h-svh overflow-x-hidden overscroll-y-none bg-[#0B0C0F] text-white antialiased";
+  "relative min-h-svh overflow-x-hidden bg-[#0B0C0F] text-white antialiased";
 
 export const matchFitAdminPageMainClass =
-  "relative min-h-svh overflow-x-hidden overscroll-y-none bg-[#050608] text-white antialiased";
+  "relative min-h-svh overflow-x-hidden bg-[#050608] text-white antialiased";
 
 /** Solid on mobile; subtle blur only on larger screens to avoid iOS scroll flicker. */
 export const matchFitAuthCardClass =

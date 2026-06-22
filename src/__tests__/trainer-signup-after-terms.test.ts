@@ -25,6 +25,9 @@ const {
       trainerProfile: {
         findUnique: vi.fn(),
       },
+      trainerDraft: {
+        deleteMany: vi.fn(),
+      },
     },
     txMock,
   };
@@ -81,6 +84,7 @@ describe("createTrainerAccountAfterTermsAcceptance", () => {
       limitedDashboardUnlockedAt: null,
       onboardingFeePaymentDeadlineAt: null,
     });
+    prismaMock.trainerDraft.deleteMany.mockResolvedValue({ count: 0 });
     prismaMock.trainerProfile.findUnique.mockResolvedValue({
       hasSignedTOS: true,
       registrationFeeHoldStatus: "NOT_STARTED",

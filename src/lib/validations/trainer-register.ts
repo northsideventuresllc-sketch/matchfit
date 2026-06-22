@@ -87,14 +87,3 @@ export const trainerW9StepSchema = z
     message: "You must certify that the information is correct.",
     path: ["certify"],
   });
-
-/** @deprecated Use trainerAgreementsSchema + trainerW9StepSchema from onboarding steps 1 and 4. */
-export const trainerLegalStepSchema = z
-  .object({
-    acceptTrainerTerms: z.boolean(),
-    w9Acknowledged: z.boolean().optional().default(false),
-  })
-  .refine((d) => d.acceptTrainerTerms === true, {
-    message: "You must accept the trainer Terms of Service.",
-    path: ["acceptTrainerTerms"],
-  });

@@ -11,6 +11,19 @@ const bodySchema = z.object({
   role: z.enum(["trainer", "client"]),
   firstName: z.string().trim().optional(),
   turnstileToken: z.string().optional(),
+  /** Trainer-only: rescued server-side so sign-up survives a lost tab/device before ToS. */
+  draft: z
+    .object({
+      lastName: z.string().trim().max(80).optional(),
+      username: z.string().trim().max(32).optional(),
+      phone: z.string().trim().max(32).optional(),
+      serviceZipCode: z.string().trim().max(12).optional(),
+      betaInviteToken: z.string().trim().max(200).optional(),
+      agreedToTerms: z.boolean().optional(),
+      stayLoggedIn: z.boolean().optional(),
+    })
+    .strict()
+    .optional(),
 });
 
 /**
@@ -35,6 +48,10 @@ export async function POST(req: Request) {
       password: parsed.data.password,
       role: parsed.data.role,
       firstName: parsed.data.firstName,
+      draft:
+        parsed.data.role === "trainer" && parsed.data.draft
+          ? { firstName: parsed.data.firstName, ...parsed.data.draft }
+          : undefined,
     });
 
     if (!result.ok) {

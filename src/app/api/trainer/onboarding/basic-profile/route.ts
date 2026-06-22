@@ -4,6 +4,7 @@ import { normalizeTrainerSocialFields } from "@/lib/trainer-social-urls";
 import { maybeActivateTrainerDashboard } from "@/lib/trainer-onboarding-dashboard";
 import { trainerBasicProfileSchema } from "@/lib/validations/trainer-register";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
+import { trackServerConversion } from "@/lib/server-conversion-tracking";
 import { NextResponse } from "next/server";
 
 export async function PATCH(req: Request) {
@@ -54,6 +55,10 @@ export async function PATCH(req: Request) {
     });
 
     await maybeActivateTrainerDashboard(trainerId);
+
+    void trackServerConversion({ event: "trainer_profile_complete", userId: trainerId }).catch((err) =>
+      console.error("[Match Fit trainer basic profile] tracking failed:", err),
+    );
 
     return NextResponse.json({ ok: true });
   } catch (e) {

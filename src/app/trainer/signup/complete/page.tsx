@@ -8,7 +8,22 @@ import { TurnstileField } from "@/components/turnstile-field";
 import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { isTurnstileClientEnabled } from "@/lib/turnstile-config";
-import { clearTrainerSignupDraft, readTrainerSignupDraft, type TrainerSupabaseSignupDraft } from "@/lib/trainer-supabase-signup-draft";
+import {
+  readTrainerSignupDraft,
+  writeTrainerSignupDraft,
+  type TrainerSupabaseSignupDraft,
+} from "@/lib/trainer-supabase-signup-draft";
+
+type RecoveredDraftFields = {
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  phone?: string;
+  serviceZipCode?: string;
+  betaInviteToken?: string;
+  agreedToTerms?: boolean;
+  stayLoggedIn?: boolean;
+};
 
 export default function TrainerSignupCompletePage() {
   const router = useRouter();
@@ -16,6 +31,9 @@ export default function TrainerSignupCompletePage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [draft] = useState<TrainerSupabaseSignupDraft | null>(() => readTrainerSignupDraft());
+  const [checkingServerDraft, setCheckingServerDraft] = useState(() => readTrainerSignupDraft() == null);
+  const [recovered, setRecovered] = useState<{ email: string; fields: RecoveredDraftFields } | null>(null);
+  const [recoverPassword, setRecoverPassword] = useState("");
 
   const runServerComplete = useCallback(
     async (draft: TrainerSupabaseSignupDraft, turnstileToken: string | null) => {
@@ -47,7 +65,8 @@ export default function TrainerSignupCompletePage() {
           setBusy(false);
           return;
         }
-        clearTrainerSignupDraft();
+        // Keep the draft in sessionStorage — the Fitness Pro agreement step still needs
+        // it to create the Trainer row, and clears it itself once that succeeds.
         navigateWithFullLoad(data.next ?? "/trainer/signup/terms");
       } catch {
         setError("Something went wrong. Try again.");
@@ -58,18 +77,72 @@ export default function TrainerSignupCompletePage() {
   );
 
   useEffect(() => {
-    if (!draft) {
-      router.replace("/trainer/signup");
+    if (draft) {
+      if (!isTurnstileClientEnabled()) {
+        void Promise.resolve().then(() => runServerComplete(draft, null));
+      }
       return;
     }
-    if (!isTurnstileClientEnabled()) {
-      void Promise.resolve().then(() => runServerComplete(draft, null));
-    }
+
+    // The sessionStorage draft only survives in the original tab. If the trainer
+    // confirmed their email in a new tab/device, recover what the server saved
+    // when the verification email was sent (everything except the password).
+    let cancelled = false;
+    void fetch("/api/trainer/onboarding/draft", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body: { data?: RecoveredDraftFields | null; email?: string | null } | null) => {
+        if (cancelled) return;
+        if (body?.data && body.email) {
+          setRecovered({ email: body.email, fields: body.data });
+        } else {
+          router.replace("/trainer/signup");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) router.replace("/trainer/signup");
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingServerDraft(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [draft, router, runServerComplete]);
 
+  async function submitRecovery(turnstileToken: string | null) {
+    if (!recovered) return;
+    if (!recoverPassword) {
+      setError("Enter your password to continue.");
+      return;
+    }
+    const rebuilt: TrainerSupabaseSignupDraft = {
+      firstName: recovered.fields.firstName ?? "",
+      lastName: recovered.fields.lastName ?? "",
+      username: recovered.fields.username ?? "",
+      phone: recovered.fields.phone ?? "",
+      email: recovered.email,
+      password: recoverPassword,
+      agreedToTerms: recovered.fields.agreedToTerms ?? true,
+      stayLoggedIn: recovered.fields.stayLoggedIn ?? true,
+      serviceZipCode: recovered.fields.serviceZipCode,
+      betaInviteToken: recovered.fields.betaInviteToken,
+    };
+    writeTrainerSignupDraft(rebuilt);
+    await runServerComplete(rebuilt, turnstileToken);
+  }
+
   async function finishWithTurnstile() {
-    const draft = readTrainerSignupDraft();
-    if (!draft) {
+    if (recovered) {
+      const tsErr = turnstile.validateBeforeSubmit();
+      if (tsErr) {
+        setError(tsErr);
+        return;
+      }
+      await submitRecovery(turnstile.getCaptchaToken() ?? null);
+      return;
+    }
+    const existing = draft ?? readTrainerSignupDraft();
+    if (!existing) {
       router.replace("/trainer/signup");
       return;
     }
@@ -78,7 +151,7 @@ export default function TrainerSignupCompletePage() {
       setError(tsErr);
       return;
     }
-    await runServerComplete(draft, turnstile.getCaptchaToken() ?? null);
+    await runServerComplete(existing, turnstile.getCaptchaToken() ?? null);
   }
 
   return (
@@ -109,7 +182,44 @@ export default function TrainerSignupCompletePage() {
           </p>
         ) : null}
 
-        {draft && turnstile.enabled ? (
+        {checkingServerDraft ? (
+          <p className="mt-8 text-sm text-white/50">Looking up your sign-up details…</p>
+        ) : recovered ? (
+          <div className="mt-8 flex flex-col items-center gap-4">
+            <p className="text-center text-sm text-white/55">
+              We found your sign-up for <span className="text-white">{recovered.email}</span>. Enter your
+              password again to continue — we don&apos;t store it between steps.
+            </p>
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={recoverPassword}
+              onChange={(e) => setRecoverPassword(e.target.value)}
+              placeholder="Password"
+              className="w-full max-w-sm rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/30 focus:border-[#FF7E00]/60 focus:outline-none"
+            />
+            {turnstile.enabled ? (
+              <TurnstileField
+                enabled={turnstile.enabled}
+                widgetRef={turnstile.ref}
+                siteKey={turnstile.siteKey}
+                onReady={turnstile.onTurnstileReady}
+                onError={turnstile.onTurnstileError}
+                onExpire={turnstile.onTurnstileExpire}
+                widgetError={turnstile.widgetError}
+                ready={turnstile.ready}
+              />
+            ) : null}
+            <button
+              type="button"
+              disabled={busy || !recoverPassword || (turnstile.enabled && !turnstile.ready)}
+              onClick={() => void finishWithTurnstile()}
+              className="min-h-[3rem] w-full max-w-sm rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] disabled:opacity-50"
+            >
+              {busy ? "Working…" : "Continue to agreement"}
+            </button>
+          </div>
+        ) : draft && turnstile.enabled ? (
           <div className="mt-8 flex flex-col items-center gap-6">
             <TurnstileField
               enabled={turnstile.enabled}

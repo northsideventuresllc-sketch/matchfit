@@ -9,6 +9,24 @@ import { sendMatchFitBrandedEmail } from "@/lib/match-fit-branded-email";
 import { createSupabaseAdminClient, isSupabaseAdminConfigured } from "@/lib/supabase/admin-client";
 import { findSupabaseAuthUserByEmail } from "@/lib/supabase/find-auth-user-by-email";
 import { getSupabaseEmailCallbackUrl } from "@/lib/supabase/email-callback-url";
+import { prisma } from "@/lib/prisma";
+import { trackServerConversion } from "@/lib/server-conversion-tracking";
+
+/**
+ * Trainer sign-up fields safe to rescue server-side (never the plaintext password).
+ * Persisted against the Supabase Auth user id so a trainer can resume sign-up on a
+ * different tab/device if the browser-only sessionStorage draft is lost.
+ */
+export type TrainerSignupDraftFields = {
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  phone?: string;
+  serviceZipCode?: string;
+  betaInviteToken?: string;
+  agreedToTerms?: boolean;
+  stayLoggedIn?: boolean;
+};
 
 export type SupabaseSignupVerificationRole = "trainer" | "client";
 
@@ -142,6 +160,11 @@ async function ensureSupabaseAuthSignupUser(args: {
         error: "Could not create your sign-up session. Try again in a moment.",
       };
     }
+    if (args.role === "trainer") {
+      void trackServerConversion({ event: "trainer_signup_started", userId, email }).catch((err) =>
+        console.error("[ensureSupabaseAuthSignupUser] tracking failed:", err),
+      );
+    }
     return { ok: true, userId };
   }
 
@@ -168,6 +191,8 @@ export async function sendSupabaseSignupVerificationEmail(args: {
   password?: string | null;
   role: SupabaseSignupVerificationRole;
   firstName?: string;
+  /** Trainer-only: rescued server-side so sign-up survives a lost tab/device before ToS. */
+  draft?: TrainerSignupDraftFields;
 }): Promise<SendSupabaseSignupVerificationResult> {
   if (!isSupabaseAdminConfigured()) {
     return {
@@ -216,6 +241,16 @@ export async function sendSupabaseSignupVerificationEmail(args: {
     const ensured = await ensureSupabaseAuthSignupUser({ email, password, role: args.role });
     if (!("userId" in ensured)) return ensured;
     const userId = ensured.userId;
+
+    if (args.role === "trainer" && args.draft) {
+      await prisma.trainerDraft
+        .upsert({
+          where: { userId },
+          create: { userId, email, data: args.draft },
+          update: { email, data: args.draft },
+        })
+        .catch((err) => console.error("[sendSupabaseSignupVerificationEmail] draft upsert failed:", err));
+    }
 
     const admin = createSupabaseAdminClient();
     const { data, error } = await admin.auth.admin.generateLink({

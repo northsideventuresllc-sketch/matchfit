@@ -157,6 +157,15 @@ export default function TrainerSignUpClient() {
     password: string;
     firstName: string;
     turnstileToken: string | null;
+    draft?: {
+      lastName: string;
+      username: string;
+      phone: string;
+      serviceZipCode: string;
+      betaInviteToken?: string;
+      agreedToTerms: boolean;
+      stayLoggedIn: boolean;
+    };
   }): Promise<{ ok: true } | { ok: false; error: string; code?: string; retryAfterSeconds?: number }> {
     const res = await fetch("/api/public/resend-signup-verification", {
       method: "POST",
@@ -167,6 +176,7 @@ export default function TrainerSignUpClient() {
         role: "trainer",
         firstName: args.firstName,
         ...(args.turnstileToken ? { turnstileToken: args.turnstileToken } : {}),
+        ...(args.draft ? { draft: args.draft } : {}),
       }),
     });
     const data = (await res.json()) as {
@@ -303,6 +313,15 @@ export default function TrainerSignUpClient() {
         password,
         firstName: firstName.trim(),
         turnstileToken: turnstile.getCaptchaToken() ?? null,
+        draft: {
+          lastName: lastName.trim(),
+          username: username.trim(),
+          phone: phone.trim(),
+          serviceZipCode: serviceZipCode.trim(),
+          ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
+          agreedToTerms: true,
+          stayLoggedIn,
+        },
       });
       if (!delivery.ok) {
         setError(delivery.error);
@@ -402,6 +421,15 @@ export default function TrainerSignUpClient() {
           password,
           firstName: firstName.trim(),
           turnstileToken: turnstileToken ?? null,
+          draft: {
+            lastName: lastName.trim(),
+            username: u,
+            phone: phone.trim(),
+            serviceZipCode: serviceZipCode.trim(),
+            ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
+            agreedToTerms: true,
+            stayLoggedIn,
+          },
         });
 
         if (

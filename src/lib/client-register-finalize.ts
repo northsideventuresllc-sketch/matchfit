@@ -10,6 +10,7 @@ import {
 } from "@/lib/ensure-client-platform-trial-schema";
 import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
+import { trackServerConversion } from "@/lib/server-conversion-tracking";
 
 export type FinalizeClientSignupResult =
   | { ok: true; clientId: string; alreadyCompleted?: boolean }
@@ -150,6 +151,10 @@ export async function finalizeClientRegistrationFromSignup(
       foundingSlot: false,
       cardOnFile: false,
     });
+
+    void trackServerConversion({ event: "client_signup_complete", userId: client.id, email }).catch((err) =>
+      console.error("[finalizeClientRegistrationFromSignup] tracking failed:", err),
+    );
 
     return { ok: true, clientId: client.id };
   } catch (e) {
