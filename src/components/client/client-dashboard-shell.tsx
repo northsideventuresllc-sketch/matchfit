@@ -15,6 +15,7 @@ export type ClientDashboardShellProps = {
   diyGovernanceGate?: ClientDiyGovernanceGate | null;
   /** Staff impersonation notice (rendered above navigation). */
   supportStrip?: React.ReactNode;
+  planBanner?: React.ReactNode;
   children: React.ReactNode;
 };
 
@@ -156,6 +157,7 @@ export function ClientDashboardShell(props: ClientDashboardShellProps) {
         </nav>
 
         {props.diyGovernanceGate ? <ClientDiyGovernanceGateBanner gate={props.diyGovernanceGate} /> : null}
+        {props.planBanner ? <div className="mb-6">{props.planBanner}</div> : null}
 
         <div className="w-full text-left">{props.children}</div>
 

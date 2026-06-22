@@ -1,17 +1,16 @@
 import Link from "next/link";
 import { MATCH_FIT_PRODUCT_VERSION_ANNOUNCE } from "@/lib/match-fit-product-version";
 import { getTrainerFoundingBgPercentMax } from "@/lib/match-fit-launch-promotion-caps";
-import { getClientFoundingTrialDays } from "@/lib/match-fit-launch-promotions";
 import {
   TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE,
   trainerFoundingPromoHeadline,
   trainerSignupOnboardingBeginDeadlineLabel,
   trainerSignupPremiumPromoBenefitLabel,
 } from "@/lib/trainer-signup-promo-copy";
+import { clientBetaVipTrialSummary } from "@/lib/client-plan-copy";
 
 export function HomeBetaPromoBanner() {
   const trainerFoundingCap = getTrainerFoundingBgPercentMax();
-  const clientTrialDays = getClientFoundingTrialDays();
 
   return (
     <section
@@ -88,8 +87,9 @@ export function HomeBetaPromoBanner() {
               />
               <span className="min-w-0 flex-1 text-left [overflow-wrap:anywhere]">
                 <span className="font-semibold text-white/90">All new clients:</span> complete sign-up and agree to the
-                Terms of Service to start a{" "}
-                <span className="font-bold text-[#FFD34E]">{clientTrialDays}-day free trial with no card required</span>.
+                Terms of Service to start{" "}
+                <span className="font-bold text-[#FFD34E]">{clientBetaVipTrialSummary()}</span> with full VIP access.
+                After the trial, accounts move to the Free plan unless you subscribe to VIP.
               </span>
             </li>
           </ul>

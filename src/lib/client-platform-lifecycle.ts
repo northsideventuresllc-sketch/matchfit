@@ -1,9 +1,7 @@
-import { addPaymentGraceDays } from "@/lib/client-platform-trial-constants";
-import { notifyClientPlatformPaymentGraceStarted } from "@/lib/client-membership-email-notify";
 import { prisma } from "@/lib/prisma";
 
 export type ClientPlatformLifecycleSummary = {
-  paymentGraceStarted: number;
+  trialEndedToFree: number;
   accountsDeactivated: number;
   freemiumDowngrades: number;
 };
@@ -21,33 +19,20 @@ const platformBillingSelect = {
   clientPlanTier: true,
 } as const;
 
-async function startPaymentGraceForClient(
-  client: {
-    id: string;
-    email: string;
-    platformTrialEndsAt: Date | null;
-  },
-  now: Date,
-): Promise<void> {
-  const paymentGraceUntil = addPaymentGraceDays(client.platformTrialEndsAt ?? now);
+async function downgradeTrialToFreePlan(clientId: string): Promise<void> {
   await prisma.client.update({
-    where: { id: client.id },
+    where: { id: clientId },
     data: {
-      paymentGraceUntil,
       platformTrialConsumed: true,
+      clientPlanTier: "FREEMIUM",
     },
-  });
-  void notifyClientPlatformPaymentGraceStarted({
-    clientId: client.id,
-    email: client.email,
-    paymentGraceUntilLabel: paymentGraceUntil.toLocaleDateString("en-US", { dateStyle: "long" }),
   });
 }
 
-/** Advance trial → payment grace → deactivation for clients without an active Stripe subscription. */
+/** Advance trial → Free plan for clients without paid VIP or legacy Stripe subscription. */
 export async function runClientPlatformBillingLifecycleJobs(): Promise<ClientPlatformLifecycleSummary> {
   const now = new Date();
-  let paymentGraceStarted = 0;
+  let trialEndedToFree = 0;
   let accountsDeactivated = 0;
 
   const trialExpired = await prisma.client.findMany({
@@ -55,16 +40,16 @@ export async function runClientPlatformBillingLifecycleJobs(): Promise<ClientPla
       deidentifiedAt: null,
       accountDeactivatedAt: null,
       platformTrialEndsAt: { lte: now },
-      paymentGraceUntil: null,
+      platformTrialConsumed: false,
+      vipSubscriptionActive: false,
       stripeSubscriptionActive: false,
-      OR: [{ stripeSubscriptionId: null }, { stripeSubscriptionId: "" }],
     },
     select: platformBillingSelect,
   });
 
   for (const client of trialExpired) {
-    await startPaymentGraceForClient(client, now);
-    paymentGraceStarted += 1;
+    await downgradeTrialToFreePlan(client.id);
+    trialEndedToFree += 1;
   }
 
   const graceExpired = await prisma.client.findMany({
@@ -73,6 +58,7 @@ export async function runClientPlatformBillingLifecycleJobs(): Promise<ClientPla
       accountDeactivatedAt: null,
       paymentGraceUntil: { lte: now },
       stripeSubscriptionActive: false,
+      vipSubscriptionActive: false,
     },
     select: platformBillingSelect,
   });
@@ -83,6 +69,8 @@ export async function runClientPlatformBillingLifecycleJobs(): Promise<ClientPla
       data: {
         accountDeactivatedAt: now,
         stripeSubscriptionActive: false,
+        clientPlanTier: "FREEMIUM",
+        platformTrialConsumed: true,
       },
     });
     accountsDeactivated += 1;
@@ -109,7 +97,7 @@ export async function runClientPlatformBillingLifecycleJobs(): Promise<ClientPla
     freemiumDowngrades += 1;
   }
 
-  return { paymentGraceStarted, accountsDeactivated, freemiumDowngrades };
+  return { trialEndedToFree, accountsDeactivated, freemiumDowngrades };
 }
 
 /** Lazy lifecycle sync for a single client on login or dashboard access. */
@@ -120,23 +108,31 @@ export async function syncClientPlatformBillingLifecycle(clientId: string): Prom
     select: platformBillingSelect,
   });
   if (!client || client.accountDeactivatedAt) return;
+  if (client.vipSubscriptionActive) return;
   if (client.stripeSubscriptionActive && client.stripeSubscriptionId?.trim()) return;
 
   if (
     client.platformTrialEndsAt &&
     client.platformTrialEndsAt.getTime() <= now.getTime() &&
-    !client.paymentGraceUntil
+    !client.platformTrialConsumed
   ) {
-    await startPaymentGraceForClient(client, now);
+    await downgradeTrialToFreePlan(client.id);
     return;
   }
 
-  if (client.paymentGraceUntil && client.paymentGraceUntil.getTime() <= now.getTime()) {
+  if (
+    client.paymentGraceUntil &&
+    client.paymentGraceUntil.getTime() <= now.getTime() &&
+    !client.vipSubscriptionActive &&
+    !client.stripeSubscriptionActive
+  ) {
     await prisma.client.update({
       where: { id: client.id },
       data: {
         accountDeactivatedAt: now,
         stripeSubscriptionActive: false,
+        clientPlanTier: "FREEMIUM",
+        platformTrialConsumed: true,
       },
     });
   }

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ClientDashboardShell } from "@/components/client/client-dashboard-shell";
+import { ClientDashboardPlanBanner } from "@/components/client/client-dashboard-plan-banner";
 import { billingExemptDashboardPath, isClientBillingHardLocked } from "@/lib/client-billing-access";
 import { syncClientPlatformBillingLifecycle } from "@/lib/client-platform-lifecycle";
 import {
@@ -70,6 +71,8 @@ export default async function ClientDashboardAppLayout({
       paymentGraceUntil: true,
       accountDeactivatedAt: true,
       platformTrialConsumed: true,
+      vipSubscriptionActive: true,
+      clientPlanTier: true,
     },
   });
   if (!billingClient) {
@@ -115,6 +118,7 @@ export default async function ClientDashboardAppLayout({
       initialUnreadCount={unreadCount}
       diyGovernanceGate={diyGovernanceGate}
       supportStrip={supportStrip}
+      planBanner={<ClientDashboardPlanBanner />}
     >
       {children}
     </ClientDashboardShell>

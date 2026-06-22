@@ -45,7 +45,7 @@ export type TosCronSummary = {
     trainersFinalized: number;
   };
   clientPlatformBilling: {
-    paymentGraceStarted: number;
+    trialEndedToFree: number;
     accountsDeactivated: number;
     freemiumDowngrades: number;
   };
@@ -242,7 +242,7 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   } catch (e) {
     console.error("[tos cron] account deletion finalize", e);
   }
-  let clientPlatformBilling = { paymentGraceStarted: 0, accountsDeactivated: 0, freemiumDowngrades: 0 };
+  let clientPlatformBilling = { trialEndedToFree: 0, accountsDeactivated: 0, freemiumDowngrades: 0 };
   try {
     clientPlatformBilling = await runClientPlatformBillingLifecycleJobs();
   } catch (e) {

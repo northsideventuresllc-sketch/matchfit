@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-22** `1.13.3-beta` → `1.14.0-beta` (**minor** — Client Free/VIP plan UI, billing wiring, beta VIP trial copy, and Fitness Pro deferred fee home page)
 - **2026-06-22** `1.13.2-beta` → `1.13.3-beta` (**patch** — Fix home page mouse wheel scroll; TrainerDraft migration)
 - **2026-06-22** `1.13.1-beta` → `1.13.2-beta` (**patch** — Add TrainerDraft migration for server-side signup resume)
 - **2026-06-19** `1.13.0-beta` → `1.13.1-beta` (**patch** — Default client VIP Stripe setup scripts and billing agent rule)

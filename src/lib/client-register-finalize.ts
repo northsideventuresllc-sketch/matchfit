@@ -63,6 +63,7 @@ async function createRegisteredClient(args: {
         paymentGraceUntil: null,
         accountDeactivatedAt: null,
         platformTrialConsumed: false,
+        clientPlanTier: "VIP",
       },
     });
   } catch (e) {
@@ -95,6 +96,7 @@ async function createRegisteredClient(args: {
         paymentGraceUntil: null,
         accountDeactivatedAt: null,
         platformTrialConsumed: false,
+        clientPlanTier: "VIP",
       },
     });
   }

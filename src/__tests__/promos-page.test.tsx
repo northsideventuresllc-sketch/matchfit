@@ -91,8 +91,9 @@ describe("promos page", () => {
     expect(html).toContain("In-person sessions roll out by region");
     expect(html).toContain("7 / 50");
     expect(html).toContain("2 / 10");
-    expect(html).toContain("60-day free trial");
+    expect(html).toContain("60-day VIP access");
     expect(html).toContain("no card required at sign-up");
+    expect(html).toContain("Free plan or VIP upgrade");
     expect(html).toContain("60 days of Premium status");
     expect(html).toContain("cannot sell or offer services");
   });
