@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { ClientDashboardLogoutButton } from "@/components/client/client-dashboard-logout-button";
 import { ClientDashboardQuickActions } from "@/components/client/client-dashboard-quick-actions";
 import { ClientDashboardHomeSection } from "@/components/client/client-dashboard-home-section";
+import { canSeeNudgeSenderIdentity, clientPlanAccessSelect } from "@/lib/client-plan-access";
 import { getFeaturedTrainersForHomepage } from "@/lib/featured-homepage-data";
 import { clientZipToPrefix } from "@/lib/featured-region";
 import {
@@ -59,6 +60,7 @@ export default async function ClientDashboardHomePage() {
       username: true,
       bio: true,
       zipCode: true,
+      ...clientPlanAccessSelect,
       trainerNudges: {
         orderBy: { createdAt: "desc" },
         take: 12,
@@ -82,6 +84,7 @@ export default async function ClientDashboardHomePage() {
 
   const displayName = client.preferredName?.trim() || "there";
   const nudges = client.trainerNudges;
+  const showNudgeSenders = canSeeNudgeSenderIdentity(client);
 
   const zipPrefix = clientZipToPrefix(client.zipCode);
   const featuredCoaches = zipPrefix ? await getFeaturedTrainersForHomepage({ zipInput: client.zipCode }) : [];
@@ -253,7 +256,11 @@ export default async function ClientDashboardHomePage() {
       <ClientDashboardHomeSection
         title="Coach Nudges"
         titleClassName="text-[#FF7E00]"
-        subtitle="Coaches who want to work with you can send you a nudge. Trainers who nudged you will appear here."
+        subtitle={
+          showNudgeSenders
+            ? "Coaches who want to work with you can send you a nudge. Trainers who nudged you will appear here."
+            : "A Fitness Pro nudged you — upgrade to VIP to see who reached out. Nudged coaches are more likely to appear in your stack."
+        }
       >
         {nudges.length === 0 ? (
           <p className="text-center text-sm text-white/40">
@@ -266,9 +273,11 @@ export default async function ClientDashboardHomePage() {
         ) : (
           <ul className="mx-auto max-w-xl space-y-3">
             {nudges.map((n) => {
-              const name = coachDisplayName(n.trainer);
-              const chatHref = `/client/messages/${encodeURIComponent(n.trainer.username)}`;
-              const profileHref = `/trainers/${encodeURIComponent(n.trainer.username)}`;
+              const name = showNudgeSenders ? coachDisplayName(n.trainer) : "A Fitness Pro";
+              const chatHref = showNudgeSenders
+                ? `/client/messages/${encodeURIComponent(n.trainer.username)}`
+                : null;
+              const profileHref = showNudgeSenders ? `/trainers/${encodeURIComponent(n.trainer.username)}` : null;
               const unread = !n.readAt;
               return (
                 <li key={n.id}>
@@ -279,44 +288,71 @@ export default async function ClientDashboardHomePage() {
                         : "border-white/[0.06] bg-[#0E1016]/50 hover:border-white/15"
                     }`}
                   >
-                    <Link
-                      href={chatHref}
-                      className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#12151C]"
-                    >
-                      {n.trainer.profileImageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={n.trainer.profileImageUrl.split("?")[0]} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <span className="flex h-full w-full items-center justify-center text-sm font-black text-white/35">
-                          {name.charAt(0).toUpperCase()}
-                        </span>
-                      )}
-                    </Link>
-                    <div className="min-w-0 flex-1 text-left">
-                      <Link href={chatHref} className="block truncate text-sm font-semibold text-white/90 hover:underline">
-                        {name}
-                      </Link>
+                    {showNudgeSenders && chatHref ? (
                       <Link
-                        href={profileHref}
-                        className="mt-0.5 inline-block text-xs font-semibold text-[#FF7E00] underline-offset-2 hover:underline"
+                        href={chatHref}
+                        className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#12151C]"
                       >
-                        @{n.trainer.username}
-                      </Link>
-                      <Link href={chatHref} className="mt-1 block">
-                        {n.message ? (
-                          <p className="line-clamp-2 text-xs text-white/55 hover:text-white/70">{n.message}</p>
+                        {n.trainer.profileImageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={n.trainer.profileImageUrl.split("?")[0]} alt="" className="h-full w-full object-cover" />
                         ) : (
-                          <p className="text-xs text-white/40 hover:text-white/55">Thought you might be a great fit.</p>
+                          <span className="flex h-full w-full items-center justify-center text-sm font-black text-white/35">
+                            {name.charAt(0).toUpperCase()}
+                          </span>
                         )}
                       </Link>
+                    ) : (
+                      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-[#12151C] text-sm font-black text-white/35">
+                        ?
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1 text-left">
+                      {showNudgeSenders && chatHref ? (
+                        <Link href={chatHref} className="block truncate text-sm font-semibold text-white/90 hover:underline">
+                          {name}
+                        </Link>
+                      ) : (
+                        <p className="truncate text-sm font-semibold text-white/90">{name}</p>
+                      )}
+                      {showNudgeSenders && profileHref ? (
+                        <Link
+                          href={profileHref}
+                          className="mt-0.5 inline-block text-xs font-semibold text-[#FF7E00] underline-offset-2 hover:underline"
+                        >
+                          @{n.trainer.username}
+                        </Link>
+                      ) : (
+                        <Link
+                          href="/client/dashboard/billing"
+                          className="mt-0.5 inline-block text-xs font-semibold text-[#FF7E00] underline-offset-2 hover:underline"
+                        >
+                          Upgrade to VIP to see who nudged you
+                        </Link>
+                      )}
+                      {showNudgeSenders && chatHref ? (
+                        <Link href={chatHref} className="mt-1 block">
+                          {n.message ? (
+                            <p className="line-clamp-2 text-xs text-white/55 hover:text-white/70">{n.message}</p>
+                          ) : (
+                            <p className="text-xs text-white/40 hover:text-white/55">Thought you might be a great fit.</p>
+                          )}
+                        </Link>
+                      ) : (
+                        <p className="mt-1 text-xs text-white/45">
+                          Someone wants to work with you. They are more likely to show up in your coach stack.
+                        </p>
+                      )}
                     </div>
-                    <Link
-                      href={chatHref}
-                      className="shrink-0 text-white/35 hover:text-white/55"
-                      aria-label={`Open chat with ${name}`}
-                    >
-                      →
-                    </Link>
+                    {showNudgeSenders && chatHref ? (
+                      <Link
+                        href={chatHref}
+                        className="shrink-0 text-white/35 hover:text-white/55"
+                        aria-label={`Open chat with ${name}`}
+                      >
+                        →
+                      </Link>
+                    ) : null}
                   </div>
                 </li>
               );

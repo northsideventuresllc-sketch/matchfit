@@ -323,7 +323,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           id="trainer-onboarding-fee"
           eyebrow="Onboarding fee"
           eyebrowClass="text-[#FF7E00]"
-          title="Fitness Pro platform fee options"
+          title="Fitness Pro Onboarding Fee"
           accent="left"
         >
           <p>

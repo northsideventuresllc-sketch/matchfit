@@ -38,9 +38,10 @@ export function ClientPlanStatusBanner({ plan }: { plan: ClientPlanStatus }) {
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/70">
-      You are on the <span className="font-bold text-white/90">{CLIENT_FREE_PLAN_LABEL}</span> plan with limited discovery
-      and no chat or booking. Upgrade to <span className="font-bold text-[#FFD34E]">{CLIENT_VIP_PLAN_LABEL}</span> for{" "}
-      {clientVipPriceLabel()}/month to unlock everything.
+      You are on the <span className="font-bold text-white/90">{CLIENT_FREE_PLAN_LABEL}</span> plan with limited
+      discovery and no booking. Chat with matched Fitness Pros is included — upgrade to{" "}
+      <span className="font-bold text-[#FFD34E]">{CLIENT_VIP_PLAN_LABEL}</span> for {clientVipPriceLabel()}/month to
+      unlock scroll discovery, booking, daily questionnaires, and more.
       <Link href="/client/dashboard/billing" className="ml-1 font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
         Upgrade
       </Link>

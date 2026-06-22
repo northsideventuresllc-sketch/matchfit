@@ -18,29 +18,29 @@ export function clientBetaVipTrialSummary(): string {
 }
 
 export const CLIENT_FREE_PLAN_FEATURES = [
-  `Up to ${CLIENT_FREEMIUM_SWIPE_LIMIT} coach passes every ${CLIENT_FREEMIUM_SWIPE_WINDOW_HOURS} hours`,
+  `Up to ${CLIENT_FREEMIUM_SWIPE_LIMIT} coach swipes every ${CLIENT_FREEMIUM_SWIPE_WINDOW_HOURS} hours`,
   "Swipe-mode discovery only (no scroll feed)",
+  "In-app chat with matched Fitness Pros",
+  "Complete your first match questionnaire",
   "View FitHub posts (likes, comments, and reposts require VIP)",
-  "No in-app chat or session booking until you upgrade",
-  "Match questionnaire updates require VIP",
+  "Session booking, scroll discovery, and daily questionnaires require VIP",
+  "Coach nudges are anonymous on Free — upgrade to see who reached out",
 ] as const;
 
 export const CLIENT_VIP_PLAN_FEATURES = [
   "Unlimited coach discovery — swipe and scroll feeds",
-  "In-app chat with Fitness Pros",
+  "In-app chat with matched Fitness Pros",
   "Book and confirm sessions on-platform",
   "Full FitHub interactions (like, comment, repost, share)",
+  "Daily auto-generated match questionnaires",
   "Update your match questionnaire anytime",
+  "See who nudged you from discovery",
 ] as const;
 
 export const FREEMIUM_GATE_MESSAGES: Record<string, { title: string; body: string }> = {
   FREEMIUM_NO_SCROLL: {
     title: "Scroll feed is a VIP feature",
     body: "Upgrade to VIP to browse the full scroll feed and revisit coaches you passed on.",
-  },
-  FREEMIUM_NO_CHAT: {
-    title: "Chat requires VIP",
-    body: "Upgrade to VIP to message Fitness Pros in Match Fit chat.",
   },
   FREEMIUM_NO_BOOKING: {
     title: "Booking requires VIP",
@@ -52,11 +52,15 @@ export const FREEMIUM_GATE_MESSAGES: Record<string, { title: string; body: strin
   },
   FREEMIUM_NO_QUESTIONNAIRE: {
     title: "Match questionnaire updates require VIP",
-    body: "Upgrade to VIP to update your match preferences and discovery signals.",
+    body: "Your first match questionnaire is included on Free. Upgrade to VIP to update your match preferences later.",
+  },
+  FREEMIUM_NO_DAILY_QUESTIONNAIRE: {
+    title: "Daily questionnaires require VIP",
+    body: "Upgrade to VIP for auto-generated daily match questionnaires that refine your coach introductions.",
   },
   FREEMIUM_SWIPE_LIMIT: {
     title: "Swipe limit reached",
-    body: `Free plan includes ${CLIENT_FREEMIUM_SWIPE_LIMIT} coach passes every ${CLIENT_FREEMIUM_SWIPE_WINDOW_HOURS} hours. Upgrade to VIP for unlimited discovery.`,
+    body: `Free plan includes ${CLIENT_FREEMIUM_SWIPE_LIMIT} coach swipes every ${CLIENT_FREEMIUM_SWIPE_WINDOW_HOURS} hours. Upgrade to VIP for unlimited discovery.`,
   },
 };
 

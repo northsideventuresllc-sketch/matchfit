@@ -141,14 +141,15 @@ export default async function TermsPage() {
           </Li>
           <Li>
             <Strong>Client VIP Subscription:</Strong> Optional recurring Client plan (currently{" "}
-            {usdCents(CLIENT_VIP_PRICE_USD)} per month) that unlocks full discovery, chat, booking, FitHub interactions,
-            and match questionnaire updates after any complimentary beta VIP trial ends.
+            {usdCents(CLIENT_VIP_PRICE_USD)} per month) that unlocks full discovery, booking, FitHub interactions,
+            daily questionnaires, and match questionnaire updates after any complimentary beta VIP trial ends.
           </Li>
           <Li>
             <Strong>Client Free plan:</Strong> No monthly platform fee. After the beta VIP trial, Free-plan Clients may have
-            limited discovery (for example, swipe-only browsing with a cap of {CLIENT_FREEMIUM_SWIPE_LIMIT} passes per{" "}
-            {CLIENT_FREEMIUM_SWIPE_WINDOW_HOURS}-hour window) and may not use chat, booking, FitHub interactions, or match
-            questionnaire updates until they upgrade to VIP.
+            limited discovery (for example, swipe-only browsing with a cap of {CLIENT_FREEMIUM_SWIPE_LIMIT} swipes per{" "}
+            {CLIENT_FREEMIUM_SWIPE_WINDOW_HOURS}-hour window), in-app chat with matched Fitness Pros, and one initial match
+            questionnaire. Scroll browsing, booking, FitHub interactions, daily questionnaires, and match questionnaire
+            updates require VIP.
           </Li>
           <Li>
             <Strong>Platform Subscription (legacy):</Strong> Some older accounts may still reference a legacy Platform
@@ -195,7 +196,8 @@ export default async function TermsPage() {
           related client features as implemented for VIP accounts. When the trial ends, your account moves to the{" "}
           <Strong>Free plan</Strong> unless you subscribe to Client VIP at the rate shown in-product (currently{" "}
           {usdCents(CLIENT_VIP_PRICE_USD)} per month). Free-plan limits include swipe caps and restrictions on scroll
-          browsing, chat, booking, FitHub interactions, and match questionnaire updates as described in-product.
+          browsing, booking, FitHub interactions, daily questionnaires, and match questionnaire updates as described
+          in-product.
         </P>
         <P>
           <Strong>Legacy payment grace (older accounts only):</Strong> Accounts created under prior billing flows may still
@@ -376,7 +378,7 @@ export default async function TermsPage() {
           </Li>
         </Ul>
 
-        <H2 id="subscriptions-billing">7. Client VIP, Free Plan, and Billing</H2>
+        <H2 id="subscriptions-billing">7. Client Plans & Billing</H2>
         <Ul>
           <Li>
             New Clients receive <Strong>{CLIENT_PLATFORM_TRIAL_DAYS} days</Strong> of complimentary VIP access after
@@ -385,9 +387,10 @@ export default async function TermsPage() {
           <Li>
             When the beta VIP trial ends, accounts move to the <Strong>Free plan</Strong> unless the Client subscribes to{" "}
             <Strong>Client VIP</Strong> at the rate shown in-product (currently {usdCents(CLIENT_VIP_PRICE_USD)} per month).
-            Free-plan limits may include a cap of {CLIENT_FREEMIUM_SWIPE_LIMIT} coach passes per{" "}
-            {CLIENT_FREEMIUM_SWIPE_WINDOW_HOURS}-hour window and restrictions on scroll browsing, chat, booking, FitHub
-            interactions, and match questionnaire updates.
+            Free-plan limits may include a cap of {CLIENT_FREEMIUM_SWIPE_LIMIT} coach swipes per{" "}
+            {CLIENT_FREEMIUM_SWIPE_WINDOW_HOURS}-hour window, swipe-only discovery (no scroll feed), anonymous coach
+            nudges, and restrictions on booking, FitHub interactions, and daily questionnaires. In-app chat with matched
+            Fitness Pros and the initial match questionnaire are included on Free.
           </Li>
           <Li>
             Client VIP subscriptions renew according to the plan you select until canceled in accordance with in-product

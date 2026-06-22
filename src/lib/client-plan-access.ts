@@ -108,13 +108,20 @@ export async function recordSwipe(clientId: string): Promise<void> {
 export function getFreemiumRestrictions() {
   return {
     canScroll: false,
-    canChat: false,
+    canChat: true,
     canBook: false,
     canInteractFitHub: false,
-    canUseMatchQuestionnaire: false,
+    canCompleteInitialMatchQuestionnaire: true,
+    canUpdateMatchQuestionnaire: false,
+    canUseDailyQuestionnaire: false,
+    canSeeNudgeSenderIdentity: false,
     swipesPerWindow: CLIENT_FREEMIUM_SWIPE_LIMIT,
     windowHours: CLIENT_FREEMIUM_SWIPE_WINDOW_HOURS,
   };
+}
+
+export function canSeeNudgeSenderIdentity(client: ClientPlanAccessFields, nowMs: number = Date.now()): boolean {
+  return !isClientFreemiumGated(client, nowMs);
 }
 
 export const clientPlanAccessSelect = {

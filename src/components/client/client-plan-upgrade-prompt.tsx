@@ -50,7 +50,7 @@ export function ClientPlanUpgradePrompt({ errorCode, onDismiss, compact = false 
       <p className="mt-2 text-base font-bold text-white">{message.title}</p>
       <p className="mt-2 text-sm leading-relaxed text-white/65">{message.body}</p>
       <p className="mt-3 text-xs text-white/45">
-        VIP is {clientVipPriceLabel()} per month and unlocks full discovery, chat, booking, and FitHub.
+        VIP is {clientVipPriceLabel()} per month and unlocks scroll discovery, booking, daily questionnaires, and FitHub.
       </p>
       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <button
