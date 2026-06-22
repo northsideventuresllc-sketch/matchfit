@@ -17,7 +17,7 @@ import type {
   AdminUserStats,
 } from "@/lib/admin-portal-types";
 import { ensureAdminReportingSchema } from "@/lib/ensure-admin-reporting-schema";
-import { ensureClientPlanSchema, isMissingClientPlanColumnError } from "@/lib/ensure-client-plan-schema";
+import { ensureClientPlanSchema } from "@/lib/ensure-client-plan-schema";
 import { ensureClientPlatformTrialSchema } from "@/lib/ensure-client-platform-trial-schema";
 import { ensureTrainerRegisterSchema } from "@/lib/ensure-trainer-register-schema";
 import { prisma } from "@/lib/prisma";
