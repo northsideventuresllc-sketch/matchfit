@@ -9,7 +9,7 @@ import { HomeBetaSlotWarning } from "@/components/home-beta-slot-warning";
 import { HomeTrainerServiceTypesSection } from "@/components/home-trainer-service-types-section";
 import { HomeClientPricingSection } from "@/components/home-client-pricing-section";
 import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
-import { clientBetaVipTrialSummary, clientVipPriceLabel } from "@/lib/client-plan-copy";
+import { clientVipPriceLabel } from "@/lib/client-plan-copy";
 import {
   CLIENT_SIGN_UP_PATH,
   TRAINER_SIGN_UP_PATH,
@@ -64,8 +64,8 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
               aria-hidden
             />
             <span>
-              <span className="font-semibold text-white/85">Start with beta VIP access</span> —{" "}
-              {clientBetaVipTrialSummary()}, then choose the Free plan or upgrade to VIP for{" "}
+              <span className="font-semibold text-white/85">Choose Free or VIP client plans.</span> Start on the Free
+              plan or upgrade to VIP for{" "}
               <span className="font-bold text-[#FFD34E]">{clientVipPriceLabel()}/month</span> for full discovery, chat,
               booking, and FitHub.
             </span>
@@ -258,8 +258,8 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
             operate—not a one-size program shipped to thousands.
           </p>
           <p>
-            New clients receive {clientBetaVipTrialSummary()} during beta. After that window, you can stay on the Free
-            plan or upgrade to VIP when you want unlimited discovery and messaging.
+            Start on the Free plan when you are ready, or upgrade to VIP when you want unlimited discovery and
+            messaging.
           </p>
         </HomeCollapsibleSection>
 
@@ -327,8 +327,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           accent="left"
         >
           <p>
-            Founding Fitness Pros pay only the background check slice at sign-up during beta. After the founding cap,
-            standard-tier coaches can{" "}
+            Fitness pros can{" "}
             <span className="font-semibold text-white/85">pay the platform onboarding fee today</span> or{" "}
             <span className="font-semibold text-white/85">defer it and repay from future payouts</span> within 60 days of
             completing onboarding.
@@ -507,7 +506,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           accent="left"
         >
           <p className="mx-auto max-w-2xl text-center">
-            We share real progress, coach spotlights, and beta news on our official channels — so you always know Match
+            We share real progress, coach spotlights, and launch news on our official channels — so you always know Match
             Fit is active, responsive, and building with you.
           </p>
           <MatchFitSocialLinks variant="footer" className="mx-auto mt-4 max-w-md" />
