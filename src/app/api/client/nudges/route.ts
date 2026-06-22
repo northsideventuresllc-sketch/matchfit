@@ -1,3 +1,4 @@
+import { canSeeNudgeSenderIdentity, clientPlanAccessSelect } from "@/lib/client-plan-access";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
 import { NextResponse } from "next/server";
@@ -21,34 +22,48 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    const nudges = await prisma.trainerClientNudge.findMany({
-      where: { clientId },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-      include: {
-        trainer: {
-          select: {
-            username: true,
-            firstName: true,
-            lastName: true,
-            preferredName: true,
-            profileImageUrl: true,
+    const [client, nudges] = await Promise.all([
+      prisma.client.findUnique({
+        where: { id: clientId },
+        select: clientPlanAccessSelect,
+      }),
+      prisma.trainerClientNudge.findMany({
+        where: { clientId },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        include: {
+          trainer: {
+            select: {
+              username: true,
+              firstName: true,
+              lastName: true,
+              preferredName: true,
+              profileImageUrl: true,
+            },
           },
         },
-      },
-    });
+      }),
+    ]);
+
+    if (!client) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
+
+    const showSender = canSeeNudgeSenderIdentity(client);
 
     return NextResponse.json({
       nudges: nudges.map((n) => ({
         id: n.id,
         createdAt: n.createdAt.toISOString(),
         readAt: n.readAt?.toISOString() ?? null,
-        message: n.message,
-        trainerUsername: n.trainer.username,
-        displayName: coachDisplayName(n.trainer),
-        profileImageUrl: n.trainer.profileImageUrl,
-        chatHref: `/client/messages/${encodeURIComponent(n.trainer.username)}`,
+        message: showSender ? n.message : null,
+        anonymous: !showSender,
+        trainerUsername: showSender ? n.trainer.username : null,
+        displayName: showSender ? coachDisplayName(n.trainer) : "A Fitness Pro",
+        profileImageUrl: showSender ? n.trainer.profileImageUrl : null,
+        chatHref: showSender ? `/client/messages/${encodeURIComponent(n.trainer.username)}` : null,
       })),
+      canSeeSenderIdentity: showSender,
     });
   } catch (e) {
     console.error(e);

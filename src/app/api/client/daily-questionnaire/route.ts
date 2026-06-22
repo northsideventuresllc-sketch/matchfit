@@ -1,4 +1,5 @@
 import { listDailyQuestionnaireHistory, resolveDailyQuestionnaireState } from "@/lib/client-daily-questionnaire";
+import { requireClientNotFreemiumGated } from "@/lib/client-plan-gate";
 import { getSessionClientId } from "@/lib/session";
 import { NextResponse } from "next/server";
 
@@ -8,6 +9,9 @@ export async function GET() {
     if (!clientId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
+
+    const dailyGate = await requireClientNotFreemiumGated(clientId, "FREEMIUM_NO_DAILY_QUESTIONNAIRE");
+    if (dailyGate) return dailyGate;
 
     const [resolved, history] = await Promise.all([
       resolveDailyQuestionnaireState(clientId),

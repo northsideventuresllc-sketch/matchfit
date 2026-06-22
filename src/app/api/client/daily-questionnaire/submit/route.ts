@@ -3,6 +3,7 @@ import {
   validateAnswers,
   type DailyQuestionnaireQuestions,
 } from "@/lib/client-daily-questionnaire";
+import { requireClientNotFreemiumGated } from "@/lib/client-plan-gate";
 import { prisma } from "@/lib/prisma";
 import { getSessionClientId } from "@/lib/session";
 import { NextResponse } from "next/server";
@@ -13,6 +14,9 @@ export async function POST(req: Request) {
     if (!clientId) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
+
+    const dailyGate = await requireClientNotFreemiumGated(clientId, "FREEMIUM_NO_DAILY_QUESTIONNAIRE");
+    if (dailyGate) return dailyGate;
 
     const body = (await req.json().catch(() => ({}))) as {
       questionnaireId?: string;

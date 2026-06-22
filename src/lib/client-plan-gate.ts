@@ -24,10 +24,10 @@ export async function requireClientNotFreemiumGated(
   clientId: string,
   errorCode:
     | "FREEMIUM_NO_SCROLL"
-    | "FREEMIUM_NO_CHAT"
     | "FREEMIUM_NO_BOOKING"
     | "FREEMIUM_NO_FITHUB_INTERACT"
-    | "FREEMIUM_NO_QUESTIONNAIRE",
+    | "FREEMIUM_NO_QUESTIONNAIRE"
+    | "FREEMIUM_NO_DAILY_QUESTIONNAIRE",
 ): Promise<NextResponse | null> {
   const client = await loadClientPlanAccess(clientId);
   if (!client) {

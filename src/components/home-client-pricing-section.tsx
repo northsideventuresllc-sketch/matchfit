@@ -1,11 +1,9 @@
 import Link from "next/link";
 import {
-  CLIENT_BETA_VIP_TRIAL_DAYS,
   CLIENT_FREE_PLAN_FEATURES,
   CLIENT_FREE_PLAN_LABEL,
   CLIENT_VIP_PLAN_FEATURES,
   CLIENT_VIP_PLAN_LABEL,
-  clientBetaVipTrialSummary,
   clientVipPriceLabel,
 } from "@/lib/client-plan-copy";
 import { CLIENT_SIGN_UP_PATH } from "@/lib/home-page-auth";
@@ -16,16 +14,12 @@ function PricingCard({
   price,
   eyebrow,
   features,
-  ctaHref,
-  ctaLabel,
   highlighted,
 }: {
   title: string;
   price: string;
   eyebrow: string;
   features: readonly string[];
-  ctaHref: string;
-  ctaLabel: string;
   highlighted?: boolean;
 }) {
   return (
@@ -47,21 +41,13 @@ function PricingCard({
           </li>
         ))}
       </ul>
-      <Link
-        href={ctaHref}
-        className={
-          highlighted
-            ? "mt-6 inline-flex min-h-11 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-5 text-xs font-black uppercase tracking-[0.08em] text-[#0B0C0F]"
-            : "mt-6 inline-flex min-h-11 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] px-5 text-xs font-black uppercase tracking-[0.08em] text-white/85"
-        }
-      >
-        {ctaLabel}
-      </Link>
     </article>
   );
 }
 
 export function HomeClientPricingSection({ loggedIn }: { loggedIn: boolean }) {
+  const signUpHref = loggedIn ? "/client/dashboard/billing" : CLIENT_SIGN_UP_PATH;
+
   return (
     <HomeCollapsibleSection
       id="client-pricing"
@@ -72,32 +58,33 @@ export function HomeClientPricingSection({ loggedIn }: { loggedIn: boolean }) {
       defaultOpen
     >
       <p>
-        During beta, every new client starts with{" "}
-        <span className="font-semibold text-white/85">{clientBetaVipTrialSummary()}</span>. When that window ends, your
-        account moves to the <span className="font-semibold text-white/85">{CLIENT_FREE_PLAN_LABEL}</span> plan unless
-        you subscribe to <span className="font-semibold text-[#FFD34E]">{CLIENT_VIP_PLAN_LABEL}</span>.
+        Choose the plan that fits how you want to discover coaches.{" "}
+        <span className="font-semibold text-white/85">{CLIENT_FREE_PLAN_LABEL}</span> keeps core matching and chat
+        available, while <span className="font-semibold text-[#FFD34E]">{CLIENT_VIP_PLAN_LABEL}</span> unlocks full
+        discovery, booking, and daily questionnaires.
       </p>
       <div className="grid gap-5 pt-4 lg:grid-cols-2">
         <PricingCard
-          eyebrow="After beta VIP trial"
+          eyebrow="Core access"
           title={`${CLIENT_FREE_PLAN_LABEL} plan`}
           price="$0 / month"
           features={CLIENT_FREE_PLAN_FEATURES}
-          ctaHref={loggedIn ? "/client/dashboard/billing" : CLIENT_SIGN_UP_PATH}
-          ctaLabel={loggedIn ? "View billing" : "Sign up free"}
         />
         <PricingCard
           eyebrow="Full platform access"
           title={`${CLIENT_VIP_PLAN_LABEL} plan`}
           price={`${clientVipPriceLabel()} / month`}
-          features={[
-            `${CLIENT_BETA_VIP_TRIAL_DAYS}-day VIP trial included at sign-up (no card required)`,
-            ...CLIENT_VIP_PLAN_FEATURES,
-          ]}
-          ctaHref={loggedIn ? "/client/dashboard/billing" : CLIENT_SIGN_UP_PATH}
-          ctaLabel={loggedIn ? "Upgrade to VIP" : "Start VIP trial"}
+          features={CLIENT_VIP_PLAN_FEATURES}
           highlighted
         />
+      </div>
+      <div className="pt-5">
+        <Link
+          href={signUpHref}
+          className="flex min-h-12 w-full items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-6 text-sm font-black uppercase tracking-[0.1em] text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition hover:brightness-105"
+        >
+          Sign Up Today
+        </Link>
       </div>
       <p className="pt-2 text-xs leading-relaxed text-white/45">
         Session purchases with Fitness Pros are priced separately. Match Fit adds a 20% service charge plus transaction

@@ -61,6 +61,11 @@ export async function PATCH(req: Request) {
     } = {};
 
     if (body.preferences !== undefined) {
+      if (client.matchPreferencesCompletedAt) {
+        const questionnaireGate = await requireClientNotFreemiumGated(clientId, "FREEMIUM_NO_QUESTIONNAIRE");
+        if (questionnaireGate) return questionnaireGate;
+      }
+
       const parsed = clientMatchPreferencesSchema.safeParse(body.preferences);
       if (!parsed.success) {
         const msg = parsed.error.flatten().fieldErrors;
@@ -75,8 +80,10 @@ export async function PATCH(req: Request) {
     }
 
     if (body.markComplete === true) {
-      const questionnaireGate = await requireClientNotFreemiumGated(clientId, "FREEMIUM_NO_QUESTIONNAIRE");
-      if (questionnaireGate) return questionnaireGate;
+      if (client.matchPreferencesCompletedAt) {
+        const questionnaireGate = await requireClientNotFreemiumGated(clientId, "FREEMIUM_NO_QUESTIONNAIRE");
+        if (questionnaireGate) return questionnaireGate;
+      }
 
       const prefs = parseClientMatchPreferencesJson(
         data.matchPreferencesJson ?? client.matchPreferencesJson ?? undefined,

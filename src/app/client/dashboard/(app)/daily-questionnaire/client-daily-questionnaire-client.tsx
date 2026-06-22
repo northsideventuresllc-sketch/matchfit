@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ClientPlanUpgradePrompt } from "@/components/client/client-plan-upgrade-prompt";
 import type {
   DailyFreeTextQuestion,
   DailyInterestPickQuestion,
@@ -33,6 +34,7 @@ export function ClientDailyQuestionnaireClient() {
   const router = useRouter();
   const [data, setData] = useState<ActivePayload | CooldownPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [gateCode, setGateCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -43,11 +45,18 @@ export function ClientDailyQuestionnaireClient() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setGateCode(null);
     try {
       const res = await fetch("/api/client/daily-questionnaire");
       const json = (await res.json()) as ActivePayload | CooldownPayload | { error?: string };
       if (!res.ok) {
-        setError((json as { error?: string }).error ?? "Could not load questionnaire.");
+        const code = (json as { error?: string }).error ?? "Could not load questionnaire.";
+        if (code.startsWith("FREEMIUM_")) {
+          setGateCode(code);
+          setData(null);
+          return;
+        }
+        setError(code);
         setData(null);
         return;
       }
@@ -120,6 +129,10 @@ export function ClientDailyQuestionnaireClient() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (gateCode) {
+    return <ClientPlanUpgradePrompt errorCode={gateCode} />;
   }
 
   if (loading && !data) {
