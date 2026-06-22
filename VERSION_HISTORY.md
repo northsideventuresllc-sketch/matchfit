@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-22** `1.14.3-beta` → `1.14.4-beta` (**patch** — Auto-repair client plan schema for admin portal)
 - **2026-06-22** `1.14.2-beta` → `1.14.3-beta` (**patch** — Lint fix for admin portal metrics import)
 - **2026-06-22** `1.14.1-beta` → `1.14.2-beta` (**patch** — Copy, home promo UX, and admin client stats refinements)
 - **2026-06-22** `1.14.0-beta` → `1.14.1-beta` (**patch** — Client plan gates: chat for all, VIP daily questionnaires, anonymous nudges on Free, pricing copy fixes)
