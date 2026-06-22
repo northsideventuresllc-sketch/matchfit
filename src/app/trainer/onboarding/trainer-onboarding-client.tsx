@@ -470,7 +470,7 @@ export default function TrainerOnboardingClient() {
     });
   }, [profile]);
 
-  const stepHeading = ONBOARDING_STEP_DISPLAY_TITLES[step] ?? "Trainer Onboarding";
+  const stepHeading = ONBOARDING_STEP_DISPLAY_TITLES[step] ?? "Fitness Pro Onboarding";
   const stepSubline = step === 1 ? "Fees, Screening, and Platform Policies" : null;
 
   function requestDashboardNavigation() {
@@ -1066,7 +1066,7 @@ export default function TrainerOnboardingClient() {
   if (loadingMe) {
     return (
       <main className="flex min-h-dvh items-center justify-center bg-[#0B0C0F] px-5 text-sm text-white/55">
-        Loading your trainer workspace…
+        Loading your fitness pro workspace…
       </main>
     );
   }
@@ -1076,7 +1076,7 @@ export default function TrainerOnboardingClient() {
       <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-[#0B0C0F] px-5 text-center text-sm text-white/70">
         <p>{meError ?? "Session expired. Please sign in again."}</p>
         <Link href="/trainer/dashboard/login" className="text-[#FF7E00] underline-offset-4 hover:underline">
-          Back to Trainer Sign-In
+          Back to Fitness Pro Sign-In
         </Link>
       </main>
     );
@@ -1099,7 +1099,7 @@ export default function TrainerOnboardingClient() {
               <p className="text-sm font-black tracking-tight">
                 <span className="text-[#E8EAEF]">Match</span> <span className="text-[#E32B2B]">Fit</span>
               </p>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-white/40">Trainer onboarding</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-white/40">Fitness Pro onboarding</p>
             </div>
           </Link>
           <div className="flex flex-wrap items-center gap-2">
@@ -1200,7 +1200,7 @@ export default function TrainerOnboardingClient() {
                   href="/terms#trainer-terms"
                   className="flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold tracking-wide text-white transition hover:border-white/25"
                 >
-                  View Trainer Terms of Service
+                  View Fitness Pro Terms of Service
                 </Link>
               </div>
               <button
@@ -1816,7 +1816,7 @@ export default function TrainerOnboardingClient() {
               <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-4">
                 <p className="text-xs leading-relaxed text-amber-50/95">
                   Testing only: enter the development password (case-sensitive), then autofill. Your legal name will
-                  match the first and last name from trainer sign-up; all other fields are random placeholders so you
+                  match the first and last name from fitness pro sign-up; all other fields are random placeholders so you
                   can complete this step quickly.
                 </p>
                 <label className="mt-3 block text-xs font-semibold uppercase tracking-wide text-white/50" htmlFor="w9-autofill-pw">
@@ -2008,7 +2008,7 @@ export default function TrainerOnboardingClient() {
           {step === 6 ? (
             <form onSubmit={handleSaveProfile} className="flex flex-col gap-5">
               <p className="text-sm text-white/55">
-                First and last name are taken from your trainer sign-up. You can adjust everything here later from your
+                First and last name are taken from your fitness pro sign-up. You can adjust everything here later from your
                 dashboard.
               </p>
               <div className="grid gap-5 sm:grid-cols-2">

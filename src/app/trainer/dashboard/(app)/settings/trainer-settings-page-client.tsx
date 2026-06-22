@@ -199,7 +199,7 @@ export function TrainerSettingsPageClient(props: Props) {
         <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Account Settings</h1>
         <p className="mt-2 text-sm leading-relaxed text-white/50">
           Manage your coach profile, session, password, and two-factor authentication—the same flow as the client
-          portal, tailored for trainers.
+          portal, tailored for fitness pros.
         </p>
       </div>
 
@@ -315,7 +315,7 @@ export function TrainerSettingsPageClient(props: Props) {
           <CollapsibleSettingsSection
             bulkSectionId="trainer-settings-quick-links"
             title="Quick Links Settings"
-            description="Choose up to four shortcuts for the Quick Links card on your trainer home (header and account menu destinations, except Dashboard)."
+            description="Choose up to four shortcuts for the Quick Links card on your fitness pro home (header and account menu destinations, except Dashboard)."
             defaultOpen={false}
           >
             <TrainerQuickLinksSettingsPanel initialIds={props.initialQuickLinkIds} />

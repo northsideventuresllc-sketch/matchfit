@@ -296,7 +296,7 @@ export function TrainerPromoTokensClient() {
               Internal QA — credit tokens without Stripe
             </p>
             <p className="mt-2 text-xs leading-relaxed text-white/55">
-              Enter the Match Fit account password for this trainer profile, then tap Buy — the request will credit your
+              Enter the Match Fit account password for this fitness pro profile, then tap Buy — the request will credit your
               token wallet instead of opening Checkout.
             </p>
             <label className="mt-3 block text-[10px] font-bold uppercase tracking-wide text-white/40">
@@ -540,7 +540,7 @@ export function TrainerPromoTokensClient() {
 
       <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-[10px] font-black uppercase tracking-[0.14em] text-white/45">
         <Link href="/trainer/dashboard/premium/featured" className="text-[#FF7E00] underline-offset-2 hover:underline">
-          Featured Trainer
+          Featured Fitness Pro
         </Link>
         <span className="text-white/25" aria-hidden>
           ·

@@ -62,7 +62,7 @@ export default async function TrainerPremiumSignupPage() {
             href="/trainer/dashboard/premium/featured"
             className="group flex min-h-[11rem] flex-col items-center justify-center gap-3 rounded-3xl border border-white/[0.1] bg-[#12151C]/90 px-5 py-6 text-center transition hover:border-[#FF7E00]/35"
           >
-            <p className="text-base font-semibold text-white">Featured Trainer</p>
+            <p className="text-base font-semibold text-white">Featured Fitness Pro</p>
             <p className="text-sm font-semibold text-[#FF7E00]">Placement &amp; Auctions</p>
             <p className="max-w-[14rem] text-xs leading-relaxed text-white/45">
               Eligibility, daily entry, and bidding for featured windows.

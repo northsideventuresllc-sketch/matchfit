@@ -21,7 +21,7 @@ export default async function TrainerPremiumFeaturedPage() {
     return (
       <div className="space-y-8">
         <TrainerPremiumHubBackLink />
-        <PremiumStudioLockedNotice areaLabel="Featured Trainer" />
+        <PremiumStudioLockedNotice areaLabel="Featured Fitness Pro" />
       </div>
     );
   }
@@ -33,7 +33,7 @@ export default async function TrainerPremiumFeaturedPage() {
       <header className="space-y-2 text-center">
         <p className="text-xs font-black tracking-[0.22em] text-white/55">PREMIUM HUB</p>
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Premium · Discovery</p>
-        <h1 className="text-3xl font-black uppercase tracking-[0.06em] sm:text-4xl">Featured Trainer</h1>
+        <h1 className="text-3xl font-black uppercase tracking-[0.06em] sm:text-4xl">Featured Fitness Pro</h1>
         <p className="mx-auto max-w-2xl text-sm leading-relaxed text-white/55">
           Check eligibility, enter the daily pool, and manage bids when auctions are open. This is separate from FitHub
           posting—here you are competing for placement when the product runs featured windows.

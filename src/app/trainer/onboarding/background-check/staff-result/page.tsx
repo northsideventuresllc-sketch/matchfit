@@ -23,11 +23,11 @@ export default async function BackgroundCheckStaffResultPage({ searchParams }: P
   const body =
     message ??
     (outcome === "invite_confirmed"
-      ? "The trainer was notified by email and in-app alert."
+      ? "The fitness pro was notified by email and in-app alert."
       : outcome === "approve"
-        ? "The trainer profile was updated to Approved."
+        ? "The fitness pro profile was updated to Approved."
         : outcome === "deny"
-          ? "The trainer profile was updated and escrow was adjusted."
+          ? "The fitness pro profile was updated and escrow was adjusted."
           : "If this link expired, open the latest email from Match Fit support.");
 
   return (

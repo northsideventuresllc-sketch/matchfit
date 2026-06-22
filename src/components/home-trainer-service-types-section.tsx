@@ -21,7 +21,7 @@ function credentialTrack(id: MatchServiceId): "nutrition" | "personal_training" 
 function trackRequirementBullets(track: "nutrition" | "personal_training"): string[] {
   if (track === "nutrition") {
     return [
-      "Select the nutrition professional path during trainer onboarding and upload the nutrition credentials Match Fit requests.",
+      "Select the nutrition professional path during fitness pro onboarding and upload the nutrition credentials Match Fit requests.",
       "Your nutrition credential review must reach APPROVED before you can publish Nutrition & Accountability Coaching or Custom Online Program / Plan Design packages.",
     ];
   }
@@ -123,9 +123,9 @@ export function HomeTrainerServiceTypesSection({ embedded = false }: { embedded?
       <div className={embedded ? "relative p-7 sm:p-9" : "relative"}>
         {!embedded ? (
           <>
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF7E00]">For trainers</p>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF7E00]">For fitness pros</p>
             <h2 className="mt-3 text-balance text-xl font-black uppercase leading-tight tracking-wide text-white sm:text-2xl md:text-[1.65rem]">
-              Trainer services you can list on Match Fit
+              Services you can list on Match Fit
             </h2>
           </>
         ) : null}
@@ -230,7 +230,7 @@ export function HomeTrainerServiceTypesSection({ embedded = false }: { embedded?
                         languages, and service area before purchases unlock.
                       </li>
                       <li>
-                        Satisfy marketplace compliance for your account (for example trainer agreements, tax documentation,
+                        Satisfy marketplace compliance for your account (for example fitness pro agreements, tax documentation,
                         and background screening where required) so your dashboard can stay active for payouts.
                       </li>
                       <li>
