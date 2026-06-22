@@ -6,28 +6,34 @@ const {
   mockQueryRaw,
   mockCountLaunchClients,
   mockCountLaunchTrainers,
-  mockCountLaunchPlatformSubscribers,
-  mockLaunchClientBillingGraceWhere,
   mockLaunchClientCountWhere,
-  mockLaunchClientFreeTrialCountWhere,
-  mockLaunchClientPlatformPaymentGraceWhere,
+  mockLaunchClientPlatformTrialCountWhere,
+  mockLaunchClientFreePlanWhere,
+  mockLaunchClientSubscribedPlansWhere,
+  mockLaunchClientActiveVipWhere,
+  mockLaunchClientActiveAccountWhere,
   mockLaunchTrainerCountWhere,
   mockGetHomeUserCounts,
   mockIsPrismaMissingTableError,
+  mockIsPrismaMissingColumnError,
+  mockBuildLaunchMetricsClientSqlFilter,
 } = vi.hoisted(() => ({
   mockClientCount: vi.fn(),
   mockTrainerCount: vi.fn(),
   mockQueryRaw: vi.fn(),
   mockCountLaunchClients: vi.fn(),
   mockCountLaunchTrainers: vi.fn(),
-  mockCountLaunchPlatformSubscribers: vi.fn(),
-  mockLaunchClientBillingGraceWhere: vi.fn(),
   mockLaunchClientCountWhere: vi.fn(),
-  mockLaunchClientFreeTrialCountWhere: vi.fn(),
-  mockLaunchClientPlatformPaymentGraceWhere: vi.fn(),
+  mockLaunchClientPlatformTrialCountWhere: vi.fn(),
+  mockLaunchClientFreePlanWhere: vi.fn(),
+  mockLaunchClientSubscribedPlansWhere: vi.fn(),
+  mockLaunchClientActiveVipWhere: vi.fn(),
+  mockLaunchClientActiveAccountWhere: vi.fn(),
   mockLaunchTrainerCountWhere: vi.fn(),
   mockGetHomeUserCounts: vi.fn(),
   mockIsPrismaMissingTableError: vi.fn(),
+  mockIsPrismaMissingColumnError: vi.fn(),
+  mockBuildLaunchMetricsClientSqlFilter: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -48,17 +54,19 @@ vi.mock("@/lib/launch-account-counts", async (importOriginal) => {
     ...actual,
     countLaunchClients: mockCountLaunchClients,
     countLaunchTrainers: mockCountLaunchTrainers,
-    countLaunchPlatformSubscribers: mockCountLaunchPlatformSubscribers,
-    launchClientBillingGraceWhere: mockLaunchClientBillingGraceWhere,
     launchClientCountWhere: mockLaunchClientCountWhere,
-    launchClientFreeTrialCountWhere: mockLaunchClientFreeTrialCountWhere,
-    launchClientPlatformPaymentGraceWhere: mockLaunchClientPlatformPaymentGraceWhere,
+    launchClientPlatformTrialCountWhere: mockLaunchClientPlatformTrialCountWhere,
+    launchClientFreePlanWhere: mockLaunchClientFreePlanWhere,
+    launchClientSubscribedPlansWhere: mockLaunchClientSubscribedPlansWhere,
+    launchClientActiveVipWhere: mockLaunchClientActiveVipWhere,
+    launchClientActiveAccountWhere: mockLaunchClientActiveAccountWhere,
     launchTrainerCountWhere: mockLaunchTrainerCountWhere,
   };
 });
 
 vi.mock("@/lib/admin-portal-list-filters", () => ({
   adminPendingTrainerWhere: vi.fn(() => ({ __tag: "admin-pending" })),
+  buildLaunchMetricsClientSqlFilter: mockBuildLaunchMetricsClientSqlFilter,
 }));
 
 vi.mock("@/lib/home-user-counts", () => ({
@@ -67,6 +75,7 @@ vi.mock("@/lib/home-user-counts", () => ({
 
 vi.mock("@/lib/prisma-missing-column", () => ({
   isPrismaMissingTableError: mockIsPrismaMissingTableError,
+  isPrismaMissingColumnError: mockIsPrismaMissingColumnError,
 }));
 
 import { getAdminMemberOverviewPanel } from "@/lib/admin-member-overview";
@@ -76,10 +85,13 @@ describe("admin-member-overview", () => {
     vi.clearAllMocks();
 
     mockLaunchClientCountWhere.mockReturnValue({ deidentifiedAt: null });
+    mockLaunchClientActiveAccountWhere.mockReturnValue({ deidentifiedAt: null, accountDeactivatedAt: null });
+    mockLaunchClientPlatformTrialCountWhere.mockReturnValue({ vipTrial: true });
+    mockLaunchClientFreePlanWhere.mockReturnValue({ freePlan: true });
+    mockLaunchClientSubscribedPlansWhere.mockReturnValue({ subscribed: true });
+    mockLaunchClientActiveVipWhere.mockReturnValue({ activeVip: true });
     mockLaunchTrainerCountWhere.mockReturnValue({ deidentifiedAt: null });
-    mockLaunchClientFreeTrialCountWhere.mockReturnValue({ freeTrial: true });
-    mockLaunchClientPlatformPaymentGraceWhere.mockReturnValue({ paymentGrace: true });
-    mockLaunchClientBillingGraceWhere.mockReturnValue({ billingGrace: true });
+    mockBuildLaunchMetricsClientSqlFilter.mockReturnValue("");
 
     mockGetHomeUserCounts.mockResolvedValue({
       clientsTotal: 80,
@@ -90,12 +102,14 @@ describe("admin-member-overview", () => {
     });
     mockCountLaunchClients.mockResolvedValue(1);
     mockCountLaunchTrainers.mockResolvedValue(0);
-    mockCountLaunchPlatformSubscribers.mockResolvedValue(12);
     mockClientCount.mockImplementation((args?: { where?: Record<string, unknown> }) => {
       const w = args?.where;
-      if (w && "freeTrial" in w && w.freeTrial === true) return Promise.resolve(7);
-      if (w && w.stripeSubscriptionActive === false) return Promise.resolve(9);
-      return Promise.resolve(40);
+      if (w && "vipTrial" in w) return Promise.resolve(7);
+      if (w && "freePlan" in w) return Promise.resolve(18);
+      if (w && "subscribed" in w) return Promise.resolve(25);
+      if (w && "activeVip" in w) return Promise.resolve(7);
+      if (w && w.updatedAt) return Promise.resolve(9);
+      return Promise.resolve(0);
     });
     mockTrainerCount.mockImplementation((args?: { where?: Record<string, unknown> }) => {
       if (args?.where?.__tag === "admin-pending") return Promise.resolve(4);
@@ -105,20 +119,21 @@ describe("admin-member-overview", () => {
       }
       return Promise.resolve(0);
     });
-    mockQueryRaw.mockResolvedValue([{ n: BigInt(0) }]);
+    mockQueryRaw.mockResolvedValue([{ n: BigInt(99) }]);
     mockIsPrismaMissingTableError.mockReturnValue(false);
+    mockIsPrismaMissingColumnError.mockReturnValue(false);
   });
 
   it("builds admin member overview metrics from launch and analytics data", async () => {
-    mockQueryRaw.mockResolvedValueOnce([{ n: BigInt(99) }]);
-
     const result = await getAdminMemberOverviewPanel(new Date("2026-06-09T12:00:00.000Z"));
 
     expect(result).toEqual({
       allMembersTotal: 1,
-      freeTrialClients: 7,
-      subscribedClients: 12,
+      vipTrialClients: 7,
+      subscribedClients: 25,
       inactiveClients: 9,
+      freePlanClients: 18,
+      activeVipClients: 7,
       uniqueSiteVisitorsAllTime: 99,
       pendingTrainers: 4,
       compliantActiveTrainers: 20,
@@ -131,7 +146,6 @@ describe("admin-member-overview", () => {
     const err = new Error("missing site analytics table");
     mockQueryRaw.mockRejectedValueOnce(err);
     mockIsPrismaMissingTableError.mockReturnValueOnce(true);
-    mockClientCount.mockResolvedValueOnce(10).mockResolvedValueOnce(2).mockResolvedValueOnce(3);
 
     const result = await getAdminMemberOverviewPanel(new Date("2026-06-09T12:00:00.000Z"));
 
@@ -143,7 +157,6 @@ describe("admin-member-overview", () => {
     const err = new Error("query failed");
     mockQueryRaw.mockRejectedValueOnce(err);
     mockIsPrismaMissingTableError.mockReturnValueOnce(false);
-    mockClientCount.mockResolvedValueOnce(10).mockResolvedValueOnce(2).mockResolvedValueOnce(3);
 
     await expect(getAdminMemberOverviewPanel()).rejects.toBe(err);
   });

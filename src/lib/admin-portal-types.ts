@@ -107,9 +107,11 @@ export type AdminHomeUserCounts = {
 
 export type AdminMemberOverviewPanel = {
   allMembersTotal: number;
-  freeTrialClients: number;
+  vipTrialClients: number;
   subscribedClients: number;
   inactiveClients: number;
+  freePlanClients: number;
+  activeVipClients: number;
   uniqueSiteVisitorsAllTime: number;
   pendingTrainers: number;
   compliantActiveTrainers: number;

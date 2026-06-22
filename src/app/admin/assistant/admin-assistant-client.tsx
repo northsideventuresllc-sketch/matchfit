@@ -131,7 +131,7 @@ export function AdminAssistantClient() {
             memberOverview?: {
               allMembersTotal: number;
               subscribedClients: number;
-              freeTrialClients: number;
+              vipTrialClients: number;
               compliantActiveTrainers: number;
               pendingTrainers: number;
             };
@@ -144,7 +144,7 @@ export function AdminAssistantClient() {
             subscribedClients: data.memberOverview.subscribedClients,
             compliantActiveTrainers: data.memberOverview.compliantActiveTrainers,
             pendingTrainers: data.memberOverview.pendingTrainers,
-            freeTrialClients: data.memberOverview.freeTrialClients,
+            vipTrialClients: data.memberOverview.vipTrialClients,
             uniqueVisitors7d: data.traffic?.uniqueVisitors ?? 0,
           });
           setStatsLine(snapshot.line);

@@ -69,9 +69,11 @@ describe("GET /api/admin/overview", () => {
       recentFeatured: [],
       memberOverview: {
         allMembersTotal: 0,
-        freeTrialClients: 0,
+        vipTrialClients: 0,
         subscribedClients: 0,
         inactiveClients: 0,
+        freePlanClients: 0,
+        activeVipClients: 0,
         uniqueSiteVisitorsAllTime: 0,
         pendingTrainers: 0,
         compliantActiveTrainers: 0,
