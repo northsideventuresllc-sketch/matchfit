@@ -16,6 +16,11 @@ import {
   CLIENT_PLATFORM_TRIAL_DAYS,
 } from "@/lib/client-platform-trial-constants";
 import {
+  CLIENT_FREEMIUM_SWIPE_LIMIT,
+  CLIENT_FREEMIUM_SWIPE_WINDOW_HOURS,
+  CLIENT_VIP_PRICE_USD,
+} from "@/lib/client-plan-access";
+import {
   CHECK_IN_LEAD_HOURS,
   GATE_A_POST_SESSION_SILENCE_HOURS,
   INITIAL_OUTBOUND_MESSAGE_CAP,
@@ -135,8 +140,20 @@ export default async function TermsPage() {
             offered by a Fitness Pro through the Service.
           </Li>
           <Li>
-            <Strong>Platform Subscription:</Strong> Recurring Client access to the nationwide Fitness Pro directory and related
-            client features, billed as described at checkout or in-product.
+            <Strong>Client VIP Subscription:</Strong> Optional recurring Client plan (currently{" "}
+            {usdCents(CLIENT_VIP_PRICE_USD)} per month) that unlocks full discovery, chat, booking, FitHub interactions,
+            and match questionnaire updates after any complimentary beta VIP trial ends.
+          </Li>
+          <Li>
+            <Strong>Client Free plan:</Strong> No monthly platform fee. After the beta VIP trial, Free-plan Clients may have
+            limited discovery (for example, swipe-only browsing with a cap of {CLIENT_FREEMIUM_SWIPE_LIMIT} passes per{" "}
+            {CLIENT_FREEMIUM_SWIPE_WINDOW_HOURS}-hour window) and may not use chat, booking, FitHub interactions, or match
+            questionnaire updates until they upgrade to VIP.
+          </Li>
+          <Li>
+            <Strong>Platform Subscription (legacy):</Strong> Some older accounts may still reference a legacy Platform
+            Subscription billed separately from Client VIP. Where both exist, in-product billing controls govern which plan
+            applies.
           </Li>
         </Ul>
 
@@ -144,9 +161,9 @@ export default async function TermsPage() {
         <Ul>
           <Li>You must be legally able to enter a binding contract in your jurisdiction to use the Service.</Li>
           <Li>
-            You are responsible for accurate profile and billing information. After your platform free trial, you must
-            connect a valid payment method and maintain an active Platform Subscription to keep access beyond the posted
-            payment grace period.
+            You are responsible for accurate profile and billing information. After your complimentary beta VIP trial ends,
+            you may remain on the Free plan with the limits described in these Terms or subscribe to Client VIP for full
+            access.
           </Li>
           <Li>
             You must complete any user agreement or acceptance flows presented in the app (including acknowledgments at
@@ -172,13 +189,18 @@ export default async function TermsPage() {
           will be enabled by region as beta activity grows.
         </P>
         <P>
-          <Strong>Client sign-up trial:</Strong> After you complete client sign-up and agree to these Terms, your account
-          receives a <Strong>{CLIENT_PLATFORM_TRIAL_DAYS}-day</Strong> platform access trial with{" "}
-          <Strong>no card required at sign-up</Strong>. When that trial ends, you have an additional{" "}
-          <Strong>{CLIENT_PAYMENT_GRACE_DAYS} days</Strong> to connect a card and start the recurring Platform Subscription.
-          If payment is not completed before the grace period ends, your account is deactivated and dashboard access is
-          blocked until you pay to reactivate. Reactivation requires payment and a connected card; a new free trial is not
-          offered if you previously consumed the sign-up trial.
+          <Strong>Client beta VIP trial:</Strong> After you complete client sign-up and agree to these Terms, your account
+          receives <Strong>{CLIENT_PLATFORM_TRIAL_DAYS} days</Strong> of complimentary <Strong>VIP access</Strong> with{" "}
+          <Strong>no card required at sign-up</Strong>. During that window you may use discovery, chat, booking, FitHub, and
+          related client features as implemented for VIP accounts. When the trial ends, your account moves to the{" "}
+          <Strong>Free plan</Strong> unless you subscribe to Client VIP at the rate shown in-product (currently{" "}
+          {usdCents(CLIENT_VIP_PRICE_USD)} per month). Free-plan limits include swipe caps and restrictions on scroll
+          browsing, chat, booking, FitHub interactions, and match questionnaire updates as described in-product.
+        </P>
+        <P>
+          <Strong>Legacy payment grace (older accounts only):</Strong> Accounts created under prior billing flows may still
+          have a <Strong>{CLIENT_PAYMENT_GRACE_DAYS}-day</Strong> grace window after trial to connect a legacy Platform
+          Subscription. If that grace expires without payment, those accounts may be deactivated until reactivation.
         </P>
         <P>
           <Strong>Founding Fitness Pro promotions (while caps last):</Strong> The first{" "}
@@ -354,33 +376,31 @@ export default async function TermsPage() {
           </Li>
         </Ul>
 
-        <H2 id="subscriptions-billing">7. Client Platform Subscription, Pause, and Failed Payments</H2>
+        <H2 id="subscriptions-billing">7. Client VIP, Free Plan, and Billing</H2>
         <Ul>
           <Li>
-            New Clients receive a <Strong>{CLIENT_PLATFORM_TRIAL_DAYS}-day</Strong> platform access trial after completing
-            sign-up and agreeing to these Terms. No card is required during that trial. When the trial ends, you have{" "}
-            <Strong>{CLIENT_PAYMENT_GRACE_DAYS} days</Strong> to connect a card and start the recurring Platform Subscription
-            at the rate shown in-product (currently {usdCents(TOS_CLIENT_PLATFORM_SUBSCRIPTION_USD)} per month unless a
-            promotion applies).
+            New Clients receive <Strong>{CLIENT_PLATFORM_TRIAL_DAYS} days</Strong> of complimentary VIP access after
+            completing sign-up and agreeing to these Terms. No card is required during that beta VIP trial.
           </Li>
           <Li>
-            If payment is not completed before the grace period ends, your account is deactivated and you cannot sign in or
-            use dashboard features until you pay to reactivate and connect a card. Attempting to register again with the same
-            email does not grant a new free trial.
+            When the beta VIP trial ends, accounts move to the <Strong>Free plan</Strong> unless the Client subscribes to{" "}
+            <Strong>Client VIP</Strong> at the rate shown in-product (currently {usdCents(CLIENT_VIP_PRICE_USD)} per month).
+            Free-plan limits may include a cap of {CLIENT_FREEMIUM_SWIPE_LIMIT} coach passes per{" "}
+            {CLIENT_FREEMIUM_SWIPE_WINDOW_HOURS}-hour window and restrictions on scroll browsing, chat, booking, FitHub
+            interactions, and match questionnaire updates.
           </Li>
           <Li>
-            Platform subscriptions renew according to the plan you select until canceled in accordance with in-product
-            controls and processor billing portals where linked.
+            Client VIP subscriptions renew according to the plan you select until canceled in accordance with in-product
+            controls and Stripe billing portals where linked.
           </Li>
           <Li>
-            If you pause your subscription after a bill date as allowed in-product, you may lose access to the trainer
-            database until you resume. Fitness Pros you work with may receive notices consistent with product behavior when a
-            subscription will not renew.
+            Legacy Platform Subscription accounts may still follow older grace and deactivation rules described in section 2A
+            until migrated or closed.
           </Li>
           <Li>
-            If a renewal payment fails after you have an active subscription, you may have a grace period (currently up to{" "}
-            <Strong>seventy-two (72) hours</Strong>) to update payment information before non-billing dashboard access is
-            restricted, as implemented in billing flows and communications.
+            If a renewal payment fails after you have an active paid subscription, you may have a grace period (currently up
+            to <Strong>seventy-two (72) hours</Strong>) to update payment information before access is restricted, as
+            implemented in billing flows and communications.
           </Li>
         </Ul>
 
@@ -441,9 +461,11 @@ export default async function TermsPage() {
             of Premium Page access at sign-up. Fitness Pros must begin onboarding within{" "}
             <Strong>{TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} calendar days</Strong> of account creation and may not offer
             or sell services until all onboarding requirements are completed.{" "}
-            <Strong>Standard pricing (after founding caps):</Strong> {trainerStandardOnboardingAfterCapLabel()}. Match Fit
-            generally collects onboarding amounts only after background screening clears and primary certification is
-            approved, as implemented in onboarding. At signup, your card may be{" "}
+            <Strong>Standard pricing (after founding caps):</Strong> {trainerStandardOnboardingAfterCapLabel()}. Standard-tier
+            Fitness Pros may <Strong>pay the platform onboarding fee at sign-up</Strong> or{" "}
+            <Strong>defer it and repay from future payouts</Strong> (minimum 20% withhold) within 60 days of completing
+            onboarding, as shown in-product. Match Fit generally collects onboarding amounts only after background screening
+            clears and primary certification is approved, as implemented in onboarding. At signup, your card may be{" "}
             <Strong>authorized (held)</Strong> through our payment processor; Match Fit <Strong>captures</Strong> amounts
             only according to the pricing tier and approval rules in effect when you registered.
           </Li>

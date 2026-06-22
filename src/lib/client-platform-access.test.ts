@@ -13,6 +13,8 @@ const base = {
   paymentGraceUntil: null as Date | null,
   accountDeactivatedAt: null as Date | null,
   platformTrialConsumed: false,
+  vipSubscriptionActive: false,
+  clientPlanTier: "FREEMIUM",
 };
 
 describe("client platform access", () => {
@@ -32,7 +34,34 @@ describe("client platform access", () => {
     );
   });
 
-  it("returns payment_grace after trial ends and hard-locks dashboard", () => {
+  it("returns freemium after beta VIP trial ends without paid VIP", () => {
+    const now = Date.parse("2026-06-15T12:00:00.000Z");
+    const client = {
+      ...base,
+      platformTrialEndsAt: new Date("2026-06-01T12:00:00.000Z"),
+      platformTrialConsumed: true,
+      clientPlanTier: "FREEMIUM",
+    };
+    expect(resolveClientPlatformAccessPhase(client, now)).toBe("freemium");
+    expect(isClientBillingHardLocked(client, now)).toBe(false);
+    expect(isClientAccountLoginBlocked(client, now)).toBe(false);
+  });
+
+  it("returns vip when paid VIP subscription is active", () => {
+    const now = Date.now();
+    expect(
+      resolveClientPlatformAccessPhase(
+        {
+          ...base,
+          vipSubscriptionActive: true,
+          clientPlanTier: "VIP",
+        },
+        now,
+      ),
+    ).toBe("vip");
+  });
+
+  it("returns payment_grace for legacy accounts still in grace", () => {
     const now = Date.parse("2026-06-15T12:00:00.000Z");
     const client = {
       ...base,
@@ -45,7 +74,7 @@ describe("client platform access", () => {
     expect(isClientAccountLoginBlocked(client, now)).toBe(false);
   });
 
-  it("blocks login after payment grace expires without subscription", () => {
+  it("blocks login after legacy payment grace expires without subscription", () => {
     const now = Date.parse("2026-07-01T12:00:00.000Z");
     const client = {
       ...base,

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { TrainerVerificationBadgePill } from "@/components/trainer/trainer-verification-badge";
+import { ClientPlanUpgradePrompt } from "@/components/client/client-plan-upgrade-prompt";
 import type { TrainerVerificationBadge } from "@/lib/trainer-client-discovery";
 
 type TrainerRow = {
@@ -28,6 +29,7 @@ export function FindTrainersClient() {
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [gateError, setGateError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [tabCounts, setTabCounts] = useState<{ new: number; interested: number; passed: number } | null>(null);
   const [passCooldownDays, setPassCooldownDays] = useState(90);
@@ -36,6 +38,7 @@ export function FindTrainersClient() {
   const load = useCallback(async (r: boolean, feed: "swipe" | "scroll", tab: ScrollTab) => {
     setLoading(true);
     setError(null);
+    setGateError(null);
     try {
       const qs = new URLSearchParams({
         relaxed: r ? "1" : "0",
@@ -52,7 +55,13 @@ export function FindTrainersClient() {
         notInterestedHistoryDays?: number;
       };
       if (!res.ok) {
-        setError(data.error ?? "Could not load coaches.");
+        const code = data.error ?? "Could not load coaches.";
+        if (code.startsWith("FREEMIUM_")) {
+          setGateError(code);
+          setError(null);
+        } else {
+          setError(code);
+        }
         return;
       }
       setTrainers(data.trainers ?? []);
@@ -112,7 +121,12 @@ export function FindTrainersClient() {
     });
     if (!res.ok) {
       const data = (await res.json()) as { error?: string };
-      setToast(data.error ?? "Could not update list.");
+      const code = data.error ?? "Could not update list.";
+      if (code.startsWith("FREEMIUM_")) {
+        setGateError(code);
+      } else {
+        setToast(code);
+      }
       return false;
     }
     setToast("Marked not interested — they won't appear in New for a while.");
@@ -190,6 +204,8 @@ export function FindTrainersClient() {
         />
         Include near matches (slightly outside my preferences)
       </label>
+
+      {gateError ? <ClientPlanUpgradePrompt errorCode={gateError} onDismiss={() => setGateError(null)} /> : null}
 
       {error ? (
         <p className="rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-center text-sm text-[#FFB4B4]">

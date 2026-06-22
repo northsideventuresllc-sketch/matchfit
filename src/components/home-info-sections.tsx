@@ -7,7 +7,9 @@ import {
 import { HomeCtaLogoutBar } from "@/components/home-cta-logout-bar";
 import { HomeBetaSlotWarning } from "@/components/home-beta-slot-warning";
 import { HomeTrainerServiceTypesSection } from "@/components/home-trainer-service-types-section";
+import { HomeClientPricingSection } from "@/components/home-client-pricing-section";
 import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
+import { clientBetaVipTrialSummary, clientVipPriceLabel } from "@/lib/client-plan-copy";
 import {
   CLIENT_SIGN_UP_PATH,
   TRAINER_SIGN_UP_PATH,
@@ -62,9 +64,10 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
               aria-hidden
             />
             <span>
-              <span className="font-semibold text-white/85">Browse the full trainer directory</span> for{" "}
-              <span className="font-bold text-[#FFD34E]">$10.00 per month</span>—explore profiles and find coaches
-              who fit your goals before you book a session.
+              <span className="font-semibold text-white/85">Start with beta VIP access</span> —{" "}
+              {clientBetaVipTrialSummary()}, then choose the Free plan or upgrade to VIP for{" "}
+              <span className="font-bold text-[#FFD34E]">{clientVipPriceLabel()}/month</span> for full discovery, chat,
+              booking, and FitHub.
             </span>
           </li>
           <li className="flex gap-3">
@@ -198,9 +201,9 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           accent="right"
         >
           <p>
-            Match Fit uses algorithms and AI to suggest coaches who fit more than a checklist of goals. Your
-            profile, how you use the app, and patterns in chat help surface tendencies—communication style,
-            consistency, what motivates you—so recommendations feel personal, not random.
+            Match Fit uses structured signals and algorithmic ranking to suggest coaches who fit more than a checklist
+            of goals. Your profile, how you use the app, and patterns in chat help surface tendencies—communication
+            style, consistency, what motivates you—so recommendations feel personal, not random.
           </p>
           <p>
             If you allow it, signals from activity on your mobile device can refine suggestions over time—always
@@ -254,7 +257,13 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
             Compare coaching styles, book sessions that fit your week, and grow with someone who gets how you
             operate—not a one-size program shipped to thousands.
           </p>
+          <p>
+            New clients receive {clientBetaVipTrialSummary()} during beta. After that window, you can stay on the Free
+            plan or upgrade to VIP when you want unlimited discovery and messaging.
+          </p>
         </HomeCollapsibleSection>
+
+        <HomeClientPricingSection loggedIn={loggedIn} />
       </div>
 
       <div className="space-y-6 sm:space-y-8">
@@ -309,6 +318,39 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
             <HomeTrainerServiceTypesSection embedded />
           </div>
         </details>
+
+        <HomeCollapsibleSection
+          id="trainer-onboarding-fee"
+          eyebrow="Onboarding fee"
+          eyebrowClass="text-[#FF7E00]"
+          title="Fitness Pro platform fee options"
+          accent="left"
+        >
+          <p>
+            Founding Fitness Pros pay only the background check slice at sign-up during beta. After the founding cap,
+            standard-tier coaches can{" "}
+            <span className="font-semibold text-white/85">pay the platform onboarding fee today</span> or{" "}
+            <span className="font-semibold text-white/85">defer it and repay from future payouts</span> within 60 days of
+            completing onboarding.
+          </p>
+          <ul className="list-none space-y-3 border-t border-white/[0.08] pt-4">
+            <li className="flex gap-3">
+              <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#FF7E00]" aria-hidden />
+              <span>
+                <span className="font-semibold text-white/85">Pay now:</span> authorize the platform hold at sign-up;
+                Match Fit captures only after certification and background screening are approved.
+              </span>
+            </li>
+            <li className="flex gap-3">
+              <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#FFD34E]" aria-hidden />
+              <span>
+                <span className="font-semibold text-white/85">Defer:</span> pay $0 platform fee today, authorize only the
+                background check hold, and repay through payout withhold (minimum 20%) within 60 days of completing
+                onboarding.
+              </span>
+            </li>
+          </ul>
+        </HomeCollapsibleSection>
 
         <HomeCollapsibleSection
           id="trainer-premium"

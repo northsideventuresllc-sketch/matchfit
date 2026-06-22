@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getLaunchPromoStats } from "@/lib/launch-promo-stats";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
 import { getClientFoundingTrialDays } from "@/lib/match-fit-launch-promotions";
+import { clientBetaVipTrialSummary, clientVipPriceLabel } from "@/lib/client-plan-copy";
 import {
   TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE,
   trainerFoundingPromoParagraph,
@@ -199,7 +200,7 @@ export default async function PromosPage() {
                     For clients
                   </p>
                   <h2 className="mt-2 text-xl font-black uppercase tracking-wide text-white sm:text-2xl">
-                    Founding Member Free Trial
+                    Beta VIP Trial
                   </h2>
                 </div>
                 <span
@@ -214,15 +215,20 @@ export default async function PromosPage() {
               </div>
 
               <p className="mt-5 text-pretty text-[15px] leading-relaxed text-white/65 sm:text-base">
-                Complete client sign-up and agree to the Terms of Service to start a{" "}
-                <span className="font-bold text-[#FFD34E]">{trialDays}-day free trial</span> with{" "}
-                <span className="font-semibold text-white/80">no card required at sign-up</span>.
+                Complete client sign-up and agree to the Terms of Service to start{" "}
+                <span className="font-bold text-[#FFD34E]">{clientBetaVipTrialSummary()}</span> with full VIP access.
+                After the trial, your account moves to the Free plan unless you subscribe to VIP for{" "}
+                <span className="font-semibold text-white/80">{clientVipPriceLabel()}/month</span>.
               </p>
 
               <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="font-semibold text-white/75">Free trial at sign-up</span>
+                  <span className="font-semibold text-white/75">Beta VIP trial at sign-up</span>
                   <span className="text-white/55">{trialDays} days, no card</span>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-sm">
+                  <span className="font-semibold text-white/75">After trial</span>
+                  <span className="text-white/55">Free plan or VIP upgrade</span>
                 </div>
               </div>
 
@@ -286,7 +292,16 @@ export default async function PromosPage() {
             </li>
             <li className="flex gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />
-              <span>Clients receive a {trialDays}-day free trial at sign-up (no card required).</span>
+              <span>
+                Fitness Pros may pay the standard onboarding fee at sign-up or defer it and repay from payouts within 60
+                days of completing onboarding.
+              </span>
+            </li>
+            <li className="flex gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />
+              <span>
+                Clients receive {clientBetaVipTrialSummary()}, then move to the Free plan unless they subscribe to VIP.
+              </span>
             </li>
             <li className="flex gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />

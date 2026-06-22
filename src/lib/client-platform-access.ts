@@ -15,17 +15,28 @@ export type ClientPlatformBillingFields = {
 
 export type ClientPlatformAccessPhase =
   | "platform_trial"
+  | "freemium"
   | "payment_grace"
   | "deactivated"
   | "paid"
+  | "vip"
   | "stripe_lapsed_grace";
 
+export type ClientPlatformAccessFields = ClientPlatformBillingFields & {
+  vipSubscriptionActive?: boolean;
+  clientPlanTier?: string;
+};
+
 export function resolveClientPlatformAccessPhase(
-  client: ClientPlatformBillingFields,
+  client: ClientPlatformAccessFields,
   nowMs: number = Date.now(),
 ): ClientPlatformAccessPhase {
   if (client.accountDeactivatedAt) {
     return "deactivated";
+  }
+
+  if (client.vipSubscriptionActive) {
+    return "vip";
   }
 
   if (client.stripeSubscriptionActive && client.stripeSubscriptionId?.trim()) {
@@ -43,7 +54,11 @@ export function resolveClientPlatformAccessPhase(
     return "payment_grace";
   }
 
-  if (client.platformTrialConsumed || trialEnds > 0 || paymentGraceEnds > 0) {
+  if (client.platformTrialConsumed || trialEnds > 0) {
+    return "freemium";
+  }
+
+  if (paymentGraceEnds > 0) {
     return "deactivated";
   }
 
@@ -63,8 +78,11 @@ export function isClientAccountLoginBlocked(client: ClientPlatformBillingFields,
 }
 
 /** When true, only billing-related dashboard routes are available until payment is connected. */
-export function isClientBillingHardLocked(client: ClientPlatformBillingFields, nowMs: number = Date.now()): boolean {
+export function isClientBillingHardLocked(client: ClientPlatformAccessFields, nowMs: number = Date.now()): boolean {
   const phase = resolveClientPlatformAccessPhase(client, nowMs);
+  if (phase === "freemium") return false;
+  if (phase === "vip") return false;
+  if (phase === "platform_trial") return false;
   if (phase === "payment_grace") return true;
   if (phase === "stripe_lapsed_grace") return true;
   if (phase === "deactivated") return true;
