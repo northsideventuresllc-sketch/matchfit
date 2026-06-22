@@ -4,34 +4,32 @@ const {
   mockClientCount,
   mockTrainerCount,
   mockQueryRaw,
-  mockCountLaunchLifetimeMembers,
-  mockLaunchClientCountWhere,
-  mockLaunchClientPlatformTrialCountWhere,
-  mockLaunchClientFreePlanWhere,
-  mockLaunchClientSubscribedPlansWhere,
-  mockLaunchClientActiveVipWhere,
-  mockLaunchClientActiveAccountWhere,
-  mockLaunchTrainerCountWhere,
+  mockAdminMemberOverviewLifetimeClientWhere,
+  mockAdminMemberOverviewLifetimeTrainerWhere,
+  mockAdminMemberOverviewVipTrialClientWhere,
+  mockAdminMemberOverviewFreePlanClientWhere,
+  mockAdminMemberOverviewActiveVipClientWhere,
+  mockAdminMemberOverviewActiveClientWhere,
+  mockAdminMemberOverviewSubscribedClientWhere,
+  mockAdminPortalTrainerListWhere,
   mockGetHomeUserCounts,
   mockIsPrismaMissingTableError,
   mockIsPrismaMissingColumnError,
-  mockBuildLaunchMetricsClientSqlFilter,
 } = vi.hoisted(() => ({
   mockClientCount: vi.fn(),
   mockTrainerCount: vi.fn(),
   mockQueryRaw: vi.fn(),
-  mockCountLaunchLifetimeMembers: vi.fn(),
-  mockLaunchClientCountWhere: vi.fn(),
-  mockLaunchClientPlatformTrialCountWhere: vi.fn(),
-  mockLaunchClientFreePlanWhere: vi.fn(),
-  mockLaunchClientSubscribedPlansWhere: vi.fn(),
-  mockLaunchClientActiveVipWhere: vi.fn(),
-  mockLaunchClientActiveAccountWhere: vi.fn(),
-  mockLaunchTrainerCountWhere: vi.fn(),
+  mockAdminMemberOverviewLifetimeClientWhere: vi.fn(),
+  mockAdminMemberOverviewLifetimeTrainerWhere: vi.fn(),
+  mockAdminMemberOverviewVipTrialClientWhere: vi.fn(),
+  mockAdminMemberOverviewFreePlanClientWhere: vi.fn(),
+  mockAdminMemberOverviewActiveVipClientWhere: vi.fn(),
+  mockAdminMemberOverviewActiveClientWhere: vi.fn(),
+  mockAdminMemberOverviewSubscribedClientWhere: vi.fn(),
+  mockAdminPortalTrainerListWhere: vi.fn(),
   mockGetHomeUserCounts: vi.fn(),
   mockIsPrismaMissingTableError: vi.fn(),
   mockIsPrismaMissingColumnError: vi.fn(),
-  mockBuildLaunchMetricsClientSqlFilter: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -46,24 +44,16 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/launch-account-counts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/launch-account-counts")>();
-  return {
-    ...actual,
-    countLaunchLifetimeMembers: mockCountLaunchLifetimeMembers,
-    launchClientCountWhere: mockLaunchClientCountWhere,
-    launchClientPlatformTrialCountWhere: mockLaunchClientPlatformTrialCountWhere,
-    launchClientFreePlanWhere: mockLaunchClientFreePlanWhere,
-    launchClientSubscribedPlansWhere: mockLaunchClientSubscribedPlansWhere,
-    launchClientActiveVipWhere: mockLaunchClientActiveVipWhere,
-    launchClientActiveAccountWhere: mockLaunchClientActiveAccountWhere,
-    launchTrainerCountWhere: mockLaunchTrainerCountWhere,
-  };
-});
-
 vi.mock("@/lib/admin-portal-list-filters", () => ({
   adminPendingTrainerWhere: vi.fn(() => ({ __tag: "admin-pending" })),
-  buildLaunchMetricsClientSqlFilter: mockBuildLaunchMetricsClientSqlFilter,
+  adminMemberOverviewLifetimeClientWhere: mockAdminMemberOverviewLifetimeClientWhere,
+  adminMemberOverviewLifetimeTrainerWhere: mockAdminMemberOverviewLifetimeTrainerWhere,
+  adminMemberOverviewVipTrialClientWhere: mockAdminMemberOverviewVipTrialClientWhere,
+  adminMemberOverviewFreePlanClientWhere: mockAdminMemberOverviewFreePlanClientWhere,
+  adminMemberOverviewActiveVipClientWhere: mockAdminMemberOverviewActiveVipClientWhere,
+  adminMemberOverviewActiveClientWhere: mockAdminMemberOverviewActiveClientWhere,
+  adminMemberOverviewSubscribedClientWhere: mockAdminMemberOverviewSubscribedClientWhere,
+  adminPortalTrainerListWhere: mockAdminPortalTrainerListWhere,
 }));
 
 vi.mock("@/lib/home-user-counts", () => ({
@@ -81,14 +71,17 @@ describe("admin-member-overview", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    mockLaunchClientCountWhere.mockReturnValue({ deidentifiedAt: null });
-    mockLaunchClientActiveAccountWhere.mockReturnValue({ deidentifiedAt: null, accountDeactivatedAt: null });
-    mockLaunchClientPlatformTrialCountWhere.mockReturnValue({ vipTrial: true });
-    mockLaunchClientFreePlanWhere.mockReturnValue({ freePlan: true });
-    mockLaunchClientSubscribedPlansWhere.mockReturnValue({ subscribed: true });
-    mockLaunchClientActiveVipWhere.mockReturnValue({ activeVip: true });
-    mockLaunchTrainerCountWhere.mockReturnValue({ deidentifiedAt: null });
-    mockBuildLaunchMetricsClientSqlFilter.mockReturnValue("");
+    mockAdminMemberOverviewLifetimeClientWhere.mockReturnValue({ __tag: "lifetime-client" });
+    mockAdminMemberOverviewLifetimeTrainerWhere.mockReturnValue({ __tag: "lifetime-trainer" });
+    mockAdminMemberOverviewActiveClientWhere.mockReturnValue({
+      deidentifiedAt: null,
+      accountDeactivatedAt: null,
+    });
+    mockAdminMemberOverviewVipTrialClientWhere.mockReturnValue({ vipTrial: true });
+    mockAdminMemberOverviewFreePlanClientWhere.mockReturnValue({ freePlan: true });
+    mockAdminMemberOverviewActiveVipClientWhere.mockReturnValue({ activeVip: true });
+    mockAdminMemberOverviewSubscribedClientWhere.mockReturnValue({ subscribed: true });
+    mockAdminPortalTrainerListWhere.mockReturnValue({ deidentifiedAt: null });
 
     mockGetHomeUserCounts.mockResolvedValue({
       clientsTotal: 80,
@@ -97,9 +90,9 @@ describe("admin-member-overview", () => {
       trainersActive: 20,
       trainersPending: 4,
     });
-    mockCountLaunchLifetimeMembers.mockResolvedValue(42);
     mockClientCount.mockImplementation((args?: { where?: Record<string, unknown> }) => {
       const w = args?.where;
+      if (w?.__tag === "lifetime-client") return Promise.resolve(30);
       if (w && "vipTrial" in w) return Promise.resolve(7);
       if (w && "freePlan" in w) return Promise.resolve(18);
       if (w && "activeVip" in w) return Promise.resolve(7);
@@ -108,6 +101,7 @@ describe("admin-member-overview", () => {
     });
     mockTrainerCount.mockImplementation((args?: { where?: Record<string, unknown> }) => {
       if (args?.where?.__tag === "admin-pending") return Promise.resolve(4);
+      if (args?.where?.__tag === "lifetime-trainer") return Promise.resolve(12);
       const profileIs = (args?.where?.profile as { is?: { dashboardActivatedAt?: { not?: unknown } } } | undefined)?.is;
       if (profileIs && "dashboardActivatedAt" in profileIs && "not" in (profileIs.dashboardActivatedAt ?? {})) {
         return Promise.resolve(30);
@@ -119,7 +113,7 @@ describe("admin-member-overview", () => {
     mockIsPrismaMissingColumnError.mockReturnValue(false);
   });
 
-  it("builds admin member overview metrics from launch and analytics data", async () => {
+  it("builds admin member overview metrics from admin portal filters", async () => {
     const result = await getAdminMemberOverviewPanel(new Date("2026-06-09T12:00:00.000Z"));
 
     expect(result).toEqual({
@@ -135,6 +129,9 @@ describe("admin-member-overview", () => {
       inactiveTrainers: 10,
     });
     expect(mockGetHomeUserCounts).toHaveBeenCalledTimes(2);
+    expect(mockAdminMemberOverviewVipTrialClientWhere).toHaveBeenCalled();
+    expect(mockAdminMemberOverviewFreePlanClientWhere).toHaveBeenCalled();
+    expect(mockAdminMemberOverviewActiveVipClientWhere).toHaveBeenCalled();
   });
 
   it("returns zero unique site visitors when analytics table is missing", async () => {

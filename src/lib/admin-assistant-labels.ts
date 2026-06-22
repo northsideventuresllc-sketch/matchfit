@@ -112,7 +112,7 @@ export function formatAssistantStatsSnapshot(input: AssistantStatsSnapshotInput)
   hint: string;
 } {
   return {
-    line: `${input.allMembersTotal} all members total · ${input.subscribedClients} subscribed clients · ${input.compliantActiveTrainers} active trainers · ${input.pendingTrainers} pending trainers · ${input.vipTrialClients} VIP trials · ${input.uniqueVisitors7d} visitors (7d)`,
-    hint: "Subscribed clients = active Free + VIP plans (excludes complimentary VIP trial).",
+    line: `${input.allMembersTotal} all members · ${input.subscribedClients} active subscribed clients · ${input.compliantActiveTrainers} active trainers · ${input.pendingTrainers} pending trainers · ${input.vipTrialClients} VIP trials · ${input.uniqueVisitors7d} visitors (7d)`,
+    hint: "Active subscribed clients = Free plan + VIP plan (excludes VIP trial and test accounts).",
   };
 }

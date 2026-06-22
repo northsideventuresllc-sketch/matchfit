@@ -72,6 +72,9 @@ import {
 } from "@/lib/launch-account-counts";
 import {
   adminPendingTrainerWhere,
+  adminMemberOverviewActiveVipClientWhere,
+  adminMemberOverviewFreePlanClientWhere,
+  adminMemberOverviewVipTrialClientWhere,
   buildAdminPortalTrainerSqlFilter,
   buildLaunchMetricsClientSqlFilter,
   buildLaunchMetricsTrainerSqlFilter,
@@ -498,9 +501,9 @@ export async function getAdminClientPipelinePanel(now = new Date()): Promise<Adm
     prisma.signupFormProgress
       .count({ where: { role: "client", stage: "basic_info_complete", ...ownerTestSignupWhere } })
       .catch(() => 0),
-    safeClientCount(launchClientPlatformTrialCountWhere(now)),
-    safeClientCount(launchClientFreePlanWhere(now)),
-    safeClientCount(launchClientActiveVipWhere()),
+    safeClientCount(adminMemberOverviewVipTrialClientWhere(now)),
+    safeClientCount(adminMemberOverviewFreePlanClientWhere(now)),
+    safeClientCount(adminMemberOverviewActiveVipClientWhere()),
     countInactiveLaunchClients(now),
     prisma.signupFormProgress
       .findMany({

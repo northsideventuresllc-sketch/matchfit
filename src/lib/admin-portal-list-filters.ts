@@ -151,6 +151,87 @@ export function adminPendingTrainerWhere(): Prisma.TrainerWhereInput {
   return trainerPendingOnboardingWhere(adminPortalTrainerListWhere());
 }
 
+/** Active real client accounts for admin member overview (excludes test/QA). */
+export function adminMemberOverviewActiveClientWhere(): Prisma.ClientWhereInput {
+  return {
+    ...adminPortalClientListWhere(),
+    accountDeactivatedAt: null,
+  };
+}
+
+/** Cumulative real clients ever on the platform (includes deidentified; excludes test/QA). */
+export function adminMemberOverviewLifetimeClientWhere(): Prisma.ClientWhereInput {
+  return {
+    internalQaSyntheticPersona: false,
+    NOT: {
+      OR: [...fakeClientOr()],
+    },
+  };
+}
+
+/** Cumulative real Fitness Pros ever (includes deidentified; excludes test/QA). */
+export function adminMemberOverviewLifetimeTrainerWhere(): Prisma.TrainerWhereInput {
+  return {
+    internalQaSyntheticPersona: false,
+    OR: [
+      { termsAcceptedAt: { not: null } },
+      { profile: { is: { hasSignedTOS: true } } },
+    ],
+    NOT: {
+      OR: [...fakeTrainerOr()],
+    },
+  };
+}
+
+/** VIP complimentary trial clients in admin member overview. */
+export function adminMemberOverviewVipTrialClientWhere(now = new Date()): Prisma.ClientWhereInput {
+  return {
+    ...adminMemberOverviewActiveClientWhere(),
+    platformTrialEndsAt: { gt: now },
+    NOT: {
+      AND: [
+        { stripeSubscriptionActive: true },
+        { stripeSubscriptionId: { not: null } },
+        { stripeSubscriptionId: { not: "" } },
+      ],
+    },
+  };
+}
+
+/** Clients on Free plan — FREEMIUM tier, not in VIP trial (excludes test/QA). */
+export function adminMemberOverviewFreePlanClientWhere(now = new Date()): Prisma.ClientWhereInput {
+  return {
+    ...adminMemberOverviewActiveClientWhere(),
+    clientPlanTier: "FREEMIUM",
+    vipSubscriptionActive: false,
+    OR: [{ platformTrialEndsAt: null }, { platformTrialEndsAt: { lte: now } }],
+  };
+}
+
+/** Paying VIP clients in good standing (excludes test/QA). */
+export function adminMemberOverviewActiveVipClientWhere(): Prisma.ClientWhereInput {
+  return {
+    ...adminMemberOverviewActiveClientWhere(),
+    vipSubscriptionActive: true,
+    vipSubscriptionId: { not: null },
+  };
+}
+
+/** Active Free + VIP clients for inactivity exclusions (excludes VIP trial and test/QA). */
+export function adminMemberOverviewSubscribedClientWhere(now = new Date()): Prisma.ClientWhereInput {
+  return {
+    ...adminMemberOverviewActiveClientWhere(),
+    OR: [
+      { vipSubscriptionActive: true, vipSubscriptionId: { not: null } },
+      {
+        clientPlanTier: "FREEMIUM",
+        vipSubscriptionActive: false,
+        OR: [{ platformTrialEndsAt: null }, { platformTrialEndsAt: { lte: now } }],
+      },
+    ],
+  };
+}
+
 function sqlInList(values: string[]): PrismaNamespace.Sql {
   return PrismaNamespace.join(values.map((v) => PrismaNamespace.sql`${v}`));
 }

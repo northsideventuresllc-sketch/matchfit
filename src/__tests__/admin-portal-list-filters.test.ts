@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   ADMIN_REDACTED_EMAIL_LABEL,
+  adminMemberOverviewActiveVipClientWhere,
+  adminMemberOverviewFreePlanClientWhere,
   adminPendingTrainerWhere,
   adminPortalClientListWhere,
   adminPortalTrainerDirectoryWhere,
@@ -93,5 +95,21 @@ describe("admin portal list filters", () => {
         },
       ]),
     );
+  });
+
+  it("admin member overview free plan requires FREEMIUM tier and excludes VIP trial", () => {
+    const now = new Date("2026-06-09T12:00:00.000Z");
+    const where = adminMemberOverviewFreePlanClientWhere(now);
+    expect(where.clientPlanTier).toBe("FREEMIUM");
+    expect(where.vipSubscriptionActive).toBe(false);
+    expect(where.accountDeactivatedAt).toBeNull();
+    expect(where.deidentifiedAt).toBeNull();
+  });
+
+  it("admin member overview active VIP requires subscription id", () => {
+    const where = adminMemberOverviewActiveVipClientWhere();
+    expect(where.vipSubscriptionActive).toBe(true);
+    expect(where.vipSubscriptionId).toEqual({ not: null });
+    expect(where.deidentifiedAt).toBeNull();
   });
 });
