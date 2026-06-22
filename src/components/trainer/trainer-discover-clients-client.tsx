@@ -154,7 +154,7 @@ export function TrainerDiscoverClientsClient(props: Props) {
           <p className="mt-2 text-emerald-100/85">
             With <span className="font-semibold text-white">Match Fit Premium</span>, discovery nudges are{" "}
             <span className="font-semibold text-white">unlimited</span> for clients who appear on this list and still
-            accept trainer discovery—there is no three-per-day cap on your account. Your practical limit is the same
+            accept coach discovery—there is no three-per-day cap on your account. Your practical limit is the same
             reach you see here: eligible profiles only.
           </p>
         ) : (

@@ -1,7 +1,7 @@
 import { HomeBrandBannerMarquee } from "@/components/home-brand-banner-marquee";
 
 const BANNER_BUBBLE_LABELS = [
-  "Trainer travels to you",
+  "Coach travels to you",
   "Your location, your call",
   "Flexible for your schedule",
   "Virtual sessions",

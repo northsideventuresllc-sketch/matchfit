@@ -69,7 +69,7 @@ export function TrainerQuickLinksSettingsPanel(props: Props) {
   return (
     <div className="space-y-4 text-left">
       <p className="text-sm leading-relaxed text-white/55">
-        Pick up to {MAX} shortcuts for the <strong className="text-white/80">Quick Links</strong> card on your trainer
+        Pick up to {MAX} shortcuts for the <strong className="text-white/80">Quick Links</strong> card on your fitness pro
         home. Same destinations as the header and account menu (Dashboard and Log out are not listed here).
       </p>
       <p className="text-xs text-white/40">

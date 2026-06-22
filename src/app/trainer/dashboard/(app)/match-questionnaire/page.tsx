@@ -106,7 +106,7 @@ export default async function TrainerMatchQuestionnairesOverviewPage() {
   return (
     <div className="space-y-10">
       <header className="space-y-2 text-center">
-        <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF7E00]/90">Trainer</p>
+        <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF7E00]/90">Fitness Pro</p>
         <h1 className="text-3xl font-black uppercase tracking-[0.08em] text-white sm:text-4xl">Daily Questionnaires</h1>
         <p className="mx-auto max-w-xl text-sm leading-relaxed text-white/50">
           Each link below is its own questionnaire. The{" "}

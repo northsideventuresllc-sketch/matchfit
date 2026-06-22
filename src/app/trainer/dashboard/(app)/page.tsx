@@ -135,7 +135,7 @@ export default async function TrainerDashboardHomePage() {
   return (
     <div className="space-y-8">
       <header className="space-y-1 text-center">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Trainer Home</p>
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Fitness Pro Home</p>
         <h1 className="text-3xl font-black uppercase tracking-[0.06em] sm:text-4xl">Welcome Back</h1>
         <p className="text-lg font-semibold text-white/90">{displayName}</p>
         <p className="mx-auto max-w-xl text-sm leading-relaxed text-white/50">

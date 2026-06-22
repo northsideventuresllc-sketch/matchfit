@@ -480,13 +480,13 @@ export default async function TermsPage() {
             product. Refunds of the background-check escrow slice are not guaranteed.
           </Li>
           <Li>
-            <Strong>Backup screening process:</Strong> When our direct Checkr API integration is not yet active, Trainers
+            <Strong>Backup screening process:</Strong> When our direct Checkr API integration is not yet active, Fitness Pros
             request an invitation through Match Fit; staff sends Checkr invitations manually. Automated webhooks or staff
             review may update your status when results are available.
           </Li>
           <Li>
             To appear publicly, Fitness Pros may need to complete tax documentation (such as IRS Form W-9 or successor forms),
-            accept Trainer-specific terms presented in onboarding, upload valid primary certification (for example, CPT) and
+            accept Fitness Pro-specific terms presented in onboarding, upload valid primary certification (for example, CPT) and
             optional additional credentials, complete a background check through a provider they select from options we make
             available, and satisfy other verification steps we add over time.
           </Li>
@@ -512,7 +512,7 @@ export default async function TermsPage() {
           </Li>
           <Li>
             <Strong>In-App Communication:</Strong> Attempting to circumvent in-app messaging to share phone numbers or
-            emails may result in enforcement. For Trainers, a first substantiated offense may lead to a{" "}
+            emails may result in enforcement. For Fitness Pros, a first substantiated offense may lead to a{" "}
             <Strong>ninety (90) day</Strong> deactivation, a second offense up to <Strong>three hundred sixty-five
             (365) days</Strong>, and a third offense <Strong>permanent</Strong> deactivation, tracked in line with account and
             tax-record associations as reasonably available.
@@ -525,7 +525,7 @@ export default async function TermsPage() {
           <Li>
             <Strong>Independent Business:</Strong> Fitness Pros set their own prices and service structures (per session for
             mobile/virtual where applicable; monthly or recurring models for DIY where applicable). Fitness Pros receive the
-            Trainer-set portion of eligible charges per payout rules we publish; Match Fit retains the administrative fee
+            Fitness Pro-set portion of eligible charges per payout rules we publish; Match Fit retains the administrative fee
             component and processor fees as priced at checkout.
           </Li>
           <Li>

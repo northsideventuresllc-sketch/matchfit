@@ -76,7 +76,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
               aria-hidden
             />
             <span>
-              <span className="font-semibold text-white/85">Trainers set their own rates.</span> Each purchase
+              <span className="font-semibold text-white/85">Fitness pros set their own rates.</span> Each purchase
               includes a <span className="font-bold text-[#FF7E00]">20% service charge</span> plus applicable{" "}
               <span className="font-bold text-[#FF7E00]">transaction fees</span>, so pricing stays transparent
               and coaches stay in control of their brand.
@@ -91,7 +91,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           eyebrow="For clients"
           eyebrowClass="text-[#E32B2B]"
           title="Find your coach, your way"
-          description="Everything below is written for people looking for the right trainer—discovery, session types, matching, and FitHub."
+          description="Everything below is written for people looking for the right coach—discovery, session types, matching, and FitHub."
         />
 
         <HomeCollapsibleSection
@@ -103,7 +103,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
         >
           <p>
             Match Fit borrows the clarity of modern dating apps and applies it to coaching: clients{" "}
-            <span className="font-semibold text-white/85">swipe right on trainers they want to work with</span> and{" "}
+            <span className="font-semibold text-white/85">swipe right on coaches they want to work with</span> and{" "}
             <span className="font-semibold text-white/85">swipe left</span> on coaches who are not the right fit—fast,
             human, and honest.
           </p>
@@ -116,9 +116,9 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
             coaches who still match after every tweak.
           </p>
           <p>
-            When <span className="font-semibold text-white/85">new trainers join</span>, they are added to your
+            When <span className="font-semibold text-white/85">new fitness pros join</span>, they are added to your
             swipe stack and scroll list so the marketplace stays fresh. Want a heads-up?{" "}
-            <span className="font-semibold text-white/85">Turn on notifications</span> when a new trainer becomes
+            <span className="font-semibold text-white/85">Turn on notifications</span> when a new coach becomes
             available—you control how often we nudge you.
           </p>
         </HomeCollapsibleSection>
@@ -137,19 +137,19 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           <div className="grid gap-5 pt-2 lg:grid-cols-2">
             <ServiceCard title="Mobile & in-person" gradientBar="from-[#FFD34E] via-[#FF7E00] to-[#E32B2B]">
               <p>
-                Your trainer can meet you where you choose—home, office, park, or another spot that fits your day.
+                Your coach can meet you where you choose—home, office, park, or another spot that fits your day.
                 Sessions flex around real life, not the other way around.
               </p>
               <p className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-xs leading-relaxed text-white/45 sm:text-[13px]">
                 <span className="font-semibold text-[#FF7E00]/90">Note:</span> If you train at a gym that requires a
-                membership or guest pass, those details are between you and your trainer. Match Fit does not
+                membership or guest pass, those details are between you and your coach. Match Fit does not
                 coordinate or guarantee facility access.
               </p>
             </ServiceCard>
 
             <ServiceCard title="Virtual sessions" gradientBar="from-[#FF7E00] to-[#E32B2B]">
               <p>
-                For virtual coaching, your trainer shares a{" "}
+                For virtual coaching, your coach shares a{" "}
                 <span className="font-semibold text-white/75">Zoom</span>,{" "}
                 <span className="font-semibold text-white/75">Microsoft Teams</span>, or{" "}
                 <span className="font-semibold text-white/75">Google Meet</span> link in app chat so you can join
@@ -166,14 +166,14 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
 
             <ServiceCard title="DIY workout programs" gradientBar="from-[#E32B2B] via-[#FF7E00] to-[#FFD34E]">
               <p>
-                Your trainer writes workouts built for you—your equipment, injuries or limitations, and the pace you
+                Your coach writes workouts built for you—your equipment, injuries or limitations, and the pace you
                 need—so you can train on your own time. Many coaches add scheduled touchpoints each month to adjust
                 the plan and keep you accountable.
               </p>
               <p className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-xs leading-relaxed text-white/45 sm:text-[13px]">
                 <span className="font-semibold text-[#FF7E00]/90">Disclaimer:</span> You are responsible for giving your
-                trainer accurate and complete information needed to build a safe, effective DIY program. Pricing is set by
-                each trainer and will vary based on the scope of work and the monthly workload required to create, update,
+                coach accurate and complete information needed to build a safe, effective DIY program. Pricing is set by
+                each coach and will vary based on the scope of work and the monthly workload required to create, update,
                 and support your plan.
               </p>
             </ServiceCard>
@@ -234,12 +234,12 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           id="fithub-clients"
           eyebrow="FitHub"
           eyebrowClass="text-[#FFD34E]"
-          title="Scroll trainer posts before you book"
+          title="Scroll coach posts before you book"
           accent="left"
         >
           <p>
             <span className="font-semibold text-white/88">FitHub</span> is your in-app feed of posts from
-            trainers on Match Fit—quick tips, workouts, mindset checks, and moments from their coaching life
+            coaches on Match Fit—quick tips, workouts, mindset checks, and moments from their coaching life
             in <span className="font-semibold text-white/80">text, photos, or video</span>. Scroll to see who
             resonates with you, then like, comment, or repost when something clicks. It is a low-pressure way
             to learn how coaches think and train before you ever book a session.
@@ -269,7 +269,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
       <div className="space-y-6 sm:space-y-8">
         <HomeAudienceGroupHeader
           id="for-trainers-section"
-          eyebrow="For trainers"
+          eyebrow="For fitness pros"
           eyebrowClass="text-[#FF7E00]"
           title="Grow your brand on Match Fit"
           description="Everything below is written for coaches—client interest, services you can list, premium tools, and FitHub publishing."
@@ -309,7 +309,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
             <div className="min-w-0 flex-1">
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF7E00]">Service catalogue</p>
               <h3 className="mt-3 text-balance text-xl font-black uppercase leading-tight tracking-wide text-white sm:text-2xl md:text-[1.65rem]">
-                Trainer services you can list on Match Fit
+                Services you can list on Match Fit
               </h3>
               <p className="mt-3 text-sm text-white/50">Expand to browse every catalogue template and requirement.</p>
             </div>
@@ -356,11 +356,11 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           id="trainer-premium"
           eyebrow="For coaches"
           eyebrowClass="text-[#FF7E00]"
-          title="Trainer premium—$20 per month"
+          title="Fitness Pro premium—$20 per month"
           accent="right"
         >
           <p>
-            Trainers can opt into{" "}
+            Fitness pros can opt into{" "}
             <span className="font-bold text-[#FFD34E]">premium access at $20.00 per month</span> when they want the
             platform to work harder on visibility and workflow.
           </p>
@@ -371,7 +371,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
                 aria-hidden
               />
               <span>
-                Eligibility to appear on the <span className="font-semibold text-white/85">featured trainers</span>{" "}
+                Eligibility to appear on the <span className="font-semibold text-white/85">featured coaches</span>{" "}
                 surface so new clients discover you faster.
               </span>
             </li>
@@ -467,7 +467,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
             grow without burning out on outreach limits.
           </p>
           <p>
-            Clients get momentum instead of paralysis; trainers get qualified intent instead of cold DMs. DIY
+            Clients get momentum instead of paralysis; fitness pros get qualified intent instead of cold DMs. DIY
             plans, nutrition support, mobile sessions, virtual rooms, and swipe-based interest live in one
             ecosystem built for the individualized relationship training was always meant to be.
           </p>
@@ -482,10 +482,10 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
         >
           <p>
             Match Fit maintains business insurance, including general liability coverage, to support platform
-            operations and promote a safer environment for clients and trainers.
+            operations and promote a safer environment for clients and fitness pros.
           </p>
           <p>
-            Match Fit is a technology marketplace that connects independent trainers and clients. Trainers are
+            Match Fit is a technology marketplace that connects independent fitness pros and clients. Coaches are
             responsible for their own professional services, credentials, programming decisions, and in-session
             conduct. Clients are responsible for providing accurate health and training information, following
             professional guidance appropriately, and obtaining any required medical clearance before participating
@@ -494,7 +494,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           <p>
             By using Match Fit, users acknowledge that fitness and nutrition activities carry inherent risks. To
             the fullest extent permitted by law, Match Fit disclaims liability for injuries, losses, or damages
-            arising from trainer-client services, third-party facilities, or off-platform interactions. This
+            arising from coach-client services, third-party facilities, or off-platform interactions. This
             statement is a general informational notice and does not replace the full Terms of Service.
           </p>
         </HomeCollapsibleSection>
@@ -540,7 +540,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
 
             <Link
               href={TRAINER_SIGN_UP_PATH}
-              title="Trainer sign up"
+              title="Fitness Pro sign up"
               className="group relative flex min-h-[3.75rem] flex-1 items-center justify-center overflow-hidden rounded-2xl px-6 text-center text-base font-black uppercase tracking-[0.08em] text-white shadow-[0_20px_60px_-22px_rgba(0,0,0,0.9)] transition duration-200 active:translate-y-px sm:min-h-[4rem] sm:flex-none sm:min-w-[240px] sm:text-[0.95rem]"
             >
               <span aria-hidden className="absolute inset-0 rounded-2xl bg-[#12151C]" />
