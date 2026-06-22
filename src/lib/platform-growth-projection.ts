@@ -22,8 +22,9 @@ const TRAINER_PREMIUM_CENTS = TRAINER_PREMIUM_SUBSCRIPTION_USD * 100;
 
 export function computePlatformGrowthProjection(args: {
   activeClientSubscriptions: number;
+  activeVipSubscriptions?: number;
   premiumTrainers: number;
-  clientsInFreeTrial: number;
+  clientsInVipTrial: number;
   clientsWithCard: number;
   revenue30dCents: number;
   grossProfit30dCents: number;
@@ -36,7 +37,7 @@ export function computePlatformGrowthProjection(args: {
     args.activeClientSubscriptions * CLIENT_SUB_CENTS + args.premiumTrainers * TRAINER_PREMIUM_CENTS;
 
   const trialConversionRate = args.daysSinceLaunch < 30 ? 0.28 : 0.38;
-  const trialConversionCents = Math.round(args.clientsInFreeTrial * trialConversionRate * CLIENT_SUB_CENTS);
+  const trialConversionCents = Math.round(args.clientsInVipTrial * trialConversionRate * CLIENT_SUB_CENTS);
 
   const cardOnFileCents = Math.round(
     Math.max(0, args.clientsWithCard - args.activeClientSubscriptions) * 0.45 * CLIENT_SUB_CENTS,
@@ -70,7 +71,7 @@ export function computePlatformGrowthProjection(args: {
   const valuationHighCents = Math.round(arrCents * 6);
 
   const assumptions = [
-    `${Math.round(trialConversionRate * 100)}% of free-trial clients convert to paid this month.`,
+    `${Math.round(trialConversionRate * 100)}% of VIP trial clients convert to paid Client VIP this month.`,
     "Service and checkout revenue holds at the last 30-day run rate.",
     "Visitor and pending-registration uplifts use conservative conversion, not best-case ads performance.",
     "Valuation uses 2.5×–6× projected ARR, typical for an early marketplace beta with recurring revenue.",
@@ -78,12 +79,12 @@ export function computePlatformGrowthProjection(args: {
 
   const revenueRecommendations: GrowthRecommendation[] = [];
 
-  if (args.clientsInFreeTrial > 0) {
+  if (args.clientsInVipTrial > 0) {
     revenueRecommendations.push({
       id: "trials",
-      label: "Convert active trials",
-      action: `You have ${args.clientsInFreeTrial} client(s) in free trial. Send a day-5 value recap and a day-7 subscribe reminder to capture ~$${(
-        (args.clientsInFreeTrial * trialConversionRate * TOS_CLIENT_PLATFORM_SUBSCRIPTION_USD) /
+      label: "Convert active VIP trials",
+      action: `You have ${args.clientsInVipTrial} client(s) in complimentary VIP trial. Send a day-5 value recap and a day-7 subscribe reminder to capture ~$${(
+        (args.clientsInVipTrial * trialConversionRate * TOS_CLIENT_PLATFORM_SUBSCRIPTION_USD) /
         1
       ).toFixed(0)}/mo at current conversion assumptions.`,
       impact: "high",

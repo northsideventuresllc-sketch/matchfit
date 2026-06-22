@@ -282,28 +282,57 @@ export async function POST(req: Request) {
       };
       const subId = invoice.subscription;
       if (typeof subId === "string") {
-        await finalizeRegistrationAfterPayment(subId);
-        await syncClientSubscriptionFromStripe(subId);
         const paidAtUnix = invoice.status_transitions?.paid_at;
         const paidAt =
           typeof paidAtUnix === "number" && Number.isFinite(paidAtUnix) && paidAtUnix > 0
             ? new Date(paidAtUnix * 1000)
             : new Date();
-        await prisma.client.updateMany({
-          where: { stripeSubscriptionId: subId },
-          data: { stripeLastSubscriptionInvoicePaidAt: paidAt },
-        });
-        const client = await prisma.client.findFirst({
-          where: { stripeSubscriptionId: subId },
-          select: { id: true },
-        });
-        if (client) {
-          void recordClientSubscriptionInvoiceEvent({
-            stripeInvoiceId: invoice.id,
-            clientId: client.id,
-            occurredAt: paidAt,
-            billingLiveMode,
+
+        const stripe = getStripe();
+        let handledVipInvoice = false;
+        if (stripe) {
+          try {
+            const subObj = await stripe.subscriptions.retrieve(subId);
+            if (subObj.metadata?.purpose?.trim() === "client_vip") {
+              handledVipInvoice = true;
+              const clientId = await resolveClientIdFromVipSubscription(subObj);
+              if (clientId) {
+                await prisma.client.updateMany({
+                  where: { vipSubscriptionId: subId },
+                  data: { stripeLastSubscriptionInvoicePaidAt: paidAt },
+                });
+                void recordClientSubscriptionInvoiceEvent({
+                  stripeInvoiceId: invoice.id,
+                  clientId,
+                  occurredAt: paidAt,
+                  billingLiveMode,
+                });
+              }
+            }
+          } catch (e) {
+            console.error("[stripe webhook] VIP invoice lookup failed", e);
+          }
+        }
+
+        if (!handledVipInvoice) {
+          await finalizeRegistrationAfterPayment(subId);
+          await syncClientSubscriptionFromStripe(subId);
+          await prisma.client.updateMany({
+            where: { stripeSubscriptionId: subId },
+            data: { stripeLastSubscriptionInvoicePaidAt: paidAt },
           });
+          const client = await prisma.client.findFirst({
+            where: { stripeSubscriptionId: subId },
+            select: { id: true },
+          });
+          if (client) {
+            void recordClientSubscriptionInvoiceEvent({
+              stripeInvoiceId: invoice.id,
+              clientId: client.id,
+              occurredAt: paidAt,
+              billingLiveMode,
+            });
+          }
         }
       }
     }

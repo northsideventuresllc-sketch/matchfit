@@ -53,17 +53,10 @@ import type { PlatformRevenueCategory } from "@/lib/platform-revenue-accounting"
 import { LIVE_PLATFORM_REVENUE_WHERE, mergeLiveRevenueWhere } from "@/lib/platform-revenue-filters";
 import {
   activePendingClientRegistrationWhere,
-  countLaunchPlatformSubscribers,
   countLaunchPremiumTrainers,
   getActivePendingClientRegistrationStats,
   launchClientBillingGraceWhere,
   launchClientCountWhere,
-  launchClientFreeTrialCountWhere,
-  launchClientPlatformPaymentGraceWhere,
-  launchClientActiveVipWhere,
-  launchClientFreePlanWhere,
-  launchClientPlatformTrialCountWhere,
-  launchClientStripeTrialCountWhere,
   launchClientWithCardWhere,
   launchTrainerBeforeRegistrationPaymentWhere,
   launchTrainerBeforeTermsWhere,
@@ -74,6 +67,8 @@ import {
   adminPendingTrainerWhere,
   adminMemberOverviewActiveVipClientWhere,
   adminMemberOverviewFreePlanClientWhere,
+  adminMemberOverviewLegacyPlatformSubscriberWhere,
+  adminMemberOverviewLegacyStripeTrialWhere,
   adminMemberOverviewVipTrialClientWhere,
   buildAdminPortalTrainerSqlFilter,
   buildLaunchMetricsClientSqlFilter,
@@ -178,26 +173,6 @@ async function countTrainersBeforeRegistrationPayment(): Promise<number> {
       ...launchTrainerCountWhere(),
       profile: { is: { hasPaidBackgroundFee: false, backgroundCheckStatus: "NOT_STARTED" } },
     });
-  }
-}
-
-async function countClientFreeTrialBreakdown(now: Date): Promise<{
-  total: number;
-  platform: number;
-  stripe: number;
-}> {
-  try {
-    const [total, platform, stripe] = await Promise.all([
-      prisma.client.count({ where: launchClientFreeTrialCountWhere(now) }),
-      prisma.client.count({ where: launchClientPlatformTrialCountWhere(now) }),
-      prisma.client.count({ where: launchClientStripeTrialCountWhere() }),
-    ]);
-    return { total, platform, stripe };
-  } catch (e) {
-    if (!isRecoverableAdminMetricsError(e)) throw e;
-    console.warn("[admin metrics] free trial fallback to Stripe-only counts", e);
-    const stripe = await safeClientCount(launchClientStripeTrialCountWhere());
-    return { total: stripe, platform: 0, stripe };
   }
 }
 
@@ -375,7 +350,6 @@ async function countTopPlatformFunctions(role: "client" | "trainer"): Promise<Ad
 
 export async function getAdminTrafficFunnelPanel(now = new Date()): Promise<AdminTrafficFunnelPanel> {
   const analyticsOk = await analyticsAvailable();
-  const freeTrialPromise = countClientFreeTrialBreakdown(now);
   const [
     homepageVisits,
     totalSiteVisits,
@@ -392,11 +366,13 @@ export async function getAdminTrafficFunnelPanel(now = new Date()): Promise<Admi
     incompleteTrainerSignups,
     trainersBeforeRegistrationPayment,
     trainersBeforeTerms,
-    clientsInPlatformPaymentGrace,
-    activeClientSubscriptions,
+    clientsInVipTrial,
+    clientsInLegacyStripeTrial,
+    freePlanClients,
+    activeVipSubscriptions,
+    legacyPlatformSubscriptions,
     topClientFunctions,
     topTrainerFunctions,
-    freeTrial,
   ] = await Promise.all([
     countAnalyticsPageViews(["/"]),
     countAnalyticsPageViews(null),
@@ -413,15 +389,18 @@ export async function getAdminTrafficFunnelPanel(now = new Date()): Promise<Admi
     safeTrainerCount(launchTrainerIncompleteSignupWhere()),
     countTrainersBeforeRegistrationPayment(),
     safeTrainerCount(launchTrainerBeforeTermsWhere()),
-    safeClientCount(launchClientPlatformPaymentGraceWhere(now)),
-    countLaunchPlatformSubscribers(),
+    safeClientCount(adminMemberOverviewVipTrialClientWhere(now)),
+    safeClientCount(adminMemberOverviewLegacyStripeTrialWhere()),
+    safeClientCount(adminMemberOverviewFreePlanClientWhere(now)),
+    safeClientCount(adminMemberOverviewActiveVipClientWhere()),
+    safeClientCount(adminMemberOverviewLegacyPlatformSubscriberWhere()),
     countTopPlatformFunctions("client"),
     countTopPlatformFunctions("trainer"),
-    freeTrialPromise,
   ]);
 
   const pendingTotal = pendingClientRegistrations.total;
   const pendingStatusMap = pendingClientRegistrations.byStatus;
+  const activeClientSubscriptions = activeVipSubscriptions + legacyPlatformSubscriptions;
 
   return {
     homepageVisits,
@@ -437,11 +416,12 @@ export async function getAdminTrafficFunnelPanel(now = new Date()): Promise<Admi
     incompleteTrainerSignups,
     trainersBeforeRegistrationPayment,
     trainersBeforeTerms,
-    clientsInFreeTrial: freeTrial.total,
-    clientsInPlatformTrial: freeTrial.platform,
-    clientsInStripeTrial: freeTrial.stripe,
-    clientsInPlatformPaymentGrace,
+    clientsInVipTrial,
+    clientsInLegacyStripeTrial,
+    freePlanClients,
     activeClientSubscriptions,
+    activeVipSubscriptions,
+    legacyPlatformSubscriptions,
     topClientFunctions,
     topTrainerFunctions,
     analyticsAvailable: analyticsOk,
@@ -964,36 +944,42 @@ export async function getAdminFinancesPanel(now = new Date()): Promise<AdminFina
     .catch(() => 0);
 
   const dayKey = todayFeaturedDayKey();
-  const freeTrialPromise = countClientFreeTrialBreakdown(now);
   const [
-    freeTrial,
-    clientsInPlatformPaymentGrace,
+    clientsInVipTrial,
+    clientsInLegacyStripeTrial,
+    freePlanClients,
+    activeVipSubscriptions,
+    legacyPlatformSubscriptions,
     paymentFailedInGrace,
     clientsWithCard,
-    activeSubscriptions,
     recentTransactions,
     premiumTrainers,
     featuredTrainersToday,
     bestSellers,
   ] = await Promise.all([
-    freeTrialPromise,
-    safeClientCount(launchClientPlatformPaymentGraceWhere(now)),
+    safeClientCount(adminMemberOverviewVipTrialClientWhere(now)),
+    safeClientCount(adminMemberOverviewLegacyStripeTrialWhere()),
+    safeClientCount(adminMemberOverviewFreePlanClientWhere(now)),
+    safeClientCount(adminMemberOverviewActiveVipClientWhere()),
+    safeClientCount(adminMemberOverviewLegacyPlatformSubscriberWhere()),
     safeClientCount(launchClientBillingGraceWhere(now)),
     safeClientCount(launchClientWithCardWhere()),
-    countLaunchPlatformSubscribers(),
     loadRecentTransactions(20),
     countLaunchPremiumTrainers(),
     prisma.featuredDailyAllocation.count({ where: { displayDayKey: dayKey } }),
     loadBestSellers(sinceFromWindow("30d", now)),
   ]);
 
+  const activeSubscriptions = activeVipSubscriptions + legacyPlatformSubscriptions;
+
   return {
     windows,
     lifetime: { ...lifetimeGrouped, eventCount: lifetimeEvents },
-    clientsInFreeTrial: freeTrial.total,
-    clientsInPlatformTrial: freeTrial.platform,
-    clientsInStripeTrial: freeTrial.stripe,
-    clientsInPlatformPaymentGrace,
+    clientsInVipTrial,
+    clientsInLegacyStripeTrial,
+    freePlanClients,
+    activeVipSubscriptions,
+    legacyPlatformSubscriptions,
     pendingSubscriptionStop: null,
     paymentFailedInGrace,
     clientsWithCard,
@@ -1688,8 +1674,9 @@ export async function getAdminPlatformSummaryPanel(): Promise<AdminPlatformSumma
 
   const growthProjection = computePlatformGrowthProjection({
     activeClientSubscriptions: finances.activeSubscriptions,
+    activeVipSubscriptions: finances.activeVipSubscriptions,
     premiumTrainers: finances.premiumTrainers,
-    clientsInFreeTrial: finances.clientsInFreeTrial,
+    clientsInVipTrial: finances.clientsInVipTrial,
     clientsWithCard: finances.clientsWithCard,
     revenue30dCents: revenue30d.revenueCents,
     grossProfit30dCents: revenue30d.grossProfitCents,

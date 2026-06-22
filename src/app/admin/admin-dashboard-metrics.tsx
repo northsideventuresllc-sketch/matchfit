@@ -159,7 +159,7 @@ export function PlatformHealthSection({ panel }: { panel: AdminPlatformSummaryPa
         <StatCard
           label="Annualized subscription ARR"
           value={formatUsdFromCents(valuation.subscriptionArrCents)}
-          hint="Client $10/mo + Fitness Pro premium $20/mo"
+          hint="Client VIP $10/mo + Fitness Pro premium $20/mo (premium billing projected)"
         />
         <StatCard
           label="Annualized 30d gross profit"
@@ -441,7 +441,7 @@ export function PremiumTrainerActivitySection({ panel }: { panel: AdminPremiumTr
 
 export function FinancialDetailsSection({ finances, revenue }: { finances: AdminFinancesPanel; revenue: AdminRevenueSnapshot }) {
   return (
-    <MetricsSection title="Financial details" description="Platform revenue, subscription health, and transaction history.">
+    <MetricsSection title="Financial details" description="Platform revenue, Client VIP subscriptions, and transaction history. Excludes test accounts.">
       <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.06] p-4">
         <p className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-200/80">Lifetime platform revenue</p>
         <p className="mt-2 text-2xl font-black tabular-nums text-white">{formatUsdFromCents(revenue.revenueCents)}</p>
@@ -599,26 +599,48 @@ export function FinancesDetailSection({ finances, embedded }: { finances: AdminF
     <>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label="Clients in free trial"
-          value={finances.clientsInFreeTrial}
-          hint={`${finances.clientsInPlatformTrial ?? 0} platform trial · ${finances.clientsInStripeTrial ?? 0} Stripe trial`}
+          label="VIP Clients (FREE trial)"
+          value={finances.clientsInVipTrial}
+          hint="Complimentary card-free VIP trial at sign-up"
+          accent="violet"
         />
+        <StatCard label="Free Plan Clients" value={finances.freePlanClients} hint="On Free Plan" />
         <StatCard
-          label="Post-trial payment grace"
-          value={finances.clientsInPlatformPaymentGrace}
-          hint="Card-free trial ended; billing setup still required"
+          label="Active VIP subscribers"
+          value={finances.activeVipSubscriptions}
+          hint="Paying Client VIP ($10/mo)"
+          accent="emerald"
         />
+        {finances.legacyPlatformSubscriptions > 0 ? (
+          <StatCard
+            label="Legacy platform subscribers"
+            value={finances.legacyPlatformSubscriptions}
+            hint="Pre–Client VIP Stripe billing"
+          />
+        ) : null}
+        <StatCard
+          label="Active paying clients"
+          value={finances.activeSubscriptions}
+          hint="Client VIP + legacy platform subscriptions"
+          accent="emerald"
+        />
+        {finances.clientsInLegacyStripeTrial > 0 ? (
+          <StatCard
+            label="Legacy Stripe trials"
+            value={finances.clientsInLegacyStripeTrial}
+            hint="Legacy checkout trial before first invoice"
+          />
+        ) : null}
         <StatCard
           label="Stripe billing grace"
           value={finances.paymentFailedInGrace}
-          hint="Subscription lapsed; retry window before deactivation"
+          hint="Legacy subscription lapsed; retry window before deactivation"
         />
         <StatCard label="Clients with card on file" value={finances.clientsWithCard} />
-        <StatCard label="Active subscriptions" value={finances.activeSubscriptions} hint="Live Stripe billing" />
         <StatCard
           label="Premium Fitness Pros"
           value={finances.premiumTrainers}
-          hint="Premium studio enabled (`premiumStudioEnabledAt` set)"
+          hint="Premium studio enabled (paid checkout not live yet)"
         />
         <StatCard label="Featured slots today" value={finances.featuredTrainersToday} />
         <StatCard label="Lifetime revenue events" value={finances.lifetime.eventCount} />
@@ -674,7 +696,7 @@ export function FinancesDetailSection({ finances, embedded }: { finances: AdminF
   return (
     <MetricsSection
       title="Finances & subscriptions"
-      description="Revenue windows from platform_revenue_events; service admin fees from completed checkouts."
+      description="Revenue from platform_revenue_events; Client VIP and legacy platform subscriber counts exclude test accounts."
     >
       {body}
     </MetricsSection>

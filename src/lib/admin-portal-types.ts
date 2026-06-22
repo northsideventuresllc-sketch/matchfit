@@ -228,13 +228,15 @@ export type AdminTrafficFunnelPanel = {
   trainersBeforeRegistrationPayment: number;
   /** Trainer row exists but Terms of Service not accepted yet. */
   trainersBeforeTerms: number;
-  /** Card-free founding trial or Stripe trial before first paid invoice. */
-  clientsInFreeTrial: number;
-  clientsInPlatformTrial: number;
-  clientsInStripeTrial: number;
-  /** Post-trial window before card/subscription is required (card-free path). */
-  clientsInPlatformPaymentGrace: number;
+  /** Card-free complimentary VIP trial at sign-up. */
+  clientsInVipTrial: number;
+  /** Legacy Stripe checkout trial before first paid invoice. */
+  clientsInLegacyStripeTrial: number;
+  /** Clients on Free plan (FREEMIUM tier). */
+  freePlanClients: number;
   activeClientSubscriptions: number;
+  activeVipSubscriptions: number;
+  legacyPlatformSubscriptions: number;
   topClientFunctions: AdminPlatformFunctionStat[];
   topTrainerFunctions: AdminPlatformFunctionStat[];
   analyticsAvailable: boolean;
@@ -281,14 +283,21 @@ export type AdminFinanceBestSeller = {
 export type AdminFinancesPanel = {
   windows: Record<AdminFinanceWindowKey, AdminFinanceWindowSnapshot>;
   lifetime: AdminFinanceWindowSnapshot & { eventCount: number };
-  clientsInFreeTrial: number;
-  clientsInPlatformTrial: number;
-  clientsInStripeTrial: number;
-  clientsInPlatformPaymentGrace: number;
+  /** Complimentary card-free VIP trial at sign-up. */
+  clientsInVipTrial: number;
+  /** Legacy Stripe checkout trial before first paid invoice. */
+  clientsInLegacyStripeTrial: number;
+  /** Clients on Free plan (FREEMIUM tier, post-trial). */
+  freePlanClients: number;
+  /** Paying Client VIP subscribers. */
+  activeVipSubscriptions: number;
+  /** Legacy platform Stripe subscribers (pre–Client VIP plan). */
+  legacyPlatformSubscriptions: number;
   pendingSubscriptionStop: number | null;
   /** Stripe subscription lapsed — billing retry grace (`subscriptionGraceUntil`). */
   paymentFailedInGrace: number;
   clientsWithCard: number;
+  /** Total paying clients (VIP + legacy platform). */
   activeSubscriptions: number;
   recentTransactions: AdminFinanceRecentTransaction[];
   premiumTrainers: number;

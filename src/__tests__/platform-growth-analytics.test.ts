@@ -35,7 +35,7 @@ describe("platform-growth-projection", () => {
     const projection = computePlatformGrowthProjection({
       activeClientSubscriptions: 4,
       premiumTrainers: 1,
-      clientsInFreeTrial: 3,
+      clientsInVipTrial: 3,
       clientsWithCard: 6,
       revenue30dCents: 45000,
       grossProfit30dCents: 22000,

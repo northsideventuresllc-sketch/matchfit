@@ -217,6 +217,26 @@ export function adminMemberOverviewActiveVipClientWhere(): Prisma.ClientWhereInp
   };
 }
 
+/** Legacy platform Stripe subscribers (pre–Client VIP plan). */
+export function adminMemberOverviewLegacyPlatformSubscriberWhere(): Prisma.ClientWhereInput {
+  return {
+    ...adminMemberOverviewActiveClientWhere(),
+    stripeSubscriptionActive: true,
+    stripeSubscriptionId: { not: null },
+    stripeBillingLiveMode: true,
+  };
+}
+
+/** Legacy Stripe checkout trial before first paid invoice. */
+export function adminMemberOverviewLegacyStripeTrialWhere(): Prisma.ClientWhereInput {
+  return {
+    ...adminMemberOverviewActiveClientWhere(),
+    stripeSubscriptionActive: true,
+    stripeLastSubscriptionInvoicePaidAt: null,
+    AND: [{ stripeSubscriptionId: { not: null } }, { stripeSubscriptionId: { not: "" } }],
+  };
+}
+
 /** Active Free + VIP clients for inactivity exclusions (excludes VIP trial and test/QA). */
 export function adminMemberOverviewSubscribedClientWhere(now = new Date()): Prisma.ClientWhereInput {
   return {
