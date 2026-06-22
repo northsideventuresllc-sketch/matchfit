@@ -3,8 +3,7 @@ import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
-  countLaunchClients,
-  countLaunchTrainers,
+  countLaunchLifetimeMembers,
   launchClientActiveAccountWhere,
   launchClientActiveVipWhere,
   launchClientFreePlanWhere,
@@ -22,13 +21,13 @@ import { isPrismaMissingTableError } from "@/lib/prisma-missing-column";
 export const ADMIN_CLIENT_INACTIVITY_DAYS = 30;
 
 export type AdminMemberOverviewPanel = {
-  /** Non-test clients + trainers with Terms accepted; excludes deidentified accounts. */
+  /** Cumulative clients + Fitness Pros ever on the platform (excludes test/QA; never decreases). */
   allMembersTotal: number;
   /** Complimentary card-free VIP trial at sign-up. */
   vipTrialClients: number;
-  /** Active clients on Free, VIP, or complimentary VIP trial. */
+  /** Active Free plan + Active VIP clients (excludes VIP trial). */
   subscribedClients: number;
-  /** Launch clients inactive for {@link ADMIN_CLIENT_INACTIVITY_DAYS}+ days. */
+  /** No recent site activity; Free and VIP subscribers still count as active. */
   inactiveClients: number;
   freePlanClients: number;
   activeVipClients: number;
@@ -72,10 +71,9 @@ async function countInactiveTrainers(): Promise<number> {
   return Math.max(0, onboarded - userCounts.trainersActive);
 }
 
-/** All real members: launch-count clients + trainers (excludes test/QA and deidentified rows). */
+/** All real members ever: launch-count clients + trainers (excludes test/QA; includes deactivated/deidentified). */
 async function countAllMembersTotal(): Promise<number> {
-  const [clients, trainers] = await Promise.all([countLaunchClients(), countLaunchTrainers()]);
-  return clients + trainers;
+  return countLaunchLifetimeMembers();
 }
 
 async function countUniqueSiteVisitorsAllTime(): Promise<number> {
@@ -97,6 +95,7 @@ export async function countInactiveLaunchClients(now = new Date()): Promise<numb
   return safeClientMetricCount({
     ...launchClientActiveAccountWhere(),
     updatedAt: { lt: threshold },
+    NOT: launchClientSubscribedPlansWhere(now),
   });
 }
 
@@ -106,7 +105,6 @@ export async function getAdminMemberOverviewPanel(now = new Date()): Promise<Adm
   const [
     allMembersTotal,
     vipTrialClients,
-    subscribedClients,
     inactiveClients,
     freePlanClients,
     activeVipClients,
@@ -116,7 +114,6 @@ export async function getAdminMemberOverviewPanel(now = new Date()): Promise<Adm
   ] = await Promise.all([
     countAllMembersTotal(),
     safeClientMetricCount(launchClientPlatformTrialCountWhere(now)),
-    safeClientMetricCount(launchClientSubscribedPlansWhere(now)),
     countInactiveLaunchClients(now),
     safeClientMetricCount(launchClientFreePlanWhere(now)),
     safeClientMetricCount(launchClientActiveVipWhere()),
@@ -124,6 +121,8 @@ export async function getAdminMemberOverviewPanel(now = new Date()): Promise<Adm
     countInactiveTrainers(),
     prisma.trainer.count({ where: adminPendingTrainerWhere() }),
   ]);
+
+  const subscribedClients = freePlanClients + activeVipClients;
 
   return {
     allMembersTotal,

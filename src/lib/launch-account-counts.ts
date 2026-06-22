@@ -76,10 +76,16 @@ export function getLaunchExcludeUsernames(role?: "client" | "trainer"): string[]
 
 /** Trainer rows that pass launch exclusion filters (may still be pre–Terms of Service). */
 export function launchTrainerAccountWhere(): Prisma.TrainerWhereInput {
+  return {
+    ...launchTrainerAccountExclusionWhere(),
+    deidentifiedAt: null,
+  };
+}
+
+function launchTrainerAccountExclusionWhere(): Prisma.TrainerWhereInput {
   const usernameExcludes = [SYNTHETIC_TRAINER_USERNAME_PREFIX, ...getMatchFitLaunchExcludeTrainerUsernames()];
   const exactUsernameExcludes = getLaunchExcludeUsernames("trainer");
   return {
-    deidentifiedAt: null,
     internalQaSyntheticPersona: false,
     NOT: {
       OR: [
@@ -88,6 +94,17 @@ export function launchTrainerAccountWhere(): Prisma.TrainerWhereInput {
         ...launchUsernameInExcludeOr(exactUsernameExcludes),
       ] as Prisma.TrainerWhereInput[],
     },
+  };
+}
+
+/** Every Fitness Pro who accepted Terms (includes deactivated/deidentified; excludes test/QA). */
+export function launchTrainerLifetimeMemberWhere(): Prisma.TrainerWhereInput {
+  return {
+    ...launchTrainerAccountExclusionWhere(),
+    OR: [
+      { termsAcceptedAt: { not: null } },
+      { profile: { is: { hasSignedTOS: true } } },
+    ],
   };
 }
 
@@ -103,10 +120,16 @@ export function launchTrainerCountWhere(): Prisma.TrainerWhereInput {
 }
 
 export function launchClientCountWhere(): Prisma.ClientWhereInput {
+  return {
+    ...launchClientAccountExclusionWhere(),
+    deidentifiedAt: null,
+  };
+}
+
+function launchClientAccountExclusionWhere(): Prisma.ClientWhereInput {
   const usernameExcludes = [SYNTHETIC_CLIENT_USERNAME_PREFIX, ...getMatchFitLaunchExcludeClientUsernames()];
   const exactUsernameExcludes = getLaunchExcludeUsernames("client");
   return {
-    deidentifiedAt: null,
     internalQaSyntheticPersona: false,
     NOT: {
       OR: [
@@ -116,6 +139,11 @@ export function launchClientCountWhere(): Prisma.ClientWhereInput {
       ] as Prisma.ClientWhereInput[],
     },
   };
+}
+
+/** Every launch client ever registered (includes deactivated/deidentified; excludes test/QA). */
+export function launchClientLifetimeMemberWhere(): Prisma.ClientWhereInput {
+  return launchClientAccountExclusionWhere();
 }
 
 export function launchPlatformSubscriberCountWhere(): Prisma.ClientWhereInput {
@@ -198,15 +226,16 @@ export function launchClientActiveAccountWhere(): Prisma.ClientWhereInput {
   };
 }
 
-/** Paying VIP subscribers on the Client VIP plan. */
+/** Paying VIP subscribers in good standing on the Client VIP plan. */
 export function launchClientActiveVipWhere(): Prisma.ClientWhereInput {
   return {
     ...launchClientActiveAccountWhere(),
     vipSubscriptionActive: true,
+    vipSubscriptionId: { not: null },
   };
 }
 
-/** Clients currently on the Free plan (display tier free — not VIP, not in VIP trial). */
+/** Clients on Free plan — not in VIP trial and not on VIP subscription. */
 export function launchClientFreePlanWhere(now = new Date()): Prisma.ClientWhereInput {
   return {
     ...launchClientActiveAccountWhere(),
@@ -215,9 +244,18 @@ export function launchClientFreePlanWhere(now = new Date()): Prisma.ClientWhereI
   };
 }
 
-/** Active clients with a plan — Free, VIP, or complimentary VIP trial. */
-export function launchClientSubscribedPlansWhere(_now = new Date()): Prisma.ClientWhereInput {
-  return launchClientActiveAccountWhere();
+/** Active clients on Free or VIP plans (excludes complimentary VIP trial). */
+export function launchClientSubscribedPlansWhere(now = new Date()): Prisma.ClientWhereInput {
+  return {
+    ...launchClientActiveAccountWhere(),
+    OR: [
+      { vipSubscriptionActive: true, vipSubscriptionId: { not: null } },
+      {
+        vipSubscriptionActive: false,
+        OR: [{ platformTrialEndsAt: null }, { platformTrialEndsAt: { lte: now } }],
+      },
+    ],
+  };
 }
 
 /** After platform trial ends: grace window before card/subscription is required. */
@@ -351,6 +389,14 @@ export async function countLaunchPremiumTrainers(): Promise<number> {
 
 export async function countLaunchClients(): Promise<number> {
   return prisma.client.count({ where: launchClientCountWhere() });
+}
+
+export async function countLaunchLifetimeMembers(): Promise<number> {
+  const [clients, trainers] = await Promise.all([
+    prisma.client.count({ where: launchClientLifetimeMemberWhere() }),
+    prisma.trainer.count({ where: launchTrainerLifetimeMemberWhere() }),
+  ]);
+  return clients + trainers;
 }
 
 export async function countLaunchTrainers(): Promise<number> {

@@ -8,7 +8,8 @@ import {
   launchClientFreeTrialCountWhere,
   launchClientFreePlanWhere,
   launchClientSubscribedPlansWhere,
-  launchClientActiveAccountWhere,
+  launchClientLifetimeMemberWhere,
+  launchTrainerLifetimeMemberWhere,
   launchClientPlatformPaymentGraceWhere,
   launchClientPlatformTrialCountWhere,
   launchClientStripeTrialCountWhere,
@@ -267,9 +268,27 @@ describe("admin funnel count filters", () => {
     expect(JSON.stringify(where)).not.toContain("platformTrialEndsAt\":{\"gt\"");
   });
 
-  it("subscribed plan filter includes all active launch clients", () => {
+  it("subscribed plan filter matches active Free and VIP clients only", () => {
     const where = launchClientSubscribedPlansWhere(now);
-    expect(where).toEqual(launchClientActiveAccountWhere());
+    expect(where.accountDeactivatedAt).toBeNull();
+    expect(where.OR).toEqual([
+      { vipSubscriptionActive: true, vipSubscriptionId: { not: null } },
+      {
+        vipSubscriptionActive: false,
+        OR: [{ platformTrialEndsAt: null }, { platformTrialEndsAt: { lte: now } }],
+      },
+    ]);
+  });
+
+  it("lifetime member filters include deactivated and deidentified accounts", () => {
+    expect(launchClientLifetimeMemberWhere()).not.toHaveProperty("deidentifiedAt");
+    expect(launchTrainerLifetimeMemberWhere()).not.toHaveProperty("deidentifiedAt");
+    expect(launchTrainerLifetimeMemberWhere().OR).toEqual(
+      expect.arrayContaining([
+        { termsAcceptedAt: { not: null } },
+        { profile: { is: { hasSignedTOS: true } } },
+      ]),
+    );
   });
 
   it("platform payment grace excludes clients still in platform trial", () => {

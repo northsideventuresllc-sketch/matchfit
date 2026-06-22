@@ -52,16 +52,16 @@ function StatCard(props: { label: string; value: string | number; hint?: string;
 export function MemberOverviewSection({ panel }: { panel: AdminMemberOverviewPanel }) {
   const cards: { label: string; value: number; hint?: string; accent?: "default" | "orange" | "violet" | "emerald" }[] = [
     {
-      label: "All Members Total",
+      label: "All Members",
       value: panel.allMembersTotal,
-      hint: "Real clients and Fitness Pros past signup (excludes test/QA and deleted accounts)",
+      hint: "Cumulative total of every member on the site (never decreases)",
       accent: "orange",
     },
-    { label: "VIP Clients (FREE trial)", value: panel.vipTrialClients, hint: "Complimentary card-free VIP trial at sign-up", accent: "violet" },
-    { label: "Subscribed Clients", value: panel.subscribedClients, hint: "Active Subscribed Clients", accent: "emerald" },
-    { label: "Free Plan Clients", value: panel.freePlanClients, hint: "Currently on Free plan" },
-    { label: "Active VIP Clients", value: panel.activeVipClients, hint: "Paying VIP subscriptions", accent: "emerald" },
-    { label: "Inactive Clients", value: panel.inactiveClients, hint: "No profile activity for 30+ days" },
+    { label: "VIP Clients (FREE trial)", value: panel.vipTrialClients, hint: "VIP clients in complimentary free trial", accent: "violet" },
+    { label: "Active Subscribed Clients", value: panel.subscribedClients, hint: "Free plan + VIP plan clients (summed)", accent: "emerald" },
+    { label: "Free Plan Clients", value: panel.freePlanClients, hint: "On Free plan, not in VIP trial" },
+    { label: "Active VIP Clients", value: panel.activeVipClients, hint: "VIP subscribers in good standing with payment", accent: "emerald" },
+    { label: "Inactive Clients", value: panel.inactiveClients, hint: "No site activity; Free and VIP subscribers still count as active" },
     { label: "Unique Site Visitors", value: panel.uniqueSiteVisitorsAllTime, hint: "All-time distinct visitors" },
     { label: "Pending Fitness Pros", value: panel.pendingTrainers, hint: "Accepted Terms or onboarding started" },
     { label: "Compliant Active Fitness Pros", value: panel.compliantActiveTrainers, hint: "Fully onboarded + recent activity", accent: "emerald" },
@@ -375,7 +375,7 @@ export function ClientPipelineSection({ panel }: { panel: AdminClientPipelinePan
   return (
     <MetricsSection
       title="Client pipeline"
-      description="From 50%+ signup completion through plan status. VIP trial, Free, VIP, and inactive counts mirror Member overview."
+      description="From 50%+ signup completion through plan status. VIP trial, Free, VIP, and inactive counts mirror Member overview definitions."
     >
       <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {panel.stages.map((s) => (

@@ -4,8 +4,7 @@ const {
   mockClientCount,
   mockTrainerCount,
   mockQueryRaw,
-  mockCountLaunchClients,
-  mockCountLaunchTrainers,
+  mockCountLaunchLifetimeMembers,
   mockLaunchClientCountWhere,
   mockLaunchClientPlatformTrialCountWhere,
   mockLaunchClientFreePlanWhere,
@@ -21,8 +20,7 @@ const {
   mockClientCount: vi.fn(),
   mockTrainerCount: vi.fn(),
   mockQueryRaw: vi.fn(),
-  mockCountLaunchClients: vi.fn(),
-  mockCountLaunchTrainers: vi.fn(),
+  mockCountLaunchLifetimeMembers: vi.fn(),
   mockLaunchClientCountWhere: vi.fn(),
   mockLaunchClientPlatformTrialCountWhere: vi.fn(),
   mockLaunchClientFreePlanWhere: vi.fn(),
@@ -52,8 +50,7 @@ vi.mock("@/lib/launch-account-counts", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/launch-account-counts")>();
   return {
     ...actual,
-    countLaunchClients: mockCountLaunchClients,
-    countLaunchTrainers: mockCountLaunchTrainers,
+    countLaunchLifetimeMembers: mockCountLaunchLifetimeMembers,
     launchClientCountWhere: mockLaunchClientCountWhere,
     launchClientPlatformTrialCountWhere: mockLaunchClientPlatformTrialCountWhere,
     launchClientFreePlanWhere: mockLaunchClientFreePlanWhere,
@@ -100,15 +97,13 @@ describe("admin-member-overview", () => {
       trainersActive: 20,
       trainersPending: 4,
     });
-    mockCountLaunchClients.mockResolvedValue(1);
-    mockCountLaunchTrainers.mockResolvedValue(0);
+    mockCountLaunchLifetimeMembers.mockResolvedValue(42);
     mockClientCount.mockImplementation((args?: { where?: Record<string, unknown> }) => {
       const w = args?.where;
       if (w && "vipTrial" in w) return Promise.resolve(7);
       if (w && "freePlan" in w) return Promise.resolve(18);
-      if (w && "subscribed" in w) return Promise.resolve(25);
       if (w && "activeVip" in w) return Promise.resolve(7);
-      if (w && w.updatedAt) return Promise.resolve(9);
+      if (w && w.updatedAt && w.NOT) return Promise.resolve(9);
       return Promise.resolve(0);
     });
     mockTrainerCount.mockImplementation((args?: { where?: Record<string, unknown> }) => {
@@ -128,7 +123,7 @@ describe("admin-member-overview", () => {
     const result = await getAdminMemberOverviewPanel(new Date("2026-06-09T12:00:00.000Z"));
 
     expect(result).toEqual({
-      allMembersTotal: 1,
+      allMembersTotal: 42,
       vipTrialClients: 7,
       subscribedClients: 25,
       inactiveClients: 9,
