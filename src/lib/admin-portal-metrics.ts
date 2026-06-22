@@ -37,6 +37,7 @@ import {
 import { ADMIN_CLIENT_INACTIVITY_DAYS, countInactiveLaunchClients } from "@/lib/admin-member-overview";
 import { getHomeUserCounts } from "@/lib/home-user-counts";
 import { isMissingClientPlatformTrialColumnError } from "@/lib/ensure-client-platform-trial-schema";
+import { isMissingClientPlanColumnError } from "@/lib/ensure-client-plan-schema";
 import { isMissingTrainerRegisterSchemaError } from "@/lib/ensure-trainer-register-schema";
 import { isPrismaMissingColumnError, isPrismaMissingTableError } from "@/lib/prisma-missing-column";
 import { prisma } from "@/lib/prisma";
@@ -121,6 +122,7 @@ function n(row: CountRow | undefined): number {
 
 function isRecoverableAdminMetricsError(e: unknown): boolean {
   if (isMissingClientPlatformTrialColumnError(e)) return true;
+  if (isMissingClientPlanColumnError(e)) return true;
   if (isMissingTrainerRegisterSchemaError(e)) return true;
   if (isPrismaMissingTableError(e, "pending_client_registrations")) return true;
   if (e instanceof Prisma.PrismaClientValidationError) return true;

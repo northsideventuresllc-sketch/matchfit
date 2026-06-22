@@ -8,6 +8,8 @@ import {
   isAdminPortalConnectionError,
   isAdminPortalSchemaError,
 } from "@/lib/ensure-admin-portal-schema";
+import { isMissingClientPlanColumnError } from "@/lib/ensure-client-plan-schema";
+import { isMissingClientPlatformTrialColumnError } from "@/lib/ensure-client-platform-trial-schema";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/session";
 import { AdminDashboardClient } from "./admin-dashboard-client";
@@ -49,9 +51,11 @@ export default async function AdminHomePage() {
       ? "Administrator reporting tables could not be initialized. From the project root run `npm run db:migrate` (production) or `npm run db:push` (local), then reload. If this persists, check server logs for database permissions."
       : isAdminPortalConnectionError(e)
         ? "Could not reach the production database from Vercel. Confirm DATABASE_URL uses the Supabase transaction pooler (port 6543) and redeploy."
-        : isAdminPortalSchemaError(e)
-          ? "Administrator database permissions need repair. Reload once — the app will retry schema repair automatically."
-          : "Could not load the administrator dashboard. Check database connectivity and server logs.";
+        : isMissingClientPlanColumnError(e) || isMissingClientPlatformTrialColumnError(e)
+          ? "Client plan columns need a one-time schema repair. Reload this page — the app will retry automatically. If this persists, confirm DIRECT_URL is set on the server and run `npm run db:migrate`."
+          : isAdminPortalSchemaError(e)
+            ? "Administrator database permissions need repair. Reload once — the app will retry schema repair automatically."
+            : "Could not load the administrator dashboard. Check database connectivity and server logs.";
   }
 
   if (loadError) {

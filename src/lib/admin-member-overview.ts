@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   countLaunchClients,
@@ -12,6 +13,8 @@ import {
   launchTrainerCountWhere,
 } from "@/lib/launch-account-counts";
 import { adminPendingTrainerWhere } from "@/lib/admin-portal-list-filters";
+import { isMissingClientPlanColumnError } from "@/lib/ensure-client-plan-schema";
+import { isMissingClientPlatformTrialColumnError } from "@/lib/ensure-client-platform-trial-schema";
 import { getHomeUserCounts } from "@/lib/home-user-counts";
 import { isPrismaMissingTableError } from "@/lib/prisma-missing-column";
 
@@ -39,6 +42,22 @@ type CountRow = { n: bigint };
 
 function n(row: CountRow | undefined): number {
   return Number(row?.n ?? BigInt(0));
+}
+
+function isRecoverableMemberOverviewClientError(e: unknown): boolean {
+  return isMissingClientPlanColumnError(e) || isMissingClientPlatformTrialColumnError(e);
+}
+
+async function safeClientMetricCount(where: Prisma.ClientWhereInput, fallback = 0): Promise<number> {
+  try {
+    return await prisma.client.count({ where });
+  } catch (e) {
+    if (isRecoverableMemberOverviewClientError(e)) {
+      console.warn("[admin member overview] client count fallback", e);
+      return fallback;
+    }
+    throw e;
+  }
 }
 
 /** Onboarded trainers without recent activity (inverse of home active trainers). */
@@ -75,11 +94,9 @@ async function countUniqueSiteVisitorsAllTime(): Promise<number> {
 
 export async function countInactiveLaunchClients(now = new Date()): Promise<number> {
   const threshold = new Date(now.getTime() - ADMIN_CLIENT_INACTIVITY_DAYS * 24 * 60 * 60 * 1000);
-  return prisma.client.count({
-    where: {
-      ...launchClientActiveAccountWhere(),
-      updatedAt: { lt: threshold },
-    },
+  return safeClientMetricCount({
+    ...launchClientActiveAccountWhere(),
+    updatedAt: { lt: threshold },
   });
 }
 
@@ -98,11 +115,11 @@ export async function getAdminMemberOverviewPanel(now = new Date()): Promise<Adm
     pendingTrainers,
   ] = await Promise.all([
     countAllMembersTotal(),
-    prisma.client.count({ where: launchClientPlatformTrialCountWhere(now) }),
-    prisma.client.count({ where: launchClientSubscribedPlansWhere(now) }),
+    safeClientMetricCount(launchClientPlatformTrialCountWhere(now)),
+    safeClientMetricCount(launchClientSubscribedPlansWhere(now)),
     countInactiveLaunchClients(now),
-    prisma.client.count({ where: launchClientFreePlanWhere(now) }),
-    prisma.client.count({ where: launchClientActiveVipWhere() }),
+    safeClientMetricCount(launchClientFreePlanWhere(now)),
+    safeClientMetricCount(launchClientActiveVipWhere()),
     countUniqueSiteVisitorsAllTime(),
     countInactiveTrainers(),
     prisma.trainer.count({ where: adminPendingTrainerWhere() }),

@@ -17,6 +17,7 @@ import type {
   AdminUserStats,
 } from "@/lib/admin-portal-types";
 import { ensureAdminReportingSchema } from "@/lib/ensure-admin-reporting-schema";
+import { ensureClientPlanSchema, isMissingClientPlanColumnError } from "@/lib/ensure-client-plan-schema";
 import { ensureClientPlatformTrialSchema } from "@/lib/ensure-client-platform-trial-schema";
 import { ensureTrainerRegisterSchema } from "@/lib/ensure-trainer-register-schema";
 import { prisma } from "@/lib/prisma";
@@ -396,6 +397,9 @@ export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
   await Promise.all([
     ensureClientPlatformTrialSchema().catch((e) => {
       console.error("[admin portal] ensureClientPlatformTrialSchema", e);
+    }),
+    ensureClientPlanSchema().catch((e) => {
+      console.error("[admin portal] ensureClientPlanSchema", e);
     }),
     ensureTrainerRegisterSchema().catch((e) => {
       console.error("[admin portal] ensureTrainerRegisterSchema", e);

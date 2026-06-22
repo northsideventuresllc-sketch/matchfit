@@ -38,7 +38,18 @@ export function isAdminPortalSchemaError(e: unknown): boolean {
     return true;
   }
   if (!(e instanceof Prisma.PrismaClientKnownRequestError)) return false;
-  return e.code === "P2021" || e.code === "P2022";
+  if (e.code !== "P2021" && e.code !== "P2022") return false;
+  const metaTable = String((e.meta as { table?: string })?.table ?? "");
+  const metaModel = String((e.meta as { modelName?: string })?.modelName ?? "");
+  return (
+    message.includes("administrators") ||
+    message.includes("pending_administrator_registrations") ||
+    message.includes("adminDashboardLayoutJson") ||
+    metaTable.includes("administrators") ||
+    metaTable.includes("pending_administrator_registrations") ||
+    metaModel === "Administrator" ||
+    metaModel === "PendingAdministratorRegistration"
+  );
 }
 
 export function isAdminPortalConnectionError(e: unknown): boolean {
