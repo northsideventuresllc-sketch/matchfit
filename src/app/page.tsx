@@ -60,7 +60,7 @@ export default async function Home({ searchParams }: HomeProps) {
     <main className={matchFitBrandPageMainClass}>
       <MatchFitBrandPageBackground />
 
-      <div className="relative z-10 mx-auto flex min-h-svh w-full min-w-0 max-w-6xl flex-col px-4 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14 lg:px-10">
+      <div className="relative z-10 mx-auto flex w-full min-w-0 max-w-6xl flex-col px-4 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14 lg:px-10">
         <header className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl sm:h-16 sm:w-16">

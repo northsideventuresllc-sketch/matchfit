@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-22** `1.13.2-beta` → `1.13.3-beta` (**patch** — Fix home page mouse wheel scroll; TrainerDraft migration)
 - **2026-06-22** `1.13.1-beta` → `1.13.2-beta` (**patch** — Add TrainerDraft migration for server-side signup resume)
 - **2026-06-19** `1.13.0-beta` → `1.13.1-beta` (**patch** — Default client VIP Stripe setup scripts and billing agent rule)
 - **2026-06-19** `1.12.3-beta` → `1.13.0-beta` (**minor** — Client freemium/VIP tiers and trainer deferred registration fee option)
