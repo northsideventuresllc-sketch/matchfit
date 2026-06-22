@@ -9,37 +9,53 @@ import {
 } from "@/lib/trainer-signup-promo-copy";
 import { clientBetaVipTrialSummary } from "@/lib/client-plan-copy";
 
+const chevronClass =
+  "inline-flex size-7 shrink-0 items-center justify-center rounded-lg border border-white/[0.1] text-xs font-bold text-white/45 transition-transform duration-200 group-open:rotate-90";
+
+const summaryRowClass =
+  "flex w-full cursor-pointer list-none items-start gap-3 text-left [-webkit-details-marker]:hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7E00]/70";
+
 export function HomeBetaPromoBanner() {
   const trainerFoundingCap = getTrainerFoundingBgPercentMax();
 
   return (
-    <section
+    <details
       id="beta-welcome"
-      aria-labelledby="beta-welcome-heading"
-      className="relative w-full min-w-0 scroll-mt-28 overflow-hidden rounded-3xl border border-[#FFD34E]/25 bg-[linear-gradient(135deg,rgba(255,211,78,0.14)_0%,rgba(255,126,0,0.1)_45%,rgba(227,43,43,0.12)_100%)] p-4 shadow-[0_24px_80px_-32px_rgba(255,126,0,0.4)] backdrop-blur-xl sm:p-7"
+      open
+      className="group relative w-full min-w-0 scroll-mt-28 overflow-hidden rounded-3xl border border-[#FFD34E]/25 bg-[linear-gradient(135deg,rgba(255,211,78,0.14)_0%,rgba(255,126,0,0.1)_45%,rgba(227,43,43,0.12)_100%)] shadow-[0_24px_80px_-32px_rgba(255,126,0,0.4)] backdrop-blur-xl"
     >
       <div
         aria-hidden
         className="pointer-events-none absolute -right-10 -top-16 h-40 w-40 rounded-full bg-[radial-gradient(circle_at_center,rgba(255,211,78,0.35),transparent_68%)]"
       />
-      <div className="relative min-w-0">
-        <div className="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-          <span className="inline-flex max-w-full items-center rounded-full border border-[#FFD34E]/40 bg-[#FFD34E]/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#FFD34E] sm:text-[11px] sm:tracking-[0.2em]">
-            Welcome to Match Fit
-          </span>
-          <span className="inline-flex max-w-full items-center rounded-full border border-white/15 bg-white/[0.06] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white/70 sm:text-[11px] sm:tracking-[0.18em]">
-            Version {MATCH_FIT_PRODUCT_VERSION_ANNOUNCE}
-          </span>
+      <summary className={`${summaryRowClass} p-4 sm:p-7`}>
+        <span className={chevronClass} aria-hidden>
+          ▸
+        </span>
+        <div className="relative min-w-0 flex-1">
+          <div className="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <span className="inline-flex max-w-full items-center rounded-full border border-[#FFD34E]/40 bg-[#FFD34E]/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#FFD34E] sm:text-[11px] sm:tracking-[0.2em]">
+              Welcome to Match Fit
+            </span>
+            <span className="inline-flex max-w-full items-center rounded-full border border-white/15 bg-white/[0.06] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white/70 sm:text-[11px] sm:tracking-[0.18em]">
+              Version {MATCH_FIT_PRODUCT_VERSION_ANNOUNCE}
+            </span>
+          </div>
+
+          <h1
+            id="beta-welcome-heading"
+            className="mt-4 max-w-3xl text-balance text-left text-lg font-black uppercase leading-snug tracking-[0.04em] text-white sm:text-2xl sm:leading-tight sm:tracking-wide md:text-[1.65rem]"
+          >
+            We are live — founding member promos active now
+          </h1>
+          <p className="mt-2 text-left text-xs text-white/45 sm:text-sm">
+            Tap to expand or collapse launch details and founding promos.
+          </p>
         </div>
+      </summary>
 
-        <h1
-          id="beta-welcome-heading"
-          className="mt-4 max-w-3xl text-balance text-left text-lg font-black uppercase leading-snug tracking-[0.04em] text-white sm:text-2xl sm:leading-tight sm:tracking-wide md:text-[1.65rem]"
-        >
-          We are live — founding member promos active now
-        </h1>
-
-        <div className="mt-4 max-w-3xl space-y-3 text-pretty text-left text-[14px] leading-relaxed text-white/65 [overflow-wrap:anywhere] sm:text-[15px] md:text-base">
+      <div className="relative min-w-0 border-t border-[#FFD34E]/15 px-4 pb-4 pt-5 sm:px-7 sm:pb-7">
+        <div className="max-w-3xl space-y-3 text-pretty text-left text-[14px] leading-relaxed text-white/65 [overflow-wrap:anywhere] sm:text-[15px] md:text-base">
           <p>
             Thank you for joining Match Fit! Match Fit is built to connect anyone looking to accomplish their
             fitness goals with the best fitness professionals that will help anyone get there.
@@ -131,6 +147,6 @@ export function HomeBetaPromoBanner() {
           </Link>
         </div>
       </div>
-    </section>
+    </details>
   );
 }
