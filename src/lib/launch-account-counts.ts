@@ -206,21 +206,18 @@ export function launchClientActiveVipWhere(): Prisma.ClientWhereInput {
   };
 }
 
-/** Free-plan clients after trial (not VIP, not in card-free VIP trial). */
+/** Clients currently on the Free plan (display tier free — not VIP, not in VIP trial). */
 export function launchClientFreePlanWhere(now = new Date()): Prisma.ClientWhereInput {
   return {
     ...launchClientActiveAccountWhere(),
     vipSubscriptionActive: false,
-    NOT: launchClientPlatformTrialCountWhere(now),
+    OR: [{ platformTrialEndsAt: null }, { platformTrialEndsAt: { lte: now } }],
   };
 }
 
-/** Active clients on Free or VIP plans (excludes complimentary VIP trial). */
-export function launchClientSubscribedPlansWhere(now = new Date()): Prisma.ClientWhereInput {
-  return {
-    ...launchClientActiveAccountWhere(),
-    OR: [{ vipSubscriptionActive: true }, launchClientFreePlanWhere(now)],
-  };
+/** Active clients with a plan — Free, VIP, or complimentary VIP trial. */
+export function launchClientSubscribedPlansWhere(_now = new Date()): Prisma.ClientWhereInput {
+  return launchClientActiveAccountWhere();
 }
 
 /** After platform trial ends: grace window before card/subscription is required. */

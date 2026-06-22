@@ -6,6 +6,9 @@ import {
   isInternalSyntheticMatchFitEmail,
   launchClientCountWhere,
   launchClientFreeTrialCountWhere,
+  launchClientFreePlanWhere,
+  launchClientSubscribedPlansWhere,
+  launchClientActiveAccountWhere,
   launchClientPlatformPaymentGraceWhere,
   launchClientPlatformTrialCountWhere,
   launchClientStripeTrialCountWhere,
@@ -251,6 +254,22 @@ describe("admin funnel count filters", () => {
     expect(where.OR).toHaveLength(2);
     expect(where.OR?.[0]).toEqual(launchClientPlatformTrialCountWhere(now));
     expect(where.OR?.[1]).toEqual(launchClientStripeTrialCountWhere());
+  });
+
+  it("free plan filter matches current Free tier without trial coupling", () => {
+    const where = launchClientFreePlanWhere(now);
+    expect(where.vipSubscriptionActive).toBe(false);
+    expect(where.accountDeactivatedAt).toBeNull();
+    expect(where.OR).toEqual([
+      { platformTrialEndsAt: null },
+      { platformTrialEndsAt: { lte: now } },
+    ]);
+    expect(JSON.stringify(where)).not.toContain("platformTrialEndsAt\":{\"gt\"");
+  });
+
+  it("subscribed plan filter includes all active launch clients", () => {
+    const where = launchClientSubscribedPlansWhere(now);
+    expect(where).toEqual(launchClientActiveAccountWhere());
   });
 
   it("platform payment grace excludes clients still in platform trial", () => {

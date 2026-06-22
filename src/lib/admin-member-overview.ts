@@ -26,7 +26,7 @@ export type AdminMemberOverviewPanel = {
   allMembersTotal: number;
   /** Complimentary card-free VIP trial at sign-up. */
   vipTrialClients: number;
-  /** Active clients on Free or VIP plans (excludes VIP trial). */
+  /** Active clients on Free, VIP, or complimentary VIP trial. */
   subscribedClients: number;
   /** Launch clients inactive for {@link ADMIN_CLIENT_INACTIVITY_DAYS}+ days. */
   inactiveClients: number;
