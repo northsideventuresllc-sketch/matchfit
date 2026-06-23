@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-23** `1.14.6-beta` → `2.0.0-beta` (**major** — BETA 2.0.0: Fitness Pro account tier system (Pro, Premium Pro, Independent, Elite), tier messaging, document review, and admin FP docs)
 - **2026-06-22** `1.14.8-beta` → `1.14.9-beta` (**patch**)
 - **2026-06-22** `1.14.4-beta` → `1.14.5-beta` (**patch** — Remove unused admin-portal-data import)
 - **2026-06-22** `1.14.3-beta` → `1.14.4-beta` (**patch** — Auto-repair client plan schema for admin portal)
