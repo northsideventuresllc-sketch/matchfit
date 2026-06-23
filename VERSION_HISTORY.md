@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-23** `2.0.1-beta` → `2.0.2-beta` (**patch** — Inclusion-focused FP tier homepage copy, debrief sections, and legal alignment)
 - **2026-06-23** `2.0.0-beta` → `2.0.1-beta` (**patch** — Homepage Types of Fit Pros section and FP tier copy alignment across legal and UI)
 - **2026-06-23** `1.14.6-beta` → `2.0.0-beta` (**major** — BETA 2.0.0: Fitness Pro account tier system (Pro, Premium Pro, Independent, Elite), tier messaging, document review, and admin FP docs)
 - **2026-06-22** `1.14.8-beta` → `1.14.9-beta` (**patch**)

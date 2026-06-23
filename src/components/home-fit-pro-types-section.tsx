@@ -1,5 +1,4 @@
 import {
-  FP_PREMIUM_PAGE_MARKETING,
   FP_TIER_MARKETING_BETA_NOTE,
   FP_TIER_MARKETING_GROUPS,
 } from "@/lib/fp-tier-marketing-copy";
@@ -43,7 +42,7 @@ export function HomeFitProTypesSection() {
     <div className="space-y-8">
       <p>
         Match Fit offers four Fitness Pro account types grouped into three paths. Each tier sets how you reach
-        clients, what you pay Match Fit, and which communication rules apply in discovery and chat.
+        clients, what you pay Match Fit, and which tools come with your listing.
       </p>
 
       {FP_TIER_MARKETING_GROUPS.map((group) => (
@@ -74,24 +73,6 @@ export function HomeFitProTypesSection() {
       <p className="rounded-xl border border-[#FFD34E]/20 bg-[#FFD34E]/[0.06] p-4 text-xs leading-relaxed text-white/55 sm:text-[13px]">
         <span className="font-semibold text-[#FFD34E]/90">Beta note:</span> {FP_TIER_MARKETING_BETA_NOTE}
       </p>
-
-      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 sm:p-6">
-        <h4 className="text-sm font-black uppercase tracking-[0.16em] text-[#FF7E00]">
-          {FP_PREMIUM_PAGE_MARKETING.title}
-        </h4>
-        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-[#FFD34E]">
-          {FP_PREMIUM_PAGE_MARKETING.feeLabel}
-        </p>
-        <p className="mt-3 text-sm leading-relaxed text-white/55">{FP_PREMIUM_PAGE_MARKETING.summary}</p>
-        <ul className="mt-4 list-none space-y-2.5">
-          {FP_PREMIUM_PAGE_MARKETING.bullets.map((bullet) => (
-            <li key={bullet} className="flex gap-2.5 text-sm leading-relaxed text-white/50">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#FFD34E]" aria-hidden />
-              <span>{bullet}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
     </div>
   );
 }
