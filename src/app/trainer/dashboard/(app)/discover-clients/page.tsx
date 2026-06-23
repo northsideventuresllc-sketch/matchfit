@@ -14,9 +14,11 @@ export default async function TrainerDiscoverClientsPage() {
 
   const profile = await prisma.trainerProfile.findUnique({
     where: { trainerId },
-    select: { premiumStudioEnabledAt: true },
+    select: { premiumStudioEnabledAt: true, accountTier: true },
   });
   const isPremium = Boolean(profile?.premiumStudioEnabledAt);
+  const tier = profile?.accountTier;
+  const isFpProTier = tier === "match_fit_pro" || tier === "match_fit_premium_pro";
 
   return (
     <div className="space-y-8">
@@ -24,17 +26,21 @@ export default async function TrainerDiscoverClientsPage() {
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Matching</p>
         <h1 className="text-3xl font-black uppercase tracking-[0.06em] sm:text-4xl">Discover Clients</h1>
         <p className="mx-auto max-w-xl text-sm leading-relaxed text-white/50">
-          Clients who opted into discovery and completed match preferences appear here. Send a nudge to start a
-          conversation
-          {isPremium ? (
+          {isFpProTier ? (
             <>
-              . With <span className="text-white/70">Match Fit Premium</span> on your account, discovery nudges are
-              unlimited for everyone you see here who still accepts trainer discovery.
+              Match Fit Pro and Match Fit Premium Pro accounts use in-app chat for client outreach. Discovery nudges are
+              not part of those tiers — use Chats or Inquiries after a client connects with you.
+            </>
+          ) : tier === "independent_fitness_pro" ? (
+            <>
+              Clients who opted into discovery appear here. Send a discovery nudge to get their attention — Independent
+              Fitness Pro accounts do not include in-app chat. See the notice below for daily limits and optional nudge
+              packs.
             </>
           ) : (
             <>
-              {" "}
-              (free tier: 3 per day — see notice below).
+              Clients who opted into discovery and completed match preferences appear here. Send a nudge to start a
+              conversation when your account type includes discovery nudges.
             </>
           )}
         </p>

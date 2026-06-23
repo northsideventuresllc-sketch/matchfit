@@ -20,7 +20,9 @@ import {
 } from "@/lib/safety-constants";
 import type { SafetyBlockMode } from "@/lib/safety-block-modes";
 import type { TrainerCheckoutHint } from "@/lib/trainer-chat-checkout-hint";
-import { OFF_PLATFORM_CLIENT_CHAT_NOTICE } from "@/lib/tos-off-platform-deterrent";
+import {
+  OFF_PLATFORM_CLIENT_CHAT_NOTICE,
+} from "@/lib/tos-off-platform-deterrent";
 
 const CHECKOUT_HINT_DISMISS_KEY = "mf_trainer_checkout_hint_dismiss";
 
@@ -106,6 +108,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
   const [blockMode, setBlockMode] = useState<SafetyBlockMode>("full");
   const [pendingBookings, setPendingBookings] = useState<PendingBooking[]>([]);
   const [videoOAuthProviders, setVideoOAuthProviders] = useState<string[]>([]);
+  const [chatPolicyNotice, setChatPolicyNotice] = useState(OFF_PLATFORM_CLIENT_CHAT_NOTICE);
   const [videoAttachId, setVideoAttachId] = useState<string | null>(null);
   const [manualVideoUrl, setManualVideoUrl] = useState("");
   const [videoBusy, setVideoBusy] = useState(false);
@@ -145,6 +148,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
         unmatchInitiatedBy?: string | null;
         pendingBookings?: PendingBooking[];
         videoOAuthProviders?: string[];
+        chatPolicyNotice?: string;
         error?: string;
       };
       if (!res.ok) {
@@ -181,6 +185,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
       });
       setPendingBookings(data.pendingBookings ?? []);
       setVideoOAuthProviders(data.videoOAuthProviders ?? []);
+      setChatPolicyNotice(data.chatPolicyNotice?.trim() || OFF_PLATFORM_CLIENT_CHAT_NOTICE);
     } catch {
       setErr("Network error.");
     } finally {
@@ -1152,7 +1157,7 @@ export function TrainerClientChatThreadClient(props: { clientUsername: string })
       {official && !archived ? (
         <div className="mt-2 rounded-xl border border-white/[0.07] bg-[#08090d]/90 px-3 py-2.5 text-center text-[9px] leading-snug text-white/38 sm:px-4 sm:text-[10px] sm:leading-relaxed">
           <span className="font-semibold uppercase tracking-[0.08em] text-white/42">TRAINER REMINDER: </span>
-          <span className="break-words">{OFF_PLATFORM_CLIENT_CHAT_NOTICE}</span>
+          <span className="break-words">{chatPolicyNotice}</span>
         </div>
       ) : null}
     </div>

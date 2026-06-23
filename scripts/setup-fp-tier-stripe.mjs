@@ -41,6 +41,13 @@ const PRODUCTS = [
     unitAmountCents: 200,
     recurring: null,
   },
+  {
+    lookupKey: "match_fit_fp_nudge_pack_10",
+    envKey: "MATCH_FIT_FP_NUDGE_PACK_STRIPE_PRICE_ID",
+    name: "Match Fit Independent FP Nudge Pack (10)",
+    unitAmountCents: 500,
+    recurring: null,
+  },
 ];
 
 function parseEnv(text) {

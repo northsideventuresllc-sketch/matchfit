@@ -9,10 +9,14 @@ export const FP_INDEPENDENT_STRIPE_PRICE_ENV = "MATCH_FIT_INDEPENDENT_FP_STRIPE_
 export const FP_ELITE_STRIPE_PRICE_ENV = "MATCH_FIT_ELITE_FP_STRIPE_PRICE_ID";
 export const FP_PROMOTE_TOKEN_STRIPE_PRICE_ENV = "MATCH_FIT_FP_PROMOTE_TOKEN_STRIPE_PRICE_ID";
 
+export const FP_NUDGE_PACK_STRIPE_LOOKUP_KEY = "match_fit_fp_nudge_pack_10";
+export const FP_NUDGE_PACK_STRIPE_PRICE_ENV = "MATCH_FIT_FP_NUDGE_PACK_STRIPE_PRICE_ID";
+
 export const FP_STRIPE_CHECKOUT_PURPOSE = {
   independentSubscription: "fp_independent_subscription",
   eliteSubscription: "fp_elite_subscription",
   promoteTokenPurchase: "fp_promote_token_purchase",
+  nudgePackPurchase: "fp_nudge_pack_purchase",
 } as const;
 
 export function fpStripePriceEnvKeyForTier(tier: FpAccountTier): string | null {

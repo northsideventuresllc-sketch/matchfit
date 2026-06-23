@@ -1,13 +1,21 @@
 import { queueChatAdminReview } from "@/lib/chat-admin-review-queue";
 import { getChatContactLeakageBlockReason, scanChatTextForLeakageSignals } from "@/lib/chat-leakage-detection";
+import {
+  INDEPENDENT_FP_DAILY_NUDGES,
+  INDEPENDENT_FP_NO_CHAT_MESSAGE,
+  NUDGE_FEATURE_UNAVAILABLE_MESSAGE,
+  NUDGE_PACK_PURCHASE_NOTICE,
+  trainerCanUseNudgeFeature,
+  trainerNudgeOpensChat,
+} from "@/lib/fp-tier-chat-policy";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { hasTrainerFullPlatformAccess } from "@/lib/trainer-full-access";
 import { trainerFullAccessBlockedMessage } from "@/lib/assert-trainer-full-access";
 import { trainerFullAccessProfileSelect } from "@/lib/trainer-full-access-profile-select";
 import {
-  FREE_TRAINER_NUDGES_PER_DAY,
-  PREMIUM_NUDGES_PRODUCT_NOTICE,
+  evaluateTrainerNudgeQuota,
+  FP_NUDGE_PACK_SIZE,
   utcDayRange,
 } from "@/lib/trainer-nudge-limits";
 import { isMatchFitInternalQaTrainerEmail } from "@/lib/match-fit-internal-qa";
@@ -32,11 +40,23 @@ export async function POST(req: Request) {
         firstName: true,
         lastName: true,
         preferredName: true,
-        profile: { select: { ...trainerFullAccessProfileSelect, premiumStudioEnabledAt: true } },
+        profile: {
+          select: {
+            ...trainerFullAccessProfileSelect,
+            premiumStudioEnabledAt: true,
+            accountTier: true,
+            nudgeCreditsBalance: true,
+          },
+        },
       },
     });
     if (!trainer?.profile || !hasTrainerFullPlatformAccess(trainer.profile)) {
       return NextResponse.json({ error: trainerFullAccessBlockedMessage() }, { status: 403 });
+    }
+
+    const accountTier = trainer.profile.accountTier;
+    if (!trainerCanUseNudgeFeature(accountTier)) {
+      return NextResponse.json({ error: NUDGE_FEATURE_UNAVAILABLE_MESSAGE }, { status: 403 });
     }
 
     const body = (await req.json()) as { clientUsername?: string; message?: string | null };
@@ -50,7 +70,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Message cannot be empty when provided." }, { status: 400 });
     }
     if (message) {
-      const contactBlock = getChatContactLeakageBlockReason(message);
+      const contactBlock = getChatContactLeakageBlockReason(message, accountTier);
       if (contactBlock) {
         return NextResponse.json({ error: contactBlock, code: "CHAT_CONTACT_BLOCKED" }, { status: 400 });
       }
@@ -85,12 +105,25 @@ export async function POST(req: Request) {
     const nudgesToday = await prisma.trainerClientNudge.count({
       where: { trainerId: trainer.id, createdAt: { gte: start, lt: end } },
     });
-    if (!isPremium && nudgesToday >= FREE_TRAINER_NUDGES_PER_DAY) {
+    const quota = evaluateTrainerNudgeQuota({
+      accountTier,
+      nudgesUsedToday: nudgesToday,
+      nudgeCreditsBalance: trainer.profile.nudgeCreditsBalance,
+      legacyPremiumStudio: isPremium,
+    });
+    if (!quota.allowed) {
+      if (quota.reason === "not_allowed") {
+        return NextResponse.json({ error: NUDGE_FEATURE_UNAVAILABLE_MESSAGE }, { status: 403 });
+      }
       return NextResponse.json(
         {
-          error: `You have used all ${FREE_TRAINER_NUDGES_PER_DAY} free discovery nudges for today.`,
+          error: `You have used all ${quota.dailyLimit ?? INDEPENDENT_FP_DAILY_NUDGES} discovery nudges for today.`,
           code: "NUDGE_DAILY_CAP",
-          premiumNotice: PREMIUM_NUDGES_PRODUCT_NOTICE,
+          nudgesUsedToday: quota.nudgesUsedToday,
+          nudgesDailyLimit: quota.dailyLimit,
+          nudgeCreditsBalance: quota.nudgeCreditsBalance,
+          nudgePackNotice: NUDGE_PACK_PURCHASE_NOTICE,
+          nudgePackSize: FP_NUDGE_PACK_SIZE,
         },
         { status: 429 },
       );
@@ -104,7 +137,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            "This thread is archived. The client must revive the chat (if they ended it) or wait until the archive expires before a new nudge can reopen messaging.",
+            "This thread is archived. The client must revive the chat (if they ended it) or wait until the archive expires before a new nudge can be sent.",
         },
         { status: 403 },
       );
@@ -113,9 +146,13 @@ export async function POST(req: Request) {
     const coachName =
       trainer.preferredName?.trim() ||
       [trainer.firstName, trainer.lastName].filter(Boolean).join(" ").trim() ||
-      "A coach";
+      "A Fitness Pro";
     const now = new Date();
     const msgLine = message ? ` “${message}”` : "";
+    const opensChat = trainerNudgeOpensChat(accountTier);
+    const clientLink = opensChat
+      ? `/client/messages/${encodeURIComponent(trainer.username)}`
+      : "/client/dashboard";
 
     const deferredSyntheticOpen =
       isMatchFitInternalQaTrainerEmail(trainer.email) && client.internalQaSyntheticPersona;
@@ -123,6 +160,12 @@ export async function POST(req: Request) {
     if (deferredSyntheticOpen) {
       const openAt = new Date(now.getTime() + 60_000);
       const conv = await prisma.$transaction(async (tx) => {
+        if (quota.usesPurchasedCredit) {
+          await tx.trainerProfile.update({
+            where: { trainerId: trainer.id },
+            data: { nudgeCreditsBalance: { decrement: 1 } },
+          });
+        }
         await tx.trainerClientNudge.create({
           data: {
             trainerId: trainer.id,
@@ -160,14 +203,14 @@ export async function POST(req: Request) {
             kind: "NUDGE",
             title: "NEW NUDGE",
             body: `${coachName} wants to work with you.${msgLine}`,
-            linkHref: `/client/messages/${encodeURIComponent(trainer.username)}`,
+            linkHref: clientLink,
           },
         });
         return c;
       });
 
       if (message) {
-        const leak = scanChatTextForLeakageSignals(message);
+        const leak = scanChatTextForLeakageSignals(message, accountTier);
         if (leak.flagged) {
           await queueChatAdminReview({
             conversationId: conv.id,
@@ -178,61 +221,55 @@ export async function POST(req: Request) {
         }
       }
 
-      if (isPremium) {
-        return NextResponse.json({
-          ok: true,
-          unlimitedNudges: true,
-          internalQaSyntheticMatchOpensAt: openAt.toISOString(),
-        });
-      }
       return NextResponse.json({
         ok: true,
-        nudgesUsedToday: nudgesToday + 1,
-        nudgesDailyLimit: FREE_TRAINER_NUDGES_PER_DAY,
-        premiumNotice: PREMIUM_NUDGES_PRODUCT_NOTICE,
+        chatDisabled: !opensChat,
         internalQaSyntheticMatchOpensAt: openAt.toISOString(),
       });
     }
 
-    await prisma.$transaction([
-      prisma.trainerClientNudge.create({
+    const conv = await prisma.$transaction(async (tx) => {
+      if (quota.usesPurchasedCredit) {
+        await tx.trainerProfile.update({
+          where: { trainerId: trainer.id },
+          data: { nudgeCreditsBalance: { decrement: 1 } },
+        });
+      }
+      await tx.trainerClientNudge.create({
         data: {
           trainerId: trainer.id,
           clientId: client.id,
           message: message ?? null,
         },
-      }),
-      prisma.trainerClientConversation.upsert({
+      });
+      const c = await tx.trainerClientConversation.upsert({
         where: { trainerId_clientId: { trainerId: trainer.id, clientId: client.id } },
         create: {
           trainerId: trainer.id,
           clientId: client.id,
-          officialChatStartedAt: now,
+          officialChatStartedAt: opensChat ? now : null,
           relationshipStage: "POTENTIAL_CLIENT",
         },
         update: {
-          officialChatStartedAt: now,
+          officialChatStartedAt: opensChat ? now : undefined,
           updatedAt: now,
         },
-      }),
-      prisma.clientNotification.create({
+      });
+      await tx.clientNotification.create({
         data: {
           clientId: client.id,
           kind: "NUDGE",
           title: "NEW NUDGE",
           body: `${coachName} wants to work with you.${msgLine}`,
-          linkHref: `/client/messages/${encodeURIComponent(trainer.username)}`,
+          linkHref: clientLink,
         },
-      }),
-    ]);
+      });
+      return c;
+    });
 
     if (message) {
-      const conv = await prisma.trainerClientConversation.findUnique({
-        where: { trainerId_clientId: { trainerId: trainer.id, clientId: client.id } },
-        select: { id: true },
-      });
-      const leak = scanChatTextForLeakageSignals(message);
-      if (conv && leak.flagged) {
+      const leak = scanChatTextForLeakageSignals(message, accountTier);
+      if (leak.flagged) {
         await queueChatAdminReview({
           conversationId: conv.id,
           authorRole: "TRAINER",
@@ -242,17 +279,17 @@ export async function POST(req: Request) {
       }
     }
 
-    if (isPremium) {
-      return NextResponse.json({
-        ok: true,
-        unlimitedNudges: true,
-      });
-    }
     return NextResponse.json({
       ok: true,
+      chatDisabled: !opensChat,
+      chatNotice: opensChat ? null : INDEPENDENT_FP_NO_CHAT_MESSAGE,
       nudgesUsedToday: nudgesToday + 1,
-      nudgesDailyLimit: FREE_TRAINER_NUDGES_PER_DAY,
-      premiumNotice: PREMIUM_NUDGES_PRODUCT_NOTICE,
+      nudgesDailyLimit: quota.dailyLimit,
+      nudgeCreditsBalance: quota.usesPurchasedCredit
+        ? Math.max(0, quota.nudgeCreditsBalance - 1)
+        : quota.nudgeCreditsBalance,
+      nudgePackNotice: accountTier === "independent_fitness_pro" ? NUDGE_PACK_PURCHASE_NOTICE : null,
+      unlimitedNudges: quota.dailyLimit == null,
     });
   } catch (e) {
     console.error(e);

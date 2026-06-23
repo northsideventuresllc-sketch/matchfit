@@ -7,7 +7,14 @@ import {
   TRAINER_DISCOVERY_STRICTNESS_MAX,
   TRAINER_DISCOVERY_STRICTNESS_MIN,
 } from "@/lib/trainer-discovery-strictness";
-import { PREMIUM_NUDGES_PRODUCT_NOTICE } from "@/lib/trainer-nudge-limits";
+import {
+  FP_NUDGE_PACK_PRICE_USD,
+  FP_NUDGE_PACK_SIZE,
+  INDEPENDENT_FP_DAILY_NUDGES,
+  INDEPENDENT_FP_NO_CHAT_MESSAGE,
+  NUDGE_PACK_PURCHASE_NOTICE,
+} from "@/lib/fp-tier-chat-policy";
+import { LEGACY_FREE_TRAINER_NUDGES_PER_DAY } from "@/lib/trainer-nudge-limits";
 
 type Row = {
   username: string;
@@ -19,6 +26,17 @@ type Row = {
   nicheHits: number;
   serviceOk: boolean;
   deliveryOk: boolean;
+};
+
+type NudgeSummary = {
+  accountTier: string | null;
+  canUseNudges: boolean;
+  canUseInAppChat: boolean;
+  nudgesUsedToday: number;
+  nudgesDailyLimit: number | null;
+  nudgeCreditsBalance: number;
+  nudgePackNotice: string | null;
+  remainingFreeNudgesToday: number | null;
 };
 
 type Props = {
@@ -33,8 +51,20 @@ export function TrainerDiscoverClientsClient(props: Props) {
   const [error, setError] = useState<string | null>(null);
   const [nudgeMsg, setNudgeMsg] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<string | null>(null);
-  const [premiumLine, setPremiumLine] = useState<string | null>(null);
+  const [statusLine, setStatusLine] = useState<string | null>(null);
   const [matchBatchNote, setMatchBatchNote] = useState<string | null>(null);
+  const [nudgeSummary, setNudgeSummary] = useState<NudgeSummary | null>(null);
+  const [purchaseBusy, setPurchaseBusy] = useState(false);
+
+  const loadNudgeSummary = useCallback(async () => {
+    try {
+      const res = await fetch("/api/trainer/nudges/summary");
+      const data = (await res.json()) as NudgeSummary & { error?: string };
+      if (res.ok) setNudgeSummary(data);
+    } catch {
+      setNudgeSummary(null);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -72,13 +102,32 @@ export function TrainerDiscoverClientsClient(props: Props) {
   useEffect(() => {
     const id = window.setTimeout(() => {
       void load();
+      void loadNudgeSummary();
     }, 0);
     return () => window.clearTimeout(id);
-  }, [load]);
+  }, [load, loadNudgeSummary]);
+
+  async function purchaseNudgePack() {
+    setPurchaseBusy(true);
+    setToast(null);
+    try {
+      const res = await fetch("/api/trainer/nudges/purchase-checkout", { method: "POST" });
+      const data = (await res.json()) as { checkoutUrl?: string; error?: string };
+      if (!res.ok || !data.checkoutUrl) {
+        setToast(data.error ?? "Could not start checkout.");
+        return;
+      }
+      window.location.href = data.checkoutUrl;
+    } catch {
+      setToast("Network error.");
+    } finally {
+      setPurchaseBusy(false);
+    }
+  }
 
   async function nudge(username: string) {
     setToast(null);
-    setPremiumLine(null);
+    setStatusLine(null);
     const message = nudgeMsg[username]?.trim() || undefined;
     const res = await fetch("/api/trainer/clients/nudge", {
       method: "POST",
@@ -87,24 +136,112 @@ export function TrainerDiscoverClientsClient(props: Props) {
     });
     const data = (await res.json()) as {
       error?: string;
-      premiumNotice?: string;
+      code?: string;
       nudgesUsedToday?: number;
-      nudgesDailyLimit?: number;
+      nudgesDailyLimit?: number | null;
+      nudgeCreditsBalance?: number;
+      nudgePackNotice?: string | null;
       unlimitedNudges?: boolean;
+      chatDisabled?: boolean;
+      chatNotice?: string | null;
     };
     if (!res.ok) {
       setToast(data.error ?? "Could not send nudge.");
-      if (data.premiumNotice) setPremiumLine(data.premiumNotice);
+      if (data.code === "NUDGE_DAILY_CAP" && data.nudgePackNotice) {
+        setStatusLine(data.nudgePackNotice);
+      }
       return;
     }
-    setToast(`Nudge sent to @${username}.`);
+    setToast(
+      data.chatDisabled
+        ? `Nudge sent to @${username}. In-app chat is not available on Independent Fitness Pro — the client is notified via discovery only.`
+        : `Nudge sent to @${username}.`,
+    );
     if (data.unlimitedNudges) {
-      setPremiumLine(null);
+      setStatusLine(null);
     } else if (data.nudgesUsedToday != null && data.nudgesDailyLimit != null) {
-      setPremiumLine(`Used ${data.nudgesUsedToday} of ${data.nudgesDailyLimit} free nudges today. ${PREMIUM_NUDGES_PRODUCT_NOTICE}`);
-    } else {
-      setPremiumLine(null);
+      const creditNote =
+        data.nudgeCreditsBalance != null && data.nudgeCreditsBalance > 0
+          ? ` Purchased credits remaining: ${data.nudgeCreditsBalance}.`
+          : "";
+      setStatusLine(
+        `Used ${data.nudgesUsedToday} of ${data.nudgesDailyLimit} free nudges today.${creditNote}`,
+      );
     }
+    void loadNudgeSummary();
+  }
+
+  const tier = nudgeSummary?.accountTier ?? null;
+  const isIndependent = tier === "independent_fitness_pro";
+  const isElite = tier === "elite_fitness_pro";
+  const isFpProTier = tier === "match_fit_pro" || tier === "match_fit_premium_pro";
+  const legacyNoTier = !tier;
+
+  function nudgeLimitsNotice() {
+    if (isIndependent) {
+      return (
+        <>
+          <p className="mt-2 text-amber-100/85">
+            <span className="font-semibold text-white">Independent Fitness Pro</span> uses discovery nudges only —{" "}
+            <span className="font-semibold text-white">in-app chat is not available</span> on this account type. You
+            receive <span className="font-semibold text-white">{INDEPENDENT_FP_DAILY_NUDGES} nudges per day</span>{" "}
+            (UTC). {NUDGE_PACK_PURCHASE_NOTICE}
+          </p>
+          <p className="mt-2 text-xs text-amber-100/70">{INDEPENDENT_FP_NO_CHAT_MESSAGE}</p>
+          {nudgeSummary ? (
+            <p className="mt-2 text-xs text-amber-100/75">
+              Today: {nudgeSummary.nudgesUsedToday} used
+              {nudgeSummary.nudgesDailyLimit != null ? ` of ${nudgeSummary.nudgesDailyLimit} free` : ""}.
+              {nudgeSummary.nudgeCreditsBalance > 0
+                ? ` Purchased credits: ${nudgeSummary.nudgeCreditsBalance}.`
+                : null}
+            </p>
+          ) : null}
+        </>
+      );
+    }
+    if (isElite) {
+      return (
+        <p className="mt-2 text-emerald-100/85">
+          <span className="font-semibold text-white">Elite Fitness Pro</span> includes unlimited discovery nudges and
+          full in-app chat. You may share business email addresses and external listing links in chat; phone numbers and
+          off-platform payment details are still prohibited.
+        </p>
+      );
+    }
+    if (isFpProTier) {
+      return (
+        <p className="mt-2 text-emerald-100/85">
+          <span className="font-semibold text-white">Match Fit Pro</span> and{" "}
+          <span className="font-semibold text-white">Match Fit Premium Pro</span> use in-app chat (not discovery nudges)
+          for client outreach. Keep payments and scheduling on Match Fit; contact and payment leakage rules apply in
+          chat.
+        </p>
+      );
+    }
+    if (isPremium || legacyNoTier) {
+      return isPremium ? (
+        <p className="mt-2 text-emerald-100/85">
+          With <span className="font-semibold text-white">legacy Premium Page</span> access, discovery nudges are{" "}
+          <span className="font-semibold text-white">unlimited</span> for clients who appear here and accept coach
+          discovery.
+        </p>
+      ) : (
+        <p className="mt-2 text-amber-100/85">
+          You can send up to{" "}
+          <span className="font-semibold text-white">{LEGACY_FREE_TRAINER_NUDGES_PER_DAY} discovery nudges per day</span>{" "}
+          on the legacy free tier. Select a Fitness Pro account type in{" "}
+          <Link
+            href="/trainer/dashboard/account-tier"
+            className="font-semibold text-[#FF7E00] underline decoration-[#FF7E00]/40 underline-offset-2 transition hover:text-[#FF9A3D]"
+          >
+            Account Type
+          </Link>{" "}
+          for tier-specific messaging rules.
+        </p>
+      );
+    }
+    return null;
   }
 
   return (
@@ -136,40 +273,33 @@ export function TrainerDiscoverClientsClient(props: Props) {
 
       <section
         className={
-          isPremium
-            ? "rounded-3xl border border-emerald-500/25 bg-emerald-500/[0.07] p-5 text-sm leading-relaxed text-emerald-100/90"
-            : "rounded-3xl border border-amber-500/25 bg-amber-500/[0.07] p-5 text-sm leading-relaxed text-amber-100/90"
+          isIndependent || (!isPremium && legacyNoTier && !isFpProTier && !isElite)
+            ? "rounded-3xl border border-amber-500/25 bg-amber-500/[0.07] p-5 text-sm leading-relaxed text-amber-100/90"
+            : "rounded-3xl border border-emerald-500/25 bg-emerald-500/[0.07] p-5 text-sm leading-relaxed text-emerald-100/90"
         }
       >
         <p
           className={
-            isPremium
-              ? "font-bold uppercase tracking-[0.12em] text-emerald-200/90"
-              : "font-bold uppercase tracking-[0.12em] text-amber-200/90"
+            isIndependent || (!isPremium && legacyNoTier && !isFpProTier && !isElite)
+              ? "font-bold uppercase tracking-[0.12em] text-amber-200/90"
+              : "font-bold uppercase tracking-[0.12em] text-emerald-200/90"
           }
         >
-          Nudge limits
+          Discovery & messaging
         </p>
-        {isPremium ? (
-          <p className="mt-2 text-emerald-100/85">
-            With <span className="font-semibold text-white">Match Fit Premium</span>, discovery nudges are{" "}
-            <span className="font-semibold text-white">unlimited</span> for clients who appear on this list and still
-            accept coach discovery—there is no three-per-day cap on your account. Your practical limit is the same
-            reach you see here: eligible profiles only.
-          </p>
-        ) : (
-          <p className="mt-2 text-amber-100/85">
-            You can send up to <span className="font-semibold text-white">3 discovery nudges per day</span> on the free
-            tier (separate from the 10-client match batch every 12 hours). Need more than 3 nudges per day?{" "}
-            <Link
-              href="/trainer/dashboard/premium"
-              className="font-semibold text-[#FF7E00] underline decoration-[#FF7E00]/40 underline-offset-2 transition hover:text-[#FF9A3D]"
-            >
-              Match Fit Premium
-            </Link>{" "}
-            ($19.99/month) will unlock higher limits — billing is handled by a separate integration.
-          </p>
-        )}
+        {nudgeLimitsNotice()}
+        {isIndependent ? (
+          <button
+            type="button"
+            disabled={purchaseBusy}
+            onClick={() => void purchaseNudgePack()}
+            className="mt-4 inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/12 px-4 text-xs font-black uppercase tracking-[0.1em] text-white transition hover:border-[#FF7E00]/55 disabled:opacity-50"
+          >
+            {purchaseBusy
+              ? "Starting checkout…"
+              : `Buy ${FP_NUDGE_PACK_SIZE} Nudges — $${FP_NUDGE_PACK_PRICE_USD.toFixed(2)}`}
+          </button>
+        ) : null}
       </section>
 
       {error ? (
@@ -182,9 +312,9 @@ export function TrainerDiscoverClientsClient(props: Props) {
           {toast}
         </p>
       ) : null}
-      {premiumLine ? (
+      {statusLine ? (
         <p className="rounded-xl border border-white/[0.08] bg-[#0E1016]/80 px-4 py-3 text-center text-xs leading-relaxed text-white/55">
-          {premiumLine}
+          {statusLine}
         </p>
       ) : null}
 
@@ -226,20 +356,32 @@ export function TrainerDiscoverClientsClient(props: Props) {
                   </div>
                 </div>
                 <div className="flex w-full flex-col gap-2 sm:w-56">
-                  <textarea
-                    value={nudgeMsg[c.username] ?? ""}
-                    onChange={(e) => setNudgeMsg((m) => ({ ...m, [c.username]: e.target.value }))}
-                    placeholder="Optional short note with your nudge"
-                    rows={2}
-                    className="w-full resize-none rounded-xl border border-white/[0.08] bg-[#0E1016]/80 px-3 py-2 text-xs text-white placeholder:text-white/30"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void nudge(c.username)}
-                    className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/12 text-xs font-black uppercase tracking-[0.1em] text-white transition hover:border-[#FF7E00]/55"
-                  >
-                    Send nudge
-                  </button>
+                  {nudgeSummary?.canUseNudges !== false && !isFpProTier ? (
+                    <>
+                      <textarea
+                        value={nudgeMsg[c.username] ?? ""}
+                        onChange={(e) => setNudgeMsg((m) => ({ ...m, [c.username]: e.target.value }))}
+                        placeholder="Optional short note with your nudge"
+                        rows={2}
+                        className="w-full resize-none rounded-xl border border-white/[0.08] bg-[#0E1016]/80 px-3 py-2 text-xs text-white placeholder:text-white/30"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void nudge(c.username)}
+                        className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/12 text-xs font-black uppercase tracking-[0.1em] text-white transition hover:border-[#FF7E00]/55"
+                      >
+                        Send nudge
+                      </button>
+                    </>
+                  ) : isFpProTier ? (
+                    <p className="text-center text-xs leading-relaxed text-white/45">
+                      Use{" "}
+                      <Link href="/trainer/dashboard/messages" className="text-[#FF9A4A] underline-offset-2 hover:underline">
+                        Chats
+                      </Link>{" "}
+                      or client inquiries for outreach on your account type.
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </li>

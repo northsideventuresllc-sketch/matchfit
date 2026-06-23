@@ -1,4 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import {
+  INDEPENDENT_FP_NO_CHAT_MESSAGE,
+  trainerNudgeOpensChat,
+} from "@/lib/fp-tier-chat-policy";
 import { getSessionTrainerId } from "@/lib/session";
 import { hasTrainerFullPlatformAccess } from "@/lib/trainer-full-access";
 import { isTrainerClientInteractionRestricted } from "@/lib/user-block-queries";
@@ -30,6 +34,7 @@ export async function POST(req: Request) {
             certificationReviewStatus: true,
             nutritionistCertificationReviewStatus: true,
             specialistCertificationReviewStatus: true,
+            accountTier: true,
           },
         },
       },
@@ -69,6 +74,14 @@ export async function POST(req: Request) {
       trainer.preferredName?.trim() ||
       [trainer.firstName, trainer.lastName].filter(Boolean).join(" ").trim() ||
       "Your coach";
+
+    const opensChat = trainerNudgeOpensChat(trainer.profile.accountTier);
+    if (!opensChat && decision === "ACCEPT") {
+      return NextResponse.json(
+        { error: INDEPENDENT_FP_NO_CHAT_MESSAGE, code: "CHAT_DISABLED" },
+        { status: 403 },
+      );
+    }
 
     if (decision === "DECLINE") {
       await prisma.$transaction([

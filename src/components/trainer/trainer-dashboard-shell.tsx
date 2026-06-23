@@ -10,6 +10,8 @@ export type TrainerDashboardShellProps = {
   profileImageUrl: string | null;
   initialUnreadCount: number;
   premiumStudioActive: boolean;
+  /** When false, Chats nav is hidden (e.g. Independent Fitness Pro — nudges only). */
+  showChatsInNav?: boolean;
   /** When false, the Compliance nav item is hidden (details page requires completed onboarding). */
   showComplianceInNav?: boolean;
   supportStrip?: React.ReactNode;
@@ -132,7 +134,11 @@ export function TrainerDashboardShell(props: TrainerDashboardShellProps) {
   const isHome = pathname === "/trainer/dashboard";
   const backHref = !isHome ? "/trainer/dashboard" : undefined;
   const backLabel = !isHome ? "← Dashboard" : undefined;
-  const navItems = NAV;
+  const showChats = props.showChatsInNav !== false;
+  const navItems = NAV.filter((item) => showChats || !item.href.includes("/messages"));
+  const bottomNavItems = BOTTOM_NAV.filter((item) =>
+    showChats ? true : !item.href.includes("/messages"),
+  );
 
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-[#07080C] px-5 pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-10 text-white sm:px-8 sm:pb-12 sm:pt-12">
@@ -213,7 +219,7 @@ export function TrainerDashboardShell(props: TrainerDashboardShellProps) {
         aria-label="Fitness Pro navigation"
         className="fixed inset-x-0 bottom-0 z-50 flex items-stretch border-t border-white/[0.08] bg-[#07080C]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl sm:hidden"
       >
-        {BOTTOM_NAV.map((item) => {
+        {bottomNavItems.map((item) => {
           const active = item.match(pathname);
           const hasUnread = item.href.includes("/messages") && props.initialUnreadCount > 0;
           return (

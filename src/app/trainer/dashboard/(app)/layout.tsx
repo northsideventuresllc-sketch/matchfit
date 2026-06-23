@@ -4,6 +4,7 @@ import { AdminImpersonationStrip } from "@/components/admin/admin-impersonation-
 import { TrainerDashboardShell } from "@/components/trainer/trainer-dashboard-shell";
 import { isAccountDeletionGraceActive } from "@/lib/account-deletion-grace";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
+import { trainerCanUseInAppChat } from "@/lib/fp-tier-chat-policy";
 import { hasTrainerLimitedDashboardAccess } from "@/lib/trainer-full-access";
 import { resolveTrainerSignupNextPath } from "@/lib/trainer-signup-next-path";
 import { prisma } from "@/lib/prisma";
@@ -84,6 +85,7 @@ export default async function TrainerDashboardAppLayout({
     "Trainer";
 
   const showComplianceInNav = isTrainerComplianceComplete(trainer.profile);
+  const showChatsInNav = trainerCanUseInAppChat(trainer.profile?.accountTier);
 
   const unreadCount = await prisma.trainerNotification.count({
     where: { trainerId, readAt: null },
@@ -111,6 +113,7 @@ export default async function TrainerDashboardAppLayout({
       profileImageUrl={trainer.profileImageUrl}
       initialUnreadCount={unreadCount}
       premiumStudioActive={premiumStudioActive}
+      showChatsInNav={showChatsInNav}
       showComplianceInNav={showComplianceInNav}
       supportStrip={supportStrip}
     >

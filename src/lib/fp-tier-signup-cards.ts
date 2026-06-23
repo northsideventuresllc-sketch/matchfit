@@ -31,13 +31,13 @@ export const FP_TIER_SIGNUP_CARDS: readonly FpTierCard[] = FP_ACCOUNT_TIERS.map(
 function fpTierSignupSubtitle(tier: FpAccountTier): string {
   switch (tier) {
     case "match_fit_pro":
-      return "Full platform. Background check required.";
+      return "Full platform with in-app chat. Background check required.";
     case "match_fit_premium_pro":
-      return "Match Fit Pro visibility plus premium discovery and FitHub access.";
+      return "Match Fit Pro plus premium discovery and Fit Hub — in-app chat included.";
     case "independent_fitness_pro":
-      return "Your brand, your site, listed on Match Fit.";
+      return "Discovery nudges only (no in-app chat). Your brand and external site listed on Match Fit.";
     case "elite_fitness_pro":
-      return "Everything combined.";
+      return "In-app chat plus unlimited nudges. External listings and business email allowed in chat.";
     default:
       return "";
   }

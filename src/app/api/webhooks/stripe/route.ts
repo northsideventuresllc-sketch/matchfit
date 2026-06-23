@@ -8,7 +8,9 @@ import {
   activateFpTierSubscriptionFromWebhook,
   deactivateFpTierSubscription,
 } from "@/lib/fp-tier-subscription-checkout";
+import { creditFpNudgePackFromCheckout } from "@/lib/fp-nudge-pack-checkout";
 import { FP_STRIPE_CHECKOUT_PURPOSE } from "@/lib/fp-tier-billing";
+import { FP_NUDGE_PACK_SIZE } from "@/lib/fp-tier-chat-policy";
 import {
   notifyClientMembershipTrialEnding,
   notifyTrainerRegistrationFeeReceipt,
@@ -220,6 +222,28 @@ export async function POST(req: Request) {
             trainerId: md.trainerId,
             billingLiveMode,
             metaJson: JSON.stringify({ purpose: "trainer_promo_tokens", packTier: tier?.id ?? null, tokens }),
+          });
+        }
+        if (md.purpose === FP_STRIPE_CHECKOUT_PURPOSE.nudgePackPurchase && md.trainerId) {
+          const trainerId = String(md.trainerId).trim();
+          const packSize = Math.max(
+            1,
+            parseInt(String(md.nudgePackSize ?? FP_NUDGE_PACK_SIZE), 10) || FP_NUDGE_PACK_SIZE,
+          );
+          await creditFpNudgePackFromCheckout(trainerId, packSize);
+          const totalMeta = Math.max(0, parseInt(String(session.amount_total ?? "0"), 10) || 0);
+          const nudgeBreakdown = oneTimePurchaseRevenueProfitFromTotalCharged(totalMeta);
+          void recordPlatformRevenueEvent({
+            category: "ONE_TIME_PURCHASE",
+            idempotencyKey: `fp_nudge_pack:${session.id}`,
+            revenueCents: nudgeBreakdown.revenueCents,
+            grossProfitCents: nudgeBreakdown.grossProfitCents,
+            trainerId,
+            billingLiveMode,
+            metaJson: JSON.stringify({
+              purpose: FP_STRIPE_CHECKOUT_PURPOSE.nudgePackPurchase,
+              packSize,
+            }),
           });
         }
         if (md.purpose === "trainer_service_sale" && md.trainerId && md.clientId) {

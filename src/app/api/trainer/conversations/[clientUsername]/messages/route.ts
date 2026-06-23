@@ -1,6 +1,11 @@
 import { parseChatAttachmentJson } from "@/lib/chat-attachment";
 import { runOutboundChatComplianceMonitoring } from "@/lib/chat-compliance-monitor";
 import { getChatContactLeakageBlockReason } from "@/lib/chat-leakage-detection";
+import {
+  chatNoticeForTrainerTier,
+  INDEPENDENT_FP_NO_CHAT_MESSAGE,
+  trainerCanUseInAppChat,
+} from "@/lib/fp-tier-chat-policy";
 import { prisma } from "@/lib/prisma";
 import {
   conversationArchiveMetaForActor,
@@ -68,9 +73,13 @@ export async function GET(_req: Request, ctx: RouteContext) {
       }),
       prisma.trainerProfile.findUnique({
         where: { trainerId },
-        select: { serviceOfferingsJson: true, premiumStudioEnabledAt: true },
+        select: { serviceOfferingsJson: true, premiumStudioEnabledAt: true, accountTier: true },
       }),
     ]);
+
+    if (!trainerCanUseInAppChat(profileExtras?.accountTier)) {
+      return NextResponse.json({ error: INDEPENDENT_FP_NO_CHAT_MESSAGE, code: "CHAT_DISABLED" }, { status: 403 });
+    }
 
     const premiumStudio = Boolean(profileExtras?.premiumStudioEnabledAt);
     const offeringsDoc = parseTrainerServiceOfferingsJson(profileExtras?.serviceOfferingsJson ?? null);
@@ -164,9 +173,12 @@ export async function GET(_req: Request, ctx: RouteContext) {
       console.error("[Match Fit trainer chat GET] pending sessions skipped (DB may be behind migrations)", sessionsErr);
     }
 
+    const accountTier = profileExtras?.accountTier ?? null;
+
     return NextResponse.json({
       conversationId: conv?.id ?? null,
       officialChatStartedAt: conv?.officialChatStartedAt?.toISOString() ?? null,
+      chatPolicyNotice: chatNoticeForTrainerTier(accountTier),
       relationshipStage: conv?.relationshipStage ?? "POTENTIAL_CLIENT",
       archived: archive.archived,
       canRevive: archive.canRevive,
@@ -244,12 +256,16 @@ export async function POST(req: Request, ctx: RouteContext) {
             certificationReviewStatus: true,
             nutritionistCertificationReviewStatus: true,
             specialistCertificationReviewStatus: true,
+            accountTier: true,
           },
         },
       },
     });
     if (!trainer?.profile || !hasTrainerFullPlatformAccess(trainer.profile)) {
       return NextResponse.json({ error: "Your trainer profile must be live." }, { status: 403 });
+    }
+    if (!trainerCanUseInAppChat(trainer.profile.accountTier)) {
+      return NextResponse.json({ error: INDEPENDENT_FP_NO_CHAT_MESSAGE, code: "CHAT_DISABLED" }, { status: 403 });
     }
 
     const { clientUsername } = await ctx.params;
@@ -298,7 +314,8 @@ export async function POST(req: Request, ctx: RouteContext) {
       return NextResponse.json({ error: gate.reason }, { status: 429 });
     }
 
-    const contactBlock = getChatContactLeakageBlockReason(text);
+    const accountTier = trainer.profile.accountTier;
+    const contactBlock = getChatContactLeakageBlockReason(text, accountTier);
     if (contactBlock) {
       return NextResponse.json({ error: contactBlock, code: "CHAT_CONTACT_BLOCKED" }, { status: 400 });
     }
@@ -307,6 +324,7 @@ export async function POST(req: Request, ctx: RouteContext) {
       conversationId: conv.id,
       authorRole: "TRAINER",
       body: text,
+      trainerAccountTier: accountTier,
     });
 
     const msg = await prisma.trainerClientChatMessage.create({

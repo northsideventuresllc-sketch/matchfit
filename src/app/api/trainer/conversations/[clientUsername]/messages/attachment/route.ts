@@ -10,6 +10,7 @@ import {
   sanitizeChatAttachmentFilename,
   serializeChatAttachmentPayload,
 } from "@/lib/chat-attachment";
+import { INDEPENDENT_FP_NO_CHAT_MESSAGE, trainerCanUseInAppChat } from "@/lib/fp-tier-chat-policy";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { canAuthorSendChatMessage } from "@/lib/trainer-client-chat-rules";
@@ -44,12 +45,16 @@ export async function POST(req: Request, ctx: RouteContext) {
             certificationReviewStatus: true,
             nutritionistCertificationReviewStatus: true,
             specialistCertificationReviewStatus: true,
+            accountTier: true,
           },
         },
       },
     });
     if (!trainer?.profile || !hasTrainerFullPlatformAccess(trainer.profile)) {
       return NextResponse.json({ error: "Your trainer profile must be live." }, { status: 403 });
+    }
+    if (!trainerCanUseInAppChat(trainer.profile.accountTier)) {
+      return NextResponse.json({ error: INDEPENDENT_FP_NO_CHAT_MESSAGE, code: "CHAT_DISABLED" }, { status: 403 });
     }
 
     const { clientUsername } = await ctx.params;

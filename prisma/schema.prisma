@@ -1296,6 +1296,8 @@ model TrainerProfile {
   backgroundCheckPassed Boolean @default(false)
   promoteTokensBalance Int @default(0)
   promoteTokensResetAt DateTime?
+  /// Purchased discovery nudge credits (Independent Fitness Pro packs).
+  nudgeCreditsBalance Int @default(0)
 
   @@map("trainer_profiles")
   @@schema("public")

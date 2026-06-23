@@ -21,6 +21,12 @@ import {
   CLIENT_VIP_PRICE_USD,
 } from "@/lib/client-plan-access";
 import {
+  FP_NUDGE_PACK_PRICE_USD,
+  FP_NUDGE_PACK_SIZE,
+  INDEPENDENT_FP_DAILY_NUDGES,
+} from "@/lib/fp-tier-chat-policy";
+import { FP_TIER_MONTHLY_FEES_USD } from "@/lib/fp-account-tier-types";
+import {
   CHECK_IN_LEAD_HOURS,
   GATE_A_POST_SESSION_SILENCE_HOURS,
   INITIAL_OUTBOUND_MESSAGE_CAP,
@@ -207,7 +213,7 @@ export default async function TermsPage() {
         <P>
           <Strong>Founding Fitness Pro promotions (while caps last):</Strong> The first{" "}
           <Strong>{FOUNDING_TRAINER_CAP} Fitness Pros</Strong> who complete registration receive{" "}
-          <Strong>{TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days</Strong> of complimentary Premium Page access starting at
+          <Strong>{TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days</Strong> of complimentary Match Fit Premium Pro access starting at
           sign-up. During this promo, Fitness Pros pay only the independent background-check fee through Match Fit&apos;s
           portal (plus transaction fees). Fitness Pros must{" "}
           <Strong>begin onboarding within {TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} calendar days</Strong> of account
@@ -414,11 +420,26 @@ export default async function TermsPage() {
             until the other party sends at least one chat message, as implemented to reduce spam.
           </Li>
           <Li>
-            You agree to use Service messaging for introductions and coordination where required by product rules. Automated
-            tools may mask or remove phone numbers, email addresses, or similar contact data shared in chat. The Service may
-            also use automated signals (for example, patterns resembling off-platform payment requests, common peer-payment
-            brand names, or phone-like digit sequences) to flag threads for internal review; flagged content may be withheld or
-            delivered according to policy while staff review when queued.
+            <Strong>Fitness Pro account types:</Strong> Match Fit offers tiered Fitness Pro accounts with different
+            messaging capabilities. <Strong>Match Fit Pro</Strong> and <Strong>Match Fit Premium Pro</Strong> use
+            in-app chat under the communication rules in this section and Section 12.{" "}
+            <Strong>Independent Fitness Pro</Strong> accounts do <Strong>not</Strong> include in-app chat; they may send
+            discovery <Strong>nudges</Strong> only (currently up to <Strong>{INDEPENDENT_FP_DAILY_NUDGES} nudges per
+            day</Strong>, UTC), with optional purchase of <Strong>{FP_NUDGE_PACK_SIZE} additional nudges</Strong> for{" "}
+            <Strong>{usdCents(FP_NUDGE_PACK_PRICE_USD)}</Strong> when offered in-product.{" "}
+            <Strong>Elite Fitness Pro</Strong> includes in-app chat and unlimited discovery nudges, with relaxed rules for
+            business email addresses and external listing links as described below; phone numbers and off-platform
+            payment details remain prohibited.
+          </Li>
+          <Li>
+            You agree to use Service messaging for introductions and coordination where required by product rules. For{" "}
+            <Strong>Match Fit Pro</Strong> and <Strong>Match Fit Premium Pro</Strong>, automated tools may mask or remove
+            phone numbers, email addresses, or similar contact data shared in chat. For <Strong>Elite Fitness Pro</Strong>,
+            business email addresses and external listing links (outside Match Fit) may be permitted in chat; phone
+            numbers and off-platform payment instructions remain blocked. The Service may use automated signals (for
+            example, patterns resembling off-platform payment requests, common peer-payment brand names, or phone-like
+            digit sequences) to flag threads for internal review; flagged content may be withheld or delivered according
+            to policy while staff review when queued.
           </Li>
           <Li>
             The Service may run automated trust-and-safety checks on chat (pattern detection for contact or payment
@@ -461,7 +482,8 @@ export default async function TermsPage() {
             portal plus applicable transaction fees, as shown at checkout.{" "}
             <Strong>Founding-coach promo (first {FOUNDING_TRAINER_CAP} Fitness Pros):</Strong> pay only the background-check
             fee through our portal (plus processing) and receive <Strong>{TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days</Strong>{" "}
-            of Premium Page access at sign-up. Fitness Pros must begin onboarding within{" "}
+            of <Strong>{TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days</Strong> of complimentary{" "}
+            <Strong>Match Fit Premium Pro</Strong> access at sign-up. Fitness Pros must begin onboarding within{" "}
             <Strong>{TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} calendar days</Strong> of account creation and may not offer
             or sell services until all onboarding requirements are completed.{" "}
             <Strong>Standard pricing (after founding caps):</Strong> {trainerStandardOnboardingAfterCapLabel()}. Standard-tier
@@ -503,6 +525,45 @@ export default async function TermsPage() {
           </Li>
         </Ul>
 
+        <H2 id="fp-account-types">11A. Fitness Pro Account Types</H2>
+        <P>
+          During and after beta, Fitness Pros may select among account types offered in-product. Features, fees, and
+          messaging rules vary by tier as implemented in the Service and summarized here:
+        </P>
+        <Ul>
+          <Li>
+            <Strong>Match Fit Pro:</Strong> No monthly platform fee for the tier itself. Includes in-app chat, Fit Hub,
+            platform reviews, and standard off-platform payment/contact rules in chat. Discovery nudges are not included —
+            use chat and client inquiries for outreach.
+          </Li>
+          <Li>
+            <Strong>Match Fit Premium Pro:</Strong> Premium tier with expanded visibility and tools as shown at signup.
+            During beta, eligible users may receive a promotional complimentary period as displayed in-product. Includes
+            in-app chat under the same communication rules as Match Fit Pro. Discovery nudges are not included.
+          </Li>
+          <Li>
+            <Strong>Independent Fitness Pro:</Strong> Monthly fee currently{" "}
+            <Strong>{usdCents(FP_TIER_MONTHLY_FEES_USD.independent_fitness_pro ?? 15)}</Strong> when billed. Does{" "}
+            <Strong>not</Strong> include in-app chat. Includes discovery nudges (currently{" "}
+            <Strong>{INDEPENDENT_FP_DAILY_NUDGES} per day</Strong>, UTC) and optional purchase of{" "}
+            <Strong>{FP_NUDGE_PACK_SIZE} additional nudges</Strong> for{" "}
+            <Strong>{usdCents(FP_NUDGE_PACK_PRICE_USD)}</Strong>. May list external websites and appear with business-listed
+            trust indicators as implemented.
+          </Li>
+          <Li>
+            <Strong>Elite Fitness Pro:</Strong> Monthly fee currently{" "}
+            <Strong>{usdCents(FP_TIER_MONTHLY_FEES_USD.elite_fitness_pro ?? 40)}</Strong> when billed. Includes in-app
+            chat, unlimited discovery nudges, and permission to share business email addresses and external listing links
+            in chat. Phone numbers and off-platform payment details remain prohibited. Background screening and document
+            requirements apply as shown in onboarding.
+          </Li>
+          <Li>
+            Tier switches, billing grace periods, and document review requirements are enforced in-product. Match Fit may
+            update tier pricing, limits, and included features with notice through the Service or email for material
+            changes.
+          </Li>
+        </Ul>
+
         <H2 id="trainer-conduct-payouts">12. Fitness Pro Conduct, Communication Policy, Payouts, and Taxes</H2>
         <Ul>
           <Li>
@@ -511,11 +572,15 @@ export default async function TermsPage() {
             occurrence, in addition to other remedies available to Match Fit under these Terms or applicable law.
           </Li>
           <Li>
-            <Strong>In-App Communication:</Strong> Attempting to circumvent in-app messaging to share phone numbers or
-            emails may result in enforcement. For Fitness Pros, a first substantiated offense may lead to a{" "}
-            <Strong>ninety (90) day</Strong> deactivation, a second offense up to <Strong>three hundred sixty-five
-            (365) days</Strong>, and a third offense <Strong>permanent</Strong> deactivation, tracked in line with account and
-            tax-record associations as reasonably available.
+            <Strong>In-App Communication:</Strong> For <Strong>Match Fit Pro</Strong> and{" "}
+            <Strong>Match Fit Premium Pro</Strong>, attempting to circumvent in-app messaging to share phone numbers or
+            emails may result in enforcement. For <Strong>Elite Fitness Pro</Strong>, business email addresses and
+            external listing links may be permitted; phone numbers and off-platform payment steering remain prohibited.
+            For <Strong>Independent Fitness Pro</Strong>, in-app chat is not available — discovery nudges are subject to
+            daily limits and optional paid packs as described in Section 8. For Fitness Pros on tiers where chat applies,
+            a first substantiated offense may lead to a <Strong>ninety (90) day</Strong> deactivation, a second offense up
+            to <Strong>three hundred sixty-five (365) days</Strong>, and a third offense <Strong>permanent</Strong>{" "}
+            deactivation, tracked in line with account and tax-record associations as reasonably available.
           </Li>
           <Li>
             <Strong>DIY Timelines:</Strong> Fitness Pros agree to meet DIY delivery timelines described in Section 6 or escalated
@@ -555,13 +620,21 @@ export default async function TermsPage() {
         <P>
           Fitness Pros may receive periodic batches of client matches (for example,{" "}
           <Strong>{STANDARD_MATCH_BATCH_SIZE} matches every {MATCH_BATCH_WINDOW_HOURS} hours</Strong>) as
-          implemented. Fitness Pros may purchase additional match visibility or related boosts where we offer them. Premium plans
-          may include unlimited or expanded matching as described at signup.
+          implemented. Fitness Pros may purchase additional match visibility or related boosts where we offer them.
+          Premium plans may include unlimited or expanded matching as described at signup.
+        </P>
+        <P>
+          <Strong>Discovery nudges</Strong> let eligible Fitness Pros send a lightweight outreach signal to clients who
+          opted into discovery. Limits depend on account type: Independent Fitness Pro accounts receive a daily allowance
+          (currently <Strong>{INDEPENDENT_FP_DAILY_NUDGES}</Strong>) with optional{" "}
+          <Strong>{FP_NUDGE_PACK_SIZE}-nudge packs</Strong> for <Strong>{usdCents(FP_NUDGE_PACK_PRICE_USD)}</Strong>;
+          Elite Fitness Pro includes unlimited nudges; Match Fit Pro and Match Fit Premium Pro use chat instead of nudges.
+          Nudges on Independent Fitness Pro do not open in-app chat threads.
         </P>
 
         <H2 id="featured-placement">14. Featured Home Placement and Sponsored Visibility</H2>
         <P>
-          Premium Page coaches may participate in regional programs to appear in public featured–Fitness Pro modules. Components may
+          <Strong>Match Fit Premium Pro</Strong> coaches may participate in regional programs to appear in public featured–Fitness Pro modules. Components may
           include: (1) a <Strong>daily random allocation</Strong> among eligible entrants sharing the same three-digit U.S. ZIP
           code prefix derived from the coach&apos;s published in-person service ZIP, and (2) a limited number of{" "}
           <Strong>sponsored placements</Strong> per region per day awarded to qualifying bids. Cutoffs and display windows use

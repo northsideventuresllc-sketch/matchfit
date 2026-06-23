@@ -4,7 +4,7 @@ import { scanChatTextForLeakageSignals } from "@/lib/chat-leakage-detection";
 type ChatAuthor = "CLIENT" | "TRAINER";
 
 /** Keyword / phrase heuristics beyond payment-contact leakage (ToS / safety). */
-function collectPolicyHeuristicSignals(raw: string): string[] {
+function collectPolicyHeuristicSignals(raw: string, accountTier?: string | null): string[] {
   const lower = raw.toLowerCase();
   const out: string[] = [];
   const add = (label: string) => {
@@ -20,19 +20,18 @@ function collectPolicyHeuristicSignals(raw: string): string[] {
   if (/\b(nude|nudes|explicit|sexual)\b/i.test(lower) && raw.length < 800) add("SUSPECTED_SEXUAL_CONTENT");
   if (/\b(minor|underage|high school)\b/i.test(lower)) add("SUSPECTED_MINORS_REFERENCE");
 
+  if (accountTier === "elite_fitness_pro") {
+    return out.filter((s) => s !== "OFF_PLATFORM_SOCIAL_DM");
+  }
+
   return out;
 }
 
 type OpenAiComplianceShape = {
   report?: boolean;
-  /** Short machine tags, e.g. harassment, scams, self_harm */
   tags?: string[];
 };
 
-/**
- * Optional OpenAI pass: flags content that may violate Terms, Privacy, or safety rules.
- * When no API key is configured, returns an empty list (heuristics + leakage still run).
- */
 async function collectOpenAiComplianceSignals(body: string): Promise<string[]> {
   const key = process.env.OPENAI_API_KEY?.trim();
   if (!key || body.length > 6000) return [];
@@ -88,11 +87,12 @@ export async function runOutboundChatComplianceMonitoring(args: {
   conversationId: string;
   authorRole: ChatAuthor;
   body: string;
+  trainerAccountTier?: string | null;
 }): Promise<void> {
   const signals = new Set<string>();
-  const leak = scanChatTextForLeakageSignals(args.body);
+  const leak = scanChatTextForLeakageSignals(args.body, args.trainerAccountTier);
   leak.signals.forEach((s) => signals.add(s));
-  collectPolicyHeuristicSignals(args.body).forEach((s) => signals.add(s));
+  collectPolicyHeuristicSignals(args.body, args.trainerAccountTier).forEach((s) => signals.add(s));
   const aiSignals = await collectOpenAiComplianceSignals(args.body);
   aiSignals.forEach((s) => signals.add(s));
 

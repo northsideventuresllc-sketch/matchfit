@@ -1,16 +1,90 @@
-/**
- * Free-tier cap for trainer-initiated discovery nudges (non-premium trainers).
- * Premium trainers skip this cap (`premiumStudioEnabledAt` on profile).
- */
-export const FREE_TRAINER_NUDGES_PER_DAY = 3;
+import type { FpAccountTier } from "@/lib/fp-account-tier-types";
+import {
+  FP_NUDGE_PACK_SIZE,
+  NUDGE_PACK_PURCHASE_NOTICE,
+  trainerDailyFreeNudgeAllowance,
+} from "@/lib/fp-tier-chat-policy";
 
-/** Plain string for API errors / toasts (no markup). */
-export const PREMIUM_NUDGES_PRODUCT_NOTICE =
-  "Need more than 3 nudges per day? Match Fit Premium ($19.99/month) will unlock higher limits — billing is handled by a separate integration.";
+/**
+ * Legacy free-tier cap for trainers without an FP account tier assigned.
+ * Premium Page (`premiumStudioEnabledAt`) still bypasses this legacy cap.
+ */
+export const LEGACY_FREE_TRAINER_NUDGES_PER_DAY = 3;
+
+export { FP_NUDGE_PACK_SIZE, NUDGE_PACK_PURCHASE_NOTICE };
 
 export function utcDayRange(now = new Date()): { start: Date; end: Date } {
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
   const end = new Date(start);
   end.setUTCDate(end.getUTCDate() + 1);
   return { start, end };
+}
+
+export type NudgeQuotaEvaluation = {
+  allowed: boolean;
+  dailyLimit: number | null;
+  nudgesUsedToday: number;
+  nudgeCreditsBalance: number;
+  usesPurchasedCredit: boolean;
+  reason?: "daily_cap" | "not_allowed";
+};
+
+export function evaluateTrainerNudgeQuota(input: {
+  accountTier: string | null | undefined;
+  nudgesUsedToday: number;
+  nudgeCreditsBalance: number;
+  legacyPremiumStudio: boolean;
+}): NudgeQuotaEvaluation {
+  const dailyLimit = trainerDailyFreeNudgeAllowance(input.accountTier);
+  const tier = input.accountTier as FpAccountTier | null | undefined;
+
+  if (dailyLimit === 0) {
+    return {
+      allowed: false,
+      dailyLimit,
+      nudgesUsedToday: input.nudgesUsedToday,
+      nudgeCreditsBalance: input.nudgeCreditsBalance,
+      usesPurchasedCredit: false,
+      reason: "not_allowed",
+    };
+  }
+
+  if (dailyLimit == null || input.legacyPremiumStudio) {
+    return {
+      allowed: true,
+      dailyLimit,
+      nudgesUsedToday: input.nudgesUsedToday,
+      nudgeCreditsBalance: input.nudgeCreditsBalance,
+      usesPurchasedCredit: false,
+    };
+  }
+
+  if (input.nudgesUsedToday < dailyLimit) {
+    return {
+      allowed: true,
+      dailyLimit,
+      nudgesUsedToday: input.nudgesUsedToday,
+      nudgeCreditsBalance: input.nudgeCreditsBalance,
+      usesPurchasedCredit: false,
+    };
+  }
+
+  if (tier === "independent_fitness_pro" && input.nudgeCreditsBalance > 0) {
+    return {
+      allowed: true,
+      dailyLimit,
+      nudgesUsedToday: input.nudgesUsedToday,
+      nudgeCreditsBalance: input.nudgeCreditsBalance,
+      usesPurchasedCredit: true,
+    };
+  }
+
+  return {
+    allowed: false,
+    dailyLimit,
+    nudgesUsedToday: input.nudgesUsedToday,
+    nudgeCreditsBalance: input.nudgeCreditsBalance,
+    usesPurchasedCredit: false,
+    reason: "daily_cap",
+  };
 }

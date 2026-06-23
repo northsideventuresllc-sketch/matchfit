@@ -1,6 +1,7 @@
 import { parseChatAttachmentJson } from "@/lib/chat-attachment";
 import { runOutboundChatComplianceMonitoring } from "@/lib/chat-compliance-monitor";
 import { getChatContactLeakageBlockReason } from "@/lib/chat-leakage-detection";
+import { INDEPENDENT_FP_NO_CHAT_MESSAGE, trainerCanUseInAppChat } from "@/lib/fp-tier-chat-policy";
 import { prisma } from "@/lib/prisma";
 import {
   conversationArchiveMetaForActor,
@@ -43,6 +44,9 @@ export async function GET(_req: Request, ctx: RouteContext) {
     });
     if (!trainer?.profile || !isTrainerVisibleInClientDiscovery(trainer.profile)) {
       return NextResponse.json({ error: "Coach not found." }, { status: 404 });
+    }
+    if (!trainerCanUseInAppChat(trainer.profile.accountTier)) {
+      return NextResponse.json({ error: INDEPENDENT_FP_NO_CHAT_MESSAGE, code: "CHAT_DISABLED" }, { status: 403 });
     }
 
     if (await isTrainerClientChatBlocked(trainer.id, clientId)) {
@@ -157,6 +161,9 @@ export async function POST(req: Request, ctx: RouteContext) {
     });
     if (!trainer?.profile || !isTrainerVisibleInClientDiscovery(trainer.profile)) {
       return NextResponse.json({ error: "Coach not found." }, { status: 404 });
+    }
+    if (!trainerCanUseInAppChat(trainer.profile.accountTier)) {
+      return NextResponse.json({ error: INDEPENDENT_FP_NO_CHAT_MESSAGE, code: "CHAT_DISABLED" }, { status: 403 });
     }
 
     if (await isTrainerClientChatBlocked(trainer.id, clientId)) {
