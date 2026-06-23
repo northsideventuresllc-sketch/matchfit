@@ -38,3 +38,6 @@ export const adminPortalCardClass =
 
 export const adminPortalSectionEyebrowClass =
   "text-[10px] font-black uppercase tracking-[0.22em] text-[#FF7E00]/70";
+
+export const adminPortalInputClass =
+  "w-full rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-sm text-white outline-none ring-[#FF7E00]/40 transition placeholder:text-white/25 focus:border-[#FF7E00]/40 focus:ring-2";

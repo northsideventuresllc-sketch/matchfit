@@ -39,6 +39,9 @@ export const TRANSACTIONAL_EMAIL_KINDS = [
   "TRAINER_DEFERRED_FEE_BANNED",
   "TRAINER_DEFERRED_FEE_CLEARED",
   "CLIENT_VIP_SUBSCRIPTION_STARTED",
+  "FP_DOCS_ALL_APPROVED",
+  "FP_DOC_DENIED",
+  "FP_DOCS_SUBMITTED_STAFF",
 ] as const;
 
 export type TransactionalEmailKind = (typeof TRANSACTIONAL_EMAIL_KINDS)[number];
@@ -81,6 +84,9 @@ const TRANSACTIONAL_EMAIL_KIND_SAMPLE_LABELS: Record<TransactionalEmailKind, str
   TRAINER_DEFERRED_FEE_BANNED: "Deferred fee account ban",
   TRAINER_DEFERRED_FEE_CLEARED: "Deferred fee balance cleared",
   CLIENT_VIP_SUBSCRIPTION_STARTED: "VIP subscription started",
+  FP_DOCS_ALL_APPROVED: "Fitness Pro documents approved",
+  FP_DOC_DENIED: "Fitness Pro document denied",
+  FP_DOCS_SUBMITTED_STAFF: "Fitness Pro documents submitted (staff)",
 };
 
 export function transactionalEmailKindSampleLabel(kind: TransactionalEmailKind): string {
@@ -102,6 +108,7 @@ export const MANDATORY_TRANSACTIONAL_EMAIL_KINDS: ReadonlySet<TransactionalEmail
   "TRAINER_REGISTRATION_FEE_RECEIPT",
   "BACKGROUND_CHECK_PLAN_B_INVITE_REQUEST",
   "BACKGROUND_CHECK_PLAN_B_REVIEW",
+  "FP_DOCS_SUBMITTED_STAFF",
 ]);
 
 export function isMandatoryTransactionalEmailKind(kind: TransactionalEmailKind): boolean {

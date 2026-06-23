@@ -51,6 +51,8 @@ export function trainerAllowsTransactionalEmailKind(
     case "W9_TAX_VERIFICATION":
     case "CERTIFICATION_RENEWAL_REMINDER":
     case "BACKGROUND_CHECK_UPDATE":
+    case "FP_DOCS_ALL_APPROVED":
+    case "FP_DOC_DENIED":
       return prefs.emailCompliance;
     case "NEW_CLIENT_INQUIRY":
       return prefs.emailClientInquiries;

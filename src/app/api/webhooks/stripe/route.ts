@@ -5,6 +5,11 @@ import {
   resolveClientIdFromVipSubscription,
 } from "@/lib/client-vip-subscription";
 import {
+  activateFpTierSubscriptionFromWebhook,
+  deactivateFpTierSubscription,
+} from "@/lib/fp-tier-subscription-checkout";
+import { FP_STRIPE_CHECKOUT_PURPOSE } from "@/lib/fp-tier-billing";
+import {
   notifyClientMembershipTrialEnding,
   notifyTrainerRegistrationFeeReceipt,
 } from "@/lib/client-membership-email-notify";
@@ -357,6 +362,19 @@ export async function POST(req: Request) {
               await activateVipFromWebhook(sub.id);
             }
           }
+        } else if (
+          purpose === FP_STRIPE_CHECKOUT_PURPOSE.independentSubscription ||
+          purpose === FP_STRIPE_CHECKOUT_PURPOSE.eliteSubscription
+        ) {
+          const trainerId = sub.metadata?.trainerId?.trim();
+          const st = String(sub.status ?? "");
+          if (trainerId) {
+            if (event.type === "customer.subscription.deleted" || st === "canceled" || st === "unpaid") {
+              await deactivateFpTierSubscription(trainerId);
+            } else if (st === "active" || st === "trialing") {
+              await activateFpTierSubscriptionFromWebhook(sub.id);
+            }
+          }
         } else {
           await syncClientSubscriptionFromStripe(sub.id);
           void notifyClientSubscriptionStripeEvent({
@@ -368,10 +386,21 @@ export async function POST(req: Request) {
     }
     if (event.type === "customer.subscription.created") {
       const sub = event.data.object as Stripe.Subscription;
-      if (sub.metadata?.purpose?.trim() === "client_vip" && sub.id) {
+      const purpose = sub.metadata?.purpose?.trim();
+      if (purpose === "client_vip" && sub.id) {
         const st = String(sub.status ?? "");
         if (st === "active" || st === "trialing") {
           await activateVipFromWebhook(sub.id);
+        }
+      }
+      if (
+        sub.id &&
+        (purpose === FP_STRIPE_CHECKOUT_PURPOSE.independentSubscription ||
+          purpose === FP_STRIPE_CHECKOUT_PURPOSE.eliteSubscription)
+      ) {
+        const st = String(sub.status ?? "");
+        if (st === "active" || st === "trialing") {
+          await activateFpTierSubscriptionFromWebhook(sub.id);
         }
       }
     }

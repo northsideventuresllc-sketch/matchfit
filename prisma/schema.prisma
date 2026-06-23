@@ -2472,12 +2472,22 @@ model FpDocument {
   submittedAt DateTime @default(now())
   /// pending | approved | rejected
   status String @default("pending")
+  /// approve | deny | review — initial automated reading (human still required).
+  autoSuggestedDecision String?
+  autoAnalysisSummary String?
+  autoAnalyzedAt DateTime?
   reviewedBy String?
   reviewedAt DateTime?
+  /// Raw operator note when denying (before polish).
+  rejectionReasonRaw String?
+  /// Grammar-checked copy used in trainer email.
+  rejectionReasonPolished String?
+  /// Legacy alias; prefer rejectionReasonPolished for emails.
   rejectionReason String?
 
   @@index([trainerId, docType])
   @@index([trainerId, status])
+  @@index([status, submittedAt])
   @@map("fp_documents")
   @@schema("public")
 }

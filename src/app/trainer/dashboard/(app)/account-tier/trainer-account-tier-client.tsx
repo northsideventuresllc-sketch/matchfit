@@ -141,7 +141,7 @@ export default function TrainerAccountTierClient() {
 
       {data.accountTier === "elite_fitness_pro" ? (
         <section className="rounded-2xl border border-white/10 bg-[#12141C] p-6">
-          <h3 className="font-semibold">Elite dual-view</h3>
+          <h3 className="font-semibold">Elite Dual-View</h3>
           <p className="mt-1 text-sm text-white/60">Toggle dashboard context without losing history.</p>
           <div className="mt-4 flex flex-wrap gap-3">
             <button
@@ -166,7 +166,7 @@ export default function TrainerAccountTierClient() {
 
       {showStats && data.listingStats ? (
         <section className="rounded-2xl border border-white/10 bg-[#12141C] p-6">
-          <h3 className="font-semibold">Public stats</h3>
+          <h3 className="font-semibold">Public Stats</h3>
           <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
             <div><dt className="text-white/50">Profile views</dt><dd className="font-medium">{data.listingStats.profileViews}</dd></div>
             <div><dt className="text-white/50">Click-throughs</dt><dd className="font-medium">{data.listingStats.clickThroughs}</dd></div>
@@ -179,7 +179,7 @@ export default function TrainerAccountTierClient() {
 
       {data.permissions?.list_external_website ? (
         <section className="rounded-2xl border border-white/10 bg-[#12141C] p-6">
-          <h3 className="font-semibold">External website</h3>
+          <h3 className="font-semibold">External Website</h3>
           <input
             className="mt-3 w-full rounded-xl border border-white/10 bg-[#0E1016] px-4 py-3 text-sm"
             value={website}

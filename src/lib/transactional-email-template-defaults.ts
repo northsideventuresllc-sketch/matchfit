@@ -429,6 +429,43 @@ const DEFAULTS: Record<TransactionalEmailKind, TransactionalEmailTemplateFields>
     textBody: "Your Match Fit VIP subscription is active.\n\n{{dashboardUrl}}\n\n— Match Fit",
     ...STANDARD_CTA("Open dashboard", "dashboardUrl"),
   },
+  FP_DOCS_ALL_APPROVED: {
+    subject: "Your Match Fit documents are approved",
+    preheader: "Onboarding documents cleared.",
+    title: "Documents approved",
+    bodyParagraphs: [
+      'Hi <strong style="color:#E8EAEF">{{firstName}}</strong> — your required Fitness Pro documents are approved.',
+      "You can continue onboarding in your dashboard. We will notify you if anything else is needed.",
+    ],
+    textBody:
+      "Hi {{firstName}},\n\nYour required Fitness Pro documents are approved. Continue in your dashboard:\n{{trainerDashboardUrl}}\n\n— Match Fit",
+    ...STANDARD_CTA("Trainer dashboard", "trainerDashboardUrl"),
+  },
+  FP_DOC_DENIED: {
+    subject: "Action needed on your Match Fit document",
+    preheader: "A document needs to be re-uploaded.",
+    title: "Document not approved",
+    bodyParagraphs: [
+      'Hi <strong style="color:#E8EAEF">{{firstName}}</strong> — we could not approve your <strong style="color:#E8EAEF">{{docLabel}}</strong>.',
+      "{{denialReason}}",
+      "Upload a corrected file from your onboarding documents page.",
+    ],
+    textBody:
+      "Hi {{firstName}},\n\nWe could not approve your {{docLabel}}.\n\n{{denialReason}}\n\nRe-upload here:\n{{docsUrl}}\n\n— Match Fit",
+    ...STANDARD_CTA("Upload documents", "docsUrl"),
+  },
+  FP_DOCS_SUBMITTED_STAFF: {
+    subject: "Fitness Pro documents ready for review",
+    preheader: "New document queue item.",
+    title: "Documents submitted",
+    bodyParagraphs: [
+      '<strong style="color:#E8EAEF">{{trainerName}}</strong> ({{trainerEmail}}) submitted documents for review.',
+      "Account type: {{accountTier}} · Username: {{trainerUsername}}",
+    ],
+    textBody:
+      "{{trainerName}} ({{trainerEmail}}) submitted FP documents.\nAccount type: {{accountTier}}\nReview: {{reviewUrl}}\n\n— Match Fit",
+    ...STANDARD_CTA("Open review queue", "reviewUrl"),
+  },
 };
 
 const PLACEHOLDERS: Record<TransactionalEmailKind, string[]> = {
@@ -469,6 +506,9 @@ const PLACEHOLDERS: Record<TransactionalEmailKind, string[]> = {
   TRAINER_DEFERRED_FEE_BANNED: ["supportEmail", "trainerDashboardUrl"],
   TRAINER_DEFERRED_FEE_CLEARED: ["trainerDashboardUrl"],
   CLIENT_VIP_SUBSCRIPTION_STARTED: ["dashboardUrl"],
+  FP_DOCS_ALL_APPROVED: ["firstName", "trainerDashboardUrl"],
+  FP_DOC_DENIED: ["firstName", "docLabel", "denialReason", "docsUrl", "trainerDashboardUrl"],
+  FP_DOCS_SUBMITTED_STAFF: ["trainerName", "trainerEmail", "trainerUsername", "accountTier", "reviewUrl"],
 };
 
 export function getDefaultTransactionalEmailTemplateFields(kind: TransactionalEmailKind): TransactionalEmailTemplateFields {
