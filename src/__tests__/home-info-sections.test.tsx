@@ -29,6 +29,10 @@ vi.mock("@/components/home-trainer-service-types-section", () => ({
   HomeTrainerServiceTypesSection: () => <div data-component="home-trainer-service-types-section" />,
 }));
 
+vi.mock("@/components/home-fit-pro-types-section", () => ({
+  HomeFitProTypesSection: () => <div data-component="home-fit-pro-types-section" />,
+}));
+
 vi.mock("@/components/match-fit-social-links", () => ({
   MatchFitSocialLinks: (props: unknown) => {
     matchFitSocialLinksMock(props);
@@ -50,6 +54,11 @@ describe("HomeInfoSections", () => {
 
     expect(html).toContain('id="follow-match-fit"');
     expect(html).toContain("Stay connected");
+    expect(html).toContain('id="types-of-fit-pros"');
+    expect(html).toContain("Types of Fit Pros");
+    expect(html).toContain('data-component="home-fit-pro-types-section"');
+    expect(html).not.toContain('id="trainer-premium"');
+    expect(html).not.toContain("AI-assisted matching");
     expect(html).toContain('data-component="home-beta-slot-warning"');
     expect(html).not.toContain('data-component="home-cta-logout-bar"');
     expect(html).toContain('href="/client/sign-up"');

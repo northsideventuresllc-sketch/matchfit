@@ -341,7 +341,7 @@ export function PlatformHealthSection({ panel }: { panel: AdminPlatformSummaryPa
         <StatCard
           label="Annualized subscription ARR"
           value={formatUsdFromCents(valuation.subscriptionArrCents)}
-          hint="Client VIP $10/mo + Fitness Pro premium $20/mo (premium billing projected)"
+          hint="Client VIP $10/mo + FP tier subscriptions + Premium Page $20/mo (projected)"
         />
         <StatCard
           label="Annualized 30d gross profit"

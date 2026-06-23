@@ -6,6 +6,7 @@ import {
 import { CLIENT_VIP_PRICE_USD } from "@/lib/client-plan-access";
 import { LEGAL_EFFECTIVE_DATE_DISPLAY } from "@/lib/legal-effective-date";
 import { INDEPENDENT_FP_DAILY_NUDGES } from "@/lib/fp-tier-chat-policy";
+import { TRAINER_SIGNUP_PREMIUM_PROMO_DAYS } from "@/lib/trainer-signup-promo-copy";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 
 /** Legal operator of Match Fit. */
@@ -93,9 +94,9 @@ export default async function PrivacyPage() {
           complimentary VIP trial with no card required; after the trial, accounts move to the Free plan unless you
           subscribe to Client VIP (currently ${CLIENT_VIP_PRICE_USD.toFixed(2)} per month). Legacy accounts may still have a{" "}
           {CLIENT_PAYMENT_GRACE_DAYS}-day payment grace window before deactivation. Fitness Pros in the founding coach promo
-          receive 60 days of Premium Page access at sign-up, pay only their background check through our portal, must begin
+          receive {TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Match Fit Premium Pro at sign-up, pay only their background check through our portal, must begin
           onboarding within 7 days of sign-up, and cannot sell services until all onboarding requirements are completed.
-          Standard-tier Fitness Pros may defer the platform onboarding fee and repay through payout withhold as described in
+          Independent Fitness Pro and Elite Fitness Pro require paid monthly subscriptions as shown at signup. Standard-tier Fitness Pros may defer the platform onboarding fee and repay through payout withhold as described in
           our Terms. You may adjust optional visibility of some profile fields and request in-product account deletion,
           account deletion, which schedules removal after a grace period as described in Section 7, while preserving the
           minimum data we need for trust, safety, and legal compliance. We use reasonable technical and organizational
