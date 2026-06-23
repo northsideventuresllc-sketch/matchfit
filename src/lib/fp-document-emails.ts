@@ -1,6 +1,6 @@
 import { appBaseUrlForEmail } from "@/lib/match-fit-email-shell";
 import { FP_DOC_TYPE_LABELS } from "@/lib/fp-tier-docs";
-import type { FpDocType } from "@/lib/fp-account-tier-types";
+import { fpAccountTierDisplayName, type FpDocType } from "@/lib/fp-account-tier-types";
 import { prisma } from "@/lib/prisma";
 import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
 
@@ -70,7 +70,7 @@ export async function sendFpDocumentsSubmittedStaffNotice(trainerId: string): Pr
       trainerName: name,
       trainerEmail: trainer.email,
       trainerUsername: trainer.username,
-      accountTier: trainer.profile?.accountTier?.replace(/_/g, " ") ?? "unknown",
+      accountTier: fpAccountTierDisplayName(trainer.profile?.accountTier),
       reviewUrl: `${origin}/admin/fp-documents`,
     },
   });

@@ -8,6 +8,7 @@ import {
   adminPortalPrimaryButtonClass,
   adminPortalSecondaryButtonClass,
 } from "@/components/admin/admin-portal-styles";
+import { fpAccountTierDisplayName } from "@/lib/fp-account-tier-types";
 
 type DocRow = {
   id: string;
@@ -85,7 +86,7 @@ export function FpDocumentsClient() {
     <AdminPortalShell
       current="fp-documents"
       title="Fitness Pro Documents"
-      description="Review uploaded onboarding documents. Automated readings suggest approve or deny; your decision sends the trainer email."
+      description="Review uploaded onboarding documents. Automated readings suggest approve or deny; your decision sends the Fitness Pro an email."
     >
       <div className="mb-6 flex flex-wrap gap-2">
         <button
@@ -122,7 +123,7 @@ export function FpDocumentsClient() {
                   @{doc.trainerUsername} · {doc.trainerEmail}
                 </p>
                 <p className="mt-1 text-xs text-white/40">
-                  {doc.accountTier?.replace(/_/g, " ") ?? "—"} · {new Date(doc.submittedAt).toLocaleString()} ·{" "}
+                  {fpAccountTierDisplayName(doc.accountTier)} · {new Date(doc.submittedAt).toLocaleString()} ·{" "}
                   {doc.status}
                 </p>
               </div>

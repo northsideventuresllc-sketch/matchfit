@@ -247,7 +247,7 @@ export default function TrainerSignupDocsClient() {
         className="mt-8 w-full rounded-xl bg-[#FF7E00] px-4 py-3.5 text-sm font-bold uppercase tracking-wide text-black transition hover:bg-[#ff9633] disabled:opacity-50"
         onClick={() => void handleContinue()}
       >
-        {busy ? "Continuing…" : "Continue"}
+        {busy ? "Continuing…" : "Continue to Payment"}
       </button>
     </TrainerSignupShell>
   );

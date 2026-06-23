@@ -108,7 +108,7 @@ export function TrainerRegistrationFeePanel() {
         {summary.foundingPricing ? (
           <>
             Founding coach promo: pay your verified background check amount ({bgLabel} to Checkr) through our portal plus
-            an estimated card processing fee. You receive {TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Premium Page access
+            an estimated card processing fee. You receive {TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Match Fit Premium Pro
             at sign-up. Begin onboarding within {TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up.{" "}
             {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}
           </>

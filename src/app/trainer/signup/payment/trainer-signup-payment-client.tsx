@@ -59,7 +59,7 @@ function DeferredFeeChoicePanel({
       <div className="rounded-xl border border-white/[0.08] bg-[#12151C]/60 px-4 py-4 text-sm leading-relaxed text-white/70">
         <p className="font-semibold text-white/90">Choose how to pay your platform fee</p>
         <p className="mt-2">
-          Standard tier coaches can pay {dueLabel} today or defer and repay from future payouts within 60 days of
+          Standard-tier Fitness Pros can pay {dueLabel} today or defer and repay from future payouts within 60 days of
           completing onboarding.
         </p>
       </div>
@@ -401,14 +401,15 @@ export default function TrainerSignupPaymentClient({
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] px-5 py-10 text-white sm:px-8">
       <div className="mx-auto max-w-lg">
-        <Link href="/trainer/signup/terms" className="inline-flex items-center gap-3">
+        <Link href="/trainer/signup/docs" className="inline-flex items-center gap-3">
           <div className="relative h-10 w-10 overflow-hidden rounded-lg">
             <Image src="/logo.png" alt="Match Fit" fill className="object-contain" sizes="40px" />
           </div>
-          <span className="text-sm font-bold text-white/70">Back to agreement</span>
+          <span className="text-sm font-bold text-white/70">Back to Documents</span>
         </Link>
 
-        <h1 className="mt-8 text-2xl font-black uppercase tracking-tight">Authorize signup fee</h1>
+        <p className="mt-8 text-xs font-semibold uppercase tracking-[0.2em] text-[#FF7E00]">Step 5</p>
+        <h1 className="mt-2 text-2xl font-black uppercase tracking-tight">Authorize Signup Fee</h1>
         <p className="mt-3 text-sm leading-relaxed text-white/60">{TRAINER_SIGNUP_PAYMENT_INTRO}</p>
 
         <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-white/55">
@@ -417,7 +418,7 @@ export default function TrainerSignupPaymentClient({
             <li>Step 2: background screening hold (captured when Checkr screening runs).</li>
           ) : (
             <li>
-              Founding coach benefit: Match Fit covers your Checkr background screening — no separate screening hold
+              Founding Fitness Pro benefit: Match Fit covers your Checkr background screening — no separate screening hold
               on your card.
             </li>
           )}

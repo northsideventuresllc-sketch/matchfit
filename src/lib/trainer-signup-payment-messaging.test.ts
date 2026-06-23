@@ -9,7 +9,9 @@ import { stripeConfigHealth } from "@/lib/stripe-config";
 describe("trainer-signup-payment-messaging", () => {
   it("explains onboarding deadline and founding promo on the signup overview", () => {
     expect(TRAINER_SIGNUP_FLOW_OVERVIEW).toMatch(/begin onboarding within 7 days/i);
-    expect(TRAINER_SIGNUP_FLOW_OVERVIEW).toMatch(/60 days of Premium status/i);
+    expect(TRAINER_SIGNUP_FLOW_OVERVIEW).toMatch(/60 days of Match Fit Premium Pro/i);
+    expect(TRAINER_SIGNUP_FLOW_OVERVIEW).toMatch(/choose your account type/i);
+    expect(TRAINER_SIGNUP_FLOW_OVERVIEW).toMatch(/upload required documents/i);
     expect(TRAINER_SIGNUP_FLOW_OVERVIEW).toMatch(/cannot sell/i);
   });
 
@@ -22,7 +24,7 @@ describe("trainer-signup-payment-messaging", () => {
     const copy = trainerSignupPaymentHoldExplanation("FOUNDING_BG_COVERED");
     expect(copy).toMatch(/covers your Checkr background screening/i);
     expect(copy).toMatch(/platform portion only after certification/i);
-    expect(copy).toMatch(/60 days of Premium Page access/i);
+    expect(copy).toMatch(/60 days of Match Fit Premium Pro/i);
     expect(copy).toMatch(/cannot sell/i);
     expect(copy).not.toMatch(/charged today/i);
   });

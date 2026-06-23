@@ -75,3 +75,25 @@ export function fpTierRequiresMonthlyFee(tier: FpAccountTier): boolean {
 export function fpTierRequiresBackgroundCheck(tier: FpAccountTier): boolean {
   return tier !== "independent_fitness_pro";
 }
+
+export const FP_LISTING_STATUS_LABELS: Record<FpListingStatus, string> = {
+  active: "Active",
+  paused: "Paused",
+  suspended: "Suspended",
+  pending_docs: "Pending documents",
+  pending_background: "Pending background check",
+};
+
+export function fpListingStatusLabel(status: string | null | undefined): string {
+  if (!status) return "Unknown";
+  if (FP_LISTING_STATUSES.includes(status as FpListingStatus)) {
+    return FP_LISTING_STATUS_LABELS[status as FpListingStatus];
+  }
+  return status.replace(/_/g, " ");
+}
+
+export function fpAccountTierDisplayName(tier: string | null | undefined): string {
+  if (!tier) return "Not selected";
+  if (isFpAccountTier(tier)) return FP_TIER_DISPLAY_NAMES[tier];
+  return tier.replace(/_/g, " ");
+}

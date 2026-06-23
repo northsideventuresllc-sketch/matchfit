@@ -475,7 +475,7 @@ export default function TrainerSignUpClient() {
               setErrorCode(data.code ?? null);
               setError(
                 data.code === "BETA_TRAINER_CAP"
-                  ? (data.error ?? "Coach slots are full for this beta.")
+                  ? (data.error ?? "Fitness Pro slots are full for this beta.")
                   : (data.error ?? "Could not create your account."),
               );
               turnstile.reset();
@@ -547,7 +547,7 @@ export default function TrainerSignUpClient() {
         setErrorCode(data.code ?? null);
         setError(
           data.code === "BETA_TRAINER_CAP"
-            ? (data.error ?? "Coach slots are full for this beta.")
+            ? (data.error ?? "Fitness Pro slots are full for this beta.")
             : (data.error ?? "Could not create your account."),
         );
         turnstile.reset();
@@ -660,7 +660,7 @@ export default function TrainerSignUpClient() {
               <p className="mt-3 text-sm leading-relaxed text-emerald-100/85">
                 We sent a message to <span className="font-semibold text-white">{email.trim()}</span>. Open it and tap
                 <span className="font-semibold"> Confirm your email</span>. You will return here to finish security check,
-                then you will continue to the Fitness Pro agreement and payment steps.
+                then you will continue to the Fitness Pro agreement, account type, documents, and payment steps.
               </p>
               <p className="mt-3 text-xs leading-relaxed text-emerald-100/60">
                 Did not get it? Check spam, then use Resend below. The link expires after a while.

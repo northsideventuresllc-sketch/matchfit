@@ -101,7 +101,7 @@ export default function TrainerSignupTermsClient() {
       trackFormSubmitSuccess(FORM_CTX);
       trackGoogleAdsConversion("trainer_signup");
       trackMetaConversion("trainer_signup");
-      navigateWithFullLoad(data.next ?? "/trainer/dashboard");
+      navigateWithFullLoad(data.next ?? "/trainer/signup/tier");
     } catch {
       trackFormSubmitError(FORM_CTX, "network_error");
       setError("Something went wrong. Please try again.");
@@ -123,12 +123,12 @@ export default function TrainerSignupTermsClient() {
           <span className="text-sm font-bold text-white/70">Back to account details</span>
         </Link>
 
-        <h1 className="mt-8 text-2xl font-black uppercase tracking-tight sm:text-3xl">Trainer agreement</h1>
+        <h1 className="mt-8 text-2xl font-black uppercase tracking-tight sm:text-3xl">Fitness Pro Agreement</h1>
         <p className="mt-2 text-sm text-white/55">
           Read the summary below, then open the full Terms of Service and Privacy Policy. When you agree, your Match Fit
-          trainer account is created automatically. You have 7 days from sign-up to begin onboarding—pay your background
-          check through our portal and start certification and screening. You cannot sell services until every requirement
-          is completed.
+          Fitness Pro account is created automatically. Next you will choose your account type, upload required documents,
+          and authorize your signup fee. You have 7 days from sign-up to begin onboarding. You cannot sell services until
+          every requirement is completed.
         </p>
 
         <article className="mt-6 max-h-[min(50vh,28rem)] overflow-y-auto rounded-2xl border border-white/[0.08] bg-[#12151C]/90 p-5 text-sm leading-relaxed text-white/70">
@@ -159,7 +159,7 @@ export default function TrainerSignupTermsClient() {
               className="mt-1 h-4 w-4 shrink-0 accent-[#FF7E00]"
             />
             <span className="text-sm leading-relaxed text-white/80">
-              I have read and agree to the Trainer Agreement, Terms of Service, and Privacy Policy.
+              I have read and agree to the Fitness Pro Agreement, Terms of Service, and Privacy Policy.
             </span>
           </label>
           {draft ? (

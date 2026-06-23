@@ -1161,7 +1161,7 @@ export default function TrainerOnboardingClient() {
                     your Checkr background screening. After screening clears, we charge{" "}
                     <span className="font-semibold text-white">20%</span> of the verified screening amount for the
                     platform onboarding slice (plus processing)—not the full $100 platform fee. You receive 60 days of
-                    Premium Page access at sign-up. Begin onboarding within 7 days of sign-up. You cannot sell services
+                    Match Fit Premium Pro at sign-up. Begin onboarding within 7 days of sign-up. You cannot sell services
                     until every requirement is completed.
                   </p>
                 </div>

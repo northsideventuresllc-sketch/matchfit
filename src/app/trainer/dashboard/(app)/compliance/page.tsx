@@ -160,8 +160,8 @@ export default async function TrainerComplianceDetailsPage() {
         <p className="mt-3 text-sm text-white/55">
           {signupHoldFlow ? (
             <>
-              During the founding coach promo, pay only your background check through Match Fit&apos;s portal (plus
-              processing) and receive {TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Premium Page access at sign-up. Begin
+              During the founding Fitness Pro promo, pay only your background check through Match Fit&apos;s portal (plus
+              processing) and receive {TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Match Fit Premium Pro at sign-up. Begin
               onboarding within {TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up.{" "}
               {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE} After founding caps, coaches pay{" "}
               {trainerStandardOnboardingAfterCapLabel()} through Stripe once screening and certifications are approved.

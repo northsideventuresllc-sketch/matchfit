@@ -38,7 +38,7 @@ export async function evaluateBetaTrainerRegistrationGate(args: {
       ok: false,
       status: 403,
       code: "BETA_TRAINER_CAP",
-      error: "Coach slots are full for this beta. Join the waitlist and we will email you when a slot opens.",
+      error: "Fitness Pro slots are full for this beta. Join the waitlist and we will email you when a slot opens.",
     };
   }
   return { ok: true, betaInviteEntryId: inv.entryId };

@@ -10,11 +10,11 @@ export type TrainerSignupStep = {
 };
 
 export const TRAINER_SIGNUP_STEPS: readonly TrainerSignupStep[] = [
-  { id: 1, href: "/trainer/signup", title: "Account details", shortLabel: "Account" },
-  { id: 2, href: "/trainer/signup/terms", title: "Fitness Pro agreement", shortLabel: "Agreement" },
-  { id: 3, href: "/trainer/signup/tier", title: "Choose your path", shortLabel: "Account type" },
-  { id: 4, href: "/trainer/signup/docs", title: "Required documents", shortLabel: "Documents" },
-  { id: 5, href: "/trainer/signup/payment", title: "Signup fee", shortLabel: "Payment" },
+  { id: 1, href: "/trainer/signup", title: "Account Details", shortLabel: "Account" },
+  { id: 2, href: "/trainer/signup/terms", title: "Fitness Pro Agreement", shortLabel: "Agreement" },
+  { id: 3, href: "/trainer/signup/tier", title: "Choose Account Type", shortLabel: "Account type" },
+  { id: 4, href: "/trainer/signup/docs", title: "Required Documents", shortLabel: "Documents" },
+  { id: 5, href: "/trainer/signup/payment", title: "Signup Fee", shortLabel: "Payment" },
 ] as const;
 
 export function trainerSignupStepById(id: TrainerSignupStepId): TrainerSignupStep {

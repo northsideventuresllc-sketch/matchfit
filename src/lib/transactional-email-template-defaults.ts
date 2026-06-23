@@ -439,7 +439,7 @@ const DEFAULTS: Record<TransactionalEmailKind, TransactionalEmailTemplateFields>
     ],
     textBody:
       "Hi {{firstName}},\n\nYour required Fitness Pro documents are approved. Continue in your dashboard:\n{{trainerDashboardUrl}}\n\n— Match Fit",
-    ...STANDARD_CTA("Trainer dashboard", "trainerDashboardUrl"),
+    ...STANDARD_CTA("Open Fitness Pro Dashboard", "trainerDashboardUrl"),
   },
   FP_DOC_DENIED: {
     subject: "Action needed on your Match Fit document",

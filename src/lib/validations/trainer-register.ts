@@ -64,7 +64,7 @@ export const trainerAgreementsSchema = z
     acceptedTrainerAgreement: z.boolean(),
   })
   .refine((d) => d.acceptedTrainerAgreement === true, {
-    message: "You must acknowledge the trainer agreement.",
+    message: "You must acknowledge the Fitness Pro agreement.",
     path: ["acceptedTrainerAgreement"],
   });
 

@@ -66,7 +66,7 @@ export async function POST(req: Request) {
       },
     });
     if (!profile?.hasSignedTOS) {
-      return NextResponse.json({ error: "Accept the trainer agreement before payment." }, { status: 400 });
+      return NextResponse.json({ error: "Accept the Fitness Pro agreement before payment." }, { status: 400 });
     }
 
     const pricingMode = parseTrainerRegistrationPricingMode(profile.registrationFeePricingMode);

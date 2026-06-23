@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { FP_TIER_SIGNUP_CARDS } from "@/lib/fp-tier-signup-cards";
+import { fpListingStatusLabel } from "@/lib/fp-account-tier-types";
+import { fpTierSignupCardsForDisplay } from "@/lib/fp-tier-beta-signup";
 import type { FpAccountTier } from "@/lib/fp-account-tier-types";
 
 type AccountTierPayload = {
@@ -54,7 +55,7 @@ export default function TrainerAccountTierClient() {
     async function fetchTier() {
       const res = await fetch("/api/trainer/dashboard/account-tier", { credentials: "include" });
       if (!res.ok) {
-        if (!cancelled) setError("Could not load account tier details.");
+        if (!cancelled) setError("Could not load account type details.");
         return;
       }
       const json = (await res.json()) as AccountTierPayload;
@@ -71,7 +72,7 @@ export default function TrainerAccountTierClient() {
   async function reload() {
     const res = await fetch("/api/trainer/dashboard/account-tier", { credentials: "include" });
     if (!res.ok) {
-      setError("Could not load account tier details.");
+      setError("Could not load account type details.");
       return;
     }
     const json = (await res.json()) as AccountTierPayload;
@@ -116,26 +117,27 @@ export default function TrainerAccountTierClient() {
   }
 
   if (!data) {
-    return <p className="text-white/70">Loading account tier…</p>;
+    return <p className="text-white/70">Loading account type…</p>;
   }
 
   const showStats = data.permissions?.click_stats_public;
   const lockLabel = data.tierSwitchLockActive && data.tierSwitchLockEndsAt
     ? `Switch available after ${new Date(data.tierSwitchLockEndsAt).toLocaleDateString()}`
     : null;
+  const switchCards = fpTierSignupCardsForDisplay().filter((c) => c.tier !== data.accountTier);
 
   return (
     <div className="space-y-8 text-white">
       <div>
         <h1 className="text-2xl font-semibold">Account Type</h1>
-        <p className="mt-1 text-white/60">Manage your Fitness Pro tier, listing status, and promote tokens.</p>
+        <p className="mt-1 text-white/60">Manage your Fitness Pro account type, listing status, and promote tokens.</p>
       </div>
 
       <section className="rounded-2xl border border-white/10 bg-[#12141C] p-6">
-        <p className="text-xs uppercase tracking-widest text-[#FF7E00]">Current tier</p>
+        <p className="text-xs uppercase tracking-widest text-[#FF7E00]">Current Account Type</p>
         <h2 className="mt-2 text-xl font-semibold">{data.accountTierLabel ?? "Not selected"}</h2>
         {data.badge ? <p className="mt-1 text-sm text-white/70">Badge: {data.badge}</p> : null}
-        <p className="mt-2 text-sm text-white/60">Listing status: {data.listingStatus.replace(/_/g, " ")}</p>
+        <p className="mt-2 text-sm text-white/60">Listing status: {fpListingStatusLabel(data.listingStatus)}</p>
         <p className="mt-1 text-sm text-white/60">Promote tokens: {data.promoteTokensBalance}</p>
       </section>
 
@@ -158,7 +160,7 @@ export default function TrainerAccountTierClient() {
               onClick={() => void setEliteView("independent_fitness_pro")}
               className={`rounded-lg px-4 py-2 text-sm ${data.eliteDashboardViewMode === "independent_fitness_pro" ? "bg-[#FF7E00] text-black" : "border border-white/20"}`}
             >
-              Viewing as Independent Pro
+              Viewing as Independent Fitness Pro
             </button>
           </div>
         </section>
@@ -168,11 +170,11 @@ export default function TrainerAccountTierClient() {
         <section className="rounded-2xl border border-white/10 bg-[#12141C] p-6">
           <h3 className="font-semibold">Public Stats</h3>
           <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
-            <div><dt className="text-white/50">Profile views</dt><dd className="font-medium">{data.listingStats.profileViews}</dd></div>
-            <div><dt className="text-white/50">Click-throughs</dt><dd className="font-medium">{data.listingStats.clickThroughs}</dd></div>
-            <div><dt className="text-white/50">Match Fit reviews</dt><dd className="font-medium">{data.listingStats.reviewCountInternal}</dd></div>
-            <div><dt className="text-white/50">External reviews</dt><dd className="font-medium">{data.listingStats.reviewCountExternal}</dd></div>
-            <div><dt className="text-white/50">Active listings</dt><dd className="font-medium">{data.listingStats.activeListingsCount}</dd></div>
+            <div><dt className="text-white/50">Profile Views</dt><dd className="font-medium">{data.listingStats.profileViews}</dd></div>
+            <div><dt className="text-white/50">Click-Throughs</dt><dd className="font-medium">{data.listingStats.clickThroughs}</dd></div>
+            <div><dt className="text-white/50">Match Fit Reviews</dt><dd className="font-medium">{data.listingStats.reviewCountInternal}</dd></div>
+            <div><dt className="text-white/50">External Reviews</dt><dd className="font-medium">{data.listingStats.reviewCountExternal}</dd></div>
+            <div><dt className="text-white/50">Active Listings</dt><dd className="font-medium">{data.listingStats.activeListingsCount}</dd></div>
           </dl>
         </section>
       ) : null}
@@ -191,10 +193,10 @@ export default function TrainerAccountTierClient() {
       ) : null}
 
       <section className="rounded-2xl border border-white/10 bg-[#12141C] p-6">
-        <h3 className="font-semibold">Switch account type</h3>
+        <h3 className="font-semibold">Switch Account Type</h3>
         {lockLabel ? <p className="mt-2 text-sm text-amber-400">{lockLabel}</p> : null}
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {FP_TIER_SIGNUP_CARDS.filter((c) => c.tier !== data.accountTier).map((card) => (
+          {switchCards.map((card) => (
             <button
               key={card.tier}
               type="button"
@@ -210,7 +212,7 @@ export default function TrainerAccountTierClient() {
       </section>
 
       <section className="rounded-2xl border border-white/10 bg-[#12141C] p-6">
-        <h3 className="font-semibold">Tier switch history</h3>
+        <h3 className="font-semibold">Account Type History</h3>
         <ul className="mt-4 space-y-2 text-sm">
           {data.tierSwitchHistory.length === 0 ? (
             <li className="text-white/50">No switches yet.</li>
@@ -228,7 +230,7 @@ export default function TrainerAccountTierClient() {
 
       {data.promoteTokenLedger.length > 0 ? (
         <section className="rounded-2xl border border-white/10 bg-[#12141C] p-6">
-          <h3 className="font-semibold">Promote token activity</h3>
+          <h3 className="font-semibold">Promote Token Activity</h3>
           <ul className="mt-4 space-y-2 text-sm">
             {data.promoteTokenLedger.map((row) => (
               <li key={row.id}>
@@ -242,7 +244,7 @@ export default function TrainerAccountTierClient() {
       {data.permissions?.featured_listing ? (
         <p className="text-sm text-white/60">
           <Link href="/trainer/dashboard/premium/featured" className="text-[#FF7E00] hover:underline">
-            Open featured listing bid manager
+            Open Featured Listing Bid Manager
           </Link>
         </p>
       ) : null}

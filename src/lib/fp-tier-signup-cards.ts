@@ -33,7 +33,7 @@ function fpTierSignupSubtitle(tier: FpAccountTier): string {
     case "match_fit_pro":
       return "Full platform. Background check required.";
     case "match_fit_premium_pro":
-      return "Pro plus premium visibility.";
+      return "Match Fit Pro visibility plus premium discovery and FitHub access.";
     case "independent_fitness_pro":
       return "Your brand, your site, listed on Match Fit.";
     case "elite_fitness_pro":

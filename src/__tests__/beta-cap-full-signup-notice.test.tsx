@@ -47,7 +47,7 @@ describe("BetaCapFullSignupNotice", () => {
       />,
     );
 
-    expect(html).toContain("Coach slots are full for this beta");
+    expect(html).toContain("Fitness Pro slots are full for this beta");
     expect(html).toContain("All Fitness Pro slots for the Atlanta metro beta are taken.");
     expect(html).toContain(">Join the Fitness Pro waitlist<");
     expect(html).toContain("Fitness Pros signed up: 50 / 50");

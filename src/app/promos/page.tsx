@@ -140,7 +140,7 @@ export default async function PromosPage() {
 
               <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="font-semibold text-white/75">Premium status at sign-up</span>
+                  <span className="font-semibold text-white/75">Match Fit Premium Pro at sign-up</span>
                   <span className="text-[#FFD34E]">{trainerSignupPremiumPromoBenefitLabel()}</span>
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-3">

@@ -11,7 +11,6 @@ import {
   fpTierRequiresPaidSubscriptionDuringBeta,
   fpTierSignupCardsForDisplay,
 } from "@/lib/fp-tier-beta-signup";
-import { FP_TIER_DISPLAY_NAMES } from "@/lib/fp-account-tier-types";
 
 const cardClass =
   "w-full rounded-2xl border border-white/10 bg-[#12141C]/90 p-6 text-left transition hover:border-[#FF7E00]/50 focus:border-[#FF7E00] focus:outline-none focus:ring-2 focus:ring-[#FF7E00]/40 disabled:opacity-50";
@@ -73,7 +72,7 @@ export default function TrainerSignupTierClient() {
   return (
     <TrainerSignupShell
       stepLabel="Step 3"
-      title="Choose Your Path"
+      title="Choose Account Type"
       description={
         beta
           ? "Beta users start on Match Fit Premium Pro at no cost for 60 days. Independent Fitness Pro and Elite Fitness Pro require a paid subscription."
@@ -98,7 +97,7 @@ export default function TrainerSignupTierClient() {
             <h2 className="text-xl font-semibold">{premiumCard.title}</h2>
             <p className="mt-2 text-sm text-white/70">{premiumCard.subtitle}</p>
             <p className="mt-4 text-sm font-semibold text-[#FF7E00]">
-              {beta ? "Free for beta users (60 days)" : premiumCard.feeLabel}
+              {beta ? "Complimentary for beta users" : premiumCard.feeLabel}
             </p>
           </button>
         </div>

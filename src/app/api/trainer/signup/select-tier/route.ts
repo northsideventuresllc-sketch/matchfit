@@ -74,7 +74,7 @@ export async function POST(req: Request) {
   const tier = parsed.data.tier;
   if (!fpTierSelectableDuringBeta(tier)) {
     return NextResponse.json(
-      { error: "During beta, Match Fit Premium Pro is the complimentary account type." },
+      { error: "Match Fit Pro is not available during beta. Choose Match Fit Premium Pro or a paid account type." },
       { status: 400 },
     );
   }

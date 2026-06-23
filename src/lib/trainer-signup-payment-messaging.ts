@@ -15,7 +15,7 @@ function formatUsd(cents: number): string {
 
 /** Short overview on the first signup page — no payment jargon yet. */
 export const TRAINER_SIGNUP_FLOW_OVERVIEW =
-  `How trainer signup works: (1) enter your account details and verify email, (2) accept the trainer agreement — your account is created automatically, (3) begin onboarding within ${TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up by paying your background check through our portal and uploading certification from your dashboard. Founding coaches receive ${trainerSignupPremiumPromoBenefitLabel()} at sign-up. ${TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}`;
+  `How Fitness Pro signup works: (1) enter your account details and verify email, (2) accept the Fitness Pro agreement — your account is created automatically, (3) choose your account type — Match Fit Premium Pro is complimentary for beta users for ${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days; Independent Fitness Pro and Elite Fitness Pro require a paid subscription, (4) upload required documents for review, (5) authorize your signup fee and complete background screening. You must begin onboarding within ${TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up. Founding Fitness Pros receive ${trainerSignupPremiumPromoBenefitLabel()} at sign-up. ${TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}`;
 
 /** Payment step headline helper text — explains hold vs charge. */
 export const TRAINER_SIGNUP_PAYMENT_INTRO =
@@ -27,7 +27,7 @@ export function trainerSignupPaymentHoldExplanation(pricingMode: TrainerRegistra
   const platformLabel = formatUsd(split.platformEscrowCents);
 
   if (pricingMode === "FOUNDING_BG_COVERED" || pricingMode === "FOUNDING_BG_SURCHARGE_20PCT") {
-    return `Founding coach pricing: Match Fit covers your Checkr background screening. Today's hold is only the ${platformLabel} Match Fit platform portion (20% of the standard screening estimate), plus card processing. Match Fit captures the platform portion only after certification and screening review finish. If you are fully approved, the platform hold is captured. If you are not approved, the platform hold is released. You must begin onboarding within ${TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up. You receive ${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Premium Page access at sign-up. ${TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}`;
+    return `Founding Fitness Pro pricing: Match Fit covers your Checkr background screening. Today's hold is only the ${platformLabel} Match Fit platform portion (20% of the standard screening estimate), plus card processing. Match Fit captures the platform portion only after certification and screening review finish. If you are fully approved, the platform hold is captured. If you are not approved, the platform hold is released. You must begin onboarding within ${TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up. You receive ${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Match Fit Premium Pro at sign-up. ${TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}`;
   }
 
   const listPrice = formatUsd(TRAINER_PLATFORM_REGISTRATION_FEE_CENTS);

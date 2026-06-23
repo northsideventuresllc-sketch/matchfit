@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   });
 
   if (profile?.accountTier !== "elite_fitness_pro") {
-    return NextResponse.json({ error: "Elite dual-view is only available on Elite Fitness Pro." }, { status: 400 });
+    return NextResponse.json({ error: "Elite Dual-View is only available on Elite Fitness Pro." }, { status: 400 });
   }
 
   const json = await req.json().catch(() => null);

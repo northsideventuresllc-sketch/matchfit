@@ -66,7 +66,7 @@ export async function assertTrainerBetaSlotInTransaction(
     if (invite) return;
   }
   throw new BetaCapExceededError(
-    "Coach slots are full for this beta. Join the waitlist and we will email you when a slot opens.",
+    "Fitness Pro slots are full for this beta. Join the waitlist and we will email you when a slot opens.",
     "BETA_TRAINER_CAP",
   );
 }

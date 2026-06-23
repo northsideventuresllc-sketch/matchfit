@@ -8,6 +8,7 @@ import {
   resolveFpTierSwitchBillingEffect,
   resolveListingStatusAfterTierSwitch,
 } from "@/lib/fp-tier-switching";
+import { fpTierSelectableDuringBeta } from "@/lib/fp-tier-beta-signup";
 import type { FpDocSubmissionSummary } from "@/lib/fp-tier-docs";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
@@ -31,6 +32,12 @@ export async function POST(req: Request) {
   }
 
   const targetTier = parsed.data.targetTier;
+  if (!fpTierSelectableDuringBeta(targetTier)) {
+    return NextResponse.json(
+      { error: "Match Fit Pro is not available during beta. Choose Match Fit Premium Pro or a paid account type." },
+      { status: 400 },
+    );
+  }
   const now = new Date();
 
   const trainer = await prisma.trainer.findUnique({
