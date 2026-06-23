@@ -26,6 +26,7 @@ import {
   INDEPENDENT_FP_DAILY_NUDGES,
 } from "@/lib/fp-tier-chat-policy";
 import { FP_TIER_MONTHLY_FEES_USD } from "@/lib/fp-account-tier-types";
+import { FP_PREMIUM_PAGE_MONTHLY_USD } from "@/lib/fp-tier-marketing-copy";
 import {
   CHECK_IN_LEAD_HOURS,
   GATE_A_POST_SESSION_SILENCE_HOURS,
@@ -535,29 +536,33 @@ export default async function TermsPage() {
         <Ul>
           <Li>
             <Strong>Match Fit Pro:</Strong> No monthly platform fee for the tier itself. Includes in-app chat, Fit Hub,
-            platform reviews, and standard off-platform payment/contact rules in chat. Discovery nudges are not included —
-            use chat and client inquiries for outreach.
+            platform reviews, verified trust indicators, and interest-client workflows. Outreach runs through chat and
+            client inquiries. Communication rules are described in Section 12.
           </Li>
           <Li>
-            <Strong>Match Fit Premium Pro:</Strong> Premium tier with expanded visibility and tools as shown at signup.
-            During beta, eligible users may receive a promotional complimentary period as displayed in-product. Includes
-            in-app chat under the same communication rules as Match Fit Pro. Discovery nudges are not included.
+            <Strong>Match Fit Premium Pro:</Strong> Includes everything in Match Fit Pro plus premium discovery surfacing,
+            regional featured-placement program eligibility, and Verified Premium trust indicators. During beta, eligible
+            users may receive a promotional complimentary period as displayed in-product. Coaches may optionally add the
+            Premium Page subscription (currently <Strong>{usdCents(FP_PREMIUM_PAGE_MONTHLY_USD)}</Strong> per month when
+            billed) for Premium Hub tools such as featured placement workflows, FitHub publishing studio controls, and
+            promotion tokens, as implemented.
           </Li>
           <Li>
             <Strong>Independent Fitness Pro:</Strong> Monthly fee currently{" "}
-            <Strong>{usdCents(FP_TIER_MONTHLY_FEES_USD.independent_fitness_pro ?? 15)}</Strong> when billed. Does{" "}
-            <Strong>not</Strong> include in-app chat. Includes discovery nudges (currently{" "}
-            <Strong>{INDEPENDENT_FP_DAILY_NUDGES} per day</Strong>, UTC) and optional purchase of{" "}
+            <Strong>{usdCents(FP_TIER_MONTHLY_FEES_USD.independent_fitness_pro ?? 15)}</Strong> when billed. Includes
+            discovery nudges (currently <Strong>{INDEPENDENT_FP_DAILY_NUDGES} per day</Strong>, UTC), optional purchase of{" "}
             <Strong>{FP_NUDGE_PACK_SIZE} additional nudges</Strong> for{" "}
-            <Strong>{usdCents(FP_NUDGE_PACK_PRICE_USD)}</Strong>. May list external websites and appear with business-listed
-            trust indicators as implemented.
+            <Strong>{usdCents(FP_NUDGE_PACK_PRICE_USD)}</Strong>, external website listing, business-listed trust
+            indicators, Fit Hub access, and featured listing tools as implemented. Outreach runs through discovery nudges
+            and interest-client signals.
           </Li>
           <Li>
             <Strong>Elite Fitness Pro:</Strong> Monthly fee currently{" "}
             <Strong>{usdCents(FP_TIER_MONTHLY_FEES_USD.elite_fitness_pro ?? 40)}</Strong> when billed. Includes in-app
-            chat, unlimited discovery nudges, and permission to share business email addresses and external listing links
-            in chat. Phone numbers and off-platform payment details remain prohibited. Background screening and document
-            requirements apply as shown in onboarding.
+            chat, unlimited discovery nudges, verified business trust indicators, full analytics, Fit Hub, featured listing
+            programs, platform reviews, and permission to share business email addresses and external listing links in
+            chat. Phone numbers and off-platform payment details remain prohibited as described in Section 12. Background
+            screening and document requirements apply as shown in onboarding.
           </Li>
           <Li>
             Tier switches, billing grace periods, and document review requirements are enforced in-product. Match Fit may

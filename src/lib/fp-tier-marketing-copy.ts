@@ -6,6 +6,8 @@ import {
 import { INDEPENDENT_FP_DAILY_NUDGES, FP_NUDGE_PACK_PRICE_USD, FP_NUDGE_PACK_SIZE } from "@/lib/fp-tier-chat-policy";
 import { TRAINER_SIGNUP_PREMIUM_PROMO_DAYS } from "@/lib/trainer-signup-promo-copy";
 
+export const FP_PREMIUM_PAGE_MONTHLY_USD = 20;
+
 export type FpTierMarketingCard = {
   tier: FpAccountTier;
   title: string;
@@ -30,22 +32,26 @@ function monthlyFeeLabel(tier: FpAccountTier): string {
   return monthly != null ? `$${monthly}/month` : matchFitProFeeLabel();
 }
 
+export const FP_SERVICE_CATALOGUE_DISCLAIMER =
+  "This service catalogue applies to Match Fit Pros and Elite Pros. Templates and checkout flows may differ by account type.";
+
 export const FP_TIER_MARKETING_GROUPS: readonly FpTierMarketingGroup[] = [
   {
     id: "match_fit_pros",
     label: "Match Fit Pros",
     description:
-      "Coaches who train fully on Match Fit — in-app chat, Fit Hub, platform reviews, and standard on-platform communication rules.",
+      "Coaches who train fully on Match Fit — in-app chat, Fit Hub, platform reviews, and verified listing on the marketplace.",
     tiers: [
       {
         tier: "match_fit_pro",
         title: FP_TIER_DISPLAY_NAMES.match_fit_pro,
         feeLabel: matchFitProFeeLabel(),
-        summary: "The standard Match Fit coach path with full platform tools and background screening.",
+        summary: "The standard Match Fit coach path with full platform tools and verified public listing.",
         bullets: [
-          "In-app chat for client outreach — discovery nudges are not included.",
-          "Fit Hub publishing, platform reviews, and verified trust indicators.",
-          "Background check required before you appear publicly.",
+          "In-app chat for client outreach, scheduling, and session coordination.",
+          "Fit Hub publishing and platform reviews on your public profile.",
+          "Verified trust badge and full discovery listing after screening approval.",
+          "Interest clients workflow when someone swipes right on your profile.",
         ],
       },
       {
@@ -53,11 +59,13 @@ export const FP_TIER_MARKETING_GROUPS: readonly FpTierMarketingGroup[] = [
         title: FP_TIER_DISPLAY_NAMES.match_fit_premium_pro,
         feeLabel: `Platform % per session · ${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days complimentary during beta`,
         summary:
-          "Everything in Match Fit Pro plus premium discovery visibility, featured-placement programs, and expanded Fit Hub tools.",
+          "Everything in Match Fit Pro plus premium discovery visibility, featured-placement programs, and optional Premium Page tools.",
         bullets: [
-          "In-app chat under the same communication rules as Match Fit Pro.",
-          "Premium discovery surfacing and regional featured-placement eligibility.",
-          "During beta, founding Fitness Pros start here at no cost for 60 days.",
+          "Everything included in Match Fit Pro.",
+          "Premium discovery surfacing and regional featured-placement program eligibility.",
+          "Verified Premium trust badge and expanded Fit Hub visibility.",
+          `Optional Premium Page add-on at $${FP_PREMIUM_PAGE_MONTHLY_USD}/month — Premium Hub with featured placement tools, FitHub publishing studio, and promotion tokens.`,
+          `Founding beta coaches start here with ${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days complimentary on this tier.`,
         ],
       },
     ],
@@ -73,11 +81,12 @@ export const FP_TIER_MARKETING_GROUPS: readonly FpTierMarketingGroup[] = [
         title: FP_TIER_DISPLAY_NAMES.independent_fitness_pro,
         feeLabel: monthlyFeeLabel("independent_fitness_pro"),
         summary:
-          "Discovery nudges only — in-app chat is not available on this account type.",
+          "Discovery-first outreach with your external brand listed alongside your Match Fit profile.",
         bullets: [
-          `${INDEPENDENT_FP_DAILY_NUDGES} discovery nudges per day (UTC), with optional ${FP_NUDGE_PACK_SIZE}-nudge packs for $${FP_NUDGE_PACK_PRICE_USD.toFixed(2)}.`,
-          "List your external website and appear with business-listed trust indicators.",
-          "No background check required for this tier.",
+          `${INDEPENDENT_FP_DAILY_NUDGES} discovery nudges per day (UTC) to reach opted-in clients, with optional ${FP_NUDGE_PACK_SIZE}-nudge packs for $${FP_NUDGE_PACK_PRICE_USD.toFixed(2)}.`,
+          "External website on your public profile with business-listed trust indicators.",
+          "Fit Hub publishing, featured listing tools, and regional discovery placement.",
+          "Monthly platform subscription with streamlined document onboarding.",
         ],
       },
     ],
@@ -86,36 +95,24 @@ export const FP_TIER_MARKETING_GROUPS: readonly FpTierMarketingGroup[] = [
     id: "elite_pros",
     label: "Elite Pros",
     description:
-      "Established coaches who want Match Fit chat plus unlimited discovery nudges and flexible off-platform brand links.",
+      "Established coaches who want Match Fit chat, unlimited discovery nudges, and flexible brand links in conversation.",
     tiers: [
       {
         tier: "elite_fitness_pro",
         title: FP_TIER_DISPLAY_NAMES.elite_fitness_pro,
         feeLabel: monthlyFeeLabel("elite_fitness_pro"),
         summary:
-          "In-app chat plus unlimited discovery nudges, with expanded chat permissions for business contact.",
+          "Full in-app chat plus unlimited discovery nudges, with expanded brand tools for established businesses.",
         bullets: [
-          "Unlimited discovery nudges and full in-app chat.",
-          "Business email addresses and external listing links may be shared in chat.",
-          "Phone numbers and off-platform payment details remain prohibited.",
+          "Full in-app chat plus unlimited discovery nudges for client outreach.",
+          "Business email addresses and external listing links in chat for brand continuity.",
+          "Verified business trust badge with full analytics, waiver tools, and promotion tokens.",
+          "Fit Hub, featured listing programs, and platform reviews on your public profile.",
         ],
       },
     ],
   },
 ];
-
-/** Optional legacy Premium Page add-on (separate from account type). */
-export const FP_PREMIUM_PAGE_MARKETING = {
-  title: "Optional Premium Page Add-On",
-  feeLabel: "$20/month",
-  summary:
-    "Separate from your Fitness Pro account type, the Premium Page unlocks the Premium Hub — featured placement tools, FitHub publishing studio, and promotion tokens for coaches who want extra visibility workflow.",
-  bullets: [
-    "Featured Fitness Pro placement programs and promotion tokens.",
-    "FitHub publishing studio controls beyond your tier defaults where applicable.",
-    "Account types above already include tier-specific chat, discovery, and Fit Hub access — Premium Page is an additional upgrade.",
-  ] as const,
-};
 
 export const FP_TIER_MARKETING_BETA_NOTE =
   "During beta, Match Fit Pro is not offered at signup. Founding Fitness Pros start on Match Fit Premium Pro.";

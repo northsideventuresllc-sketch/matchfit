@@ -7,10 +7,17 @@ import {
 import { HomeCtaLogoutBar } from "@/components/home-cta-logout-bar";
 import { HomeBetaSlotWarning } from "@/components/home-beta-slot-warning";
 import { HomeFitProTypesSection } from "@/components/home-fit-pro-types-section";
+import { HomeFitProDebriefSection } from "@/components/home-fit-pro-debrief-section";
 import { HomeTrainerServiceTypesSection } from "@/components/home-trainer-service-types-section";
 import { HomeClientPricingSection } from "@/components/home-client-pricing-section";
 import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
 import { clientVipPriceLabel } from "@/lib/client-plan-copy";
+import {
+  FP_ELITE_PRO_DEBRIEF,
+  FP_INDEPENDENT_PRO_DEBRIEF,
+  FP_MATCH_FIT_PRO_DEBRIEF,
+} from "@/lib/fp-tier-debrief-copy";
+import { FP_SERVICE_CATALOGUE_DISCLAIMER } from "@/lib/fp-tier-marketing-copy";
 import {
   CLIENT_SIGN_UP_PATH,
   TRAINER_SIGN_UP_PATH,
@@ -324,6 +331,9 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
                 Services you can list on Match Fit
               </h3>
               <p className="mt-3 text-sm text-white/50">Expand to browse every catalogue template and requirement.</p>
+              <p className="mt-3 rounded-xl border border-[#FFD34E]/20 bg-[#FFD34E]/[0.06] p-3 text-xs leading-relaxed text-white/50 sm:text-[13px]">
+                <span className="font-semibold text-[#FFD34E]/90">Disclaimer:</span> {FP_SERVICE_CATALOGUE_DISCLAIMER}
+              </p>
             </div>
           </summary>
           <div className="border-t border-white/[0.08]">
@@ -332,65 +342,33 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
         </details>
 
         <HomeCollapsibleSection
-          id="trainer-onboarding-fee"
-          eyebrow="Onboarding fee"
+          id={FP_MATCH_FIT_PRO_DEBRIEF.id}
+          eyebrow={FP_MATCH_FIT_PRO_DEBRIEF.eyebrow}
           eyebrowClass="text-[#FF7E00]"
-          title="Fitness Pro Onboarding Fee"
+          title={FP_MATCH_FIT_PRO_DEBRIEF.title}
           accent="left"
         >
-          <p>
-            Fitness pros can{" "}
-            <span className="font-semibold text-white/85">pay the platform onboarding fee today</span> or{" "}
-            <span className="font-semibold text-white/85">defer it and repay from future payouts</span> within 60 days of
-            completing onboarding.
-          </p>
-          <ul className="list-none space-y-3 border-t border-white/[0.08] pt-4">
-            <li className="flex gap-3">
-              <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#FF7E00]" aria-hidden />
-              <span>
-                <span className="font-semibold text-white/85">Pay now:</span> authorize the platform hold at sign-up;
-                Match Fit captures only after certification and background screening are approved.
-              </span>
-            </li>
-            <li className="flex gap-3">
-              <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#FFD34E]" aria-hidden />
-              <span>
-                <span className="font-semibold text-white/85">Defer:</span> pay $0 platform fee today, authorize only the
-                background check hold, and repay through payout withhold (minimum 20%) within 60 days of completing
-                onboarding.
-              </span>
-            </li>
-          </ul>
+          <HomeFitProDebriefSection section={FP_MATCH_FIT_PRO_DEBRIEF} />
         </HomeCollapsibleSection>
 
         <HomeCollapsibleSection
-          id="fithub-trainers"
-          eyebrow="FitHub"
+          id={FP_INDEPENDENT_PRO_DEBRIEF.id}
+          eyebrow={FP_INDEPENDENT_PRO_DEBRIEF.eyebrow}
           eyebrowClass="text-[#FFD34E]"
-          title="Publish between sessions"
+          title={FP_INDEPENDENT_PRO_DEBRIEF.title}
           accent="right"
         >
-          <p>
-            <span className="font-semibold text-white/88">FitHub</span> is your publishing lane inside Match
-            Fit: share short-form content from your dashboard so clients (and future clients) see your voice,
-            expertise, and personality between appointments. Posts can carry{" "}
-            <span className="font-semibold text-white/80">captions, write-ups, and media</span> that reinforce
-            your brand, spark conversation through comments and engagement, and keep you visible without living
-            on another social network.
-          </p>
+          <HomeFitProDebriefSection section={FP_INDEPENDENT_PRO_DEBRIEF} />
         </HomeCollapsibleSection>
 
         <HomeCollapsibleSection
-          id="for-trainers"
-          eyebrow="Get started"
-          eyebrowClass="text-[#FF7E00]"
-          title="Your brand. Your business."
-          accent="right"
+          id={FP_ELITE_PRO_DEBRIEF.id}
+          eyebrow={FP_ELITE_PRO_DEBRIEF.eyebrow}
+          eyebrowClass="text-[#E32B2B]"
+          title={FP_ELITE_PRO_DEBRIEF.title}
+          accent="left"
         >
-          <p>
-            Show how you coach, offer the modalities you believe in, and spend less energy on discovery
-            logistics—so you can stay focused on the work that changes people.
-          </p>
+          <HomeFitProDebriefSection section={FP_ELITE_PRO_DEBRIEF} />
         </HomeCollapsibleSection>
       </div>
 

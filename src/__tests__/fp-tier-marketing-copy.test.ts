@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  FP_PREMIUM_PAGE_MARKETING,
+  FP_PREMIUM_PAGE_MONTHLY_USD,
+  FP_SERVICE_CATALOGUE_DISCLAIMER,
   FP_TIER_MARKETING_GROUPS,
 } from "@/lib/fp-tier-marketing-copy";
 import { FP_TIER_DISPLAY_NAMES } from "@/lib/fp-account-tier-types";
@@ -32,8 +33,27 @@ describe("fp-tier-marketing-copy", () => {
     ]);
   });
 
-  it("separates Premium Page from account tiers", () => {
-    expect(FP_PREMIUM_PAGE_MARKETING.feeLabel).toContain("$20");
-    expect(FP_PREMIUM_PAGE_MARKETING.summary).toMatch(/separate from your Fitness Pro account type/i);
+  it("integrates Premium Page pricing into Match Fit Premium Pro bullets", () => {
+    const premium = FP_TIER_MARKETING_GROUPS.flatMap((g) => g.tiers).find(
+      (t) => t.tier === "match_fit_premium_pro",
+    );
+    expect(premium?.bullets.some((b) => b.includes(`$${FP_PREMIUM_PAGE_MONTHLY_USD}/month`))).toBe(true);
+  });
+
+  it("keeps tier bullets inclusion-focused", () => {
+    const negativePatterns = [/not included/i, /not available/i, /does not/i, /remain prohibited/i, /no background/i];
+    for (const group of FP_TIER_MARKETING_GROUPS) {
+      for (const tier of group.tiers) {
+        for (const bullet of tier.bullets) {
+          for (const pattern of negativePatterns) {
+            expect(bullet).not.toMatch(pattern);
+          }
+        }
+      }
+    }
+  });
+
+  it("scopes the service catalogue disclaimer to Match Fit Pros and Elite Pros", () => {
+    expect(FP_SERVICE_CATALOGUE_DISCLAIMER).toMatch(/Match Fit Pros and Elite Pros/i);
   });
 });

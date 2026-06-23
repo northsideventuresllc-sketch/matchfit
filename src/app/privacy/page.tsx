@@ -188,14 +188,14 @@ export default async function PrivacyPage() {
           </Li>
           <Li>
             <Strong>Account Type and Tier Billing:</Strong> Fitness Pro account tier selection (Match Fit Pro, Match Fit
-            Premium Pro, Independent Fitness Pro, or Elite Fitness Pro), tier subscription status, discovery nudge usage
-            counts, purchased nudge credit balances, promote-token ledgers, and document-review status for tier-specific
-            onboarding.
+            Premium Pro, Independent Fitness Pro, or Elite Fitness Pro), optional Premium Page subscription status for
+            coaches who enroll in Premium Hub tools, tier subscription status, discovery nudge usage counts, purchased nudge
+            credit balances, promote-token ledgers, and document-review status for tier-specific onboarding.
           </Li>
           <Li>
             <Strong>Fit Hub and Premium Tools:</Strong> posts (text, images, video, carousels), captions, hashtags,
-            scheduling choices, visibility (public or private to you), promotions paid with in-platform tokens, and studio
-            activity timestamps used for notifications.
+            scheduling choices, visibility (public or private to you), Premium Page studio activity, promotions paid with
+            in-platform tokens, and studio activity timestamps used for notifications.
           </Li>
           <Li>
             <Strong>Featured Placement Program:</Strong> regional pool identifiers derived from your published in-person
