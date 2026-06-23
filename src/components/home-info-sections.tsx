@@ -6,6 +6,7 @@ import {
 } from "@/components/home-collapsible-section";
 import { HomeCtaLogoutBar } from "@/components/home-cta-logout-bar";
 import { HomeBetaSlotWarning } from "@/components/home-beta-slot-warning";
+import { HomeFitProTypesSection } from "@/components/home-fit-pro-types-section";
 import { HomeTrainerServiceTypesSection } from "@/components/home-trainer-service-types-section";
 import { HomeClientPricingSection } from "@/components/home-client-pricing-section";
 import { MatchFitSocialLinks } from "@/components/match-fit-social-links";
@@ -272,8 +273,19 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           eyebrow="For fitness pros"
           eyebrowClass="text-[#FF7E00]"
           title="Grow your brand on Match Fit"
-          description="Everything below is written for coaches—client interest, services you can list, premium tools, and FitHub publishing."
+          description="Everything below is written for coaches—account types, client interest, services you can list, and FitHub publishing."
         />
+
+        <HomeCollapsibleSection
+          id="types-of-fit-pros"
+          eyebrow="Account types"
+          eyebrowClass="text-[#FFD34E]"
+          title="Types of Fit Pros"
+          accent="left"
+          defaultOpen
+        >
+          <HomeFitProTypesSection />
+        </HomeCollapsibleSection>
 
         <HomeCollapsibleSection
           id="interest-clients"
@@ -352,64 +364,6 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
         </HomeCollapsibleSection>
 
         <HomeCollapsibleSection
-          id="trainer-premium"
-          eyebrow="For coaches"
-          eyebrowClass="text-[#FF7E00]"
-          title="Fitness Pro premium—$20 per month"
-          accent="right"
-        >
-          <p>
-            Fitness pros can opt into{" "}
-            <span className="font-bold text-[#FFD34E]">premium access at $20.00 per month</span> when they want the
-            platform to work harder on visibility and workflow.
-          </p>
-          <ul className="list-none space-y-3 border-t border-white/[0.08] pt-4">
-            <li className="flex gap-3">
-              <span
-                className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[linear-gradient(135deg,#FFD34E,#FF7E00)]"
-                aria-hidden
-              />
-              <span>
-                Eligibility to appear on the <span className="font-semibold text-white/85">featured coaches</span>{" "}
-                surface so new clients discover you faster.
-              </span>
-            </li>
-            <li className="flex gap-3">
-              <span
-                className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[linear-gradient(135deg,#FF7E00,#E32B2B)]"
-                aria-hidden
-              />
-              <span>
-                <span className="font-semibold text-white/85">Upload content directly to your dashboard</span> so
-                your brand and programming stay current without juggling extra tools.
-              </span>
-            </li>
-            <li className="flex gap-3">
-              <span
-                className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[linear-gradient(135deg,#E32B2B,#FFD34E)]"
-                aria-hidden
-              />
-              <span>
-                <span className="font-semibold text-white/85">Stronger algorithmic surfacing</span> than
-                non-premium profiles—your profile can reach the right clients more often when the system ranks
-                matches.
-              </span>
-            </li>
-            <li className="flex gap-3">
-              <span
-                className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[linear-gradient(135deg,#FFD34E,#E32B2B)]"
-                aria-hidden
-              />
-              <span>
-                <span className="font-semibold text-white/85">Unlimited approaches to clients</span> on the
-                platform—no counting down a daily cap every 24 hours when you are ready to start real
-                conversations.
-              </span>
-            </li>
-          </ul>
-        </HomeCollapsibleSection>
-
-        <HomeCollapsibleSection
           id="fithub-trainers"
           eyebrow="FitHub"
           eyebrowClass="text-[#FFD34E]"
@@ -461,9 +415,9 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
             the chemistry lands. Match Fit combines{" "}
             <span className="font-semibold text-white/85">swipe-first discovery</span>,{" "}
             <span className="font-semibold text-white/85">transparent economics</span> for both sides,{" "}
-            <span className="font-semibold text-white/85">AI-assisted matching</span> that learns how you actually
-            behave, and <span className="font-semibold text-white/85">premium tools for coaches</span> who want to
-            grow without burning out on outreach limits.
+            <span className="font-semibold text-white/85">algorithmic matching</span> that learns how you actually
+            behave, and <span className="font-semibold text-white/85">tiered tools for Fitness Pros</span> who want
+            chat, nudges, or premium visibility on their terms.
           </p>
           <p>
             Clients get momentum instead of paralysis; fitness pros get qualified intent instead of cold DMs. DIY

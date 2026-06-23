@@ -247,9 +247,11 @@ export default async function TermsPage() {
           pricing when arranging services off-platform.
         </P>
         <P>
-          <Strong>Fitness Pro Premium Subscription:</Strong> Where we offer a Fitness Pro premium plan at a stated monthly price
-          (for example, twenty U.S. dollars ($20.00) per month), applicable payment processor costs may be included in that
-          advertised price as described at checkout.
+          <Strong>Fitness Pro Premium Page Add-On:</Strong> Where we offer an optional Premium Page subscription at a stated
+          monthly price (for example, twenty U.S. dollars ($20.00) per month), applicable payment processor costs may be
+          included in that advertised price as described at checkout. The Premium Page is separate from Fitness Pro account
+          types (Match Fit Pro, Match Fit Premium Pro, Independent Fitness Pro, and Elite Fitness Pro) described in Section
+          11A.
         </P>
         <P>
           <Strong>Subscriptions and Promotions:</Strong> Client Platform subscriptions may be offered at published rates

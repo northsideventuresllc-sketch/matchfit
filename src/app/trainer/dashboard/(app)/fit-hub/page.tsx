@@ -18,7 +18,8 @@ export default async function TrainerFitHubPage() {
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Fitness Pro Social Feed</p>
         <h1 className="text-3xl font-black uppercase tracking-[0.06em] sm:text-4xl">FitHub</h1>
         <p className="mx-auto max-w-xl text-sm leading-relaxed text-white/50">
-          Browse public trainer content across Match Fit. Premium controls for creating and scheduling your posts live in Premium Page.
+          Browse public trainer content across Match Fit. Publishing and scheduling controls depend on your Fitness Pro
+          account type and optional Premium Page tools where enrolled.
         </p>
         <p className="text-xs text-white/40">
           <Link href="/trainer/dashboard/fit-hub-settings" className="text-[#FF7E00] underline-offset-2 hover:underline">
