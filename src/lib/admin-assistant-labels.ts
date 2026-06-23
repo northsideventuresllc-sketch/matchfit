@@ -113,6 +113,6 @@ export function formatAssistantStatsSnapshot(input: AssistantStatsSnapshotInput)
 } {
   return {
     line: `${input.allMembersTotal} all members · ${input.subscribedClients} active subscribed clients · ${input.compliantActiveTrainers} active trainers · ${input.pendingTrainers} pending trainers · ${input.vipTrialClients} VIP trials · ${input.uniqueVisitors7d} visitors (7d)`,
-    hint: "Active subscribed clients = Free plan + VIP plan (excludes VIP trial and test accounts).",
+    hint: "Active subscribed clients = VIP trial + Free plan + paying VIP (excludes test accounts).",
   };
 }

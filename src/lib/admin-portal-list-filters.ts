@@ -198,13 +198,18 @@ export function adminMemberOverviewVipTrialClientWhere(now = new Date()): Prisma
   };
 }
 
-/** Clients on Free plan — FREEMIUM tier, not in VIP trial (excludes test/QA). */
+/**
+ * Clients on Free plan after VIP trial ended (excludes test/QA).
+ * Requires `platformTrialConsumed` so BETA clients still in the 60-day VIP trial
+ * (or legacy rows with null `platformTrialEndsAt`) are not counted as Free plan.
+ */
 export function adminMemberOverviewFreePlanClientWhere(now = new Date()): Prisma.ClientWhereInput {
   return {
     ...adminMemberOverviewActiveClientWhere(),
     clientPlanTier: "FREEMIUM",
     vipSubscriptionActive: false,
-    OR: [{ platformTrialEndsAt: null }, { platformTrialEndsAt: { lte: now } }],
+    platformTrialConsumed: true,
+    NOT: { platformTrialEndsAt: { gt: now } },
   };
 }
 
@@ -237,16 +242,27 @@ export function adminMemberOverviewLegacyStripeTrialWhere(): Prisma.ClientWhereI
   };
 }
 
-/** Active Free + VIP clients for inactivity exclusions (excludes VIP trial and test/QA). */
+/** Active subscribed clients — VIP trial, Free plan, or paying VIP (excludes test/QA). */
 export function adminMemberOverviewSubscribedClientWhere(now = new Date()): Prisma.ClientWhereInput {
   return {
     ...adminMemberOverviewActiveClientWhere(),
     OR: [
+      {
+        platformTrialEndsAt: { gt: now },
+        NOT: {
+          AND: [
+            { stripeSubscriptionActive: true },
+            { stripeSubscriptionId: { not: null } },
+            { stripeSubscriptionId: { not: "" } },
+          ],
+        },
+      },
       { vipSubscriptionActive: true, vipSubscriptionId: { not: null } },
       {
         clientPlanTier: "FREEMIUM",
         vipSubscriptionActive: false,
-        OR: [{ platformTrialEndsAt: null }, { platformTrialEndsAt: { lte: now } }],
+        platformTrialConsumed: true,
+        NOT: { platformTrialEndsAt: { gt: now } },
       },
     ],
   };

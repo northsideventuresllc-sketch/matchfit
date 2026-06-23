@@ -58,7 +58,7 @@ export function MemberOverviewSection({ panel }: { panel: AdminMemberOverviewPan
       accent: "orange",
     },
     { label: "VIP Clients (FREE trial)", value: panel.vipTrialClients, hint: "VIP clients in complimentary free trial", accent: "violet" },
-    { label: "Active Subscribed Clients", value: panel.subscribedClients, hint: "Active Free plan + VIP plan (excludes test accounts)", accent: "emerald" },
+    { label: "ACTIVE SUBSCRIBED CLIENTS", value: panel.subscribedClients, hint: "VIP trial + Free plan + paying VIP (excludes test accounts)", accent: "emerald" },
     { label: "Free Plan Clients", value: panel.freePlanClients, hint: "On Free Plan" },
     { label: "Active VIP Clients", value: panel.activeVipClients, hint: "VIP subscribers in good standing with payment", accent: "emerald" },
     { label: "Inactive Clients", value: panel.inactiveClients, hint: "No site activity; Free and VIP subscribers still count as active" },
@@ -598,12 +598,6 @@ export function FinancesDetailSection({ finances, embedded }: { finances: AdminF
   const body = (
     <>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="VIP Clients (FREE trial)"
-          value={finances.clientsInVipTrial}
-          hint="Complimentary card-free VIP trial at sign-up"
-          accent="violet"
-        />
         <StatCard label="Free Plan Clients" value={finances.freePlanClients} hint="On Free Plan" />
         <StatCard
           label="Active VIP subscribers"

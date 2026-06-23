@@ -26,7 +26,7 @@ export type AdminMemberOverviewPanel = {
   allMembersTotal: number;
   /** Complimentary card-free VIP trial at sign-up. */
   vipTrialClients: number;
-  /** Active Free plan + Active VIP clients (excludes VIP trial and test/QA). */
+  /** VIP trial + Free plan + paying VIP clients (excludes test/QA). */
   subscribedClients: number;
   /** No recent site activity; Free and VIP subscribers still count as active. */
   inactiveClients: number;
@@ -127,7 +127,7 @@ export async function getAdminMemberOverviewPanel(now = new Date()): Promise<Adm
     prisma.trainer.count({ where: adminPendingTrainerWhere() }),
   ]);
 
-  const subscribedClients = freePlanClients + activeVipClients;
+  const subscribedClients = vipTrialClients + freePlanClients + activeVipClients;
 
   return {
     allMembersTotal,

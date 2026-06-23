@@ -119,7 +119,7 @@ describe("admin-member-overview", () => {
     expect(result).toEqual({
       allMembersTotal: 42,
       vipTrialClients: 7,
-      subscribedClients: 25,
+      subscribedClients: 32,
       inactiveClients: 9,
       freePlanClients: 18,
       activeVipClients: 7,

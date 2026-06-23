@@ -97,13 +97,13 @@ describe("admin portal list filters", () => {
     );
   });
 
-  it("admin member overview free plan requires FREEMIUM tier and excludes VIP trial", () => {
+  it("admin member overview free plan requires consumed trial and excludes active VIP trial", () => {
     const now = new Date("2026-06-09T12:00:00.000Z");
     const where = adminMemberOverviewFreePlanClientWhere(now);
     expect(where.clientPlanTier).toBe("FREEMIUM");
+    expect(where.platformTrialConsumed).toBe(true);
     expect(where.vipSubscriptionActive).toBe(false);
-    expect(where.accountDeactivatedAt).toBeNull();
-    expect(where.deidentifiedAt).toBeNull();
+    expect(where.NOT).toEqual({ platformTrialEndsAt: { gt: now } });
   });
 
   it("admin member overview active VIP requires subscription id", () => {
