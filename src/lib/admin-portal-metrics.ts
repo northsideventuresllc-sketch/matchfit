@@ -78,6 +78,17 @@ import { parseTopOffering } from "@/lib/admin-portal-parsers";
 import { homepageDisplayDayKey } from "@/lib/featured-eastern-calendar";
 import { repairStaleTrainerPendingRecords } from "@/lib/trainer-pending-onboarding";
 import { buildTrainerPendingQualifications } from "@/lib/trainer-membership-status";
+import {
+  ADMIN_FITPRO_TIER_CATEGORIES,
+  adminFitProTiersForCategory,
+  type AdminFitProTierCategoryId,
+} from "@/lib/admin-fitpro-tier-categories";
+import {
+  buildAdminFitProPipelineTierPanels,
+  countActiveFitProsForTiers,
+  countPendingFitProsForTiers,
+  countPremiumStudioForTiers,
+} from "@/lib/admin-fitpro-pipeline-metrics";
 
 const CLIENT_SIGNUP_PATHS = ["/client/sign-up", "/client/sign-up/complete"];
 const TRAINER_SIGNUP_PATHS = ["/trainer/signup", "/trainer/sign-up", "/trainer/signup/complete"];
@@ -564,34 +575,78 @@ export async function getAdminClientPipelinePanel(now = new Date()): Promise<Adm
   };
 }
 
-export async function getAdminPremiumTrainerActivityPanel(now = new Date()): Promise<AdminPremiumTrainerActivityPanel> {
-  const dayKey = todayFeaturedDayKey(now);
-  const since30d = sinceFromWindow("30d", now);
+async function loadFitProActivityForCategory(
+  categoryId: AdminFitProTierCategoryId,
+  label: string,
+  now: Date,
+  dayKey: string,
+  since30d: Date,
+) {
+  const tiers = adminFitProTiersForCategory(categoryId);
+  const tierTrainerIds = await prisma.trainer
+    .findMany({
+      where: {
+        ...launchTrainerCountWhere(),
+        profile: { is: { accountTier: { in: tiers } } },
+      },
+      select: { id: true },
+    })
+    .then((rows) => rows.map((r) => r.id));
 
-  const [premiumTrainers, featuredSlotsToday, activeAdvertisements, tokenRevenue, recentBids] = await Promise.all([
-    countLaunchPremiumTrainers(),
-    prisma.featuredDailyAllocation.count({ where: { displayDayKey: dayKey } }),
+  const [
+    activeFitPros,
+    pendingFitPros,
+    premiumStudioEnabled,
+    featuredSlotsToday,
+    activeAdvertisements,
+    tokenRevenue,
+    recentBids,
+  ] = await Promise.all([
+    countActiveFitProsForTiers(tiers),
+    countPendingFitProsForTiers(tiers),
+    countPremiumStudioForTiers(tiers),
+    prisma.featuredDailyAllocation.count({
+      where: {
+        displayDayKey: dayKey,
+        trainer: {
+          ...launchTrainerCountWhere(),
+          profile: { is: { accountTier: { in: tiers } } },
+        },
+      },
+    }),
     prisma.trainerFitHubPostPromotion.count({
       where: {
         endsAt: { gt: now },
-        trainer: launchTrainerCountWhere(),
+        trainer: {
+          ...launchTrainerCountWhere(),
+          profile: { is: { accountTier: { in: tiers } } },
+        },
       },
     }),
-    prisma.platformRevenueEvent
-      .aggregate({
-        where: mergeLiveRevenueWhere({
-          category: "ONE_TIME_PURCHASE",
-          createdAt: { gte: since30d },
-          metaJson: { contains: "trainer_promo_tokens" },
-        }),
-        _sum: { revenueCents: true },
-      })
-      .then((r) => r._sum.revenueCents ?? 0)
-      .catch(() => 0),
+    tierTrainerIds.length === 0
+      ? Promise.resolve(0)
+      : prisma.platformRevenueEvent
+          .aggregate({
+            where: mergeLiveRevenueWhere({
+              category: "ONE_TIME_PURCHASE",
+              createdAt: { gte: since30d },
+              metaJson: { contains: "trainer_promo_tokens" },
+              trainerId: { in: tierTrainerIds },
+            }),
+            _sum: { revenueCents: true },
+          })
+          .then((r) => r._sum.revenueCents ?? 0)
+          .catch(() => 0),
     prisma.featuredPlacementBid.findMany({
-      where: { displayDayKey: dayKey },
+      where: {
+        displayDayKey: dayKey,
+        trainer: {
+          ...launchTrainerCountWhere(),
+          profile: { is: { accountTier: { in: tiers } } },
+        },
+      },
       orderBy: { amountCents: "desc" },
-      take: 8,
+      take: 6,
       select: {
         amountCents: true,
         regionZipPrefix: true,
@@ -600,6 +655,67 @@ export async function getAdminPremiumTrainerActivityPanel(now = new Date()): Pro
       },
     }),
   ]);
+
+  return {
+    categoryId,
+    label,
+    activeFitPros,
+    pendingFitPros,
+    premiumStudioEnabled,
+    featuredSlotsToday,
+    activeAdvertisements,
+    tokenRevenueCents: tokenRevenue,
+    recentBids: recentBids.map((b) => ({
+      trainerUsername: b.trainer.username,
+      regionZipPrefix: b.regionZipPrefix,
+      amountCents: b.amountCents,
+      displayDayKey: b.displayDayKey,
+    })),
+  };
+}
+
+export async function getAdminPremiumTrainerActivityPanel(now = new Date()): Promise<AdminPremiumTrainerActivityPanel> {
+  const dayKey = todayFeaturedDayKey(now);
+  const since30d = sinceFromWindow("30d", now);
+
+  const [premiumTrainers, featuredSlotsToday, activeAdvertisements, tokenRevenue, recentBids, tierCategories] =
+    await Promise.all([
+      countLaunchPremiumTrainers(),
+      prisma.featuredDailyAllocation.count({ where: { displayDayKey: dayKey } }),
+      prisma.trainerFitHubPostPromotion.count({
+        where: {
+          endsAt: { gt: now },
+          trainer: launchTrainerCountWhere(),
+        },
+      }),
+      prisma.platformRevenueEvent
+        .aggregate({
+          where: mergeLiveRevenueWhere({
+            category: "ONE_TIME_PURCHASE",
+            createdAt: { gte: since30d },
+            metaJson: { contains: "trainer_promo_tokens" },
+          }),
+          _sum: { revenueCents: true },
+        })
+        .then((r) => r._sum.revenueCents ?? 0)
+        .catch(() => 0),
+      prisma.featuredPlacementBid.findMany({
+        where: { displayDayKey: dayKey },
+        orderBy: { amountCents: "desc" },
+        take: 8,
+        select: {
+          amountCents: true,
+          regionZipPrefix: true,
+          displayDayKey: true,
+          trainer: { select: { username: true } },
+        },
+      }),
+      Promise.all(
+        ADMIN_FITPRO_TIER_CATEGORIES.map((category) =>
+          loadFitProActivityForCategory(category.id, category.label, now, dayKey, since30d),
+        ),
+      ),
+    ]);
 
   return {
     premiumTrainers,
@@ -612,6 +728,7 @@ export async function getAdminPremiumTrainerActivityPanel(now = new Date()): Pro
       amountCents: b.amountCents,
       displayDayKey: b.displayDayKey,
     })),
+    tierCategories,
   };
 }
 
@@ -691,6 +808,7 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
         deidentifiedAt: true,
         profile: {
           select: {
+            accountTier: true,
             hasSignedTOS: true,
             complianceWindowStartedAt: true,
             hasPaidRegistrationFee: true,
@@ -714,7 +832,7 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
   const totalInPipeline = pendingTrainerCount;
   const pct = (count: number) => (totalInPipeline > 0 ? Math.round((count / totalInPipeline) * 1000) / 10 : 0);
 
-  const stages: AdminTrainerPipelineStage[] = [
+  const preTierStages: AdminTrainerPipelineStage[] = [
     { id: "started_signup", label: "Started Sign Up", count: startedSignup, percentOfSignup: pct(startedSignup) },
     {
       id: "basic_info_no_tos",
@@ -722,6 +840,10 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
       count: basicInfoNoTos,
       percentOfSignup: pct(basicInfoNoTos),
     },
+  ];
+
+  const stages: AdminTrainerPipelineStage[] = [
+    ...preTierStages,
     { id: "signup", label: "Pending Trainers (Onboarding)", count: pendingTrainerCount, percentOfSignup: pct(pendingTrainerCount) },
     { id: "bg_submitted", label: "Background Check Submitted/Pending", count: n(bgSubmitted[0]), percentOfSignup: pct(n(bgSubmitted[0])) },
     { id: "bg_review", label: "Background Check Submitted/In Review", count: n(bgFailed[0]), percentOfSignup: pct(n(bgFailed[0])) },
@@ -729,6 +851,8 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
     { id: "docs_pending", label: "Documents Uploaded/Not Approved", count: n(docsPending[0]), percentOfSignup: pct(n(docsPending[0])) },
     { id: "live", label: "Documents Approved/LIVE", count: n(live[0]), percentOfSignup: pct(n(live[0])) },
   ];
+
+  const tierCategories = await buildAdminFitProPipelineTierPanels();
 
   const pendingTrainers: AdminTrainerPipelineEntry[] = filterOwnerTestIdentities(
     pendingTrainerRows,
@@ -743,12 +867,13 @@ export async function getAdminTrainerPipelinePanel(): Promise<AdminTrainerPipeli
       username: t.username,
       displayName:
         t.preferredName?.trim() || [t.firstName, t.lastName].filter(Boolean).join(" ").trim() || t.username,
+      accountTier: t.profile?.accountTier ?? null,
       deidentified: Boolean(t.deidentifiedAt),
       ...qualifications,
     };
   });
 
-  return { totalInPipeline, stages, pendingTrainers };
+  return { totalInPipeline, preTierStages, tierCategories, stages, pendingTrainers };
 }
 
 async function loadFinanceWindow(since: Date | null): Promise<AdminFinanceWindowSnapshot> {

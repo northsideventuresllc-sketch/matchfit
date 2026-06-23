@@ -16,8 +16,12 @@ import type {
   AdminPremiumTrainerActivityPanel,
   AdminRevenueSnapshot,
   AdminSiteActivityPanel,
+  AdminTrainerPipelineEntry,
   AdminTrainerPipelinePanel,
+  AdminFitProActivityTierPanel,
+  AdminFitProPipelineTierPanel,
 } from "@/lib/admin-portal-types";
+import { fpAccountTierDisplayName } from "@/lib/fp-account-tier-types";
 import type { AdPerformancePanel } from "@/lib/ad-platform-performance";
 import { formatUsdFromCents } from "@/lib/admin-portal-types";
 
@@ -109,6 +113,184 @@ function MetricsSection(props: { title: string; description?: string; children: 
       {props.description ? <p className="mt-1 text-sm text-white/50">{props.description}</p> : null}
       <div className="mt-4">{props.children}</div>
     </section>
+  );
+}
+
+function NestedCollapsible(props: {
+  title: string;
+  subtitle?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(props.defaultOpen ?? false);
+
+  return (
+    <div className="rounded-xl border border-white/[0.08] bg-[#0E1016]/70">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="flex w-full items-start gap-3 px-3 py-3 text-left transition hover:bg-white/[0.03] sm:px-4"
+      >
+        <svg
+          aria-hidden
+          viewBox="0 0 20 20"
+          className={`mt-0.5 size-4 shrink-0 text-[#FF7E00]/80 transition-transform ${open ? "rotate-180" : ""}`}
+          fill="currentColor"
+        >
+          <path
+            fillRule="evenodd"
+            d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+            clipRule="evenodd"
+          />
+        </svg>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[11px] font-black uppercase tracking-[0.14em] text-white/80">{props.title}</span>
+          {props.subtitle ? <span className="mt-1 block text-xs text-white/45">{props.subtitle}</span> : null}
+          {!open ? (
+            <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.1em] text-[#FF7E00]/65">
+              Collapsed — click to expand
+            </span>
+          ) : null}
+        </span>
+      </button>
+      {open ? <div className="border-t border-white/[0.06] px-3 py-3 sm:px-4 sm:py-4">{props.children}</div> : null}
+    </div>
+  );
+}
+
+function FitProPendingTrainerList(props: {
+  trainers: AdminTrainerPipelineEntry[];
+  selectedTrainerId: string | null;
+  onSelectTrainer: (trainerId: string | null) => void;
+}) {
+  const selected = props.trainers.find((t) => t.trainerId === props.selectedTrainerId) ?? null;
+
+  return (
+    <>
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Pending Fitness Pros</p>
+      <div className="mt-2 max-h-56 space-y-1.5 overflow-y-auto">
+        {props.trainers.length === 0 ? (
+          <p className="text-sm text-white/45">No pending Fitness Pros in this category.</p>
+        ) : (
+          props.trainers.map((t) => (
+            <button
+              key={t.trainerId}
+              type="button"
+              onClick={() =>
+                props.onSelectTrainer(t.trainerId === props.selectedTrainerId ? null : t.trainerId)
+              }
+              className={`block w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
+                props.selectedTrainerId === t.trainerId
+                  ? "border-[#FF7E00]/35 bg-[#FF7E00]/10 text-white"
+                  : t.deidentified
+                    ? "border-red-500/20 bg-red-500/[0.06] text-white/75 hover:bg-red-500/10"
+                    : "border-white/[0.05] bg-black/20 text-white/75 hover:bg-white/[0.04]"
+              }`}
+            >
+              {t.displayName}{" "}
+              {t.deidentified ? (
+                <span className="text-[10px] font-black uppercase tracking-[0.12em] text-red-300/80">Removed</span>
+              ) : null}{" "}
+              <span className="font-mono text-xs text-white/40">@{t.username}</span>
+              {t.accountTier ? (
+                <span className="mt-0.5 block text-[10px] text-white/40">{fpAccountTierDisplayName(t.accountTier)}</span>
+              ) : null}
+            </button>
+          ))
+        )}
+      </div>
+      {selected ? (
+        <div className="mt-3 rounded-xl border border-[#FF7E00]/25 bg-[#FF7E00]/[0.06] p-3 text-[11px] text-white/70">
+          {selected.deidentified ? (
+            <p className="mb-2 font-semibold text-red-300/90">
+              Account deidentified — hidden from marketplace and login. Search by username/email to locate.
+            </p>
+          ) : null}
+          <p>Terms accepted: {selected.termsAccepted ? "Yes" : "No"}</p>
+          <p className="mt-1">7-day compliance window started: {selected.complianceWindowStarted ? "Yes" : "No"}</p>
+          <p className="mt-1">Onboarding fee paid: {selected.onboardingFeeCompleted ? "Yes" : "No"}</p>
+          <p className="mt-1">
+            Onboarding fee hold placed: {selected.onboardingFeeHoldPlaced ? "Yes" : "No"}
+            {!selected.onboardingFeeCompleted && selected.onboardingFeeHoldPlaced ? (
+              <span className="text-white/45"> (hold only — not captured yet)</span>
+            ) : null}
+          </p>
+          <p className="mt-1">Background check: {selected.backgroundCheckStatus}</p>
+          {selected.backgroundCheckReviewStatus ? (
+            <p className="mt-1">BG review: {selected.backgroundCheckReviewStatus}</p>
+          ) : null}
+          <p className="mt-1">
+            Documents: {selected.documentsComplete ? "Complete" : selected.documentsPending ? "Pending" : "Not uploaded"}
+          </p>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function FitProPipelineTierPanel(props: { panel: AdminFitProPipelineTierPanel }) {
+  const [selectedTrainerId, setSelectedTrainerId] = useState<string | null>(null);
+
+  return (
+    <NestedCollapsible
+      title={props.panel.label}
+      subtitle={`${props.panel.totalInPipeline} in pipeline · ${props.panel.pendingTrainers.length} shown`}
+    >
+      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {props.panel.checkpoints.map((checkpoint) => (
+          <li key={checkpoint.id} className="rounded-xl border border-[#FF7E00]/25 bg-[#FF7E00]/[0.06] px-3 py-2.5">
+            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#FFD34E]/80">{checkpoint.label}</p>
+            <p className="mt-1 text-2xl font-black tabular-nums text-white">{checkpoint.count}</p>
+            {props.panel.totalInPipeline > 0 ? (
+              <p className="mt-0.5 text-[10px] text-white/35">{checkpoint.percentOfCategory}% of category pipeline</p>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+      <div className="mt-5">
+        <FitProPendingTrainerList
+          trainers={props.panel.pendingTrainers}
+          selectedTrainerId={selectedTrainerId}
+          onSelectTrainer={setSelectedTrainerId}
+        />
+      </div>
+    </NestedCollapsible>
+  );
+}
+
+function FitProActivityTierPanel(props: { panel: AdminFitProActivityTierPanel }) {
+  return (
+    <NestedCollapsible
+      title={props.panel.label}
+      subtitle={`${props.panel.activeFitPros} active · ${props.panel.pendingFitPros} pending onboarding`}
+    >
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <StatCard label="Active FitPros" value={props.panel.activeFitPros} accent="emerald" />
+        <StatCard label="Pending onboarding" value={props.panel.pendingFitPros} />
+        <StatCard label="Premium studio enabled" value={props.panel.premiumStudioEnabled} accent="orange" />
+        <StatCard label="Featured slots today" value={props.panel.featuredSlotsToday} />
+        <StatCard label="Active advertisements" value={props.panel.activeAdvertisements} />
+        <StatCard
+          label="Token revenue (30d)"
+          value={formatUsdFromCents(props.panel.tokenRevenueCents)}
+          accent="emerald"
+        />
+        <StatCard label="Bids today" value={props.panel.recentBids.length} hint="Featured placement bids" />
+      </div>
+      {props.panel.recentBids.length > 0 ? (
+        <ul className="mt-4 space-y-1.5 text-[11px] text-white/55">
+          {props.panel.recentBids.map((b, i) => (
+            <li key={`${b.trainerUsername}-${i}`} className="flex justify-between gap-3 rounded-lg border border-white/[0.05] px-3 py-2">
+              <span>
+                @{b.trainerUsername} · ZIP {b.regionZipPrefix} · {b.displayDayKey}
+              </span>
+              <span className="shrink-0 font-semibold text-white">{formatUsdFromCents(b.amountCents)}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </NestedCollapsible>
   );
 }
 
@@ -415,26 +597,22 @@ export function ClientPipelineSection({ panel }: { panel: AdminClientPipelinePan
 
 export function PremiumTrainerActivitySection({ panel }: { panel: AdminPremiumTrainerActivityPanel }) {
   return (
-    <MetricsSection title="Premium Fitness Pro activity" description="Premium studio, featured slots, ads, tokens, and bidding.">
+    <MetricsSection
+      title="FitPro Activity"
+      description="Featured slots, ads, token revenue, and bidding by FitPro type."
+    >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <StatCard label="Premium Fitness Pros" value={panel.premiumTrainers} accent="orange" />
+        <StatCard label="Premium studio FitPros" value={panel.premiumTrainers} accent="orange" />
         <StatCard label="Featured slots today" value={panel.featuredSlotsToday} />
         <StatCard label="Active advertisements" value={panel.activeAdvertisements} />
         <StatCard label="Token revenue (30d)" value={formatUsdFromCents(panel.tokenRevenueCents)} accent="emerald" />
         <StatCard label="Bids today" value={panel.recentBids.length} hint="Featured placement bids" />
       </div>
-      {panel.recentBids.length > 0 ? (
-        <ul className="mt-4 space-y-1.5 text-[11px] text-white/55">
-          {panel.recentBids.map((b, i) => (
-            <li key={`${b.trainerUsername}-${i}`} className="flex justify-between gap-3 rounded-lg border border-white/[0.05] px-3 py-2">
-              <span>
-                @{b.trainerUsername} · ZIP {b.regionZipPrefix} · {b.displayDayKey}
-              </span>
-              <span className="shrink-0 font-semibold text-white">{formatUsdFromCents(b.amountCents)}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <div className="mt-5 space-y-3">
+        {panel.tierCategories.map((category) => (
+          <FitProActivityTierPanel key={category.categoryId} panel={category} />
+        ))}
+      </div>
     </MetricsSection>
   );
 }
@@ -520,75 +698,28 @@ export function AdPerformanceSection({ panel }: { panel: AdPerformancePanel }) {
 }
 
 export function TrainerPipelineSection({ pipeline }: { pipeline: AdminTrainerPipelinePanel }) {
-  const [selectedTrainerId, setSelectedTrainerId] = useState<string | null>(null);
-  const selected = pipeline.pendingTrainers.find((t) => t.trainerId === selectedTrainerId) ?? null;
-
   return (
     <MetricsSection
-      title="Fitness Pro onboarding pipeline"
-      description={`${pipeline.totalInPipeline} Fitness Pros past Terms of Service.`}
+      title="FitPro pipeline"
+      description={`${pipeline.totalInPipeline} Fitness Pros past Terms of Service — checkpoints by FitPro type.`}
     >
-      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        {pipeline.stages.map((s) => (
-          <li key={s.id} className="rounded-xl border border-[#FF7E00]/25 bg-[#FF7E00]/[0.06] px-3 py-2.5">
-            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#FFD34E]/80">{s.label}</p>
-            <p className="mt-1 text-2xl font-black tabular-nums text-white">{s.count}</p>
-          </li>
-        ))}
-      </ul>
-      <div className="mt-5">
-        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Pending Fitness Pros</p>
-        <div className="mt-2 max-h-56 space-y-1.5 overflow-y-auto">
-          {pipeline.pendingTrainers.length === 0 ? (
-            <p className="text-sm text-white/45">No pending Fitness Pros.</p>
-          ) : (
-            pipeline.pendingTrainers.map((t) => (
-              <button
-                key={t.trainerId}
-                type="button"
-                onClick={() => setSelectedTrainerId(t.trainerId === selectedTrainerId ? null : t.trainerId)}
-                className={`block w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
-                  selectedTrainerId === t.trainerId
-                    ? "border-[#FF7E00]/35 bg-[#FF7E00]/10 text-white"
-                    : t.deidentified
-                      ? "border-red-500/20 bg-red-500/[0.06] text-white/75 hover:bg-red-500/10"
-                      : "border-white/[0.05] bg-black/20 text-white/75 hover:bg-white/[0.04]"
-                }`}
-              >
-                {t.displayName}{" "}
-                {t.deidentified ? (
-                  <span className="text-[10px] font-black uppercase tracking-[0.12em] text-red-300/80">Removed</span>
-                ) : null}{" "}
-                <span className="font-mono text-xs text-white/40">@{t.username}</span>
-              </button>
-            ))
-          )}
+      {pipeline.preTierStages.length > 0 ? (
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Before tier selection</p>
+          <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+            {pipeline.preTierStages.map((stage) => (
+              <li key={stage.id} className="rounded-xl border border-white/[0.08] bg-black/20 px-3 py-2.5">
+                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-white/50">{stage.label}</p>
+                <p className="mt-1 text-2xl font-black tabular-nums text-white">{stage.count}</p>
+              </li>
+            ))}
+          </ul>
         </div>
-        {selected ? (
-          <div className="mt-3 rounded-xl border border-[#FF7E00]/25 bg-[#FF7E00]/[0.06] p-3 text-[11px] text-white/70">
-            {selected.deidentified ? (
-              <p className="mb-2 font-semibold text-red-300/90">
-                Account deidentified — hidden from marketplace and login. Search by username/email to locate.
-              </p>
-            ) : null}
-            <p>Terms accepted: {selected.termsAccepted ? "Yes" : "No"}</p>
-            <p className="mt-1">7-day compliance window started: {selected.complianceWindowStarted ? "Yes" : "No"}</p>
-            <p className="mt-1">Onboarding fee paid: {selected.onboardingFeeCompleted ? "Yes" : "No"}</p>
-            <p className="mt-1">
-              Onboarding fee hold placed: {selected.onboardingFeeHoldPlaced ? "Yes" : "No"}
-              {!selected.onboardingFeeCompleted && selected.onboardingFeeHoldPlaced ? (
-                <span className="text-white/45"> (hold only — not captured yet)</span>
-              ) : null}
-            </p>
-            <p className="mt-1">Background check: {selected.backgroundCheckStatus}</p>
-            {selected.backgroundCheckReviewStatus ? (
-              <p className="mt-1">BG review: {selected.backgroundCheckReviewStatus}</p>
-            ) : null}
-            <p className="mt-1">
-              Documents: {selected.documentsComplete ? "Complete" : selected.documentsPending ? "Pending" : "Not uploaded"}
-            </p>
-          </div>
-        ) : null}
+      ) : null}
+      <div className={`space-y-3 ${pipeline.preTierStages.length > 0 ? "mt-5" : ""}`}>
+        {pipeline.tierCategories.map((category) => (
+          <FitProPipelineTierPanel key={category.categoryId} panel={category} />
+        ))}
       </div>
     </MetricsSection>
   );

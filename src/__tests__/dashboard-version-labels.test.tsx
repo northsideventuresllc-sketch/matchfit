@@ -112,13 +112,14 @@ const EMPTY_OVERVIEW: AdminPortalOverview = {
     attribution: [],
   },
   clientPipeline: { stages: [], entries: [] },
-  pipeline: { totalInPipeline: 0, stages: [], pendingTrainers: [] },
+  pipeline: { totalInPipeline: 0, preTierStages: [], tierCategories: [], stages: [], pendingTrainers: [] },
   premiumActivity: {
     premiumTrainers: 0,
     featuredSlotsToday: 0,
     activeAdvertisements: 0,
     tokenRevenueCents: 0,
     recentBids: [],
+    tierCategories: [],
   },
   emailStats: {
     windowDays: 7,

@@ -144,6 +144,7 @@ export type AdminTrainerPipelineEntry = {
   trainerId: string;
   username: string;
   displayName: string;
+  accountTier: string | null;
   deidentified?: boolean;
   termsAccepted: boolean;
   complianceWindowStarted: boolean;
@@ -155,10 +156,49 @@ export type AdminTrainerPipelineEntry = {
   documentsPending: boolean;
 };
 
+export type AdminFitProPipelineCheckpoint = {
+  id: string;
+  label: string;
+  count: number;
+  percentOfCategory: number;
+};
+
+export type AdminFitProPipelineTierPanel = {
+  categoryId: string;
+  label: string;
+  totalInPipeline: number;
+  checkpoints: AdminFitProPipelineCheckpoint[];
+  pendingTrainers: AdminTrainerPipelineEntry[];
+};
+
 export type AdminTrainerPipelinePanel = {
   totalInPipeline: number;
+  /** Signups before tier selection — shared across all FitPro types. */
+  preTierStages: AdminTrainerPipelineStage[];
+  tierCategories: AdminFitProPipelineTierPanel[];
+  /** @deprecated Legacy aggregate stages — prefer tierCategories. */
   stages: AdminTrainerPipelineStage[];
+  /** @deprecated Legacy aggregate list — prefer tierCategories. */
   pendingTrainers: AdminTrainerPipelineEntry[];
+};
+
+export type AdminFitProActivityBid = {
+  trainerUsername: string;
+  regionZipPrefix: string;
+  amountCents: number;
+  displayDayKey: string;
+};
+
+export type AdminFitProActivityTierPanel = {
+  categoryId: string;
+  label: string;
+  activeFitPros: number;
+  pendingFitPros: number;
+  premiumStudioEnabled: number;
+  featuredSlotsToday: number;
+  activeAdvertisements: number;
+  tokenRevenueCents: number;
+  recentBids: AdminFitProActivityBid[];
 };
 
 export type AdminSiteActivityPanel = {
@@ -174,7 +214,8 @@ export type AdminPremiumTrainerActivityPanel = {
   featuredSlotsToday: number;
   activeAdvertisements: number;
   tokenRevenueCents: number;
-  recentBids: { trainerUsername: string; regionZipPrefix: string; amountCents: number; displayDayKey: string }[];
+  recentBids: AdminFitProActivityBid[];
+  tierCategories: AdminFitProActivityTierPanel[];
 };
 
 export type AdminEmailStatsPanel = {
