@@ -757,6 +757,23 @@ model Trainer {
 
   internalQaDailyCursor InternalQaTrainerDailyCursor?
 
+  /// Stripe customer for FP tier subscriptions (Independent / Elite) and à la carte promote tokens.
+  stripeCustomerId String?
+  stripeSubscriptionId String?
+  stripeSubscriptionActive Boolean @default(false)
+  /// External website / booking link (Independent + Elite tiers).
+  externalWebsiteUrl String?
+  /// Elite dual-view dashboard: match_fit_pro | independent_fitness_pro
+  eliteDashboardViewMode String?
+
+  fpDocuments           FpDocument[]
+  tierSwitchHistory     TierSwitchHistory[]
+  fpListingStats        FpListingStats?
+  featuredListings      FeaturedListing[]
+  fpPromoteTokenLedger  FpPromoteTokenLedger[]
+  supportGroupsCreated  SupportGroup[]        @relation("SupportGroupCreator")
+  fpAdIntegrations      FpAdIntegration[]
+
   @@map("trainers")
   @@schema("public")
 }
@@ -1259,6 +1276,26 @@ model TrainerProfile {
 
   /// JSON string array (max 4) of `TrainerDashboardQuickLinkId` keys for the trainer home Quick Links card.
   dashboardQuickLinkIdsJson String?
+
+  /// FP account tier: match_fit_pro | match_fit_premium_pro | independent_fitness_pro | elite_fitness_pro
+  accountTier String?
+  tierSwitchedAt DateTime?
+  tierSwitchCount Int @default(0)
+  /// Pending tier change (awaiting docs, background check, or billing cycle end).
+  pendingTier String?
+  /// active | paused | suspended | pending_docs | pending_background
+  listingStatus String @default("pending_docs")
+  listingPausedAt DateTime?
+  billingCycleEnd DateTime?
+  gracePeriodEnd DateTime?
+  docsSubmitted Boolean @default(false)
+  docsApproved Boolean @default(false)
+  docsRejectionCount Int @default(0)
+  docsLastRejectedAt DateTime?
+  /// Once true, background check never required again on tier switches.
+  backgroundCheckPassed Boolean @default(false)
+  promoteTokensBalance Int @default(0)
+  promoteTokensResetAt DateTime?
 
   @@map("trainer_profiles")
   @@schema("public")
@@ -2417,6 +2454,176 @@ model OutreachDailyTemplate {
 
   @@index([platform, targetGroup, createdAt])
   @@map("outreach_daily_templates")
+  @@schema("public")
+}
+
+/// Uploaded compliance / business documents for FP account tiers.
+model FpDocument {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  /// business_registration | liability_insurance | professional_certification | facility_proof | headshot | business_logo
+  docType String
+  fileUrl String
+  submittedAt DateTime @default(now())
+  /// pending | approved | rejected
+  status String @default("pending")
+  reviewedBy String?
+  reviewedAt DateTime?
+  rejectionReason String?
+
+  @@index([trainerId, docType])
+  @@index([trainerId, status])
+  @@map("fp_documents")
+  @@schema("public")
+}
+
+/// Audit log for FP account tier switches.
+model TierSwitchHistory {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  fromTier String?
+  toTier   String
+  switchedAt DateTime @default(now())
+  /// trainer | admin | system
+  initiatedBy String @default("trainer")
+
+  @@index([trainerId, switchedAt])
+  @@map("tier_switch_history")
+  @@schema("public")
+}
+
+/// Public-facing listing stats for Independent + Elite FPs.
+model FpListingStats {
+  trainerId String @id
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  profileViews          Int @default(0)
+  clickThroughs         Int @default(0)
+  reviewCountInternal   Int @default(0)
+  reviewCountExternal   Int @default(0)
+  memberSince           DateTime @default(now())
+  activeListingsCount   Int @default(0)
+  updatedAt             DateTime @updatedAt
+
+  @@map("fp_listing_stats")
+  @@schema("public")
+}
+
+/// Weekly featured listing auction slots (zip cluster / metro / statewide).
+model FeaturedListing {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  /// zip_cluster | metro | statewide
+  regionTier String
+  zipCodes   String[]
+  metroArea  String?
+  state      String?
+
+  bidAmount   Int
+  bidStart    DateTime
+  bidEnd      DateTime
+  slotPosition Int?
+  isActive    Boolean @default(false)
+
+  @@index([regionTier, isActive, bidEnd])
+  @@index([trainerId, bidEnd])
+  @@map("featured_listings")
+  @@schema("public")
+}
+
+/// Tier-based promote token ledger (monthly credits, purchases, spends, expirations).
+model FpPromoteTokenLedger {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  /// credited | spent | purchased | expired
+  action String
+  amount Int
+  referenceId String?
+
+  @@index([trainerId, createdAt])
+  @@map("promote_token_ledger")
+  @@schema("public")
+}
+
+/// POST-BETA: FP support groups (schema placeholder — no UI yet).
+model SupportGroup {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name        String
+  description String?
+  createdByFpId String
+  createdByFp   Trainer @relation("SupportGroupCreator", fields: [createdByFpId], references: [id], onDelete: Cascade)
+
+  /// public | listing_tied
+  groupType String @default("public")
+  /// any | pro | elite
+  tierRequired String @default("any")
+  memberCount Int @default(0)
+  isActive    Boolean @default(true)
+
+  members SupportGroupMember[]
+
+  @@index([createdByFpId])
+  @@map("support_groups")
+  @@schema("public")
+}
+
+/// POST-BETA: support group membership (schema placeholder).
+model SupportGroupMember {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  groupId String
+  group   SupportGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  userId String
+  /// member | moderator | owner
+  role     String @default("member")
+  joinedAt DateTime @default(now())
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@map("support_group_members")
+  @@schema("public")
+}
+
+/// POST-BETA: FB + Google Ads integration (schema placeholder).
+model FpAdIntegration {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  /// facebook | google
+  platform String
+  integrationStatus String @default("disconnected")
+  adAccountId       String?
+  connectedAt       DateTime?
+
+  @@unique([trainerId, platform])
+  @@map("fp_ad_integrations")
   @@schema("public")
 }
 

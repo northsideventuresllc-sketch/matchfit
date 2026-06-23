@@ -53,6 +53,7 @@ vi.mock("@/lib/client-trainer-browse", () => ({
 vi.mock("@/lib/trainer-client-discovery", () => ({
   isTrainerVisibleInClientDiscovery: isTrainerVisibleInClientDiscoveryMock,
   trainerVerificationBadgeForClient: vi.fn().mockReturnValue("verified"),
+  trainerFpTrustBadgeForClient: vi.fn().mockReturnValue(null),
   clientDiscoveryVisibleTrainerProfileWhere: vi.fn(),
   trainerDiscoveryProfileSelect: {},
 }));

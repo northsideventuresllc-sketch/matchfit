@@ -37,6 +37,9 @@ export default async function TrainerDashboardAppLayout({
       profile: {
         select: {
           hasSignedTOS: true,
+          accountTier: true,
+          docsSubmitted: true,
+          docsApproved: true,
           hasUploadedW9: true,
           backgroundCheckStatus: true,
           onboardingTrackCpt: true,

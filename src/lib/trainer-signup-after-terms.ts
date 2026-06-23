@@ -50,6 +50,9 @@ export async function createTrainerAccountAfterTermsAcceptance(
     where: { trainerId },
     select: {
       hasSignedTOS: true,
+      accountTier: true,
+      docsSubmitted: true,
+      docsApproved: true,
       registrationFeeHoldStatus: true,
       hasPaidRegistrationFee: true,
       limitedDashboardUnlockedAt: true,

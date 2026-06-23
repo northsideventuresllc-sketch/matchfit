@@ -14,8 +14,11 @@ import {
   clientDiscoveryVisibleTrainerProfileWhere,
   isTrainerVisibleInClientDiscovery,
   trainerDiscoveryProfileSelect,
+  trainerFpTrustBadgeForClient,
   trainerVerificationBadgeForClient,
 } from "@/lib/trainer-client-discovery";
+import { fpTierMatchesDiscoveryFilter, type ClientTrainerDiscoveryFilter } from "@/lib/fp-fithub-access";
+import { isFpAccountTier } from "@/lib/fp-account-tier-types";
 import { marketplaceActiveTrainerWhere } from "@/lib/account-deletion-grace";
 import { publicMarketplaceVisibleTrainerWhere } from "@/lib/match-fit-public-marketplace-hidden";
 import { prisma } from "@/lib/prisma";
@@ -65,6 +68,12 @@ export async function GET(req: Request) {
       if (scrollGate) return scrollGate;
     }
 
+    const discoveryFilterRaw = url.searchParams.get("trainerType");
+    const discoveryFilter: ClientTrainerDiscoveryFilter =
+      discoveryFilterRaw === "in_house" || discoveryFilterRaw === "listed_businesses"
+        ? discoveryFilterRaw
+        : "both";
+
     const prefs = parseClientMatchPreferencesJson(client.matchPreferencesJson);
 
     const trainers = await prisma.trainer.findMany({
@@ -90,7 +99,13 @@ export async function GET(req: Request) {
       },
     });
 
-    const published = trainers.filter((t) => t.profile && isTrainerVisibleInClientDiscovery(t.profile));
+    const published = trainers.filter((t) => {
+      if (!t.profile || !isTrainerVisibleInClientDiscovery(t.profile)) return false;
+      const tier = t.profile.accountTier && isFpAccountTier(t.profile.accountTier)
+        ? t.profile.accountTier
+        : null;
+      return fpTierMatchesDiscoveryFilter(tier, discoveryFilter);
+    });
 
     const scored = published.map((t) => {
       const profile = t.profile!;
@@ -121,6 +136,7 @@ export async function GET(req: Request) {
           strictPass: trainerPassesStrictBrowse(prefs, metrics),
         },
         verificationBadge: trainerVerificationBadgeForClient(profile),
+        fpTrustBadge: trainerFpTrustBadgeForClient(profile),
       };
     });
 
@@ -184,6 +200,7 @@ export async function GET(req: Request) {
             strictPass: trainerPassesStrictBrowse(prefs, metrics),
           },
           verificationBadge: trainerVerificationBadgeForClient(profile),
+          fpTrustBadge: trainerFpTrustBadgeForClient(profile),
         };
       });
       const synFiltered = relaxed ? synScored : synScored.filter((r) => r.match.strictPass);

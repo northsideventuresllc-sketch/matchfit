@@ -6,10 +6,31 @@ describe("resolveTrainerSignupNextPath", () => {
     expect(resolveTrainerSignupNextPath({ hasSignedTOS: false })).toBe("/trainer/signup/terms");
   });
 
-  it("routes to dashboard when TOS signed and limited dashboard unlocked", () => {
+  it("routes to tier selection when TOS signed but no account tier", () => {
     expect(
       resolveTrainerSignupNextPath({
         hasSignedTOS: true,
+        accountTier: null,
+      }),
+    ).toBe("/trainer/signup/tier");
+  });
+
+  it("routes to docs when tier selected but docs not submitted", () => {
+    expect(
+      resolveTrainerSignupNextPath({
+        hasSignedTOS: true,
+        accountTier: "independent_fitness_pro",
+        docsSubmitted: false,
+      }),
+    ).toBe("/trainer/signup/docs");
+  });
+
+  it("routes to dashboard when TOS signed, tier set, and limited dashboard unlocked", () => {
+    expect(
+      resolveTrainerSignupNextPath({
+        hasSignedTOS: true,
+        accountTier: "match_fit_pro",
+        docsSubmitted: true,
         registrationFeeHoldStatus: "NOT_STARTED",
         limitedDashboardUnlockedAt: new Date().toISOString(),
         onboardingFeePaymentDeadlineAt: new Date(Date.now() + 86400000).toISOString(),
@@ -21,6 +42,8 @@ describe("resolveTrainerSignupNextPath", () => {
     expect(
       resolveTrainerSignupNextPath({
         hasSignedTOS: true,
+        accountTier: "match_fit_pro",
+        docsSubmitted: true,
         registrationFeeHoldStatus: "NOT_STARTED",
         limitedDashboardUnlockedAt: new Date().toISOString(),
         onboardingFeePaymentDeadlineAt: new Date(Date.now() - 86400000).toISOString(),
@@ -32,6 +55,8 @@ describe("resolveTrainerSignupNextPath", () => {
     expect(
       resolveTrainerSignupNextPath({
         hasSignedTOS: true,
+        accountTier: "match_fit_pro",
+        docsSubmitted: true,
         registrationFeeHoldStatus: "HELD",
         limitedDashboardUnlockedAt: new Date().toISOString(),
       }),

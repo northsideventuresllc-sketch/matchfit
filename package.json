@@ -21,6 +21,7 @@
     "beta:vercel-env": "node scripts/vercel-env-push-beta.mjs",
     "stripe:setup:client-vip": "node --env-file=.env scripts/setup-client-vip-stripe.mjs",
     "stripe:setup:client-vip:vercel": "node --env-file=.env scripts/setup-client-vip-stripe.mjs --push-vercel",
+    "stripe:setup:fp-tiers": "node --env-file=.env scripts/setup-fp-tier-stripe.mjs",
     "vercel:env:client-vip": "node scripts/vercel-env-set-client-vip-price.mjs --from-secrets-file",
     "vercel:env:resend": "node scripts/vercel-env-set-resend-production.mjs",
     "vercel:env:anthropic": "node scripts/vercel-env-set-anthropic-production.mjs",
