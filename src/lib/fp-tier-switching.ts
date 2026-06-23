@@ -55,7 +55,7 @@ export function fpTierSwitchLockActive(
   prof: Pick<FpTierProfileFields, "tierSwitchedAt">,
   now = new Date(),
 ): boolean {
-  const ends = fpTierSwitchLockEndsAt(prof, now);
+  const ends = fpTierSwitchLockEndsAt(prof);
   return ends != null && ends.getTime() > now.getTime();
 }
 
@@ -71,7 +71,7 @@ export function evaluateFpTierSwitchEligibility(
   if (prof.accountTier === targetTier) {
     return { allowed: false, reason: "same_tier", lockEndsAt: null, activeSessionCount };
   }
-  const lockEndsAt = fpTierSwitchLockEndsAt(prof, now);
+  const lockEndsAt = fpTierSwitchLockEndsAt(prof);
   if (lockEndsAt && lockEndsAt.getTime() > now.getTime()) {
     return { allowed: false, reason: "lock_active", lockEndsAt, activeSessionCount };
   }
