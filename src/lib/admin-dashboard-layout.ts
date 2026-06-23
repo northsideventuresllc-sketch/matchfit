@@ -68,8 +68,8 @@ export const ADMIN_DASHBOARD_SECTIONS: AdminDashboardSectionMeta[] = [
   },
   {
     id: "trainer-pipeline",
-    label: "Trainer pipeline",
-    description: "Onboarding stages from signup through live dashboard with per-trainer detail.",
+    label: "FitPro pipeline",
+    description: "Onboarding checkpoints by FitPro type — Match Fit, Independent, and Elite — with per-trainer detail.",
     group: "Analytics",
   },
   {
@@ -80,8 +80,8 @@ export const ADMIN_DASHBOARD_SECTIONS: AdminDashboardSectionMeta[] = [
   },
   {
     id: "premium-trainer-activity",
-    label: "Premium trainer activity",
-    description: "Premium trainers, featured slots, active ads, token revenue, and bidding updates.",
+    label: "FitPro Activity",
+    description: "Featured slots, ads, token revenue, and bidding — broken down by FitPro type.",
     group: "Analytics",
   },
   {

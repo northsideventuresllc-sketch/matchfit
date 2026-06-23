@@ -24,6 +24,10 @@ const PRODUCT_PATH_PREFIXES = [
 const IGNORE_PATH_PREFIXES = [
   "src/__tests__/",
   "src/lib/match-fit-product-version",
+  "src/app/admin/",
+  "src/lib/admin-portal-",
+  "src/lib/admin-dashboard-",
+  "src/lib/admin-fitpro-",
   "scripts/bump-product-version.mjs",
   "scripts/verify-product-version-bump.mjs",
   "scripts/product-version-core.mjs",
