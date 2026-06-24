@@ -142,7 +142,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
             Every relationship on Match Fit is different—choose how you move, how you meet, and how often you
             check in. Here are the main ways coaches show up for you.
           </p>
-          <div className="grid gap-5 pt-2 lg:grid-cols-2">
+          <div className="grid gap-5 pt-2 md:grid-cols-2">
             <ServiceCard title="Mobile & in-person" gradientBar="from-[#FFD34E] via-[#FF7E00] to-[#E32B2B]">
               <p>
                 Your coach can meet you where you choose—home, office, park, or another spot that fits your day.

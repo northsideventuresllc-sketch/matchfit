@@ -169,7 +169,7 @@ export default function TrainerAccountTierClient() {
       {showStats && data.listingStats ? (
         <section className="rounded-2xl border border-white/10 bg-[#12141C] p-6">
           <h3 className="font-semibold">Public Stats</h3>
-          <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
+          <dl className="mt-4 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
             <div><dt className="text-white/50">Profile Views</dt><dd className="font-medium">{data.listingStats.profileViews}</dd></div>
             <div><dt className="text-white/50">Click-Throughs</dt><dd className="font-medium">{data.listingStats.clickThroughs}</dd></div>
             <div><dt className="text-white/50">Match Fit Reviews</dt><dd className="font-medium">{data.listingStats.reviewCountInternal}</dd></div>

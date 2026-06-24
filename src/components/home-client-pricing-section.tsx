@@ -63,7 +63,7 @@ export function HomeClientPricingSection({ loggedIn }: { loggedIn: boolean }) {
         available, while <span className="font-semibold text-[#FFD34E]">{CLIENT_VIP_PLAN_LABEL}</span> unlocks full
         discovery, booking, and daily questionnaires.
       </p>
-      <div className="grid gap-5 pt-4 lg:grid-cols-2">
+      <div className="grid gap-5 pt-4 md:grid-cols-2">
         <PricingCard
           eyebrow="Core access"
           title={`${CLIENT_FREE_PLAN_LABEL} plan`}

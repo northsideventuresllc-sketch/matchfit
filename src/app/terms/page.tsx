@@ -96,8 +96,8 @@ export default async function TermsPage() {
   const role = clientId ? "client" : trainerId ? "trainer" : "guest";
 
   return (
-    <main className="min-h-dvh bg-[#0B0C0F] px-5 py-12 text-white sm:px-8">
-      <div className="mx-auto max-w-2xl">
+    <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] px-5 py-12 text-white sm:px-8">
+      <div className="mf-prose-safe mx-auto max-w-2xl">
         <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Terms of Service</h1>
         <p className="mt-4 text-xs uppercase tracking-wide text-white/45">
           Effective Date: {TERMS_EFFECTIVE_DATE}

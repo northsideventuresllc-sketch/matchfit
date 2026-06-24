@@ -54,7 +54,7 @@ export default async function TrainerAvailabilityPage({ params }: Props) {
     "Coach";
 
   return (
-    <main className="min-h-dvh bg-[#07080C] px-5 py-10 text-white sm:px-8 sm:py-12">
+    <main className="relative min-h-dvh overflow-x-hidden bg-[#07080C] px-5 py-10 text-white sm:px-8 sm:py-12">
       <div className="mx-auto max-w-lg space-y-6">
         <Link href={`/trainers/${encodeURIComponent(trainer.username)}`} className="text-xs font-semibold text-[#FF9A4A] underline-offset-2 hover:underline">
           ← Back to profile
