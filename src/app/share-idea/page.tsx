@@ -14,7 +14,7 @@ export default async function PublicShareIdeaPage() {
   const backLabel = trainerId || clientId ? "Back to Dashboard" : "Back to Home";
 
   return (
-    <main className="min-h-dvh bg-[#0B0C0F] px-5 py-12 text-white sm:px-8">
+    <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] px-5 py-12 text-white sm:px-8">
       <div className="mx-auto max-w-3xl space-y-8">
         <header className="space-y-2 text-center">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Product Feedback</p>

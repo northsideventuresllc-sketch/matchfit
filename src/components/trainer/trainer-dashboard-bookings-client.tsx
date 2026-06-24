@@ -998,7 +998,46 @@ export function TrainerDashboardBookingsClient() {
                   <span className="h-2 w-2 rounded-full bg-rose-400/90" /> Blackout
                 </span>
               </div>
-              <div className="mt-3 overflow-x-auto">
+              <div className="mt-3 space-y-1 md:hidden">
+                {availCalCells
+                  .filter((cell) => cell.inMonth)
+                  .map((cell) => {
+                    const key = localDayKey(cell.date);
+                    const dow = cell.date.getDay();
+                    const hits = availabilityHitsForLocalDate(doc, key, dow);
+                    const onceSet = new Set((doc.unavailableDatesOnce ?? []).map((u) => u.date));
+                    const weeklyThisDow = (doc.weeklyRules ?? []).some((r) => r.dayOfWeek === dow && r.endMinutes > r.startMinutes);
+                    const hasW = hits.some((h) => h.kind === "weekly");
+                    const hasWOverridden = weeklyThisDow && onceSet.has(key);
+                    const hasS = hits.some((h) => h.kind === "specific");
+                    const hasB = hits.some((h) => h.kind === "blackoutWeek" || h.kind === "blackoutOnce");
+                    const selected = selectedAvailYmd === key;
+                    return (
+                      <button
+                        key={`acm-${key}`}
+                        type="button"
+                        onClick={() => setSelectedAvailYmd((prev) => (prev === key ? null : key))}
+                        className={`flex w-full items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-[#0E1016] px-3 py-2.5 text-left transition hover:bg-white/[0.04] ${selected ? "ring-1 ring-[#FF7E00]/55" : ""}`}
+                      >
+                        <span className="text-sm font-semibold text-white/85">
+                          {DAYS_LONG[dow].slice(0, 3)} {cell.date.getDate()}
+                        </span>
+                        <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                          {hasW ? <span className="h-2 w-2 rounded-full bg-[#FF7E00]" title="Weekly hours" /> : null}
+                          {hasWOverridden ? (
+                            <span className="h-2 w-2 rounded-full bg-[#FF7E00]/35 ring-1 ring-[#FF7E00]/30" title="Weekly off" />
+                          ) : null}
+                          {hasS ? <span className="h-2 w-2 rounded-full bg-emerald-400" title="Extra opening" /> : null}
+                          {hasB ? <span className="h-2 w-2 rounded-full bg-rose-400" title="Blackout" /> : null}
+                          {!hasW && !hasWOverridden && !hasS && !hasB ? (
+                            <span className="text-[10px] text-white/30">No hours</span>
+                          ) : null}
+                        </span>
+                      </button>
+                    );
+                  })}
+              </div>
+              <div className="mt-3 hidden overflow-x-auto md:block">
                 <div className="grid min-w-[560px] grid-cols-7 gap-px rounded-xl border border-white/[0.08] bg-white/[0.06] p-px">
                   {DAYS.map((d) => (
                     <div key={`a-${d}`} className="bg-[#0E1016] px-1 py-2 text-center text-[10px] font-bold uppercase tracking-[0.1em] text-white/40">
@@ -1190,7 +1229,43 @@ export function TrainerDashboardBookingsClient() {
             </div>
           </div>
 
-          <div className="mt-5 overflow-x-auto">
+          <div className="mt-5 space-y-2 md:hidden">
+            {calendarCells
+              .filter((cell) => cell.inMonth)
+              .map((cell) => {
+                const key = localDayKey(cell.date);
+                const dayBookings = bookingsByDay.get(key) ?? [];
+                if (dayBookings.length === 0) return null;
+                return (
+                  <div key={`bm-${key}`} className="rounded-xl border border-white/[0.08] bg-[#0E1016] p-3">
+                    <p className="text-xs font-bold uppercase tracking-[0.1em] text-white/50">
+                      {DAYS_LONG[cell.date.getDay()]} {cell.date.getDate()}
+                    </p>
+                    <ul className="mt-2 space-y-1.5">
+                      {dayBookings.map((b) => (
+                        <li
+                          key={b.id}
+                          className="rounded-lg border border-white/[0.06] bg-[#FF7E00]/10 px-2.5 py-1.5 text-xs text-white/85"
+                        >
+                          <span className="font-semibold">
+                            {new Date(b.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                          </span>{" "}
+                          {b.clientLabel}
+                          <span className="mt-0.5 block text-[10px] uppercase tracking-wide text-white/45">
+                            {b.status} · {b.sessionDelivery === "VIRTUAL" ? "Virtual" : "In person"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            {bookings.length === 0 && !bookingsBusy ? (
+              <p className="text-center text-xs text-white/45">No sessions in this month.</p>
+            ) : null}
+          </div>
+
+          <div className="mt-5 hidden overflow-x-auto md:block">
             <div className="grid min-w-[640px] grid-cols-7 gap-px rounded-xl border border-white/[0.08] bg-white/[0.06] p-px">
               {DAYS.map((d) => (
                 <div key={d} className="bg-[#0E1016] px-1 py-2 text-center text-[10px] font-bold uppercase tracking-[0.1em] text-white/40">

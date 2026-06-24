@@ -16,7 +16,7 @@ const BANNER_BUBBLE_LABELS = [
 export function HomeBrandBanner() {
   return (
     <div className="relative z-10 mt-5 w-full sm:mt-7">
-      <div className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2">
+      <div className="mf-full-bleed relative">
         <div className="relative overflow-hidden border-y border-white/[0.06] bg-[#0E1016]/85 shadow-[0_20px_50px_-30px_rgba(0,0,0,0.85)] backdrop-blur-md">
           <div
             aria-hidden

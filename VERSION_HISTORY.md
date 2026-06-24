@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-24** `2.0.5-beta` → `2.0.6-beta` (**patch** — Responsive UI: mobile calendars, overflow guards, tablet grids)
 - **2026-06-24** `2.0.4-beta` → `2.0.5-beta` (**patch** — Admin content calendar target audiences: Join the Team, List With Us, Clients)
 - **2026-06-24** `2.0.3-beta` → `2.0.4-beta` (**patch**)
 - **2026-06-24** `2.0.2-beta` → `2.0.3-beta` (**patch** — Admin financial details segmented by client plan and Fitness Pro tier)

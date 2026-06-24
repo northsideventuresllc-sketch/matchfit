@@ -109,13 +109,13 @@ export function TrainerPublicProfileView(props: TrainerPublicProfileViewProps) {
   const socialLinksOrdered = orderedPublicSocialLinks(props.socialLinks);
 
   return (
-    <main className="min-h-dvh bg-[#07080C] text-white antialiased">
+    <main className="relative min-h-dvh overflow-x-hidden bg-[#07080C] text-white antialiased">
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_100%_60%_at_50%_-10%,rgba(255,126,0,0.12),transparent_50%),radial-gradient(ellipse_80%_50%_at_100%_20%,rgba(255,211,78,0.06),transparent_45%)]"
       />
 
-      <div className="relative z-10 mx-auto max-w-lg px-4 pb-24 pt-4 sm:px-6 lg:max-w-2xl">
+      <div className="relative z-10 mx-auto max-w-lg min-w-0 px-4 pb-24 pt-4 sm:px-6 lg:max-w-2xl">
         <header className="mb-4 flex items-center justify-between gap-3">
           <Link
             href={props.backToDashboardHref}

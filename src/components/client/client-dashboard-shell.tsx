@@ -117,7 +117,7 @@ export function ClientDashboardShell(props: ClientDashboardShellProps) {
   const backLabel = !isHome ? "← Dashboard" : undefined;
 
   return (
-    <main className="relative min-h-dvh overflow-x-hidden bg-[#07080C] px-5 pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-10 text-white sm:px-8 sm:pb-12 sm:pt-12">
+    <main className="relative min-h-dvh overflow-x-hidden bg-[#07080C] px-5 pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-10 text-white md:px-8 md:pb-12 md:pt-12">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(255,126,0,0.14),transparent_55%)]"
@@ -136,7 +136,7 @@ export function ClientDashboardShell(props: ClientDashboardShellProps) {
         {/* Desktop horizontal nav — hidden on mobile */}
         <nav
           aria-label="Client Dashboard"
-          className="mb-8 hidden flex-wrap justify-center gap-2 rounded-2xl border border-white/[0.07] bg-[#0E1016]/60 p-1.5 backdrop-blur-md sm:flex"
+          className="mb-8 hidden flex-wrap justify-center gap-2 rounded-2xl border border-white/[0.07] bg-[#0E1016]/60 p-1.5 backdrop-blur-md md:flex"
         >
           {NAV.map((item) => {
             const active = item.match(pathname);
@@ -159,7 +159,7 @@ export function ClientDashboardShell(props: ClientDashboardShellProps) {
         {props.diyGovernanceGate ? <ClientDiyGovernanceGateBanner gate={props.diyGovernanceGate} /> : null}
         {props.planBanner ? <div className="mb-6">{props.planBanner}</div> : null}
 
-        <div className="w-full text-left">{props.children}</div>
+        <div className="w-full min-w-0 text-left">{props.children}</div>
 
         <footer className="mt-12 space-y-4 border-t border-white/[0.08] pt-6 text-xs leading-relaxed text-white/45">
           <p className="text-center">
@@ -195,7 +195,7 @@ export function ClientDashboardShell(props: ClientDashboardShellProps) {
       {/* Mobile bottom tab bar — visible only on mobile */}
       <nav
         aria-label="Client Navigation"
-        className="fixed inset-x-0 bottom-0 z-50 flex items-stretch border-t border-white/[0.08] bg-[#07080C]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl sm:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 flex items-stretch border-t border-white/[0.08] bg-[#07080C]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
       >
         {BOTTOM_NAV.map((item) => {
           const active = item.match(pathname);
