@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyOutreachLead } from "@/lib/outreach-classification";
+import { classifyOutreachLead, statusTimestampsForUpdate } from "@/lib/outreach-classification";
 
 const now = new Date("2026-06-06T12:00:00Z");
 
@@ -92,5 +92,56 @@ describe("classifyOutreachLead", () => {
         now,
       }),
     ).toBe("ACTIVE_LEAD");
+  });
+
+  it("keeps fresh second follow-up leads active while waiting for a response", () => {
+    expect(
+      classifyOutreachLead({
+        status: "FOLLOW_UP_2",
+        platform: "instagram",
+        outreachSentAt: new Date("2026-05-20T12:00:00Z"),
+        followUp1SentAt: new Date("2026-05-27T12:00:00Z"),
+        followUp2SentAt: new Date("2026-06-04T12:00:00Z"),
+        responseReceivedAt: null,
+        createdAt: new Date("2026-05-20T12:00:00Z"),
+        now,
+      }),
+    ).toBe("ACTIVE_LEAD");
+  });
+
+  it("marks second follow-up leads dead after 7 days with no response", () => {
+    expect(
+      classifyOutreachLead({
+        status: "FOLLOW_UP_2",
+        platform: "email",
+        outreachSentAt: new Date("2026-05-20T12:00:00Z"),
+        followUp1SentAt: new Date("2026-05-27T12:00:00Z"),
+        followUp2SentAt: new Date("2026-05-28T12:00:00Z"),
+        responseReceivedAt: null,
+        createdAt: new Date("2026-05-20T12:00:00Z"),
+        now,
+      }),
+    ).toBe("DEAD_LEAD");
+  });
+});
+
+describe("statusTimestampsForUpdate", () => {
+  const now = new Date("2026-06-06T12:00:00Z");
+
+  it("refreshes followUp2SentAt when advancing from first to second follow-up", () => {
+    const stamps = statusTimestampsForUpdate(
+      "FOLLOW_UP_2",
+      {
+        outreachSentAt: new Date("2026-05-20T12:00:00Z"),
+        followUp1SentAt: new Date("2026-05-27T12:00:00Z"),
+        followUp2SentAt: new Date("2026-05-28T12:00:00Z"),
+        responseReceivedAt: null,
+      },
+      now,
+      "FOLLOW_UP_1",
+    );
+
+    expect(stamps.followUp2SentAt).toEqual(now);
+    expect(stamps.followUp1SentAt).toEqual(new Date("2026-05-27T12:00:00Z"));
   });
 });

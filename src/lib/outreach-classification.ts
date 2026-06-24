@@ -85,7 +85,7 @@ export function classifyOutreachLead(input: OutreachTimeline): OutreachAutoClass
   if (input.status === "FOLLOW_UP_2") {
     const daysSinceSent = daysBetween(input.followUp2SentAt ?? sentAt, now);
     if (daysSinceSent >= 7) return "DEAD_LEAD";
-    return "FOLLOW_UP_NEEDED";
+    return "ACTIVE_LEAD";
   }
 
   return "STATUS_UNKNOWN";
@@ -139,6 +139,7 @@ export function statusTimestampsForUpdate(
     responseReceivedAt: Date | null;
   },
   now = new Date(),
+  previousStatus?: string | null,
 ): {
   outreachSentAt: Date | null;
   followUp1SentAt: Date | null;
@@ -146,9 +147,19 @@ export function statusTimestampsForUpdate(
   responseReceivedAt: Date | null;
 } {
   const next = { ...existing };
-  if (status === "OUTREACH_SENT" && !next.outreachSentAt) next.outreachSentAt = now;
-  if (status === "FOLLOW_UP_1" && !next.followUp1SentAt) next.followUp1SentAt = now;
-  if (status === "FOLLOW_UP_2" && !next.followUp2SentAt) next.followUp2SentAt = now;
-  if (status === "RESPONSE_RECEIVED" && !next.responseReceivedAt) next.responseReceivedAt = now;
+  const statusChanged = previousStatus !== undefined && previousStatus !== status;
+
+  if (status === "OUTREACH_SENT" && (!next.outreachSentAt || (statusChanged && status === "OUTREACH_SENT"))) {
+    next.outreachSentAt = now;
+  }
+  if (status === "FOLLOW_UP_1" && (!next.followUp1SentAt || (statusChanged && status === "FOLLOW_UP_1"))) {
+    next.followUp1SentAt = now;
+  }
+  if (status === "FOLLOW_UP_2" && (!next.followUp2SentAt || (statusChanged && status === "FOLLOW_UP_2"))) {
+    next.followUp2SentAt = now;
+  }
+  if (status === "RESPONSE_RECEIVED" && (!next.responseReceivedAt || (statusChanged && status === "RESPONSE_RECEIVED"))) {
+    next.responseReceivedAt = now;
+  }
   return next;
 }

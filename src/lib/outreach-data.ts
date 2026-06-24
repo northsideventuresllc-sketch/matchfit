@@ -435,12 +435,17 @@ export async function updateOutreachLead(
     const existing = await prisma.outreachInstagramLead.findUnique({ where: { id } });
     if (!existing) return null;
     const status = typeof patch.status === "string" ? patch.status : existing.status;
-    const stamps = statusTimestampsForUpdate(status as OutreachLeadStatus, {
-      outreachSentAt: existing.outreachSentAt,
-      followUp1SentAt: existing.followUp1SentAt,
-      followUp2SentAt: existing.followUp2SentAt,
-      responseReceivedAt: existing.responseReceivedAt,
-    });
+    const stamps = statusTimestampsForUpdate(
+      status as OutreachLeadStatus,
+      {
+        outreachSentAt: existing.outreachSentAt,
+        followUp1SentAt: existing.followUp1SentAt,
+        followUp2SentAt: existing.followUp2SentAt,
+        responseReceivedAt: existing.responseReceivedAt,
+      },
+      undefined,
+      existing.status,
+    );
     const autoClassification = classifyOutreachLead({
       status,
       platform: "instagram",
@@ -504,12 +509,17 @@ export async function updateOutreachLead(
     const existing = await prisma.outreachEmailLead.findUnique({ where: { id } });
     if (!existing) return null;
     const status = typeof patch.status === "string" ? patch.status : existing.status;
-    const stamps = statusTimestampsForUpdate(status, {
-      outreachSentAt: existing.outreachSentAt,
-      followUp1SentAt: existing.followUp1SentAt,
-      followUp2SentAt: existing.followUp2SentAt,
-      responseReceivedAt: existing.responseReceivedAt,
-    });
+    const stamps = statusTimestampsForUpdate(
+      status,
+      {
+        outreachSentAt: existing.outreachSentAt,
+        followUp1SentAt: existing.followUp1SentAt,
+        followUp2SentAt: existing.followUp2SentAt,
+        responseReceivedAt: existing.responseReceivedAt,
+      },
+      undefined,
+      existing.status,
+    );
     const deadLeadAt =
       status === "DEAD_LEAD" && !existing.deadLeadAt ? new Date() : status !== "DEAD_LEAD" ? null : undefined;
     return prisma.outreachEmailLead.update({

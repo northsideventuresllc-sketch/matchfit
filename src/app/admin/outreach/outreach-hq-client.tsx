@@ -127,6 +127,7 @@ function applyLeadPatch(
         responseReceivedAt: parseLeadDate(lead.responseReceivedAt),
       },
       now,
+      lead.status,
     );
     next.outreachSentAt = stamps.outreachSentAt?.toISOString() ?? lead.outreachSentAt;
     (next as InstagramLeadRow | EmailLeadRow).followUp1SentAt =
