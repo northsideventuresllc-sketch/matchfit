@@ -16,7 +16,12 @@ import {
   adminPanelClass,
   adminSecondaryButtonClass,
 } from "@/components/admin/admin-portal-ui";
-import { classificationBadgeClass } from "@/lib/outreach-classification";
+import {
+  classifyOutreachLead,
+  facebookStatusTimestampsForUpdate,
+  statusTimestampsForUpdate,
+  classificationBadgeClass,
+} from "@/lib/outreach-classification";
 import type {
   EmailLeadRow,
   FacebookLeadRow,
@@ -83,6 +88,101 @@ type DeleteReasonPromptState = {
 
 function leadEntryKey(platform: string, id: string) {
   return `${platform}:${id}`;
+}
+
+function parseLeadDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function applyLeadPatch(
+  lead: AnyLead,
+  platform: OutreachPlatform,
+  patch: Record<string, unknown>,
+): AnyLead {
+  const next = { ...lead, ...patch } as AnyLead;
+  if (typeof patch.status !== "string") return next;
+
+  const now = new Date();
+  if (platform === "facebook") {
+    const stamps = facebookStatusTimestampsForUpdate(
+      patch.status,
+      {
+        outreachSentAt: parseLeadDate(lead.outreachSentAt),
+        responseReceivedAt: parseLeadDate(lead.responseReceivedAt),
+      },
+      now,
+    );
+    next.outreachSentAt = stamps.outreachSentAt?.toISOString() ?? lead.outreachSentAt;
+    next.responseReceivedAt = stamps.responseReceivedAt?.toISOString() ?? lead.responseReceivedAt;
+  } else {
+    const timelineLead = lead as InstagramLeadRow | EmailLeadRow;
+    const stamps = statusTimestampsForUpdate(
+      patch.status,
+      {
+        outreachSentAt: parseLeadDate(lead.outreachSentAt),
+        followUp1SentAt: parseLeadDate(timelineLead.followUp1SentAt),
+        followUp2SentAt: parseLeadDate(timelineLead.followUp2SentAt),
+        responseReceivedAt: parseLeadDate(lead.responseReceivedAt),
+      },
+      now,
+    );
+    next.outreachSentAt = stamps.outreachSentAt?.toISOString() ?? lead.outreachSentAt;
+    (next as InstagramLeadRow | EmailLeadRow).followUp1SentAt =
+      stamps.followUp1SentAt?.toISOString() ?? timelineLead.followUp1SentAt;
+    (next as InstagramLeadRow | EmailLeadRow).followUp2SentAt =
+      stamps.followUp2SentAt?.toISOString() ?? timelineLead.followUp2SentAt;
+    next.responseReceivedAt = stamps.responseReceivedAt?.toISOString() ?? lead.responseReceivedAt;
+  }
+
+  if (patch.status === "DEAD_LEAD" && !lead.deadLeadAt) {
+    next.deadLeadAt = now.toISOString();
+  } else if (patch.status !== "DEAD_LEAD") {
+    next.deadLeadAt = null;
+  }
+
+  next.autoClassification = classifyOutreachLead({
+    status: patch.status,
+    platform,
+    outreachSentAt: parseLeadDate(next.outreachSentAt),
+    followUp1SentAt:
+      platform === "facebook"
+        ? null
+        : parseLeadDate((next as InstagramLeadRow | EmailLeadRow).followUp1SentAt),
+    followUp2SentAt:
+      platform === "facebook"
+        ? null
+        : parseLeadDate((next as InstagramLeadRow | EmailLeadRow).followUp2SentAt),
+    responseReceivedAt: parseLeadDate(next.responseReceivedAt),
+    createdAt: new Date(lead.createdAt),
+  });
+
+  return next;
+}
+
+function normalizeLeadFromApi(lead: AnyLead): AnyLead {
+  const dateFields = [
+    "createdAt",
+    "deletedAt",
+    "savedToHubAt",
+    "deadLeadAt",
+    "archivedAt",
+    "archivePurgeAfterAt",
+    "outreachSentAt",
+    "followUp1SentAt",
+    "followUp2SentAt",
+    "responseReceivedAt",
+  ] as const;
+
+  const normalized = { ...lead } as Record<string, unknown>;
+  for (const field of dateFields) {
+    const value = normalized[field];
+    if (value instanceof Date) {
+      normalized[field] = value.toISOString();
+    }
+  }
+  return normalized as AnyLead;
 }
 
 function LeadCollapseToggle(props: {
@@ -1501,8 +1601,10 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     }
   }, [repairOutreachSchema]);
 
-  const loadLeads = useCallback(async (platform: OutreachPlatform, options?: { clearAlerts?: boolean }) => {
-    setLoading(true);
+  const loadLeads = useCallback(async (platform: OutreachPlatform, options?: { clearAlerts?: boolean; silent?: boolean }) => {
+    if (!options?.silent) {
+      setLoading(true);
+    }
     if (options?.clearAlerts) {
       setError(null);
       setSuccessMessage(null);
@@ -1517,12 +1619,16 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         setError("Could not load outreach leads. The database may still be updating — refresh in a moment.");
       }
     } finally {
-      setLoading(false);
+      if (!options?.silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
-  const loadArchiveEntries = useCallback(async (options?: { clearAlerts?: boolean }) => {
-    setLoading(true);
+  const loadArchiveEntries = useCallback(async (options?: { clearAlerts?: boolean; silent?: boolean }) => {
+    if (!options?.silent) {
+      setLoading(true);
+    }
     if (options?.clearAlerts) {
       setError(null);
       setSuccessMessage(null);
@@ -1537,7 +1643,9 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         setError("Could not load dead lead archive.");
       }
     } finally {
-      setLoading(false);
+      if (!options?.silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -1710,18 +1818,56 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   };
 
   const updateLead = async (id: string, patch: Record<string, unknown>, platform: OutreachPlatform = coldTab) => {
-    const res = await fetch(`/api/admin/outreach/leads/${id}`, {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ platform, ...patch }),
-    });
-    if (!res.ok) throw new Error("Update failed.");
+    let rollbackHubEntries: OutreachHubLead[] | null = null;
+    let rollbackLeads: AnyLead[] | null = null;
+
     if (tab === "hub") {
-      await loadHubEntries();
+      setHubEntries((entries) => {
+        rollbackHubEntries = entries;
+        return entries.map((entry) =>
+          entry.platform === platform && entry.lead.id === id
+            ? { ...entry, lead: applyLeadPatch(entry.lead, platform, patch) }
+            : entry,
+        );
+      });
     } else {
-      await loadLeads(coldTab);
+      setLeads((current) => {
+        rollbackLeads = current;
+        return current.map((lead) => (lead.id === id ? applyLeadPatch(lead, platform, patch) : lead));
+      });
+    }
+
+    try {
+      const res = await fetch(`/api/admin/outreach/leads/${id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ platform, ...patch }),
+      });
+      const data = await readJsonResponse<{ error?: string; lead?: AnyLead }>(res);
+      if (!res.ok) throw new Error(formatUserFacingError(data.error, "Update failed."));
+
+      if (data.lead) {
+        const updated = normalizeLeadFromApi(data.lead);
+        if (tab === "hub") {
+          setHubEntries((entries) =>
+            entries.map((entry) =>
+              entry.platform === platform && entry.lead.id === id ? { ...entry, lead: updated } : entry,
+            ),
+          );
+        } else {
+          setLeads((current) => current.map((lead) => (lead.id === id ? updated : lead)));
+        }
+      }
+
       void loadPipelineStats();
+    } catch (e) {
+      if (tab === "hub" && rollbackHubEntries) {
+        setHubEntries(rollbackHubEntries);
+      } else if (rollbackLeads) {
+        setLeads(rollbackLeads);
+      }
+      throw e;
     }
   };
 
@@ -1739,13 +1885,13 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     const data = await readJsonResponse<{ error?: string }>(res);
     if (!res.ok) throw new Error(formatUserFacingError(data.error, "Delete failed."));
     if (tab === "hub") {
-      await loadHubEntries();
+      await loadHubEntries({ silent: true });
       void loadPipelineStats();
     } else if (tab === "archive") {
-      await loadArchiveEntries();
+      await loadArchiveEntries({ silent: true });
       void loadPipelineStats();
     } else {
-      await loadLeads(platform);
+      await loadLeads(platform, { silent: true });
       void loadPipelineStats();
     }
   };
@@ -1785,9 +1931,9 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
     });
     if (!res.ok) throw new Error("Save failed.");
     setSuccessMessage("Saved to Outreach Hub.");
-    await loadHubEntries();
+    await loadHubEntries({ silent: true });
     if (tab !== "hub") {
-      await loadLeads(coldTab);
+      await loadLeads(coldTab, { silent: true });
     }
   };
 
@@ -1809,8 +1955,8 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
       setSuccessMessage(
         `Saved ${data.savedCount ?? 0} lead${data.savedCount === 1 ? "" : "s"} to Outreach Hub.`,
       );
-      await loadLeads(coldTab);
-      await loadHubEntries();
+      await loadLeads(coldTab, { silent: true });
+      await loadHubEntries({ silent: true });
     } catch (e) {
       setError(formatUserFacingError(e, "Bulk save failed."));
     } finally {
@@ -1849,7 +1995,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
             `Deleted ${data.deletedCount ?? 0} lead${data.deletedCount === 1 ? "" : "s"}. Reasons saved for AI learning.`,
           );
           setDeletePrompt(null);
-          await loadLeads(coldTab);
+          await loadLeads(coldTab, { silent: true });
           void loadPipelineStats();
         } catch (e) {
           setError(formatUserFacingError(e, "Bulk delete failed."));
@@ -1918,7 +2064,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
       });
       const data = await readJsonResponse<{ error?: string }>(res);
       if (!res.ok) throw new Error(formatUserFacingError(data.error, "Copy generation failed."));
-      await loadHubEntries();
+      await loadHubEntries({ silent: true });
       setSuccessMessage(`Generated ${fields.length} outreach field${fields.length === 1 ? "" : "s"}.`);
     } catch (e) {
       setError(formatUserFacingError(e, "Copy generation failed."));
@@ -1956,7 +2102,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
       if (!res.ok) throw new Error(formatUserFacingError(data.error, "Purge failed."));
       setSuccessMessage(data.message ?? "Archived outreach rows removed.");
       if (tab === "hub") {
-        await loadHubEntries();
+        await loadHubEntries({ silent: true });
       } else {
         await loadLeads(coldTab);
         void loadPipelineStats();
@@ -2080,7 +2226,13 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
             onOpenArchive={() => setTab("archive")}
             onPurgeStale={() => void purgeStaleLeads()}
             onRepairSchema={() => void repairOutreachSchema()}
-            onUpdate={(platform, id, patch) => updateLead(id, patch, platform)}
+            onUpdate={async (platform, id, patch) => {
+              try {
+                await updateLead(id, patch, platform);
+              } catch (e) {
+                setError(formatUserFacingError(e, "Could not update lead."));
+              }
+            }}
             onDelete={(platform, id) => promptDeleteLead(id, platform)}
             onGenerateCopy={generateLeadCopy}
           />
