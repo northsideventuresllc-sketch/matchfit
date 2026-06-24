@@ -175,7 +175,6 @@ async function loadClientSegmentRevenue(
   segmentWhere: Prisma.ClientWhereInput,
   since: Date | null,
 ): Promise<AdminFinanceRevenueBreakdown> {
-  const clientWhere = clientSegmentWhere(segmentWhere);
   const serviceTimeFilter = since ? { completedAt: { gte: since } } : {};
 
   try {
