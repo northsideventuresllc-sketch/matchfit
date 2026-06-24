@@ -14,7 +14,7 @@ export type FpDebriefSection = {
 export const FP_MATCH_FIT_PRO_DEBRIEF: FpDebriefSection = {
   id: "match-fit-pro-debrief",
   eyebrow: "Match Fit path",
-  title: "Match Fit Pro Debrief",
+  title: "Match Fit Pro",
   blocks: [
     {
       title: "Fitness Pro Onboarding Fee",
@@ -46,7 +46,7 @@ export const FP_MATCH_FIT_PRO_DEBRIEF: FpDebriefSection = {
 export const FP_INDEPENDENT_PRO_DEBRIEF: FpDebriefSection = {
   id: "independent-pro-debrief",
   eyebrow: "Independent path",
-  title: "Independent Pro Debrief",
+  title: "Independent Pro",
   blocks: [
     {
       title: "Subscription and Onboarding",
@@ -83,7 +83,7 @@ export const FP_INDEPENDENT_PRO_DEBRIEF: FpDebriefSection = {
 export const FP_ELITE_PRO_DEBRIEF: FpDebriefSection = {
   id: "elite-pro-debrief",
   eyebrow: "Elite path",
-  title: "Elite Pro Debrief",
+  title: "Elite Pro",
   blocks: [
     {
       title: "Subscription and Onboarding",

@@ -57,7 +57,7 @@ describe("HomeInfoSections", () => {
     expect(html).toContain('id="types-of-fit-pros"');
     expect(html).toContain("Types of Fit Pros");
     expect(html).toContain('id="match-fit-pro-debrief"');
-    expect(html).toContain("Match Fit Pro Debrief");
+    expect(html).toContain("Match Fit Pro");
     expect(html).toContain('id="independent-pro-debrief"');
     expect(html).toContain('id="elite-pro-debrief"');
     expect(html).not.toContain('id="trainer-onboarding-fee"');
