@@ -81,7 +81,7 @@ function DraftBubble(props: {
   saveDisabled: boolean;
 }) {
   return (
-    <article className={`${adminPanelClass} p-4 sm:p-5`}>
+    <article className={contentCalendarDraftCardClass}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <span className="text-xs font-black uppercase tracking-[0.1em] text-[#FFD34E]">
@@ -133,9 +133,18 @@ function DraftBubble(props: {
 
 function bulkAssignmentToggleClass(active: boolean) {
   return active
-    ? "border-[#FF7E00]/50 bg-[#FF7E00]/20 text-[#FFD34E] shadow-[0_0_20px_-4px_rgba(255,126,0,0.45)]"
+    ? "border-[#FF7E00]/45 bg-[#FF7E00]/15 text-[#FFD34E]"
     : "border-white/12 bg-white/[0.03] text-white/55 hover:border-white/20 hover:bg-white/[0.06]";
 }
+
+const contentCalendarSlotListClass =
+  "overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E1016]/60";
+
+const contentCalendarSlotRowClass =
+  "grid gap-2 border-b border-white/[0.06] px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,9.5rem)_minmax(0,1fr)] sm:items-center sm:gap-4";
+
+const contentCalendarDraftCardClass =
+  "rounded-xl border border-white/[0.08] bg-[#0E1016]/80 p-4 sm:p-5";
 
 export function BulkContentGeneratorPanel(props: {
   configured: boolean;
@@ -516,29 +525,35 @@ export function BulkContentGeneratorPanel(props: {
             </p>
           ) : null}
 
-          <ul className="grid gap-2 rounded-xl border border-white/[0.08] bg-[#0E1016]/60 px-4 py-3 sm:grid-cols-3">
-            {CONTENT_CALENDAR_GROUPS.map((group) => (
-              <li key={group} className="text-[11px] leading-relaxed text-white/55">
-                <span className="font-bold text-white/80">{group}</span>
-                <span className="text-white/40"> — </span>
-                {CONTENT_CALENDAR_GROUP_DESCRIPTIONS[group]}
-              </li>
-            ))}
-          </ul>
+          <div className={`${contentCalendarSlotListClass} px-4 py-3`}>
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/40">Audience key</p>
+            <dl className="mt-3 grid gap-3 sm:grid-cols-3">
+              {CONTENT_CALENDAR_GROUPS.map((group) => (
+                <div key={group} className="min-w-0">
+                  <dt className="text-[11px] font-bold text-white/80">{group}</dt>
+                  <dd className="mt-0.5 text-[11px] leading-relaxed text-white/45">
+                    {CONTENT_CALENDAR_GROUP_DESCRIPTIONS[group]}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={contentCalendarSlotListClass}>
+            <div className="hidden border-b border-white/[0.06] px-4 py-2 sm:grid sm:grid-cols-[minmax(0,9.5rem)_minmax(0,1fr)] sm:gap-4">
+              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/35">Post</span>
+              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/35">Target audience</span>
+            </div>
             {slots.map((slot) => (
               <div
                 key={slot.id}
-                className={`flex items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-[#0E1016]/80 px-4 py-3 ${
-                  assignmentMode ? "opacity-80" : ""
-                }`}
+                className={`${contentCalendarSlotRowClass} ${assignmentMode ? "opacity-75" : ""}`}
               >
-                <span className="text-sm font-semibold text-white/80">
+                <span className="truncate text-sm font-semibold text-white/85">
                   {CONTENT_CALENDAR_TYPE_ICONS[slot.postType]} {slot.label}
                 </span>
                 <div
-                  className="min-w-[10rem] shrink-0"
+                  className="min-w-0"
                   onClick={handleManualAudienceAttempt}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") handleManualAudienceAttempt();
@@ -546,14 +561,19 @@ export function BulkContentGeneratorPanel(props: {
                   role="presentation"
                 >
                   <select
-                    className={`${adminInputClassSm} w-full ${assignmentMode ? "cursor-not-allowed opacity-50" : ""}`}
+                    className={`${adminInputClassSm} max-w-full ${assignmentMode ? "cursor-not-allowed opacity-50" : ""}`}
                     value={audienceBySlot[slot.id] ?? CONTENT_CALENDAR_GROUPS[0]}
                     disabled={!!assignmentMode || assigningAudiences}
                     onChange={(e) => setSlotAudience(slot.id, e.target.value as ContentCalendarGroup)}
+                    aria-label={`Target audience for ${slot.label}`}
                   >
                     {CONTENT_CALENDAR_GROUPS.map((group) => (
-                      <option key={group} value={group}>
-                        {group} — {CONTENT_CALENDAR_GROUP_DESCRIPTIONS[group]}
+                      <option
+                        key={group}
+                        value={group}
+                        title={CONTENT_CALENDAR_GROUP_DESCRIPTIONS[group]}
+                      >
+                        {group}
                       </option>
                     ))}
                   </select>
@@ -680,7 +700,7 @@ export function ContentHubPanel(props: {
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {props.posts.map((post) => (
-            <article key={post.id} className={`${adminPanelClass} p-4 sm:p-5`}>
+            <article key={post.id} className={contentCalendarDraftCardClass}>
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <span className="text-xs font-black uppercase tracking-[0.1em] text-[#FFD34E]">
