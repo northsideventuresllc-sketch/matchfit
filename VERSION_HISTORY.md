@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-24** `2.0.3-beta` → `2.0.4-beta` (**patch**)
 - **2026-06-24** `2.0.2-beta` → `2.0.3-beta` (**patch** — Admin financial details segmented by client plan and Fitness Pro tier)
 - **2026-06-23** `2.0.1-beta` → `2.0.2-beta` (**patch** — Inclusion-focused FP tier homepage copy, debrief sections, and legal alignment)
 - **2026-06-23** `2.0.0-beta` → `2.0.1-beta` (**patch** — Homepage Types of Fit Pros section and FP tier copy alignment across legal and UI)

@@ -7,6 +7,7 @@ import {
   clientBetaSlotsUsed,
   trainerBetaSlotsUsed,
 } from "@/lib/beta-waitlist-service";
+import { ensureLaunchPromoSchema } from "@/lib/ensure-launch-promo-schema";
 import {
   countLaunchClients,
   countLaunchTrainers,
@@ -44,6 +45,10 @@ export type LaunchPromoStats = {
 
 /** Single source for founding promo + beta cap counters (excludes test / synthetic accounts). */
 export async function getLaunchPromoStats(): Promise<LaunchPromoStats> {
+  await ensureLaunchPromoSchema().catch((e) => {
+    console.error("[launch-promo-stats] ensureLaunchPromoSchema", e);
+  });
+
   const gatesEnabled = isBetaLaunchGatesEnabled();
   const trainerFoundingMax = getTrainerFoundingBgPercentMax();
   const clientFoundingMax = getClientFoundingTrialMaxClients();

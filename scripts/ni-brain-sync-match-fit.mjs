@@ -28,7 +28,9 @@ const KEY_LIB_GLOBS = [
   "src/lib/ni-brain-client.ts",
   "src/lib/outreach-learning.ts",
   "src/lib/content-calendar/content-calendar-ai.ts",
-  "src/lib/client-platform-access.ts",
+  "src/lib/ensure-beta-waitlist-schema.ts",
+  "src/lib/ensure-client-plan-schema.ts",
+  "src/lib/ensure-launch-promo-schema.ts",
   "src/lib/trainer-service-offerings.ts",
   "src/lib/match-fit-product-version.ts",
 ];
