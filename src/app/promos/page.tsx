@@ -6,6 +6,9 @@ import { getClientFoundingTrialDays } from "@/lib/match-fit-launch-promotions";
 import { clientBetaVipTrialSummary, clientVipPriceLabel } from "@/lib/client-plan-copy";
 import {
   TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE,
+  trainerFoundingBgCheckBenefitShortLabel,
+  trainerFoundingBgCheckEligibleTiersLabel,
+  trainerFoundingPromoBullets,
   trainerFoundingPromoParagraph,
   trainerSignupOnboardingBeginDeadlineLabel,
   trainerSignupPremiumPromoBenefitLabel,
@@ -140,6 +143,14 @@ export default async function PromosPage() {
 
               <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 text-sm text-white/60">
                 <div className="flex items-center justify-between gap-3">
+                  <span className="font-semibold text-white/75">Background check</span>
+                  <span className="text-right text-[#FFD34E]">{trainerFoundingBgCheckBenefitShortLabel()}</span>
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-white/50">
+                  For the first {trainerFoundingMax} {trainerFoundingBgCheckEligibleTiersLabel()} sign-ups, Match Fit
+                  covers your Checkr screening in full — no upfront screening cost at sign-up.
+                </p>
+                <div className="mt-4 flex items-center justify-between gap-3">
                   <span className="font-semibold text-white/75">Match Fit Premium Pro at sign-up</span>
                   <span className="text-[#FFD34E]">{trainerSignupPremiumPromoBenefitLabel()}</span>
                 </div>
@@ -147,6 +158,14 @@ export default async function PromosPage() {
                   <span className="font-semibold text-white/75">Onboarding must begin within</span>
                   <span>{trainerSignupOnboardingBeginDeadlineLabel()} of sign-up</span>
                 </div>
+                <ul className="mt-4 space-y-2 border-t border-white/[0.06] pt-4 text-xs leading-relaxed text-white/55">
+                  {trainerFoundingPromoBullets(trainerFoundingMax).map((bullet) => (
+                    <li key={bullet} className="flex gap-2">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#FF7E00]/80" aria-hidden />
+                      <span>{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
                 <p className="mt-3 text-xs leading-relaxed text-white/50">{TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}</p>
               </div>
 

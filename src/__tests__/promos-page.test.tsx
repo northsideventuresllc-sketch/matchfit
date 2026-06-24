@@ -95,6 +95,9 @@ describe("promos page", () => {
     expect(html).toContain("no card required at sign-up");
     expect(html).toContain("Free plan or VIP upgrade");
     expect(html).toContain("60 days of Match Fit Premium Pro");
+    expect(html).toContain("Fully covered background check");
+    expect(html).toContain("zero upfront cost");
+    expect(html).toContain("Match Fit Pro and Match Fit Premium Pro");
     expect(html).toContain("cannot sell or offer services");
   });
 

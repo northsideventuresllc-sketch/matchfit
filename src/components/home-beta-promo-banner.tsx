@@ -3,7 +3,9 @@ import { MATCH_FIT_PRODUCT_VERSION_ANNOUNCE } from "@/lib/match-fit-product-vers
 import { getTrainerFoundingBgPercentMax } from "@/lib/match-fit-launch-promotion-caps";
 import {
   TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE,
-  trainerFoundingPromoHeadline,
+  trainerFoundingBgCheckBenefitShortLabel,
+  trainerFoundingBgCheckEligibleTiersLabel,
+  trainerFoundingPromoBullets,
   trainerSignupOnboardingBeginDeadlineLabel,
   trainerSignupPremiumPromoBenefitLabel,
 } from "@/lib/trainer-signup-promo-copy";
@@ -90,10 +92,17 @@ export function HomeBetaPromoBanner() {
               />
               <span className="min-w-0 flex-1 text-left [overflow-wrap:anywhere]">
                 <span className="font-semibold text-white/90">
-                  First {trainerFoundingCap} fitness professionals:
-                </span>{" "}
-                {trainerFoundingPromoHeadline(trainerFoundingCap)}{" "}
-                {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}
+                  First {trainerFoundingCap} {trainerFoundingBgCheckEligibleTiersLabel()} sign-ups:
+                </span>
+                <ul className="mt-2 list-none space-y-1.5 pl-0">
+                  {trainerFoundingPromoBullets(trainerFoundingCap).map((bullet) => (
+                    <li key={bullet} className="flex gap-2 text-white/75">
+                      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-[#FFD34E]/80" aria-hidden />
+                      <span>{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
+                <span className="mt-2 block text-white/60">{TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}</span>
               </span>
             </li>
             <li className="flex min-w-0 gap-3">
@@ -111,9 +120,10 @@ export function HomeBetaPromoBanner() {
           </ul>
           <p className="text-left text-xs leading-relaxed text-white/50 [overflow-wrap:anywhere] sm:text-[13px]">
             <span className="font-semibold text-white/70">Fitness Pro reminder:</span> begin onboarding within{" "}
-            {trainerSignupOnboardingBeginDeadlineLabel()} of sign-up and pay your background check through our portal to
-            keep your <span className="font-semibold text-white/75">{trainerSignupPremiumPromoBenefitLabel()}</span>{" "}
-            active while you finish compliance.
+            {trainerSignupOnboardingBeginDeadlineLabel()} of sign-up to keep your{" "}
+            <span className="font-semibold text-white/75">{trainerSignupPremiumPromoBenefitLabel()}</span> active while
+            you finish compliance. Founding {trainerFoundingBgCheckEligibleTiersLabel()} sign-ups receive{" "}
+            <span className="font-semibold text-white/75">{trainerFoundingBgCheckBenefitShortLabel().toLowerCase()}</span>.
           </p>
         </div>
 

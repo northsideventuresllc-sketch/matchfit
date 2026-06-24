@@ -19,9 +19,33 @@ export function trainerSignupOnboardingBeginDeadlineLabel(): string {
   return `${TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days`;
 }
 
+/** Verified Fit Pro paths eligible for founding background-check coverage. */
+export function trainerFoundingBgCheckEligibleTiersLabel(): string {
+  return "Match Fit Pro and Match Fit Premium Pro";
+}
+
+/** Marketing line for platform-covered Checkr screening (founding cohort). */
+export function trainerFoundingBgCheckBenefitLabel(): string {
+  return "a fully covered background check from Match Fit — zero upfront screening cost";
+}
+
+/** Short label for promo bullets and feature rows. */
+export function trainerFoundingBgCheckBenefitShortLabel(): string {
+  return "Fully covered background check — zero upfront cost";
+}
+
 /** One sentence for hero / banner Fitness Pro promo bullets. */
 export function trainerFoundingPromoHeadline(trainerCap = getTrainerFoundingBgPercentMax()): string {
-  return `The first ${trainerCap} Fitness Pros receive ${trainerSignupPremiumPromoBenefitLabel()} at sign-up, pay only their background check through our portal, and must begin onboarding within ${trainerSignupOnboardingBeginDeadlineLabel()} of creating an account.`;
+  return `The first ${trainerCap} ${trainerFoundingBgCheckEligibleTiersLabel()} sign-ups receive ${trainerFoundingBgCheckBenefitLabel()}, plus ${trainerSignupPremiumPromoBenefitLabel()} at sign-up. Begin onboarding within ${trainerSignupOnboardingBeginDeadlineLabel()} of creating your account.`;
+}
+
+/** Positive bullet list for founding Fitness Pro promos (home, promos page). */
+export function trainerFoundingPromoBullets(trainerCap = getTrainerFoundingBgPercentMax()): readonly string[] {
+  return [
+    `${trainerFoundingBgCheckBenefitShortLabel()} for the first ${trainerCap} ${trainerFoundingBgCheckEligibleTiersLabel()} sign-ups.`,
+    `${trainerSignupPremiumPromoBenefitLabel()} at sign-up.`,
+    `Begin onboarding within ${trainerSignupOnboardingBeginDeadlineLabel()} of creating your account.`,
+  ];
 }
 
 /** Selling restriction repeated wherever Fitness Pros learn promo rules. */
