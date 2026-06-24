@@ -11,6 +11,12 @@ import {
 } from "@/lib/content-calendar/constants";
 import { buildContentGenerationContext } from "@/lib/content-calendar/content-context";
 import {
+  buildBulkSlotBrief,
+  buildOperatorCreativeDirective,
+  CONTENT_CALENDAR_CREATIVE_QUALITY_RULES,
+  isLazyCalendarDraft,
+} from "@/lib/content-calendar/content-prompts";
+import {
   CONTENT_CALENDAR_AI_RULES,
   CONTENT_CALENDAR_MAX_HASHTAGS,
   enforceGeneratedPostContent,
@@ -63,7 +69,7 @@ function applyPostRules(content: GeneratedPostContent, postType: ContentCalendar
   };
 }
 
-async function callAi(system: string, user: string, maxTokens = 2000): Promise<string | null> {
+async function callAi(system: string, user: string, maxTokens = 2000, temperature = 0.55): Promise<string | null> {
   const status = await getAdminAiProviderStatusAsync();
   if (!status.configured) return null;
 
@@ -82,7 +88,7 @@ async function callAi(system: string, user: string, maxTokens = 2000): Promise<s
         max_tokens: maxTokens,
         system,
         messages: [{ role: "user", content: user }],
-        temperature: 0.55,
+        temperature,
       }),
     });
     if (!res.ok) return null;
@@ -104,7 +110,7 @@ async function callAi(system: string, user: string, maxTokens = 2000): Promise<s
         { role: "system", content: system },
         { role: "user", content: user },
       ],
-      temperature: 0.55,
+      temperature,
       max_tokens: maxTokens,
     }),
   });
@@ -126,6 +132,130 @@ function parseJsonBlock<T>(text: string): T | null {
       return null;
     }
   }
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await fn(items[index], index);
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
+type ParsedBulkRow = {
+  dayIndex?: number;
+  postType?: ContentCalendarPostType;
+  targetGroup?: string;
+  caption?: string;
+  visualPrompt?: string | null;
+  hashtags?: string[];
+};
+
+function rowToBulkDraft(args: {
+  row: ParsedBulkRow;
+  spec: BulkContentItem;
+  index: number;
+  scheduled: boolean;
+  weekStart: string;
+  monday: Date;
+}): BulkGeneratedDraft {
+  const postType = args.spec.postType;
+  const dayIndex = args.scheduled
+    ? Math.min(4, Math.max(0, args.row.dayIndex ?? args.index % 5))
+    : 0;
+  const postDate = args.scheduled ? formatCalendarDate(addWeekdays(args.monday, dayIndex)) : null;
+  const targetGroup = normalizeTargetGroup(args.spec.targetGroup);
+  const content = applyPostRules(
+    {
+      caption: args.row.caption ?? "",
+      visualPrompt: postType === "Text" ? null : (args.row.visualPrompt ?? ""),
+      hashtags: args.row.hashtags ?? [],
+    },
+    postType,
+  );
+
+  return {
+    tempId: `draft_${Date.now()}_${args.index}`,
+    dayIndex,
+    postType,
+    targetGroup,
+    platforms: CONTENT_CALENDAR_PLATFORMS_BY_TYPE[postType],
+    ...content,
+    postDate,
+  };
+}
+
+async function generateBulkSlotWithAi(args: {
+  item: BulkContentItem;
+  slotIndex: number;
+  customPrompt: string;
+  contextBlock: string;
+  scheduled: boolean;
+  weekStart: string;
+  dayIndex: number;
+  monday: Date;
+  feedback?: string;
+}): Promise<BulkGeneratedDraft | null> {
+  const targetGroup = normalizeTargetGroup(args.item.targetGroup);
+  const postType = args.item.postType;
+  const operatorDirective = buildOperatorCreativeDirective(args.customPrompt);
+  const slotBrief = buildBulkSlotBrief({
+    index: args.slotIndex,
+    item: { postType, targetGroup },
+    customPrompt: args.customPrompt,
+    dayLabel: args.scheduled ? CONTENT_CALENDAR_DAYS_LONG[args.dayIndex] : undefined,
+  });
+
+  const system = `You are Match Fit's senior social content strategist.
+${CONTENT_CALENDAR_BRAND_FACTS}
+${CONTENT_CALENDAR_AI_RULES}
+${CONTENT_CALENDAR_CREATIVE_QUALITY_RULES}
+
+${args.contextBlock}
+
+Respond ONLY with JSON:
+{"caption":"ready-to-publish caption","visualPrompt":null,"hashtags":["tag1"]}
+Set visualPrompt to null only when postType is Text.`;
+
+  const user = `${operatorDirective}
+
+${args.feedback ? `Revision note — fix the previous lazy output:\n${args.feedback}\n` : ""}
+Generate exactly ONE publish-ready post for this slot:
+${slotBrief}
+
+Requirements:
+- Caption must implement the operator directive with a specific hook, detail, and CTA (not generic beta filler).
+- Visual prompt must describe scene, subject, action, framing, mood, and on-screen text (not just brand colors).
+- Hashtags: array without # prefix.`;
+
+  const text = await callAi(system, user, 2200, 0.68);
+  const parsed = text ? parseJsonBlock<ParsedBulkRow>(text) : null;
+  if (!parsed?.caption?.trim()) return null;
+
+  const draft = rowToBulkDraft({
+    row: { ...parsed, postType, targetGroup },
+    spec: args.item,
+    index: args.slotIndex,
+    scheduled: args.scheduled,
+    weekStart: args.weekStart,
+    monday: args.monday,
+  });
+
+  if (isLazyCalendarDraft(draft)) return null;
+  return draft;
 }
 
 export async function researchHashtagsForDate(args: {
@@ -170,6 +300,7 @@ export async function regenerateCalendarPost(args: {
   const system = `You are Match Fit's content calendar AI.
 ${CONTENT_CALENDAR_BRAND_FACTS}
 ${CONTENT_CALENDAR_AI_RULES}
+${CONTENT_CALENDAR_CREATIVE_QUALITY_RULES}
 ${learning}
 Respond ONLY with JSON: {"caption":"","visualPrompt":null,"hashtags":["tag1"]}
 visualPrompt null only for Text posts.`;
@@ -206,20 +337,25 @@ export async function generateSinglePost(args: {
   customNote?: string;
 }): Promise<{ hook: string; body: string; cta: string; hashtags: string[]; dmScript?: string } | null> {
   const learning = await buildContentGenerationContext();
+  const operatorDirective = buildOperatorCreativeDirective(args.customNote ?? "");
   const system = `You are a social media strategist for Match Fit.
 ${CONTENT_CALENDAR_BRAND_FACTS}
 ${CONTENT_CALENDAR_AI_RULES}
+${CONTENT_CALENDAR_CREATIVE_QUALITY_RULES}
 ${learning}
-Generate authentic content — scroll-stopping hook, core message, CTA, platform hashtags.
+Generate authentic, specific content — scroll-stopping hook, core message with concrete Match Fit detail, CTA, platform hashtags.
 Respond ONLY with JSON: {"hook":"","body":"","cta":"","hashtags":["tag1"],"dmScript":""}`;
   const platformLabel =
     args.postType
       ? CONTENT_CALENDAR_PLATFORMS_BY_TYPE[args.postType]
       : (args.platform ?? "Instagram");
-  const user = `Generate a ${args.tone} ${args.contentType} ${args.postType ? `${args.postType} ` : ""}post for ${platformLabel}.
-${args.postType === "Text" ? "Text-only post: no visual or video prompt. Write for Threads/Facebook — concise, conversational caption structure." : ""}
-${args.customNote ? `Prompt: ${args.customNote}` : ""}
-Target: Join the Team, List With Us, and Clients audiences. Goal: match-fit.net signups.`;
+  const user = `${operatorDirective}
+
+Generate a ${args.tone} ${args.contentType} ${args.postType ? `${args.postType} ` : ""}post for ${platformLabel}.
+${args.postType === "Text" ? "Text-only post: no visual or video prompt. Write for Threads/Facebook — concise, conversational caption structure." : "Include enough detail that a designer could storyboard the creative from your copy."}
+Weave the operator directive into the hook and body — do not produce generic beta filler.
+Target audiences to rotate between: Join the Team (Fitness Pro recruitment), List With Us (independent listing), Clients (athletes seeking training).
+Goal: match-fit.net signups with audience-appropriate CTAs.`;
   const text = await callAi(system, user);
   const parsed = text ? parseJsonBlock<{ hook?: string; body?: string; cta?: string; hashtags?: string[]; dmScript?: string }>(text) : null;
   if (!parsed) return null;
@@ -253,6 +389,7 @@ export async function generateWeekContent(args: {
   const system = `You are Match Fit's weekly content calendar AI.
 ${CONTENT_CALENDAR_BRAND_FACTS}
 ${CONTENT_CALENDAR_AI_RULES}
+${CONTENT_CALENDAR_CREATIVE_QUALITY_RULES}
 ${learning}
 
 Rotation for this week (M-F, keep exactly):
@@ -260,11 +397,16 @@ ${rotationPlan}
 
 Platform mapping: Carousel/Static→Instagram+Facebook captions+visual prompts; Video→Reels/TikTok with cinematic or UGC visual prompts; Text→Threads+Facebook (caption only, visualPrompt null).
 
+Each post must include a specific hook, audience-relevant detail, and CTA — never placeholder copy that only lists post type and audience.
+
 Respond ONLY with JSON array of 20 objects (5 days × 4 types):
-[{"dayIndex":0,"postType":"Text","caption":"...","visualPrompt":null,"hashtags":["MatchFit"]}]
+[{"dayIndex":0,"postType":"Text","targetGroup":"Join the Team","caption":"...","visualPrompt":null,"hashtags":["MatchFit"]}]
 dayIndex 0=Mon..4=Fri. postType one of Carousel|Static|Video|Text. targetGroup must be Join the Team, List With Us, or Clients only.`;
 
-  const user = `Generate a full M-F content week starting ${args.weekStart}. Include day-of-week variety and founding beta urgency aligned with live promos. Hashtags without # in array.`;
+  const user = `Generate a full M-F content week starting ${args.weekStart}.
+Use live scan context above for concrete promos, features, and proof points in every caption.
+Visual prompts must describe scenes and subjects — not just hex colors.
+Include day-of-week variety and founding beta urgency aligned with live promos. Hashtags without # in array.`;
 
   const text = await callAi(system, user, 8000);
   const parsed = text ? parseJsonBlock<GeneratedWeekPost[]>(text) : null;
@@ -296,11 +438,14 @@ function fallbackWeek(offset: number): GeneratedWeekPost[] {
   for (let di = 0; di < 5; di++) {
     const rot = getContentCalendarRotation(di, offset);
     for (const postType of ["Text", "Video", "Carousel", "Static"] as ContentCalendarPostType[]) {
+      const targetGroup = rot[postType];
       const content = applyPostRules(
         {
-          caption: `${CONTENT_CALENDAR_DAYS_LONG[di]} ${postType} for ${rot[postType]} — Match Fit beta. match-fit.net`,
+          caption: `Regenerate ${CONTENT_CALENDAR_DAYS_LONG[di]} ${postType} for ${targetGroup} — weekly AI batch failed. Use bulk generator with a specific operator prompt.`,
           visualPrompt:
-            postType === "Text" ? null : `Dark #07080C background, orange #FF7E00 accents. ${postType} for ${rot[postType]}.`,
+            postType === "Text"
+              ? null
+              : `Regenerate ${postType}: describe a specific scene with people, action, setting, and headline text for ${targetGroup}.`,
           hashtags: ["MatchFit", "FitnessApp", "BetaLaunch"],
         },
         postType,
@@ -308,7 +453,7 @@ function fallbackWeek(offset: number): GeneratedWeekPost[] {
       posts.push({
         dayIndex: di,
         postType,
-        targetGroup: rot[postType],
+        targetGroup,
         platforms: CONTENT_CALENDAR_PLATFORMS_BY_TYPE[postType],
         ...content,
       });
@@ -370,102 +515,129 @@ export async function generateBulkContent(args: {
   weekStart: string;
   offset?: number;
 }): Promise<BulkGeneratedDraft[]> {
-  const learning = await buildContentGenerationContext();
-  const count = args.items.length;
-  const promptNote =
+  const customPrompt =
     args.customPrompt?.trim() ||
-    "Scan social media performance, website promos, and user activity to inform each post.";
-  const postTypes: ContentCalendarPostType[] = ["Carousel", "Static", "Video", "Text"];
+    "Scan social media performance, website promos, and user activity to inform each post with specific Match Fit details.";
+  const contextBlock = await buildContentGenerationContext({ forceRefresh: true });
+  const count = args.items.length;
   const monday = new Date(`${args.weekStart}T00:00:00`);
+  const operatorDirective = buildOperatorCreativeDirective(customPrompt);
 
-  const slotSpec = args.items
-    .map((item, i) => `${i + 1}. ${item.postType} for ${normalizeTargetGroup(item.targetGroup)}`)
-    .join("\n");
+  const slotBriefs = args.items
+    .map((item, index) =>
+      buildBulkSlotBrief({
+        index,
+        item: {
+          postType: item.postType,
+          targetGroup: normalizeTargetGroup(item.targetGroup),
+        },
+        customPrompt,
+        dayLabel: args.scheduled ? CONTENT_CALENDAR_DAYS_LONG[index % 5] : undefined,
+      }),
+    )
+    .join("\n\n");
 
   const system = `You are Match Fit's bulk content generator AI.
 ${CONTENT_CALENDAR_BRAND_FACTS}
 ${CONTENT_CALENDAR_AI_RULES}
-${learning}
+${CONTENT_CALENDAR_CREATIVE_QUALITY_RULES}
 
-Generate ${count} distinct social posts for Match Fit — one per slot below.
+${contextBlock}
+
+Generate ${count} distinct, publish-ready social posts — one per slot below.
 Scheduling mode: ${args.scheduled ? "scheduled — assign logical day_index 0-4 (Mon-Fri) spread across the week" : "unscheduled — use day_index 0 for all"}.
 Platform mapping: Carousel/Static→Instagram+Facebook; Video→Reels/TikTok; Text→Threads+Facebook (visualPrompt null for Text).
+
+Forbidden output: captions or visual prompts that only restate post type, audience name, or brand hex colors.
 
 Respond ONLY with JSON array of exactly ${count} objects in slot order:
 [{"dayIndex":0,"postType":"Carousel","targetGroup":"Join the Team","caption":"...","visualPrompt":"...","hashtags":["MatchFit"]}]
 postType and targetGroup must match each slot.`;
 
-  const user = `Operator guidance: ${promptNote}
+  const user = `${operatorDirective}
 
-Week anchor: ${args.weekStart}. Slots:
-${slotSpec}
+Week anchor: ${args.weekStart}.
 
-Create ${count} posts with varied hooks, CTAs, and hashtags (no # prefix in array).`;
+Slot briefs (follow each one — weave the operator directive into every post):
+${slotBriefs}
 
-  const text = await callAi(system, user, Math.min(8000, 400 + count * 350));
-  const parsed = text ? parseJsonBlock<Omit<BulkGeneratedDraft, "tempId" | "platforms" | "postDate">[]>(text) : null;
+Create ${count} unique posts with varied hooks, concrete Match Fit details, audience-specific CTAs, and hashtags (no # prefix in array).`;
 
-  if (!parsed || !Array.isArray(parsed) || parsed.length === 0) {
-    return fallbackBulkDrafts(args);
+  const text = await callAi(system, user, Math.min(12000, 800 + count * 450), 0.68);
+  const parsed = text ? parseJsonBlock<ParsedBulkRow[]>(text) : null;
+
+  let drafts: BulkGeneratedDraft[] = [];
+
+  if (parsed && Array.isArray(parsed) && parsed.length > 0) {
+    drafts = parsed.slice(0, count).map((row, i) =>
+      rowToBulkDraft({
+        row,
+        spec: args.items[i],
+        index: i,
+        scheduled: args.scheduled,
+        weekStart: args.weekStart,
+        monday,
+      }),
+    );
   }
 
-  return parsed.slice(0, count).map((row, i) => {
-    const spec = args.items[i];
-    const postType = (postTypes.includes(row.postType as ContentCalendarPostType)
-      ? row.postType
-      : spec.postType) as ContentCalendarPostType;
-    const dayIndex = args.scheduled ? Math.min(4, Math.max(0, row.dayIndex ?? i % 5)) : 0;
-    const postDate = args.scheduled ? formatCalendarDate(addWeekdays(monday, dayIndex)) : null;
-    const targetGroup = normalizeTargetGroup(row.targetGroup === spec.targetGroup ? row.targetGroup : spec.targetGroup);
-    const content = applyPostRules(
-      {
-        caption: row.caption ?? "",
-        visualPrompt: postType === "Text" ? null : (row.visualPrompt ?? ""),
-        hashtags: row.hashtags ?? [],
-      },
-      postType,
-    );
-
-    return {
-      tempId: `draft_${Date.now()}_${i}`,
-      dayIndex,
-      postType,
-      targetGroup,
-      platforms: CONTENT_CALENDAR_PLATFORMS_BY_TYPE[postType],
-      ...content,
-      postDate,
-    };
-  });
-}
-
-function fallbackBulkDrafts(args: {
-  items: BulkContentItem[];
-  scheduled: boolean;
-  weekStart: string;
-}): BulkGeneratedDraft[] {
-  const monday = new Date(`${args.weekStart}T00:00:00`);
-
-  return args.items.map((item, i) => {
+  return mapWithConcurrency(args.items, 3, async (spec, i) => {
+    const existing = drafts[i];
     const dayIndex = args.scheduled ? i % 5 : 0;
-    const targetGroup = normalizeTargetGroup(item.targetGroup);
-    const content = applyPostRules(
-      {
-        caption: `${item.postType} for ${targetGroup} — Match Fit beta. match-fit.net`,
-        visualPrompt:
-          item.postType === "Text" ? null : `Dark #07080C, orange #FF7E00. ${item.postType} for ${targetGroup}.`,
-        hashtags: ["MatchFit", "FitnessApp"],
-      },
-      item.postType,
-    );
-    return {
-      tempId: `draft_${Date.now()}_${i}`,
+
+    if (existing && !isLazyCalendarDraft(existing)) {
+      return { ...existing, tempId: `draft_${Date.now()}_${i}` };
+    }
+
+    const first = await generateBulkSlotWithAi({
+      item: spec,
+      slotIndex: i,
+      customPrompt,
+      contextBlock,
+      scheduled: args.scheduled,
+      weekStart: args.weekStart,
       dayIndex,
-      postType: item.postType,
-      targetGroup,
-      platforms: CONTENT_CALENDAR_PLATFORMS_BY_TYPE[item.postType],
-      ...content,
-      postDate: args.scheduled ? formatCalendarDate(addWeekdays(monday, dayIndex)) : null,
-    };
+      monday,
+      feedback: existing
+        ? "Previous output was too generic. Add a specific hook, Match Fit feature/promo detail from context, and a richer visual scene description."
+        : undefined,
+    });
+    if (first) return first;
+
+    const retry = await generateBulkSlotWithAi({
+      item: spec,
+      slotIndex: i,
+      customPrompt,
+      contextBlock,
+      scheduled: args.scheduled,
+      weekStart: args.weekStart,
+      dayIndex,
+      monday,
+      feedback:
+        "Last attempt failed quality checks. Write a completely fresh angle with a story-led hook, one concrete Match Fit proof point, and a visual prompt with subject + setting + on-screen text.",
+    });
+    if (retry) return retry;
+
+    return (
+      existing ?? {
+        ...rowToBulkDraft({
+          row: {
+            caption: `Could not generate ${spec.postType} for ${normalizeTargetGroup(spec.targetGroup)}. Try again with a more specific operator prompt.`,
+            visualPrompt:
+              spec.postType === "Text"
+                ? null
+                : "Regenerate — describe a specific scene with people, action, and headline text overlay.",
+            hashtags: ["MatchFit"],
+          },
+          spec,
+          index: i,
+          scheduled: args.scheduled,
+          weekStart: args.weekStart,
+          monday,
+        }),
+        tempId: `draft_${Date.now()}_${i}`,
+      }
+    );
   });
 }
 

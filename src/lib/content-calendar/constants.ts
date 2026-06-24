@@ -36,7 +36,7 @@ export const CONTENT_CALENDAR_GROUP_DESCRIPTIONS: Record<ContentCalendarGroup, s
 export const CONTENT_CALENDAR_BULK_MAX_COUNT = 20;
 
 export const CONTENT_CALENDAR_BULK_DEFAULT_PROMPT =
-  "Scan social profiles, website promos, ad statistics, and user activity to inform each post.";
+  "Use live website promos, social performance, and product features (Fit Hub, discovery matching, founding Fitness Pro offers, client VIP trial) to write specific hooks — never generic beta filler.";
 
 export const CONTENT_CALENDAR_POST_TYPES = ["Carousel", "Static", "Video", "Text"] as const;
 

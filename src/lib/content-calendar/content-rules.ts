@@ -93,4 +93,5 @@ export const CONTENT_CALENDAR_AI_RULES = `Content rules (strict):
 - Always say "Fitness Pros" (never "trainers", "personal trainers", or "coaches" as the primary label).
 - Maximum ${CONTENT_CALENDAR_MAX_HASHTAGS} hashtags per post (no # prefix in JSON array).
 - Caption + hashtags combined must stay within ${CONTENT_CALENDAR_REPURPOSE_CHAR_LIMIT} characters (Threads repurpose limit).
-- Align offers and urgency with live site/promo scan context when provided — do not invent caps or pricing.`;
+- Align offers and urgency with live site/promo scan context when provided — do not invent caps or pricing.
+- Never publish placeholder copy that only names post type, audience, or brand hex colors.`;
