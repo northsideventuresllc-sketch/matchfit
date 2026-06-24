@@ -7,19 +7,19 @@ import {
 } from "@/lib/content-calendar/schedule-utils";
 
 describe("getContentCalendarRotation", () => {
-  it("rotates four target groups across post types with offset", () => {
+  it("rotates target groups across post types with offset", () => {
     const base = getContentCalendarRotation(0, 7);
-    expect(base.Carousel).toBe("Clients");
-    expect(base.Static).toBe("Fitness Pros");
-    expect(base.Video).toBe("Clients");
-    expect(base.Text).toBe("Fitness Pros");
+    expect(base.Carousel).toBe("List With Us");
+    expect(base.Static).toBe("Clients");
+    expect(base.Video).toBe("Join the Team");
+    expect(base.Text).toBe("List With Us");
   });
 
   it("advances groups by weekday index", () => {
     const mon = getContentCalendarRotation(0, 0);
     const tue = getContentCalendarRotation(1, 0);
-    expect(mon.Carousel).toBe("Fitness Pros");
-    expect(tue.Carousel).toBe("Clients");
+    expect(mon.Carousel).toBe("Join the Team");
+    expect(tue.Carousel).toBe("List With Us");
   });
 });
 

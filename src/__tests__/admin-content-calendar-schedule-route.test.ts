@@ -69,7 +69,7 @@ describe("/api/admin/content-calendar/schedule route", () => {
       {
         dayIndex: 0,
         postType: "Text",
-        targetGroup: "Fitness Pros",
+        targetGroup: "Join the Team",
         platforms: "Threads",
         caption: "Caption",
         visualPrompt: null,

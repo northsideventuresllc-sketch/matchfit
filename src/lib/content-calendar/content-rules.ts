@@ -1,21 +1,25 @@
 import type { ContentCalendarGroup } from "@/lib/content-calendar/constants";
+import { CONTENT_CALENDAR_GROUPS } from "@/lib/content-calendar/constants";
 
 /** Repurpose-safe limit: smallest caption budget across Match Fit platforms (Threads). */
 export const CONTENT_CALENDAR_REPURPOSE_CHAR_LIMIT = 500;
 
 export const CONTENT_CALENDAR_MAX_HASHTAGS = 5;
 
-/** Legacy audience labels stored before the Fitness Pros / Clients split. */
+/** Legacy audience labels stored before the three-audience split. */
 const LEGACY_GROUP_MAP: Record<string, ContentCalendarGroup> = {
-  "Atlanta Trainers": "Fitness Pros",
-  "Virtual Trainers": "Fitness Pros",
+  "Atlanta Trainers": "Join the Team",
+  "Virtual Trainers": "Join the Team",
   "Atlanta Clients": "Clients",
   "Virtual Clients": "Clients",
+  "Fitness Pros": "Join the Team",
 };
 
 export function normalizeTargetGroup(group: string): ContentCalendarGroup {
-  if (group === "Fitness Pros" || group === "Clients") return group;
-  return LEGACY_GROUP_MAP[group] ?? "Fitness Pros";
+  if ((CONTENT_CALENDAR_GROUPS as readonly string[]).includes(group)) {
+    return group as ContentCalendarGroup;
+  }
+  return LEGACY_GROUP_MAP[group] ?? "Join the Team";
 }
 
 export function normalizeHashtags(tags: string[] | null | undefined): string[] {
@@ -81,7 +85,10 @@ export function normalizeFitnessProLanguage(text: string): string {
 }
 
 export const CONTENT_CALENDAR_AI_RULES = `Content rules (strict):
-- Target audiences: only "Fitness Pros" or "Clients" — never Atlanta/virtual split in copy.
+- Target audiences: only "Join the Team", "List With Us", or "Clients" — never Atlanta/virtual split in copy.
+- "Join the Team" = trainers looking to become a Match Fit Fitness Pro (recruitment / onboarding).
+- "List With Us" = independent trainers & facilities using Match Fit as a listing/discovery platform.
+- "Clients" = athletes and individuals looking for training.
 - Do NOT market Atlanta or local geography in captions; in-person sessions are Atlanta-only operationally but not a marketing hook.
 - Always say "Fitness Pros" (never "trainers", "personal trainers", or "coaches" as the primary label).
 - Maximum ${CONTENT_CALENDAR_MAX_HASHTAGS} hashtags per post (no # prefix in JSON array).

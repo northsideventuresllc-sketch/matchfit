@@ -219,7 +219,7 @@ Respond ONLY with JSON: {"hook":"","body":"","cta":"","hashtags":["tag1"],"dmScr
   const user = `Generate a ${args.tone} ${args.contentType} ${args.postType ? `${args.postType} ` : ""}post for ${platformLabel}.
 ${args.postType === "Text" ? "Text-only post: no visual or video prompt. Write for Threads/Facebook — concise, conversational caption structure." : ""}
 ${args.customNote ? `Prompt: ${args.customNote}` : ""}
-Target: Fitness Pros and clients. Goal: match-fit.net signups.`;
+Target: Join the Team, List With Us, and Clients audiences. Goal: match-fit.net signups.`;
   const text = await callAi(system, user);
   const parsed = text ? parseJsonBlock<{ hook?: string; body?: string; cta?: string; hashtags?: string[]; dmScript?: string }>(text) : null;
   if (!parsed) return null;
@@ -262,7 +262,7 @@ Platform mapping: Carousel/Static→Instagram+Facebook captions+visual prompts; 
 
 Respond ONLY with JSON array of 20 objects (5 days × 4 types):
 [{"dayIndex":0,"postType":"Text","caption":"...","visualPrompt":null,"hashtags":["MatchFit"]}]
-dayIndex 0=Mon..4=Fri. postType one of Carousel|Static|Video|Text. targetGroup must be Fitness Pros or Clients only.`;
+dayIndex 0=Mon..4=Fri. postType one of Carousel|Static|Video|Text. targetGroup must be Join the Team, List With Us, or Clients only.`;
 
   const user = `Generate a full M-F content week starting ${args.weekStart}. Include day-of-week variety and founding beta urgency aligned with live promos. Hashtags without # in array.`;
 
@@ -339,7 +339,7 @@ Post types: Carousel, Static, Video, Text.
 
 Based on social performance scan and content strategy, assign the best target group for each requested post slot.
 Respond ONLY with JSON array of objects in the same order as the input:
-[{"targetGroup":"Fitness Pros"}]
+[{"targetGroup":"Join the Team"}]
 targetGroup must be one of: ${groups.join(", ")}.`;
 
   const slotList = items
@@ -392,7 +392,7 @@ Scheduling mode: ${args.scheduled ? "scheduled — assign logical day_index 0-4 
 Platform mapping: Carousel/Static→Instagram+Facebook; Video→Reels/TikTok; Text→Threads+Facebook (visualPrompt null for Text).
 
 Respond ONLY with JSON array of exactly ${count} objects in slot order:
-[{"dayIndex":0,"postType":"Carousel","targetGroup":"Fitness Pros","caption":"...","visualPrompt":"...","hashtags":["MatchFit"]}]
+[{"dayIndex":0,"postType":"Carousel","targetGroup":"Join the Team","caption":"...","visualPrompt":"...","hashtags":["MatchFit"]}]
 postType and targetGroup must match each slot.`;
 
   const user = `Operator guidance: ${promptNote}
