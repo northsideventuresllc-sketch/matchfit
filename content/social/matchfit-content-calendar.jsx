@@ -1,9 +1,15 @@
 /**
  * Match Fit social content calendar — canonical schedule for agents and the admin portal.
- * Audiences: Fitness Pros | Clients only (no Atlanta/virtual marketing split).
+ * Audiences: Join the Team | List With Us | Clients (no Atlanta/virtual marketing split).
  */
 
-export const MATCHFIT_CONTENT_AUDIENCES = ["Fitness Pros", "Clients"] as const;
+export const MATCHFIT_CONTENT_AUDIENCES = ["Join the Team", "List With Us", "Clients"] as const;
+
+export const MATCHFIT_CONTENT_AUDIENCE_DESCRIPTIONS = {
+  "Join the Team": "Trainers looking to become a Match Fit Fitness Pro",
+  "List With Us": "Independent trainers & facilities using Match Fit as a listing/discovery platform",
+  Clients: "Athletes and individuals looking for training",
+};
 
 export const MATCHFIT_CONTENT_RULES = {
   maxHashtags: 5,
@@ -15,16 +21,17 @@ export const MATCHFIT_CONTENT_RULES = {
 /** M–F rotation: post type → audience (alternates by weekday). */
 export const MATCHFIT_WEEKLY_ROTATION = {
   baseline: {
-    Carousel: "Fitness Pros",
-    Static: "Clients",
-    Video: "Fitness Pros",
-    Text: "Clients",
+    Carousel: "Join the Team",
+    Static: "List With Us",
+    Video: "Clients",
+    Text: "Join the Team",
   },
-  note: "Offset rotates audiences each weekday while keeping only Fitness Pros and Clients.",
+  note: "Offset rotates audiences each weekday across Join the Team, List With Us, and Clients.",
 };
 
 export const MATCHFIT_CONTENT_PILLARS = [
   "Fitness Pro recruitment",
+  "Listing & discovery for independent pros and facilities",
   "Client pain points & outcomes",
   "How Match Fit works",
   "Fit Hub & product features",
@@ -41,6 +48,7 @@ export const MATCHFIT_PLATFORM_NOTES = {
 
 const matchfitContentCalendar = {
   audiences: MATCHFIT_CONTENT_AUDIENCES,
+  audienceDescriptions: MATCHFIT_CONTENT_AUDIENCE_DESCRIPTIONS,
   rules: MATCHFIT_CONTENT_RULES,
   rotation: MATCHFIT_WEEKLY_ROTATION,
   pillars: MATCHFIT_CONTENT_PILLARS,

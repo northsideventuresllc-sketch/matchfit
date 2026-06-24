@@ -17,6 +17,7 @@ import {
   CONTENT_CALENDAR_BULK_DEFAULT_PROMPT,
   CONTENT_CALENDAR_BULK_MAX_COUNT,
   CONTENT_CALENDAR_GROUPS,
+  CONTENT_CALENDAR_GROUP_DESCRIPTIONS,
   CONTENT_CALENDAR_POST_TYPES,
   CONTENT_CALENDAR_TYPE_ICONS,
   type ContentCalendarGroup,
@@ -515,6 +516,16 @@ export function BulkContentGeneratorPanel(props: {
             </p>
           ) : null}
 
+          <ul className="grid gap-2 rounded-xl border border-white/[0.08] bg-[#0E1016]/60 px-4 py-3 sm:grid-cols-3">
+            {CONTENT_CALENDAR_GROUPS.map((group) => (
+              <li key={group} className="text-[11px] leading-relaxed text-white/55">
+                <span className="font-bold text-white/80">{group}</span>
+                <span className="text-white/40"> — </span>
+                {CONTENT_CALENDAR_GROUP_DESCRIPTIONS[group]}
+              </li>
+            ))}
+          </ul>
+
           <div className="grid gap-3 sm:grid-cols-2">
             {slots.map((slot) => (
               <div
@@ -542,7 +553,7 @@ export function BulkContentGeneratorPanel(props: {
                   >
                     {CONTENT_CALENDAR_GROUPS.map((group) => (
                       <option key={group} value={group}>
-                        {group}
+                        {group} — {CONTENT_CALENDAR_GROUP_DESCRIPTIONS[group]}
                       </option>
                     ))}
                   </select>

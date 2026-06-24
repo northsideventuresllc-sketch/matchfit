@@ -75,7 +75,7 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
       date: "2026-06-03",
       dayIndex: 2,
       postType: "Video",
-      targetGroup: "Fitness Pros",
+      targetGroup: "Join the Team",
       hook: "New class opening",
       cta: "Book now",
       caption: "Caption copy",

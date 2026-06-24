@@ -204,7 +204,7 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     mockRegenerateCalendarPost.mockResolvedValue({
       dayIndex: 1,
       postType: "Static",
-      targetGroup: "Fitness Pros",
+      targetGroup: "Join the Team",
       platforms: "Instagram",
       caption: "Regenerated caption",
       visualPrompt: "Regenerated visual",

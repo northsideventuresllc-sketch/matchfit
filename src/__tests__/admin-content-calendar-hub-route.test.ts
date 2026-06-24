@@ -53,7 +53,7 @@ const draftPayload = {
     tempId: "draft_1",
     dayIndex: 0,
     postType: "Carousel",
-    targetGroup: "Fitness Pros",
+    targetGroup: "Join the Team",
     platforms: "Instagram + Facebook",
     caption: "Test caption",
     visualPrompt: "Orange brand visual",

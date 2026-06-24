@@ -5,7 +5,7 @@ import {
   type ContentCalendarPostType,
 } from "@/lib/content-calendar/constants";
 
-/** Baseline: Carousel→ATL Trainers · Static→Virtual Trainers · Video→ATL Clients · Text→Virtual Clients */
+/** Baseline rotation across Join the Team · List With Us · Clients by post type and weekday. */
 export function getContentCalendarRotation(
   dayIndex: number,
   offset: number,
