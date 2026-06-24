@@ -20,7 +20,7 @@ const bulkSchema = z.object({
     .min(1)
     .max(CONTENT_CALENDAR_BULK_MAX_COUNT),
   scheduled: z.boolean(),
-  customPrompt: z.string().max(2000).optional(),
+  customPrompt: z.string().max(10000).optional(),
   weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 

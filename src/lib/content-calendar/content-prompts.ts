@@ -99,6 +99,77 @@ const LAZY_CAPTION_RE =
 const LAZY_VISUAL_RE =
   /^Dark\s+#07080C(?:,\s*|\s+)orange\s+#FF7E00\.?\s*(?:◈|▣|▶|≡)?\s*(?:Carousel|Static|Video|Text)\s*for/i;
 
+export function extractSlotDirectiveFromOperatorPrompt(
+  customPrompt: string,
+  targetGroup: ContentCalendarGroup,
+  postType: ContentCalendarPostType,
+): string {
+  const prompt = customPrompt.trim();
+  if (!prompt) return "";
+
+  const lines: string[] = [];
+  const audiencePatterns: Record<ContentCalendarGroup, RegExp> = {
+    "Join the Team":
+      /(?:^|\n)\s*-?\s*Join The Team\s*:([\s\S]*?)(?=\n\s*-?\s*(?:List With Us|Clients|RULES)\b|$)/i,
+    "List With Us":
+      /(?:^|\n)\s*-?\s*List With Us\s*:([\s\S]*?)(?=\n\s*-?\s*(?:Clients|RULES|Join The Team)\b|$)/i,
+    Clients:
+      /(?:^|\n)\s*-?\s*Clients\s*:([\s\S]*?)(?=\n\s*-?\s*(?:RULES|Join The Team|List With Us)\b|$)/i,
+  };
+
+  const section = prompt.match(audiencePatterns[targetGroup]);
+  if (section?.[1]?.trim()) {
+    lines.push(`Audience-specific operator notes:\n${section[1].trim()}`);
+  }
+
+  const rules = prompt.match(/(?:^|\n)\s*RULES\s*:([\s\S]*)/i);
+  if (rules?.[1]?.trim()) {
+    lines.push(`Global rules:\n${rules[1].trim()}`);
+  }
+
+  const intro = prompt.match(/^([\s\S]*?)(?=\n\s*-?\s*Join The Team\s*:)/i);
+  if (intro?.[1]?.trim()) {
+    lines.unshift(`Batch guidance:\n${intro[1].trim()}`);
+  }
+
+  if (
+    targetGroup === "Join the Team" &&
+    (postType === "Static" || postType === "Text") &&
+    /background check/i.test(prompt)
+  ) {
+    lines.push(
+      "Mandatory for this slot: lead with the first 10 Match Fit Pros receiving fully covered background checks from Match Fit (zero upfront screening cost).",
+    );
+  }
+
+  if (targetGroup === "Clients") {
+    if (/vip|60 day|150 client/i.test(prompt)) {
+      lines.push("Work in the 60-day VIP pass for the first 150 clients where it fits this post.");
+    }
+    if (/fit hub|fithub/i.test(prompt)) {
+      lines.push("Highlight Fit Hub as a game-changer for fitness content and finding Fitness Pros.");
+    }
+    if (/swipe|tinder/i.test(prompt)) {
+      lines.push("Stress swipe-based discovery — the Tinder of the fitness industry.");
+    }
+    if (/free to join/i.test(prompt)) {
+      lines.push("Stress FREE TO JOIN.");
+    }
+  }
+
+  if (targetGroup === "List With Us" && /independent pro/i.test(prompt)) {
+    lines.push("Highlight Independent Pro listing perks, algorithmic matching for listings, and business discovery benefits.");
+  }
+
+  return lines.join("\n\n");
+}
+
+export function trimContextBlockForPrompt(contextBlock: string, maxChars = 2200): string {
+  const trimmed = contextBlock.trim();
+  if (trimmed.length <= maxChars) return trimmed;
+  return `${trimmed.slice(0, maxChars)}\n\n[Context truncated for generation — prioritize the operator directive.]`;
+}
+
 export function buildOperatorCreativeDirective(customPrompt: string): string {
   const trimmed = customPrompt.trim();
   if (!trimmed) {
@@ -124,6 +195,11 @@ export function buildBulkSlotBrief(args: {
   const audience = AUDIENCE_CREATIVE_BRIEFS[args.item.targetGroup];
   const postType = POST_TYPE_CREATIVE_BRIEFS[args.item.postType];
   const platforms = CONTENT_CALENDAR_PLATFORMS_BY_TYPE[args.item.postType];
+  const slotDirective = extractSlotDirectiveFromOperatorPrompt(
+    args.customPrompt,
+    args.item.targetGroup,
+    args.item.postType,
+  );
 
   return [
     `Slot ${args.index + 1}: ${args.item.postType} → ${args.item.targetGroup}`,
@@ -138,7 +214,7 @@ export function buildBulkSlotBrief(args: {
       ? "visualPrompt: null"
       : `Visual prompt structure: ${postType.visualShape}`,
     `Platforms: ${platforms}`,
-    `Apply operator directive to this slot: ${args.customPrompt.trim() || "use live scan context with a specific detail"}`,
+    slotDirective || "Follow the PRIMARY OPERATOR DIRECTIVE for this audience and post type.",
   ]
     .filter(Boolean)
     .join("\n");
@@ -146,20 +222,36 @@ export function buildBulkSlotBrief(args: {
 
 export function isLazyCalendarCaption(caption: string): boolean {
   const trimmed = caption.trim();
-  if (trimmed.length < 72) return true;
+  if (!trimmed) return true;
+  if (/^Could not generate /i.test(trimmed)) return true;
+  if (/^Regenerate /i.test(trimmed)) return true;
   if (LAZY_CAPTION_RE.test(trimmed)) return true;
   if (/Match Fit beta\.?\s*match-fit\.net\s*$/i.test(trimmed) && trimmed.length < 120) return true;
   return false;
 }
 
-export function isLazyCalendarVisualPrompt(visualPrompt: string | null | undefined, postType: ContentCalendarPostType): boolean {
-  if (postType === "Text") return visualPrompt === null || visualPrompt === "";
+export function normalizeGeneratedVisualPrompt(args: {
+  caption: string;
+  visualPrompt: string | null | undefined;
+  postType: ContentCalendarPostType;
+  targetGroup: ContentCalendarGroup;
+}): string | null {
+  if (args.postType === "Text") return null;
+  const trimmed = (args.visualPrompt ?? "").trim();
+  if (trimmed.length >= 40 && !LAZY_VISUAL_RE.test(trimmed)) return trimmed;
+  const hook = args.caption.split(/[.!?\n]/)[0]?.trim() || args.caption.slice(0, 120);
+  return `Match Fit ${args.postType} for ${args.targetGroup}: ${hook}. Show authentic fitness scene with people in action, bold headline text overlay, dark brand backdrop with orange accent lighting, scroll-stopping composition.`;
+}
+
+export function isLazyCalendarVisualPrompt(
+  visualPrompt: string | null | undefined,
+  postType: ContentCalendarPostType,
+): boolean {
+  if (postType === "Text") return false;
   const trimmed = (visualPrompt ?? "").trim();
-  if (trimmed.length < 80) return true;
+  if (!trimmed) return false;
   if (LAZY_VISUAL_RE.test(trimmed)) return true;
-  if (/^Dark\s+#07080C/i.test(trimmed) && !/(subject|person|athlete|coach|gym|scene|shot|frame|text overlay|headline)/i.test(trimmed)) {
-    return true;
-  }
+  if (/^Regenerate /i.test(trimmed)) return true;
   return false;
 }
 
@@ -168,10 +260,7 @@ export function isLazyCalendarDraft(args: {
   visualPrompt: string | null;
   postType: ContentCalendarPostType;
 }): boolean {
-  return (
-    isLazyCalendarCaption(args.caption) ||
-    isLazyCalendarVisualPrompt(args.visualPrompt, args.postType)
-  );
+  return isLazyCalendarCaption(args.caption);
 }
 
 export const CONTENT_CALENDAR_CREATIVE_QUALITY_RULES = `Creative quality (non-negotiable):
