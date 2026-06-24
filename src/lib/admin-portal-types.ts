@@ -321,6 +321,59 @@ export type AdminFinanceBestSeller = {
   topOfferingName: string | null;
 };
 
+/** Revenue attributed to a client cohort or Fitness Pro tier. */
+export type AdminFinanceRevenueBreakdown = {
+  revenueCents: number;
+  grossProfitCents: number;
+  byCategory: AdminRevenueByCategory;
+  /** Total charged to clients for Fitness Pro service checkouts. */
+  serviceSpendCents: number;
+  /** Match Fit admin fees from service checkouts. */
+  servicePlatformFeesCents: number;
+  serviceCheckoutCount: number;
+  oneTimePurchaseCents: number;
+  subscriptionRevenueCents: number;
+};
+
+export type AdminFinanceClientSegment = {
+  clientCount: number;
+  lifetime: AdminFinanceRevenueBreakdown;
+  last30d: AdminFinanceRevenueBreakdown;
+  clientsWithCard?: number;
+};
+
+export type AdminFinanceFpTierSegment = {
+  tier: string;
+  label: string;
+  activeFitPros: number;
+  pendingFitPros: number;
+  liveFitPros: number;
+  monthlySubscriptionsActive: number;
+  premiumStudioEnabled: number;
+  lifetime: AdminFinanceRevenueBreakdown & {
+    registrationFeesCents: number;
+    tokenRevenueCents: number;
+    nudgePackRevenueCents: number;
+    monthlySubscriptionCents: number;
+  };
+  last30d: AdminFinanceRevenueBreakdown & {
+    registrationFeesCents: number;
+    tokenRevenueCents: number;
+    nudgePackRevenueCents: number;
+    monthlySubscriptionCents: number;
+  };
+};
+
+export type AdminFinancesPanelSegments = {
+  freePlanClients: AdminFinanceClientSegment;
+  vipPlanClients: AdminFinanceClientSegment;
+  inactiveClients: AdminFinanceClientSegment;
+  matchFitPros: AdminFinanceFpTierSegment;
+  matchFitPremiumPros: AdminFinanceFpTierSegment;
+  independentFitnessPros: AdminFinanceFpTierSegment;
+  eliteFitnessPros: AdminFinanceFpTierSegment;
+};
+
 export type AdminFinancesPanel = {
   windows: Record<AdminFinanceWindowKey, AdminFinanceWindowSnapshot>;
   lifetime: AdminFinanceWindowSnapshot & { eventCount: number };
@@ -345,6 +398,7 @@ export type AdminFinancesPanel = {
   trainersWithCard: number | null;
   featuredTrainersToday: number;
   bestSellers: AdminFinanceBestSeller[];
+  segments: AdminFinancesPanelSegments;
 };
 
 export type AdminAlertSeverity = "critical" | "warning" | "info";
