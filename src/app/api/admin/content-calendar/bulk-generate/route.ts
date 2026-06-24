@@ -39,9 +39,10 @@ export async function POST(req: Request) {
   }
 
   try {
-    const drafts = await generateBulkContent(parsed.data);
+    const { drafts, meta } = await generateBulkContent(parsed.data);
     return NextResponse.json({
       drafts,
+      generationMeta: meta,
       bulkSessionId: `bulk_${Date.now()}_${sess.adminId}`,
       maxCount: CONTENT_CALENDAR_BULK_MAX_COUNT,
     });

@@ -294,12 +294,22 @@ export function BulkContentGeneratorPanel(props: {
       const data = (await res.json()) as {
         drafts?: BulkGeneratedDraft[];
         bulkSessionId?: string;
+        generationMeta?: {
+          warning?: string | null;
+          lastError?: string | null;
+          failedCount?: number;
+        };
         error?: string;
       };
       if (!res.ok) throw new Error(data.error ?? "Generation failed.");
       const sessionId = data.bulkSessionId ?? `bulk_${Date.now()}_local`;
       setDrafts(data.drafts ?? []);
       setBulkSessionId(sessionId);
+      if (data.generationMeta?.warning) {
+        setError(data.generationMeta.warning);
+      } else if ((data.generationMeta?.failedCount ?? 0) > 0 && data.generationMeta?.lastError) {
+        setError(`${data.generationMeta.failedCount} post(s) failed: ${data.generationMeta.lastError}`);
+      }
       setStep(1);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generation failed.");

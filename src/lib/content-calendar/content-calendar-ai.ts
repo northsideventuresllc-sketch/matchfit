@@ -29,7 +29,29 @@ import {
 } from "@/lib/content-calendar/content-rules";
 import { scanAndRecordSocialProfiles } from "@/lib/content-calendar/social-profile-scan";
 import { addWeekdays, formatCalendarDate, getContentCalendarRotation } from "@/lib/content-calendar/rotation";
+import {
+  parseGeneratedPostArrayPayload,
+  parseGeneratedPostPayload,
+} from "@/lib/content-calendar/content-calendar-parse";
 import { recordContentLearning } from "@/lib/ni-brain-client";
+
+const CONTENT_CALENDAR_AI_TIMEOUT_MS = 45_000;
+const CONTENT_CALENDAR_AI_MAX_ATTEMPTS = 3;
+
+type CallAiResult = {
+  text: string | null;
+  error?: string;
+};
+
+let lastContentCalendarAiError: string | null = null;
+
+export function getLastContentCalendarAiError(): string | null {
+  return lastContentCalendarAiError;
+}
+
+export function resetLastContentCalendarAiError(): void {
+  lastContentCalendarAiError = null;
+}
 
 export type GeneratedPostContent = {
   caption: string;
@@ -72,62 +94,132 @@ function applyPostRules(content: GeneratedPostContent, postType: ContentCalendar
   };
 }
 
-async function callAi(system: string, user: string, maxTokens = 2000, temperature = 0.55): Promise<string | null> {
-  const status = await getAdminAiProviderStatusAsync();
-  if (!status.configured) return null;
+function summarizeProviderError(status: number, body: string, provider: string): string {
+  let detail = body.slice(0, 240).replace(/\s+/g, " ").trim();
+  try {
+    const parsed = JSON.parse(body) as { error?: { message?: string }; message?: string };
+    detail = parsed.error?.message ?? parsed.message ?? detail;
+  } catch {
+    // keep raw detail
+  }
+  return `${provider} HTTP ${status}${detail ? `: ${detail}` : ""}`;
+}
 
-  if (status.provider === "anthropic") {
-    const key = process.env.ANTHROPIC_API_KEY?.trim();
-    if (!key) return null;
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function callAi(system: string, user: string, maxTokens = 2000, temperature = 0.55): Promise<CallAiResult> {
+  const status = await getAdminAiProviderStatusAsync();
+  if (!status.configured) {
+    const message = "No AI provider configured. Add ANTHROPIC_API_KEY or OPENAI_API_KEY.";
+    lastContentCalendarAiError = message;
+    return { text: null, error: message };
+  }
+
+  for (let attempt = 1; attempt <= CONTENT_CALENDAR_AI_MAX_ATTEMPTS; attempt += 1) {
+    if (status.provider === "anthropic") {
+      const key = process.env.ANTHROPIC_API_KEY?.trim();
+      if (!key) {
+        const message = "ANTHROPIC_API_KEY is missing on the server.";
+        lastContentCalendarAiError = message;
+        return { text: null, error: message };
+      }
+
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": key,
+          "anthropic-version": "2023-06-01",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: status.model,
+          max_tokens: maxTokens,
+          system,
+          messages: [{ role: "user", content: user }],
+          temperature,
+        }),
+        signal: AbortSignal.timeout(CONTENT_CALENDAR_AI_TIMEOUT_MS),
+      });
+
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => "");
+        const message = summarizeProviderError(res.status, errBody, "Anthropic");
+        lastContentCalendarAiError = message;
+        console.error("[content-calendar-ai] Anthropic error", message);
+        if ((res.status === 429 || res.status >= 500) && attempt < CONTENT_CALENDAR_AI_MAX_ATTEMPTS) {
+          await sleep(800 * attempt);
+          continue;
+        }
+        return { text: null, error: message };
+      }
+
+      const data = (await res.json()) as { content?: { type: string; text?: string }[] };
+      const text =
+        data.content
+          ?.filter((block) => block.type === "text" && block.text?.trim())
+          .map((block) => block.text!.trim())
+          .join("\n\n") ?? null;
+      if (!text) {
+        const message = "Anthropic returned an empty response.";
+        lastContentCalendarAiError = message;
+        return { text: null, error: message };
+      }
+      lastContentCalendarAiError = null;
+      return { text };
+    }
+
+    const key = process.env.OPENAI_API_KEY?.trim();
+    if (!key) {
+      const message = "OPENAI_API_KEY is missing on the server.";
+      lastContentCalendarAiError = message;
+      return { text: null, error: message };
+    }
+
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
+        Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: status.model ?? "claude-sonnet-4-20250514",
-        max_tokens: maxTokens,
-        system,
-        messages: [{ role: "user", content: user }],
+        model: status.model,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
         temperature,
+        max_tokens: maxTokens,
+        response_format: { type: "json_object" },
       }),
+      signal: AbortSignal.timeout(CONTENT_CALENDAR_AI_TIMEOUT_MS),
     });
+
     if (!res.ok) {
       const errBody = await res.text().catch(() => "");
-      console.error("[content-calendar-ai] Anthropic error", res.status, errBody.slice(0, 500));
-      return null;
+      const message = summarizeProviderError(res.status, errBody, "OpenAI");
+      lastContentCalendarAiError = message;
+      console.error("[content-calendar-ai] OpenAI error", message);
+      if ((res.status === 429 || res.status >= 500) && attempt < CONTENT_CALENDAR_AI_MAX_ATTEMPTS) {
+        await sleep(800 * attempt);
+        continue;
+      }
+      return { text: null, error: message };
     }
-    const data = (await res.json()) as { content?: { type: string; text?: string }[] };
-    return data.content?.find((b) => b.type === "text")?.text ?? null;
+
+    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+    const text = data.choices?.[0]?.message?.content?.trim() ?? null;
+    if (!text) {
+      const message = "OpenAI returned an empty response.";
+      lastContentCalendarAiError = message;
+      return { text: null, error: message };
+    }
+    lastContentCalendarAiError = null;
+    return { text };
   }
 
-  const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) return null;
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_ADMIN_ANALYTICS_MODEL?.trim() || "gpt-4o-mini",
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      temperature,
-      max_tokens: maxTokens,
-    }),
-  });
-  if (!res.ok) {
-    const errBody = await res.text().catch(() => "");
-    console.error("[content-calendar-ai] OpenAI error", res.status, errBody.slice(0, 500));
-    return null;
-  }
-  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  return data.choices?.[0]?.message?.content ?? null;
+  return { text: null, error: lastContentCalendarAiError ?? "AI request failed after retries." };
 }
 
 function parseJsonBlock<T>(text: string): T | null {
@@ -135,52 +227,24 @@ function parseJsonBlock<T>(text: string): T | null {
     const cleaned = text.replace(/```json|```/g, "").trim();
     return JSON.parse(cleaned) as T;
   } catch {
-    const match = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-    if (!match) return null;
-    try {
-      return JSON.parse(match[0]) as T;
-    } catch {
-      return null;
+    const objectJson = text.match(/\{[\s\S]*\}/)?.[0];
+    if (objectJson) {
+      try {
+        return JSON.parse(objectJson) as T;
+      } catch {
+        // fall through
+      }
     }
+    const arrayJson = text.match(/\[[\s\S]*\]/)?.[0];
+    if (arrayJson) {
+      try {
+        return JSON.parse(arrayJson) as T;
+      } catch {
+        return null;
+      }
+    }
+    return null;
   }
-}
-
-function unescapeJsonString(value: string): string {
-  return value.replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
-}
-
-function parseGeneratedPostPayload(text: string): ParsedBulkRow | null {
-  const direct = parseJsonBlock<ParsedBulkRow | ParsedBulkRow[] | { posts?: ParsedBulkRow[] }>(text);
-  if (Array.isArray(direct)) return direct[0] ?? null;
-  if (direct && typeof direct === "object") {
-    if ("caption" in direct) return direct as ParsedBulkRow;
-    if ("posts" in direct && Array.isArray(direct.posts)) return direct.posts[0] ?? null;
-  }
-
-    const captionMatch = text.match(/"caption"\s*:\s*"((?:\\.|[^"\\])*)"/);
-  if (!captionMatch) return null;
-
-  const visualMatch = text.match(/"visualPrompt"\s*:\s*(null|"((?:\\.|[^"\\])*)")/);
-  const hashtagsMatch = text.match(/"hashtags"\s*:\s*\[([\s\S]*?)\]/);
-
-  let hashtags: string[] = [];
-  if (hashtagsMatch?.[1]) {
-    hashtags = [...hashtagsMatch[1].matchAll(/"((?:\\.|[^"\\])*)"/g)].map((m) => unescapeJsonString(m[1]));
-  }
-
-  return {
-    caption: unescapeJsonString(captionMatch[1]),
-    visualPrompt:
-      visualMatch?.[1] === "null" || !visualMatch?.[2] ? (visualMatch ? null : undefined) : unescapeJsonString(visualMatch[2]),
-    hashtags,
-  };
-}
-
-function parseGeneratedPostArrayPayload(text: string): ParsedBulkRow[] | null {
-  const direct = parseJsonBlock<ParsedBulkRow[] | { posts?: ParsedBulkRow[] }>(text);
-  if (Array.isArray(direct)) return direct;
-  if (direct && typeof direct === "object" && Array.isArray(direct.posts)) return direct.posts;
-  return null;
 }
 
 async function mapWithConcurrency<T, R>(
@@ -297,8 +361,8 @@ ${slotBrief}
 Write a complete, original caption that implements the operator directive above.
 Hashtags: JSON array without # prefix.`;
 
-  const text = await callAi(system, user, 2800, 0.7);
-  const parsed = text ? parseGeneratedPostPayload(text) : null;
+  const aiResult = await callAi(system, user, 2800, 0.7);
+  const parsed = aiResult.text ? parseGeneratedPostPayload(aiResult.text) : null;
   if (!parsed?.caption?.trim()) return null;
 
   const draft = rowToBulkDraft({
@@ -327,8 +391,8 @@ ${CONTENT_CALENDAR_AI_RULES}
 ${learning}
 Return ONLY JSON: {"hashtags":["tag1","tag2",...]} with exactly ${CONTENT_CALENDAR_MAX_HASHTAGS} tags (or fewer). Mix broad fitness and niche tags trending around ${args.postDate}. No # prefix. No Atlanta/local geo tags.`;
   const user = `Research best hashtags for ${args.postType} post targeting ${targetGroup} to publish on ${args.postDate}.`;
-  const text = await callAi(system, user, 600);
-  const parsed = text ? parseJsonBlock<{ hashtags?: string[] }>(text) : null;
+  const aiResult = await callAi(system, user, 600);
+  const parsed = aiResult.text ? parseJsonBlock<{ hashtags?: string[] }>(aiResult.text) : null;
   const tags = normalizeHashtags(parsed?.hashtags ?? []);
   if (tags.length) {
     await recordContentLearning({
@@ -365,8 +429,10 @@ Platforms: ${platforms}.
 ${args.existingCaption ? `Previous caption:\n${args.existingCaption}` : ""}
 ${args.existingVisualPrompt ? `Previous visual prompt:\n${args.existingVisualPrompt}` : ""}
 ${args.feedback ? `Operator feedback — apply these changes:\n${args.feedback}` : "Improve hook, clarity, and hashtags while keeping the same intent."}`;
-  const text = await callAi(system, user, 2500);
-  const parsed = text ? parseJsonBlock<{ caption?: string; visualPrompt?: string | null; hashtags?: string[] }>(text) : null;
+  const aiResult = await callAi(system, user, 2500);
+  const parsed = aiResult.text
+    ? parseJsonBlock<{ caption?: string; visualPrompt?: string | null; hashtags?: string[] }>(aiResult.text)
+    : null;
   if (!parsed) return null;
   const content = applyPostRules(
     {
@@ -412,8 +478,10 @@ ${args.postType === "Text" ? "Text-only post: no visual or video prompt. Write f
 Weave the operator directive into the hook and body — do not produce generic beta filler.
 Target audiences to rotate between: Join the Team (Fitness Pro recruitment), List With Us (independent listing), Clients (athletes seeking training).
 Goal: match-fit.net signups with audience-appropriate CTAs.`;
-  const text = await callAi(system, user);
-  const parsed = text ? parseJsonBlock<{ hook?: string; body?: string; cta?: string; hashtags?: string[]; dmScript?: string }>(text) : null;
+  const aiResult = await callAi(system, user);
+  const parsed = aiResult.text
+    ? parseJsonBlock<{ hook?: string; body?: string; cta?: string; hashtags?: string[]; dmScript?: string }>(aiResult.text)
+    : null;
   if (!parsed) return null;
   const enforced = enforceGeneratedPostContent({
     caption: [parsed.hook, parsed.body, parsed.cta].filter(Boolean).join("\n\n"),
@@ -464,8 +532,8 @@ Use live scan context above for concrete promos, features, and proof points in e
 Visual prompts must describe scenes and subjects — not just hex colors.
 Include day-of-week variety and founding beta urgency aligned with live promos. Hashtags without # in array.`;
 
-  const text = await callAi(system, user, 8000);
-  const parsed = text ? parseJsonBlock<GeneratedWeekPost[]>(text) : null;
+  const aiResult = await callAi(system, user, 8000);
+  const parsed = aiResult.text ? parseJsonBlock<GeneratedWeekPost[]>(aiResult.text) : null;
   if (!parsed || !Array.isArray(parsed)) return fallbackWeek(args.offset);
 
   return parsed.map((row) => {
@@ -553,8 +621,8 @@ ${socialScan.summary}
 Assign target audiences for these ${items.length} posts:
 ${slotList}`;
 
-  const text = await callAi(system, user, Math.min(4000, 200 + items.length * 80));
-  const parsed = text ? parseJsonBlock<{ targetGroup: string }[]>(text) : null;
+  const aiResult = await callAi(system, user, Math.min(4000, 200 + items.length * 80));
+  const parsed = aiResult.text ? parseJsonBlock<{ targetGroup: string }[]>(aiResult.text) : null;
 
   const result: Record<number, string> = {};
   items.forEach((item, i) => {
@@ -564,17 +632,27 @@ ${slotList}`;
   return result;
 }
 
+export type BulkGenerationMeta = {
+  provider: string | null;
+  model: string | null;
+  failedCount: number;
+  lastError: string | null;
+  warning: string | null;
+};
+
 export async function generateBulkContent(args: {
   items: BulkContentItem[];
   scheduled: boolean;
   customPrompt?: string;
   weekStart: string;
   offset?: number;
-}): Promise<BulkGeneratedDraft[]> {
+}): Promise<{ drafts: BulkGeneratedDraft[]; meta: BulkGenerationMeta }> {
+  resetLastContentCalendarAiError();
+  const providerStatus = await getAdminAiProviderStatusAsync();
   const customPrompt =
     args.customPrompt?.trim() ||
     "Scan social media performance, website promos, and user activity to inform each post with specific Match Fit details.";
-  const contextBlock = trimContextBlockForPrompt(await buildContentGenerationContext({ forceRefresh: true }));
+  const contextBlock = trimContextBlockForPrompt(await buildContentGenerationContext());
   const count = args.items.length;
   const monday = new Date(`${args.weekStart}T00:00:00`);
   const operatorDirective = buildOperatorCreativeDirective(customPrompt);
@@ -617,8 +695,10 @@ ${slotBriefs}
 
 Create ${count} unique posts. Weave operator themes into every caption and visual prompt.`;
 
-  const text = await callAi(system, user, Math.min(12000, 1200 + count * 650), 0.7);
-  const parsed = text ? parseGeneratedPostArrayPayload(text) ?? parseJsonBlock<ParsedBulkRow[]>(text) : null;
+  const batchResult = await callAi(system, user, Math.min(12000, 1200 + count * 650), 0.7);
+  const parsed = batchResult.text
+    ? parseGeneratedPostArrayPayload(batchResult.text) ?? parseJsonBlock<ParsedBulkRow[]>(batchResult.text)
+    : null;
 
   let drafts: BulkGeneratedDraft[] = [];
 
@@ -635,7 +715,7 @@ Create ${count} unique posts. Weave operator themes into every caption and visua
     );
   }
 
-  return mapWithConcurrency(args.items, 2, async (spec, i) => {
+  const draftsOut = await mapWithConcurrency(args.items, 1, async (spec, i) => {
     const existing = drafts[i];
     const dayIndex = args.scheduled ? i % 5 : 0;
 
@@ -681,9 +761,14 @@ Create ${count} unique posts. Weave operator themes into every caption and visua
       return { ...existing, tempId: `draft_${Date.now()}_${i}` };
     }
 
+    const lastError = getLastContentCalendarAiError();
+    const detail = lastError
+      ? lastError
+      : "The AI provider did not return usable copy — click Generate again or check server AI keys/logs.";
+
     return rowToBulkDraft({
       row: {
-        caption: `Generation failed for ${spec.postType} (${normalizeTargetGroup(spec.targetGroup)}). The AI provider did not return usable copy — click Generate again or check server AI keys/logs.`,
+        caption: `Generation failed for ${spec.postType} (${normalizeTargetGroup(spec.targetGroup)}). ${detail}`,
         visualPrompt:
           spec.postType === "Text"
             ? null
@@ -702,6 +787,26 @@ Create ${count} unique posts. Weave operator themes into every caption and visua
       monday,
     });
   });
+
+  const failedCount = draftsOut.filter((draft) => /^Generation failed for /i.test(draft.caption)).length;
+  const lastError = getLastContentCalendarAiError();
+  const warning =
+    failedCount === draftsOut.length && lastError
+      ? `All ${failedCount} posts failed. ${lastError}`
+      : failedCount > 0
+        ? `${failedCount} of ${draftsOut.length} posts could not be generated. ${lastError ?? "Retry generation for failed slots."}`
+        : null;
+
+  return {
+    drafts: draftsOut,
+    meta: {
+      provider: providerStatus.configured ? providerStatus.provider : null,
+      model: providerStatus.configured ? providerStatus.model : null,
+      failedCount,
+      lastError,
+      warning,
+    },
+  };
 }
 
 export async function analyzeSocialPerformance(forceRefresh = true): Promise<string> {
@@ -722,8 +827,9 @@ ${socialScan.summary}
 
 Summarize performance for @theofficialmatchfit on Instagram, TikTok, Facebook, and Threads. Note content types (video, carousel, static, text) and Fitness Pro recruitment vs client acquisition focus.`;
 
-  const text = await callAi(system, user, 1200);
-  const summary = text ?? "Connect ANTHROPIC_API_KEY or OPENAI_API_KEY to run social performance analysis.";
+  const aiResult = await callAi(system, user, 1200);
+  const summary =
+    aiResult.text ?? aiResult.error ?? "Connect ANTHROPIC_API_KEY or OPENAI_API_KEY to run social performance analysis.";
 
   await recordContentLearning({
     signalType: "SOCIAL_SCAN",
