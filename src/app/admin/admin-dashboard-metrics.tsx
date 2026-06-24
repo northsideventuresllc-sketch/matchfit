@@ -7,6 +7,9 @@ import type {
   AdminBackgroundChecksPanel,
   AdminClientPipelinePanel,
   AdminEmailStatsPanel,
+  AdminFinanceClientSegment,
+  AdminFinanceFpTierSegment,
+  AdminFinanceRevenueBreakdown,
   AdminFinanceWindowKey,
   AdminFinancesPanel,
   AdminLoginRecencyBuckets,
@@ -618,17 +621,185 @@ export function PremiumTrainerActivitySection({ panel }: { panel: AdminPremiumTr
 }
 
 export function FinancialDetailsSection({ finances, revenue }: { finances: AdminFinancesPanel; revenue: AdminRevenueSnapshot }) {
+  const { segments } = finances;
+
   return (
-    <MetricsSection title="Financial details" description="Platform revenue, Client VIP subscriptions, and transaction history. Excludes test accounts.">
-      <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.06] p-4">
-        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-200/80">Lifetime platform revenue</p>
-        <p className="mt-2 text-2xl font-black tabular-nums text-white">{formatUsdFromCents(revenue.revenueCents)}</p>
-        <p className="mt-1 text-xs text-white/45">
-          Gross profit {formatUsdFromCents(revenue.grossProfitCents)} · {revenue.eventCount} events
-        </p>
+    <MetricsSection
+      title="Financial details"
+      description="Platform revenue by client plan, Fitness Pro tier, and general finances. Excludes test accounts."
+    >
+      <div className="space-y-3">
+        <NestedCollapsible
+          title="Free Plan Clients"
+          subtitle={`${segments.freePlanClients.clientCount} clients · service spend, one-time purchases, and platform fees`}
+        >
+          <ClientFinanceSegmentPanel
+            segment={segments.freePlanClients}
+            hints={[
+              "Clients on the Free plan after the complimentary VIP trial ends.",
+              "Service spend is total charged on Fitness Pro service checkouts.",
+              "One-time purchases include add-ons such as extra swipes when available.",
+            ]}
+          />
+        </NestedCollapsible>
+
+        <NestedCollapsible
+          title="VIP Plan Clients"
+          subtitle={`${segments.vipPlanClients.clientCount} clients · complimentary trial and paying Client VIP`}
+        >
+          <ClientFinanceSegmentPanel
+            segment={segments.vipPlanClients}
+            hints={[
+              "Includes complimentary VIP trial clients and paying Client VIP ($10/mo) subscribers.",
+              "Subscription revenue reflects Client VIP and legacy platform billing.",
+            ]}
+          />
+        </NestedCollapsible>
+
+        <NestedCollapsible
+          title="Inactive Clients"
+          subtitle={`${segments.inactiveClients.clientCount} clients · no recent site activity`}
+        >
+          <ClientFinanceSegmentPanel
+            segment={segments.inactiveClients}
+            hints={[
+              "Clients with no site activity in 30+ days who are not counted as subscribed.",
+              "Historical revenue from these clients is still attributed here.",
+            ]}
+          />
+        </NestedCollapsible>
+
+        <NestedCollapsible
+          title="Match Fit Pros"
+          subtitle={`${segments.matchFitPros.liveFitPros} live · ${segments.matchFitPros.activeFitPros} active`}
+        >
+          <FpTierFinanceSegmentPanel segment={segments.matchFitPros} />
+        </NestedCollapsible>
+
+        <NestedCollapsible
+          title="Match Fit Premium Pros"
+          subtitle={`${segments.matchFitPremiumPros.liveFitPros} live · ${segments.matchFitPremiumPros.premiumStudioEnabled} premium studio`}
+        >
+          <FpTierFinanceSegmentPanel segment={segments.matchFitPremiumPros} />
+        </NestedCollapsible>
+
+        <NestedCollapsible
+          title="Independent Fitness Pros"
+          subtitle={`${segments.independentFitnessPros.liveFitPros} live · ${segments.independentFitnessPros.monthlySubscriptionsActive} monthly subs`}
+        >
+          <FpTierFinanceSegmentPanel segment={segments.independentFitnessPros} />
+        </NestedCollapsible>
+
+        <NestedCollapsible
+          title="Elite Fitness Pros"
+          subtitle={`${segments.eliteFitnessPros.liveFitPros} live · ${segments.eliteFitnessPros.monthlySubscriptionsActive} monthly subs`}
+        >
+          <FpTierFinanceSegmentPanel segment={segments.eliteFitnessPros} />
+        </NestedCollapsible>
+
+        <NestedCollapsible
+          title="General Finances"
+          subtitle={`Lifetime platform revenue ${formatUsdFromCents(revenue.revenueCents)}`}
+          defaultOpen
+        >
+          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.06] p-4">
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-200/80">Lifetime platform revenue</p>
+            <p className="mt-2 text-2xl font-black tabular-nums text-white">{formatUsdFromCents(revenue.revenueCents)}</p>
+            <p className="mt-1 text-xs text-white/45">
+              Gross profit {formatUsdFromCents(revenue.grossProfitCents)} · {revenue.eventCount} events
+            </p>
+          </div>
+          <FinancesDetailSection finances={finances} embedded />
+        </NestedCollapsible>
       </div>
-      <FinancesDetailSection finances={finances} embedded />
     </MetricsSection>
+  );
+}
+
+function RevenueBreakdownGrid(props: { label: string; breakdown: AdminFinanceRevenueBreakdown }) {
+  return (
+    <div>
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">{props.label}</p>
+      <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard label="Platform revenue" value={formatUsdFromCents(props.breakdown.revenueCents)} accent="emerald" />
+        <StatCard label="Gross profit" value={formatUsdFromCents(props.breakdown.grossProfitCents)} />
+        <StatCard
+          label="Service spend on Fitness Pros"
+          value={formatUsdFromCents(props.breakdown.serviceSpendCents)}
+          hint={`${props.breakdown.serviceCheckoutCount} checkout${props.breakdown.serviceCheckoutCount === 1 ? "" : "s"}`}
+        />
+        <StatCard
+          label="Service platform fees"
+          value={formatUsdFromCents(props.breakdown.servicePlatformFeesCents)}
+        />
+        <StatCard
+          label="One-time purchases"
+          value={formatUsdFromCents(props.breakdown.oneTimePurchaseCents)}
+          hint="Add-ons such as extra swipes"
+        />
+        <StatCard
+          label="Subscription revenue"
+          value={formatUsdFromCents(props.breakdown.subscriptionRevenueCents)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ClientFinanceSegmentPanel(props: { segment: AdminFinanceClientSegment; hints?: string[] }) {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard label="Clients" value={props.segment.clientCount} accent="orange" />
+        {props.segment.clientsWithCard != null ? (
+          <StatCard label="Clients with card on file" value={props.segment.clientsWithCard} />
+        ) : null}
+      </div>
+      <RevenueBreakdownGrid label="Last 30 days" breakdown={props.segment.last30d} />
+      <RevenueBreakdownGrid label="Lifetime" breakdown={props.segment.lifetime} />
+      {props.hints && props.hints.length > 0 ? (
+        <ul className="space-y-1 text-[11px] text-white/40">
+          {props.hints.map((hint) => (
+            <li key={hint}>· {hint}</li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+function FpTierFinanceSegmentPanel(props: { segment: AdminFinanceFpTierSegment }) {
+  const renderFpRevenue = (label: string, data: AdminFinanceFpTierSegment["lifetime"]) => (
+    <div>
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">{label}</p>
+      <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard label="Platform revenue" value={formatUsdFromCents(data.revenueCents)} accent="emerald" />
+        <StatCard label="Gross profit" value={formatUsdFromCents(data.grossProfitCents)} />
+        <StatCard label="Registration fees" value={formatUsdFromCents(data.registrationFeesCents)} />
+        <StatCard label="Monthly subscriptions" value={formatUsdFromCents(data.monthlySubscriptionCents)} />
+        <StatCard label="Promote token revenue" value={formatUsdFromCents(data.tokenRevenueCents)} />
+        <StatCard label="Nudge pack revenue" value={formatUsdFromCents(data.nudgePackRevenueCents)} />
+        <StatCard label="Service platform fees" value={formatUsdFromCents(data.servicePlatformFeesCents)} />
+        <StatCard
+          label="One-time purchases"
+          value={formatUsdFromCents(data.oneTimePurchaseCents)}
+        />
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Active Fitness Pros" value={props.segment.activeFitPros} accent="emerald" />
+        <StatCard label="Live dashboards" value={props.segment.liveFitPros} />
+        <StatCard label="Pending onboarding" value={props.segment.pendingFitPros} />
+        <StatCard label="Monthly subs active" value={props.segment.monthlySubscriptionsActive} />
+        <StatCard label="Premium studio enabled" value={props.segment.premiumStudioEnabled} accent="violet" />
+      </div>
+      {renderFpRevenue("Last 30 days", props.segment.last30d)}
+      {renderFpRevenue("Lifetime", props.segment.lifetime)}
+    </div>
   );
 }
 

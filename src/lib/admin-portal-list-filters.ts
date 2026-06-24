@@ -242,6 +242,39 @@ export function adminMemberOverviewLegacyStripeTrialWhere(): Prisma.ClientWhereI
   };
 }
 
+/** VIP plan clients — complimentary trial or paying Client VIP (excludes test/QA). */
+export function adminMemberOverviewVipPlanClientWhere(now = new Date()): Prisma.ClientWhereInput {
+  return {
+    ...adminMemberOverviewActiveClientWhere(),
+    OR: [
+      { vipSubscriptionActive: true, vipSubscriptionId: { not: null } },
+      {
+        platformTrialEndsAt: { gt: now },
+        NOT: {
+          AND: [
+            { stripeSubscriptionActive: true },
+            { stripeSubscriptionId: { not: null } },
+            { stripeSubscriptionId: { not: "" } },
+          ],
+        },
+      },
+    ],
+  };
+}
+
+/** Inactive clients — no site activity within the admin inactivity window (excludes test/QA). */
+export function adminMemberOverviewInactiveClientWhere(
+  now = new Date(),
+  inactivityDays = 30,
+): Prisma.ClientWhereInput {
+  const threshold = new Date(now.getTime() - inactivityDays * 24 * 60 * 60 * 1000);
+  return {
+    ...adminMemberOverviewActiveClientWhere(),
+    updatedAt: { lt: threshold },
+    NOT: adminMemberOverviewSubscribedClientWhere(now),
+  };
+}
+
 /** Active subscribed clients — VIP trial, Free plan, or paying VIP (excludes test/QA). */
 export function adminMemberOverviewSubscribedClientWhere(now = new Date()): Prisma.ClientWhereInput {
   return {

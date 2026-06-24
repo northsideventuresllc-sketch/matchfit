@@ -89,6 +89,7 @@ import {
   countPendingFitProsForTiers,
   countPremiumStudioForTiers,
 } from "@/lib/admin-fitpro-pipeline-metrics";
+import { loadAdminFinancesPanelSegments } from "@/lib/admin-finance-segments";
 
 const CLIENT_SIGNUP_PATHS = ["/client/sign-up", "/client/sign-up/complete"];
 const TRAINER_SIGNUP_PATHS = ["/trainer/signup", "/trainer/sign-up", "/trainer/signup/complete"];
@@ -1081,6 +1082,7 @@ export async function getAdminFinancesPanel(now = new Date()): Promise<AdminFina
     premiumTrainers,
     featuredTrainersToday,
     bestSellers,
+    segments,
   ] = await Promise.all([
     safeClientCount(adminMemberOverviewVipTrialClientWhere(now)),
     safeClientCount(adminMemberOverviewLegacyStripeTrialWhere()),
@@ -1093,6 +1095,7 @@ export async function getAdminFinancesPanel(now = new Date()): Promise<AdminFina
     countLaunchPremiumTrainers(),
     prisma.featuredDailyAllocation.count({ where: { displayDayKey: dayKey } }),
     loadBestSellers(sinceFromWindow("30d", now)),
+    loadAdminFinancesPanelSegments(now),
   ]);
 
   const activeSubscriptions = activeVipSubscriptions + legacyPlatformSubscriptions;
@@ -1114,6 +1117,7 @@ export async function getAdminFinancesPanel(now = new Date()): Promise<AdminFina
     trainersWithCard: null,
     featuredTrainersToday,
     bestSellers,
+    segments,
   };
 }
 
