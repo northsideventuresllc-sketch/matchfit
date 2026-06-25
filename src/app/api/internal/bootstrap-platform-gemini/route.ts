@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
   geminiApiKey: z.string().min(20),
+  geminiBackupApiKey: z.string().min(20).optional(),
   geminiModel: z.string().min(1).optional(),
 });
 
@@ -64,6 +65,9 @@ export async function POST(req: Request) {
     }
 
     await upsertPlatformSecret("GEMINI_API_KEY", body.geminiApiKey);
+    if (body.geminiBackupApiKey) {
+      await upsertPlatformSecret("GEMINI_API_KEY_BACKUP", body.geminiBackupApiKey);
+    }
     await upsertPlatformSecret("GEMINI_MODEL", body.geminiModel?.trim() || "gemini-2.0-flash");
     clearPlatformSecretCache();
     resetHydratePlatformEnvCache();

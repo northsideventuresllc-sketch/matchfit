@@ -1,0 +1,19 @@
+---
+description: Default AI provider chain for Match Fit and Northside sibling repos (Hermes, NI Brain agents).
+globs:
+  - "**/*ai*.ts"
+  - "**/ai-vault/**"
+alwaysApply: false
+---
+
+# AI Vault default
+
+When adding or changing AI features:
+
+1. Use `callMatchFitAi` from `@/lib/ai-vault` — **never** call Anthropic/OpenAI/Gemini HTTP APIs directly for text generation.
+2. Provider order: **Claude (auto model)** → **Gemini primary** → **Gemini backup** → fail.
+3. Store keys in `platform_secrets` (AI Vault), not in source code.
+4. Pick `kind` and optional `complexity` so Claude model auto-selection fits the task (`classification` = haiku, `research` = opus, etc.).
+5. See `docs/ai-vault.md` for Hermes and cross-repo standards.
+
+OpenAI is only for DALL·E image generation (`generateStaticMedia`), not text fallback.

@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { callMatchFitAi } from "@/lib/ai-vault/router";
+import { getAiVaultStatus } from "@/lib/ai-vault";
 
 function heuristicTrainerReply(clientMessage: string): string {
   const t = clientMessage.toLowerCase();
@@ -30,9 +32,7 @@ async function openAiRoleplayReply(args: {
   peerLabel: string;
   lastMessage: string;
 }): Promise<string | null> {
-  const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key || args.lastMessage.length > 4000) return null;
-  const model = process.env.OPENAI_CHAT_COMPLIANCE_MODEL?.trim() || "gpt-4o-mini";
+  if (!getAiVaultStatus().configured || args.lastMessage.length > 4000) return null;
   const system =
     args.role === "TRAINER"
       ? "You are a professional fitness coach replying in a marketplace chat. Be concise (max 3 sentences), warm, and practical. " +
@@ -40,30 +40,16 @@ async function openAiRoleplayReply(args: {
       : "You are a motivated prospective client replying to a coach. Be concise (max 3 sentences), friendly, and realistic. " +
         "No off-platform payment talk.";
 
-  const payload = {
-    model,
-    temperature: 0.7,
-    messages: [
-      { role: "system" as const, content: system },
-      {
-        role: "user" as const,
-        content: `${args.peerLabel} wrote: ${args.lastMessage}\n\nWrite the next short reply as the ${args.role === "TRAINER" ? "coach" : "client"}.`,
-      },
-    ],
-  };
-
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+    const ai = await callMatchFitAi({
+      system,
+      user: `${args.peerLabel} wrote: ${args.lastMessage}\n\nWrite the next short reply as the ${args.role === "TRAINER" ? "coach" : "client"}.`,
+      maxTokens: 400,
+      temperature: 0.7,
+      kind: "chat",
+      complexity: "simple",
     });
-    if (!res.ok) return null;
-    const raw = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const text = raw.choices?.[0]?.message?.content?.trim();
+    const text = ai.text?.trim();
     if (!text) return null;
     return text.slice(0, 1200);
   } catch {

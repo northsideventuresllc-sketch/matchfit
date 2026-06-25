@@ -2138,7 +2138,7 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
 
         {!props.aiStatus.configured ? (
           <AdminPortalAlert variant="info">
-            {props.aiStatus.message} Lead generation needs ANTHROPIC_API_KEY or OPENAI_API_KEY on the server.
+            {props.aiStatus.message} Lead generation needs the AI Vault keys (ANTHROPIC_API_KEY and GEMINI_API_KEY) on the server.
           </AdminPortalAlert>
         ) : null}
 

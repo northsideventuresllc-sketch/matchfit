@@ -1,6 +1,8 @@
 import "server-only";
 
-import { getAdminAiProviderStatus, getAdminAiProviderStatusAsync } from "@/lib/admin-analytics-ai";
+import { getAiVaultStatus } from "@/lib/ai-vault";
+import { callMatchFitAi } from "@/lib/ai-vault/router";
+import { resolveGeminiModel } from "@/lib/ai-vault/models";
 import {
   CONTENT_CALENDAR_BRAND_FACTS,
   CONTENT_CALENDAR_DAYS_LONG,
@@ -34,20 +36,14 @@ import {
   parseGeneratedPostPayload,
 } from "@/lib/content-calendar/content-calendar-parse";
 import { recordContentLearning } from "@/lib/ni-brain-client";
-import {
-  callGeminiGenerateContent,
-  isGeminiFallbackConfigured,
-  resolveGeminiModel,
-} from "@/lib/google-gemini-ai";
 
 const CONTENT_CALENDAR_AI_TIMEOUT_MS = 45_000;
-const CONTENT_CALENDAR_AI_MAX_ATTEMPTS = 3;
 
 type CallAiResult = {
   text: string | null;
   error?: string;
   usedFallback?: boolean;
-  provider?: "anthropic" | "openai" | "gemini";
+  provider?: string;
 };
 
 let lastContentCalendarAiError: string | null = null;
@@ -102,270 +98,30 @@ function applyPostRules(content: GeneratedPostContent, postType: ContentCalendar
   };
 }
 
-function summarizeProviderError(status: number, body: string, provider: string): string {
-  let detail = body.slice(0, 240).replace(/\s+/g, " ").trim();
-  try {
-    const parsed = JSON.parse(body) as { error?: { message?: string }; message?: string };
-    detail = parsed.error?.message ?? parsed.message ?? detail;
-  } catch {
-    // keep raw detail
-  }
-  return `${provider} HTTP ${status}${detail ? `: ${detail}` : ""}`;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function requestFailureMessage(error: unknown, provider: string): string {
-  if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
-    return `${provider} request timed out.`;
-  }
-  return `${provider} request failed: ${error instanceof Error ? error.message : "unknown error"}`;
-}
-
-async function tryGeminiFallback(args: {
-  system: string;
-  user: string;
-  maxTokens: number;
-  temperature: number;
-  primaryError?: string;
-}): Promise<CallAiResult> {
-  if (!isGeminiFallbackConfigured()) {
-    return {
-      text: null,
-      error: args.primaryError ?? "Primary AI provider failed and GEMINI_API_KEY is not configured.",
-    };
-  }
-
-  const fallback = await callGeminiGenerateContent({
-    system: args.system,
-    user: args.user,
-    maxTokens: args.maxTokens,
-    temperature: args.temperature,
+async function callAi(system: string, user: string, maxTokens = 2000, temperature = 0.55): Promise<CallAiResult> {
+  const combinedLen = system.length + user.length;
+  const result = await callMatchFitAi({
+    system,
+    user,
+    maxTokens,
+    temperature,
     jsonMode: true,
     timeoutMs: CONTENT_CALENDAR_AI_TIMEOUT_MS,
+    kind: combinedLen > 7000 ? "creative" : "json",
+    complexity: maxTokens >= 6000 ? "complex" : undefined,
   });
 
-  if (fallback.text) {
-    contentCalendarGeminiFallbackUsed = true;
-    console.warn(
-      "[content-calendar-ai] Used Gemini fallback",
-      args.primaryError ? `after: ${args.primaryError}` : "",
-    );
+  if (result.text) {
+    lastContentCalendarAiError = null;
+    if (result.usedFallback) contentCalendarGeminiFallbackUsed = true;
     return {
-      text: fallback.text,
-      provider: "gemini",
-      usedFallback: true,
+      text: result.text,
+      provider: result.provider ?? undefined,
+      usedFallback: result.usedFallback,
     };
   }
 
-  const combined = [args.primaryError, fallback.error].filter(Boolean).join(" Fallback: ");
-  return { text: null, error: combined || "Gemini fallback failed." };
-}
-
-async function callAnthropicContentAi(args: {
-  system: string;
-  user: string;
-  maxTokens: number;
-  temperature: number;
-  model: string;
-}): Promise<CallAiResult> {
-  const key = process.env.ANTHROPIC_API_KEY?.trim();
-  if (!key) {
-    return { text: null, error: "ANTHROPIC_API_KEY is missing on the server." };
-  }
-
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: args.model,
-        max_tokens: args.maxTokens,
-        system: args.system,
-        messages: [{ role: "user", content: args.user }],
-        temperature: args.temperature,
-      }),
-      signal: AbortSignal.timeout(CONTENT_CALENDAR_AI_TIMEOUT_MS),
-    });
-
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => "");
-      return { text: null, error: summarizeProviderError(res.status, errBody, "Anthropic") };
-    }
-
-    const data = (await res.json()) as { content?: { type: string; text?: string }[] };
-    const text =
-      data.content
-        ?.filter((block) => block.type === "text" && block.text?.trim())
-        .map((block) => block.text!.trim())
-        .join("\n\n") ?? null;
-
-    if (!text) {
-      return { text: null, error: "Anthropic returned an empty response." };
-    }
-
-    return { text, provider: "anthropic" };
-  } catch (error) {
-    return { text: null, error: requestFailureMessage(error, "Anthropic") };
-  }
-}
-
-async function callOpenAiContentAi(args: {
-  system: string;
-  user: string;
-  maxTokens: number;
-  temperature: number;
-  model: string;
-}): Promise<CallAiResult> {
-  const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) {
-    return { text: null, error: "OPENAI_API_KEY is missing on the server." };
-  }
-
-  try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: args.model,
-        messages: [
-          { role: "system", content: args.system },
-          { role: "user", content: args.user },
-        ],
-        temperature: args.temperature,
-        max_tokens: args.maxTokens,
-        response_format: { type: "json_object" },
-      }),
-      signal: AbortSignal.timeout(CONTENT_CALENDAR_AI_TIMEOUT_MS),
-    });
-
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => "");
-      return { text: null, error: summarizeProviderError(res.status, errBody, "OpenAI") };
-    }
-
-    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const text = data.choices?.[0]?.message?.content?.trim() ?? null;
-    if (!text) {
-      return { text: null, error: "OpenAI returned an empty response." };
-    }
-
-    return { text, provider: "openai" };
-  } catch (error) {
-    return { text: null, error: requestFailureMessage(error, "OpenAI") };
-  }
-}
-
-async function callAi(system: string, user: string, maxTokens = 2000, temperature = 0.55): Promise<CallAiResult> {
-  const status = await getAdminAiProviderStatusAsync();
-  if (!status.configured) {
-    const geminiOnly = await tryGeminiFallback({
-      system,
-      user,
-      maxTokens,
-      temperature,
-      primaryError: "No AI provider configured. Add ANTHROPIC_API_KEY or OPENAI_API_KEY.",
-    });
-    if (geminiOnly.text) {
-      lastContentCalendarAiError = null;
-      return geminiOnly;
-    }
-
-    const message = "No AI provider configured. Add ANTHROPIC_API_KEY or OPENAI_API_KEY.";
-    lastContentCalendarAiError = message;
-    return { text: null, error: message };
-  }
-
-  if (status.provider === "anthropic") {
-    let lastError: string | undefined;
-
-    for (let attempt = 1; attempt <= CONTENT_CALENDAR_AI_MAX_ATTEMPTS; attempt += 1) {
-      const result = await callAnthropicContentAi({
-        system,
-        user,
-        maxTokens,
-        temperature,
-        model: status.model,
-      });
-
-      if (result.text) {
-        lastContentCalendarAiError = null;
-        return result;
-      }
-
-      lastError = result.error;
-      console.error("[content-calendar-ai] Anthropic error", result.error);
-
-      const retryable =
-        result.error?.includes("HTTP 429") ||
-        result.error?.includes("HTTP 5") ||
-        result.error?.includes("timed out");
-
-      if (retryable && attempt < CONTENT_CALENDAR_AI_MAX_ATTEMPTS) {
-        await sleep(800 * attempt);
-        continue;
-      }
-
-      break;
-    }
-
-    const fallback = await tryGeminiFallback({
-      system,
-      user,
-      maxTokens,
-      temperature,
-      primaryError: lastError,
-    });
-    if (fallback.text) {
-      lastContentCalendarAiError = null;
-      return fallback;
-    }
-
-    lastContentCalendarAiError = fallback.error ?? lastError ?? "Anthropic request failed.";
-    return { text: null, error: lastContentCalendarAiError };
-  }
-
-  let lastError: string | undefined;
-  for (let attempt = 1; attempt <= CONTENT_CALENDAR_AI_MAX_ATTEMPTS; attempt += 1) {
-    const result = await callOpenAiContentAi({
-      system,
-      user,
-      maxTokens,
-      temperature,
-      model: status.model,
-    });
-
-    if (result.text) {
-      lastContentCalendarAiError = null;
-      return result;
-    }
-
-    lastError = result.error;
-    console.error("[content-calendar-ai] OpenAI error", result.error);
-
-    const retryable =
-      result.error?.includes("HTTP 429") ||
-      result.error?.includes("HTTP 5") ||
-      result.error?.includes("timed out");
-
-    if (retryable && attempt < CONTENT_CALENDAR_AI_MAX_ATTEMPTS) {
-      await sleep(800 * attempt);
-      continue;
-    }
-
-    break;
-  }
-
-  lastContentCalendarAiError = lastError ?? "OpenAI request failed.";
+  lastContentCalendarAiError = result.error ?? "All AI providers failed.";
   return { text: null, error: lastContentCalendarAiError };
 }
 
@@ -798,7 +554,7 @@ export async function generateBulkContent(args: {
 }): Promise<{ drafts: BulkGeneratedDraft[]; meta: BulkGenerationMeta }> {
   resetLastContentCalendarAiError();
   contentCalendarGeminiFallbackUsed = false;
-  const providerStatus = await getAdminAiProviderStatusAsync();
+  const vaultStatus = getAiVaultStatus();
   const customPrompt =
     args.customPrompt?.trim() ||
     "Scan social media performance, website promos, and user activity to inform each post with specific Match Fit details.";
@@ -943,7 +699,7 @@ Create ${count} unique posts. Weave operator themes into every caption and visua
 
   const failedCount = draftsOut.filter((draft) => /^Generation failed for /i.test(draft.caption)).length;
   const lastError = getLastContentCalendarAiError();
-  const geminiFallbackConfigured = isGeminiFallbackConfigured();
+  const geminiFallbackConfigured = vaultStatus.geminiPrimary || vaultStatus.geminiBackup;
   const usedGeminiFallback = contentCalendarGeminiFallbackUsed;
   const fallbackNote = usedGeminiFallback
     ? ` Used Gemini fallback (${resolveGeminiModel()}) after Claude issues.`
@@ -960,16 +716,8 @@ Create ${count} unique posts. Weave operator themes into every caption and visua
   return {
     drafts: draftsOut,
     meta: {
-      provider: usedGeminiFallback
-        ? "gemini"
-        : providerStatus.configured
-          ? providerStatus.provider
-          : null,
-      model: usedGeminiFallback
-        ? resolveGeminiModel()
-        : providerStatus.configured
-          ? providerStatus.model
-          : null,
+      provider: usedGeminiFallback ? "gemini" : vaultStatus.anthropic ? "anthropic" : null,
+      model: usedGeminiFallback ? resolveGeminiModel() : null,
       failedCount,
       lastError,
       warning,
@@ -1050,27 +798,18 @@ export async function getContentCalendarAiStatusAsync(): Promise<{
 }
 
 export function getContentCalendarAiStatus(): { configured: boolean; niBrain: boolean; media: boolean; message: string } {
-  const ai = getAdminAiProviderStatus();
-  const geminiFallback = isGeminiFallbackConfigured();
+  const vault = getAiVaultStatus();
   const niBrain = Boolean(
     process.env.NI_BRAIN_SUPABASE_URL?.trim() && process.env.NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY?.trim(),
   );
   const media = Boolean(process.env.OPENAI_API_KEY?.trim());
-  const parts: string[] = [];
-  if (!ai.configured && !geminiFallback) {
-    parts.push("Add ANTHROPIC_API_KEY or OPENAI_API_KEY for generation.");
-  }
-  if (ai.configured && geminiFallback) {
-    parts.push(`Claude primary with Gemini fallback (${resolveGeminiModel()}) if Claude fails.`);
-  } else if (geminiFallback) {
-    parts.push(`Gemini fallback configured (${resolveGeminiModel()}).`);
-  }
+  const parts: string[] = [vault.message];
   if (!niBrain) parts.push("Add NI Brain Supabase keys (Vercel env or platform_secrets) for learning persistence.");
   if (!media) parts.push("Add OPENAI_API_KEY for static image generation.");
   return {
-    configured: ai.configured || geminiFallback,
+    configured: vault.configured,
     niBrain,
     media,
-    message: parts.length ? parts.join(" ") : "Content calendar AI ready.",
+    message: parts.filter(Boolean).join(" "),
   };
 }

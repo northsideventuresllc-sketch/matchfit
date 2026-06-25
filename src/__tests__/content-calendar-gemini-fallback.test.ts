@@ -1,23 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const getAdminAiProviderStatusAsync = vi.fn();
-const callGeminiGenerateContent = vi.fn();
+const callMatchFitAi = vi.fn();
 
-vi.mock("@/lib/admin-analytics-ai", () => ({
-  getAdminAiProviderStatus: vi.fn(() => ({
-    provider: "anthropic",
-    configured: true,
-    working: false,
-    model: "claude-sonnet-4-6",
-    message: "ok",
-  })),
-  getAdminAiProviderStatusAsync,
-}));
-
-vi.mock("@/lib/google-gemini-ai", () => ({
-  callGeminiGenerateContent,
-  isGeminiFallbackConfigured: vi.fn(() => true),
-  resolveGeminiModel: vi.fn(() => "gemini-2.0-flash"),
+vi.mock("@/lib/ai-vault/router", () => ({
+  callMatchFitAi,
 }));
 
 vi.mock("@/lib/content-calendar/content-context", () => ({
@@ -32,39 +18,30 @@ vi.mock("@/lib/ni-brain-client", () => ({
   recordContentLearning: vi.fn(async () => {}),
 }));
 
-describe("content-calendar Gemini fallback", () => {
+describe("content-calendar AI vault fallback", () => {
   beforeEach(() => {
     vi.resetModules();
-    process.env.ANTHROPIC_API_KEY = "sk-ant-test";
-    getAdminAiProviderStatusAsync.mockResolvedValue({
-      provider: "anthropic",
-      configured: true,
-      working: true,
-      model: "claude-sonnet-4-6",
-      message: "ok",
-    });
-    callGeminiGenerateContent.mockResolvedValue({
+    callMatchFitAi.mockReset();
+    callMatchFitAi.mockResolvedValue({
       text: JSON.stringify({
         caption:
           "Gemini fallback caption with founding background-check coverage for the first 10 Match Fit Pros.",
         visualPrompt: "Static graphic with Fitness Pro onboarding scene.",
         hashtags: ["MatchFit"],
       }),
+      provider: "anthropic",
+      model: "claude-sonnet-4-6",
+      complexity: "standard",
+      usedFallback: false,
+      attempts: [],
     });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => {
-        throw new DOMException("The operation was aborted.", "TimeoutError");
-      }),
-    );
   });
 
   afterEach(() => {
-    delete process.env.ANTHROPIC_API_KEY;
     vi.unstubAllGlobals();
   });
 
-  it("falls back to Gemini when Anthropic times out", async () => {
+  it("uses the AI vault router for bulk generation", async () => {
     const { generateBulkContent } = await import("@/lib/content-calendar/content-calendar-ai");
     const result = await generateBulkContent({
       items: [{ postType: "Static", targetGroup: "Join the Team" }],
@@ -73,8 +50,7 @@ describe("content-calendar Gemini fallback", () => {
       customPrompt: "Lead with founding background-check coverage.",
     });
 
-    expect(callGeminiGenerateContent).toHaveBeenCalled();
-    expect(result.meta.usedGeminiFallback).toBe(true);
+    expect(callMatchFitAi).toHaveBeenCalled();
     expect(result.drafts[0]?.caption).toMatch(/Gemini fallback caption/i);
   });
 });

@@ -1,6 +1,7 @@
 import "server-only";
 
-import { getAdminAiProviderStatus } from "@/lib/admin-analytics-ai";
+import { callMatchFitAi } from "@/lib/ai-vault/router";
+import { getAiVaultStatus } from "@/lib/ai-vault";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import {
   assessFitnessProfessionalLeadText,
@@ -25,17 +26,9 @@ import {
 } from "@/lib/outreach-templates";
 import type { OutreachPlatform, OutreachTargetGroup } from "@/lib/outreach-types";
 import { prisma } from "@/lib/prisma";
-import type { AdminAiProviderId } from "@/lib/admin-analytics-ai";
 
 const OUTREACH_AI_MAX_ATTEMPTS = 2;
 const ANTHROPIC_OUTREACH_TIMEOUT_MS = 180_000;
-
-function resolveOutreachAiModel(provider: AdminAiProviderId): string {
-  if (provider === "anthropic") {
-    return process.env.ANTHROPIC_OUTREACH_MODEL?.trim() || "claude-opus-4-6";
-  }
-  return process.env.OPENAI_OUTREACH_MODEL?.trim() || "gpt-4o";
-}
 
 export type GeneratedInstagramLead = {
   handle: string;
@@ -84,155 +77,57 @@ type OutreachAiResult = {
   error?: string;
 };
 
-function extractAnthropicText(data: { content?: { type: string; text?: string }[] }): string | null {
-  const blocks = data.content?.filter((block) => block.type === "text" && block.text?.trim()) ?? [];
-  if (blocks.length === 0) return null;
-  return blocks.map((block) => block.text!.trim()).join("\n\n");
-}
-
-/** Calls Anthropic with live web search when available; OpenAI is a weaker memory-only fallback. */
+/** Claude (with web search when available) → Gemini primary → Gemini backup. */
 async function callOutreachAi(system: string, user: string): Promise<OutreachAiResult> {
-  await hydratePlatformEnvFromDatabase();
-  const status = getAdminAiProviderStatus();
-  if (!status.configured) {
+  const vault = getAiVaultStatus();
+  if (!vault.configured) {
     return {
       text: null,
       usedWebSearch: false,
       provider: "none",
-      error: "AI provider not configured. Add ANTHROPIC_API_KEY or OPENAI_API_KEY.",
+      error: "AI Vault is not configured. Add ANTHROPIC_API_KEY and GEMINI_API_KEY.",
     };
   }
 
-  const outreachModel = resolveOutreachAiModel(status.provider);
-
-  if (status.provider === "anthropic") {
-    const key = process.env.ANTHROPIC_API_KEY?.trim();
-    if (!key) {
-      return {
-        text: null,
-        usedWebSearch: false,
-        provider: "anthropic",
-        error: "ANTHROPIC_API_KEY is missing on the server.",
-      };
-    }
-
-    try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "x-api-key": key,
-          "anthropic-version": "2023-06-01",
-          "Content-Type": "application/json",
+  const ai = await callMatchFitAi({
+    system,
+    user,
+    maxTokens: 8000,
+    temperature: 0.2,
+    timeoutMs: ANTHROPIC_OUTREACH_TIMEOUT_MS,
+    kind: "research",
+    complexity: "complex",
+    modelOverride: process.env.ANTHROPIC_OUTREACH_MODEL?.trim() || undefined,
+    anthropicTools: [
+      {
+        type: "web_search_20250305",
+        name: "web_search",
+        max_uses: 8,
+        user_location: {
+          type: "approximate",
+          city: "Atlanta",
+          region: "Georgia",
+          country: "US",
+          timezone: "America/New_York",
         },
-        body: JSON.stringify({
-          model: outreachModel,
-          max_tokens: 8000,
-          system,
-          messages: [{ role: "user", content: user }],
-          temperature: 0.2,
-          tools: [
-            {
-              type: "web_search_20250305",
-              name: "web_search",
-              max_uses: 8,
-              user_location: {
-                type: "approximate",
-                city: "Atlanta",
-                region: "Georgia",
-                country: "US",
-                timezone: "America/New_York",
-              },
-            },
-          ],
-        }),
-        signal: AbortSignal.timeout(ANTHROPIC_OUTREACH_TIMEOUT_MS),
-      });
-
-      if (!res.ok) {
-        const detail = (await res.text().catch(() => "")).slice(0, 240);
-        console.error("[outreach-ai] Anthropic web search request failed:", res.status, detail);
-        return {
-          text: null,
-          usedWebSearch: true,
-          provider: "anthropic",
-          error: `Anthropic web search failed (HTTP ${res.status}). Check the API key and model (${outreachModel}).`,
-        };
-      }
-
-      const data = (await res.json()) as { content?: { type: string; text?: string }[] };
-      const text = extractAnthropicText(data);
-      if (!text?.trim()) {
-        return {
-          text: null,
-          usedWebSearch: true,
-          provider: "anthropic",
-          error: "Anthropic web search returned an empty response.",
-        };
-      }
-      return { text, usedWebSearch: true, provider: "anthropic" };
-    } catch (error) {
-      const timedOut = error instanceof Error && error.name === "TimeoutError";
-      console.error("[outreach-ai] Anthropic web search request error:", error);
-      return {
-        text: null,
-        usedWebSearch: true,
-        provider: "anthropic",
-        error: timedOut
-          ? "Anthropic web search timed out. Try smaller lead counts (e.g. 2 ATL + 3 virtual)."
-          : "Anthropic web search failed unexpectedly. Try again with smaller counts.",
-      };
-    }
-  }
-
-  const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) {
-    return {
-      text: null,
-      usedWebSearch: false,
-      provider: "openai",
-      error: "OPENAI_API_KEY is missing on the server.",
-    };
-  }
-
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: outreachModel,
-      max_tokens: 6000,
-      temperature: 0.3,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
+      },
+    ],
   });
 
-  if (!res.ok) {
-    const detail = (await res.text().catch(() => "")).slice(0, 240);
-    console.error("[outreach-ai] OpenAI API error:", res.status, detail);
+  if (ai.text) {
     return {
-      text: null,
-      usedWebSearch: false,
-      provider: "openai",
-      error: `OpenAI API rejected the request (HTTP ${res.status}). Check the API key and model (${outreachModel}).`,
+      text: ai.text,
+      usedWebSearch: ai.provider === "anthropic",
+      provider: ai.provider ?? "anthropic",
     };
   }
 
-  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  const text = data.choices?.[0]?.message?.content ?? null;
-  if (!text?.trim()) {
-    return {
-      text: null,
-      usedWebSearch: false,
-      provider: "openai",
-      error: "OpenAI returned an empty response.",
-    };
-  }
-  return { text, usedWebSearch: false, provider: "openai" };
+  return {
+    text: null,
+    usedWebSearch: ai.attempts.some((a) => a.provider === "anthropic"),
+    provider: ai.provider ?? "none",
+    error: ai.error ?? "All AI providers failed for outreach generation.",
+  };
 }
 
 function extractBalancedJsonArray(text: string): string | null {

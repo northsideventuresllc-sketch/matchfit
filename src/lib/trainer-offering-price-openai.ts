@@ -1,3 +1,5 @@
+import { callMatchFitAi } from "@/lib/ai-vault/router";
+import { getAiVaultStatus } from "@/lib/ai-vault";
 import {
   BILLING_UNIT_LABELS,
   MATCH_SERVICE_CATALOG,
@@ -43,10 +45,9 @@ export async function analyzeOfferingPriceOpenAi(
     description: string;
     publicTitle?: string;
   } & OfferingPriceCheckListingContext,
-): Promise<(PriceCheckResult & { source: "openai" }) | null> {
+): Promise<(PriceCheckResult & { source: "ai-vault" }) | null> {
   if (input.priceCheckAiEnabled === false) return null;
-  const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) return null;
+  if (!getAiVaultStatus().configured) return null;
 
   const custom = input.publicTitle?.trim();
   const label = custom && custom.length > 0 ? custom : (MATCH_SERVICE_CATALOG.find((s) => s.id === input.serviceId)?.label ?? input.serviceId);
@@ -90,37 +91,20 @@ export async function analyzeOfferingPriceOpenAi(
       "Weigh the FULL description, session length when relevant, cadence (frequency fields), and for in-person/hybrid the max drive distance (miles from hub ZIP)—not the service template name alone. When purchaseRows or pricingRowsHuman is present, analyze EVERY checkout row: billingLabel distinguishes per session, per person (small-group per-head), per hour, per week, semi-weekly (twice_weekly), per month, or legacy multi-session packs. Rows with bundleQuantity > 1 are prepay totals for that many units (sessions/hours/weeks/etc.) unless the row is clearly a mistake. Nutrition and DIY/plan-design templates often bill by week or month rather than live sessions—do not treat those as per-session PT. Mobility-only templates may be in-person only. Anchor suggestedPriceUsd to internal benchmarks (computed per-row for mixed packages) unless the listing clearly warrants a material adjustment.",
   };
 
-  const body = {
-    model: process.env.OPENAI_PRICE_MODEL?.trim() || "gpt-4o-mini",
-    temperature: 0.35,
-    response_format: { type: "json_object" as const },
-    messages: [
-      {
-        role: "system" as const,
-        content:
-          'You help US fitness coaches review a full service listing (not just price). You receive delivery, billing, title, full description, cadence, travel radius when relevant, and every checkout row when options exist. Compare the whole listing to typical US consumer expectations for those billing types—including per_week / semi-weekly / per_month coaching or plan design (not always "per session"), per-person group pricing when labeled, and prepay tiers whose list price is a total across multiple periods or sessions. Respond with JSON only. Fields: verdict (too_low|fair|too_high); suggestedPriceUsd (integer 15–5000; align with internalBenchmarkLow/Mid/High which already reflect mixed billing); headline (max 72 chars, plain English); detail (optional, max 400 chars, technical notes if any); summaryPlain (required, max 220 chars: warm, short, zero jargon—like talking to a coach friend; no "benchmark", "SKU", or "billing unit"); recommendations (array, 3–8 items): each { id: unique_snake_case, label: max 140 chars—one specific change vs "what clients usually see" in plain English, applyKind: "use_suggested_anchor" at most ONCE across the array (only for "nudge list/checkout prices toward suggestedPriceUsd"), otherwise "none" for copy, cadence, clarity, or positioning tips. Never claim you scraped live sites.',
-      },
-      {
-        role: "user" as const,
-        content: JSON.stringify(userPayload),
-      },
-    ],
-  };
+  const systemPrompt =
+    'You help US fitness coaches review a full service listing (not just price). You receive delivery, billing, title, full description, cadence, travel radius when relevant, and every checkout row when options exist. Compare the whole listing to typical US consumer expectations for those billing types—including per_week / semi-weekly / per_month coaching or plan design (not always "per session"), per-person group pricing when labeled, and prepay tiers whose list price is a total across multiple periods or sessions. Respond with JSON only. Fields: verdict (too_low|fair|too_high); suggestedPriceUsd (integer 15–5000; align with internalBenchmarkLow/Mid/High which already reflect mixed billing); headline (max 72 chars, plain English); detail (optional, max 400 chars, technical notes if any); summaryPlain (required, max 220 chars: warm, short, zero jargon—like talking to a coach friend; no "benchmark", "SKU", or "billing unit"); recommendations (array, 3–8 items): each { id: unique_snake_case, label: max 140 chars—one specific change vs "what clients usually see" in plain English, applyKind: "use_suggested_anchor" at most ONCE across the array (only for "nudge list/checkout prices toward suggestedPriceUsd"), otherwise "none" for copy, cadence, clarity, or positioning tips. Never claim you scraped live sites.';
 
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
+    const ai = await callMatchFitAi({
+      system: systemPrompt,
+      user: JSON.stringify(userPayload),
+      maxTokens: 1200,
+      temperature: 0.35,
+      jsonMode: true,
+      kind: "json",
+      complexity: "standard",
     });
-    if (!res.ok) return null;
-    const raw = (await res.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
-    const text = raw.choices?.[0]?.message?.content?.trim();
+    const text = ai.text?.trim();
     if (!text) return null;
     const parsed = JSON.parse(text) as OpenAiShape;
     const verdict = coerceVerdict(parsed.verdict);
@@ -153,7 +137,7 @@ export async function analyzeOfferingPriceOpenAi(
       benchmarkLowUsd: bench.benchmarkLowUsd,
       benchmarkMidUsd: bench.benchmarkMidUsd,
       benchmarkHighUsd: bench.benchmarkHighUsd,
-      source: "openai",
+      source: "ai-vault",
     };
   } catch {
     return null;

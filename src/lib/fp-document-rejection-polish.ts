@@ -1,5 +1,7 @@
 import type { FpDocType } from "@/lib/fp-account-tier-types";
 import { FP_DOC_TYPE_LABELS } from "@/lib/fp-tier-docs";
+import { callMatchFitAi } from "@/lib/ai-vault/router";
+import { getAiVaultStatus } from "@/lib/ai-vault";
 
 function basicPolish(raw: string): string {
   const trimmed = raw.trim().replace(/\s+/g, " ");
@@ -19,49 +21,27 @@ export async function polishFpDocumentRejectionReason(input: {
   const raw = input.rawReason.trim();
   if (!raw) return "";
 
-  const key = process.env.OPENAI_API_KEY?.trim();
   const docLabel = FP_DOC_TYPE_LABELS[input.docType];
 
-  if (!key) {
+  if (!getAiVaultStatus().configured) {
     return `Your ${docLabel.toLowerCase()} could not be approved: ${basicPolish(raw)}`;
   }
 
-  const body = {
-    model: process.env.OPENAI_FP_DOC_MODEL?.trim() || "gpt-4o-mini",
-    temperature: 0.2,
-    response_format: { type: "json_object" as const },
-    messages: [
-      {
-        role: "system" as const,
-        content:
-          "You rewrite internal staff notes into one professional, empathetic sentence for a fitness professional email. Use plain English, no jargon, no blame. Return JSON: { polished: string }.",
-      },
-      {
-        role: "user" as const,
-        content: JSON.stringify({
-          documentLabel: docLabel,
-          staffNote: raw.slice(0, 1200),
-        }),
-      },
-    ],
-  };
-
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
+    const ai = await callMatchFitAi({
+      system:
+        "You rewrite internal staff notes into one professional, empathetic sentence for a fitness professional email. Use plain English, no jargon, no blame. Return JSON: { polished: string }.",
+      user: JSON.stringify({
+        documentLabel: docLabel,
+        staffNote: raw.slice(0, 1200),
+      }),
+      maxTokens: 300,
+      temperature: 0.2,
+      jsonMode: true,
+      kind: "classification",
+      complexity: "simple",
     });
-    if (!res.ok) {
-      return `Your ${docLabel.toLowerCase()} could not be approved: ${basicPolish(raw)}`;
-    }
-    const json = (await res.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
-    const text = json.choices?.[0]?.message?.content?.trim();
+    const text = ai.text?.trim();
     if (!text) {
       return `Your ${docLabel.toLowerCase()} could not be approved: ${basicPolish(raw)}`;
     }

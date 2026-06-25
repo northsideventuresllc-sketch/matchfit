@@ -123,6 +123,13 @@ export async function hydratePlatformEnvFromDatabase(): Promise<void> {
       }
     }
 
+    if (!isValidGeminiApiKey(process.env.GEMINI_API_KEY_BACKUP)) {
+      const geminiBackupKey = await readPlatformSecret("GEMINI_API_KEY_BACKUP");
+      if (geminiBackupKey) {
+        process.env.GEMINI_API_KEY_BACKUP = geminiBackupKey;
+      }
+    }
+
     if (!process.env.GEMINI_MODEL?.trim()) {
       const geminiModel = await readPlatformSecret("GEMINI_MODEL");
       if (geminiModel) {

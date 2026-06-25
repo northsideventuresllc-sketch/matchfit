@@ -1,8 +1,7 @@
 import "server-only";
 
-import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
-import { getAdminAiProviderStatus } from "@/lib/admin-analytics-ai";
-import type { AdminAiProviderId } from "@/lib/admin-analytics-ai";
+import { callMatchFitAi } from "@/lib/ai-vault/router";
+import { getAiVaultStatus } from "@/lib/ai-vault";
 import { buildOutreachLearningContext, recordOutreachRegenerateFeedbackSignal } from "@/lib/outreach-learning";
 import { updateOutreachLead } from "@/lib/outreach-data";
 import {
@@ -18,63 +17,22 @@ import { prisma } from "@/lib/prisma";
 
 const ANTHROPIC_OUTREACH_TIMEOUT_MS = 180_000;
 
-function resolveOutreachAiModel(provider: AdminAiProviderId): string {
-  if (provider === "anthropic") {
-    return process.env.ANTHROPIC_OUTREACH_MODEL?.trim() || "claude-opus-4-6";
-  }
-  return process.env.OPENAI_OUTREACH_MODEL?.trim() || "gpt-4o";
-}
-
 async function callOutreachCopyAi(system: string, user: string): Promise<string | null> {
-  await hydratePlatformEnvFromDatabase();
-  const status = getAdminAiProviderStatus();
-  if (!status.configured) return null;
+  const vault = getAiVaultStatus();
+  if (!vault.configured) return null;
 
-  if (status.provider === "anthropic" && process.env.ANTHROPIC_API_KEY) {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: resolveOutreachAiModel("anthropic"),
-        max_tokens: 2048,
-        system,
-        messages: [{ role: "user", content: user }],
-      }),
-      signal: AbortSignal.timeout(ANTHROPIC_OUTREACH_TIMEOUT_MS),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { content?: { type: string; text?: string }[] };
-    const text = data.content?.find((b) => b.type === "text")?.text?.trim();
-    return text ?? null;
-  }
+  const ai = await callMatchFitAi({
+    system,
+    user,
+    maxTokens: 2048,
+    temperature: 0.35,
+    timeoutMs: ANTHROPIC_OUTREACH_TIMEOUT_MS,
+    kind: "creative",
+    complexity: "standard",
+    modelOverride: process.env.ANTHROPIC_OUTREACH_MODEL?.trim() || undefined,
+  });
 
-  if (process.env.OPENAI_API_KEY) {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: resolveOutreachAiModel("openai"),
-        max_tokens: 2048,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-      }),
-      signal: AbortSignal.timeout(90_000),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    return data.choices?.[0]?.message?.content?.trim() ?? null;
-  }
-
-  return null;
+  return ai.text?.trim() ?? null;
 }
 
 function extractHookFromNotes(notes: string | null | undefined): string | null {

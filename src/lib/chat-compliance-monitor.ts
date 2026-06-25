@@ -1,3 +1,5 @@
+import { callMatchFitAi } from "@/lib/ai-vault/router";
+import { getAiVaultStatus } from "@/lib/ai-vault";
 import { queueChatAdminReview } from "@/lib/chat-admin-review-queue";
 import { scanChatTextForLeakageSignals } from "@/lib/chat-leakage-detection";
 
@@ -33,44 +35,25 @@ type OpenAiComplianceShape = {
 };
 
 async function collectOpenAiComplianceSignals(body: string): Promise<string[]> {
-  const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key || body.length > 6000) return [];
-
-  const model = process.env.OPENAI_CHAT_COMPLIANCE_MODEL?.trim() || "gpt-4o-mini";
-  const payload = {
-    model,
-    temperature: 0.1,
-    response_format: { type: "json_object" as const },
-    messages: [
-      {
-        role: "system" as const,
-        content:
-          "You are a trust-and-safety classifier for a US fitness coaching marketplace (Match Fit). " +
-          "Messages must follow the platform Terms of Service and Privacy Policy: no off-platform payment, " +
-          "no steering users to unmonitored channels to evade fees, no harassment, scams, sexual content involving minors, " +
-          "or instructions for self-harm. Be conservative: only set report=true when there is a realistic policy or safety concern. " +
-          "Respond with JSON only: {\"report\": boolean, \"tags\": string[]}. " +
-          "Use lowercase snake_case tags (max 6). If report is false, tags must be [].",
-      },
-      {
-        role: "user" as const,
-        content: body.slice(0, 4000),
-      },
-    ],
-  };
+  if (!getAiVaultStatus().configured || body.length > 6000) return [];
 
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+    const ai = await callMatchFitAi({
+      system:
+        "You are a trust-and-safety classifier for a US fitness coaching marketplace (Match Fit). " +
+        "Messages must follow the platform Terms of Service and Privacy Policy: no off-platform payment, " +
+        "no steering users to unmonitored channels to evade fees, no harassment, scams, sexual content involving minors, " +
+        "or instructions for self-harm. Be conservative: only set report=true when there is a realistic policy or safety concern. " +
+        'Respond with JSON only: {"report": boolean, "tags": string[]}. ' +
+        "Use lowercase snake_case tags (max 6). If report is false, tags must be [].",
+      user: body.slice(0, 4000),
+      maxTokens: 300,
+      temperature: 0.1,
+      jsonMode: true,
+      kind: "classification",
+      complexity: "simple",
     });
-    if (!res.ok) return [];
-    const raw = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const text = raw.choices?.[0]?.message?.content?.trim();
+    const text = ai.text?.trim();
     if (!text) return [];
     const parsed = JSON.parse(text) as OpenAiComplianceShape;
     if (!parsed.report) return [];

@@ -5,6 +5,10 @@ import {
   type AdminAiAction,
 } from "@/lib/admin-assistant-labels";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
+import { callMatchFitAi } from "@/lib/ai-vault/router";
+import { getAiVaultStatus, resolveAnthropicApiKey } from "@/lib/ai-vault";
+import { resolveClaudeModelForComplexity } from "@/lib/ai-vault/models";
+import { inferTaskComplexity } from "@/lib/ai-vault/complexity";
 import { prisma } from "@/lib/prisma";
 import type { AdminTrafficSnapshot } from "@/lib/site-analytics";
 import type { AdminPortalOverview } from "@/lib/admin-portal-data";
@@ -136,58 +140,26 @@ function buildContextSummary(overview: AdminPortalOverview, traffic: AdminTraffi
   );
 }
 
-function resolveOpenAiModel(): string {
-  return process.env.OPENAI_ADMIN_ANALYTICS_MODEL?.trim() || "gpt-4o-mini";
-}
-
-function resolveAnthropicModel(): string {
-  return process.env.ANTHROPIC_ADMIN_ANALYTICS_MODEL?.trim() || "claude-sonnet-4-6";
-}
-
-function resolveAdminAiProvider(): AdminAiProviderId | null {
-  if (process.env.ANTHROPIC_API_KEY?.trim()) return "anthropic";
-  if (process.env.OPENAI_API_KEY?.trim()) return "openai";
-  return null;
-}
-
-function resolveAdminAiModel(provider: AdminAiProviderId): string {
-  return provider === "anthropic" ? resolveAnthropicModel() : resolveOpenAiModel();
-}
-
-function resolveAdminAiKey(provider: AdminAiProviderId): string | undefined {
-  return provider === "anthropic"
-    ? process.env.ANTHROPIC_API_KEY?.trim()
-    : process.env.OPENAI_API_KEY?.trim();
-}
-
-function providerDisplayName(provider: AdminAiProviderId): string {
-  return provider === "anthropic" ? "Anthropic (Claude)" : "OpenAI";
-}
-
 /** Sync env check for server pages and outreach/content AI helpers (no live probe). Prefer {@link getAdminAiProviderStatusAsync} when platform_secrets may hold keys. */
 export function getAdminAiProviderStatus(): AdminAiProviderStatus {
-  const provider = resolveAdminAiProvider();
-  if (!provider) {
+  const vault = getAiVaultStatus();
+  const model = resolveClaudeModelForComplexity(inferTaskComplexity({ user: "admin analytics status" }));
+  if (!vault.configured) {
     return {
       provider: "anthropic",
       configured: false,
       working: false,
-      model: resolveAnthropicModel(),
-      message:
-        "No AI provider configured. Add ANTHROPIC_API_KEY (preferred) or OPENAI_API_KEY to enable AI responses.",
+      model,
+      message: vault.message,
     };
   }
 
-  const model = resolveAdminAiModel(provider);
-  const key = resolveAdminAiKey(provider);
   return {
-    provider,
-    configured: Boolean(key),
+    provider: "anthropic",
+    configured: vault.anthropic || vault.geminiPrimary || vault.geminiBackup,
     working: false,
     model,
-    message: key
-      ? `${providerDisplayName(provider)} is configured for admin analytics.`
-      : `${providerDisplayName(provider)} is not fully configured.`,
+    message: vault.message,
   };
 }
 
@@ -243,110 +215,6 @@ async function probeAnthropicProvider(model: string, key: string): Promise<Admin
   }
 }
 
-async function probeOpenAiProvider(model: string, key: string): Promise<AdminAiProviderStatus> {
-  try {
-    const res = await fetch("https://api.openai.com/v1/models", {
-      headers: { Authorization: `Bearer ${key}` },
-      signal: AbortSignal.timeout(8000),
-    });
-
-    if (!res.ok) {
-      return {
-        provider: "openai",
-        configured: true,
-        working: false,
-        model,
-        message: "OpenAI key is present but the API rejected the request. Quick prompts will use built-in fallbacks.",
-      };
-    }
-
-    return {
-      provider: "openai",
-      configured: true,
-      working: true,
-      model,
-      message: `Connected to OpenAI. Full AI answers are available via ${model}.`,
-    };
-  } catch {
-    return {
-      provider: "openai",
-      configured: true,
-      working: false,
-      model,
-      message: "OpenAI key is present but the service could not be reached. Quick prompts will use built-in fallbacks.",
-    };
-  }
-}
-
-async function callAnthropicMessages(args: {
-  key: string;
-  model: string;
-  systemPrompt: string;
-  priorTurns: HistoryTurn[];
-  userContent: string;
-}): Promise<string | null> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": args.key,
-      "anthropic-version": "2023-06-01",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: args.model,
-      system: args.systemPrompt,
-      messages: [...args.priorTurns, { role: "user", content: args.userContent }],
-      temperature: 0.4,
-      max_tokens: 900,
-    }),
-    signal: AbortSignal.timeout(45000),
-  });
-
-  if (!res.ok) return null;
-
-  const json = (await res.json()) as {
-    content?: Array<{ type?: string; text?: string }>;
-  };
-  const text = json.content
-    ?.filter((block) => block.type === "text")
-    .map((block) => block.text ?? "")
-    .join("")
-    .trim();
-  return text || null;
-}
-
-async function callOpenAiChatCompletions(args: {
-  key: string;
-  model: string;
-  systemPrompt: string;
-  priorTurns: HistoryTurn[];
-  userContent: string;
-}): Promise<string | null> {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${args.key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: args.model,
-      messages: [
-        { role: "system", content: args.systemPrompt },
-        ...args.priorTurns,
-        { role: "user", content: args.userContent },
-      ],
-      temperature: 0.4,
-      max_tokens: 900,
-    }),
-    signal: AbortSignal.timeout(45000),
-  });
-
-  if (!res.ok) return null;
-
-  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  return json.choices?.[0]?.message?.content?.trim() || null;
-}
-
 function fallbackForAction(
   action: AdminAiAction,
   args: {
@@ -375,33 +243,33 @@ function fallbackForAction(
 
 export async function probeAdminAiProvider(): Promise<AdminAiProviderStatus> {
   await hydratePlatformEnvFromDatabase();
-  const provider = resolveAdminAiProvider();
+  const vault = getAiVaultStatus();
+  const model = resolveClaudeModelForComplexity(inferTaskComplexity({ user: "admin analytics probe" }));
 
-  if (!provider) {
+  if (!vault.anthropic) {
+    return {
+      provider: "anthropic",
+      configured: vault.configured,
+      working: false,
+      model,
+      message: vault.configured
+        ? "Gemini fallback is configured. Claude is not available in the AI Vault."
+        : "No AI provider is configured. Quick prompts still return built-in traffic insights.",
+    };
+  }
+
+  const key = resolveAnthropicApiKey();
+  if (!key) {
     return {
       provider: "anthropic",
       configured: false,
       working: false,
-      model: resolveAnthropicModel(),
-      message: "No AI provider is configured. Quick prompts still return built-in traffic insights.",
-    };
-  }
-
-  const model = resolveAdminAiModel(provider);
-  const key = resolveAdminAiKey(provider);
-  if (!key) {
-    return {
-      provider,
-      configured: false,
-      working: false,
       model,
-      message: `${providerDisplayName(provider)} is not configured. Quick prompts still return built-in traffic insights.`,
+      message: "Anthropic is not configured. Quick prompts still return built-in traffic insights.",
     };
   }
 
-  return provider === "anthropic"
-    ? probeAnthropicProvider(model, key)
-    : probeOpenAiProvider(model, key);
+  return probeAnthropicProvider(model, key);
 }
 
 export async function createAdminAiConversation(administratorId: string, title = "New conversation") {
@@ -546,21 +414,10 @@ export async function runAdminAnalyticsAi(args: {
     },
   });
 
-  const provider = resolveAdminAiProvider();
+  const vault = getAiVaultStatus();
   const context = buildContextSummary(args.overview, args.traffic, goals);
 
-  if (!provider) {
-    return fallbackForAction(args.action, {
-      goals,
-      overview: args.overview,
-      traffic: args.traffic,
-      userMessage: args.userMessage,
-      goalTitle: args.goalTitle,
-    });
-  }
-
-  const key = resolveAdminAiKey(provider);
-  if (!key) {
+  if (!vault.configured) {
     return fallbackForAction(args.action, {
       goals,
       overview: args.overview,
@@ -593,28 +450,19 @@ export async function runAdminAnalyticsAi(args: {
     .slice(-12)
     .map((t) => ({ role: t.role, content: t.content }));
 
-  const model =
-    provider === "anthropic" && args.modelOverride?.trim()
-      ? args.modelOverride.trim()
-      : resolveAdminAiModel(provider);
-  const text =
-    provider === "anthropic"
-      ? await callAnthropicMessages({
-          key,
-          model,
-          systemPrompt: systemPrompts[args.action],
-          priorTurns,
-          userContent,
-        })
-      : await callOpenAiChatCompletions({
-          key,
-          model,
-          systemPrompt: systemPrompts[args.action],
-          priorTurns,
-          userContent,
-        });
+  const modelOverride = args.modelOverride?.trim() || undefined;
+  const ai = await callMatchFitAi({
+    system: systemPrompts[args.action],
+    user: userContent,
+    priorTurns,
+    modelOverride,
+    maxTokens: 900,
+    temperature: 0.4,
+    kind: "chat",
+    complexity: args.action === "freeform" ? "standard" : "simple",
+  });
 
-  return text || fallbackForAction(args.action, {
+  return ai.text || fallbackForAction(args.action, {
     goals,
     overview: args.overview,
     traffic: args.traffic,

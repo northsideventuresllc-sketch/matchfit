@@ -1,49 +1,31 @@
 import "server-only";
 
+import {
+  callGeminiProvider,
+  DEFAULT_PROVIDER_TIMEOUT_MS,
+} from "@/lib/ai-vault/providers";
+import { resolveGeminiApiKeyChain } from "@/lib/ai-vault/keys";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 
 export type GeminiCallResult = {
   text: string | null;
   error?: string;
+  provider?: "gemini-primary" | "gemini-backup";
 };
 
-export function isValidGeminiApiKey(key: string | null | undefined): boolean {
-  const trimmed = key?.trim();
-  if (!trimmed) return false;
-  return trimmed.startsWith("AIza") || trimmed.startsWith("AQ.");
-}
-
-export function resolveGeminiApiKey(): string | null {
-  for (const envKey of ["GEMINI_API_KEY", "GOOGLE_GEMINI_API_KEY", "GOOGLE_API_KEY"] as const) {
-    const value = process.env[envKey]?.trim();
-    if (isValidGeminiApiKey(value)) return value!;
-  }
-  return null;
-}
-
-export function resolveGeminiModel(): string {
-  return (
-    process.env.GEMINI_CONTENT_CALENDAR_MODEL?.trim() ||
-    process.env.GEMINI_MODEL?.trim() ||
-    "gemini-2.0-flash"
-  );
-}
+export {
+  isValidGeminiApiKey,
+  resolveGeminiPrimaryApiKey as resolveGeminiApiKey,
+  resolveGeminiBackupApiKey,
+  resolveGeminiApiKeyChain,
+} from "@/lib/ai-vault/keys";
+export { resolveGeminiModel } from "@/lib/ai-vault/models";
 
 export function isGeminiFallbackConfigured(): boolean {
-  return Boolean(resolveGeminiApiKey());
+  return resolveGeminiApiKeyChain().length > 0;
 }
 
-function summarizeGeminiError(status: number, body: string): string {
-  let detail = body.slice(0, 240).replace(/\s+/g, " ").trim();
-  try {
-    const parsed = JSON.parse(body) as { error?: { message?: string }; message?: string };
-    detail = parsed.error?.message ?? parsed.message ?? detail;
-  } catch {
-    // keep raw detail
-  }
-  return `Gemini HTTP ${status}${detail ? `: ${detail}` : ""}`;
-}
-
+/** Tries Gemini primary, then backup key from the AI Vault. */
 export async function callGeminiGenerateContent(args: {
   system: string;
   user: string;
@@ -53,60 +35,29 @@ export async function callGeminiGenerateContent(args: {
   timeoutMs?: number;
 }): Promise<GeminiCallResult> {
   await hydratePlatformEnvFromDatabase();
-  const key = resolveGeminiApiKey();
-  if (!key) {
+  const chain = resolveGeminiApiKeyChain();
+  if (!chain.length) {
     return { text: null, error: "GEMINI_API_KEY is not configured for fallback." };
   }
 
-  const model = resolveGeminiModel();
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": key,
-      },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: args.system }] },
-        contents: [{ role: "user", parts: [{ text: args.user }] }],
-        generationConfig: {
-          temperature: args.temperature ?? 0.55,
-          maxOutputTokens: args.maxTokens ?? 2000,
-          ...(args.jsonMode ? { responseMimeType: "application/json" } : {}),
-        },
-      }),
-      signal: AbortSignal.timeout(args.timeoutMs ?? 45_000),
+  let lastError: string | undefined;
+  for (const entry of chain) {
+    const providerId = entry.slot === "primary" ? "gemini-primary" : "gemini-backup";
+    const result = await callGeminiProvider({
+      system: args.system,
+      user: args.user,
+      apiKey: entry.key,
+      providerId,
+      maxTokens: args.maxTokens ?? 2000,
+      temperature: args.temperature ?? 0.55,
+      jsonMode: args.jsonMode ?? false,
+      timeoutMs: args.timeoutMs ?? DEFAULT_PROVIDER_TIMEOUT_MS,
     });
-
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => "");
-      return { text: null, error: summarizeGeminiError(res.status, errBody) };
+    if (result.text) {
+      return { text: result.text, provider: providerId };
     }
-
-    const data = (await res.json()) as {
-      candidates?: Array<{
-        content?: { parts?: Array<{ text?: string }> };
-      }>;
-    };
-
-    const text =
-      data.candidates?.[0]?.content?.parts
-        ?.map((part) => part.text?.trim())
-        .filter(Boolean)
-        .join("\n\n") ?? null;
-
-    if (!text) {
-      return { text: null, error: "Gemini returned an empty response." };
-    }
-
-    return { text };
-  } catch (error) {
-    const message =
-      error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")
-        ? "Gemini request timed out."
-        : `Gemini request failed: ${error instanceof Error ? error.message : "unknown error"}`;
-    return { text: null, error: message };
+    lastError = result.error;
   }
+
+  return { text: null, error: lastError ?? "Gemini fallback failed." };
 }
