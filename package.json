@@ -25,6 +25,7 @@
     "vercel:env:client-vip": "node scripts/vercel-env-set-client-vip-price.mjs --from-secrets-file",
     "vercel:env:resend": "node scripts/vercel-env-set-resend-production.mjs",
     "vercel:env:anthropic": "node scripts/vercel-env-set-anthropic-production.mjs",
+    "vercel:env:gemini": "node scripts/vercel-env-set-gemini-production.mjs",
     "vercel:env:ad-platform": "node scripts/vercel-env-set-ad-platform-production.mjs",
     "vercel:env:ni-brain-db": "node scripts/vercel-env-set-ni-brain-database-password.mjs",
     "bootstrap:anthropic": "node scripts/bootstrap-anthropic-platform-secret.mjs",
