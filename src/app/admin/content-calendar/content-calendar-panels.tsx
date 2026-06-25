@@ -298,6 +298,7 @@ export function BulkContentGeneratorPanel(props: {
           warning?: string | null;
           lastError?: string | null;
           failedCount?: number;
+          usedGeminiFallback?: boolean;
         };
         error?: string;
       };
@@ -307,6 +308,8 @@ export function BulkContentGeneratorPanel(props: {
       setBulkSessionId(sessionId);
       if (data.generationMeta?.warning) {
         setError(data.generationMeta.warning);
+      } else if (data.generationMeta?.usedGeminiFallback) {
+        setSuccess("Generated via Gemini fallback after Claude timed out or failed.");
       } else if ((data.generationMeta?.failedCount ?? 0) > 0 && data.generationMeta?.lastError) {
         setError(`${data.generationMeta.failedCount} post(s) failed: ${data.generationMeta.lastError}`);
       }

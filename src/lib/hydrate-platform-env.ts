@@ -22,6 +22,12 @@ function isValidOpenAiApiKey(key: string | null | undefined): boolean {
   return Boolean(trimmed && (trimmed.startsWith("sk-") || trimmed.startsWith("sk-proj-")));
 }
 
+function isValidGeminiApiKey(key: string | null | undefined): boolean {
+  const trimmed = key?.trim();
+  if (!trimmed) return false;
+  return trimmed.startsWith("AIza") || trimmed.startsWith("AQ.");
+}
+
 /** Clears cached platform env hydration (call after rotating platform_secrets). */
 export function resetHydratePlatformEnvCache(): void {
   hydratePromise = null;
@@ -107,6 +113,27 @@ export async function hydratePlatformEnvFromDatabase(): Promise<void> {
       const openAiModel = await readPlatformSecret("OPENAI_ADMIN_ANALYTICS_MODEL");
       if (openAiModel) {
         process.env.OPENAI_ADMIN_ANALYTICS_MODEL = openAiModel;
+      }
+    }
+
+    if (!isValidGeminiApiKey(process.env.GEMINI_API_KEY)) {
+      const geminiKey = await readPlatformSecret("GEMINI_API_KEY");
+      if (geminiKey) {
+        process.env.GEMINI_API_KEY = geminiKey;
+      }
+    }
+
+    if (!process.env.GEMINI_MODEL?.trim()) {
+      const geminiModel = await readPlatformSecret("GEMINI_MODEL");
+      if (geminiModel) {
+        process.env.GEMINI_MODEL = geminiModel;
+      }
+    }
+
+    if (!process.env.GEMINI_CONTENT_CALENDAR_MODEL?.trim()) {
+      const geminiCalendarModel = await readPlatformSecret("GEMINI_CONTENT_CALENDAR_MODEL");
+      if (geminiCalendarModel) {
+        process.env.GEMINI_CONTENT_CALENDAR_MODEL = geminiCalendarModel;
       }
     }
 

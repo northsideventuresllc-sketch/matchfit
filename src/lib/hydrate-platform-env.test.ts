@@ -24,6 +24,8 @@ describe("hydratePlatformEnvFromDatabase", () => {
     delete process.env.NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.OPENAI_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.GEMINI_MODEL;
   });
 
   afterEach(() => {
@@ -31,6 +33,8 @@ describe("hydratePlatformEnvFromDatabase", () => {
     delete process.env.NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.OPENAI_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.GEMINI_MODEL;
   });
 
   it("prefers a valid Anthropic env key over platform_secrets", async () => {
@@ -62,5 +66,19 @@ describe("hydratePlatformEnvFromDatabase", () => {
     expect(process.env.NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY).toBe("service-role-jwt");
     expect(process.env.ANTHROPIC_API_KEY).toBe("sk-ant-test");
     expect(process.env.ANTHROPIC_ADMIN_ANALYTICS_MODEL).toBe("claude-sonnet-4-6");
+  });
+
+  it("hydrates Gemini fallback keys from platform_secrets", async () => {
+    readPlatformSecret.mockImplementation(async (key: string) => {
+      if (key === "GEMINI_API_KEY") return "AQ.test-auth-key";
+      if (key === "GEMINI_MODEL") return "gemini-2.0-flash";
+      return null;
+    });
+
+    const { hydratePlatformEnvFromDatabase } = await import("@/lib/hydrate-platform-env");
+    await hydratePlatformEnvFromDatabase();
+
+    expect(process.env.GEMINI_API_KEY).toBe("AQ.test-auth-key");
+    expect(process.env.GEMINI_MODEL).toBe("gemini-2.0-flash");
   });
 });
