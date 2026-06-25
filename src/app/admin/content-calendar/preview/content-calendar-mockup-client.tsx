@@ -71,7 +71,6 @@ const DEMO_HUB: ClientContentPost[] = [
 export function ContentCalendarMockupClient() {
   const [tab, setTab] = useState<Tab>("generator");
   const [showPrompt, setShowPrompt] = useState(false);
-  const [autoPurge, setAutoPurge] = useState(true);
   const [hubPosts, setHubPosts] = useState(DEMO_HUB);
 
   const tabs = [
@@ -161,8 +160,6 @@ export function ContentCalendarMockupClient() {
           <ContentHubPanel
             posts={hubPosts}
             loading={false}
-            autoPurge={autoPurge}
-            onAutoPurgeChange={setAutoPurge}
             onRefresh={() => undefined}
             onDelete={async (id) => setHubPosts((p) => p.filter((x) => x.id !== id))}
             onMarkPosted={async (id) => setHubPosts((p) => p.filter((x) => x.id !== id))}

@@ -4,6 +4,7 @@ import {
   CONTENT_CALENDAR_PLATFORMS_BY_TYPE,
   CONTENT_CALENDAR_POST_TYPES,
   CONTENT_HUB_DELETE_RETENTION_HOURS,
+  CONTENT_HUB_POSTED_RETENTION_HOURS,
 } from "@/lib/content-calendar/constants";
 import { addWeekdays, formatCalendarDate, getContentCalendarRotation } from "@/lib/content-calendar/rotation";
 import { normalizeTargetGroup } from "@/lib/content-calendar/content-rules";
@@ -105,16 +106,16 @@ export async function updatePostCaption(args: {
   await updatePostFields(args);
 }
 
-export async function markPostPosted(postId: string, autoPurgeAfter24h = false): Promise<void> {
+export async function markPostPosted(postId: string): Promise<void> {
   const client = createNiBrainClient();
   const now = new Date();
-  const purgeAfter = autoPurgeAfter24h ? new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString() : null;
+  const purgeAfter = new Date(now.getTime() + CONTENT_HUB_POSTED_RETENTION_HOURS * 60 * 60 * 1000);
   const { error } = await client
     .from("match_fit_content_calendar_posts")
     .update({
       posted: true,
       posted_at: now.toISOString(),
-      purge_after_at: purgeAfter,
+      purge_after_at: purgeAfter.toISOString(),
       updated_at: now.toISOString(),
     })
     .eq("id", postId);
@@ -244,6 +245,27 @@ export async function loadDeletedHubPosts(): Promise<ContentCalendarPostRow[]> {
 
   if (error) throw new Error(error.message);
   return (data ?? []) as ContentCalendarPostRow[];
+}
+
+export async function loadPostedHubPosts(): Promise<ContentCalendarPostRow[]> {
+  const client = createNiBrainClient();
+  await purgeExpiredHubPosts();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("*")
+    .eq("posted", true)
+    .is("deleted_at", null)
+    .order("posted_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+
+  const now = Date.now();
+  const retentionMs = CONTENT_HUB_POSTED_RETENTION_HOURS * 60 * 60 * 1000;
+  return ((data ?? []) as ContentCalendarPostRow[]).filter((row) => {
+    if (row.purge_after_at) return new Date(row.purge_after_at).getTime() > now;
+    if (row.posted_at) return now - new Date(row.posted_at).getTime() <= retentionMs;
+    return false;
+  });
 }
 
 export async function loadScheduledPosts(): Promise<ContentCalendarPostRow[]> {

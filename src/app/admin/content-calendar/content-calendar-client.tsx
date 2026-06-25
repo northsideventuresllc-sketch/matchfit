@@ -10,6 +10,7 @@ import {
   ContentGeneratorPanel,
   ContentHubPanel,
   DeletedContentPanel,
+  PostedContentPanel,
   UnpostedPromptModal,
 } from "@/app/admin/content-calendar/content-calendar-panels";
 
@@ -20,9 +21,7 @@ type AiStatus = {
   message: string;
 };
 
-type ContentTab = "generator" | "bulk" | "hub" | "deleted";
-
-const AUTO_PURGE_KEY = "matchfit_content_hub_auto_purge_24h";
+type ContentTab = "generator" | "bulk" | "hub" | "posted" | "deleted";
 
 export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
   const [tab, setTab] = useState<ContentTab>("generator");
@@ -30,18 +29,12 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
   const [socialSummary, setSocialSummary] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [hubPosts, setHubPosts] = useState<ClientContentPost[]>([]);
+  const [postedPosts, setPostedPosts] = useState<ClientContentPost[]>([]);
   const [deletedPosts, setDeletedPosts] = useState<ClientContentPost[]>([]);
   const [scheduledPosts, setScheduledPosts] = useState<ClientContentPost[]>([]);
   const [hubLoading, setHubLoading] = useState(false);
+  const [postedLoading, setPostedLoading] = useState(false);
   const [deletedLoading, setDeletedLoading] = useState(false);
-  const [autoPurge, setAutoPurge] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return localStorage.getItem(AUTO_PURGE_KEY) === "1";
-    } catch {
-      return false;
-    }
-  });
   const [promptDismissedIds, setPromptDismissedIds] = useState<Set<string>>(new Set());
   const [promptBusy, setPromptBusy] = useState(false);
   const [schemaRepairing, setSchemaRepairing] = useState(false);
@@ -76,6 +69,21 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
     }
   }, []);
 
+  const loadPosted = useCallback(async () => {
+    setPostedLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/content-calendar/hub?view=posted", { credentials: "include" });
+      const data = (await res.json()) as { posts?: ClientContentPost[]; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Could not load posted posts.");
+      setPostedPosts(data.posts ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load posted posts.");
+    } finally {
+      setPostedLoading(false);
+    }
+  }, []);
+
   const loadDeleted = useCallback(async () => {
     setDeletedLoading(true);
     setError(null);
@@ -95,13 +103,16 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
     if (tab === "hub") {
       queueMicrotask(() => void loadHub());
     }
+    if (tab === "posted") {
+      queueMicrotask(() => void loadPosted());
+    }
     if (tab === "deleted") {
       queueMicrotask(() => void loadDeleted());
     }
     if (tab === "bulk" || tab === "hub") {
       queueMicrotask(() => void loadScheduled());
     }
-  }, [tab, loadHub, loadScheduled, loadDeleted]);
+  }, [tab, loadHub, loadScheduled, loadDeleted, loadPosted]);
 
   const tabPosts = useMemo(() => {
     if (tab === "hub") return hubPosts;
@@ -157,15 +168,6 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
     }
   }
 
-  function setAutoPurgePref(value: boolean) {
-    setAutoPurge(value);
-    try {
-      localStorage.setItem(AUTO_PURGE_KEY, value ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
-  }
-
   async function deleteHubPost(id: string) {
     const res = await fetch(`/api/admin/content-calendar/posts/${id}`, {
       method: "DELETE",
@@ -185,14 +187,14 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "posted", autoPurgeAfter24h: autoPurge }),
+      body: JSON.stringify({ action: "posted" }),
     });
     if (!res.ok) {
       const data = (await res.json()) as { error?: string };
       setError(data.error ?? "Could not mark posted.");
       return;
     }
-    await loadHub();
+    await Promise.all([loadHub(), loadPosted()]);
   }
 
   async function updateHubPostDate(id: string, postDate: string) {
@@ -255,6 +257,7 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
     { id: "generator", label: "Content Generator" },
     { id: "bulk", label: "Bulk Content Generator" },
     { id: "hub", label: "Content Hub" },
+    { id: "posted", label: "Recently Posted" },
     { id: "deleted", label: "Recently Deleted" },
   ];
 
@@ -353,13 +356,19 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
         <ContentHubPanel
           posts={hubPosts}
           loading={hubLoading}
-          autoPurge={autoPurge}
-          onAutoPurgeChange={setAutoPurgePref}
           onRefresh={() => void loadHub()}
           onDelete={deleteHubPost}
           onMarkPosted={markHubPosted}
           onUpdatePostDate={updateHubPostDate}
           onSaveFields={saveHubPostFields}
+        />
+      ) : null}
+
+      {tab === "posted" ? (
+        <PostedContentPanel
+          posts={postedPosts}
+          loading={postedLoading}
+          onRefresh={() => void loadPosted()}
         />
       ) : null}
 

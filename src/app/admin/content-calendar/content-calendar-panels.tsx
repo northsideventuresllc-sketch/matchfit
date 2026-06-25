@@ -40,7 +40,7 @@ import {
   maxHashtagHint,
   parseHashtagsInput,
 } from "@/lib/content-calendar/content-calendar-clipboard";
-import { CONTENT_HUB_DELETE_RETENTION_HOURS } from "@/lib/content-calendar/constants";
+import { CONTENT_HUB_DELETE_RETENTION_HOURS, CONTENT_HUB_POSTED_RETENTION_HOURS } from "@/lib/content-calendar/constants";
 import { formatCalendarDate, getMondayOfWeek } from "@/lib/content-calendar/rotation";
 import { formatUserFacingError } from "@/lib/read-json-response";
 import { isPostMissed } from "@/lib/content-calendar/schedule-utils";
@@ -801,8 +801,6 @@ export function BulkContentGeneratorPanel(props: {
 export function ContentHubPanel(props: {
   posts: ClientContentPost[];
   loading: boolean;
-  autoPurge: boolean;
-  onAutoPurgeChange: (v: boolean) => void;
   onRefresh: () => void;
   onDelete: (id: string) => Promise<void>;
   onMarkPosted: (id: string) => Promise<void>;
@@ -875,18 +873,9 @@ export function ContentHubPanel(props: {
       <section className={`${adminCardClass} space-y-4 p-5`}>
         <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Content Hub</p>
         <p className="text-sm text-white/55">
-          Saved posts from bulk generation. Set a post date, mark as posted when live, and optionally auto-remove posted
-          items after 24 hours.
+          Saved posts from bulk generation. Set a post date, then mark as posted when live — posted items move to
+          Recently Posted for {CONTENT_HUB_POSTED_RETENTION_HOURS} hours.
         </p>
-        <label className="flex cursor-pointer items-center gap-3 text-sm text-white/70">
-          <input
-            type="checkbox"
-            className="accent-[#FF7E00]"
-            checked={props.autoPurge}
-            onChange={(e) => props.onAutoPurgeChange(e.target.checked)}
-          />
-          Automatically delete saved posts 24 hours after they are marked posted
-        </label>
         <button type="button" className={adminSecondaryButtonClass} onClick={props.onRefresh}>
           Refresh hub
         </button>
@@ -987,6 +976,76 @@ export function ContentHubPanel(props: {
         posts={props.posts.filter((p) => p.isScheduled || Boolean(p.postDate))}
         title="Hub schedule overview"
       />
+    </div>
+  );
+}
+
+export function PostedContentPanel(props: {
+  posts: ClientContentPost[];
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  return (
+    <div className="space-y-8">
+      <section className={`${adminCardClass} space-y-4 p-5`}>
+        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Recently posted</p>
+        <p className="text-sm text-white/55">
+          Posts you marked as live stay here for {CONTENT_HUB_POSTED_RETENTION_HOURS} hours, then are permanently
+          removed. Copy caption, prompt, or full post anytime during this window.
+        </p>
+        <button type="button" className={adminSecondaryButtonClass} onClick={props.onRefresh}>
+          Refresh posted
+        </button>
+      </section>
+
+      {props.loading ? <AdminLoadingBar label="Loading posted posts…" /> : null}
+
+      {!props.loading && props.posts.length === 0 ? (
+        <p className={`${adminPanelClass} p-6 text-center text-sm text-white/45`}>
+          No posted content in the last {CONTENT_HUB_POSTED_RETENTION_HOURS} hours.
+        </p>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {props.posts.map((post) => (
+            <article key={post.id} className={contentCalendarDraftCardClass}>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <span className="text-xs font-black uppercase tracking-[0.1em] text-[#FFD34E]">
+                    {CONTENT_CALENDAR_TYPE_ICONS[post.postType]} {post.postType}
+                  </span>
+                  <p className="mt-1 text-[10px] uppercase text-white/40">{post.targetGroup}</p>
+                  {post.postedAt ? (
+                    <p className="mt-1 text-[10px] text-emerald-200/70">
+                      Posted {new Date(post.postedAt).toLocaleString()}
+                    </p>
+                  ) : null}
+                  {post.purgeAfterAt ? (
+                    <p className="mt-1 text-[10px] text-amber-200/70">
+                      Permanently deletes {new Date(post.purgeAfterAt).toLocaleString()}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+              <ContentPostFields
+                postType={post.postType}
+                caption={post.caption}
+                visualPrompt={post.visualPrompt}
+                hashtags={post.hashtags}
+                onCaptionChange={() => {}}
+                onVisualPromptChange={() => {}}
+                onHashtagsChange={() => {}}
+                readOnly
+              />
+              <ContentCopyButtons
+                postType={post.postType}
+                caption={post.caption}
+                visualPrompt={post.visualPrompt}
+                hashtags={post.hashtags}
+              />
+            </article>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

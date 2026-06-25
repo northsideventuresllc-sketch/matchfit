@@ -41,6 +41,9 @@ export const CONTENT_CALENDAR_BULK_DEFAULT_PROMPT =
 /** Soft-deleted hub posts are permanently removed after this window. */
 export const CONTENT_HUB_DELETE_RETENTION_HOURS = 48;
 
+/** Posted hub posts stay visible in Recently Posted for this window, then auto-purge. */
+export const CONTENT_HUB_POSTED_RETENTION_HOURS = 48;
+
 export const CONTENT_CALENDAR_POST_TYPES = ["Carousel", "Static", "Video", "Text"] as const;
 
 export type ContentCalendarPostType = (typeof CONTENT_CALENDAR_POST_TYPES)[number];

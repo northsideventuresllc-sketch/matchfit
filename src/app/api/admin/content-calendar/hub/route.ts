@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import type { BulkGeneratedDraft } from "@/lib/content-calendar/content-calendar-ai";
-import { loadDeletedHubPosts, loadHubPosts, loadScheduledPosts, serializePostForClient } from "@/lib/content-calendar/content-calendar-store";
+import { loadDeletedHubPosts, loadHubPosts, loadPostedHubPosts, loadScheduledPosts, serializePostForClient } from "@/lib/content-calendar/content-calendar-store";
 import { ensureContentHubSchema, isMissingContentHubSchemaError } from "@/lib/ensure-content-hub-schema";
 import { isNiBrainConfiguredAsync, recordContentLearning } from "@/lib/ni-brain-client";
 import { formatUserFacingError } from "@/lib/read-json-response";
@@ -24,6 +24,10 @@ export async function GET(req: Request) {
     }
     if (view === "deleted") {
       const posts = await loadDeletedHubPosts();
+      return NextResponse.json({ posts: posts.map(serializePostForClient), total: posts.length });
+    }
+    if (view === "posted") {
+      const posts = await loadPostedHubPosts();
       return NextResponse.json({ posts: posts.map(serializePostForClient), total: posts.length });
     }
     const posts = await loadHubPosts();

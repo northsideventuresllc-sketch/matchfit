@@ -16,7 +16,7 @@ import { isNiBrainConfiguredAsync, recordContentLearning } from "@/lib/ni-brain-
 import { requireAdminSession } from "@/lib/require-admin";
 
 const actionSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("posted"), autoPurgeAfter24h: z.boolean().optional() }),
+  z.object({ action: z.literal("posted") }),
   z.object({ action: z.literal("restore") }),
   z.object({ action: z.literal("dismiss_missed") }),
   z.object({
@@ -57,7 +57,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   try {
     switch (parsed.data.action) {
       case "posted":
-        await markPostPosted(id, parsed.data.autoPurgeAfter24h === true);
+        await markPostPosted(id);
         await recordContentLearning({ signalType: "POSTED", postId: id, meta: { postedAt: new Date().toISOString() } });
         return NextResponse.json({ ok: true });
       case "restore":
