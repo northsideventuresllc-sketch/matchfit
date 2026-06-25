@@ -48,7 +48,7 @@ function loadValues() {
   const anthropic = process.env.ANTHROPIC_API_KEY?.trim();
   const geminiPrimary = process.env.GEMINI_API_KEY?.trim();
   const geminiBackup = process.env.GEMINI_API_KEY_BACKUP?.trim();
-  const geminiModel = process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash";
+  const geminiModel = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
 
   if (!isValidAnthropic(anthropic)) {
     console.error("ANTHROPIC_API_KEY must be set (sk-ant-...).");

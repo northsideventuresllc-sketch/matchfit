@@ -13,7 +13,14 @@ export const CLAUDE_MODELS = {
   complex: "claude-opus-4-6",
 } as const;
 
-export const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
+export const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+
+/** Tried in order when the configured Gemini model is unavailable or quota-blocked. */
+export const GEMINI_MODEL_FALLBACK_CHAIN = [
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-2.0-flash",
+] as const;
 
 export const AI_VAULT_DEFAULT_TIMEOUT_MS = 45_000;
 export const AI_VAULT_ANTHROPIC_MAX_ATTEMPTS = 2;

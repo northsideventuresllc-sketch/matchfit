@@ -3,7 +3,7 @@ import "server-only";
 import { AI_VAULT_DEFAULT_TIMEOUT_MS } from "@/lib/ai-vault/constants";
 import { inferTaskComplexity } from "@/lib/ai-vault/complexity";
 import { resolveGeminiApiKeyChain } from "@/lib/ai-vault/keys";
-import { resolveClaudeModelForComplexity } from "@/lib/ai-vault/models";
+import { resolveClaudeModelForComplexity, resolveGeminiModel } from "@/lib/ai-vault/models";
 import { callAnthropicProvider, callGeminiProvider } from "@/lib/ai-vault/providers";
 import type {
   AiVaultProviderId,
@@ -72,9 +72,10 @@ export async function callMatchFitAi(args: MatchFitAiCallArgs): Promise<MatchFit
       timeoutMs,
     });
 
+    const geminiModel = gemini.model ?? resolveGeminiModel();
     attempts.push({
       provider: providerId,
-      model: process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash",
+      model: geminiModel,
       error: gemini.error,
     });
 
@@ -82,7 +83,7 @@ export async function callMatchFitAi(args: MatchFitAiCallArgs): Promise<MatchFit
       return {
         text: gemini.text,
         provider: providerId,
-        model: process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash",
+        model: geminiModel,
         complexity,
         usedFallback: true,
         attempts,

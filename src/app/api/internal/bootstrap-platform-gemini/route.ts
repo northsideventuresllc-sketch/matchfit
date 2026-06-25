@@ -68,7 +68,7 @@ export async function POST(req: Request) {
     if (body.geminiBackupApiKey) {
       await upsertPlatformSecret("GEMINI_API_KEY_BACKUP", body.geminiBackupApiKey);
     }
-    await upsertPlatformSecret("GEMINI_MODEL", body.geminiModel?.trim() || "gemini-2.0-flash");
+    await upsertPlatformSecret("GEMINI_MODEL", body.geminiModel?.trim() || "gemini-2.5-flash");
     clearPlatformSecretCache();
     resetHydratePlatformEnvCache();
 

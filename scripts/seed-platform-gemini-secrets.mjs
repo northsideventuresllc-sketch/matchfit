@@ -35,7 +35,7 @@ function loadValues() {
     console.error("GEMINI_API_KEY must be set (AQ.... or AIza....).");
     process.exit(1);
   }
-  const model = process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash";
+  const model = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
   return new Map([
     ["GEMINI_API_KEY", apiKey],
     ["GEMINI_MODEL", model],

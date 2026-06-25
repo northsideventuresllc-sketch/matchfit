@@ -3,6 +3,7 @@ import "server-only";
 import { getAiVaultStatus } from "@/lib/ai-vault";
 import { callMatchFitAi } from "@/lib/ai-vault/router";
 import { resolveGeminiModel } from "@/lib/ai-vault/models";
+import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import {
   CONTENT_CALENDAR_BRAND_FACTS,
   CONTENT_CALENDAR_DAYS_LONG,
@@ -112,7 +113,6 @@ async function callAi(system: string, user: string, maxTokens = 2000, temperatur
   });
 
   if (result.text) {
-    lastContentCalendarAiError = null;
     if (result.usedFallback) contentCalendarGeminiFallbackUsed = true;
     return {
       text: result.text,
@@ -123,6 +123,12 @@ async function callAi(system: string, user: string, maxTokens = 2000, temperatur
 
   lastContentCalendarAiError = result.error ?? "All AI providers failed.";
   return { text: null, error: lastContentCalendarAiError };
+}
+
+function recordContentCalendarParseFailure(aiText: string | null | undefined, provider?: string): void {
+  if (!aiText?.trim()) return;
+  const snippet = aiText.trim().slice(0, 200).replace(/\s+/g, " ");
+  lastContentCalendarAiError = `AI returned text but caption JSON could not be parsed (${provider ?? "unknown provider"}). Snippet: ${snippet}`;
 }
 
 function parseJsonBlock<T>(text: string): T | null {
@@ -266,7 +272,10 @@ Hashtags: JSON array without # prefix.`;
 
   const aiResult = await callAi(system, user, 2800, 0.7);
   const parsed = aiResult.text ? parseGeneratedPostPayload(aiResult.text) : null;
-  if (!parsed?.caption?.trim()) return null;
+  if (!parsed?.caption?.trim()) {
+    recordContentCalendarParseFailure(aiResult.text, aiResult.provider);
+    return null;
+  }
 
   const draft = rowToBulkDraft({
     row: { ...parsed, postType, targetGroup },
@@ -277,7 +286,13 @@ Hashtags: JSON array without # prefix.`;
     monday: args.monday,
   });
 
-  if (!args.skipLazyCheck && isLazyCalendarDraft(draft)) return null;
+  if (!args.skipLazyCheck && isLazyCalendarDraft(draft)) {
+    lastContentCalendarAiError =
+      "AI returned placeholder-quality copy. Retrying with stricter creative requirements.";
+    return null;
+  }
+
+  lastContentCalendarAiError = null;
   return draft;
 }
 
@@ -554,6 +569,7 @@ export async function generateBulkContent(args: {
 }): Promise<{ drafts: BulkGeneratedDraft[]; meta: BulkGenerationMeta }> {
   resetLastContentCalendarAiError();
   contentCalendarGeminiFallbackUsed = false;
+  await hydratePlatformEnvFromDatabase();
   const vaultStatus = getAiVaultStatus();
   const customPrompt =
     args.customPrompt?.trim() ||
@@ -747,7 +763,7 @@ Summarize performance for @theofficialmatchfit on Instagram, TikTok, Facebook, a
 
   const aiResult = await callAi(system, user, 1200);
   const summary =
-    aiResult.text ?? aiResult.error ?? "Connect ANTHROPIC_API_KEY or OPENAI_API_KEY to run social performance analysis.";
+    aiResult.text ?? aiResult.error ?? "Connect ANTHROPIC_API_KEY or GEMINI_API_KEY to run social performance analysis.";
 
   await recordContentLearning({
     signalType: "SOCIAL_SCAN",

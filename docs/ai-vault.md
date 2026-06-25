@@ -20,7 +20,7 @@ Only after all three fail should a feature surface a generation error.
 | `ANTHROPIC_API_KEY` | Claude primary |
 | `GEMINI_API_KEY` | Gemini primary fallback |
 | `GEMINI_API_KEY_BACKUP` | Gemini secondary fallback |
-| `GEMINI_MODEL` | Default `gemini-2.0-flash` |
+| `GEMINI_MODEL` | Default `gemini-2.5-flash` (falls back through 2.5-flash-lite, 2.0-flash) |
 
 ## Match Fit implementation
 

@@ -43,7 +43,7 @@ describe("google-gemini-ai", () => {
 
     expect(result.text).toContain("Gemini wrote this");
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining("generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"),
+      expect.stringContaining("generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"),
       expect.objectContaining({
         headers: expect.objectContaining({
           "x-goog-api-key": "AQ.test-auth-key",

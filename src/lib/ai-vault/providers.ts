@@ -1,6 +1,6 @@
 import { AI_VAULT_ANTHROPIC_MAX_ATTEMPTS, AI_VAULT_DEFAULT_TIMEOUT_MS } from "@/lib/ai-vault/constants";
 import { resolveAnthropicApiKey } from "@/lib/ai-vault/keys";
-import { resolveGeminiModel } from "@/lib/ai-vault/models";
+import { isRetryableGeminiModelError, resolveGeminiModelChain } from "@/lib/ai-vault/models";
 import type { AiVaultProviderId } from "@/lib/ai-vault/types";
 
 function summarizeHttpError(status: number, body: string, provider: string): string {
@@ -28,6 +28,7 @@ function sleep(ms: number): Promise<void> {
 export type ProviderCallResult = {
   text: string | null;
   error?: string;
+  model?: string;
 };
 
 export async function callAnthropicProvider(args: {
@@ -73,7 +74,7 @@ export async function callAnthropicProvider(args: {
           await sleep(700 * attempt);
           continue;
         }
-        return { text: null, error: message };
+        return { text: null, error: message, model: args.model };
       }
 
       const data = (await res.json()) as { content?: { type: string; text?: string }[] };
@@ -84,21 +85,21 @@ export async function callAnthropicProvider(args: {
           .join("\n\n") ?? null;
 
       if (!text) {
-        return { text: null, error: "Anthropic returned an empty response." };
+        return { text: null, error: "Anthropic returned an empty response.", model: args.model };
       }
 
-      return { text };
+      return { text, model: args.model };
     } catch (error) {
       const message = requestFailureMessage(error, "Anthropic");
       if (attempt < AI_VAULT_ANTHROPIC_MAX_ATTEMPTS) {
         await sleep(700 * attempt);
         continue;
       }
-      return { text: null, error: message };
+      return { text: null, error: message, model: args.model };
     }
   }
 
-  return { text: null, error: "Anthropic request failed after retries." };
+  return { text: null, error: "Anthropic request failed after retries.", model: args.model };
 }
 
 export async function callGeminiProvider(args: {
@@ -111,52 +112,68 @@ export async function callGeminiProvider(args: {
   jsonMode: boolean;
   timeoutMs: number;
 }): Promise<ProviderCallResult> {
-  const model = resolveGeminiModel();
   const providerLabel = args.providerId === "gemini-primary" ? "Gemini primary" : "Gemini backup";
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+  const models = resolveGeminiModelChain();
+  let lastError: string | undefined;
 
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": args.apiKey,
-      },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: args.system }] },
-        contents: [{ role: "user", parts: [{ text: args.user }] }],
-        generationConfig: {
-          temperature: args.temperature,
-          maxOutputTokens: args.maxTokens,
-          ...(args.jsonMode ? { responseMimeType: "application/json" } : {}),
+  for (const model of models) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": args.apiKey,
         },
-      }),
-      signal: AbortSignal.timeout(args.timeoutMs),
-    });
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: args.system }] },
+          contents: [{ role: "user", parts: [{ text: args.user }] }],
+          generationConfig: {
+            temperature: args.temperature,
+            maxOutputTokens: args.maxTokens,
+            ...(args.jsonMode ? { responseMimeType: "application/json" } : {}),
+          },
+        }),
+        signal: AbortSignal.timeout(args.timeoutMs),
+      });
 
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => "");
-      return { text: null, error: summarizeHttpError(res.status, errBody, providerLabel) };
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => "");
+        const message = summarizeHttpError(res.status, errBody, `${providerLabel} (${model})`);
+        lastError = message;
+        if (isRetryableGeminiModelError(res.status)) {
+          continue;
+        }
+        return { text: null, error: message, model };
+      }
+
+      const data = (await res.json()) as {
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      };
+
+      const text =
+        data.candidates?.[0]?.content?.parts
+          ?.map((part) => part.text?.trim())
+          .filter(Boolean)
+          .join("\n\n") ?? null;
+
+      if (!text) {
+        lastError = `${providerLabel} (${model}) returned an empty response.`;
+        continue;
+      }
+
+      return { text, model };
+    } catch (error) {
+      lastError = requestFailureMessage(error, `${providerLabel} (${model})`);
     }
-
-    const data = (await res.json()) as {
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-    };
-
-    const text =
-      data.candidates?.[0]?.content?.parts
-        ?.map((part) => part.text?.trim())
-        .filter(Boolean)
-        .join("\n\n") ?? null;
-
-    if (!text) {
-      return { text: null, error: `${providerLabel} returned an empty response.` };
-    }
-
-    return { text };
-  } catch (error) {
-    return { text: null, error: requestFailureMessage(error, providerLabel) };
   }
+
+  return {
+    text: null,
+    error: lastError ?? `${providerLabel} request failed for all Gemini models.`,
+    model: models[models.length - 1],
+  };
 }
 
 export const DEFAULT_PROVIDER_TIMEOUT_MS = AI_VAULT_DEFAULT_TIMEOUT_MS;
