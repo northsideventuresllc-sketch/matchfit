@@ -36,7 +36,7 @@ export type PriceCheckResult = {
   benchmarkLowUsd: number;
   benchmarkMidUsd: number;
   benchmarkHighUsd: number;
-  source: "benchmark" | "openai";
+  source: "benchmark" | "openai" | "ai-vault";
   /** True when the coach disabled AI pricing review for this package (benchmarks only). */
   aiDisabled?: boolean;
 };

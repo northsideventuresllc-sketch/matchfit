@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const teamId = "team_dD8iOW15WOUr27k3QeswFBac";
-const DEFAULT_PROJECT_IDS = ["matchfit", "match-fit-app"];
+const DEFAULT_PROJECT_IDS = ["matchfit"];
 
 const ENV_KEYS = ["GEMINI_API_KEY", "GEMINI_MODEL"];
 

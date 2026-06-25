@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const teamId = "team_dD8iOW15WOUr27k3QeswFBac";
-const projectIds = ["matchfit", "match-fit-app"];
+const projectIds = ["matchfit"];
 const ENV_KEY = "MATCH_FIT_CLIENT_VIP_STRIPE_PRICE_ID";
 
 function parseEnv(text) {

@@ -630,7 +630,14 @@ Create ${count} unique posts. Weave operator themes into every caption and visua
   if (parsed && Array.isArray(parsed) && parsed.length > 0) {
     drafts = parsed.slice(0, count).map((row, i) =>
       rowToBulkDraft({
-        row,
+        row: {
+          dayIndex: row.dayIndex,
+          postType: args.items[i]?.postType,
+          targetGroup: row.targetGroup ?? args.items[i]?.targetGroup,
+          caption: row.caption,
+          visualPrompt: row.visualPrompt,
+          hashtags: row.hashtags,
+        },
         spec: args.items[i],
         index: i,
         scheduled: args.scheduled,

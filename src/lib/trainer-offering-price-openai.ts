@@ -45,7 +45,7 @@ export async function analyzeOfferingPriceOpenAi(
     description: string;
     publicTitle?: string;
   } & OfferingPriceCheckListingContext,
-): Promise<(PriceCheckResult & { source: "ai-vault" }) | null> {
+): Promise<PriceCheckResult | null> {
   if (input.priceCheckAiEnabled === false) return null;
   if (!getAiVaultStatus().configured) return null;
 
