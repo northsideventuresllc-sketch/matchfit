@@ -23,6 +23,7 @@ export type ContentCalendarPostRow = {
   is_scheduled: boolean;
   purge_after_at: string | null;
   bulk_session_id: string | null;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
   admin_id: string | null;

@@ -9,6 +9,7 @@ import {
   BulkContentGeneratorPanel,
   ContentGeneratorPanel,
   ContentHubPanel,
+  DeletedContentPanel,
   UnpostedPromptModal,
 } from "@/app/admin/content-calendar/content-calendar-panels";
 
@@ -19,7 +20,7 @@ type AiStatus = {
   message: string;
 };
 
-type ContentTab = "generator" | "bulk" | "hub";
+type ContentTab = "generator" | "bulk" | "hub" | "deleted";
 
 const AUTO_PURGE_KEY = "matchfit_content_hub_auto_purge_24h";
 
@@ -29,8 +30,10 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
   const [socialSummary, setSocialSummary] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [hubPosts, setHubPosts] = useState<ClientContentPost[]>([]);
+  const [deletedPosts, setDeletedPosts] = useState<ClientContentPost[]>([]);
   const [scheduledPosts, setScheduledPosts] = useState<ClientContentPost[]>([]);
   const [hubLoading, setHubLoading] = useState(false);
+  const [deletedLoading, setDeletedLoading] = useState(false);
   const [autoPurge, setAutoPurge] = useState(() => {
     if (typeof window === "undefined") return false;
     try {
@@ -73,14 +76,32 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
     }
   }, []);
 
+  const loadDeleted = useCallback(async () => {
+    setDeletedLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/content-calendar/hub?view=deleted", { credentials: "include" });
+      const data = (await res.json()) as { posts?: ClientContentPost[]; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Could not load deleted posts.");
+      setDeletedPosts(data.posts ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load deleted posts.");
+    } finally {
+      setDeletedLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (tab === "hub") {
       queueMicrotask(() => void loadHub());
     }
+    if (tab === "deleted") {
+      queueMicrotask(() => void loadDeleted());
+    }
     if (tab === "bulk" || tab === "hub") {
       queueMicrotask(() => void loadScheduled());
     }
-  }, [tab, loadHub, loadScheduled]);
+  }, [tab, loadHub, loadScheduled, loadDeleted]);
 
   const tabPosts = useMemo(() => {
     if (tab === "hub") return hubPosts;
@@ -156,6 +177,7 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
       return;
     }
     await loadHub();
+    void loadDeleted();
   }
 
   async function markHubPosted(id: string) {
@@ -188,10 +210,52 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
     await loadHub();
   }
 
+  async function saveHubPostFields(
+    id: string,
+    fields: { caption: string; visualPrompt: string | null; hashtags: string[] },
+    originals: { caption: string; visualPrompt: string | null; hashtags: string[] },
+  ) {
+    const res = await fetch(`/api/admin/content-calendar/posts/${id}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        caption: fields.caption,
+        visualPrompt: fields.visualPrompt,
+        hashtags: fields.hashtags,
+        originalCaption: originals.caption,
+        originalVisualPrompt: originals.visualPrompt,
+        originalHashtags: originals.hashtags,
+      }),
+    });
+    if (!res.ok) {
+      const data = (await res.json()) as { error?: string };
+      setError(data.error ?? "Could not save post edits.");
+      return;
+    }
+    await loadHub();
+  }
+
+  async function restoreDeletedPost(id: string) {
+    const res = await fetch(`/api/admin/content-calendar/posts/${id}/actions`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "restore" }),
+    });
+    if (!res.ok) {
+      const data = (await res.json()) as { error?: string };
+      setError(data.error ?? "Could not restore post.");
+      return;
+    }
+    await Promise.all([loadDeleted(), loadHub()]);
+  }
+
   const tabs: { id: ContentTab; label: string }[] = [
     { id: "generator", label: "Content Generator" },
     { id: "bulk", label: "Bulk Content Generator" },
     { id: "hub", label: "Content Hub" },
+    { id: "deleted", label: "Recently Deleted" },
   ];
 
   return (
@@ -295,6 +359,16 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
           onDelete={deleteHubPost}
           onMarkPosted={markHubPosted}
           onUpdatePostDate={updateHubPostDate}
+          onSaveFields={saveHubPostFields}
+        />
+      ) : null}
+
+      {tab === "deleted" ? (
+        <DeletedContentPanel
+          posts={deletedPosts}
+          loading={deletedLoading}
+          onRefresh={() => void loadDeleted()}
+          onRestore={restoreDeletedPost}
         />
       ) : null}
 

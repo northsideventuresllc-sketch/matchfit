@@ -34,6 +34,13 @@ import {
   type BulkTypeCounts,
 } from "@/lib/content-calendar/bulk-content-slots";
 import type { ClientContentPost } from "@/lib/content-calendar/content-calendar-store";
+import {
+  buildCaptionWithHashtags,
+  hashtagsToInputValue,
+  maxHashtagHint,
+  parseHashtagsInput,
+} from "@/lib/content-calendar/content-calendar-clipboard";
+import { CONTENT_HUB_DELETE_RETENTION_HOURS } from "@/lib/content-calendar/constants";
 import { formatCalendarDate, getMondayOfWeek } from "@/lib/content-calendar/rotation";
 import { formatUserFacingError } from "@/lib/read-json-response";
 import { isPostMissed } from "@/lib/content-calendar/schedule-utils";
@@ -73,8 +80,93 @@ export function CopyButton({
   );
 }
 
+function ContentCopyButtons(props: {
+  postType: ContentCalendarPostType;
+  caption: string;
+  visualPrompt: string | null;
+  hashtags: string[];
+}) {
+  const postText = buildCaptionWithHashtags(props.caption, props.hashtags);
+  const isText = props.postType === "Text";
+  return (
+    <div className="mt-4 flex flex-wrap gap-2 border-t border-white/[0.06] pt-3">
+      <CopyButton text={props.caption.trim()} label="COPY CAPTION" />
+      {!isText && props.visualPrompt?.trim() ? (
+        <CopyButton text={props.visualPrompt.trim()} label="COPY PROMPT" />
+      ) : null}
+      <CopyButton text={postText} label="COPY POST" />
+    </div>
+  );
+}
+
+function ContentPostFields(props: {
+  postType: ContentCalendarPostType;
+  caption: string;
+  visualPrompt: string | null;
+  hashtags: string[];
+  onCaptionChange: (value: string) => void;
+  onVisualPromptChange: (value: string) => void;
+  onHashtagsChange: (tags: string[]) => void;
+  readOnly?: boolean;
+}) {
+  const hashtagInput = hashtagsToInputValue(props.hashtags);
+  return (
+    <div className="mt-3 space-y-3">
+      <div>
+        <label className={adminLabelClass}>{props.postType === "Text" ? "Post copy" : "Caption"}</label>
+        {props.readOnly ? (
+          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-white/75">{props.caption}</p>
+        ) : (
+          <textarea
+            className={`${adminInputClassSm} mt-1 min-h-[120px]`}
+            value={props.caption}
+            onChange={(e) => props.onCaptionChange(e.target.value)}
+          />
+        )}
+      </div>
+      {props.postType !== "Text" ? (
+        <div>
+          <label className={adminLabelClass}>Visual / creative prompt</label>
+          {props.readOnly ? (
+            <p className="mt-1 rounded-lg border border-dashed border-[#FF7E00]/20 bg-black/20 p-3 text-xs text-white/50">
+              {props.visualPrompt || "—"}
+            </p>
+          ) : (
+            <textarea
+              className={`${adminInputClassSm} mt-1 min-h-[88px]`}
+              value={props.visualPrompt ?? ""}
+              onChange={(e) => props.onVisualPromptChange(e.target.value)}
+              placeholder="Scene, subjects, on-screen text, mood…"
+            />
+          )}
+        </div>
+      ) : null}
+      <div>
+        <label className={adminLabelClass}>Hashtags</label>
+        <p className="mt-0.5 text-[10px] text-white/35">{maxHashtagHint()}</p>
+        {props.readOnly ? (
+          <p className="mt-1 text-xs text-[#FFD34E]/80">
+            {props.hashtags.length
+              ? props.hashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" ")
+              : "—"}
+          </p>
+        ) : (
+          <textarea
+            className={`${adminInputClassSm} mt-1 min-h-[72px] font-mono text-xs`}
+            value={hashtagInput}
+            onChange={(e) => props.onHashtagsChange(parseHashtagsInput(e.target.value))}
+            placeholder={"MatchFit\nFitnessApp\nBetaLaunch"}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
 function DraftBubble(props: {
   draft: BulkGeneratedDraft;
+  originals?: { caption: string; visualPrompt: string | null; hashtags: string[] };
+  onChange: (draft: BulkGeneratedDraft) => void;
   onSave: () => Promise<void>;
   onDelete: () => void;
   saving: boolean;
@@ -113,20 +205,26 @@ function DraftBubble(props: {
           </button>
         </div>
       </div>
-      <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-white/75">{props.draft.caption}</p>
-      {props.draft.visualPrompt ? (
-        <p className="mt-2 rounded-lg border border-dashed border-[#FF7E00]/20 bg-black/20 p-3 text-xs text-white/50">
-          {props.draft.visualPrompt}
-        </p>
-      ) : null}
-      <div className="mt-3 flex flex-wrap gap-2">
-        <CopyButton
-          text={`${props.draft.caption}\n\n${props.draft.hashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}`}
-          label="Copy post"
-          disabled
-          disabledHint="Approve & save to copy"
-        />
-      </div>
+      <ContentPostFields
+        postType={props.draft.postType}
+        caption={props.draft.caption}
+        visualPrompt={props.draft.visualPrompt}
+        hashtags={props.draft.hashtags}
+        onCaptionChange={(caption) => props.onChange({ ...props.draft, caption })}
+        onVisualPromptChange={(visualPrompt) =>
+          props.onChange({
+            ...props.draft,
+            visualPrompt: props.draft.postType === "Text" ? null : visualPrompt,
+          })
+        }
+        onHashtagsChange={(hashtags) => props.onChange({ ...props.draft, hashtags })}
+      />
+      <ContentCopyButtons
+        postType={props.draft.postType}
+        caption={props.draft.caption}
+        visualPrompt={props.draft.visualPrompt}
+        hashtags={props.draft.hashtags}
+      />
     </article>
   );
 }
@@ -167,6 +265,9 @@ export function BulkContentGeneratorPanel(props: {
   const [assigningAudiences, setAssigningAudiences] = useState(false);
   const [manualEditNotice, setManualEditNotice] = useState(false);
   const [drafts, setDrafts] = useState<BulkGeneratedDraft[]>([]);
+  const [draftOriginals, setDraftOriginals] = useState<
+    Record<string, { caption: string; visualPrompt: string | null; hashtags: string[] }>
+  >({});
   const [bulkSessionId, setBulkSessionId] = useState<string | null>(null);
   const [scheduledPosts, setScheduledPosts] = useState<ClientContentPost[]>([]);
   const [generating, setGenerating] = useState(false);
@@ -304,7 +405,20 @@ export function BulkContentGeneratorPanel(props: {
       };
       if (!res.ok) throw new Error(data.error ?? "Generation failed.");
       const sessionId = data.bulkSessionId ?? `bulk_${Date.now()}_local`;
-      setDrafts(data.drafts ?? []);
+      const nextDrafts = data.drafts ?? [];
+      setDrafts(nextDrafts);
+      setDraftOriginals(
+        Object.fromEntries(
+          nextDrafts.map((draft) => [
+            draft.tempId,
+            {
+              caption: draft.caption,
+              visualPrompt: draft.visualPrompt,
+              hashtags: [...(draft.hashtags ?? [])],
+            },
+          ]),
+        ),
+      );
       setBulkSessionId(sessionId);
       if (data.generationMeta?.warning) {
         setError(data.generationMeta.warning);
@@ -344,11 +458,19 @@ export function BulkContentGeneratorPanel(props: {
           weekStart,
           scheduled: scheduleMode === "scheduled",
           bulkSessionId,
+          originalCaption: draftOriginals[draft.tempId]?.caption,
+          originalVisualPrompt: draftOriginals[draft.tempId]?.visualPrompt ?? null,
+          originalHashtags: draftOriginals[draft.tempId]?.hashtags,
         }),
       });
       const data = (await res.json()) as { error?: unknown };
       if (!res.ok) throw new Error(formatUserFacingError(data.error, "Save failed."));
       setDrafts((prev) => prev.filter((d) => d.tempId !== draft.tempId));
+      setDraftOriginals((prev) => {
+        const next = { ...prev };
+        delete next[draft.tempId];
+        return next;
+      });
       if (!options?.bulk) {
         setSuccess("Saved to Content Hub.");
         props.onHubRefresh();
@@ -406,6 +528,7 @@ export function BulkContentGeneratorPanel(props: {
   function deleteAllDrafts() {
     if (drafts.length === 0) return;
     setDrafts([]);
+    setDraftOriginals({});
     setSuccess(null);
     setError(null);
   }
@@ -645,12 +768,23 @@ export function BulkContentGeneratorPanel(props: {
               <DraftBubble
                 key={draft.tempId}
                 draft={draft}
+                originals={draftOriginals[draft.tempId]}
                 saving={savingId === draft.tempId || bulkSaving}
                 saveDisabled={saveDisabled}
+                onChange={(next) =>
+                  setDrafts((prev) => prev.map((d) => (d.tempId === draft.tempId ? next : d)))
+                }
                 onSave={async () => {
                   await saveDraft(draft);
                 }}
-                onDelete={() => setDrafts((prev) => prev.filter((d) => d.tempId !== draft.tempId))}
+                onDelete={() => {
+                  setDrafts((prev) => prev.filter((d) => d.tempId !== draft.tempId));
+                  setDraftOriginals((prev) => {
+                    const next = { ...prev };
+                    delete next[draft.tempId];
+                    return next;
+                  });
+                }}
               />
             ))}
           </div>
@@ -673,14 +807,68 @@ export function ContentHubPanel(props: {
   onDelete: (id: string) => Promise<void>;
   onMarkPosted: (id: string) => Promise<void>;
   onUpdatePostDate: (id: string, postDate: string) => Promise<void>;
+  onSaveFields: (
+    id: string,
+    fields: { caption: string; visualPrompt: string | null; hashtags: string[] },
+    originals: { caption: string; visualPrompt: string | null; hashtags: string[] },
+  ) => Promise<void>;
 }) {
   const [dateDrafts, setDateDrafts] = useState<Record<string, string>>({});
+  const [fieldDrafts, setFieldDrafts] = useState<
+    Record<string, { caption: string; visualPrompt: string | null; hashtags: string[] }>
+  >({});
+  const [fieldOriginals, setFieldOriginals] = useState<
+    Record<string, { caption: string; visualPrompt: string | null; hashtags: string[] }>
+  >({});
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   useEffect(() => {
-    const next: Record<string, string> = {};
-    for (const p of props.posts) next[p.id] = p.postDate;
-    queueMicrotask(() => setDateDrafts(next));
+    const nextDates: Record<string, string> = {};
+    const nextFields: Record<string, { caption: string; visualPrompt: string | null; hashtags: string[] }> = {};
+    const nextOriginals: Record<string, { caption: string; visualPrompt: string | null; hashtags: string[] }> = {};
+    for (const p of props.posts) {
+      nextDates[p.id] = p.postDate;
+      nextFields[p.id] = {
+        caption: p.caption,
+        visualPrompt: p.visualPrompt,
+        hashtags: [...(p.hashtags ?? [])],
+      };
+      nextOriginals[p.id] = {
+        caption: p.caption,
+        visualPrompt: p.visualPrompt,
+        hashtags: [...(p.hashtags ?? [])],
+      };
+    }
+    queueMicrotask(() => {
+      setDateDrafts(nextDates);
+      setFieldDrafts(nextFields);
+      setFieldOriginals(nextOriginals);
+    });
   }, [props.posts]);
+
+  async function saveFields(postId: string) {
+    const fields = fieldDrafts[postId];
+    const originals = fieldOriginals[postId];
+    if (!fields || !originals) return;
+    setSavingId(postId);
+    try {
+      await props.onSaveFields(postId, fields, originals);
+      setFieldOriginals((prev) => ({ ...prev, [postId]: { ...fields, hashtags: [...fields.hashtags] } }));
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  function updateField(
+    postId: string,
+    patch: Partial<{ caption: string; visualPrompt: string | null; hashtags: string[] }>,
+  ) {
+    setFieldDrafts((prev) => {
+      const current = prev[postId];
+      if (!current) return prev;
+      return { ...prev, [postId]: { ...current, ...patch } };
+    });
+  }
 
   return (
     <div className="space-y-8">
@@ -712,7 +900,19 @@ export function ContentHubPanel(props: {
         </p>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          {props.posts.map((post) => (
+          {props.posts.map((post) => {
+            const fields = fieldDrafts[post.id] ?? {
+              caption: post.caption,
+              visualPrompt: post.visualPrompt,
+              hashtags: post.hashtags,
+            };
+            const originals = fieldOriginals[post.id];
+            const isDirty =
+              originals &&
+              (fields.caption !== originals.caption ||
+                (fields.visualPrompt ?? "") !== (originals.visualPrompt ?? "") ||
+                fields.hashtags.join(",") !== originals.hashtags.join(","));
+            return (
             <article key={post.id} className={contentCalendarDraftCardClass}>
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
@@ -721,7 +921,7 @@ export function ContentHubPanel(props: {
                   </span>
                   <p className="mt-1 text-[10px] uppercase text-white/40">{post.targetGroup}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button type="button" className={adminAccentButtonClass} onClick={() => void props.onMarkPosted(post.id)}>
                     Mark posted
                   </button>
@@ -752,18 +952,34 @@ export function ContentHubPanel(props: {
                   </button>
                 </div>
               </div>
-              <p className="mt-3 whitespace-pre-wrap text-sm text-white/75">{post.caption}</p>
-              {post.visualPrompt ? (
-                <p className="mt-2 rounded-lg border border-dashed border-white/10 p-3 text-xs text-white/45">
-                  {post.visualPrompt}
-                </p>
-              ) : null}
-              <CopyButton
-                text={`${post.caption}\n\n${post.hashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}`}
-                label="Copy post"
+              <ContentPostFields
+                postType={post.postType}
+                caption={fields.caption}
+                visualPrompt={fields.visualPrompt}
+                hashtags={fields.hashtags}
+                onCaptionChange={(caption) => updateField(post.id, { caption })}
+                onVisualPromptChange={(visualPrompt) => updateField(post.id, { visualPrompt })}
+                onHashtagsChange={(hashtags) => updateField(post.id, { hashtags })}
+              />
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={adminPrimaryButtonClass}
+                  disabled={!isDirty || savingId === post.id}
+                  onClick={() => void saveFields(post.id)}
+                >
+                  {savingId === post.id ? "Saving…" : "Save edits"}
+                </button>
+              </div>
+              <ContentCopyButtons
+                postType={post.postType}
+                caption={fields.caption}
+                visualPrompt={fields.visualPrompt}
+                hashtags={fields.hashtags}
               />
             </article>
-          ))}
+          );
+          })}
         </div>
       )}
 
@@ -771,6 +987,77 @@ export function ContentHubPanel(props: {
         posts={props.posts.filter((p) => p.isScheduled || Boolean(p.postDate))}
         title="Hub schedule overview"
       />
+    </div>
+  );
+}
+
+export function DeletedContentPanel(props: {
+  posts: ClientContentPost[];
+  loading: boolean;
+  onRefresh: () => void;
+  onRestore: (id: string) => Promise<void>;
+}) {
+  return (
+    <div className="space-y-8">
+      <section className={`${adminCardClass} space-y-4 p-5`}>
+        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/40">Recently deleted</p>
+        <p className="text-sm text-white/55">
+          Deleted posts stay here for {CONTENT_HUB_DELETE_RETENTION_HOURS} hours, then are permanently removed. Restore
+          anything you still need.
+        </p>
+        <button type="button" className={adminSecondaryButtonClass} onClick={props.onRefresh}>
+          Refresh deleted
+        </button>
+      </section>
+
+      {props.loading ? <AdminLoadingBar label="Loading deleted posts…" /> : null}
+
+      {!props.loading && props.posts.length === 0 ? (
+        <p className={`${adminPanelClass} p-6 text-center text-sm text-white/45`}>No deleted posts in the last 48 hours.</p>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {props.posts.map((post) => (
+            <article key={post.id} className={contentCalendarDraftCardClass}>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <span className="text-xs font-black uppercase tracking-[0.1em] text-[#FFD34E]">
+                    {CONTENT_CALENDAR_TYPE_ICONS[post.postType]} {post.postType}
+                  </span>
+                  <p className="mt-1 text-[10px] uppercase text-white/40">{post.targetGroup}</p>
+                  {post.purgeAfterAt ? (
+                    <p className="mt-1 text-[10px] text-amber-200/70">
+                      Permanently deletes {new Date(post.purgeAfterAt).toLocaleString()}
+                    </p>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-emerald-100"
+                  onClick={() => void props.onRestore(post.id)}
+                >
+                  Restore
+                </button>
+              </div>
+              <ContentPostFields
+                postType={post.postType}
+                caption={post.caption}
+                visualPrompt={post.visualPrompt}
+                hashtags={post.hashtags}
+                onCaptionChange={() => {}}
+                onVisualPromptChange={() => {}}
+                onHashtagsChange={() => {}}
+                readOnly
+              />
+              <ContentCopyButtons
+                postType={post.postType}
+                caption={post.caption}
+                visualPrompt={post.visualPrompt}
+                hashtags={post.hashtags}
+              />
+            </article>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -874,7 +1161,7 @@ export function UnpostedPromptModal(props: {
 }
 
 export function ContentGeneratorPanel(props: { configured: boolean }) {
-  const [postType, setPostType] = useState<"Carousel" | "Static" | "Video">("Carousel");
+  const [postType, setPostType] = useState<ContentCalendarPostType>("Carousel");
   const [contentType, setContentType] = useState("Trainer Recruitment");
   const [tone, setTone] = useState("Bold / Direct");
   const [customNote, setCustomNote] = useState("");
@@ -885,6 +1172,10 @@ export function ContentGeneratorPanel(props: { configured: boolean }) {
     hashtags: string[];
     dmScript?: string;
   } | null>(null);
+  const [hook, setHook] = useState("");
+  const [body, setBody] = useState("");
+  const [cta, setCta] = useState("");
+  const [hashtags, setHashtags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -897,7 +1188,7 @@ export function ContentGeneratorPanel(props: { configured: boolean }) {
     "Social Proof",
   ];
   const TONES = ["Hype / Energetic", "Professional", "Conversational", "Bold / Direct"];
-  const POST_TYPES = ["Carousel", "Static", "Video"] as const;
+  const POST_TYPES: ContentCalendarPostType[] = [...CONTENT_CALENDAR_POST_TYPES];
 
   async function generate() {
     setLoading(true);
@@ -912,7 +1203,14 @@ export function ContentGeneratorPanel(props: { configured: boolean }) {
       });
       const data = (await res.json()) as { result?: typeof result; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Generation failed.");
-      setResult(data.result ?? null);
+      const next = data.result ?? null;
+      setResult(next);
+      if (next) {
+        setHook(next.hook);
+        setBody(next.body);
+        setCta(next.cta);
+        setHashtags(next.hashtags ?? []);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generation failed.");
     } finally {
@@ -920,9 +1218,7 @@ export function ContentGeneratorPanel(props: { configured: boolean }) {
     }
   }
 
-  const fullPost = result
-    ? `${result.hook}\n\n${result.body}\n\n${result.cta}\n\n${result.hashtags?.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}`
-    : "";
+  const caption = [hook, body, cta].filter(Boolean).join("\n\n");
 
   return (
     <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
@@ -995,15 +1291,39 @@ export function ContentGeneratorPanel(props: { configured: boolean }) {
         {loading ? <AdminLoadingBar label="AI is crafting your post…" /> : null}
         {result ? (
           <div className="space-y-4">
-            <div className="flex justify-between gap-3">
-              <p className={adminLabelClass}>Full post</p>
-              <CopyButton text={fullPost} label="Copy full post" />
+            <p className={adminLabelClass}>Edit generated copy</p>
+            <div>
+              <label className={adminLabelClass}>Hook</label>
+              <textarea className={`${adminInputClassSm} mt-1`} rows={2} value={hook} onChange={(e) => setHook(e.target.value)} />
             </div>
-            <div className="text-sm leading-relaxed text-white/75">
-              <p className="font-semibold text-[#FF7E00]">{result.hook}</p>
-              <p className="mt-3">{result.body}</p>
-              <p className="mt-3 font-medium text-[#FFD34E]">{result.cta}</p>
+            <div>
+              <label className={adminLabelClass}>Body</label>
+              <textarea className={`${adminInputClassSm} mt-1 min-h-[120px]`} value={body} onChange={(e) => setBody(e.target.value)} />
             </div>
+            <div>
+              <label className={adminLabelClass}>CTA</label>
+              <textarea className={`${adminInputClassSm} mt-1`} rows={2} value={cta} onChange={(e) => setCta(e.target.value)} />
+            </div>
+            <div>
+              <label className={adminLabelClass}>Hashtags</label>
+              <p className="mt-0.5 text-[10px] text-white/35">{maxHashtagHint()}</p>
+              <textarea
+                className={`${adminInputClassSm} mt-1 min-h-[72px] font-mono text-xs`}
+                value={hashtagsToInputValue(hashtags)}
+                onChange={(e) => setHashtags(parseHashtagsInput(e.target.value))}
+              />
+            </div>
+            <ContentCopyButtons
+              postType={postType}
+              caption={caption}
+              visualPrompt={null}
+              hashtags={hashtags}
+            />
+            {result.dmScript ? (
+              <p className="rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-white/50">
+                DM script: {result.dmScript}
+              </p>
+            ) : null}
           </div>
         ) : null}
       </section>

@@ -38,6 +38,9 @@ export const CONTENT_CALENDAR_BULK_MAX_COUNT = 20;
 export const CONTENT_CALENDAR_BULK_DEFAULT_PROMPT =
   "Use live website promos, social performance, and product features (Fit Hub, discovery matching, founding Fitness Pro offers, client VIP trial) to write specific hooks — never generic beta filler.";
 
+/** Soft-deleted hub posts are permanently removed after this window. */
+export const CONTENT_HUB_DELETE_RETENTION_HOURS = 48;
+
 export const CONTENT_CALENDAR_POST_TYPES = ["Carousel", "Static", "Video", "Text"] as const;
 
 export type ContentCalendarPostType = (typeof CONTENT_CALENDAR_POST_TYPES)[number];

@@ -5,6 +5,7 @@ import {
   dismissMissedPrompt,
   markPostPosted,
   reschedulePost,
+  restoreDeletedPost,
   serializePostForClient,
   updatePostMedia,
   upsertWeekPosts,
@@ -16,6 +17,7 @@ import { requireAdminSession } from "@/lib/require-admin";
 
 const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("posted"), autoPurgeAfter24h: z.boolean().optional() }),
+  z.object({ action: z.literal("restore") }),
   z.object({ action: z.literal("dismiss_missed") }),
   z.object({
     action: z.literal("reschedule"),
@@ -57,6 +59,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       case "posted":
         await markPostPosted(id, parsed.data.autoPurgeAfter24h === true);
         await recordContentLearning({ signalType: "POSTED", postId: id, meta: { postedAt: new Date().toISOString() } });
+        return NextResponse.json({ ok: true });
+      case "restore":
+        await restoreDeletedPost(id);
         return NextResponse.json({ ok: true });
       case "update_post_date":
         await updateHubPostDate({ postId: id, postDate: parsed.data.postDate });

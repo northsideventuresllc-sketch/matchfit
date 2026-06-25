@@ -41,6 +41,7 @@ const DEMO_HUB: ClientContentPost[] = [
     isScheduled: true,
     purgeAfterAt: null,
     bulkSessionId: "demo_bulk",
+    deletedAt: null,
   },
   {
     id: "demo_2",
@@ -62,6 +63,7 @@ const DEMO_HUB: ClientContentPost[] = [
     isScheduled: true,
     purgeAfterAt: null,
     bulkSessionId: "demo_bulk",
+    deletedAt: null,
   },
 ];
 
@@ -148,6 +150,7 @@ export function ContentCalendarMockupClient() {
                 isScheduled: Boolean(draft.postDate),
                 purgeAfterAt: null,
                 bulkSessionId: "preview",
+                deletedAt: null,
               },
               ...prev,
             ]);
@@ -165,6 +168,15 @@ export function ContentCalendarMockupClient() {
             onMarkPosted={async (id) => setHubPosts((p) => p.filter((x) => x.id !== id))}
             onUpdatePostDate={async (id, postDate) =>
               setHubPosts((p) => p.map((x) => (x.id === id ? { ...x, postDate, isScheduled: true } : x)))
+            }
+            onSaveFields={async (id, fields) =>
+              setHubPosts((p) =>
+                p.map((x) =>
+                  x.id === id
+                    ? { ...x, caption: fields.caption, visualPrompt: fields.visualPrompt, hashtags: fields.hashtags }
+                    : x,
+                ),
+              )
             }
           />
         ) : null}
