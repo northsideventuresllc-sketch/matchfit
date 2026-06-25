@@ -73,6 +73,15 @@ async function runNiBrainContentHubDdl(): Promise<void> {
 
   try {
     await pool.query(CONTENT_HUB_MIGRATION_SQL);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (/tenant\/user|ENOTFOUND|pooler/i.test(message)) {
+      throw new Error(
+        `Content Hub schema repair could not reach NI Brain Postgres (${message}). ` +
+          "Use a direct db.<project-ref>.supabase.co URL for NI_BRAIN_DATABASE_URL, or set NI_BRAIN_DATABASE_PASSWORD with NI_BRAIN_SUPABASE_URL.",
+      );
+    }
+    throw e;
   } finally {
     await pool.end().catch(() => {});
   }

@@ -4,6 +4,7 @@ import {
   buildNiBrainDirectDatabaseUrl,
   buildNiBrainSessionPoolerDatabaseUrl,
   niBrainProjectRefFromSupabaseUrl,
+  normalizeNiBrainDatabaseUrlForDdl,
   resolveNiBrainDatabaseUrlForDdl,
 } from "@/lib/ni-brain-database-url";
 
@@ -19,8 +20,16 @@ describe("ni-brain-database-url", () => {
     expect(
       buildNiBrainSessionPoolerDatabaseUrl({ projectRef: NI_BRAIN_PROJECT_REF, password: "secret", region: "us-east-1" }),
     ).toBe(
-      "postgresql://postgres.kxijunwgbrlfzvgkhklo:secret@aws-0-us-east-1.pooler.supabase.com:5432/postgres",
+      "postgresql://postgres.kxijunwgbrlfzvgkhklo:secret@aws-1-us-east-1.pooler.supabase.com:5432/postgres",
     );
+  });
+
+  it("normalizes pooler URLs to direct for DDL", () => {
+    expect(
+      normalizeNiBrainDatabaseUrlForDdl(
+        "postgresql://postgres.kxijunwgbrlfzvgkhklo:secret@aws-0-us-east-1.pooler.supabase.com:5432/postgres",
+      ),
+    ).toBe("postgresql://postgres:secret@db.kxijunwgbrlfzvgkhklo.supabase.co:5432/postgres");
   });
 
   it("prefers explicit database URL", () => {
@@ -31,16 +40,16 @@ describe("ni-brain-database-url", () => {
     delete process.env.NI_BRAIN_DATABASE_URL;
   });
 
-  it("derives URL from password and Supabase URL", () => {
+  it("derives direct URL from password and Supabase URL on Vercel", () => {
     delete process.env.NI_BRAIN_DATABASE_URL;
     process.env.NI_BRAIN_DATABASE_PASSWORD = "pw";
     process.env.NI_BRAIN_SUPABASE_URL = "https://kxijunwgbrlfzvgkhklo.supabase.co";
-    delete process.env.VERCEL;
-    delete process.env.VERCEL_ENV;
+    process.env.VERCEL = "1";
     expect(resolveNiBrainDatabaseUrlForDdl()).toBe(
       "postgresql://postgres:pw@db.kxijunwgbrlfzvgkhklo.supabase.co:5432/postgres",
     );
     delete process.env.NI_BRAIN_DATABASE_PASSWORD;
     delete process.env.NI_BRAIN_SUPABASE_URL;
+    delete process.env.VERCEL;
   });
 });

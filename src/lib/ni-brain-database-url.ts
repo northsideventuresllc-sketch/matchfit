@@ -1,5 +1,10 @@
 import "server-only";
 
+import {
+  isSupabasePoolerHost,
+  supabaseProjectRefFromConnectionString,
+} from "@/lib/supabase-database-url";
+
 export const NI_BRAIN_PROJECT_REF = "kxijunwgbrlfzvgkhklo";
 
 const KNOWN_NI_BRAIN_POOLER_REGIONS: Record<string, string> = {
@@ -32,18 +37,40 @@ export function buildNiBrainSessionPoolerDatabaseUrl(args: {
     process.env.NI_BRAIN_PROJECT_REGION?.trim() ||
     KNOWN_NI_BRAIN_POOLER_REGIONS[args.projectRef] ||
     "us-east-1";
-  const host = process.env.NI_BRAIN_POOLER_HOST?.trim() || `aws-0-${region}.pooler.supabase.com`;
+  const host = process.env.NI_BRAIN_POOLER_HOST?.trim() || `aws-1-${region}.pooler.supabase.com`;
   const encoded = encodeURIComponent(args.password);
   return `postgresql://postgres.${args.projectRef}:${encoded}@${host}:5432/postgres`;
+}
+
+/** Prefer direct Postgres for DDL — pooler URLs often fail migrations on serverless. */
+export function normalizeNiBrainDatabaseUrlForDdl(databaseUrl: string): string {
+  const trimmed = databaseUrl.trim();
+  if (!isSupabasePoolerHost(trimmed)) return trimmed;
+
+  const projectRef = supabaseProjectRefFromConnectionString(trimmed);
+  if (!projectRef) return trimmed;
+
+  try {
+    const parsed = new URL(trimmed);
+    const password = decodeURIComponent(parsed.password);
+    if (password) {
+      return buildNiBrainDirectDatabaseUrl({ projectRef, password });
+    }
+  } catch {
+    // keep original URL
+  }
+
+  return trimmed;
 }
 
 /**
  * Postgres URL for NI Brain DDL (Content Hub schema repair).
  * Prefers NI_BRAIN_DATABASE_URL; otherwise builds from NI_BRAIN_DATABASE_PASSWORD + NI_BRAIN_SUPABASE_URL.
+ * Always uses the direct db.<ref>.supabase.co host for reliability (not the session pooler).
  */
 export function resolveNiBrainDatabaseUrlForDdl(): string | null {
   const explicit = process.env.NI_BRAIN_DATABASE_URL?.trim();
-  if (explicit) return explicit;
+  if (explicit) return normalizeNiBrainDatabaseUrlForDdl(explicit);
 
   const password = process.env.NI_BRAIN_DATABASE_PASSWORD?.trim();
   const supabaseUrl = process.env.NI_BRAIN_SUPABASE_URL?.trim();
@@ -51,11 +78,6 @@ export function resolveNiBrainDatabaseUrlForDdl(): string | null {
 
   const projectRef = niBrainProjectRefFromSupabaseUrl(supabaseUrl);
   if (!projectRef) return null;
-
-  const onVercel = process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV);
-  if (onVercel) {
-    return buildNiBrainSessionPoolerDatabaseUrl({ projectRef, password });
-  }
 
   return buildNiBrainDirectDatabaseUrl({ projectRef, password });
 }
