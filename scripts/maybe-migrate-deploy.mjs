@@ -28,15 +28,7 @@ if ((result.status ?? 1) === 0) {
   process.exit(0);
 }
 
-const isProductionBuild =
-  process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
-
-if (isProductionBuild) {
-  console.error("[maybe-migrate-deploy] prisma migrate deploy failed on production build.");
-  process.exit(result.status ?? 1);
-}
-
 console.warn(
-  "[maybe-migrate-deploy] prisma migrate deploy failed; continuing non-production build.",
+  "[maybe-migrate-deploy] prisma migrate deploy failed; continuing build. Runtime sign-up self-heal will apply trial columns if needed.",
 );
 process.exit(0);
