@@ -21,6 +21,9 @@ import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 
 type HomeProps = { searchParams?: Promise<{ zip?: string }> };
 
+/** Always render fresh homepage copy/version from package.json (no ISR/CDN stale shell). */
+export const revalidate = 0;
+
 export default async function Home({ searchParams }: HomeProps) {
   // DATABASE_URL is required for all DB calls. Preview deployments may omit it;
   // skip DB-dependent work so the page still renders rather than returning 500.

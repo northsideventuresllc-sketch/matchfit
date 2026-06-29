@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-29** `2.0.8-beta` → `2.0.9-beta` (**patch** — Production migration repair and homepage revalidate fix)
 - **2026-06-25** `2.0.7-beta` → `2.0.8-beta` (**patch** — Fix NI Brain DDL connection for content calendar schema repair)
 - **2026-06-25** `2.0.6-beta` → `2.0.7-beta` (**patch** — Content calendar Recently Posted tab and 48h retention)
 - **2026-06-24** `2.0.5-beta` → `2.0.6-beta` (**patch** — Responsive UI: mobile calendars, overflow guards, tablet grids)
