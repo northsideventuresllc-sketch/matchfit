@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-06-30** `2.0.10-beta` → `2.0.11-beta` (**patch** — Fix Stripe webhook raw body verification, FP tier schema self-heal, and VIP reactivation price id)
 - **2026-06-29** `2.0.9-beta` → `2.0.10-beta` (**patch** — Redeploy after Vercel build fix)
 - **2026-06-29** `2.0.8-beta` → `2.0.9-beta` (**patch** — Production migration repair and homepage revalidate fix)
 - **2026-06-25** `2.0.7-beta` → `2.0.8-beta` (**patch** — Fix NI Brain DDL connection for content calendar schema repair)

@@ -2,6 +2,7 @@ import { finalizeRegistrationAfterPayment } from "@/lib/billing-finalize";
 import {
   activateVipFromWebhook,
   deactivateVip,
+  isClientVipSubscription,
   resolveClientIdFromVipSubscription,
 } from "@/lib/client-vip-subscription";
 import {
@@ -50,12 +51,16 @@ import {
 } from "@/lib/trainer-promo-tokens";
 import { computeCheckoutFeeBreakdown } from "@/lib/stripe-checkout-line-items";
 import { hydrateStripeEnvFromDatabase } from "@/lib/hydrate-stripe-env";
+import { readStripeWebhookRawBody } from "@/lib/stripe-webhook-raw-body";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  const rawBody = await readStripeWebhookRawBody(req);
+
   await hydrateStripeEnvFromDatabase();
   const stripe = getStripe();
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -67,8 +72,6 @@ export async function POST(req: Request) {
   if (!signature) {
     return NextResponse.json({ error: "Missing signature." }, { status: 400 });
   }
-
-  const rawBody = await req.text();
 
   let event: Stripe.Event;
   try {
@@ -322,7 +325,7 @@ export async function POST(req: Request) {
         if (stripe) {
           try {
             const subObj = await stripe.subscriptions.retrieve(subId);
-            if (subObj.metadata?.purpose?.trim() === "client_vip") {
+            if (isClientVipSubscription(subObj)) {
               handledVipInvoice = true;
               const clientId = await resolveClientIdFromVipSubscription(subObj);
               if (clientId) {
@@ -376,7 +379,7 @@ export async function POST(req: Request) {
       const sub = event.data.object as Stripe.Subscription;
       if (sub.id) {
         const purpose = sub.metadata?.purpose?.trim();
-        if (purpose === "client_vip") {
+        if (purpose === "client_vip" || isClientVipSubscription(sub)) {
           const clientId = await resolveClientIdFromVipSubscription(sub);
           if (clientId) {
             const st = String(sub.status ?? "");
@@ -411,7 +414,7 @@ export async function POST(req: Request) {
     if (event.type === "customer.subscription.created") {
       const sub = event.data.object as Stripe.Subscription;
       const purpose = sub.metadata?.purpose?.trim();
-      if (purpose === "client_vip" && sub.id) {
+      if ((purpose === "client_vip" || isClientVipSubscription(sub)) && sub.id) {
         const st = String(sub.status ?? "");
         if (st === "active" || st === "trialing") {
           await activateVipFromWebhook(sub.id);
