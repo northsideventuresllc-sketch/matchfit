@@ -19,6 +19,7 @@ import type {
 import { ensureAdminReportingSchema } from "@/lib/ensure-admin-reporting-schema";
 import { ensureClientPlanSchema } from "@/lib/ensure-client-plan-schema";
 import { ensureClientPlatformTrialSchema } from "@/lib/ensure-client-platform-trial-schema";
+import { ensureFpTierSchema } from "@/lib/ensure-fp-tier-schema";
 import { ensureTrainerRegisterSchema } from "@/lib/ensure-trainer-register-schema";
 import { prisma } from "@/lib/prisma";
 import { formatFeaturedDisplayDayLabel } from "@/lib/featured-eastern-calendar";
@@ -403,6 +404,9 @@ export async function getAdminPortalOverview(): Promise<AdminPortalOverview> {
     }),
     ensureTrainerRegisterSchema().catch((e) => {
       console.error("[admin portal] ensureTrainerRegisterSchema", e);
+    }),
+    ensureFpTierSchema().catch((e) => {
+      console.error("[admin portal] ensureFpTierSchema", e);
     }),
   ]);
 

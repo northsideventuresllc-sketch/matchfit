@@ -1,4 +1,5 @@
 import { purgeExpiredRegistrationHolds } from "@/lib/purge-registration-holds";
+import { resolveClientVipStripePriceId } from "@/lib/client-stripe-price-id";
 import { prisma } from "@/lib/prisma";
 import { getRegistrationHoldPendingId, getSessionClientId } from "@/lib/session";
 import { getStripe } from "@/lib/stripe-server";
@@ -73,7 +74,8 @@ export async function POST(req: Request) {
     await purgeExpiredRegistrationHolds();
 
     const secretPresent = Boolean(process.env.STRIPE_SECRET_KEY?.trim());
-    const priceId = process.env.STRIPE_PRICE_ID?.trim();
+    const legacyPriceId = process.env.STRIPE_PRICE_ID?.trim();
+    const vipPriceId = resolveClientVipStripePriceId();
 
     if (!secretPresent) {
       return NextResponse.json(
@@ -81,9 +83,12 @@ export async function POST(req: Request) {
         { status: 503 },
       );
     }
-    if (!priceId) {
+    if (!legacyPriceId && !vipPriceId) {
       return NextResponse.json(
-        { error: "STRIPE_PRICE_ID is missing or empty. Create a $10/month recurring Price in Stripe and paste its price_… id." },
+        {
+          error:
+            "MATCH_FIT_CLIENT_VIP_STRIPE_PRICE_ID (or legacy STRIPE_PRICE_ID) is missing. Run npm run stripe:setup:client-vip.",
+        },
         { status: 503 },
       );
     }
@@ -119,17 +124,22 @@ export async function POST(req: Request) {
         (client.paymentGraceUntil && client.paymentGraceUntil.getTime() > Date.now()) ||
         (client.platformTrialEndsAt && client.platformTrialEndsAt.getTime() <= Date.now() && !client.stripeSubscriptionActive);
       if (needsPayment || parsed.success && parsed.data.reactivation) {
+        const reactivationPriceId = vipPriceId ?? legacyPriceId;
+        if (!reactivationPriceId) {
+          return NextResponse.json({ error: "VIP billing is not configured." }, { status: 503 });
+        }
         return createClientSubscriptionCheckout({
           req,
           stripe,
-          priceId,
+          priceId: reactivationPriceId,
           customerEmail: client.email,
           metadata: {
             clientId: sessionClientId,
-            matchFitBillingChoice: "reactivation_pay_now",
+            purpose: "client_vip",
+            matchFitBillingChoice: "reactivation_vip",
           },
           trialDays: 0,
-          successPath: "/client/subscribe/return?session_id={CHECKOUT_SESSION_ID}",
+          successPath: "/client/dashboard/billing?vip=success",
         });
       }
     }
@@ -175,7 +185,7 @@ export async function POST(req: Request) {
       return await createClientSubscriptionCheckout({
         req,
         stripe,
-        priceId,
+        priceId: legacyPriceId ?? vipPriceId!,
         customerEmail: hold.email,
         metadata: subscriptionMetadata,
         trialDays: billing.trialDays,

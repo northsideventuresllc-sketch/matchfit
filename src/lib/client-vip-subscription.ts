@@ -1,7 +1,25 @@
+import { resolveClientVipStripePriceId } from "@/lib/client-stripe-price-id";
 import { prisma } from "@/lib/prisma";
 import { getStripe, stripeObjectIsLiveBilling } from "@/lib/stripe-server";
+import type Stripe from "stripe";
 
-export const CLIENT_VIP_STRIPE_PRICE_ENV = process.env.MATCH_FIT_CLIENT_VIP_STRIPE_PRICE_ID;
+export const CLIENT_VIP_STRIPE_PRICE_ENV = "MATCH_FIT_CLIENT_VIP_STRIPE_PRICE_ID";
+
+export function getClientVipStripePriceId(): string | null {
+  return resolveClientVipStripePriceId();
+}
+
+/** True when a Stripe subscription line item uses the configured Client VIP price id. */
+export function subscriptionUsesClientVipPrice(sub: Stripe.Subscription): boolean {
+  const vipPriceId = getClientVipStripePriceId();
+  if (!vipPriceId) return false;
+  for (const item of sub.items?.data ?? []) {
+    const price = item.price;
+    const id = typeof price === "string" ? price : price?.id;
+    if (id === vipPriceId) return true;
+  }
+  return false;
+}
 
 export async function createVipCheckoutSession(
   clientId: string,
@@ -10,7 +28,7 @@ export async function createVipCheckoutSession(
   cancelUrl: string,
 ): Promise<{ url: string; sessionId: string } | { error: string }> {
   const stripe = getStripe();
-  const priceId = CLIENT_VIP_STRIPE_PRICE_ENV?.trim();
+  const priceId = getClientVipStripePriceId();
   if (!stripe || !priceId) {
     return { error: "VIP billing is not configured." };
   }
@@ -60,7 +78,7 @@ export async function activateVipFromWebhook(subscriptionId: string): Promise<vo
   if (!stripe) return;
 
   const sub = await stripe.subscriptions.retrieve(subscriptionId);
-  const clientId = sub.metadata?.clientId?.trim();
+  const clientId = await resolveClientIdFromVipSubscription(sub);
   if (!clientId) return;
 
   await prisma.client.updateMany({
@@ -85,7 +103,11 @@ export async function deactivateVip(clientId: string): Promise<void> {
 }
 
 export async function resolveClientIdFromVipSubscription(
-  sub: { id: string; metadata?: Record<string, string> | null },
+  sub: {
+    id: string;
+    metadata?: Record<string, string> | null;
+    customer?: string | Stripe.Customer | Stripe.DeletedCustomer | null;
+  },
 ): Promise<string | null> {
   const fromMeta = sub.metadata?.clientId?.trim();
   if (fromMeta) return fromMeta;
@@ -94,5 +116,24 @@ export async function resolveClientIdFromVipSubscription(
     where: { vipSubscriptionId: sub.id },
     select: { id: true },
   });
-  return client?.id ?? null;
+  if (client) return client.id;
+
+  const customerId =
+    typeof sub.customer === "string"
+      ? sub.customer.trim()
+      : sub.customer && typeof sub.customer === "object" && "id" in sub.customer
+        ? sub.customer.id
+        : null;
+  if (!customerId) return null;
+
+  const byCustomer = await prisma.client.findFirst({
+    where: { stripeCustomerId: customerId },
+    select: { id: true },
+  });
+  return byCustomer?.id ?? null;
+}
+
+export function isClientVipSubscription(sub: Stripe.Subscription): boolean {
+  if (sub.metadata?.purpose?.trim() === "client_vip") return true;
+  return subscriptionUsesClientVipPrice(sub);
 }

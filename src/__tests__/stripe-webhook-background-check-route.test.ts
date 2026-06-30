@@ -93,7 +93,7 @@ vi.mock("@/lib/trainer-promo-tokens", () => ({
   TOKENS_PER_USD_PACK: 50,
 }));
 
-import { POST, dynamic } from "@/app/api/webhooks/stripe/route";
+import { POST, dynamic, runtime } from "@/app/api/webhooks/stripe/route";
 
 function webhookRequest(body: string, signature = "sig_test"): Request {
   return new Request("https://example.test/api/webhooks/stripe", {
@@ -135,8 +135,28 @@ describe("POST /api/webhooks/stripe (background check payment intents)", () => {
     process.env.STRIPE_WEBHOOK_SECRET = previousSecret;
   });
 
-  it("is configured as force-dynamic", () => {
+  it("is configured as force-dynamic on nodejs runtime", () => {
     expect(dynamic).toBe("force-dynamic");
+    expect(runtime).toBe("nodejs");
+  });
+
+  it("verifies signatures against the raw request bytes", async () => {
+    mockConstructEvent.mockReturnValueOnce({
+      type: "payment_intent.succeeded",
+      data: { object: { metadata: {}, amount_received: 0 } },
+    });
+    mockIsTrainerBackgroundCheckPaymentIntent.mockReturnValueOnce(false);
+
+    const payload = '{"id":"evt_raw_bytes","type":"payment_intent.succeeded"}';
+    await POST(webhookRequest(payload));
+
+    expect(mockConstructEvent).toHaveBeenCalledWith(
+      expect.any(Buffer),
+      "sig_test",
+      "whsec_test",
+    );
+    const rawArg = mockConstructEvent.mock.calls[0]?.[0] as Buffer;
+    expect(rawArg.toString("utf8")).toBe(payload);
   });
 
   it("returns 503 when webhooks are not configured", async () => {

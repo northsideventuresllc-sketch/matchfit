@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "transactional_email_template_overrides" (
+CREATE TABLE IF NOT EXISTS "transactional_email_template_overrides" (
     "id" TEXT NOT NULL,
     "kind" TEXT NOT NULL,
     "fieldsJson" TEXT NOT NULL,
@@ -10,7 +10,7 @@ CREATE TABLE "transactional_email_template_overrides" (
 );
 
 -- CreateTable
-CREATE TABLE "pending_transactional_email_template_changes" (
+CREATE TABLE IF NOT EXISTS "pending_transactional_email_template_changes" (
     "id" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "kind" TEXT NOT NULL,
@@ -24,16 +24,18 @@ CREATE TABLE "pending_transactional_email_template_changes" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "transactional_email_template_overrides_kind_key" ON "transactional_email_template_overrides"("kind");
+CREATE UNIQUE INDEX IF NOT EXISTS "transactional_email_template_overrides_kind_key" ON "transactional_email_template_overrides"("kind");
 
 -- CreateIndex
-CREATE INDEX "pending_transactional_email_template_changes_kind_status_idx" ON "pending_transactional_email_template_changes"("kind", "status");
+CREATE INDEX IF NOT EXISTS "pending_transactional_email_template_changes_kind_status_idx" ON "pending_transactional_email_template_changes"("kind", "status");
 
 -- CreateIndex
-CREATE INDEX "pending_transactional_email_template_changes_requestedByAdminId_idx" ON "pending_transactional_email_template_changes"("requestedByAdminId");
+CREATE INDEX IF NOT EXISTS "pending_transactional_email_template_changes_requestedByAdminId_idx" ON "pending_transactional_email_template_changes"("requestedByAdminId");
 
 -- AddForeignKey
+ALTER TABLE "transactional_email_template_overrides" DROP CONSTRAINT IF EXISTS "transactional_email_template_overrides_updatedByAdminId_fkey";
 ALTER TABLE "transactional_email_template_overrides" ADD CONSTRAINT "transactional_email_template_overrides_updatedByAdminId_fkey" FOREIGN KEY ("updatedByAdminId") REFERENCES "administrators"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "pending_transactional_email_template_changes" DROP CONSTRAINT IF EXISTS "pending_transactional_email_template_changes_requestedByAdminId_fkey";
 ALTER TABLE "pending_transactional_email_template_changes" ADD CONSTRAINT "pending_transactional_email_template_changes_requestedByAdminId_fkey" FOREIGN KEY ("requestedByAdminId") REFERENCES "administrators"("id") ON DELETE CASCADE ON UPDATE CASCADE;
