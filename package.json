@@ -1,6 +1,6 @@
 {
   "name": "match-fit-app",
-  "version": "2.0.14-beta",
+  "version": "2.0.15-beta",
   "private": true,
   "engines": {
     "node": ">=20.19.0 <23"
@@ -30,6 +30,7 @@
     "seed:ai-vault": "node scripts/seed-ai-vault-secrets.mjs",
     "vercel:env:ad-platform": "node scripts/vercel-env-set-ad-platform-production.mjs",
     "vercel:env:ni-brain-db": "node scripts/vercel-env-set-ni-brain-database-password.mjs",
+    "provision:internal-tools-secret": "node scripts/provision-internal-tools-secret.mjs",
     "bootstrap:anthropic": "node scripts/bootstrap-anthropic-platform-secret.mjs",
     "bootstrap:ni-brain": "node scripts/bootstrap-ni-brain-platform-secret.mjs",
     "ni-brain:sync": "node --env-file=.env scripts/ni-brain-sync-match-fit.mjs",
