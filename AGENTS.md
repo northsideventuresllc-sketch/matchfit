@@ -63,6 +63,10 @@ Copy `.env.example` to `.env`. At minimum set `DATABASE_URL`, `DIRECT_URL`, and 
 
 After seeding, admin portal is at `/admin/login`. Use staff code `jobo0602` with the password you set during seeding.
 
+### Supabase Row Level Security
+
+Sensitive tables (admin, outreach, analytics, secrets) use **RLS deny-by-default** for PostgREST `anon`/`authenticated` roles. See `docs/supabase-rls-sensitive-tables.md` and migration `20260703120000_enable_rls_audit_sensitive_tables`. Server routes must continue using **Prisma** (`DATABASE_URL`) — not the browser Supabase client — for these tables.
+
 ### Social content calendar (agents)
 
 - Canonical file: `content/social/matchfit-content-calendar.jsx`
