@@ -1,4 +1,5 @@
 import { sendWebPushToClient, sendWebPushToTrainer } from "@/lib/web-push-send";
+import { resolveInternalToolsSecret } from "@/lib/internal-tools-auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -15,8 +16,8 @@ const bodySchema = z.object({
  */
 export async function POST(req: Request) {
   try {
-    const secret = process.env.MATCHFIT_INTERNAL_TOOLS_SECRET?.trim();
-    if (!secret || secret.length < 16) {
+    const secret = await resolveInternalToolsSecret();
+    if (!secret) {
       return NextResponse.json({ error: "Internal tools are not configured." }, { status: 503 });
     }
     if (req.headers.get("x-matchfit-internal-secret") !== secret) {

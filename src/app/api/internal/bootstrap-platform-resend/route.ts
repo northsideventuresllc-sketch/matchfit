@@ -4,6 +4,7 @@ import pg from "pg";
 import { directPostgresUrlForDdl } from "@/lib/direct-postgres-ddl";
 import { pgPoolConfigForConnectionString } from "@/lib/supabase-database-url";
 import { clearPlatformSecretCache } from "@/lib/platform-secrets";
+import { resolveInternalToolsSecret } from "@/lib/internal-tools-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -46,8 +47,8 @@ async function upsertPlatformSecret(key: string, value: string): Promise<void> {
  */
 export async function POST(req: Request) {
   try {
-    const secret = process.env.MATCHFIT_INTERNAL_TOOLS_SECRET?.trim();
-    if (!secret || secret.length < 16) {
+    const secret = await resolveInternalToolsSecret();
+    if (!secret) {
       return NextResponse.json({ error: "Internal tools are not configured." }, { status: 503 });
     }
     const auth = req.headers.get("authorization")?.trim() ?? "";

@@ -30,6 +30,13 @@ vi.mock("@/lib/platform-secrets", () => ({
   clearPlatformSecretCache: mockClearPlatformSecretCache,
 }));
 
+vi.mock("@/lib/internal-tools-auth", () => ({
+  resolveInternalToolsSecret: vi.fn(async () => {
+    const secret = process.env.MATCHFIT_INTERNAL_TOOLS_SECRET?.trim();
+    return secret && secret.length >= 16 ? secret : null;
+  }),
+}));
+
 vi.mock("pg", () => ({
   default: {
     Pool: mockPoolCtor,

@@ -1,5 +1,6 @@
 import { finalizeSuspensionRecordOnLift } from "@/lib/suspension-lifecycle";
 import { notifyClientsTrainerSuspensionLifted } from "@/lib/trainer-suspension-marketplace";
+import { resolveInternalToolsSecret } from "@/lib/internal-tools-auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
@@ -9,8 +10,8 @@ import { NextResponse } from "next/server";
  */
 export async function POST(req: Request) {
   try {
-    const secret = process.env.MATCHFIT_INTERNAL_TOOLS_SECRET?.trim();
-    if (!secret || secret.length < 16) {
+    const secret = await resolveInternalToolsSecret();
+    if (!secret) {
       return NextResponse.json({ error: "Internal tools are not configured." }, { status: 503 });
     }
     const hdr = req.headers.get("x-matchfit-internal-secret");

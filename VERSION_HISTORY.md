@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-07-03** `2.0.15-beta` → `2.0.16-beta` (**patch** — Hydrate internal tools secret on ops routes)
 - **2026-07-03** `2.0.14-beta` → `2.0.15-beta` (**patch** — Hydrate MATCHFIT_INTERNAL_TOOLS_SECRET from platform_secrets)
 - **2026-07-03** `2.0.13-beta` → `2.0.14-beta` (**patch** — Bootstrap platform routes use MATCHFIT_INTERNAL_TOOLS_SECRET)
 - **2026-07-03** `2.0.12-beta` → `2.0.13-beta` (**patch** — Enable RLS on audit-sensitive Supabase tables)
