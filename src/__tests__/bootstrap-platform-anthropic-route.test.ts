@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const INTERNAL_TOOLS_SECRET = "test-internal-tools-secret-16";
 
 const {
   mockDirectPostgresUrlForDdl,
@@ -50,6 +52,7 @@ function postJson(body: unknown, bearer?: string): Request {
 describe("POST /api/internal/bootstrap-platform-anthropic", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.MATCHFIT_INTERNAL_TOOLS_SECRET = INTERNAL_TOOLS_SECRET;
 
     mockDirectPostgresUrlForDdl.mockReturnValue("postgresql://matchfit:matchfit@localhost:5432/matchfit");
     mockPgPoolConfigForConnectionString.mockReturnValue({
@@ -64,17 +67,41 @@ describe("POST /api/internal/bootstrap-platform-anthropic", () => {
     mockEnd.mockResolvedValue(undefined);
   });
 
+  afterEach(() => {
+    delete process.env.MATCHFIT_INTERNAL_TOOLS_SECRET;
+  });
+
+  it("returns 503 when MATCHFIT_INTERNAL_TOOLS_SECRET is not configured", async () => {
+    delete process.env.MATCHFIT_INTERNAL_TOOLS_SECRET;
+
+    const res = await POST(
+      postJson({ anthropicApiKey: "sk-ant-unit-test-key" }, INTERNAL_TOOLS_SECRET),
+    );
+
+    expect(res.status).toBe(503);
+    await expect(res.json()).resolves.toEqual({ error: "Internal tools are not configured." });
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 when authorization header is missing", async () => {
+    const res = await POST(postJson({ anthropicApiKey: "sk-ant-unit-test-key" }));
+
+    expect(res.status).toBe(401);
+    await expect(res.json()).resolves.toEqual({ error: "Unauthorized." });
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
   it("returns 400 for invalid payload", async () => {
-    const res = await POST(postJson({ anthropicApiKey: "invalid" }, "invalid"));
+    const res = await POST(postJson({ anthropicApiKey: "invalid" }, INTERNAL_TOOLS_SECRET));
 
     expect(res.status).toBe(400);
     await expect(res.json()).resolves.toEqual({ error: "Invalid Anthropic payload." });
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
-  it("returns 401 when the bearer token does not match the submitted key", async () => {
+  it("returns 401 when the bearer token does not match MATCHFIT_INTERNAL_TOOLS_SECRET", async () => {
     const res = await POST(
-      postJson({ anthropicApiKey: "sk-ant-unit-test-key" }, "sk-ant-other-key"),
+      postJson({ anthropicApiKey: "sk-ant-unit-test-key" }, "wrong-internal-secret"),
     );
 
     expect(res.status).toBe(401);
@@ -85,7 +112,7 @@ describe("POST /api/internal/bootstrap-platform-anthropic", () => {
   it("stores the Anthropic key in platform_secrets and clears cache", async () => {
     const anthropicApiKey = "sk-ant-unit-test-key";
 
-    const res = await POST(postJson({ anthropicApiKey }, anthropicApiKey));
+    const res = await POST(postJson({ anthropicApiKey }, INTERNAL_TOOLS_SECRET));
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({
@@ -122,7 +149,7 @@ describe("POST /api/internal/bootstrap-platform-anthropic", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     const res = await POST(
-      postJson({ anthropicApiKey: "sk-ant-unit-test-key" }, "sk-ant-unit-test-key"),
+      postJson({ anthropicApiKey: "sk-ant-unit-test-key" }, INTERNAL_TOOLS_SECRET),
     );
 
     expect(res.status).toBe(500);

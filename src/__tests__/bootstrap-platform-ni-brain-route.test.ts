@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const INTERNAL_TOOLS_SECRET = "test-internal-tools-secret-16";
 
 const {
   mockDirectPostgresUrlForDdl,
@@ -59,6 +61,7 @@ describe("POST /api/internal/bootstrap-platform-ni-brain", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.MATCHFIT_INTERNAL_TOOLS_SECRET = INTERNAL_TOOLS_SECRET;
 
     mockDirectPostgresUrlForDdl.mockReturnValue("postgresql://matchfit:matchfit@localhost:5432/matchfit");
     mockPgPoolConfigForConnectionString.mockReturnValue({
@@ -73,6 +76,41 @@ describe("POST /api/internal/bootstrap-platform-ni-brain", () => {
     mockEnd.mockResolvedValue(undefined);
   });
 
+  afterEach(() => {
+    delete process.env.MATCHFIT_INTERNAL_TOOLS_SECRET;
+  });
+
+  it("returns 503 when MATCHFIT_INTERNAL_TOOLS_SECRET is not configured", async () => {
+    delete process.env.MATCHFIT_INTERNAL_TOOLS_SECRET;
+
+    const res = await POST(
+      postJson(
+        {
+          niBrainSupabaseUrl,
+          niBrainServiceRoleKey,
+        },
+        INTERNAL_TOOLS_SECRET,
+      ),
+    );
+
+    expect(res.status).toBe(503);
+    await expect(res.json()).resolves.toEqual({ error: "Internal tools are not configured." });
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 when authorization header is missing", async () => {
+    const res = await POST(
+      postJson({
+        niBrainSupabaseUrl,
+        niBrainServiceRoleKey,
+      }),
+    );
+
+    expect(res.status).toBe(401);
+    await expect(res.json()).resolves.toEqual({ error: "Unauthorized." });
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
   it("returns 400 when the payload is invalid", async () => {
     const res = await POST(
       postJson(
@@ -80,7 +118,7 @@ describe("POST /api/internal/bootstrap-platform-ni-brain", () => {
           niBrainSupabaseUrl: "https://example.com",
           niBrainServiceRoleKey: "too-short",
         },
-        niBrainServiceRoleKey,
+        INTERNAL_TOOLS_SECRET,
       ),
     );
 
@@ -89,14 +127,14 @@ describe("POST /api/internal/bootstrap-platform-ni-brain", () => {
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
-  it("returns 401 when the bearer token does not match niBrainServiceRoleKey", async () => {
+  it("returns 401 when the bearer token does not match MATCHFIT_INTERNAL_TOOLS_SECRET", async () => {
     const res = await POST(
       postJson(
         {
           niBrainSupabaseUrl,
           niBrainServiceRoleKey,
         },
-        "different-service-role-key-at-least-20",
+        "different-internal-secret",
       ),
     );
 
@@ -112,7 +150,7 @@ describe("POST /api/internal/bootstrap-platform-ni-brain", () => {
           niBrainSupabaseUrl,
           niBrainServiceRoleKey,
         },
-        niBrainServiceRoleKey,
+        INTERNAL_TOOLS_SECRET,
       ),
     );
 
@@ -149,7 +187,7 @@ describe("POST /api/internal/bootstrap-platform-ni-brain", () => {
           niBrainSupabaseUrl,
           niBrainServiceRoleKey,
         },
-        niBrainServiceRoleKey,
+        INTERNAL_TOOLS_SECRET,
       ),
     );
 
