@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-07-03** `2.0.13-beta` → `2.0.14-beta` (**patch** — Bootstrap platform routes use MATCHFIT_INTERNAL_TOOLS_SECRET)
 - **2026-07-03** `2.0.12-beta` → `2.0.13-beta` (**patch** — Enable RLS on audit-sensitive Supabase tables)
 - **2026-07-03** `2.0.11-beta` → `2.0.12-beta` (**patch** — Fix homepage header alignment spanning full content width)
 - **2026-06-30** `2.0.10-beta` → `2.0.11-beta` (**patch** — Fix Stripe webhook raw body verification, FP tier schema self-heal, and VIP reactivation price id)
