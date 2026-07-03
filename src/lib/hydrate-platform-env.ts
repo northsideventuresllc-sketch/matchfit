@@ -180,6 +180,14 @@ export async function hydratePlatformEnvFromDatabase(): Promise<void> {
       }
     }
 
+    const internalToolsSecret = process.env.MATCHFIT_INTERNAL_TOOLS_SECRET?.trim();
+    if (!internalToolsSecret || internalToolsSecret.length < 16) {
+      const fromDb = await readPlatformSecret("MATCHFIT_INTERNAL_TOOLS_SECRET");
+      if (fromDb && fromDb.trim().length >= 16) {
+        process.env.MATCHFIT_INTERNAL_TOOLS_SECRET = fromDb.trim();
+      }
+    }
+
     resetStripeClient();
   })();
 
