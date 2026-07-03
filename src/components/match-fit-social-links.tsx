@@ -34,7 +34,7 @@ export function MatchFitSocialLinks({
         </p>
       ) : null}
       <ul
-        className={`${showLabel ? "mt-3 " : ""}flex flex-wrap items-center justify-center gap-3 ${variant === "footer" ? "sm:gap-4" : ""}`}
+        className={`${showLabel ? "mt-3 " : ""}flex flex-nowrap items-center justify-end gap-2 sm:gap-3 ${variant === "footer" ? "sm:gap-4 sm:justify-center" : ""}`}
         aria-label="Match Fit on social media"
       >
         {MATCH_FIT_OFFICIAL_SOCIAL_LINKS.map((item) => (

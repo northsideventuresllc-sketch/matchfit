@@ -149,6 +149,8 @@ describe("app/page Home component", () => {
 
     expect(markup).toContain("Current Promos");
     expect(markup).toContain("data-home-beta-promo-banner");
+    expect(markup).toContain('class="flex w-full min-w-0 items-center justify-between gap-3 sm:gap-4"');
+    expect(markup).toContain('class="ml-auto flex shrink-0 items-center gap-3 sm:gap-4"');
     expect(redirectStayLoggedInClientToDashboardMock).not.toHaveBeenCalled();
     expect(clientFindUniqueMock).not.toHaveBeenCalled();
     expect(getFeaturedTrainersForHomepageMock).not.toHaveBeenCalled();

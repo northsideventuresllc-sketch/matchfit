@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-07-03** `2.0.11-beta` → `2.0.12-beta` (**patch** — Fix homepage header alignment spanning full content width)
 - **2026-06-30** `2.0.10-beta` → `2.0.11-beta` (**patch** — Fix Stripe webhook raw body verification, FP tier schema self-heal, and VIP reactivation price id)
 - **2026-06-29** `2.0.9-beta` → `2.0.10-beta` (**patch** — Redeploy after Vercel build fix)
 - **2026-06-29** `2.0.8-beta` → `2.0.9-beta` (**patch** — Production migration repair and homepage revalidate fix)
