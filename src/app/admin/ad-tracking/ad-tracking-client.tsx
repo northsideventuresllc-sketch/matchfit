@@ -24,6 +24,7 @@ import {
   type AdTrackingEvent,
   type AdUtmPreset,
 } from "@/lib/ad-tracking-config";
+import { MATCH_FIT_MARKETING_PLAYBOOK_STEPS } from "@/lib/match-fit-marketing-playbook";
 import type { AdPerformancePanel } from "@/lib/ad-platform-performance";
 
 type TrackingConfigResponse = {
@@ -275,35 +276,26 @@ export function AdTrackingClient() {
       current="ad-tracking"
       maxWidth="full"
       title="Ad Tracking HQ"
-      description="Build tracking links, confirm your pixels are live, and see whether Meta and Google ads are driving sign-ups — without digging through developer settings."
+      description="Steps 1, 5–8 of the Match Fit marketing playbook — plan budget, confirm pixels, build links, register campaigns, and review paid performance."
       contentClassName="space-y-6"
     >
         <AdminPortalBetaNotice className="mt-0" />
 
         <section className={`${adminCardClass} border-[#FF7E00]/15 bg-[#FF7E00]/[0.04]`}>
           <p className={adminSectionTitleClass}>INSTRUCTIONS</p>
-          <h2 className="mt-2 text-lg font-bold">How to use this page</h2>
+          <h2 className="mt-2 text-lg font-bold">8-step marketing playbook</h2>
           <ol className="mt-3 space-y-2 text-sm leading-relaxed text-white/60">
-            <li>
-              <strong className="text-white/85">Step 1 — Confirm Tags:</strong> Check that Meta and Google IDs below match
-              what you see in Events Manager and Google Ads.
-            </li>
-            <li>
-              <strong className="text-white/85">Step 2 — Build Links:</strong> Use the campaign link builder and paste the
-              final URL into your ad creative (not the homepage without tracking).
-            </li>
-            <li>
-              <strong className="text-white/85">Step 3 — Match Conversions:</strong> In Meta and Google, create conversion
-              goals using the event names in the catalog — Match Fit fires these automatically on sign-up.
-            </li>
-            <li>
-              <strong className="text-white/85">Step 4 — Review Results:</strong> Sync performance and compare ad platform
-              numbers with on-site attribution.
-            </li>
-            <li>
-              <strong className="text-white/85">Step 5 — Register Campaign ID:</strong> When a campaign goes live in Meta,
-              Google, or TikTok, paste its platform campaign ID below so spend lines up with your July budget tracker.
-            </li>
+            {MATCH_FIT_MARKETING_PLAYBOOK_STEPS.map((step) => (
+              <li key={step.id}>
+                <strong className="text-white/85">
+                  Step {step.step} — {step.title}:
+                </strong>{" "}
+                {step.description}
+                {step.jbLane ? (
+                  <span className="text-white/40"> (your lane — outside the admin portal)</span>
+                ) : null}
+              </li>
+            ))}
           </ol>
         </section>
 
@@ -513,8 +505,8 @@ export function AdTrackingClient() {
             <p className={adminSectionTitleClass}>Campaign Registry</p>
             <h2 className="mt-2 text-lg font-bold">Register Campaign ID</h2>
             <p className="mt-1 text-sm text-white/50">
-              Playbook step 9 — after you create a campaign in Ads Manager, Google Ads, or TikTok Promote, record its
-              platform campaign ID here. Use the same week and budget from your July marketing plan.
+              Playbook step 8 — after you launch a campaign in Ads Manager, Google Ads, or TikTok Promote, record its
+              platform campaign ID here with the same week and budget from step 1.
             </p>
 
             {campaignMigrationPending ? (

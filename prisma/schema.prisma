@@ -326,7 +326,7 @@ model AdPlatformDailySnapshot {
   @@schema("public")
 }
 
-/// Manual registry of live ad platform campaign IDs (playbook step 9 — /admin/ad-tracking).
+/// Manual registry of live ad platform campaign IDs (playbook step 8 — /admin/ad-tracking).
 model AdCampaignRegistry {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
