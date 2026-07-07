@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-07-07** `2.2.0-beta` → `2.2.1-beta` (**patch** — B2C runbook phases 5b-6b in Ad Tracking HQ)
 - **2026-07-07** `2.1.1-beta` → `2.2.0-beta` (**minor** — Align admin marketing surfaces to canonical 8-step playbook)
 - **2026-07-07** `2.1.0-beta` → `2.1.1-beta` (**patch** — F1 RLS-8 — deny-by-default RLS on 8 FP account-tier tables)
 - **2026-07-07** `2.0.18-beta` → `2.1.0-beta` (**minor** — Ad tracker phase 2 — TikTok API sync, CAPI/GA4 status panel, Meta CAPI event mapping)

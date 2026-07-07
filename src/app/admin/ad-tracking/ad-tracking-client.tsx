@@ -25,6 +25,7 @@ import {
   type AdUtmPreset,
 } from "@/lib/ad-tracking-config";
 import { MATCH_FIT_MARKETING_PLAYBOOK_STEPS } from "@/lib/match-fit-marketing-playbook";
+import { B2cRunbookPhasePanel } from "@/components/admin/b2c-runbook-phase-panel";
 import type { AdPerformancePanel } from "@/lib/ad-platform-performance";
 
 type TrackingConfigResponse = {
@@ -304,9 +305,21 @@ export function AdTrackingClient() {
         {campaignMessage ? <AdminPortalAlert variant="info">{campaignMessage}</AdminPortalAlert> : null}
         {loading ? <AdminLoadingBar label="Loading ad tracking…" /> : null}
 
+        {config ? (
+          <B2cRunbookPhasePanel
+            phaseId="5b_confirm_client_tags"
+            readiness5b={{
+              clientSignupConversionConfigured: config.googleConversions.clientSignup.configured,
+              trainerSignupConversionConfigured: config.googleConversions.trainerSignup.configured,
+              metaCapiConfigured: config.serverConversions.metaCapi.configured,
+              ga4Configured: config.serverConversions.ga4.configured,
+            }}
+          />
+        ) : null}
+
         <div className="space-y-8">
           <section className={adminCardClass}>
-            <p className={adminSectionTitleClass}>Connected Pixels</p>
+            <p className={adminSectionTitleClass}>Connected Pixels · Runbook 5b</p>
             <h2 className="mt-2 text-lg font-bold">Live Tags in the App</h2>
             <p className="mt-1 text-sm text-white/50">
               These are the tracking tags already running on match-fit.net. You do not need to paste code — use the IDs
@@ -414,15 +427,26 @@ export function AdTrackingClient() {
           ) : null}
 
           <section className={adminCardClass}>
-            <p className={adminSectionTitleClass}>Campaign Link Builder</p>
-            <h2 className="mt-2 text-lg font-bold">Generate Tracking URLs</h2>
+            <p className={adminSectionTitleClass}>Campaign Link Builder · Runbook 6b</p>
+            <h2 className="mt-2 text-lg font-bold">Generate Client Tracking URLs</h2>
             <p className="mt-1 text-sm text-white/50">
-              Pick a landing page and campaign preset. Copy the final URL into your ad — it tags visitors so Match Fit can
-              attribute sign-ups back to the right campaign for 30 days.
+              B2C runbook 6b — default to client sign-up. Use waitlist only when the beta client cap is full. Copy the
+              final URL into your ad creative.
             </p>
 
             {config ? (
               <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={adminAccentButtonClass}
+                  onClick={() => {
+                    const preset = config.utmPresets.find((p) => p.id === "meta_client_beta");
+                    if (preset) applyPreset(preset);
+                    setFunnel("client");
+                  }}
+                >
+                  Apply client beta preset (6b)
+                </button>
                 {config.utmPresets.map((preset) => (
                   <button
                     key={preset.id}
@@ -505,8 +529,8 @@ export function AdTrackingClient() {
             <p className={adminSectionTitleClass}>Campaign Registry</p>
             <h2 className="mt-2 text-lg font-bold">Register Campaign ID</h2>
             <p className="mt-1 text-sm text-white/50">
-              Playbook step 8 — after you launch a campaign in Ads Manager, Google Ads, or TikTok Promote, record its
-              platform campaign ID here with the same week and budget from step 1.
+              Playbook step 8 · B2C runbook after 6b — after you launch a client campaign, record its platform campaign
+              ID here with the same week and budget from step 1.
             </p>
 
             {campaignMigrationPending ? (

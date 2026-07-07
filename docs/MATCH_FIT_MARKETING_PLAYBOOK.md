@@ -31,3 +31,7 @@ Ad Tracking HQ surfaces steps **1** (plan), **5–6** (setup), and **8** (regist
 | J5 | Step 3 (organic post) |
 | J6 | Step 4 (outreach DMs) |
 | AT1 / AT2 | Steps 5–8 (Ad Tracking HQ) |
+
+## B2C runbook (client paid)
+
+Phases **5b–6b** are the client-scoped checklists for playbook steps 5–6. See [MATCH_FIT_B2C_RUNBOOK.md](./MATCH_FIT_B2C_RUNBOOK.md).
