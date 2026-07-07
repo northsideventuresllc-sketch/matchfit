@@ -22,6 +22,22 @@ Migration: `prisma/migrations/20260703120000_enable_rls_audit_sensitive_tables/m
 | `transactional_email_template_overrides` | Prisma admin email templates |
 | `pending_transactional_email_template_changes` | Prisma admin email review |
 | `ad_platform_daily_snapshots` | Prisma Ad Tracking HQ sync |
+| `ad_campaign_registry` | Prisma Ad Tracking HQ campaign registry |
+
+## FP account-tier tables (F1 RLS-8)
+
+Migration: `prisma/migrations/20260707210000_enable_rls_fp_account_tier_tables/migration.sql`
+
+| Table | App access path |
+|-------|-----------------|
+| `fp_documents` | Prisma trainer docs + admin FP document review |
+| `tier_switch_history` | Prisma account-tier tier switches |
+| `fp_listing_stats` | Prisma listing metrics / account-tier dashboard |
+| `featured_listings` | Prisma featured placement bids |
+| `promote_token_ledger` | Prisma promote token ledger |
+| `support_groups` | Prisma Fitness Pro support groups |
+| `support_group_members` | Prisma support group membership |
+| `fp_ad_integrations` | Prisma FP ad platform connections |
 
 ## What is **not** used for these tables
 
