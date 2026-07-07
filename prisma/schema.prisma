@@ -326,6 +326,30 @@ model AdPlatformDailySnapshot {
   @@schema("public")
 }
 
+/// Manual registry of live ad platform campaign IDs (playbook step 9 — /admin/ad-tracking).
+model AdCampaignRegistry {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Platform-native campaign ID from Ads Manager / Google Ads / TikTok Ads.
+  campaignId String
+  /// google | meta | tiktok
+  platform   String
+  name       String
+  /// match_fit | ni | ncc | etc.
+  venture    String
+  budgetCents Int?
+  /// ISO date (YYYY-MM-DD) — week the spend is attributed to.
+  weekOf     String?
+  notes      String?
+
+  @@index([platform, weekOf])
+  @@index([venture, weekOf])
+  @@map("ad_campaign_registry")
+  @@schema("public")
+}
+
 /// Prospective administrator awaiting approval email action (creates {@link Administrator} when approved).
 model PendingAdministratorRegistration {
   id        String   @id @default(cuid())
