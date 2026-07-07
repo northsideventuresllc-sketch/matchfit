@@ -25,6 +25,12 @@ const ENV_KEYS = [
   "GOOGLE_ADS_REFRESH_TOKEN",
   "GOOGLE_ADS_CLIENT_ID",
   "GOOGLE_ADS_CLIENT_SECRET",
+  "META_PIXEL_ID",
+  "META_ACCESS_TOKEN",
+  "GA_MEASUREMENT_ID",
+  "GA_API_SECRET",
+  "TIKTOK_ADS_ACCESS_TOKEN",
+  "TIKTOK_ADS_ADVERTISER_ID",
 ];
 
 function parseEnv(text) {
@@ -72,12 +78,17 @@ function loadValues() {
 
   const metaToken = map.get("META_ADS_ACCESS_TOKEN") ?? "";
   const metaAccount = map.get("META_AD_ACCOUNT_ID") ?? "";
-  if (!metaToken) {
-    console.error("META_ADS_ACCESS_TOKEN is required.");
+  if (metaToken && !metaAccount) {
+    console.error("META_AD_ACCOUNT_ID is required when META_ADS_ACCESS_TOKEN is set.");
     process.exit(1);
   }
-  if (!metaAccount) {
-    console.error("META_AD_ACCOUNT_ID is required.");
+  if (metaAccount && !metaToken) {
+    console.error("META_ADS_ACCESS_TOKEN is required when META_AD_ACCOUNT_ID is set.");
+    process.exit(1);
+  }
+
+  if (map.size === 0) {
+    console.error("No ad platform env values found in process.env or .env.");
     process.exit(1);
   }
 
@@ -141,7 +152,11 @@ async function main() {
   const projectId = resolveProjectId();
   const values = loadValues();
 
-  await verifyMetaToken(values.get("META_ADS_ACCESS_TOKEN"), values.get("META_AD_ACCOUNT_ID"));
+  const metaToken = values.get("META_ADS_ACCESS_TOKEN");
+  const metaAccount = values.get("META_AD_ACCOUNT_ID");
+  if (metaToken && metaAccount) {
+    await verifyMetaToken(metaToken, metaAccount);
+  }
 
   for (const key of ENV_KEYS) {
     const value = values.get(key);

@@ -832,21 +832,24 @@ export function AutomatedEmailStatsSection({ panel }: { panel: AdminEmailStatsPa
 export function AdPerformanceSection({ panel }: { panel: AdPerformancePanel }) {
   const metaConfigured = panel.integrations.find((i) => i.platform === "meta")?.configured ?? false;
   const googleConfigured = panel.integrations.find((i) => i.platform === "google")?.configured ?? false;
+  const tiktokConfigured = panel.integrations.find((i) => i.platform === "tiktok")?.configured ?? false;
 
   return (
     <MetricsSection
       title="Ad performance"
-      description="Google Ads and Meta metrics synced via API, plus on-site UTM attribution (7 days)."
+      description="Meta, Google, and TikTok metrics synced via API, plus on-site UTM attribution (7 days)."
     >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Meta spend" value={formatUsdFromCents(panel.totals.meta.spendCents)} />
         <StatCard label="Google spend" value={formatUsdFromCents(panel.totals.google.spendCents)} />
+        <StatCard label="TikTok spend" value={formatUsdFromCents(panel.totals.tiktok.spendCents)} />
         <StatCard label="UTM page views" value={panel.totals.attributedPageViews} />
         <StatCard label="UTM signup views" value={panel.totals.attributedSignupViews} />
       </div>
       <p className="mt-4 text-[11px] text-white/45">
         API sync: Meta {metaConfigured ? "connected" : "not configured"} · Google{" "}
-        {googleConfigured ? "connected" : "not configured"}.{" "}
+        {googleConfigured ? "connected" : "not configured"} · TikTok{" "}
+        {tiktokConfigured ? "connected" : "not configured"}.{" "}
         <Link href="/admin/ad-tracking" className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
           Open Ad Tracking HQ
         </Link>{" "}

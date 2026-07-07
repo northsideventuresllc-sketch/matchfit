@@ -11,6 +11,11 @@ export type AdPlatformIntegrationStatus = {
   missingEnv: string[];
 };
 
+export type ServerConversionIntegrationStatus = {
+  metaCapi: { configured: boolean; missingEnv: string[] };
+  ga4: { configured: boolean; missingEnv: string[] };
+};
+
 export type AdPlatformDailyMetrics = {
   platform: AdPlatform;
   dayKey: string;
@@ -42,6 +47,7 @@ export type AdPerformancePanel = {
   totals: {
     meta: { impressions: number; clicks: number; spendCents: number; conversions: number };
     google: { impressions: number; clicks: number; spendCents: number; conversions: number };
+    tiktok: { impressions: number; clicks: number; spendCents: number; conversions: number };
     attributedPageViews: number;
     attributedSignupViews: number;
   };
@@ -92,10 +98,30 @@ export function getAdPlatformIntegrationStatus(): AdPlatformIntegrationStatus[] 
   if (!process.env.GOOGLE_ADS_CLIENT_ID?.trim()) googleMissing.push("GOOGLE_ADS_CLIENT_ID");
   if (!process.env.GOOGLE_ADS_CLIENT_SECRET?.trim()) googleMissing.push("GOOGLE_ADS_CLIENT_SECRET");
 
+  const tiktokMissing: string[] = [];
+  if (!process.env.TIKTOK_ADS_ACCESS_TOKEN?.trim()) tiktokMissing.push("TIKTOK_ADS_ACCESS_TOKEN");
+  if (!process.env.TIKTOK_ADS_ADVERTISER_ID?.trim()) tiktokMissing.push("TIKTOK_ADS_ADVERTISER_ID");
+
   return [
     { platform: "meta", configured: metaMissing.length === 0, missingEnv: metaMissing },
     { platform: "google", configured: googleMissing.length === 0, missingEnv: googleMissing },
+    { platform: "tiktok", configured: tiktokMissing.length === 0, missingEnv: tiktokMissing },
   ];
+}
+
+export function getServerConversionIntegrationStatus(): ServerConversionIntegrationStatus {
+  const metaMissing: string[] = [];
+  if (!process.env.META_PIXEL_ID?.trim()) metaMissing.push("META_PIXEL_ID");
+  if (!process.env.META_ACCESS_TOKEN?.trim()) metaMissing.push("META_ACCESS_TOKEN");
+
+  const gaMissing: string[] = [];
+  if (!process.env.GA_MEASUREMENT_ID?.trim()) gaMissing.push("GA_MEASUREMENT_ID");
+  if (!process.env.GA_API_SECRET?.trim()) gaMissing.push("GA_API_SECRET");
+
+  return {
+    metaCapi: { configured: metaMissing.length === 0, missingEnv: metaMissing },
+    ga4: { configured: gaMissing.length === 0, missingEnv: gaMissing },
+  };
 }
 
 export function parseMetaConversions(actions: unknown): number {
@@ -261,6 +287,69 @@ export async function fetchGoogleAdsDailySnapshot(dayKey: string): Promise<{
   };
 }
 
+export async function fetchTikTokAdsDailySnapshot(dayKey: string): Promise<{
+  impressions: number;
+  clicks: number;
+  spendCents: number;
+  conversions: number;
+  rawJson: string;
+} | null> {
+  const accessToken = process.env.TIKTOK_ADS_ACCESS_TOKEN?.trim();
+  const advertiserId = process.env.TIKTOK_ADS_ADVERTISER_ID?.trim();
+  if (!accessToken || !advertiserId) return null;
+
+  const res = await fetch("https://business-api.tiktok.com/open_api/v1.3/report/integrated/get/", {
+    method: "POST",
+    headers: {
+      "Access-Token": accessToken,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      advertiser_id: advertiserId,
+      service_type: "AUCTION",
+      report_type: "BASIC",
+      data_level: "AUCTION_ADVERTISER",
+      dimensions: ["stat_time_day"],
+      metrics: ["spend", "impressions", "clicks", "conversion"],
+      start_date: dayKey,
+      end_date: dayKey,
+      page: 1,
+      page_size: 1,
+    }),
+    cache: "no-store",
+  });
+
+  const json = (await res.json()) as {
+    code?: number;
+    message?: string;
+    data?: {
+      list?: Array<{
+        metrics?: {
+          spend?: string;
+          impressions?: string;
+          clicks?: string;
+          conversion?: string;
+        };
+      }>;
+    };
+  };
+
+  if (!res.ok || json.code !== 0) {
+    throw new Error(json.message ?? `TikTok Ads API HTTP ${res.status}`);
+  }
+
+  const metrics = json.data?.list?.[0]?.metrics;
+  const spendUsd = Number.parseFloat(metrics?.spend ?? "0") || 0;
+
+  return {
+    impressions: Number.parseInt(metrics?.impressions ?? "0", 10) || 0,
+    clicks: Number.parseInt(metrics?.clicks ?? "0", 10) || 0,
+    spendCents: Math.round(spendUsd * 100),
+    conversions: Number.parseInt(metrics?.conversion ?? "0", 10) || 0,
+    rawJson: JSON.stringify(json),
+  };
+}
+
 export async function upsertAdPlatformSnapshot(
   platform: AdPlatform,
   dayKey: string,
@@ -322,6 +411,16 @@ export async function syncAdPlatformPerformance(days = 7): Promise<{
       }
     } catch (e) {
       errors.google = e instanceof Error ? e.message : "Google Ads sync failed.";
+    }
+
+    try {
+      const tiktok = await fetchTikTokAdsDailySnapshot(dayKey);
+      if (tiktok) {
+        await upsertAdPlatformSnapshot("tiktok", dayKey, tiktok);
+        if (!synced.includes("tiktok")) synced.push("tiktok");
+      }
+    } catch (e) {
+      errors.tiktok = e instanceof Error ? e.message : "TikTok sync failed.";
     }
   }
 
@@ -444,6 +543,7 @@ export async function getAdPerformancePanel(windowDays = 7): Promise<AdPerforman
     totals: {
       meta: sumPlatform("meta"),
       google: sumPlatform("google"),
+      tiktok: sumPlatform("tiktok"),
       attributedPageViews,
       attributedSignupViews,
     },

@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-07-07** `2.0.18-beta` → `2.1.0-beta` (**minor** — Ad tracker phase 2 — TikTok API sync, CAPI/GA4 status panel, Meta CAPI event mapping)
 - **2026-07-07** `2.0.17-beta` → `2.0.18-beta` (**patch** — Ad tracker AT1: campaign registry + TikTok UTM preset)
 - **2026-07-03** `2.0.15-beta` → `2.0.16-beta` (**patch** — Hydrate internal tools secret on ops routes)
 - **2026-07-03** `2.0.14-beta` → `2.0.15-beta` (**patch** — Hydrate MATCHFIT_INTERNAL_TOOLS_SECRET from platform_secrets)

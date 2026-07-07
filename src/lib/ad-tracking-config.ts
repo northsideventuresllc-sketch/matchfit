@@ -4,10 +4,10 @@ import { GOOGLE_ADS_ID } from "@/lib/google-ads";
 import { META_PIXEL_ID } from "@/lib/meta-pixel";
 import { TRAINER_ONBOARDING_FUNNEL_STEPS } from "@/lib/meta-pixel-funnel";
 
-export type AdPlatform = "google" | "meta";
+/** Platforms with optional daily API sync in Ad Tracking HQ. */
+export type AdPlatform = "google" | "meta" | "tiktok";
 
-/** UTM presets may include platforms without API sync yet (e.g. TikTok Promote). */
-export type AdUtmPlatform = AdPlatform | "tiktok";
+export type AdUtmPlatform = AdPlatform;
 
 export type AdCampaignPlatform = AdUtmPlatform;
 

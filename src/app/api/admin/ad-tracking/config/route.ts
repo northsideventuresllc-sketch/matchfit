@@ -10,7 +10,10 @@ import {
   trainerOnboardingStepCatalog,
 } from "@/lib/ad-tracking-config";
 import { googleAdsConversionSendTo } from "@/lib/google-ads";
-import { getAdPlatformIntegrationStatus } from "@/lib/ad-platform-performance";
+import {
+  getAdPlatformIntegrationStatus,
+  getServerConversionIntegrationStatus,
+} from "@/lib/ad-platform-performance";
 import { requireAdminSession } from "@/lib/require-admin";
 
 export async function GET() {
@@ -18,6 +21,7 @@ export async function GET() {
   if (!sess) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   const integrations = getAdPlatformIntegrationStatus();
+  const serverConversions = getServerConversionIntegrationStatus();
 
   return NextResponse.json({
     pixels: AD_TRACKING_PIXELS,
@@ -26,6 +30,7 @@ export async function GET() {
     landingPaths: AD_LANDING_PATHS,
     trainerOnboardingSteps: trainerOnboardingStepCatalog(),
     integrations,
+    serverConversions,
     googleConversions: {
       clientSignup: {
         envKey: googleAdsConversionEnvKey("client_signup"),
