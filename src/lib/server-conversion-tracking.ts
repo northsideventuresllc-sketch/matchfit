@@ -21,6 +21,17 @@ function toGa4EventName(event: string): string {
     .slice(0, 40);
 }
 
+/** Maps internal funnel events to Meta standard CAPI event names. */
+export function metaCapiEventNameForServerEvent(event: string): string {
+  const map: Record<string, string> = {
+    client_signup_complete: "Subscribe",
+    trainer_signup_started: "Lead",
+    trainer_tos_accepted: "CompleteRegistration",
+    trainer_profile_complete: "CompleteRegistration",
+  };
+  return map[event.trim()] ?? event.trim();
+}
+
 async function sendMetaCapiEvent(input: ServerConversionEvent): Promise<void> {
   const pixelId = process.env.META_PIXEL_ID?.trim();
   const accessToken = process.env.META_ACCESS_TOKEN?.trim();
@@ -30,21 +41,23 @@ async function sendMetaCapiEvent(input: ServerConversionEvent): Promise<void> {
   if (input.email) userData.em = [sha256Hex(input.email)];
   if (input.userId) userData.external_id = [sha256Hex(input.userId)];
 
-  const customData: Record<string, number | string> = {};
+  const customData: Record<string, number | string> = { match_fit_event: input.event };
   if (typeof input.value === "number") customData.value = input.value;
   if (input.currency) customData.currency = input.currency;
 
-  const res = await fetch(`https://graph.facebook.com/v18.0/${pixelId}/events?access_token=${accessToken}`, {
+  const eventName = metaCapiEventNameForServerEvent(input.event);
+
+  const res = await fetch(`https://graph.facebook.com/v21.0/${pixelId}/events?access_token=${accessToken}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       data: [
         {
-          event_name: input.event,
+          event_name: eventName,
           event_time: Math.floor(Date.now() / 1000),
           action_source: "website",
           user_data: userData,
-          ...(Object.keys(customData).length ? { custom_data: customData } : {}),
+          custom_data: customData,
         },
       ],
     }),

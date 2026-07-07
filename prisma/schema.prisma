@@ -307,7 +307,7 @@ model AdPlatformDailySnapshot {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  /// google | meta
+  /// google | meta | tiktok
   platform String
   /// YYYY-MM-DD (America/New_York)
   dayKey   String

@@ -36,6 +36,10 @@ type TrackingConfigResponse = {
   landingPaths: typeof AD_LANDING_PATHS;
   trainerOnboardingSteps: { step_id: string; step_name: string }[];
   integrations: { platform: AdPlatform; configured: boolean; missingEnv: string[] }[];
+  serverConversions: {
+    metaCapi: { configured: boolean; missingEnv: string[] };
+    ga4: { configured: boolean; missingEnv: string[] };
+  };
   googleConversions: {
     clientSignup: { envKey: string; sendTo: string | null; configured: boolean };
     trainerSignup: { envKey: string; sendTo: string | null; configured: boolean };
@@ -207,6 +211,7 @@ export function AdTrackingClient() {
       if (json.synced?.length) parts.push(`Synced: ${json.synced.join(", ")}`);
       if (json.errors?.meta) parts.push(`Meta: ${json.errors.meta}`);
       if (json.errors?.google) parts.push(`Google: ${json.errors.google}`);
+      if (json.errors?.tiktok) parts.push(`TikTok: ${json.errors.tiktok}`);
       if (!parts.length) parts.push("No API credentials configured — add env vars to enable sync.");
       setSyncMessage(parts.join(" · "));
       await load();
@@ -364,6 +369,57 @@ export function AdTrackingClient() {
               </div>
             ) : null}
           </section>
+
+          {config ? (
+            <section className={adminCardClass}>
+              <p className={adminSectionTitleClass}>Server Conversions</p>
+              <h2 className="mt-2 text-lg font-bold">Meta CAPI and GA4 (Ad-Blocker Safe)</h2>
+              <p className="mt-1 text-sm text-white/50">
+                Signup milestones also fire server-side so ad blockers cannot drop them. These use separate credentials
+                from the reporting API tokens above.
+              </p>
+              <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                <div className={adminPanelClass + " p-4"}>
+                  <div className="flex items-center gap-2">
+                    <PlatformBadge platform="meta" />
+                    <span
+                      className={
+                        config.serverConversions.metaCapi.configured
+                          ? "text-[11px] font-bold text-[#9BE7B0]"
+                          : "text-[11px] font-bold text-white/40"
+                      }
+                    >
+                      {config.serverConversions.metaCapi.configured ? "CAPI connected" : "CAPI not configured"}
+                    </span>
+                  </div>
+                  {!config.serverConversions.metaCapi.configured ? (
+                    <p className="mt-3 text-[11px] leading-relaxed text-white/45">
+                      Add META_PIXEL_ID and META_ACCESS_TOKEN (Conversions API system user token from Events Manager).
+                    </p>
+                  ) : null}
+                </div>
+                <div className={adminPanelClass + " p-4"}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wide text-[#E37400]">GA4</span>
+                    <span
+                      className={
+                        config.serverConversions.ga4.configured
+                          ? "text-[11px] font-bold text-[#9BE7B0]"
+                          : "text-[11px] font-bold text-white/40"
+                      }
+                    >
+                      {config.serverConversions.ga4.configured ? "Measurement Protocol connected" : "GA4 not configured"}
+                    </span>
+                  </div>
+                  {!config.serverConversions.ga4.configured ? (
+                    <p className="mt-3 text-[11px] leading-relaxed text-white/45">
+                      Add GA_MEASUREMENT_ID and GA_API_SECRET from Admin → Data Streams → Measurement Protocol.
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </section>
+          ) : null}
 
           <section className={adminCardClass}>
             <p className={adminSectionTitleClass}>Campaign Link Builder</p>
@@ -631,7 +687,8 @@ export function AdTrackingClient() {
                 <p className={adminSectionTitleClass}>Performance</p>
                 <h2 className="mt-2 text-lg font-bold">Ad Platform Metrics (7 Days)</h2>
                 <p className="mt-1 text-sm text-white/50">
-                  Pull spend and clicks from Meta and Google, then compare with visitors who arrived via your tracking links.
+                  Pull spend and clicks from Meta, Google, and TikTok, then compare with visitors who arrived via your
+                  tracking links.
                 </p>
               </div>
               <button type="button" className={adminAccentButtonClass} disabled={syncing} onClick={() => void syncPerformance()}>
@@ -646,10 +703,13 @@ export function AdTrackingClient() {
                   <StatTile label="Meta clicks" value={panel.totals.meta.clicks} />
                   <StatTile label="Google spend" value={formatUsd(panel.totals.google.spendCents)} />
                   <StatTile label="Google clicks" value={panel.totals.google.clicks} />
+                  <StatTile label="TikTok spend" value={formatUsd(panel.totals.tiktok.spendCents)} />
+                  <StatTile label="TikTok clicks" value={panel.totals.tiktok.clicks} />
                   <StatTile label="Attributed page views" value={panel.totals.attributedPageViews} />
                   <StatTile label="Attributed signup views" value={panel.totals.attributedSignupViews} />
                   <StatTile label="Meta conversions (API)" value={panel.totals.meta.conversions} />
                   <StatTile label="Google conversions (API)" value={panel.totals.google.conversions} />
+                  <StatTile label="TikTok conversions (API)" value={panel.totals.tiktok.conversions} />
                 </div>
 
                 <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -669,8 +729,14 @@ export function AdTrackingClient() {
                       </div>
                       {!integration.configured ? (
                         <p className="mt-3 text-[11px] leading-relaxed text-white/45">
-                          API sync is not set up yet. Ask your developer to add {integration.platform === "meta" ? "Meta" : "Google"} ad
-                          API credentials in production environment variables. Tracking links and on-site pixels still work.
+                          API sync is not set up yet. Ask your developer to add{" "}
+                          {integration.platform === "meta"
+                            ? "Meta"
+                            : integration.platform === "google"
+                              ? "Google"
+                              : "TikTok"}{" "}
+                          ad API credentials in production environment variables. Tracking links and on-site pixels still
+                          work.
                         </p>
                       ) : null}
                     </div>

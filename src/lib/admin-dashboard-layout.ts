@@ -99,7 +99,7 @@ export const ADMIN_DASHBOARD_SECTIONS: AdminDashboardSectionMeta[] = [
   {
     id: "ad-performance",
     label: "Ad performance",
-    description: "Google Ads and Meta spend, clicks, and UTM-attributed signup traffic (7 days).",
+    description: "Meta, Google, and TikTok spend, clicks, and UTM-attributed signup traffic (7 days).",
     group: "Analytics",
   },
   {

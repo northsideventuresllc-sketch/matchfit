@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   getAdPlatformIntegrationStatus,
+  getServerConversionIntegrationStatus,
   parseMetaConversions,
 } from "@/lib/ad-platform-performance";
 
@@ -16,6 +17,12 @@ describe("ad-platform-performance", () => {
     delete process.env.GOOGLE_ADS_CLIENT_ID;
     delete process.env.GOOGLE_ADS_CLIENT_SECRET;
     delete process.env.GOOGLE_ADS_REFRESH_TOKEN;
+    delete process.env.TIKTOK_ADS_ACCESS_TOKEN;
+    delete process.env.TIKTOK_ADS_ADVERTISER_ID;
+    delete process.env.META_PIXEL_ID;
+    delete process.env.META_ACCESS_TOKEN;
+    delete process.env.GA_MEASUREMENT_ID;
+    delete process.env.GA_API_SECRET;
   });
 
   afterEach(() => {
@@ -24,12 +31,20 @@ describe("ad-platform-performance", () => {
 
   it("reports missing env vars when integrations are not configured", () => {
     const statuses = getAdPlatformIntegrationStatus();
-    expect(statuses).toHaveLength(2);
-    expect(statuses.map((s) => s.platform)).toEqual(["meta", "google"]);
+    expect(statuses).toHaveLength(3);
+    expect(statuses.map((s) => s.platform)).toEqual(["meta", "google", "tiktok"]);
     for (const status of statuses) {
       expect(status.configured).toBe(false);
       expect(status.missingEnv.length).toBeGreaterThan(0);
     }
+  });
+
+  it("reports server conversion integration status", () => {
+    const status = getServerConversionIntegrationStatus();
+    expect(status.metaCapi.configured).toBe(false);
+    expect(status.ga4.configured).toBe(false);
+    expect(status.metaCapi.missingEnv).toContain("META_PIXEL_ID");
+    expect(status.ga4.missingEnv).toContain("GA_MEASUREMENT_ID");
   });
 
   it("sums pixel conversion action types from Meta insights", () => {
