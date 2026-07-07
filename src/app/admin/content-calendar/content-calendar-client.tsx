@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminPortalShell } from "@/components/admin/admin-portal-shell";
+import { MarketingPlaybookStepBanner } from "@/components/admin/marketing-playbook-step-banner";
 import { AdminPortalAlert, AdminPortalBetaNotice, adminSecondaryButtonClass } from "@/components/admin/admin-portal-ui";
 import type { ClientContentPost } from "@/lib/content-calendar/content-calendar-store";
 import { isPostMissed } from "@/lib/content-calendar/schedule-utils";
@@ -280,6 +281,8 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
       contentClassName="space-y-6"
     >
       <AdminPortalBetaNotice className="mt-0" />
+
+      <MarketingPlaybookStepBanner currentStepId="generate_content" />
 
       {!props.aiStatus.niBrain ? (
         <AdminPortalAlert variant="info">

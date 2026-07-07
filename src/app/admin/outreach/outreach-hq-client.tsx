@@ -59,6 +59,7 @@ import {
   OUTREACH_PLATFORM_UI,
   stageLabelForOutreachGenerate,
 } from "@/lib/outreach-platform-ui";
+import { MarketingPlaybookStepBanner } from "@/components/admin/marketing-playbook-step-banner";
 import {
   computeOutreachHubStats,
   isOutreachHubMetricNotApplicable,
@@ -2145,6 +2146,8 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         {error ? <AdminPortalAlert variant="error">{error}</AdminPortalAlert> : null}
         {successMessage ? <AdminPortalAlert variant="success">{successMessage}</AdminPortalAlert> : null}
         {schemaRepairMessage ? <AdminPortalAlert variant="info">{schemaRepairMessage}</AdminPortalAlert> : null}
+
+        <MarketingPlaybookStepBanner currentStepId="outreach_dms" />
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <OutreachHubMetricStatCard
