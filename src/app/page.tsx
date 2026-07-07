@@ -63,7 +63,7 @@ export default async function Home({ searchParams }: HomeProps) {
     <main className={matchFitBrandPageMainClass}>
       <MatchFitBrandPageBackground />
 
-      <div className="relative z-10 mx-auto flex w-full min-w-0 max-w-6xl flex-col items-stretch px-4 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14 lg:px-10">
+      <div className="relative z-10 mx-auto flex w-full min-w-0 max-w-6xl flex-col items-stretch px-4 pt-10 sm:px-8 sm:pt-14 lg:px-10">
         <header className="flex w-full min-w-0 items-center justify-between gap-3 sm:gap-4">
           <div className="flex min-w-0 items-center gap-3">
             <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl sm:h-16 sm:w-16">
@@ -96,7 +96,7 @@ export default async function Home({ searchParams }: HomeProps) {
           <HomeBetaPromoBanner />
         </div>
 
-        <div className="mt-4">
+        <div className="mt-4 flex justify-center">
           <Link
             href="/promos"
             className="inline-flex items-center gap-1.5 rounded-full border border-[#FF7E00]/35 bg-[#FF7E00]/10 px-3 py-1 text-[0.7rem] font-bold uppercase tracking-[0.1em] text-[#FF7E00] transition hover:border-[#FF7E00]/55 hover:bg-[#FF7E00]/20"
@@ -116,9 +116,11 @@ export default async function Home({ searchParams }: HomeProps) {
             </svg>
           </Link>
         </div>
+      </div>
 
-        <HomeBrandBanner />
+      <HomeBrandBanner />
 
+      <div className="relative z-10 mx-auto flex w-full min-w-0 max-w-6xl flex-col items-stretch px-4 pb-16 sm:px-8 sm:pb-20 lg:px-10">
         <section className="mt-14 flex flex-1 flex-col items-center text-center sm:mt-20 lg:mt-24">
           <div className="relative">
             <div

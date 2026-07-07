@@ -16,8 +16,7 @@ const BANNER_BUBBLE_LABELS = [
 export function HomeBrandBanner() {
   return (
     <div className="relative z-10 mt-5 w-full min-w-0 sm:mt-7">
-      <div className="mf-full-bleed relative">
-        <div className="relative overflow-hidden border-y border-white/[0.06] bg-[#0E1016]/85 shadow-[0_20px_50px_-30px_rgba(0,0,0,0.85)] backdrop-blur-md">
+      <div className="relative w-full overflow-hidden border-y border-white/[0.06] bg-[#0E1016]/85 shadow-[0_20px_50px_-30px_rgba(0,0,0,0.85)] backdrop-blur-md">
           <div
             aria-hidden
             className="pointer-events-none absolute inset-y-0 left-0 w-[min(42%,20rem)] bg-[linear-gradient(115deg,rgba(255,211,78,0.22)_0%,rgba(255,126,0,0.12)_45%,transparent_78%)]"
@@ -46,7 +45,6 @@ export function HomeBrandBanner() {
             className="h-[3px] w-full bg-[linear-gradient(90deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] opacity-90"
           />
         </div>
-      </div>
     </div>
   );
 }
