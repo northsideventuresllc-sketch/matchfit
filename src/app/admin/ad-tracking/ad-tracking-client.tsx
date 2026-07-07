@@ -18,6 +18,7 @@ import {
 import {
   AD_LANDING_PATHS,
   buildTrackedAdUrl,
+  type AdCampaignPlatform,
   type AdLandingFunnel,
   type AdPlatform,
   type AdTrackingEvent,
@@ -41,6 +42,24 @@ type TrackingConfigResponse = {
   };
   verificationSnippets: { meta: string; google: string };
   defaultBaseUrl: string;
+};
+
+type AdCampaignRow = {
+  id: string;
+  campaignId: string;
+  platform: AdCampaignPlatform;
+  name: string;
+  venture: string;
+  budgetCents: number | null;
+  weekOf: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type CampaignsResponse = {
+  campaigns: AdCampaignRow[];
+  migrationPending?: boolean;
 };
 
 function formatUsd(cents: number): string {
@@ -74,15 +93,22 @@ function StatTile({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-function PlatformBadge({ platform }: { platform: AdPlatform }) {
-  const label = platform === "meta" ? "Meta" : "Google";
-  const color =
-    platform === "meta"
-      ? "border-[#1877F2]/40 bg-[#1877F2]/10 text-[#8CB9FF]"
-      : "border-[#34A853]/40 bg-[#34A853]/10 text-[#9BE7B0]";
+function PlatformBadge({ platform }: { platform: AdCampaignPlatform }) {
+  const labels: Record<AdCampaignPlatform, string> = {
+    meta: "Meta",
+    google: "Google",
+    tiktok: "TikTok",
+  };
+  const colors: Record<AdCampaignPlatform, string> = {
+    meta: "border-[#1877F2]/40 bg-[#1877F2]/10 text-[#8CB9FF]",
+    google: "border-[#34A853]/40 bg-[#34A853]/10 text-[#9BE7B0]",
+    tiktok: "border-[#FE2C55]/40 bg-[#FE2C55]/10 text-[#FF9BB5]",
+  };
   return (
-    <span className={`rounded-md border px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${color}`}>
-      {label}
+    <span
+      className={`rounded-md border px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${colors[platform]}`}
+    >
+      {labels[platform]}
     </span>
   );
 }
@@ -94,6 +120,18 @@ export function AdTrackingClient() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+
+  const [campaigns, setCampaigns] = useState<AdCampaignRow[]>([]);
+  const [campaignMigrationPending, setCampaignMigrationPending] = useState(false);
+  const [campaignSaving, setCampaignSaving] = useState(false);
+  const [campaignMessage, setCampaignMessage] = useState<string | null>(null);
+  const [campaignId, setCampaignId] = useState("");
+  const [campaignPlatform, setCampaignPlatform] = useState<AdCampaignPlatform>("meta");
+  const [campaignName, setCampaignName] = useState("");
+  const [campaignVenture, setCampaignVenture] = useState("match_fit");
+  const [campaignBudgetUsd, setCampaignBudgetUsd] = useState("");
+  const [campaignWeekOf, setCampaignWeekOf] = useState("");
+  const [campaignNotes, setCampaignNotes] = useState("");
 
   const [baseUrl, setBaseUrl] = useState("https://match-fit.net");
   const [funnel, setFunnel] = useState<AdLandingFunnel>("client");
@@ -107,9 +145,10 @@ export function AdTrackingClient() {
     setError(null);
     setLoading(true);
     try {
-      const [configRes, perfRes] = await Promise.all([
+      const [configRes, perfRes, campaignsRes] = await Promise.all([
         fetch("/api/admin/ad-tracking/config"),
         fetch("/api/admin/ad-tracking/performance?days=7"),
+        fetch("/api/admin/ad-tracking/campaigns"),
       ]);
       if (!configRes.ok || !perfRes.ok) throw new Error("Could not load ad tracking data.");
       const configJson = (await configRes.json()) as TrackingConfigResponse;
@@ -117,6 +156,11 @@ export function AdTrackingClient() {
       setConfig(configJson);
       setPanel(perfJson.panel);
       setBaseUrl(configJson.defaultBaseUrl);
+      if (campaignsRes.ok) {
+        const campaignsJson = (await campaignsRes.json()) as CampaignsResponse;
+        setCampaigns(campaignsJson.campaigns);
+        setCampaignMigrationPending(Boolean(campaignsJson.migrationPending));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load ad tracking.");
     } finally {
@@ -182,6 +226,45 @@ export function AdTrackingClient() {
     setUtmTerm("");
   }
 
+  async function registerCampaign(e: React.FormEvent) {
+    e.preventDefault();
+    setCampaignSaving(true);
+    setCampaignMessage(null);
+    try {
+      const budgetUsd = campaignBudgetUsd.trim();
+      const budgetCents =
+        budgetUsd.length > 0 ? Math.round(parseFloat(budgetUsd) * 100) : undefined;
+      if (budgetUsd.length > 0 && (Number.isNaN(budgetCents) || budgetCents! < 0)) {
+        throw new Error("Budget must be a valid dollar amount.");
+      }
+      const res = await fetch("/api/admin/ad-tracking/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          campaignId: campaignId.trim(),
+          platform: campaignPlatform,
+          name: campaignName.trim(),
+          venture: campaignVenture.trim(),
+          budgetCents,
+          weekOf: campaignWeekOf.trim() || undefined,
+          notes: campaignNotes.trim() || undefined,
+        }),
+      });
+      const json = (await res.json()) as { campaign?: AdCampaignRow; error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Could not register campaign.");
+      setCampaignMessage(`Registered campaign ${json.campaign?.name ?? campaignName}.`);
+      setCampaignId("");
+      setCampaignName("");
+      setCampaignBudgetUsd("");
+      setCampaignNotes("");
+      await load();
+    } catch (err) {
+      setCampaignMessage(err instanceof Error ? err.message : "Could not register campaign.");
+    } finally {
+      setCampaignSaving(false);
+    }
+  }
+
   return (
     <AdminPortalShell
       current="ad-tracking"
@@ -212,11 +295,16 @@ export function AdTrackingClient() {
               <strong className="text-white/85">Step 4 — Review Results:</strong> Sync performance and compare ad platform
               numbers with on-site attribution.
             </li>
+            <li>
+              <strong className="text-white/85">Step 5 — Register Campaign ID:</strong> When a campaign goes live in Meta,
+              Google, or TikTok, paste its platform campaign ID below so spend lines up with your July budget tracker.
+            </li>
           </ol>
         </section>
 
         {error ? <AdminPortalAlert variant="error">{error}</AdminPortalAlert> : null}
         {syncMessage ? <AdminPortalAlert variant="info">{syncMessage}</AdminPortalAlert> : null}
+        {campaignMessage ? <AdminPortalAlert variant="info">{campaignMessage}</AdminPortalAlert> : null}
         {loading ? <AdminLoadingBar label="Loading ad tracking…" /> : null}
 
         <div className="space-y-8">
@@ -363,6 +451,140 @@ export function AdTrackingClient() {
               </div>
               <p className="mt-2 break-all font-mono text-xs text-[#FFD34E]">{trackedUrl}</p>
             </div>
+          </section>
+
+          <section className={adminCardClass}>
+            <p className={adminSectionTitleClass}>Campaign Registry</p>
+            <h2 className="mt-2 text-lg font-bold">Register Campaign ID</h2>
+            <p className="mt-1 text-sm text-white/50">
+              Playbook step 9 — after you create a campaign in Ads Manager, Google Ads, or TikTok Promote, record its
+              platform campaign ID here. Use the same week and budget from your July marketing plan.
+            </p>
+
+            {campaignMigrationPending ? (
+              <p className="mt-4 text-sm text-white/45">
+                Database migration pending — campaign registry will activate after the next deploy runs{" "}
+                <code className="text-[#FFD34E]">prisma migrate deploy</code>.
+              </p>
+            ) : null}
+
+            <form className="mt-5 grid gap-4 sm:grid-cols-2" onSubmit={(e) => void registerCampaign(e)}>
+              <label className="block space-y-2 sm:col-span-2">
+                <span className={adminLabelClass}>Platform campaign ID</span>
+                <input
+                  className={adminInputClassSm}
+                  value={campaignId}
+                  onChange={(e) => setCampaignId(e.target.value)}
+                  placeholder="From Ads Manager / Google Ads / TikTok Ads"
+                  required
+                />
+              </label>
+              <label className="block space-y-2">
+                <span className={adminLabelClass}>Platform</span>
+                <select
+                  className={adminInputClassSm}
+                  value={campaignPlatform}
+                  onChange={(e) => setCampaignPlatform(e.target.value as AdCampaignPlatform)}
+                >
+                  <option value="meta">Meta</option>
+                  <option value="google">Google</option>
+                  <option value="tiktok">TikTok</option>
+                </select>
+              </label>
+              <label className="block space-y-2">
+                <span className={adminLabelClass}>Venture</span>
+                <select
+                  className={adminInputClassSm}
+                  value={campaignVenture}
+                  onChange={(e) => setCampaignVenture(e.target.value)}
+                >
+                  <option value="match_fit">Match Fit</option>
+                  <option value="ni">NORTHSiDE Intelligence</option>
+                  <option value="ncc">NCC</option>
+                </select>
+              </label>
+              <label className="block space-y-2 sm:col-span-2">
+                <span className={adminLabelClass}>Campaign name</span>
+                <input
+                  className={adminInputClassSm}
+                  value={campaignName}
+                  onChange={(e) => setCampaignName(e.target.value)}
+                  placeholder="MF Meta Reel boost — July W1"
+                  required
+                />
+              </label>
+              <label className="block space-y-2">
+                <span className={adminLabelClass}>Budget (USD)</span>
+                <input
+                  className={adminInputClassSm}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={campaignBudgetUsd}
+                  onChange={(e) => setCampaignBudgetUsd(e.target.value)}
+                  placeholder="45.00"
+                />
+              </label>
+              <label className="block space-y-2">
+                <span className={adminLabelClass}>Week of (YYYY-MM-DD)</span>
+                <input
+                  className={adminInputClassSm}
+                  value={campaignWeekOf}
+                  onChange={(e) => setCampaignWeekOf(e.target.value)}
+                  placeholder="2026-07-07"
+                  pattern="\d{4}-\d{2}-\d{2}"
+                />
+              </label>
+              <label className="block space-y-2 sm:col-span-2">
+                <span className={adminLabelClass}>Notes (optional)</span>
+                <input
+                  className={adminInputClassSm}
+                  value={campaignNotes}
+                  onChange={(e) => setCampaignNotes(e.target.value)}
+                  placeholder="Paused until Phase 0 green"
+                />
+              </label>
+              <div className="sm:col-span-2">
+                <button type="submit" className={adminAccentButtonClass} disabled={campaignSaving}>
+                  {campaignSaving ? "Saving…" : "Register campaign"}
+                </button>
+              </div>
+            </form>
+
+            {campaigns.length > 0 ? (
+              <div className="mt-6 overflow-x-auto">
+                <table className="w-full min-w-[640px] text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-white/10 text-[10px] font-black uppercase tracking-wide text-white/40">
+                      <th className="py-2 pr-3">Platform</th>
+                      <th className="py-2 pr-3">Campaign ID</th>
+                      <th className="py-2 pr-3">Name</th>
+                      <th className="py-2 pr-3">Venture</th>
+                      <th className="py-2 pr-3">Budget</th>
+                      <th className="py-2">Week of</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {campaigns.map((row) => (
+                      <tr key={row.id} className="border-b border-white/[0.06] text-white/60">
+                        <td className="py-3 pr-3">
+                          <PlatformBadge platform={row.platform} />
+                        </td>
+                        <td className="py-3 pr-3 font-mono text-[11px] text-[#FFD34E]">{row.campaignId}</td>
+                        <td className="py-3 pr-3 text-white/75">{row.name}</td>
+                        <td className="py-3 pr-3">{row.venture}</td>
+                        <td className="py-3 pr-3 tabular-nums">
+                          {row.budgetCents != null ? formatUsd(row.budgetCents) : "—"}
+                        </td>
+                        <td className="py-3 tabular-nums">{row.weekOf ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="mt-6 text-sm text-white/40">No campaigns registered yet.</p>
+            )}
           </section>
 
           <section className={adminCardClass}>

@@ -45,5 +45,12 @@ describe("ad-tracking-config", () => {
   it("ships UTM presets for both platforms", () => {
     expect(AD_UTM_PRESETS.some((p) => p.platform === "meta")).toBe(true);
     expect(AD_UTM_PRESETS.some((p) => p.platform === "google")).toBe(true);
+    expect(AD_UTM_PRESETS.some((p) => p.platform === "tiktok")).toBe(true);
+  });
+
+  it("includes TikTok paid_social preset", () => {
+    const tiktok = AD_UTM_PRESETS.find((p) => p.id === "tiktok_paid_social");
+    expect(tiktok?.utm_source).toBe("tiktok");
+    expect(tiktok?.utm_medium).toBe("paid_social");
   });
 });

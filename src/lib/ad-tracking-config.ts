@@ -6,6 +6,11 @@ import { TRAINER_ONBOARDING_FUNNEL_STEPS } from "@/lib/meta-pixel-funnel";
 
 export type AdPlatform = "google" | "meta";
 
+/** UTM presets may include platforms without API sync yet (e.g. TikTok Promote). */
+export type AdUtmPlatform = AdPlatform | "tiktok";
+
+export type AdCampaignPlatform = AdUtmPlatform;
+
 export type AdConversionGoal = "client_signup" | "trainer_signup";
 
 export type AdLandingFunnel = "client" | "trainer" | "homepage";
@@ -23,7 +28,7 @@ export type AdTrackingEvent = {
 export type AdUtmPreset = {
   id: string;
   label: string;
-  platform: AdPlatform;
+  platform: AdUtmPlatform;
   utm_source: string;
   utm_medium: string;
   utm_campaign: string;
@@ -161,6 +166,15 @@ export const AD_UTM_PRESETS: AdUtmPreset[] = [
     utm_source: "google",
     utm_medium: "cpc",
     utm_campaign: "pmax_match_fit",
+    funnel: "homepage",
+  },
+  {
+    id: "tiktok_paid_social",
+    label: "TikTok — paid social",
+    platform: "tiktok",
+    utm_source: "tiktok",
+    utm_medium: "paid_social",
+    utm_campaign: "match_fit_tiktok_promote",
     funnel: "homepage",
   },
 ];
