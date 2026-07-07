@@ -6,6 +6,7 @@
 | AT2 Ad Tracker phase 2 (Meta/Google API, CAPI, GA4, TikTok sync) | matchfit | **SHIPPED** — PR #290 | — | Push env via `vercel:env:ad-platform` |
 | F1 RLS-8 (8 exposed tables) | matchfit | **SHIPPED** — PR #291 | — | Verify Supabase advisor clears 8 warnings |
 | M1 Align marketing to 8-step model | matchfit | **SHIPPED** — PR #292 | — | Playbook live in admin surfaces |
+| B1 B2C runbook 5b–6b | matchfit | **DISPATCHED** 2026-07-07 | Subagent | `cursor/mf-b2c-runbook-5b-6b-df7f` |
 | F2 Prisma migration | matchfit | Merged | — | Smoke deploy if JB asks |
 | J6 outreach DMs (10–15/day) | matchfit | — | JB | — |
 | J5 Tue client tip IG post | matchfit | — | JB | Theme: 3 questions before you hire a trainer |
