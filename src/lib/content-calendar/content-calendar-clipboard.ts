@@ -1,11 +1,17 @@
 import { CONTENT_CALENDAR_MAX_HASHTAGS } from "@/lib/content-calendar/content-rules";
 import { formatHashtagsForPost, normalizeHashtags } from "@/lib/content-calendar/content-rules";
 
+export function sanitizeHashtagDraftToken(raw: string): string | null {
+  const tag = raw.trim().replace(/^#+/, "").trim();
+  if (!tag) return null;
+  return tag.slice(0, 100);
+}
+
 export function parseHashtagsInput(raw: string): string[] {
   const parts = raw
     .split(/[\n,]+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
+    .map((part) => sanitizeHashtagDraftToken(part))
+    .filter((part): part is string => Boolean(part));
   return normalizeHashtags(parts);
 }
 
@@ -22,5 +28,5 @@ export function buildCaptionWithHashtags(caption: string, hashtags: string[]): s
 }
 
 export function maxHashtagHint(): string {
-  return `Up to ${CONTENT_CALENDAR_MAX_HASHTAGS} hashtags (one per line). Optimized for all platforms.`;
+  return `Up to ${CONTENT_CALENDAR_MAX_HASHTAGS} hashtags. Press Enter to add each tag.`;
 }

@@ -34,12 +34,9 @@ import {
   type BulkTypeCounts,
 } from "@/lib/content-calendar/bulk-content-slots";
 import type { ClientContentPost } from "@/lib/content-calendar/content-calendar-store";
-import {
-  buildCaptionWithHashtags,
-  hashtagsToInputValue,
-  maxHashtagHint,
-  parseHashtagsInput,
-} from "@/lib/content-calendar/content-calendar-clipboard";
+import { buildCaptionWithHashtags } from "@/lib/content-calendar/content-calendar-clipboard";
+import { ContentCaptionCharLimit } from "@/components/admin/content-caption-char-limit";
+import { ContentHashtagTagInput } from "@/components/admin/content-hashtag-tag-input";
 import { CONTENT_HUB_DELETE_RETENTION_HOURS, CONTENT_HUB_POSTED_RETENTION_HOURS } from "@/lib/content-calendar/constants";
 import { formatCalendarDate, getMondayOfWeek } from "@/lib/content-calendar/rotation";
 import { formatUserFacingError } from "@/lib/read-json-response";
@@ -109,7 +106,6 @@ function ContentPostFields(props: {
   onHashtagsChange: (tags: string[]) => void;
   readOnly?: boolean;
 }) {
-  const hashtagInput = hashtagsToInputValue(props.hashtags);
   return (
     <div className="mt-3 space-y-3">
       <div>
@@ -123,6 +119,7 @@ function ContentPostFields(props: {
             onChange={(e) => props.onCaptionChange(e.target.value)}
           />
         )}
+        <ContentCaptionCharLimit caption={props.caption} hashtags={props.hashtags} />
       </div>
       {props.postType !== "Text" ? (
         <div>
@@ -143,21 +140,11 @@ function ContentPostFields(props: {
       ) : null}
       <div>
         <label className={adminLabelClass}>Hashtags</label>
-        <p className="mt-0.5 text-[10px] text-white/35">{maxHashtagHint()}</p>
-        {props.readOnly ? (
-          <p className="mt-1 text-xs text-[#FFD34E]/80">
-            {props.hashtags.length
-              ? props.hashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" ")
-              : "—"}
-          </p>
-        ) : (
-          <textarea
-            className={`${adminInputClassSm} mt-1 min-h-[72px] font-mono text-xs`}
-            value={hashtagInput}
-            onChange={(e) => props.onHashtagsChange(parseHashtagsInput(e.target.value))}
-            placeholder={"MatchFit\nFitnessApp\nBetaLaunch"}
-          />
-        )}
+        <ContentHashtagTagInput
+          tags={props.hashtags}
+          onChange={props.onHashtagsChange}
+          readOnly={props.readOnly}
+        />
       </div>
     </div>
   );
@@ -1365,13 +1352,9 @@ export function ContentGeneratorPanel(props: { configured: boolean }) {
             </div>
             <div>
               <label className={adminLabelClass}>Hashtags</label>
-              <p className="mt-0.5 text-[10px] text-white/35">{maxHashtagHint()}</p>
-              <textarea
-                className={`${adminInputClassSm} mt-1 min-h-[72px] font-mono text-xs`}
-                value={hashtagsToInputValue(hashtags)}
-                onChange={(e) => setHashtags(parseHashtagsInput(e.target.value))}
-              />
+              <ContentHashtagTagInput tags={hashtags} onChange={setHashtags} />
             </div>
+            <ContentCaptionCharLimit caption={caption} hashtags={hashtags} />
             <ContentCopyButtons
               postType={postType}
               caption={caption}

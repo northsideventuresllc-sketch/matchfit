@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
   CONTENT_CALENDAR_MAX_HASHTAGS,
-  enforceGeneratedPostContent,
   normalizeHashtags,
+  normalizeUserEditedPostContent,
 } from "@/lib/content-calendar/content-rules";
 import { updatePostFields } from "@/lib/content-calendar/content-calendar-store";
 import { isNiBrainConfiguredAsync, recordContentLearning } from "@/lib/ni-brain-client";
@@ -58,13 +58,15 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
     let caption = data.caption;
     let hashtags = data.hashtags !== undefined ? normalizeHashtags(data.hashtags) : undefined;
+    let withinLimit: boolean | undefined;
     if (caption !== undefined || hashtags !== undefined) {
-      const enforced = enforceGeneratedPostContent({
+      const normalized = normalizeUserEditedPostContent({
         caption: caption ?? data.originalCaption ?? "",
         hashtags: hashtags ?? normalizeHashtags(data.originalHashtags),
       });
-      if (caption !== undefined) caption = enforced.caption;
-      if (hashtags !== undefined || data.hashtags !== undefined) hashtags = enforced.hashtags;
+      if (caption !== undefined) caption = normalized.caption;
+      if (hashtags !== undefined || data.hashtags !== undefined) hashtags = normalized.hashtags;
+      withinLimit = normalized.withinLimit;
     }
 
     await updatePostFields({
@@ -114,7 +116,13 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       }
     }
 
-    return NextResponse.json({ ok: true, caption, visualPrompt: data.visualPrompt, hashtags });
+    return NextResponse.json({
+      ok: true,
+      caption,
+      visualPrompt: data.visualPrompt,
+      hashtags,
+      withinLimit,
+    });
   } catch (e) {
     console.error("[content-calendar post PATCH]", e);
     return NextResponse.json({ error: "Could not save post." }, { status: 500 });

@@ -3,6 +3,7 @@ import {
   buildCaptionWithHashtags,
   hashtagsToInputValue,
   parseHashtagsInput,
+  sanitizeHashtagDraftToken,
 } from "@/lib/content-calendar/content-calendar-clipboard";
 
 describe("content-calendar clipboard helpers", () => {
@@ -27,5 +28,10 @@ describe("content-calendar clipboard helpers", () => {
   it("round-trips hashtag input", () => {
     const tags = ["One", "Two"];
     expect(hashtagsToInputValue(tags)).toBe("One\nTwo");
+  });
+
+  it("sanitizes draft hashtag tokens", () => {
+    expect(sanitizeHashtagDraftToken("  #MatchFit  ")).toBe("MatchFit");
+    expect(sanitizeHashtagDraftToken("   ")).toBeNull();
   });
 });

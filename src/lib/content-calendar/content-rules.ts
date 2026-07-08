@@ -75,6 +75,22 @@ export function enforceGeneratedPostContent(args: {
   };
 }
 
+/** Operator edits: normalize language and hashtags but never truncate caption. */
+export function normalizeUserEditedPostContent(args: {
+  caption: string;
+  hashtags: string[];
+}): { caption: string; hashtags: string[]; charCount: number; withinLimit: boolean } {
+  const hashtags = normalizeHashtags(args.hashtags);
+  const caption = normalizeFitnessProLanguage(args.caption);
+  const charCount = repurposePostLength(caption, hashtags);
+  return {
+    caption,
+    hashtags,
+    charCount,
+    withinLimit: charCount <= CONTENT_CALENDAR_REPURPOSE_CHAR_LIMIT,
+  };
+}
+
 /** Marketing copy should say Fitness Pros instead of trainer(s). */
 export function normalizeFitnessProLanguage(text: string): string {
   return text

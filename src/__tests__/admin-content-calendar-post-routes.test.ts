@@ -144,6 +144,7 @@ describe("/api/admin/content-calendar/posts/[id] route", () => {
       ok: true,
       caption: "New caption",
       visualPrompt: "new visual prompt",
+      withinLimit: true,
     });
     expect(mockUpdatePostFields).toHaveBeenCalledWith({
       postId: "post_1",
@@ -172,6 +173,35 @@ describe("/api/admin/content-calendar/posts/[id] route", () => {
         meta: { field: "visualPrompt" },
       }),
     );
+  });
+
+  it("does not truncate over-limit captions on operator PATCH saves", async () => {
+    const longCaption = "Z".repeat(620);
+    const res = await PATCH(
+      new Request("https://matchfit.test/api/admin/content-calendar/posts/post_1", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          caption: longCaption,
+          hashtags: ["MatchFit"],
+        }),
+      }),
+      params("post_1"),
+    );
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({
+      ok: true,
+      caption: longCaption,
+      hashtags: ["MatchFit"],
+      withinLimit: false,
+    });
+    expect(mockUpdatePostFields).toHaveBeenCalledWith({
+      postId: "post_1",
+      caption: longCaption,
+      visualPrompt: undefined,
+      hashtags: ["MatchFit"],
+    });
   });
 
   it("deletes a post via DELETE", async () => {
