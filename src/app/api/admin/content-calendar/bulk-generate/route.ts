@@ -15,6 +15,7 @@ const bulkSchema = z.object({
       z.object({
         postType: z.enum(CONTENT_CALENDAR_POST_TYPES),
         targetGroup: z.enum(CONTENT_CALENDAR_GROUPS),
+        indexWithinType: z.number().int().min(1).max(CONTENT_CALENDAR_BULK_MAX_COUNT).optional(),
       }),
     )
     .min(1)

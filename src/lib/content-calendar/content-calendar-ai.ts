@@ -30,6 +30,7 @@ import {
   normalizeHashtags,
   normalizeTargetGroup,
 } from "@/lib/content-calendar/content-rules";
+import { getSocialPostingDateKeys } from "@/lib/content-calendar/posting-schedule";
 import { scanAndRecordSocialProfiles } from "@/lib/content-calendar/social-profile-scan";
 import { addWeekdays, formatCalendarDate, getContentCalendarRotation } from "@/lib/content-calendar/rotation";
 import {
@@ -193,12 +194,19 @@ function rowToBulkDraft(args: {
   scheduled: boolean;
   weekStart: string;
   monday: Date;
+  postingDates?: string[];
 }): BulkGeneratedDraft {
   const postType = args.spec.postType;
+  const indexWithinType = args.spec.indexWithinType ?? 1;
   const dayIndex = args.scheduled
     ? Math.min(4, Math.max(0, args.row.dayIndex ?? args.index % 5))
     : 0;
-  const postDate = args.scheduled ? formatCalendarDate(addWeekdays(args.monday, dayIndex)) : null;
+  const postDate = args.scheduled
+    ? (args.postingDates?.[indexWithinType - 1] ??
+      (args.row.dayIndex !== undefined
+        ? formatCalendarDate(addWeekdays(args.monday, dayIndex))
+        : null))
+    : null;
   const targetGroup = normalizeTargetGroup(args.spec.targetGroup);
   const normalizedVisual = normalizeGeneratedVisualPrompt({
     caption: args.row.caption ?? "",
@@ -235,6 +243,7 @@ async function generateBulkSlotWithAi(args: {
   weekStart: string;
   dayIndex: number;
   monday: Date;
+  postingDates?: string[];
   feedback?: string;
   skipLazyCheck?: boolean;
 }): Promise<BulkGeneratedDraft | null> {
@@ -284,6 +293,7 @@ Hashtags: JSON array without # prefix.`;
     scheduled: args.scheduled,
     weekStart: args.weekStart,
     monday: args.monday,
+    postingDates: args.postingDates,
   });
 
   if (!args.skipLazyCheck && isLazyCalendarDraft(draft)) {
@@ -507,6 +517,7 @@ function fallbackWeek(offset: number): GeneratedWeekPost[] {
 export type BulkContentItem = {
   postType: ContentCalendarPostType;
   targetGroup: string;
+  indexWithinType?: number;
 };
 
 export async function assignBulkAudiencesWithAi(
@@ -577,6 +588,8 @@ export async function generateBulkContent(args: {
   const contextBlock = trimContextBlockForPrompt(await buildContentGenerationContext());
   const count = args.items.length;
   const monday = new Date(`${args.weekStart}T00:00:00`);
+  const maxPerType = Math.max(1, ...args.items.map((item) => item.indexWithinType ?? 1));
+  const postingDates = args.scheduled ? getSocialPostingDateKeys({ count: maxPerType }) : [];
   const operatorDirective = buildOperatorCreativeDirective(customPrompt);
 
   const slotBriefs = args.items
@@ -601,7 +614,7 @@ ${CONTENT_CALENDAR_CREATIVE_QUALITY_RULES}
 ${contextBlock}
 
 Generate ${count} distinct, publish-ready social posts — one per slot below.
-Scheduling mode: ${args.scheduled ? "scheduled — assign logical day_index 0-4 (Mon-Fri) spread across the week" : "unscheduled — use day_index 0 for all"}.
+Scheduling mode: ${args.scheduled ? `scheduled — assign posts to Mon/Wed/Fri social posting days starting ${postingDates[0] ?? "next slot"} (after 5pm Eastern rolls to the next posting day)` : "unscheduled — use day_index 0 for all; postDate null"}.
 Platform mapping: Carousel/Static→Instagram+Facebook; Video→Reels/TikTok; Text→Threads+Facebook (visualPrompt null for Text).
 
 Return valid JSON only. Use this shape:
@@ -643,6 +656,7 @@ Create ${count} unique posts. Weave operator themes into every caption and visua
         scheduled: args.scheduled,
         weekStart: args.weekStart,
         monday,
+        postingDates,
       }),
     );
   }
@@ -683,6 +697,7 @@ Create ${count} unique posts. Weave operator themes into every caption and visua
         weekStart: args.weekStart,
         dayIndex,
         monday,
+        postingDates,
         feedback: attempt.feedback,
         skipLazyCheck: attempt.skipLazyCheck,
       });
@@ -717,6 +732,7 @@ Create ${count} unique posts. Weave operator themes into every caption and visua
       scheduled: args.scheduled,
       weekStart: args.weekStart,
       monday,
+      postingDates,
     });
   });
 

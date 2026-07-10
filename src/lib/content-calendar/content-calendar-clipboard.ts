@@ -27,6 +27,11 @@ export function buildCaptionWithHashtags(caption: string, hashtags: string[]): s
   return `${trimmed}\n\n${tags}`;
 }
 
+/** Space-separated #tags for clipboard (no chip UI artifacts). */
+export function formatHashtagsForClipboard(hashtags: string[]): string {
+  return formatHashtagsForPost(hashtags);
+}
+
 export function maxHashtagHint(): string {
   return `Up to ${CONTENT_CALENDAR_MAX_HASHTAGS} hashtags. Press Enter to add each tag.`;
 }

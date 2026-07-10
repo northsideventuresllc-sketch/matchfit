@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCaptionWithHashtags,
+  formatHashtagsForClipboard,
   hashtagsToInputValue,
   parseHashtagsInput,
   sanitizeHashtagDraftToken,
@@ -23,6 +24,10 @@ describe("content-calendar clipboard helpers", () => {
     expect(buildCaptionWithHashtags("Hello coaches", ["MatchFit", "Beta"])).toBe(
       "Hello coaches\n\n#MatchFit #Beta",
     );
+  });
+
+  it("formats hashtags for clipboard copy", () => {
+    expect(formatHashtagsForClipboard(["MatchFit", "Beta"])).toBe("#MatchFit #Beta");
   });
 
   it("round-trips hashtag input", () => {

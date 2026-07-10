@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-07-10** `2.2.2-beta` → `2.2.3-beta` (**patch**)
 - **2026-07-08** `2.2.1-beta` → `2.2.2-beta` (**patch** — Content calendar: no caption truncation on edit, YT-style hashtag tags, over-limit warning)
 - **2026-07-07** `2.2.0-beta` → `2.2.1-beta` (**patch** — B2C runbook phases 5b-6b in Ad Tracking HQ)
 - **2026-07-07** `2.1.1-beta` → `2.2.0-beta` (**minor** — Align admin marketing surfaces to canonical 8-step playbook)

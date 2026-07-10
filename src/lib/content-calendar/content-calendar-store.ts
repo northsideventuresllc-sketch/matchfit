@@ -339,8 +339,9 @@ export async function saveDraftToHub(args: {
     preferredDayIndex: args.draft.dayIndex,
   });
   const postDate = args.scheduled
-    ? formatCalendarDate(addWeekdays(new Date(`${args.weekStart}T00:00:00`), Math.min(4, dayIndex)))
-    : args.draft.postDate ?? args.weekStart;
+    ? (args.draft.postDate?.trim() ||
+        formatCalendarDate(addWeekdays(new Date(`${args.weekStart}T00:00:00`), Math.min(4, dayIndex))))
+    : "";
 
   const row = {
     week_start: args.weekStart,

@@ -67,6 +67,11 @@ export const CONTENT_CALENDAR_GENERATOR_POST_TYPES = ["Carousel", "Static", "Vid
 
 export type ContentCalendarGeneratorPostType = (typeof CONTENT_CALENDAR_GENERATOR_POST_TYPES)[number];
 
+/** Mon / Wed / Fri — live Match Fit social posting days (America/New_York). */
+export const CONTENT_CALENDAR_SOCIAL_POSTING_WEEKDAYS = [1, 3, 5] as const;
+
+export const CONTENT_CALENDAR_SOCIAL_POSTING_CUTOFF_HOUR_EST = 17;
+
 export const CONTENT_CALENDAR_DAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const;
 export const CONTENT_CALENDAR_DAYS_LONG = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] as const;
 

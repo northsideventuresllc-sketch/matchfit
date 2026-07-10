@@ -34,7 +34,7 @@ import {
   type BulkTypeCounts,
 } from "@/lib/content-calendar/bulk-content-slots";
 import type { ClientContentPost } from "@/lib/content-calendar/content-calendar-store";
-import { buildCaptionWithHashtags } from "@/lib/content-calendar/content-calendar-clipboard";
+import { buildCaptionWithHashtags, formatHashtagsForClipboard } from "@/lib/content-calendar/content-calendar-clipboard";
 import { ContentCaptionCharLimit } from "@/components/admin/content-caption-char-limit";
 import { ContentHashtagTagInput } from "@/components/admin/content-hashtag-tag-input";
 import { CONTENT_HUB_DELETE_RETENTION_HOURS, CONTENT_HUB_POSTED_RETENTION_HOURS } from "@/lib/content-calendar/constants";
@@ -84,10 +84,12 @@ function ContentCopyButtons(props: {
   hashtags: string[];
 }) {
   const postText = buildCaptionWithHashtags(props.caption, props.hashtags);
+  const hashtagText = formatHashtagsForClipboard(props.hashtags);
   const isText = props.postType === "Text";
   return (
     <div className="mt-4 flex flex-wrap gap-2 border-t border-white/[0.06] pt-3">
       <CopyButton text={props.caption.trim()} label="COPY CAPTION" />
+      {hashtagText ? <CopyButton text={hashtagText} label="COPY HASHTAGS" /> : null}
       {!isText && props.visualPrompt?.trim() ? (
         <CopyButton text={props.visualPrompt.trim()} label="COPY PROMPT" />
       ) : null}
@@ -367,6 +369,7 @@ export function BulkContentGeneratorPanel(props: {
       const items = slots.map((slot) => ({
         postType: slot.postType,
         targetGroup: audienceBySlot[slot.id] ?? CONTENT_CALENDAR_GROUPS[0],
+        indexWithinType: slot.indexWithinType,
       }));
       const res = await fetch("/api/admin/content-calendar/bulk-generate", {
         method: "POST",
@@ -806,13 +809,29 @@ export function ContentHubPanel(props: {
     Record<string, { caption: string; visualPrompt: string | null; hashtags: string[] }>
   >({});
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [savingAll, setSavingAll] = useState(false);
+
+  const dirtyPostIds = useMemo(() => {
+    return props.posts
+      .filter((post) => {
+        const fields = fieldDrafts[post.id];
+        const originals = fieldOriginals[post.id];
+        if (!fields || !originals) return false;
+        return (
+          fields.caption !== originals.caption ||
+          (fields.visualPrompt ?? "") !== (originals.visualPrompt ?? "") ||
+          fields.hashtags.join(",") !== originals.hashtags.join(",")
+        );
+      })
+      .map((post) => post.id);
+  }, [props.posts, fieldDrafts, fieldOriginals]);
 
   useEffect(() => {
     const nextDates: Record<string, string> = {};
     const nextFields: Record<string, { caption: string; visualPrompt: string | null; hashtags: string[] }> = {};
     const nextOriginals: Record<string, { caption: string; visualPrompt: string | null; hashtags: string[] }> = {};
     for (const p of props.posts) {
-      nextDates[p.id] = p.postDate;
+      nextDates[p.id] = p.postDate?.trim() ? p.postDate : "";
       nextFields[p.id] = {
         caption: p.caption,
         visualPrompt: p.visualPrompt,
@@ -855,6 +874,24 @@ export function ContentHubPanel(props: {
     });
   }
 
+  async function saveAllFields() {
+    if (!dirtyPostIds.length) return;
+    setSavingAll(true);
+    try {
+      for (const postId of dirtyPostIds) {
+        await saveFields(postId);
+      }
+    } finally {
+      setSavingAll(false);
+    }
+  }
+
+  function hubPostDateValue(post: ClientContentPost): string {
+    const draft = dateDrafts[post.id];
+    if (draft !== undefined) return draft;
+    return post.postDate?.trim() ? post.postDate : "";
+  }
+
   return (
     <div className="space-y-8">
       <section className={`${adminCardClass} space-y-4 p-5`}>
@@ -863,9 +900,21 @@ export function ContentHubPanel(props: {
           Saved posts from bulk generation. Set a post date, then mark as posted when live — posted items move to
           Recently Posted for {CONTENT_HUB_POSTED_RETENTION_HOURS} hours.
         </p>
-        <button type="button" className={adminSecondaryButtonClass} onClick={props.onRefresh}>
-          Refresh hub
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={adminSecondaryButtonClass} onClick={props.onRefresh}>
+            Refresh hub
+          </button>
+          {dirtyPostIds.length > 0 ? (
+            <button
+              type="button"
+              className={adminPrimaryButtonClass}
+              disabled={savingAll || savingId !== null}
+              onClick={() => void saveAllFields()}
+            >
+              {savingAll ? "Saving all…" : `Save all edits (${dirtyPostIds.length})`}
+            </button>
+          ) : null}
+        </div>
       </section>
 
       {props.loading ? <AdminLoadingBar label="Loading Content Hub…" /> : null}
@@ -916,13 +965,14 @@ export function ContentHubPanel(props: {
                   <input
                     type="date"
                     className={adminInputClassSm}
-                    value={dateDrafts[post.id] ?? post.postDate}
+                    value={hubPostDateValue(post)}
                     onChange={(e) => setDateDrafts((d) => ({ ...d, [post.id]: e.target.value }))}
                   />
                   <button
                     type="button"
                     className={adminSecondaryButtonClass}
-                    onClick={() => void props.onUpdatePostDate(post.id, dateDrafts[post.id] ?? post.postDate)}
+                    disabled={!hubPostDateValue(post).trim()}
+                    onClick={() => void props.onUpdatePostDate(post.id, hubPostDateValue(post))}
                   >
                     Save date
                   </button>
@@ -960,7 +1010,7 @@ export function ContentHubPanel(props: {
       )}
 
       <ScheduleCalendar
-        posts={props.posts.filter((p) => p.isScheduled || Boolean(p.postDate))}
+        posts={props.posts.filter((p) => p.isScheduled && Boolean(p.postDate?.trim()))}
         title="Hub schedule overview"
       />
     </div>

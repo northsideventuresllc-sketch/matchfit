@@ -6,7 +6,7 @@ import { sanitizeHashtagDraftToken } from "@/lib/content-calendar/content-calend
 import { CONTENT_CALENDAR_MAX_HASHTAGS } from "@/lib/content-calendar/content-rules";
 
 const chipClass =
-  "inline-flex items-center gap-1 rounded-full border border-[#FF7E00]/30 bg-[#FF7E00]/10 px-2.5 py-1 text-[11px] font-semibold text-[#FFD34E]";
+  "inline-flex select-none items-center gap-1 rounded-full border border-[#FF7E00]/30 bg-[#FF7E00]/10 px-2.5 py-1 text-[11px] font-semibold text-[#FFD34E]";
 
 type Props = {
   tags: string[];
