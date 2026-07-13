@@ -14,6 +14,7 @@ export async function GET() {
   try {
     const candidates = await loadMissedPosts();
     const posts = candidates
+      .filter((p): p is typeof p & { post_date: string } => Boolean(p.post_date))
       .filter((p) =>
         shouldShowMissedPrompt({
           postDate: p.post_date,
