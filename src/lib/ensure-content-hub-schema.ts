@@ -2,7 +2,10 @@ import "server-only";
 
 import pg from "pg";
 import { createNiBrainClient } from "@/lib/ni-brain-client";
-import { resolveNiBrainDatabaseUrlForDdl } from "@/lib/ni-brain-database-url";
+import {
+  resolveNiBrainDatabaseUrlFallbackForDdl,
+  resolveNiBrainDatabaseUrlForDdl,
+} from "@/lib/ni-brain-database-url";
 import { pgPoolConfigForConnectionString } from "@/lib/supabase-database-url";
 
 const CONTENT_HUB_COLUMNS = [
@@ -56,6 +59,12 @@ export function isMissingContentHubSchemaError(e: unknown): boolean {
   );
 }
 
+function isConnectivityError(message: string): boolean {
+  return /tenant\/user|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|EAI_AGAIN|Network is unreachable|pooler/i.test(
+    message,
+  );
+}
+
 async function probeContentHubSchema(): Promise<boolean> {
   const client = createNiBrainClient();
   const { error } = await client
@@ -64,6 +73,19 @@ async function probeContentHubSchema(): Promise<boolean> {
     .limit(1);
 
   return !error;
+}
+
+async function runSqlOnUrl(databaseUrl: string, sql: string): Promise<void> {
+  const pool = new pg.Pool({
+    ...pgPoolConfigForConnectionString(databaseUrl),
+    max: 1,
+  });
+
+  try {
+    await pool.query(sql);
+  } finally {
+    await pool.end().catch(() => {});
+  }
 }
 
 async function runNiBrainDdl(sql: string): Promise<void> {
@@ -77,24 +99,41 @@ async function runNiBrainDdl(sql: string): Promise<void> {
     );
   }
 
-  const pool = new pg.Pool({
-    ...pgPoolConfigForConnectionString(databaseUrl),
-    max: 1,
-  });
-
   try {
-    await pool.query(sql);
+    await runSqlOnUrl(databaseUrl, sql);
+    return;
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    if (/tenant\/user|ENOTFOUND|pooler/i.test(message)) {
+    const fallbackUrl = isConnectivityError(message)
+      ? resolveNiBrainDatabaseUrlFallbackForDdl(databaseUrl)
+      : null;
+
+    if (fallbackUrl) {
+      try {
+        console.warn(
+          "[content-hub] primary NI Brain DDL host failed; retrying session/direct fallback",
+          message,
+        );
+        await runSqlOnUrl(fallbackUrl, sql);
+        return;
+      } catch (fallbackErr) {
+        const fallbackMessage = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+        throw new Error(
+          `Content Hub schema repair could not reach NI Brain Postgres (${fallbackMessage}). ` +
+            "Set NI_BRAIN_DATABASE_PASSWORD with NI_BRAIN_SUPABASE_URL, or NI_BRAIN_DATABASE_URL to the session pooler " +
+            "(aws-1-us-east-1.pooler.supabase.com:5432). Direct db.<ref>.supabase.co is IPv6-only on many hosts.",
+        );
+      }
+    }
+
+    if (isConnectivityError(message)) {
       throw new Error(
         `Content Hub schema repair could not reach NI Brain Postgres (${message}). ` +
-          "Use a direct db.<project-ref>.supabase.co URL for NI_BRAIN_DATABASE_URL, or set NI_BRAIN_DATABASE_PASSWORD with NI_BRAIN_SUPABASE_URL.",
+          "Set NI_BRAIN_DATABASE_PASSWORD with NI_BRAIN_SUPABASE_URL, or NI_BRAIN_DATABASE_URL to the session pooler " +
+          "(aws-1-us-east-1.pooler.supabase.com:5432). Direct db.<ref>.supabase.co is IPv6-only on many hosts.",
       );
     }
     throw e;
-  } finally {
-    await pool.end().catch(() => {});
   }
 }
 
@@ -110,7 +149,12 @@ async function ensurePostDateNullable(): Promise<void> {
     return;
   }
 
-  await runNiBrainDdl(POST_DATE_NULLABLE_SQL);
+  try {
+    await runNiBrainDdl(POST_DATE_NULLABLE_SQL);
+  } catch (e) {
+    // Hub columns already exist; nullability is best-effort. Don't block Content Hub on DNS failures.
+    console.warn("[content-hub] post_date nullability ensure skipped", e);
+  }
   postDateNullabilityEnsured = true;
 }
 

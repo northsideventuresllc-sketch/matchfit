@@ -78,6 +78,20 @@ describe("ensureContentHubSchema", () => {
     expect(String(mockPoolQuery.mock.calls[0]?.[0])).toContain("ALTER COLUMN post_date DROP NOT NULL");
   });
 
+  it("does not fail Content Hub when post_date nullability DDL cannot connect", async () => {
+    mockCreateNiBrainClient.mockReturnValue({
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          limit: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        })),
+      })),
+    });
+    process.env.NI_BRAIN_DATABASE_URL = "postgresql://postgres:secret@db.kxijunwgbrlfzvgkhklo.supabase.co:5432/postgres";
+    mockPoolQuery.mockRejectedValue(new Error("getaddrinfo ENOTFOUND db.kxijunwgbrlfzvgkhklo.supabase.co"));
+
+    await expect(ensureContentHubSchema()).resolves.toBeUndefined();
+  });
+
   it("runs migration when hub columns are missing and database url is configured", async () => {
     let calls = 0;
     mockCreateNiBrainClient.mockReturnValue({
