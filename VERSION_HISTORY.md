@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-07-13** `2.2.4-beta` → `2.2.5-beta` (**patch** — CI follow-up after nullable post_date type fix)
 - **2026-07-13** `2.2.3-beta` → `2.2.4-beta` (**patch** — Fix content calendar unscheduled save: null post_date instead of empty string)
 - **2026-07-10** `2.2.2-beta` → `2.2.3-beta` (**patch**)
 - **2026-07-08** `2.2.1-beta` → `2.2.2-beta` (**patch** — Content calendar: no caption truncation on edit, YT-style hashtag tags, over-limit warning)
