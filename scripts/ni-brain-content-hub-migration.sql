@@ -8,6 +8,10 @@ ALTER TABLE match_fit_content_calendar_posts
   ADD COLUMN IF NOT EXISTS bulk_session_id text,
   ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
 
+-- Unscheduled hub drafts may omit a post date until the operator sets one.
+ALTER TABLE match_fit_content_calendar_posts
+  ALTER COLUMN post_date DROP NOT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_content_calendar_saved_hub
   ON match_fit_content_calendar_posts (saved_to_hub_at)
   WHERE saved_to_hub_at IS NOT NULL;

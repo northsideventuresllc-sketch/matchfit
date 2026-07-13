@@ -21,6 +21,10 @@ ALTER TABLE match_fit_content_calendar_posts
   ADD COLUMN IF NOT EXISTS bulk_session_id text,
   ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
 
+-- Unscheduled hub drafts may omit a post date until the operator sets one.
+ALTER TABLE match_fit_content_calendar_posts
+  ALTER COLUMN post_date DROP NOT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_content_calendar_saved_hub
   ON match_fit_content_calendar_posts (saved_to_hub_at)
   WHERE saved_to_hub_at IS NOT NULL;
@@ -33,6 +37,13 @@ CREATE INDEX IF NOT EXISTS idx_content_calendar_deleted
   ON match_fit_content_calendar_posts (deleted_at)
   WHERE deleted_at IS NOT NULL;
 `;
+
+const POST_DATE_NULLABLE_SQL = `
+ALTER TABLE match_fit_content_calendar_posts
+  ALTER COLUMN post_date DROP NOT NULL;
+`;
+
+let postDateNullabilityEnsured = false;
 
 /** True when NI Brain/PostgREST reports Content Hub columns are absent. */
 export function isMissingContentHubSchemaError(e: unknown): boolean {
@@ -55,7 +66,7 @@ async function probeContentHubSchema(): Promise<boolean> {
   return !error;
 }
 
-async function runNiBrainContentHubDdl(): Promise<void> {
+async function runNiBrainDdl(sql: string): Promise<void> {
   const { hydratePlatformEnvFromDatabase } = await import("@/lib/hydrate-platform-env");
   await hydratePlatformEnvFromDatabase();
 
@@ -72,7 +83,7 @@ async function runNiBrainContentHubDdl(): Promise<void> {
   });
 
   try {
-    await pool.query(CONTENT_HUB_MIGRATION_SQL);
+    await pool.query(sql);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     if (/tenant\/user|ENOTFOUND|pooler/i.test(message)) {
@@ -87,17 +98,43 @@ async function runNiBrainContentHubDdl(): Promise<void> {
   }
 }
 
+async function ensurePostDateNullable(): Promise<void> {
+  if (postDateNullabilityEnsured) return;
+
+  const { hydratePlatformEnvFromDatabase } = await import("@/lib/hydrate-platform-env");
+  await hydratePlatformEnvFromDatabase();
+  const databaseUrl = resolveNiBrainDatabaseUrlForDdl();
+  // Without a DDL URL we cannot alter the column — save paths still use null for unscheduled posts.
+  if (!databaseUrl) {
+    postDateNullabilityEnsured = true;
+    return;
+  }
+
+  await runNiBrainDdl(POST_DATE_NULLABLE_SQL);
+  postDateNullabilityEnsured = true;
+}
+
 /**
  * Applies Content Hub DDL on NI Brain when production missed scripts/ni-brain-content-hub-migration.sql.
+ * Also ensures post_date can be NULL for unscheduled hub drafts.
  */
 export async function ensureContentHubSchema(): Promise<void> {
-  if (await probeContentHubSchema()) return;
-
-  await runNiBrainContentHubDdl();
-
   if (!(await probeContentHubSchema())) {
-    throw new Error(
-      "Content Hub columns are still missing on NI Brain after migration. Confirm NI_BRAIN_DATABASE_URL points at project kxijunwgbrlfzvgkhklo, then redeploy.",
-    );
+    await runNiBrainDdl(CONTENT_HUB_MIGRATION_SQL);
+    postDateNullabilityEnsured = true;
+
+    if (!(await probeContentHubSchema())) {
+      throw new Error(
+        "Content Hub columns are still missing on NI Brain after migration. Confirm NI_BRAIN_DATABASE_URL points at project kxijunwgbrlfzvgkhklo, then redeploy.",
+      );
+    }
+    return;
   }
+
+  await ensurePostDateNullable();
+}
+
+/** Test-only reset for module-level migration memo. */
+export function resetContentHubSchemaMemoForTests(): void {
+  postDateNullabilityEnsured = false;
 }

@@ -24,8 +24,9 @@ export function isPostMissed(args: {
   now?: Date;
 }): boolean {
   if (args.posted) return false;
+  if (!args.postDate?.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(args.postDate.trim())) return false;
   const now = args.now ?? new Date();
-  return now.getTime() > endOfDayEstMs(args.postDate, now);
+  return now.getTime() > endOfDayEstMs(args.postDate.trim(), now);
 }
 
 /** Show missed-post bubble on the calendar day after the scheduled post date (EST). */

@@ -26,7 +26,11 @@ vi.mock("pg", () => ({
   },
 }));
 
-import { ensureContentHubSchema, isMissingContentHubSchemaError } from "@/lib/ensure-content-hub-schema";
+import {
+  ensureContentHubSchema,
+  isMissingContentHubSchemaError,
+  resetContentHubSchemaMemoForTests,
+} from "@/lib/ensure-content-hub-schema";
 
 describe("isMissingContentHubSchemaError", () => {
   it("detects missing saved_to_hub_at column errors", () => {
@@ -39,13 +43,14 @@ describe("isMissingContentHubSchemaError", () => {
 describe("ensureContentHubSchema", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetContentHubSchemaMemoForTests();
     mockHydratePlatformEnvFromDatabase.mockResolvedValue(undefined);
     mockPoolQuery.mockResolvedValue(undefined);
     mockPoolEnd.mockResolvedValue(undefined);
     delete process.env.NI_BRAIN_DATABASE_URL;
   });
 
-  it("skips migration when hub columns are already available", async () => {
+  it("skips migration when hub columns are already available and no DDL url is set", async () => {
     mockCreateNiBrainClient.mockReturnValue({
       from: vi.fn(() => ({
         select: vi.fn(() => ({
@@ -56,6 +61,21 @@ describe("ensureContentHubSchema", () => {
 
     await expect(ensureContentHubSchema()).resolves.toBeUndefined();
     expect(mockPoolQuery).not.toHaveBeenCalled();
+  });
+
+  it("makes post_date nullable when hub columns already exist and DDL url is configured", async () => {
+    mockCreateNiBrainClient.mockReturnValue({
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          limit: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        })),
+      })),
+    });
+    process.env.NI_BRAIN_DATABASE_URL = "postgresql://postgres:secret@db.kxijunwgbrlfzvgkhklo.supabase.co:5432/postgres";
+
+    await expect(ensureContentHubSchema()).resolves.toBeUndefined();
+    expect(mockPoolQuery).toHaveBeenCalledTimes(1);
+    expect(String(mockPoolQuery.mock.calls[0]?.[0])).toContain("ALTER COLUMN post_date DROP NOT NULL");
   });
 
   it("runs migration when hub columns are missing and database url is configured", async () => {

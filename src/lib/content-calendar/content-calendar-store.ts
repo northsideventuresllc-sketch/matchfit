@@ -341,7 +341,7 @@ export async function saveDraftToHub(args: {
   const postDate = args.scheduled
     ? (args.draft.postDate?.trim() ||
         formatCalendarDate(addWeekdays(new Date(`${args.weekStart}T00:00:00`), Math.min(4, dayIndex))))
-    : "";
+    : null;
 
   const row = {
     week_start: args.weekStart,
@@ -372,10 +372,14 @@ export async function saveDraftToHub(args: {
 
 export async function updateHubPostDate(args: { postId: string; postDate: string }): Promise<void> {
   const client = createNiBrainClient();
+  const nextDate = args.postDate.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDate)) {
+    throw new Error("Post date must be a valid YYYY-MM-DD value.");
+  }
   const { error } = await client
     .from("match_fit_content_calendar_posts")
     .update({
-      post_date: args.postDate,
+      post_date: nextDate,
       is_scheduled: true,
       updated_at: new Date().toISOString(),
     })
@@ -387,7 +391,7 @@ export function serializePostForClient(row: ContentCalendarPostRow) {
   return {
     id: row.id,
     weekStart: row.week_start,
-    postDate: row.post_date,
+    postDate: row.post_date ?? "",
     dayIndex: row.day_index,
     postType: row.post_type,
     targetGroup: normalizeTargetGroup(row.target_group),

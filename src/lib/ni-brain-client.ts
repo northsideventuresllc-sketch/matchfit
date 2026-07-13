@@ -6,7 +6,7 @@ import type { ContentCalendarPostType } from "@/lib/content-calendar/constants";
 export type ContentCalendarPostRow = {
   id: string;
   week_start: string;
-  post_date: string;
+  post_date: string | null;
   day_index: number;
   post_type: ContentCalendarPostType;
   target_group: string;
