@@ -53,6 +53,11 @@ import {
   statusLabelForPlatform,
   targetGroupLabel,
 } from "@/lib/outreach-types";
+import {
+  OUTREACH_COWORK_DAILY_CAPS,
+  OUTREACH_INTENT_OPTIONS,
+  outreachIntentLabel,
+} from "@/lib/outreach-cowork";
 import type { AdminAiProviderStatus } from "@/lib/admin-analytics-ai";
 import { formatUserFacingError, readJsonResponse } from "@/lib/read-json-response";
 import {
@@ -69,6 +74,111 @@ import {
   type OutreachHubStats,
   type OutreachHubStatsPlatformFilter,
 } from "@/lib/outreach-hub-stats";
+
+function CoworkBriefPanel() {
+  const [loading, setLoading] = useState(false);
+  const [error, setLocalError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [brief, setBrief] = useState<{
+    generatedAt: string;
+    runnerPrompt: string;
+    missingIntentCount: number;
+    instagram: unknown[];
+    email: unknown[];
+    facebook: unknown[];
+    caps: typeof OUTREACH_COWORK_DAILY_CAPS;
+  } | null>(null);
+
+  const loadBrief = async () => {
+    setLoading(true);
+    setLocalError(null);
+    setCopied(false);
+    try {
+      const res = await fetch("/api/admin/outreach/cowork-brief", { credentials: "include" });
+      const data = await readJsonResponse<{
+        error?: string;
+        generatedAt?: string;
+        runnerPrompt?: string;
+        missingIntentCount?: number;
+        instagram?: unknown[];
+        email?: unknown[];
+        facebook?: unknown[];
+        caps?: typeof OUTREACH_COWORK_DAILY_CAPS;
+      }>(res);
+      if (!res.ok) throw new Error(formatUserFacingError(data.error, "Could not load Cowork brief."));
+      setBrief({
+        generatedAt: data.generatedAt ?? new Date().toISOString(),
+        runnerPrompt: data.runnerPrompt ?? "",
+        missingIntentCount: data.missingIntentCount ?? 0,
+        instagram: data.instagram ?? [],
+        email: data.email ?? [],
+        facebook: data.facebook ?? [],
+        caps: data.caps ?? OUTREACH_COWORK_DAILY_CAPS,
+      });
+    } catch (e) {
+      setLocalError(formatUserFacingError(e, "Could not load Cowork brief."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <section className={`${adminPanelClass} p-4 sm:p-5`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <p className={adminLabelClass}>Cowork Brief</p>
+          <h2 className="text-lg font-black tracking-tight text-white">Autonomous Outreach Runner</h2>
+          <p className="max-w-2xl text-sm text-white/55">
+            Daily caps {OUTREACH_COWORK_DAILY_CAPS.instagram} Instagram / {OUTREACH_COWORK_DAILY_CAPS.email}{" "}
+            email. Agents pull the brief; JB only sends live DMs and emails. Set intent on every lead before
+            send.
+          </p>
+        </div>
+        <button
+          type="button"
+          className={adminAccentButtonClass}
+          disabled={loading}
+          onClick={() => void loadBrief()}
+        >
+          {loading ? "Loading…" : "Load Morning Brief"}
+        </button>
+      </div>
+      {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
+      {brief ? (
+        <div className="mt-4 space-y-3">
+          <p className="text-sm text-white/70">
+            Queue: {brief.instagram.length} IG · {brief.email.length} email · {brief.facebook.length} Facebook
+            {" · "}
+            {brief.missingIntentCount > 0
+              ? `${brief.missingIntentCount} missing intent`
+              : "All queued leads have intent"}
+            {" · "}
+            Generated {new Date(brief.generatedAt).toLocaleString()}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={adminSecondaryButtonClass}
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(brief.runnerPrompt);
+                  setCopied(true);
+                } catch {
+                  setLocalError("Could not copy runner prompt.");
+                }
+              }}
+            >
+              {copied ? "Copied" : "Copy Runner Prompt"}
+            </button>
+          </div>
+          <pre className="max-h-48 overflow-auto rounded-lg border border-white/[0.08] bg-[#0A0C10] p-3 text-[11px] leading-relaxed whitespace-pre-wrap text-white/70">
+            {brief.runnerPrompt}
+          </pre>
+        </div>
+      ) : null}
+    </section>
+  );
+}
 
 type AnyLead = InstagramLeadRow | FacebookLeadRow | EmailLeadRow;
 type OutreachView = OutreachPlatform | "hub" | "archive";
@@ -711,6 +821,9 @@ function HubLeadBubble(props: {
               {!props.expanded ? (
                 <p className="text-xs text-white/45">
                   {statusLabelForPlatform(props.lead.status, props.platform)}
+                  {props.platform !== "facebook" && "outreachIntent" in props.lead
+                    ? ` · Intent: ${outreachIntentLabel(props.lead.outreachIntent)}`
+                    : ""}
                 </p>
               ) : null}
               {props.expanded && props.linkHref ? (
@@ -728,6 +841,27 @@ function HubLeadBubble(props: {
             </div>
           </div>
           <div className="flex shrink-0 flex-col gap-2 sm:items-end">
+            {props.platform === "instagram" || props.platform === "email" ? (
+              <label className="flex w-full flex-col gap-1 sm:w-auto">
+                <span className="text-[10px] font-bold uppercase tracking-wide text-white/40">Intent</span>
+                <select
+                  className={`${adminInputClassSm} w-full sm:w-auto`}
+                  value={"outreachIntent" in props.lead ? (props.lead.outreachIntent ?? "") : ""}
+                  onChange={(e) =>
+                    void props.onUpdate({
+                      outreachIntent: e.target.value === "" ? null : e.target.value,
+                    })
+                  }
+                >
+                  <option value="">Select intent…</option>
+                  {OUTREACH_INTENT_OPTIONS.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             <select
               className={`${adminInputClassSm} w-full sm:w-auto`}
               value={props.lead.status}
@@ -1925,17 +2059,23 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
   };
 
   const saveLeadToHub = async (id: string, platform: OutreachPlatform = coldTab) => {
-    const res = await fetch(`/api/admin/outreach/leads/${id}`, {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ platform, saveToHub: true }),
-    });
-    if (!res.ok) throw new Error("Save failed.");
-    setSuccessMessage("Saved to Outreach Hub.");
-    await loadHubEntries({ silent: true });
-    if (tab !== "hub") {
-      await loadLeads(coldTab, { silent: true });
+    try {
+      const res = await fetch(`/api/admin/outreach/leads/${id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ platform, saveToHub: true }),
+      });
+      const data = await readJsonResponse<{ error?: string }>(res);
+      if (!res.ok) throw new Error(formatUserFacingError(data.error, "Save failed."));
+      setSuccessMessage("Saved to Outreach Hub.");
+      await loadHubEntries({ silent: true });
+      if (tab !== "hub") {
+        await loadLeads(coldTab, { silent: true });
+      }
+    } catch (e) {
+      setError(formatUserFacingError(e, "Could not save lead to Outreach Hub."));
+      throw e;
     }
   };
 
@@ -2148,6 +2288,8 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
         {schemaRepairMessage ? <AdminPortalAlert variant="info">{schemaRepairMessage}</AdminPortalAlert> : null}
 
         <MarketingPlaybookStepBanner currentStepId="outreach_dms" />
+
+        <CoworkBriefPanel />
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <OutreachHubMetricStatCard

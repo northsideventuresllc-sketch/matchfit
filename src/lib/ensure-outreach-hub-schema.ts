@@ -18,6 +18,8 @@ export const OUTREACH_FOLLOW_UP_COPY_COLUMNS = [
   { table: "outreach_email_leads", column: "followUp1EmailSubject" },
 ] as const;
 
+export const OUTREACH_INTENT_COLUMN = "outreachIntent";
+
 /** True when Postgres/Prisma reports outreach hub columns or tables are absent. */
 export function isMissingOutreachHubSchemaError(e: unknown): boolean {
   const message = e instanceof Error ? e.message : String(e);
@@ -26,6 +28,7 @@ export function isMissingOutreachHubSchemaError(e: unknown): boolean {
   }
   const mentionsOutreachColumn =
     message.includes(OUTREACH_HUB_SAVED_AT_COLUMN) ||
+    message.includes(OUTREACH_INTENT_COLUMN) ||
     OUTREACH_ARCHIVE_COLUMNS.some((column) => message.includes(column)) ||
     OUTREACH_FOLLOW_UP_COPY_COLUMNS.some(({ column }) => message.includes(column));
   if (
@@ -269,6 +272,15 @@ ALTER TABLE "outreach_email_leads"
   ADD COLUMN IF NOT EXISTS "followUp2EmailBody" TEXT NOT NULL DEFAULT '';
 `;
 
+const OUTREACH_INTENT_DDL = `
+ALTER TABLE "outreach_instagram_leads"
+  ADD COLUMN IF NOT EXISTS "outreachIntent" TEXT;
+ALTER TABLE "outreach_facebook_leads"
+  ADD COLUMN IF NOT EXISTS "outreachIntent" TEXT;
+ALTER TABLE "outreach_email_leads"
+  ADD COLUMN IF NOT EXISTS "outreachIntent" TEXT;
+`;
+
 async function countOutreachFollowUpCopyColumns(): Promise<number> {
   const rows = await prisma.$queryRaw<{ count: bigint }[]>`
     SELECT COUNT(*)::bigint AS "count"
@@ -278,6 +290,21 @@ async function countOutreachFollowUpCopyColumns(): Promise<number> {
         (table_name = 'outreach_instagram_leads' AND column_name = 'followUp1DmText')
         OR (table_name = 'outreach_email_leads' AND column_name = 'followUp1EmailSubject')
       )
+  `;
+  return Number(rows[0]?.count ?? 0);
+}
+
+async function countOutreachIntentColumns(): Promise<number> {
+  const rows = await prisma.$queryRaw<{ count: bigint }[]>`
+    SELECT COUNT(*)::bigint AS "count"
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name IN (
+        'outreach_instagram_leads',
+        'outreach_facebook_leads',
+        'outreach_email_leads'
+      )
+      AND column_name = 'outreachIntent'
   `;
   return Number(rows[0]?.count ?? 0);
 }
@@ -327,16 +354,24 @@ export async function ensureOutreachHubSchema(): Promise<void> {
     }
   }
 
-  if ((await countOutreachFollowUpCopyColumns()) >= 2) {
-    return;
+  if ((await countOutreachFollowUpCopyColumns()) < 2) {
+    await runOutreachDdl(OUTREACH_FOLLOW_UP_COPY_DDL);
+
+    const followUpReady = await countOutreachFollowUpCopyColumns();
+    if (followUpReady < 2) {
+      throw new Error(
+        `[ensureOutreachHubSchema] follow-up copy columns still missing after DDL (${followUpReady}/2). Set DIRECT_URL on the server and redeploy.`,
+      );
+    }
   }
 
-  await runOutreachDdl(OUTREACH_FOLLOW_UP_COPY_DDL);
-
-  const followUpReady = await countOutreachFollowUpCopyColumns();
-  if (followUpReady < 2) {
-    throw new Error(
-      `[ensureOutreachHubSchema] follow-up copy columns still missing after DDL (${followUpReady}/2). Set DIRECT_URL on the server and redeploy.`,
-    );
+  if ((await countOutreachIntentColumns()) < OUTREACH_LEAD_TABLES.length) {
+    await runOutreachDdl(OUTREACH_INTENT_DDL);
+    const intentReady = await countOutreachIntentColumns();
+    if (intentReady < OUTREACH_LEAD_TABLES.length) {
+      throw new Error(
+        `[ensureOutreachHubSchema] outreachIntent columns still missing after DDL (${intentReady}/${OUTREACH_LEAD_TABLES.length}). Set DIRECT_URL on the server and redeploy.`,
+      );
+    }
   }
 }

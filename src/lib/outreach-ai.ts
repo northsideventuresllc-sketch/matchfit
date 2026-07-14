@@ -26,8 +26,16 @@ import {
 } from "@/lib/outreach-templates";
 import type { OutreachPlatform, OutreachTargetGroup } from "@/lib/outreach-types";
 import { prisma } from "@/lib/prisma";
+import {
+  OUTREACH_COWORK_DAILY_CAPS,
+  OUTREACH_COWORK_EMAIL_BCC,
+  OUTREACH_COWORK_EMAIL_FROM,
+  buildCoworkBriefInstructions,
+  buildCoworkRunnerPrompt,
+} from "@/lib/outreach-cowork";
 
-const OUTREACH_AI_MAX_ATTEMPTS = 2;
+/** Extra passes help recover from verification rejects / short JSON arrays (IG underfill). */
+const OUTREACH_AI_MAX_ATTEMPTS = 4;
 const ANTHROPIC_OUTREACH_TIMEOUT_MS = 180_000;
 
 export type GeneratedInstagramLead = {
@@ -341,7 +349,7 @@ export async function generateOutreachLeads(args: {
     savedLeads = [...savedLeads, ...saved.leads];
     exclusions = [...exclusions, ...collectExclusionsFromLeads(args.platform, saved.leads)];
 
-    if (saved.leads.length >= remaining) break;
+    if (savedLeads.length >= targetCount) break;
 
     if ((saved.verification?.parsed ?? 0) === 0) {
       rejectionFeedback =
@@ -349,8 +357,10 @@ export async function generateOutreachLeads(args: {
       continue;
     }
 
-    rejectionFeedback = buildRejectionFeedback(args.platform, saved.verification);
-    if (!rejectionFeedback) break;
+    const stillNeed = targetCount - savedLeads.length;
+    rejectionFeedback =
+      buildRejectionFeedback(args.platform, saved.verification) ||
+      `You returned fewer accepted leads than requested. Saved ${saved.leads.length} this pass; still need ${stillNeed} NEW US fitness pros not in the exclusion list. Return exactly ${stillNeed} additional lead object(s) as a raw JSON array.`;
   }
 
   const verification = lastVerification;
@@ -773,39 +783,44 @@ function clampScore(n: number | undefined): number {
 export async function buildCoworkMorningBrief(): Promise<{
   generatedAt: string;
   instructions: string;
+  runnerPrompt: string;
+  caps: typeof OUTREACH_COWORK_DAILY_CAPS;
+  emailFrom: string;
+  emailBcc: readonly string[];
+  missingIntentCount: number;
   instagram: unknown[];
   facebook: unknown[];
   email: unknown[];
 }> {
   const [ig, fb, em] = await Promise.all([
     prisma.outreachInstagramLead.findMany({
-      where: { deletedAt: null, status: "LEAD" },
-      orderBy: { createdAt: "desc" },
-      take: 50,
+      where: { deletedAt: null, status: "LEAD", archivedAt: null },
+      orderBy: [{ savedToHubAt: "desc" }, { createdAt: "desc" }],
+      take: OUTREACH_COWORK_DAILY_CAPS.instagram,
     }),
     prisma.outreachFacebookLead.findMany({
-      where: { deletedAt: null, status: "LEAD" },
-      orderBy: { createdAt: "desc" },
-      take: 20,
+      where: { deletedAt: null, status: "LEAD", archivedAt: null },
+      orderBy: [{ savedToHubAt: "desc" }, { createdAt: "desc" }],
+      take: OUTREACH_COWORK_DAILY_CAPS.facebook,
     }),
     prisma.outreachEmailLead.findMany({
-      where: { deletedAt: null, status: "LEAD" },
-      orderBy: { createdAt: "desc" },
-      take: 30,
+      where: { deletedAt: null, status: "LEAD", archivedAt: null },
+      orderBy: [{ savedToHubAt: "desc" }, { createdAt: "desc" }],
+      take: OUTREACH_COWORK_DAILY_CAPS.email,
     }),
   ]);
 
+  const generatedAt = new Date().toISOString();
+  const missingIntentCount = [...ig, ...em].filter((row) => !row.outreachIntent).length;
+
   return {
-    generatedAt: new Date().toISOString(),
-    instructions: [
-      "Claude Cowork morning workflow:",
-      "1. Open /admin/outreach and review today's Lead-status bubbles.",
-      "2. Instagram: open profile URL in a tab, send DM (dmText), post comment (commentText) on commentPostRef.",
-      "3. Facebook: post pagePostText on pageUrl.",
-      "4. Email: send emailBody with emailSubject.",
-      "5. PATCH each lead status via /api/admin/outreach/leads/[id] when complete.",
-      "6. Edit copy in the UI before sending if needed — edits train the next generation.",
-    ].join("\n"),
+    generatedAt,
+    instructions: buildCoworkBriefInstructions(),
+    runnerPrompt: buildCoworkRunnerPrompt(generatedAt),
+    caps: OUTREACH_COWORK_DAILY_CAPS,
+    emailFrom: OUTREACH_COWORK_EMAIL_FROM,
+    emailBcc: OUTREACH_COWORK_EMAIL_BCC,
+    missingIntentCount,
     instagram: ig,
     facebook: fb,
     email: em,

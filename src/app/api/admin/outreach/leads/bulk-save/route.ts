@@ -38,39 +38,49 @@ export async function POST(req: Request) {
 
   try {
     const where = { ...buildMassSaveOutreachWhere(input), savedToHubAt: null };
+
+    // Snapshot rows before save so learning signals still have full profiles.
+    type SignalRow = { id: string; profile: ReturnType<typeof leadProfileForPlatform> };
+    const signalRows: SignalRow[] = [];
+
     if (outreachPlatform === "instagram") {
       const rows = await prisma.outreachInstagramLead.findMany({ where });
       for (const row of rows) {
-        await recordOutreachSavedToHubSignal({
-          platform: "instagram",
-          leadId: row.id,
-          adminId: sess.adminId,
+        signalRows.push({
+          id: row.id,
           profile: leadProfileForPlatform("instagram", row),
         });
       }
     } else if (outreachPlatform === "facebook") {
       const rows = await prisma.outreachFacebookLead.findMany({ where });
       for (const row of rows) {
-        await recordOutreachSavedToHubSignal({
-          platform: "facebook",
-          leadId: row.id,
-          adminId: sess.adminId,
+        signalRows.push({
+          id: row.id,
           profile: leadProfileForPlatform("facebook", row),
         });
       }
     } else if (outreachPlatform === "email") {
       const rows = await prisma.outreachEmailLead.findMany({ where });
       for (const row of rows) {
-        await recordOutreachSavedToHubSignal({
-          platform: "email",
-          leadId: row.id,
-          adminId: sess.adminId,
+        signalRows.push({
+          id: row.id,
           profile: leadProfileForPlatform("email", row),
         });
       }
     }
 
+    // Hub write first — email save-path drop previously happened when signals ran before persist.
     const { savedCount } = await massSaveOutreachLeadsToHub(outreachPlatform, input);
+
+    for (const row of signalRows) {
+      await recordOutreachSavedToHubSignal({
+        platform: outreachPlatform,
+        leadId: row.id,
+        adminId: sess.adminId,
+        profile: row.profile,
+      });
+    }
+
     return NextResponse.json({ ok: true, savedCount });
   } catch (e) {
     console.error("[outreach leads bulk-save]", e);

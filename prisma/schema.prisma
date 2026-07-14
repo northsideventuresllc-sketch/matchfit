@@ -2289,6 +2289,8 @@ model OutreachInstagramLead {
   followUp2DmText  String   @default("")
   commentPostRef   String?
   genericInviteTail String?
+  /// LIST_WITH_US | JOIN_AS_FP | BOTH — required before live send (Cowork SOP)
+  outreachIntent   String?
 
   /// LEAD | OUTREACH_SENT | FOLLOW_UP_1 | FOLLOW_UP_2 | RESPONSE_RECEIVED
   status           String   @default("LEAD")
@@ -2336,6 +2338,8 @@ model OutreachFacebookLead {
 
   pagePostText     String
   genericInviteTail String?
+  /// LIST_WITH_US | JOIN_AS_FP | BOTH (optional on Facebook posts)
+  outreachIntent   String?
 
   status           String   @default("LEAD")
   autoClassification String @default("ACTIVE_LEAD")
@@ -2383,6 +2387,8 @@ model OutreachEmailLead {
   followUp2EmailSubject String @default("")
   followUp2EmailBody    String @default("")
   genericInviteTail String?
+  /// LIST_WITH_US | JOIN_AS_FP | BOTH — required before live send (Cowork SOP)
+  outreachIntent   String?
 
   status           String   @default("LEAD")
   autoClassification String @default("ACTIVE_LEAD")

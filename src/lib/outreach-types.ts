@@ -74,6 +74,8 @@ export type InstagramLeadRow = {
   followUp2DmText: string;
   commentPostRef: string | null;
   genericInviteTail: string | null;
+  /** LIST_WITH_US | JOIN_AS_FP | BOTH — required before live send */
+  outreachIntent: string | null;
   status: string;
   autoClassification: string;
   outreachSentAt: string | null;
@@ -103,6 +105,7 @@ export type FacebookLeadRow = {
   notes: string | null;
   pagePostText: string;
   genericInviteTail: string | null;
+  outreachIntent: string | null;
   status: string;
   autoClassification: string;
   outreachSentAt: string | null;
@@ -135,6 +138,8 @@ export type EmailLeadRow = {
   followUp2EmailSubject: string;
   followUp2EmailBody: string;
   genericInviteTail: string | null;
+  /** LIST_WITH_US | JOIN_AS_FP | BOTH — required before live send */
+  outreachIntent: string | null;
   status: string;
   autoClassification: string;
   outreachSentAt: string | null;
