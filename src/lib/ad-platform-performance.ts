@@ -5,10 +5,28 @@ import { googleAdsConversionSendTo } from "@/lib/google-ads";
 import { isPrismaMissingColumnError, isPrismaMissingTableError } from "@/lib/prisma-missing-column";
 import { prisma } from "@/lib/prisma";
 
+/** Meta Marketing API Graph version used for Insights spend sync. */
+export const META_ADS_GRAPH_VERSION = "v21.0";
+
+export type AdPlatformSpendSyncStatus =
+  | "not_configured"
+  | "credentials_present"
+  | "insights_ok"
+  | "insights_error";
+
 export type AdPlatformIntegrationStatus = {
   platform: AdPlatform;
+  /** True when required env vars are set — not proof that spend Insights works. */
   configured: boolean;
   missingEnv: string[];
+  /**
+   * Spend sync readiness. For Meta, `insights_ok` only after Insights returns costs
+   * (System User needs `ads_read` on the correct `act_` ad account). Env alone is
+   * `credentials_present`.
+   */
+  spendSyncStatus: AdPlatformSpendSyncStatus;
+  /** Operator-facing detail (account id display, Insights error). Never includes tokens. */
+  spendSyncDetail: string | null;
 };
 
 export type ServerConversionIntegrationStatus = {
@@ -86,7 +104,44 @@ function daysAgoEastern(dayCount: number): string {
   return easternDayKey(d);
 }
 
-export function getAdPlatformIntegrationStatus(): AdPlatformIntegrationStatus[] {
+/** Normalize Meta ad account id to digits + `act_` form (accepts either). */
+export function normalizeMetaAdAccountId(raw: string): { numericId: string; actId: string } | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const numericId = trimmed.replace(/^act_/i, "").replace(/\s+/g, "");
+  if (!/^\d{5,20}$/.test(numericId)) return null;
+  return { numericId, actId: `act_${numericId}` };
+}
+
+export function formatMetaInsightsOperatorError(message: string): string {
+  const base = message.trim() || "Meta Insights request failed.";
+  const lower = base.toLowerCase();
+  if (
+    lower.includes("ads_read") ||
+    lower.includes("permission") ||
+    lower.includes("(#100)") ||
+    lower.includes("(#200)") ||
+    lower.includes("api access blocked") ||
+    lower.includes("does not have permission") ||
+    lower.includes("missing permission")
+  ) {
+    return (
+      `${base} Use a Meta Business System User token with ads_read assigned to the correct ` +
+      `ad account (META_AD_ACCOUNT_ID as act_… from Ads Manager). Env present / “API connected” is not enough — Insights must return spend.`
+    );
+  }
+  if (lower.includes("invalid") && (lower.includes("account") || lower.includes("act_"))) {
+    return (
+      `${base} Check META_AD_ACCOUNT_ID matches the Ads Manager account that is actually spending ` +
+      `(act_… form or digits). Pixel/CAPI tokens are separate from ads Insights.`
+    );
+  }
+  return base;
+}
+
+export function getAdPlatformIntegrationStatus(options?: {
+  metaInsights?: { ok: boolean; detail: string | null } | null;
+}): AdPlatformIntegrationStatus[] {
   const metaMissing: string[] = [];
   if (!process.env.META_ADS_ACCESS_TOKEN?.trim()) metaMissing.push("META_ADS_ACCESS_TOKEN");
   if (!process.env.META_AD_ACCOUNT_ID?.trim()) metaMissing.push("META_AD_ACCOUNT_ID");
@@ -102,10 +157,62 @@ export function getAdPlatformIntegrationStatus(): AdPlatformIntegrationStatus[] 
   if (!process.env.TIKTOK_ADS_ACCESS_TOKEN?.trim()) tiktokMissing.push("TIKTOK_ADS_ACCESS_TOKEN");
   if (!process.env.TIKTOK_ADS_ADVERTISER_ID?.trim()) tiktokMissing.push("TIKTOK_ADS_ADVERTISER_ID");
 
+  const metaConfigured = metaMissing.length === 0;
+  const metaAccount = process.env.META_AD_ACCOUNT_ID?.trim()
+    ? normalizeMetaAdAccountId(process.env.META_AD_ACCOUNT_ID)
+    : null;
+  let metaSpend: AdPlatformSpendSyncStatus = "not_configured";
+  let metaDetail: string | null = null;
+  if (metaConfigured) {
+    if (options?.metaInsights?.ok) {
+      metaSpend = "insights_ok";
+      metaDetail =
+        options.metaInsights.detail ??
+        (metaAccount
+          ? `Insights OK for ${metaAccount.actId} (spend sync ready).`
+          : "Insights OK (spend sync ready).");
+    } else if (options?.metaInsights && !options.metaInsights.ok) {
+      metaSpend = "insights_error";
+      metaDetail = options.metaInsights.detail;
+    } else {
+      metaSpend = "credentials_present";
+      metaDetail = metaAccount
+        ? `Credentials set for ${metaAccount.actId}. Run Sync now — Insights must return costs (System User ads_read).`
+        : "Credentials set. Run Sync now — Insights must return costs (System User ads_read). Check META_AD_ACCOUNT_ID format (act_…).";
+    }
+  }
+
+  const envOnlyStatus = (configured: boolean): Pick<
+    AdPlatformIntegrationStatus,
+    "spendSyncStatus" | "spendSyncDetail"
+  > =>
+    configured
+      ? {
+          spendSyncStatus: "credentials_present",
+          spendSyncDetail: "Credentials set. Sync to confirm spend reporting.",
+        }
+      : { spendSyncStatus: "not_configured", spendSyncDetail: null };
+
   return [
-    { platform: "meta", configured: metaMissing.length === 0, missingEnv: metaMissing },
-    { platform: "google", configured: googleMissing.length === 0, missingEnv: googleMissing },
-    { platform: "tiktok", configured: tiktokMissing.length === 0, missingEnv: tiktokMissing },
+    {
+      platform: "meta",
+      configured: metaConfigured,
+      missingEnv: metaMissing,
+      spendSyncStatus: metaSpend,
+      spendSyncDetail: metaDetail,
+    },
+    {
+      platform: "google",
+      configured: googleMissing.length === 0,
+      missingEnv: googleMissing,
+      ...envOnlyStatus(googleMissing.length === 0),
+    },
+    {
+      platform: "tiktok",
+      configured: tiktokMissing.length === 0,
+      missingEnv: tiktokMissing,
+      ...envOnlyStatus(tiktokMissing.length === 0),
+    },
   ];
 }
 
@@ -144,6 +251,91 @@ export function parseMetaConversions(actions: unknown): number {
   return total;
 }
 
+type MetaInsightsRow = {
+  impressions?: string;
+  clicks?: string;
+  spend?: string;
+  actions?: unknown;
+  date_start?: string;
+  date_stop?: string;
+};
+
+type MetaInsightsResponse = {
+  data?: MetaInsightsRow[];
+  error?: { message?: string; code?: number; type?: string; error_user_msg?: string };
+};
+
+function metaInsightsUrl(actId: string, dayKey: string, token: string): URL {
+  const timeRange = JSON.stringify({ since: dayKey, until: dayKey });
+  const url = new URL(`https://graph.facebook.com/${META_ADS_GRAPH_VERSION}/${actId}/insights`);
+  url.searchParams.set("fields", "impressions,clicks,spend,actions");
+  url.searchParams.set("time_range", timeRange);
+  url.searchParams.set("time_increment", "1");
+  url.searchParams.set("level", "account");
+  url.searchParams.set("access_token", token);
+  return url;
+}
+
+/**
+ * Probes Marketing API Insights for spend (not just account metadata).
+ * Account `GET /act_…` succeeding is insufficient — System User needs `ads_read`.
+ */
+export async function probeMetaInsightsAccess(dayKey = easternDayKey()): Promise<{
+  ok: boolean;
+  actId: string | null;
+  spendCents: number | null;
+  detail: string;
+}> {
+  const token = process.env.META_ADS_ACCESS_TOKEN?.trim();
+  const accountRaw = process.env.META_AD_ACCOUNT_ID?.trim();
+  if (!token || !accountRaw) {
+    return {
+      ok: false,
+      actId: null,
+      spendCents: null,
+      detail: "META_ADS_ACCESS_TOKEN and META_AD_ACCOUNT_ID are required for Insights spend sync.",
+    };
+  }
+
+  const account = normalizeMetaAdAccountId(accountRaw);
+  if (!account) {
+    return {
+      ok: false,
+      actId: null,
+      spendCents: null,
+      detail: formatMetaInsightsOperatorError(
+        `Invalid META_AD_ACCOUNT_ID "${accountRaw}". Use the Ads Manager act_… id (digits or act_ prefix).`,
+      ),
+    };
+  }
+
+  const url = metaInsightsUrl(account.actId, dayKey, token);
+  const res = await fetch(url.toString(), { cache: "no-store" });
+  const json = (await res.json()) as MetaInsightsResponse;
+
+  if (!res.ok || json.error) {
+    const msg = json.error?.message ?? json.error?.error_user_msg ?? `Meta insights HTTP ${res.status}`;
+    return {
+      ok: false,
+      actId: account.actId,
+      spendCents: null,
+      detail: formatMetaInsightsOperatorError(msg),
+    };
+  }
+
+  // Empty data for a quiet day is still a successful Insights read (spend = 0).
+  const row = json.data?.[0];
+  const spendUsd = Number.parseFloat(row?.spend ?? "0") || 0;
+  const spendCents = Math.round(spendUsd * 100);
+
+  return {
+    ok: true,
+    actId: account.actId,
+    spendCents,
+    detail: `Insights returned costs for ${account.actId} on ${dayKey} (spend $${(spendCents / 100).toFixed(2)}).`,
+  };
+}
+
 export async function fetchMetaDailySnapshot(dayKey: string): Promise<{
   impressions: number;
   clicks: number;
@@ -155,27 +347,22 @@ export async function fetchMetaDailySnapshot(dayKey: string): Promise<{
   const accountRaw = process.env.META_AD_ACCOUNT_ID?.trim();
   if (!token || !accountRaw) return null;
 
-  const accountId = accountRaw.replace(/^act_/, "");
-  const timeRange = JSON.stringify({ since: dayKey, until: dayKey });
-  const url = new URL(`https://graph.facebook.com/v21.0/act_${accountId}/insights`);
-  url.searchParams.set("fields", "impressions,clicks,spend,actions");
-  url.searchParams.set("time_range", timeRange);
-  url.searchParams.set("time_increment", "1");
-  url.searchParams.set("access_token", token);
+  const account = normalizeMetaAdAccountId(accountRaw);
+  if (!account) {
+    throw new Error(
+      formatMetaInsightsOperatorError(
+        `Invalid META_AD_ACCOUNT_ID "${accountRaw}". Use the Ads Manager act_… id (digits or act_ prefix).`,
+      ),
+    );
+  }
 
+  const url = metaInsightsUrl(account.actId, dayKey, token);
   const res = await fetch(url.toString(), { cache: "no-store" });
-  const json = (await res.json()) as {
-    data?: Array<{
-      impressions?: string;
-      clicks?: string;
-      spend?: string;
-      actions?: unknown;
-    }>;
-    error?: { message?: string };
-  };
+  const json = (await res.json()) as MetaInsightsResponse;
 
   if (!res.ok || json.error) {
-    throw new Error(json.error?.message ?? `Meta insights HTTP ${res.status}`);
+    const msg = json.error?.message ?? json.error?.error_user_msg ?? `Meta insights HTTP ${res.status}`;
+    throw new Error(formatMetaInsightsOperatorError(msg));
   }
 
   const row = json.data?.[0];
@@ -531,9 +718,24 @@ export async function getAdPerformancePanel(windowDays = 7): Promise<AdPerforman
     if (!isPrismaMissingColumnError(e, "utmSource")) throw e;
   }
 
+  let metaInsights: { ok: boolean; detail: string | null } | null = null;
+  if (process.env.META_ADS_ACCESS_TOKEN?.trim() && process.env.META_AD_ACCOUNT_ID?.trim()) {
+    try {
+      const probe = await probeMetaInsightsAccess(daysAgoEastern(1));
+      metaInsights = { ok: probe.ok, detail: probe.detail };
+    } catch (e) {
+      metaInsights = {
+        ok: false,
+        detail: formatMetaInsightsOperatorError(
+          e instanceof Error ? e.message : "Meta Insights probe failed.",
+        ),
+      };
+    }
+  }
+
   return {
     windowDays: days,
-    integrations: getAdPlatformIntegrationStatus(),
+    integrations: getAdPlatformIntegrationStatus({ metaInsights }),
     googleConversionLabels: {
       clientSignup: googleAdsConversionSendTo("client_signup"),
       trainerSignup: googleAdsConversionSendTo("trainer_signup"),

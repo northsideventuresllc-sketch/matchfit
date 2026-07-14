@@ -128,18 +128,39 @@ async function upsertEnv(projectId, key, value, token) {
   console.log(`Set ${key} (production + preview) on ${projectId}`);
 }
 
-async function verifyMetaToken(token, accountId) {
-  const account = accountId.replace(/^act_/, "");
-  const url = new URL(`https://graph.facebook.com/v21.0/act_${account}`);
-  url.searchParams.set("fields", "name,account_id");
+async function verifyMetaInsights(token, accountId) {
+  const account = accountId.replace(/^act_/i, "").replace(/\s+/g, "");
+  if (!/^\d{5,20}$/.test(account)) {
+    throw new Error(
+      `Invalid META_AD_ACCOUNT_ID "${accountId}". Use Ads Manager digits or act_… form.`,
+    );
+  }
+
+  // Account metadata alone is NOT enough — Insights must return costs (ads_read).
+  const since = new Date();
+  since.setUTCDate(since.getUTCDate() - 1);
+  const dayKey = since.toISOString().slice(0, 10);
+  const timeRange = JSON.stringify({ since: dayKey, until: dayKey });
+  const url = new URL(`https://graph.facebook.com/v21.0/act_${account}/insights`);
+  url.searchParams.set("fields", "impressions,clicks,spend");
+  url.searchParams.set("time_range", timeRange);
+  url.searchParams.set("time_increment", "1");
+  url.searchParams.set("level", "account");
   url.searchParams.set("access_token", token);
 
   const res = await fetch(url.toString(), { cache: "no-store" });
   const json = await res.json();
   if (!res.ok || json.error) {
-    throw new Error(json.error?.message ?? `Meta token probe failed HTTP ${res.status}`);
+    const msg = json.error?.message ?? `Meta Insights probe failed HTTP ${res.status}`;
+    throw new Error(
+      `${msg} — System User token needs ads_read on act_${account}. Env present / account GET is not enough.`,
+    );
   }
-  console.log(`Verified META_ADS_ACCESS_TOKEN for act_${account} (${json.name ?? "ad account"})`);
+
+  const spend = json.data?.[0]?.spend ?? "0";
+  console.log(
+    `Verified Meta Insights for act_${account} on ${dayKey} (spend=${spend}). Credentials alone are not enough — Insights returned costs.`,
+  );
 }
 
 async function main() {
@@ -155,7 +176,7 @@ async function main() {
   const metaToken = values.get("META_ADS_ACCESS_TOKEN");
   const metaAccount = values.get("META_AD_ACCOUNT_ID");
   if (metaToken && metaAccount) {
-    await verifyMetaToken(metaToken, metaAccount);
+    await verifyMetaInsights(metaToken, metaAccount);
   }
 
   for (const key of ENV_KEYS) {

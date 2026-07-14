@@ -830,9 +830,15 @@ export function AutomatedEmailStatsSection({ panel }: { panel: AdminEmailStatsPa
 }
 
 export function AdPerformanceSection({ panel }: { panel: AdPerformancePanel }) {
-  const metaConfigured = panel.integrations.find((i) => i.platform === "meta")?.configured ?? false;
-  const googleConfigured = panel.integrations.find((i) => i.platform === "google")?.configured ?? false;
-  const tiktokConfigured = panel.integrations.find((i) => i.platform === "tiktok")?.configured ?? false;
+  const meta = panel.integrations.find((i) => i.platform === "meta");
+  const google = panel.integrations.find((i) => i.platform === "google");
+  const tiktok = panel.integrations.find((i) => i.platform === "tiktok");
+  const syncLabel = (status: string | undefined, configured: boolean | undefined) => {
+    if (status === "insights_ok") return "Insights spend ready";
+    if (status === "insights_error") return "Insights error";
+    if (status === "credentials_present" || configured) return "credentials set (not Insights-verified)";
+    return "not configured";
+  };
 
   return (
     <MetricsSection
@@ -847,13 +853,14 @@ export function AdPerformanceSection({ panel }: { panel: AdPerformancePanel }) {
         <StatCard label="UTM signup views" value={panel.totals.attributedSignupViews} />
       </div>
       <p className="mt-4 text-[11px] text-white/45">
-        API sync: Meta {metaConfigured ? "connected" : "not configured"} · Google{" "}
-        {googleConfigured ? "connected" : "not configured"} · TikTok{" "}
-        {tiktokConfigured ? "connected" : "not configured"}.{" "}
+        API sync: Meta {syncLabel(meta?.spendSyncStatus, meta?.configured)} · Google{" "}
+        {syncLabel(google?.spendSyncStatus, google?.configured)} · TikTok{" "}
+        {syncLabel(tiktok?.spendSyncStatus, tiktok?.configured)}.{" "}
         <Link href="/admin/ad-tracking" className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
           Open Ad Tracking HQ
         </Link>{" "}
-        to build campaign URLs and run a manual sync.
+        to build campaign URLs and run a manual sync. Meta spend requires Insights costs (System User ads_read + correct
+        act_ account) — credentials alone are not enough.
       </p>
       {panel.attribution.length > 0 ? (
         <ul className="mt-4 space-y-1 text-[11px] text-white/50">
