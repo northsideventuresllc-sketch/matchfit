@@ -18,11 +18,18 @@ import {
   INSTAGRAM_EMAIL_STATUS_VALUES,
   OUTREACH_PLATFORM_VALUES,
 } from "@/lib/outreach-types";
+import {
+  isOutreachIntent,
+  outreachSendRequiresIntent,
+} from "@/lib/outreach-cowork";
 
 const patchSchema = z
   .object({
     platform: z.enum(OUTREACH_PLATFORM_VALUES),
     status: z.string().optional(),
+    outreachIntent: z
+      .union([z.enum(["LIST_WITH_US", "JOIN_AS_FP", "BOTH"]), z.null()])
+      .optional(),
     dmText: z.string().max(8000).optional(),
     commentText: z.string().max(2000).optional(),
     followUp1DmText: z.string().max(8000).optional(),
@@ -66,6 +73,20 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     if (platform === "instagram") {
       const existing = await prisma.outreachInstagramLead.findUnique({ where: { id } });
       if (!existing) return NextResponse.json({ error: "Not found." }, { status: 404 });
+      const nextIntent =
+        patch.outreachIntent === undefined ? existing.outreachIntent : patch.outreachIntent;
+      if (
+        outreachSendRequiresIntent(platform, patch.status) &&
+        !isOutreachIntent(nextIntent)
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Set outreach intent (List With Us, Join as Fitness Pro, or Both) before marking outreach sent.",
+          },
+          { status: 400 },
+        );
+      }
       if (patch.dmText && patch.dmText !== existing.dmText) {
         await recordOutreachEditSignal({
           platform: "instagram",
@@ -88,14 +109,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         });
         (patch as Record<string, unknown>).commentTextEdited = true;
       }
-      if (patch.saveToHub === true && !existing.savedToHubAt) {
-        await recordOutreachSavedToHubSignal({
-          platform: "instagram",
-          leadId: id,
-          adminId: sess.adminId,
-          profile: leadProfileForPlatform("instagram", existing),
-        });
-      }
       if (patch.status === "DEAD_LEAD" && existing.status !== "DEAD_LEAD") {
         await recordOutreachDeadLeadSignal({
           platform: "instagram",
@@ -104,6 +117,18 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           profile: leadProfileForPlatform("instagram", { ...existing, status: "DEAD_LEAD" }),
         });
       }
+
+      const updated = await updateOutreachLead(platform as OutreachPlatform, id, patch);
+      if (!updated) return NextResponse.json({ error: "Not found." }, { status: 404 });
+      if (patch.saveToHub === true && !existing.savedToHubAt) {
+        await recordOutreachSavedToHubSignal({
+          platform: "instagram",
+          leadId: id,
+          adminId: sess.adminId,
+          profile: leadProfileForPlatform("instagram", existing),
+        });
+      }
+      return NextResponse.json({ lead: updated });
     } else if (platform === "facebook") {
       const existing = await prisma.outreachFacebookLead.findUnique({ where: { id } });
       if (!existing) return NextResponse.json({ error: "Not found." }, { status: 404 });
@@ -118,14 +143,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         });
         (patch as Record<string, unknown>).pagePostTextEdited = true;
       }
-      if (patch.saveToHub === true && !existing.savedToHubAt) {
-        await recordOutreachSavedToHubSignal({
-          platform: "facebook",
-          leadId: id,
-          adminId: sess.adminId,
-          profile: leadProfileForPlatform("facebook", existing),
-        });
-      }
       if (patch.status === "DEAD_LEAD" && existing.status !== "DEAD_LEAD") {
         await recordOutreachDeadLeadSignal({
           platform: "facebook",
@@ -134,9 +151,35 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           profile: leadProfileForPlatform("facebook", { ...existing, status: "DEAD_LEAD" }),
         });
       }
+
+      const updated = await updateOutreachLead(platform as OutreachPlatform, id, patch);
+      if (!updated) return NextResponse.json({ error: "Not found." }, { status: 404 });
+      if (patch.saveToHub === true && !existing.savedToHubAt) {
+        await recordOutreachSavedToHubSignal({
+          platform: "facebook",
+          leadId: id,
+          adminId: sess.adminId,
+          profile: leadProfileForPlatform("facebook", existing),
+        });
+      }
+      return NextResponse.json({ lead: updated });
     } else if (platform === "email") {
       const existing = await prisma.outreachEmailLead.findUnique({ where: { id } });
       if (!existing) return NextResponse.json({ error: "Not found." }, { status: 404 });
+      const nextIntent =
+        patch.outreachIntent === undefined ? existing.outreachIntent : patch.outreachIntent;
+      if (
+        outreachSendRequiresIntent(platform, patch.status) &&
+        !isOutreachIntent(nextIntent)
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Set outreach intent (List With Us, Join as Fitness Pro, or Both) before marking outreach sent.",
+          },
+          { status: 400 },
+        );
+      }
       if (patch.emailBody && patch.emailBody !== existing.emailBody) {
         await recordOutreachEditSignal({
           platform: "email",
@@ -148,14 +191,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         });
         (patch as Record<string, unknown>).emailBodyEdited = true;
       }
-      if (patch.saveToHub === true && !existing.savedToHubAt) {
-        await recordOutreachSavedToHubSignal({
-          platform: "email",
-          leadId: id,
-          adminId: sess.adminId,
-          profile: leadProfileForPlatform("email", existing),
-        });
-      }
       if (patch.status === "DEAD_LEAD" && existing.status !== "DEAD_LEAD") {
         await recordOutreachDeadLeadSignal({
           platform: "email",
@@ -164,11 +199,21 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           profile: leadProfileForPlatform("email", { ...existing, status: "DEAD_LEAD" }),
         });
       }
+
+      const updated = await updateOutreachLead(platform as OutreachPlatform, id, patch);
+      if (!updated) return NextResponse.json({ error: "Not found." }, { status: 404 });
+      if (patch.saveToHub === true && !existing.savedToHubAt) {
+        await recordOutreachSavedToHubSignal({
+          platform: "email",
+          leadId: id,
+          adminId: sess.adminId,
+          profile: leadProfileForPlatform("email", existing),
+        });
+      }
+      return NextResponse.json({ lead: updated });
     }
 
-    const updated = await updateOutreachLead(platform as OutreachPlatform, id, patch);
-    if (!updated) return NextResponse.json({ error: "Not found." }, { status: 404 });
-    return NextResponse.json({ lead: updated });
+    return NextResponse.json({ error: "Unsupported platform." }, { status: 400 });
   } catch (e) {
     console.error("[outreach lead PATCH]", e);
     return NextResponse.json({ error: "Could not update lead." }, { status: 500 });

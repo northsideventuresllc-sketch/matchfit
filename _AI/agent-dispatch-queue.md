@@ -8,6 +8,7 @@
 | F1 RLS-8 (8 exposed tables) | matchfit | **SHIPPED** — PR #291 | — | Verify Supabase advisor clears 8 warnings |
 | M1 Align marketing to 8-step model | matchfit | **SHIPPED** — PR #292 | — | Playbook live in admin surfaces |
 | B1 B2C runbook 5b–6b | matchfit | **SHIPPED** — PR #293 | — | Live at `/admin/ad-tracking` |
+| MF-OUT-COWORK Cowork autonomy (brief API + intent + underfill/save) | matchfit | **IN PR** | Manager | Merge when CI green |
 | F2 Prisma migration | matchfit | Merged | — | Smoke deploy if JB asks |
-| J6 outreach DMs (10–15/day) | matchfit | — | JB | — |
+| J6 outreach DMs (10–15/day) | matchfit | — | JB | Live send only after Cowork brief |
 | J5 Tue client tip IG post | matchfit | — | JB | Theme: 3 questions before you hire a trainer |

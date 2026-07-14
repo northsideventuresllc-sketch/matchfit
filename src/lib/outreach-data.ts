@@ -461,6 +461,12 @@ export async function updateOutreachLead(
         commentText: typeof patch.commentText === "string" ? patch.commentText : undefined,
         followUp1DmText: typeof patch.followUp1DmText === "string" ? patch.followUp1DmText : undefined,
         followUp2DmText: typeof patch.followUp2DmText === "string" ? patch.followUp2DmText : undefined,
+        outreachIntent:
+          patch.outreachIntent === null
+            ? null
+            : typeof patch.outreachIntent === "string"
+              ? patch.outreachIntent
+              : undefined,
         status,
         dmTextEdited: patch.dmTextEdited === true ? true : undefined,
         commentTextEdited: patch.commentTextEdited === true ? true : undefined,
@@ -486,6 +492,12 @@ export async function updateOutreachLead(
       where: { id },
       data: {
         pagePostText: typeof patch.pagePostText === "string" ? patch.pagePostText : undefined,
+        outreachIntent:
+          patch.outreachIntent === null
+            ? null
+            : typeof patch.outreachIntent === "string"
+              ? patch.outreachIntent
+              : undefined,
         status,
         pagePostTextEdited: patch.pagePostTextEdited === true ? true : undefined,
         autoClassification: classifyOutreachLead({
@@ -533,6 +545,12 @@ export async function updateOutreachLead(
         followUp2EmailSubject:
           typeof patch.followUp2EmailSubject === "string" ? patch.followUp2EmailSubject : undefined,
         followUp2EmailBody: typeof patch.followUp2EmailBody === "string" ? patch.followUp2EmailBody : undefined,
+        outreachIntent:
+          patch.outreachIntent === null
+            ? null
+            : typeof patch.outreachIntent === "string"
+              ? patch.outreachIntent
+              : undefined,
         status,
         emailBodyEdited: patch.emailBodyEdited === true ? true : undefined,
         autoClassification: classifyOutreachLead({
