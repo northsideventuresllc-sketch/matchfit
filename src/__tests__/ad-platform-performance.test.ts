@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  formatMetaInsightsOperatorError,
   getAdPlatformIntegrationStatus,
   getServerConversionIntegrationStatus,
+  normalizeMetaAdAccountId,
   parseMetaConversions,
 } from "@/lib/ad-platform-performance";
 
@@ -36,7 +38,54 @@ describe("ad-platform-performance", () => {
     for (const status of statuses) {
       expect(status.configured).toBe(false);
       expect(status.missingEnv.length).toBeGreaterThan(0);
+      expect(status.spendSyncStatus).toBe("not_configured");
     }
+  });
+
+  it("treats Meta credentials alone as credentials_present, not Insights-ready", () => {
+    process.env.META_ADS_ACCESS_TOKEN = "EAAG_test";
+    process.env.META_AD_ACCOUNT_ID = "act_869068448935932";
+    const meta = getAdPlatformIntegrationStatus().find((s) => s.platform === "meta");
+    expect(meta?.configured).toBe(true);
+    expect(meta?.spendSyncStatus).toBe("credentials_present");
+    expect(meta?.spendSyncDetail).toMatch(/Insights must return costs/i);
+  });
+
+  it("marks Meta spend sync ready only after Insights probe succeeds", () => {
+    process.env.META_ADS_ACCESS_TOKEN = "EAAG_test";
+    process.env.META_AD_ACCOUNT_ID = "869068448935932";
+    const meta = getAdPlatformIntegrationStatus({
+      metaInsights: { ok: true, detail: "Insights OK for act_869068448935932." },
+    }).find((s) => s.platform === "meta");
+    expect(meta?.spendSyncStatus).toBe("insights_ok");
+    expect(meta?.spendSyncDetail).toMatch(/Insights OK/);
+  });
+
+  it("surfaces Meta Insights errors instead of pretending API is connected", () => {
+    process.env.META_ADS_ACCESS_TOKEN = "EAAG_test";
+    process.env.META_AD_ACCOUNT_ID = "869068448935932";
+    const meta = getAdPlatformIntegrationStatus({
+      metaInsights: { ok: false, detail: "API access blocked. Use a Meta Business System User…" },
+    }).find((s) => s.platform === "meta");
+    expect(meta?.configured).toBe(true);
+    expect(meta?.spendSyncStatus).toBe("insights_error");
+    expect(meta?.spendSyncDetail).toMatch(/API access blocked/);
+  });
+
+  it("normalizes Meta ad account ids with or without act_ prefix", () => {
+    expect(normalizeMetaAdAccountId("act_869068448935932")).toEqual({
+      numericId: "869068448935932",
+      actId: "act_869068448935932",
+    });
+    expect(normalizeMetaAdAccountId("869068448935932")?.actId).toBe("act_869068448935932");
+    expect(normalizeMetaAdAccountId("not-an-id")).toBeNull();
+  });
+
+  it("formats Meta permission errors with ads_read / act_ guidance", () => {
+    const msg = formatMetaInsightsOperatorError("API access blocked.");
+    expect(msg).toMatch(/ads_read/i);
+    expect(msg).toMatch(/act_/i);
+    expect(msg).toMatch(/not enough/i);
   });
 
   it("reports server conversion integration status", () => {

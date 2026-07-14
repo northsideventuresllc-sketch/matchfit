@@ -4,7 +4,8 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
-- **2026-07-14** `2.2.5-beta` → `2.2.6-beta` (**patch** — MF-OUT-COWORK: Cowork brief API, outreach intent, underfill retry, hub save-first)
+- **2026-07-14** `2.2.6-beta` → `2.2.7-beta` (**patch** — MF-OUT-COWORK: Cowork brief API, outreach intent, underfill retry, hub save-first)
+- **2026-07-14** `2.2.5-beta` → `2.2.6-beta` (**patch** — Fix Meta Ad Tracker Insights spend sync status (ads_read + act_ account))
 - **2026-07-13** `2.2.4-beta` → `2.2.5-beta` (**patch** — CI follow-up after nullable post_date type fix)
 - **2026-07-13** `2.2.3-beta` → `2.2.4-beta` (**patch** — Fix content calendar unscheduled save: null post_date instead of empty string)
 - **2026-07-10** `2.2.2-beta` → `2.2.3-beta` (**patch**)

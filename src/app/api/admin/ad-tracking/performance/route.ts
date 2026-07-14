@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdPerformancePanel } from "@/lib/ad-platform-performance";
+import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { requireAdminSession } from "@/lib/require-admin";
 
 const querySchema = z.object({
@@ -10,6 +11,8 @@ const querySchema = z.object({
 export async function GET(req: Request) {
   const sess = await requireAdminSession();
   if (!sess) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+
+  await hydratePlatformEnvFromDatabase();
 
   const url = new URL(req.url);
   const parsed = querySchema.safeParse({ days: url.searchParams.get("days") ?? undefined });

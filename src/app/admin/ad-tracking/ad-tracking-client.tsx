@@ -37,7 +37,13 @@ type TrackingConfigResponse = {
   utmPresets: AdUtmPreset[];
   landingPaths: typeof AD_LANDING_PATHS;
   trainerOnboardingSteps: { step_id: string; step_name: string }[];
-  integrations: { platform: AdPlatform; configured: boolean; missingEnv: string[] }[];
+  integrations: {
+    platform: AdPlatform;
+    configured: boolean;
+    missingEnv: string[];
+    spendSyncStatus?: "not_configured" | "credentials_present" | "insights_ok" | "insights_error";
+    spendSyncDetail?: string | null;
+  }[];
   serverConversions: {
     metaCapi: { configured: boolean; missingEnv: string[] };
     ga4: { configured: boolean; missingEnv: string[] };
@@ -729,34 +735,56 @@ export function AdTrackingClient() {
                 </div>
 
                 <div className="mt-6 grid gap-4 lg:grid-cols-2">
-                  {panel.integrations.map((integration) => (
-                    <div key={integration.platform} className={adminPanelClass + " p-4"}>
-                      <div className="flex items-center gap-2">
-                        <PlatformBadge platform={integration.platform} />
-                        <span
-                          className={
-                            integration.configured
-                              ? "text-[11px] font-bold text-[#9BE7B0]"
-                              : "text-[11px] font-bold text-white/40"
-                          }
-                        >
-                          {integration.configured ? "API connected" : "Not configured"}
-                        </span>
+                  {panel.integrations.map((integration) => {
+                    const status = integration.spendSyncStatus ?? (integration.configured ? "credentials_present" : "not_configured");
+                    const statusLabel =
+                      status === "insights_ok"
+                        ? "Insights spend ready"
+                        : status === "insights_error"
+                          ? "Insights error"
+                          : status === "credentials_present"
+                            ? integration.platform === "meta"
+                              ? "Credentials set — Insights not verified"
+                              : "API credentials set"
+                            : "Not configured";
+                    const statusClass =
+                      status === "insights_ok"
+                        ? "text-[11px] font-bold text-[#9BE7B0]"
+                        : status === "insights_error"
+                          ? "text-[11px] font-bold text-[#FF8A8A]"
+                          : status === "credentials_present"
+                            ? "text-[11px] font-bold text-[#FFD34E]"
+                            : "text-[11px] font-bold text-white/40";
+                    return (
+                      <div key={integration.platform} className={adminPanelClass + " p-4"}>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <PlatformBadge platform={integration.platform} />
+                          <span className={statusClass}>{statusLabel}</span>
+                        </div>
+                        {integration.spendSyncDetail ? (
+                          <p className="mt-3 text-[11px] leading-relaxed text-white/55">{integration.spendSyncDetail}</p>
+                        ) : null}
+                        {!integration.configured ? (
+                          <p className="mt-3 text-[11px] leading-relaxed text-white/45">
+                            API sync is not set up yet. Ask your developer to add{" "}
+                            {integration.platform === "meta"
+                              ? "Meta (System User with ads_read + correct act_ Ad Account ID)"
+                              : integration.platform === "google"
+                                ? "Google"
+                                : "TikTok"}{" "}
+                            ad API credentials in production environment variables. Tracking links and on-site pixels still
+                            work.
+                          </p>
+                        ) : null}
+                        {integration.platform === "meta" && status === "credentials_present" ? (
+                          <p className="mt-3 text-[11px] leading-relaxed text-white/45">
+                            Credentials alone are not enough. Meta spend sync requires Insights to return costs for the
+                            System User token on the matching act_ ad account. Use Sync now to refresh.
+                          </p>
+                        ) : null}
                       </div>
-                      {!integration.configured ? (
-                        <p className="mt-3 text-[11px] leading-relaxed text-white/45">
-                          API sync is not set up yet. Ask your developer to add{" "}
-                          {integration.platform === "meta"
-                            ? "Meta"
-                            : integration.platform === "google"
-                              ? "Google"
-                              : "TikTok"}{" "}
-                          ad API credentials in production environment variables. Tracking links and on-site pixels still
-                          work.
-                        </p>
-                      ) : null}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {panel.attribution.length > 0 ? (
