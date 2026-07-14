@@ -4,6 +4,7 @@
 |------|------|--------|------|-------------|
 | AT1 Ad Tracker (campaign registry + TikTok UTM) | matchfit | **SHIPPED** — PR #289 | — | Verify `/admin/ad-tracking` live |
 | AT2 Ad Tracker phase 2 (Meta/Google API, CAPI, GA4, TikTok sync) | matchfit | **SHIPPED** — PR #290 | — | Push env via `vercel:env:ad-platform` |
+| MF-META-SPEND Insights spend sync (ads_read + act_ account) | matchfit | **IN PR** — this branch | Manager | Redeploy after merge; JB: System User ads_read if Insights still blocked |
 | F1 RLS-8 (8 exposed tables) | matchfit | **SHIPPED** — PR #291 | — | Verify Supabase advisor clears 8 warnings |
 | M1 Align marketing to 8-step model | matchfit | **SHIPPED** — PR #292 | — | Playbook live in admin surfaces |
 | B1 B2C runbook 5b–6b | matchfit | **SHIPPED** — PR #293 | — | Live at `/admin/ad-tracking` |

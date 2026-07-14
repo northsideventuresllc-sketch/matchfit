@@ -13,14 +13,31 @@ import { googleAdsConversionSendTo } from "@/lib/google-ads";
 import {
   getAdPlatformIntegrationStatus,
   getServerConversionIntegrationStatus,
+  probeMetaInsightsAccess,
 } from "@/lib/ad-platform-performance";
+import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { requireAdminSession } from "@/lib/require-admin";
 
 export async function GET() {
   const sess = await requireAdminSession();
   if (!sess) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
-  const integrations = getAdPlatformIntegrationStatus();
+  await hydratePlatformEnvFromDatabase();
+
+  let metaInsights: { ok: boolean; detail: string | null } | null = null;
+  if (process.env.META_ADS_ACCESS_TOKEN?.trim() && process.env.META_AD_ACCOUNT_ID?.trim()) {
+    try {
+      const probe = await probeMetaInsightsAccess();
+      metaInsights = { ok: probe.ok, detail: probe.detail };
+    } catch (e) {
+      metaInsights = {
+        ok: false,
+        detail: e instanceof Error ? e.message : "Meta Insights probe failed.",
+      };
+    }
+  }
+
+  const integrations = getAdPlatformIntegrationStatus({ metaInsights });
   const serverConversions = getServerConversionIntegrationStatus();
 
   return NextResponse.json({

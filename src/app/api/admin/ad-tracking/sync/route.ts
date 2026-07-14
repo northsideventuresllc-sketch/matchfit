@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { syncAdPlatformPerformance } from "@/lib/ad-platform-performance";
+import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { requireAdminSession } from "@/lib/require-admin";
 
 const bodySchema = z.object({
@@ -10,6 +11,8 @@ const bodySchema = z.object({
 export async function POST(req: Request) {
   const sess = await requireAdminSession();
   if (!sess) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+
+  await hydratePlatformEnvFromDatabase();
 
   let days = 7;
   try {
