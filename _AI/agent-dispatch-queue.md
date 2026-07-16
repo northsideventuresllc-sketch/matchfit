@@ -10,6 +10,7 @@
 | B1 B2C runbook 5b–6b | matchfit | **SHIPPED** — PR #293 | — | Live at `/admin/ad-tracking` |
 | MF-OUT-COWORK Cowork autonomy (brief API + intent + underfill/save) | matchfit | **SHIPPED** — PR #296 | — | Use `/admin/outreach` Cowork Brief; JB live send only |
 | MF-ADS-ADMIN Admin default ads surface (HQ + dashboard panel) | matchfit | **SHIPPED** — PR #297 | — | Use `/admin/ad-tracking`; dashboard Ad performance visible by default |
+| MF-CAPI Meta Conversions API (pixel + token, signup/purchase, Ad Tracking probe) | matchfit | **SHIPPED** | — | Fresh Events Manager system-user token if Meta still returns “API access blocked” |
 | F2 Prisma migration | matchfit | Merged | — | Smoke deploy if JB asks |
 | J6 outreach DMs (10–15/day) | matchfit | — | JB | Live send only after Cowork brief |
 | J5 Tue client tip IG post | matchfit | — | JB | Theme: 3 questions before you hire a trainer |

@@ -29,8 +29,18 @@ export type AdPlatformIntegrationStatus = {
   spendSyncDetail: string | null;
 };
 
+export type MetaCapiSyncStatus = "not_configured" | "credentials_present" | "capi_ok" | "capi_error";
+
 export type ServerConversionIntegrationStatus = {
-  metaCapi: { configured: boolean; missingEnv: string[] };
+  metaCapi: {
+    /** Env present (pixel + CAPI token or ads-token fallback) — not proof Meta accepted events. */
+    configured: boolean;
+    missingEnv: string[];
+    /** Live CAPI readiness. `capi_ok` only after Graph accepts a probe event. */
+    capiSyncStatus: MetaCapiSyncStatus;
+    capiSyncDetail: string | null;
+    usedAdsTokenFallback: boolean;
+  };
   ga4: { configured: boolean; missingEnv: string[] };
 };
 
@@ -216,17 +226,51 @@ export function getAdPlatformIntegrationStatus(options?: {
   ];
 }
 
-export function getServerConversionIntegrationStatus(): ServerConversionIntegrationStatus {
+export function getServerConversionIntegrationStatus(opts?: {
+  metaCapiProbe?: { ok: boolean; detail: string; usedAdsTokenFallback?: boolean } | null;
+}): ServerConversionIntegrationStatus {
   const metaMissing: string[] = [];
   if (!process.env.META_PIXEL_ID?.trim()) metaMissing.push("META_PIXEL_ID");
-  if (!process.env.META_ACCESS_TOKEN?.trim()) metaMissing.push("META_ACCESS_TOKEN");
+  const hasDedicatedCapi = Boolean(process.env.META_ACCESS_TOKEN?.trim());
+  const hasAdsFallback = Boolean(process.env.META_ADS_ACCESS_TOKEN?.trim());
+  if (!hasDedicatedCapi && !hasAdsFallback) metaMissing.push("META_ACCESS_TOKEN");
+
+  const configured = metaMissing.length === 0;
+  const probe = opts?.metaCapiProbe;
+  let capiSyncStatus: MetaCapiSyncStatus = "not_configured";
+  let capiSyncDetail: string | null = null;
+  let usedAdsTokenFallback = Boolean(probe?.usedAdsTokenFallback) || (!hasDedicatedCapi && hasAdsFallback);
+
+  if (!configured) {
+    capiSyncStatus = "not_configured";
+    capiSyncDetail = "Add META_PIXEL_ID and META_ACCESS_TOKEN (Conversions API system user token from Events Manager).";
+  } else if (probe == null) {
+    capiSyncStatus = "credentials_present";
+    capiSyncDetail = usedAdsTokenFallback
+      ? "Credentials set (META_ADS_ACCESS_TOKEN fallback). Run Ad Tracking HQ load for a live CAPI probe."
+      : "Credentials set. Run Ad Tracking HQ load for a live CAPI probe.";
+  } else if (probe.ok) {
+    capiSyncStatus = "capi_ok";
+    capiSyncDetail = probe.detail;
+    usedAdsTokenFallback = Boolean(probe.usedAdsTokenFallback) || usedAdsTokenFallback;
+  } else {
+    capiSyncStatus = "capi_error";
+    capiSyncDetail = probe.detail;
+    usedAdsTokenFallback = Boolean(probe.usedAdsTokenFallback) || usedAdsTokenFallback;
+  }
 
   const gaMissing: string[] = [];
   if (!process.env.GA_MEASUREMENT_ID?.trim()) gaMissing.push("GA_MEASUREMENT_ID");
   if (!process.env.GA_API_SECRET?.trim()) gaMissing.push("GA_API_SECRET");
 
   return {
-    metaCapi: { configured: metaMissing.length === 0, missingEnv: metaMissing },
+    metaCapi: {
+      configured,
+      missingEnv: metaMissing,
+      capiSyncStatus,
+      capiSyncDetail,
+      usedAdsTokenFallback,
+    },
     ga4: { configured: gaMissing.length === 0, missingEnv: gaMissing },
   };
 }

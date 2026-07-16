@@ -17,6 +17,7 @@ import {
 } from "@/lib/ad-platform-performance";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { requireAdminSession } from "@/lib/require-admin";
+import { probeMetaCapiAccess, resolveMetaCapiCredentials } from "@/lib/server-conversion-tracking";
 
 export async function GET() {
   const sess = await requireAdminSession();
@@ -37,8 +38,20 @@ export async function GET() {
     }
   }
 
+  let metaCapiProbe: { ok: boolean; detail: string; usedAdsTokenFallback?: boolean } | null = null;
+  if (resolveMetaCapiCredentials()) {
+    try {
+      metaCapiProbe = await probeMetaCapiAccess();
+    } catch (e) {
+      metaCapiProbe = {
+        ok: false,
+        detail: e instanceof Error ? e.message : "Meta CAPI probe failed.",
+      };
+    }
+  }
+
   const integrations = getAdPlatformIntegrationStatus({ metaInsights });
-  const serverConversions = getServerConversionIntegrationStatus();
+  const serverConversions = getServerConversionIntegrationStatus({ metaCapiProbe });
 
   return NextResponse.json({
     pixels: AD_TRACKING_PIXELS,

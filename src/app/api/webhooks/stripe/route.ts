@@ -51,9 +51,32 @@ import {
 } from "@/lib/trainer-promo-tokens";
 import { computeCheckoutFeeBreakdown } from "@/lib/stripe-checkout-line-items";
 import { hydrateStripeEnvFromDatabase } from "@/lib/hydrate-stripe-env";
+import { trackServerConversion } from "@/lib/server-conversion-tracking";
 import { readStripeWebhookRawBody } from "@/lib/stripe-webhook-raw-body";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
+
+function trackStripePurchaseConversion(input: {
+  event: string;
+  userId?: string;
+  email?: string;
+  amountCents?: number;
+  checkoutSessionId?: string;
+}): void {
+  const value =
+    typeof input.amountCents === "number" && Number.isFinite(input.amountCents) && input.amountCents > 0
+      ? Math.round(input.amountCents) / 100
+      : undefined;
+  void trackServerConversion({
+    event: input.event,
+    userId: input.userId,
+    email: input.email,
+    value,
+    currency: value != null ? "USD" : undefined,
+    eventId: input.checkoutSessionId ? `stripe_cs_${input.checkoutSessionId}_${input.event}` : undefined,
+    eventSourceUrl: "https://match-fit.net/",
+  }).catch((err) => console.error("[stripe webhook] CAPI purchase track failed", input.event, err));
+}
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -181,6 +204,13 @@ export async function POST(req: Request) {
             billingLiveMode,
             metaJson: JSON.stringify({ purpose: "trainer_registration_fee" }),
           });
+          trackStripePurchaseConversion({
+            event: "trainer_registration_fee_purchase",
+            userId: trainerId,
+            email: trainer?.email ?? undefined,
+            amountCents: paidCents,
+            checkoutSessionId: session.id,
+          });
         }
         if (md.purpose === "trainer_promo_tokens" && md.trainerId) {
           const tier = getPromoPackTierById(String(md.packTier ?? md.tier ?? "").trim());
@@ -226,6 +256,12 @@ export async function POST(req: Request) {
             billingLiveMode,
             metaJson: JSON.stringify({ purpose: "trainer_promo_tokens", packTier: tier?.id ?? null, tokens }),
           });
+          trackStripePurchaseConversion({
+            event: "trainer_promo_tokens_purchase",
+            userId: String(md.trainerId),
+            amountCents: totalMeta || promoBreakdown.revenueCents,
+            checkoutSessionId: session.id,
+          });
         }
         if (md.purpose === FP_STRIPE_CHECKOUT_PURPOSE.nudgePackPurchase && md.trainerId) {
           const trainerId = String(md.trainerId).trim();
@@ -247,6 +283,12 @@ export async function POST(req: Request) {
               purpose: FP_STRIPE_CHECKOUT_PURPOSE.nudgePackPurchase,
               packSize,
             }),
+          });
+          trackStripePurchaseConversion({
+            event: "fp_nudge_pack_purchase",
+            userId: trainerId,
+            amountCents: totalMeta,
+            checkoutSessionId: session.id,
           });
         }
         if (md.purpose === "trainer_service_sale" && md.trainerId && md.clientId) {
@@ -288,6 +330,12 @@ export async function POST(req: Request) {
             grossAddonAttributedCents: grossAddonAttributedCents || null,
             addonHoursPurchased: addonHoursPurchased || null,
           });
+          trackStripePurchaseConversion({
+            event: "trainer_service_purchase",
+            userId: String(md.clientId),
+            amountCents: totalChargedCents || amountCents,
+            checkoutSessionId: session.id,
+          });
         }
       }
       if (session.mode === "subscription") {
@@ -302,6 +350,31 @@ export async function POST(req: Request) {
             const st = String(subObj.status ?? "");
             if (st === "active" || st === "trialing") {
               await finalizeRegistrationAfterPayment(subId);
+              const purpose = String(subObj.metadata?.purpose ?? md.purpose ?? "").trim();
+              const amountCents =
+                typeof session.amount_total === "number" && session.amount_total > 0
+                  ? session.amount_total
+                  : undefined;
+              if (purpose === "client_vip" || isClientVipSubscription(subObj)) {
+                const clientId =
+                  (await resolveClientIdFromVipSubscription(subObj)) ??
+                  (typeof md.clientId === "string" ? md.clientId : undefined);
+                trackStripePurchaseConversion({
+                  event: "client_vip_purchase",
+                  userId: clientId ?? undefined,
+                  email: typeof session.customer_details?.email === "string" ? session.customer_details.email : undefined,
+                  amountCents,
+                  checkoutSessionId: session.id,
+                });
+              } else {
+                trackStripePurchaseConversion({
+                  event: "client_membership_purchase",
+                  userId: typeof md.clientId === "string" ? md.clientId : undefined,
+                  email: typeof session.customer_details?.email === "string" ? session.customer_details.email : undefined,
+                  amountCents,
+                  checkoutSessionId: session.id,
+                });
+              }
             }
           }
         }
