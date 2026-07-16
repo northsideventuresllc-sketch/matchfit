@@ -16,6 +16,11 @@ export const MATCHFIT_CONTENT_RULES = {
   repurposeCharLimit: 500,
   fitnessProLanguage: 'Always say "Fitness Pros" — never trainers or personal trainers in marketing copy.',
   geography: "Do not lead with Atlanta or local geography. In-person is Atlanta-only operationally, not a campaign hook.",
+  signupUrls: {
+    fitnessPro: "match-fit.net/trainer/signup",
+    client: "match-fit.net/client/sign-up",
+    never: ["match-fit.net/Fitness Pro/signup", "match-fit.net/fitness-pro/signup"],
+  },
 };
 
 /** M–F rotation: post type → audience (alternates by weekday). */

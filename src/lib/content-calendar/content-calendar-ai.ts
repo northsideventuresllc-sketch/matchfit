@@ -405,7 +405,9 @@ Generate a ${args.tone} ${args.contentType} ${args.postType ? `${args.postType} 
 ${args.postType === "Text" ? "Text-only post: no visual or video prompt. Write for Threads/Facebook — concise, conversational caption structure." : "Include enough detail that a designer could storyboard the creative from your copy."}
 Weave the operator directive into the hook and body — do not produce generic beta filler.
 Target audiences to rotate between: Join the Team (Fitness Pro recruitment), List With Us (independent listing), Clients (athletes seeking training).
-Goal: match-fit.net signups with audience-appropriate CTAs.`;
+Goal: drive signups with audience-appropriate CTAs only:
+- Join the Team / List With Us → match-fit.net/trainer/signup (never match-fit.net/Fitness Pro/signup)
+- Clients → match-fit.net/client/sign-up`;
   const aiResult = await callAi(system, user);
   const parsed = aiResult.text
     ? parseJsonBlock<{ hook?: string; body?: string; cta?: string; hashtags?: string[]; dmScript?: string }>(aiResult.text)

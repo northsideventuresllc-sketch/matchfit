@@ -91,13 +91,30 @@ export function normalizeUserEditedPostContent(args: {
   };
 }
 
-/** Marketing copy should say Fitness Pros instead of trainer(s). */
+/** Marketing copy should say Fitness Pros instead of trainer(s). Never rewrite /trainer URL paths. */
 export function normalizeFitnessProLanguage(text: string): string {
-  return text
+  const protectedSegments: string[] = [];
+  const withPlaceholders = text.replace(
+    /(?:https?:\/\/)?(?:www\.)?match-fit\.net\/trainer(?:\/[\w\-./?#&=%]*)?|\/trainer(?:\/[\w\-./?#&=%]*)?/gi,
+    (match) => {
+      const idx = protectedSegments.length;
+      protectedSegments.push(match);
+      return `\u0000URL${idx}\u0000`;
+    },
+  );
+
+  let out = withPlaceholders
     .replace(/\bpersonal trainers\b/gi, "Fitness Pros")
     .replace(/\bpersonal trainer\b/gi, "Fitness Pro")
     .replace(/\btrainers\b/gi, "Fitness Pros")
     .replace(/\btrainer\b/gi, "Fitness Pro");
+
+  // Repair broken paths produced by earlier language normalization or AI inventing audience-labeled URLs.
+  out = out
+    .replace(/(?:https?:\/\/)?(?:www\.)?match-fit\.net\/Fitness\s*Pros?\/signup/gi, "match-fit.net/trainer/signup")
+    .replace(/\/Fitness\s*Pros?\/signup/gi, "/trainer/signup");
+
+  return out.replace(/\u0000URL(\d+)\u0000/g, (_, index: string) => protectedSegments[Number(index)] ?? "");
 }
 
 export const CONTENT_CALENDAR_AI_RULES = `Content rules (strict):
@@ -107,6 +124,10 @@ export const CONTENT_CALENDAR_AI_RULES = `Content rules (strict):
 - "Clients" = athletes and individuals looking for training.
 - Do NOT market Atlanta or local geography in captions; in-person sessions are Atlanta-only operationally but not a marketing hook.
 - Always say "Fitness Pros" (never "trainers", "personal trainers", or "coaches" as the primary label).
+- Canonical signup URLs only (never invent paths):
+  - Fitness Pro / Join the Team / List With Us CTAs → match-fit.net/trainer/signup
+  - Client CTAs → match-fit.net/client/sign-up
+  - Never write match-fit.net/Fitness Pro/signup, match-fit.net/fitness-pro/signup, or similar.
 - Maximum ${CONTENT_CALENDAR_MAX_HASHTAGS} hashtags per post (no # prefix in JSON array).
 - Caption + hashtags combined must stay within ${CONTENT_CALENDAR_REPURPOSE_CHAR_LIMIT} characters (Threads repurpose limit).
 - Align offers and urgency with live site/promo scan context when provided — do not invent caps or pricing.

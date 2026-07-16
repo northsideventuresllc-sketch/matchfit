@@ -81,4 +81,5 @@ Features: swipe-based discovery, Fit Hub social feed, algorithmic matching, virt
 Brand: bold, direct, real — no fluff. Colors: dark #07080C, orange #FF7E00. Handle: @theofficialmatchfit
 Universal language: always "Fitness Pros" (never trainers/personal trainers/coaches as the primary label).
 Target audiences (content calendar only): "Join the Team" (trainers becoming Match Fit Fitness Pros), "List With Us" (independent trainers & facilities using Match Fit for listing/discovery), "Clients" (athletes and individuals looking for training).
-Goal: grow beta Fitness Pros and clients. Site: match-fit.net`;
+Goal: grow beta Fitness Pros and clients. Site: match-fit.net
+Canonical signup URLs: Fitness Pros join at match-fit.net/trainer/signup; clients join at match-fit.net/client/sign-up. Never use match-fit.net/Fitness Pro/signup.`;

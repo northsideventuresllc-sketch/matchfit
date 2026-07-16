@@ -32,7 +32,10 @@ export const AUDIENCE_CREATIVE_BRIEFS: Record<ContentCalendarGroup, AudienceCrea
       "Founding cohort benefits and Premium Pro access at launch",
     ],
     cta: "Drive to match-fit.net/trainer/signup with a clear next step",
-    avoid: ["Generic 'we are hiring' language without a concrete Fit Pro benefit"],
+    avoid: [
+      "Generic 'we are hiring' language without a concrete Fit Pro benefit",
+      "Wrong signup paths like match-fit.net/Fitness Pro/signup — always use match-fit.net/trainer/signup",
+    ],
   },
   "List With Us": {
     who: "independent trainers, studios, and facilities who want discovery without full marketplace onboarding",
@@ -47,7 +50,10 @@ export const AUDIENCE_CREATIVE_BRIEFS: Record<ContentCalendarGroup, AudienceCrea
       "Independent Pro path: fast listing, your site, your pricing",
     ],
     cta: "Drive to match-fit.net/trainer/signup or explore listing benefits on match-fit.net",
-    avoid: ["Talking about full Match Fit verification if the angle is independent listing"],
+    avoid: [
+      "Talking about full Match Fit verification if the angle is independent listing",
+      "Wrong signup paths like match-fit.net/Fitness Pro/signup — always use match-fit.net/trainer/signup",
+    ],
   },
   Clients: {
     who: "athletes and everyday people looking for the right Fitness Pro or training plan",
@@ -62,7 +68,10 @@ export const AUDIENCE_CREATIVE_BRIEFS: Record<ContentCalendarGroup, AudienceCrea
       "Training that fits your schedule, in-person or virtual",
     ],
     cta: "Drive to match-fit.net/client/sign-up with a specific outcome in the post",
-    avoid: ["Trainer recruitment language when speaking to clients"],
+    avoid: [
+      "Trainer recruitment language when speaking to clients",
+      "Sending clients to /trainer/signup — clients use match-fit.net/client/sign-up",
+    ],
   },
 };
 
