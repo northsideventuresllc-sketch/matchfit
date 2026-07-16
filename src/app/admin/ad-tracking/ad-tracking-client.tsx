@@ -45,7 +45,13 @@ type TrackingConfigResponse = {
     spendSyncDetail?: string | null;
   }[];
   serverConversions: {
-    metaCapi: { configured: boolean; missingEnv: string[] };
+    metaCapi: {
+      configured: boolean;
+      missingEnv: string[];
+      capiSyncStatus?: "not_configured" | "credentials_present" | "capi_ok" | "capi_error";
+      capiSyncDetail?: string | null;
+      usedAdsTokenFallback?: boolean;
+    };
     ga4: { configured: boolean; missingEnv: string[] };
   };
   googleConversions: {
@@ -395,15 +401,27 @@ export function AdTrackingClient() {
                     <PlatformBadge platform="meta" />
                     <span
                       className={
-                        config.serverConversions.metaCapi.configured
+                        config.serverConversions.metaCapi.capiSyncStatus === "capi_ok"
                           ? "text-[11px] font-bold text-[#9BE7B0]"
-                          : "text-[11px] font-bold text-white/40"
+                          : config.serverConversions.metaCapi.configured
+                            ? "text-[11px] font-bold text-amber-200/90"
+                            : "text-[11px] font-bold text-white/40"
                       }
                     >
-                      {config.serverConversions.metaCapi.configured ? "CAPI connected" : "CAPI not configured"}
+                      {config.serverConversions.metaCapi.capiSyncStatus === "capi_ok"
+                        ? "CAPI connected"
+                        : config.serverConversions.metaCapi.capiSyncStatus === "capi_error"
+                          ? "CAPI token set — Meta rejected probe"
+                          : config.serverConversions.metaCapi.configured
+                            ? "CAPI credentials present"
+                            : "CAPI not configured"}
                     </span>
                   </div>
-                  {!config.serverConversions.metaCapi.configured ? (
+                  {config.serverConversions.metaCapi.capiSyncDetail ? (
+                    <p className="mt-3 text-[11px] leading-relaxed text-white/45">
+                      {config.serverConversions.metaCapi.capiSyncDetail}
+                    </p>
+                  ) : !config.serverConversions.metaCapi.configured ? (
                     <p className="mt-3 text-[11px] leading-relaxed text-white/45">
                       Add META_PIXEL_ID and META_ACCESS_TOKEN (Conversions API system user token from Events Manager).
                     </p>

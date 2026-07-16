@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-07-16** `2.3.0-beta` → `2.3.1-beta` (**patch** — Wire Meta CAPI purchase events, hydrate META_ACCESS_TOKEN, live CAPI probe in Ad Tracking HQ)
 - **2026-07-16** `2.2.7-beta` → `2.3.0-beta` (**minor** — MF-ADS-ADMIN: admin Ad Tracking HQ as default Match Fit ads surface with live dashboard Ad performance)
 - **2026-07-14** `2.2.6-beta` → `2.2.7-beta` (**patch** — MF-OUT-COWORK: Cowork brief API, outreach intent, underfill retry, hub save-first)
 - **2026-07-14** `2.2.5-beta` → `2.2.6-beta` (**patch** — Fix Meta Ad Tracker Insights spend sync status (ads_read + act_ account))

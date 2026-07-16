@@ -167,6 +167,12 @@ export async function hydratePlatformEnvFromDatabase(): Promise<void> {
     for (const adKey of [
       "META_ADS_ACCESS_TOKEN",
       "META_AD_ACCOUNT_ID",
+      "META_PIXEL_ID",
+      "META_ACCESS_TOKEN",
+      "GA_MEASUREMENT_ID",
+      "GA_API_SECRET",
+      "TIKTOK_ADS_ACCESS_TOKEN",
+      "TIKTOK_ADS_ADVERTISER_ID",
       "GOOGLE_ADS_CUSTOMER_ID",
       "GOOGLE_ADS_LOGIN_CUSTOMER_ID",
       "GOOGLE_ADS_DEVELOPER_TOKEN",

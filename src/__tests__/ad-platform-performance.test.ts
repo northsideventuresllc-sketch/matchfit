@@ -91,9 +91,30 @@ describe("ad-platform-performance", () => {
   it("reports server conversion integration status", () => {
     const status = getServerConversionIntegrationStatus();
     expect(status.metaCapi.configured).toBe(false);
+    expect(status.metaCapi.capiSyncStatus).toBe("not_configured");
     expect(status.ga4.configured).toBe(false);
     expect(status.metaCapi.missingEnv).toContain("META_PIXEL_ID");
     expect(status.ga4.missingEnv).toContain("GA_MEASUREMENT_ID");
+  });
+
+  it("treats ads token as CAPI credentials fallback and honors live probe", () => {
+    process.env.META_PIXEL_ID = "1033341912986790";
+    process.env.META_ADS_ACCESS_TOKEN = "ads_token";
+    const present = getServerConversionIntegrationStatus();
+    expect(present.metaCapi.configured).toBe(true);
+    expect(present.metaCapi.usedAdsTokenFallback).toBe(true);
+    expect(present.metaCapi.capiSyncStatus).toBe("credentials_present");
+
+    const ok = getServerConversionIntegrationStatus({
+      metaCapiProbe: { ok: true, detail: "CAPI accepted probe.", usedAdsTokenFallback: true },
+    });
+    expect(ok.metaCapi.capiSyncStatus).toBe("capi_ok");
+
+    const bad = getServerConversionIntegrationStatus({
+      metaCapiProbe: { ok: false, detail: "API access blocked.", usedAdsTokenFallback: true },
+    });
+    expect(bad.metaCapi.capiSyncStatus).toBe("capi_error");
+    expect(bad.metaCapi.configured).toBe(true);
   });
 
   it("sums pixel conversion action types from Meta insights", () => {

@@ -111,6 +111,16 @@ export const AD_TRACKING_EVENTS: AdTrackingEvent[] = [
     funnel: "trainer",
     trigger: "Fitness Pro account created (same as Google trainer_signup)",
   },
+  {
+    id: "server_purchase",
+    label: "Server purchase (CAPI)",
+    description: "Stripe-confirmed purchases relayed via Meta Conversions API (ad-blocker safe).",
+    metaEvent: "Purchase",
+    googleConversionKind: null,
+    funnel: "both",
+    trigger:
+      "Stripe webhook: membership, Client VIP, trainer service sale, registration fee, promo tokens, nudge pack",
+  },
 ];
 
 export const AD_UTM_PRESETS: AdUtmPreset[] = [
