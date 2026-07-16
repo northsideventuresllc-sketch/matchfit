@@ -283,7 +283,7 @@ export function AdTrackingClient() {
       current="ad-tracking"
       maxWidth="full"
       title="Ad Tracking HQ"
-      description="Steps 1, 5–8 of the Match Fit marketing playbook — plan budget, confirm pixels, build links, register campaigns, and review paid performance."
+      description="Default Match Fit ads surface. Steps 1, 5–8 of the marketing playbook — plan budget, confirm pixels, build links, register campaigns, and review paid performance."
       contentClassName="space-y-6"
     >
         <AdminPortalBetaNotice className="mt-0" />

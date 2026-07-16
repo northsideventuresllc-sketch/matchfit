@@ -33,6 +33,7 @@ import { formatAdminStatsTimestamp } from "@/lib/admin-stats-timestamp";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 import { AdminDashboardLayoutCustomizer } from "./admin-dashboard-layout-customizer";
 import {
+  AdPerformanceSection,
   AutomatedEmailStatsSection,
   BackgroundChecksSection,
   ClientPipelineSection,
@@ -243,6 +244,7 @@ export function AdminDashboardClient(props: {
     recentFeatured,
     traffic,
     siteActivity,
+    adPerformance,
     clientPipeline,
     pipeline,
     premiumActivity,
@@ -254,7 +256,8 @@ export function AdminDashboardClient(props: {
   } = overview;
 
   const layoutStorageKey = `${ADMIN_DASHBOARD_LAYOUT_STORAGE_KEY}:${props.administratorId}`;
-  const legacyLayoutStorageKey = `mf_admin_dashboard_layout_v1:${props.administratorId}`;
+  const legacyLayoutStorageKey = `mf_admin_dashboard_layout_v3:${props.administratorId}`;
+  const legacyV1LayoutStorageKey = `mf_admin_dashboard_layout_v1:${props.administratorId}`;
   const layoutPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [q, setQ] = useState("");
@@ -332,7 +335,9 @@ export function AdminDashboardClient(props: {
     if (props.layoutLoadedFromServer) return;
     try {
       const raw =
-        localStorage.getItem(layoutStorageKey) ?? localStorage.getItem(legacyLayoutStorageKey);
+        localStorage.getItem(layoutStorageKey) ??
+        localStorage.getItem(legacyLayoutStorageKey) ??
+        localStorage.getItem(legacyV1LayoutStorageKey);
       if (!raw) return;
       queueMicrotask(() => {
         setLayout(parseAdminDashboardLayout(JSON.parse(raw)));
@@ -340,7 +345,7 @@ export function AdminDashboardClient(props: {
     } catch {
       /* ignore corrupt local layout */
     }
-  }, [layoutStorageKey, legacyLayoutStorageKey, props.layoutLoadedFromServer]);
+  }, [layoutStorageKey, legacyLayoutStorageKey, legacyV1LayoutStorageKey, props.layoutLoadedFromServer]);
 
   useEffect(() => {
     return () => {
@@ -546,15 +551,7 @@ export function AdminDashboardClient(props: {
       case "automated-email-stats":
         return <AutomatedEmailStatsSection panel={emailStats} />;
       case "ad-performance":
-        return (
-          <p className="text-sm text-white/55">
-            Ad performance lives on{" "}
-            <Link href="/admin/ad-tracking" className={adminPortalLinkClass}>
-              Ad Tracking HQ
-            </Link>
-            .
-          </p>
-        );
+        return <AdPerformanceSection panel={adPerformance} />;
       case "operational-alerts":
         return <OperationalAlertsSection alerts={alerts} />;
       case "background-checks":

@@ -3,6 +3,7 @@
  * Phases 5b–6b map to marketing playbook steps 5–6 with a client-only checklist.
  */
 
+import { MATCH_FIT_DEFAULT_ADS_SURFACE_PATH } from "@/lib/match-fit-ads-surface";
 import type { MatchFitMarketingPlaybookStepId } from "@/lib/match-fit-marketing-playbook";
 
 export type MatchFitB2cRunbookPhaseId = "5b_confirm_client_tags" | "6b_build_client_links";
@@ -26,7 +27,7 @@ export const MATCH_FIT_B2C_RUNBOOK_PHASE_5B: MatchFitB2cRunbookPhase = {
     "Before you spend on client ads, confirm Meta and Google tags are live and the client signup conversion is wired.",
   playbookStep: 5,
   playbookStepId: "confirm_tags",
-  adminPath: "/admin/ad-tracking",
+  adminPath: MATCH_FIT_DEFAULT_ADS_SURFACE_PATH,
   checklist: [
     "Meta pixel ID in Events Manager matches Connected Pixels below",
     "Google Ads tag ID matches Connected Pixels below",
@@ -44,7 +45,7 @@ export const MATCH_FIT_B2C_RUNBOOK_PHASE_6B: MatchFitB2cRunbookPhase = {
     "Every client ad must land on a tagged URL — use the client sign-up path when slots are open, or waitlist when the cap is full.",
   playbookStep: 6,
   playbookStepId: "build_links",
-  adminPath: "/admin/ad-tracking",
+  adminPath: MATCH_FIT_DEFAULT_ADS_SURFACE_PATH,
   checklist: [
     "Landing page is Client sign-up (/client/sign-up) or waitlist if beta cap is full",
     "Apply the Meta — client beta preset (or match utm_campaign client_beta_launch)",

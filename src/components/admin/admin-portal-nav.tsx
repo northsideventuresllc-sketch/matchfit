@@ -4,6 +4,10 @@ import {
   adminPortalNavLinkClass,
   adminPortalNavLinkIdleClass,
 } from "@/components/admin/admin-portal-styles";
+import {
+  MATCH_FIT_DEFAULT_ADS_SURFACE_LABEL,
+  MATCH_FIT_DEFAULT_ADS_SURFACE_PATH,
+} from "@/lib/match-fit-ads-surface";
 
 export type AdminPortalNavPage =
   | "dashboard"
@@ -17,14 +21,15 @@ export type AdminPortalNavPage =
   | "email-templates"
   | "fp-documents";
 
+/** Ad Tracking HQ sits near the top — admin is the default Match Fit ads surface. */
 const PAGES: { id: AdminPortalNavPage; href: string; label: string }[] = [
   { id: "dashboard", href: "/admin", label: "Dashboard" },
+  { id: "ad-tracking", href: MATCH_FIT_DEFAULT_ADS_SURFACE_PATH, label: MATCH_FIT_DEFAULT_ADS_SURFACE_LABEL },
+  { id: "outreach", href: "/admin/outreach", label: "Outreach HQ" },
+  { id: "content-calendar", href: "/admin/content-calendar", label: "Content Calendar" },
   { id: "support-inbox", href: "/admin/support-inbox", label: "Support Inbox" },
   { id: "fp-documents", href: "/admin/fp-documents", label: "Fitness Pro Documents" },
   { id: "email-templates", href: "/admin/email-templates", label: "Email Templates" },
-  { id: "outreach", href: "/admin/outreach", label: "Outreach HQ" },
-  { id: "content-calendar", href: "/admin/content-calendar", label: "Content Calendar" },
-  { id: "ad-tracking", href: "/admin/ad-tracking", label: "Ad Tracking" },
   { id: "assistant", href: "/admin/assistant", label: "AI Assistant" },
   { id: "waitlists", href: "/admin/beta-waitlists", label: "Beta Waitlists" },
   { id: "settings", href: "/admin/settings", label: "Settings" },

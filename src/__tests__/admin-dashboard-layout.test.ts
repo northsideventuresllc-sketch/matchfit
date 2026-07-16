@@ -15,13 +15,13 @@ describe("admin-dashboard-layout", () => {
     expect(parseAdminDashboardLayout(null)).toEqual(DEFAULT_ADMIN_DASHBOARD_LAYOUT);
   });
 
-  it("migrates v1 layouts to v3 with collapse and density defaults", () => {
+  it("migrates v1 layouts to v4 with collapse and density defaults", () => {
     const parsed = parseAdminDashboardLayout({
       version: 1,
       order: ["member-search", "overview-kpis"],
       hidden: ["signup-log"],
     });
-    expect(parsed.version).toBe(3);
+    expect(parsed.version).toBe(4);
     expect(parsed.order[0]).toBe("member-search");
     expect(parsed.hidden).toContain("signup-log");
     expect(parsed.collapsed).toEqual([]);
@@ -29,6 +29,20 @@ describe("admin-dashboard-layout", () => {
     expect(parsed.order).toContain("platform-health");
     expect(parsed.order).toContain("background-checks");
     expect(visibleDashboardSections(parsed)).not.toContain("signup-log");
+  });
+
+  it("shows ad-performance by default and unhides it when migrating from v3", () => {
+    expect(visibleDashboardSections(DEFAULT_ADMIN_DASHBOARD_LAYOUT)).toContain("ad-performance");
+    const fromV3 = parseAdminDashboardLayout({
+      version: 3,
+      order: [...DEFAULT_ADMIN_DASHBOARD_LAYOUT.order],
+      hidden: ["platform-health", "ad-performance", "recent-featured"],
+      collapsed: [],
+      density: "comfortable",
+    });
+    expect(fromV3.version).toBe(4);
+    expect(fromV3.hidden).not.toContain("ad-performance");
+    expect(visibleDashboardSections(fromV3)).toContain("ad-performance");
   });
 
   it("toggles section visibility", () => {

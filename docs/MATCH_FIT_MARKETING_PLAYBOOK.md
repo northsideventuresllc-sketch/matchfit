@@ -17,6 +17,8 @@ Weekly operator workflow for Match Fit beta marketing. Canonical step definition
 
 Steps **1–4** are organic and planning. Steps **5–8** are paid acquisition and measurement.
 
+**Default ads surface:** Match Fit Admin → **Ad Tracking HQ** (`/admin/ad-tracking`). The dashboard Ad performance panel summarizes spend and deep-links here. AXON ad trackers are secondary for Match Fit paid work.
+
 Ad Tracking HQ surfaces steps **1** (plan), **5–6** (setup), and **8** (registry + review). Step **7** runs in the ad platform UI after conversion goals match the event catalog.
 
 ## JB lane only
