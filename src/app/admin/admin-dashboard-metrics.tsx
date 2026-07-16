@@ -27,6 +27,10 @@ import type {
 import { fpAccountTierDisplayName } from "@/lib/fp-account-tier-types";
 import type { AdPerformancePanel } from "@/lib/ad-platform-performance";
 import { formatUsdFromCents } from "@/lib/admin-portal-types";
+import {
+  MATCH_FIT_DEFAULT_ADS_SURFACE_LABEL,
+  MATCH_FIT_DEFAULT_ADS_SURFACE_PATH,
+} from "@/lib/match-fit-ads-surface";
 
 const FINANCE_WINDOW_LABELS: Record<AdminFinanceWindowKey, string> = {
   "24h": "24 hours",
@@ -843,7 +847,7 @@ export function AdPerformanceSection({ panel }: { panel: AdPerformancePanel }) {
   return (
     <MetricsSection
       title="Ad performance"
-      description="Meta, Google, and TikTok metrics synced via API, plus on-site UTM attribution (7 days)."
+      description="Default Match Fit ads surface summary — Meta, Google, and TikTok spend plus UTM attribution (7 days). Full tools live in Ad Tracking HQ."
     >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Meta spend" value={formatUsdFromCents(panel.totals.meta.spendCents)} />
@@ -856,11 +860,14 @@ export function AdPerformanceSection({ panel }: { panel: AdPerformancePanel }) {
         API sync: Meta {syncLabel(meta?.spendSyncStatus, meta?.configured)} · Google{" "}
         {syncLabel(google?.spendSyncStatus, google?.configured)} · TikTok{" "}
         {syncLabel(tiktok?.spendSyncStatus, tiktok?.configured)}.{" "}
-        <Link href="/admin/ad-tracking" className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
-          Open Ad Tracking HQ
+        <Link
+          href={MATCH_FIT_DEFAULT_ADS_SURFACE_PATH}
+          className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline"
+        >
+          Open {MATCH_FIT_DEFAULT_ADS_SURFACE_LABEL}
         </Link>{" "}
-        to build campaign URLs and run a manual sync. Meta spend requires Insights costs (System User ads_read + correct
-        act_ account) — credentials alone are not enough.
+        (default ads surface) to build campaign URLs and run a manual sync. Meta spend requires Insights costs (System
+        User ads_read + correct act_ account) — credentials alone are not enough.
       </p>
       {panel.attribution.length > 0 ? (
         <ul className="mt-4 space-y-1 text-[11px] text-white/50">

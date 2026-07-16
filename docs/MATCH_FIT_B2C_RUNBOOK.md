@@ -13,7 +13,7 @@ Cross-reference: [Marketing playbook (8 steps)](./MATCH_FIT_MARKETING_PLAYBOOK.m
 | VIP trial / subscribe | `/client/subscribe` |
 | Match preferences | `/client/dashboard/preferences` |
 
-Admin: `/admin/beta-waitlists`, `/promos`, `/admin/ad-tracking`
+Admin: `/admin/beta-waitlists`, `/promos`, `/admin/ad-tracking` (default Match Fit ads surface)
 
 ## Phases 5b–6b (paid measurement — client)
 

@@ -103,13 +103,16 @@ const EMPTY_OVERVIEW: AdminPortalOverview = {
   adPerformance: {
     windowDays: 7,
     totals: {
-      meta: { spendCents: 0, clicks: 0, impressions: 0 },
-      google: { spendCents: 0, clicks: 0, impressions: 0 },
+      meta: { spendCents: 0, clicks: 0, impressions: 0, conversions: 0 },
+      google: { spendCents: 0, clicks: 0, impressions: 0, conversions: 0 },
+      tiktok: { spendCents: 0, clicks: 0, impressions: 0, conversions: 0 },
       attributedPageViews: 0,
       attributedSignupViews: 0,
     },
     integrations: [],
     attribution: [],
+    platformDaily: [],
+    googleConversionLabels: { clientSignup: null, trainerSignup: null },
   },
   clientPipeline: { stages: [], entries: [] },
   pipeline: { totalInPipeline: 0, preTierStages: [], tierCategories: [], stages: [], pendingTrainers: [] },

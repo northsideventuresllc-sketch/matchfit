@@ -2,9 +2,10 @@
  * Administrator dashboard section registry and layout preferences (client-safe).
  */
 
-export const ADMIN_DASHBOARD_LAYOUT_VERSION = 3 as const;
+export const ADMIN_DASHBOARD_LAYOUT_VERSION = 4 as const;
 const LEGACY_LAYOUT_VERSION = 1 as const;
 const PREV_LAYOUT_VERSION = 2 as const;
+const V3_LAYOUT_VERSION = 3 as const;
 
 export const ADMIN_DASHBOARD_SECTION_IDS = [
   "overview-kpis",
@@ -185,7 +186,8 @@ export type AdminDashboardLayout = {
 export const DEFAULT_ADMIN_DASHBOARD_LAYOUT: AdminDashboardLayout = {
   version: ADMIN_DASHBOARD_LAYOUT_VERSION,
   order: [...ADMIN_DASHBOARD_SECTION_IDS],
-  hidden: ["platform-health", "ad-performance", "recent-featured"],
+  /** Ad performance is visible by default — admin is the Match Fit ads surface. */
+  hidden: ["platform-health", "recent-featured"],
   collapsed: [],
   density: "comfortable",
 };
@@ -324,6 +326,7 @@ export function parseAdminDashboardLayout(raw: unknown): AdminDashboardLayout {
   const obj = raw as Record<string, unknown>;
   if (
     obj.version !== ADMIN_DASHBOARD_LAYOUT_VERSION &&
+    obj.version !== V3_LAYOUT_VERSION &&
     obj.version !== PREV_LAYOUT_VERSION &&
     obj.version !== LEGACY_LAYOUT_VERSION
   ) {
@@ -331,7 +334,12 @@ export function parseAdminDashboardLayout(raw: unknown): AdminDashboardLayout {
   }
 
   const order = normalizeOrder(obj.order);
-  const hidden = normalizeHidden(obj.hidden);
+  let hidden = normalizeHidden(obj.hidden);
+
+  // v4: surface Ad performance by default (MF-ADS-ADMIN — admin is the ads home).
+  if (obj.version === V3_LAYOUT_VERSION || obj.version === PREV_LAYOUT_VERSION || obj.version === LEGACY_LAYOUT_VERSION) {
+    hidden = hidden.filter((id) => id !== "ad-performance");
+  }
 
   if (obj.version === LEGACY_LAYOUT_VERSION) {
     return {
@@ -461,4 +469,4 @@ export function visibleSectionsByGroup(
     .filter((entry) => entry.sections.length > 0);
 }
 
-export const ADMIN_DASHBOARD_LAYOUT_STORAGE_KEY = "mf_admin_dashboard_layout_v3";
+export const ADMIN_DASHBOARD_LAYOUT_STORAGE_KEY = "mf_admin_dashboard_layout_v4";

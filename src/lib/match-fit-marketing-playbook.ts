@@ -1,5 +1,7 @@
 /** Canonical Match Fit weekly marketing playbook — 8 steps from plan to paid review. */
 
+import { MATCH_FIT_DEFAULT_ADS_SURFACE_PATH } from "@/lib/match-fit-ads-surface";
+
 export type MatchFitMarketingPlaybookStepId =
   | "plan_week"
   | "generate_content"
@@ -28,7 +30,7 @@ export const MATCH_FIT_MARKETING_PLAYBOOK_STEPS: MatchFitMarketingPlaybookStep[]
     title: "Plan the week",
     description:
       "Pick audience (client vs Fitness Pro), content pillar, and paid budget. Align promos with /promos before you spend.",
-    adminPath: "/admin/ad-tracking",
+    adminPath: MATCH_FIT_DEFAULT_ADS_SURFACE_PATH,
   },
   {
     step: 2,
@@ -56,14 +58,14 @@ export const MATCH_FIT_MARKETING_PLAYBOOK_STEPS: MatchFitMarketingPlaybookStep[]
     id: "confirm_tags",
     title: "Confirm tags",
     description: "Verify Meta and Google pixel IDs in Events Manager and Google Ads match Ad Tracking HQ.",
-    adminPath: "/admin/ad-tracking",
+    adminPath: MATCH_FIT_DEFAULT_ADS_SURFACE_PATH,
   },
   {
     step: 6,
     id: "build_links",
     title: "Build tracking links",
     description: "Generate UTM URLs for each ad creative — never send traffic to the homepage without tags.",
-    adminPath: "/admin/ad-tracking",
+    adminPath: MATCH_FIT_DEFAULT_ADS_SURFACE_PATH,
   },
   {
     step: 7,
@@ -79,7 +81,7 @@ export const MATCH_FIT_MARKETING_PLAYBOOK_STEPS: MatchFitMarketingPlaybookStep[]
     title: "Register campaign and review",
     description:
       "Record the platform campaign ID with week and budget, sync performance, and compare ad spend to on-site attribution.",
-    adminPath: "/admin/ad-tracking",
+    adminPath: MATCH_FIT_DEFAULT_ADS_SURFACE_PATH,
   },
 ];
 
