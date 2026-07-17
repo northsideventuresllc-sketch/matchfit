@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-07-17** `2.3.2-beta` → `2.3.3-beta` (**patch** — Meta Insights: DB-wins hydrate + appsecret_proof)
 - **2026-07-16** `2.3.1-beta` → `2.3.2-beta` (**patch** — Preserve /trainer/signup in content calendar generation and language normalization)
 - **2026-07-16** `2.3.0-beta` → `2.3.1-beta` (**patch** — Wire Meta CAPI purchase events, hydrate META_ACCESS_TOKEN, live CAPI probe in Ad Tracking HQ)
 - **2026-07-16** `2.2.7-beta` → `2.3.0-beta` (**minor** — MF-ADS-ADMIN: admin Ad Tracking HQ as default Match Fit ads surface with live dashboard Ad performance)

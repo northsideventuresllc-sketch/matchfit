@@ -1,5 +1,6 @@
 import "server-only";
 import { createHash, randomUUID } from "crypto";
+import { withMetaGraphAuth } from "@/lib/meta-graph";
 
 export type ServerConversionEvent = {
   event: string;
@@ -90,32 +91,33 @@ export async function probeMetaCapiAccess(): Promise<{
 
   const eventTime = Math.floor(Date.now() / 1000);
   const eventId = `mf_capi_probe_${eventTime}_${randomUUID().slice(0, 8)}`;
-  const res = await fetch(
-    `https://graph.facebook.com/v21.0/${creds.pixelId}/events?access_token=${encodeURIComponent(creds.accessToken)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        data: [
-          {
-            event_name: "Lead",
-            event_time: eventTime,
-            event_id: eventId,
-            action_source: "website",
-            event_source_url: "https://match-fit.net/",
-            user_data: {
-              em: [sha256Hex("capi-probe@match-fit.net")],
-            },
-            custom_data: {
-              match_fit_event: "mf_capi_probe",
-              content_name: "Match Fit CAPI probe",
-            },
-          },
-        ],
-      }),
-      cache: "no-store",
-    },
+  const eventsUrl = withMetaGraphAuth(
+    new URL(`https://graph.facebook.com/v21.0/${creds.pixelId}/events`),
+    creds.accessToken,
   );
+  const res = await fetch(eventsUrl.toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      data: [
+        {
+          event_name: "Lead",
+          event_time: eventTime,
+          event_id: eventId,
+          action_source: "website",
+          event_source_url: "https://match-fit.net/",
+          user_data: {
+            em: [sha256Hex("capi-probe@match-fit.net")],
+          },
+          custom_data: {
+            match_fit_event: "mf_capi_probe",
+            content_name: "Match Fit CAPI probe",
+          },
+        },
+      ],
+    }),
+    cache: "no-store",
+  });
 
   const text = await res.text().catch(() => "");
   let json: { events_received?: number; error?: { message?: string } } = {};
@@ -171,14 +173,15 @@ async function sendMetaCapiEvent(input: ServerConversionEvent): Promise<void> {
     payload.event_source_url = input.eventSourceUrl.trim();
   }
 
-  const res = await fetch(
-    `https://graph.facebook.com/v21.0/${creds.pixelId}/events?access_token=${encodeURIComponent(creds.accessToken)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data: [payload] }),
-    },
+  const eventsUrl = withMetaGraphAuth(
+    new URL(`https://graph.facebook.com/v21.0/${creds.pixelId}/events`),
+    creds.accessToken,
   );
+  const res = await fetch(eventsUrl.toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data: [payload] }),
+  });
   if (!res.ok) {
     console.error("[server-conversion-tracking] Meta CAPI non-OK response", res.status, await res.text().catch(() => ""));
   }

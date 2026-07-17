@@ -81,11 +81,11 @@ describe("ad-platform-performance", () => {
     expect(normalizeMetaAdAccountId("not-an-id")).toBeNull();
   });
 
-  it("formats Meta permission errors with ads_read / act_ guidance", () => {
+  it("formats Meta API access blocked with Marketing API / App Secret guidance", () => {
     const msg = formatMetaInsightsOperatorError("API access blocked.");
-    expect(msg).toMatch(/ads_read/i);
-    expect(msg).toMatch(/act_/i);
-    expect(msg).toMatch(/not enough/i);
+    expect(msg).toMatch(/Marketing API/i);
+    expect(msg).toMatch(/Require App Secret|META_APP_SECRET/i);
+    expect(msg).toMatch(/One ad account is fine/i);
   });
 
   it("reports server conversion integration status", () => {

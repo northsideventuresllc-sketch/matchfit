@@ -2,6 +2,7 @@ import "server-only";
 
 import type { AdPlatform } from "@/lib/ad-tracking-config";
 import { googleAdsConversionSendTo } from "@/lib/google-ads";
+import { withMetaGraphAuth } from "@/lib/meta-graph";
 import { isPrismaMissingColumnError, isPrismaMissingTableError } from "@/lib/prisma-missing-column";
 import { prisma } from "@/lib/prisma";
 
@@ -126,18 +127,26 @@ export function normalizeMetaAdAccountId(raw: string): { numericId: string; actI
 export function formatMetaInsightsOperatorError(message: string): string {
   const base = message.trim() || "Meta Insights request failed.";
   const lower = base.toLowerCase();
+  if (lower.includes("api access blocked") || lower.includes("access_denied")) {
+    return (
+      `${base} Token Debugger can still show Valid + ads_read while Graph returns access_denied. ` +
+      `Fix on Match Fit app (id 1326626849446738): (1) App Dashboard → add Marketing API product if missing. ` +
+      `(2) Settings → Advanced → Security → turn OFF “Require App Secret”, OR set META_APP_SECRET so server sends appsecret_proof. ` +
+      `(3) Business Settings → System User assigned to act_ ad account. One ad account is fine — Sync uses META_AD_ACCOUNT_ID only.`
+    );
+  }
   if (
     lower.includes("ads_read") ||
     lower.includes("permission") ||
     lower.includes("(#100)") ||
     lower.includes("(#200)") ||
-    lower.includes("api access blocked") ||
     lower.includes("does not have permission") ||
-    lower.includes("missing permission")
+    lower.includes("missing permission") ||
+    lower.includes("appsecret_proof")
   ) {
     return (
-      `${base} Use a Meta Business System User token with ads_read assigned to the correct ` +
-      `ad account (META_AD_ACCOUNT_ID as act_… from Ads Manager). Env present / “API connected” is not enough — Insights must return spend.`
+      `${base} Use a Meta Business System User token with ads_read on META_AD_ACCOUNT_ID (act_…). ` +
+      `If App requires App Secret, set META_APP_SECRET (Settings → Basic). Env present alone is not enough — Insights must return spend.`
     );
   }
   if (lower.includes("invalid") && (lower.includes("account") || lower.includes("act_"))) {
@@ -316,8 +325,7 @@ function metaInsightsUrl(actId: string, dayKey: string, token: string): URL {
   url.searchParams.set("time_range", timeRange);
   url.searchParams.set("time_increment", "1");
   url.searchParams.set("level", "account");
-  url.searchParams.set("access_token", token);
-  return url;
+  return withMetaGraphAuth(url, token);
 }
 
 /**

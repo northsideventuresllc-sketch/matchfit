@@ -164,11 +164,23 @@ export async function hydratePlatformEnvFromDatabase(): Promise<void> {
       process.env.NI_BRAIN_DATABASE_PASSWORD = niBrainDatabasePassword;
     }
 
-    for (const adKey of [
+    // Meta ads keys: platform_secrets wins over Vercel env so rotations are not
+    // masked by stale duplicate env entries (common after token regenerate).
+    for (const metaKey of [
       "META_ADS_ACCESS_TOKEN",
       "META_AD_ACCOUNT_ID",
       "META_PIXEL_ID",
       "META_ACCESS_TOKEN",
+      "META_APP_SECRET",
+      "META_APP_ID",
+    ] as const) {
+      const metaValue = await readPlatformSecret(metaKey);
+      if (metaValue?.trim()) {
+        process.env[metaKey] = metaValue.trim();
+      }
+    }
+
+    for (const adKey of [
       "GA_MEASUREMENT_ID",
       "GA_API_SECRET",
       "TIKTOK_ADS_ACCESS_TOKEN",

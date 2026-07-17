@@ -81,4 +81,22 @@ describe("hydratePlatformEnvFromDatabase", () => {
     expect(process.env.GEMINI_API_KEY).toBe("AQ.test-auth-key");
     expect(process.env.GEMINI_MODEL).toBe("gemini-2.0-flash");
   });
+
+  it("overwrites stale Meta ads env with platform_secrets (rotation-safe)", async () => {
+    process.env.META_ADS_ACCESS_TOKEN = "stale-vercel-token";
+    process.env.META_AD_ACCOUNT_ID = "act_old";
+    readPlatformSecret.mockImplementation(async (key: string) => {
+      if (key === "META_ADS_ACCESS_TOKEN") return "fresh-db-token";
+      if (key === "META_AD_ACCOUNT_ID") return "act_869068448935932";
+      if (key === "META_APP_SECRET") return "app-secret";
+      return null;
+    });
+
+    const { hydratePlatformEnvFromDatabase } = await import("@/lib/hydrate-platform-env");
+    await hydratePlatformEnvFromDatabase();
+
+    expect(process.env.META_ADS_ACCESS_TOKEN).toBe("fresh-db-token");
+    expect(process.env.META_AD_ACCOUNT_ID).toBe("act_869068448935932");
+    expect(process.env.META_APP_SECRET).toBe("app-secret");
+  });
 });
