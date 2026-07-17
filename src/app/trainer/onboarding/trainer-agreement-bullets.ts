@@ -4,11 +4,13 @@ import {
   TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE,
   TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS,
   TRAINER_SIGNUP_PREMIUM_PROMO_DAYS,
+  trainerIndependentProSubscriptionLabel,
+  trainerIndependentProTrialBenefitLabel,
 } from "@/lib/trainer-signup-promo-copy";
 
 export const TRAINER_SIGNUP_AGREEMENT_DOCUMENT = `Match Fit connects Fitness Pros with clients who discover professionals through the platform. You agree to provide accurate information during signup, document review, certification review, and background screening.
 
-During beta, the first 10 founding Fitness Pros receive platform-covered Checkr background screening and pay only 20% of the standard screening estimate (plus processing) for the Match Fit platform onboarding slice at signup. You choose an account type during signup — Match Fit Premium Pro is complimentary for beta users for ${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days; Independent Fitness Pro and Elite Fitness Pro require a paid subscription. You must begin onboarding within ${TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of creating your account, including uploading required documents, starting certification, and screening steps. ${TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE} Other Fitness Pros pay a $100.00 platform registration fee plus processing at signup. Your card is authorized at signup (held in Stripe); Match Fit captures the registration amount only after your documents, certification, and background check are approved. If you do not complete background screening after your Checkr invitation is sent, no background-check charge applies for founding Fitness Pros with platform-covered screening (see Terms).
+During beta, the first 10 founding Fitness Pros receive platform-covered Checkr background screening and pay only 20% of the standard screening estimate (plus processing) for the Match Fit platform onboarding slice at signup. You choose an account type during signup — Match Fit Premium Pro is complimentary for beta users for ${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days; Independent Fitness Pro includes ${trainerIndependentProTrialBenefitLabel()} of platform access, then the ${trainerIndependentProSubscriptionLabel()} subscription keeps your account active; Elite Fitness Pro requires a paid subscription. You must begin onboarding within ${TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of creating your account, including uploading required documents, starting certification, and screening steps. ${TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE} Other Fitness Pros pay a $100.00 platform registration fee plus processing at signup. Your card is authorized at signup (held in Stripe); Match Fit captures the registration amount only after your documents, certification, and background check are approved. If you do not complete background screening after your Checkr invitation is sent, no background-check charge applies for founding Fitness Pros with platform-covered screening (see Terms).
 
 After founding caps are reached, other Fitness Pros follow the onboarding fees shown at checkout in the Terms of Service. Your card may be authorized at signup when a hold is required; Match Fit captures charges only according to the rules in the Terms.
 
@@ -23,6 +25,7 @@ export const TRAINER_ONBOARDING_AGREEMENT_COUNT = 1;
 
 const STANDARD_BULLETS = [
   `Standard signup: onboarding fees as shown at checkout (background screening plus card processing, authorized at signup and captured after approval).`,
+  `Independent Fitness Pro includes ${trainerIndependentProTrialBenefitLabel()} of platform access; after the trial, ${trainerIndependentProSubscriptionLabel()} keeps the account active.`,
   `Begin onboarding within ${TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up. ${TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}`,
   "Limited dashboard until certification and background check are approved.",
   "Full Terms of Service and Privacy Policy govern enforcement, fees, and account policies.",
@@ -31,6 +34,7 @@ const STANDARD_BULLETS = [
 const FOUNDING_BULLETS = [
   "Founding Fitness Pro signup (first 10): Match Fit covers Checkr background screening; you authorize only the 20% platform onboarding slice plus card processing (captured after approval).",
   `${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Match Fit Premium Pro at sign-up for beta users.`,
+  `Independent Fitness Pro includes ${trainerIndependentProTrialBenefitLabel()} of platform access; after the trial, ${trainerIndependentProSubscriptionLabel()} keeps the account active.`,
   `Begin onboarding within ${TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up. ${TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}`,
   "Limited dashboard until certification and background check are approved.",
   "Full Terms of Service and Privacy Policy govern enforcement, fees, and account policies.",

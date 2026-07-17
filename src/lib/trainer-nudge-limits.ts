@@ -4,6 +4,7 @@ import {
   NUDGE_PACK_PURCHASE_NOTICE,
   trainerDailyFreeNudgeAllowance,
 } from "@/lib/fp-tier-chat-policy";
+import { trainerIndependentProSubscriptionLabel } from "@/lib/trainer-signup-promo-copy";
 
 /**
  * Legacy free-tier cap for trainers without an FP account tier assigned.
@@ -11,7 +12,13 @@ import {
  */
 export const LEGACY_FREE_TRAINER_NUDGES_PER_DAY = 3;
 
+/** Alias for callers that still import the pre-FP export name. */
+export const FREE_TRAINER_NUDGES_PER_DAY = LEGACY_FREE_TRAINER_NUDGES_PER_DAY;
+
 export { FP_NUDGE_PACK_SIZE, NUDGE_PACK_PURCHASE_NOTICE };
+
+/** Plain string for API errors / toasts (no markup). */
+export const PREMIUM_NUDGES_PRODUCT_NOTICE = `Need more than 3 nudges per day? Match Fit Independent Pro (${trainerIndependentProSubscriptionLabel()}) unlocks higher limits after your free trial.`;
 
 export function utcDayRange(now = new Date()): { start: Date; end: Date } {
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));

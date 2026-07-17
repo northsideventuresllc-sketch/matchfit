@@ -15,6 +15,7 @@ import {
 import { finalizeDueAccountDeletions } from "@/lib/account-deletion-grace";
 import { runClientPlatformBillingLifecycleJobs } from "@/lib/client-platform-lifecycle";
 import { runTrainerDeferredFeeLifecycleJobs } from "@/lib/trainer-deferred-fee-lifecycle";
+import { runTrainerPlatformBillingLifecycleJobs } from "@/lib/trainer-platform-lifecycle";
 import { runBetaWaitlistCronJobs } from "@/lib/beta-waitlist-service";
 import { processTrainerComplianceWindowExpirations } from "@/lib/trainer-compliance-window-cron";
 import { processTrainerOnboardingFeeDeadlineExpirations } from "@/lib/trainer-onboarding-fee-deadline-cron";
@@ -52,6 +53,10 @@ export type TosCronSummary = {
   trainerDeferredFee: {
     graceStarted: number;
     banned: number;
+  };
+  trainerPlatformBilling: {
+    paymentGraceStarted: number;
+    accountsDeactivated: number;
   };
   trainerComplianceWindowsExpired: number;
   trainerOnboardingFeeDeadlinesExpired: number;
@@ -254,6 +259,12 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   } catch (e) {
     console.error("[tos cron] trainer deferred fee lifecycle", e);
   }
+  let trainerPlatformBilling = { paymentGraceStarted: 0, accountsDeactivated: 0 };
+  try {
+    trainerPlatformBilling = await runTrainerPlatformBillingLifecycleJobs();
+  } catch (e) {
+    console.error("[tos cron] trainer platform billing lifecycle", e);
+  }
   let trainerComplianceWindowsExpired = 0;
   let trainerOnboardingFeeDeadlinesExpired = 0;
   try {
@@ -290,6 +301,7 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     accountDeletions,
     clientPlatformBilling,
     trainerDeferredFee,
+    trainerPlatformBilling,
     trainerComplianceWindowsExpired,
     trainerOnboardingFeeDeadlinesExpired,
     outreachArchive,

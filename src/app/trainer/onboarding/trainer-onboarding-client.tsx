@@ -27,6 +27,12 @@ import { coerceTrainerBackgroundVendorStatus, coerceTrainerCptStatus } from "@/l
 import { hasOnboardingSnapshotChanges, shouldInterceptDashboardNavigation } from "@/lib/trainer-onboarding-unsaved-changes";
 import { useMetaSignupFunnelStep } from "@/hooks/use-meta-signup-funnel-step";
 import { TRAINER_ONBOARDING_FUNNEL_STEPS } from "@/lib/meta-pixel-funnel";
+import {
+  TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS,
+  trainerIndependentProSubscriptionLabel,
+  trainerIndependentProTrialBenefitLabel,
+  trainerSignupPremiumPromoBenefitLabel,
+} from "@/lib/trainer-signup-promo-copy";
 
 type TrainerMe = {
   id: string;
@@ -1160,9 +1166,12 @@ export default function TrainerOnboardingClient() {
                     You are in the first <span className="font-semibold text-white">10 coaches</span>: Match Fit covers
                     your Checkr background screening. After screening clears, we charge{" "}
                     <span className="font-semibold text-white">20%</span> of the verified screening amount for the
-                    platform onboarding slice (plus processing)—not the full $100 platform fee. You receive 60 days of
-                    Match Fit Premium Pro at sign-up. Begin onboarding within 7 days of sign-up. You cannot sell services
-                    until every requirement is completed.
+                    platform onboarding slice (plus processing)—not the full $100 platform fee. You receive{" "}
+                    {trainerSignupPremiumPromoBenefitLabel()} at sign-up. Independent Fitness Pro includes{" "}
+                    {trainerIndependentProTrialBenefitLabel()} of platform access; after the trial, the{" "}
+                    {trainerIndependentProSubscriptionLabel()} subscription keeps your account active. Begin
+                    onboarding within {TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up. You cannot sell
+                    services until every requirement is completed.
                   </p>
                 </div>
               ) : null}

@@ -4,7 +4,8 @@ import { coerceTrainerBackgroundVendorStatus } from "@/lib/trainer-onboarding-st
 export const TRAINER_COMPLIANCE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 export const TRAINER_COMPLIANCE_HUMAN_REVIEW_MS = 28 * 24 * 60 * 60 * 1000;
 export const TRAINER_COMPLIANCE_MAX_CERT_FAILURES = 3;
-export const TRAINER_FITHUB_PROMO_MS = 28 * 24 * 60 * 60 * 1000;
+/** Independent Pro free Premium / platform trial length (must match TRAINER_PLATFORM_TRIAL_DAYS). */
+export const TRAINER_FITHUB_PROMO_MS = 60 * 24 * 60 * 60 * 1000;
 
 export type TrainerComplianceWindowProfile = TrainerCertificationGateProfile & {
   complianceWindowStartedAt?: Date | string | null;

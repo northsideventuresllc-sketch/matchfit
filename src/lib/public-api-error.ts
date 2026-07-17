@@ -2,6 +2,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { httpStatusFromResendError } from "@/lib/resend-client";
 import { stripeApiErrorMessage } from "@/lib/stripe-api-error";
 import { isMissingClientPlatformTrialColumnError } from "@/lib/ensure-client-platform-trial-schema";
+import { isMissingTrainerPlatformTrialColumnError } from "@/lib/ensure-trainer-platform-trial-schema";
 import { isPrismaMissingColumnError, isPrismaMissingTableError } from "@/lib/prisma-missing-column";
 
 const DB_BUSY_RE = /SQLITE_BUSY|database is locked|SQLITE_IOERR_BLOCKED|EBUSY/i;
@@ -46,6 +47,7 @@ export function publicApiErrorFromUnknown(
 
   if (
     isMissingClientPlatformTrialColumnError(e) ||
+    isMissingTrainerPlatformTrialColumnError(e) ||
     isPrismaMissingTableError(e, "pending_client_registrations") ||
     isPrismaMissingTableError(e, "beta_client_waitlist_entries") ||
     isPrismaMissingColumnError(e, "privacyPolicyAcceptedAt") ||

@@ -731,7 +731,21 @@ model Trainer {
   safetySuspended   Boolean   @default(false)
   safetySuspendedAt DateTime?
 
-  /// When set, trainer login and dashboard access are blocked (e.g. deferred fee ban).
+  /// Stripe customer for Independent Pro platform billing, FP tier subscriptions, and à la carte promote tokens.
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  /// Mirrors Stripe subscription status for dashboard access control after the free trial / FP tier billing.
+  stripeSubscriptionActive Boolean @default(false)
+  /// When subscription is inactive and `now` is after this instant, non-billing dashboard routes require renewal.
+  subscriptionGraceUntil DateTime?
+  /// End of the card-free Independent Pro platform trial granted at registration.
+  platformTrialEndsAt DateTime?
+  /// After the platform trial ends, trainers have until this instant to add a card and subscribe.
+  paymentGraceUntil DateTime?
+  /// True once the trainer consumed their one-time platform trial (reactivation requires payment).
+  platformTrialConsumed Boolean @default(false)
+
+  /// When set, trainer login and dashboard access are blocked (trial unpaid, deferred fee ban, etc.).
   accountDeactivatedAt DateTime?
 
   /// Standard-tier deferred platform registration fee (trainers 31+ / post-beta).
@@ -781,10 +795,6 @@ model Trainer {
 
   internalQaDailyCursor InternalQaTrainerDailyCursor?
 
-  /// Stripe customer for FP tier subscriptions (Independent / Elite) and à la carte promote tokens.
-  stripeCustomerId String?
-  stripeSubscriptionId String?
-  stripeSubscriptionActive Boolean @default(false)
   /// External website / booking link (Independent + Elite tiers).
   externalWebsiteUrl String?
   /// Elite dual-view dashboard: match_fit_pro | independent_fitness_pro
@@ -1257,7 +1267,7 @@ model TrainerProfile {
   backgroundCheckEscrowPaymentIntentId String?
   /// NOT_STARTED | HELD | CAPTURED | CANCELED
   backgroundCheckEscrowHoldStatus String @default("NOT_STARTED")
-  /// BETA FitHub promo: 28 days free premium studio access after cert + BG approved.
+  /// BETA FitHub / Premium Page promo end (aligned with Independent Pro 60-day platform trial at registration).
   fitHubPromoEndsAt DateTime?
 
   /// Set when cert, BG, W-9, and TOS are satisfied — trainer is live for clients.

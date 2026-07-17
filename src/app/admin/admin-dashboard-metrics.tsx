@@ -31,6 +31,7 @@ import {
   MATCH_FIT_DEFAULT_ADS_SURFACE_LABEL,
   MATCH_FIT_DEFAULT_ADS_SURFACE_PATH,
 } from "@/lib/match-fit-ads-surface";
+import { TRAINER_PREMIUM_SUBSCRIPTION_USD } from "@/lib/platform-revenue-accounting";
 
 const FINANCE_WINDOW_LABELS: Record<AdminFinanceWindowKey, string> = {
   "24h": "24 hours",
@@ -348,7 +349,7 @@ export function PlatformHealthSection({ panel }: { panel: AdminPlatformSummaryPa
         <StatCard
           label="Annualized subscription ARR"
           value={formatUsdFromCents(valuation.subscriptionArrCents)}
-          hint="Client VIP $10/mo + FP tier subscriptions + Premium Page $20/mo (projected)"
+          hint={`Client VIP $10/mo + FP tier subscriptions + Independent Pro $${TRAINER_PREMIUM_SUBSCRIPTION_USD}/mo + Premium Page $20/mo (projected)`}
         />
         <StatCard
           label="Annualized 30d gross profit"

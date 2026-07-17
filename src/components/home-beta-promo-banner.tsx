@@ -6,6 +6,8 @@ import {
   trainerFoundingBgCheckBenefitShortLabel,
   trainerFoundingBgCheckEligibleTiersLabel,
   trainerFoundingPromoBullets,
+  trainerIndependentProSubscriptionLabel,
+  trainerIndependentProTrialPromoSentence,
   trainerSignupOnboardingBeginDeadlineLabel,
   trainerSignupPremiumPromoBenefitLabel,
 } from "@/lib/trainer-signup-promo-copy";
@@ -107,6 +109,16 @@ export function HomeBetaPromoBanner() {
             </li>
             <li className="flex min-w-0 gap-3">
               <span
+                className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[linear-gradient(135deg,#FFD34E,#E32B2B)]"
+                aria-hidden
+              />
+              <span className="min-w-0 flex-1 text-left [overflow-wrap:anywhere]">
+                <span className="font-semibold text-white/90">All fitness professionals:</span>{" "}
+                {trainerIndependentProTrialPromoSentence()}
+              </span>
+            </li>
+            <li className="flex min-w-0 gap-3">
+              <span
                 className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[linear-gradient(135deg,#FF7E00,#E32B2B)]"
                 aria-hidden
               />
@@ -124,6 +136,9 @@ export function HomeBetaPromoBanner() {
             <span className="font-semibold text-white/75">{trainerSignupPremiumPromoBenefitLabel()}</span> active while
             you finish compliance. Founding {trainerFoundingBgCheckEligibleTiersLabel()} sign-ups receive{" "}
             <span className="font-semibold text-white/75">{trainerFoundingBgCheckBenefitShortLabel().toLowerCase()}</span>.
+            Your Independent Pro trial starts at registration; after the trial, the{" "}
+            <span className="font-semibold text-white/75">{trainerIndependentProSubscriptionLabel()}</span> subscription
+            keeps your account active.
           </p>
         </div>
 

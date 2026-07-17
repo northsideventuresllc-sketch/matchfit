@@ -23,6 +23,11 @@ import {
   TRAINER_SIGN_UP_PATH,
   type HomePageAuth,
 } from "@/lib/home-page-auth";
+import { TRAINER_PLATFORM_SUBSCRIPTION_USD } from "@/lib/trainer-platform-trial-constants";
+import {
+  trainerIndependentProSubscriptionLabel,
+  trainerSignupPremiumPromoBenefitLabel,
+} from "@/lib/trainer-signup-promo-copy";
 
 function ServiceCard({
   title,
@@ -355,9 +360,17 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           id={FP_INDEPENDENT_PRO_DEBRIEF.id}
           eyebrow={FP_INDEPENDENT_PRO_DEBRIEF.eyebrow}
           eyebrowClass="text-[#FFD34E]"
-          title={FP_INDEPENDENT_PRO_DEBRIEF.title}
+          title={`Independent Pro—$${TRAINER_PLATFORM_SUBSCRIPTION_USD.toFixed(2)} per month`}
           accent="right"
         >
+          <p>
+            New Fitness Pros receive{" "}
+            <span className="font-bold text-[#FFD34E]">{trainerSignupPremiumPromoBenefitLabel()}</span> after
+            registration. After the trial, keep your account active with the{" "}
+            <span className="font-bold text-[#FFD34E]">{trainerIndependentProSubscriptionLabel()}</span> Independent Pro
+            subscription — you will be prompted for payment whenever you log in once the trial ends. Independent Pro
+            unlocks visibility and workflow tools when you want the platform to work harder for your brand.
+          </p>
           <HomeFitProDebriefSection section={FP_INDEPENDENT_PRO_DEBRIEF} />
         </HomeCollapsibleSection>
 

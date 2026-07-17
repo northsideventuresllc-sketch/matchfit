@@ -33,6 +33,10 @@ describe("HomeBetaPromoBanner", () => {
     expect(html).toContain("VIP access");
     expect(html).toContain("Free plan");
     expect(html).toContain("cannot sell or offer services");
+    expect(html).toContain("60 days free");
+    expect(html).toContain("$15.00 per month");
+    expect(html).toContain("All fitness professionals");
+
     expect(html).toContain('href="/promos"');
     expect(html).toContain('href="#follow-match-fit"');
   });

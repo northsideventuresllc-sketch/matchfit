@@ -6,7 +6,14 @@ import {
 import { CLIENT_VIP_PRICE_USD } from "@/lib/client-plan-access";
 import { LEGAL_EFFECTIVE_DATE_DISPLAY } from "@/lib/legal-effective-date";
 import { INDEPENDENT_FP_DAILY_NUDGES } from "@/lib/fp-tier-chat-policy";
-import { TRAINER_SIGNUP_PREMIUM_PROMO_DAYS } from "@/lib/trainer-signup-promo-copy";
+import {
+  TRAINER_PAYMENT_GRACE_DAYS,
+  TRAINER_PLATFORM_TRIAL_DAYS,
+} from "@/lib/trainer-platform-trial-constants";
+import {
+  trainerIndependentProSubscriptionLabel,
+  trainerSignupPremiumPromoBenefitLabel,
+} from "@/lib/trainer-signup-promo-copy";
 import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 
 /** Legal operator of Match Fit. */
@@ -93,12 +100,17 @@ export default async function PrivacyPage() {
           (including chats and social posts) on our systems. Client sign-up includes a {CLIENT_PLATFORM_TRIAL_DAYS}-day
           complimentary VIP trial with no card required; after the trial, accounts move to the Free plan unless you
           subscribe to Client VIP (currently ${CLIENT_VIP_PRICE_USD.toFixed(2)} per month). Legacy accounts may still have a{" "}
-          {CLIENT_PAYMENT_GRACE_DAYS}-day payment grace window before deactivation. Fitness Pros in the founding coach promo
-          receive {TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Match Fit Premium Pro at sign-up, pay only their background check through our portal, must begin
-          onboarding within 7 days of sign-up, and cannot sell services until all onboarding requirements are completed.
-          Independent Fitness Pro and Elite Fitness Pro require paid monthly subscriptions as shown at signup. Standard-tier Fitness Pros may defer the platform onboarding fee and repay through payout withhold as described in
-          our Terms. You may adjust optional visibility of some profile fields and request in-product account deletion,
-          account deletion, which schedules removal after a grace period as described in Section 7, while preserving the
+          {CLIENT_PAYMENT_GRACE_DAYS}-day payment grace window before deactivation. Fitness Pros receive{" "}
+          {trainerSignupPremiumPromoBenefitLabel()} of Independent Pro platform access at sign-up; after the trial, the{" "}
+          {trainerIndependentProSubscriptionLabel()} subscription keeps the account active, with {TRAINER_PAYMENT_GRACE_DAYS}{" "}
+          days to add a card before deactivation and login prompts for payment once the trial ends. Fitness Pros in the
+          founding coach promo may receive a fully covered background check where eligible; they must begin onboarding
+          within 7 days of sign-up and cannot sell services until all onboarding requirements are completed. Independent
+          Fitness Pro and Elite Fitness Pro require paid monthly subscriptions as shown at signup (Independent Pro after
+          the sign-up trial). Standard-tier Fitness Pros may defer the platform onboarding fee and repay through payout
+          withhold as described in our Terms. You may adjust optional visibility of some profile fields and request
+          in-product account deletion, which schedules removal after a grace period as described in Section 7, while
+          preserving the
           minimum data we need for trust, safety, and legal compliance. We use reasonable technical and organizational
           measures to protect personal information. We do not sell your personal information as that term is commonly
           defined in U.S. state privacy laws.
@@ -208,7 +220,10 @@ export default async function PrivacyPage() {
           </Li>
           <Li>
             <Strong>Billing (Where Connected):</Strong> Stripe-related identifiers for coach billing, invoices, or
-            purchases as implemented in the product.
+            purchases as implemented in the product. We record Independent Pro platform trial end dates, payment grace
+            windows, subscription status, and account deactivation timestamps to enforce the trainer sign-up billing
+            lifecycle described in our Terms ({TRAINER_PLATFORM_TRIAL_DAYS}-day trial, {TRAINER_PAYMENT_GRACE_DAYS}-day
+            grace, then {trainerIndependentProSubscriptionLabel()} required to keep the account active).
           </Li>
           <Li>
             <Strong>Session Punch-In (Geolocation):</Strong> when you record a SESSION STARTED punch-in for a booked

@@ -1,3 +1,29 @@
+<!-- BEGIN:ni-context-protocol -->
+## LOAD CONTEXT FIRST — before any code work
+
+You are working inside the NORTHSiDE Intelligence (NI) ecosystem. Before touching any code:
+
+1. **Read the master state file** from the vault:
+   `~/Desktop/Desktop/Northside Ventures/Obsidian Vault/Northside Ventures Group Vault/_Command Center/NI-Master-Context.md`
+   — This has today's date, all project statuses, and critical open items.
+
+2. **Query NI-Brain** (Supabase project `kxijunwgbrlfzvgkhklo`):
+   - Recent Decisions (last 7 days)
+   - Recent Learnings (last 3 days)
+   - Filter for Match Fit or Sector 1A
+
+3. **Check Match Fit vault notes:**
+   `NORTHSiDE Intelligence (NI)/Sector 1A — Tech Ventures/Match Fit/Tasks.md`
+
+4. Then read this file's technical sections below.
+
+**Write-back after work:** Log any [DECISION] [LEARNED] [CORRECTION] to NI-Brain Learnings/Decisions tables. Never ask JB to re-explain anything in the vault.
+
+**Operator:** Jonny (JB) — never Jonathan. Brand: `NORTHSiDE` — exact casing always.
+<!-- END:ni-context-protocol -->
+
+---
+
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
 

@@ -171,12 +171,18 @@ async function captureTrainerSignupPlatformOnComplianceSuccess(trainerId: string
     await captureTrainerSignupFeeHoldOnComplianceSuccess(platformPiId, pricingMode);
   }
 
+  const existingPromo = await prisma.trainerProfile.findUnique({
+    where: { trainerId },
+    select: { fitHubPromoEndsAt: true },
+  });
+
   await prisma.trainerProfile.update({
     where: { trainerId },
     data: {
       registrationFeeHoldStatus: "CAPTURED",
       hasPaidRegistrationFee: true,
-      fitHubPromoEndsAt: new Date(Date.now() + TRAINER_FITHUB_PROMO_MS),
+      // Prefer the Independent Pro trial clock started at registration; only seed if missing.
+      fitHubPromoEndsAt: existingPromo?.fitHubPromoEndsAt ?? new Date(Date.now() + TRAINER_FITHUB_PROMO_MS),
       updatedAt: new Date(),
     },
   });

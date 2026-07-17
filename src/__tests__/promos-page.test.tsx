@@ -98,6 +98,11 @@ describe("promos page", () => {
     expect(html).toContain("Fully covered background check");
     expect(html).toContain("zero upfront cost");
     expect(html).toContain("Match Fit Pro and Match Fit Premium Pro");
+    expect(html).toContain("60 days free");
+    expect(html).toContain("$15.00 per month");
+    expect(html).toContain("Free Independent Pro trial at sign-up");
+    expect(html).toContain("Independent Pro platform trial");
+
     expect(html).toContain("cannot sell or offer services");
   });
 

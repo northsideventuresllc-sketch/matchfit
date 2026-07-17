@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AdminImpersonationStrip } from "@/components/admin/admin-impersonation-strip";
 import { TrainerDashboardShell } from "@/components/trainer/trainer-dashboard-shell";
@@ -6,6 +7,12 @@ import { isAccountDeletionGraceActive } from "@/lib/account-deletion-grace";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { trainerCanUseInAppChat } from "@/lib/fp-tier-chat-policy";
 import { hasTrainerLimitedDashboardAccess } from "@/lib/trainer-full-access";
+import {
+  isTrainerBillingHardLocked,
+  trainerBillingExemptDashboardPath,
+} from "@/lib/trainer-platform-access";
+import { syncTrainerPlatformBillingLifecycle } from "@/lib/trainer-platform-lifecycle";
+import { isTrainerPremiumStudioActive } from "@/lib/trainer-premium-studio";
 import { resolveTrainerSignupNextPath } from "@/lib/trainer-signup-next-path";
 import { prisma } from "@/lib/prisma";
 import { purgeExpiredSuspensionRecords } from "@/lib/suspension-lifecycle";
@@ -35,6 +42,13 @@ export default async function TrainerDashboardAppLayout({
       deidentifiedAt: true,
       accountDeletionRequestedAt: true,
       accountDeletionFinalizeAt: true,
+      stripeSubscriptionId: true,
+      stripeSubscriptionActive: true,
+      subscriptionGraceUntil: true,
+      platformTrialEndsAt: true,
+      paymentGraceUntil: true,
+      accountDeactivatedAt: true,
+      platformTrialConsumed: true,
       profile: {
         select: {
           hasSignedTOS: true,
@@ -71,6 +85,31 @@ export default async function TrainerDashboardAppLayout({
     redirect("/trainer/account-suspended");
   }
 
+  await syncTrainerPlatformBillingLifecycle(trainerId);
+  const billingTrainer = await prisma.trainer.findUnique({
+    where: { id: trainerId },
+    select: {
+      stripeSubscriptionId: true,
+      stripeSubscriptionActive: true,
+      subscriptionGraceUntil: true,
+      platformTrialEndsAt: true,
+      paymentGraceUntil: true,
+      accountDeactivatedAt: true,
+      platformTrialConsumed: true,
+    },
+  });
+  if (!billingTrainer) {
+    redirect(staleTrainerSessionInvalidateRedirect("/trainer/dashboard/login"));
+  }
+  if (billingTrainer.accountDeactivatedAt) {
+    redirect("/trainer/reactivate");
+  }
+
+  const pathname = (await headers()).get("x-mf-pathname") ?? "";
+  if (isTrainerBillingHardLocked(billingTrainer) && !trainerBillingExemptDashboardPath(pathname)) {
+    redirect("/trainer/dashboard/billing?locked=1");
+  }
+
   const signupNext = resolveTrainerSignupNextPath(trainer.profile);
   if (signupNext !== "/trainer/dashboard") {
     redirect(signupNext);
@@ -91,7 +130,7 @@ export default async function TrainerDashboardAppLayout({
     where: { trainerId, readAt: null },
   });
 
-  const premiumStudioActive = Boolean(trainer.profile?.premiumStudioEnabledAt);
+  const premiumStudioActive = await isTrainerPremiumStudioActive(trainerId);
 
   let supportStrip: ReactNode = null;
   const adminImp = await getVerifiedAdminImpersonation();

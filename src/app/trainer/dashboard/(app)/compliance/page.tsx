@@ -13,6 +13,8 @@ import {
   TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE,
   TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS,
   TRAINER_SIGNUP_PREMIUM_PROMO_DAYS,
+  trainerIndependentProSubscriptionLabel,
+  trainerSignupPremiumPromoBenefitLabel,
   trainerStandardOnboardingAfterCapLabel,
 } from "@/lib/trainer-signup-promo-copy";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
@@ -161,9 +163,11 @@ export default async function TrainerComplianceDetailsPage() {
           {signupHoldFlow ? (
             <>
               During the founding Fitness Pro promo, pay only your background check through Match Fit&apos;s portal (plus
-              processing) and receive {TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of Match Fit Premium Pro at sign-up. Begin
+              processing) and receive {trainerSignupPremiumPromoBenefitLabel()} at sign-up. Independent Fitness Pro
+              includes a {TRAINER_SIGNUP_PREMIUM_PROMO_DAYS}-day free trial; after the trial, the{" "}
+              {trainerIndependentProSubscriptionLabel()} subscription keeps your account active. Begin
               onboarding within {TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days of sign-up.{" "}
-              {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE} After founding caps, coaches pay{" "}
+              {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE} After founding caps, Fitness Pros pay{" "}
               {trainerStandardOnboardingAfterCapLabel()} through Stripe once screening and certifications are approved.
             </>
           ) : (

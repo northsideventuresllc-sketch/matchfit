@@ -1,12 +1,17 @@
 /**
- * Shared trainer signup promo constants and user-facing copy.
+ * Shared Independent Pro / trainer signup promo constants and user-facing copy.
  * Keep marketing pages, legal text, signup flows, and dashboard banners aligned.
  */
 
 import { getTrainerFoundingBgPercentMax } from "@/lib/match-fit-launch-promotion-caps";
+import {
+  TRAINER_PLATFORM_SUBSCRIPTION_USD,
+  TRAINER_PLATFORM_TRIAL_DAYS,
+  trainerPlatformSubscriptionLabel,
+} from "@/lib/trainer-platform-trial-constants";
 
-/** Complimentary Match Fit Premium Pro access included with the current beta Fitness Pro promo. */
-export const TRAINER_SIGNUP_PREMIUM_PROMO_DAYS = 60;
+/** Complimentary Match Fit Premium Pro access included with the current beta Fitness Pro promo (aligned with Independent Pro trial days). */
+export const TRAINER_SIGNUP_PREMIUM_PROMO_DAYS = TRAINER_PLATFORM_TRIAL_DAYS;
 
 /** Fitness Pros must begin onboarding (background check + compliance steps) within this window after sign-up. */
 export const TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS = 7;
@@ -32,6 +37,18 @@ export function trainerFoundingBgCheckBenefitLabel(): string {
 /** Short label for promo bullets and feature rows. */
 export function trainerFoundingBgCheckBenefitShortLabel(): string {
   return "Fully covered background check — zero upfront cost";
+}
+
+export function trainerIndependentProSubscriptionLabel(): string {
+  return trainerPlatformSubscriptionLabel();
+}
+
+export function trainerIndependentProTrialBenefitLabel(): string {
+  return `${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days free`;
+}
+
+export function trainerIndependentProTrialPromoSentence(): string {
+  return `Independent Pros receive ${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days free after registration. After the trial, keep your account active with the ${trainerIndependentProSubscriptionLabel()} subscription — you will be prompted for payment info whenever you log in once the trial ends.`;
 }
 
 /** One sentence for hero / banner Fitness Pro promo bullets. */
@@ -61,3 +78,5 @@ export function trainerFoundingPromoParagraph(trainerCap = getTrainerFoundingBgP
 export function trainerStandardOnboardingAfterCapLabel(): string {
   return "background check through our portal plus card processing (as shown at checkout)";
 }
+
+export { TRAINER_PLATFORM_SUBSCRIPTION_USD };

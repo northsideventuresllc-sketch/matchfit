@@ -10,6 +10,8 @@ import {
   trainerFoundingBgCheckEligibleTiersLabel,
   trainerFoundingPromoBullets,
   trainerFoundingPromoParagraph,
+  trainerIndependentProSubscriptionLabel,
+  trainerIndependentProTrialPromoSentence,
   trainerSignupOnboardingBeginDeadlineLabel,
   trainerSignupPremiumPromoBenefitLabel,
   trainerStandardOnboardingAfterCapLabel,
@@ -151,8 +153,12 @@ export default async function PromosPage() {
                   covers your Checkr screening in full — no upfront screening cost at sign-up.
                 </p>
                 <div className="mt-4 flex items-center justify-between gap-3">
-                  <span className="font-semibold text-white/75">Match Fit Premium Pro at sign-up</span>
+                  <span className="font-semibold text-white/75">Free Independent Pro trial at sign-up</span>
                   <span className="text-[#FFD34E]">{trainerSignupPremiumPromoBenefitLabel()}</span>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <span className="font-semibold text-white/75">After trial, keep account active</span>
+                  <span>{trainerIndependentProSubscriptionLabel()}</span>
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-3">
                   <span className="font-semibold text-white/75">Onboarding must begin within</span>
@@ -167,6 +173,13 @@ export default async function PromosPage() {
                   ))}
                 </ul>
                 <p className="mt-3 text-xs leading-relaxed text-white/50">{TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}</p>
+              </div>
+
+              <div className="mt-4 rounded-xl border border-[#FF7E00]/20 bg-[#FF7E00]/[0.05] p-4 text-sm text-white/60">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#FF7E00]/90">
+                  Independent Pro platform trial
+                </p>
+                <p className="mt-2 text-pretty leading-relaxed">{trainerIndependentProTrialPromoSentence()}</p>
               </div>
 
               <div className="mt-6 space-y-2">

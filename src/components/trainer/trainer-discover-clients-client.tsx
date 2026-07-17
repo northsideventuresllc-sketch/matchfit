@@ -15,6 +15,7 @@ import {
   NUDGE_PACK_PURCHASE_NOTICE,
 } from "@/lib/fp-tier-chat-policy";
 import { LEGACY_FREE_TRAINER_NUDGES_PER_DAY } from "@/lib/trainer-nudge-limits";
+import { trainerIndependentProSubscriptionLabel } from "@/lib/trainer-signup-promo-copy";
 
 type Row = {
   username: string;
@@ -185,7 +186,8 @@ export function TrainerDiscoverClientsClient(props: Props) {
             <span className="font-semibold text-white">Independent Fitness Pro</span> uses discovery nudges only —{" "}
             <span className="font-semibold text-white">in-app chat is not available</span> on this account type. You
             receive <span className="font-semibold text-white">{INDEPENDENT_FP_DAILY_NUDGES} nudges per day</span>{" "}
-            (UTC). {NUDGE_PACK_PURCHASE_NOTICE}
+            (UTC). {NUDGE_PACK_PURCHASE_NOTICE} After your free trial, keep platform access with the{" "}
+            {trainerIndependentProSubscriptionLabel()} subscription.
           </p>
           <p className="mt-2 text-xs text-amber-100/70">{INDEPENDENT_FP_NO_CHAT_MESSAGE}</p>
           {nudgeSummary ? (

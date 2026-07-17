@@ -3,6 +3,17 @@ import { computePlatformValuation } from "@/lib/platform-valuation";
 import { computePotentialSuccessScore } from "@/lib/platform-potential-success";
 
 describe("platform-valuation", () => {
+  it("uses trainer Independent Pro MRR at $15 for subscription ARR", () => {
+    const result = computePlatformValuation({
+      activePlatformSubscribers: 0,
+      activeTrainerPremiumSubscribers: 10,
+      grossProfit30dCents: 0,
+      activeUsers: 0,
+      successScore: 5,
+    });
+    expect(result.subscriptionArrCents).toBe(10 * 1500 * 12);
+  });
+
   it("returns higher valuation with more subscribers and stronger success score", () => {
     const low = computePlatformValuation({
       activePlatformSubscribers: 2,

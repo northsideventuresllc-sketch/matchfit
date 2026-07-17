@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-07-16** `2.3.3-beta` → `2.4.0-beta` (**minor** — Independent Pro 60-day free trial then $15/mo subscription to keep account active)
 - **2026-07-17** `2.3.2-beta` → `2.3.3-beta` (**patch** — Meta Insights: DB-wins hydrate + appsecret_proof)
 - **2026-07-16** `2.3.1-beta` → `2.3.2-beta` (**patch** — Preserve /trainer/signup in content calendar generation and language normalization)
 - **2026-07-16** `2.3.0-beta` → `2.3.1-beta` (**patch** — Wire Meta CAPI purchase events, hydrate META_ACCESS_TOKEN, live CAPI probe in Ad Tracking HQ)

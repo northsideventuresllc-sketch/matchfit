@@ -12,6 +12,8 @@ describe("trainer-signup-payment-messaging", () => {
     expect(TRAINER_SIGNUP_FLOW_OVERVIEW).toMatch(/60 days of Match Fit Premium Pro/i);
     expect(TRAINER_SIGNUP_FLOW_OVERVIEW).toMatch(/choose your account type/i);
     expect(TRAINER_SIGNUP_FLOW_OVERVIEW).toMatch(/upload required documents/i);
+    expect(TRAINER_SIGNUP_FLOW_OVERVIEW).toMatch(/60-day free trial/i);
+    expect(TRAINER_SIGNUP_FLOW_OVERVIEW).toMatch(/\$15\.00 per month/i);
     expect(TRAINER_SIGNUP_FLOW_OVERVIEW).toMatch(/cannot sell/i);
   });
 
@@ -25,6 +27,8 @@ describe("trainer-signup-payment-messaging", () => {
     expect(copy).toMatch(/covers your Checkr background screening/i);
     expect(copy).toMatch(/platform portion only after certification/i);
     expect(copy).toMatch(/60 days of Match Fit Premium Pro/i);
+    expect(copy).toMatch(/60 days free/i);
+    expect(copy).toMatch(/\$15\.00 per month/i);
     expect(copy).toMatch(/cannot sell/i);
     expect(copy).not.toMatch(/charged today/i);
   });
