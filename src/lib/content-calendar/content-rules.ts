@@ -60,12 +60,17 @@ export function fitCaptionForRepurpose(caption: string, hashtags: string[]): str
   return `${trimmed.slice(0, maxCaption - 1).trimEnd()}…`;
 }
 
+/**
+ * Normalize AI-generated post content. Language + hashtags are normalized, but the
+ * caption is NEVER hard-truncated at generation time — over-limit captions are surfaced
+ * via `withinLimit` for a soft UI warning so the operator can trim/repurpose deliberately.
+ */
 export function enforceGeneratedPostContent(args: {
   caption: string;
   hashtags: string[];
 }): { caption: string; hashtags: string[]; charCount: number; withinLimit: boolean } {
   const hashtags = normalizeHashtags(args.hashtags);
-  const caption = fitCaptionForRepurpose(normalizeFitnessProLanguage(args.caption), hashtags);
+  const caption = normalizeFitnessProLanguage(args.caption);
   const charCount = repurposePostLength(caption, hashtags);
   return {
     caption,

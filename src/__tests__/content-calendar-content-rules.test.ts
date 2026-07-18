@@ -8,16 +8,22 @@ import {
 } from "@/lib/content-calendar/content-rules";
 
 describe("content-calendar content rules", () => {
-  it("truncates AI-generated captions to fit the repurpose limit", () => {
+  it("preserves full AI-generated captions and flags over-limit posts (soft warning, no hard truncation)", () => {
     const longCaption = "A".repeat(600);
     const enforced = enforceGeneratedPostContent({
       caption: longCaption,
       hashtags: ["MatchFit"],
     });
 
-    expect(enforced.withinLimit).toBe(true);
-    expect(enforced.caption.length).toBeLessThan(longCaption.length);
-    expect(enforced.caption.endsWith("…")).toBe(true);
+    expect(enforced.caption).toBe(longCaption);
+    expect(enforced.withinLimit).toBe(false);
+    expect(enforced.charCount).toBeGreaterThan(CONTENT_CALENDAR_REPURPOSE_CHAR_LIMIT);
+  });
+
+  it("still fits captions within the repurpose limit for explicit repurpose flows", () => {
+    const fitted = fitCaptionForRepurpose("X".repeat(600), ["MatchFit"]);
+    expect(fitted.length).toBeLessThan(600);
+    expect(fitted.endsWith("…")).toBe(true);
   });
 
   it("preserves full caption text for operator edits while flagging over-limit posts", () => {
