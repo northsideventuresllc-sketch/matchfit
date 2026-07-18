@@ -62,6 +62,14 @@ export const CONTENT_CALENDAR_PLATFORMS_BY_TYPE: Record<ContentCalendarPostType,
   Text: "Threads, Facebook",
 };
 
+/** Selectable publish targets per asset type (locked workflow platform pickers). */
+export const CONTENT_CALENDAR_PLATFORM_OPTIONS_BY_TYPE: Record<ContentCalendarPostType, string[]> = {
+  Text: ["Facebook", "Threads"],
+  Static: ["Facebook", "Instagram", "Threads"],
+  Carousel: ["Facebook", "Instagram", "Threads", "TikTok"],
+  Video: ["Threads", "Instagram Reels", "Facebook Reels", "TikTok"],
+};
+
 /** Post types available in the AI generator (maps to platforms automatically). */
 export const CONTENT_CALENDAR_GENERATOR_POST_TYPES = ["Carousel", "Static", "Video", "Text"] as const;
 
