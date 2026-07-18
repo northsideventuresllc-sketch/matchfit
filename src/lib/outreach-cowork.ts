@@ -6,7 +6,7 @@
 
 export const OUTREACH_COWORK_DAILY_CAPS = {
   instagram: 5,
-  email: 3,
+  email: 5,
   facebook: 5,
 } as const;
 

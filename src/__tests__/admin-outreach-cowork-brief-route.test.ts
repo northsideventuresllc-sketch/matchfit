@@ -40,7 +40,7 @@ describe("GET /api/admin/outreach/cowork-brief", () => {
       generatedAt: "2026-07-14T12:00:00.000Z",
       instructions: "doit",
       runnerPrompt: "prompt",
-      caps: { instagram: 5, email: 3, facebook: 5 },
+      caps: { instagram: 5, email: 5, facebook: 5 },
       emailFrom: "jb@match-fit.net",
       emailBcc: ["support@match-fit.net"],
       missingIntentCount: 1,
