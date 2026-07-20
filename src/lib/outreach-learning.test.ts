@@ -116,6 +116,9 @@ describe("outreach-learning helpers", () => {
     expect(summary).toContain("1 positive, 1 negative, 1 no response");
     expect(summary).toContain('Operator edited dmText — prefer tone closer to: "New message tone');
     expect(summary).toContain("IG DMs under 1,000 characters");
+    expect(summary).toContain("Outreach craft lock");
+    expect(summary).toContain("match-fit.net/trainer/sign-up");
+    expect(summary).toContain("prefer the operator edit tone");
     expect(mockOutreachLearningSignalFindMany).toHaveBeenCalled();
   });
 

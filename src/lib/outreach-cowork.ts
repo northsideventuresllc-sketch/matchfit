@@ -16,7 +16,8 @@ export type OutreachIntent = (typeof OUTREACH_INTENT_VALUES)[number];
 
 export const OUTREACH_INTENT_OPTIONS: { id: OutreachIntent; label: string }[] = [
   { id: "LIST_WITH_US", label: "List With Us" },
-  { id: "JOIN_AS_FP", label: "Join as Fitness Pro" },
+  /** Internal enum stays JOIN_AS_FP; operator-facing label is Coaches (social craft lock). */
+  { id: "JOIN_AS_FP", label: "Join as Coach" },
   { id: "BOTH", label: "Both" },
 ];
 
@@ -63,9 +64,10 @@ export function buildCoworkRunnerPrompt(generatedAtIso: string): string {
     `Generated: ${generatedAtIso}`,
     "",
     "Rules (locked):",
-    "- Every lead must have outreach intent before send: List With Us · Join as Fitness Pro · Both.",
+    "- Every lead must have outreach intent before send: List With Us · Join as Coach · Both.",
     "- Unclear intent = do not send.",
-    "- REV-FIRST priority: send Join as Fitness Pro / Both ready hub leads first.",
+    "- REV-FIRST priority: send Join as Coach / Both ready hub leads first.",
+    "- Outbound copy: Coaches (not Fitness Pros); CTA match-fit.net/trainer/sign-up; founding promo = first 30×60d Premium + first 10 fee waiver (vary wording).",
     `- Daily caps: ${instagram} Instagram + ${email} email.`,
     "- JB only for live DM/email send. Agent owns generate, hub save, copy, status updates.",
     "",

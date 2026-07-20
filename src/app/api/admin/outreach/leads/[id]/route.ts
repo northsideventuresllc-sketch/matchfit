@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { normalizeCoachLanguage } from "@/lib/content-calendar/content-rules";
 import { archiveHubOutreachLeadOnAdminDelete } from "@/lib/outreach-archive";
 import { softDeleteOutreachLead, updateOutreachLead } from "@/lib/outreach-data";
 import { leadProfileForPlatform } from "@/lib/outreach-lead-profile";
@@ -22,6 +23,46 @@ import {
   isOutreachIntent,
   outreachSendRequiresIntent,
 } from "@/lib/outreach-cowork";
+
+type OutreachCopyFieldName =
+  | "dmText"
+  | "commentText"
+  | "followUp1DmText"
+  | "followUp2DmText"
+  | "pagePostText"
+  | "emailSubject"
+  | "emailBody"
+  | "followUp1EmailSubject"
+  | "followUp1EmailBody"
+  | "followUp2EmailSubject"
+  | "followUp2EmailBody";
+
+async function recordAndNormalizeCopyEdits(args: {
+  platform: OutreachPlatform;
+  leadId: string;
+  adminId: string;
+  existing: Record<string, unknown>;
+  patch: Record<string, unknown>;
+  fields: readonly OutreachCopyFieldName[];
+}): Promise<void> {
+  for (const field of args.fields) {
+    const nextRaw = args.patch[field];
+    if (typeof nextRaw !== "string") continue;
+    const next = normalizeCoachLanguage(nextRaw);
+    args.patch[field] = next;
+    const prev = String(args.existing[field] ?? "");
+    if (next === prev) continue;
+    await recordOutreachEditSignal({
+      platform: args.platform,
+      leadId: args.leadId,
+      adminId: args.adminId,
+      field,
+      originalText: prev,
+      editedText: next,
+    });
+    args.patch[`${field}Edited`] = true;
+  }
+}
 
 const patchSchema = z
   .object({
@@ -82,33 +123,19 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         return NextResponse.json(
           {
             error:
-              "Set outreach intent (List With Us, Join as Fitness Pro, or Both) before marking outreach sent.",
+              "Set outreach intent (List With Us, Join as Coach, or Both) before marking outreach sent.",
           },
           { status: 400 },
         );
       }
-      if (patch.dmText && patch.dmText !== existing.dmText) {
-        await recordOutreachEditSignal({
-          platform: "instagram",
-          leadId: id,
-          adminId: sess.adminId,
-          field: "dmText",
-          originalText: existing.dmText,
-          editedText: patch.dmText,
-        });
-        (patch as Record<string, unknown>).dmTextEdited = true;
-      }
-      if (patch.commentText && patch.commentText !== existing.commentText) {
-        await recordOutreachEditSignal({
-          platform: "instagram",
-          leadId: id,
-          adminId: sess.adminId,
-          field: "commentText",
-          originalText: existing.commentText,
-          editedText: patch.commentText,
-        });
-        (patch as Record<string, unknown>).commentTextEdited = true;
-      }
+      await recordAndNormalizeCopyEdits({
+        platform: "instagram",
+        leadId: id,
+        adminId: sess.adminId,
+        existing: existing as unknown as Record<string, unknown>,
+        patch: patch as Record<string, unknown>,
+        fields: ["dmText", "commentText", "followUp1DmText", "followUp2DmText"],
+      });
       if (patch.status === "DEAD_LEAD" && existing.status !== "DEAD_LEAD") {
         await recordOutreachDeadLeadSignal({
           platform: "instagram",
@@ -132,17 +159,14 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     } else if (platform === "facebook") {
       const existing = await prisma.outreachFacebookLead.findUnique({ where: { id } });
       if (!existing) return NextResponse.json({ error: "Not found." }, { status: 404 });
-      if (patch.pagePostText && patch.pagePostText !== existing.pagePostText) {
-        await recordOutreachEditSignal({
-          platform: "facebook",
-          leadId: id,
-          adminId: sess.adminId,
-          field: "pagePostText",
-          originalText: existing.pagePostText,
-          editedText: patch.pagePostText,
-        });
-        (patch as Record<string, unknown>).pagePostTextEdited = true;
-      }
+      await recordAndNormalizeCopyEdits({
+        platform: "facebook",
+        leadId: id,
+        adminId: sess.adminId,
+        existing: existing as unknown as Record<string, unknown>,
+        patch: patch as Record<string, unknown>,
+        fields: ["pagePostText"],
+      });
       if (patch.status === "DEAD_LEAD" && existing.status !== "DEAD_LEAD") {
         await recordOutreachDeadLeadSignal({
           platform: "facebook",
@@ -175,22 +199,26 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         return NextResponse.json(
           {
             error:
-              "Set outreach intent (List With Us, Join as Fitness Pro, or Both) before marking outreach sent.",
+              "Set outreach intent (List With Us, Join as Coach, or Both) before marking outreach sent.",
           },
           { status: 400 },
         );
       }
-      if (patch.emailBody && patch.emailBody !== existing.emailBody) {
-        await recordOutreachEditSignal({
-          platform: "email",
-          leadId: id,
-          adminId: sess.adminId,
-          field: "emailBody",
-          originalText: existing.emailBody,
-          editedText: patch.emailBody,
-        });
-        (patch as Record<string, unknown>).emailBodyEdited = true;
-      }
+      await recordAndNormalizeCopyEdits({
+        platform: "email",
+        leadId: id,
+        adminId: sess.adminId,
+        existing: existing as unknown as Record<string, unknown>,
+        patch: patch as Record<string, unknown>,
+        fields: [
+          "emailSubject",
+          "emailBody",
+          "followUp1EmailSubject",
+          "followUp1EmailBody",
+          "followUp2EmailSubject",
+          "followUp2EmailBody",
+        ],
+      });
       if (patch.status === "DEAD_LEAD" && existing.status !== "DEAD_LEAD") {
         await recordOutreachDeadLeadSignal({
           platform: "email",

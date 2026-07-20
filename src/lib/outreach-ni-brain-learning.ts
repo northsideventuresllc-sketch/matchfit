@@ -32,11 +32,24 @@ export async function recordOutreachNiBrainLearning(args: {
       meta_json: args.meta ?? null,
     });
 
+    if (args.signalType === "EDIT_DIFF" && args.editedText && args.originalText) {
+      if (args.originalText.trim() !== args.editedText.trim()) {
+        await client.from("Learnings").insert({
+          learning: `Match Fit outreach edit (${args.platform ?? "unknown"}/${(args.meta?.field as string) ?? "copy"}): prefer "${truncate(args.editedText, 120)}" over "${truncate(args.originalText, 80)}".`,
+          source: "match fit outreach hq",
+          date: new Date().toISOString(),
+          category: "outreach",
+          project: "Match Fit",
+        });
+      }
+    }
     if (args.signalType === "DELETE_REASON" && args.editedText) {
       await client.from("Learnings").insert({
         learning: `Match Fit outreach delete (${args.platform ?? "unknown"}): ${truncate(args.editedText, 240)}`,
         source: "match fit outreach hq",
         date: new Date().toISOString(),
+        category: "outreach",
+        project: "Match Fit",
       });
     }
     if (args.signalType === "DEAD_LEAD_PATTERN" && args.editedText) {
@@ -44,6 +57,8 @@ export async function recordOutreachNiBrainLearning(args: {
         learning: `Match Fit dead lead pattern (${args.platform ?? "unknown"}): ${truncate(args.editedText, 240)}`,
         source: "match fit outreach hq",
         date: new Date().toISOString(),
+        category: "outreach",
+        project: "Match Fit",
       });
     }
     if (args.signalType === "SAVED_TO_HUB" && args.editedText) {
@@ -51,6 +66,17 @@ export async function recordOutreachNiBrainLearning(args: {
         learning: `Match Fit saved lead profile (${args.platform ?? "unknown"}): ${truncate(args.editedText, 240)}`,
         source: "match fit outreach hq",
         date: new Date().toISOString(),
+        category: "outreach",
+        project: "Match Fit",
+      });
+    }
+    if (args.signalType === "REGENERATE_FEEDBACK" && args.editedText) {
+      await client.from("Learnings").insert({
+        learning: `Match Fit outreach regenerate feedback (${args.platform ?? "unknown"}/${(args.meta?.field as string) ?? "copy"}): ${truncate(args.editedText, 200)}`,
+        source: "match fit outreach hq",
+        date: new Date().toISOString(),
+        category: "outreach",
+        project: "Match Fit",
       });
     }
   } catch (e) {
@@ -92,7 +118,22 @@ export async function fetchRecentOutreachNiBrainLearnings(
         lines.push(`Regenerate feedback for ${field}: ${truncate(row.edited_text, 160)}`);
       }
     }
-    return lines.slice(0, 12);
+
+    // Also pull durable Learnings (craft locks + recent outreach/content corrections).
+    const { data: learnings } = await client
+      .from("Learnings")
+      .select("learning, source")
+      .or("source.ilike.%match fit outreach%,source.ilike.%match fit content%,source.eq.cursor-cloud")
+      .order("date", { ascending: false })
+      .limit(8);
+
+    for (const l of learnings ?? []) {
+      const text = String(l.learning ?? "");
+      if (!/match fit|coach|outreach|social craft|fitness pro/i.test(text)) continue;
+      lines.push(`[${l.source}] ${truncate(text, 180)}`);
+    }
+
+    return lines.slice(0, 16);
   } catch (e) {
     console.warn("[outreach-ni-brain-learning] Could not fetch learnings:", e);
     return [];

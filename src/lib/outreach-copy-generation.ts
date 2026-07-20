@@ -4,6 +4,7 @@ import { callMatchFitAi } from "@/lib/ai-vault/router";
 import { getAiVaultStatus } from "@/lib/ai-vault";
 import { buildOutreachLearningContext, recordOutreachRegenerateFeedbackSignal } from "@/lib/outreach-learning";
 import { updateOutreachLead } from "@/lib/outreach-data";
+import { normalizeCoachLanguage } from "@/lib/content-calendar/content-rules";
 import {
   emailSubject,
   followUpEmailBody,
@@ -266,7 +267,8 @@ export async function generateOutreachLeadCopy(args: {
 
     const userPrompt = buildCopyPrompt(args.platform, field, lead as Record<string, unknown>, args.feedback);
     const aiText = await callOutreachCopyAi(system, userPrompt);
-    const copy = aiText?.trim() || fallbackCopy(args.platform, field, lead as Record<string, unknown>);
+    const raw = aiText?.trim() || fallbackCopy(args.platform, field, lead as Record<string, unknown>);
+    const copy = normalizeCoachLanguage(raw);
     result[field] = copy;
 
     await updateOutreachLead(args.platform, args.leadId, { [field]: copy });
