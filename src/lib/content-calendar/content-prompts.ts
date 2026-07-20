@@ -4,6 +4,11 @@ import {
   type ContentCalendarGroup,
   type ContentCalendarPostType,
 } from "@/lib/content-calendar/constants";
+import {
+  hasBrokenSocialSignupUrl,
+  hasForbiddenSocialAudienceLabel,
+  isSlideInventoryCarouselCaption,
+} from "@/lib/content-calendar/content-rules";
 
 export type BulkContentSlotSpec = {
   postType: ContentCalendarPostType;
@@ -20,25 +25,27 @@ export type AudienceCreativeBrief = {
 
 export const AUDIENCE_CREATIVE_BRIEFS: Record<ContentCalendarGroup, AudienceCreativeBrief> = {
   "Join the Team": {
-    who: "trainers and coaches exploring Match Fit as their next platform home",
+    who: "coaches exploring Match Fit as their next platform home",
     goals: [
-      "Show why verified Match Fit Pros stand out in discovery",
-      "Highlight founding promos, onboarding support, and in-app client tools",
+      "Show why verified Match Fit coaches stand out in discovery",
+      "Highlight founding promos (30×60-day Premium; first 10 fee waiver), onboarding support, and in-app client tools",
       "Make signup feel urgent but credible — not hype without substance",
     ],
     hooks: [
       "Stop renting attention on feeds that do not convert",
-      "Build a verified Fitness Pro brand where clients actually book",
-      "Founding cohort benefits and Premium Pro access at launch",
+      "Build a verified coaching brand where clients actually book",
+      "Founding cohort: Premium access window + waived onboarding fees for early coaches",
     ],
-    cta: "Drive to match-fit.net/trainer/signup with a clear next step",
+    cta: "Drive to match-fit.net/trainer/sign-up with a clear next step",
     avoid: [
-      "Generic 'we are hiring' language without a concrete Fit Pro benefit",
-      "Wrong signup paths like match-fit.net/Fitness Pro/signup — always use match-fit.net/trainer/signup",
+      "Generic 'we are hiring' language without a concrete coach benefit",
+      "Saying Fitness Pros — use Coaches",
+      "Wrong signup paths — always use match-fit.net/trainer/sign-up",
+      "Lazy copy-paste of the same promo sentence — vary wording, keep meaning",
     ],
   },
   "List With Us": {
-    who: "independent trainers, studios, and facilities who want discovery without full marketplace onboarding",
+    who: "independent coaches, studios, and facilities who want discovery without full marketplace onboarding",
     goals: [
       "Explain listing/discovery value for brands that keep their own booking flow",
       "Show how nudges, featured placement, and external links work on Match Fit",
@@ -49,28 +56,29 @@ export const AUDIENCE_CREATIVE_BRIEFS: Record<ContentCalendarGroup, AudienceCrea
       "List your brand where athletes are already searching for training",
       "Independent Pro path: fast listing, your site, your pricing",
     ],
-    cta: "Drive to match-fit.net/trainer/signup or explore listing benefits on match-fit.net",
+    cta: "Drive to match-fit.net/trainer/sign-up or explore listing benefits on match-fit.net",
     avoid: [
       "Talking about full Match Fit verification if the angle is independent listing",
-      "Wrong signup paths like match-fit.net/Fitness Pro/signup — always use match-fit.net/trainer/signup",
+      "Saying Fitness Pros — use Coaches",
+      "Wrong signup paths — always use match-fit.net/trainer/sign-up",
     ],
   },
   Clients: {
-    who: "athletes and everyday people looking for the right Fitness Pro or training plan",
+    who: "athletes and everyday people looking for the right coach or training plan",
     goals: [
       "Speak to real client pain: inconsistency, bad matches, overwhelm choosing a coach",
       "Show swipe discovery, Fit Hub community, VIP trial, and matching quality",
       "Make trying Match Fit feel low-friction and outcome-focused",
     ],
     hooks: [
-      "Stop scrolling random profiles — get matched to a Fitness Pro who fits your goals",
+      "Stop scrolling random profiles — get matched to a coach who fits your goals",
       "Beta VIP trial: explore premium discovery before you commit",
       "Training that fits your schedule, in-person or virtual",
     ],
     cta: "Drive to match-fit.net/client/sign-up with a specific outcome in the post",
     avoid: [
-      "Trainer recruitment language when speaking to clients",
-      "Sending clients to /trainer/signup — clients use match-fit.net/client/sign-up",
+      "Coach recruitment language when speaking to clients",
+      "Sending clients to /trainer/sign-up — clients use match-fit.net/client/sign-up",
     ],
   },
 };
@@ -81,7 +89,7 @@ export const POST_TYPE_CREATIVE_BRIEFS: Record<
 > = {
   Carousel: {
     captionShape:
-      "Hook line, 2–3 swipe-worthy slide ideas summarized in the caption, strong CTA. Write as if each slide teaches one micro-point.",
+      "Same as Static: bold hook, one clear insight or stat, emotional payoff, CTA. Do NOT describe or inventory slides in the caption — slide structure belongs only in the visual prompt.",
     visualShape:
       "Describe 3–5 carousel frames: subject, action, on-slide headline text, layout, and mood. Brand orange/dark palette as accents only.",
   },
@@ -141,13 +149,18 @@ export function extractSlotDirectiveFromOperatorPrompt(
     lines.unshift(`Batch guidance:\n${intro[1].trim()}`);
   }
 
+  if (postType === "Carousel") {
+    lines.push(
+      "Caption must be static-style (hook → insight → payoff → CTA). Do not describe or inventory slides in the caption — slide frames belong only in visualPrompt.",
+    );
+  }
+
   if (
     targetGroup === "Join the Team" &&
-    (postType === "Static" || postType === "Text") &&
-    /background check/i.test(prompt)
+    /background check|founding|onboarding fee|premium|promo/i.test(prompt)
   ) {
     lines.push(
-      "Mandatory for this slot: lead with the first 10 Match Fit Pros receiving fully covered background checks from Match Fit (zero upfront screening cost).",
+      "Mandatory founding promo meaning (vary wording — do not regurgitate): first 30 coaches get 60 days Premium access free (all tools / maximize opportunity); first 10 coaches get onboarding fees waived completely.",
     );
   }
 
@@ -156,7 +169,7 @@ export function extractSlotDirectiveFromOperatorPrompt(
       lines.push("Work in the 60-day VIP pass for the first 150 clients where it fits this post.");
     }
     if (/fit hub|fithub/i.test(prompt)) {
-      lines.push("Highlight Fit Hub as a game-changer for fitness content and finding Fitness Pros.");
+      lines.push("Highlight Fit Hub as a game-changer for fitness content and finding coaches.");
     }
     if (/swipe|tinder/i.test(prompt)) {
       lines.push("Stress swipe-based discovery — the Tinder of the fitness industry.");
@@ -269,13 +282,21 @@ export function isLazyCalendarDraft(args: {
   visualPrompt: string | null;
   postType: ContentCalendarPostType;
 }): boolean {
-  return isLazyCalendarCaption(args.caption);
+  if (isLazyCalendarCaption(args.caption)) return true;
+  if (hasForbiddenSocialAudienceLabel(args.caption)) return true;
+  if (hasBrokenSocialSignupUrl(args.caption)) return true;
+  if (args.postType === "Carousel" && isSlideInventoryCarouselCaption(args.caption)) return true;
+  return false;
 }
 
 export const CONTENT_CALENDAR_CREATIVE_QUALITY_RULES = `Creative quality (non-negotiable):
 - Every caption needs a specific hook, concrete Match Fit detail (feature, promo, workflow, or outcome), and audience-appropriate CTA.
 - Never output placeholder captions like "{PostType} for {Audience} — Match Fit beta. match-fit.net".
+- Say Coaches — never Fitness Pros in social captions.
+- Coach CTAs must use match-fit.net/trainer/sign-up (validated before accept).
+- Carousel captions must match Static caption quality — never inventory slides in the caption.
+- Founding promo: first 30 coaches → 60 days Premium free; first 10 coaches → onboarding fees waived. Vary wording; keep meaning.
 - Visual prompts must describe subjects, scenes, actions, camera/framing, mood, and on-screen text — NOT just hex colors and audience labels.
 - Brand palette (#07080C dark, #FF7E00 orange) is an accent reference only; it is not a substitute for creative direction.
 - Pull at least one specific insight from the operator directive, website scan, or social scan when provided.
-- Each slot in a batch must be meaningfully different in hook, angle, and CTA.`;
+- Each slot in a batch must be meaningfully different in hook, angle, CTA, and promo phrasing.`;
