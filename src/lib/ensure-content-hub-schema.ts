@@ -16,6 +16,20 @@ const CONTENT_HUB_COLUMNS = [
   "deleted_at",
 ] as const;
 
+const CONTENT_CALENDAR_V2_COLUMNS = [
+  "theme",
+  "cta",
+  "content_lane",
+  "workflow_stage",
+  "platform_captions",
+  "platform_hashtags",
+  "optimize_status",
+  "optimize_error",
+  "optimize_started_at",
+  "media_urls",
+  "archived_at",
+] as const;
+
 const CONTENT_HUB_MIGRATION_SQL = `
 ALTER TABLE match_fit_content_calendar_posts
   ADD COLUMN IF NOT EXISTS saved_to_hub_at timestamptz,
@@ -41,6 +55,32 @@ CREATE INDEX IF NOT EXISTS idx_content_calendar_deleted
   WHERE deleted_at IS NOT NULL;
 `;
 
+const CONTENT_CALENDAR_V2_MIGRATION_SQL = `
+ALTER TABLE match_fit_content_calendar_posts
+  ADD COLUMN IF NOT EXISTS theme text,
+  ADD COLUMN IF NOT EXISTS cta text,
+  ADD COLUMN IF NOT EXISTS content_lane text,
+  ADD COLUMN IF NOT EXISTS workflow_stage text,
+  ADD COLUMN IF NOT EXISTS platform_captions jsonb NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS platform_hashtags jsonb NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS optimize_status text NOT NULL DEFAULT 'idle',
+  ADD COLUMN IF NOT EXISTS optimize_error text,
+  ADD COLUMN IF NOT EXISTS optimize_started_at timestamptz,
+  ADD COLUMN IF NOT EXISTS media_urls jsonb NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS archived_at timestamptz;
+
+CREATE INDEX IF NOT EXISTS idx_content_calendar_v2_stage
+  ON match_fit_content_calendar_posts (workflow_stage, content_lane, updated_at);
+
+CREATE INDEX IF NOT EXISTS idx_content_calendar_v2_archive
+  ON match_fit_content_calendar_posts (archived_at)
+  WHERE archived_at IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_content_calendar_v2_optimize
+  ON match_fit_content_calendar_posts (optimize_status, optimize_started_at)
+  WHERE optimize_status = 'running';
+`;
+
 const POST_DATE_NULLABLE_SQL = `
 ALTER TABLE match_fit_content_calendar_posts
   ALTER COLUMN post_date DROP NOT NULL;
@@ -52,11 +92,19 @@ let postDateNullabilityEnsured = false;
 export function isMissingContentHubSchemaError(e: unknown): boolean {
   const message = e instanceof Error ? e.message : String(e);
   if (/Content Hub columns are missing|NI_BRAIN_DATABASE_URL|NI_BRAIN_DATABASE_PASSWORD/i.test(message)) return true;
-  if (!CONTENT_HUB_COLUMNS.some((column) => message.includes(column))) return false;
+  const knownColumns = [...CONTENT_HUB_COLUMNS, ...CONTENT_CALENDAR_V2_COLUMNS];
+  if (!knownColumns.some((column) => message.includes(column))) return false;
   return (
     /does not exist|42703|PGRST204|schema cache/i.test(message) ||
     /Could not find the 'saved_to_hub_at' column/i.test(message)
   );
+}
+
+export function isMissingContentCalendarV2SchemaError(e: unknown): boolean {
+  const message = e instanceof Error ? e.message : String(e);
+  if (/Content Calendar v2 columns are missing/i.test(message)) return true;
+  if (!CONTENT_CALENDAR_V2_COLUMNS.some((column) => message.includes(column))) return isMissingContentHubSchemaError(e);
+  return /does not exist|42703|PGRST204|schema cache/i.test(message);
 }
 
 function isConnectivityError(message: string): boolean {
@@ -70,6 +118,30 @@ async function probeContentHubSchema(): Promise<boolean> {
   const { error } = await client
     .from("match_fit_content_calendar_posts")
     .select("saved_to_hub_at, is_scheduled, purge_after_at, bulk_session_id, deleted_at")
+    .limit(1);
+
+  return !error;
+}
+
+async function probeContentCalendarV2Schema(): Promise<boolean> {
+  const client = createNiBrainClient();
+  const { error } = await client
+    .from("match_fit_content_calendar_posts")
+    .select(
+      [
+        "theme",
+        "cta",
+        "content_lane",
+        "workflow_stage",
+        "platform_captions",
+        "platform_hashtags",
+        "optimize_status",
+        "optimize_error",
+        "optimize_started_at",
+        "media_urls",
+        "archived_at",
+      ].join(", "),
+    )
     .limit(1);
 
   return !error;
@@ -176,6 +248,19 @@ export async function ensureContentHubSchema(): Promise<void> {
   }
 
   await ensurePostDateNullable();
+}
+
+export async function ensureContentCalendarV2Schema(): Promise<void> {
+  await ensureContentHubSchema();
+  if (await probeContentCalendarV2Schema()) return;
+
+  await runNiBrainDdl(CONTENT_CALENDAR_V2_MIGRATION_SQL);
+
+  if (!(await probeContentCalendarV2Schema())) {
+    throw new Error(
+      "Content Calendar v2 columns are still missing on NI Brain after migration. Confirm NI_BRAIN_DATABASE_URL points at project kxijunwgbrlfzvgkhklo, then redeploy.",
+    );
+  }
 }
 
 /** Test-only reset for module-level migration memo. */
