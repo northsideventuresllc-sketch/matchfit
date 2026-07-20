@@ -27,8 +27,8 @@ export const CONTENT_CALENDAR_GROUPS = ["Join the Team", "List With Us", "Client
 export type ContentCalendarGroup = (typeof CONTENT_CALENDAR_GROUPS)[number];
 
 export const CONTENT_CALENDAR_GROUP_DESCRIPTIONS: Record<ContentCalendarGroup, string> = {
-  "Join the Team": "Trainers looking to become a Match Fit Fitness Pro",
-  "List With Us": "Independent trainers & facilities using Match Fit as a listing/discovery platform",
+  "Join the Team": "Coaches looking to join Match Fit",
+  "List With Us": "Independent coaches & facilities using Match Fit as a listing/discovery platform",
   Clients: "Athletes and individuals looking for training",
 };
 
@@ -36,7 +36,7 @@ export const CONTENT_CALENDAR_GROUP_DESCRIPTIONS: Record<ContentCalendarGroup, s
 export const CONTENT_CALENDAR_BULK_MAX_COUNT = 20;
 
 export const CONTENT_CALENDAR_BULK_DEFAULT_PROMPT =
-  "Use live website promos, social performance, and product features (Fit Hub, discovery matching, founding Fitness Pro offers, client VIP trial) to write specific hooks — never generic beta filler.";
+  "Use live website promos, social performance, and product features (Fit Hub, discovery matching, founding coach offers — first 30 get 60 days Premium free; first 10 get onboarding fees waived — client VIP trial) to write specific hooks — never generic beta filler.";
 
 /** Soft-deleted hub posts are permanently removed after this window. */
 export const CONTENT_HUB_DELETE_RETENTION_HOURS = 48;
@@ -75,12 +75,13 @@ export const CONTENT_CALENDAR_SOCIAL_POSTING_CUTOFF_HOUR_EST = 17;
 export const CONTENT_CALENDAR_DAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const;
 export const CONTENT_CALENDAR_DAYS_LONG = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] as const;
 
-export const CONTENT_CALENDAR_BRAND_FACTS = `Match Fit — two-sided fitness marketplace connecting Fitness Pros with clients.
-Beta v1.2+. Clients: $10/month. Fitness Pro Independent Pro from $15/month after a 60-day free trial at registration. 20% platform fee on sessions.
+export const CONTENT_CALENDAR_BRAND_FACTS = `Match Fit — two-sided fitness marketplace connecting coaches with clients.
+Beta v1.2+. Clients: $10/month. Independent Pro from $15/month after a 60-day free trial at registration. 20% platform fee on sessions.
 Features: swipe-based discovery, Fit Hub social feed, algorithmic matching, virtual + in-person (in-person launch limited to Atlanta operationally — do NOT lead marketing with geography).
 
 Brand: bold, direct, real — no fluff. Colors: dark #07080C, orange #FF7E00. Handle: @theofficialmatchfit
-Universal language: always "Fitness Pros" (never trainers/personal trainers/coaches as the primary label).
-Target audiences (content calendar only): "Join the Team" (trainers becoming Match Fit Fitness Pros), "List With Us" (independent trainers & facilities using Match Fit for listing/discovery), "Clients" (athletes and individuals looking for training).
-Goal: grow beta Fitness Pros and clients. Site: match-fit.net
-Canonical signup URLs: Fitness Pros join at match-fit.net/trainer/signup; clients join at match-fit.net/client/sign-up. Never use match-fit.net/Fitness Pro/signup.`;
+Universal social language: always "Coaches" / "coach" (never "Fitness Pros", "trainers", or "personal trainers" as the primary public label).
+Target audiences (content calendar only): "Join the Team" (coaches joining Match Fit), "List With Us" (independent coaches & facilities using Match Fit for listing/discovery), "Clients" (athletes and individuals looking for training).
+Goal: grow beta coaches and clients. Site: match-fit.net
+Canonical signup URLs: coaches join at match-fit.net/trainer/sign-up; clients join at match-fit.net/client/sign-up. Never use match-fit.net/Fitness Pro/signup or match-fit.net/trainer/signup in social copy.
+Founding coach promo (exact meaning; vary wording every time): first 30 coaches get 60 days of Premium access free (all tools / maximize opportunity); first 10 coaches get onboarding fees waived completely.`;

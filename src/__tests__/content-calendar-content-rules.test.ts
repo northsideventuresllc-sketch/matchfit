@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   CONTENT_CALENDAR_REPURPOSE_CHAR_LIMIT,
+  canonicalizeSocialSignupUrls,
   enforceGeneratedPostContent,
   fitCaptionForRepurpose,
+  hasBrokenSocialSignupUrl,
+  hasForbiddenSocialAudienceLabel,
+  isSlideInventoryCarouselCaption,
+  normalizeCoachLanguage,
   normalizeUserEditedPostContent,
   repurposePostLength,
 } from "@/lib/content-calendar/content-rules";
@@ -41,7 +46,7 @@ describe("content-calendar content rules", () => {
     expect(fitted.length + suffix.length).toBeLessThanOrEqual(CONTENT_CALENDAR_REPURPOSE_CHAR_LIMIT + 1);
   });
 
-  it("preserves /trainer/signup URLs when rewriting trainer language", () => {
+  it("rewrites audience language to Coaches and canonicalizes coach signup URL", () => {
     const caption =
       "Verified trainers should join Match Fit at match-fit.net/trainer/signup and start onboarding.";
     const enforced = enforceGeneratedPostContent({
@@ -49,17 +54,44 @@ describe("content-calendar content rules", () => {
       hashtags: ["MatchFit"],
     });
 
-    expect(enforced.caption).toContain("match-fit.net/trainer/signup");
+    expect(enforced.caption).toContain("match-fit.net/trainer/sign-up");
+    expect(enforced.caption).not.toContain("match-fit.net/trainer/signup");
     expect(enforced.caption).not.toContain("match-fit.net/Fitness Pro/signup");
-    expect(enforced.caption).toContain("Fitness Pros");
+    expect(enforced.caption).toContain("coaches");
+    expect(enforced.caption).not.toMatch(/Fitness\s+Pros?/i);
   });
 
-  it("repairs broken Fitness Pro signup URLs back to /trainer/signup", () => {
+  it("repairs broken Fitness Pro signup URLs back to /trainer/sign-up and says Coach", () => {
     const normalized = normalizeUserEditedPostContent({
       caption: "Join as a Fitness Pro at match-fit.net/Fitness Pro/signup today.",
       hashtags: [],
     });
 
-    expect(normalized.caption).toBe("Join as a Fitness Pro at match-fit.net/trainer/signup today.");
+    expect(normalized.caption).toBe("Join as a Coach at match-fit.net/trainer/sign-up today.");
+  });
+
+  it("does not rewrite deeper /trainer/signup flow paths", () => {
+    const out = normalizeCoachLanguage("Finish terms at match-fit.net/trainer/signup/terms then pay.");
+    expect(out).toContain("match-fit.net/trainer/signup/terms");
+    expect(out).not.toContain("match-fit.net/trainer/sign-up/terms");
+  });
+
+  it("flags forbidden labels, broken URLs, and slide-inventory carousel captions", () => {
+    expect(hasForbiddenSocialAudienceLabel("Join as a Fitness Pro today")).toBe(true);
+    expect(hasBrokenSocialSignupUrl("Start at match-fit.net/trainer/signup")).toBe(true);
+    expect(hasBrokenSocialSignupUrl("Start at match-fit.net/trainer/sign-up")).toBe(false);
+    expect(
+      isSlideInventoryCarouselCaption(
+        "Slide 1: Trust. Slide 2: Tools. Slide 3: Sign up at match-fit.net/trainer/sign-up.",
+      ),
+    ).toBe(true);
+    expect(
+      isSlideInventoryCarouselCaption(
+        "First 30 coaches get 60 days Premium free. Claim your spot at match-fit.net/trainer/sign-up.",
+      ),
+    ).toBe(false);
+    expect(canonicalizeSocialSignupUrls("go match-fit.net/trainer/signup now")).toContain(
+      "match-fit.net/trainer/sign-up",
+    );
   });
 });

@@ -26,7 +26,7 @@ import {
   CONTENT_CALENDAR_AI_RULES,
   CONTENT_CALENDAR_MAX_HASHTAGS,
   enforceGeneratedPostContent,
-  normalizeFitnessProLanguage,
+  normalizeCoachLanguage,
   normalizeHashtags,
   normalizeTargetGroup,
 } from "@/lib/content-calendar/content-rules";
@@ -95,7 +95,7 @@ function applyPostRules(content: GeneratedPostContent, postType: ContentCalendar
       postType === "Text"
         ? null
         : content.visualPrompt
-          ? normalizeFitnessProLanguage(content.visualPrompt)
+          ? normalizeCoachLanguage(content.visualPrompt)
           : content.visualPrompt,
   };
 }
@@ -404,10 +404,11 @@ Respond ONLY with JSON: {"hook":"","body":"","cta":"","hashtags":["tag1"],"dmScr
 Generate a ${args.tone} ${args.contentType} ${args.postType ? `${args.postType} ` : ""}post for ${platformLabel}.
 ${args.postType === "Text" ? "Text-only post: no visual or video prompt. Write for Threads/Facebook — concise, conversational caption structure." : "Include enough detail that a designer could storyboard the creative from your copy."}
 Weave the operator directive into the hook and body — do not produce generic beta filler.
-Target audiences to rotate between: Join the Team (Fitness Pro recruitment), List With Us (independent listing), Clients (athletes seeking training).
+Target audiences to rotate between: Join the Team (coach recruitment), List With Us (independent listing), Clients (athletes seeking training).
 Goal: drive signups with audience-appropriate CTAs only:
-- Join the Team / List With Us → match-fit.net/trainer/signup (never match-fit.net/Fitness Pro/signup)
-- Clients → match-fit.net/client/sign-up`;
+- Join the Team / List With Us → match-fit.net/trainer/sign-up (never match-fit.net/Fitness Pro/signup or /trainer/signup)
+- Clients → match-fit.net/client/sign-up
+Say Coaches — never Fitness Pros. Carousel captions = static-style (no slide inventories).`;
   const aiResult = await callAi(system, user);
   const parsed = aiResult.text
     ? parseJsonBlock<{ hook?: string; body?: string; cta?: string; hashtags?: string[]; dmScript?: string }>(aiResult.text)
@@ -418,11 +419,11 @@ Goal: drive signups with audience-appropriate CTAs only:
     hashtags: parsed.hashtags ?? [],
   });
   return {
-    hook: normalizeFitnessProLanguage(parsed.hook ?? ""),
-    body: normalizeFitnessProLanguage(parsed.body ?? ""),
-    cta: normalizeFitnessProLanguage(parsed.cta ?? ""),
+    hook: normalizeCoachLanguage(parsed.hook ?? ""),
+    body: normalizeCoachLanguage(parsed.body ?? ""),
+    cta: normalizeCoachLanguage(parsed.cta ?? ""),
     hashtags: enforced.hashtags,
-    dmScript: parsed.dmScript ? normalizeFitnessProLanguage(parsed.dmScript) : undefined,
+    dmScript: parsed.dmScript ? normalizeCoachLanguage(parsed.dmScript) : undefined,
   };
 }
 
@@ -784,7 +785,7 @@ Bullet what's working, what's not, and 3 specific improvements for next week's c
 Fetched social profile data (authoritative — do not contradict or invent beyond this):
 ${socialScan.summary}
 
-Summarize performance for @theofficialmatchfit on Instagram, TikTok, Facebook, and Threads. Note content types (video, carousel, static, text) and Fitness Pro recruitment vs client acquisition focus.`;
+Summarize performance for @theofficialmatchfit on Instagram, TikTok, Facebook, and Threads. Note content types (video, carousel, static, text) and coach recruitment vs client acquisition focus.`;
 
   const aiResult = await callAi(system, user, 1200);
   const summary =
@@ -811,7 +812,7 @@ export async function generateStaticMedia(prompt: string): Promise<{ url: string
     },
     body: JSON.stringify({
       model: "dall-e-3",
-      prompt: `Match Fit fitness brand social graphic. Dark background #07080C, orange accent #FF7E00. ${normalizeFitnessProLanguage(prompt)}`.slice(
+      prompt: `Match Fit fitness brand social graphic. Dark background #07080C, orange accent #FF7E00. ${normalizeCoachLanguage(prompt)}`.slice(
         0,
         3900,
       ),
