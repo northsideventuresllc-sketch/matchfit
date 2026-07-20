@@ -14,3 +14,4 @@
 | F2 Prisma migration | matchfit | Merged | — | Smoke deploy if JB asks |
 | J6 outreach DMs (10–15/day) | matchfit | — | JB | Live send only after Cowork brief |
 | J5 Tue client tip IG post | matchfit | — | JB | Theme: 3 questions before you hire a trainer |
+| MF-REV-REFILL (≥15 ready Join-as-FP/Both) | matchfit | **DONE** week of Jul 20 — 17 ready in Outreach HQ | — | JB: Cowork Brief daily caps only; agents refill when count < 15 (`scripts/outreach-count-ready-leads.mjs`) |

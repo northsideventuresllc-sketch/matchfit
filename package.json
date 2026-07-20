@@ -1,6 +1,6 @@
 {
   "name": "match-fit-app",
-  "version": "2.4.0-beta",
+  "version": "2.4.1-beta",
   "private": true,
   "engines": {
     "node": ">=20.19.0 <23"
@@ -51,6 +51,7 @@
     "version:bump": "node scripts/bump-product-version.mjs",
     "version:verify": "node scripts/verify-product-version-bump.mjs",
     "content:calendar:sync": "bash scripts/sync-matchfit-content-calendar.sh",
+    "outreach:ready-count": "node --env-file=.env scripts/outreach-count-ready-leads.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {

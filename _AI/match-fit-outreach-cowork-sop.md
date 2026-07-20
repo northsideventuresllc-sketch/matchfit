@@ -45,6 +45,21 @@ Unclear intent = do not send.
 - Admin UI: `/admin/outreach` → **Cowork Brief** → Load Morning Brief / Copy Runner Prompt
 - API: `GET /api/admin/outreach/cowork-brief` (admin session)
 
+## Ready leads (REV-FIRST / MF-REV-REFILL)
+
+A lead is **ready** for JB daily send blocks when all are true:
+
+1. Saved to Outreach Hub (`savedToHubAt` set)
+2. Status `LEAD` (not sent / dead / archived)
+3. Intent `JOIN_AS_FP` or `BOTH`
+4. Copy present (Instagram `dmText`, or email subject + body)
+
+Target floor: **≥15** ready Join-as-FP / Both leads before daily send blocks.
+
+Cowork Brief prefers ready Join-as-FP / Both leads and reports `readyJoinFpOrBoth` counts.
+
+Count only (no PII dump): `node --env-file=.env scripts/outreach-count-ready-leads.mjs`
+
 ## Product notes
 
 - Generation retries until the requested lead count fills (up to 4 research passes) to reduce IG underfill.
