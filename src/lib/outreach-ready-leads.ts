@@ -1,7 +1,7 @@
 /**
  * Ready-lead definition for REV-FIRST / MF-REV-REFILL.
  * A lead is "ready" for JB daily send blocks when it is in Outreach Hub,
- * status LEAD, intent Join as Fitness Pro or Both, and has sendable copy.
+ * status LEAD, intent Join as Coach (JOIN_AS_FP) or Both, and has sendable copy.
  */
 
 import type { OutreachPlatform } from "@/lib/outreach-types";

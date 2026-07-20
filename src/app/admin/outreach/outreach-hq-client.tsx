@@ -359,21 +359,27 @@ type OutreachBatchGroup = {
 };
 
 function formatOutreachBatchLabel(batchId: string | null, leads: AnyLead[]): string {
-  if (!batchId) return `Manual / unknown batch (${leads.length})`;
-  const match = /^batch_(\d+)_/.exec(batchId);
+  if (!batchId) return `Manual / unknown source (${leads.length})`;
+  const count = `${leads.length} lead${leads.length === 1 ? "" : "s"}`;
+  if (batchId.startsWith("refill_mf_rev_")) {
+    return `Agent SerpAPI refill · ${count} · ${batchId}`;
+  }
+  const match = /^batch_(?:hq_)?(\d+)_/.exec(batchId);
   if (match) {
     const date = new Date(Number(match[1]));
     if (!Number.isNaN(date.getTime())) {
-      return `${date.toLocaleString(undefined, {
+      const when = date.toLocaleString(undefined, {
         month: "short",
         day: "numeric",
         year: "numeric",
         hour: "numeric",
         minute: "2-digit",
-      })} · ${leads.length} lead${leads.length === 1 ? "" : "s"}`;
+      });
+      const source = batchId.startsWith("batch_hq_") ? "HQ generate" : "HQ generate (legacy id)";
+      return `${source} · ${when} · ${count}`;
     }
   }
-  return `${batchId} · ${leads.length} lead${leads.length === 1 ? "" : "s"}`;
+  return `Unknown source · ${batchId} · ${count}`;
 }
 
 function OutreachGenerateProgressBar(props: { percent: number; stage: string; footnote: string }) {

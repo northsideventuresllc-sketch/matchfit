@@ -5,6 +5,7 @@ import {
   fetchRecentOutreachNiBrainLearnings,
   recordOutreachNiBrainLearning,
 } from "@/lib/outreach-ni-brain-learning";
+import { OUTREACH_CRAFT_LOCK_RULES } from "@/lib/outreach-templates";
 import type { OutreachLeadProfileSnapshot, OutreachPlatform } from "@/lib/outreach-types";
 
 export async function recordOutreachEditSignal(args: {
@@ -237,14 +238,16 @@ export async function buildOutreachLearningContext(
 
     return [
       `Learning summary for ${platform} (admin ${adminId.slice(0, 6)}):`,
+      OUTREACH_CRAFT_LOCK_RULES,
       `- Responses: ${positive} positive, ${negative} negative, ${noResponse} no response (recent sample).`,
-      editNotes ? `- Recent operator edits (match this tone):\n${editNotes}` : "- No recent copy edits logged yet.",
+      editNotes ? `- Recent operator edits (match this tone — these override generic AI defaults):\n${editNotes}` : "- No recent copy edits logged yet.",
       deleteNotes ? `- Deleted lead reasons (do not repeat):\n${deleteNotes}` : "",
       savedNotes ? `- Saved lead profile patterns (generate more like these):\n${savedNotes}` : "",
       deadNotes ? `- ${deadNotes}` : "",
       niBrainSection,
       "- Personalize the opening hook every time; keep the generic Match Fit invite tail consistent within the batch.",
       "- IG DMs under 1,000 characters; email under 150 words; Facebook posts use emoji sparingly.",
+      "- When operator edits conflict with prior AI copy, prefer the operator edit tone and phrasing.",
     ]
       .filter(Boolean)
       .join("\n");
@@ -252,6 +255,7 @@ export async function buildOutreachLearningContext(
     console.warn("[outreach-learning] Could not load learning context:", e);
     return [
       `Learning summary for ${platform}:`,
+      OUTREACH_CRAFT_LOCK_RULES,
       "- No recent copy edits logged yet.",
       "- Personalize the opening hook every time; keep the generic Match Fit invite tail consistent within the batch.",
     ].join("\n");

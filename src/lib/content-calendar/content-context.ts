@@ -1,5 +1,6 @@
 import "server-only";
 
+import { CONTENT_CALENDAR_FOUNDING_PROMO_FACTS } from "@/lib/content-calendar/content-rules";
 import { scanMatchFitWebsite, type WebsiteScanResult } from "@/lib/content-calendar/website-scan";
 import { scanMatchFitSocialProfiles, type SocialProfileScanResult } from "@/lib/content-calendar/social-profile-scan";
 import { fetchNiBrainMatchFitContext, fetchRecentContentLearnings } from "@/lib/ni-brain-client";
@@ -49,8 +50,11 @@ export async function buildContentGenerationContext(options?: {
   const socialUrls = MATCH_FIT_OFFICIAL_SOCIAL_LINKS.map((l) => `${l.label}: ${l.href}`).join("\n");
 
   return [
+    `Craft lock (overrides stale learnings): say Coaches not Fitness Pros; CTA match-fit.net/trainer/sign-up; carousel captions = static-style; ${CONTENT_CALENDAR_FOUNDING_PROMO_FACTS}`,
     niContext ? `NI Brain context:\n${niContext.slice(0, 1500)}` : "",
-    learnings.length ? `Recent operator learnings:\n${learnings.join("\n")}` : "",
+    learnings.length
+      ? `Recent operator learnings (prefer tone/structure — but never violate craft lock above):\n${learnings.join("\n")}`
+      : "",
     website ? `Live website scan (promos + home):\n${website.summary.slice(0, 2000)}` : "",
     social ? `Live social profile scan (use only fetched data):\n${social.summary.slice(0, 2500)}` : "",
     `Official social profiles:\n${socialUrls}`,

@@ -18,6 +18,7 @@ import {
   sleepMs,
   verifyInstagramProfile,
 } from "@/lib/instagram-profile-verify";
+import { normalizeCoachLanguage } from "@/lib/content-calendar/content-rules";
 import { getOutreachExclusionList } from "@/lib/outreach-exclusions";
 import { buildOutreachLearningContext } from "@/lib/outreach-learning";
 import {
@@ -293,7 +294,8 @@ export async function generateOutreachLeads(args: {
   verification?: OutreachLeadVerificationSummary;
 }> {
   await hydratePlatformEnvFromDatabase();
-  const batchId = `batch_${Date.now()}_${args.adminId.slice(0, 6)}`;
+  /** Prefix `batch_hq_` = Outreach HQ generate (provenance). Other prefixes = off-path agents. */
+  const batchId = `batch_hq_${Date.now()}_${args.adminId.slice(0, 6)}`;
   let exclusions = await getExclusionList(args.platform);
   const learning = await buildOutreachLearningContext(args.platform, args.adminId);
   const tailVirtual = genericInviteTail(args.platform, "VIRTUAL");
@@ -576,16 +578,19 @@ async function persistGeneratedLeads(
           profileUrl: verified.profileUrl,
           niche: item.niche ?? fitness.niche,
           targetGroup: "VIRTUAL",
-          whyMatchFit: item.whyMatchFit ?? "Strong fit for Match Fit founding trainer roster.",
+          whyMatchFit: normalizeCoachLanguage(
+            item.whyMatchFit ?? "Strong fit for Match Fit founding coach roster.",
+          ),
           likelihoodScore: clampScore(item.likelihoodScore),
           notes:
             [
+              "via:hq_generate",
               item.notes,
               hook ? `Hook: ${hook}` : null,
               verified.fullName ? `Verified as ${verified.fullName}` : null,
               verified.categoryName ? `IG category: ${verified.categoryName}` : null,
               `Fitness fit: ${fitness.tier} (${fitness.fitnessScore})`,
-              "Public fitness pro profile verified.",
+              "Public coach profile verified.",
             ]
               .filter(Boolean)
               .join(" · ") || null,
@@ -666,10 +671,11 @@ async function persistGeneratedLeads(
           audience: item.audience === "CLIENT" ? "CLIENT" : "TRAINER",
           niche: item.niche ?? fitness.niche,
           targetGroup: "VIRTUAL",
-          whyMatchFit: item.whyMatchFit ?? "Active audience for Match Fit.",
+          whyMatchFit: normalizeCoachLanguage(item.whyMatchFit ?? "Active audience for Match Fit."),
           likelihoodScore: clampScore(item.likelihoodScore),
           notes:
             [
+              "via:hq_generate",
               item.notes,
               `Fitness fit: ${fitness.tier} (${fitness.fitnessScore})`,
               verified.verifiedLive ? "Facebook URL verified live." : "Facebook URL format validated.",
@@ -740,10 +746,13 @@ async function persistGeneratedLeads(
           niche: item.niche ?? fitness.niche,
           emailSourceUrl: item.emailSourceUrl ?? null,
           targetGroup: "VIRTUAL",
-          whyMatchFit: item.whyMatchFit ?? "Good fit for founding trainer roster.",
+          whyMatchFit: normalizeCoachLanguage(
+            item.whyMatchFit ?? "Good fit for founding coach roster.",
+          ),
           likelihoodScore: clampScore(item.likelihoodScore),
           notes:
             [
+              "via:hq_generate",
               item.notes,
               item.personalHook ? `Hook: ${item.personalHook}` : null,
               `Fitness fit: ${fitness.tier} (${fitness.fitnessScore})`,
