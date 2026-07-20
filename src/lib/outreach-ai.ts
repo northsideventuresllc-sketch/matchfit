@@ -33,6 +33,10 @@ import {
   buildCoworkBriefInstructions,
   buildCoworkRunnerPrompt,
 } from "@/lib/outreach-cowork";
+import {
+  OUTREACH_READY_LEAD_TARGET,
+  pickCoworkBriefLeads,
+} from "@/lib/outreach-ready-leads";
 
 /** Extra passes help recover from verification rejects / short JSON arrays (IG underfill). */
 const OUTREACH_AI_MAX_ATTEMPTS = 4;
@@ -788,15 +792,22 @@ export async function buildCoworkMorningBrief(): Promise<{
   emailFrom: string;
   emailBcc: readonly string[];
   missingIntentCount: number;
+  readyJoinFpOrBoth: {
+    instagram: number;
+    email: number;
+    total: number;
+    target: number;
+    meetsTarget: boolean;
+  };
   instagram: unknown[];
   facebook: unknown[];
   email: unknown[];
 }> {
-  const [ig, fb, em] = await Promise.all([
+  const [igPool, fb, emPool, igReadyCount, emReadyCount] = await Promise.all([
     prisma.outreachInstagramLead.findMany({
       where: { deletedAt: null, status: "LEAD", archivedAt: null },
       orderBy: [{ savedToHubAt: "desc" }, { createdAt: "desc" }],
-      take: OUTREACH_COWORK_DAILY_CAPS.instagram,
+      take: Math.max(OUTREACH_COWORK_DAILY_CAPS.instagram * 4, 20),
     }),
     prisma.outreachFacebookLead.findMany({
       where: { deletedAt: null, status: "LEAD", archivedAt: null },
@@ -806,12 +817,42 @@ export async function buildCoworkMorningBrief(): Promise<{
     prisma.outreachEmailLead.findMany({
       where: { deletedAt: null, status: "LEAD", archivedAt: null },
       orderBy: [{ savedToHubAt: "desc" }, { createdAt: "desc" }],
-      take: OUTREACH_COWORK_DAILY_CAPS.email,
+      take: Math.max(OUTREACH_COWORK_DAILY_CAPS.email * 4, 12),
+    }),
+    prisma.outreachInstagramLead.count({
+      where: {
+        deletedAt: null,
+        archivedAt: null,
+        status: "LEAD",
+        savedToHubAt: { not: null },
+        outreachIntent: { in: ["JOIN_AS_FP", "BOTH"] },
+        NOT: { dmText: "" },
+      },
+    }),
+    prisma.outreachEmailLead.count({
+      where: {
+        deletedAt: null,
+        archivedAt: null,
+        status: "LEAD",
+        savedToHubAt: { not: null },
+        outreachIntent: { in: ["JOIN_AS_FP", "BOTH"] },
+        NOT: { OR: [{ emailSubject: "" }, { emailBody: "" }] },
+      },
     }),
   ]);
 
+  const ig = pickCoworkBriefLeads("instagram", igPool, OUTREACH_COWORK_DAILY_CAPS.instagram);
+  const em = pickCoworkBriefLeads("email", emPool, OUTREACH_COWORK_DAILY_CAPS.email);
+
   const generatedAt = new Date().toISOString();
   const missingIntentCount = [...ig, ...em].filter((row) => !row.outreachIntent).length;
+  const readyJoinFpOrBoth = {
+    instagram: igReadyCount,
+    email: emReadyCount,
+    total: igReadyCount + emReadyCount,
+    target: OUTREACH_READY_LEAD_TARGET,
+    meetsTarget: igReadyCount + emReadyCount >= OUTREACH_READY_LEAD_TARGET,
+  };
 
   return {
     generatedAt,
@@ -821,6 +862,7 @@ export async function buildCoworkMorningBrief(): Promise<{
     emailFrom: OUTREACH_COWORK_EMAIL_FROM,
     emailBcc: OUTREACH_COWORK_EMAIL_BCC,
     missingIntentCount,
+    readyJoinFpOrBoth,
     instagram: ig,
     facebook: fb,
     email: em,

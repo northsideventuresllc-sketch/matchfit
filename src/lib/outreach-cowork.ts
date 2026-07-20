@@ -65,6 +65,7 @@ export function buildCoworkRunnerPrompt(generatedAtIso: string): string {
     "Rules (locked):",
     "- Every lead must have outreach intent before send: List With Us · Join as Fitness Pro · Both.",
     "- Unclear intent = do not send.",
+    "- REV-FIRST priority: send Join as Fitness Pro / Both ready hub leads first.",
     `- Daily caps: ${instagram} Instagram + ${email} email.`,
     "- JB only for live DM/email send. Agent owns generate, hub save, copy, status updates.",
     "",

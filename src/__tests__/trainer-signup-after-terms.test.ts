@@ -11,7 +11,7 @@ const {
   txMock,
 } = vi.hoisted(() => {
   const txMock = {
-    trainer: { update: vi.fn() },
+    trainer: { update: vi.fn(), findUnique: vi.fn() },
     trainerProfile: { findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
   };
   return {
@@ -79,10 +79,12 @@ describe("createTrainerAccountAfterTermsAcceptance", () => {
     vi.setSystemTime(new Date("2026-06-08T15:00:00.000Z"));
 
     prismaMock.$transaction.mockImplementation(async (callback: (tx: typeof txMock) => unknown) => callback(txMock));
+    txMock.trainer.findUnique.mockResolvedValue({ platformTrialEndsAt: null });
     txMock.trainerProfile.findUnique.mockResolvedValue({
       complianceWindowStartedAt: null,
       limitedDashboardUnlockedAt: null,
       onboardingFeePaymentDeadlineAt: null,
+      fitHubPromoEndsAt: null,
     });
     prismaMock.trainerDraft.deleteMany.mockResolvedValue({ count: 0 });
     prismaMock.trainerProfile.findUnique.mockResolvedValue({
@@ -138,6 +140,8 @@ describe("createTrainerAccountAfterTermsAcceptance", () => {
       data: {
         termsAcceptedAt: new Date("2026-06-08T15:00:00.000Z"),
         privacyPolicyAcceptedAt: new Date("2026-06-08T15:00:00.000Z"),
+        platformTrialEndsAt: new Date("2026-08-07T15:00:00.000Z"),
+        platformTrialConsumed: false,
       },
     });
     expect(txMock.trainerProfile.update).toHaveBeenCalledWith({
@@ -147,6 +151,7 @@ describe("createTrainerAccountAfterTermsAcceptance", () => {
         limitedDashboardUnlockedAt: new Date("2026-06-08T15:00:00.000Z"),
         complianceWindowStartedAt: new Date("2026-06-08T15:00:00.000Z"),
         onboardingFeePaymentDeadlineAt: new Date("2026-06-15T15:00:00.000Z"),
+        fitHubPromoEndsAt: new Date("2026-08-07T15:00:00.000Z"),
         updatedAt: new Date("2026-06-08T15:00:00.000Z"),
       },
     });
