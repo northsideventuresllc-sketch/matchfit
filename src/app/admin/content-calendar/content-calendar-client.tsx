@@ -274,6 +274,15 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
           <Link href="/admin/content-calendar/v2" className={adminSecondaryButtonClass}>
             Open v2 (preview)
           </Link>
+          <a
+            href="https://labs.google/flow"
+            target="_blank"
+            rel="noreferrer"
+            className={adminSecondaryButtonClass}
+            title="Gemini Flow video account (jonnybooth22@gmail.com)"
+          >
+            Gemini Flow
+          </a>
           <button
             type="button"
             className={adminSecondaryButtonClass}
