@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminPortalShell } from "@/components/admin/admin-portal-shell";
 import { MarketingPlaybookStepBanner } from "@/components/admin/marketing-playbook-step-banner";
@@ -269,14 +270,19 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
       title="Content Calendar"
       description="Generate single posts, bulk batches with target groups, and manage saved content in Content Hub."
       headerActions={
-        <button
-          type="button"
-          className={adminSecondaryButtonClass}
-          disabled={scanning}
-          onClick={() => void runSocialScan()}
-        >
-          {scanning ? "Scanning…" : "Scan Social"}
-        </button>
+        <>
+          <Link href="/admin/content-calendar/v2" className={adminSecondaryButtonClass}>
+            Open v2 (preview)
+          </Link>
+          <button
+            type="button"
+            className={adminSecondaryButtonClass}
+            disabled={scanning}
+            onClick={() => void runSocialScan()}
+          >
+            {scanning ? "Scanning…" : "Scan Social"}
+          </button>
+        </>
       }
       contentClassName="space-y-6"
     >

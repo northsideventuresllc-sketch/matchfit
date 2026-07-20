@@ -827,6 +827,65 @@ export async function generateStaticMedia(prompt: string): Promise<{ url: string
   return url ? { url } : null;
 }
 
+export type PlatformOptimization = Record<string, { caption: string; hashtags: string[] }>;
+
+export async function optimizePostForPlatforms(args: {
+  postType: ContentCalendarPostType;
+  targetGroup: string;
+  theme?: string | null;
+  cta?: string | null;
+  caption: string;
+  hashtags: string[];
+  platforms: string[];
+}): Promise<PlatformOptimization> {
+  await hydratePlatformEnvFromDatabase();
+  const targetGroup = normalizeTargetGroup(args.targetGroup);
+  const platformList = args.platforms.map((p) => p.trim()).filter(Boolean);
+  const system = `You are Match Fit's channel-specific social editor.
+${CONTENT_CALENDAR_BRAND_FACTS}
+${CONTENT_CALENDAR_AI_RULES}
+Return JSON only. Shape:
+{"Instagram":{"caption":"...","hashtags":["tag"]},"TikTok":{"caption":"...","hashtags":["tag"]}}
+Only include keys for requested platforms. Keep CTAs audience-correct.`;
+  const user = `Post type: ${args.postType}
+Target audience: ${targetGroup}
+Theme: ${args.theme?.trim() || "Use the caption's strongest theme"}
+CTA: ${args.cta?.trim() || "Use the audience-correct Match Fit signup/discovery CTA"}
+Requested platforms: ${platformList.join(", ")}
+
+Base caption:
+${args.caption}
+
+Base hashtags: ${args.hashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" ")}
+
+Optimize per platform:
+- Instagram / Instagram Reels: strong visual hook, 5-8 hashtags.
+- TikTok: first-person/direct hook, short caption, 4-6 tags.
+- Facebook / Facebook Reels: clearer context, conversational CTA, 3-5 tags.
+- Threads: punchy text-native version, 2-4 tags.
+- LinkedIn: professional founder/beta angle, 3-5 tags.
+No markdown.`;
+
+  const aiResult = await callAi(system, user, 3200, 0.45);
+  const parsed = aiResult.text
+    ? parseJsonBlock<Record<string, { caption?: string; hashtags?: string[] }>>(aiResult.text)
+    : null;
+
+  const output: PlatformOptimization = {};
+  for (const platform of platformList) {
+    const exact = parsed?.[platform];
+    const looseKey = Object.keys(parsed ?? {}).find((key) => key.toLowerCase() === platform.toLowerCase());
+    const loose = looseKey ? parsed?.[looseKey] : null;
+    const row = exact ?? loose;
+    output[platform] = {
+      caption: row?.caption?.trim() || args.caption,
+      hashtags: normalizeHashtags(row?.hashtags?.length ? row.hashtags : args.hashtags),
+    };
+  }
+
+  return output;
+}
+
 export async function getContentCalendarAiStatusAsync(): Promise<{
   configured: boolean;
   niBrain: boolean;

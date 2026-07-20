@@ -204,6 +204,11 @@ export async function updatePostMedia(args: {
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Content Calendar v2 rows set `workflow_stage` (hub/publishing/scheduled/archived).
+ * Live calendar queries must keep `workflow_stage IS NULL` so the hidden v2 route
+ * cannot leak into the current Content Hub / Scheduled / Missed surfaces.
+ */
 export async function loadMissedPosts(): Promise<ContentCalendarPostRow[]> {
   const client = createNiBrainClient();
   const { data, error } = await client
@@ -211,6 +216,7 @@ export async function loadMissedPosts(): Promise<ContentCalendarPostRow[]> {
     .select("*")
     .eq("posted", false)
     .eq("missed_prompt_dismissed", false)
+    .is("workflow_stage", null)
     .order("post_date");
 
   if (error) throw new Error(error.message);
@@ -228,6 +234,7 @@ export async function loadHubPosts(): Promise<ContentCalendarPostRow[]> {
     .not("saved_to_hub_at", "is", null)
     .is("deleted_at", null)
     .eq("posted", false)
+    .is("workflow_stage", null)
     .order("saved_to_hub_at", { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -241,6 +248,7 @@ export async function loadDeletedHubPosts(): Promise<ContentCalendarPostRow[]> {
     .from("match_fit_content_calendar_posts")
     .select("*")
     .not("deleted_at", "is", null)
+    .is("workflow_stage", null)
     .order("deleted_at", { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -255,6 +263,7 @@ export async function loadPostedHubPosts(): Promise<ContentCalendarPostRow[]> {
     .select("*")
     .eq("posted", true)
     .is("deleted_at", null)
+    .is("workflow_stage", null)
     .order("posted_at", { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -276,6 +285,7 @@ export async function loadScheduledPosts(): Promise<ContentCalendarPostRow[]> {
     .eq("is_scheduled", true)
     .is("deleted_at", null)
     .eq("posted", false)
+    .is("workflow_stage", null)
     .order("post_date");
 
   if (error) throw new Error(error.message);
@@ -396,16 +406,30 @@ export function serializePostForClient(row: ContentCalendarPostRow) {
     postType: row.post_type,
     targetGroup: normalizeTargetGroup(row.target_group),
     platforms: row.platforms,
+    status: row.status ?? null,
     caption: row.caption,
     visualPrompt: row.visual_prompt,
     hashtags: row.hashtags ?? [],
     mediaUrl: row.media_url,
+    mediaUrls: row.media_urls ?? (row.media_url ? [row.media_url] : []),
     mediaStatus: row.media_status,
     posted: row.posted,
     postedAt: row.posted_at,
+    approvedAt: row.approved_at ?? null,
+    scheduledAt: row.scheduled_at ?? null,
     missedPromptDismissed: row.missed_prompt_dismissed,
     savedToHubAt: row.saved_to_hub_at ?? null,
     isScheduled: row.is_scheduled ?? false,
+    theme: row.theme ?? "",
+    cta: row.cta ?? "",
+    contentLane: row.content_lane ?? "scheduled",
+    workflowStage: row.workflow_stage ?? "hub",
+    platformCaptions: row.platform_captions ?? {},
+    platformHashtags: row.platform_hashtags ?? {},
+    optimizeStatus: row.optimize_status ?? "idle",
+    optimizeError: row.optimize_error ?? null,
+    optimizeStartedAt: row.optimize_started_at ?? null,
+    archivedAt: row.archived_at ?? null,
     purgeAfterAt: row.purge_after_at ?? null,
     bulkSessionId: row.bulk_session_id ?? null,
     deletedAt: row.deleted_at ?? null,
