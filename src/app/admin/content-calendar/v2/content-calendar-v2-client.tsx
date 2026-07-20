@@ -37,6 +37,10 @@ type Tab = "hub" | "planner" | "impromptu" | "publishing" | "scheduled" | "archi
 type Stage = "hub" | "publishing" | "scheduled" | "archived";
 type Lane = "scheduled" | "impromptu";
 
+/** JB Workflow 1 — video via Google account `jonnybooth22@gmail.com` (Flow / Gemini). */
+const GEMINI_FLOW_VIDEO_URL = "https://labs.google/flow";
+const GEMINI_ACCOUNT_URL = "https://gemini.google.com/app";
+
 const TABS: { id: Tab; label: string }[] = [
   { id: "hub", label: "CONTENT HUB" },
   { id: "planner", label: "WEEKLY PLANNER" },
@@ -253,6 +257,34 @@ export function ContentCalendarV2Client({ aiStatus }: { aiStatus: AiStatus }) {
       {error ? <AdminPortalAlert>{error}</AdminPortalAlert> : null}
       {notice ? <AdminPortalAlert variant="success">{notice}</AdminPortalAlert> : null}
 
+      <div className={`${adminCardClass} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[#FFD34E]">Gemini video account</p>
+          <p className="mt-1 text-sm text-white/55">
+            Open your Google Gemini / Flow account (<span className="text-white/80">jonnybooth22@gmail.com</span>) to
+            generate Video posts (Veo 3.1 Lite · 9:16), then attach the MP4 on the Video bubble.
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <a
+            href={GEMINI_FLOW_VIDEO_URL}
+            target="_blank"
+            rel="noreferrer"
+            className={adminPrimaryButtonClass}
+          >
+            Open Gemini Flow (video)
+          </a>
+          <a
+            href={GEMINI_ACCOUNT_URL}
+            target="_blank"
+            rel="noreferrer"
+            className={adminSecondaryButtonClass}
+          >
+            Open Gemini
+          </a>
+        </div>
+      </div>
+
       <nav className="flex flex-wrap gap-2 border-b border-white/[0.06] pb-1" aria-label="Content Calendar v2 tabs">
         {TABS.map((t) => (
           <button
@@ -456,6 +488,17 @@ function EditablePostBubble(props: {
                 >
                   ADJUST
                 </button>
+              ) : null}
+              {post.postType === "Video" ? (
+                <a
+                  href={GEMINI_FLOW_VIDEO_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={adminSecondaryButtonClass}
+                  title="Generate this video in Gemini Flow (jonnybooth22), then attach the MP4 here"
+                >
+                  OPEN GEMINI FLOW
+                </a>
               ) : null}
               <button
                 type="button"

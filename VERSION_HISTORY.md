@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-07-20** `2.4.2-beta` → `2.4.3-beta` (**patch** — Content Calendar Gemini Flow portal links)
 - **2026-07-20** `2.4.1-beta` → `2.4.2-beta` (**patch** — Content Calendar v2 hidden admin route)
 - **2026-07-20** `2.4.0-beta` → `2.4.1-beta` (**patch** — MF-REV-REFILL: ready Join-as-FP lead floor + Cowork Brief priority)
 - **2026-07-16** `2.3.3-beta` → `2.4.0-beta` (**minor** — Independent Pro 60-day free trial then $15/mo subscription to keep account active)
