@@ -1,9 +1,11 @@
 import "server-only";
 import pg from "pg";
 import {
+  derivePoolerDatabaseUrlFromDirectSupabaseUrl,
   isSupabaseDirectDbHost,
   isSupabasePoolerHost,
   pgPoolConfigForConnectionString,
+  supabaseProjectRefFromConnectionString,
 } from "@/lib/supabase-database-url";
 
 function normalizeConnectionString(connectionString: string): string {
@@ -79,8 +81,35 @@ function sessionPoolerUrlFromPoolerConnectionString(poolerUrl: string): string |
   }
 }
 
+/** Convert a direct db.* URL into a Vercel-reachable session pooler URL. */
+export function sessionPoolerUrlFromDirectDbUrl(directUrl: string): string | null {
+  const derivedTxn = derivePoolerDatabaseUrlFromDirectSupabaseUrl(directUrl);
+  if (derivedTxn) {
+    return sessionPoolerUrlFromPoolerConnectionString(derivedTxn);
+  }
+
+  // Fall back: if DATABASE_URL is already a pooler, reuse its host/region with the direct password.
+  const databaseUrl = process.env.DATABASE_URL?.trim();
+  if (!databaseUrl || !isSupabasePoolerHost(databaseUrl)) return null;
+  try {
+    const direct = new URL(directUrl.trim());
+    const pooler = new URL(databaseUrl);
+    const ref =
+      supabaseProjectRefFromConnectionString(directUrl) ||
+      supabaseProjectRefFromConnectionString(databaseUrl);
+    if (!ref || !direct.password) return null;
+    pooler.username = `postgres.${ref}`;
+    pooler.password = direct.password;
+    pooler.port = "5432";
+    pooler.searchParams.delete("pgbouncer");
+    return normalizeConnectionString(pooler.toString());
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Postgres URL for schema repair DDL (must be direct/session — not transaction pooler :6543).
+ * Postgres URL for schema repair DDL and platform_secrets reads.
  * On Vercel, prefer Supavisor session mode (:5432) because db.*.supabase.co is often unreachable.
  */
 export function directPostgresUrlForDdl(): string | null {
@@ -88,9 +117,23 @@ export function directPostgresUrlForDdl(): string | null {
   const directUrl = process.env.DIRECT_URL?.trim();
   const onVercel = process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV);
 
-  if (onVercel && directUrl && isSupabasePoolerHost(directUrl)) {
-    const sessionPooler = sessionPoolerUrlFromPoolerConnectionString(directUrl);
-    if (sessionPooler) return sessionPooler;
+  if (onVercel) {
+    if (directUrl && isSupabasePoolerHost(directUrl)) {
+      const sessionPooler = sessionPoolerUrlFromPoolerConnectionString(directUrl);
+      if (sessionPooler) return sessionPooler;
+    }
+    if (databaseUrl && isSupabasePoolerHost(databaseUrl)) {
+      const sessionPooler = sessionPoolerUrlFromPoolerConnectionString(databaseUrl);
+      if (sessionPooler) return sessionPooler;
+    }
+    if (directUrl && isSupabaseDirectDbHost(directUrl)) {
+      const fromDirect = sessionPoolerUrlFromDirectDbUrl(directUrl);
+      if (fromDirect) return fromDirect;
+    }
+    if (databaseUrl && isSupabaseDirectDbHost(databaseUrl)) {
+      const fromDatabase = sessionPoolerUrlFromDirectDbUrl(databaseUrl);
+      if (fromDatabase) return fromDatabase;
+    }
   }
 
   if (databaseUrl && isSupabaseDirectDbHost(databaseUrl) && !onVercel) {
@@ -124,8 +167,15 @@ export function directPostgresUrlSource():
   const directUrl = process.env.DIRECT_URL?.trim();
   const onVercel = process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV);
 
-  if (onVercel && directUrl && isSupabasePoolerHost(directUrl)) {
-    return "session_pooler_on_vercel";
+  if (onVercel) {
+    if (directUrl && isSupabasePoolerHost(directUrl)) return "session_pooler_on_vercel";
+    if (databaseUrl && isSupabasePoolerHost(databaseUrl)) return "session_pooler_on_vercel";
+    if (directUrl && isSupabaseDirectDbHost(directUrl) && sessionPoolerUrlFromDirectDbUrl(directUrl)) {
+      return "session_pooler_on_vercel";
+    }
+    if (databaseUrl && isSupabaseDirectDbHost(databaseUrl) && sessionPoolerUrlFromDirectDbUrl(databaseUrl)) {
+      return "session_pooler_on_vercel";
+    }
   }
   if (databaseUrl && isSupabaseDirectDbHost(databaseUrl) && !onVercel) {
     return "derived_from_direct_DATABASE_URL";

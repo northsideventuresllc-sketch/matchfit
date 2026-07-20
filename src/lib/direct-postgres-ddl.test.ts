@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   deriveDirectPostgresUrlFromDatabaseUrl,
   directPostgresUrlForDdl,
+  directPostgresUrlSource,
 } from "@/lib/direct-postgres-ddl";
 
 describe("deriveDirectPostgresUrlFromDatabaseUrl", () => {
@@ -65,6 +66,34 @@ describe("directPostgresUrlForDdl", () => {
       else process.env.DIRECT_URL = prevDirect;
       if (prevVercel === undefined) delete process.env.VERCEL;
       else process.env.VERCEL = prevVercel;
+    }
+  });
+
+  it("uses session pooler on Vercel when DIRECT_URL is unreachable db.* host", () => {
+    const prevDb = process.env.DATABASE_URL;
+    const prevDirect = process.env.DIRECT_URL;
+    const prevVercel = process.env.VERCEL;
+    const prevRegion = process.env.SUPABASE_PROJECT_REGION;
+    process.env.VERCEL = "1";
+    process.env.SUPABASE_PROJECT_REGION = "us-east-2";
+    process.env.DATABASE_URL =
+      "postgresql://postgres.qtesdsxrfggdlxdaraaq:secret@aws-1-us-east-2.pooler.supabase.com:6543/postgres?pgbouncer=true";
+    process.env.DIRECT_URL =
+      "postgresql://postgres:secret@db.qtesdsxrfggdlxdaraaq.supabase.co:5432/postgres";
+    try {
+      expect(directPostgresUrlForDdl()).toBe(
+        "postgresql://postgres.qtesdsxrfggdlxdaraaq:secret@aws-1-us-east-2.pooler.supabase.com:5432/postgres",
+      );
+      expect(directPostgresUrlSource()).toBe("session_pooler_on_vercel");
+    } finally {
+      if (prevDb === undefined) delete process.env.DATABASE_URL;
+      else process.env.DATABASE_URL = prevDb;
+      if (prevDirect === undefined) delete process.env.DIRECT_URL;
+      else process.env.DIRECT_URL = prevDirect;
+      if (prevVercel === undefined) delete process.env.VERCEL;
+      else process.env.VERCEL = prevVercel;
+      if (prevRegion === undefined) delete process.env.SUPABASE_PROJECT_REGION;
+      else process.env.SUPABASE_PROJECT_REGION = prevRegion;
     }
   });
 });
