@@ -2277,9 +2277,14 @@ export function OutreachHqClient(props: { aiStatus: AdminAiProviderStatus }) {
                 Outreach Hub. Data lives in your Match Fit database (Supabase Postgres).
               </p>
             </div>
-            <Link href="/admin" className={adminSecondaryButtonClass}>
-              Back to dashboard
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/admin/outreach/v2" className={adminSecondaryButtonClass}>
+                Open v2
+              </Link>
+              <Link href="/admin" className={adminSecondaryButtonClass}>
+                Back to dashboard
+              </Link>
+            </div>
           </div>
         </header>
 

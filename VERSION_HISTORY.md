@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-07-21** `2.4.6-beta` → `2.4.7-beta` (**patch** — Outreach HQ v2 hidden admin route + Workflow 2 caps/BCC)
 - **2026-07-20** `2.4.5-beta` → `2.4.6-beta` (**patch** — Outreach craft lock + learning dual-write + lead provenance labels)
 - **2026-07-20** `2.4.4-beta` → `2.4.5-beta` (**patch** — Social craft lock: Coaches language, trainer/sign-up CTA, static-style carousel captions, founding promo facts)
 - **2026-07-20** `2.4.3-beta` → `2.4.4-beta` (**patch** — Fix NI Brain hydration on Vercel via session pooler for platform_secrets)

@@ -4,9 +4,10 @@
  * JB only handles live DM/email send; agents own pipeline fill, brief, and status tooling.
  */
 
+/** Workflow 2 locked: M–F morning pack = 5 IG + 5 email. */
 export const OUTREACH_COWORK_DAILY_CAPS = {
   instagram: 5,
-  email: 3,
+  email: 5,
   facebook: 5,
 } as const;
 
@@ -51,7 +52,9 @@ export function outreachSendRequiresIntent(
 }
 
 export const OUTREACH_COWORK_EMAIL_FROM = "jb@match-fit.net";
+/** Workflow 2 locked BCC trio — always include all three. */
 export const OUTREACH_COWORK_EMAIL_BCC = [
+  "jb@northsideintelligence.com",
   "support@match-fit.net",
   "jb@northsideventuresgroup.com",
 ] as const;
