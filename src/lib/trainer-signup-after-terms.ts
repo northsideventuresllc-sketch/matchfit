@@ -71,6 +71,13 @@ export async function createTrainerAccountAfterTermsAcceptance(
     console.error("[createTrainerAccountAfterTermsAcceptance] tracking failed:", err),
   );
 
+  // Marketing skeleton — trainer signup signal (non-blocking).
+  void import("@/lib/marketing/skeleton")
+    .then(({ recordMatchFitMarketingSignal }) =>
+      recordMatchFitMarketingSignal({ signalType: "signup", detail: { event: "trainer_created" } }),
+    )
+    .catch((err) => console.error("[createTrainerAccountAfterTermsAcceptance] skeleton signal failed:", err));
+
   return {
     ok: true,
     trainerId,

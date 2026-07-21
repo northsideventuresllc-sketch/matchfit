@@ -4,6 +4,7 @@ import { CONTENT_CALENDAR_FOUNDING_PROMO_FACTS } from "@/lib/content-calendar/co
 import { scanMatchFitWebsite, type WebsiteScanResult } from "@/lib/content-calendar/website-scan";
 import { scanMatchFitSocialProfiles, type SocialProfileScanResult } from "@/lib/content-calendar/social-profile-scan";
 import { fetchNiBrainMatchFitContext, fetchRecentContentLearnings } from "@/lib/ni-brain-client";
+import { fetchWinningAngleLines } from "@/lib/marketing/skeleton";
 import { MATCH_FIT_OFFICIAL_SOCIAL_LINKS } from "@/lib/match-fit-official-social";
 
 let cachedWebsiteScan: { at: number; result: WebsiteScanResult } | null = null;
@@ -40,11 +41,12 @@ export async function buildContentGenerationContext(options?: {
   const includeSocial = options?.includeSocial !== false;
   const force = options?.forceRefresh === true;
 
-  const [niContext, learnings, website, social] = await Promise.all([
+  const [niContext, learnings, website, social, winningAngles] = await Promise.all([
     fetchNiBrainMatchFitContext(),
     fetchRecentContentLearnings(),
     includeWebsite ? getWebsiteScanContext(force) : null,
     includeSocial ? getSocialScanContext(force) : null,
+    fetchWinningAngleLines().catch(() => [] as string[]),
   ]);
 
   const socialUrls = MATCH_FIT_OFFICIAL_SOCIAL_LINKS.map((l) => `${l.label}: ${l.href}`).join("\n");
@@ -54,6 +56,9 @@ export async function buildContentGenerationContext(options?: {
     niContext ? `NI Brain context:\n${niContext.slice(0, 1500)}` : "",
     learnings.length
       ? `Recent operator learnings (prefer tone/structure — but never violate craft lock above):\n${learnings.join("\n")}`
+      : "",
+    winningAngles.length
+      ? `Marketing skeleton — current winning angles (lead with these, revenue-proven):\n${winningAngles.join("\n")}`
       : "",
     website ? `Live website scan (promos + home):\n${website.summary.slice(0, 2000)}` : "",
     social ? `Live social profile scan (use only fetched data):\n${social.summary.slice(0, 2500)}` : "",
