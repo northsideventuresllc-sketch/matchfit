@@ -10,6 +10,7 @@ import {
   trainerFoundingBgCheckEligibleTiersLabel,
   trainerFoundingPromoBullets,
   trainerFoundingPromoParagraph,
+  trainerFoundingTierAccessBreakdownSentence,
   trainerIndependentProSubscriptionLabel,
   trainerIndependentProTrialPromoSentence,
   trainerSignupOnboardingBeginDeadlineLabel,
@@ -181,6 +182,7 @@ export default async function PromosPage() {
                   Independent Pro platform trial
                 </p>
                 <p className="mt-2 text-pretty leading-relaxed">{trainerIndependentProTrialPromoSentence()}</p>
+                <p className="mt-2 text-pretty leading-relaxed text-white/55">{trainerFoundingTierAccessBreakdownSentence()}</p>
               </div>
 
               <div className="mt-6 space-y-2">

@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-05** `2.29.2-beta` → `2.29.3-beta` (**patch** — Fix founding promo copy: reflect Fitness Pro / Independent Pro / Elite Fitness Pro tier breakdown)
 - **2026-09-05** `2.29.1-beta` → `2.29.2-beta` (**patch** — Remove remaining US/Atlanta-only copy, fix hardcoded booking timezone restriction, wire real country field into client/trainer signup)
 - **2026-09-05** `2.29.0-beta` → `2.29.1-beta` (**minor** — Daily Content Hub auto-generation (self-healing top-up alongside weekly batch) + fix resolveUniqueDayIndex counting archived rows as taken slots)
 - **2026-09-04** `2.28.0-beta` → `2.29.0-beta` (**minor** — Outreach HQ v2: Successful Conversions tab (Converted button, per-touch send history, Match Fit account link))
@@ -66,6 +67,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 - **2026-07-23** `2.4.9-beta` → `2.5.0-beta` (**minor** — Content Calendar v2.1 data model + Fitness Pro terminology fix)
 - **2026-07-22** `2.4.8-beta` → `2.4.9-beta` (**patch** — Fix production 404: remove stray root-level app/lib/__tests__ duplicates from PR #310 that shadowed src/app, wiping the entire route tree)
 - **2026-07-22** `2.4.7-beta` → `2.4.8-beta` (**patch** — Flip AI vault router to try free-tier Gemini before paid Anthropic (cost optimization, no visible behavior change))
+- **2026-07-21** `2.4.7-beta` → `2.4.8-beta` (**patch** — Fix founding promo copy: reflect Fitness Pro / Independent Pro / Elite Fitness Pro tier breakdown)
 - **2026-07-21** `2.4.6-beta` → `2.4.7-beta` (**patch** — Outreach HQ v2 hidden admin route + Workflow 2 caps/BCC)
 - **2026-07-20** `2.4.5-beta` → `2.4.6-beta` (**patch** — Outreach craft lock + learning dual-write + lead provenance labels)
 - **2026-07-20** `2.4.4-beta` → `2.4.5-beta` (**patch** — Social craft lock: Coaches language, trainer/sign-up CTA, static-style carousel captions, founding promo facts)
