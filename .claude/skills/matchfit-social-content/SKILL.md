@@ -8,6 +8,16 @@ description: >-
 
 # Match Fit social content
 
+## Scope (JB locked 2026-07-21)
+
+Actual post drafting/generation always happens **in the Match Fit admin portal's Content
+Calendar generator** (Bulk/Impromptu at `/admin/content-calendar`), even with Workflow 1
+automation live. When asked about Match Fit social outside that portal (e.g. in a vault/Claude
+Code chat), give **theme + the "Optional prompt" textarea text only** — do not draft the actual
+4 daily posts (Static/Carousel/Video/Text) here. If the user explicitly asks for full drafted
+captions/scripts, that's a distinct ask — confirm before producing a full batch outside the
+portal flow.
+
 ## Before you write anything
 
 1. **Read the calendar** — `content/social/matchfit-content-calendar.jsx` (required). If missing, tell the user to run `npm run content:calendar:sync` from the parent hub or paste the file into that path, then stop until it exists.
