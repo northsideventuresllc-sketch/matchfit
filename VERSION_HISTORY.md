@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-07-22** `2.4.7-beta` → `2.4.8-beta` (**patch** — Flip AI vault router to try free-tier Gemini before paid Anthropic (cost optimization, no visible behavior change))
 - **2026-07-21** `2.4.6-beta` → `2.4.7-beta` (**patch** — Outreach HQ v2 hidden admin route + Workflow 2 caps/BCC)
 - **2026-07-20** `2.4.5-beta` → `2.4.6-beta` (**patch** — Outreach craft lock + learning dual-write + lead provenance labels)
 - **2026-07-20** `2.4.4-beta` → `2.4.5-beta` (**patch** — Social craft lock: Coaches language, trainer/sign-up CTA, static-style carousel captions, founding promo facts)
