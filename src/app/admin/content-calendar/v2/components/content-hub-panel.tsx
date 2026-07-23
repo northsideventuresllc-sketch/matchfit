@@ -1,0 +1,225 @@
+"use client";
+
+import { useCallback, useState } from "react";
+import {
+  adminCardClass,
+  adminPrimaryButtonClass,
+  adminSecondaryButtonClass,
+} from "@/components/admin/admin-portal-ui";
+import type { ClientContentCalendarV2Post } from "@/lib/content-calendar/content-calendar-v2-store";
+import { HubPostBubble } from "./hub-post-bubble";
+import { ProgressBar } from "./ui-bits";
+import { useSimulatedProgress } from "./use-simulated-progress";
+import { groupHubPosts, WEEKLY_GENERATION_TIME_LABEL, type HubDayGroup } from "./helpers";
+
+export type DayActionResult = { memoId?: string | null; approved?: number; reverted?: number; memosCanceled?: number; jobId?: string; mediaPostCount?: number };
+
+type BubbleWiring = {
+  busyId: string | null;
+  onPatch: (id: string, fields: Partial<ClientContentCalendarV2Post>) => Promise<void>;
+  register: (key: string, dirty: boolean, save: () => Promise<void>) => void;
+  unregister: (key: string) => void;
+};
+
+function BubbleGrid({ posts, wiring }: { posts: ClientContentCalendarV2Post[]; wiring: BubbleWiring }) {
+  return (
+    <div className="grid gap-4 xl:grid-cols-2">
+      {posts.map((post) => (
+        <HubPostBubble
+          key={post.id}
+          post={post}
+          busy={wiring.busyId === post.id}
+          onPatch={wiring.onPatch}
+          register={wiring.register}
+          unregister={wiring.unregister}
+        />
+      ))}
+    </div>
+  );
+}
+
+function DayContainer({
+  group,
+  wiring,
+  onApproveDay,
+  onReturnToEditing,
+  onFireCowork,
+}: {
+  group: HubDayGroup;
+  wiring: BubbleWiring;
+  onApproveDay: (postDate: string) => Promise<DayActionResult>;
+  onReturnToEditing: (postDate: string) => Promise<DayActionResult>;
+  onFireCowork: (postDate: string) => Promise<DayActionResult>;
+}) {
+  const [action, setAction] = useState<"approve" | "return" | "fire" | null>(null);
+  const [memoNote, setMemoNote] = useState<string | null>(null);
+  const [canceledNote, setCanceledNote] = useState<string | null>(null);
+  const [jobNote, setJobNote] = useState<string | null>(null);
+  const [dayError, setDayError] = useState<string | null>(null);
+  const progress = useSimulatedProgress();
+
+  const run = useCallback(
+    async (kind: "approve" | "return" | "fire", fn: () => Promise<DayActionResult>) => {
+      setAction(kind);
+      setDayError(null);
+      if (kind === "fire") progress.start();
+      try {
+        const result = await fn();
+        if (kind === "approve") {
+          setCanceledNote(null);
+          setMemoNote(
+            result.memoId
+              ? `Self-learning memo recorded (${result.memoId}).`
+              : "Self-learning memo recorded on approval.",
+          );
+        }
+        if (kind === "return") {
+          setMemoNote(null);
+          setJobNote(null);
+          setCanceledNote(
+            `Approval reverted — self-learning memo canceled (${result.memosCanceled ?? 0}).`,
+          );
+        }
+        if (kind === "fire") {
+          progress.finish();
+          setJobNote(
+            `Cowork media job queued${result.jobId ? ` (${result.jobId})` : ""}. An external Cowork session will pick it up — it does not finish here.`,
+          );
+        }
+      } catch (e) {
+        if (kind === "fire") progress.fail();
+        setDayError(e instanceof Error ? e.message : "Day action failed.");
+      } finally {
+        setAction(null);
+      }
+    },
+    [progress],
+  );
+
+  return (
+    <section className={adminCardClass}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-black uppercase tracking-[0.14em] text-white">{group.label}</h3>
+          <p className="mt-0.5 text-[11px] uppercase tracking-wide text-white/40">
+            {group.posts.length} post{group.posts.length === 1 ? "" : "s"} · {group.approved ? "Approved" : "Editing"}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {!group.approved ? (
+            <button
+              type="button"
+              className={adminPrimaryButtonClass}
+              disabled={action !== null}
+              onClick={() => void run("approve", () => onApproveDay(group.date))}
+            >
+              {action === "approve" ? "APPROVING…" : "APPROVE DAY"}
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={adminSecondaryButtonClass}
+                disabled={action !== null}
+                onClick={() => void run("return", () => onReturnToEditing(group.date))}
+              >
+                {action === "return" ? "REVERTING…" : "RETURN TO EDITING"}
+              </button>
+              <button
+                type="button"
+                className={adminPrimaryButtonClass}
+                disabled={action !== null}
+                onClick={() => void run("fire", () => onFireCowork(group.date))}
+              >
+                {action === "fire" ? "QUEUING…" : "FIRE COWORK"}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {progress.active ? (
+        <div className="mt-4">
+          <ProgressBar percent={progress.percent} label="Queuing Cowork media job" />
+        </div>
+      ) : null}
+      {memoNote ? <p className="mt-3 text-xs font-semibold text-emerald-300">{memoNote}</p> : null}
+      {canceledNote ? <p className="mt-3 text-xs font-semibold text-[#FFD34E]">{canceledNote}</p> : null}
+      {jobNote ? <p className="mt-3 text-xs font-semibold text-emerald-300">{jobNote}</p> : null}
+      {dayError ? <p className="mt-3 text-xs font-semibold text-[#FFB4B4]">{dayError}</p> : null}
+
+      <div className="mt-4">
+        <BubbleGrid posts={group.scheduled} wiring={wiring} />
+      </div>
+
+      {group.impromptu.length ? (
+        <div className="mt-5 border-t border-white/[0.06] pt-4">
+          <p className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-[#FF7E00]">
+            Impromptu drafts for this day
+          </p>
+          <BubbleGrid posts={group.impromptu} wiring={wiring} />
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+export function ContentHubPanel({
+  posts,
+  wiring,
+  onApproveDay,
+  onReturnToEditing,
+  onFireCowork,
+}: {
+  posts: ClientContentCalendarV2Post[];
+  wiring: BubbleWiring;
+  onApproveDay: (postDate: string) => Promise<DayActionResult>;
+  onReturnToEditing: (postDate: string) => Promise<DayActionResult>;
+  onFireCowork: (postDate: string) => Promise<DayActionResult>;
+}) {
+  const { days, undated } = groupHubPosts(posts);
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded-2xl border border-[#FF7E00]/30 bg-[#FF7E00]/10 p-5">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#FFD34E]">Content Hub</p>
+        <p className="mt-2 text-sm leading-relaxed text-white/75">
+          Match Fit posts four times a day, Monday–Friday — Static, Carousel, Text, and Video. The full week is
+          generated automatically {WEEKLY_GENERATION_TIME_LABEL}. Edit any post below, approve the whole day, then
+          fire Cowork to generate the media.
+        </p>
+      </section>
+
+      {days.map((group) => (
+        <DayContainer
+          key={group.date}
+          group={group}
+          wiring={wiring}
+          onApproveDay={onApproveDay}
+          onReturnToEditing={onReturnToEditing}
+          onFireCowork={onFireCowork}
+        />
+      ))}
+
+      {undated.length ? (
+        <section className={adminCardClass}>
+          <h3 className="text-sm font-black uppercase tracking-[0.14em] text-white">Impromptu drafts (no scheduled day)</h3>
+          <p className="mt-0.5 text-[11px] text-white/40">
+            These impromptu drafts have no post date, so day-level approve / fire Cowork does not apply. Edit and copy
+            them here, or use them as source material.
+          </p>
+          <div className="mt-4">
+            <BubbleGrid posts={undated} wiring={wiring} />
+          </div>
+        </section>
+      ) : null}
+
+      {!days.length && !undated.length ? (
+        <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-10 text-center text-sm text-white/45">
+          No Content Hub posts yet. The weekly generation job fills this in {WEEKLY_GENERATION_TIME_LABEL}, or add
+          impromptu drafts from the Impromptu Content Generation tab.
+        </div>
+      ) : null}
+    </div>
+  );
+}

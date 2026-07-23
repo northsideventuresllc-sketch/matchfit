@@ -125,8 +125,13 @@ export async function listV2Posts(args: {
     .from("match_fit_content_calendar_posts")
     .select("*")
     .eq("workflow_stage", args.stage)
-    .eq("posted", false)
     .is("deleted_at", null);
+
+  // Archived posts can be posted=true (posted then archived) or posted=false
+  // (scrapped, never posted) — only non-archived stages exclude posted rows.
+  if (args.stage !== "archived") {
+    query = query.eq("posted", false);
+  }
 
   if (args.lane) query = query.eq("content_lane", args.lane);
 
