@@ -204,7 +204,7 @@ function fallbackCopy(
     return `Last note from me — happy to share more on Match Fit if timing opens up. Either way, keep crushing it. — JB`;
   }
   if (platform === "facebook" && field === "pagePostText") {
-    return `👋 US fitness trainers — Match Fit is hand-selecting founding coaches for beta.\n\n${tail}`;
+    return `👋 US fitness trainers — Match Fit is hand-selecting founding Fitness Pros for beta.\n\n${tail}`;
   }
   if (platform === "email" && field === "emailSubject") {
     return emailSubject("VIRTUAL");

@@ -579,7 +579,7 @@ async function persistGeneratedLeads(
           niche: item.niche ?? fitness.niche,
           targetGroup: "VIRTUAL",
           whyMatchFit: normalizeCoachLanguage(
-            item.whyMatchFit ?? "Strong fit for Match Fit founding coach roster.",
+            item.whyMatchFit ?? "Strong fit for Match Fit founding Fitness Pro roster.",
           ),
           likelihoodScore: clampScore(item.likelihoodScore),
           notes:
@@ -747,7 +747,7 @@ async function persistGeneratedLeads(
           emailSourceUrl: item.emailSourceUrl ?? null,
           targetGroup: "VIRTUAL",
           whyMatchFit: normalizeCoachLanguage(
-            item.whyMatchFit ?? "Good fit for founding coach roster.",
+            item.whyMatchFit ?? "Good fit for founding Fitness Pro roster.",
           ),
           likelihoodScore: clampScore(item.likelihoodScore),
           notes:

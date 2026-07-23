@@ -32,7 +32,7 @@ describe("outreach-cowork", () => {
     expect(prompt).toContain("support@match-fit.net");
     expect(prompt).toContain("/api/admin/outreach/cowork-brief");
     expect(prompt).toContain("Like 4 recent posts");
-    expect(prompt).toContain("Join as Coach / Both ready hub leads first");
+    expect(prompt).toContain("Join as Fitness Pro / Both ready hub leads first");
     expect(prompt).toContain("match-fit.net/trainer/sign-up");
   });
 

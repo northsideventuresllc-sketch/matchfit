@@ -6,7 +6,7 @@ export const CONTENT_CALENDAR_REPURPOSE_CHAR_LIMIT = 500;
 
 export const CONTENT_CALENDAR_MAX_HASHTAGS = 5;
 
-/** Canonical coach signup URL for social CTAs (hyphenated path). */
+/** Canonical Fitness Pro signup URL for social CTAs (hyphenated path). */
 export const MATCH_FIT_COACH_SIGNUP_URL = "match-fit.net/trainer/sign-up";
 
 /** Canonical client signup URL for social CTAs. */
@@ -99,7 +99,7 @@ export function normalizeUserEditedPostContent(args: {
 
 /**
  * Canonicalize social signup URLs.
- * Coach root CTAs → match-fit.net/trainer/sign-up (never invent audience-labeled paths).
+ * Fitness Pro root CTAs → match-fit.net/trainer/sign-up (never invent audience-labeled paths).
  * Does not rewrite deeper signup flow paths like /trainer/signup/terms.
  */
 export function canonicalizeSocialSignupUrls(text: string): string {
@@ -117,8 +117,8 @@ export function canonicalizeSocialSignupUrls(text: string): string {
 }
 
 /**
- * Social marketing copy should say Coaches (wider audience) — not Fitness Pros / trainers.
- * Never rewrite protected /trainer/... URL path segments during language swaps.
+ * Social marketing copy should say Fitness Pro(s) (canonical label — CLAUDE.md Product Copy)
+ * — not Coaches. Never rewrite protected /trainer/... URL path segments during language swaps.
  */
 export function normalizeCoachLanguage(text: string): string {
   const protectedSegments: string[] = [];
@@ -132,16 +132,12 @@ export function normalizeCoachLanguage(text: string): string {
   );
 
   let out = withPlaceholders
-    .replace(/\bMatch Fit Pros\b/gi, "Match Fit coaches")
-    .replace(/\bMatch Fit Pro\b/gi, "Match Fit coach")
-    .replace(/\bFitness Pros\b/gi, "Coaches")
-    .replace(/\bFitness Pro\b/gi, "Coach")
-    .replace(/\bFit Pros\b/gi, "coaches")
-    .replace(/\bFit Pro\b/gi, "coach")
-    .replace(/\bpersonal trainers\b/gi, "coaches")
-    .replace(/\bpersonal trainer\b/gi, "coach")
-    .replace(/\btrainers\b/gi, "coaches")
-    .replace(/\btrainer\b/gi, "coach");
+    .replace(/\bMatch Fit Coaches\b/gi, "Match Fit Fitness Pros")
+    .replace(/\bMatch Fit Coach\b/gi, "Match Fit Fitness Pro")
+    .replace(/\bFit Pros\b/gi, "Fitness Pros")
+    .replace(/\bFit Pro\b/gi, "Fitness Pro")
+    .replace(/\bCoaches\b/gi, "Fitness Pros")
+    .replace(/\bCoach\b/gi, "Fitness Pro");
 
   out = out.replace(/\u0000URL(\d+)\u0000/g, (_, index: string) => protectedSegments[Number(index)] ?? "");
   return canonicalizeSocialSignupUrls(out);
@@ -150,17 +146,17 @@ export function normalizeCoachLanguage(text: string): string {
 /** @deprecated Use normalizeCoachLanguage — kept for older imports. */
 export const normalizeFitnessProLanguage = normalizeCoachLanguage;
 
-/** True when social copy still contains the retired public audience label. */
+/** True when social copy still contains the retired public audience label ("Coach"/"Coaches"). */
 export function hasForbiddenSocialAudienceLabel(text: string): boolean {
-  return /\bFitness\s+Pros?\b/i.test(text) || /\bFit\s+Pros?\b/i.test(text);
+  return /\bCoach(?:es)?\b/i.test(text);
 }
 
-/** True when social copy still has a broken / non-canonical coach signup path. */
+/** True when social copy still has a broken / non-canonical Fitness Pro signup path. */
 export function hasBrokenSocialSignupUrl(text: string): boolean {
   if (/match-fit\.net\/(?:Fitness\s*Pros?|fitness[-_]?pros?|coach(?:es)?)\/sign/i.test(text)) {
     return true;
   }
-  // Root coach CTA must use hyphenated /sign-up after enforcement.
+  // Root Fitness Pro CTA must use hyphenated /sign-up after enforcement.
   if (/(?:https?:\/\/)?(?:www\.)?match-fit\.net\/trainer\/signup(?![/\w-])/i.test(text)) {
     return true;
   }
@@ -183,20 +179,20 @@ export function isSlideInventoryCarouselCaption(caption: string): boolean {
   return false;
 }
 
-export const CONTENT_CALENDAR_FOUNDING_PROMO_FACTS = `Founding coach promo (social — exact meaning required; wording MUST vary every post):
-1) First 30 coaches get 60 days of Premium access free — use all Match Fit tools and maximize opportunity.
-2) First 10 coaches get onboarding fees waived completely.
+export const CONTENT_CALENDAR_FOUNDING_PROMO_FACTS = `Founding Fitness Pro promo (social — exact meaning required; wording MUST vary every post):
+1) First 30 Fitness Pros get 60 days of Premium access free — use all Match Fit tools and maximize opportunity.
+2) First 10 Fitness Pros get onboarding fees waived completely.
 Keep the facts accurate. Never invent other caps or swap the numbers. Never paste the same promo sentence twice in a batch — rotate phrasing while preserving meaning.`;
 
 export const CONTENT_CALENDAR_AI_RULES = `Content rules (strict):
 - Target audiences: only "Join the Team", "List With Us", or "Clients" — never Atlanta/virtual split in copy.
-- "Join the Team" = coaches exploring Match Fit recruitment / onboarding.
-- "List With Us" = independent coaches & facilities using Match Fit as a listing/discovery platform.
+- "Join the Team" = Fitness Pros exploring Match Fit recruitment / onboarding.
+- "List With Us" = independent Fitness Pros & facilities using Match Fit as a listing/discovery platform.
 - "Clients" = athletes and individuals looking for training.
 - Do NOT market Atlanta or local geography in captions; in-person sessions are Atlanta-only operationally but not a marketing hook.
-- Always say "Coaches" / "coach" in social copy (never "Fitness Pros", "Fitness Pro", "trainers", or "personal trainers" as the primary public label).
+- Always say "Fitness Pros" / "Fitness Pro" in social copy (never "Coaches" or "coach" as the primary public label).
 - Canonical signup URLs only (never invent paths):
-  - Coach / Join the Team / List With Us CTAs → ${MATCH_FIT_COACH_SIGNUP_URL}
+  - Fitness Pro / Join the Team / List With Us CTAs → ${MATCH_FIT_COACH_SIGNUP_URL}
   - Client CTAs → ${MATCH_FIT_CLIENT_SIGNUP_URL}
   - Never write match-fit.net/Fitness Pro/signup, match-fit.net/fitness-pro/signup, match-fit.net/coach/signup, or match-fit.net/trainer/signup (use /trainer/sign-up).
 - Carousel captions must follow the same shape as Static captions (hook → insight → payoff → CTA). Never describe slides in the caption.

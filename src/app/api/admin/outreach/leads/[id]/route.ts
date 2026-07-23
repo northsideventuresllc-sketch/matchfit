@@ -123,7 +123,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         return NextResponse.json(
           {
             error:
-              "Set outreach intent (List With Us, Join as Coach, or Both) before marking outreach sent.",
+              "Set outreach intent (List With Us, Join as Fitness Pro, or Both) before marking outreach sent.",
           },
           { status: 400 },
         );
@@ -199,7 +199,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         return NextResponse.json(
           {
             error:
-              "Set outreach intent (List With Us, Join as Coach, or Both) before marking outreach sent.",
+              "Set outreach intent (List With Us, Join as Fitness Pro, or Both) before marking outreach sent.",
           },
           { status: 400 },
         );

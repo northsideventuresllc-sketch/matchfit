@@ -630,7 +630,7 @@ function MorningPackPanel(props: {
             : "All packed leads have intent"}
         </p>
         <p className="text-sm text-white/55">
-          Ready Join-as-Coach / Both floor: {brief.readyJoinFpOrBoth.total}/
+          Ready Join-as-Fitness-Pro / Both floor: {brief.readyJoinFpOrBoth.total}/
           {brief.readyJoinFpOrBoth.target}
           {brief.readyJoinFpOrBoth.meetsTarget ? " ✓" : " (agents refill to floor)"}
         </p>
@@ -800,7 +800,7 @@ function PipelinePanel(props: {
           </p>
         </div>
         <div className={`${adminPanelClass} p-4`}>
-          <p className={adminLabelClass}>Ready Join-as-Coach / Both</p>
+          <p className={adminLabelClass}>Ready Join-as-Fitness-Pro / Both</p>
           <p className="mt-1 text-2xl font-black tabular-nums text-emerald-200">
             {props.brief?.readyJoinFpOrBoth.total ?? ready.length}
             <span className="text-sm font-bold text-white/40">
@@ -845,7 +845,7 @@ function PipelinePanel(props: {
             );
           })}
           {ready.length === 0 ? (
-            <p className="text-sm text-white/55">No ready Join-as-Coach / Both leads in Hub.</p>
+            <p className="text-sm text-white/55">No ready Join-as-Fitness-Pro / Both leads in Hub.</p>
           ) : null}
         </ul>
       )}

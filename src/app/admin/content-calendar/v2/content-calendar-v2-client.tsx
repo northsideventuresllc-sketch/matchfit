@@ -76,7 +76,7 @@ function buildDefaultPlan(): DayPlan[] {
   const monday = nextMonday();
   const labels = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
   const themes = [
-    "Founding coach proof and early trust",
+    "Founding Fitness Pro proof and early trust",
     "Client discovery without cold DMs",
     "Independent Pro listing and business visibility",
     "Fit Hub community momentum",
@@ -84,11 +84,11 @@ function buildDefaultPlan(): DayPlan[] {
   ];
   const audiences: ContentCalendarGroup[] = ["Join the Team", "Clients", "List With Us", "Clients", "Join the Team"];
   const ctas = [
-    "Drive coaches to match-fit.net/trainer/sign-up",
+    "Drive Fitness Pros to match-fit.net/trainer/sign-up",
     "Drive clients to match-fit.net/client/sign-up",
     "Drive Independent Pros to match-fit.net/trainer/sign-up",
     "Drive clients to explore Fit Hub and sign up",
-    "Drive coaches to claim beta launch position",
+    "Drive Fitness Pros to claim beta launch position",
   ];
   return labels.map((label, dayIndex) => {
     const date = new Date(monday);

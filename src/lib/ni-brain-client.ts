@@ -34,6 +34,10 @@ export type ContentCalendarPostRow = {
   optimize_status: "idle" | "running" | "done" | "failed" | null;
   optimize_error: string | null;
   optimize_started_at: string | null;
+  dpmo_phase: string | null;
+  dpmo_rationale: string | null;
+  social_scan_snapshot_id: string | null;
+  hashtag_research_snapshot: Record<string, unknown> | null;
   archived_at: string | null;
   purge_after_at: string | null;
   bulk_session_id: string | null;

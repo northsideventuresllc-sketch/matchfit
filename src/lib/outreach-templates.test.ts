@@ -44,7 +44,7 @@ describe("outreach-templates", () => {
     expect(genericInviteTail("instagram", "ATL_LOCAL")).toContain("match-fit.net/trainer/sign-up");
     expect(genericInviteTail("email", "VIRTUAL")).toContain("Virtual clients discover you through Match Fit");
     expect(genericInviteTail("email", "VIRTUAL")).toContain("match-fit.net/trainer/sign-up");
-    expect(emailSubject("ATL_LOCAL")).toBe("ATL coaches — founding spot on Match Fit");
-    expect(emailSubject("VIRTUAL")).toBe("Virtual coaches — early roster on Match Fit");
+    expect(emailSubject("ATL_LOCAL")).toBe("ATL Fitness Pros — founding spot on Match Fit");
+    expect(emailSubject("VIRTUAL")).toBe("Virtual Fitness Pros — early roster on Match Fit");
   });
 });
