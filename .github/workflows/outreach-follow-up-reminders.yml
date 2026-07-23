@@ -1,0 +1,30 @@
+# Fires AXON follow-up reminders for due follow_up_1 / follow_up_2 outreach leads, hourly.
+# Vercel Hobby cannot deploy vercel.json crons more than once/day, so this runs via GitHub Actions
+# (same pattern as match-fit-tos-cron.yml). Set repo secrets CRON_SECRET and MATCH_FIT_APP_URL.
+# The reminder job itself only re-nudges a lead every 24h, so an hourly poll is safe.
+
+name: Match Fit outreach follow-up reminders
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  outreach-follow-up-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke production cron endpoint
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ secrets.MATCH_FIT_APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$APP_URL" ]; then
+            echo "Skipping: set repository secrets CRON_SECRET and MATCH_FIT_APP_URL (e.g. https://match-fit.net)."
+            exit 0
+          fi
+          URL="${APP_URL%/}/api/cron/outreach-follow-up-reminders"
+          echo "GET $URL"
+          curl -fsS -X GET \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "$URL"

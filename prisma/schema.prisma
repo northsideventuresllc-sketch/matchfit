@@ -2610,6 +2610,35 @@ model OutreachCoworkDispatchBatch {
   @@schema("public")
 }
 
+/// Outreach HQ v2 — a Cowork Desktop-Control scan job (e.g. check Instagram DMs for replies to
+/// previously-sent outreach). No first-party Instagram API exists, so a Cowork session picks up
+/// the queued job and posts found replies back to the completion callback. Kept deliberately
+/// lightweight and swappable; the email side uses Microsoft Graph server-side instead (no job row).
+model OutreachCoworkScanJob {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// instagram (only platform needing a Cowork scan today; email scans run server-side via Graph)
+  platform String   @default("instagram")
+  /// queued | dispatched | running | complete | failed
+  status   String   @default("queued")
+
+  /// Instructions handed to the Cowork session (which DMs/threads to check, how to report).
+  brief    Json
+  /// Cowork result payload (found replies); null until complete/failed.
+  result   Json?
+
+  createdByAdminId String?
+  dispatchedAt     DateTime?
+  completedAt      DateTime?
+
+  @@index([status, createdAt])
+  @@index([platform, status])
+  @@map("outreach_cowork_scan_jobs")
+  @@schema("public")
+}
+
 /// Uploaded compliance / business documents for FP account tiers.
 model FpDocument {
   id        String   @id @default(cuid())

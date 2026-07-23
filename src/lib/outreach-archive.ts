@@ -3,6 +3,7 @@ import "server-only";
 import type { OutreachPlatform } from "@/lib/outreach-types";
 import {
   OUTREACH_ARCHIVE_RETENTION_DAYS,
+  OUTREACH_ARCHIVE_UI_HIDE_DAYS,
   OUTREACH_DEAD_LEAD_ARCHIVE_HOURS,
 } from "@/lib/outreach-types";
 import { prisma } from "@/lib/prisma";
@@ -13,7 +14,11 @@ const MS_DAY = 86_400_000;
 
 export type OutreachArchiveJobSummary = {
   archivedCount: number;
-  purgedCount: number;
+  /**
+   * Number of archived rows now past their UI-hide window. These rows are HIDDEN from the
+   * Archives UI (query-time filter), never deleted — NI-Brain learning history is preserved.
+   */
+  uiHiddenCount: number;
 };
 
 async function ensureReady(): Promise<void> {
@@ -28,6 +33,11 @@ function purgeAfterFromArchived(archivedAt: Date): Date {
   return new Date(archivedAt.getTime() + OUTREACH_ARCHIVE_RETENTION_DAYS * MS_DAY);
 }
 
+/** archivedAt + 7 days — the instant an archived row drops out of the Archives UI (never deleted). */
+export function uiHiddenAfterFromArchived(archivedAt: Date): Date {
+  return new Date(archivedAt.getTime() + OUTREACH_ARCHIVE_UI_HIDE_DAYS * MS_DAY);
+}
+
 /** Immediately archives a hub-saved lead when an admin deletes it from Outreach Hub. */
 export async function archiveHubOutreachLeadOnAdminDelete(
   platform: OutreachPlatform,
@@ -40,6 +50,8 @@ export async function archiveHubOutreachLeadOnAdminDelete(
     deadLeadAt: now,
     archivedAt: now,
     archivePurgeAfterAt: purgeAfterFromArchived(now),
+    archiveUiHiddenAfterAt: uiHiddenAfterFromArchived(now),
+    outreachLane: "archived",
     autoClassification: "DEAD_LEAD",
     deletedAt: null,
   };
@@ -68,53 +80,42 @@ export async function archiveHubOutreachLeadOnAdminDelete(
 export async function processOutreachArchiveJobs(now = new Date()): Promise<OutreachArchiveJobSummary> {
   await ensureReady();
   const cutoff = archiveCutoff(now);
-  const archiveData = { archivedAt: now, archivePurgeAfterAt: purgeAfterFromArchived(now) };
+  // Dead leads aged past the 48h window move into the archive lane with a computed UI-hide
+  // window. The DB row is NEVER deleted — the Archives UI simply stops listing it after
+  // archiveUiHiddenAfterAt (query-time filter) so NI-Brain learning history is preserved.
+  const archiveData = {
+    archivedAt: now,
+    archivePurgeAfterAt: purgeAfterFromArchived(now),
+    archiveUiHiddenAfterAt: uiHiddenAfterFromArchived(now),
+    outreachLane: "archived",
+  };
+  const archiveWhere = {
+    status: "DEAD_LEAD",
+    deadLeadAt: { lte: cutoff },
+    archivedAt: null,
+    deletedAt: null,
+  } as const;
 
   const [igArchived, fbArchived, emArchived] = await Promise.all([
-    prisma.outreachInstagramLead.updateMany({
-      where: {
-        status: "DEAD_LEAD",
-        deadLeadAt: { lte: cutoff },
-        archivedAt: null,
-        deletedAt: null,
-      },
-      data: archiveData,
-    }),
-    prisma.outreachFacebookLead.updateMany({
-      where: {
-        status: "DEAD_LEAD",
-        deadLeadAt: { lte: cutoff },
-        archivedAt: null,
-        deletedAt: null,
-      },
-      data: archiveData,
-    }),
-    prisma.outreachEmailLead.updateMany({
-      where: {
-        status: "DEAD_LEAD",
-        deadLeadAt: { lte: cutoff },
-        archivedAt: null,
-        deletedAt: null,
-      },
-      data: archiveData,
-    }),
+    prisma.outreachInstagramLead.updateMany({ where: archiveWhere, data: archiveData }),
+    prisma.outreachFacebookLead.updateMany({ where: archiveWhere, data: archiveData }),
+    prisma.outreachEmailLead.updateMany({ where: archiveWhere, data: archiveData }),
   ]);
 
-  const [igPurged, fbPurged, emPurged] = await Promise.all([
-    prisma.outreachInstagramLead.deleteMany({
-      where: { archivedAt: { not: null }, archivePurgeAfterAt: { lte: now } },
-    }),
-    prisma.outreachFacebookLead.deleteMany({
-      where: { archivedAt: { not: null }, archivePurgeAfterAt: { lte: now } },
-    }),
-    prisma.outreachEmailLead.deleteMany({
-      where: { archivedAt: { not: null }, archivePurgeAfterAt: { lte: now } },
-    }),
+  // Count (do NOT delete) rows now past their UI-hide window, purely for observability.
+  const uiHiddenWhere = {
+    archivedAt: { not: null },
+    archiveUiHiddenAfterAt: { lte: now },
+  } as const;
+  const [igHidden, fbHidden, emHidden] = await Promise.all([
+    prisma.outreachInstagramLead.count({ where: uiHiddenWhere }),
+    prisma.outreachFacebookLead.count({ where: uiHiddenWhere }),
+    prisma.outreachEmailLead.count({ where: uiHiddenWhere }),
   ]);
 
   return {
     archivedCount: igArchived.count + fbArchived.count + emArchived.count,
-    purgedCount: igPurged.count + fbPurged.count + emPurged.count,
+    uiHiddenCount: igHidden + fbHidden + emHidden,
   };
 }
 
@@ -129,6 +130,8 @@ export async function reviveArchivedOutreachLead(
     deadLeadAt: null,
     archivedAt: null,
     archivePurgeAfterAt: null,
+    archiveUiHiddenAfterAt: null,
+    outreachLane: "pending",
     savedToHubAt: now,
     autoClassification: "ACTIVE_LEAD",
   };

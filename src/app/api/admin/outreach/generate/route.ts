@@ -4,6 +4,7 @@ import { formatUserFacingError } from "@/lib/read-json-response";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { ensureOutreachHubSchema } from "@/lib/ensure-outreach-hub-schema";
 import { generateOutreachLeads } from "@/lib/outreach-ai";
+import { fireOutreachAxonEvent } from "@/lib/outreach-axon-notify";
 import { requireAdminSession } from "@/lib/require-admin";
 
 export const dynamic = "force-dynamic";
@@ -65,6 +66,23 @@ export async function POST(req: Request) {
       leadCount,
       adminId: sess.adminId,
     });
+
+    // New Today's Leads ready — notify AXON so it can push them to Telegram for approve/delete/rewrite.
+    if (result.leads.length > 0) {
+      const leads = result.leads
+        .map((raw) => {
+          const r = raw as Record<string, unknown>;
+          return {
+            platform,
+            leadId: String(r.id ?? ""),
+            handle: String(r.handle ?? r.pageName ?? r.name ?? ""),
+            contact: String(r.profileUrl ?? r.pageUrl ?? r.email ?? ""),
+          };
+        })
+        .filter((l) => l.leadId);
+      await fireOutreachAxonEvent({ eventType: "new_leads", leads, meta: { platform } });
+    }
+
     return NextResponse.json(result);
   } catch (e) {
     console.error("[outreach generate]", e);

@@ -1,0 +1,33 @@
+# Flips Outreach HQ "today"-lane leads with a past queuedForDate into "past_due", once daily.
+# Vercel Hobby cannot deploy vercel.json crons, so this runs via GitHub Actions (same pattern as
+# match-fit-tos-cron.yml). Set repo secrets CRON_SECRET and MATCH_FIT_APP_URL (prod URL, no slash).
+#
+# Target: 11:59pm America/New_York. GitHub cron is fixed UTC: 03:59 UTC == 23:59 EDT (UTC-4, in
+# effect mid-2026). It drifts to 22:59 ET during EST (UTC-5) — acceptable ±1hr DST drift for a
+# once-daily lane sweep; the flip is idempotent so an earlier/later fire is harmless.
+
+name: Match Fit outreach past-due flip
+
+on:
+  schedule:
+    - cron: "59 3 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  outreach-past-due-flip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke production cron endpoint
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ secrets.MATCH_FIT_APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$APP_URL" ]; then
+            echo "Skipping: set repository secrets CRON_SECRET and MATCH_FIT_APP_URL (e.g. https://match-fit.net)."
+            exit 0
+          fi
+          URL="${APP_URL%/}/api/cron/outreach-past-due-flip"
+          echo "GET $URL"
+          curl -fsS -X GET \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "$URL"

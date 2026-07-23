@@ -170,9 +170,15 @@ export async function listOutreachLeads(platform: OutreachPlatform, includeDelet
   return [];
 }
 
-export async function listOutreachArchiveLeads(): Promise<OutreachArchiveLead[]> {
+export async function listOutreachArchiveLeads(now = new Date()): Promise<OutreachArchiveLead[]> {
   await ensureOutreachReady();
-  const archiveWhere = { deletedAt: null, archivedAt: { not: null } as const };
+  // Archived rows are never deleted (NI-Brain history preserved); they simply drop out of the
+  // Archives UI once past their 7-day UI-hide window. Rows with no window set stay visible.
+  const archiveWhere = {
+    deletedAt: null,
+    archivedAt: { not: null } as const,
+    OR: [{ archiveUiHiddenAfterAt: null }, { archiveUiHiddenAfterAt: { gt: now } }],
+  };
 
   const [instagram, facebook, email] = await Promise.all([
     prisma.outreachInstagramLead.findMany({ where: archiveWhere, orderBy: { archivedAt: "desc" } }),

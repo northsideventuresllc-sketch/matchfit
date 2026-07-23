@@ -410,3 +410,23 @@ export const OUTREACH_DEAD_LEAD_ARCHIVE_HOURS = 48;
 
 /** Days archived leads are kept per admin account before purge. */
 export const OUTREACH_ARCHIVE_RETENTION_DAYS = 60;
+
+/**
+ * Days after `archivedAt` before an archived lead is hidden from the Archives UI.
+ * The DB row is NEVER deleted (NI-Brain learning history must be preserved) — this only
+ * drives a query-time visibility filter (`archiveUiHiddenAfterAt`).
+ */
+export const OUTREACH_ARCHIVE_UI_HIDE_DAYS = 7;
+
+/** Follow-up cadence (locked in the Outreach Cowork SOP): FU1 at 48h, FU2 at 5 days from send. */
+export const OUTREACH_FOLLOW_UP_1_DUE_HOURS = 48;
+export const OUTREACH_FOLLOW_UP_2_DUE_DAYS = 5;
+
+/** Re-nudge interval for an un-approved follow-up reminder (every 24h until it leaves the lane). */
+export const OUTREACH_FOLLOW_UP_REMINDER_INTERVAL_HOURS = 24;
+
+/** The two America/New_York dispatch slots a Cowork batch can fire at. */
+export const OUTREACH_DISPATCH_SLOT_HOURS: Record<OutreachDispatchSlot, number> = {
+  "13:00": 13,
+  "16:00": 16,
+};
