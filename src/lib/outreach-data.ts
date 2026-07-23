@@ -58,6 +58,14 @@ function serializeInstagramLead(
     followUp1SentAt: serializeDate(r.followUp1SentAt),
     followUp2SentAt: serializeDate(r.followUp2SentAt),
     responseReceivedAt: serializeDate(r.responseReceivedAt),
+    queuedForDate: serializeDate(r.queuedForDate),
+    followUp1DueAt: serializeDate(r.followUp1DueAt),
+    followUp1LastRemindedAt: serializeDate(r.followUp1LastRemindedAt),
+    followUp2DueAt: serializeDate(r.followUp2DueAt),
+    followUp2LastRemindedAt: serializeDate(r.followUp2LastRemindedAt),
+    archiveUiHiddenAfterAt: serializeDate(r.archiveUiHiddenAfterAt),
+    replyReceivedAt: serializeDate(r.replyReceivedAt),
+    pendingResponseDraftAt: serializeDate(r.pendingResponseDraftAt),
   };
 }
 
@@ -83,6 +91,10 @@ function serializeFacebookLead(
     archivePurgeAfterAt: serializeDate(r.archivePurgeAfterAt),
     outreachSentAt: serializeDate(r.outreachSentAt),
     responseReceivedAt: serializeDate(r.responseReceivedAt),
+    queuedForDate: serializeDate(r.queuedForDate),
+    archiveUiHiddenAfterAt: serializeDate(r.archiveUiHiddenAfterAt),
+    replyReceivedAt: serializeDate(r.replyReceivedAt),
+    pendingResponseDraftAt: serializeDate(r.pendingResponseDraftAt),
   };
 }
 
@@ -114,6 +126,14 @@ function serializeEmailLead(
     followUp1SentAt: serializeDate(r.followUp1SentAt),
     followUp2SentAt: serializeDate(r.followUp2SentAt),
     responseReceivedAt: serializeDate(r.responseReceivedAt),
+    queuedForDate: serializeDate(r.queuedForDate),
+    followUp1DueAt: serializeDate(r.followUp1DueAt),
+    followUp1LastRemindedAt: serializeDate(r.followUp1LastRemindedAt),
+    followUp2DueAt: serializeDate(r.followUp2DueAt),
+    followUp2LastRemindedAt: serializeDate(r.followUp2LastRemindedAt),
+    archiveUiHiddenAfterAt: serializeDate(r.archiveUiHiddenAfterAt),
+    replyReceivedAt: serializeDate(r.replyReceivedAt),
+    pendingResponseDraftAt: serializeDate(r.pendingResponseDraftAt),
   };
 }
 
