@@ -11,7 +11,6 @@ import {
   recordOutreachSavedToHubSignal,
 } from "@/lib/outreach-learning";
 import type { OutreachPlatform } from "@/lib/outreach-types";
-import { requireAdminSession } from "@/lib/require-admin";
 import { resolveOutreachActor } from "@/lib/require-service-token";
 import { prisma } from "@/lib/prisma";
 
@@ -346,8 +345,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 }
 
 export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const sess = await requireAdminSession();
-  if (!sess) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const actor = await resolveOutreachActor(req);
+  if (!actor) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   const { id } = await ctx.params;
   const parsed = deleteSchema.safeParse(await req.json().catch(() => null));
@@ -370,7 +369,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
       await recordOutreachDeleteReasonSignal({
         platform: "instagram",
         leadId: id,
-        adminId: sess.adminId,
+        adminId: actor.adminId,
         reason: deleteReason,
         profile: leadProfileForPlatform("instagram", existing),
       });
@@ -378,7 +377,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
         await recordOutreachDeadLeadSignal({
           platform: "instagram",
           leadId: id,
-          adminId: sess.adminId,
+          adminId: actor.adminId,
           profile: leadProfileForPlatform("instagram", { ...existing, status: "DEAD_LEAD" }),
         });
       }
@@ -389,7 +388,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
       await recordOutreachDeleteReasonSignal({
         platform: "facebook",
         leadId: id,
-        adminId: sess.adminId,
+        adminId: actor.adminId,
         reason: deleteReason,
         profile: leadProfileForPlatform("facebook", existing),
       });
@@ -397,7 +396,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
         await recordOutreachDeadLeadSignal({
           platform: "facebook",
           leadId: id,
-          adminId: sess.adminId,
+          adminId: actor.adminId,
           profile: leadProfileForPlatform("facebook", { ...existing, status: "DEAD_LEAD" }),
         });
       }
@@ -408,7 +407,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
       await recordOutreachDeleteReasonSignal({
         platform: "email",
         leadId: id,
-        adminId: sess.adminId,
+        adminId: actor.adminId,
         reason: deleteReason,
         profile: leadProfileForPlatform("email", existing),
       });
@@ -416,7 +415,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
         await recordOutreachDeadLeadSignal({
           platform: "email",
           leadId: id,
-          adminId: sess.adminId,
+          adminId: actor.adminId,
           profile: leadProfileForPlatform("email", { ...existing, status: "DEAD_LEAD" }),
         });
       }
