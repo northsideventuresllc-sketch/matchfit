@@ -1,6 +1,6 @@
 {
   "name": "match-fit-app",
-  "version": "2.4.9-beta",
+  "version": "2.5.1-beta",
   "private": true,
   "engines": {
     "node": ">=20.19.0 <23"
@@ -38,6 +38,7 @@
     "ni-brain:sync": "node --env-file=.env scripts/ni-brain-sync-match-fit.mjs",
     "ni-brain:sync:verify": "node --env-file=.env scripts/ni-brain-sync-match-fit.mjs --verify-only",
     "migrate:ni-brain-content-hub": "node --env-file=.env scripts/run-ni-brain-content-hub-migration.mjs",
+    "migrate:ni-brain-content-calendar-v2": "node --env-file=.env scripts/run-ni-brain-content-calendar-v2-migration.mjs",
     "db:locks": "sh scripts/show-sqlite-db-locks.sh",
     "test:watch": "vitest",
     "seed:dashboard-demo": "tsx --env-file=.env scripts/seed-demo-client-dashboard-showcase.js",

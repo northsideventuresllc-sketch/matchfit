@@ -49,14 +49,14 @@ describe("content-prompts", () => {
     expect(
       isLazyCalendarDraft({
         caption:
-          "Your next client is already scrolling — Match Fit Premium gives verified coaches discovery, in-app chat, and founding onboarding support. Start at match-fit.net/trainer/sign-up.",
+          "Your next client is already scrolling — Match Fit Premium gives verified Fitness Pros discovery, in-app chat, and founding onboarding support. Start at match-fit.net/trainer/sign-up.",
         visualPrompt: "short",
         postType: "Carousel",
       }),
     ).toBe(false);
     expect(
       isLazyCalendarDraft({
-        caption: "Join as a Fitness Pro at match-fit.net/trainer/sign-up.",
+        caption: "Join as a Coach at match-fit.net/trainer/sign-up.",
         visualPrompt: null,
         postType: "Static",
       }),

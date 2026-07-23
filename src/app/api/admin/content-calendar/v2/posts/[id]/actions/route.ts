@@ -22,7 +22,7 @@ const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("approve") }),
   z.object({ action: z.literal("adjust_media") }),
   z.object({ action: z.literal("back_to_drafts") }),
-  z.object({ action: z.literal("archive") }),
+  z.object({ action: z.literal("archive"), scrapReason: z.string().max(500).nullable().optional() }),
   z.object({ action: z.literal("revive") }),
   z.object({ action: z.literal("cancel_scheduled") }),
   z.object({
@@ -60,7 +60,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         await moveV2PostToDrafts(id);
         break;
       case "archive":
-        await archiveV2Post(id);
+        await archiveV2Post(id, { scrapReason: parsed.data.scrapReason ?? null });
         break;
       case "revive":
         await reviveV2Post(id);

@@ -34,7 +34,14 @@ export type ContentCalendarPostRow = {
   optimize_status: "idle" | "running" | "done" | "failed" | null;
   optimize_error: string | null;
   optimize_started_at: string | null;
+  dpmo_phase: string | null;
+  dpmo_rationale: string | null;
+  social_scan_snapshot_id: string | null;
+  hashtag_research_snapshot: Record<string, unknown> | null;
   archived_at: string | null;
+  archive_type: "posted" | "scrapped" | null;
+  scrap_reason: string | null;
+  posted_urls: Record<string, string> | null;
   purge_after_at: string | null;
   bulk_session_id: string | null;
   deleted_at: string | null;
@@ -123,7 +130,14 @@ export async function fetchRecentContentLearnings(limit = 8): Promise<string[]> 
 }
 
 export async function recordContentLearning(args: {
-  signalType: "EDIT_DIFF" | "POSTED" | "HASHTAG_RESEARCH" | "SOCIAL_SCAN" | "MEDIA_GENERATED" | "WEBSITE_SCAN";
+  signalType:
+    | "EDIT_DIFF"
+    | "POSTED"
+    | "HASHTAG_RESEARCH"
+    | "SOCIAL_SCAN"
+    | "MEDIA_GENERATED"
+    | "WEBSITE_SCAN"
+    | "DAY_APPROVAL_MEMO";
   postId?: string;
   originalText?: string;
   editedText?: string;
@@ -148,6 +162,47 @@ export async function recordContentLearning(args: {
       });
     }
   }
+}
+
+/**
+ * Writes a "pending" learning-signal memo to NI Brain when a content day is approved. The memo is
+ * cancelable (via cancelDayApprovalMemo) until the day is fired to Cowork. Returns the inserted
+ * signal id when NI Brain is configured, else null.
+ */
+export async function recordDayApprovalMemo(args: {
+  postDate: string;
+  summary: string;
+  meta?: Record<string, unknown>;
+}): Promise<{ id: string | null }> {
+  if (!isNiBrainConfigured()) return { id: null };
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_learning_signals")
+    .insert({
+      signal_type: "DAY_APPROVAL_MEMO",
+      post_id: null,
+      edited_text: args.summary.slice(0, 8000),
+      meta_json: { ...(args.meta ?? {}), postDate: args.postDate, status: "pending" },
+    })
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return { id: (data?.id as string | undefined) ?? null };
+}
+
+/** Deletes the still-pending day-approval memo for a date (Return to Editing). Returns count removed. */
+export async function cancelDayApprovalMemo(postDate: string): Promise<number> {
+  if (!isNiBrainConfigured()) return 0;
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_learning_signals")
+    .delete()
+    .eq("signal_type", "DAY_APPROVAL_MEMO")
+    .eq("meta_json->>postDate", postDate)
+    .eq("meta_json->>status", "pending")
+    .select("id");
+  if (error) throw new Error(error.message);
+  return (data ?? []).length;
 }
 
 function truncate(s: string, max: number): string {

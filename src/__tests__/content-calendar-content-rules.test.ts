@@ -46,9 +46,9 @@ describe("content-calendar content rules", () => {
     expect(fitted.length + suffix.length).toBeLessThanOrEqual(CONTENT_CALENDAR_REPURPOSE_CHAR_LIMIT + 1);
   });
 
-  it("rewrites audience language to Coaches and canonicalizes coach signup URL", () => {
+  it("rewrites audience language to Fitness Pros and canonicalizes the Fitness Pro signup URL", () => {
     const caption =
-      "Verified trainers should join Match Fit at match-fit.net/trainer/signup and start onboarding.";
+      "Verified coaches should join Match Fit at match-fit.net/trainer/signup and start onboarding.";
     const enforced = enforceGeneratedPostContent({
       caption,
       hashtags: ["MatchFit"],
@@ -57,17 +57,17 @@ describe("content-calendar content rules", () => {
     expect(enforced.caption).toContain("match-fit.net/trainer/sign-up");
     expect(enforced.caption).not.toContain("match-fit.net/trainer/signup");
     expect(enforced.caption).not.toContain("match-fit.net/Fitness Pro/signup");
-    expect(enforced.caption).toContain("coaches");
-    expect(enforced.caption).not.toMatch(/Fitness\s+Pros?/i);
+    expect(enforced.caption).toContain("Fitness Pros");
+    expect(enforced.caption).not.toMatch(/\bCoach(?:es)?\b/i);
   });
 
-  it("repairs broken Fitness Pro signup URLs back to /trainer/sign-up and says Coach", () => {
+  it("repairs broken Fitness Pro signup URLs back to /trainer/sign-up", () => {
     const normalized = normalizeUserEditedPostContent({
       caption: "Join as a Fitness Pro at match-fit.net/Fitness Pro/signup today.",
       hashtags: [],
     });
 
-    expect(normalized.caption).toBe("Join as a Coach at match-fit.net/trainer/sign-up today.");
+    expect(normalized.caption).toBe("Join as a Fitness Pro at match-fit.net/trainer/sign-up today.");
   });
 
   it("does not rewrite deeper /trainer/signup flow paths", () => {
@@ -77,7 +77,8 @@ describe("content-calendar content rules", () => {
   });
 
   it("flags forbidden labels, broken URLs, and slide-inventory carousel captions", () => {
-    expect(hasForbiddenSocialAudienceLabel("Join as a Fitness Pro today")).toBe(true);
+    expect(hasForbiddenSocialAudienceLabel("Join as a Coach today")).toBe(true);
+    expect(hasForbiddenSocialAudienceLabel("Join as a Fitness Pro today")).toBe(false);
     expect(hasBrokenSocialSignupUrl("Start at match-fit.net/trainer/signup")).toBe(true);
     expect(hasBrokenSocialSignupUrl("Start at match-fit.net/trainer/sign-up")).toBe(false);
     expect(
@@ -87,7 +88,7 @@ describe("content-calendar content rules", () => {
     ).toBe(true);
     expect(
       isSlideInventoryCarouselCaption(
-        "First 30 coaches get 60 days Premium free. Claim your spot at match-fit.net/trainer/sign-up.",
+        "First 30 Fitness Pros get 60 days Premium free. Claim your spot at match-fit.net/trainer/sign-up.",
       ),
     ).toBe(false);
     expect(canonicalizeSocialSignupUrls("go match-fit.net/trainer/signup now")).toContain(

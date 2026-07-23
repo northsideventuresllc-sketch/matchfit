@@ -52,7 +52,7 @@ export async function buildContentGenerationContext(options?: {
   const socialUrls = MATCH_FIT_OFFICIAL_SOCIAL_LINKS.map((l) => `${l.label}: ${l.href}`).join("\n");
 
   return [
-    `Craft lock (overrides stale learnings): say Coaches not Fitness Pros; CTA match-fit.net/trainer/sign-up; carousel captions = static-style; ${CONTENT_CALENDAR_FOUNDING_PROMO_FACTS}`,
+    `Craft lock (overrides stale learnings): say Fitness Pros not Coaches; CTA match-fit.net/trainer/sign-up; carousel captions = static-style; ${CONTENT_CALENDAR_FOUNDING_PROMO_FACTS}`,
     niContext ? `NI Brain context:\n${niContext.slice(0, 1500)}` : "",
     learnings.length
       ? `Recent operator learnings (prefer tone/structure — but never violate craft lock above):\n${learnings.join("\n")}`

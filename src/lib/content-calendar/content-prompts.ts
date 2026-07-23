@@ -1,6 +1,9 @@
 import {
   CONTENT_CALENDAR_GROUP_DESCRIPTIONS,
   CONTENT_CALENDAR_PLATFORMS_BY_TYPE,
+  MATCH_FIT_BRAND_DARK,
+  MATCH_FIT_BRAND_ORANGE,
+  MATCH_FIT_LOGO_PATH,
   type ContentCalendarGroup,
   type ContentCalendarPostType,
 } from "@/lib/content-calendar/constants";
@@ -25,27 +28,27 @@ export type AudienceCreativeBrief = {
 
 export const AUDIENCE_CREATIVE_BRIEFS: Record<ContentCalendarGroup, AudienceCreativeBrief> = {
   "Join the Team": {
-    who: "coaches exploring Match Fit as their next platform home",
+    who: "Fitness Pros exploring Match Fit as their next platform home",
     goals: [
-      "Show why verified Match Fit coaches stand out in discovery",
+      "Show why verified Match Fit Fitness Pros stand out in discovery",
       "Highlight founding promos (30×60-day Premium; first 10 fee waiver), onboarding support, and in-app client tools",
       "Make signup feel urgent but credible — not hype without substance",
     ],
     hooks: [
       "Stop renting attention on feeds that do not convert",
-      "Build a verified coaching brand where clients actually book",
-      "Founding cohort: Premium access window + waived onboarding fees for early coaches",
+      "Build a verified Fitness Pro brand where clients actually book",
+      "Founding cohort: Premium access window + waived onboarding fees for early Fitness Pros",
     ],
     cta: "Drive to match-fit.net/trainer/sign-up with a clear next step",
     avoid: [
-      "Generic 'we are hiring' language without a concrete coach benefit",
-      "Saying Fitness Pros — use Coaches",
+      "Generic 'we are hiring' language without a concrete Fitness Pro benefit",
+      "Saying Coaches — use Fitness Pros",
       "Wrong signup paths — always use match-fit.net/trainer/sign-up",
       "Lazy copy-paste of the same promo sentence — vary wording, keep meaning",
     ],
   },
   "List With Us": {
-    who: "independent coaches, studios, and facilities who want discovery without full marketplace onboarding",
+    who: "independent Fitness Pros, studios, and facilities who want discovery without full marketplace onboarding",
     goals: [
       "Explain listing/discovery value for brands that keep their own booking flow",
       "Show how nudges, featured placement, and external links work on Match Fit",
@@ -59,25 +62,25 @@ export const AUDIENCE_CREATIVE_BRIEFS: Record<ContentCalendarGroup, AudienceCrea
     cta: "Drive to match-fit.net/trainer/sign-up or explore listing benefits on match-fit.net",
     avoid: [
       "Talking about full Match Fit verification if the angle is independent listing",
-      "Saying Fitness Pros — use Coaches",
+      "Saying Coaches — use Fitness Pros",
       "Wrong signup paths — always use match-fit.net/trainer/sign-up",
     ],
   },
   Clients: {
-    who: "athletes and everyday people looking for the right coach or training plan",
+    who: "athletes and everyday people looking for the right Fitness Pro or training plan",
     goals: [
-      "Speak to real client pain: inconsistency, bad matches, overwhelm choosing a coach",
+      "Speak to real client pain: inconsistency, bad matches, overwhelm choosing a Fitness Pro",
       "Show swipe discovery, Fit Hub community, VIP trial, and matching quality",
       "Make trying Match Fit feel low-friction and outcome-focused",
     ],
     hooks: [
-      "Stop scrolling random profiles — get matched to a coach who fits your goals",
+      "Stop scrolling random profiles — get matched to a Fitness Pro who fits your goals",
       "Beta VIP trial: explore premium discovery before you commit",
       "Training that fits your schedule, in-person or virtual",
     ],
     cta: "Drive to match-fit.net/client/sign-up with a specific outcome in the post",
     avoid: [
-      "Coach recruitment language when speaking to clients",
+      "Fitness Pro recruitment language when speaking to clients",
       "Sending clients to /trainer/sign-up — clients use match-fit.net/client/sign-up",
     ],
   },
@@ -160,7 +163,7 @@ export function extractSlotDirectiveFromOperatorPrompt(
     /background check|founding|onboarding fee|premium|promo/i.test(prompt)
   ) {
     lines.push(
-      "Mandatory founding promo meaning (vary wording — do not regurgitate): first 30 coaches get 60 days Premium access free (all tools / maximize opportunity); first 10 coaches get onboarding fees waived completely.",
+      "Mandatory founding promo meaning (vary wording — do not regurgitate): first 30 Fitness Pros get 60 days Premium access free (all tools / maximize opportunity); first 10 Fitness Pros get onboarding fees waived completely.",
     );
   }
 
@@ -169,7 +172,7 @@ export function extractSlotDirectiveFromOperatorPrompt(
       lines.push("Work in the 60-day VIP pass for the first 150 clients where it fits this post.");
     }
     if (/fit hub|fithub/i.test(prompt)) {
-      lines.push("Highlight Fit Hub as a game-changer for fitness content and finding coaches.");
+      lines.push("Highlight Fit Hub as a game-changer for fitness content and finding Fitness Pros.");
     }
     if (/swipe|tinder/i.test(prompt)) {
       lines.push("Stress swipe-based discovery — the Tinder of the fitness industry.");
@@ -242,6 +245,79 @@ export function buildBulkSlotBrief(args: {
     .join("\n");
 }
 
+export type MediaPostType = Exclude<ContentCalendarPostType, "Text">;
+
+export type MediaDimensionSpec = {
+  aspectRatio: string;
+  pixels: string;
+  orientation: string;
+  usage: string;
+};
+
+/**
+ * Per-post-type dimension matrix for media generation. Chosen against standard 2026 platform
+ * specs: full-screen vertical 9:16 for short-form video (Reels / TikTok / Facebook Reels /
+ * Threads video), 4:5 portrait for feed stills (maximizes Instagram/Facebook/Threads feed real
+ * estate and crops safely to 1:1), and a consistent 4:5 across every carousel frame.
+ */
+export const MEDIA_DIMENSION_MATRIX: Record<MediaPostType, MediaDimensionSpec> = {
+  Video: {
+    aspectRatio: "9:16",
+    pixels: "1080x1920",
+    orientation: "vertical",
+    usage: "Reels / TikTok / Facebook Reels / Threads video — full-screen vertical (safe-zone captions clear of the bottom UI)",
+  },
+  Static: {
+    aspectRatio: "4:5",
+    pixels: "1080x1350",
+    orientation: "portrait",
+    usage: "Instagram / Facebook / Threads feed single image — 4:5 portrait crops safely to 1:1",
+  },
+  Carousel: {
+    aspectRatio: "4:5",
+    pixels: "1080x1350",
+    orientation: "portrait",
+    usage: "Instagram / Facebook / TikTok / Threads swipeable carousel — hold a consistent 4:5 across every frame",
+  },
+};
+
+/**
+ * Shared media-generation prompt builder used by all three media post types (Static, Carousel,
+ * Video). Wraps the creative visual prompt with the mandatory production spec: correct output
+ * dimensions for the target use, explicit brand color values, and an explicit Match Fit logo
+ * reference. The actual logo image is attached client-side during Fire Cowork — this only
+ * guarantees the prompt TEXT calls for the logo + palette.
+ */
+export function buildMediaGenerationPrompt(args: {
+  postType: MediaPostType;
+  visualPrompt: string | null | undefined;
+  caption: string;
+  targetGroup: ContentCalendarGroup;
+}): string {
+  const dims = MEDIA_DIMENSION_MATRIX[args.postType];
+  const creative =
+    normalizeGeneratedVisualPrompt({
+      caption: args.caption,
+      visualPrompt: args.visualPrompt,
+      postType: args.postType,
+      targetGroup: args.targetGroup,
+    }) ?? args.caption;
+
+  return [
+    creative,
+    "",
+    "PRODUCTION SPEC (required):",
+    `- Output dimensions: ${dims.pixels}px, ${dims.aspectRatio} ${dims.orientation}. Use case: ${dims.usage}.`,
+    `- Brand colors: dark background ${MATCH_FIT_BRAND_DARK} with ${MATCH_FIT_BRAND_ORANGE} orange as the accent (headline text, highlights, CTA chip). Do not invent other brand colors.`,
+    `- Incorporate the Match Fit logo (${MATCH_FIT_LOGO_PATH}) — place it cleanly (corner or lockup) without covering the focal subject or headline. The logo file is attached to this job for reference.`,
+    args.postType === "Carousel"
+      ? "- Keep the logo placement, palette, and 4:5 frame consistent across all carousel slides."
+      : args.postType === "Video"
+        ? "- Apply the spec to the opening hook frame / thumbnail and keep on-screen text inside the vertical safe zone."
+        : "- Single composition — headline, subject, logo, and CTA must read at a glance.",
+  ].join("\n");
+}
+
 export function isLazyCalendarCaption(caption: string): boolean {
   const trimmed = caption.trim();
   if (!trimmed) return true;
@@ -292,10 +368,10 @@ export function isLazyCalendarDraft(args: {
 export const CONTENT_CALENDAR_CREATIVE_QUALITY_RULES = `Creative quality (non-negotiable):
 - Every caption needs a specific hook, concrete Match Fit detail (feature, promo, workflow, or outcome), and audience-appropriate CTA.
 - Never output placeholder captions like "{PostType} for {Audience} — Match Fit beta. match-fit.net".
-- Say Coaches — never Fitness Pros in social captions.
-- Coach CTAs must use match-fit.net/trainer/sign-up (validated before accept).
+- Say Fitness Pros — never Coaches in social captions.
+- Fitness Pro CTAs must use match-fit.net/trainer/sign-up (validated before accept).
 - Carousel captions must match Static caption quality — never inventory slides in the caption.
-- Founding promo: first 30 coaches → 60 days Premium free; first 10 coaches → onboarding fees waived. Vary wording; keep meaning.
+- Founding promo: first 30 Fitness Pros → 60 days Premium free; first 10 Fitness Pros → onboarding fees waived. Vary wording; keep meaning.
 - Visual prompts must describe subjects, scenes, actions, camera/framing, mood, and on-screen text — NOT just hex colors and audience labels.
 - Brand palette (#07080C dark, #FF7E00 orange) is an accent reference only; it is not a substitute for creative direction.
 - Pull at least one specific insight from the operator directive, website scan, or social scan when provided.

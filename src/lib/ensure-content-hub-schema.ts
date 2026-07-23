@@ -81,6 +81,73 @@ CREATE INDEX IF NOT EXISTS idx_content_calendar_v2_optimize
   WHERE optimize_status = 'running';
 `;
 
+const CONTENT_CALENDAR_V2_1_COLUMNS = [
+  "dpmo_phase",
+  "dpmo_rationale",
+  "social_scan_snapshot_id",
+  "hashtag_research_snapshot",
+] as const;
+
+const CONTENT_CALENDAR_V2_1_MIGRATION_SQL = `
+ALTER TABLE match_fit_content_calendar_posts
+  ADD COLUMN IF NOT EXISTS dpmo_phase text,
+  ADD COLUMN IF NOT EXISTS dpmo_rationale text,
+  ADD COLUMN IF NOT EXISTS social_scan_snapshot_id text,
+  ADD COLUMN IF NOT EXISTS hashtag_research_snapshot jsonb;
+
+CREATE TABLE IF NOT EXISTS match_fit_content_cowork_jobs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  job_type text NOT NULL CHECK (job_type IN ('generate_media', 'post_batch')),
+  brief jsonb NOT NULL DEFAULT '{}'::jsonb,
+  status text NOT NULL DEFAULT 'queued'
+    CHECK (status IN ('queued', 'dispatched', 'running', 'complete', 'failed')),
+  platform_targets text[],
+  created_at timestamptz NOT NULL DEFAULT now(),
+  dispatched_at timestamptz,
+  completed_at timestamptz,
+  result jsonb,
+  error text
+);
+
+CREATE INDEX IF NOT EXISTS idx_content_cowork_jobs_status
+  ON match_fit_content_cowork_jobs (status);
+
+CREATE TABLE IF NOT EXISTS match_fit_content_calendar_settings (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  posted_retention_hours integer NOT NULL DEFAULT 48,
+  scrapped_retention_days integer NOT NULL DEFAULT 7,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT match_fit_content_calendar_settings_retention_bounds
+    CHECK (posted_retention_hours <= 8760 AND scrapped_retention_days <= 365)
+);
+
+CREATE TABLE IF NOT EXISTS product_scoreboard (
+  product_slug text PRIMARY KEY,
+  signups integer NOT NULL DEFAULT 0,
+  paid integer NOT NULL DEFAULT 0,
+  mrr numeric NOT NULL DEFAULT 0,
+  phase text,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+INSERT INTO product_scoreboard (product_slug, phase)
+  VALUES ('match-fit', 'phase1')
+  ON CONFLICT (product_slug) DO NOTHING;
+`;
+
+const CONTENT_CALENDAR_V2_2_COLUMNS = ["archive_type", "scrap_reason", "posted_urls"] as const;
+
+const CONTENT_CALENDAR_V2_2_MIGRATION_SQL = `
+ALTER TABLE match_fit_content_calendar_posts
+  ADD COLUMN IF NOT EXISTS archive_type text,
+  ADD COLUMN IF NOT EXISTS scrap_reason text,
+  ADD COLUMN IF NOT EXISTS posted_urls jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+CREATE INDEX IF NOT EXISTS idx_content_calendar_v2_archive_type
+  ON match_fit_content_calendar_posts (archive_type)
+  WHERE archive_type IS NOT NULL;
+`;
+
 const POST_DATE_NULLABLE_SQL = `
 ALTER TABLE match_fit_content_calendar_posts
   ALTER COLUMN post_date DROP NOT NULL;
@@ -105,6 +172,27 @@ export function isMissingContentCalendarV2SchemaError(e: unknown): boolean {
   if (/Content Calendar v2 columns are missing/i.test(message)) return true;
   if (!CONTENT_CALENDAR_V2_COLUMNS.some((column) => message.includes(column))) return isMissingContentHubSchemaError(e);
   return /does not exist|42703|PGRST204|schema cache/i.test(message);
+}
+
+export function isMissingContentCalendarV21SchemaError(e: unknown): boolean {
+  const message = e instanceof Error ? e.message : String(e);
+  if (/Content Calendar v2\.1 schema is missing/i.test(message)) return true;
+  const mentioned =
+    CONTENT_CALENDAR_V2_1_COLUMNS.some((column) => message.includes(column)) ||
+    message.includes("match_fit_content_cowork_jobs") ||
+    message.includes("match_fit_content_calendar_settings") ||
+    message.includes("product_scoreboard");
+  if (!mentioned) return isMissingContentCalendarV2SchemaError(e);
+  return /does not exist|42P01|42703|PGRST204|schema cache/i.test(message);
+}
+
+export function isMissingContentCalendarV22SchemaError(e: unknown): boolean {
+  const message = e instanceof Error ? e.message : String(e);
+  if (/Content Calendar v2\.2 schema is missing/i.test(message)) return true;
+  if (!CONTENT_CALENDAR_V2_2_COLUMNS.some((column) => message.includes(column))) {
+    return isMissingContentCalendarV21SchemaError(e);
+  }
+  return /does not exist|42P01|42703|PGRST204|schema cache/i.test(message);
 }
 
 function isConnectivityError(message: string): boolean {
@@ -144,6 +232,42 @@ async function probeContentCalendarV2Schema(): Promise<boolean> {
     )
     .limit(1);
 
+  return !error;
+}
+
+async function probeContentCalendarV21Schema(): Promise<boolean> {
+  const client = createNiBrainClient();
+  const { error: postsError } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("dpmo_phase, dpmo_rationale, social_scan_snapshot_id, hashtag_research_snapshot")
+    .limit(1);
+  if (postsError) return false;
+
+  const { error: jobsError } = await client
+    .from("match_fit_content_cowork_jobs")
+    .select("id, job_type, brief, status, platform_targets, result, error")
+    .limit(1);
+  if (jobsError) return false;
+
+  const { error: settingsError } = await client
+    .from("match_fit_content_calendar_settings")
+    .select("id, posted_retention_hours, scrapped_retention_days")
+    .limit(1);
+  if (settingsError) return false;
+
+  const { error: scoreboardError } = await client
+    .from("product_scoreboard")
+    .select("product_slug, signups, paid, mrr, phase")
+    .limit(1);
+  return !scoreboardError;
+}
+
+async function probeContentCalendarV22Schema(): Promise<boolean> {
+  const client = createNiBrainClient();
+  const { error } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("archive_type, scrap_reason, posted_urls")
+    .limit(1);
   return !error;
 }
 
@@ -259,6 +383,41 @@ export async function ensureContentCalendarV2Schema(): Promise<void> {
   if (!(await probeContentCalendarV2Schema())) {
     throw new Error(
       "Content Calendar v2 columns are still missing on NI Brain after migration. Confirm NI_BRAIN_DATABASE_URL points at project kxijunwgbrlfzvgkhklo, then redeploy.",
+    );
+  }
+}
+
+/**
+ * Applies Content Calendar v2.1 DDL on NI Brain: DPMO/social-scan/hashtag columns on
+ * match_fit_content_calendar_posts plus the match_fit_content_cowork_jobs,
+ * match_fit_content_calendar_settings, and product_scoreboard tables (seeding match-fit).
+ */
+export async function ensureContentCalendarV21Schema(): Promise<void> {
+  await ensureContentCalendarV2Schema();
+  if (await probeContentCalendarV21Schema()) return;
+
+  await runNiBrainDdl(CONTENT_CALENDAR_V2_1_MIGRATION_SQL);
+
+  if (!(await probeContentCalendarV21Schema())) {
+    throw new Error(
+      "Content Calendar v2.1 schema is missing on NI Brain after migration. Confirm NI_BRAIN_DATABASE_URL points at project kxijunwgbrlfzvgkhklo, then redeploy — or run: npm run migrate:ni-brain-content-calendar-v2",
+    );
+  }
+}
+
+/**
+ * Applies Content Calendar v2.2 DDL on NI Brain: archive_type / scrap_reason (posted vs scrapped
+ * archive split) and posted_urls (per-platform posted links) on match_fit_content_calendar_posts.
+ */
+export async function ensureContentCalendarV22Schema(): Promise<void> {
+  await ensureContentCalendarV21Schema();
+  if (await probeContentCalendarV22Schema()) return;
+
+  await runNiBrainDdl(CONTENT_CALENDAR_V2_2_MIGRATION_SQL);
+
+  if (!(await probeContentCalendarV22Schema())) {
+    throw new Error(
+      "Content Calendar v2.2 schema is missing on NI Brain after migration. Confirm NI_BRAIN_DATABASE_URL points at project kxijunwgbrlfzvgkhklo, then redeploy.",
     );
   }
 }
