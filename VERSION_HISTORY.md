@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-07-23** `2.5.1-beta` → `2.6.0-beta` (**minor** — Outreach HQ v2 data model: lead lanes, follow-ups, dispatch batches)
 - **2026-07-23** `2.5.0-beta` → `2.5.1-beta` (**patch** — Content Calendar v2.1 posted-archive, platform-override, and confirm fixes)
 - **2026-07-23** `2.4.9-beta` → `2.5.0-beta` (**minor** — Content Calendar v2.1 data model + Fitness Pro terminology fix)
 - **2026-07-22** `2.4.8-beta` → `2.4.9-beta` (**patch** — Fix production 404: remove stray root-level app/lib/__tests__ duplicates from PR #310 that shadowed src/app, wiping the entire route tree)
