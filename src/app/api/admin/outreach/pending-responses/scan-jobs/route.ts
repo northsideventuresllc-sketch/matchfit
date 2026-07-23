@@ -4,18 +4,9 @@ import {
   isMissingOutreachHubSchemaError,
 } from "@/lib/ensure-outreach-hub-schema";
 import { prisma } from "@/lib/prisma";
+import { hasValidCoworkSecret } from "@/lib/require-cowork-secret";
 
 export const dynamic = "force-dynamic";
-
-/** The external Cowork session polls with the shared CRON_SECRET (no admin cookie). */
-function authorize(req: Request): boolean {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) return false;
-  const auth = req.headers.get("authorization");
-  if (auth === `Bearer ${secret}`) return true;
-  const q = new URL(req.url).searchParams.get("secret");
-  return q === secret;
-}
 
 /**
  * GET /api/admin/outreach/pending-responses/scan-jobs
@@ -24,7 +15,7 @@ function authorize(req: Request): boolean {
  * Desktop-Control session to pick up.
  */
 export async function GET(req: Request) {
-  if (!authorize(req)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!(await hasValidCoworkSecret(req))) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   try {
     await ensureOutreachHubSchema();

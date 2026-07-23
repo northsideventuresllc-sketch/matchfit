@@ -5,22 +5,13 @@ import {
 } from "@/lib/ensure-outreach-hub-schema";
 import { listOutreachDispatchBatches } from "@/lib/outreach-dispatch";
 import { requireAdminSession } from "@/lib/require-admin";
+import { hasValidCoworkSecret } from "@/lib/require-cowork-secret";
 
 export const dynamic = "force-dynamic";
 
-/** The external Cowork session polls with the shared CRON_SECRET (no admin cookie). */
-function hasValidCronSecret(req: Request): boolean {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) return false;
-  const auth = req.headers.get("authorization");
-  if (auth === `Bearer ${secret}`) return true;
-  const q = new URL(req.url).searchParams.get("secret");
-  return q === secret;
-}
-
 /** Upcoming (not-yet-dispatched) batches + batches completed in the last 24h. */
 export async function GET(req: Request) {
-  const authed = hasValidCronSecret(req) || Boolean(await requireAdminSession());
+  const authed = (await hasValidCoworkSecret(req)) || Boolean(await requireAdminSession());
   if (!authed) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   try {

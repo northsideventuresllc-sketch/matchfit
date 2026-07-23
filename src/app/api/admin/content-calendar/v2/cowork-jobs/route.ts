@@ -5,18 +5,9 @@ import {
   isMissingContentCalendarV22SchemaError,
 } from "@/lib/ensure-content-hub-schema";
 import { isNiBrainConfiguredAsync } from "@/lib/ni-brain-client";
+import { hasValidCoworkSecret } from "@/lib/require-cowork-secret";
 
 export const dynamic = "force-dynamic";
-
-/** The external Cowork session polls this with the shared CRON_SECRET (no admin cookie). */
-function authorize(req: Request): boolean {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) return false;
-  const auth = req.headers.get("authorization");
-  if (auth === `Bearer ${secret}`) return true;
-  const q = new URL(req.url).searchParams.get("secret");
-  return q === secret;
-}
 
 /**
  * GET /api/admin/content-calendar/v2/cowork-jobs?jobType=generate_media|post_batch
@@ -25,7 +16,7 @@ function authorize(req: Request): boolean {
  * Desktop-Control session to pick up. Omit jobType to return both kinds.
  */
 export async function GET(req: Request) {
-  if (!authorize(req)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!(await hasValidCoworkSecret(req))) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   if (!(await isNiBrainConfiguredAsync())) {
     return NextResponse.json({ error: "NI Brain is not configured." }, { status: 503 });
