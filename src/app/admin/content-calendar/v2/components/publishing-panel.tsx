@@ -130,6 +130,8 @@ function PublishingCard({
   post,
   busy,
   ready,
+  excluded,
+  onExcludedChange,
   onPatch,
   onAction,
   onToggleReady,
@@ -139,6 +141,8 @@ function PublishingCard({
   post: ClientContentCalendarV2Post;
   busy: boolean;
   ready: boolean;
+  excluded: string[];
+  onExcludedChange: (id: string, next: string[]) => void;
   onPatch: (id: string, fields: Partial<ClientContentCalendarV2Post>) => Promise<void>;
   onAction: (id: string, body: Record<string, unknown>, success?: string) => Promise<void>;
   onToggleReady: (id: string, ready: boolean) => void;
@@ -148,7 +152,6 @@ function PublishingCard({
   const [expanded, setExpanded] = useState(false);
   const [caption, setCaption] = useState(post.caption);
   const [hashtags, setHashtags] = useState<string[]>(post.hashtags);
-  const [excluded, setExcluded] = useState<string[]>([]);
   const [showFiles, setShowFiles] = useState(false);
   const [showReschedule, setShowReschedule] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -250,7 +253,10 @@ function PublishingCard({
                       type="checkbox"
                       checked={active}
                       onChange={() =>
-                        setExcluded((prev) => (active ? [...prev, platform] : prev.filter((p) => p !== platform)))
+                        onExcludedChange(
+                          post.id,
+                          active ? [...excluded, platform] : excluded.filter((p) => p !== platform),
+                        )
                       }
                     />
                     <span>{platform}</span>
@@ -340,12 +346,16 @@ export function PublishingPanel({
   busyId: string | null;
   onPatch: (id: string, fields: Partial<ClientContentCalendarV2Post>) => Promise<void>;
   onAction: (id: string, body: Record<string, unknown>, success?: string) => Promise<void>;
-  onApproveForPosting: (postIds: string[]) => Promise<{ jobId?: string; postCount?: number }>;
+  onApproveForPosting: (
+    postIds: string[],
+    platformOverrides?: Record<string, string[]>,
+  ) => Promise<{ jobId?: string; postCount?: number }>;
   register: (key: string, dirty: boolean, save: () => Promise<void>) => void;
   unregister: (key: string) => void;
 }) {
   const [filters, setFilters] = useState<PublishingFilters>(EMPTY_PUBLISHING_FILTERS);
   const [readyIds, setReadyIds] = useState<Set<string>>(new Set());
+  const [excludedByPost, setExcludedByPost] = useState<Record<string, string[]>>({});
   const [jobNote, setJobNote] = useState<string | null>(null);
   const [approveError, setApproveError] = useState<string | null>(null);
   const progress = useSimulatedProgress();
@@ -362,9 +372,23 @@ export function PublishingPanel({
     });
   }, []);
 
+  const setExcluded = useCallback((id: string, next: string[]) => {
+    setExcludedByPost((prev) => ({ ...prev, [id]: next }));
+  }, []);
+
   function toggleFacet<T>(list: T[], value: T): T[] {
     return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
   }
+
+  // Effective platforms a post will actually be sent to = its default platform checklist minus any
+  // excluded platforms (mirrors what the card's "Active for posting" line shows).
+  const activePlatformsFor = useCallback(
+    (post: ClientContentCalendarV2Post): string[] => {
+      const excluded = excludedByPost[post.id] ?? [];
+      return defaultPlatformsForPost(post).filter((p) => !excluded.includes(p));
+    },
+    [excludedByPost],
+  );
 
   async function approveForPosting() {
     // Selection semantics: PUBLISH-marked (ready) posts within the current filter win; if none are
@@ -375,11 +399,31 @@ export function PublishingPanel({
       setApproveError("No posts match the current filters to approve for posting.");
       return;
     }
+
+    // Only posts with an actual exclusion send an override; untouched posts fall back to their
+    // stored platforms server-side (backward compatible).
+    const platformOverrides: Record<string, string[]> = {};
+    const platformSet = new Set<string>();
+    for (const id of ids) {
+      const post = filtered.find((p) => p.id === id);
+      if (!post) continue;
+      const active = activePlatformsFor(post);
+      active.forEach((p) => platformSet.add(p));
+      if ((excludedByPost[id] ?? []).length) platformOverrides[id] = active;
+    }
+    const platformSummary = [...platformSet].sort();
+
+    // Always confirm — one irreversible cross-post batch, so state the exact scope first.
+    const confirmed = window.confirm(
+      `Send ${ids.length} post${ids.length === 1 ? "" : "s"} to ${platformSummary.length ? platformSummary.join(", ") : "no platforms"}? This queues an immediate cross-post batch and cannot be undone.`,
+    );
+    if (!confirmed) return;
+
     setApproveError(null);
     setJobNote(null);
     progress.start();
     try {
-      const result = await onApproveForPosting(ids);
+      const result = await onApproveForPosting(ids, Object.keys(platformOverrides).length ? platformOverrides : undefined);
       progress.finish();
       setJobNote(
         `Approved ${result.postCount ?? ids.length} post${(result.postCount ?? ids.length) === 1 ? "" : "s"} for posting — Cowork batch queued${result.jobId ? ` (${result.jobId})` : ""}.`,
@@ -502,6 +546,8 @@ export function PublishingPanel({
             post={post}
             busy={busyId === post.id}
             ready={readyIds.has(post.id)}
+            excluded={excludedByPost[post.id] ?? []}
+            onExcludedChange={setExcluded}
             onPatch={onPatch}
             onAction={onAction}
             onToggleReady={toggleReady}

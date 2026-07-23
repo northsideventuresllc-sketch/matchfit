@@ -173,6 +173,23 @@ export async function resolveRetentionSettings(): Promise<{
 }
 
 /**
+ * Purge timestamp for an archived post — `posted` archives use the hours window, `scrapped`
+ * archives use the days window. Shared by both archive paths so the retention math lives in one
+ * place.
+ */
+export async function resolveArchivePurgeAfter(
+  archiveType: "posted" | "scrapped",
+  now: Date = new Date(),
+): Promise<string> {
+  const { postedRetentionHours, scrappedRetentionDays } = await resolveRetentionSettings();
+  const ms =
+    archiveType === "posted"
+      ? postedRetentionHours * 60 * 60 * 1000
+      : scrappedRetentionDays * 24 * 60 * 60 * 1000;
+  return new Date(now.getTime() + ms).toISOString();
+}
+
+/**
  * Mac Mini download folder convention for Cowork-generated media. Configurable because JB's exact
  * folder name is unknown; defaults to a "Social Media" subfolder inside a "Match Fit" folder.
  */

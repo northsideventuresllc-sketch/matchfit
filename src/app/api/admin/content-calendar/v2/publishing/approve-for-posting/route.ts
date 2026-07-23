@@ -11,6 +11,7 @@ import { requireAdminSession } from "@/lib/require-admin";
 
 const bodySchema = z.object({
   postIds: z.array(z.string().min(1)).optional(),
+  platformOverrides: z.record(z.string(), z.array(z.string().min(1))).optional(),
 });
 
 export async function POST(req: Request) {
@@ -25,7 +26,10 @@ export async function POST(req: Request) {
 
   try {
     await ensureContentCalendarV22Schema();
-    const { job, postCount } = await approvePublishingPostsForPosting({ postIds: parsed.data.postIds });
+    const { job, postCount } = await approvePublishingPostsForPosting({
+      postIds: parsed.data.postIds,
+      platformOverrides: parsed.data.platformOverrides,
+    });
     return NextResponse.json({ ok: true, jobId: job.id, job, postCount });
   } catch (e) {
     console.error("[content-calendar v2 approve-for-posting]", e);

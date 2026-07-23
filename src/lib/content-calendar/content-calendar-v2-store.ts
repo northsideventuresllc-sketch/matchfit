@@ -14,7 +14,7 @@ import {
 import { normalizeTargetGroup } from "@/lib/content-calendar/content-rules";
 import { addWeekdays, formatCalendarDate } from "@/lib/content-calendar/rotation";
 import { createNiBrainClient, type ContentCalendarPostRow } from "@/lib/ni-brain-client";
-import { resolveRetentionSettings } from "@/lib/content-calendar/cowork-jobs";
+import { resolveArchivePurgeAfter } from "@/lib/content-calendar/cowork-jobs";
 
 export type ContentCalendarV2Lane = "scheduled" | "impromptu";
 export type ContentCalendarV2Stage = "hub" | "publishing" | "scheduled" | "archived";
@@ -551,8 +551,7 @@ export async function cancelV2ScheduledPost(postId: string): Promise<void> {
  */
 export async function archiveV2Post(postId: string, args?: { scrapReason?: string | null }): Promise<void> {
   const now = new Date();
-  const { scrappedRetentionDays } = await resolveRetentionSettings();
-  const purgeAfter = new Date(now.getTime() + scrappedRetentionDays * 24 * 60 * 60 * 1000);
+  const purgeAfter = await resolveArchivePurgeAfter("scrapped", now);
   const client = createNiBrainClient();
   const { error } = await client
     .from("match_fit_content_calendar_posts")
@@ -562,7 +561,7 @@ export async function archiveV2Post(postId: string, args?: { scrapReason?: strin
       archive_type: "scrapped",
       scrap_reason: args?.scrapReason ?? null,
       archived_at: now.toISOString(),
-      purge_after_at: purgeAfter.toISOString(),
+      purge_after_at: purgeAfter,
       updated_at: now.toISOString(),
     })
     .eq("id", postId);

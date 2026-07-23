@@ -169,12 +169,15 @@ export function ContentCalendarV2Client({ aiStatus }: { aiStatus: AiStatus }) {
   const onFireCowork = useCallback((postDate: string) => dayAction("fire-cowork", { postDate }), [dayAction]);
 
   const onApproveForPosting = useCallback(
-    async (postIds: string[]): Promise<{ jobId?: string; postCount?: number }> => {
+    async (
+      postIds: string[],
+      platformOverrides?: Record<string, string[]>,
+    ): Promise<{ jobId?: string; postCount?: number }> => {
       const res = await fetch("/api/admin/content-calendar/v2/publishing/approve-for-posting", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postIds }),
+        body: JSON.stringify({ postIds, platformOverrides }),
       });
       const data = await readApi<{ jobId?: string; postCount?: number }>(res, "Could not approve for posting.");
       await loadStage("publishing");

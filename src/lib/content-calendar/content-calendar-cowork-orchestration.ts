@@ -6,7 +6,7 @@ import {
   createCoworkJob,
   getCoworkJob,
   getCoworkMediaDownloadFolder,
-  resolveRetentionSettings,
+  resolveArchivePurgeAfter,
   updateCoworkJobBrief,
   updateCoworkJobStatus,
   type CoworkJobRow,
@@ -196,12 +196,18 @@ export async function fireCoworkForDay(postDate: string): Promise<{ job: CoworkJ
 /**
  * APPROVE FOR POSTING: batches Publishing-window posts into ONE post_batch Cowork job. When
  * postIds are supplied (the UI's checked/filtered selection) only those are included; otherwise
- * every publishing-stage post is batched. TikTok video routing is flagged in platformNotes.
+ * every publishing-stage post is batched. `platformOverrides` (postId → included platform list)
+ * lets the UI exclude platforms per post; a post with no override entry uses its stored platforms
+ * unchanged. TikTok video routing is flagged in platformNotes.
  */
 export async function approvePublishingPostsForPosting(args: {
   postIds?: string[];
+  platformOverrides?: Record<string, string[]>;
 }): Promise<{ job: CoworkJobRow; postCount: number }> {
   const client = createNiBrainClient();
+  const overrides = args.platformOverrides ?? {};
+  const platformsForPost = (post: ContentCalendarPostRow): string[] =>
+    post.id in overrides ? overrides[post.id] : splitPlatforms(post.platforms);
   let read = client
     .from("match_fit_content_calendar_posts")
     .select("*")
@@ -216,7 +222,7 @@ export async function approvePublishingPostsForPosting(args: {
   if (!posts.length) throw new Error("No publishing posts matched to approve for posting.");
 
   const briefPosts = posts.map((post) => {
-    const platformList = splitPlatforms(post.platforms);
+    const platformList = platformsForPost(post);
     const perPlatform = platformList.map((platform) => {
       const caption =
         (post.platform_captions && post.platform_captions[platform]) || post.caption;
@@ -242,7 +248,7 @@ export async function approvePublishingPostsForPosting(args: {
 
   const job = await createCoworkJob({
     jobType: "post_batch",
-    platformTargets: [...new Set(posts.flatMap((p) => splitPlatforms(p.platforms)))],
+    platformTargets: [...new Set(posts.flatMap((p) => platformsForPost(p)))],
     brief: {
       kind: "post_batch",
       posts: briefPosts,
@@ -313,8 +319,7 @@ export async function completePostBatchJob(args: {
   const client = createNiBrainClient();
   const now = new Date();
   const nowIso = now.toISOString();
-  const { postedRetentionHours } = await resolveRetentionSettings();
-  const purgeAfter = new Date(now.getTime() + postedRetentionHours * 60 * 60 * 1000).toISOString();
+  const purgeAfter = await resolveArchivePurgeAfter("posted", now);
 
   const byPost = new Map<string, Record<string, string>>();
   for (const entry of args.postedUrls) {
@@ -333,7 +338,9 @@ export async function completePostBatchJob(args: {
         posted_at: nowIso,
         posted_urls: urls,
         status: "posted",
+        workflow_stage: "archived",
         archive_type: "posted",
+        archived_at: nowIso,
         purge_after_at: purgeAfter,
         updated_at: nowIso,
       })
