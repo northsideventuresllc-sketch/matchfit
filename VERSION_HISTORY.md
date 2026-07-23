@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-07-23** `2.8.1-beta` → `2.9.0-beta` (**minor** — Cowork media re-hosting endpoint (NI Brain Storage) for the Fire Cowork video/image workflow)
 - **2026-07-23** `2.8.0-beta` → `2.8.1-beta` (**patch** — Cowork job-discovery endpoints (list pending jobs for polling))
 - **2026-07-23** `2.7.0-beta` → `2.8.0-beta` (**minor** — Outreach HQ v2 UI rebuild (8 tabs))
 - **2026-07-23** `2.6.0-beta` → `2.7.0-beta` (**minor** — Outreach HQ v2 backend + AXON Telegram round-trip)
