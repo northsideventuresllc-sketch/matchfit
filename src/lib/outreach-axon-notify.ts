@@ -12,8 +12,13 @@ import type { OutreachPlatform } from "@/lib/outreach-types";
  * call is a no-op so no outreach flow ever fails on a missing integration.
  *
  * Contract is fixed and shared with the AXON-side receiver agent:
- *   { eventType, leads: [{ platform, leadId, handle, contact, summary? }], meta? }
+ *   { eventType, leads: [{ platform, leadId, handle, contact, summary?, dmText?, commentText? }], meta? }
  * — `eventType` is one of "new_leads" | "follow_up_due" | "pending_response".
+ *
+ * `dmText` / `commentText` are optional enrichment fields (populated for `new_leads`
+ * Instagram entries) so AXON can render the outreach copy directly in the Telegram
+ * message without a follow-up GET to /api/admin/outreach/leads/[id]. Additive and
+ * backward compatible — older receivers ignore the extra keys.
  */
 
 export type OutreachAxonEventType = "new_leads" | "follow_up_due" | "pending_response";
@@ -27,6 +32,10 @@ export type OutreachAxonLeadRef = {
   contact: string;
   /** Optional one-line context (e.g. reply preview, follow-up stage). */
   summary?: string;
+  /** Optional outreach copy (Instagram new_leads): the first DM text. */
+  dmText?: string;
+  /** Optional outreach copy (Instagram new_leads): the comment text. */
+  commentText?: string;
 };
 
 export type OutreachAxonEventPayload = {
@@ -49,6 +58,8 @@ export async function fireOutreachAxonEvent(payload: OutreachAxonEventPayload): 
       handle: l.handle,
       contact: l.contact,
       ...(l.summary ? { summary: l.summary } : {}),
+      ...(l.dmText ? { dmText: l.dmText } : {}),
+      ...(l.commentText ? { commentText: l.commentText } : {}),
     })),
     ...(payload.meta ? { meta: payload.meta } : {}),
   };

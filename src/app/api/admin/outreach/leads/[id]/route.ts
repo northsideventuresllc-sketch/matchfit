@@ -12,6 +12,7 @@ import {
 } from "@/lib/outreach-learning";
 import type { OutreachPlatform } from "@/lib/outreach-types";
 import { requireAdminSession } from "@/lib/require-admin";
+import { resolveOutreachActor } from "@/lib/require-service-token";
 import { prisma } from "@/lib/prisma";
 
 import {
@@ -98,9 +99,105 @@ const deleteSchema = z.object({
   deleteReason: z.string().trim().min(3).max(2000),
 });
 
+/**
+ * GET /api/admin/outreach/leads/[id]?platform=instagram|facebook|email
+ *
+ * Full lead detail for the AXON Telegram bridge to render an Approve/Delete/Rewrite
+ * card. Dual-auth (service token OR admin cookie). Requires `platform` as a query param
+ * since the id alone doesn't identify which platform table the lead lives in.
+ */
+export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const actor = await resolveOutreachActor(req);
+  if (!actor) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+
+  const { id } = await ctx.params;
+  const platformParam = new URL(req.url).searchParams.get("platform");
+  if (!platformParam || !(OUTREACH_PLATFORM_VALUES as readonly string[]).includes(platformParam)) {
+    return NextResponse.json(
+      { error: "Provide a valid platform query param (instagram, facebook, or email)." },
+      { status: 400 },
+    );
+  }
+  const platform = platformParam as OutreachPlatform;
+
+  try {
+    if (platform === "instagram") {
+      const row = await prisma.outreachInstagramLead.findUnique({ where: { id } });
+      if (!row) return NextResponse.json({ error: "Not found." }, { status: 404 });
+      return NextResponse.json({
+        lead: {
+          id: row.id,
+          platform: "instagram" as const,
+          handle: row.handle,
+          profileUrl: row.profileUrl,
+          niche: row.niche,
+          targetGroup: row.targetGroup,
+          whyMatchFit: row.whyMatchFit,
+          likelihoodScore: row.likelihoodScore,
+          notes: row.notes,
+          outreachIntent: row.outreachIntent,
+          status: row.status,
+          dmText: row.dmText,
+          commentText: row.commentText,
+          followUp1DmText: row.followUp1DmText,
+          followUp2DmText: row.followUp2DmText,
+        },
+      });
+    }
+    if (platform === "facebook") {
+      const row = await prisma.outreachFacebookLead.findUnique({ where: { id } });
+      if (!row) return NextResponse.json({ error: "Not found." }, { status: 404 });
+      return NextResponse.json({
+        lead: {
+          id: row.id,
+          platform: "facebook" as const,
+          pageName: row.pageName,
+          pageUrl: row.pageUrl,
+          audience: row.audience,
+          niche: row.niche,
+          targetGroup: row.targetGroup,
+          whyMatchFit: row.whyMatchFit,
+          likelihoodScore: row.likelihoodScore,
+          notes: row.notes,
+          outreachIntent: row.outreachIntent,
+          status: row.status,
+          pagePostText: row.pagePostText,
+        },
+      });
+    }
+    const row = await prisma.outreachEmailLead.findUnique({ where: { id } });
+    if (!row) return NextResponse.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json({
+      lead: {
+        id: row.id,
+        platform: "email" as const,
+        name: row.name,
+        email: row.email,
+        businessName: row.businessName,
+        niche: row.niche,
+        targetGroup: row.targetGroup,
+        whyMatchFit: row.whyMatchFit,
+        likelihoodScore: row.likelihoodScore,
+        notes: row.notes,
+        outreachIntent: row.outreachIntent,
+        status: row.status,
+        emailSubject: row.emailSubject,
+        emailBody: row.emailBody,
+        followUp1EmailSubject: row.followUp1EmailSubject,
+        followUp1EmailBody: row.followUp1EmailBody,
+        followUp2EmailSubject: row.followUp2EmailSubject,
+        followUp2EmailBody: row.followUp2EmailBody,
+      },
+    });
+  } catch (e) {
+    console.error("[outreach lead GET]", e);
+    return NextResponse.json({ error: "Could not load lead." }, { status: 500 });
+  }
+}
+
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const sess = await requireAdminSession();
-  if (!sess) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const actor = await resolveOutreachActor(req);
+  if (!actor) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   const { id } = await ctx.params;
   const parsed = patchSchema.safeParse(await req.json().catch(() => null));
@@ -131,7 +228,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       await recordAndNormalizeCopyEdits({
         platform: "instagram",
         leadId: id,
-        adminId: sess.adminId,
+        adminId: actor.adminId,
         existing: existing as unknown as Record<string, unknown>,
         patch: patch as Record<string, unknown>,
         fields: ["dmText", "commentText", "followUp1DmText", "followUp2DmText"],
@@ -140,7 +237,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         await recordOutreachDeadLeadSignal({
           platform: "instagram",
           leadId: id,
-          adminId: sess.adminId,
+          adminId: actor.adminId,
           profile: leadProfileForPlatform("instagram", { ...existing, status: "DEAD_LEAD" }),
         });
       }
@@ -151,7 +248,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         await recordOutreachSavedToHubSignal({
           platform: "instagram",
           leadId: id,
-          adminId: sess.adminId,
+          adminId: actor.adminId,
           profile: leadProfileForPlatform("instagram", existing),
         });
       }
@@ -162,7 +259,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       await recordAndNormalizeCopyEdits({
         platform: "facebook",
         leadId: id,
-        adminId: sess.adminId,
+        adminId: actor.adminId,
         existing: existing as unknown as Record<string, unknown>,
         patch: patch as Record<string, unknown>,
         fields: ["pagePostText"],
@@ -171,7 +268,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         await recordOutreachDeadLeadSignal({
           platform: "facebook",
           leadId: id,
-          adminId: sess.adminId,
+          adminId: actor.adminId,
           profile: leadProfileForPlatform("facebook", { ...existing, status: "DEAD_LEAD" }),
         });
       }
@@ -182,7 +279,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         await recordOutreachSavedToHubSignal({
           platform: "facebook",
           leadId: id,
-          adminId: sess.adminId,
+          adminId: actor.adminId,
           profile: leadProfileForPlatform("facebook", existing),
         });
       }
@@ -207,7 +304,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       await recordAndNormalizeCopyEdits({
         platform: "email",
         leadId: id,
-        adminId: sess.adminId,
+        adminId: actor.adminId,
         existing: existing as unknown as Record<string, unknown>,
         patch: patch as Record<string, unknown>,
         fields: [
@@ -223,7 +320,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         await recordOutreachDeadLeadSignal({
           platform: "email",
           leadId: id,
-          adminId: sess.adminId,
+          adminId: actor.adminId,
           profile: leadProfileForPlatform("email", { ...existing, status: "DEAD_LEAD" }),
         });
       }
@@ -234,7 +331,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         await recordOutreachSavedToHubSignal({
           platform: "email",
           leadId: id,
-          adminId: sess.adminId,
+          adminId: actor.adminId,
           profile: leadProfileForPlatform("email", existing),
         });
       }

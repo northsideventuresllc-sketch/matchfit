@@ -4,7 +4,7 @@ import { buildMassDeleteOutreachWhere, massSoftDeleteOutreachLeads } from "@/lib
 import { leadProfileForPlatform } from "@/lib/outreach-lead-profile";
 import { recordOutreachDeleteReasonSignal } from "@/lib/outreach-learning";
 import { OUTREACH_PLATFORM_VALUES, type OutreachPlatform } from "@/lib/outreach-types";
-import { requireAdminSession } from "@/lib/require-admin";
+import { resolveOutreachActor } from "@/lib/require-service-token";
 import { prisma } from "@/lib/prisma";
 
 const bulkDeleteSchema = z.discriminatedUnion("mode", [
@@ -28,8 +28,8 @@ const bulkDeleteSchema = z.discriminatedUnion("mode", [
 ]);
 
 export async function POST(req: Request) {
-  const sess = await requireAdminSession();
-  if (!sess) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const actor = await resolveOutreachActor(req);
+  if (!actor) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   const parsed = bulkDeleteSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
         await recordOutreachDeleteReasonSignal({
           platform: "instagram",
           leadId: row.id,
-          adminId: sess.adminId,
+          adminId: actor.adminId,
           reason: deleteReason,
           profile: leadProfileForPlatform("instagram", row),
         });
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
         await recordOutreachDeleteReasonSignal({
           platform: "facebook",
           leadId: row.id,
-          adminId: sess.adminId,
+          adminId: actor.adminId,
           reason: deleteReason,
           profile: leadProfileForPlatform("facebook", row),
         });
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
         await recordOutreachDeleteReasonSignal({
           platform: "email",
           leadId: row.id,
-          adminId: sess.adminId,
+          adminId: actor.adminId,
           reason: deleteReason,
           profile: leadProfileForPlatform("email", row),
         });

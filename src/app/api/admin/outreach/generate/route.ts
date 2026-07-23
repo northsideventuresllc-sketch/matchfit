@@ -72,11 +72,18 @@ export async function POST(req: Request) {
       const leads = result.leads
         .map((raw) => {
           const r = raw as Record<string, unknown>;
+          // Instagram new_leads carry the outreach copy so AXON can render it directly
+          // in Telegram without a follow-up GET; other platforms omit these optional fields.
+          const dmText = platform === "instagram" && typeof r.dmText === "string" ? r.dmText : undefined;
+          const commentText =
+            platform === "instagram" && typeof r.commentText === "string" ? r.commentText : undefined;
           return {
             platform,
             leadId: String(r.id ?? ""),
             handle: String(r.handle ?? r.pageName ?? r.name ?? ""),
             contact: String(r.profileUrl ?? r.pageUrl ?? r.email ?? ""),
+            ...(dmText ? { dmText } : {}),
+            ...(commentText ? { commentText } : {}),
           };
         })
         .filter((l) => l.leadId);

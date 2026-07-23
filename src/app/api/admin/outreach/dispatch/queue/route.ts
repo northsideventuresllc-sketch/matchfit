@@ -6,7 +6,7 @@ import {
 } from "@/lib/ensure-outreach-hub-schema";
 import { queueOutreachDispatch } from "@/lib/outreach-dispatch";
 import { OUTREACH_PLATFORM_VALUES } from "@/lib/outreach-types";
-import { requireAdminSession } from "@/lib/require-admin";
+import { resolveOutreachActor } from "@/lib/require-service-token";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +18,8 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const sess = await requireAdminSession();
-  if (!sess) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const actor = await resolveOutreachActor(req);
+  if (!actor) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     await ensureOutreachHubSchema();
     const result = await queueOutreachDispatch({
       leads: parsed.data.leadIds,
-      adminId: sess.adminId,
+      adminId: actor.adminId,
     });
     return NextResponse.json(result);
   } catch (e) {
