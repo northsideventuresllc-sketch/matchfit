@@ -692,12 +692,13 @@ model PendingClientRegistration {
 /// browser-only sessionStorage draft is lost before the Trainer row is created.
 /// Never stores the plaintext password — only fields needed to re-show the form.
 model TrainerDraft {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  email     String?
-  data      Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  email             String?
+  data              Json
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  resumeEmailSentAt DateTime?
 
   @@index([email])
   @@map("trainer_drafts")

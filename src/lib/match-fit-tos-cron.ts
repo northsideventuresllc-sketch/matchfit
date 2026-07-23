@@ -22,6 +22,7 @@ import { processTrainerOnboardingFeeDeadlineExpirations } from "@/lib/trainer-on
 import { processOutreachArchiveJobs } from "@/lib/outreach-archive";
 import { liftExpiredChatContactTempBans } from "@/lib/chat-contact-violation-enforcement";
 import { runSignupAbandonmentFollowupJobs } from "@/lib/signup-abandonment-followup-cron";
+import { processTrainerResumeSignupNudges } from "@/lib/trainer-resume-signup-nudge-cron";
 
 export type TosCronSummary = {
   backgroundCheckWarningsSent: number;
@@ -71,6 +72,11 @@ export type TosCronSummary = {
     candidatesScanned: number;
     sent: number;
     skippedAlreadyHasAccount: number;
+    errors: number;
+  };
+  trainerResumeSignupNudges: {
+    sent: number;
+    skipped: number;
     errors: number;
   };
 };
@@ -309,6 +315,12 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   } catch (e) {
     console.error("[tos cron] signup abandonment followups", e);
   }
+  let trainerResumeSignupNudges = { sent: 0, skipped: 0, errors: 0 };
+  try {
+    trainerResumeSignupNudges = await processTrainerResumeSignupNudges();
+  } catch (e) {
+    console.error("[tos cron] trainer resume signup nudge", e);
+  }
   return {
     backgroundCheckClearedBackfill: backfill,
     backgroundCheckWarningsSent: warnings,
@@ -333,5 +345,6 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     outreachArchive,
     chatContactTempBansLifted,
     signupAbandonmentFollowups,
+    trainerResumeSignupNudges,
   };
 }
