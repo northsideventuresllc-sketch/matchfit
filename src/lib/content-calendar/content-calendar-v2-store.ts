@@ -14,6 +14,7 @@ import {
 import { normalizeTargetGroup } from "@/lib/content-calendar/content-rules";
 import { addWeekdays, formatCalendarDate } from "@/lib/content-calendar/rotation";
 import { createNiBrainClient, type ContentCalendarPostRow } from "@/lib/ni-brain-client";
+import { resolveRetentionSettings } from "@/lib/content-calendar/cowork-jobs";
 
 export type ContentCalendarV2Lane = "scheduled" | "impromptu";
 export type ContentCalendarV2Stage = "hub" | "publishing" | "scheduled" | "archived";
@@ -84,7 +85,14 @@ export function serializeV2Post(row: ContentCalendarPostRow) {
     optimizeStatus: row.optimize_status ?? "idle",
     optimizeError: row.optimize_error ?? null,
     optimizeStartedAt: row.optimize_started_at ?? null,
+    dpmoPhase: row.dpmo_phase ?? null,
+    dpmoRationale: row.dpmo_rationale ?? null,
+    socialScanSnapshotId: row.social_scan_snapshot_id ?? null,
+    hashtagResearchSnapshot: row.hashtag_research_snapshot ?? null,
     archivedAt: row.archived_at ?? null,
+    archiveType: row.archive_type ?? null,
+    scrapReason: row.scrap_reason ?? null,
+    postedUrls: row.posted_urls ?? {},
     purgeAfterAt: row.purge_after_at ?? null,
     bulkSessionId: row.bulk_session_id ?? null,
     deletedAt: row.deleted_at ?? null,
@@ -196,6 +204,10 @@ export async function createV2Draft(args: {
   cta?: string;
   postDate?: string | null;
   generateMedia?: boolean;
+  dpmoPhase?: string | null;
+  dpmoRationale?: string | null;
+  socialScanSnapshotId?: string | null;
+  hashtagResearchSnapshot?: Record<string, unknown> | null;
 }): Promise<ContentCalendarPostRow> {
   const client = createNiBrainClient();
   const now = new Date().toISOString();
@@ -239,6 +251,10 @@ export async function createV2Draft(args: {
     optimize_status: "idle",
     optimize_error: null,
     optimize_started_at: null,
+    dpmo_phase: args.dpmoPhase ?? null,
+    dpmo_rationale: args.dpmoRationale ?? null,
+    social_scan_snapshot_id: args.socialScanSnapshotId ?? null,
+    hashtag_research_snapshot: args.hashtagResearchSnapshot ?? null,
     archived_at: null,
     purge_after_at: null,
     bulk_session_id: args.draft.tempId,
@@ -309,6 +325,7 @@ export async function updateV2PostFields(args: {
   theme?: string;
   targetGroup?: string;
   cta?: string;
+  dpmoRationale?: string | null;
   platformCaptions?: Record<string, string>;
   platformHashtags?: Record<string, string[]>;
 }): Promise<void> {
@@ -319,6 +336,7 @@ export async function updateV2PostFields(args: {
   if (args.theme !== undefined) patch.theme = args.theme;
   if (args.targetGroup !== undefined) patch.target_group = normalizeTargetGroup(args.targetGroup);
   if (args.cta !== undefined) patch.cta = args.cta;
+  if (args.dpmoRationale !== undefined) patch.dpmo_rationale = args.dpmoRationale;
   if (args.platformCaptions !== undefined) patch.platform_captions = args.platformCaptions;
   if (args.platformHashtags !== undefined) patch.platform_hashtags = args.platformHashtags;
 
@@ -522,15 +540,22 @@ export async function cancelV2ScheduledPost(postId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-export async function archiveV2Post(postId: string): Promise<void> {
+/**
+ * Manually archives a post that was never posted ("scrapped"). Purge window comes from settings
+ * (scrapped_retention_days) rather than a hardcoded constant.
+ */
+export async function archiveV2Post(postId: string, args?: { scrapReason?: string | null }): Promise<void> {
   const now = new Date();
-  const purgeAfter = new Date(now.getTime() + CONTENT_CALENDAR_V2_ARCHIVE_RETENTION_HOURS * 60 * 60 * 1000);
+  const { scrappedRetentionDays } = await resolveRetentionSettings();
+  const purgeAfter = new Date(now.getTime() + scrappedRetentionDays * 24 * 60 * 60 * 1000);
   const client = createNiBrainClient();
   const { error } = await client
     .from("match_fit_content_calendar_posts")
     .update({
       workflow_stage: "archived",
       status: "archived",
+      archive_type: "scrapped",
+      scrap_reason: args?.scrapReason ?? null,
       archived_at: now.toISOString(),
       purge_after_at: purgeAfter.toISOString(),
       updated_at: now.toISOString(),
@@ -549,6 +574,8 @@ export async function reviveV2Post(postId: string): Promise<void> {
       status: "draft",
       approved_at: null,
       archived_at: null,
+      archive_type: null,
+      scrap_reason: null,
       purge_after_at: null,
       updated_at: now,
     })

@@ -51,3 +51,13 @@ CREATE TABLE IF NOT EXISTS product_scoreboard (
 INSERT INTO product_scoreboard (product_slug, phase)
   VALUES ('match-fit', 'phase1')
   ON CONFLICT (product_slug) DO NOTHING;
+
+-- v2.2: posted-vs-scrapped archive split + per-platform posted URLs.
+ALTER TABLE match_fit_content_calendar_posts
+  ADD COLUMN IF NOT EXISTS archive_type text,
+  ADD COLUMN IF NOT EXISTS scrap_reason text,
+  ADD COLUMN IF NOT EXISTS posted_urls jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+CREATE INDEX IF NOT EXISTS idx_content_calendar_v2_archive_type
+  ON match_fit_content_calendar_posts (archive_type)
+  WHERE archive_type IS NOT NULL;

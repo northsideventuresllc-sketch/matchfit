@@ -13,6 +13,7 @@ const patchSchema = z.object({
   theme: z.string().optional(),
   targetGroup: z.string().optional(),
   cta: z.string().optional(),
+  dpmoRationale: z.string().nullable().optional(),
   platformCaptions: z.record(z.string(), z.string()).optional(),
   platformHashtags: z.record(z.string(), z.array(z.string())).optional(),
 });

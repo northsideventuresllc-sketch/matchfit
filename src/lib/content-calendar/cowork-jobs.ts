@@ -80,13 +80,23 @@ export async function updateCoworkJobStatus(args: {
   if (error) throw new Error(error.message);
 }
 
-export async function getPendingCoworkJobs(): Promise<CoworkJobRow[]> {
+export async function updateCoworkJobBrief(jobId: string, brief: Record<string, unknown>): Promise<void> {
   const client = createNiBrainClient();
-  const { data, error } = await client
+  const { error } = await client
+    .from("match_fit_content_cowork_jobs")
+    .update({ brief })
+    .eq("id", jobId);
+  if (error) throw new Error(error.message);
+}
+
+export async function getPendingCoworkJobs(jobType?: CoworkJobType): Promise<CoworkJobRow[]> {
+  const client = createNiBrainClient();
+  let query = client
     .from("match_fit_content_cowork_jobs")
     .select("*")
-    .eq("status", "queued")
-    .order("created_at", { ascending: true });
+    .eq("status", "queued");
+  if (jobType) query = query.eq("job_type", jobType);
+  const { data, error } = await query.order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
   return (data ?? []) as CoworkJobRow[];
 }
@@ -149,6 +159,38 @@ export async function updateContentCalendarSettings(args: {
   if (error) throw new Error(error.message);
   return data as ContentCalendarSettingsRow;
 }
+
+/** Resolved retention windows — settings row when present, otherwise defaults. */
+export async function resolveRetentionSettings(): Promise<{
+  postedRetentionHours: number;
+  scrappedRetentionDays: number;
+}> {
+  const settings = await getContentCalendarSettings();
+  return {
+    postedRetentionHours: settings?.posted_retention_hours ?? CONTENT_CALENDAR_SETTINGS_DEFAULTS.posted_retention_hours,
+    scrappedRetentionDays: settings?.scrapped_retention_days ?? CONTENT_CALENDAR_SETTINGS_DEFAULTS.scrapped_retention_days,
+  };
+}
+
+/**
+ * Mac Mini download folder convention for Cowork-generated media. Configurable because JB's exact
+ * folder name is unknown; defaults to a "Social Media" subfolder inside a "Match Fit" folder.
+ */
+export function getCoworkMediaDownloadFolder(): string {
+  return process.env.MATCH_FIT_COWORK_MEDIA_FOLDER?.trim() || "Match Fit/Social Media";
+}
+
+/** Priority order for a day's media generation — video first per spec. */
+export const COWORK_MEDIA_GENERATION_ORDER = ["video", "static", "carousel"] as const;
+
+export type CoworkMediaOrderKey = (typeof COWORK_MEDIA_GENERATION_ORDER)[number];
+
+/**
+ * Routing note so the Cowork poster sends TikTok video through TikTok Studio, where scheduled
+ * posting works under 1K followers (the regular app does not offer it).
+ */
+export const COWORK_TIKTOK_VIDEO_NOTE =
+  "TikTok video posts must be published via TikTok Studio (studio.tiktok.com), not the regular TikTok app — scheduled posting is unavailable in the app under 1,000 followers.";
 
 export async function getMatchFitDpmoPhase(): Promise<string | null> {
   const client = createNiBrainClient();

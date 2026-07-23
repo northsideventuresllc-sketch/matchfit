@@ -1,0 +1,29 @@
+# Weekly Match Fit content generation — Monday 8am ET.
+# GitHub Actions crons are fixed-UTC. 8am ET during EDT (UTC-4, currently in effect) = 12:00 UTC.
+# During EST (UTC-5) this fires at 7am ET; adjust to "0 13 * * 1" if you want to hold 8am year-round.
+
+name: Match Fit content calendar weekly generate
+
+on:
+  schedule:
+    - cron: "0 12 * * 1"
+  workflow_dispatch: {}
+
+jobs:
+  content-calendar-weekly-generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke weekly content generation cron
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ secrets.MATCH_FIT_APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$APP_URL" ]; then
+            echo "Skipping: set repository secrets CRON_SECRET and MATCH_FIT_APP_URL (e.g. https://match-fit.net)."
+            exit 0
+          fi
+          URL="${APP_URL%/}/api/cron/content-calendar-weekly-generate"
+          echo "GET $URL"
+          curl -fsS -X GET \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "$URL"

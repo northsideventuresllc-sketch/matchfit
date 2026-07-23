@@ -1,6 +1,9 @@
 import {
   CONTENT_CALENDAR_GROUP_DESCRIPTIONS,
   CONTENT_CALENDAR_PLATFORMS_BY_TYPE,
+  MATCH_FIT_BRAND_DARK,
+  MATCH_FIT_BRAND_ORANGE,
+  MATCH_FIT_LOGO_PATH,
   type ContentCalendarGroup,
   type ContentCalendarPostType,
 } from "@/lib/content-calendar/constants";
@@ -240,6 +243,79 @@ export function buildBulkSlotBrief(args: {
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+export type MediaPostType = Exclude<ContentCalendarPostType, "Text">;
+
+export type MediaDimensionSpec = {
+  aspectRatio: string;
+  pixels: string;
+  orientation: string;
+  usage: string;
+};
+
+/**
+ * Per-post-type dimension matrix for media generation. Chosen against standard 2026 platform
+ * specs: full-screen vertical 9:16 for short-form video (Reels / TikTok / Facebook Reels /
+ * Threads video), 4:5 portrait for feed stills (maximizes Instagram/Facebook/Threads feed real
+ * estate and crops safely to 1:1), and a consistent 4:5 across every carousel frame.
+ */
+export const MEDIA_DIMENSION_MATRIX: Record<MediaPostType, MediaDimensionSpec> = {
+  Video: {
+    aspectRatio: "9:16",
+    pixels: "1080x1920",
+    orientation: "vertical",
+    usage: "Reels / TikTok / Facebook Reels / Threads video — full-screen vertical (safe-zone captions clear of the bottom UI)",
+  },
+  Static: {
+    aspectRatio: "4:5",
+    pixels: "1080x1350",
+    orientation: "portrait",
+    usage: "Instagram / Facebook / Threads feed single image — 4:5 portrait crops safely to 1:1",
+  },
+  Carousel: {
+    aspectRatio: "4:5",
+    pixels: "1080x1350",
+    orientation: "portrait",
+    usage: "Instagram / Facebook / TikTok / Threads swipeable carousel — hold a consistent 4:5 across every frame",
+  },
+};
+
+/**
+ * Shared media-generation prompt builder used by all three media post types (Static, Carousel,
+ * Video). Wraps the creative visual prompt with the mandatory production spec: correct output
+ * dimensions for the target use, explicit brand color values, and an explicit Match Fit logo
+ * reference. The actual logo image is attached client-side during Fire Cowork — this only
+ * guarantees the prompt TEXT calls for the logo + palette.
+ */
+export function buildMediaGenerationPrompt(args: {
+  postType: MediaPostType;
+  visualPrompt: string | null | undefined;
+  caption: string;
+  targetGroup: ContentCalendarGroup;
+}): string {
+  const dims = MEDIA_DIMENSION_MATRIX[args.postType];
+  const creative =
+    normalizeGeneratedVisualPrompt({
+      caption: args.caption,
+      visualPrompt: args.visualPrompt,
+      postType: args.postType,
+      targetGroup: args.targetGroup,
+    }) ?? args.caption;
+
+  return [
+    creative,
+    "",
+    "PRODUCTION SPEC (required):",
+    `- Output dimensions: ${dims.pixels}px, ${dims.aspectRatio} ${dims.orientation}. Use case: ${dims.usage}.`,
+    `- Brand colors: dark background ${MATCH_FIT_BRAND_DARK} with ${MATCH_FIT_BRAND_ORANGE} orange as the accent (headline text, highlights, CTA chip). Do not invent other brand colors.`,
+    `- Incorporate the Match Fit logo (${MATCH_FIT_LOGO_PATH}) — place it cleanly (corner or lockup) without covering the focal subject or headline. The logo file is attached to this job for reference.`,
+    args.postType === "Carousel"
+      ? "- Keep the logo placement, palette, and 4:5 frame consistent across all carousel slides."
+      : args.postType === "Video"
+        ? "- Apply the spec to the opening hook frame / thumbnail and keep on-screen text inside the vertical safe zone."
+        : "- Single composition — headline, subject, logo, and CTA must read at a glance.",
+  ].join("\n");
 }
 
 export function isLazyCalendarCaption(caption: string): boolean {

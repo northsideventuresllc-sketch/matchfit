@@ -22,6 +22,13 @@ export const CONTENT_CALENDAR_TONES = [
   "Bold / Direct",
 ] as const;
 
+/** Brand palette — single source of truth for media generation prompts. */
+export const MATCH_FIT_BRAND_DARK = "#07080C";
+export const MATCH_FIT_BRAND_ORANGE = "#FF7E00";
+
+/** Public path to the Match Fit logo; media prompts must reference it. */
+export const MATCH_FIT_LOGO_PATH = "public/logo.png";
+
 export const CONTENT_CALENDAR_GROUPS = ["Join the Team", "List With Us", "Clients"] as const;
 
 export type ContentCalendarGroup = (typeof CONTENT_CALENDAR_GROUPS)[number];

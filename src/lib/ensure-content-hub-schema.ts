@@ -135,6 +135,19 @@ INSERT INTO product_scoreboard (product_slug, phase)
   ON CONFLICT (product_slug) DO NOTHING;
 `;
 
+const CONTENT_CALENDAR_V2_2_COLUMNS = ["archive_type", "scrap_reason", "posted_urls"] as const;
+
+const CONTENT_CALENDAR_V2_2_MIGRATION_SQL = `
+ALTER TABLE match_fit_content_calendar_posts
+  ADD COLUMN IF NOT EXISTS archive_type text,
+  ADD COLUMN IF NOT EXISTS scrap_reason text,
+  ADD COLUMN IF NOT EXISTS posted_urls jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+CREATE INDEX IF NOT EXISTS idx_content_calendar_v2_archive_type
+  ON match_fit_content_calendar_posts (archive_type)
+  WHERE archive_type IS NOT NULL;
+`;
+
 const POST_DATE_NULLABLE_SQL = `
 ALTER TABLE match_fit_content_calendar_posts
   ALTER COLUMN post_date DROP NOT NULL;
@@ -170,6 +183,15 @@ export function isMissingContentCalendarV21SchemaError(e: unknown): boolean {
     message.includes("match_fit_content_calendar_settings") ||
     message.includes("product_scoreboard");
   if (!mentioned) return isMissingContentCalendarV2SchemaError(e);
+  return /does not exist|42P01|42703|PGRST204|schema cache/i.test(message);
+}
+
+export function isMissingContentCalendarV22SchemaError(e: unknown): boolean {
+  const message = e instanceof Error ? e.message : String(e);
+  if (/Content Calendar v2\.2 schema is missing/i.test(message)) return true;
+  if (!CONTENT_CALENDAR_V2_2_COLUMNS.some((column) => message.includes(column))) {
+    return isMissingContentCalendarV21SchemaError(e);
+  }
   return /does not exist|42P01|42703|PGRST204|schema cache/i.test(message);
 }
 
@@ -238,6 +260,15 @@ async function probeContentCalendarV21Schema(): Promise<boolean> {
     .select("product_slug, signups, paid, mrr, phase")
     .limit(1);
   return !scoreboardError;
+}
+
+async function probeContentCalendarV22Schema(): Promise<boolean> {
+  const client = createNiBrainClient();
+  const { error } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("archive_type, scrap_reason, posted_urls")
+    .limit(1);
+  return !error;
 }
 
 async function runSqlOnUrl(databaseUrl: string, sql: string): Promise<void> {
@@ -370,6 +401,23 @@ export async function ensureContentCalendarV21Schema(): Promise<void> {
   if (!(await probeContentCalendarV21Schema())) {
     throw new Error(
       "Content Calendar v2.1 schema is missing on NI Brain after migration. Confirm NI_BRAIN_DATABASE_URL points at project kxijunwgbrlfzvgkhklo, then redeploy — or run: npm run migrate:ni-brain-content-calendar-v2",
+    );
+  }
+}
+
+/**
+ * Applies Content Calendar v2.2 DDL on NI Brain: archive_type / scrap_reason (posted vs scrapped
+ * archive split) and posted_urls (per-platform posted links) on match_fit_content_calendar_posts.
+ */
+export async function ensureContentCalendarV22Schema(): Promise<void> {
+  await ensureContentCalendarV21Schema();
+  if (await probeContentCalendarV22Schema()) return;
+
+  await runNiBrainDdl(CONTENT_CALENDAR_V2_2_MIGRATION_SQL);
+
+  if (!(await probeContentCalendarV22Schema())) {
+    throw new Error(
+      "Content Calendar v2.2 schema is missing on NI Brain after migration. Confirm NI_BRAIN_DATABASE_URL points at project kxijunwgbrlfzvgkhklo, then redeploy.",
     );
   }
 }

@@ -1,0 +1,32 @@
+# Match Fit post-batch dispatcher — 5pm and 8pm ET, Monday–Friday.
+# GitHub Actions crons are fixed-UTC. During EDT (UTC-4, currently in effect):
+#   5pm ET M-F  = 21:00 UTC, Mon-Fri  -> "0 21 * * 1-5"
+#   8pm ET M-F  = 00:00 UTC, Tue-Sat  -> "0 0 * * 2-6"  (day shifted because 8pm ET crosses midnight UTC)
+# These drift +1h during EST; shift to 22:00 / 01:00 (day 2-6 / 3-0) if you want to hold the ET times.
+
+name: Match Fit content calendar post batch
+
+on:
+  schedule:
+    - cron: "0 21 * * 1-5"
+    - cron: "0 0 * * 2-6"
+  workflow_dispatch: {}
+
+jobs:
+  content-calendar-post-batch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke post-batch dispatch cron
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ secrets.MATCH_FIT_APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$APP_URL" ]; then
+            echo "Skipping: set repository secrets CRON_SECRET and MATCH_FIT_APP_URL (e.g. https://match-fit.net)."
+            exit 0
+          fi
+          URL="${APP_URL%/}/api/cron/content-calendar-post-batch"
+          echo "GET $URL"
+          curl -fsS -X GET \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "$URL"
