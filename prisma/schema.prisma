@@ -2321,9 +2321,42 @@ model OutreachInstagramLead {
   archivedAt         DateTime?
   archivePurgeAfterAt DateTime?
 
+  // --- Outreach HQ v2 (8-tab restructure) ---
+  /// Which v2 tab/lane the lead currently sits in.
+  /// today | past_due | follow_up_1 | follow_up_2 | pending_response | dispatch_queued | pending | archived
+  /// (Outreach Hub is a zoom-out VIEW aggregating lanes, not a lane value.)
+  outreachLane            String    @default("today")
+  /// Date (anchored to 00:00 America/New_York) the lead entered Today's Leads.
+  /// Past-due job: rows still in `today` lane whose queuedForDate < today move to `past_due`.
+  queuedForDate           DateTime?
+  /// When the 1st follow-up becomes due; reminder job nudges 24h after, then every 24h until approved.
+  followUp1DueAt          DateTime?
+  followUp1LastRemindedAt DateTime?
+  followUp2DueAt          DateTime?
+  followUp2LastRemindedAt DateTime?
+  /// archivedAt + 7 days. Row is hidden from the Archives UI after this instant but is NEVER
+  /// deleted (NI-Brain learning history must be preserved). Computed at archive-write time.
+  archiveUiHiddenAfterAt  DateTime?
+  /// An inbound reply (email/IG DM scan) arrived that has not yet been responded to.
+  hasUnrespondedReply     Boolean   @default(false)
+  replyReceivedAt         DateTime?
+  /// AI-generated reply-response draft awaiting JB approval (Pending Responses tab).
+  pendingResponseDraft    String?
+  pendingResponseDraftAt  DateTime?
+  /// Which Cowork dispatch batch this lead is queued in (FK to outreach_cowork_dispatch_batches.id).
+  dispatchBatchId         String?
+  /// Lane to restore the lead to when JB pulls it back out of a dispatch batch before it fires.
+  dispatchPreviousLane    String?
+
   @@index([deletedAt, status, createdAt])
   @@index([deletedAt, savedToHubAt])
   @@index([archivedAt, archivePurgeAfterAt])
+  @@index([deletedAt, outreachLane, queuedForDate], map: "outreach_instagram_leads_lane_queued_idx")
+  @@index([outreachLane, followUp1DueAt])
+  @@index([outreachLane, followUp2DueAt])
+  @@index([archivedAt, archiveUiHiddenAfterAt])
+  @@index([hasUnrespondedReply])
+  @@index([dispatchBatchId])
   @@index([handle])
   @@map("outreach_instagram_leads")
   @@schema("public")
@@ -2365,9 +2398,28 @@ model OutreachFacebookLead {
   archivedAt         DateTime?
   archivePurgeAfterAt DateTime?
 
+  // --- Outreach HQ v2 (8-tab restructure) ---
+  /// today | past_due | pending_response | dispatch_queued | pending | archived
+  /// (Facebook page posts have no follow-up pipeline, so no follow_up_* lanes/fields.)
+  outreachLane            String    @default("today")
+  /// Date (anchored to 00:00 America/New_York) the lead entered Today's Leads.
+  queuedForDate           DateTime?
+  /// archivedAt + 7 days. Hidden from Archives UI after this instant but NEVER deleted.
+  archiveUiHiddenAfterAt  DateTime?
+  hasUnrespondedReply     Boolean   @default(false)
+  replyReceivedAt         DateTime?
+  pendingResponseDraft    String?
+  pendingResponseDraftAt  DateTime?
+  dispatchBatchId         String?
+  dispatchPreviousLane    String?
+
   @@index([deletedAt, status, createdAt])
   @@index([deletedAt, savedToHubAt])
   @@index([archivedAt, archivePurgeAfterAt])
+  @@index([deletedAt, outreachLane, queuedForDate], map: "outreach_facebook_leads_lane_queued_idx")
+  @@index([archivedAt, archiveUiHiddenAfterAt])
+  @@index([hasUnrespondedReply])
+  @@index([dispatchBatchId])
   @@index([pageUrl])
   @@map("outreach_facebook_leads")
   @@schema("public")
@@ -2416,9 +2468,33 @@ model OutreachEmailLead {
   archivedAt         DateTime?
   archivePurgeAfterAt DateTime?
 
+  // --- Outreach HQ v2 (8-tab restructure) ---
+  /// today | past_due | follow_up_1 | follow_up_2 | pending_response | dispatch_queued | pending | archived
+  outreachLane            String    @default("today")
+  /// Date (anchored to 00:00 America/New_York) the lead entered Today's Leads.
+  queuedForDate           DateTime?
+  followUp1DueAt          DateTime?
+  followUp1LastRemindedAt DateTime?
+  followUp2DueAt          DateTime?
+  followUp2LastRemindedAt DateTime?
+  /// archivedAt + 7 days. Hidden from Archives UI after this instant but NEVER deleted.
+  archiveUiHiddenAfterAt  DateTime?
+  hasUnrespondedReply     Boolean   @default(false)
+  replyReceivedAt         DateTime?
+  pendingResponseDraft    String?
+  pendingResponseDraftAt  DateTime?
+  dispatchBatchId         String?
+  dispatchPreviousLane    String?
+
   @@index([deletedAt, status, createdAt])
   @@index([deletedAt, savedToHubAt])
   @@index([archivedAt, archivePurgeAfterAt])
+  @@index([deletedAt, outreachLane, queuedForDate])
+  @@index([outreachLane, followUp1DueAt])
+  @@index([outreachLane, followUp2DueAt])
+  @@index([archivedAt, archiveUiHiddenAfterAt])
+  @@index([hasUnrespondedReply])
+  @@index([dispatchBatchId])
   @@index([email])
   @@map("outreach_email_leads")
   @@schema("public")
@@ -2496,6 +2572,70 @@ model OutreachDailyTemplate {
 
   @@index([platform, targetGroup, createdAt])
   @@map("outreach_daily_templates")
+  @@schema("public")
+}
+
+/// Outreach HQ v2 — a scheduled 1pm/4pm Cowork dispatch batch. Prisma-tracked analog of the
+/// NI-Brain `match_fit_content_cowork_jobs` table used by Content Calendar (outreach leads are
+/// Prisma-tracked, so this batch is too). Authoritative live membership lives on each lead row
+/// via `dispatchBatchId` on outreach_*_leads — query leads WHERE dispatchBatchId = <id> for the
+/// current contents (cheap via the indexed column). `leadRefs` here is a build-time snapshot.
+model OutreachCoworkDispatchBatch {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// The 1pm or 4pm slot this batch fires at (stored UTC; render in America/New_York).
+  scheduledFor DateTime
+  /// Convenience slot label: "13:00" | "16:00" (America/New_York). Derivable from scheduledFor.
+  slot         String?
+  /// queued | dispatched | running | complete | failed
+  status       String   @default("queued")
+
+  /// Build-time snapshot of intended leads: [{ platform, leadId }]. NON-authoritative — live
+  /// membership is outreach_*_leads.dispatchBatchId (a lead JB pulls out clears its FK there).
+  leadRefs Json?
+  /// Dispatch brief handed to Cowork (intents, per-lead copy, targets, etc.).
+  brief    Json
+  /// Cowork result payload (per-lead send outcomes); null until complete/failed.
+  result   Json?
+
+  createdByAdminId String?
+  dispatchedAt     DateTime?
+  completedAt      DateTime?
+
+  @@index([status, scheduledFor])
+  @@index([scheduledFor])
+  @@map("outreach_cowork_dispatch_batches")
+  @@schema("public")
+}
+
+/// Outreach HQ v2 — a Cowork Desktop-Control scan job (e.g. check Instagram DMs for replies to
+/// previously-sent outreach). No first-party Instagram API exists, so a Cowork session picks up
+/// the queued job and posts found replies back to the completion callback. Kept deliberately
+/// lightweight and swappable; the email side uses Microsoft Graph server-side instead (no job row).
+model OutreachCoworkScanJob {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// instagram (only platform needing a Cowork scan today; email scans run server-side via Graph)
+  platform String   @default("instagram")
+  /// queued | dispatched | running | complete | failed
+  status   String   @default("queued")
+
+  /// Instructions handed to the Cowork session (which DMs/threads to check, how to report).
+  brief    Json
+  /// Cowork result payload (found replies); null until complete/failed.
+  result   Json?
+
+  createdByAdminId String?
+  dispatchedAt     DateTime?
+  completedAt      DateTime?
+
+  @@index([status, createdAt])
+  @@index([platform, status])
+  @@map("outreach_cowork_scan_jobs")
   @@schema("public")
 }
 

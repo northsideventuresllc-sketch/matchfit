@@ -62,7 +62,7 @@ export type TosCronSummary = {
   trainerOnboardingFeeDeadlinesExpired: number;
   outreachArchive: {
     archivedCount: number;
-    purgedCount: number;
+    uiHiddenCount: number;
   };
 };
 
@@ -277,7 +277,7 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   } catch (e) {
     console.error("[tos cron] trainer onboarding fee deadline", e);
   }
-  let outreachArchive = { archivedCount: 0, purgedCount: 0 };
+  let outreachArchive = { archivedCount: 0, uiHiddenCount: 0 };
   try {
     outreachArchive = await processOutreachArchiveJobs();
   } catch (e) {

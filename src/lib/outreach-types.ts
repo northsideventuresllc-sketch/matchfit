@@ -27,6 +27,82 @@ export type OutreachAutoClassification =
   | "STATUS_UNKNOWN"
   | "DEAD_LEAD";
 
+/**
+ * Outreach HQ v2 lane — which of the 8 tabs a lead currently lives in.
+ * Note: "Outreach Hub" is a zoom-out VIEW that aggregates the other lanes, so it is
+ * intentionally NOT a lane value. Facebook leads never use `follow_up_1` / `follow_up_2`
+ * (Facebook page posts have no follow-up pipeline).
+ */
+export type OutreachLane =
+  | "today"
+  | "past_due"
+  | "follow_up_1"
+  | "follow_up_2"
+  | "pending_response"
+  | "dispatch_queued"
+  | "pending"
+  | "archived";
+
+export const OUTREACH_LANE_VALUES = [
+  "today",
+  "past_due",
+  "follow_up_1",
+  "follow_up_2",
+  "pending_response",
+  "dispatch_queued",
+  "pending",
+  "archived",
+] as const;
+
+export const OUTREACH_LANE_LABELS: Record<OutreachLane, string> = {
+  today: "Today's leads",
+  past_due: "Past due leads",
+  follow_up_1: "Follow-up 1",
+  follow_up_2: "Follow-up 2",
+  pending_response: "Pending responses",
+  dispatch_queued: "Dispatch",
+  pending: "Pending leads",
+  archived: "Archives",
+};
+
+/** Cowork dispatch batch lifecycle status. */
+export type OutreachDispatchBatchStatus =
+  | "queued"
+  | "dispatched"
+  | "running"
+  | "complete"
+  | "failed";
+
+/** Convenience slot label for a dispatch batch (America/New_York). */
+export type OutreachDispatchSlot = "13:00" | "16:00";
+
+/** Non-authoritative build-time snapshot of a lead reference inside a dispatch batch. */
+export type OutreachDispatchLeadRef = {
+  platform: OutreachPlatform;
+  leadId: string;
+};
+
+/**
+ * A scheduled 1pm/4pm Cowork dispatch batch (`outreach_cowork_dispatch_batches`).
+ * Authoritative live membership is on the lead rows via `dispatchBatchId`; `leadRefs`
+ * is a build-time snapshot only.
+ */
+export type OutreachCoworkDispatchBatchRow = {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  /** The slot this batch fires at (ISO timestamp; render in America/New_York). */
+  scheduledFor: string;
+  slot: string | null;
+  status: OutreachDispatchBatchStatus | string;
+  leadRefs: OutreachDispatchLeadRef[] | null;
+  brief: Record<string, unknown>;
+  result: Record<string, unknown> | null;
+  createdByAdminId: string | null;
+  dispatchedAt: string | null;
+  completedAt: string | null;
+};
+
 export const OUTREACH_PLATFORMS: { id: OutreachPlatform; label: string }[] = [
   { id: "instagram", label: "Instagram" },
   { id: "facebook", label: "Facebook Pages" },
@@ -89,8 +165,22 @@ export type InstagramLeadRow = {
   deletedAt: string | null;
   savedToHubAt: string | null;
   deadLeadAt: string | null;
-  archivedAt: string | null;
   archivePurgeAfterAt: string | null;
+  archivedAt: string | null;
+  // --- Outreach HQ v2 ---
+  outreachLane: string;
+  queuedForDate: string | null;
+  followUp1DueAt: string | null;
+  followUp1LastRemindedAt: string | null;
+  followUp2DueAt: string | null;
+  followUp2LastRemindedAt: string | null;
+  archiveUiHiddenAfterAt: string | null;
+  hasUnrespondedReply: boolean;
+  replyReceivedAt: string | null;
+  pendingResponseDraft: string | null;
+  pendingResponseDraftAt: string | null;
+  dispatchBatchId: string | null;
+  dispatchPreviousLane: string | null;
 };
 
 export type FacebookLeadRow = {
@@ -118,6 +208,16 @@ export type FacebookLeadRow = {
   deadLeadAt: string | null;
   archivedAt: string | null;
   archivePurgeAfterAt: string | null;
+  // --- Outreach HQ v2 (Facebook: no follow-up pipeline) ---
+  outreachLane: string;
+  queuedForDate: string | null;
+  archiveUiHiddenAfterAt: string | null;
+  hasUnrespondedReply: boolean;
+  replyReceivedAt: string | null;
+  pendingResponseDraft: string | null;
+  pendingResponseDraftAt: string | null;
+  dispatchBatchId: string | null;
+  dispatchPreviousLane: string | null;
 };
 
 export type EmailLeadRow = {
@@ -154,6 +254,20 @@ export type EmailLeadRow = {
   deadLeadAt: string | null;
   archivedAt: string | null;
   archivePurgeAfterAt: string | null;
+  // --- Outreach HQ v2 ---
+  outreachLane: string;
+  queuedForDate: string | null;
+  followUp1DueAt: string | null;
+  followUp1LastRemindedAt: string | null;
+  followUp2DueAt: string | null;
+  followUp2LastRemindedAt: string | null;
+  archiveUiHiddenAfterAt: string | null;
+  hasUnrespondedReply: boolean;
+  replyReceivedAt: string | null;
+  pendingResponseDraft: string | null;
+  pendingResponseDraftAt: string | null;
+  dispatchBatchId: string | null;
+  dispatchPreviousLane: string | null;
 };
 
 /** Legacy rows from the retired "Other" outreach platform (LinkedIn, etc.). */
@@ -296,3 +410,23 @@ export const OUTREACH_DEAD_LEAD_ARCHIVE_HOURS = 48;
 
 /** Days archived leads are kept per admin account before purge. */
 export const OUTREACH_ARCHIVE_RETENTION_DAYS = 60;
+
+/**
+ * Days after `archivedAt` before an archived lead is hidden from the Archives UI.
+ * The DB row is NEVER deleted (NI-Brain learning history must be preserved) — this only
+ * drives a query-time visibility filter (`archiveUiHiddenAfterAt`).
+ */
+export const OUTREACH_ARCHIVE_UI_HIDE_DAYS = 7;
+
+/** Follow-up cadence (locked in the Outreach Cowork SOP): FU1 at 48h, FU2 at 5 days from send. */
+export const OUTREACH_FOLLOW_UP_1_DUE_HOURS = 48;
+export const OUTREACH_FOLLOW_UP_2_DUE_DAYS = 5;
+
+/** Re-nudge interval for an un-approved follow-up reminder (every 24h until it leaves the lane). */
+export const OUTREACH_FOLLOW_UP_REMINDER_INTERVAL_HOURS = 24;
+
+/** The two America/New_York dispatch slots a Cowork batch can fire at. */
+export const OUTREACH_DISPATCH_SLOT_HOURS: Record<OutreachDispatchSlot, number> = {
+  "13:00": 13,
+  "16:00": 16,
+};

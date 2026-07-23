@@ -309,6 +309,139 @@ async function countOutreachIntentColumns(): Promise<number> {
   return Number(rows[0]?.count ?? 0);
 }
 
+const OUTREACH_V2_LANES_DDL = `
+ALTER TABLE "outreach_instagram_leads"
+  ADD COLUMN IF NOT EXISTS "outreachLane" TEXT NOT NULL DEFAULT 'today',
+  ADD COLUMN IF NOT EXISTS "queuedForDate" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "followUp1DueAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "followUp1LastRemindedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "followUp2DueAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "followUp2LastRemindedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "archiveUiHiddenAfterAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "hasUnrespondedReply" BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS "replyReceivedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "pendingResponseDraft" TEXT,
+  ADD COLUMN IF NOT EXISTS "pendingResponseDraftAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "dispatchBatchId" TEXT,
+  ADD COLUMN IF NOT EXISTS "dispatchPreviousLane" TEXT;
+
+ALTER TABLE "outreach_facebook_leads"
+  ADD COLUMN IF NOT EXISTS "outreachLane" TEXT NOT NULL DEFAULT 'today',
+  ADD COLUMN IF NOT EXISTS "queuedForDate" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "archiveUiHiddenAfterAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "hasUnrespondedReply" BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS "replyReceivedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "pendingResponseDraft" TEXT,
+  ADD COLUMN IF NOT EXISTS "pendingResponseDraftAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "dispatchBatchId" TEXT,
+  ADD COLUMN IF NOT EXISTS "dispatchPreviousLane" TEXT;
+
+ALTER TABLE "outreach_email_leads"
+  ADD COLUMN IF NOT EXISTS "outreachLane" TEXT NOT NULL DEFAULT 'today',
+  ADD COLUMN IF NOT EXISTS "queuedForDate" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "followUp1DueAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "followUp1LastRemindedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "followUp2DueAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "followUp2LastRemindedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "archiveUiHiddenAfterAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "hasUnrespondedReply" BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS "replyReceivedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "pendingResponseDraft" TEXT,
+  ADD COLUMN IF NOT EXISTS "pendingResponseDraftAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "dispatchBatchId" TEXT,
+  ADD COLUMN IF NOT EXISTS "dispatchPreviousLane" TEXT;
+
+CREATE INDEX IF NOT EXISTS "outreach_instagram_leads_lane_queued_idx"
+  ON "outreach_instagram_leads"("deletedAt", "outreachLane", "queuedForDate");
+CREATE INDEX IF NOT EXISTS "outreach_instagram_leads_outreachLane_followUp1DueAt_idx"
+  ON "outreach_instagram_leads"("outreachLane", "followUp1DueAt");
+CREATE INDEX IF NOT EXISTS "outreach_instagram_leads_outreachLane_followUp2DueAt_idx"
+  ON "outreach_instagram_leads"("outreachLane", "followUp2DueAt");
+CREATE INDEX IF NOT EXISTS "outreach_instagram_leads_archivedAt_archiveUiHiddenAfterAt_idx"
+  ON "outreach_instagram_leads"("archivedAt", "archiveUiHiddenAfterAt");
+CREATE INDEX IF NOT EXISTS "outreach_instagram_leads_hasUnrespondedReply_idx"
+  ON "outreach_instagram_leads"("hasUnrespondedReply");
+CREATE INDEX IF NOT EXISTS "outreach_instagram_leads_dispatchBatchId_idx"
+  ON "outreach_instagram_leads"("dispatchBatchId");
+
+CREATE INDEX IF NOT EXISTS "outreach_facebook_leads_lane_queued_idx"
+  ON "outreach_facebook_leads"("deletedAt", "outreachLane", "queuedForDate");
+CREATE INDEX IF NOT EXISTS "outreach_facebook_leads_archivedAt_archiveUiHiddenAfterAt_idx"
+  ON "outreach_facebook_leads"("archivedAt", "archiveUiHiddenAfterAt");
+CREATE INDEX IF NOT EXISTS "outreach_facebook_leads_hasUnrespondedReply_idx"
+  ON "outreach_facebook_leads"("hasUnrespondedReply");
+CREATE INDEX IF NOT EXISTS "outreach_facebook_leads_dispatchBatchId_idx"
+  ON "outreach_facebook_leads"("dispatchBatchId");
+
+CREATE INDEX IF NOT EXISTS "outreach_email_leads_deletedAt_outreachLane_queuedForDate_idx"
+  ON "outreach_email_leads"("deletedAt", "outreachLane", "queuedForDate");
+CREATE INDEX IF NOT EXISTS "outreach_email_leads_outreachLane_followUp1DueAt_idx"
+  ON "outreach_email_leads"("outreachLane", "followUp1DueAt");
+CREATE INDEX IF NOT EXISTS "outreach_email_leads_outreachLane_followUp2DueAt_idx"
+  ON "outreach_email_leads"("outreachLane", "followUp2DueAt");
+CREATE INDEX IF NOT EXISTS "outreach_email_leads_archivedAt_archiveUiHiddenAfterAt_idx"
+  ON "outreach_email_leads"("archivedAt", "archiveUiHiddenAfterAt");
+CREATE INDEX IF NOT EXISTS "outreach_email_leads_hasUnrespondedReply_idx"
+  ON "outreach_email_leads"("hasUnrespondedReply");
+CREATE INDEX IF NOT EXISTS "outreach_email_leads_dispatchBatchId_idx"
+  ON "outreach_email_leads"("dispatchBatchId");
+
+CREATE TABLE IF NOT EXISTS "outreach_cowork_dispatch_batches" (
+    "id" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "scheduledFor" TIMESTAMP(3) NOT NULL,
+    "slot" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'queued',
+    "leadRefs" JSONB,
+    "brief" JSONB NOT NULL,
+    "result" JSONB,
+    "createdByAdminId" TEXT,
+    "dispatchedAt" TIMESTAMP(3),
+    "completedAt" TIMESTAMP(3),
+    CONSTRAINT "outreach_cowork_dispatch_batches_pkey" PRIMARY KEY ("id")
+);
+CREATE INDEX IF NOT EXISTS "outreach_cowork_dispatch_batches_status_scheduledFor_idx"
+  ON "outreach_cowork_dispatch_batches"("status", "scheduledFor");
+CREATE INDEX IF NOT EXISTS "outreach_cowork_dispatch_batches_scheduledFor_idx"
+  ON "outreach_cowork_dispatch_batches"("scheduledFor");
+`;
+
+const OUTREACH_COWORK_SCAN_JOBS_DDL = `
+CREATE TABLE IF NOT EXISTS "outreach_cowork_scan_jobs" (
+    "id" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "platform" TEXT NOT NULL DEFAULT 'instagram',
+    "status" TEXT NOT NULL DEFAULT 'queued',
+    "brief" JSONB NOT NULL,
+    "result" JSONB,
+    "createdByAdminId" TEXT,
+    "dispatchedAt" TIMESTAMP(3),
+    "completedAt" TIMESTAMP(3),
+    CONSTRAINT "outreach_cowork_scan_jobs_pkey" PRIMARY KEY ("id")
+);
+CREATE INDEX IF NOT EXISTS "outreach_cowork_scan_jobs_status_createdAt_idx"
+  ON "outreach_cowork_scan_jobs"("status", "createdAt");
+CREATE INDEX IF NOT EXISTS "outreach_cowork_scan_jobs_platform_status_idx"
+  ON "outreach_cowork_scan_jobs"("platform", "status");
+`;
+
+async function countOutreachLaneColumns(): Promise<number> {
+  const rows = await prisma.$queryRaw<{ count: bigint }[]>`
+    SELECT COUNT(*)::bigint AS "count"
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name IN (
+        'outreach_instagram_leads',
+        'outreach_facebook_leads',
+        'outreach_email_leads'
+      )
+      AND column_name = 'outreachLane'
+  `;
+  return Number(rows[0]?.count ?? 0);
+}
+
 async function countOutreachDeadLeadArchiveColumns(): Promise<number> {
   const rows = await prisma.$queryRaw<{ count: bigint }[]>`
     SELECT COUNT(*)::bigint AS "count"
@@ -373,5 +506,24 @@ export async function ensureOutreachHubSchema(): Promise<void> {
         `[ensureOutreachHubSchema] outreachIntent columns still missing after DDL (${intentReady}/${OUTREACH_LEAD_TABLES.length}). Set DIRECT_URL on the server and redeploy.`,
       );
     }
+  }
+
+  // v2: lane columns + dispatch batch table (migration 20260723120000_outreach_v2_lanes_and_dispatch).
+  if (
+    (await countOutreachLaneColumns()) < OUTREACH_LEAD_TABLES.length ||
+    !(await tableExists("outreach_cowork_dispatch_batches"))
+  ) {
+    await runOutreachDdl(OUTREACH_V2_LANES_DDL);
+    const laneReady = await countOutreachLaneColumns();
+    if (laneReady < OUTREACH_LEAD_TABLES.length) {
+      throw new Error(
+        `[ensureOutreachHubSchema] outreachLane columns still missing after DDL (${laneReady}/${OUTREACH_LEAD_TABLES.length}). Set DIRECT_URL on the server and redeploy.`,
+      );
+    }
+  }
+
+  // v2: Cowork scan jobs table (migration 20260723130000_outreach_cowork_scan_jobs).
+  if (!(await tableExists("outreach_cowork_scan_jobs"))) {
+    await runOutreachDdl(OUTREACH_COWORK_SCAN_JOBS_DDL);
   }
 }

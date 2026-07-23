@@ -58,6 +58,14 @@ function serializeInstagramLead(
     followUp1SentAt: serializeDate(r.followUp1SentAt),
     followUp2SentAt: serializeDate(r.followUp2SentAt),
     responseReceivedAt: serializeDate(r.responseReceivedAt),
+    queuedForDate: serializeDate(r.queuedForDate),
+    followUp1DueAt: serializeDate(r.followUp1DueAt),
+    followUp1LastRemindedAt: serializeDate(r.followUp1LastRemindedAt),
+    followUp2DueAt: serializeDate(r.followUp2DueAt),
+    followUp2LastRemindedAt: serializeDate(r.followUp2LastRemindedAt),
+    archiveUiHiddenAfterAt: serializeDate(r.archiveUiHiddenAfterAt),
+    replyReceivedAt: serializeDate(r.replyReceivedAt),
+    pendingResponseDraftAt: serializeDate(r.pendingResponseDraftAt),
   };
 }
 
@@ -83,6 +91,10 @@ function serializeFacebookLead(
     archivePurgeAfterAt: serializeDate(r.archivePurgeAfterAt),
     outreachSentAt: serializeDate(r.outreachSentAt),
     responseReceivedAt: serializeDate(r.responseReceivedAt),
+    queuedForDate: serializeDate(r.queuedForDate),
+    archiveUiHiddenAfterAt: serializeDate(r.archiveUiHiddenAfterAt),
+    replyReceivedAt: serializeDate(r.replyReceivedAt),
+    pendingResponseDraftAt: serializeDate(r.pendingResponseDraftAt),
   };
 }
 
@@ -114,6 +126,14 @@ function serializeEmailLead(
     followUp1SentAt: serializeDate(r.followUp1SentAt),
     followUp2SentAt: serializeDate(r.followUp2SentAt),
     responseReceivedAt: serializeDate(r.responseReceivedAt),
+    queuedForDate: serializeDate(r.queuedForDate),
+    followUp1DueAt: serializeDate(r.followUp1DueAt),
+    followUp1LastRemindedAt: serializeDate(r.followUp1LastRemindedAt),
+    followUp2DueAt: serializeDate(r.followUp2DueAt),
+    followUp2LastRemindedAt: serializeDate(r.followUp2LastRemindedAt),
+    archiveUiHiddenAfterAt: serializeDate(r.archiveUiHiddenAfterAt),
+    replyReceivedAt: serializeDate(r.replyReceivedAt),
+    pendingResponseDraftAt: serializeDate(r.pendingResponseDraftAt),
   };
 }
 
@@ -150,9 +170,15 @@ export async function listOutreachLeads(platform: OutreachPlatform, includeDelet
   return [];
 }
 
-export async function listOutreachArchiveLeads(): Promise<OutreachArchiveLead[]> {
+export async function listOutreachArchiveLeads(now = new Date()): Promise<OutreachArchiveLead[]> {
   await ensureOutreachReady();
-  const archiveWhere = { deletedAt: null, archivedAt: { not: null } as const };
+  // Archived rows are never deleted (NI-Brain history preserved); they simply drop out of the
+  // Archives UI once past their 7-day UI-hide window. Rows with no window set stay visible.
+  const archiveWhere = {
+    deletedAt: null,
+    archivedAt: { not: null } as const,
+    OR: [{ archiveUiHiddenAfterAt: null }, { archiveUiHiddenAfterAt: { gt: now } }],
+  };
 
   const [instagram, facebook, email] = await Promise.all([
     prisma.outreachInstagramLead.findMany({ where: archiveWhere, orderBy: { archivedAt: "desc" } }),
