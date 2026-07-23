@@ -1,19 +1,10 @@
 import { NextResponse } from "next/server";
 import { createNiBrainClient, isNiBrainConfiguredAsync } from "@/lib/ni-brain-client";
+import { hasValidCoworkSecret } from "@/lib/require-cowork-secret";
 
 export const dynamic = "force-dynamic";
 
 const MEDIA_BUCKET = "content-calendar-media";
-
-/** The external Cowork session uploads with the shared CRON_SECRET (no admin cookie). */
-function authorize(req: Request): boolean {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) return false;
-  const auth = req.headers.get("authorization");
-  if (auth === `Bearer ${secret}`) return true;
-  const q = new URL(req.url).searchParams.get("secret");
-  return q === secret;
-}
 
 function safeSegment(value: string): string {
   return value.trim().replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 80) || "file";
@@ -28,7 +19,7 @@ function safeSegment(value: string): string {
  * Cowork session can then call the job-completion callback with a real URL.
  */
 export async function POST(req: Request) {
-  if (!authorize(req)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!(await hasValidCoworkSecret(req))) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   if (!(await isNiBrainConfiguredAsync())) {
     return NextResponse.json({ error: "NI Brain is not configured." }, { status: 503 });
