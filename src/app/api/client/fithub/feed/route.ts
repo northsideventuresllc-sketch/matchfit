@@ -147,13 +147,6 @@ export async function GET() {
         likes: { where: { clientId }, select: { id: true } },
         reposts: { where: { clientId }, select: { id: true } },
         _count: { select: { likes: true, comments: true, reposts: true } },
-        comments: {
-          orderBy: { createdAt: "asc" },
-          take: 20,
-          include: {
-            client: { select: { id: true, preferredName: true, username: true } },
-          },
-        },
       },
     });
 
@@ -187,15 +180,34 @@ export async function GET() {
 
     sorted = dedupeByTrainer(sorted, prefs.hideRepeatedTrainers);
 
+    // Fetch comments only for the ~60 posts that survived scoring/slicing, instead of
+    // pulling up to 20 comments for all 180 candidate rows and discarding two-thirds of them.
     const postIds = sorted.map((p) => p.id);
-    const reportedRows =
+    const [reportedRows, commentRows] = await Promise.all([
       postIds.length > 0
-        ? await prisma.trainerFitHubPostReport.findMany({
+        ? prisma.trainerFitHubPostReport.findMany({
             where: { clientId, postId: { in: postIds } },
             select: { postId: true },
           })
-        : [];
+        : Promise.resolve([]),
+      postIds.length > 0
+        ? prisma.trainerFitHubPost.findMany({
+            where: { id: { in: postIds } },
+            select: {
+              id: true,
+              comments: {
+                orderBy: { createdAt: "asc" },
+                take: 20,
+                include: {
+                  client: { select: { id: true, preferredName: true, username: true } },
+                },
+              },
+            },
+          })
+        : Promise.resolve([]),
+    ]);
     const reportedPostIds = new Set(reportedRows.map((r) => r.postId));
+    const commentsByPostId = new Map(commentRows.map((r) => [r.id, r.comments]));
 
     return NextResponse.json({
       feedEmptyReason: null as string | null,
@@ -230,7 +242,7 @@ export async function GET() {
           displayName: coachDisplayName(p.trainer),
           profileImageUrl: p.trainer.profileImageUrl,
         },
-        comments: p.comments.map((c) => ({
+        comments: (commentsByPostId.get(p.id) ?? []).map((c) => ({
           id: c.id,
           createdAt: c.createdAt.toISOString(),
           body: c.body,
