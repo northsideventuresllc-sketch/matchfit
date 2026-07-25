@@ -15,8 +15,10 @@ Every NVG repo is on GitHub under `northsideventuresllc-sketch`. **Clone from Gi
 ### 2. Every app repo is **Next.js**.
 `matchfit` is Next.js 16 / React 19 / Prisma / Supabase / Stripe / Resend. If you are guessing at the stack, you have not read the repo. Read the repo.
 
-### 3. Code lives on the **Mac mini**, not the MacBook Pro.
-The Cowork device bridge binds to `macbook-pro-4-local`. **The MacBook Pro does not have the repos.** If the bridge is your plan, your plan is wrong — see rule 1.
+### 3. **NOTHING runs on the MacBook Pro. Mac mini only.**
+Obsidian, Hermes and Ollama are **not installed** on the MacBook Pro. Every local operation — vault, Hermes crons, dispatch execution, local models, Chrome posting — happens on the **Mac mini**.
+
+The Cowork device bridge binds to `macbook-pro-4-local`. **That machine is empty.** Any plan routed through the bridge **will fail**. Do not stage files to it, do not read the vault from it, do not try to run anything on it. Use GitHub for code and NI-Brain for state — see rule 1.
 
 ### 4. **GitHub PATs DO NOT EXPIRE.**
 The vault token was replaced 2026-07-04 as **non-expiring**. Any note claiming a PAT expires (including `_ni-brain/reference_infrastructure.md`'s "expires 2026-07-16") is **stale and wrong**. **Never raise PAT expiry as a blocker.** JB has corrected this repeatedly.
