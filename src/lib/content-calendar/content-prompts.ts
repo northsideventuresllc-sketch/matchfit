@@ -309,11 +309,12 @@ export function buildMediaGenerationPrompt(args: {
     "PRODUCTION SPEC (required):",
     `- Output dimensions: ${dims.pixels}px, ${dims.aspectRatio} ${dims.orientation}. Use case: ${dims.usage}.`,
     `- Brand colors: dark background ${MATCH_FIT_BRAND_DARK} with ${MATCH_FIT_BRAND_ORANGE} orange as the accent (headline text, highlights, CTA chip). Do not invent other brand colors.`,
-    `- Incorporate the Match Fit logo (${MATCH_FIT_LOGO_PATH}) — place it cleanly (corner or lockup) without covering the focal subject or headline. The logo file is attached to this job for reference.`,
+    `- Incorporate the Match Fit logo (${MATCH_FIT_LOGO_PATH}) — place it cleanly (corner or lockup) without covering the focal subject or headline. The logo file is attached to this job for reference. Do NOT add any watermark, semi-transparent overlay, or repeated logo tiling.`,
+    "- SAFE FRAME (mandatory, prevents sloppy platform cropping): compose the artwork slightly smaller inside the canvas with a clean solid white margin/border framing the entire edge. Keep ALL text, logo, subject and CTA within the centre 80% of the canvas. Nothing important within 10% of any edge. Keep the exact output pixel dimensions above — the white margin is part of the composition, not extra canvas.",
     args.postType === "Carousel"
       ? "- Keep the logo placement, palette, and 4:5 frame consistent across all carousel slides."
       : args.postType === "Video"
-        ? "- Apply the spec to the opening hook frame / thumbnail and keep on-screen text inside the vertical safe zone."
+        ? "- Apply the spec to the opening hook frame / thumbnail and keep on-screen text inside the vertical safe zone. AUDIO: the finished video must carry commercial-safe sound (royalty-free or platform Official Sound Studio) — never publish a silent video."
         : "- Single composition — headline, subject, logo, and CTA must read at a glance.",
   ].join("\n");
 }
