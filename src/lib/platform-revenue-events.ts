@@ -22,6 +22,7 @@ import {
 } from "@/lib/platform-revenue-accounting";
 import { computeCheckoutFeeBreakdown } from "@/lib/stripe-checkout-line-items";
 import { PROMO_TOKEN_PACK_TIERS, USD_PACK_PRICE_CENTS } from "@/lib/trainer-promo-tokens";
+import { mapWithConcurrency } from "@/lib/instagram-profile-verify";
 
 export type PlatformRevenueTotals = {
   revenueCents: number;
@@ -202,19 +203,25 @@ async function backfillPlatformRevenueEvents(): Promise<void> {
     take: 5000,
     orderBy: { completedAt: "asc" },
   });
-  for (const row of serviceRows) {
-    if (!launchClientIds.has(row.clientId) || !launchTrainerIds.has(row.trainerId)) continue;
-    await recordServiceCheckoutRevenueEvent({
-      transactionId: row.id,
-      clientId: row.clientId,
-      trainerId: row.trainerId,
-      amountCents: row.amountCents,
-      totalChargedCents: row.totalChargedCents,
-      adminFeeCents: row.adminFeeCents,
-      ledgerGrossTotalCents: row.ledgerGrossTotalCents,
-      completedAt: row.completedAt,
-    });
-  }
+  // Each row writes an independent, idempotency-keyed event — safe to run concurrently
+  // instead of awaiting up to 5,000 sequential inserts one at a time.
+  await mapWithConcurrency(
+    serviceRows.filter(
+      (row) => launchClientIds.has(row.clientId) && launchTrainerIds.has(row.trainerId),
+    ),
+    10,
+    (row) =>
+      recordServiceCheckoutRevenueEvent({
+        transactionId: row.id,
+        clientId: row.clientId,
+        trainerId: row.trainerId,
+        amountCents: row.amountCents,
+        totalChargedCents: row.totalChargedCents,
+        adminFeeCents: row.adminFeeCents,
+        ledgerGrossTotalCents: row.ledgerGrossTotalCents,
+        completedAt: row.completedAt,
+      }),
+  );
 
   const registrationProfiles = await prisma.trainerProfile.findMany({
     where: {
@@ -225,19 +232,21 @@ async function backfillPlatformRevenueEvents(): Promise<void> {
     select: { trainerId: true, registrationFeePaidCents: true },
     take: 5000,
   });
-  for (const p of registrationProfiles) {
-    const paid = p.registrationFeePaidCents ?? 0;
-    if (paid <= 0) continue;
-    const breakdown = oneTimePurchaseRevenueProfitFromTotalCharged(paid);
-    await recordPlatformRevenueEvent({
-      category: "ONE_TIME_PURCHASE",
-      idempotencyKey: `trainer_registration:${p.trainerId}`,
-      revenueCents: breakdown.revenueCents,
-      grossProfitCents: breakdown.grossProfitCents,
-      trainerId: p.trainerId,
-      metaJson: JSON.stringify({ purpose: "trainer_registration_fee" }),
-    });
-  }
+  await mapWithConcurrency(
+    registrationProfiles.filter((p) => (p.registrationFeePaidCents ?? 0) > 0),
+    10,
+    (p) => {
+      const breakdown = oneTimePurchaseRevenueProfitFromTotalCharged(p.registrationFeePaidCents ?? 0);
+      return recordPlatformRevenueEvent({
+        category: "ONE_TIME_PURCHASE",
+        idempotencyKey: `trainer_registration:${p.trainerId}`,
+        revenueCents: breakdown.revenueCents,
+        grossProfitCents: breakdown.grossProfitCents,
+        trainerId: p.trainerId,
+        metaJson: JSON.stringify({ purpose: "trainer_registration_fee" }),
+      });
+    },
+  );
 
   const tokenPurchases = await prisma.trainerTokenLedgerEntry.findMany({
     where: {
@@ -258,39 +267,44 @@ async function backfillPlatformRevenueEvents(): Promise<void> {
     select: { id: true, stripeLastSubscriptionInvoicePaidAt: true },
     take: 5000,
   });
-  for (const c of payingClients) {
-    if (!c.stripeLastSubscriptionInvoicePaidAt) continue;
-    await recordClientSubscriptionInvoiceEvent({
-      stripeInvoiceId: `backfill:${c.id}`,
-      clientId: c.id,
-      occurredAt: c.stripeLastSubscriptionInvoicePaidAt,
-      billingLiveMode: true,
-    });
-  }
+  await mapWithConcurrency(
+    payingClients.filter((c) => c.stripeLastSubscriptionInvoicePaidAt),
+    10,
+    (c) =>
+      recordClientSubscriptionInvoiceEvent({
+        stripeInvoiceId: `backfill:${c.id}`,
+        clientId: c.id,
+        occurredAt: c.stripeLastSubscriptionInvoicePaidAt!,
+        billingLiveMode: true,
+      }),
+  );
 
-  for (const entry of tokenPurchases) {
-    const ref = entry.referenceKey?.trim();
-    if (!ref) continue;
-    const baseCents = inferPromoPackUsdCents(entry.delta);
-    const breakdown = baseCents
-      ? oneTimePurchaseRevenueProfit(
-          computeCheckoutFeeBreakdown({
-            baseCents,
-            includeAdminFee: true,
-            includeProcessingFee: true,
-          }),
-        )
-      : oneTimePurchaseRevenueProfitFromTotalCharged(USD_PACK_PRICE_CENTS);
-    await recordPlatformRevenueEvent({
-      category: "ONE_TIME_PURCHASE",
-      idempotencyKey: `promo_tokens:${ref}`,
-      revenueCents: breakdown.revenueCents,
-      grossProfitCents: breakdown.grossProfitCents,
-      trainerId: entry.trainerId,
-      occurredAt: entry.createdAt,
-      metaJson: JSON.stringify({ purpose: "trainer_promo_tokens", tokens: entry.delta }),
-    });
-  }
+  await mapWithConcurrency(
+    tokenPurchases.filter((entry) => entry.referenceKey?.trim()),
+    10,
+    (entry) => {
+      const ref = entry.referenceKey!.trim();
+      const baseCents = inferPromoPackUsdCents(entry.delta);
+      const breakdown = baseCents
+        ? oneTimePurchaseRevenueProfit(
+            computeCheckoutFeeBreakdown({
+              baseCents,
+              includeAdminFee: true,
+              includeProcessingFee: true,
+            }),
+          )
+        : oneTimePurchaseRevenueProfitFromTotalCharged(USD_PACK_PRICE_CENTS);
+      return recordPlatformRevenueEvent({
+        category: "ONE_TIME_PURCHASE",
+        idempotencyKey: `promo_tokens:${ref}`,
+        revenueCents: breakdown.revenueCents,
+        grossProfitCents: breakdown.grossProfitCents,
+        trainerId: entry.trainerId,
+        occurredAt: entry.createdAt,
+        metaJson: JSON.stringify({ purpose: "trainer_promo_tokens", tokens: entry.delta }),
+      });
+    },
+  );
 }
 
 export async function ensurePlatformRevenueBackfill(): Promise<void> {
