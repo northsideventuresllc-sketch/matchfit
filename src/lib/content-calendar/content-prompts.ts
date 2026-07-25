@@ -310,7 +310,7 @@ export function buildMediaGenerationPrompt(args: {
     `- Output dimensions: ${dims.pixels}px, ${dims.aspectRatio} ${dims.orientation}. Use case: ${dims.usage}.`,
     `- Brand colors: dark background ${MATCH_FIT_BRAND_DARK} with ${MATCH_FIT_BRAND_ORANGE} orange as the accent (headline text, highlights, CTA chip). Do not invent other brand colors.`,
     `- Incorporate the Match Fit logo (${MATCH_FIT_LOGO_PATH}) — place it cleanly (corner or lockup) without covering the focal subject or headline. The logo file is attached to this job for reference. Do NOT add any watermark, semi-transparent overlay, or repeated logo tiling.`,
-    "- SAFE FRAME (mandatory, prevents sloppy platform cropping): compose the artwork slightly smaller inside the canvas with a clean solid white margin/border framing the entire edge. Keep ALL text, logo, subject and CTA within the centre 80% of the canvas. Nothing important within 10% of any edge. Keep the exact output pixel dimensions above — the white margin is part of the composition, not extra canvas.",
+    "- SAFE ZONE (mandatory, prevents sloppy platform cropping): keep ALL text, logo, subject and CTA inside the centre 80% of the canvas — nothing important within 10% of any edge. The artwork itself must BLEED EDGE-TO-EDGE at the exact output dimensions above. Do NOT render a visible white border, letterbox, frame, padding bar, or margin in the final image — the safe zone is an invisible composition guide only.",
     args.postType === "Carousel"
       ? "- Keep the logo placement, palette, and 4:5 frame consistent across all carousel slides."
       : args.postType === "Video"
