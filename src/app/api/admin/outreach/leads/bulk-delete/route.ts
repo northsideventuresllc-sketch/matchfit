@@ -3,6 +3,7 @@ import { z } from "zod";
 import { buildMassDeleteOutreachWhere, massSoftDeleteOutreachLeads } from "@/lib/outreach-data";
 import { leadProfileForPlatform } from "@/lib/outreach-lead-profile";
 import { recordOutreachDeleteReasonSignal } from "@/lib/outreach-learning";
+import { mapWithConcurrency } from "@/lib/instagram-profile-verify";
 import { OUTREACH_PLATFORM_VALUES, type OutreachPlatform } from "@/lib/outreach-types";
 import { resolveOutreachActor } from "@/lib/require-service-token";
 import { prisma } from "@/lib/prisma";
@@ -43,40 +44,43 @@ export async function POST(req: Request) {
   const outreachPlatform = platform as OutreachPlatform;
 
   try {
+    // Signal writes run with bounded concurrency instead of one-at-a-time — each row was a
+    // sequential local insert plus two NI-Brain HTTP round trips, so up to 500 rows meant up
+    // to 500 serial waits before the actual delete even ran.
     const where = buildMassDeleteOutreachWhere(input);
     if (outreachPlatform === "instagram") {
       const rows = await prisma.outreachInstagramLead.findMany({ where });
-      for (const row of rows) {
-        await recordOutreachDeleteReasonSignal({
+      await mapWithConcurrency(rows, 10, (row) =>
+        recordOutreachDeleteReasonSignal({
           platform: "instagram",
           leadId: row.id,
           adminId: actor.adminId,
           reason: deleteReason,
           profile: leadProfileForPlatform("instagram", row),
-        });
-      }
+        }),
+      );
     } else if (outreachPlatform === "facebook") {
       const rows = await prisma.outreachFacebookLead.findMany({ where });
-      for (const row of rows) {
-        await recordOutreachDeleteReasonSignal({
+      await mapWithConcurrency(rows, 10, (row) =>
+        recordOutreachDeleteReasonSignal({
           platform: "facebook",
           leadId: row.id,
           adminId: actor.adminId,
           reason: deleteReason,
           profile: leadProfileForPlatform("facebook", row),
-        });
-      }
+        }),
+      );
     } else if (outreachPlatform === "email") {
       const rows = await prisma.outreachEmailLead.findMany({ where });
-      for (const row of rows) {
-        await recordOutreachDeleteReasonSignal({
+      await mapWithConcurrency(rows, 10, (row) =>
+        recordOutreachDeleteReasonSignal({
           platform: "email",
           leadId: row.id,
           adminId: actor.adminId,
           reason: deleteReason,
           profile: leadProfileForPlatform("email", row),
-        });
-      }
+        }),
+      );
     }
 
     const { deletedCount } = await massSoftDeleteOutreachLeads(outreachPlatform, input);

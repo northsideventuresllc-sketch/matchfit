@@ -3,6 +3,7 @@ import { z } from "zod";
 import { buildMassSaveOutreachWhere, massSaveOutreachLeadsToHub } from "@/lib/outreach-data";
 import { leadProfileForPlatform } from "@/lib/outreach-lead-profile";
 import { recordOutreachSavedToHubSignal } from "@/lib/outreach-learning";
+import { mapWithConcurrency } from "@/lib/instagram-profile-verify";
 import { OUTREACH_PLATFORM_VALUES, type OutreachPlatform } from "@/lib/outreach-types";
 import { requireAdminSession } from "@/lib/require-admin";
 import { prisma } from "@/lib/prisma";
@@ -72,14 +73,17 @@ export async function POST(req: Request) {
     // Hub write first — email save-path drop previously happened when signals ran before persist.
     const { savedCount } = await massSaveOutreachLeadsToHub(outreachPlatform, input);
 
-    for (const row of signalRows) {
-      await recordOutreachSavedToHubSignal({
+    // Fire signal writes with bounded concurrency instead of one-at-a-time — each row was
+    // a sequential local insert plus two NI-Brain HTTP round trips, so up to 500 rows meant
+    // up to 500 serial waits.
+    await mapWithConcurrency(signalRows, 10, (row) =>
+      recordOutreachSavedToHubSignal({
         platform: outreachPlatform,
         leadId: row.id,
         adminId: sess.adminId,
         profile: row.profile,
-      });
-    }
+      }),
+    );
 
     return NextResponse.json({ ok: true, savedCount });
   } catch (e) {
