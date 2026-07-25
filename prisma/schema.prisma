@@ -292,8 +292,13 @@ model SupportInboxMessage {
   textBody      String?
   htmlBody      String?
 
-  /// unread | read | archived
+  /// unread | read | replied | archived
   status String @default("unread")
+
+  /// Reply sent from the admin portal (MF-SUPPORT-INBOX).
+  replyBody   String?
+  repliedAt   DateTime?
+  replyEmailId String?
 
   @@index([createdAt])
   @@index([status, createdAt])
