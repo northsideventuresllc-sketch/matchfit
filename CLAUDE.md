@@ -1,5 +1,77 @@
 @AGENTS.md
 
+## STANDING RULES — READ BEFORE ANY WORK (added 2026-07-26)
+
+Each of these exists because it was broken in a live session and cost JB time.
+
+1. **Nothing routes to a paid API. Ever.** Free tier only: Gemini for generation
+   (`gemini-first.ts` honours the `GEMINI_MODEL` secret and has no paid
+   fallback), local Ollama on the Mac mini for local work. If free quota is
+   exhausted, fail with a plain sentence — do not fall through to a paid
+   provider. JB has said many times he will not refill credits.
+
+2. **Never tell JB something failed because of API keys, tokens, credits or
+   billing.** He has already refused that fix, so naming it is pure noise.
+   `hermes-telegram-notify.mjs` rewrites any such message before it reaches
+   him. Say what it means for him instead: what is parked, and what still works.
+
+3. **Two Resend accounts exist.** `northsideintelligence.com` is verified on the
+   NI account (`RESEND_API_KEY_NI`); `match-fit.net` is on the other
+   (`RESEND_API_KEY`). Sending NI mail with the Match Fit key silently fails.
+   Do not conclude a domain is unverified before checking BOTH accounts.
+
+4. **No raw database values or jargon on screen.** Never print an internal
+   status code, scope name or acronym in the UI. The NI portal keeps these in
+   `src/lib/axon/plain-labels.ts`; match that standard here.
+
+5. **Approve-only.** Nothing sends, posts or publishes without JB pressing
+   approve. This includes outreach, social posts and Reddit comments. Outreach
+   approvals reach him Monday–Friday only — never at the weekend.
+
+6. **Match Fit coach recruiting targets ONE Atlanta intown polygon**
+   (Midtown / West Midtown / O4W / Inman Park), per the 2026-07-25 Acquisition
+   Playbook. The older "NO ATLANTA" correction in NI-Brain is about Match Fit
+   **ad audiences** (FP/IP/EP account tiers, not geo) and does NOT apply to
+   supply-side recruiting. Both are true; do not collapse them.
+
+7. **The Mac mini is the only machine.** Obsidian, Hermes and Ollama are not on
+   the MacBook Pro. Anything routed there fails.
+
+8. **Check disk before any large install on the Mac.** It has run at 97% full.
+   Ollama models are the usual cause. Verify nothing references a model before
+   removing it — and note that `Qwen/Qwen2.5-7B-Instruct` in `AXON/config.yaml`
+   is a HuggingFace training base, NOT the Ollama `qwen2.5:7b`.
+
+9. **Do not ask JB something the vault or NI-Brain already answers.** Read
+   first. He has written it down; failing to read it is the failure.
+
+---
+
+### Match Fit specifics
+
+10. **Never change a post's format.** A carousel stays a carousel. Converting a
+    carousel to a video has happened and JB had to delete it.
+
+11. **The watermark crop frame is scaffolding, not design.** Gemini stamps a
+    corner watermark; the frame exists so it lands in a disposable margin that
+    gets cropped off. Never publish the frame.
+
+12. **Instagram crop must be set to Original.** The web editor defaults to 1:1
+    and silently cuts headlines off.
+
+13. **Audio must be a trending hip hop instrumental,** chosen at posting time
+    because it changes daily. Never publish a silent video.
+
+14. **Auto-posting needs Meta publish permissions.** The live token carries
+    ads/read scopes only; `meta-auto-post.ts` checks up front and returns one
+    plain sentence rather than failing mid-post.
+
+15. **No invented people.** The content gate blocks fabricated testimonials —
+    a generated post once claimed a customer named Sarah who does not exist.
+
+---
+
+
 > AGENTS.md above covers NI context loading, Next.js 16 specifics, and the product-version
 > rule. The sections below port the rest of Cursor's `.cursor/rules/*.mdc` (`alwaysApply: true`)
 > content that AGENTS.md doesn't already carry, plus `.cursor/skills/` → `.claude/skills/`, so
