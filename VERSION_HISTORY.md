@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-07-26** `2.9.2-beta` → `2.9.3-beta` (**patch** — Auto-post approved content to Facebook and Instagram from the admin portal)
 - **2026-07-25** `2.9.1-beta` → `2.9.2-beta` (**patch** — Support inbox: reply to support@match-fit.net from the admin portal)
 - **2026-07-23** `2.9.0-beta` → `2.9.1-beta` (**patch** — Cowork auth: DB-backed secret fallback (no Vercel dashboard access needed))
 - **2026-07-23** `2.8.1-beta` → `2.9.0-beta` (**minor** — Cowork media re-hosting endpoint (NI Brain Storage) for the Fire Cowork video/image workflow)
