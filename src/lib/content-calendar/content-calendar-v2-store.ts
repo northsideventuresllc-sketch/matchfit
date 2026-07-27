@@ -144,6 +144,38 @@ export async function listV2Posts(args: {
   return (data ?? []) as ContentCalendarPostRow[];
 }
 
+/** Stages a post can sit in while it is approved but has not gone out yet. */
+const PENDING_V2_STAGES = ["hub", "publishing", "scheduled"] as const;
+
+/**
+ * "Pending" means JB approved it and it has not gone out yet. That covers three stages: an approved
+ * post still waiting in the hub for its media build, a post in publishing waiting for a posting
+ * window, and a post with an exact scheduled time. Anything already posted, deleted, or archived is
+ * not pending.
+ */
+export function isPendingV2Row(row: ContentCalendarPostRow): boolean {
+  if (row.posted) return false;
+  if (row.deleted_at) return false;
+  const stage = row.workflow_stage ?? "hub";
+  if (stage === "publishing" || stage === "scheduled") return true;
+  return stage === "hub" && Boolean(row.approved_at);
+}
+
+/** Every approved-but-not-yet-posted row, soonest post date first. */
+export async function listPendingV2Posts(): Promise<ContentCalendarPostRow[]> {
+  await purgeExpiredV2Posts();
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("*")
+    .in("workflow_stage", [...PENDING_V2_STAGES])
+    .eq("posted", false)
+    .is("deleted_at", null)
+    .order("post_date", { ascending: true, nullsFirst: false });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as ContentCalendarPostRow[]).filter(isPendingV2Row);
+}
+
 export async function getV2Post(postId: string): Promise<ContentCalendarPostRow | null> {
   const client = createNiBrainClient();
   const { data, error } = await client
@@ -414,6 +446,38 @@ export async function moveV2PostToDrafts(postId: string): Promise<void> {
     })
     .eq("id", postId);
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Pulls an approved post back out of the batch and returns it to drafts so it can be edited again.
+ * Generated media is deliberately left attached — JB may want to keep the pictures.
+ *
+ * Refuses on an already-posted row rather than pretending a post can be un-sent.
+ */
+export async function sendV2PostBackToDrafts(postId: string): Promise<ContentCalendarPostRow> {
+  const post = await getV2Post(postId);
+  if (!post) throw new Error("That post could not be found.");
+  if (post.posted) {
+    throw new Error("That post has already gone out, so it cannot be pulled back. Nothing was changed.");
+  }
+
+  const now = new Date().toISOString();
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .update({
+      workflow_stage: "hub",
+      status: "draft",
+      approved_at: null,
+      scheduled_at: null,
+      revision: (post.revision ?? 1) + 1,
+      updated_at: now,
+    })
+    .eq("id", postId)
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+  return data as ContentCalendarPostRow;
 }
 
 export async function regenerateV2PostMedia(postId: string): Promise<ContentCalendarPostRow> {

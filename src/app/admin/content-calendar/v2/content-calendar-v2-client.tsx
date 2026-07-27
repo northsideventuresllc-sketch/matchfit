@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AdminPortalShell } from "@/components/admin/admin-portal-shell";
 import {
@@ -249,6 +250,9 @@ export function ContentCalendarV2Client({ aiStatus }: { aiStatus: AiStatus }) {
       contentClassName="space-y-6"
       actions={
         <div className="flex flex-wrap items-center gap-3">
+          <Link href="/admin/content-calendar/pending" className={adminSecondaryButtonClass}>
+            Pending Posts
+          </Link>
           <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-white/60">
             <input type="checkbox" checked={autoSave} onChange={(e) => setAutoSave(e.target.checked)} />
             Auto Save {autoSave ? "on" : "off"}

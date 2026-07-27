@@ -45,6 +45,8 @@ export type ContentCalendarPostRow = {
   purge_after_at: string | null;
   bulk_session_id: string | null;
   deleted_at: string | null;
+  /** Bumped whenever a post is edited or pulled back a stage. NOT NULL in Postgres, default 1. */
+  revision?: number;
   created_at: string;
   updated_at: string;
   admin_id: string | null;
