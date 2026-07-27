@@ -161,6 +161,14 @@ export async function hydratePlatformEnvFromDatabase(): Promise<void> {
         }
       }
 
+      // SerpApi (free tier) powers the weekday outreach lead finder cron.
+      if (!process.env.SERPAPI_API_KEY?.trim()) {
+        const serpApiKey = await readPlatformSecret("SERPAPI_API_KEY");
+        if (serpApiKey) {
+          process.env.SERPAPI_API_KEY = serpApiKey;
+        }
+      }
+
       if (!process.env.NI_BRAIN_DATABASE_URL?.trim()) {
         const niBrainDatabaseUrl = await readPlatformSecret("NI_BRAIN_DATABASE_URL");
         if (niBrainDatabaseUrl) {

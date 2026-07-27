@@ -1,0 +1,38 @@
+# Match Fit outreach lead finder — 8am ET, Monday to Friday.
+# Finds online / virtual coaches nationwide (no city, no polygon) and leaves 5 Instagram leads and
+# 5 email leads in Outreach HQ, each with a draft message. Draft-only: nothing is sent.
+#
+# GitHub Actions crons are fixed-UTC. During EDT (UTC-4, currently in effect):
+#   8am ET M-F = 12:00 UTC, Mon-Fri -> "0 12 * * 1-5"
+# This drifts to 7am ET during EST (UTC-5); shift to "0 13 * * 1-5" if you want to hold 8am ET
+# through the winter. The route also skips weekends itself, so a DST shift can never land a batch
+# of approvals on JB's Saturday.
+#
+# Vercel Hobby cannot deploy vercel.json crons, so this runs via GitHub Actions (same pattern as
+# match-fit-content-calendar-post-batch.yml). Set repo secrets CRON_SECRET and MATCH_FIT_APP_URL.
+
+name: Match Fit outreach lead finder
+
+on:
+  schedule:
+    - cron: "0 12 * * 1-5"
+  workflow_dispatch: {}
+
+jobs:
+  outreach-lead-finder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke lead finder cron
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ secrets.MATCH_FIT_APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$APP_URL" ]; then
+            echo "Skipping: set repository secrets CRON_SECRET and MATCH_FIT_APP_URL (e.g. https://match-fit.net)."
+            exit 0
+          fi
+          URL="${APP_URL%/}/api/cron/outreach-lead-finder"
+          echo "GET $URL"
+          curl -fsS -X GET \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "$URL"
