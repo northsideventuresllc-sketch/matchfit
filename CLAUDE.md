@@ -60,11 +60,15 @@ Each of these exists because it was broken in a live session and cost JB time.
    approve. This includes outreach, social posts and Reddit comments. Outreach
    approvals reach him Monday–Friday only — never at the weekend.
 
-6. **Match Fit coach recruiting targets ONE Atlanta intown polygon**
-   (Midtown / West Midtown / O4W / Inman Park), per the 2026-07-25 Acquisition
-   Playbook. The older "NO ATLANTA" correction in NI-Brain is about Match Fit
-   **ad audiences** (FP/IP/EP account tiers, not geo) and does NOT apply to
-   supply-side recruiting. Both are true; do not collapse them.
+6. **Match Fit coach recruiting is NATIONWIDE — online / virtual coaches only.
+   No city, no polygon, no lat/long, anywhere.** Not in search, not in outreach
+   copy, not in a code comment. Per NI-Brain Decision #342 (2026-07-27, JB's
+   third correction on this): no NVG venture is Atlanta-geo-targeted for
+   customer acquisition. This supersedes the 2026-07-25 Acquisition Playbook's
+   "one Atlanta intown polygon" and the earlier version of this rule, which was
+   the direct cause of a lead finder that searched Google Maps for Atlanta
+   storefronts and returned zero usable online coaches. `city` is written NULL
+   on every outreach lead on purpose. Newest timestamp wins.
 
 7. **The Mac mini is the only machine.** Obsidian, Hermes and Ollama are not on
    the MacBook Pro. Anything routed there fails.

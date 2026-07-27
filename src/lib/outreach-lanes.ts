@@ -86,6 +86,22 @@ export function nextDispatchSlot(now: Date = new Date()): {
 }
 
 /**
+ * True when `now` falls on a Saturday or Sunday in America/New_York.
+ *
+ * Standing rule: outreach reaches JB Monday–Friday only, never at the weekend. Anything that
+ * generates leads for him to approve, or nudges him about a follow-up, has to check this — the
+ * GitHub Actions cron alone is not enough, because a manual re-run or a DST shift can land a job
+ * on a Saturday.
+ */
+export function isEstWeekend(now: Date = new Date()): boolean {
+  const weekday = now.toLocaleDateString("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+  });
+  return weekday === "Sat" || weekday === "Sun";
+}
+
+/**
  * True when a `today`-lane lead should flip to `past_due`: its queued date is strictly before
  * the current America/New_York calendar day.
  */
