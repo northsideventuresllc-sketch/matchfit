@@ -271,6 +271,9 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
       description="Generate single posts, bulk batches with target groups, and manage saved content in Content Hub."
       headerActions={
         <>
+          <Link href="/admin/content-calendar/pending" className={adminSecondaryButtonClass}>
+            Pending Posts
+          </Link>
           <Link href="/admin/content-calendar/v2" className={adminSecondaryButtonClass}>
             Open v2 (preview)
           </Link>
