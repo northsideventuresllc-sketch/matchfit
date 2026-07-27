@@ -1,0 +1,39 @@
+# Match Fit media generation — runs AHEAD of each posting window so approved posts actually
+# reach the publishing window instead of sitting in the queue.
+#
+# Posting windows (post-batch workflow): 5pm ET and 8pm ET, Mon-Fri.
+# This runs 45 minutes before each one, plus a morning pass after the 8am generation batch.
+#
+# GitHub Actions crons are fixed-UTC. During EDT (UTC-4, currently in effect):
+#   8:30am ET M-F = 12:30 UTC, Mon-Fri  -> "30 12 * * 1-5"
+#   4:15pm ET M-F = 20:15 UTC, Mon-Fri  -> "15 20 * * 1-5"
+#   7:15pm ET M-F = 23:15 UTC, Mon-Fri  -> "15 23 * * 1-5"
+# These drift +1h during EST; shift by one hour if you want to hold the ET times.
+
+name: Match Fit content calendar generate media
+
+on:
+  schedule:
+    - cron: "30 12 * * 1-5"
+    - cron: "15 20 * * 1-5"
+    - cron: "15 23 * * 1-5"
+  workflow_dispatch: {}
+
+jobs:
+  content-calendar-generate-media:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Drain queued generate_media jobs
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ secrets.MATCH_FIT_APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$APP_URL" ]; then
+            echo "Skipping: set repository secrets CRON_SECRET and MATCH_FIT_APP_URL (e.g. https://match-fit.net)."
+            exit 0
+          fi
+          URL="${APP_URL%/}/api/cron/content-calendar-generate-media"
+          echo "GET $URL"
+          curl -fsS --max-time 600 -X GET \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "$URL"
