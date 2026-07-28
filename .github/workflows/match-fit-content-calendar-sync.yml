@@ -15,8 +15,8 @@ jobs:
           APP_URL: ${{ secrets.MATCH_FIT_APP_URL }}
         run: |
           if [ -z "$CRON_SECRET" ] || [ -z "$APP_URL" ]; then
-            echo "Skipping: set repository secrets CRON_SECRET and MATCH_FIT_APP_URL (e.g. https://match-fit.net)."
-            exit 0
+            echo "::error::Missing repository secrets CRON_SECRET and/or MATCH_FIT_APP_URL (e.g. https://match-fit.net). The cron job is NOT running."
+            exit 1
           fi
           URL="${APP_URL%/}/api/cron/content-calendar-sync"
           echo "GET $URL"
