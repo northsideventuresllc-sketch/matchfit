@@ -210,7 +210,7 @@ Applies to any file touching AI features (`**/*ai*.ts`, `**/ai-vault/**`):
 2. Provider order: Claude (auto model) → Gemini primary → Gemini backup → fail.
 3. Keys live in `platform_secrets` (AI Vault), never in source.
 4. Pick `kind` + optional `complexity` so Claude model auto-selection fits the task.
-5. OpenAI is DALL·E image generation only (`generateStaticMedia`), not a text fallback.
+5. Image generation is free-tier Gemini only (`generateStaticMedia` in `@/lib/content-calendar/media-generation`) — `responseModalities: ["IMAGE"]` + `imageConfig.aspectRatio`, hosted in NI Brain Storage. Nothing routes to OpenAI/DALL·E or any other paid image API, and there is no paid fallback when free quota runs out.
 6. See `docs/ai-vault.md` for Hermes and cross-repo standards.
 
 ---

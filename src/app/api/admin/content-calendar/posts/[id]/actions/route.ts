@@ -108,9 +108,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       case "generate_media": {
         await updatePostMedia({ postId: id, mediaUrl: null, mediaStatus: "generating" });
         const result = await generateStaticMedia(parsed.data.prompt);
-        if (!result) {
+        if (!result.ok) {
           await updatePostMedia({ postId: id, mediaUrl: null, mediaStatus: "failed" });
-          return NextResponse.json({ error: "Image generation failed. Check OPENAI_API_KEY." }, { status: 502 });
+          // Surface the actual reason (quota / missing key / no image / upload) instead of a
+          // generic message — a silent failure here is what hid the dead generator for days.
+          return NextResponse.json({ error: `Image generation failed: ${result.reason}` }, { status: 502 });
         }
         await updatePostMedia({ postId: id, mediaUrl: result.url, mediaStatus: "ready" });
         await recordContentLearning({

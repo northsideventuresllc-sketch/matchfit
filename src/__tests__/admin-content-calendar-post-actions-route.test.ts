@@ -91,7 +91,7 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
       },
     ]);
     mockSerializePostForClient.mockReturnValue({ id: "row_1_client" });
-    mockGenerateStaticMedia.mockResolvedValue({ url: "https://cdn.matchfit.test/generated.png" });
+    mockGenerateStaticMedia.mockResolvedValue({ ok: true, url: "https://cdn.matchfit.test/generated.png" });
   });
 
   it("returns 401 when requester is not an authenticated admin", async () => {
@@ -308,7 +308,10 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
   });
 
   it("returns 502 and marks media generation failed when no image is produced", async () => {
-    mockGenerateStaticMedia.mockResolvedValueOnce(null);
+    mockGenerateStaticMedia.mockResolvedValueOnce({
+      ok: false,
+      reason: "Gemini primary (gemini-3.1-flash-image) returned no image in the response",
+    });
 
     const res = await POST(
       postJson({
@@ -319,7 +322,10 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     );
 
     expect(res.status).toBe(502);
-    await expect(res.json()).resolves.toEqual({ error: "Image generation failed. Check OPENAI_API_KEY." });
+    await expect(res.json()).resolves.toEqual({
+      error:
+        "Image generation failed: Gemini primary (gemini-3.1-flash-image) returned no image in the response",
+    });
     expect(mockUpdatePostMedia).toHaveBeenNthCalledWith(1, {
       postId: "post_1",
       mediaUrl: null,

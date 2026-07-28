@@ -16,4 +16,4 @@ When adding or changing AI features:
 4. Pick `kind` and optional `complexity` so Claude model auto-selection fits the task (`classification` = haiku, `research` = opus, etc.).
 5. See `docs/ai-vault.md` for Hermes and cross-repo standards.
 
-OpenAI is only for DALL·E image generation (`generateStaticMedia`), not text fallback.
+Image generation is free-tier Gemini only (`generateStaticMedia` in `@/lib/content-calendar/media-generation`), hosted in NI Brain Supabase Storage. No paid image API, and no paid fallback on quota exhaustion — fail with the reason instead.
