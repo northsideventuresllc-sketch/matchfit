@@ -2,16 +2,19 @@ import { NextResponse } from "next/server";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { isEstWeekend } from "@/lib/outreach-lanes";
 import { runOutreachNationwideFinder } from "@/lib/outreach-nationwide-finder";
+import { hasValidCoworkSecret } from "@/lib/require-cowork-secret";
 
 export const dynamic = "force-dynamic";
 
-function authorize(req: Request): boolean {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) return false;
-  const auth = req.headers.get("authorization");
-  if (auth === `Bearer ${secret}`) return true;
-  const q = new URL(req.url).searchParams.get("secret");
-  return q === secret;
+/**
+ * Accepts EITHER the Vercel `CRON_SECRET` (what GitHub Actions sends) or the DB-backed
+ * `COWORK_POLL_SECRET` from `platform_secrets`, via `hasValidCoworkSecret` — the fallback
+ * added in 2.9.1-beta so an operator can drive this without Vercel dashboard access.
+ * Checking only `process.env.CRON_SECRET` makes a route unfireable by hand the moment the
+ * env value and the stored copy drift apart.
+ */
+function authorize(req: Request): Promise<boolean> {
+  return hasValidCoworkSecret(req);
 }
 
 /**
@@ -22,7 +25,7 @@ function authorize(req: Request): boolean {
  * Monday–Friday only); pass `?force=1` to run anyway for a manual test.
  */
 async function runCron(req: Request) {
-  if (!authorize(req)) {
+  if (!(await authorize(req))) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
   const force = new URL(req.url).searchParams.get("force") === "1";

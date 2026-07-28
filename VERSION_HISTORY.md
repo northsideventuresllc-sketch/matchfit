@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-07-28** `2.11.0-beta` → `2.11.1-beta` (**patch** — Cron routes accept DB-backed Cowork secret so a stuck media batch can be fired by hand)
 - **2026-07-27** `2.10.0-beta` → `2.11.0-beta` (**minor** — Outreach lead finder: nationwide online coaches, 5 Instagram + 5 email leads every weekday at 8am ET)
 - **2026-07-27** `2.9.3-beta` → `2.10.0-beta` (**minor** — Pending page: see when approved posts get built and posted, and send any back to drafts)
 - **2026-07-26** `2.9.2-beta` → `2.9.3-beta` (**patch** — Auto-post approved content to Facebook and Instagram from the admin portal)

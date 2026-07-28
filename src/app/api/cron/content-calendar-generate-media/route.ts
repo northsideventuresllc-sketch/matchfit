@@ -6,17 +6,23 @@ import {
 import { getPendingCoworkJobs, updateCoworkJobStatus } from "@/lib/content-calendar/cowork-jobs";
 import { ensureContentCalendarV22Schema } from "@/lib/ensure-content-hub-schema";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
+import { hasValidCoworkSecret } from "@/lib/require-cowork-secret";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-function authorize(req: Request): boolean {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) return false;
-  const auth = req.headers.get("authorization");
-  if (auth === `Bearer ${secret}`) return true;
-  const q = new URL(req.url).searchParams.get("secret");
-  return q === secret;
+/**
+ * Accepts EITHER the Vercel `CRON_SECRET` (what GitHub Actions sends) or the DB-backed
+ * `COWORK_POLL_SECRET` from `platform_secrets`, via `hasValidCoworkSecret`.
+ *
+ * The DB fallback exists deliberately (added 2.9.1-beta) so an operator can drive this
+ * without Vercel dashboard access. Checking only `process.env.CRON_SECRET` here made the
+ * route unfireable by hand whenever the env value and the stored copy had drifted apart —
+ * which is exactly what happened on 2026-07-27, leaving an approved batch stuck with no
+ * media and no way to kick it.
+ */
+function authorize(req: Request): Promise<boolean> {
+  return hasValidCoworkSecret(req);
 }
 
 type BriefPrompt = {
@@ -49,7 +55,7 @@ function framePrompt(base: string, postType: string | undefined, index: number, 
  * reason. Runs on a schedule ahead of each posting window.
  */
 export async function GET(req: Request) {
-  if (!authorize(req)) {
+  if (!(await authorize(req))) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
