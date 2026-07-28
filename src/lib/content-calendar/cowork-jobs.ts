@@ -67,7 +67,10 @@ export async function updateCoworkJobStatus(args: {
 }): Promise<void> {
   const now = new Date().toISOString();
   const patch: Record<string, unknown> = { status: args.status };
-  if (args.status === "dispatched") patch.dispatched_at = now;
+  // Stamp dispatched_at on ANY move off "queued", not only the "dispatched"
+  // status. Nothing ever wrote that status, so the queue had no liveness
+  // signal at all and a stalled runner looked identical to an idle one.
+  if (args.status !== "queued") patch.dispatched_at = now;
   if (args.status === "complete" || args.status === "failed") patch.completed_at = now;
   if (args.result !== undefined) patch.result = args.result;
   if (args.error !== undefined) patch.error = args.error;
