@@ -5,6 +5,7 @@ import { fireOutreachAxonEvent, type OutreachAxonLeadRef } from "@/lib/outreach-
 import { isEstWeekend, startOfEstDayUtc } from "@/lib/outreach-lanes";
 import { OUTREACH_FOLLOW_UP_REMINDER_INTERVAL_HOURS } from "@/lib/outreach-types";
 import { prisma } from "@/lib/prisma";
+import { scopedToMatchFit } from "@/lib/outreach-venture-scope";
 
 const MS_HOUR = 3_600_000;
 
@@ -22,11 +23,12 @@ export type OutreachPastDueFlipSummary = {
 export async function processOutreachPastDueFlip(now = new Date()): Promise<OutreachPastDueFlipSummary> {
   await ensureOutreachHubSchema();
   const startOfToday = startOfEstDayUtc(now);
-  const where = {
+  // Match Fit lane only. Another venture's leads follow their own cron and their own send key.
+  const where = scopedToMatchFit({
     deletedAt: null,
     outreachLane: "today",
     queuedForDate: { lt: startOfToday },
-  } as const;
+  });
   const data = { outreachLane: "past_due" };
 
   const [ig, fb, em] = await Promise.all([
@@ -92,7 +94,9 @@ async function remindStage(
   const remindedField =
     stage === "follow_up_1" ? "followUp1LastRemindedAt" : "followUp2LastRemindedAt";
 
-  const where = {
+  // Match Fit lane only — an NI Services lead must never be chased by the Match Fit cron,
+  // which sends with the Match Fit Resend key.
+  const where = scopedToMatchFit({
     deletedAt: null,
     archivedAt: null,
     // A lead marked dead, or one that has already replied and is waiting on JB's response, must
@@ -103,7 +107,7 @@ async function remindStage(
     outreachLane: stage,
     [dueField]: { lte: now },
     OR: [{ [remindedField]: null }, { [remindedField]: { lte: reminderCutoff } }],
-  } as Record<string, unknown>;
+  }) as Record<string, unknown>;
 
   const [igLeads, emLeads] = await Promise.all([
     prisma.outreachInstagramLead.findMany({
