@@ -17,21 +17,21 @@ model Administrator {
   updatedAt DateTime @updatedAt
 
   /// Eight-character staff code (letters + digits), unique login identifier.
-  adminCode    String @unique
-  email        String @unique
-  passwordHash String
-  firstName    String
-  lastName     String
+  adminCode                String  @unique
+  email                    String  @unique
+  passwordHash             String
+  firstName                String
+  lastName                 String
   /// ISO date string YYYY-MM-DD (birth date; used to derive admin code at onboarding).
-  dateOfBirth  String
+  dateOfBirth              String
   /// JSON admin dashboard layout: section order and visibility preferences.
   adminDashboardLayoutJson String?
 
-  auditLogs        AdministratorAuditLog[]
-  goals            AdminGoal[]
-  aiMessages       AdminAiMessage[]
-  aiConversations  AdminAiConversation[]
-  emailTemplateOverrides     TransactionalEmailTemplateOverride[]
+  auditLogs                     AdministratorAuditLog[]
+  goals                         AdminGoal[]
+  aiMessages                    AdminAiMessage[]
+  aiConversations               AdminAiConversation[]
+  emailTemplateOverrides        TransactionalEmailTemplateOverride[]
   emailTemplateChangesRequested PendingTransactionalEmailTemplateChange[]
 
   @@map("administrators")
@@ -40,10 +40,10 @@ model Administrator {
 
 /// Active admin-edited overrides for automated transactional emails (keyed by kind).
 model TransactionalEmailTemplateOverride {
-  id        String   @id @default(cuid())
-  kind      String   @unique
+  id         String   @id @default(cuid())
+  kind       String   @unique
   fieldsJson String
-  updatedAt DateTime @updatedAt
+  updatedAt  DateTime @updatedAt
 
   updatedByAdminId String?
   updatedByAdmin   Administrator? @relation(fields: [updatedByAdminId], references: [id], onDelete: SetNull)
@@ -86,8 +86,8 @@ model AdministratorAuditLog {
   action String
 
   /// client | trainer
-  targetRole String
-  targetId   String
+  targetRole     String
+  targetId       String
   targetUsername String?
 
   ipAddress String?
@@ -108,7 +108,7 @@ model PlatformRevenueEvent {
   category String
 
   /// Total amount collected from the payer (includes pass-through fees where applicable).
-  revenueCents Int
+  revenueCents     Int
   /// Match Fit gross profit for this event (before operating costs; not net income).
   grossProfitCents Int
 
@@ -144,7 +144,7 @@ model AdminGoal {
   targetMetric String?
   targetValue  Int?
   deadline     DateTime?
-  status       String   @default("ACTIVE")
+  status       String    @default("ACTIVE")
 
   @@index([administratorId, status])
   @@map("admin_goals")
@@ -204,9 +204,9 @@ model SiteAnalyticsEvent {
   /// Same-origin destination path for link clicks (internal navigation).
   targetPath String?
   /// External URL for link clicks (truncated).
-  targetUrl String?
+  targetUrl  String?
   /// Anchor text or aria-label when available.
-  linkLabel String?
+  linkLabel  String?
 
   /// Random cookie id — not tied to client/trainer accounts.
   visitorId String
@@ -236,7 +236,7 @@ model SignupFormProgress {
   updatedAt DateTime @updatedAt
 
   /// client | trainer
-  role String
+  role      String
   /// Stable browser id from site analytics cookie.
   visitorId String
   email     String?
@@ -266,8 +266,8 @@ model TransactionalEmailDelivery {
   subject  String
 
   /// sent | skipped_prefs | skipped_no_recipient | failed
-  status String
-  resendId String?
+  status       String
+  resendId     String?
   errorMessage String?
 
   clientId  String?
@@ -296,8 +296,8 @@ model SupportInboxMessage {
   status String @default("unread")
 
   /// Reply sent from the admin portal (MF-SUPPORT-INBOX).
-  replyBody   String?
-  repliedAt   DateTime?
+  replyBody    String?
+  repliedAt    DateTime?
   replyEmailId String?
 
   @@index([createdAt])
@@ -338,16 +338,16 @@ model AdCampaignRegistry {
   updatedAt DateTime @updatedAt
 
   /// Platform-native campaign ID from Ads Manager / Google Ads / TikTok Ads.
-  campaignId String
+  campaignId  String
   /// google | meta | tiktok
-  platform   String
-  name       String
+  platform    String
+  name        String
   /// match_fit | ni | ncc | etc.
-  venture    String
+  venture     String
   budgetCents Int?
   /// ISO date (YYYY-MM-DD) — week the spend is attributed to.
-  weekOf     String?
-  notes      String?
+  weekOf      String?
+  notes       String?
 
   @@index([platform, weekOf])
   @@index([venture, weekOf])
@@ -379,63 +379,63 @@ model Client {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  firstName       String
-  lastName        String
-  preferredName   String
-  username        String           @unique
-  phone           String
-  email           String           @unique
-  passwordHash    String
-  zipCode         String
-  dateOfBirth     String
-  termsAcceptedAt DateTime
+  firstName               String
+  lastName                String
+  preferredName           String
+  username                String    @unique
+  phone                   String
+  email                   String    @unique
+  passwordHash            String
+  zipCode                 String
+  dateOfBirth             String
+  termsAcceptedAt         DateTime
   /// When the user accepted the posted Privacy Policy (aligned with terms at sign-up / checkout).
   privacyPolicyAcceptedAt DateTime?
-  twoFactorEnabled Boolean @default(false)
+  twoFactorEnabled        Boolean   @default(false)
   /// Last-used delivery channel (EMAIL | SMS | VOICE | NONE); mirrors default `ClientTwoFactorChannel` for login.
-  twoFactorMethod String @default("NONE")
+  twoFactorMethod         String    @default("NONE")
 
   /// Transient login 2FA only: HMAC of the 6-digit code sent after password check (never plaintext). Cleared after verify or cancel. Channel enrollment uses `ClientTwoFactorChannel.verifyOtpHash` instead — see model docs below.
-  twoFactorOtpHash    String?
-  twoFactorOtpExpires DateTime?
+  twoFactorOtpHash       String?
+  twoFactorOtpExpires    DateTime?
   /// Wrong-code attempts during login 2FA; reset when a new code is issued or verification succeeds.
-  twoFactorLoginAttempts Int @default(0)
+  twoFactorLoginAttempts Int       @default(0)
 
   /// When true, session cookies use a longer lifetime; when false, shorter (see session helpers).
   stayLoggedIn Boolean @default(true)
 
   /// One-time nonce for email password-reset link (paired with signed JWT).
-  passwordChangeNonce    String?
-  passwordChangeExpires  DateTime?
-  passwordChangeOtpHash  String?
+  passwordChangeNonce      String?
+  passwordChangeExpires    DateTime?
+  passwordChangeOtpHash    String?
   passwordChangeOtpExpires DateTime?
 
-  stripeCustomerId     String?
-  stripeSubscriptionId String?
+  stripeCustomerId                    String?
+  stripeSubscriptionId                String?
   /// Mirrors Stripe subscription status for dashboard access control.
-  stripeSubscriptionActive Boolean @default(false)
+  stripeSubscriptionActive            Boolean   @default(false)
   /// Set from Stripe `livemode` on subscription sync (admin metrics count only `true`).
-  stripeBillingLiveMode Boolean?
+  stripeBillingLiveMode               Boolean?
   /// When subscription is inactive and `now` is after this instant, non-billing dashboard routes require renewal (null = no lock).
-  subscriptionGraceUntil DateTime?
+  subscriptionGraceUntil              DateTime?
   /// Set from Stripe `invoice.payment_succeeded` (and initial signup) for analytics / “recently paid” windows.
   stripeLastSubscriptionInvoicePaidAt DateTime?
   /// End of the card-free platform trial granted at sign-up (before payment is required).
-  platformTrialEndsAt DateTime?
+  platformTrialEndsAt                 DateTime?
   /// After the platform trial ends, clients have until this instant to add a card and subscribe.
-  paymentGraceUntil DateTime?
+  paymentGraceUntil                   DateTime?
   /// When set, login and dashboard access are blocked until the client pays to reactivate.
-  accountDeactivatedAt DateTime?
+  accountDeactivatedAt                DateTime?
   /// True once the client consumed their one-time platform trial (reactivation requires payment).
-  platformTrialConsumed Boolean @default(false)
+  platformTrialConsumed               Boolean   @default(false)
 
   /// FREEMIUM | VIP — VIP unlocks full platform access at $10/month.
-  clientPlanTier String @default("FREEMIUM")
+  clientPlanTier             String    @default("FREEMIUM")
   /// Stripe subscription id for VIP plan (separate from legacy platform subscription).
-  vipSubscriptionId String?
-  vipSubscriptionActive Boolean @default(false)
+  vipSubscriptionId          String?
+  vipSubscriptionActive      Boolean   @default(false)
   /// Rolling swipe counter for FREEMIUM tier (see `lib/client-plan-access.ts`).
-  freemiumSwipeCount Int @default(0)
+  freemiumSwipeCount         Int       @default(0)
   /// Start of the current 12-hour FREEMIUM swipe window.
   freemiumSwipeWindowStartAt DateTime?
 
@@ -464,25 +464,25 @@ model Client {
   /// Phone change: OTP sent to new number (or to current email as fallback); `pendingPhone` until confirmed.
   pendingPhone           String?
   phoneChangeOtpHash     String?
-  phoneChangeOtpExpires DateTime?
+  phoneChangeOtpExpires  DateTime?
   lastPhoneChangeRequest DateTime?
   lastEmailChangeRequest DateTime?
 
   twoFactorChannels ClientTwoFactorChannel[]
 
   /// JSON document: goals, service types, delivery modes, niche interests (see `lib/client-match-preferences.ts`).
-  matchPreferencesJson          String?
-  matchPreferencesCompletedAt   DateTime?
+  matchPreferencesJson        String?
+  matchPreferencesCompletedAt DateTime?
   /// When true, published client profile can be discovered by trainers who may send a nudge.
-  allowTrainerDiscovery Boolean @default(true)
+  allowTrainerDiscovery       Boolean   @default(true)
 
-  trainerNudges   TrainerClientNudge[]
-  savedTrainers   ClientSavedTrainer[]
+  trainerNudges         TrainerClientNudge[]
+  savedTrainers         ClientSavedTrainer[]
   /// Swipe-left on Find Trainers: excluded from swipe deck but still listed in scroll (until matched).
-  trainerBrowsePasses ClientTrainerBrowsePass[]
+  trainerBrowsePasses   ClientTrainerBrowsePass[]
   /// Trainer-initiated unmatch: hidden from this trainer’s discovery deck for 90 days.
   trainerDiscoverPasses TrainerClientBrowsePass[]
-  conversations   TrainerClientConversation[]
+  conversations         TrainerClientConversation[]
 
   safetySuspended   Boolean   @default(false)
   safetySuspendedAt DateTime?
@@ -498,43 +498,43 @@ model Client {
 
   notifications ClientNotification[]
 
-  fitHubPostLikes    TrainerFitHubPostLike[]
-  fitHubComments     TrainerFitHubComment[]
-  fitHubReposts      ClientFitHubRepost[]
-  fitHubPostReports  TrainerFitHubPostReport[]
-  fitHubPostShares   ClientFitHubPostShare[]
+  fitHubPostLikes   TrainerFitHubPostLike[]
+  fitHubComments    TrainerFitHubComment[]
+  fitHubReposts     ClientFitHubRepost[]
+  fitHubPostReports TrainerFitHubPostReport[]
+  fitHubPostShares  ClientFitHubPostShare[]
 
   /// JSON: rolling algorithm context built from daily questionnaire answers (see `lib/client-daily-questionnaire.ts`).
   dailyAlgorithmContextJson String?
 
-  dailyQuestionnaires ClientDailyQuestionnaire[]
-  bugReports         ClientBugReport[]
+  dailyQuestionnaires    ClientDailyQuestionnaire[]
+  bugReports             ClientBugReport[]
   productIdeaSubmissions ProductIdeaSubmission[]
 
   internalQaDailyCursor InternalQaClientDailyCursor?
 
   serviceTransactions TrainerClientServiceTransaction[] @relation("TrainerServiceTxClient")
-  trainerTokenGifts     ClientTrainerTokenGift[]
+  trainerTokenGifts   ClientTrainerTokenGift[]
 
-  bookedSessionsClient BookedTrainingSession[] @relation("BookedSessionClient")
-  diyEngagementsClient DiyPlanEngagement[]     @relation("DiyEngagementClient")
+  bookedSessionsClient               BookedTrainingSession[]             @relation("BookedSessionClient")
+  diyEngagementsClient               DiyPlanEngagement[]                 @relation("DiyEngagementClient")
   trainerPackageCancellationRequests TrainerPackageCancellationRequest[]
-  sessionPayoutDisputes               SessionPayoutDispute[]
+  sessionPayoutDisputes              SessionPayoutDispute[]
 
   /// Client-authored star reviews + optional testimonials for trainers they worked with.
   clientTrainerReviews ClientTrainerReview[]
 
-  trainerCoachingProfilesAsClient TrainerClientCoachingProfile[] @relation("CoachingProfileClient")
-  trainerGoalsForClient           TrainerClientGoal[]            @relation("GoalClient")
-  trainerSessionSummariesForClient TrainerClientSessionSummary[] @relation("SummaryClient")
+  trainerCoachingProfilesAsClient  TrainerClientCoachingProfile[] @relation("CoachingProfileClient")
+  trainerGoalsForClient            TrainerClientGoal[]            @relation("GoalClient")
+  trainerSessionSummariesForClient TrainerClientSessionSummary[]  @relation("SummaryClient")
 
   /// JSON toggles for optional public-profile fields (see `lib/optional-profile-visibility.ts`).
   optionalProfileVisibilityJson String?
   /// Set when the user deletes their account; row retained for FKs / safety records with PII scrubbed.
-  deidentifiedAt DateTime?
+  deidentifiedAt                DateTime?
   /// When the user requested deletion; permanent scrub runs at `accountDeletionFinalizeAt`.
-  accountDeletionRequestedAt DateTime?
-  accountDeletionFinalizeAt  DateTime?
+  accountDeletionRequestedAt    DateTime?
+  accountDeletionFinalizeAt     DateTime?
 
   /// Internal QA only: synthetic persona rows used for Match Fit owner sandbox (never visible to real users).
   internalQaSyntheticPersona Boolean @default(false)
@@ -592,8 +592,8 @@ model ClientTwoFactorChannel {
   verifyOtpHash    String?
   verifyOtpExpires DateTime?
 
-  lastCode    String?
-  expiresAt   DateTime?
+  lastCode  String?
+  expiresAt DateTime?
 
   /// Set when the user taps “Resend code” (login initial send clears this). Used only for the 60s resend throttle.
   lastEmailResendAt DateTime?
@@ -612,29 +612,29 @@ model PendingClientRegistration {
   createdAt DateTime @default(now())
   expiresAt DateTime
 
-  firstName       String
-  lastName        String
-  preferredName   String
-  username        String
-  phone           String
-  email           String
-  passwordHash    String
-  zipCode         String
-  dateOfBirth     String
-  termsAcceptedAt DateTime
+  firstName               String
+  lastName                String
+  preferredName           String
+  username                String
+  phone                   String
+  email                   String
+  passwordHash            String
+  zipCode                 String
+  dateOfBirth             String
+  termsAcceptedAt         DateTime
   privacyPolicyAcceptedAt DateTime?
 
   /// PENDING_2FA | AWAITING_PAYMENT
-  status              String    @default("PENDING_2FA")
-  twoFactorEnabled    Boolean   @default(false)
+  status           String    @default("PENDING_2FA")
+  twoFactorEnabled Boolean   @default(false)
   /// NONE | EMAIL | SMS | VOICE
-  twoFactorMethod     String
-  otpHash             String?
-  otpExpiresAt        DateTime?
+  twoFactorMethod  String
+  otpHash          String?
+  otpExpiresAt     DateTime?
 
   stayLoggedIn Boolean @default(true)
 
-  stripeCustomerId    String?
+  stripeCustomerId     String?
   stripeSubscriptionId String?
 
   /// When set, completing checkout marks this beta client waitlist row as REGISTERED.
@@ -668,38 +668,38 @@ model Trainer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  firstName String
-  lastName  String
-  username  String @unique
-  phone     String
-  email     String @unique
+  firstName    String
+  lastName     String
+  username     String  @unique
+  phone        String
+  email        String  @unique
   passwordHash String
-  bio       String?
+  bio          String?
 
-  preferredName      String?
-  pronouns           String?
-  ethnicity          String?
-  languagesSpoken    String?
-  fitnessNiches      String?
-  yearsCoaching      String?
-  genderIdentity     String?
-  profileImageUrl    String?
-  socialInstagram    String?
-  socialTiktok       String?
-  socialFacebook     String?
-  socialLinkedin     String?
-  socialOtherUrl     String?
+  preferredName   String?
+  pronouns        String?
+  ethnicity       String?
+  languagesSpoken String?
+  fitnessNiches   String?
+  yearsCoaching   String?
+  genderIdentity  String?
+  profileImageUrl String?
+  socialInstagram String?
+  socialTiktok    String?
+  socialFacebook  String?
+  socialLinkedin  String?
+  socialOtherUrl  String?
 
-  termsAcceptedAt DateTime?
+  termsAcceptedAt         DateTime?
   privacyPolicyAcceptedAt DateTime?
 
   twoFactorEnabled Boolean @default(false)
   /// Last-used delivery channel (EMAIL | SMS | VOICE | NONE).
-  twoFactorMethod String @default("NONE")
+  twoFactorMethod  String  @default("NONE")
 
   twoFactorOtpHash       String?
   twoFactorOtpExpires    DateTime?
-  twoFactorLoginAttempts Int      @default(0)
+  twoFactorLoginAttempts Int       @default(0)
 
   stayLoggedIn Boolean @default(true)
 
@@ -709,20 +709,20 @@ model Trainer {
   passwordChangeOtpExpires DateTime?
 
   optionalProfileVisibilityJson String?
-  deidentifiedAt DateTime?
-  accountDeletionRequestedAt DateTime?
-  accountDeletionFinalizeAt  DateTime?
+  deidentifiedAt                DateTime?
+  accountDeletionRequestedAt    DateTime?
+  accountDeletionFinalizeAt     DateTime?
 
   profile           TrainerProfile?
   twoFactorChannels TrainerTwoFactorChannel[]
 
-  clientNudges    TrainerClientNudge[]
-  savedByClients  ClientSavedTrainer[]
-  clientBrowsePasses ClientTrainerBrowsePass[]
+  clientNudges          TrainerClientNudge[]
+  savedByClients        ClientSavedTrainer[]
+  clientBrowsePasses    ClientTrainerBrowsePass[]
   /// Trainer passed / unmatched this client in discovery (90-day cooldown).
   trainerDiscoverPasses TrainerClientBrowsePass[]
-  conversations   TrainerClientConversation[]
-  discoverMatchBatches TrainerDiscoverMatchBatch[]
+  conversations         TrainerClientConversation[]
+  discoverMatchBatches  TrainerDiscoverMatchBatch[]
 
   fitHubPosts TrainerFitHubPost[]
 
@@ -737,39 +737,39 @@ model Trainer {
   safetySuspendedAt DateTime?
 
   /// Stripe customer for Independent Pro platform billing, FP tier subscriptions, and à la carte promote tokens.
-  stripeCustomerId     String?
-  stripeSubscriptionId String?
+  stripeCustomerId         String?
+  stripeSubscriptionId     String?
   /// Mirrors Stripe subscription status for dashboard access control after the free trial / FP tier billing.
-  stripeSubscriptionActive Boolean @default(false)
+  stripeSubscriptionActive Boolean   @default(false)
   /// When subscription is inactive and `now` is after this instant, non-billing dashboard routes require renewal.
-  subscriptionGraceUntil DateTime?
+  subscriptionGraceUntil   DateTime?
   /// End of the card-free Independent Pro platform trial granted at registration.
-  platformTrialEndsAt DateTime?
+  platformTrialEndsAt      DateTime?
   /// After the platform trial ends, trainers have until this instant to add a card and subscribe.
-  paymentGraceUntil DateTime?
+  paymentGraceUntil        DateTime?
   /// True once the trainer consumed their one-time platform trial (reactivation requires payment).
-  platformTrialConsumed Boolean @default(false)
+  platformTrialConsumed    Boolean   @default(false)
 
   /// When set, trainer login and dashboard access are blocked (trial unpaid, deferred fee ban, etc.).
   accountDeactivatedAt DateTime?
 
   /// Standard-tier deferred platform registration fee (trainers 31+ / post-beta).
-  registrationFeeDeferred Boolean @default(false)
-  registrationFeeDeferredBalanceCents Int @default(0)
-  registrationFeeDeferredStartAt DateTime?
-  registrationFeeDeferredDeadlineAt DateTime?
-  registrationFeeGraceDeadlineAt DateTime?
+  registrationFeeDeferred             Boolean   @default(false)
+  registrationFeeDeferredBalanceCents Int       @default(0)
+  registrationFeeDeferredStartAt      DateTime?
+  registrationFeeDeferredDeadlineAt   DateTime?
+  registrationFeeGraceDeadlineAt      DateTime?
   /// Trainer-chosen payout withhold % (minimum 20, maximum 100).
-  registrationFeeWithholdPct Int @default(20)
-  registrationFeeDeferredBannedAt DateTime?
+  registrationFeeWithholdPct          Int       @default(20)
+  registrationFeeDeferredBannedAt     DateTime?
   /// SHA-256 hash of W-9 SSN/TIN at ban time — blocks re-registration.
-  registrationFeeDeferredBanSsnHash String?
+  registrationFeeDeferredBanSsnHash   String?
 
   /// Internal QA only: synthetic persona rows for trainer-owner sandbox (never visible to real users).
   internalQaSyntheticPersona Boolean @default(false)
 
-  featuredRaffleEntries   FeaturedRaffleEntry[]
-  featuredPlacementBids   FeaturedPlacementBid[]
+  featuredRaffleEntries    FeaturedRaffleEntry[]
+  featuredPlacementBids    FeaturedPlacementBid[]
   featuredDailyAllocations FeaturedDailyAllocation[]
 
   tokenBalance              TrainerTokenBalance?
@@ -779,17 +779,17 @@ model Trainer {
   clientServiceTransactions TrainerClientServiceTransaction[] @relation("TrainerServiceTxTrainer")
   tokenGiftsReceived        ClientTrainerTokenGift[]
 
-  bookedSessionsTrainer BookedTrainingSession[] @relation("BookedSessionTrainer")
-  diyEngagementsTrainer DiyPlanEngagement[]     @relation("DiyEngagementTrainer")
-  sessionTrainerPunchIns SessionTrainerPunchIn[]
+  bookedSessionsTrainer              BookedTrainingSession[]             @relation("BookedSessionTrainer")
+  diyEngagementsTrainer              DiyPlanEngagement[]                 @relation("DiyEngagementTrainer")
+  sessionTrainerPunchIns             SessionTrainerPunchIn[]
   trainerPackageCancellationRequests TrainerPackageCancellationRequest[]
 
   businessMileageEntries TrainerBusinessMileageEntry[]
-  businessExpenses      TrainerBusinessExpense[]
+  businessExpenses       TrainerBusinessExpense[]
 
-  coachingProfiles TrainerClientCoachingProfile[] @relation("CoachingProfileTrainer")
-  clientGoalsAuthored TrainerClientGoal[]         @relation("GoalTrainer")
-  sessionSummariesAuthored TrainerClientSessionSummary[] @relation("SummaryTrainer")
+  coachingProfiles         TrainerClientCoachingProfile[] @relation("CoachingProfileTrainer")
+  clientGoalsAuthored      TrainerClientGoal[]            @relation("GoalTrainer")
+  sessionSummariesAuthored TrainerClientSessionSummary[]  @relation("SummaryTrainer")
 
   clientTrainerReviews ClientTrainerReview[]
 
@@ -801,17 +801,17 @@ model Trainer {
   internalQaDailyCursor InternalQaTrainerDailyCursor?
 
   /// External website / booking link (Independent + Elite tiers).
-  externalWebsiteUrl String?
+  externalWebsiteUrl     String?
   /// Elite dual-view dashboard: match_fit_pro | independent_fitness_pro
   eliteDashboardViewMode String?
 
-  fpDocuments           FpDocument[]
-  tierSwitchHistory     TierSwitchHistory[]
-  fpListingStats        FpListingStats?
-  featuredListings      FeaturedListing[]
-  fpPromoteTokenLedger  FpPromoteTokenLedger[]
-  supportGroupsCreated  SupportGroup[]        @relation("SupportGroupCreator")
-  fpAdIntegrations      FpAdIntegration[]
+  fpDocuments          FpDocument[]
+  tierSwitchHistory    TierSwitchHistory[]
+  fpListingStats       FpListingStats?
+  featuredListings     FeaturedListing[]
+  fpPromoteTokenLedger FpPromoteTokenLedger[]
+  supportGroupsCreated SupportGroup[]         @relation("SupportGroupCreator")
+  fpAdIntegrations     FpAdIntegration[]
 
   @@map("trainers")
   @@schema("public")
@@ -825,7 +825,7 @@ model TrainerClientNudge {
   trainerId String
   trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
   clientId  String
-  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   message String?
   readAt  DateTime?
@@ -873,11 +873,11 @@ model ClientBugReport {
   clientId String?
   client   Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  anonymous   Boolean @default(false)
-  reporterName String?
+  anonymous     Boolean @default(false)
+  reporterName  String?
   reporterEmail String?
-  category    String
-  description String
+  category      String
+  description   String
 
   @@index([clientId, createdAt])
   @@map("client_bug_reports")
@@ -916,11 +916,11 @@ model ClientNotification {
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   /// NUDGE | NEW_MATCH | DAILY_QUESTIONNAIRE | APP_UPDATE | BILLING | SYSTEM
-  kind    String
-  title   String
-  body    String
+  kind     String
+  title    String
+  body     String
   linkHref String?
-  readAt  DateTime?
+  readAt   DateTime?
 
   /// Set when the client archives or when the inbox auto-archives (30 days after createdAt).
   archivedAt DateTime?
@@ -948,11 +948,11 @@ model TrainerFitHubPost {
   /// When set in the future, the post stays hidden from public FitHub until this time.
   scheduledPublishAt DateTime?
   /// PUBLIC | PRIVATE — private posts are only visible to the author in Premium MY CONTENT.
-  visibility String @default("PUBLIC")
+  visibility         String    @default("PUBLIC")
   /// JSON string array of normalized hashtag tokens (no #, lowercase).
-  hashtagsJson String?
+  hashtagsJson       String?
   /// JSON string array of image/video URLs for CAROUSEL posts (2+ items).
-  mediaUrlsJson String?
+  mediaUrlsJson      String?
 
   shareCount Int @default(0)
 
@@ -962,12 +962,12 @@ model TrainerFitHubPost {
   /// Internal QA trainer FitHub posts that must never appear in public/client feeds (author-only sandbox).
   internalQaSandboxPost Boolean @default(false)
 
-  likes           TrainerFitHubPostLike[]
-  comments        TrainerFitHubComment[]
-  reposts         ClientFitHubRepost[]
-  contentReports  TrainerFitHubPostReport[]
-  clientShares    ClientFitHubPostShare[]
-  promotions      TrainerFitHubPostPromotion[]
+  likes          TrainerFitHubPostLike[]
+  comments       TrainerFitHubComment[]
+  reposts        ClientFitHubRepost[]
+  contentReports TrainerFitHubPostReport[]
+  clientShares   ClientFitHubPostShare[]
+  promotions     TrainerFitHubPostPromotion[]
 
   @@index([trainerId, createdAt])
   @@map("trainer_fit_hub_posts")
@@ -1090,7 +1090,7 @@ model ClientSavedTrainer {
   createdAt DateTime @default(now())
 
   clientId  String
-  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
   trainerId String
   trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 
@@ -1110,7 +1110,7 @@ model ClientTrainerBrowsePass {
   createdAt DateTime @default(now())
 
   clientId  String
-  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
   trainerId String
   trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 
@@ -1131,7 +1131,7 @@ model TrainerClientBrowsePass {
   trainerId String
   trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
   clientId  String
-  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   /// When the coach last passed or unmatched this client (`createdAt` if null).
   lastPassedAt DateTime?
@@ -1161,8 +1161,8 @@ model TrainerTwoFactorChannel {
   verifyOtpHash    String?
   verifyOtpExpires DateTime?
 
-  lastCode    String?
-  expiresAt   DateTime?
+  lastCode  String?
+  expiresAt DateTime?
 
   /// Set when the user taps “Resend code” (login initial send clears this). Used only for the 60s resend throttle.
   lastEmailResendAt DateTime?
@@ -1179,59 +1179,59 @@ model TrainerProfile {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  trainerId String @unique
+  trainerId String  @unique
   trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 
-  hasSignedTOS           Boolean @default(false)
-  hasUploadedW9          Boolean @default(false)
+  hasSignedTOS                     Boolean   @default(false)
+  hasUploadedW9                    Boolean   @default(false)
   /// Legacy UI flag: founding tier uses reduced registration pricing (20% of Checkr), not a full waiver.
-  registrationFeeWaived Boolean @default(false)
-  hasPaidBackgroundFee   Boolean @default(false)
+  registrationFeeWaived            Boolean   @default(false)
+  hasPaidBackgroundFee             Boolean   @default(false)
   /// Amount paid to Checkr/vendor for background screening (cents), from webhook or mock.
-  backgroundCheckVendorPaidCents Int?
-  checkrCandidateId String?
-  checkrReportId    String?
+  backgroundCheckVendorPaidCents   Int?
+  checkrCandidateId                String?
+  checkrReportId                   String?
   /// Plan B: trainer requested Checkr invite (API or manual support queue).
   backgroundCheckInviteRequestedAt DateTime?
   /// Plan B: Match Fit staff confirmed Checkr invitation email was sent.
-  backgroundCheckInviteSentAt DateTime?
+  backgroundCheckInviteSentAt      DateTime?
   /// Portion of signup hold earmarked for Checkr (cents); captured when screening completes.
-  backgroundCheckEscrowCents Int?
+  backgroundCheckEscrowCents       Int?
   /// Platform registration portion of signup hold (cents).
-  platformEscrowCents Int?
+  platformEscrowCents              Int?
   /// FOUNDING_BG_COVERED | FOUNDING_BG_SURCHARGE_20PCT | STANDARD_100_MINUS_BG — set at trainer signup from launch slot.
-  registrationFeePricingMode String @default("FOUNDING_BG_SURCHARGE_20PCT")
-  hasPaidRegistrationFee Boolean @default(false)
-  registrationFeePaidCents Int?
+  registrationFeePricingMode       String    @default("FOUNDING_BG_SURCHARGE_20PCT")
+  hasPaidRegistrationFee           Boolean   @default(false)
+  registrationFeePaidCents         Int?
   /// Primary service ZIP (Atlanta beta); used for matching and display.
-  serviceZipCode String?
+  serviceZipCode                   String?
   /// When Atlanta in-person slots are full, overflow trainers keep a virtual-only founding slot.
-  virtualOnlyBetaSlot Boolean @default(false)
+  virtualOnlyBetaSlot              Boolean   @default(false)
   /// Vendor pipeline: NOT_STARTED | PENDING | APPROVED | NEEDS_FURTHER_REVIEW | DENIED
-  backgroundCheckStatus String @default("NOT_STARTED")
+  backgroundCheckStatus            String    @default("NOT_STARTED")
 
   /// Relative URL under `public/` (e.g. `/uploads/trainers/...`).
-  certificationUrl String?
+  certificationUrl                      String?
   /// Additional certs (PDF/image), optional.
-  otherCertificationUrl String?
+  otherCertificationUrl                 String?
   /// Optional additional cert — NOT_STARTED | PENDING | APPROVED | DENIED (does not block onboarding).
-  otherCertificationReviewStatus String @default("NOT_STARTED")
+  otherCertificationReviewStatus        String  @default("NOT_STARTED")
   /// CPT verification: NOT_STARTED | PENDING | APPROVED | DENIED
-  certificationReviewStatus String @default("NOT_STARTED")
+  certificationReviewStatus             String  @default("NOT_STARTED")
   /// Nutritionist / nutrition credential file (PDF/image).
-  nutritionistCertificationUrl String?
+  nutritionistCertificationUrl          String?
   /// Same status enum as CPT: NOT_STARTED | PENDING | APPROVED | DENIED
-  nutritionistCertificationReviewStatus String @default("NOT_STARTED")
+  nutritionistCertificationReviewStatus String  @default("NOT_STARTED")
 
   /// Onboarding step: which professional paths the trainer selected (drives required uploads).
-  onboardingTrackCpt        Boolean @default(false)
-  onboardingTrackNutrition Boolean @default(false)
+  onboardingTrackCpt                  Boolean @default(false)
+  onboardingTrackNutrition            Boolean @default(false)
   /// Mutually exclusive with CPT for catalog: CSCS / CES / accredited group fitness (see `trainer-specialist-roles.ts`).
-  onboardingTrackSpecialist Boolean @default(false)
+  onboardingTrackSpecialist           Boolean @default(false)
   /// When specialist track is on: slug from `SPECIALIST_ROLE_IDS`.
-  specialistProfessionalRole String?
-  specialistCertificationUrl String?
-  specialistCertificationReviewStatus String @default("NOT_STARTED")
+  specialistProfessionalRole          String?
+  specialistCertificationUrl          String?
+  specialistCertificationReviewStatus String  @default("NOT_STARTED")
 
   /// Legacy parallel field; keep in sync with vendor status where applicable.
   backgroundCheckReviewStatus String @default("NOT_STARTED")
@@ -1244,48 +1244,48 @@ model TrainerProfile {
   w9SelfServeEmailOtpExpires DateTime?
 
   /// When background screening last returned APPROVED (drives 12-month renewal cycle).
-  backgroundCheckClearedAt DateTime?
+  backgroundCheckClearedAt           DateTime?
   /// Set when we notify the trainer that renewal is due within ~30 days.
   backgroundCheckExpiryWarningSentAt DateTime?
 
   /// After signup fee is authorized (held); trainer may use the dashboard in limited mode.
-  limitedDashboardUnlockedAt DateTime?
+  limitedDashboardUnlockedAt           DateTime?
   /// Onboarding fee must be authorized within 7 days of account creation (TOS acceptance).
-  onboardingFeePaymentDeadlineAt DateTime?
+  onboardingFeePaymentDeadlineAt       DateTime?
   /// Set when the onboarding fee deadline passes without payment.
-  onboardingFeePaymentExpiredAt DateTime?
+  onboardingFeePaymentExpiredAt        DateTime?
   /// Seven-day cert + background-check window starts when the trainer account is created.
-  complianceWindowStartedAt DateTime?
+  complianceWindowStartedAt            DateTime?
   /// When both cert and BG are submitted, the 7-day window pauses until outcomes are known.
-  complianceWindowPausedAt DateTime?
+  complianceWindowPausedAt             DateTime?
   /// After a cert denial, trainer has until this time to re-upload (resets the 7-day clock).
-  complianceCertReuploadDeadlineAt DateTime?
+  complianceCertReuploadDeadlineAt     DateTime?
   /// When BG needs human review, trainer has 28 days to work with Match Fit staff (7-day clock stays paused).
-  complianceHumanReviewDeadlineAt DateTime?
-  complianceCertFailedAttempts Int @default(0)
-  complianceWindowExpiredAt DateTime?
+  complianceHumanReviewDeadlineAt      DateTime?
+  complianceCertFailedAttempts         Int       @default(0)
+  complianceWindowExpiredAt            DateTime?
   /// Stripe PaymentIntent id for platform onboarding hold (manual capture until full compliance).
-  registrationFeeHoldPaymentIntentId String?
+  registrationFeeHoldPaymentIntentId   String?
   /// NOT_STARTED | HELD | CAPTURED | CANCELED | DEFERRED
-  registrationFeeHoldStatus String @default("NOT_STARTED")
+  registrationFeeHoldStatus            String    @default("NOT_STARTED")
   /// Stripe PaymentIntent id for background-check escrow (manual capture when Checkr screening completes).
   backgroundCheckEscrowPaymentIntentId String?
   /// NOT_STARTED | HELD | CAPTURED | CANCELED
-  backgroundCheckEscrowHoldStatus String @default("NOT_STARTED")
+  backgroundCheckEscrowHoldStatus      String    @default("NOT_STARTED")
   /// BETA FitHub / Premium Page promo end (aligned with Independent Pro 60-day platform trial at registration).
-  fitHubPromoEndsAt DateTime?
+  fitHubPromoEndsAt                    DateTime?
 
   /// Set when cert, BG, W-9, and TOS are satisfied — trainer is live for clients.
-  dashboardActivatedAt DateTime?
+  dashboardActivatedAt             DateTime?
   /// not_started | in_progress | completed — Onboarding Questionnaire (trainer Daily Questionnaires).
-  matchQuestionnaireStatus String @default("not_started")
+  matchQuestionnaireStatus         String    @default("not_started")
   /// Structured answers for search + AI matching (JSON string; SQLite has no Prisma Json type here).
-  matchQuestionnaireAnswers     String?
-  matchQuestionnaireCompletedAt DateTime?
+  matchQuestionnaireAnswers        String?
+  matchQuestionnaireCompletedAt    DateTime?
   /// Optional questionnaire completions (JSON array), excluding mandatory Onboarding Questionnaire.
   followUpQuestionnaireAnswersJson String?
   /// Plain-text profile for search + AI when pairing trainers with clients; regenerated on each Onboarding Questionnaire submit.
-  aiMatchProfileText String?
+  aiMatchProfileText               String?
 
   /// Published services & pricing (JSON). Managed only from the trainer dashboard—not the Onboarding Questionnaire.
   serviceOfferingsJson String?
@@ -1294,16 +1294,16 @@ model TrainerProfile {
   clientsCanPurchaseServicesFromProfile Boolean @default(true)
 
   /// When set, trainer completed Premium Page signup and can use Premium Hub (social-style creator tools).
-  premiumStudioEnabledAt DateTime?
+  premiumStudioEnabledAt           DateTime?
   /// Last time the trainer opened FitHub studio activity in Premium (unread counts vs main notification digest).
-  fitHubStudioActivitySeenAt DateTime?
+  fitHubStudioActivitySeenAt       DateTime?
   /// JSON string array of studio activity item ids marked read individually (`like-*`, `comment-*`, `repost-*`, `share-*`).
   fitHubStudioActivityReadKeysJson String?
 
   /// JSON: guidelines text, weekly windows, specific slots (see `lib/booking-availability.ts`).
-  bookingAvailabilityJson String?
+  bookingAvailabilityJson        String?
   /// IANA zone for interpreting availability (display + booking copy).
-  bookingTimezone String @default("America/New_York")
+  bookingTimezone                String  @default("America/New_York")
   /// When true, paying clients may complete self-service booking from the trainer’s public profile (in addition to chat invites).
   clientPublicSelfBookingEnabled Boolean @default(false)
 
@@ -1317,26 +1317,26 @@ model TrainerProfile {
   dashboardQuickLinkIdsJson String?
 
   /// FP account tier: match_fit_pro | match_fit_premium_pro | independent_fitness_pro | elite_fitness_pro
-  accountTier String?
-  tierSwitchedAt DateTime?
-  tierSwitchCount Int @default(0)
+  accountTier           String?
+  tierSwitchedAt        DateTime?
+  tierSwitchCount       Int       @default(0)
   /// Pending tier change (awaiting docs, background check, or billing cycle end).
-  pendingTier String?
+  pendingTier           String?
   /// active | paused | suspended | pending_docs | pending_background
-  listingStatus String @default("pending_docs")
-  listingPausedAt DateTime?
-  billingCycleEnd DateTime?
-  gracePeriodEnd DateTime?
-  docsSubmitted Boolean @default(false)
-  docsApproved Boolean @default(false)
-  docsRejectionCount Int @default(0)
-  docsLastRejectedAt DateTime?
+  listingStatus         String    @default("pending_docs")
+  listingPausedAt       DateTime?
+  billingCycleEnd       DateTime?
+  gracePeriodEnd        DateTime?
+  docsSubmitted         Boolean   @default(false)
+  docsApproved          Boolean   @default(false)
+  docsRejectionCount    Int       @default(0)
+  docsLastRejectedAt    DateTime?
   /// Once true, background check never required again on tier switches.
-  backgroundCheckPassed Boolean @default(false)
-  promoteTokensBalance Int @default(0)
-  promoteTokensResetAt DateTime?
+  backgroundCheckPassed Boolean   @default(false)
+  promoteTokensBalance  Int       @default(0)
+  promoteTokensResetAt  DateTime?
   /// Purchased discovery nudge credits (Independent Fitness Pro packs).
-  nudgeCreditsBalance Int @default(0)
+  nudgeCreditsBalance   Int       @default(0)
 
   @@map("trainer_profiles")
   @@schema("public")
@@ -1351,7 +1351,7 @@ model TrainerClientConversation {
   trainerId String
   trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
   clientId  String
-  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   /// POTENTIAL_CLIENT | LEAD | FIRST_TIME_CLIENT | REGULAR_CLIENT | FORMER_CLIENT
   relationshipStage String @default("POTENTIAL_CLIENT")
@@ -1360,24 +1360,24 @@ model TrainerClientConversation {
   officialChatStartedAt DateTime?
 
   /// When one party archived / unmatched; thread moves out of active inbox until revived or purged.
-  archivedAt        DateTime?
+  archivedAt         DateTime?
   /// Auto-delete archived row after this instant (typically `archivedAt` + 90 days).
-  archiveExpiresAt  DateTime?
+  archiveExpiresAt   DateTime?
   /// CLIENT | TRAINER — who chose delete/unmatch; only they may revive within the archive window.
   unmatchInitiatedBy String?
 
   /// Session credits from paid packages (per_session / multi_session / per_hour); DIY + monthly set unlimited flag instead.
-  sessionCreditsPurchased Int @default(0)
-  sessionCreditsUsed      Int @default(0)
+  sessionCreditsPurchased       Int     @default(0)
+  sessionCreditsUsed            Int     @default(0)
   /// When true (DIY or monthly-style purchase), booking does not consume session credits.
   bookingUnlimitedAfterPurchase Boolean @default(false)
 
   /// After trainer declines a client-initiated reschedule, client must purchase again before new invites (per policy).
   blockFreeSessionBookingUntilRepurchase Boolean @default(false)
 
-  messages               TrainerClientChatMessage[]
-  chatAdminReviewItems   ChatAdminReviewItem[]
-  bookedTrainingSessions BookedTrainingSession[]
+  messages                    TrainerClientChatMessage[]
+  chatAdminReviewItems        ChatAdminReviewItem[]
+  bookedTrainingSessions      BookedTrainingSession[]
   packageCancellationRequests TrainerPackageCancellationRequest[]
 
   internalQaDeferredOfficialChat InternalQaDeferredOfficialChat?
@@ -1392,8 +1392,8 @@ model TrainerClientConversation {
 
 /// Tracks which America/New_York calendar day the internal QA client simulation was last rebuilt for.
 model InternalQaClientDailyCursor {
-  clientId String @id
-  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId  String   @id
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   estDayKey String
   updatedAt DateTime @updatedAt
 
@@ -1403,8 +1403,8 @@ model InternalQaClientDailyCursor {
 
 /// Tracks which America/New_York calendar day the internal QA trainer simulation was last rebuilt for.
 model InternalQaTrainerDailyCursor {
-  trainerId String @id
-  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  trainerId String   @id
+  trainer   Trainer  @relation(fields: [trainerId], references: [id], onDelete: Cascade)
   estDayKey String
   updatedAt DateTime @updatedAt
 
@@ -1417,7 +1417,7 @@ model InternalQaDeferredOfficialChat {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
 
-  conversationId String @unique
+  conversationId String                    @unique
   conversation   TrainerClientConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   openAt         DateTime
   processedAt    DateTime?
@@ -1433,8 +1433,8 @@ model ClientTrainerReview {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  clientId String
-  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
   trainerId String
   trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 
@@ -1469,8 +1469,8 @@ model TrainerClientChatMessage {
   conversation   TrainerClientConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   /// TRAINER | CLIENT
-  authorRole String
-  body       String
+  authorRole     String
+  body           String
   /// Trainer-uploaded share: JSON `{ url, filename, mimeType, sizeBytes }` (public `/uploads/...` URL).
   attachmentJson String?
 
@@ -1502,7 +1502,7 @@ model ChatAdminReviewItem {
 
 /// Standard-tier trainer discovery: which client ids were served in a 12-hour UTC bucket (max 10).
 model TrainerDiscoverMatchBatch {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   trainerId String
   trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 
@@ -1560,7 +1560,7 @@ model BookedTrainingSession {
   trainerId String
   trainer   Trainer @relation("BookedSessionTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
   clientId  String
-  client    Client @relation("BookedSessionClient", fields: [clientId], references: [id], onDelete: Cascade)
+  client    Client  @relation("BookedSessionClient", fields: [clientId], references: [id], onDelete: Cascade)
 
   conversationId String?
   conversation   TrainerClientConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
@@ -1583,11 +1583,11 @@ model BookedTrainingSession {
   sessionDelivery String @default("IN_PERSON")
 
   /// HTTPS join link for virtual sessions (manual paste or created via trainer’s linked Zoom / Meet / Teams).
-  videoConferenceJoinUrl     String?
+  videoConferenceJoinUrl    String?
   /// MANUAL | GOOGLE_MEET | ZOOM | MICROSOFT_TEAMS
-  videoConferenceProvider    String?
-  videoConferenceExternalId  String?
-  videoConferenceSyncedAt    DateTime?
+  videoConferenceProvider   String?
+  videoConferenceExternalId String?
+  videoConferenceSyncedAt   DateTime?
 
   /// NONE | SCHEDULED | CHECK_IN_ACTIVE | AWAITING_CLIENT_FOLLOWUP | COMPLETED_LOCKED | AUTO_COMPLETED | CANCELLED_FOREGONE | CANCELLED_RESCHED_DECLINED_BY_CLIENT | CANCELLED_RESCHED_DECLINED_BY_TRAINER | CANCELLED_TRAINER_SUSPENDED | …
   fulfillmentStatus String @default("NONE")
@@ -1595,10 +1595,10 @@ model BookedTrainingSession {
   /// Net service-pool amount for this session after platform + processing fees (per ledger ÷ units × consumption).
   allocatedCoachServiceCents Int @default(0)
 
-  markedCompleteAt   DateTime?
-  markedNotCompleteAt DateTime?
-  sessionClosedAt    DateTime?
-  lastStripeRefundId String?
+  markedCompleteAt      DateTime?
+  markedNotCompleteAt   DateTime?
+  sessionClosedAt       DateTime?
+  lastStripeRefundId    String?
   lastStripeRefundCents Int?
 
   /// Stripe PI to use for prorated refunds tied to this seat (set when the client confirms the invite).
@@ -1608,9 +1608,9 @@ model BookedTrainingSession {
   payoutDisputes     SessionPayoutDispute[]
 
   /// Client Gate A closed (confirm, auto-silence, or revoke handled separately).
-  gateASatisfiedAt DateTime?
+  gateASatisfiedAt          DateTime?
   /// CLIENT_CONFIRM | AUTO_SILENCE
-  gateASource          String?
+  gateASource               String?
   gateARevokedBeforeStartAt DateTime?
 
   /// Trainer Gate B — manual only; payout stays on file until set.
@@ -1618,7 +1618,7 @@ model BookedTrainingSession {
 
   /// Starts after BOTH gates close: max(gate A, gate B) + 48h dispute buffer.
   payoutBufferEndsAt DateTime?
-  payoutFundsFrozen  Boolean @default(false)
+  payoutFundsFrozen  Boolean   @default(false)
 
   /// Billing units consumed by this session (1 for per-session; fractional hours for per_hour).
   sessionConsumedUnits Float @default(1)
@@ -1631,7 +1631,7 @@ model BookedTrainingSession {
   /// Set when marketplace cron evaluated punch-in compliance for this session (idempotent miss counter).
   punchMissEvaluatedAt DateTime?
 
-  punchIns SessionTrainerPunchIn[]
+  punchIns                      SessionTrainerPunchIn[]
   trainerBusinessMileageEntries TrainerBusinessMileageEntry[]
 
   @@index([status, confirmationDeadlineAt])
@@ -1647,16 +1647,16 @@ model SessionTrainerPunchIn {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
 
-  bookedTrainingSessionId String                 @unique
+  bookedTrainingSessionId String                @unique
   bookedTrainingSession   BookedTrainingSession @relation(fields: [bookedTrainingSessionId], references: [id], onDelete: Cascade)
   trainerId               String
-  trainer                 Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  trainer                 Trainer               @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 
-  latitude        Float
-  longitude       Float
-  accuracyMeters  Float?
+  latitude       Float
+  longitude      Float
+  accuracyMeters Float?
   /// WEB_GEOLOCATION | …
-  source String @default("WEB_GEOLOCATION")
+  source         String @default("WEB_GEOLOCATION")
 
   @@index([trainerId, createdAt])
   @@map("session_trainer_punch_ins")
@@ -1671,8 +1671,8 @@ model SessionPayoutDispute {
 
   bookedTrainingSessionId String
   bookedTrainingSession   BookedTrainingSession @relation(fields: [bookedTrainingSessionId], references: [id], onDelete: Cascade)
-  clientId String
-  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId                String
+  client                  Client                @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   answeredWasRescheduled Boolean
   answeredWasCancelled   Boolean
@@ -1720,9 +1720,9 @@ model TrainerPackageCancellationRequest {
   conversationId String
   conversation   TrainerClientConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   trainerId      String
-  trainer        Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  trainer        Trainer                   @relation(fields: [trainerId], references: [id], onDelete: Cascade)
   clientId       String
-  client         Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client         Client                    @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   reason String
 
@@ -1746,7 +1746,7 @@ model DiyPlanEngagement {
   trainerId String
   trainer   Trainer @relation("DiyEngagementTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
   clientId  String
-  client    Client @relation("DiyEngagementClient", fields: [clientId], references: [id], onDelete: Cascade)
+  client    Client  @relation("DiyEngagementClient", fields: [clientId], references: [id], onDelete: Cascade)
 
   engagementStartedAt DateTime
   firstDeliverByAt    DateTime
@@ -1756,25 +1756,25 @@ model DiyPlanEngagement {
   status String @default("PENDING_DELIVERY")
 
   /// Confirmation of receivables: trainer logs first deliverable (mirror of SLA delivery when applicable).
-  trainerReceivableLoggedAt DateTime?
+  trainerReceivableLoggedAt      DateTime?
   clientReceivableAcknowledgedAt DateTime?
   /// Payout-cycle hold: earliest time funds may release after payment + 14d (effective after handshake).
-  cycleFundsReleaseNotBeforeAt DateTime?
+  cycleFundsReleaseNotBeforeAt   DateTime?
 
   /// Calendar deadline (typically payment / engagement start + 14 days) for first DIY deliverable logging.
-  wallClockDeliverableDueAt DateTime?
+  wallClockDeliverableDueAt     DateTime?
   /// After wall-clock deadline without deliverable: client login attestation (YES_MARK_DONE | NO_NOT_RECEIVED).
-  clientPostDueAttestation   String?
-  clientPostDueAttestedAt    DateTime?
+  clientPostDueAttestation      String?
+  clientPostDueAttestedAt       DateTime?
   /// When client attests NO: trainer must upload within 24h or request extension.
   trainerUrgentUploadDeadlineAt DateTime?
 
-  extensionHoursRequested      Float?
-  extensionRequestedAt         DateTime?
+  extensionHoursRequested     Float?
+  extensionRequestedAt        DateTime?
   extensionClientDecisionByAt DateTime?
   /// PENDING | APPROVED | DECLINED | AUTO_APPROVED
-  extensionStatus            String?
-  extendedDeliverableDueAt   DateTime?
+  extensionStatus             String?
+  extendedDeliverableDueAt    DateTime?
 
   sourceServiceTransactionId String?
   sourceServiceTransaction   TrainerClientServiceTransaction? @relation(fields: [sourceServiceTransactionId], references: [id], onDelete: SetNull)
@@ -1800,15 +1800,15 @@ model UserBlock {
   reasonDetails  String?
 
   /// Client→trainer or mirrored on trainer→client: exclude this trainer from the client’s match browse decks.
-  hideTrainerFromClientMatchFeed Boolean @default(true)
+  hideTrainerFromClientMatchFeed            Boolean @default(true)
   /// Client→trainer or mirrored: hide this trainer’s FitHub posts from the client’s feed.
-  hideTrainerFromClientFithub Boolean @default(true)
+  hideTrainerFromClientFithub               Boolean @default(true)
   /// Trainer→client: exclude this client from the trainer’s discover-clients list.
-  hideClientFromTrainerDiscover Boolean @default(true)
+  hideClientFromTrainerDiscover             Boolean @default(true)
   /// Trainer→trainer: viewer (blocker) does not see blocked coach’s posts in the trainer FitHub feed.
   hideBlockedTrainerFromViewerTrainerFithub Boolean @default(false)
   /// When true, DMs and related APIs treat the pair as non-contactable until lifted.
-  blockDirectChat Boolean @default(true)
+  blockDirectChat                           Boolean @default(true)
 
   @@unique([blockerIsTrainer, blockerId, blockedIsTrainer, blockedId])
   @@index([blockedIsTrainer, blockedId])
@@ -1843,7 +1843,7 @@ model SafetyReport {
 /// Compliance / audit copy for account suspensions. Housekeeping purges via `purgeAfter` after lift.
 /// Product-facing fields: `id`, `reason`, optional `expiresAt` (row also links `SafetyReport` and subject).
 model SuspensionRecord {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   reason    String?
   expiresAt DateTime?
 
@@ -1855,7 +1855,7 @@ model SuspensionRecord {
   reportId String?
   report   SafetyReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
 
-  liftedAt DateTime?
+  liftedAt   DateTime?
   /// After lift: `liftedAt + 5 years`. Rows with `liftedAt` set and `purgeAfter` in the past may be deleted.
   purgeAfter DateTime
 
@@ -1878,7 +1878,7 @@ model FeaturedRaffleEntry {
   regionZipPrefix String
   displayDayKey   String
   /// Each entrant contributes this many tickets in the weighted draw (product default: 5).
-  ticketWeight Int @default(5)
+  ticketWeight    Int    @default(5)
 
   @@unique([trainerId, regionZipPrefix, displayDayKey])
   @@index([regionZipPrefix, displayDayKey])
@@ -1898,10 +1898,10 @@ model FeaturedPlacementBid {
   regionZipPrefix String
   displayDayKey   String
   /// Current committed bid total (non-refundable; increases when the trainer raises their bid).
-  amountCents    Int
+  amountCents     Int
   /// Amount successfully collected toward this bid window (≤ amountCents when a card charge is partial / pending).
-  paidCents      Int @default(0)
-  rulesVersion   String?
+  paidCents       Int       @default(0)
+  rulesVersion    String?
   rulesAcceptedAt DateTime?
 
   @@unique([trainerId, regionZipPrefix, displayDayKey])
@@ -1922,7 +1922,7 @@ model FeaturedDailyAllocation {
   trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 
   /// PAID_BID | RAFFLE
-  source   String
+  source    String
   /// Lower sorts earlier in the carousel (paid bids first).
   sortOrder Int
 
@@ -2020,13 +2020,13 @@ model TrainerClientServiceTransaction {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
 
-  clientId String
-  client   Client @relation("TrainerServiceTxClient", fields: [clientId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client  @relation("TrainerServiceTxClient", fields: [clientId], references: [id], onDelete: Cascade)
   trainerId String
   trainer   Trainer @relation("TrainerServiceTxTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
 
   completedAt DateTime
-  amountCents Int @default(0)
+  amountCents Int      @default(0)
 
   /// STRIPE_CHECKOUT | STAFF_IMPORT
   source String @default("STRIPE_CHECKOUT")
@@ -2049,13 +2049,13 @@ model TrainerClientServiceTransaction {
   /// When sale-token reward was applied (idempotent).
   trainerSaleTokensGrantedAt DateTime?
 
-  serviceId     String?
-  billingUnit   String?
+  serviceId                String?
+  billingUnit              String?
   /// Stripe / checkout label snapshot for receipts (e.g. tier title).
-  purchaseLabelSnapshot String?
+  purchaseLabelSnapshot    String?
   /// Credits this checkout added toward bookable sessions (0 when unlimited purchase).
-  sessionCreditsGranted        Int     @default(0)
-  bookingUnlimitedPurchase     Boolean @default(false)
+  sessionCreditsGranted    Int     @default(0)
+  bookingUnlimitedPurchase Boolean @default(false)
 
   /// When set, receipt/notifications for this row were delivered (idempotent with Stripe retries).
   purchaseSideEffectsAt DateTime?
@@ -2064,17 +2064,17 @@ model TrainerClientServiceTransaction {
   diyPlanEngagements   DiyPlanEngagement[]
 
   /// Gross card total (coach line + Match Fit admin line).
-  ledgerGrossTotalCents Int?
+  ledgerGrossTotalCents        Int?
   /// Estimated Stripe processing (non-refundable display + ledger).
   ledgerStripeFeeEstimateCents Int?
-  ledgerNetAfterFeesCents     Int?
+  ledgerNetAfterFeesCents      Int?
 
-  ledgerNetServicePoolCents Int?
-  ledgerNetAddonPoolCents     Int       @default(0)
-  ledgerTotalServiceUnits     Int?
-  ledgerTotalAddonUnits       Int       @default(0)
+  ledgerNetServicePoolCents    Int?
+  ledgerNetAddonPoolCents      Int  @default(0)
+  ledgerTotalServiceUnits      Int?
+  ledgerTotalAddonUnits        Int  @default(0)
   ledgerPerServiceUnitNetCents Int?
-  ledgerPerAddonUnitNetCents   Int       @default(0)
+  ledgerPerAddonUnitNetCents   Int  @default(0)
 
   /// SERVICE_UNIT | TIME_UNIT | CYCLE_DIY
   payoutModel String?
@@ -2118,9 +2118,9 @@ model TrainerBusinessExpense {
   trainerId String
   trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 
-  spentAt   DateTime
+  spentAt     DateTime
   amountCents Int
-  category  String
+  category    String
   description String?
 
   /// Heuristic flag for UI — not tax advice.
@@ -2140,10 +2140,10 @@ model TrainerClientCoachingProfile {
   trainerId String
   trainer   Trainer @relation("CoachingProfileTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
   clientId  String
-  client    Client @relation("CoachingProfileClient", fields: [clientId], references: [id], onDelete: Cascade)
+  client    Client  @relation("CoachingProfileClient", fields: [clientId], references: [id], onDelete: Cascade)
 
-  generalNotes         String?
-  medicalInjuryNotes   String?
+  generalNotes       String?
+  medicalInjuryNotes String?
 
   @@unique([trainerId, clientId])
   @@index([clientId])
@@ -2160,13 +2160,13 @@ model TrainerClientGoal {
   trainerId String
   trainer   Trainer @relation("GoalTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
   clientId  String
-  client    Client @relation("GoalClient", fields: [clientId], references: [id], onDelete: Cascade)
+  client    Client  @relation("GoalClient", fields: [clientId], references: [id], onDelete: Cascade)
 
   /// SHORT | LONG | GENERAL
-  horizon              String
-  goalText             String
-  completionCriteria   String
-  completedAt          DateTime?
+  horizon            String
+  goalText           String
+  completionCriteria String
+  completedAt        DateTime?
 
   @@index([trainerId, clientId])
   @@index([clientId])
@@ -2183,7 +2183,7 @@ model TrainerClientSessionSummary {
   trainerId String
   trainer   Trainer @relation("SummaryTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
   clientId  String
-  client    Client @relation("SummaryClient", fields: [clientId], references: [id], onDelete: Cascade)
+  client    Client  @relation("SummaryClient", fields: [clientId], references: [id], onDelete: Cascade)
 
   occurredAt DateTime
   body       String
@@ -2200,8 +2200,8 @@ model ClientTrainerTokenGift {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
 
-  clientId String
-  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
   trainerId String
   trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 
@@ -2222,13 +2222,13 @@ model BetaTrainerWaitlistEntry {
   /// QUEUED | INVITED | REGISTERED | EXPIRED | CANCELLED
   status String @default("QUEUED")
 
-  firstName         String
-  lastName          String
-  email             String
-  phone             String
-  desiredUsername   String
+  firstName       String
+  lastName        String
+  email           String
+  phone           String
+  desiredUsername String
   /// Home / service ZIP (5 digits) used for metro eligibility.
-  serviceZipCode    String
+  serviceZipCode  String
 
   inviteToken     String?   @unique
   invitedAt       DateTime?
@@ -2260,10 +2260,10 @@ model BetaClientWaitlistEntry {
   desiredUsername String
   homeZipCode     String
 
-  inviteToken          String?   @unique
-  invitedAt            DateTime?
-  slotExpiresAt        DateTime?
-  registeredClientId   String?   @unique
+  inviteToken        String?   @unique
+  invitedAt          DateTime?
+  slotExpiresAt      DateTime?
+  registeredClientId String?   @unique
 
   @@index([status, createdAt])
   @@index([email])
@@ -2284,31 +2284,31 @@ model PlatformSecret {
 
 /// Trainer outreach — Instagram profile leads (admin Outreach HQ).
 model OutreachInstagramLead {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  handle           String
-  profileUrl       String
-  niche            String
+  handle          String
+  profileUrl      String
+  niche           String
   /// ATL_LOCAL | VIRTUAL
-  targetGroup      String
-  whyMatchFit      String
-  likelihoodScore  Int      @default(50)
-  notes            String?
+  targetGroup     String
+  whyMatchFit     String
+  likelihoodScore Int     @default(50)
+  notes           String?
 
-  dmText           String
-  commentText      String
-  followUp1DmText  String   @default("")
-  followUp2DmText  String   @default("")
-  commentPostRef   String?
+  dmText            String
+  commentText       String
+  followUp1DmText   String  @default("")
+  followUp2DmText   String  @default("")
+  commentPostRef    String?
   genericInviteTail String?
   /// LIST_WITH_US | JOIN_AS_FP | BOTH — required before live send (Cowork SOP)
-  outreachIntent   String?
+  outreachIntent    String?
 
   /// LEAD | OUTREACH_SENT | FOLLOW_UP_1 | FOLLOW_UP_2 | RESPONSE_RECEIVED
-  status           String   @default("LEAD")
+  status             String @default("LEAD")
   /// ACTIVE_LEAD | FOLLOW_UP_NEEDED | STATUS_UNKNOWN | DEAD_LEAD
   autoClassification String @default("ACTIVE_LEAD")
 
@@ -2317,13 +2317,13 @@ model OutreachInstagramLead {
   followUp2SentAt    DateTime?
   responseReceivedAt DateTime?
 
-  dmTextEdited       Boolean @default(false)
-  commentTextEdited  Boolean @default(false)
-  generationBatchId  String?
-  createdByAdminId   String?
-  savedToHubAt       DateTime?
-  deadLeadAt         DateTime?
-  archivedAt         DateTime?
+  dmTextEdited        Boolean   @default(false)
+  commentTextEdited   Boolean   @default(false)
+  generationBatchId   String?
+  createdByAdminId    String?
+  savedToHubAt        DateTime?
+  deadLeadAt          DateTime?
+  archivedAt          DateTime?
   archivePurgeAfterAt DateTime?
 
   // --- Outreach HQ v2 (8-tab restructure) ---
@@ -2353,6 +2353,21 @@ model OutreachInstagramLead {
   /// Lane to restore the lead to when JB pulls it back out of a dispatch batch before it fires.
   dispatchPreviousLane    String?
 
+  // --- Lead taxonomy (JB LOCKED, NI-Brain Decision #388) ---
+  /// Nullable on purpose: existing rows keep working with NULLs. The legacy
+  /// `targetGroup` geo column above is retained for history and is NOT the source
+  /// of truth. Level 2 (category) is reached through `offering.category`, never
+  /// copied here, so the four-level path can never drift.
+  ventureId        String?
+  venture          Venture?         @relation(fields: [ventureId], references: [id], onDelete: SetNull)
+  offeringId       String?
+  offering         VentureOffering? @relation(fields: [offeringId], references: [id], onDelete: SetNull)
+  audienceId       String?
+  /// Named `taxonomyAudience` (not `audience`) because OutreachFacebookLead already
+  /// has a legacy `audience` TRAINER|CLIENT column. Kept identical on all four lead
+  /// models so callers never have to remember a per-table exception.
+  taxonomyAudience VentureAudience? @relation(fields: [audienceId], references: [id], onDelete: SetNull)
+
   @@index([deletedAt, status, createdAt])
   @@index([deletedAt, savedToHubAt])
   @@index([archivedAt, archivePurgeAfterAt])
@@ -2363,60 +2378,78 @@ model OutreachInstagramLead {
   @@index([hasUnrespondedReply])
   @@index([dispatchBatchId])
   @@index([handle])
+  @@index([ventureId])
+  @@index([offeringId])
+  @@index([audienceId])
   @@map("outreach_instagram_leads")
   @@schema("public")
 }
 
 /// Trainer outreach — Facebook page/group post leads.
 model OutreachFacebookLead {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  pageName         String
-  pageUrl          String
+  pageName        String
+  pageUrl         String
   /// TRAINER | CLIENT
-  audience         String   @default("TRAINER")
-  niche            String?
-  targetGroup      String
-  whyMatchFit      String
-  likelihoodScore  Int      @default(50)
-  notes            String?
+  audience        String  @default("TRAINER")
+  niche           String?
+  targetGroup     String
+  whyMatchFit     String
+  likelihoodScore Int     @default(50)
+  notes           String?
 
-  pagePostText     String
+  pagePostText      String
   genericInviteTail String?
   /// LIST_WITH_US | JOIN_AS_FP | BOTH (optional on Facebook posts)
-  outreachIntent   String?
+  outreachIntent    String?
 
-  status           String   @default("LEAD")
+  status             String @default("LEAD")
   autoClassification String @default("ACTIVE_LEAD")
 
   outreachSentAt     DateTime?
   responseReceivedAt DateTime?
 
-  pagePostTextEdited Boolean @default(false)
-  generationBatchId  String?
-  createdByAdminId   String?
-  savedToHubAt       DateTime?
-  deadLeadAt         DateTime?
-  archivedAt         DateTime?
+  pagePostTextEdited  Boolean   @default(false)
+  generationBatchId   String?
+  createdByAdminId    String?
+  savedToHubAt        DateTime?
+  deadLeadAt          DateTime?
+  archivedAt          DateTime?
   archivePurgeAfterAt DateTime?
 
   // --- Outreach HQ v2 (8-tab restructure) ---
   /// today | past_due | pending_response | dispatch_queued | pending | archived
   /// (Facebook page posts have no follow-up pipeline, so no follow_up_* lanes/fields.)
-  outreachLane            String    @default("today")
+  outreachLane           String    @default("today")
   /// Date (anchored to 00:00 America/New_York) the lead entered Today's Leads.
-  queuedForDate           DateTime?
+  queuedForDate          DateTime?
   /// archivedAt + 7 days. Hidden from Archives UI after this instant but NEVER deleted.
-  archiveUiHiddenAfterAt  DateTime?
-  hasUnrespondedReply     Boolean   @default(false)
-  replyReceivedAt         DateTime?
-  pendingResponseDraft    String?
-  pendingResponseDraftAt  DateTime?
-  dispatchBatchId         String?
-  dispatchPreviousLane    String?
+  archiveUiHiddenAfterAt DateTime?
+  hasUnrespondedReply    Boolean   @default(false)
+  replyReceivedAt        DateTime?
+  pendingResponseDraft   String?
+  pendingResponseDraftAt DateTime?
+  dispatchBatchId        String?
+  dispatchPreviousLane   String?
+
+  // --- Lead taxonomy (JB LOCKED, NI-Brain Decision #388) ---
+  /// Nullable on purpose: existing rows keep working with NULLs. The legacy
+  /// `targetGroup` geo column above is retained for history and is NOT the source
+  /// of truth. Level 2 (category) is reached through `offering.category`, never
+  /// copied here, so the four-level path can never drift.
+  ventureId        String?
+  venture          Venture?         @relation(fields: [ventureId], references: [id], onDelete: SetNull)
+  offeringId       String?
+  offering         VentureOffering? @relation(fields: [offeringId], references: [id], onDelete: SetNull)
+  audienceId       String?
+  /// Named `taxonomyAudience` (not `audience`) because OutreachFacebookLead already
+  /// has a legacy `audience` TRAINER|CLIENT column. Kept identical on all four lead
+  /// models so callers never have to remember a per-table exception.
+  taxonomyAudience VentureAudience? @relation(fields: [audienceId], references: [id], onDelete: SetNull)
 
   @@index([deletedAt, status, createdAt])
   @@index([deletedAt, savedToHubAt])
@@ -2426,38 +2459,41 @@ model OutreachFacebookLead {
   @@index([hasUnrespondedReply])
   @@index([dispatchBatchId])
   @@index([pageUrl])
+  @@index([ventureId])
+  @@index([offeringId])
+  @@index([audienceId])
   @@map("outreach_facebook_leads")
   @@schema("public")
 }
 
 /// Trainer outreach — email leads for fitness professionals.
 model OutreachEmailLead {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  name             String
-  email            String
-  businessName     String?
-  niche            String?
-  emailSourceUrl   String?
-  targetGroup      String
-  whyMatchFit      String
-  likelihoodScore  Int      @default(50)
-  notes            String?
+  name            String
+  email           String
+  businessName    String?
+  niche           String?
+  emailSourceUrl  String?
+  targetGroup     String
+  whyMatchFit     String
+  likelihoodScore Int     @default(50)
+  notes           String?
 
-  emailSubject     String
-  emailBody        String
-  followUp1EmailSubject String @default("")
-  followUp1EmailBody    String @default("")
-  followUp2EmailSubject String @default("")
-  followUp2EmailBody    String @default("")
-  genericInviteTail String?
+  emailSubject          String
+  emailBody             String
+  followUp1EmailSubject String  @default("")
+  followUp1EmailBody    String  @default("")
+  followUp2EmailSubject String  @default("")
+  followUp2EmailBody    String  @default("")
+  genericInviteTail     String?
   /// LIST_WITH_US | JOIN_AS_FP | BOTH — required before live send (Cowork SOP)
-  outreachIntent   String?
+  outreachIntent        String?
 
-  status           String   @default("LEAD")
+  status             String @default("LEAD")
   autoClassification String @default("ACTIVE_LEAD")
 
   outreachSentAt     DateTime?
@@ -2465,12 +2501,12 @@ model OutreachEmailLead {
   followUp2SentAt    DateTime?
   responseReceivedAt DateTime?
 
-  emailBodyEdited    Boolean @default(false)
-  generationBatchId  String?
-  createdByAdminId   String?
-  savedToHubAt       DateTime?
-  deadLeadAt         DateTime?
-  archivedAt         DateTime?
+  emailBodyEdited     Boolean   @default(false)
+  generationBatchId   String?
+  createdByAdminId    String?
+  savedToHubAt        DateTime?
+  deadLeadAt          DateTime?
+  archivedAt          DateTime?
   archivePurgeAfterAt DateTime?
 
   // --- Outreach HQ v2 (8-tab restructure) ---
@@ -2491,6 +2527,21 @@ model OutreachEmailLead {
   dispatchBatchId         String?
   dispatchPreviousLane    String?
 
+  // --- Lead taxonomy (JB LOCKED, NI-Brain Decision #388) ---
+  /// Nullable on purpose: existing rows keep working with NULLs. The legacy
+  /// `targetGroup` geo column above is retained for history and is NOT the source
+  /// of truth. Level 2 (category) is reached through `offering.category`, never
+  /// copied here, so the four-level path can never drift.
+  ventureId        String?
+  venture          Venture?         @relation(fields: [ventureId], references: [id], onDelete: SetNull)
+  offeringId       String?
+  offering         VentureOffering? @relation(fields: [offeringId], references: [id], onDelete: SetNull)
+  audienceId       String?
+  /// Named `taxonomyAudience` (not `audience`) because OutreachFacebookLead already
+  /// has a legacy `audience` TRAINER|CLIENT column. Kept identical on all four lead
+  /// models so callers never have to remember a per-table exception.
+  taxonomyAudience VentureAudience? @relation(fields: [audienceId], references: [id], onDelete: SetNull)
+
   @@index([deletedAt, status, createdAt])
   @@index([deletedAt, savedToHubAt])
   @@index([archivedAt, archivePurgeAfterAt])
@@ -2501,30 +2552,33 @@ model OutreachEmailLead {
   @@index([hasUnrespondedReply])
   @@index([dispatchBatchId])
   @@index([email])
+  @@index([ventureId])
+  @@index([offeringId])
+  @@index([audienceId])
   @@map("outreach_email_leads")
   @@schema("public")
 }
 
 /// Trainer outreach — other channels (LinkedIn, X, referrals, etc.).
 model OutreachOtherLead {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  contactLabel     String
-  contactUrl       String?
-  channelNotes     String?
-  niche            String?
-  targetGroup      String
-  whyMatchFit      String
-  likelihoodScore  Int      @default(50)
-  notes            String?
+  contactLabel    String
+  contactUrl      String?
+  channelNotes    String?
+  niche           String?
+  targetGroup     String
+  whyMatchFit     String
+  likelihoodScore Int     @default(50)
+  notes           String?
 
-  outreachText     String
+  outreachText      String
   genericInviteTail String?
 
-  status           String   @default("LEAD")
+  status             String @default("LEAD")
   autoClassification String @default("ACTIVE_LEAD")
 
   outreachSentAt     DateTime?
@@ -2532,13 +2586,31 @@ model OutreachOtherLead {
   followUp2SentAt    DateTime?
   responseReceivedAt DateTime?
 
-  outreachTextEdited Boolean @default(false)
+  outreachTextEdited Boolean   @default(false)
   generationBatchId  String?
   createdByAdminId   String?
   savedToHubAt       DateTime?
 
+  // --- Lead taxonomy (JB LOCKED, NI-Brain Decision #388) ---
+  /// Nullable on purpose: existing rows keep working with NULLs. The legacy
+  /// `targetGroup` geo column above is retained for history and is NOT the source
+  /// of truth. Level 2 (category) is reached through `offering.category`, never
+  /// copied here, so the four-level path can never drift.
+  ventureId        String?
+  venture          Venture?         @relation(fields: [ventureId], references: [id], onDelete: SetNull)
+  offeringId       String?
+  offering         VentureOffering? @relation(fields: [offeringId], references: [id], onDelete: SetNull)
+  audienceId       String?
+  /// Named `taxonomyAudience` (not `audience`) because OutreachFacebookLead already
+  /// has a legacy `audience` TRAINER|CLIENT column. Kept identical on all four lead
+  /// models so callers never have to remember a per-table exception.
+  taxonomyAudience VentureAudience? @relation(fields: [audienceId], references: [id], onDelete: SetNull)
+
   @@index([deletedAt, status, createdAt])
   @@index([deletedAt, savedToHubAt])
+  @@index([ventureId])
+  @@index([offeringId])
+  @@index([audienceId])
   @@map("outreach_other_leads")
   @@schema("public")
 }
@@ -2573,7 +2645,7 @@ model OutreachDailyTemplate {
   platform          String
   targetGroup       String
   genericInviteTail String
-  generationBatchId String   @unique
+  generationBatchId String @unique
 
   @@index([platform, targetGroup, createdAt])
   @@map("outreach_daily_templates")
@@ -2625,14 +2697,14 @@ model OutreachCoworkScanJob {
   updatedAt DateTime @updatedAt
 
   /// instagram (only platform needing a Cowork scan today; email scans run server-side via Graph)
-  platform String   @default("instagram")
+  platform String @default("instagram")
   /// queued | dispatched | running | complete | failed
-  status   String   @default("queued")
+  status   String @default("queued")
 
   /// Instructions handed to the Cowork session (which DMs/threads to check, how to report).
-  brief    Json
+  brief  Json
   /// Cowork result payload (found replies); null until complete/failed.
-  result   Json?
+  result Json?
 
   createdByAdminId String?
   dispatchedAt     DateTime?
@@ -2654,23 +2726,23 @@ model FpDocument {
   trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 
   /// business_registration | liability_insurance | professional_certification | facility_proof | headshot | business_logo
-  docType String
-  fileUrl String
-  submittedAt DateTime @default(now())
+  docType                 String
+  fileUrl                 String
+  submittedAt             DateTime  @default(now())
   /// pending | approved | rejected
-  status String @default("pending")
+  status                  String    @default("pending")
   /// approve | deny | review — initial automated reading (human still required).
-  autoSuggestedDecision String?
-  autoAnalysisSummary String?
-  autoAnalyzedAt DateTime?
-  reviewedBy String?
-  reviewedAt DateTime?
+  autoSuggestedDecision   String?
+  autoAnalysisSummary     String?
+  autoAnalyzedAt          DateTime?
+  reviewedBy              String?
+  reviewedAt              DateTime?
   /// Raw operator note when denying (before polish).
-  rejectionReasonRaw String?
+  rejectionReasonRaw      String?
   /// Grammar-checked copy used in trainer email.
   rejectionReasonPolished String?
   /// Legacy alias; prefer rejectionReasonPolished for emails.
-  rejectionReason String?
+  rejectionReason         String?
 
   @@index([trainerId, docType])
   @@index([trainerId, status])
@@ -2687,11 +2759,11 @@ model TierSwitchHistory {
   trainerId String
   trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 
-  fromTier String?
-  toTier   String
-  switchedAt DateTime @default(now())
+  fromTier    String?
+  toTier      String
+  switchedAt  DateTime @default(now())
   /// trainer | admin | system
-  initiatedBy String @default("trainer")
+  initiatedBy String   @default("trainer")
 
   @@index([trainerId, switchedAt])
   @@map("tier_switch_history")
@@ -2700,16 +2772,16 @@ model TierSwitchHistory {
 
 /// Public-facing listing stats for Independent + Elite FPs.
 model FpListingStats {
-  trainerId String @id
+  trainerId String  @id
   trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 
-  profileViews          Int @default(0)
-  clickThroughs         Int @default(0)
-  reviewCountInternal   Int @default(0)
-  reviewCountExternal   Int @default(0)
-  memberSince           DateTime @default(now())
-  activeListingsCount   Int @default(0)
-  updatedAt             DateTime @updatedAt
+  profileViews        Int      @default(0)
+  clickThroughs       Int      @default(0)
+  reviewCountInternal Int      @default(0)
+  reviewCountExternal Int      @default(0)
+  memberSince         DateTime @default(now())
+  activeListingsCount Int      @default(0)
+  updatedAt           DateTime @updatedAt
 
   @@map("fp_listing_stats")
   @@schema("public")
@@ -2730,11 +2802,11 @@ model FeaturedListing {
   metroArea  String?
   state      String?
 
-  bidAmount   Int
-  bidStart    DateTime
-  bidEnd      DateTime
+  bidAmount    Int
+  bidStart     DateTime
+  bidEnd       DateTime
   slotPosition Int?
-  isActive    Boolean @default(false)
+  isActive     Boolean  @default(false)
 
   @@index([regionTier, isActive, bidEnd])
   @@index([trainerId, bidEnd])
@@ -2751,8 +2823,8 @@ model FpPromoteTokenLedger {
   trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 
   /// credited | spent | purchased | expired
-  action String
-  amount Int
+  action      String
+  amount      Int
   referenceId String?
 
   @@index([trainerId, createdAt])
@@ -2766,17 +2838,17 @@ model SupportGroup {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  name        String
-  description String?
+  name          String
+  description   String?
   createdByFpId String
   createdByFp   Trainer @relation("SupportGroupCreator", fields: [createdByFpId], references: [id], onDelete: Cascade)
 
   /// public | listing_tied
-  groupType String @default("public")
+  groupType    String  @default("public")
   /// any | pro | elite
-  tierRequired String @default("any")
-  memberCount Int @default(0)
-  isActive    Boolean @default(true)
+  tierRequired String  @default("any")
+  memberCount  Int     @default(0)
+  isActive     Boolean @default(true)
 
   members SupportGroupMember[]
 
@@ -2793,9 +2865,9 @@ model SupportGroupMember {
   groupId String
   group   SupportGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
-  userId String
+  userId   String
   /// member | moderator | owner
-  role     String @default("member")
+  role     String   @default("member")
   joinedAt DateTime @default(now())
 
   @@unique([groupId, userId])
@@ -2814,8 +2886,8 @@ model FpAdIntegration {
   trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 
   /// facebook | google
-  platform String
-  integrationStatus String @default("disconnected")
+  platform          String
+  integrationStatus String    @default("disconnected")
   adAccountId       String?
   connectedAt       DateTime?
 
@@ -2833,3 +2905,143 @@ model FpAdIntegration {
 // `20260509150000_drop_supabase_template_public_profiles` removes it if you still
 // use that template. For `auth` in `schemas` without DDL on GoTrue, use Prisma
 // 6.13+ externally managed tables (`prisma.config.ts`).
+
+// ---------------------------------------------------------------------------
+// LEAD TAXONOMY — four levels, generic first (JB LOCKED, NI-Brain Decision #388)
+//
+//   1. Venture   → 2. Offering category → 3. Offering → 4. Audience
+//
+// These are REFERENCE TABLES, not enums and not free text. Adding a new venture
+// is an INSERT into `ventures` + its categories/offerings/audiences. It is never
+// a migration and never a code change. Do not add a venture-specific column here.
+//
+// Every outreach lead table carries NULLABLE FKs to venture / offering / audience
+// (category is reached through the offering, so it can never drift). Legacy rows
+// keep working with NULLs; `targetGroup` is retained untouched for history only —
+// the old ATL_LOCAL / VIRTUAL geo tagging is DEAD (Decision #342) and these FKs
+// are the source of truth going forward.
+// ---------------------------------------------------------------------------
+
+/// Level 1 — a venture (company) under Northside Ventures Group.
+model Venture {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Stable machine key, e.g. `match_fit`, `ni_services`.
+  slug        String  @unique
+  /// Name JB reads on screen, e.g. "Match Fit".
+  displayName String
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  /// Geography is PER VENTURE, never a global rule (Decision #342).
+  /// Free text on purpose so a new venture needs no migration: e.g.
+  /// `nationwide`, `regional`, `local`, `global`, `online_only`.
+  geographyScope String  @default("nationwide")
+  /// Plain-English note for JB, e.g. "Online / virtual coaches, nationwide."
+  geographyNote  String?
+
+  categories VentureOfferingCategory[]
+  offerings  VentureOffering[]
+  audiences  VentureAudience[]
+
+  instagramLeads OutreachInstagramLead[]
+  facebookLeads  OutreachFacebookLead[]
+  emailLeads     OutreachEmailLead[]
+  otherLeads     OutreachOtherLead[]
+
+  @@index([isActive, sortOrder])
+  @@map("ventures")
+  @@schema("public")
+}
+
+/// Level 2 — a category of offering belonging to one venture.
+model VentureOfferingCategory {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ventureId String
+  venture   Venture @relation(fields: [ventureId], references: [id], onDelete: Cascade)
+
+  slug        String
+  displayName String
+  description String?
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  offerings VentureOffering[]
+
+  @@unique([ventureId, slug])
+  @@index([ventureId, isActive, sortOrder])
+  @@map("venture_offering_categories")
+  @@schema("public")
+}
+
+/// Level 3 — a specific offering inside a category.
+model VentureOffering {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ventureId String
+  venture   Venture @relation(fields: [ventureId], references: [id], onDelete: Cascade)
+
+  categoryId String
+  category   VentureOfferingCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  slug        String
+  displayName String
+  /// Plain-English one-liner for JB's screens. Never show the slug.
+  summary     String?
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  /// DPMO PUSH FLEXIBILITY — JB LOCKED, NI-Brain Decision #389.
+  /// TWO INDEPENDENT SWITCHES. Never hard-wire them together: an offering can be
+  /// outreach-only, marketing-only, both, or neither (parked).
+  /// Outreach = a DM or an email to a person. Marketing = social content and ads.
+  pushableByOutreach  Boolean @default(false)
+  pushableByMarketing Boolean @default(false)
+
+  instagramLeads OutreachInstagramLead[]
+  facebookLeads  OutreachFacebookLead[]
+  emailLeads     OutreachEmailLead[]
+  otherLeads     OutreachOtherLead[]
+
+  @@unique([ventureId, slug])
+  @@index([categoryId, isActive, sortOrder])
+  @@index([ventureId, pushableByOutreach])
+  @@index([ventureId, pushableByMarketing])
+  @@map("venture_offerings")
+  @@schema("public")
+}
+
+/// Level 4 — a target audience belonging to one venture.
+/// Match Fit audiences are ACCOUNT TIERS (FP / IP / EP), never geography.
+model VentureAudience {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ventureId String
+  venture   Venture @relation(fields: [ventureId], references: [id], onDelete: Cascade)
+
+  /// Short code JB uses, e.g. `FP`, `IP`, `EP`, `B2C`, `B2B`.
+  code        String
+  displayName String
+  description String?
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  instagramLeads OutreachInstagramLead[]
+  facebookLeads  OutreachFacebookLead[]
+  emailLeads     OutreachEmailLead[]
+  otherLeads     OutreachOtherLead[]
+
+  @@unique([ventureId, code])
+  @@index([ventureId, isActive, sortOrder])
+  @@map("venture_audiences")
+  @@schema("public")
+}
