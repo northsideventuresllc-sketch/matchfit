@@ -274,7 +274,7 @@ export function ContentCalendarV2Client({ aiStatus }: { aiStatus: AiStatus }) {
       ) : null}
       {!aiStatus.configured ? <AdminPortalAlert variant="info">{aiStatus.message}</AdminPortalAlert> : null}
       {!aiStatus.media ? (
-        <AdminPortalAlert variant="info">OPENAI_API_KEY is required for image/media adjust generation.</AdminPortalAlert>
+        <AdminPortalAlert variant="info">{aiStatus.message}</AdminPortalAlert>
       ) : null}
       {error ? <AdminPortalAlert>{error}</AdminPortalAlert> : null}
       {notice ? <AdminPortalAlert variant="success">{notice}</AdminPortalAlert> : null}

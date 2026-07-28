@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
-import { createNiBrainClient, isNiBrainConfiguredAsync } from "@/lib/ni-brain-client";
+import {
+  safeMediaPathSegment as safeSegment,
+  uploadContentCalendarMedia,
+} from "@/lib/content-calendar/media-storage";
+import { isNiBrainConfiguredAsync } from "@/lib/ni-brain-client";
 import { hasValidCoworkSecret } from "@/lib/require-cowork-secret";
 
 export const dynamic = "force-dynamic";
-
-const MEDIA_BUCKET = "content-calendar-media";
-
-function safeSegment(value: string): string {
-  return value.trim().replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 80) || "file";
-}
 
 /**
  * POST /api/admin/content-calendar/v2/media-upload
@@ -43,15 +41,12 @@ export async function POST(req: Request) {
   const path = `${safeSegment(jobId)}/${safeSegment(label)}-${Date.now()}.${safeSegment(ext)}`;
 
   try {
-    const client = createNiBrainClient();
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const { error } = await client.storage
-      .from(MEDIA_BUCKET)
-      .upload(path, bytes, { contentType: file.type || "application/octet-stream", upsert: true });
-    if (error) throw new Error(error.message);
-
-    const { data } = client.storage.from(MEDIA_BUCKET).getPublicUrl(path);
-    return NextResponse.json({ url: data.publicUrl, path });
+    const uploaded = await uploadContentCalendarMedia({
+      bytes: new Uint8Array(await file.arrayBuffer()),
+      path,
+      contentType: file.type || "application/octet-stream",
+    });
+    return NextResponse.json({ url: uploaded.url, path: uploaded.path });
   } catch (e) {
     console.error("[content-calendar media-upload]", e);
     const message = e instanceof Error ? e.message : "Upload failed.";

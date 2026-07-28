@@ -11,7 +11,9 @@ import {
   CONTENT_CALENDAR_POST_TYPES,
   type ContentCalendarPostType,
 } from "@/lib/content-calendar/constants";
+import { MEDIA_DIMENSION_MATRIX } from "@/lib/content-calendar/content-prompts";
 import { normalizeTargetGroup } from "@/lib/content-calendar/content-rules";
+import { isMediaAspectRatio } from "@/lib/content-calendar/media-generation";
 import { addWeekdays, formatCalendarDate } from "@/lib/content-calendar/rotation";
 import { createNiBrainClient, type ContentCalendarPostRow } from "@/lib/ni-brain-client";
 import { resolveArchivePurgeAfter } from "@/lib/content-calendar/cowork-jobs";
@@ -217,6 +219,8 @@ async function buildMediaUrls(args: {
 
   const prompt = args.visualPrompt?.trim() || args.caption;
   const count = args.postType === "Carousel" ? 3 : 1;
+  // Real platform output shape, not the old hardcoded square.
+  const aspectRatio = MEDIA_DIMENSION_MATRIX[args.postType].aspectRatio;
   const urls: string[] = [];
   for (let i = 0; i < count; i += 1) {
     const framePrompt =
@@ -225,8 +229,12 @@ async function buildMediaUrls(args: {
         : args.postType === "Video"
           ? `${prompt}\nCreate a storyboard keyframe / thumbnail preview for this short-form video concept.`
           : prompt;
-    const result = await generateStaticMedia(framePrompt);
-    if (result?.url) urls.push(result.url);
+    const result = await generateStaticMedia(
+      framePrompt,
+      isMediaAspectRatio(aspectRatio) ? aspectRatio : "1:1",
+    );
+    if (result.ok) urls.push(result.url);
+    else console.error(`[content-calendar v2 draft media] ${args.postType} frame ${i + 1}: ${result.reason}`);
   }
 
   return { urls, status: urls.length ? "ready" : "failed" };

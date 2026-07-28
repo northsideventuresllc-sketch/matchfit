@@ -30,6 +30,7 @@ import {
   normalizeHashtags,
   normalizeTargetGroup,
 } from "@/lib/content-calendar/content-rules";
+import { isImageGenerationConfigured } from "@/lib/content-calendar/media-generation";
 import { getSocialPostingDateKeys } from "@/lib/content-calendar/posting-schedule";
 import { scanAndRecordSocialProfiles } from "@/lib/content-calendar/social-profile-scan";
 import { addWeekdays, formatCalendarDate, getContentCalendarRotation } from "@/lib/content-calendar/rotation";
@@ -800,33 +801,19 @@ Summarize performance for @theofficialmatchfit on Instagram, TikTok, Facebook, a
   return summary;
 }
 
-export async function generateStaticMedia(prompt: string): Promise<{ url: string } | null> {
-  const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) return null;
-
-  const res = await fetch("https://api.openai.com/v1/images/generations", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "dall-e-3",
-      prompt: `Match Fit fitness brand social graphic. Dark background #07080C, orange accent #FF7E00. ${normalizeCoachLanguage(prompt)}`.slice(
-        0,
-        3900,
-      ),
-      n: 1,
-      size: "1024x1024",
-      response_format: "url",
-    }),
-  });
-
-  if (!res.ok) return null;
-  const data = (await res.json()) as { data?: { url?: string }[] };
-  const url = data.data?.[0]?.url;
-  return url ? { url } : null;
-}
+/**
+ * Image generation lives in `@/lib/content-calendar/media-generation` (free-tier Gemini +
+ * NI Brain Storage hosting). Re-exported here so existing call sites and their mocks keep
+ * importing it from the content-calendar AI surface.
+ */
+export {
+  generateStaticMedia,
+  isImageGenerationConfigured,
+  isMediaAspectRatio,
+  MEDIA_ASPECT_RATIOS,
+  type GeneratedMediaResult,
+  type MediaAspectRatio,
+} from "@/lib/content-calendar/media-generation";
 
 export type PlatformOptimization = Record<string, { caption: string; hashtags: string[] }>;
 
@@ -903,10 +890,16 @@ export function getContentCalendarAiStatus(): { configured: boolean; niBrain: bo
   const niBrain = Boolean(
     process.env.NI_BRAIN_SUPABASE_URL?.trim() && process.env.NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY?.trim(),
   );
-  const media = Boolean(process.env.OPENAI_API_KEY?.trim());
+  // Images are generated on the free Gemini API and hosted in NI Brain Storage, so both are
+  // required. This used to report on OPENAI_API_KEY, which no longer generates anything.
+  const media = isImageGenerationConfigured() && niBrain;
   const parts: string[] = [vault.message];
   if (!niBrain) parts.push("Add NI Brain Supabase keys (Vercel env or platform_secrets) for learning persistence.");
-  if (!media) parts.push("Add OPENAI_API_KEY for static image generation.");
+  if (!media) {
+    parts.push(
+      "Add GEMINI_API_KEY plus NI Brain Supabase keys to platform_secrets for free image generation.",
+    );
+  }
   return {
     configured: vault.configured,
     niBrain,
