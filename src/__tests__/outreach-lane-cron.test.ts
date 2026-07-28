@@ -39,14 +39,37 @@ describe("processOutreachPastDueFlip", () => {
     const summary = await processOutreachPastDueFlip(new Date("2026-07-23T16:00:00Z"));
 
     expect(summary.total).toBe(3);
+    // The lane filter is now wrapped in the Match Fit venture scope: this cron is a MATCH FIT
+    // surface, so another venture's leads (NI Services) must not be flipped by it.
     expect(M.igUpdateMany).toHaveBeenCalledWith({
       where: expect.objectContaining({
-        outreachLane: "today",
-        deletedAt: null,
-        queuedForDate: { lt: expect.any(Date) },
+        AND: expect.arrayContaining([
+          expect.objectContaining({
+            outreachLane: "today",
+            deletedAt: null,
+            queuedForDate: { lt: expect.any(Date) },
+          }),
+        ]),
       }),
       data: { outreachLane: "past_due" },
     });
+  });
+
+  it("never flips a lead belonging to another venture", async () => {
+    M.igUpdateMany.mockResolvedValue({ count: 0 });
+    M.fbUpdateMany.mockResolvedValue({ count: 0 });
+    M.emUpdateMany.mockResolvedValue({ count: 0 });
+
+    await processOutreachPastDueFlip(new Date("2026-07-23T16:00:00Z"));
+
+    const where = M.igUpdateMany.mock.calls[0][0].where as {
+      AND: { OR?: unknown[] }[];
+    };
+    const scope = where.AND.find((c) => Array.isArray(c.OR));
+    expect(scope?.OR).toEqual([
+      { ventureId: null },
+      { venture: { is: { slug: "match_fit" } } },
+    ]);
   });
 });
 
@@ -111,9 +134,31 @@ describe("processOutreachFollowUpReminders", () => {
 
     expect(M.igFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ hasUnrespondedReply: false, deadLeadAt: null }),
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            expect.objectContaining({ hasUnrespondedReply: false, deadLeadAt: null }),
+          ]),
+        }),
       }),
     );
+  });
+
+  it("never chases a lead belonging to another venture", async () => {
+    M.igFindMany.mockResolvedValue([]);
+    M.emFindMany.mockResolvedValue([]);
+
+    await processOutreachFollowUpReminders(THURSDAY);
+
+    // An NI Services lead must never be picked up here: this cron sends on the Match Fit
+    // Resend account, and NI mail goes out from the NI account instead.
+    // The inner where carries its own OR (the reminder window), so match on the venture clause
+    // itself rather than on "the first branch that happens to have an OR".
+    const where = M.igFindMany.mock.calls[0][0].where as { AND: { OR?: Record<string, unknown>[] }[] };
+    const scope = where.AND.find((c) => c.OR?.some((b) => "ventureId" in b));
+    expect(scope?.OR).toEqual([
+      { ventureId: null },
+      { venture: { is: { slug: "match_fit" } } },
+    ]);
   });
 
   it("does nothing (no AXON event) when no leads are due", async () => {

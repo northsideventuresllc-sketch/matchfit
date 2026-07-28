@@ -14,6 +14,7 @@ import { prisma } from "@/lib/prisma";
 import { ensureOutreachHubSchema } from "@/lib/ensure-outreach-hub-schema";
 import { backfillOutreachHubLeads } from "@/lib/outreach-hub-backfill";
 import { computeOutreachHubStats, type OutreachHubStats } from "@/lib/outreach-hub-stats";
+import { scopedToMatchFit } from "@/lib/outreach-venture-scope";
 
 let outreachSchemaReady: Promise<void> | null = null;
 
@@ -147,7 +148,8 @@ const generationLeadWhere = {
 
 export async function listOutreachLeads(platform: OutreachPlatform, includeDeleted = false) {
   await ensureOutreachReady();
-  const where = includeDeleted ? {} : generationLeadWhere;
+  // Match Fit HQ only ever shows Match Fit leads — NI Services rows live in their own lane.
+  const where = scopedToMatchFit(includeDeleted ? {} : generationLeadWhere);
 
   if (platform === "instagram") {
     const rows = await prisma.outreachInstagramLead.findMany({
@@ -174,11 +176,11 @@ export async function listOutreachArchiveLeads(now = new Date()): Promise<Outrea
   await ensureOutreachReady();
   // Archived rows are never deleted (NI-Brain history preserved); they simply drop out of the
   // Archives UI once past their 7-day UI-hide window. Rows with no window set stay visible.
-  const archiveWhere = {
+  const archiveWhere = scopedToMatchFit({
     deletedAt: null,
     archivedAt: { not: null } as const,
     OR: [{ archiveUiHiddenAfterAt: null }, { archiveUiHiddenAfterAt: { gt: now } }],
-  };
+  });
 
   const [instagram, facebook, email] = await Promise.all([
     prisma.outreachInstagramLead.findMany({ where: archiveWhere, orderBy: { archivedAt: "desc" } }),
@@ -222,11 +224,11 @@ export async function listOutreachHubLeads(): Promise<OutreachHubLead[]> {
   } catch (e) {
     console.error("[listOutreachHubLeads] backfill skipped:", e);
   }
-  const hubWhere = {
+  const hubWhere = scopedToMatchFit({
     deletedAt: null,
     savedToHubAt: { not: null } as const,
     archivedAt: null,
-  };
+  });
 
   const [instagram, facebook, email] = await Promise.all([
     prisma.outreachInstagramLead.findMany({ where: hubWhere, orderBy: { savedToHubAt: "desc" } }),

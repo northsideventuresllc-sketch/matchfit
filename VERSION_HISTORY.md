@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-07-28** `2.13.0-beta` → `2.14.0-beta` (**minor** — NI Services outreach lane: separate NI Outreach HQ screen, venture-scoped Match Fit queries and cron, four-level lead taxonomy live)
 - **2026-07-28** `2.12.0-beta` → `2.13.0-beta` (**minor** — Lead taxonomy: four-level venture/category/offering/audience reference tables with independent DPMO outreach+marketing switches)
 - **2026-07-28** `2.11.1-beta` → `2.12.0-beta` (**minor** — Content calendar images generate on free Gemini with real aspect ratios; failures surface a reason and zero-image jobs no longer reach publishing)
 - **2026-07-28** `2.11.0-beta` → `2.11.1-beta` (**patch** — Cron routes accept DB-backed Cowork secret so a stuck media batch can be fired by hand)
