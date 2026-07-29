@@ -57,4 +57,4 @@ description: >-
 - Never change a post's format. A carousel stays a carousel.
 - Instagram crop must be set to **Original** — the editor defaults to 1:1 and cuts headlines off.
 - Audio is chosen **at posting time** because trending tracks change daily. Never publish a silent video.
-- No invented people, no fabricated testimonials.
+- **OUTREACH ONLY: never send outreach to a fake or fabricated person / lead.** This does **NOT** apply to content creation — a generated marketing graphic may show an illustrative persona with a name (e.g. a Fitness Pro card reading "Sarah Jenkins, Fitness Pro" is **correct, approved content**). Two agents have blocked good assets over the old blanket wording — see NI-Brain Decision #384.

@@ -102,7 +102,7 @@ Models rate their own output higher because it *reads familiar* to them, not bec
 **Three checkers, all read-only, all separate from the producer:**
 
 - **`proof-check`** — takes each claim and finds the artifact. No artifact = the claim is false. Tools: Read, Grep, Glob, DB read, fetch URL. **No write, no Bash-that-mutates.**
-- **`brand-gate`** — content only. Checks: white frame cropped out, format unchanged (a carousel stays a carousel), Instagram crop = Original, no invented people, hashtags are real high-volume tags, **Match Fit has zero geography anywhere**, AI label on.
+- **`brand-gate`** — content only. Checks: white frame cropped out, format unchanged (a carousel stays a carousel), Instagram crop = Original, hashtags are real high-volume tags, **Match Fit has zero geography anywhere**, AI label on.
 - **`blast-radius`** — reads every proposed action and sorts it into *act* vs *needs JB*. Runs **before** the batch is shown to JB, never after.
 
 **Cap the loop.** Producer → checker → one fix → re-check. If it fails twice, it goes to JB as a problem, not a third rewrite.

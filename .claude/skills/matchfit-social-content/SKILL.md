@@ -12,7 +12,7 @@ description: >-
 
 1. **Read the calendar** — `content/social/matchfit-content-calendar.jsx` (required). If missing, tell the user to run `npm run content:calendar:sync` from the parent hub or paste the file into that path, then stop until it exists.
 2. **Official links** — Import `MATCH_FIT_OFFICIAL_SOCIAL_LINKS` from `@/lib/match-fit-official-social` (or read that file). Never invent or hardcode profile URLs.
-3. **Live promos** — For founding-member / beta caps / trial offers, align with `/promos` and `HomeBetaPromoBanner` messaging; do not contradict slot counts or geography rules (Atlanta in-person vs US virtual).
+3. **Live promos** — For founding-member / beta caps / trial offers, align with `/promos` and `HomeBetaPromoBanner` messaging; do not contradict slot counts. **Match Fit is NATIONWIDE — online / virtual coaches only.** Never write a city, metro or radius into Match Fit copy (Decision #342, Operating Rules v2 section 7).
 4. **Brand voice** — Direct, athletic, confident; uppercase eyebrows sparingly; gradient accent colors `#FFD34E` → `#FF7E00` → `#E32B2B` on dark `#0B0C0F` / `#12151C` backgrounds when describing visual direction.
 
 ## Output format (default)

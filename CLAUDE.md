@@ -108,8 +108,11 @@ ANDROID EMULATOR. Do not reinvent any of this and never ask JB to re-explain it.
     ads/read scopes only; `meta-auto-post.ts` checks up front and returns one
     plain sentence rather than failing mid-post.
 
-15. **No invented people.** The content gate blocks fabricated testimonials —
-    a generated post once claimed a customer named Sarah who does not exist.
+15. **No fabricated people in OUTREACH only.** Never send outreach to a fake or
+    fabricated person / lead. This does NOT apply to content — a marketing
+    graphic MAY show an illustrative persona with a name ("Sarah Jenkins,
+    Fitness Pro" is approved content). Fabricated *testimonials* and invented
+    *statistics* stay banned everywhere. See NI-Brain Decision #384.
 
 ---
 
