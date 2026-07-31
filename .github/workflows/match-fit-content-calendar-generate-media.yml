@@ -9,6 +9,9 @@
 #   4:15pm ET M-F = 20:15 UTC, Mon-Fri  -> "15 20 * * 1-5"
 #   7:15pm ET M-F = 23:15 UTC, Mon-Fri  -> "15 23 * * 1-5"
 # These drift +1h during EST; shift by one hour if you want to hold the ET times.
+#
+# Weekend entries added 2026-07-31 (JB locked weekend catch-up posting Sat 8/1 + Sun 8/2) —
+# same three windows, Sat/Sun (day 6,0).
 
 name: Match Fit content calendar generate media
 
@@ -17,6 +20,9 @@ on:
     - cron: "30 12 * * 1-5"
     - cron: "15 20 * * 1-5"
     - cron: "15 23 * * 1-5"
+    - cron: "30 12 * * 6,0"
+    - cron: "15 20 * * 6,0"
+    - cron: "15 23 * * 6,0"
   workflow_dispatch: {}
 
 jobs:

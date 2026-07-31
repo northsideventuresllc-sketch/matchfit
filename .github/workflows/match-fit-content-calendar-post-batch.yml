@@ -3,6 +3,9 @@
 #   5pm ET M-F  = 21:00 UTC, Mon-Fri  -> "0 21 * * 1-5"
 #   8pm ET M-F  = 00:00 UTC, Tue-Sat  -> "0 0 * * 2-6"  (day shifted because 8pm ET crosses midnight UTC)
 # These drift +1h during EST; shift to 22:00 / 01:00 (day 2-6 / 3-0) if you want to hold the ET times.
+#
+# Weekend entries added 2026-07-31 (JB locked weekend catch-up posting Sat 8/1 + Sun 8/2) —
+# 5pm ET Sat/Sun = 21:00 UTC day 6,0. 8pm ET Sat/Sun crosses midnight UTC -> day 0,1.
 
 name: Match Fit content calendar post batch
 
@@ -10,6 +13,8 @@ on:
   schedule:
     - cron: "0 21 * * 1-5"
     - cron: "0 0 * * 2-6"
+    - cron: "0 21 * * 6,0"
+    - cron: "0 0 * * 0,1"
   workflow_dispatch: {}
 
 jobs:
