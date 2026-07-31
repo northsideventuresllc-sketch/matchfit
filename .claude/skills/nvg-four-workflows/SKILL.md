@@ -74,7 +74,12 @@ description: >-
     **one at a time each followed by SPACE**, **AI-generated content ON**, Post
     once. *"Content under review / Only me"* for a few minutes is **normal**, not a
     failure — it flips to Everyone by itself.
-18. **TikTok — CAROUSEL: emulator only, or the manual pack to JB.** TikTok web has
+18. **TikTok — CAROUSEL: ON HOLD UNTIL MONDAY 2026-08-03. Do not attempt it by any
+    route, do not queue it, and do not raise it with JB** — he parked it while
+    travelling (live rules preflight §13, added 2026-07-31 by the daily skill check).
+    **TikTok VIDEO is unaffected.** After 2026-08-03 the route is **emulator only, or
+    the manual pack to JB** — and note there is **no emulator running on the Mac mini**
+    (measured 2026-07-29), so in practice it is the manual pack. TikTok web has
     **no photo-mode path** and that is where the automated attempt **STOPS**.
     **NEVER render the slides to a slideshow video and NEVER substitute the
     format** — a carousel stays a carousel (**JB locked**; he had to delete a
@@ -147,4 +152,5 @@ Everything else is the same: 5 + 5 generated, JB edits every line, JB approves, 
 - **OUTREACH ONLY: never send outreach to a fake or fabricated person / lead.** This does **NOT** apply to content creation — a generated marketing graphic may show an illustrative persona with a name (e.g. a Fitness Pro card reading "Sarah Jenkins, Fitness Pro" is **correct, approved content**). Two agents have blocked good assets over the old blanket wording — see NI-Brain Decision #384.
 - **Hashtags must be high-follower existing tags**, chosen from real volume data. Never invent brand tags. At most one brand tag, only alongside four or more big ones. Every tag stored with the `#` prefix.
 - **Match Fit targets online / virtual coaches NATIONWIDE.** No city, no polygon, no lat/long — not in search, not in copy, not in a comment.
+- **LOCATION TAG on a post is per venture, never global** (Decisions #465 + #483, added here 2026-07-31 by the daily skill check). **NSSS / North-Stars = Atlanta, Georgia. Match Fit and NI carry NO city location tag** — a blank location field on those posts is correct, not an omission. Any file still ordering "LOCATION = Atlanta on every post" is stale and superseded.
 - **No raw database values, status codes or jargon on any screen JB reads.**

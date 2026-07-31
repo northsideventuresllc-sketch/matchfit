@@ -114,7 +114,7 @@ copy-paste of the Instagram recipe fails silently:
 | **Instagram carousel** | Mac mini Chrome | **Correct image order.** **Crop = Original** — the editor defaults to 1:1 and silently cuts headlines off. Caption from the admin portal. |
 | **Instagram + Threads video** | In-page API (§3) | Cover upload is mandatory, same `upload_id`. |
 | **TikTok video** | `tiktokstudio/upload` | Input-capture. **Cancel** the automatic-content-checks dialog. Clear the prefilled filename. Hashtags **one at a time, each followed by SPACE**. **AI-generated content ON.** Post **once**. |
-| **TikTok carousel** | **Emulator only, else the manual pack to JB** | TikTok web has **no photo-mode path.** This is where the automated attempt **STOPS**. |
+| **TikTok carousel** | **ON HOLD until 2026-08-03 — do not attempt, do not queue, do not raise with JB** | JB parked it while travelling (live rules preflight §13). After that date: **emulator only, else the manual pack to JB** — and there is **no emulator on the Mac mini**, so in practice it is the manual pack. TikTok web has **no photo-mode path.** This is where the automated attempt **STOPS**. **TikTok video is unaffected.** |
 
 **Audio is chosen at posting time** because trending tracks change daily. **Never
 publish a silent video.**
