@@ -31,13 +31,16 @@ export const trainerSignupSchema = z.object({
   agreedToTerms: z.boolean().optional(),
   stayLoggedIn: z.boolean().optional().default(true),
   turnstileToken: z.string().optional(),
-  /** Primary service ZIP for matching and profile (any valid US ZIP). */
+  // Worldwide (JB decision 2026-07-31): any ZIP/postal code format, not just US 5-digit.
+  // Empty is allowed — a virtual-only trainer may have no service ZIP at all.
   serviceZipCode: z
     .string()
     .trim()
-    .min(1, "Enter a valid US ZIP code (5 digits).")
-    .max(12)
-    .regex(/^\d{5}(-\d{4})?$/, "Enter a valid US ZIP code (5 digits)."),
+    .max(12, "Enter a valid ZIP / postal code.")
+    .optional()
+    .default(""),
+  /// Worldwide (JB decision 2026-07-31). Optional — informational, not used to gate signup.
+  country: z.string().trim().max(60).optional(),
   betaInviteToken: z.string().optional(),
 });
 

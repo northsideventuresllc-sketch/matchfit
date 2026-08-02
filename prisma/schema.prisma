@@ -387,6 +387,8 @@ model Client {
   email                   String    @unique
   passwordHash            String
   zipCode                 String
+  /// Worldwide (JB decision 2026-07-31). Optional — not all countries use ZIP/postal codes the same way.
+  country                 String?
   dateOfBirth             String
   termsAcceptedAt         DateTime
   /// When the user accepted the posted Privacy Policy (aligned with terms at sign-up / checkout).
@@ -620,6 +622,8 @@ model PendingClientRegistration {
   email                   String
   passwordHash            String
   zipCode                 String
+  /// Worldwide (JB decision 2026-07-31). Optional.
+  country                 String?
   dateOfBirth             String
   termsAcceptedAt         DateTime
   privacyPolicyAcceptedAt DateTime?
@@ -1203,8 +1207,12 @@ model TrainerProfile {
   registrationFeePricingMode       String    @default("FOUNDING_BG_SURCHARGE_20PCT")
   hasPaidRegistrationFee           Boolean   @default(false)
   registrationFeePaidCents         Int?
-  /// Primary service ZIP (Atlanta beta); used for matching and display.
+  /// Primary service ZIP/postal code; used for in-person Atlanta-metro matching and display.
+  /// Worldwide (JB decision 2026-07-31) — no longer required to be a US ZIP; any location or
+  /// none at all is fine for a virtual-only trainer.
   serviceZipCode                   String?
+  /// Worldwide (JB decision 2026-07-31). Optional — informational, not used to gate signup.
+  country                          String?
   /// When Atlanta in-person slots are full, overflow trainers keep a virtual-only founding slot.
   virtualOnlyBetaSlot              Boolean   @default(false)
   /// Vendor pipeline: NOT_STARTED | PENDING | APPROVED | NEEDS_FURTHER_REVIEW | DENIED

@@ -15,7 +15,7 @@ export function zipSupportsTrainerInPersonServices(zip: string | null | undefine
 }
 
 export const TRAINER_IN_PERSON_ATLANTA_ONLY_MESSAGE =
-  "In-person sessions are available in the Atlanta metro area during beta. You can still sign up and coach virtually from anywhere in the U.S.";
+  "In-person sessions are available in the Atlanta metro area during beta. You can still sign up and coach virtually from anywhere in the world.";
 
 export function inPersonServiceZipValidationError(zip: string | null | undefined): string | null {
   const normalized = normalizeTrainerServiceZip(zip);

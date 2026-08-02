@@ -31,7 +31,7 @@ describe("BetaCapFullSignupNotice", () => {
     );
 
     expect(html).toContain("Memberships are full for this beta");
-    expect(html).toContain("Anyone in the United States can still join the waitlist");
+    expect(html).toContain("Anyone, anywhere can still join the waitlist");
     expect(html).toContain(">Join the client waitlist<");
     expect(html).toContain('href="/waitlist/client"');
     expect(html).toContain("Clients signed up: 250 / 250");

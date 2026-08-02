@@ -7,7 +7,6 @@ import {
   isBetaLaunchGatesEnabled,
 } from "@/lib/beta-launch-config";
 import { countLaunchClients, countLaunchTrainers } from "@/lib/launch-account-counts";
-import { isValidUsServiceZip } from "@/lib/trainer-in-person-service-area";
 import { sendTransactionalEmailIfAllowed } from "@/lib/transactional-email-send";
 import { appBaseUrlForEmail } from "@/lib/match-fit-email-shell";
 
@@ -92,9 +91,7 @@ export async function joinBetaTrainerWaitlist(args: {
   if (!(await isTrainerBetaCapReached())) {
     return { error: "Trainer slots are still available — sign up instead of joining the waitlist." };
   }
-  if (!isValidUsServiceZip(args.serviceZipCode)) {
-    return { error: "Enter a valid US ZIP code (5 digits)." };
-  }
+  // Worldwide (JB decision 2026-07-31): no longer a hard US-ZIP requirement to join the waitlist.
   const email = args.email.trim().toLowerCase();
   const desiredUsername = args.desiredUsername.trim();
   const taken = await isTrainerWaitlistUsernameConflict(desiredUsername);

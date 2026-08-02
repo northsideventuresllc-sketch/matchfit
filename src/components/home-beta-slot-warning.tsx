@@ -71,7 +71,7 @@ export function HomeBetaSlotWarning() {
         </>
       ) : (
         <>
-          <span className="font-semibold text-white/85">Beta is live</span> — clients anywhere in the U.S. can sign
+          <span className="font-semibold text-white/85">Beta is live</span> — clients anywhere in the world can sign
           up; in-person sessions launch first in Atlanta. Limited founding slots remain.{" "}
           {trainerLeft !== null && (
             <>

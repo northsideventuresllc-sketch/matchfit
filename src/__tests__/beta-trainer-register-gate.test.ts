@@ -19,14 +19,14 @@ describe("evaluateBetaTrainerRegistrationGate", () => {
     vi.mocked(isTrainerBetaCapReached).mockResolvedValue(false);
   });
 
-  it("requires valid US ZIP even when beta gates are off", async () => {
+  it("worldwide (2026-07-31): allows empty location even when beta gates are off — no longer a hard US-zip requirement", async () => {
     vi.mocked(isBetaLaunchGatesEnabled).mockReturnValue(false);
     const result = await evaluateBetaTrainerRegistrationGate({
       serviceZipCode: "",
       email: "coach@example.com",
       username: "coachbay",
     });
-    expect(result).toMatchObject({ ok: false, code: "INVALID_SERVICE_ZIP", status: 400 });
+    expect(result).toEqual({ ok: true, betaInviteEntryId: null });
   });
 
   it("allows nationwide US ZIP codes when beta gates are on", async () => {
@@ -38,13 +38,13 @@ describe("evaluateBetaTrainerRegistrationGate", () => {
     expect(result).toEqual({ ok: true, betaInviteEntryId: null });
   });
 
-  it("rejects invalid ZIP format", async () => {
+  it("worldwide (2026-07-31): a non-US location string no longer blocks registration (virtual-only trainer)", async () => {
     const result = await evaluateBetaTrainerRegistrationGate({
-      serviceZipCode: "abc",
+      serviceZipCode: "London, UK",
       email: "coach@example.com",
       username: "coachbay",
     });
-    expect(result).toMatchObject({ ok: false, code: "INVALID_SERVICE_ZIP", status: 400 });
+    expect(result).toEqual({ ok: true, betaInviteEntryId: null });
   });
 
   it("requires beta invite when cap is full", async () => {

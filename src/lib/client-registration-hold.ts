@@ -11,6 +11,8 @@ export type ClientRegistrationHoldBody = {
   email: string;
   password: string;
   zipCode: string;
+  /// Worldwide (JB decision 2026-07-31). Optional.
+  country?: string | null;
   dateOfBirth: string;
   stayLoggedIn: boolean;
 };
@@ -47,6 +49,7 @@ export async function createClientRegistrationHold(
       email,
       passwordHash,
       zipCode: body.zipCode,
+      country: body.country?.trim() || null,
       dateOfBirth: body.dateOfBirth,
       termsAcceptedAt: new Date(),
       privacyPolicyAcceptedAt: new Date(),

@@ -103,8 +103,9 @@ export default async function PromosPage() {
           <div className="mx-auto mt-6 max-w-xl rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 text-left text-xs leading-relaxed text-white/50 sm:text-[13px]">
             <span className="font-semibold text-[#FF7E00]/90">Beta reach:</span>{" "}
             <span className="font-semibold text-white/70">Up to 30 Fitness Pros</span> and{" "}
-            <span className="font-semibold text-white/70">up to 150 clients</span> can join during beta across the United
-            States. In-person sessions roll out by region as beta activity grows; virtual coaching is available nationwide.
+            <span className="font-semibold text-white/70">up to 150 clients</span> can join during beta —{" "}
+            <span className="font-semibold text-white/70">available worldwide</span>. In-person sessions roll out by
+            region as beta activity grows; virtual coaching is available wherever the product supports it.
           </div>
         </div>
 
@@ -138,7 +139,7 @@ export default async function PromosPage() {
               <p className="mt-5 text-pretty text-[15px] leading-relaxed text-white/65 sm:text-base">
                 {trainerFoundingPromoParagraph(trainerFoundingMax)}{" "}
                 <span className="font-semibold text-white/70">
-                  All {trainerFoundingMax} founding spots are open to Fitness Pros across the United States
+                  All {trainerFoundingMax} founding spots are open to Fitness Pros worldwide
                 </span>
                 .
               </p>
