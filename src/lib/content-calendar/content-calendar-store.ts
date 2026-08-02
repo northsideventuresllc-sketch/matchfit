@@ -327,11 +327,14 @@ export async function resolveUniqueHubDayIndex(args: {
   const used = new Set((data ?? []).map((row) => Number(row.day_index)));
   if (!used.has(args.preferredDayIndex)) return args.preferredDayIndex;
 
-  for (let dayIndex = 0; dayIndex < 100; dayIndex += 1) {
+  // day_index is DB-constrained to 0-4 (match_fit_content_calendar_posts_day_index_check).
+  // Bug fixed 2026-08-02: this used to loop to 100 and hand back an out-of-range value, which the
+  // DB then rejected with an opaque check-constraint 500 instead of this clear message.
+  for (let dayIndex = 0; dayIndex <= 4; dayIndex += 1) {
     if (!used.has(dayIndex)) return dayIndex;
   }
 
-  throw new Error(`No available slot for ${args.postType} posts in week ${args.weekStart}.`);
+  throw new Error(`No available slot for ${args.postType} posts in week ${args.weekStart} — all 5 weekday slots (day_index 0-4) are already taken.`);
 }
 
 export async function saveDraftToHub(args: {
