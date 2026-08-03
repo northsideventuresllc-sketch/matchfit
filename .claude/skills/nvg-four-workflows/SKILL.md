@@ -74,17 +74,22 @@ description: >-
     **one at a time each followed by SPACE**, **AI-generated content ON**, Post
     once. *"Content under review / Only me"* for a few minutes is **normal**, not a
     failure — it flips to Everyone by itself.
-18. **TikTok — CAROUSEL: ON HOLD UNTIL MONDAY 2026-08-03. Do not attempt it by any
-    route, do not queue it, and do not raise it with JB** — he parked it while
-    travelling (live rules preflight §13, added 2026-07-31 by the daily skill check).
-    **TikTok VIDEO is unaffected.** After 2026-08-03 the route is **emulator only, or
-    the manual pack to JB** — and note there is **no emulator running on the Mac mini**
-    (measured 2026-07-29), so in practice it is the manual pack. TikTok web has
-    **no photo-mode path** and that is where the automated attempt **STOPS**.
+18. **TikTok — CAROUSEL: MANUAL PACK TO JB. That is the only route, on every date.**
+    JB's travel hold (live rules preflight §13) ran to **2026-08-03** and closes on
+    its own terms — **check the date, do not treat an expired hold as live and do not
+    escalate it as a contradiction.** Before that date: do not attempt, do not queue,
+    do not raise it with JB. From that date: **ship the manual pack.**
+    **DEAD ROUTE, DO NOT REINSTATE — the Android emulator.** Earlier wording here
+    offered "emulator only, or the manual pack". The emulator route is **dead, not
+    merely unchecked**: Decision #486 (2026-07-31) — `adb` command not found, every
+    emulator port refused under a known-good control, `nvg_mini_heartbeat` empty.
+    Do not plan around it, do not probe for it, do not report the carousel blocked
+    *on* it. TikTok web has **no photo-mode path** for @theofficialmatchfit (Decision
+    #482, ten-method rule exhausted) and that is where the automated attempt **STOPS**.
+    **TikTok VIDEO is unaffected.**
     **NEVER render the slides to a slideshow video and NEVER substitute the
     format** — a carousel stays a carousel (**JB locked**; he had to delete a
-    slideshow posted in error on 2026-07-29). If nothing is listening on the
-    emulator ports, say exactly that and ship the manual pack.
+    slideshow posted in error on 2026-07-29).
 19. **PING JB after each post TYPE**, and again **when all posts are done**, so he
     can check and edit.
 

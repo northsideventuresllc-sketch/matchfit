@@ -68,12 +68,18 @@ description: >-
     **one at a time each followed by SPACE**, **AI-generated content ON**, Post
     once. *"Content under review / Only me"* for a few minutes is **normal**, not a
     failure — it flips to Everyone by itself.
-18. **TikTok — CAROUSEL: emulator only, or the manual pack to JB.** TikTok web has
-    **no photo-mode path** and that is where the automated attempt **STOPS**.
+18. **TikTok — CAROUSEL: MANUAL PACK TO JB. That is the only route.**
+    **DEAD ROUTE, DO NOT REINSTATE — the Android emulator.** This step previously
+    read "emulator only, or the manual pack" while `nvg-four-workflows` in this same
+    repo said the opposite. The emulator route is **dead, not merely unchecked**:
+    Decision #486 (2026-07-31) — `adb` not found, every emulator port refused under a
+    known-good control, `nvg_mini_heartbeat` empty. TikTok web has **no photo-mode
+    path** for @theofficialmatchfit (Decision #482) and that is where the automated
+    attempt **STOPS**. JB's travel hold on this step ran to **2026-08-03** and closes
+    on its own terms.
     **NEVER render the slides to a slideshow video and NEVER substitute the
     format** — a carousel stays a carousel (**JB locked**; he had to delete a
-    slideshow posted in error on 2026-07-29). If nothing is listening on the
-    emulator ports, say exactly that and ship the manual pack.
+    slideshow posted in error on 2026-07-29).
 19. **PING JB after each post TYPE**, and again **when all posts are done**, so he
     can check and edit.
 
