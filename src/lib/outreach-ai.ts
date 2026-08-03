@@ -116,13 +116,8 @@ async function callOutreachAi(system: string, user: string): Promise<OutreachAiR
         type: "web_search_20250305",
         name: "web_search",
         max_uses: 8,
-        user_location: {
-          type: "approximate",
-          city: "Atlanta",
-          region: "Georgia",
-          country: "US",
-          timezone: "America/New_York",
-        },
+        // No user_location: Match Fit recruiting is nationwide (NI-Brain Decision #342).
+        // A city/region hint here silently biases every search result toward one metro.
       },
     ],
   });

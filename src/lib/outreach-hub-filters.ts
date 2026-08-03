@@ -49,7 +49,7 @@ export const HUB_TARGET_GROUP_FILTER_OPTIONS: {
   label: string;
 }[] = [
   { id: "all", label: "All audiences" },
-  { id: "ATL_LOCAL", label: "US · local" },
+  { id: "ATL_LOCAL", label: "US · earlier leads" },
   { id: "VIRTUAL", label: "US" },
 ];
 

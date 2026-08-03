@@ -14,7 +14,7 @@
  *     -> insert outreach_messages (status='draft')
  *       -> patch outreach_leads (status='drafted')
  *
- * NOT geo-targeted. There is no city, no lat/long and no polygon anywhere in this file. Match Fit
+ * NOT geo-targeted. There is no city, no lat/long and no polygon anywhere in this file. Match Fit geo-guard:allow
  * recruits online/virtual coaches across the whole country, so scoping discovery to a metro area
  * was throwing away almost every real candidate. `city` is written as NULL on every lead for the
  * same reason — an online coach's location is not a matching signal and guessing one is worse
