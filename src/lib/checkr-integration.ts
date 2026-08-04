@@ -13,8 +13,23 @@ export function getCheckrPackageSlug(): string | null {
   return slug || null;
 }
 
-export function getCheckrWorkLocationState(): string {
-  return (process.env.CHECKR_WORK_LOCATION_STATE?.trim() || "GA").toUpperCase().slice(0, 2);
+/**
+ * Operator-supplied work location for Checkr. No default region.
+ *
+ * Removed 2026-08-04, MF-ATLANTA-GATES-AFTER-WORLDWIDE (geo-guard:allow): the `"GA"`
+ * fallback, which stamped every background check with a Georgia work location
+ * regardless of where the coach actually works. Set CHECKR_WORK_LOCATION_STATE
+ * (and CHECKR_WORK_LOCATION_COUNTRY where not US) per deployment.
+ */
+export function getCheckrWorkLocationState(): string | null {
+  const raw = process.env.CHECKR_WORK_LOCATION_STATE?.trim();
+  return raw ? raw.toUpperCase().slice(0, 2) : null;
+}
+
+/** ISO country for Checkr work location; defaults to US because Checkr is a US-scoped vendor. */
+export function getCheckrWorkLocationCountry(): string {
+  const raw = process.env.CHECKR_WORK_LOCATION_COUNTRY?.trim();
+  return (raw || "US").toUpperCase().slice(0, 2);
 }
 
 export function getCheckrWorkLocationCity(): string | null {

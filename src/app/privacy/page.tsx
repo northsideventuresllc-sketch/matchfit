@@ -240,8 +240,8 @@ export default async function PrivacyPage() {
         <Ul>
           <Li>
             <Strong>Waitlist:</Strong> email address, ZIP/postal code, and status if you join a Fitness Pro or Client waitlist
-            when beta capacity is full. Waitlist sign-up is open worldwide; a service ZIP within our Atlanta metro in-person
-            launch area is only needed if you want in-person eligibility.
+            when beta capacity is full. Waitlist sign-up is open worldwide; a service ZIP/postal code is only used to show
+            your service area and is not restricted to any country or region.
           </Li>
           <Li>
             <Strong>Invite tokens:</Strong> time-limited signup links and slot reservation timestamps when we invite you from

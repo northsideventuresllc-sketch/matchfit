@@ -84,7 +84,7 @@ export const CONTENT_CALENDAR_DAYS_LONG = ["Monday", "Tuesday", "Wednesday", "Th
 
 export const CONTENT_CALENDAR_BRAND_FACTS = `Match Fit — two-sided fitness marketplace connecting Fitness Pros with clients.
 Beta v1.2+. Clients: $10/month. Independent Pro from $15/month after a 60-day free trial at registration. 20% platform fee on sessions.
-Features: swipe-based discovery, Fit Hub social feed, algorithmic matching, virtual + in-person (in-person launch limited to Atlanta operationally — do NOT lead marketing with geography).
+Features: swipe-based discovery, Fit Hub social feed, algorithmic matching, virtual + in-person. Match Fit is worldwide — do NOT name a city, metro or region in marketing, and never imply a launch is limited to one place.
 
 Brand: bold, direct, real — no fluff. Colors: dark #07080C, orange #FF7E00. Handle: @theofficialmatchfit
 Universal social language: always "Fitness Pros" / "Fitness Pro" (never "Coaches" as the primary public label; "trainer" stays only for narrow allowed cases — assigned coach in a session, personal-training-industry positioning, service types, and /trainer/ routes).

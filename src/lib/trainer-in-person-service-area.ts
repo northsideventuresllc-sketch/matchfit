@@ -1,29 +1,30 @@
-import { isZipInBetaAtlantaMetroArea } from "@/lib/beta-atlanta-metro-zips";
 import { normalizeTrainerServiceZip } from "@/lib/trainer-service-zip";
 
-/** US ZIP (5 digits or ZIP+4). */
-export function isValidUsServiceZip(zip: string | null | undefined): boolean {
-  const t = (zip ?? "").trim();
-  return /^\d{5}(-\d{4})?$/.test(t);
+/**
+ * In-person service area, worldwide.
+ *
+ * Match Fit went worldwide (JB decision, 2026-07-31). There is no metro allow-list
+ * and no country allow-list: a coach declares where they work and that value is
+ * accepted. The only requirement is that the value is usable as a postal code.
+ *
+ * Removed 2026-08-04, MF-ATLANTA-GATES-AFTER-WORLDWIDE (geo-guard:allow): the metro ZIP
+ * allow-list that used to gate this. geo-guard:allow
+ * It blocked every coach outside one US metro from listing in-person services.
+ */
+
+/** A usable service-area postal code (any country). */
+export function isValidServicePostalCode(zip: string | null | undefined): boolean {
+  return normalizeTrainerServiceZip(zip) !== null;
 }
 
-/** During beta, in-person/mobile sessions are limited to the Atlanta metro service area. */
+/** In-person coaching is supported wherever the coach says they work. */
 export function zipSupportsTrainerInPersonServices(zip: string | null | undefined): boolean {
-  const normalized = normalizeTrainerServiceZip(zip);
-  if (!normalized) return false;
-  return isZipInBetaAtlantaMetroArea(normalized);
+  return isValidServicePostalCode(zip);
 }
 
-export const TRAINER_IN_PERSON_ATLANTA_ONLY_MESSAGE =
-  "In-person sessions are available in the Atlanta metro area during beta. You can still sign up and coach virtually from anywhere in the world.";
+export const TRAINER_IN_PERSON_SERVICE_AREA_REQUIRED_MESSAGE =
+  "Enter the postal code you travel from for in-person sessions.";
 
 export function inPersonServiceZipValidationError(zip: string | null | undefined): string | null {
-  const normalized = normalizeTrainerServiceZip(zip);
-  if (!normalized || !/^\d{5}(-\d{4})?$/.test(normalized)) {
-    return "Enter a valid US ZIP code (5 digits or ZIP+4) for your in-person service area.";
-  }
-  if (!zipSupportsTrainerInPersonServices(normalized)) {
-    return TRAINER_IN_PERSON_ATLANTA_ONLY_MESSAGE;
-  }
-  return null;
+  return isValidServicePostalCode(zip) ? null : TRAINER_IN_PERSON_SERVICE_AREA_REQUIRED_MESSAGE;
 }

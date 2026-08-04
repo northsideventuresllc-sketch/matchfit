@@ -36,21 +36,24 @@ export function isBetaLaunchGatesEnabled(): boolean {
   return truthyEnv(process.env.MATCH_FIT_BETA_GATES_ENABLED);
 }
 
+/**
+ * One worldwide trainer cap for the beta.
+ *
+ * Removed 2026-08-04, ticket MF-ATLANTA-GATES-AFTER-WORLDWIDE (geo-guard:allow): the per-metro cap
+ * split. Capacity is no longer allocated by geography. Deployments that still set
+ * the two legacy env vars are honoured — their sum becomes the single cap — so no
+ * environment needs to be edited for this to be correct. geo-guard:allow
+ */
 export function betaMaxTrainers(): number {
-  return parsePositiveInt(process.env.MATCH_FIT_BETA_MAX_TRAINERS, 10);
-}
+  const direct = process.env.MATCH_FIT_BETA_MAX_TRAINERS?.trim();
+  if (direct) return parsePositiveInt(direct, 10);
 
-/** Atlanta in-person trainer cap during beta. Legacy `MATCH_FIT_BETA_MAX_TRAINERS` maps here when unset. */
-export function betaMaxTrainersAtlanta(): number {
-  return parsePositiveInt(
-    process.env.MATCH_FIT_BETA_MAX_TRAINERS_ATLANTA,
-    betaMaxTrainers(),
-  );
-}
-
-/** Nationwide virtual/DIY trainer cap during beta. */
-export function betaMaxTrainersVirtual(): number {
-  return parsePositiveInt(process.env.MATCH_FIT_BETA_MAX_TRAINERS_VIRTUAL, 20);
+  const legacyA = process.env.MATCH_FIT_BETA_MAX_TRAINERS_ATLANTA?.trim(); // geo-guard:allow legacy env name
+  const legacyB = process.env.MATCH_FIT_BETA_MAX_TRAINERS_VIRTUAL?.trim();
+  if (legacyA || legacyB) {
+    return parsePositiveInt(legacyA, 0) + parsePositiveInt(legacyB, 0) || 10;
+  }
+  return 10;
 }
 
 export function betaMaxClients(): number {

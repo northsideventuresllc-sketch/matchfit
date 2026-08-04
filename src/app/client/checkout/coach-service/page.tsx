@@ -2,10 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CoachServiceCheckoutClient } from "./coach-service-checkout-client";
 import { adminFeeCentsFromBaseSubtotalCents } from "@/lib/platform-fees";
-import {
-  BETA_CLIENT_IN_PERSON_CHECKOUT_MESSAGE,
-  evaluateClientInPersonBetaCheckoutGate,
-} from "@/lib/beta-client-in-person-checkout-gate";
 import { prisma } from "@/lib/prisma";
 import { isPrismaMissingColumnError } from "@/lib/prisma-missing-column";
 import { getSessionClientId } from "@/lib/session";
@@ -76,11 +72,6 @@ export default async function CoachServiceCheckoutPage({ searchParams }: PagePro
   if (!clientId) {
     redirect(`/client?next=${encodeURIComponent(returnPath)}`);
   }
-
-  const clientRow = await prisma.client.findUnique({
-    where: { id: clientId },
-    select: { zipCode: true },
-  });
 
   let trainer;
   try {
@@ -206,23 +197,10 @@ export default async function CoachServiceCheckoutPage({ searchParams }: PagePro
   }
   const sku = resolved.sku;
 
-  const inPersonGate = evaluateClientInPersonBetaCheckoutGate({
-    clientZipCode: clientRow?.zipCode,
-    delivery: line.delivery,
-  });
-  if (!inPersonGate.allowed) {
-    return (
-      <main className="min-h-dvh bg-[#0B0C0F] px-5 py-12 text-white antialiased">
-        <p className="text-sm leading-relaxed text-white/70">{BETA_CLIENT_IN_PERSON_CHECKOUT_MESSAGE}</p>
-        <Link
-          href={`/trainers/${encodeURIComponent(trainer.username)}`}
-          className="mt-6 inline-block text-sm font-semibold text-[#FF7E00] hover:underline"
-        >
-          View virtual packages
-        </Link>
-      </main>
-    );
-  }
+  // In-person checkout is not geo-gated. Match Fit is worldwide (JB decision,
+  // 2026-07-31). The metro ZIP gate here was removed 2026-08-04, ticket
+  // MF-ATLANTA-GATES-AFTER-WORLDWIDE. geo-guard:allow
+  // Coach and client agree travel distance via the coach's own service radius.
 
   const baseCents = Math.round(sku.priceUsd * 100);
   const adminCents = adminFeeCentsFromBaseSubtotalCents(baseCents);

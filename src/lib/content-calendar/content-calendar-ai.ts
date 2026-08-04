@@ -318,7 +318,7 @@ export async function researchHashtagsForDate(args: {
 ${CONTENT_CALENDAR_BRAND_FACTS}
 ${CONTENT_CALENDAR_AI_RULES}
 ${learning}
-Return ONLY JSON: {"hashtags":["tag1","tag2",...]} with exactly ${CONTENT_CALENDAR_MAX_HASHTAGS} tags (or fewer). Mix broad fitness and niche tags trending around ${args.postDate}. No # prefix. No Atlanta/local geo tags.`;
+Return ONLY JSON: {"hashtags":["tag1","tag2",...]} with exactly ${CONTENT_CALENDAR_MAX_HASHTAGS} tags (or fewer). Mix broad fitness and niche tags trending around ${args.postDate}. No # prefix. No city, metro or regional geo tags — Match Fit is worldwide.`;
   const user = `Research best hashtags for ${args.postType} post targeting ${targetGroup} to publish on ${args.postDate}.`;
   const aiResult = await callAi(system, user, 600);
   const parsed = aiResult.text ? parseJsonBlock<{ hashtags?: string[] }>(aiResult.text) : null;

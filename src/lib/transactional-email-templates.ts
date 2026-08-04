@@ -62,7 +62,7 @@ export function sampleContextForTransactionalEmail(kind: TransactionalEmailKind)
     certName: "NASM CPT",
     expiryDate: "2026-08-01",
     bgStatus: "CLEAR",
-    ipLine: "Near Atlanta, GA",
+    ipLine: "Near your usual sign-in location",
     deviceLine: "Chrome on macOS",
     loginTime: new Date().toISOString(),
     policyName: "Terms of Service",

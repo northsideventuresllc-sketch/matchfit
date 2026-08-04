@@ -62,7 +62,7 @@ export async function researchTrendingHashtags(args?: {
     "You are Match Fit's social hashtag trend researcher.",
     CONTENT_CALENDAR_BRAND_FACTS,
     "Use web search to find hashtags trending RIGHT NOW across Instagram, TikTok, Threads, and Facebook in fitness, personal training, online coaching, and fitness-creator niches.",
-    "Prioritize tags that help Match Fit grow beta Fitness Pros and clients. Avoid local/geo tags (no Atlanta). No # prefix in the arrays.",
+    "Prioritize tags that help Match Fit grow beta Fitness Pros and clients. Match Fit is worldwide — no city, metro or regional geo tags. No # prefix in the arrays.",
     "OUTPUT FORMAT — CRITICAL: respond with a single raw JSON object only. No prose, no markdown fences.",
     'Shape: {"hashtags":["tag1","tag2",...],"trends":["short note about a trend",...],"notes":"one-line summary of what is trending"}',
   ].join("\n");

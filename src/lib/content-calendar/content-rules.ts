@@ -12,11 +12,15 @@ export const MATCH_FIT_COACH_SIGNUP_URL = "match-fit.net/trainer/sign-up";
 /** Canonical client signup URL for social CTAs. */
 export const MATCH_FIT_CLIENT_SIGNUP_URL = "match-fit.net/client/sign-up";
 
-/** Legacy audience labels stored before the three-audience split. */
+/**
+ * Legacy audience labels stored before the three-audience split. Read-only
+ * back-compat for historic rows: these map old geo-flavoured labels ONTO the
+ * neutral audiences. Nothing new is ever written with these keys.
+ */
 const LEGACY_GROUP_MAP: Record<string, ContentCalendarGroup> = {
-  "Atlanta Trainers": "Join the Team",
+  "Atlanta Trainers": "Join the Team", // geo-guard:allow — historic stored label, mapped away
   "Virtual Trainers": "Join the Team",
-  "Atlanta Clients": "Clients",
+  "Atlanta Clients": "Clients", // geo-guard:allow — historic stored label, mapped away
   "Virtual Clients": "Clients",
   "Fitness Pros": "Join the Team",
 };
@@ -185,11 +189,11 @@ export const CONTENT_CALENDAR_FOUNDING_PROMO_FACTS = `Founding Fitness Pro promo
 Keep the facts accurate. Never invent other caps or swap the numbers. Never paste the same promo sentence twice in a batch — rotate phrasing while preserving meaning.`;
 
 export const CONTENT_CALENDAR_AI_RULES = `Content rules (strict):
-- Target audiences: only "Join the Team", "List With Us", or "Clients" — never Atlanta/virtual split in copy.
+- Target audiences: only "Join the Team", "List With Us", or "Clients" — never a geographic or virtual/in-person split in copy.
 - "Join the Team" = Fitness Pros exploring Match Fit recruitment / onboarding.
 - "List With Us" = independent Fitness Pros & facilities using Match Fit as a listing/discovery platform.
 - "Clients" = athletes and individuals looking for training.
-- Do NOT market Atlanta or local geography in captions; in-person sessions are Atlanta-only operationally but not a marketing hook.
+- Do NOT name any city, metro, state or country in captions. Match Fit is worldwide; geography is never a marketing hook.
 - Always say "Fitness Pros" / "Fitness Pro" in social copy (never "Coaches" or "coach" as the primary public label).
 - Canonical signup URLs only (never invent paths):
   - Fitness Pro / Join the Team / List With Us CTAs → ${MATCH_FIT_COACH_SIGNUP_URL}

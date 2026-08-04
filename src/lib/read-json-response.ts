@@ -55,7 +55,7 @@ export async function readJsonResponse<T>(res: Response): Promise<T> {
     const snippet = trimmed.slice(0, 160).replace(/\s+/g, " ").trim();
     if (res.status === 504 || /timed out|timeout|FUNCTION_INVOCATION_TIMEOUT/i.test(trimmed)) {
       throw new Error(
-        "Generation timed out on the server. Try smaller counts (e.g. 2 ATL + 3 virtual) and generate again.",
+        "Generation timed out on the server. Try smaller counts (e.g. 5 leads) and generate again.",
       );
     }
     if (/^An error occurred/i.test(trimmed)) {
