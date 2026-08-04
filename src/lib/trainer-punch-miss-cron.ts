@@ -28,43 +28,80 @@ export async function processTrainerSessionPunchMisses(now = new Date()): Promis
     },
   });
 
-  let processed = 0;
-  for (const b of candidates) {
-    const end = defaultSessionEndAt({ scheduledStartAt: b.scheduledStartAt, scheduledEndAt: b.scheduledEndAt });
-    if (now.getTime() < end.getTime() + TRAINER_PUNCH_LATE_GRACE_MS) continue;
-
-    const punch = await prisma.sessionTrainerPunchIn.findUnique({
-      where: { bookedTrainingSessionId: b.id },
-      select: { id: true },
+  // Only sessions past end + grace are evaluated.
+  const due = candidates.filter((b) => {
+    const end = defaultSessionEndAt({
+      scheduledStartAt: b.scheduledStartAt,
+      scheduledEndAt: b.scheduledEndAt,
     });
+    return now.getTime() >= end.getTime() + TRAINER_PUNCH_LATE_GRACE_MS;
+  });
+  if (due.length === 0) return 0;
 
-    await prisma.bookedTrainingSession.update({
-      where: { id: b.id },
-      data: { punchMissEvaluatedAt: now, updatedAt: now },
-    });
-    processed += 1;
+  const dueIds = due.map((b) => b.id);
 
-    if (punch) continue;
+  // One query for every punch instead of one per session.
+  const punches = await prisma.sessionTrainerPunchIn.findMany({
+    where: { bookedTrainingSessionId: { in: dueIds } },
+    select: { bookedTrainingSessionId: true },
+  });
+  const punched = new Set(punches.map((p) => p.bookedTrainingSessionId));
 
-    const prof = await prisma.trainerProfile.findUnique({
-      where: { trainerId: b.trainerId },
-      select: { consecutiveMissedSessionPunches: true },
-    });
-    const next = (prof?.consecutiveMissedSessionPunches ?? 0) + 1;
-    await prisma.trainerProfile.update({
-      where: { trainerId: b.trainerId },
-      data: { consecutiveMissedSessionPunches: next },
-    });
+  // One write for every evaluated session instead of one per session.
+  await prisma.bookedTrainingSession.updateMany({
+    where: { id: { in: dueIds } },
+    data: { punchMissEvaluatedAt: now, updatedAt: now },
+  });
+  const processed = due.length;
 
-    if (next >= TOS_PUNCH_MISS_SUSPEND_STREAK) {
-      const t = await prisma.trainer.findUnique({
-        where: { id: b.trainerId },
-        select: { safetySuspended: true },
-      });
-      if (t && !t.safetySuspended) {
-        await suspendTrainerForGovernance({ trainerId: b.trainerId, reasonCode: "PUNCH_STREAK" });
-      }
-    }
+  // Count misses per trainer, then one atomic increment per trainer.
+  const missesByTrainer = new Map<string, number>();
+  for (const b of due) {
+    if (punched.has(b.id)) continue;
+    missesByTrainer.set(b.trainerId, (missesByTrainer.get(b.trainerId) ?? 0) + 1);
   }
+  if (missesByTrainer.size === 0) return processed;
+
+  const trainerIds = [...missesByTrainer.keys()];
+
+  // increment is atomic, so two concurrent runs can no longer clobber each other
+  // the way the old read-then-write did.
+  await Promise.all(
+    trainerIds.map((trainerId) =>
+      prisma.trainerProfile.update({
+        where: { trainerId },
+        data: {
+          consecutiveMissedSessionPunches: {
+            increment: missesByTrainer.get(trainerId) ?? 1,
+          },
+        },
+      }),
+    ),
+  );
+
+  // Read the resulting streaks and suspension flags in two queries, not 2N.
+  const [profiles, trainers] = await Promise.all([
+    prisma.trainerProfile.findMany({
+      where: { trainerId: { in: trainerIds } },
+      select: { trainerId: true, consecutiveMissedSessionPunches: true },
+    }),
+    prisma.trainer.findMany({
+      where: { id: { in: trainerIds } },
+      select: { id: true, safetySuspended: true },
+    }),
+  ]);
+  const alreadySuspended = new Set(
+    trainers.filter((t) => t.safetySuspended).map((t) => t.id),
+  );
+
+  for (const p of profiles) {
+    if (p.consecutiveMissedSessionPunches < TOS_PUNCH_MISS_SUSPEND_STREAK) continue;
+    if (alreadySuspended.has(p.trainerId)) continue;
+    await suspendTrainerForGovernance({
+      trainerId: p.trainerId,
+      reasonCode: "PUNCH_STREAK",
+    });
+  }
+
   return processed;
 }

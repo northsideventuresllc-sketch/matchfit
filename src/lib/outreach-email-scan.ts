@@ -61,39 +61,57 @@ export async function scanOutreachEmailReplies(args: {
   const matched: OutreachEmailScanMatch[] = [];
   const notifyLeads: OutreachAxonLeadRef[] = [];
 
+  // The lookup requires hasUnrespondedReply:false, so the first message from a
+  // sender flips the flag and every later message from that same sender found
+  // nothing. Keeping only the first message per sender reproduces that exactly.
+  const firstMessageBySender = new Map<string, GraphMessage>();
   for (const msg of outcome.value) {
     const sender = msg.from?.emailAddress?.address?.trim().toLowerCase();
-    if (!sender) continue;
+    if (!sender || firstMessageBySender.has(sender)) continue;
+    firstMessageBySender.set(sender, msg);
+  }
 
-    const lead = await prisma.outreachEmailLead.findFirst({
-      where: {
-        email: { equals: sender, mode: "insensitive" },
-        deletedAt: null,
-        archivedAt: null,
-        hasUnrespondedReply: false,
-        outreachSentAt: { not: null },
-      },
-    });
+  const senders = [...firstMessageBySender.keys()];
+  // One lookup for every sender instead of one query per message.
+  const leadRows = senders.length
+    ? await prisma.outreachEmailLead.findMany({
+        where: {
+          OR: senders.map((sender) => ({ email: { equals: sender, mode: "insensitive" as const } })),
+          deletedAt: null,
+          archivedAt: null,
+          hasUnrespondedReply: false,
+          outreachSentAt: { not: null },
+        },
+      })
+    : [];
+
+  const leadBySender = new Map<string, (typeof leadRows)[number]>();
+  for (const lead of leadRows) {
+    const key = lead.email.trim().toLowerCase();
+    if (!leadBySender.has(key)) leadBySender.set(key, lead);
+  }
+
+  const updates: ReturnType<typeof prisma.outreachEmailLead.update>[] = [];
+  const draftJobs: { leadId: string; incomingMessage: string | undefined }[] = [];
+
+  for (const [sender, msg] of firstMessageBySender) {
+    const lead = leadBySender.get(sender);
     if (!lead) continue;
 
     const receivedAt = msg.receivedDateTime ? new Date(msg.receivedDateTime) : now;
-    await prisma.outreachEmailLead.update({
-      where: { id: lead.id },
-      data: {
-        hasUnrespondedReply: true,
-        replyReceivedAt: receivedAt,
-        responseReceivedAt: lead.responseReceivedAt ?? receivedAt,
-        status: "RESPONSE_RECEIVED",
-        outreachLane: "pending_response",
-      },
-    });
-
-    await generateOutreachResponseDraft({
-      platform: "email",
-      leadId: lead.id,
-      adminId: args.adminId,
-      incomingMessage: msg.bodyPreview,
-    }).catch((e) => console.warn("[outreach-email-scan] draft generation failed", e));
+    updates.push(
+      prisma.outreachEmailLead.update({
+        where: { id: lead.id },
+        data: {
+          hasUnrespondedReply: true,
+          replyReceivedAt: receivedAt,
+          responseReceivedAt: lead.responseReceivedAt ?? receivedAt,
+          status: "RESPONSE_RECEIVED",
+          outreachLane: "pending_response",
+        },
+      }),
+    );
+    draftJobs.push({ leadId: lead.id, incomingMessage: msg.bodyPreview });
 
     const preview = (msg.bodyPreview ?? "").slice(0, 200);
     matched.push({ leadId: lead.id, name: lead.name, email: lead.email, preview });
@@ -104,6 +122,18 @@ export async function scanOutreachEmailReplies(args: {
       contact: lead.email,
       summary: preview || "New email reply",
     });
+  }
+
+  if (updates.length) await prisma.$transaction(updates);
+
+  // Draft generation is an AI call rather than a query, so it stays sequential.
+  for (const job of draftJobs) {
+    await generateOutreachResponseDraft({
+      platform: "email",
+      leadId: job.leadId,
+      adminId: args.adminId,
+      incomingMessage: job.incomingMessage,
+    }).catch((e) => console.warn("[outreach-email-scan] draft generation failed", e));
   }
 
   if (notifyLeads.length > 0) {

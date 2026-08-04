@@ -1,4 +1,5 @@
 import { randomBytes } from "crypto";
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   isMatchFitInternalQaClientEmail,
@@ -269,87 +270,97 @@ export async function refreshInternalQaClientSimulationIfNeeded(args: {
   await deleteQaClientSyntheticEdges(args.clientId);
   const now = new Date();
 
-  for (const t of matched) {
-    const conv = await prisma.trainerClientConversation.create({
-      data: {
-        trainerId: t.id,
-        clientId: args.clientId,
-        officialChatStartedAt: now,
-        relationshipStage: "POTENTIAL_CLIENT",
-      },
-    });
-    const coach = t.preferredName?.trim() || t.firstName;
-    await prisma.trainerClientChatMessage.createMany({
-      data: [
-        {
-          conversationId: conv.id,
-          authorRole: "TRAINER",
-          body: `Hey! I’m ${coach} — thanks for connecting on Match Fit. What are you working toward this season?`,
-        },
-        {
-          conversationId: conv.id,
-          authorRole: "CLIENT",
-          body: "Hi! I’m trying to rebuild a consistent strength routine around a busy work schedule.",
-        },
-        {
-          conversationId: conv.id,
-          authorRole: "TRAINER",
-          body: "Totally doable. How many days per week can you realistically train, and do you prefer in-person or virtual?",
-        },
-      ],
-    });
-  }
-
-  for (let i = 0; i < chatOnly.length; i++) {
-    const t = chatOnly[i]!;
-    const conv = await prisma.trainerClientConversation.create({
-      data: {
-        trainerId: t.id,
-        clientId: args.clientId,
-        officialChatStartedAt: i === 0 ? null : now,
-        relationshipStage: "POTENTIAL_CLIENT",
-      },
-    });
-    if (i === 0) {
-      await prisma.trainerClientNudge.create({
-        data: {
+  // Insert every conversation up front (createManyAndReturn keeps input order),
+  // then write all synthetic chat rows in one pass instead of per persona.
+  const matchedConvs = matched.length
+    ? await prisma.trainerClientConversation.createManyAndReturn({
+        data: matched.map((t) => ({
           trainerId: t.id,
           clientId: args.clientId,
-          message: "Loved your profile — want to see if we’re a fit for remote coaching?",
-        },
+          officialChatStartedAt: now,
+          relationshipStage: "POTENTIAL_CLIENT" as const,
+        })),
+      })
+    : [];
+
+  // Key the returned rows by trainerId rather than trusting positional order.
+  const matchedConvByTrainer = new Map(matchedConvs.map((c) => [c.trainerId, c.id]));
+
+  const chatMessages: Prisma.TrainerClientChatMessageCreateManyInput[] = [];
+  matched.forEach((t) => {
+    const conversationId = matchedConvByTrainer.get(t.id)!;
+    const coach = t.preferredName?.trim() || t.firstName;
+    chatMessages.push(
+      {
+        conversationId,
+        authorRole: "TRAINER",
+        body: `Hey! I’m ${coach} — thanks for connecting on Match Fit. What are you working toward this season?`,
+      },
+      {
+        conversationId,
+        authorRole: "CLIENT",
+        body: "Hi! I’m trying to rebuild a consistent strength routine around a busy work schedule.",
+      },
+      {
+        conversationId,
+        authorRole: "TRAINER",
+        body: "Totally doable. How many days per week can you realistically train, and do you prefer in-person or virtual?",
+      },
+    );
+  });
+
+  const chatOnlyConvs = chatOnly.length
+    ? await prisma.trainerClientConversation.createManyAndReturn({
+        data: chatOnly.map((t, i) => ({
+          trainerId: t.id,
+          clientId: args.clientId,
+          officialChatStartedAt: i === 0 ? null : now,
+          relationshipStage: "POTENTIAL_CLIENT" as const,
+        })),
+      })
+    : [];
+
+  const chatOnlyConvByTrainer = new Map(chatOnlyConvs.map((c) => [c.trainerId, c.id]));
+
+  const nudges: Prisma.TrainerClientNudgeCreateManyInput[] = [];
+  chatOnly.forEach((t, i) => {
+    const conversationId = chatOnlyConvByTrainer.get(t.id)!;
+    const coach = t.preferredName?.trim() || t.firstName;
+    if (i === 0) {
+      nudges.push({
+        trainerId: t.id,
+        clientId: args.clientId,
+        message: "Loved your profile — want to see if we’re a fit for remote coaching?",
       });
     } else if (i === 1) {
-      const coach = t.preferredName?.trim() || t.firstName;
-      await prisma.trainerClientChatMessage.create({
-        data: {
-          conversationId: conv.id,
-          authorRole: "TRAINER",
-          body: `Hi, I’m ${coach}. I have an opening for two new clients this month — interested in a quick consult?`,
-        },
+      chatMessages.push({
+        conversationId,
+        authorRole: "TRAINER",
+        body: `Hi, I’m ${coach}. I have an opening for two new clients this month — interested in a quick consult?`,
       });
     } else {
-      const coach = t.preferredName?.trim() || t.firstName;
-      await prisma.trainerClientChatMessage.createMany({
-        data: [
-          {
-            conversationId: conv.id,
-            authorRole: "TRAINER",
-            body: `Hey! ${coach} here — I specialize in hybrid strength + conditioning.`,
-          },
-          {
-            conversationId: conv.id,
-            authorRole: "CLIENT",
-            body: "Nice — I’m looking for accountability and a structured plan.",
-          },
-          {
-            conversationId: conv.id,
-            authorRole: "TRAINER",
-            body: "Perfect. What equipment do you have access to most days?",
-          },
-        ],
-      });
+      chatMessages.push(
+        {
+          conversationId,
+          authorRole: "TRAINER",
+          body: `Hey! ${coach} here — I specialize in hybrid strength + conditioning.`,
+        },
+        {
+          conversationId,
+          authorRole: "CLIENT",
+          body: "Nice — I’m looking for accountability and a structured plan.",
+        },
+        {
+          conversationId,
+          authorRole: "TRAINER",
+          body: "Perfect. What equipment do you have access to most days?",
+        },
+      );
     }
-  }
+  });
+
+  if (chatMessages.length) await prisma.trainerClientChatMessage.createMany({ data: chatMessages });
+  if (nudges.length) await prisma.trainerClientNudge.createMany({ data: nudges });
 
   await prisma.internalQaClientDailyCursor.upsert({
     where: { clientId: args.clientId },
@@ -387,50 +398,53 @@ export async function refreshInternalQaTrainerSimulationIfNeeded(args: {
 
   await deleteQaTrainerSyntheticEdges(args.trainerId);
 
-  for (let i = 0; i < chatClients.length; i++) {
-    const c = chatClients[i]!;
-    const conv = await prisma.trainerClientConversation.create({
-      data: {
-        trainerId: args.trainerId,
-        clientId: c.id,
-        officialChatStartedAt: i === 0 ? null : now,
-        relationshipStage: "POTENTIAL_CLIENT",
-      },
-    });
-    const who = c.preferredName?.trim() || c.firstName;
-    if (i === 0) {
-      await prisma.trainerClientNudge.create({
-        data: {
+  // Same shape as the client-side simulation: all conversations in one insert,
+  // then all messages and nudges in one insert each.
+  const chatConvs = chatClients.length
+    ? await prisma.trainerClientConversation.createManyAndReturn({
+        data: chatClients.map((c, i) => ({
           trainerId: args.trainerId,
           clientId: c.id,
-          message: null,
-        },
-      });
+          officialChatStartedAt: i === 0 ? null : now,
+          relationshipStage: "POTENTIAL_CLIENT" as const,
+        })),
+      })
+    : [];
+
+  // Key the returned rows by clientId rather than trusting positional order.
+  const chatConvByClient = new Map(chatConvs.map((conv) => [conv.clientId, conv.id]));
+
+  const chatMessages: Prisma.TrainerClientChatMessageCreateManyInput[] = [];
+  const nudges: Prisma.TrainerClientNudgeCreateManyInput[] = [];
+  chatClients.forEach((c, i) => {
+    const conversationId = chatConvByClient.get(c.id)!;
+    const who = c.preferredName?.trim() || c.firstName;
+    if (i === 0) {
+      nudges.push({ trainerId: args.trainerId, clientId: c.id, message: null });
     } else if (i === 1) {
-      await prisma.trainerClientChatMessage.create({
-        data: {
-          conversationId: conv.id,
-          authorRole: "CLIENT",
-          body: `Hi coach — ${who} here. I saw your profile and I’m interested in hybrid training.`,
-        },
+      chatMessages.push({
+        conversationId,
+        authorRole: "CLIENT",
+        body: `Hi coach — ${who} here. I saw your profile and I’m interested in hybrid training.`,
       });
     } else {
-      await prisma.trainerClientChatMessage.createMany({
-        data: [
-          {
-            conversationId: conv.id,
-            authorRole: "TRAINER",
-            body: "Thanks for reaching out — what days work best for you?",
-          },
-          {
-            conversationId: conv.id,
-            authorRole: "CLIENT",
-            body: "Weekday evenings after 6pm ET usually work best for me.",
-          },
-        ],
-      });
+      chatMessages.push(
+        {
+          conversationId,
+          authorRole: "TRAINER",
+          body: "Thanks for reaching out — what days work best for you?",
+        },
+        {
+          conversationId,
+          authorRole: "CLIENT",
+          body: "Weekday evenings after 6pm ET usually work best for me.",
+        },
+      );
     }
-  }
+  });
+
+  if (chatMessages.length) await prisma.trainerClientChatMessage.createMany({ data: chatMessages });
+  if (nudges.length) await prisma.trainerClientNudge.createMany({ data: nudges });
 
   await prisma.internalQaTrainerDailyCursor.upsert({
     where: { trainerId: args.trainerId },

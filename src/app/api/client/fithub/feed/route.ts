@@ -85,7 +85,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    await ensureClientFitHubSamplePosts();
+    const samplePostsReady = ensureClientFitHubSamplePosts();
     const prefs = parseClientFithubPrefsJson(client.fitHubPrefsJson);
     const matchPrefs = parseClientMatchPreferencesJson(client.matchPreferencesJson);
     const clientMatchTokens = new Set(clientPreferenceSearchTokens(matchPrefs));
@@ -104,6 +104,9 @@ export async function GET() {
         select: { trainerId: true },
       }),
       getTrainerIdsHiddenFromClientFithub(clientId),
+      // Seeding runs alongside the two reads instead of blocking them; it still
+      // resolves before the post query below, so the feed sees any seeded rows.
+      samplePostsReady,
     ]);
     const savedIds = new Set(savedRows.map((r) => r.trainerId));
 
@@ -177,11 +180,18 @@ export async function GET() {
       sorted.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       sorted = sorted.slice(0, 60);
     } else {
-      sorted.sort(
-        (a, b) =>
-          scorePost(b, prefs, savedIds, clientMatchTokens, promotionBoostFor(b.id)) -
-          scorePost(a, prefs, savedIds, clientMatchTokens, promotionBoostFor(a.id)),
-      );
+      // Score each post exactly once. Calling scorePost from inside the comparator
+      // re-ran it O(n log n) times per sort — at take=180 that is ~1.4k comparisons,
+      // so parseStoredHashtagsJson (a JSON.parse) and the nested-loop hashtag boost
+      // ran ~2.8k times per request instead of 180.
+      const scoreById = new Map<string, number>();
+      for (const p of rows) {
+        scoreById.set(
+          p.id,
+          scorePost(p, prefs, savedIds, clientMatchTokens, promotionBoostFor(p.id)),
+        );
+      }
+      sorted.sort((a, b) => (scoreById.get(b.id) ?? 0) - (scoreById.get(a.id) ?? 0));
       sorted = sorted.slice(0, 60);
     }
 
