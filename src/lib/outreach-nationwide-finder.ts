@@ -122,6 +122,16 @@ const EXCLUDED_HOSTS = [
   'menshealth.com', 'womenshealthmag.com', 'healthline.com', 'verywellfit.com', 'webmd.com',
   'shape.com', 'self.com', 'garagegymreviews.com', 'nytimes.com', 'forbes.com', 'businessinsider.com',
   'nasm.org', 'issaonline.com', 'acefitness.org', 'acsm.org', 'afaa.com', 'ncsf.org',
+  // Added 2026-08-04 (OUT-VERIFY-NATIONWIDE-RUN). Every host on this line actually reached JB's
+  // approval queue as a "lead" on 2026-07-29: a Fortune staff writer, a Harvard/Emeritus course
+  // desk, and three companies that sell coaching software or coaching certifications — i.e.
+  // competitors and publishers, not coaches we can pitch.
+  'fortune.com', 'time.com', 'cnn.com', 'msn.com', 'yahoo.com', 'buzzfeed.com', 'cnet.com',
+  'usatoday.com', 'washingtonpost.com', 'wsj.com', 'gq.com', 'esquire.com', 'popsugar.com',
+  'sportskeeda.com', 'livestrong.com', 'eatthis.com', 'prevention.com', 'runnersworld.com',
+  'emeritus.org', 'harvard.edu', 'coursera.org', 'udemy.com', 'edx.org', 'skillshare.com',
+  'opexfit.com', 'fitnessmentors.com', 'showupfitness.com', 'ptpioneer.com', 'exercise.com',
+  'kajabi.com', 'teachable.com', 'thinkific.com', 'podia.com', 'wix.com', 'squarespace.com',
   'planetfitness.com', 'anytimefitness.com', 'orangetheory.com', 'equinox.com', 'lifetime.life',
   'crunch.com', 'goldsgym.com', 'ymca.org', '24hourfitness.com', 'f45training.com',
   'barrys.com', 'soul-cycle.com', 'soulcycle.com', 'clubpilates.com', 'orangetheoryfitness.com',
@@ -133,6 +143,8 @@ type SerpOrganicResult = {
   link?: string;
   snippet?: string;
   displayed_link?: string;
+  /** SerpApi carries the Instagram account name here, e.g. "Instagram · thepatcallahan". */
+  source?: string;
 };
 
 export type LaneName = 'instagram' | 'email';
@@ -306,6 +318,91 @@ export function instagramHandleFrom(url: string): string | null {
   return first;
 }
 
+/**
+ * MEASURED 2026-08-04: Google returns ZERO bare `instagram.com/<handle>` profile URLs for the
+ * `site:instagram.com` queries this lane uses. All 10 organic results for
+ * `site:instagram.com "online fitness coach" "stan.store"` were `/p/...` or `/reel/...` post URLs,
+ * so `instagramHandleFrom` correctly rejected every one and the lane returned 0 of 5 leads —
+ * not a filter bug, a source bug.
+ *
+ * The handle IS present: SerpApi puts it in the result's `source` field as
+ * `"Instagram · thepatcallahan"`. This reads it from there when the link alone cannot give one,
+ * so a post result becomes the profile behind it. Still refuses anything that is not a plausible
+ * handle, so we never draft a DM to `@reel`.
+ */
+export function instagramHandleFromResult(res: {
+  link?: string;
+  source?: string;
+  displayed_link?: string;
+}): string | null {
+  if (res.link) {
+    const direct = instagramHandleFrom(res.link);
+    if (direct) return direct;
+  }
+  for (const raw of [res.source, res.displayed_link]) {
+    if (!raw) continue;
+    // "Instagram · thepatcallahan", "Instagram > coach.jane", "instagram.com › coach.jane"
+    const tail = raw.split(/[·›>]/).pop()?.trim().toLowerCase();
+    if (!tail) continue;
+    const candidate = tail.replace(/^@/, '').replace(/\/+$/, '');
+    if (!/^[a-z0-9._]{2,30}$/.test(candidate)) continue;
+    if (INSTAGRAM_RESERVED_PATHS.has(candidate)) continue;
+    if (candidate === 'instagram' || candidate === 'instagram.com') continue;
+    return candidate;
+  }
+  return null;
+}
+
+/**
+ * True when a search result is a magazine article, listicle or how-to guide rather than a
+ * coach's own site.
+ *
+ * Measured on the 2026-07-29 batch: 5 of 14 rows JB was asked to approve had an ARTICLE TITLE
+ * sitting in the company field — "Best Online Personal Trainers (2026): Expert Tested",
+ * "The 6 Best Online Nutrition Coaches in 2025", "How to Become an Online Personal Trainer in
+ * 2026". A host blocklist can never catch these on its own because a new publisher appears every
+ * week; the shape of the headline is the durable signal.
+ */
+export function looksLikeArticle(title: string, url?: string): boolean {
+  const t = title.trim();
+  if (!t) return false;
+  const patterns: RegExp[] = [
+    /\b(19|20)\d{2}\b/,                                   // a year in the title
+    /\bbest\b/i,                                          // "Best Online Personal Trainers"
+    /\btop\s*\d+\b/i,                                     // "Top 10 ..."
+    /^\s*\d+\s+(best|top|great|amazing|ways|reasons|tips)/i, // "6 Best ...", "7 Ways ..."
+    /\bhow\s+to\b/i,
+    /\b(guide|ultimate guide|complete guide|checklist|roundup|round-up)\b/i,
+    /\b(review|reviews|ranked|rated|expert[- ]tested|we tested|compared|comparison)\b/i,
+    /\bvs\.?\b/i,
+    /\b(average cost|cost of|how much (does|do)|price of|pricing guide)\b/i,
+    /\b(what is|why you|should you|do you need)\b/i,
+  ];
+  if (patterns.some((p) => p.test(t))) return true;
+  // A result living under a blog/article path is publisher content even if the headline is plain.
+  if (url && /\/(blog|blogs|article|articles|news|magazine|guides?|resources|learn)\//i.test(url)) return true;
+  return false;
+}
+
+/**
+ * A readable business name for the lead. Falls back to the domain when the page title is an
+ * article headline, so JB never opens a queue row addressed to "Average Cost of Online Personal
+ * Trainer Per Month: 2026 ...". Kept separate from the reject decision on purpose: a real coach's
+ * blog post can still be a real coach.
+ */
+export function companyNameFrom(title: string | undefined, host: string): string {
+  const t = (title ?? '').split('|')[0].split(' - ')[0].trim();
+  // Deliberately stricter than looksLikeArticle, and deliberately NOT wired into the reject
+  // decision. "Find an Online Fitness Coach" is the homepage title of a genuine solo coach
+  // (coachclairefitness.com, 2026-08-04) — a bad name to greet her by, not a reason to drop her.
+  const readsLikeASentence =
+    /^(find|choose|hire|meet|discover|compare|get|start|join|book|learn|why|when|where|what|who|how)\b/i.test(t) ||
+    t.split(/\s+/).length > 6;
+  if (t && !looksLikeArticle(t) && !readsLikeASentence && t.length <= 60) return t;
+  const bare = host.replace(/\.(com|net|org|co|io|fit|coach|us)$/i, '').replace(/[-_.]+/g, ' ').trim();
+  return bare ? bare.replace(/\b\w/g, (c) => c.toUpperCase()) : host;
+}
+
 /** True when the search result text reads like an online/virtual coach rather than a random account. */
 export function looksLikeOnlineCoach(text: string): boolean {
   const haystack = text.toLowerCase();
@@ -455,7 +552,7 @@ async function runInstagramLane(db: Db, seen: Set<string>, now: Date): Promise<L
     for (const res of results) {
       if (stats.drafted >= LEADS_PER_LANE) break;
       if (!res.link) continue;
-      const handle = instagramHandleFrom(res.link);
+      const handle = instagramHandleFromResult(res);
       if (!handle) {
         stats.rejected += 1;
         continue;
@@ -477,7 +574,18 @@ async function runInstagramLane(db: Db, seen: Set<string>, now: Date): Promise<L
       }
       seen.add(dedupeKey); // provisional — stops a second hit in this same run inserting twice
 
-      const displayName = (res.title ?? '').split('(')[0].split('|')[0].trim() || null;
+      // When the result is a post rather than a profile, the title is the CAPTION ("I just
+      // dropped a free live demo in my Stan Store so you can see ...") and makes a terrible
+      // company name. Only keep a title that reads like a name; otherwise show the handle.
+      const rawTitle = (res.title ?? '').split('(')[0].split('|')[0].trim();
+      const titleIsName =
+        rawTitle.length > 0 &&
+        rawTitle.length <= 40 &&
+        !/[.!?…]$/.test(rawTitle) &&
+        // Some captions are just a link ("https://stan.store/CoachGymRat") — not a name.
+        !/https?:\/\/|\bwww\.|\.(com|net|org|io|store|link)\b/i.test(rawTitle) &&
+        !looksLikeArticle(rawTitle);
+      const displayName = titleIsName ? rawTitle : `@${handle}`;
       const leadRow = {
         venture: VENTURE,
         channel: 'instagram',
@@ -554,6 +662,13 @@ async function runEmailLane(db: Db, seen: Set<string>, now: Date): Promise<LaneS
         stats.rejected += 1;
         continue;
       }
+      // Publisher content that slipped past EXCLUDED_HOSTS. A listicle is not a coach, and the
+      // email on it belongs to an editor. This is what put emily.phares@fortune.com in front of
+      // JB on 2026-07-29.
+      if (looksLikeArticle(res.title ?? '', res.link)) {
+        stats.rejected += 1;
+        continue;
+      }
       stats.candidates += 1;
 
       const website = `https://${host}`;
@@ -570,7 +685,7 @@ async function runEmailLane(db: Db, seen: Set<string>, now: Date): Promise<LaneS
       }
       seen.add(dedupeKey);
 
-      const company = (res.title ?? '').split('|')[0].split(' - ')[0].trim() || host;
+      const company = companyNameFrom(res.title, host);
       const leadRow = {
         venture: VENTURE,
         channel: 'email',

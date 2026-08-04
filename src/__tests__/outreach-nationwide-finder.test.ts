@@ -6,7 +6,10 @@ import {
   draftEmail,
   draftInstagramDm,
   hostnameOf,
+  companyNameFrom,
   instagramHandleFrom,
+  instagramHandleFromResult,
+  looksLikeArticle,
   looksLikeOnlineCoach,
   pickQueries,
   rotationOffset,
@@ -162,5 +165,79 @@ describe("isEstWeekend", () => {
 
   it("uses New York time, not UTC (Saturday 01:00 UTC is still Friday in ET)", () => {
     expect(isEstWeekend(new Date("2026-07-25T01:00:00Z"))).toBe(false);
+  });
+});
+
+// --- OUT-VERIFY-NATIONWIDE-RUN 2026-08-04 -----------------------------------------------------
+// Every case below is a row or a payload that actually happened, not a made-up example.
+
+describe("looksLikeArticle — the junk that reached JB's queue on 2026-07-29", () => {
+  it("rejects the real listicle and how-to titles that were written as leads", () => {
+    for (const title of [
+      "Best Online Personal Trainers (2026): Expert Tested",
+      "The 6 Best Online Nutrition Coaches in 2025",
+      "How to Become an Online Personal Trainer in 2026",
+      "How to Start an Online Fitness Coaching Business in 2025",
+      "Average Cost of Online Personal Trainer Per Month: 2026 ...",
+    ]) {
+      expect(looksLikeArticle(title)).toBe(true);
+    }
+  });
+
+  it("rejects publisher paths even when the headline reads plain", () => {
+    expect(looksLikeArticle("Online Nutrition Coaching", "https://www.onpoint-nutrition.com/blog/online-nutrition-coaches")).toBe(true);
+    expect(looksLikeArticle("Coaching", "https://example.com/articles/coaching")).toBe(true);
+  });
+
+  it("keeps a real coach's own page", () => {
+    expect(looksLikeArticle("Coach Claire Fitness")).toBe(false);
+    expect(looksLikeArticle("Online Fitness Coaching & Personal Training", "https://themovementdr.net/remote-coaching/")).toBe(false);
+    expect(looksLikeArticle("Kate Lyman Nutrition")).toBe(false);
+  });
+});
+
+describe("companyNameFrom", () => {
+  it("falls back to the domain when the title is a headline", () => {
+    expect(companyNameFrom("Average Cost of Online Personal Trainer Per Month: 2026 ...", "warriorbabe.com")).toBe("Warriorbabe");
+    expect(companyNameFrom("Find an Online Fitness Coach", "coachclairefitness.com")).toBe("Coachclairefitness");
+  });
+
+  it("keeps a real business name", () => {
+    expect(companyNameFrom("Kate Lyman Nutrition | Home", "katelymannutrition.com")).toBe("Kate Lyman Nutrition");
+  });
+
+  it("never returns an empty name", () => {
+    expect(companyNameFrom(undefined, "joshstrength.com")).toBe("Joshstrength");
+  });
+});
+
+describe("instagramHandleFromResult — Google returns posts, never profiles", () => {
+  // Verbatim organic results from SerpApi for
+  // site:instagram.com "online fitness coach" "stan.store" on 2026-08-04.
+  it("recovers the account behind a post or reel URL", () => {
+    expect(
+      instagramHandleFromResult({
+        link: "https://www.instagram.com/p/DPj2JVNktdl/",
+        source: "Instagram \u00b7 thepatcallahan",
+      }),
+    ).toBe("thepatcallahan");
+    expect(
+      instagramHandleFromResult({
+        link: "https://www.instagram.com/reel/DbVJ3KKSx4P/",
+        source: "Instagram \u00b7 zacperna",
+      }),
+    ).toBe("zacperna");
+  });
+
+  it("still prefers a real profile URL when there is one", () => {
+    expect(
+      instagramHandleFromResult({ link: "https://www.instagram.com/coach.jane/", source: "Instagram \u00b7 someoneelse" }),
+    ).toBe("coach.jane");
+  });
+
+  it("returns null when there is no account to be had", () => {
+    expect(instagramHandleFromResult({ link: "https://www.instagram.com/p/DPj2JVNktdl/", source: "Instagram" })).toBeNull();
+    expect(instagramHandleFromResult({ link: "https://www.instagram.com/explore/tags/onlinecoach/" })).toBeNull();
+    expect(instagramHandleFromResult({ link: "https://example.com/x" })).toBeNull();
   });
 });

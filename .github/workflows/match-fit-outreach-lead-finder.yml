@@ -13,9 +13,20 @@
 
 name: Match Fit outreach lead finder
 
+# SCHEDULE REMOVED 2026-08-04 — OUT-FINDER-DEDUPE. Manual dispatch only now.
+#
+# This workflow needs repo secrets CRON_SECRET and MATCH_FIT_APP_URL. They were never set,
+# so every scheduled fire exited 1 at the guard below and the finder never ran once —
+# proven by outreach_leads holding zero rows with source 'web_online_coach_search' or
+# 'instagram_online_coach_search' before 2026-08-04.
+#
+# The schedule now lives in nv-vault .github/workflows/mf-lead-finder-nationwide.yml, which
+# reads CRON_SECRET out of ni_platform_secrets with nv-vault's existing Supabase key and
+# calls this same endpoint. Exactly one schedule, no repo secret to forget.
+#
+# If JB ever sets CRON_SECRET + MATCH_FIT_APP_URL here, put the cron back in THIS file and
+# delete the nv-vault one — never run both, or the two callers double-spend SerpApi quota.
 on:
-  schedule:
-    - cron: "0 12 * * 1-5"
   workflow_dispatch: {}
 
 jobs:
