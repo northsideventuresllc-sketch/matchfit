@@ -1,3 +1,4 @@
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { refundCentsViaStripePaymentIntent } from "@/lib/session-check-in";
 
@@ -35,6 +36,12 @@ export async function applyTrainerMarketplaceSuspensionSideEffects(args: {
   let refundsAttempted = 0;
   const notifiedClients = new Set<string>();
 
+  const sessionUpdates: ReturnType<typeof prisma.bookedTrainingSession.update>[] = [];
+  const notifications: Prisma.ClientNotificationCreateManyInput[] = [];
+
+  // Stripe refunds stay strictly sequential — each one carries a per-booking
+  // idempotency key and must not be reordered or run concurrently. Only the
+  // Prisma writes below are batched.
   for (const b of bookings) {
     const refundCents =
       b.status === "CLIENT_CONFIRMED" ? Math.max(0, b.allocatedCoachServiceCents + b.allocatedNetAddonCents) : 0;
@@ -51,31 +58,33 @@ export async function applyTrainerMarketplaceSuspensionSideEffects(args: {
       }
     }
 
-    await prisma.bookedTrainingSession.update({
-      where: { id: b.id },
-      data: {
-        status: "CANCELLED",
-        fulfillmentStatus: "CANCELLED_TRAINER_SUSPENDED",
-        sessionClosedAt: now,
-        lastStripeRefundId: refundId,
-        lastStripeRefundCents: refundCents,
-        updatedAt: now,
-      },
-    });
+    sessionUpdates.push(
+      prisma.bookedTrainingSession.update({
+        where: { id: b.id },
+        data: {
+          status: "CANCELLED",
+          fulfillmentStatus: "CANCELLED_TRAINER_SUSPENDED",
+          sessionClosedAt: now,
+          lastStripeRefundId: refundId,
+          lastStripeRefundCents: refundCents,
+          updatedAt: now,
+        },
+      }),
+    );
 
     if (!notifiedClients.has(b.clientId)) {
       notifiedClients.add(b.clientId);
-      await prisma.clientNotification.create({
-        data: {
-          clientId: b.clientId,
-          kind: "SYSTEM",
-          title: "Coach account suspended",
-          body: `A coach you work with on Match Fit was suspended pending review. Upcoming sessions were cancelled and eligible service amounts were refunded toward your card where Stripe allows (administrative and processing portions may be retained).`,
-          linkHref: "/client/dashboard/messages",
-        },
+      notifications.push({
+        clientId: b.clientId,
+        kind: "SYSTEM",
+        title: "Coach account suspended",
+        body: `A coach you work with on Match Fit was suspended pending review. Upcoming sessions were cancelled and eligible service amounts were refunded toward your card where Stripe allows (administrative and processing portions may be retained).`,
+        linkHref: "/client/dashboard/messages",
       });
     }
   }
+
+  if (sessionUpdates.length) await prisma.$transaction(sessionUpdates);
 
   const convClients = await prisma.trainerClientConversation.findMany({
     where: { trainerId: args.trainerId, officialChatStartedAt: { not: null }, archivedAt: null },
@@ -84,16 +93,16 @@ export async function applyTrainerMarketplaceSuspensionSideEffects(args: {
   for (const c of convClients) {
     if (notifiedClients.has(c.clientId)) continue;
     notifiedClients.add(c.clientId);
-    await prisma.clientNotification.create({
-      data: {
-        clientId: c.clientId,
-        kind: "SYSTEM",
-        title: "Coach account suspended",
-        body: `A coach you are matched with on Match Fit was suspended pending review. You may be unable to schedule new sessions until their account is restored.`,
-        linkHref: "/client/dashboard/messages",
-      },
+    notifications.push({
+      clientId: c.clientId,
+      kind: "SYSTEM",
+      title: "Coach account suspended",
+      body: `A coach you are matched with on Match Fit was suspended pending review. You may be unable to schedule new sessions until their account is restored.`,
+      linkHref: "/client/dashboard/messages",
     });
   }
+
+  if (notifications.length) await prisma.clientNotification.createMany({ data: notifications });
 
   return {
     bookingsCancelled: bookings.length,

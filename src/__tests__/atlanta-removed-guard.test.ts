@@ -43,6 +43,15 @@ const BANNED = [
   /\balpharetta\b/i,
   /\bmarietta\b/i,
   /metro[-_ ]?atl\b/i,
+  /**
+   * Georgia ZIP ranges (30000–31999, 39800–39999).
+   *
+   * Added 2026-08-04 after this guard passed while `placeholder="30301"` — a literal
+   * downtown-Atlanta ZIP — was still shipping on two live trainer-facing routes. The
+   * word-only patterns above cannot see a bare ZIP, so "the Atlanta guard is green"
+   * did not mean "Atlanta is gone". Verified zero false positives across scanned code.
+   */
+  /\b(3[01]\d{3}|39[89]\d{2})\b/,
 ];
 
 const ALLOW_MARKER = /geo-guard:allow/;

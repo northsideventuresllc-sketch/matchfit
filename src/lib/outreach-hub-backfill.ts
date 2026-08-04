@@ -2,6 +2,9 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 
+/** Cap on statements per batched transaction so a large backfill stays bounded. */
+const UPDATE_BATCH_SIZE = 200;
+
 export type OutreachHubBackfillSummary = {
   savedToHubAtFromSignals: number;
   legacyOtherLeadsTagged: number;
@@ -18,29 +21,41 @@ export async function backfillOutreachHubLeads(): Promise<OutreachHubBackfillSum
     orderBy: { createdAt: "asc" },
   });
 
-  let savedToHubAtFromSignals = 0;
+  // Signals arrive oldest-first and each update only lands while savedToHubAt is
+  // still null, so the earliest signal per lead is the only one that can ever win.
+  // Every later duplicate is a guaranteed no-op (count 0), so collapse them first.
+  const earliestByLead = new Map<string, { platform: string; savedAt: Date }>();
   for (const signal of signalRows) {
-    if (!signal.leadId) continue;
-    const savedAt = signal.createdAt;
-    if (signal.platform === "instagram") {
-      const result = await prisma.outreachInstagramLead.updateMany({
-        where: { id: signal.leadId, savedToHubAt: null, deletedAt: null },
-        data: { savedToHubAt: savedAt },
-      });
-      savedToHubAtFromSignals += result.count;
-    } else if (signal.platform === "facebook") {
-      const result = await prisma.outreachFacebookLead.updateMany({
-        where: { id: signal.leadId, savedToHubAt: null, deletedAt: null },
-        data: { savedToHubAt: savedAt },
-      });
-      savedToHubAtFromSignals += result.count;
-    } else if (signal.platform === "email") {
-      const result = await prisma.outreachEmailLead.updateMany({
-        where: { id: signal.leadId, savedToHubAt: null, deletedAt: null },
-        data: { savedToHubAt: savedAt },
-      });
-      savedToHubAtFromSignals += result.count;
-    }
+    if (!signal.leadId || earliestByLead.has(signal.leadId)) continue;
+    earliestByLead.set(signal.leadId, { platform: signal.platform, savedAt: signal.createdAt });
+  }
+
+  // Leads saved in the same bulk action share a createdAt, so group by
+  // (platform, savedAt) and set each distinct timestamp with a single updateMany.
+  const groups = new Map<string, { platform: string; savedAt: Date; ids: string[] }>();
+  for (const [leadId, { platform, savedAt }] of earliestByLead) {
+    if (platform !== "instagram" && platform !== "facebook" && platform !== "email") continue;
+    const groupKey = `${platform}:${savedAt.getTime()}`;
+    const group = groups.get(groupKey);
+    if (group) group.ids.push(leadId);
+    else groups.set(groupKey, { platform, savedAt, ids: [leadId] });
+  }
+
+  const operations = [...groups.values()].map(({ platform, savedAt, ids }) => {
+    const args = {
+      where: { id: { in: ids }, savedToHubAt: null, deletedAt: null },
+      data: { savedToHubAt: savedAt },
+    };
+    if (platform === "instagram") return prisma.outreachInstagramLead.updateMany(args);
+    if (platform === "facebook") return prisma.outreachFacebookLead.updateMany(args);
+    return prisma.outreachEmailLead.updateMany(args);
+  });
+
+  let savedToHubAtFromSignals = 0;
+  // One round trip per chunk instead of one per signal row.
+  for (let i = 0; i < operations.length; i += UPDATE_BATCH_SIZE) {
+    const results = await prisma.$transaction(operations.slice(i, i + UPDATE_BATCH_SIZE));
+    for (const result of results) savedToHubAtFromSignals += result.count;
   }
 
   return {

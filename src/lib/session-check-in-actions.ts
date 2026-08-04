@@ -27,6 +27,27 @@ async function appendSystemChat(args: { conversationId: string; body: string }):
   });
 }
 
+/**
+ * Batched form of {@link appendSystemChat} for cron sweeps: two statements total
+ * instead of two per conversation. Messages are inserted in the given order.
+ */
+async function appendSystemChatMany(
+  entries: { conversationId: string; body: string }[],
+): Promise<void> {
+  if (!entries.length) return;
+  await prisma.trainerClientChatMessage.createMany({
+    data: entries.map((e) => ({
+      conversationId: e.conversationId,
+      authorRole: "TRAINER" as const,
+      body: e.body,
+    })),
+  });
+  await prisma.trainerClientConversation.updateMany({
+    where: { id: { in: [...new Set(entries.map((e) => e.conversationId))] } },
+    data: { updatedAt: new Date() },
+  });
+}
+
 function paymentIntentForBooking(booking: {
   attributionStripePaymentIntentId: string | null;
   trainerId: string;
@@ -738,33 +759,37 @@ export async function autoSatisfyGateASilenceCron(now = new Date()): Promise<num
       fulfillmentStatus: true,
     },
   });
-  let n = 0;
-  for (const r of rows) {
+  const due = rows.filter((r) => {
     const deadline = gateAPostSessionDeadlineAt({
       scheduledStartAt: r.scheduledStartAt,
       scheduledEndAt: r.scheduledEndAt,
     });
-    if (now.getTime() < deadline.getTime()) continue;
-    if (r.fulfillmentStatus === "AWAITING_CLIENT_FOLLOWUP") continue;
+    if (now.getTime() < deadline.getTime()) return false;
+    return r.fulfillmentStatus !== "AWAITING_CLIENT_FOLLOWUP";
+  });
+  if (!due.length) return 0;
 
-    await prisma.bookedTrainingSession.update({
-      where: { id: r.id },
-      data: {
-        gateASatisfiedAt: now,
-        gateASource: "AUTO_SILENCE",
-        fulfillmentStatus: "WAITING_TRAINER_GATE_B",
-        updatedAt: now,
-      },
-    });
-    n += 1;
-    if (r.conversationId) {
-      await appendSystemChat({
-        conversationId: r.conversationId,
+  // Every row gets the identical patch, so one updateMany replaces N updates.
+  await prisma.bookedTrainingSession.updateMany({
+    where: { id: { in: due.map((r) => r.id) } },
+    data: {
+      gateASatisfiedAt: now,
+      gateASource: "AUTO_SILENCE",
+      fulfillmentStatus: "WAITING_TRAINER_GATE_B",
+      updatedAt: now,
+    },
+  });
+
+  await appendSystemChatMany(
+    due
+      .filter((r) => r.conversationId)
+      .map((r) => ({
+        conversationId: r.conversationId as string,
         body: `Match Fit: Gate A auto-confirmed — no client objection before the cutoff after the booked session.`,
-      });
-    }
-  }
-  return n;
+      })),
+  );
+
+  return due.length;
 }
 
 /** Backfills payout buffers if both timestamps exist but buffer missing. */
@@ -815,7 +840,12 @@ export async function settleSessionsPastPayoutBuffer(now = new Date()): Promise<
       allocatedNetAddonCents: true,
     },
   });
-  let n = 0;
+  const sessionUpdates: ReturnType<typeof prisma.bookedTrainingSession.update>[] = [];
+  const chatEntries: { conversationId: string; body: string }[] = [];
+
+  // applyWithholdToPayout draws down a per-trainer deferred-fee balance, so two
+  // rows for the same trainer must be processed in order — it stays sequential.
+  // The session writes and system chat rows it feeds are batched below.
   for (const r of rows) {
     const grossPayoutCents = Math.max(0, r.allocatedCoachServiceCents + r.allocatedNetAddonCents);
     const { netPayoutCents, withheld } = await applyWithholdToPayout(r.trainerId, grossPayoutCents);
@@ -829,30 +859,36 @@ export async function settleSessionsPastPayoutBuffer(now = new Date()): Promise<
       netAddon = Math.max(0, r.allocatedNetAddonCents - (withheld - serviceWithheld));
     }
 
-    await prisma.bookedTrainingSession.update({
-      where: { id: r.id },
-      data: {
-        fulfillmentStatus: "SESSION_PAYMENT_ROUTE_CLEARED",
-        sessionClosedAt: now,
-        allocatedCoachServiceCents: netService,
-        allocatedNetAddonCents: netAddon,
-        trainerAmountCents: netPayoutCents,
-        updatedAt: now,
-      },
-    });
-    n += 1;
+    sessionUpdates.push(
+      prisma.bookedTrainingSession.update({
+        where: { id: r.id },
+        data: {
+          fulfillmentStatus: "SESSION_PAYMENT_ROUTE_CLEARED",
+          sessionClosedAt: now,
+          allocatedCoachServiceCents: netService,
+          allocatedNetAddonCents: netAddon,
+          trainerAmountCents: netPayoutCents,
+          updatedAt: now,
+        },
+      }),
+    );
+
     if (r.conversationId) {
       const withholdNote =
         withheld > 0
           ? ` Deferred platform fee withhold: $${(withheld / 100).toFixed(2)} (net payout $${(netPayoutCents / 100).toFixed(2)}).`
           : "";
-      await appendSystemChat({
+      chatEntries.push({
         conversationId: r.conversationId,
         body: `Match Fit: payout buffer expired without a dispute freeze. Ledger payout may proceed outbound per payout ops (subject to connected accounts / treasury).${withholdNote}`,
       });
     }
   }
-  return n;
+
+  if (sessionUpdates.length) await prisma.$transaction(sessionUpdates);
+  await appendSystemChatMany(chatEntries);
+
+  return sessionUpdates.length;
 }
 
 function trainerLabelForNotify(row: {

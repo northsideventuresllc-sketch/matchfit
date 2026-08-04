@@ -114,43 +114,53 @@ function interestOptionsFromPrefs(prefs: ReturnType<typeof parseClientMatchPrefe
 async function pickRecentTrainersForClient(
   clientZip: string | null | undefined, excludeTrainerIds: string[]) {
   const horizons = [14, 45, 120] as const;
-  for (const days of horizons) {
-    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-    const rows = await prisma.trainer.findMany({
-      where: {
-        ...publicMarketplaceVisibleTrainerWhere(),
-        id: excludeTrainerIds.length ? { notIn: excludeTrainerIds } : undefined,
-        createdAt: { gte: since },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 40,
-      select: {
-        id: true,
-        username: true,
-        firstName: true,
-        lastName: true,
-        preferredName: true,
-        fitnessNiches: true,
-        bio: true,
-        createdAt: true,
-        profile: {
-          select: {
-            dashboardActivatedAt: true,
-            hasSignedTOS: true,
-            hasUploadedW9: true,
-            backgroundCheckStatus: true,
-            onboardingTrackCpt: true,
-            onboardingTrackNutrition: true,
-            onboardingTrackSpecialist: true,
-            certificationReviewStatus: true,
-            nutritionistCertificationReviewStatus: true,
-            specialistCertificationReviewStatus: true,
-          },
+  // The widest horizon is a superset of the narrower ones and the ordering is the
+  // same (createdAt desc, take 40), so the newest-40 inside 120 days already
+  // contains exactly what each narrower window would have returned. Fetch once
+  // and narrow in memory instead of probing the database three times.
+  const widestSince = new Date(Date.now() - horizons[horizons.length - 1] * 24 * 60 * 60 * 1000);
+  const widestRows = await prisma.trainer.findMany({
+    where: {
+      ...publicMarketplaceVisibleTrainerWhere(),
+      id: excludeTrainerIds.length ? { notIn: excludeTrainerIds } : undefined,
+      createdAt: { gte: widestSince },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 40,
+    select: {
+      id: true,
+      username: true,
+      firstName: true,
+      lastName: true,
+      preferredName: true,
+      fitnessNiches: true,
+      bio: true,
+      createdAt: true,
+      profile: {
+        select: {
+          dashboardActivatedAt: true,
+          hasSignedTOS: true,
+          hasUploadedW9: true,
+          backgroundCheckStatus: true,
+          onboardingTrackCpt: true,
+          onboardingTrackNutrition: true,
+          onboardingTrackSpecialist: true,
+          certificationReviewStatus: true,
+          nutritionistCertificationReviewStatus: true,
+          specialistCertificationReviewStatus: true,
         },
       },
-    });
-    const eligible = rows.filter(
-      (t) => t.profile && t.profile.dashboardActivatedAt != null && isTrainerComplianceComplete(t.profile),
+    },
+  });
+
+  for (const days of horizons) {
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const eligible = widestRows.filter(
+      (t) =>
+        t.createdAt >= since &&
+        t.profile &&
+        t.profile.dashboardActivatedAt != null &&
+        isTrainerComplianceComplete(t.profile),
     );
     if (eligible.length) return shuffle(eligible);
   }

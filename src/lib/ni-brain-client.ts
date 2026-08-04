@@ -42,6 +42,8 @@ export type ContentCalendarPostRow = {
   archive_type: "posted" | "scrapped" | null;
   scrap_reason: string | null;
   posted_urls: Record<string, string> | null;
+  /** '5pm' | '8pm' — the nightly posting slot. Posting runs select strictly on this, so NULL never posts. */
+  post_group: "5pm" | "8pm" | null;
   purge_after_at: string | null;
   bulk_session_id: string | null;
   deleted_at: string | null;
