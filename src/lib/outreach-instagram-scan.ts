@@ -88,31 +88,46 @@ export async function completeOutreachInstagramScanJob(args: {
   const skipped: string[] = [];
   const notifyLeads: OutreachAxonLeadRef[] = [];
 
-  for (const reply of args.replies ?? []) {
-    const lead = await prisma.outreachInstagramLead.findFirst({
-      where: { id: reply.leadId, deletedAt: null, archivedAt: null },
-    });
+  const replies = args.replies ?? [];
+
+  // Resolve every referenced lead in one query instead of one per reply.
+  const leadRows = replies.length
+    ? await prisma.outreachInstagramLead.findMany({
+        where: { id: { in: [...new Set(replies.map((r) => r.leadId))] }, deletedAt: null, archivedAt: null },
+      })
+    : [];
+  const leadById = new Map(leadRows.map((lead) => [lead.id, lead]));
+
+  // A repeat leadId re-read the same row and wrote the same values, so one
+  // update per distinct lead is equivalent — but matched/notifyLeads still get
+  // an entry per reply, exactly as before.
+  const updatedLeadIds = new Set<string>();
+  const updates: ReturnType<typeof prisma.outreachInstagramLead.update>[] = [];
+  const draftJobs: { leadId: string; incomingMessage: string | undefined }[] = [];
+
+  for (const reply of replies) {
+    const lead = leadById.get(reply.leadId);
     if (!lead) {
       skipped.push(reply.leadId);
       continue;
     }
-    await prisma.outreachInstagramLead.update({
-      where: { id: lead.id },
-      data: {
-        hasUnrespondedReply: true,
-        replyReceivedAt: now,
-        responseReceivedAt: lead.responseReceivedAt ?? now,
-        status: "RESPONSE_RECEIVED",
-        outreachLane: "pending_response",
-      },
-    });
-    await generateOutreachResponseDraft({
-      platform: "instagram",
-      leadId: lead.id,
-      adminId: args.adminId,
-      incomingMessage: reply.preview,
-    }).catch((e) => console.warn("[outreach-instagram-scan] draft generation failed", e));
+    if (!updatedLeadIds.has(lead.id)) {
+      updatedLeadIds.add(lead.id);
+      updates.push(
+        prisma.outreachInstagramLead.update({
+          where: { id: lead.id },
+          data: {
+            hasUnrespondedReply: true,
+            replyReceivedAt: now,
+            responseReceivedAt: lead.responseReceivedAt ?? now,
+            status: "RESPONSE_RECEIVED",
+            outreachLane: "pending_response",
+          },
+        }),
+      );
+    }
 
+    draftJobs.push({ leadId: lead.id, incomingMessage: reply.preview });
     matched.push(lead.id);
     notifyLeads.push({
       platform: "instagram",
@@ -121,6 +136,19 @@ export async function completeOutreachInstagramScanJob(args: {
       contact: lead.profileUrl,
       summary: (reply.preview ?? "New Instagram reply").slice(0, 200),
     });
+  }
+
+  if (updates.length) await prisma.$transaction(updates);
+
+  // Draft generation stays sequential and one-per-reply: it is an AI call, not a
+  // query, and callers rely on the same number of drafts being produced.
+  for (const job of draftJobs) {
+    await generateOutreachResponseDraft({
+      platform: "instagram",
+      leadId: job.leadId,
+      adminId: args.adminId,
+      incomingMessage: job.incomingMessage,
+    }).catch((e) => console.warn("[outreach-instagram-scan] draft generation failed", e));
   }
 
   await prisma.outreachCoworkScanJob.update({

@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { Prisma } from "@/generated/prisma/client";
 import { callMatchFitAi } from "@/lib/ai-vault/router";
 import { getAiVaultStatus } from "@/lib/ai-vault";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
@@ -638,10 +639,12 @@ async function persistGeneratedLeads(
 
   if (platform === "facebook") {
     const items = parseJsonArray<GeneratedFacebookLead>(raw);
-    const created = [];
     const rejectedSamples: { handle: string; reason: string }[] = [];
     const seenUrls = new Set<string>();
+    const payloads: Prisma.OutreachFacebookLeadCreateManyInput[] = [];
 
+    // Validation stays sequential so rejectedSamples keeps its original order and
+    // the page verification calls are unchanged; only the writes are batched.
     for (const item of items) {
       const pageKey = (item.pageUrl ?? item.pageName ?? "").trim().toLowerCase();
       if (!pageKey || seenUrls.has(pageKey)) continue;
@@ -664,32 +667,34 @@ async function persistGeneratedLeads(
         continue;
       }
 
-      const row = await prisma.outreachFacebookLead.create({
-        data: {
-          pageName: item.pageName ?? "Facebook group",
-          pageUrl: verified.pageUrl,
-          audience: item.audience === "CLIENT" ? "CLIENT" : "TRAINER",
-          niche: item.niche ?? fitness.niche,
-          targetGroup: "VIRTUAL",
-          whyMatchFit: normalizeCoachLanguage(item.whyMatchFit ?? "Active audience for Match Fit."),
-          likelihoodScore: clampScore(item.likelihoodScore),
-          notes:
-            [
-              "via:hq_generate",
-              item.notes,
-              `Fitness fit: ${fitness.tier} (${fitness.fitnessScore})`,
-              verified.verifiedLive ? "Facebook URL verified live." : "Facebook URL format validated.",
-            ]
-              .filter(Boolean)
-              .join(" · ") || null,
-          pagePostText: "",
-          genericInviteTail: tailVirtual,
-          generationBatchId: batchId,
-          createdByAdminId: adminId,
-        },
+      payloads.push({
+        pageName: item.pageName ?? "Facebook group",
+        pageUrl: verified.pageUrl,
+        audience: item.audience === "CLIENT" ? "CLIENT" : "TRAINER",
+        niche: item.niche ?? fitness.niche,
+        targetGroup: "VIRTUAL",
+        whyMatchFit: normalizeCoachLanguage(item.whyMatchFit ?? "Active audience for Match Fit."),
+        likelihoodScore: clampScore(item.likelihoodScore),
+        notes:
+          [
+            "via:hq_generate",
+            item.notes,
+            `Fitness fit: ${fitness.tier} (${fitness.fitnessScore})`,
+            verified.verifiedLive ? "Facebook URL verified live." : "Facebook URL format validated.",
+          ]
+            .filter(Boolean)
+            .join(" · ") || null,
+        pagePostText: "",
+        genericInviteTail: tailVirtual,
+        generationBatchId: batchId,
+        createdByAdminId: adminId,
       });
-      created.push(row);
     }
+
+    // One insert for the whole batch; createManyAndReturn keeps input order.
+    const created = payloads.length
+      ? await prisma.outreachFacebookLead.createManyAndReturn({ data: payloads })
+      : [];
 
     return {
       leads: created,
@@ -704,10 +709,12 @@ async function persistGeneratedLeads(
 
   if (platform === "email") {
     const items = parseJsonArray<GeneratedEmailLead & { personalHook?: string }>(raw);
-    const created = [];
     const rejectedSamples: { handle: string; reason: string }[] = [];
     const seenEmails = new Set<string>();
+    const payloads: Prisma.OutreachEmailLeadCreateManyInput[] = [];
 
+    // Validation stays sequential so rejectedSamples keeps its original order;
+    // only the writes are batched.
     for (const item of items) {
       const emailCheck = assessEmailLeadContact(item.email ?? "");
       if (!emailCheck.ok) {
@@ -738,41 +745,41 @@ async function persistGeneratedLeads(
         continue;
       }
 
-      const row = await prisma.outreachEmailLead.create({
-        data: {
-          name: item.name ?? "Trainer",
-          email: emailCheck.email,
-          businessName: item.businessName ?? null,
-          niche: item.niche ?? fitness.niche,
-          emailSourceUrl: item.emailSourceUrl ?? null,
-          targetGroup: "VIRTUAL",
-          whyMatchFit: normalizeCoachLanguage(
-            item.whyMatchFit ?? "Good fit for founding Fitness Pro roster.",
-          ),
-          likelihoodScore: clampScore(item.likelihoodScore),
-          notes:
-            [
-              "via:hq_generate",
-              item.notes,
-              item.personalHook ? `Hook: ${item.personalHook}` : null,
-              `Fitness fit: ${fitness.tier} (${fitness.fitnessScore})`,
-              "Public email format verified.",
-            ]
-              .filter(Boolean)
-              .join(" · ") || null,
-          emailSubject: "",
-          emailBody: "",
-          followUp1EmailSubject: "",
-          followUp1EmailBody: "",
-          followUp2EmailSubject: "",
-          followUp2EmailBody: "",
-          genericInviteTail: tailVirtual,
-          generationBatchId: batchId,
-          createdByAdminId: adminId,
-        },
+      payloads.push({
+        name: item.name ?? "Trainer",
+        email: emailCheck.email,
+        businessName: item.businessName ?? null,
+        niche: item.niche ?? fitness.niche,
+        emailSourceUrl: item.emailSourceUrl ?? null,
+        targetGroup: "VIRTUAL",
+        whyMatchFit: normalizeCoachLanguage(item.whyMatchFit ?? "Good fit for founding Fitness Pro roster."),
+        likelihoodScore: clampScore(item.likelihoodScore),
+        notes:
+          [
+            "via:hq_generate",
+            item.notes,
+            item.personalHook ? `Hook: ${item.personalHook}` : null,
+            `Fitness fit: ${fitness.tier} (${fitness.fitnessScore})`,
+            "Public email format verified.",
+          ]
+            .filter(Boolean)
+            .join(" · ") || null,
+        emailSubject: "",
+        emailBody: "",
+        followUp1EmailSubject: "",
+        followUp1EmailBody: "",
+        followUp2EmailSubject: "",
+        followUp2EmailBody: "",
+        genericInviteTail: tailVirtual,
+        generationBatchId: batchId,
+        createdByAdminId: adminId,
       });
-      created.push(row);
     }
+
+    // One insert for the whole batch; createManyAndReturn keeps input order.
+    const created = payloads.length
+      ? await prisma.outreachEmailLead.createManyAndReturn({ data: payloads })
+      : [];
 
     return {
       leads: created,
