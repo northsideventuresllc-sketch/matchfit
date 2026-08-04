@@ -53,7 +53,8 @@ export async function POST(req: Request) {
         phone: pending.phone,
         email: pending.email,
         password: "",
-        zipCode: pending.zipCode,
+        // Nullable now: several countries have no postal code system at all.
+        zipCode: pending.zipCode ?? "",
         country: pending.country,
         dateOfBirth: pending.dateOfBirth,
         stayLoggedIn: pending.stayLoggedIn,

@@ -160,7 +160,8 @@ export async function GET(req: Request) {
         id: c.id,
         username: c.username,
         displayName: displayClientName(c),
-        zipCode: c.zipCode,
+        // Clients can now register from countries with no postal code at all.
+        zipCode: c.zipCode ?? "",
         bio: c.bio,
         profileImageUrl: c.profileImageUrl,
         score: m.score,

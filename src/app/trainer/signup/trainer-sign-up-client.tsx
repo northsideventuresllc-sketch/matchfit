@@ -12,6 +12,8 @@ import { buildSupabaseSignUpOptions } from "@/lib/supabase/sign-up-options";
 import { tryCreateMatchFitSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { writeTrainerSignupDraft } from "@/lib/trainer-supabase-signup-draft";
 import { describePasswordPolicyViolations } from "@/lib/validations/client-register";
+import { COUNTRY_OPTIONS } from "@/lib/user-location";
+import { postalRuleForCountry, postalValidationError } from "@/lib/postal-rules";
 import { BetaCapFullSignupNotice } from "@/components/beta-cap-full-signup-notice";
 import { useBetaLaunchStatus } from "@/hooks/use-beta-launch-status";
 import { useMetaSignupFunnelStep } from "@/hooks/use-meta-signup-funnel-step";
@@ -71,7 +73,13 @@ export default function TrainerSignUpClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const betaInviteFromUrl = searchParams.get("betaInvite")?.trim() || "";
+  const [countryCode, setCountryCode] = useState("");
   const [serviceZipCode, setServiceZipCode] = useState("");
+  // What this country calls its postal code, whether it is required, and whether it has one
+  // at all. `requirement: "none"` means the question is not rendered — several countries,
+  // notably the UAE, have no postal system, and we also ask nothing for any country we have
+  // no rule for (JB: keep the process simple).
+  const postalRule = postalRuleForCountry(countryCode);
   const { status: betaStatus, loading: betaStatusLoading } = useBetaLaunchStatus();
   const trainerCapFull =
     betaStatus?.gatesEnabled === true &&
@@ -262,8 +270,9 @@ export default function TrainerSignUpClient() {
       setError("Enter your email and password, then try again.");
       return;
     }
-    if (!isValidSignupServiceZip(serviceZipCode)) {
-      setError("Enter a valid ZIP / postal code.");
+    const postalMsg = postalValidationError(countryCode, serviceZipCode);
+    if (postalMsg) {
+      setError(postalMsg);
       return;
     }
     const tsErr = turnstile.validateBeforeSubmit();
@@ -281,7 +290,7 @@ export default function TrainerSignUpClient() {
         email: emailNorm,
         password,
         stayLoggedIn,
-        serviceZipCode: serviceZipCode.trim(),
+        serviceZipCode: postalRule.requirement === "none" ? "" : serviceZipCode.trim(),
         ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
         turnstileToken: turnstile.getCaptchaToken() ?? null,
       });
@@ -321,7 +330,7 @@ export default function TrainerSignUpClient() {
           lastName: lastName.trim(),
           username: username.trim(),
           phone: phone.trim(),
-          serviceZipCode: serviceZipCode.trim(),
+          serviceZipCode: postalRule.requirement === "none" ? "" : serviceZipCode.trim(),
           ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
           agreedToTerms: true,
           stayLoggedIn,
@@ -379,8 +388,9 @@ export default function TrainerSignUpClient() {
       setError("Passwords do not match.");
       return;
     }
-    if (!isValidSignupServiceZip(serviceZipCode)) {
-      setError("Enter a valid ZIP / postal code.");
+    const postalMsg = postalValidationError(countryCode, serviceZipCode);
+    if (postalMsg) {
+      setError(postalMsg);
       return;
     }
     const tsErr = turnstile.validateBeforeSubmit();
@@ -401,7 +411,7 @@ export default function TrainerSignUpClient() {
         email: emailNorm,
         password,
         stayLoggedIn,
-        serviceZipCode: serviceZipCode.trim(),
+        serviceZipCode: postalRule.requirement === "none" ? "" : serviceZipCode.trim(),
         ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
         ...(turnstileToken ? { turnstileToken } : {}),
       };
@@ -416,7 +426,7 @@ export default function TrainerSignUpClient() {
           password,
           agreedToTerms: true,
           stayLoggedIn,
-          serviceZipCode: serviceZipCode.trim(),
+          serviceZipCode: postalRule.requirement === "none" ? "" : serviceZipCode.trim(),
           ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
         });
 
@@ -429,7 +439,7 @@ export default function TrainerSignUpClient() {
             lastName: lastName.trim(),
             username: u,
             phone: phone.trim(),
-            serviceZipCode: serviceZipCode.trim(),
+            serviceZipCode: postalRule.requirement === "none" ? "" : serviceZipCode.trim(),
             ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
             agreedToTerms: true,
             stayLoggedIn,
@@ -497,7 +507,7 @@ export default function TrainerSignUpClient() {
               password,
               agreedToTerms: true,
               stayLoggedIn,
-              serviceZipCode: serviceZipCode.trim(),
+              serviceZipCode: postalRule.requirement === "none" ? "" : serviceZipCode.trim(),
               ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
             });
             navigateWithFullLoad(data.next ?? "/trainer/signup/terms");
@@ -568,7 +578,7 @@ export default function TrainerSignUpClient() {
         password,
         agreedToTerms: true,
         stayLoggedIn,
-        serviceZipCode: serviceZipCode.trim(),
+        serviceZipCode: postalRule.requirement === "none" ? "" : serviceZipCode.trim(),
         ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
       });
       navigateWithFullLoad(data.next ?? "/trainer/signup/terms");
@@ -772,23 +782,51 @@ export default function TrainerSignUpClient() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label htmlFor="tr-su-zip" className={labelClass}>
-                Primary service ZIP / postal code (optional)
+              <label htmlFor="tr-su-country" className={labelClass}>
+                Country
               </label>
-              <input
-                id="tr-su-zip"
-                type="text"
-                autoComplete="postal-code"
-                value={serviceZipCode}
-                onChange={(e) => setServiceZipCode(e.target.value)}
-                placeholder="94102, SW1A 1AA, etc."
+              <select
+                id="tr-su-country"
+                value={countryCode}
+                onChange={(e) => setCountryCode(e.target.value)}
                 className={inputClass}
-              />
+              >
+                <option value="">Select your country</option>
+                {COUNTRY_OPTIONS.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
               <p className="text-xs leading-relaxed text-white/40">
-                Available worldwide — used for matching and your public profile. Set your own in-person service
-                area and travel radius, or coach virtually from anywhere.
+                Match Fit is available worldwide. Coach virtually from anywhere, or set your own in-person
+                service area and travel distance.
               </p>
             </div>
+
+            {postalRule.requirement === "none" ? null : (
+              <div className="flex flex-col gap-2">
+                <label htmlFor="tr-su-zip" className={labelClass}>
+                  {postalRule.label}{" "}
+                  {postalRule.requirement === "optional" ? (
+                    <span className="font-normal normal-case text-white/35">(optional)</span>
+                  ) : null}
+                </label>
+                <input
+                  id="tr-su-zip"
+                  type="text"
+                  autoComplete="postal-code"
+                  maxLength={20}
+                  value={serviceZipCode}
+                  onChange={(e) => setServiceZipCode(e.target.value)}
+                  placeholder={postalRule.example}
+                  className={inputClass}
+                />
+                <p className="text-xs leading-relaxed text-white/40">
+                  Used for matching and your public profile.
+                </p>
+              </div>
+            )}
 
             <div className="flex flex-col gap-2">
               <label htmlFor="tr-su-email" className={labelClass}>

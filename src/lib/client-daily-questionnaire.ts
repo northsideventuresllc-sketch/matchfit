@@ -65,8 +65,8 @@ function coachDisplayName(trainer: {
   );
 }
 
-function zipPrefix(zip: string): string {
-  const z = zip.replace(/\D/g, "");
+function zipPrefix(zip: string | null | undefined): string {
+  const z = (zip ?? "").replace(/\D/g, "");
   return z.length >= 3 ? z.slice(0, 3) : z || "000";
 }
 
@@ -111,7 +111,8 @@ function interestOptionsFromPrefs(prefs: ReturnType<typeof parseClientMatchPrefe
   return base.slice(0, 6).map((row) => ({ ...row, label: titleCaseAnswerLabel(row.label) }));
 }
 
-async function pickRecentTrainersForClient(clientZip: string, excludeTrainerIds: string[]) {
+async function pickRecentTrainersForClient(
+  clientZip: string | null | undefined, excludeTrainerIds: string[]) {
   const horizons = [14, 45, 120] as const;
   for (const days of horizons) {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
