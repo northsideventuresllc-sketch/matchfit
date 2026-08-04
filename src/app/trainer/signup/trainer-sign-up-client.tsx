@@ -32,14 +32,6 @@ function countPhoneDigits(phone: string): number {
   return phone.replace(/\D/g, "").length;
 }
 
-// Worldwide (JB decision 2026-07-31): any ZIP/postal code format, not just US 5-digit.
-// Empty is valid too — a virtual-only trainer may have no service ZIP at all.
-function isValidSignupServiceZip(zip: string): boolean {
-  const t = zip.trim();
-  if (!t) return true;
-  return /^[a-zA-Z0-9][a-zA-Z0-9\s-]{1,10}$/.test(t);
-}
-
 function simpleEmailValid(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }

@@ -56,6 +56,14 @@ const NAV = [
     match: (p: string) => p.startsWith("/trainer/dashboard/account-tier"),
   },
   {
+    // Certifications, W-9 and background screening. Always shown: these are the steps a new
+    // Fitness Pro still has to finish, and before this there was no way to reach them from
+    // the dashboard at all.
+    href: "/trainer/dashboard/compliance",
+    label: "Certifications & Screening",
+    match: (p: string) => p.startsWith("/trainer/dashboard/compliance"),
+  },
+  {
     href: "/trainer/dashboard/reviews",
     label: "Reviews",
     match: (p: string) => p.startsWith("/trainer/dashboard/reviews"),

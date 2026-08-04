@@ -11,6 +11,9 @@ export type TrainerPlatformBillingFields = {
   paymentGraceUntil: Date | null;
   accountDeactivatedAt: Date | null;
   platformTrialConsumed: boolean;
+  /** Owner/staff and comped accounts: never billed, never locked out. Optional so existing
+   *  callers that select the billing fields without it keep working. */
+  platformBillingExempt?: boolean | null;
 };
 
 export type TrainerPlatformAccessPhase =
@@ -24,6 +27,12 @@ export function resolveTrainerPlatformAccessPhase(
   trainer: TrainerPlatformBillingFields,
   nowMs: number = Date.now(),
 ): TrainerPlatformAccessPhase {
+  // Checked before deactivation so flagging an account exempt also rescues one the lifecycle
+  // job already deactivated, rather than needing the timestamps cleared by hand too.
+  if (trainer.platformBillingExempt) {
+    return "paid";
+  }
+
   if (trainer.accountDeactivatedAt) {
     return "deactivated";
   }

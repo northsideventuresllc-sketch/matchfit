@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { AdminImpersonationStrip } from "@/components/admin/admin-impersonation-strip";
 import { TrainerDashboardShell } from "@/components/trainer/trainer-dashboard-shell";
 import { TrainerEmailVerificationBanner } from "@/components/trainer/trainer-email-verification-banner";
+import { TrainerTrialEndBanner } from "@/components/trainer/trainer-trial-end-banner";
+import { FP_TIER_DISPLAY_NAMES } from "@/lib/fp-account-tier-types";
+import { resolveTrainerTrialPrompt } from "@/lib/trainer-trial-decision";
 import { isAccountDeletionGraceActive } from "@/lib/account-deletion-grace";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { trainerCanUseInAppChat } from "@/lib/fp-tier-chat-policy";
@@ -52,6 +55,7 @@ export default async function TrainerDashboardAppLayout({
       paymentGraceUntil: true,
       accountDeactivatedAt: true,
       platformTrialConsumed: true,
+      platformBillingExempt: true,
       profile: {
         select: {
           hasSignedTOS: true,
@@ -135,6 +139,15 @@ export default async function TrainerDashboardAppLayout({
 
   const premiumStudioActive = await isTrainerPremiumStudioActive(trainerId);
 
+  // The founding cohort got their account type without paying, so the payment conversation
+  // happens as the trial runs out rather than at sign-up.
+  const trialPrompt = resolveTrainerTrialPrompt({
+    accountTier: trainer.profile?.accountTier,
+    platformTrialEndsAt: billingTrainer.platformTrialEndsAt,
+    stripeSubscriptionActive: billingTrainer.stripeSubscriptionActive,
+    platformBillingExempt: trainer.platformBillingExempt,
+  });
+
   let supportStrip: ReactNode = null;
   const adminImp = await getVerifiedAdminImpersonation();
   if (adminImp?.role === "trainer") {
@@ -159,6 +172,20 @@ export default async function TrainerDashboardAppLayout({
       showComplianceInNav={showComplianceInNav}
       supportStrip={supportStrip}
     >
+      {trialPrompt.kind === "none" ? null : (
+        <div className="mb-4">
+          <TrainerTrialEndBanner
+            kind={trialPrompt.kind}
+            tierLabel={
+              trialPrompt.kind === "premium_choice"
+                ? FP_TIER_DISPLAY_NAMES.match_fit_premium_pro
+                : FP_TIER_DISPLAY_NAMES[trialPrompt.tier]
+            }
+            daysLeft={trialPrompt.daysLeft}
+            expired={trialPrompt.expired}
+          />
+        </div>
+      )}
       {trainer.emailVerifiedAt ? null : (
         <div className="mb-4">
           <TrainerEmailVerificationBanner email={trainer.email} />

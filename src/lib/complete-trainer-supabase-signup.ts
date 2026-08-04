@@ -154,9 +154,15 @@ export async function completeTrainerSupabaseSignup(
     });
 
     if (emailConfirmed) {
-      await prisma.trainer
-        .update({ where: { id: trainerId }, data: { emailVerifiedAt: new Date() } })
-        .catch((err) => console.error("[completeTrainerSupabaseSignup] emailVerifiedAt stamp failed:", err));
+      // Never let recording the verification timestamp fail the account creation itself.
+      try {
+        await prisma.trainer.update({
+          where: { id: trainerId },
+          data: { emailVerifiedAt: new Date() },
+        });
+      } catch (err) {
+        console.error("[completeTrainerSupabaseSignup] emailVerifiedAt stamp failed:", err);
+      }
     }
 
     if (gate.betaInviteEntryId) {

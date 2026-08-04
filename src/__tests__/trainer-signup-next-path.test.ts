@@ -15,14 +15,15 @@ describe("resolveTrainerSignupNextPath", () => {
     ).toBe("/trainer/signup/tier");
   });
 
-  it("routes to docs when tier selected but docs not submitted", () => {
+  it("no longer blocks on documents — uploads happen on the dashboard", () => {
     expect(
       resolveTrainerSignupNextPath({
         hasSignedTOS: true,
         accountTier: "independent_fitness_pro",
         docsSubmitted: false,
+        limitedDashboardUnlockedAt: new Date().toISOString(),
       }),
-    ).toBe("/trainer/signup/docs");
+    ).toBe("/trainer/dashboard");
   });
 
   it("routes to dashboard when TOS signed, tier set, and limited dashboard unlocked", () => {

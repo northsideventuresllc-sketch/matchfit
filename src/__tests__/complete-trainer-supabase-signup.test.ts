@@ -101,6 +101,16 @@ describe("completeTrainerSupabaseSignup", () => {
     expect(createTrainerRecordMock).not.toHaveBeenCalled();
   });
 
+  it("allows an unconfirmed email through when the caller opts out of the gate", async () => {
+    findSupabaseAuthUserByEmailMock.mockResolvedValue({
+      id: "auth_user_1",
+      email_confirmed_at: null,
+      raw_user_meta_data: null,
+    });
+    const result = await completeTrainerSupabaseSignup(body, { requireEmailConfirmed: false });
+    expect(result).toMatchObject({ ok: true, emailConfirmed: false });
+  });
+
   it("rejects when email is not confirmed yet", async () => {
     findSupabaseAuthUserByEmailMock.mockResolvedValue({
       id: "auth_user_1",

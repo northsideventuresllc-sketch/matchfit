@@ -1,4 +1,7 @@
-import type { TrainerRegistrationPricingMode } from "@/lib/match-fit-launch-promotion-caps";
+import {
+  getTrainerBetaDiscountPercent,
+  type TrainerRegistrationPricingMode,
+} from "@/lib/match-fit-launch-promotion-caps";
 import { trainerBackgroundCheckAmountCents } from "@/lib/trainer-background-check-fee";
 import { TRAINER_PLATFORM_REGISTRATION_FEE_CENTS } from "@/lib/trainer-platform-registration-fee";
 
@@ -22,6 +25,15 @@ export function computeTrainerSignupEscrowSplit(
       backgroundCheckEscrowCents: 0,
       platformEscrowCents: platform,
       baseCents: platform,
+    };
+  }
+  if (pricingMode === "BETA_DISCOUNTED") {
+    const standard = Math.max(0, TRAINER_PLATFORM_REGISTRATION_FEE_CENTS - bg);
+    const discounted = Math.round((standard * (100 - getTrainerBetaDiscountPercent())) / 100);
+    return {
+      backgroundCheckEscrowCents: bg,
+      platformEscrowCents: discounted,
+      baseCents: bg + discounted,
     };
   }
   const platform = Math.max(0, TRAINER_PLATFORM_REGISTRATION_FEE_CENTS - bg);

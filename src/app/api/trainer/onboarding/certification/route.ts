@@ -1,21 +1,13 @@
-import { mkdir, unlink, writeFile } from "fs/promises";
-import path from "path";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { maybeActivateTrainerDashboard } from "@/lib/trainer-onboarding-dashboard";
 import { syncTrainerComplianceWindow } from "@/lib/trainer-compliance-window-sync";
+import { deleteTrainerDocument, putTrainerDocument } from "@/lib/trainer-document-storage";
+import { resolveUploadFileKind, UPLOAD_UNSUPPORTED_TYPE_MESSAGE } from "@/lib/upload-file-type";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { NextResponse } from "next/server";
 
 const MAX_BYTES = 5 * 1024 * 1024;
-
-function extForMime(mime: string): string | null {
-  if (mime === "application/pdf") return "pdf";
-  if (mime === "image/jpeg") return "jpg";
-  if (mime === "image/png") return "png";
-  if (mime === "image/webp") return "webp";
-  return null;
-}
 
 function parseUploadType(raw: FormDataEntryValue | null): "cpt" | "other" | "nutritionist" | "specialist" {
   if (raw === "other") return "other";
@@ -43,15 +35,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "File must be 5 MB or smaller." }, { status: 400 });
     }
 
-    const mime = file.type;
-    const ext = extForMime(mime);
-    if (!ext) {
-      return NextResponse.json({ error: "Use PDF, JPG, PNG, or WebP." }, { status: 400 });
-    }
-
     const buf = Buffer.from(await file.arrayBuffer());
-    const dir = path.join(process.cwd(), "public", "uploads", "trainers");
-    await mkdir(dir, { recursive: true });
+    const kind = resolveUploadFileKind({
+      declaredMime: file.type,
+      filename: file instanceof File ? file.name : null,
+      bytes: buf,
+    });
+    if (!kind) {
+      return NextResponse.json({ error: UPLOAD_UNSUPPORTED_TYPE_MESSAGE }, { status: 400 });
+    }
+    const ext = kind.ext;
 
     const profile = await prisma.trainerProfile.findUnique({
       where: { trainerId },
@@ -66,14 +59,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Profile not found." }, { status: 400 });
     }
 
-    const relative =
+    const key =
       uploadType === "other"
-        ? `/uploads/trainers/${trainerId}-other-cert.${ext}`
+        ? `trainers/${trainerId}-other-cert.${ext}`
         : uploadType === "nutritionist"
-          ? `/uploads/trainers/${trainerId}-nutrition-cert.${ext}`
+          ? `trainers/${trainerId}-nutrition-cert.${ext}`
           : uploadType === "specialist"
-            ? `/uploads/trainers/${trainerId}-specialist-cert.${ext}`
-            : `/uploads/trainers/${trainerId}-cert.${ext}`;
+            ? `trainers/${trainerId}-specialist-cert.${ext}`
+            : `trainers/${trainerId}-cert.${ext}`;
 
     const prevKey =
       uploadType === "other"
@@ -83,18 +76,14 @@ export async function POST(req: Request) {
           : uploadType === "specialist"
             ? profile.specialistCertificationUrl
             : profile.certificationUrl;
-    const prev = prevKey?.split("?")[0];
-    if (prev?.startsWith("/uploads/trainers/")) {
-      const oldPath = path.join(process.cwd(), "public", prev.replace(/^\//, ""));
-      try {
-        await unlink(oldPath);
-      } catch {
-        // ignore missing file
-      }
-    }
 
-    const outPath = path.join(process.cwd(), "public", relative.replace(/^\//, ""));
-    await writeFile(outPath, buf);
+    const relative = await putTrainerDocument({ key, bytes: buf, contentType: kind.mime });
+
+    // Replacing a certification with a different file type leaves the old object behind,
+    // so clear it once the new one is safely written.
+    if (prevKey && prevKey.split("?")[0] !== relative) {
+      await deleteTrainerDocument(prevKey);
+    }
 
     const updated = await prisma.trainerProfile.update({
       where: { trainerId },

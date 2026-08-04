@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-08-04** `2.14.2-beta` → `2.15.0-beta` (**minor** — Worldwide signup country field, sign-up straight to agreement with dashboard email confirmation, durable document storage, founding-cohort tier and onboarding fee bands)
 - **2026-08-04** `2.14.1-beta` → `2.14.2-beta` (**patch** — Remove Atlanta entirely after the worldwide switch: metro ZIP allow-list deleted, in-person signup + checkout gates removed, per-metro beta caps collapsed to one worldwide cap, app-wide geo guard added)
 - **2026-07-28** `2.14.0-beta` → `2.14.1-beta` (**patch** — Remove Atlanta geo targeting from outreach search, copy and AI prompts; add executable geo guard)
 - **2026-07-28** `2.13.0-beta` → `2.14.0-beta` (**minor** — NI Services outreach lane: separate NI Outreach HQ screen, venture-scoped Match Fit queries and cron, four-level lead taxonomy live)

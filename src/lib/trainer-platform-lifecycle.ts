@@ -15,6 +15,7 @@ const platformBillingSelect = {
   paymentGraceUntil: true,
   accountDeactivatedAt: true,
   platformTrialConsumed: true,
+  platformBillingExempt: true,
 } as const;
 
 async function startPaymentGraceForTrainer(
@@ -45,6 +46,8 @@ export async function runTrainerPlatformBillingLifecycleJobs(): Promise<TrainerP
     where: {
       deidentifiedAt: null,
       accountDeactivatedAt: null,
+      // Owner/staff and comped accounts never enter grace or deactivation.
+      platformBillingExempt: false,
       platformTrialEndsAt: { lte: now },
       paymentGraceUntil: null,
       stripeSubscriptionActive: false,
@@ -62,6 +65,8 @@ export async function runTrainerPlatformBillingLifecycleJobs(): Promise<TrainerP
     where: {
       deidentifiedAt: null,
       accountDeactivatedAt: null,
+      // Owner/staff and comped accounts never enter grace or deactivation.
+      platformBillingExempt: false,
       paymentGraceUntil: { lte: now },
       stripeSubscriptionActive: false,
     },
@@ -90,6 +95,7 @@ export async function syncTrainerPlatformBillingLifecycle(trainerId: string): Pr
     select: platformBillingSelect,
   });
   if (!trainer || trainer.accountDeactivatedAt) return;
+  if (trainer.platformBillingExempt) return;
   if (trainer.stripeSubscriptionActive && trainer.stripeSubscriptionId?.trim()) return;
 
   if (

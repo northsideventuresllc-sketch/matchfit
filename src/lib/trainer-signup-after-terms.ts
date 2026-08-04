@@ -41,9 +41,12 @@ export async function createTrainerAccountAfterTermsAcceptance(
   });
 
   if (prep.emailConfirmed) {
-    await prisma.trainer
-      .update({ where: { id: trainerId }, data: { emailVerifiedAt: now } })
-      .catch((err) => console.error("[createTrainerAccountAfterTermsAcceptance] emailVerifiedAt stamp failed:", err));
+    // Never let recording the verification timestamp fail the account creation itself.
+    try {
+      await prisma.trainer.update({ where: { id: trainerId }, data: { emailVerifiedAt: now } });
+    } catch (err) {
+      console.error("[createTrainerAccountAfterTermsAcceptance] emailVerifiedAt stamp failed:", err);
+    }
   }
 
   await prisma.$transaction(async (tx) => {

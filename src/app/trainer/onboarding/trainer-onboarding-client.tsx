@@ -1580,7 +1580,7 @@ export default function TrainerOnboardingClient() {
                       </button>
                     </div>
                     {profile?.certificationUrl ? (
-                      <p className="mt-2 font-mono text-[11px] text-white/50">{profile.certificationUrl}</p>
+                      <a href="/api/trainer/certification/view?type=cpt" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[11px] font-semibold text-[#FF7E00] underline-offset-2 hover:underline">View uploaded file</a>
                     ) : null}
                   </div>
                 </>
@@ -1628,7 +1628,7 @@ export default function TrainerOnboardingClient() {
                       </button>
                     </div>
                     {profile?.specialistCertificationUrl ? (
-                      <p className="mt-2 font-mono text-[11px] text-white/50">{profile.specialistCertificationUrl}</p>
+                      <a href="/api/trainer/certification/view?type=specialist" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[11px] font-semibold text-[#FF7E00] underline-offset-2 hover:underline">View uploaded file</a>
                     ) : null}
                   </div>
                 </>
@@ -1679,7 +1679,7 @@ export default function TrainerOnboardingClient() {
                       </button>
                     </div>
                     {profile?.nutritionistCertificationUrl ? (
-                      <p className="mt-2 font-mono text-[11px] text-white/50">{profile.nutritionistCertificationUrl}</p>
+                      <a href="/api/trainer/certification/view?type=nutritionist" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[11px] font-semibold text-[#FF7E00] underline-offset-2 hover:underline">View uploaded file</a>
                     ) : null}
                   </div>
                 </>
@@ -1709,7 +1709,7 @@ export default function TrainerOnboardingClient() {
                     </button>
                   </div>
                   {profile?.otherCertificationUrl ? (
-                    <p className="mt-2 font-mono text-[11px] text-white/50">{profile.otherCertificationUrl}</p>
+                    <a href="/api/trainer/certification/view?type=other" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[11px] font-semibold text-[#FF7E00] underline-offset-2 hover:underline">View uploaded file</a>
                   ) : null}
                 </div>
               ) : null}
