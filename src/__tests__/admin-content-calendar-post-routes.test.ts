@@ -230,7 +230,7 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     mockReschedulePost.mockResolvedValue(undefined);
     mockUpdatePostMedia.mockResolvedValue(undefined);
     mockRecordContentLearning.mockResolvedValue(undefined);
-    mockGenerateStaticMedia.mockResolvedValue({ url: "https://cdn.test/image.png" });
+    mockGenerateStaticMedia.mockResolvedValue({ ok: true, url: "https://cdn.test/image.png" });
     mockRegenerateCalendarPost.mockResolvedValue({
       dayIndex: 1,
       postType: "Static",
@@ -372,7 +372,7 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
   });
 
   it("sets media status to failed when image generation fails", async () => {
-    mockGenerateStaticMedia.mockResolvedValueOnce(null);
+    mockGenerateStaticMedia.mockResolvedValueOnce({ ok: false, reason: "free image quota exhausted for today" });
 
     const res = await postAction(
       new Request("https://matchfit.test/api/admin/content-calendar/posts/post_1/actions", {
@@ -387,7 +387,9 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     );
 
     expect(res.status).toBe(502);
-    await expect(res.json()).resolves.toEqual({ error: "Image generation failed. Check OPENAI_API_KEY." });
+    await expect(res.json()).resolves.toEqual({
+      error: "Image generation failed: free image quota exhausted for today",
+    });
     expect(mockUpdatePostMedia).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({

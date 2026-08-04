@@ -117,13 +117,8 @@ async function callOutreachAi(system: string, user: string): Promise<OutreachAiR
         type: "web_search_20250305",
         name: "web_search",
         max_uses: 8,
-        user_location: {
-          type: "approximate",
-          city: "Atlanta",
-          region: "Georgia",
-          country: "US",
-          timezone: "America/New_York",
-        },
+        // No user_location: Match Fit recruiting is nationwide (NI-Brain Decision #342).
+        // A city/region hint here silently biases every search result toward one metro.
       },
     ],
   });
@@ -380,7 +375,7 @@ export async function generateOutreachLeads(args: {
     } else if (args.platform === "instagram" && verification) {
       if (verification.parsed === 0) {
         message = usedWebSearch
-          ? "Web search ran but the model returned prose instead of JSON. Try generating again — smaller counts (e.g. 3 ATL + 5 virtual) often help."
+          ? "Web search ran but the model returned prose instead of JSON. Try generating again — smaller counts (e.g. 8 leads) often help."
           : "AI did not return parseable Instagram leads. Configure ANTHROPIC_API_KEY for live web search, then try again.";
       } else {
         const sampleReasons = verification.rejectedSamples

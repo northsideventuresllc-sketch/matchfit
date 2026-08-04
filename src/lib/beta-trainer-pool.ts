@@ -1,45 +1,25 @@
-import { isZipInBetaAtlantaMetroArea } from "@/lib/beta-atlanta-metro-zips";
-import {
-  betaMaxTrainersAtlanta,
-  betaMaxTrainersVirtual,
-  isBetaLaunchGatesEnabled,
-} from "@/lib/beta-launch-config";
+import { betaMaxTrainers, isBetaLaunchGatesEnabled } from "@/lib/beta-launch-config";
 import { launchTrainerCountWhere } from "@/lib/launch-account-counts";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 
-export type TrainerBetaPool = "atlanta" | "virtual";
+/**
+ * Beta trainer capacity, worldwide.
+ *
+ * Match Fit went worldwide (JB decision, 2026-07-31). Removed 2026-08-04 under
+ * ticket MF-ATLANTA-GATES-AFTER-WORLDWIDE (geo-guard:allow): the two-pool split.
+ * geo-guard:allow
+ * A coach's postal code used to decide which cap they consumed, which made one US
+ * metro the default and every other place on earth the overflow bucket. There is
+ * now one beta trainer cap and it is geography-blind.
+ *
+ * Historic rows keep their stored `invitedBetaPool` / `virtualOnlyBetaSlot` values;
+ * nothing is deleted. Those values are simply no longer derived from location.
+ */
 
 type BetaPoolDb = Prisma.TransactionClient | PrismaClient;
 
 export const TRAINER_VIRTUAL_ONLY_BETA_SLOT_MESSAGE =
-  "Your beta slot is virtual-only because Atlanta in-person coach slots are full. Publish virtual or DIY packages for now, or join the waitlist for an in-person founding slot.";
-
-export function trainerPrimaryPoolForZip(serviceZipCode: string): TrainerBetaPool {
-  return isZipInBetaAtlantaMetroArea(serviceZipCode) ? "atlanta" : "virtual";
-}
-
-export function inferInvitedBetaPoolFromWaitlistZip(serviceZipCode: string): TrainerBetaPool {
-  return trainerPrimaryPoolForZip(serviceZipCode);
-}
-
-export function trainerOccupiesAtlantaBetaPool(args: {
-  serviceZipCode: string | null | undefined;
-  virtualOnlyBetaSlot: boolean | null | undefined;
-}): boolean {
-  const zip = args.serviceZipCode?.trim() ?? "";
-  if (!zip || !isZipInBetaAtlantaMetroArea(zip)) return false;
-  return !args.virtualOnlyBetaSlot;
-}
-
-export function trainerOccupiesVirtualBetaPool(args: {
-  serviceZipCode: string | null | undefined;
-  virtualOnlyBetaSlot: boolean | null | undefined;
-}): boolean {
-  const zip = args.serviceZipCode?.trim() ?? "";
-  if (!zip) return true;
-  if (!isZipInBetaAtlantaMetroArea(zip)) return true;
-  return Boolean(args.virtualOnlyBetaSlot);
-}
+  "Your beta slot is virtual-only. Publish virtual or DIY packages for now, or join the waitlist for an in-person founding slot.";
 
 async function launchTrainerPoolRows(db: BetaPoolDb) {
   return db.trainer.findMany({
@@ -47,7 +27,6 @@ async function launchTrainerPoolRows(db: BetaPoolDb) {
     select: {
       profile: {
         select: {
-          serviceZipCode: true,
           virtualOnlyBetaSlot: true,
         },
       },
@@ -55,165 +34,59 @@ async function launchTrainerPoolRows(db: BetaPoolDb) {
   });
 }
 
-export async function countAtlantaPoolTrainers(db: BetaPoolDb): Promise<number> {
+export async function countBetaPoolTrainers(db: BetaPoolDb): Promise<number> {
   const rows = await launchTrainerPoolRows(db);
-  return rows.filter((r) =>
-    trainerOccupiesAtlantaBetaPool({
-      serviceZipCode: r.profile?.serviceZipCode,
-      virtualOnlyBetaSlot: r.profile?.virtualOnlyBetaSlot,
-    }),
-  ).length;
+  return rows.length;
 }
 
-export async function countVirtualPoolTrainers(db: BetaPoolDb): Promise<number> {
-  const rows = await launchTrainerPoolRows(db);
-  return rows.filter((r) =>
-    trainerOccupiesVirtualBetaPool({
-      serviceZipCode: r.profile?.serviceZipCode,
-      virtualOnlyBetaSlot: r.profile?.virtualOnlyBetaSlot,
-    }),
-  ).length;
-}
-
-export async function countActiveAtlantaPoolBetaInvites(db: BetaPoolDb): Promise<number> {
+export async function countActiveTrainerBetaInvites(db: BetaPoolDb): Promise<number> {
   return db.betaTrainerWaitlistEntry.count({
     where: {
       status: "INVITED",
       slotExpiresAt: { gt: new Date() },
-      invitedBetaPool: "atlanta",
     },
   });
 }
 
-export async function countActiveVirtualPoolBetaInvites(db: BetaPoolDb): Promise<number> {
-  return db.betaTrainerWaitlistEntry.count({
-    where: {
-      status: "INVITED",
-      slotExpiresAt: { gt: new Date() },
-      invitedBetaPool: "virtual",
-    },
-  });
-}
-
-export async function countActiveLegacyTrainerBetaInvitesByPool(
-  db: BetaPoolDb,
-): Promise<{ atlanta: number; virtual: number }> {
-  const legacy = await db.betaTrainerWaitlistEntry.findMany({
-    where: {
-      status: "INVITED",
-      slotExpiresAt: { gt: new Date() },
-      invitedBetaPool: null,
-    },
-    select: { serviceZipCode: true },
-  });
-  let atlanta = 0;
-  let virtual = 0;
-  for (const row of legacy) {
-    if (trainerPrimaryPoolForZip(row.serviceZipCode) === "atlanta") atlanta += 1;
-    else virtual += 1;
-  }
-  return { atlanta, virtual };
-}
-
-export async function atlantaTrainerBetaPoolSlotsUsed(db?: BetaPoolDb): Promise<number> {
+export async function trainerBetaPoolSlotsUsed(db?: BetaPoolDb): Promise<number> {
   const { prisma } = await import("@/lib/prisma");
   const client = db ?? prisma;
-  const [registered, invited, legacy] = await Promise.all([
-    countAtlantaPoolTrainers(client),
-    countActiveAtlantaPoolBetaInvites(client),
-    countActiveLegacyTrainerBetaInvitesByPool(client),
-  ]);
-  return registered + invited + legacy.atlanta;
+  return trainerBetaPoolSlotsUsedInTx(client);
 }
 
-export async function virtualTrainerBetaPoolSlotsUsed(db?: BetaPoolDb): Promise<number> {
-  const { prisma } = await import("@/lib/prisma");
-  const client = db ?? prisma;
-  const [registered, invited, legacy] = await Promise.all([
-    countVirtualPoolTrainers(client),
-    countActiveVirtualPoolBetaInvites(client),
-    countActiveLegacyTrainerBetaInvitesByPool(client),
+export async function trainerBetaPoolSlotsUsedInTx(tx: BetaPoolDb): Promise<number> {
+  const [registered, invited] = await Promise.all([
+    countBetaPoolTrainers(tx),
+    countActiveTrainerBetaInvites(tx),
   ]);
-  return registered + invited + legacy.virtual;
-}
-
-export async function atlantaTrainerBetaPoolSlotsUsedInTx(tx: BetaPoolDb): Promise<number> {
-  const [registered, invited, legacy] = await Promise.all([
-    countAtlantaPoolTrainers(tx),
-    countActiveAtlantaPoolBetaInvites(tx),
-    countActiveLegacyTrainerBetaInvitesByPool(tx),
-  ]);
-  return registered + invited + legacy.atlanta;
-}
-
-export async function virtualTrainerBetaPoolSlotsUsedInTx(tx: BetaPoolDb): Promise<number> {
-  const [registered, invited, legacy] = await Promise.all([
-    countVirtualPoolTrainers(tx),
-    countActiveVirtualPoolBetaInvites(tx),
-    countActiveLegacyTrainerBetaInvitesByPool(tx),
-  ]);
-  return registered + invited + legacy.virtual;
+  return registered + invited;
 }
 
 export type TrainerSignupPoolAssignment = {
-  pool: TrainerBetaPool;
   virtualOnlyBetaSlot: boolean;
 };
 
-export function resolveTrainerSignupPoolAssignment(serviceZipCode: string, args: {
-  atlantaUsed: number;
-  virtualUsed: number;
+/** Capacity check only — no location input, no location output. */
+export function resolveTrainerSignupPoolAssignment(args: {
+  slotsUsed: number;
 }): TrainerSignupPoolAssignment | null {
-  const primary = trainerPrimaryPoolForZip(serviceZipCode);
-  const atlantaMax = betaMaxTrainersAtlanta();
-  const virtualMax = betaMaxTrainersVirtual();
-
-  if (primary === "virtual") {
-    if (args.virtualUsed >= virtualMax) return null;
-    return { pool: "virtual", virtualOnlyBetaSlot: false };
-  }
-
-  if (args.atlantaUsed < atlantaMax) {
-    return { pool: "atlanta", virtualOnlyBetaSlot: false };
-  }
-  if (args.virtualUsed < virtualMax) {
-    return { pool: "virtual", virtualOnlyBetaSlot: true };
-  }
-  return null;
+  if (args.slotsUsed >= betaMaxTrainers()) return null;
+  return { virtualOnlyBetaSlot: false };
 }
 
-export async function getTrainerSignupPoolAssignment(serviceZipCode: string): Promise<TrainerSignupPoolAssignment | null> {
-  const [atlantaUsed, virtualUsed] = await Promise.all([
-    atlantaTrainerBetaPoolSlotsUsed(),
-    virtualTrainerBetaPoolSlotsUsed(),
-  ]);
-  return resolveTrainerSignupPoolAssignment(serviceZipCode, { atlantaUsed, virtualUsed });
+export async function getTrainerSignupPoolAssignment(): Promise<TrainerSignupPoolAssignment | null> {
+  const slotsUsed = await trainerBetaPoolSlotsUsed();
+  return resolveTrainerSignupPoolAssignment({ slotsUsed });
 }
 
 export async function isTrainerBetaFullyCapped(): Promise<boolean> {
   if (!isBetaLaunchGatesEnabled()) return false;
-  const [atlantaUsed, virtualUsed] = await Promise.all([
-    atlantaTrainerBetaPoolSlotsUsed(),
-    virtualTrainerBetaPoolSlotsUsed(),
-  ]);
-  return atlantaUsed >= betaMaxTrainersAtlanta() && virtualUsed >= betaMaxTrainersVirtual();
+  return (await trainerBetaPoolSlotsUsed()) >= betaMaxTrainers();
 }
 
-export async function resolveWaitlistInvitePool(serviceZipCode: string): Promise<TrainerBetaPool | null> {
-  const primary = trainerPrimaryPoolForZip(serviceZipCode);
-  const [atlantaUsed, virtualUsed] = await Promise.all([
-    atlantaTrainerBetaPoolSlotsUsed(),
-    virtualTrainerBetaPoolSlotsUsed(),
-  ]);
-  const atlantaMax = betaMaxTrainersAtlanta();
-  const virtualMax = betaMaxTrainersVirtual();
-
-  if (primary === "virtual") {
-    return virtualUsed < virtualMax ? "virtual" : null;
-  }
-  if (atlantaUsed < atlantaMax) return "atlanta";
-  if (virtualUsed < virtualMax) return "virtual";
-  return null;
+/** True when a waitlist invite can still be issued. */
+export async function canIssueTrainerWaitlistInvite(): Promise<boolean> {
+  return (await trainerBetaPoolSlotsUsed()) < betaMaxTrainers();
 }
 
 export function trainerDeliveryBlockedByVirtualOnlyBetaSlot(args: {

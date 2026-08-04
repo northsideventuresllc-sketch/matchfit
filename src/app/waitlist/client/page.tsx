@@ -134,7 +134,7 @@ export default function ClientWaitlistPage() {
             </span>
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-white/60">
-            All founding client slots are currently full. Anyone in the United States can join the
+            All founding client slots are currently full. Available worldwide — anyone, anywhere can join the
             waitlist — reserve your username now and we will email you when a slot opens. You will
             have 30 days to complete your account setup once invited.
           </p>
@@ -278,11 +278,11 @@ export default function ClientWaitlistPage() {
               </div>
 
               <label className="flex flex-col gap-2">
-                <span className={labelClass}>Home ZIP (United States)</span>
+                <span className={labelClass}>Home ZIP / postal code</span>
                 <input
                   required
                   className={inputClass}
-                  placeholder="90210 or 30301"
+                  placeholder="90210, SW1A 1AA, etc."
                   value={homeZipCode}
                   onChange={(e) => setHomeZipCode(e.target.value)}
                 />

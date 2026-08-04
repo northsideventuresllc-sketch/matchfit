@@ -36,7 +36,7 @@ jobs:
           NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           if [ -z "$NI_BRAIN_SUPABASE_URL" ] || [ -z "$NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY" ]; then
-            echo "Skipping: set NI_BRAIN_SUPABASE_URL and NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY repository secrets."
-            exit 0
+            echo "::error::Missing NI_BRAIN_SUPABASE_URL and/or NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY repository secrets. NI Brain is NOT being synced."
+            exit 1
           fi
           npm run ni-brain:sync

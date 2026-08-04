@@ -324,7 +324,9 @@ export type OutreachHubLead = {
 };
 
 export function targetGroupLabel(group: string): string {
-  if (group === "ATL_LOCAL") return "US · local";
+  // Both groups are dead legacy (see DEAD_LEGACY_TARGET_GROUPS). Recruiting is
+  // nationwide, so neither may present itself as a city/metro audience.
+  if (group === "ATL_LOCAL") return "US · earlier leads";
   return "US";
 }
 

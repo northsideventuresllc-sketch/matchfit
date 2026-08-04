@@ -86,7 +86,7 @@ describe("promos page", () => {
 
     expect(html).toContain(`Version ${MATCH_FIT_PRODUCT_VERSION_LABEL}`);
     expect(html).toContain("Beta reach:");
-    expect(html).toContain("United States");
+    expect(html).toContain("available worldwide");
     expect(html).toContain("Up to 30 Fitness Pros");
     expect(html).toContain("In-person sessions roll out by region");
     expect(html).toContain("7 / 50");

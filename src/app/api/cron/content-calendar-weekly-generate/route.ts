@@ -23,7 +23,11 @@ export async function GET(req: Request) {
   try {
     await hydratePlatformEnvFromDatabase();
     await ensureContentCalendarV22Schema();
-    const result = await runWeeklyContentGeneration();
+    // Optional override so this can be re-run for a specific week (e.g. manually seeding
+    // ahead of the Monday schedule) without depending on getMondayOfWeek()'s "current week"
+    // math, which returns an already-elapsed Monday if called Tue-Sun (2026-08-02 fix).
+    const weekStartOverride = new URL(req.url).searchParams.get("weekStart")?.trim() || undefined;
+    const result = await runWeeklyContentGeneration(weekStartOverride ? { weekStart: weekStartOverride } : undefined);
     return NextResponse.json({ ok: true, result });
   } catch (e) {
     console.error("[cron content-calendar-weekly-generate]", e);

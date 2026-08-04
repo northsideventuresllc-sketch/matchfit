@@ -199,7 +199,7 @@ export default async function TermsPage() {
           sign-up before the reserved slot may be released to the next waitlisted person.
         </P>
         <P>
-          During the current beta, Fitness Pros and clients anywhere in the United States may sign up. In-person sessions
+          During the current beta, Fitness Pros and clients anywhere in the world may sign up. In-person sessions
           will be enabled by region as beta activity grows.
         </P>
         <P>

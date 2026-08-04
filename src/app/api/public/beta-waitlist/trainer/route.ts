@@ -18,7 +18,8 @@ const bodySchema = z.object({
     .min(3)
     .max(32)
     .regex(/^[a-zA-Z0-9_]+$/),
-  serviceZipCode: z.string().trim().regex(/^\d{5}(-\d{4})?$/),
+  // Worldwide (JB decision 2026-07-31): any ZIP/postal code format, not just US 5-digit.
+  serviceZipCode: z.string().trim().min(2).max(12),
   turnstileToken: z.string().optional(),
 });
 

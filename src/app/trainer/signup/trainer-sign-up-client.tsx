@@ -30,8 +30,12 @@ function countPhoneDigits(phone: string): number {
   return phone.replace(/\D/g, "").length;
 }
 
+// Worldwide (JB decision 2026-07-31): any ZIP/postal code format, not just US 5-digit.
+// Empty is valid too — a virtual-only trainer may have no service ZIP at all.
 function isValidSignupServiceZip(zip: string): boolean {
-  return /^\d{5}(-\d{4})?$/.test(zip.trim());
+  const t = zip.trim();
+  if (!t) return true;
+  return /^[a-zA-Z0-9][a-zA-Z0-9\s-]{1,10}$/.test(t);
 }
 
 function simpleEmailValid(email: string): boolean {
@@ -49,7 +53,7 @@ function formatTrainerSignupFinishError(error: string, code?: string): string {
     return "That username is already taken. Choose a different username above, then try Finish again.";
   }
   if (code === "INVALID_SERVICE_ZIP") {
-    return "Enter a valid US ZIP code (5 digits) in the form above, then try Finish again.";
+    return "Enter a valid ZIP / postal code in the form above, then try Finish again.";
   }
   if (code === "EMAIL_NOT_CONFIRMED") {
     return "Your email is not confirmed yet. Check your inbox, or tap Resend verification email.";
@@ -259,7 +263,7 @@ export default function TrainerSignUpClient() {
       return;
     }
     if (!isValidSignupServiceZip(serviceZipCode)) {
-      setError("Enter a valid US ZIP code (5 digits).");
+      setError("Enter a valid ZIP / postal code.");
       return;
     }
     const tsErr = turnstile.validateBeforeSubmit();
@@ -376,7 +380,7 @@ export default function TrainerSignUpClient() {
       return;
     }
     if (!isValidSignupServiceZip(serviceZipCode)) {
-      setError("Enter a valid US ZIP code (5 digits).");
+      setError("Enter a valid ZIP / postal code.");
       return;
     }
     const tsErr = turnstile.validateBeforeSubmit();
@@ -769,22 +773,20 @@ export default function TrainerSignUpClient() {
 
             <div className="flex flex-col gap-2">
               <label htmlFor="tr-su-zip" className={labelClass}>
-                Primary service ZIP
+                Primary service ZIP / postal code (optional)
               </label>
               <input
                 id="tr-su-zip"
                 type="text"
-                inputMode="numeric"
                 autoComplete="postal-code"
-                required
                 value={serviceZipCode}
                 onChange={(e) => setServiceZipCode(e.target.value)}
-                placeholder="94102"
+                placeholder="94102, SW1A 1AA, etc."
                 className={inputClass}
               />
               <p className="text-xs leading-relaxed text-white/40">
-                Used for matching and your public profile. Anyone in the U.S. can sign up; in-person sessions are
-                available in the Atlanta metro area during beta.
+                Available worldwide — used for matching and your public profile. Set your own in-person service
+                area and travel radius, or coach virtually from anywhere.
               </p>
             </div>
 

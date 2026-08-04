@@ -157,7 +157,7 @@ export const AD_UTM_PRESETS: AdUtmPreset[] = [
     platform: "google",
     utm_source: "google",
     utm_medium: "cpc",
-    utm_campaign: "client_search_atlanta",
+    utm_campaign: "client_search",
     funnel: "client",
   },
   {
@@ -166,7 +166,7 @@ export const AD_UTM_PRESETS: AdUtmPreset[] = [
     platform: "google",
     utm_source: "google",
     utm_medium: "cpc",
-    utm_campaign: "trainer_search_atlanta",
+    utm_campaign: "trainer_search",
     funnel: "trainer",
   },
   {

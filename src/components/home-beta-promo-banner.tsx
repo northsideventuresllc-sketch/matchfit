@@ -149,12 +149,11 @@ export function HomeBetaPromoBanner() {
         </p>
 
         <p className="mt-3 rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-left text-xs leading-relaxed text-white/45 [overflow-wrap:anywhere] sm:text-[13px]">
-          <span className="font-semibold text-[#FF7E00]/90">Beta rollout:</span> Anyone in the{" "}
-          <span className="font-semibold text-white/60">United States</span> can create a client account during beta.{" "}
-          <span className="font-semibold text-white/60">In-person sessions</span> with coaches are launching first in
-          the <span className="font-semibold text-white/60">Atlanta metro area</span> (within approximately 15–20 miles
-          of downtown Atlanta). Virtual coaching and nationwide discovery are available wherever the product supports
-          them.
+          <span className="font-semibold text-[#FF7E00]/90">Beta rollout:</span> Match Fit is{" "}
+          <span className="font-semibold text-white/60">available worldwide</span> — anyone, anywhere can create a
+          client account during beta. <span className="font-semibold text-white/60">In-person sessions</span> are
+          available wherever a coach lists a service area — each coach sets their own location and travel
+          radius. Virtual coaching and discovery are available everywhere.
         </p>
 
         <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">

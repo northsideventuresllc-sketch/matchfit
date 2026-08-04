@@ -4,6 +4,20 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-08-04** `2.14.5-beta` → `2.14.6-beta` (**patch** — Query-per-loop sweep: 12 hot loops that issued one database round trip per iteration now batch into single queries (fithub feed scoring, punch-miss cron, outreach lead writes, check-ins, suspensions, QA sim))
+- **2026-08-04** `2.14.4-beta` → `2.14.5-beta` (**patch** — Weekly content-calendar generator no longer writes post_group NULL: post_group is resolved and asserted at a single insert gate used by both draft paths, so generated rows always land in the 5pm/8pm slot that posting selects on)
+- **2026-08-04** `2.14.3-beta` → `2.14.4-beta` (**patch** — Hashtag generation uses high-volume tags only: approved pool is the single source of truth for both prompt text and deterministic enforcement; invented/branded fallback tags removed)
+- **2026-08-04** `2.14.2-beta` → `2.14.3-beta` (**patch** — Finish the Atlanta removal 2.14.2 missed: three trainer-facing in-person ZIP inputs still shipped an Atlanta ZIP placeholder or a US-only "ZIP" label; Atlanta ZIP/area-code fixtures neutralized; geo guard now bans Georgia ZIP ranges, which is the check that would have caught 2.14.2)
+- **2026-08-04** `2.14.1-beta` → `2.14.2-beta` (**patch** — Remove Atlanta entirely after the worldwide switch: metro ZIP allow-list deleted, in-person signup + checkout gates removed, per-metro beta caps collapsed to one worldwide cap, app-wide geo guard added)
+- **2026-07-28** `2.14.0-beta` → `2.14.1-beta` (**patch** — Remove Atlanta geo targeting from outreach search, copy and AI prompts; add executable geo guard)
+- **2026-07-28** `2.13.0-beta` → `2.14.0-beta` (**minor** — NI Services outreach lane: separate NI Outreach HQ screen, venture-scoped Match Fit queries and cron, four-level lead taxonomy live)
+- **2026-07-28** `2.12.0-beta` → `2.13.0-beta` (**minor** — Lead taxonomy: four-level venture/category/offering/audience reference tables with independent DPMO outreach+marketing switches)
+- **2026-07-28** `2.11.1-beta` → `2.12.0-beta` (**minor** — Content calendar images generate on free Gemini with real aspect ratios; failures surface a reason and zero-image jobs no longer reach publishing)
+- **2026-07-28** `2.11.0-beta` → `2.11.1-beta` (**patch** — Cron routes accept DB-backed Cowork secret so a stuck media batch can be fired by hand)
+- **2026-07-27** `2.10.0-beta` → `2.11.0-beta` (**minor** — Outreach lead finder: nationwide online coaches, 5 Instagram + 5 email leads every weekday at 8am ET)
+- **2026-07-27** `2.9.3-beta` → `2.10.0-beta` (**minor** — Pending page: see when approved posts get built and posted, and send any back to drafts)
+- **2026-07-26** `2.9.2-beta` → `2.9.3-beta` (**patch** — Auto-post approved content to Facebook and Instagram from the admin portal)
+- **2026-07-25** `2.9.1-beta` → `2.9.2-beta` (**patch** — Support inbox: reply to support@match-fit.net from the admin portal)
 - **2026-07-23** `2.9.0-beta` → `2.9.1-beta` (**patch** — Cowork auth: DB-backed secret fallback (no Vercel dashboard access needed))
 - **2026-07-23** `2.8.1-beta` → `2.9.0-beta` (**minor** — Cowork media re-hosting endpoint (NI Brain Storage) for the Fire Cowork video/image workflow)
 - **2026-07-23** `2.8.0-beta` → `2.8.1-beta` (**patch** — Cowork job-discovery endpoints (list pending jobs for polling))

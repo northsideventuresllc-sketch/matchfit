@@ -54,6 +54,7 @@ export async function createTrainerRecord(
                 registrationFeeHoldStatus: "NOT_STARTED",
                 complianceCertFailedAttempts: 0,
                 ...(serviceZipCode ? { serviceZipCode } : {}),
+                country: body.country?.trim() || null,
                 backgroundCheckStatus: "NOT_STARTED",
                 certificationReviewStatus: "NOT_STARTED",
                 nutritionistCertificationReviewStatus: "NOT_STARTED",

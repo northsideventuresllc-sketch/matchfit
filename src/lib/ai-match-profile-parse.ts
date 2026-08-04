@@ -5,8 +5,8 @@ export type AiMatchProfileDisplayBlock =
   | { kind: "prose"; title: string; body: string };
 
 /**
- * Normalizes in-person coverage for display, e.g. `15 mile radius of 30333`.
- * Accepts legacy text like `within 15 miles of US ZIP 30333`.
+ * Normalizes in-person coverage for display, e.g. `15 mile radius of 94102`.
+ * Accepts legacy text like `within 15 miles of US ZIP 94102`.
  */
 /**
  * Removes the first `Services and rates:` bullet list from anywhere in the document (legacy compose

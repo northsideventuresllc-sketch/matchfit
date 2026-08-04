@@ -228,8 +228,8 @@ ${OUTREACH_FITNESS_PRO_CRITERIA}
 INSTAGRAM-SPECIFIC:
 - Only public profiles you can verify exist (@handle must resolve on instagram.com)
 - Prefer independent coaches over celebrity trainers
-- ATL_LOCAL: Atlanta metro personal trainers, strength coaches, hybrid coaches with local presence
-- VIRTUAL: online coaches, remote personal trainers, nutrition coaches, virtual training brands
+- Online coaches, remote personal trainers, nutrition coaches, virtual training brands — anywhere in the US
+- Never narrow by city, metro or region
 `.trim();
 
 export const OUTREACH_FACEBOOK_CRITERIA = `
@@ -238,8 +238,8 @@ ${OUTREACH_FITNESS_PRO_CRITERIA}
 FACEBOOK-SPECIFIC:
 - Active Facebook pages or groups where personal trainers and fitness coaches participate
 - Audience should be TRAINER when the page/group is for coaches; CLIENT only if it's a client community you can post trainer-recruiting copy in
-- ATL_LOCAL: Atlanta-area trainer groups, local gym communities, metro fitness business pages
 - Focus on places a Match Fit founder post would reach working personal trainers
+- National and online coaching communities — never narrow by city, metro or region
 `.trim();
 
 export const OUTREACH_EMAIL_CRITERIA = `
@@ -249,6 +249,6 @@ EMAIL-SPECIFIC:
 - Public contact emails for independent personal trainers, online coaches, or small training businesses
 - emailSourceUrl must point to where the email was found (website contact page, trainer directory, bio link page)
 - Do not invent emails — only addresses published publicly by the trainer or their business
-- ATL_LOCAL: Atlanta metro trainers with a business email on their site or directory listing
-- VIRTUAL: online coaches with a public contact or coaching inquiry email
+- Online coaches with a public contact or coaching inquiry email — anywhere in the US
+- Never narrow by city, metro or region
 `.trim();

@@ -22,6 +22,10 @@ export function normalizeRegisterJson(raw: unknown): unknown {
     next.betaInviteToken = o.betaInviteToken.trim();
   }
 
+  if (typeof o.country === "string") {
+    next.country = o.country.trim();
+  }
+
   const trimKeys = ["firstName", "lastName", "phone", "email", "zipCode", "dateOfBirth"] as const;
   for (const k of trimKeys) {
     if (typeof next[k] === "string") next[k] = (next[k] as string).trim();
@@ -66,10 +70,13 @@ export const registerProfileSchema = z.object({
     .max(32),
   email: z.string().trim().email("Enter a valid email address.").max(254),
   password: passwordPolicySchema,
+  // Worldwide (JB decision 2026-07-31): any ZIP/postal code format, not just US 5-digit.
   zipCode: z
     .string()
     .trim()
-    .regex(/^\d{5}(-\d{4})?$/, "Enter a valid US ZIP code (5 digits or ZIP+4)."),
+    .min(2, "Enter a valid ZIP / postal code.")
+    .max(12, "Enter a valid ZIP / postal code."),
+  country: z.string().trim().max(60).optional(),
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a valid date of birth."),
   agreedToTerms: z.literal(true),
 });

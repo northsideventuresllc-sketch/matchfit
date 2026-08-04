@@ -31,7 +31,7 @@ describe("BetaCapFullSignupNotice", () => {
     );
 
     expect(html).toContain("Memberships are full for this beta");
-    expect(html).toContain("Anyone in the United States can still join the waitlist");
+    expect(html).toContain("Anyone, anywhere can still join the waitlist");
     expect(html).toContain(">Join the client waitlist<");
     expect(html).toContain('href="/waitlist/client"');
     expect(html).toContain("Clients signed up: 250 / 250");
@@ -48,7 +48,8 @@ describe("BetaCapFullSignupNotice", () => {
     );
 
     expect(html).toContain("Fitness Pro slots are full for this beta");
-    expect(html).toContain("All Fitness Pro slots for the Atlanta metro beta are taken.");
+    expect(html).toContain("All Fitness Pro slots for this beta are taken.");
+    expect(html).not.toMatch(/atlanta/i);
     expect(html).toContain(">Join the Fitness Pro waitlist<");
     expect(html).toContain("Fitness Pros signed up: 50 / 50");
   });

@@ -274,11 +274,11 @@ export default function TrainerWaitlistPage() {
               </div>
 
               <label className="flex flex-col gap-2">
-                <span className={labelClass}>Service ZIP (Atlanta metro)</span>
+                <span className={labelClass}>Service ZIP / postal code</span>
                 <input
                   required
                   className={inputClass}
-                  placeholder="30301"
+                  placeholder="94102, SW1A 1AA, etc."
                   value={serviceZipCode}
                   onChange={(e) => setServiceZipCode(e.target.value)}
                 />

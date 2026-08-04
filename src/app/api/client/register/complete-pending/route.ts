@@ -54,6 +54,7 @@ export async function POST(req: Request) {
         email: pending.email,
         password: "",
         zipCode: pending.zipCode,
+        country: pending.country,
         dateOfBirth: pending.dateOfBirth,
         stayLoggedIn: pending.stayLoggedIn,
       },

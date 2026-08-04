@@ -57,8 +57,13 @@ function isAtLeast18(birthYmd: string): boolean {
   return birth <= cutoff;
 }
 
-function isValidUsZip(zip: string): boolean {
-  return /^\d{5}(-\d{4})?$/.test(zip.trim());
+/**
+ * Worldwide (JB decision 2026-07-31): accept any non-trivial postal/ZIP code, not just the
+ * 5-digit US format. Kept intentionally loose (2+ chars, letters/digits/space/hyphen) rather
+ * than validating against every country's postal format.
+ */
+function isValidPostalCode(zip: string): boolean {
+  return /^[a-zA-Z0-9][a-zA-Z0-9\s-]{1,10}$/.test(zip.trim());
 }
 
 function countPhoneDigits(phone: string): number {
@@ -228,8 +233,8 @@ function ClientSignUpPageInner() {
       setError("ZIP code is required.");
       return false;
     }
-    if (!isValidUsZip(zipCode)) {
-      setError("Enter a valid US ZIP code (5 digits or ZIP+4).");
+    if (!isValidPostalCode(zipCode)) {
+      setError("Enter a valid ZIP / postal code.");
       return false;
     }
     const dobMsg = validateDobMessage(dateOfBirth);
@@ -426,7 +431,7 @@ function ClientSignUpPageInner() {
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-white/55 sm:text-base">
           {wizardStep === 1
-            ? `Tell us a bit about yourself. After you agree to the Terms of Service, your account starts with a ${CLIENT_PLATFORM_TRIAL_DAYS}-day free trial — no card required at sign-up. U.S. beta — anyone in the United States can sign up. You must be 18 or older.`
+            ? `Tell us a bit about yourself. After you agree to the Terms of Service, your account starts with a ${CLIENT_PLATFORM_TRIAL_DAYS}-day free trial — no card required at sign-up. Available worldwide. You must be 18 or older.`
             : awaitingCode
               ? "Check your inbox for a verification email with your code."
               : "Add an extra layer of security, or skip and turn this on later in settings."}
@@ -587,20 +592,18 @@ function ClientSignUpPageInner() {
               <div className="grid min-w-0 grid-cols-1 gap-5 md:grid-cols-2">
                 <div className="flex min-w-0 flex-col gap-2">
                   <label htmlFor="su-zip" className={labelClass}>
-                    Home ZIP (United States)
+                    ZIP / Postal code
                   </label>
                   <input
                     id="su-zip"
                     type="text"
-                    inputMode="numeric"
                     autoComplete="postal-code"
                     required
                     value={zipCode}
                     onChange={(e) => setZipCode(e.target.value)}
                     onFocus={() => trackFieldFocus("zipCode")}
-                    placeholder="90210 or 30301"
-                    pattern="[0-9]{5}(-[0-9]{4})?"
-                    title="Enter a valid US ZIP code"
+                    placeholder="90210, SW1A 1AA, etc."
+                    title="Enter your ZIP / postal code"
                     className={inputClass}
                   />
                 </div>

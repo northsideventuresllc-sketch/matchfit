@@ -64,7 +64,10 @@ describe("support-inbox-data helpers", () => {
         fromEmail: "person@example.com",
         subject: "Question",
         textPreview: "a".repeat(240),
+        textBody: "a".repeat(300),
         status: "unread",
+        replyBody: null,
+        repliedAt: null,
       },
     ]);
 
@@ -78,6 +81,8 @@ describe("support-inbox-data helpers", () => {
         subject: true,
         textBody: true,
         status: true,
+        replyBody: true,
+        repliedAt: true,
       },
     });
   });

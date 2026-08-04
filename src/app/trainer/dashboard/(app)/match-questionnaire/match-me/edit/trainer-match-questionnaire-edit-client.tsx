@@ -279,13 +279,13 @@ export function TrainerMatchQuestionnaireEditClient(props: Props) {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="flex flex-col gap-2">
                     <label className={labelClass} htmlFor="zip">
-                      ZIP code (center point)
+                      ZIP / postal code (center point)
                     </label>
                     <input
                       id="zip"
                       value={inPersonZip}
                       onChange={(e) => setInPersonZip(e.target.value)}
-                      placeholder="30301"
+                      placeholder="94102, SW1A 1AA, etc."
                       className={inputClass}
                     />
                   </div>

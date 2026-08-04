@@ -11,7 +11,10 @@ import {
   CONTENT_CALENDAR_POST_TYPES,
   type ContentCalendarPostType,
 } from "@/lib/content-calendar/constants";
+import { MEDIA_DIMENSION_MATRIX } from "@/lib/content-calendar/content-prompts";
 import { normalizeTargetGroup } from "@/lib/content-calendar/content-rules";
+import { isMediaAspectRatio } from "@/lib/content-calendar/media-generation";
+import { insertGeneratedCalendarRow } from "@/lib/content-calendar/post-group";
 import { addWeekdays, formatCalendarDate } from "@/lib/content-calendar/rotation";
 import { createNiBrainClient, type ContentCalendarPostRow } from "@/lib/ni-brain-client";
 import { resolveArchivePurgeAfter } from "@/lib/content-calendar/cowork-jobs";
@@ -96,6 +99,7 @@ export function serializeV2Post(row: ContentCalendarPostRow) {
     purgeAfterAt: row.purge_after_at ?? null,
     bulkSessionId: row.bulk_session_id ?? null,
     deletedAt: row.deleted_at ?? null,
+    postGroup: row.post_group ?? null,
   };
 }
 
@@ -144,6 +148,38 @@ export async function listV2Posts(args: {
   return (data ?? []) as ContentCalendarPostRow[];
 }
 
+/** Stages a post can sit in while it is approved but has not gone out yet. */
+const PENDING_V2_STAGES = ["hub", "publishing", "scheduled"] as const;
+
+/**
+ * "Pending" means JB approved it and it has not gone out yet. That covers three stages: an approved
+ * post still waiting in the hub for its media build, a post in publishing waiting for a posting
+ * window, and a post with an exact scheduled time. Anything already posted, deleted, or archived is
+ * not pending.
+ */
+export function isPendingV2Row(row: ContentCalendarPostRow): boolean {
+  if (row.posted) return false;
+  if (row.deleted_at) return false;
+  const stage = row.workflow_stage ?? "hub";
+  if (stage === "publishing" || stage === "scheduled") return true;
+  return stage === "hub" && Boolean(row.approved_at);
+}
+
+/** Every approved-but-not-yet-posted row, soonest post date first. */
+export async function listPendingV2Posts(): Promise<ContentCalendarPostRow[]> {
+  await purgeExpiredV2Posts();
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("*")
+    .in("workflow_stage", [...PENDING_V2_STAGES])
+    .eq("posted", false)
+    .is("deleted_at", null)
+    .order("post_date", { ascending: true, nullsFirst: false });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as ContentCalendarPostRow[]).filter(isPendingV2Row);
+}
+
 export async function getV2Post(postId: string): Promise<ContentCalendarPostRow | null> {
   const client = createNiBrainClient();
   const { data, error } = await client
@@ -170,10 +206,15 @@ async function resolveUniqueDayIndex(args: {
 
   const used = new Set((data ?? []).map((row) => Number(row.day_index)));
   if (!used.has(args.preferredDayIndex)) return args.preferredDayIndex;
-  for (let dayIndex = 0; dayIndex < 500; dayIndex += 1) {
+  // day_index is DB-constrained to 0-4 (Mon-Fri, match_fit_content_calendar_posts_day_index_check).
+  // Bug fixed 2026-08-02: this used to loop to 500 and hand back an out-of-range value, which the
+  // DB then rejected with an opaque check-constraint 500 instead of this clear message.
+  for (let dayIndex = 0; dayIndex <= 4; dayIndex += 1) {
     if (!used.has(dayIndex)) return dayIndex;
   }
-  throw new Error("No available content calendar slot.");
+  throw new Error(
+    `No available content calendar slot for ${args.postType} in week ${args.weekStart} — all 5 weekday slots (day_index 0-4) are already taken.`,
+  );
 }
 
 async function buildMediaUrls(args: {
@@ -185,6 +226,8 @@ async function buildMediaUrls(args: {
 
   const prompt = args.visualPrompt?.trim() || args.caption;
   const count = args.postType === "Carousel" ? 3 : 1;
+  // Real platform output shape, not the old hardcoded square.
+  const aspectRatio = MEDIA_DIMENSION_MATRIX[args.postType].aspectRatio;
   const urls: string[] = [];
   for (let i = 0; i < count; i += 1) {
     const framePrompt =
@@ -193,8 +236,12 @@ async function buildMediaUrls(args: {
         : args.postType === "Video"
           ? `${prompt}\nCreate a storyboard keyframe / thumbnail preview for this short-form video concept.`
           : prompt;
-    const result = await generateStaticMedia(framePrompt);
-    if (result?.url) urls.push(result.url);
+    const result = await generateStaticMedia(
+      framePrompt,
+      isMediaAspectRatio(aspectRatio) ? aspectRatio : "1:1",
+    );
+    if (result.ok) urls.push(result.url);
+    else console.error(`[content-calendar v2 draft media] ${args.postType} frame ${i + 1}: ${result.reason}`);
   }
 
   return { urls, status: urls.length ? "ready" : "failed" };
@@ -268,9 +315,16 @@ export async function createV2Draft(args: {
     updated_at: now,
   };
 
-  const { data, error } = await client.from("match_fit_content_calendar_posts").insert(row).select("*").single();
-  if (error) throw new Error(error.message);
-  return data as ContentCalendarPostRow;
+  // post_group is resolved and asserted here, never left to the column default.
+  // A row that cannot get a valid 5pm/8pm group is written as `blocked` with a reason
+  // instead of a draft that would silently never post.
+  return insertGeneratedCalendarRow({
+    client,
+    row,
+    weekStart: args.weekStart,
+    dayIndex,
+    source: "createV2Draft",
+  });
 }
 
 export async function generateWeeklyPlannerDay(args: {
@@ -414,6 +468,38 @@ export async function moveV2PostToDrafts(postId: string): Promise<void> {
     })
     .eq("id", postId);
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Pulls an approved post back out of the batch and returns it to drafts so it can be edited again.
+ * Generated media is deliberately left attached — JB may want to keep the pictures.
+ *
+ * Refuses on an already-posted row rather than pretending a post can be un-sent.
+ */
+export async function sendV2PostBackToDrafts(postId: string): Promise<ContentCalendarPostRow> {
+  const post = await getV2Post(postId);
+  if (!post) throw new Error("That post could not be found.");
+  if (post.posted) {
+    throw new Error("That post has already gone out, so it cannot be pulled back. Nothing was changed.");
+  }
+
+  const now = new Date().toISOString();
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .update({
+      workflow_stage: "hub",
+      status: "draft",
+      approved_at: null,
+      scheduled_at: null,
+      revision: (post.revision ?? 1) + 1,
+      updated_at: now,
+    })
+    .eq("id", postId)
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+  return data as ContentCalendarPostRow;
 }
 
 export async function regenerateV2PostMedia(postId: string): Promise<ContentCalendarPostRow> {

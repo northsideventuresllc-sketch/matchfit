@@ -1,27 +1,25 @@
 import { isBetaLaunchGatesEnabled } from "@/lib/beta-launch-config";
-import { isValidUsServiceZip } from "@/lib/trainer-in-person-service-area";
 import { getValidBetaInvite, isTrainerBetaCapReached } from "@/lib/beta-waitlist-service";
 
 export type BetaTrainerRegisterGateResult =
   | { ok: true; betaInviteEntryId: string | null }
   | { ok: false; error: string; status: number; code?: string };
 
+/**
+ * Match Fit went worldwide 2026-07-31 (JB decision). This gate used to hard-require a valid
+ * US ZIP code for EVERY trainer registration, which meant a non-US trainer (or a US trainer
+ * offering virtual-only coaching who just left the field blank) could not even create an
+ * account. Any location value, or none at all, is accepted here. As of 2026-08-04
+ * there is no metro allow-list anywhere in the codebase either: a coach's service
+ * area is whatever postal code they supply. MF-ATLANTA-GATES-AFTER-WORLDWIDE geo-guard:allow
+ * geo-guard:allow
+ */
 export async function evaluateBetaTrainerRegistrationGate(args: {
   serviceZipCode: string;
   email: string;
   username: string;
   betaInviteToken?: string | null;
 }): Promise<BetaTrainerRegisterGateResult> {
-  const zip = args.serviceZipCode.trim();
-  if (!zip || !isValidUsServiceZip(zip)) {
-    return {
-      ok: false,
-      status: 400,
-      code: "INVALID_SERVICE_ZIP",
-      error: "Enter a valid US ZIP code (5 digits) for your primary service area.",
-    };
-  }
-
   if (!isBetaLaunchGatesEnabled()) {
     return { ok: true, betaInviteEntryId: null };
   }

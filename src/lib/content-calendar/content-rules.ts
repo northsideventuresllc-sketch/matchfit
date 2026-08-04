@@ -1,5 +1,6 @@
 import type { ContentCalendarGroup } from "@/lib/content-calendar/constants";
 import { CONTENT_CALENDAR_GROUPS } from "@/lib/content-calendar/constants";
+import { HIGH_VOLUME_HASHTAG_RULE, enforceHighVolumeHashtags } from "@/lib/content-calendar/hashtag-policy";
 
 /** Repurpose-safe limit: smallest caption budget across Match Fit platforms (Threads). */
 export const CONTENT_CALENDAR_REPURPOSE_CHAR_LIMIT = 500;
@@ -12,11 +13,15 @@ export const MATCH_FIT_COACH_SIGNUP_URL = "match-fit.net/trainer/sign-up";
 /** Canonical client signup URL for social CTAs. */
 export const MATCH_FIT_CLIENT_SIGNUP_URL = "match-fit.net/client/sign-up";
 
-/** Legacy audience labels stored before the three-audience split. */
+/**
+ * Legacy audience labels stored before the three-audience split. Read-only
+ * back-compat for historic rows: these map old geo-flavoured labels ONTO the
+ * neutral audiences. Nothing new is ever written with these keys.
+ */
 const LEGACY_GROUP_MAP: Record<string, ContentCalendarGroup> = {
-  "Atlanta Trainers": "Join the Team",
+  "Atlanta Trainers": "Join the Team", // geo-guard:allow — historic stored label, mapped away
   "Virtual Trainers": "Join the Team",
-  "Atlanta Clients": "Clients",
+  "Atlanta Clients": "Clients", // geo-guard:allow — historic stored label, mapped away
   "Virtual Clients": "Clients",
   "Fitness Pros": "Join the Team",
 };
@@ -69,8 +74,18 @@ export function fitCaptionForRepurpose(caption: string, hashtags: string[]): str
 export function enforceGeneratedPostContent(args: {
   caption: string;
   hashtags: string[];
+  targetGroup?: ContentCalendarGroup | string;
 }): { caption: string; hashtags: string[]; charCount: number; withinLimit: boolean } {
-  const hashtags = normalizeHashtags(args.hashtags);
+  // Generated content must obey JB's locked high-volume hashtag rule. This is the
+  // single choke point every generation path funnels through, so enforcing here
+  // catches the AI paths and the static fallbacks alike. Operator edits are NOT
+  // coerced (see normalizeUserEditedPostContent) — a human typing a tag wins.
+  const hashtags = normalizeHashtags(
+    enforceHighVolumeHashtags(args.hashtags, {
+      group: args.targetGroup,
+      max: CONTENT_CALENDAR_MAX_HASHTAGS,
+    })
+  );
   const caption = fitCaptionForRepurpose(normalizeCoachLanguage(args.caption), hashtags);
   const charCount = repurposePostLength(caption, hashtags);
   return {
@@ -185,11 +200,11 @@ export const CONTENT_CALENDAR_FOUNDING_PROMO_FACTS = `Founding Fitness Pro promo
 Keep the facts accurate. Never invent other caps or swap the numbers. Never paste the same promo sentence twice in a batch — rotate phrasing while preserving meaning.`;
 
 export const CONTENT_CALENDAR_AI_RULES = `Content rules (strict):
-- Target audiences: only "Join the Team", "List With Us", or "Clients" — never Atlanta/virtual split in copy.
+- Target audiences: only "Join the Team", "List With Us", or "Clients" — never a geographic or virtual/in-person split in copy.
 - "Join the Team" = Fitness Pros exploring Match Fit recruitment / onboarding.
 - "List With Us" = independent Fitness Pros & facilities using Match Fit as a listing/discovery platform.
 - "Clients" = athletes and individuals looking for training.
-- Do NOT market Atlanta or local geography in captions; in-person sessions are Atlanta-only operationally but not a marketing hook.
+- Do NOT name any city, metro, state or country in captions. Match Fit is worldwide; geography is never a marketing hook.
 - Always say "Fitness Pros" / "Fitness Pro" in social copy (never "Coaches" or "coach" as the primary public label).
 - Canonical signup URLs only (never invent paths):
   - Fitness Pro / Join the Team / List With Us CTAs → ${MATCH_FIT_COACH_SIGNUP_URL}
@@ -198,6 +213,7 @@ export const CONTENT_CALENDAR_AI_RULES = `Content rules (strict):
 - Carousel captions must follow the same shape as Static captions (hook → insight → payoff → CTA). Never describe slides in the caption.
 - ${CONTENT_CALENDAR_FOUNDING_PROMO_FACTS}
 - Maximum ${CONTENT_CALENDAR_MAX_HASHTAGS} hashtags per post (no # prefix in JSON array).
+${HIGH_VOLUME_HASHTAG_RULE}
 - Caption + hashtags combined must stay within ${CONTENT_CALENDAR_REPURPOSE_CHAR_LIMIT} characters (Threads repurpose limit).
 - Align offers and urgency with live site/promo scan context when provided — do not invent caps or pricing beyond the locked founding facts above.
 - Never publish placeholder copy that only names post type, audience, or brand hex colors.`;

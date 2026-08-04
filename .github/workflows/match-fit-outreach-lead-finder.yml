@@ -1,0 +1,49 @@
+# Match Fit outreach lead finder — 8am ET, Monday to Friday.
+# Finds online / virtual coaches nationwide (no city, no polygon) and leaves 5 Instagram leads and
+# 5 email leads in Outreach HQ, each with a draft message. Draft-only: nothing is sent.
+#
+# GitHub Actions crons are fixed-UTC. During EDT (UTC-4, currently in effect):
+#   8am ET M-F = 12:00 UTC, Mon-Fri -> "0 12 * * 1-5"
+# This drifts to 7am ET during EST (UTC-5); shift to "0 13 * * 1-5" if you want to hold 8am ET
+# through the winter. The route also skips weekends itself, so a DST shift can never land a batch
+# of approvals on JB's Saturday.
+#
+# Vercel Hobby cannot deploy vercel.json crons, so this runs via GitHub Actions (same pattern as
+# match-fit-content-calendar-post-batch.yml). Set repo secrets CRON_SECRET and MATCH_FIT_APP_URL.
+
+name: Match Fit outreach lead finder
+
+# SCHEDULE REMOVED 2026-08-04 — OUT-FINDER-DEDUPE. Manual dispatch only now.
+#
+# This workflow needs repo secrets CRON_SECRET and MATCH_FIT_APP_URL. They were never set,
+# so every scheduled fire exited 1 at the guard below and the finder never ran once —
+# proven by outreach_leads holding zero rows with source 'web_online_coach_search' or
+# 'instagram_online_coach_search' before 2026-08-04.
+#
+# The schedule now lives in nv-vault .github/workflows/mf-lead-finder-nationwide.yml, which
+# reads CRON_SECRET out of ni_platform_secrets with nv-vault's existing Supabase key and
+# calls this same endpoint. Exactly one schedule, no repo secret to forget.
+#
+# If JB ever sets CRON_SECRET + MATCH_FIT_APP_URL here, put the cron back in THIS file and
+# delete the nv-vault one — never run both, or the two callers double-spend SerpApi quota.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  outreach-lead-finder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke lead finder cron
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ secrets.MATCH_FIT_APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$APP_URL" ]; then
+            echo "::error::Missing repository secrets CRON_SECRET and/or MATCH_FIT_APP_URL (e.g. https://match-fit.net). The cron job is NOT running."
+            exit 1
+          fi
+          URL="${APP_URL%/}/api/cron/outreach-lead-finder"
+          echo "GET $URL"
+          curl -fsS -X GET \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "$URL"
