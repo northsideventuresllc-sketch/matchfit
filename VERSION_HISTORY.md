@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-08-04** `2.14.3-beta` → `2.14.4-beta` (**patch** — Hashtag generation uses high-volume tags only: approved pool is the single source of truth for both prompt text and deterministic enforcement; invented/branded fallback tags removed)
 - **2026-08-04** `2.14.2-beta` → `2.14.3-beta` (**patch** — Finish the Atlanta removal 2.14.2 missed: three trainer-facing in-person ZIP inputs still shipped an Atlanta ZIP placeholder or a US-only "ZIP" label; Atlanta ZIP/area-code fixtures neutralized; geo guard now bans Georgia ZIP ranges, which is the check that would have caught 2.14.2)
 - **2026-08-04** `2.14.1-beta` → `2.14.2-beta` (**patch** — Remove Atlanta entirely after the worldwide switch: metro ZIP allow-list deleted, in-person signup + checkout gates removed, per-metro beta caps collapsed to one worldwide cap, app-wide geo guard added)
 - **2026-07-28** `2.14.0-beta` → `2.14.1-beta` (**patch** — Remove Atlanta geo targeting from outreach search, copy and AI prompts; add executable geo guard)
