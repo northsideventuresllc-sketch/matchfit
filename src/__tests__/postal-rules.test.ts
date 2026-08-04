@@ -28,8 +28,8 @@ describe("country-aware postal rules", () => {
   });
 
   it("requires and validates a US ZIP", () => {
-    expect(postalValidationError("US", "30301")).toBeNull();
-    expect(postalValidationError("US", "30301-1234")).toBeNull();
+    expect(postalValidationError("US", "10001")).toBeNull();
+    expect(postalValidationError("US", "10001-1234")).toBeNull();
     expect(postalValidationError("US", "")).toMatch(/zip code/i);
     expect(postalValidationError("US", "SW1A 1AA")).toMatch(/zip code/i);
   });

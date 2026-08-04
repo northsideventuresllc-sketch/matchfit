@@ -43,7 +43,7 @@ const NO_POSTAL_SYSTEM = new Set([
 
 /** Per-country overrides. Anything not listed falls back to the sensible default below. */
 const POSTAL_RULES: Record<string, PostalRule> = {
-  US: { requirement: "required", label: "ZIP code", example: "30301", pattern: /^\d{5}(-\d{4})?$/ },
+  US: { requirement: "required", label: "ZIP code", example: "10001", pattern: /^\d{5}(-\d{4})?$/ },
   CA: {
     requirement: "required",
     label: "Postal code",
