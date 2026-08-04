@@ -704,6 +704,12 @@ model Trainer {
 
   termsAcceptedAt         DateTime?
   privacyPolicyAcceptedAt DateTime?
+  /// App-side mirror of Supabase `auth.users.email_confirmed_at`. Null = the address has not
+  /// been proven yet, which is now possible: sign-up goes straight to the Fitness Pro agreement
+  /// and the account is created before the email is confirmed (JB, 2026-08-04). The dashboard
+  /// reads this to show the "confirm your email" prompt; stamped by /auth/callback and by the
+  /// logged-in resend endpoint. Kept here rather than calling Supabase admin on every render.
+  emailVerifiedAt         DateTime?
 
   twoFactorEnabled Boolean @default(false)
   /// Last-used delivery channel (EMAIL | SMS | VOICE | NONE).

@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AdminImpersonationStrip } from "@/components/admin/admin-impersonation-strip";
 import { TrainerDashboardShell } from "@/components/trainer/trainer-dashboard-shell";
+import { TrainerEmailVerificationBanner } from "@/components/trainer/trainer-email-verification-banner";
 import { isAccountDeletionGraceActive } from "@/lib/account-deletion-grace";
 import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { trainerCanUseInAppChat } from "@/lib/fp-tier-chat-policy";
@@ -37,6 +38,8 @@ export default async function TrainerDashboardAppLayout({
       lastName: true,
       preferredName: true,
       username: true,
+      email: true,
+      emailVerifiedAt: true,
       profileImageUrl: true,
       safetySuspended: true,
       deidentifiedAt: true,
@@ -156,6 +159,11 @@ export default async function TrainerDashboardAppLayout({
       showComplianceInNav={showComplianceInNav}
       supportStrip={supportStrip}
     >
+      {trainer.emailVerifiedAt ? null : (
+        <div className="mb-4">
+          <TrainerEmailVerificationBanner email={trainer.email} />
+        </div>
+      )}
       {children}
     </TrainerDashboardShell>
   );

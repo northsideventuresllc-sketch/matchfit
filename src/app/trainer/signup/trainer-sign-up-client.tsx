@@ -58,7 +58,7 @@ function formatTrainerSignupFinishError(error: string, code?: string): string {
     return "Enter a valid ZIP / postal code in the form above, then try Finish again.";
   }
   if (code === "EMAIL_NOT_CONFIRMED") {
-    return "Your email is not confirmed yet. Check your inbox, or tap Resend verification email.";
+    return "Your email is not confirmed yet. Finish creating your account, then confirm it from your dashboard.";
   }
   if (code === "SUPABASE_AUTH_FAILED" || code === "SUPABASE_PASSWORD_SYNC_FAILED") {
     return "We could not verify your password. Re-enter the password from the form above, then try Finish again.";
@@ -98,9 +98,6 @@ export default function TrainerSignUpClient() {
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [betaInviteReserved, setBetaInviteReserved] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [verificationEmailSent, setVerificationEmailSent] = useState(false);
-  const [resendBusy, setResendBusy] = useState(false);
-  const [resendNotice, setResendNotice] = useState<string | null>(null);
   const turnstile = useTurnstileGate();
   const reportSignupProgress = useSignupProgressReport("trainer");
 
@@ -120,31 +117,18 @@ export default function TrainerSignUpClient() {
     );
   }, [firstName, lastName, username, phone, email, password, serviceZipCode, reportSignupProgress]);
 
+  // Sign-up is a single step now — submitting goes straight to the Fitness Pro agreement, so
+  // there is no longer a "verification email sent" step between the two.
   const wizardFunnelStep = useMemo(
-    () =>
-      verificationEmailSent
-        ? {
-            funnel: "trainer" as const,
-            step_id: "sign_up_email_sent",
-            step_name: "Verification email sent",
-            step_index: 2,
-          }
-        : {
-            funnel: "trainer" as const,
-            step_id: "sign_up_form_active",
-            step_name: "Sign-up form",
-            step_index: 1,
-          },
-    [verificationEmailSent],
+    () => ({
+      funnel: "trainer" as const,
+      step_id: "sign_up_form_active",
+      step_name: "Sign-up form",
+      step_index: 1,
+    }),
+    [],
   );
   useMetaSignupFunnelStep(wizardFunnelStep);
-
-  const resetTurnstile = turnstile.reset;
-
-  useEffect(() => {
-    if (!verificationEmailSent) return;
-    resetTurnstile();
-  }, [verificationEmailSent, resetTurnstile]);
 
   useEffect(() => {
     if (!betaInviteFromUrl) return;
@@ -247,107 +231,6 @@ export default function TrainerSignUpClient() {
     }
     navigateWithFullLoad(data.next ?? "/trainer/signup/terms");
     return { ok: true };
-  }
-
-  async function handleContinueWithPassword() {
-    setError(null);
-    setResendNotice(null);
-    const emailNorm = email.trim().toLowerCase();
-    if (!firstName.trim() || !lastName.trim()) {
-      setError("Enter your first and last name.");
-      return;
-    }
-    const u = username.trim();
-    if (!u || u.length < 3) {
-      setError("Username must be at least 3 characters.");
-      return;
-    }
-    if (!phone.trim() || countPhoneDigits(phone) < 10) {
-      setError("Enter a valid phone number.");
-      return;
-    }
-    if (!emailNorm || !password) {
-      setError("Enter your email and password, then try again.");
-      return;
-    }
-    const postalMsg = postalValidationError(countryCode, serviceZipCode);
-    if (postalMsg) {
-      setError(postalMsg);
-      return;
-    }
-    const tsErr = turnstile.validateBeforeSubmit();
-    if (tsErr) {
-      setError(tsErr);
-      return;
-    }
-    setBusy(true);
-    try {
-      const result = await finishTrainerSignupOnServer({
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        username: u,
-        phone: phone.trim(),
-        email: emailNorm,
-        password,
-        stayLoggedIn,
-        serviceZipCode: postalRule.requirement === "none" ? "" : serviceZipCode.trim(),
-        ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
-        turnstileToken: turnstile.getCaptchaToken() ?? null,
-      });
-      if (!result.ok) {
-        setError(formatTrainerSignupFinishError(result.error, result.code));
-        turnstile.reset();
-        setBusy(false);
-      }
-    } catch {
-      setError("Something went wrong. Try again.");
-      turnstile.reset();
-      setBusy(false);
-    }
-  }
-
-  async function handleResendVerificationEmail() {
-    setError(null);
-    setResendNotice(null);
-    const emailNorm = email.trim().toLowerCase();
-    if (!emailNorm || !simpleEmailValid(emailNorm)) {
-      setError("Enter a valid email address.");
-      return;
-    }
-    const tsErr = turnstile.validateBeforeSubmit();
-    if (tsErr) {
-      setError(tsErr);
-      return;
-    }
-    setResendBusy(true);
-    try {
-      const delivery = await deliverTrainerVerificationEmail({
-        emailNorm,
-        password,
-        firstName: firstName.trim(),
-        turnstileToken: turnstile.getCaptchaToken() ?? null,
-        draft: {
-          lastName: lastName.trim(),
-          username: username.trim(),
-          phone: phone.trim(),
-          serviceZipCode: postalRule.requirement === "none" ? "" : serviceZipCode.trim(),
-          ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
-          agreedToTerms: true,
-          stayLoggedIn,
-        },
-      });
-      if (!delivery.ok) {
-        setError(delivery.error);
-        turnstile.reset();
-        return;
-      }
-      setResendNotice("Verification email sent again. Check your inbox and spam folder.");
-    } catch {
-      setError("Something went wrong. Try again.");
-      turnstile.reset();
-    } finally {
-      setResendBusy(false);
-    }
   }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -514,10 +397,10 @@ export default function TrainerSignUpClient() {
             return;
           }
 
+          // The browser sign-up above created the Supabase user, so the agreement page can
+          // complete sign-up. Confirming the email happens on the dashboard afterwards.
           trackMetaLead("trainer");
-          setVerificationEmailSent(true);
-          setResendNotice(null);
-          setBusy(false);
+          navigateWithFullLoad("/trainer/signup/terms");
           return;
         }
 
@@ -529,24 +412,29 @@ export default function TrainerSignUpClient() {
             });
             if (!finished.ok) {
               setError(formatTrainerSignupFinishError(finished.error, finished.code));
-              setResendNotice("Your email is verified. Use Finish sign-up with password below.");
-              setVerificationEmailSent(true);
               turnstile.reset();
+              setBusy(false);
             }
-            setBusy(false);
+            return;
+          }
+          // A cooldown means an earlier attempt already created the Supabase user, so sign-up
+          // can continue — they just cannot have another email yet, and the dashboard will
+          // offer one later. Anything else may have left no user behind, and pressing on would
+          // fail at the agreement step, so surface it on the form instead.
+          if (delivery.code === "RESEND_COOLDOWN") {
+            navigateWithFullLoad("/trainer/signup/terms");
             return;
           }
           setError(delivery.error ?? "We could not send the verification email.");
           turnstile.reset();
-          setVerificationEmailSent(true);
           setBusy(false);
           return;
         }
 
+        // Straight to the Fitness Pro agreement — no check-your-inbox stop (JB, 2026-08-04).
+        // The confirmation email is already on its way; the dashboard prompts until it is used.
         trackMetaLead("trainer");
-        setVerificationEmailSent(true);
-        setResendNotice(null);
-        setBusy(false);
+        navigateWithFullLoad("/trainer/signup/terms");
         return;
       }
 
@@ -658,63 +546,6 @@ export default function TrainerSignUpClient() {
                 </>
               ) : null}
             </p>
-          ) : null}
-
-          {verificationEmailSent ? (
-            <div
-              className="mb-6 rounded-2xl border border-emerald-500/35 bg-emerald-500/10 px-5 py-5"
-              role="status"
-              aria-live="polite"
-            >
-              <p className="text-base font-black tracking-tight text-emerald-50">Verification email sent</p>
-              <p className="mt-3 rounded-xl border border-[#FFD34E]/35 bg-[#FFD34E]/10 px-4 py-3 text-sm leading-relaxed text-[#FFF4D0]">
-                <span className="font-semibold text-white">Already verified?</span> Skip waiting for email and tap{" "}
-                <span className="font-semibold">Finish sign-up with password</span> below.
-              </p>
-              <p className="mt-3 text-sm leading-relaxed text-emerald-100/85">
-                We sent a message to <span className="font-semibold text-white">{email.trim()}</span>. Open it and tap
-                <span className="font-semibold"> Confirm your email</span>. You will return here to finish security check,
-                then you will continue to the Fitness Pro agreement, account type, documents, and payment steps.
-              </p>
-              <p className="mt-3 text-xs leading-relaxed text-emerald-100/60">
-                Did not get it? Check spam, then use Resend below. The link expires after a while.
-              </p>
-              {resendNotice ? (
-                <p className="mt-3 text-xs font-semibold text-emerald-100/90" role="status">
-                  {resendNotice}
-                </p>
-              ) : null}
-              <button
-                type="button"
-                disabled={resendBusy || busy || (turnstile.enabled && !turnstile.ready)}
-                onClick={() => void handleResendVerificationEmail()}
-                className="mt-5 min-h-[2.75rem] w-full rounded-xl border border-[#FF7E00]/45 bg-[#FF7E00]/10 px-4 text-xs font-black uppercase tracking-[0.08em] text-[#FFD34E] transition hover:bg-[#FF7E00]/15 disabled:opacity-50"
-              >
-                {resendBusy ? "Sending…" : "Resend verification email"}
-              </button>
-              <button
-                type="button"
-                disabled={busy || (turnstile.enabled && !turnstile.ready)}
-                onClick={() => void handleContinueWithPassword()}
-                className="mt-3 min-h-[2.75rem] w-full rounded-xl border border-white/15 bg-white/5 px-4 text-xs font-black uppercase tracking-[0.08em] text-white/85 transition hover:bg-white/10 disabled:opacity-50"
-              >
-                {busy ? "Please wait…" : turnstile.enabled && !turnstile.ready ? "Complete security check…" : "Finish sign-up with password"}
-              </button>
-              <p className="mt-3 text-[11px] leading-relaxed text-emerald-100/55">
-                Already confirmed your email? Use Continue with password. Otherwise wait 2 minutes between Resend attempts.
-              </p>
-              <button
-                type="button"
-                className="mt-4 text-xs font-bold uppercase tracking-wide text-[#FF7E00] underline-offset-4 hover:underline"
-                onClick={() => {
-                  setVerificationEmailSent(false);
-                  setResendNotice(null);
-                  setError(null);
-                }}
-              >
-                Edit email and try again
-              </button>
-            </div>
           ) : null}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
@@ -917,7 +748,7 @@ export default function TrainerSignUpClient() {
 
             <button
               type="submit"
-              disabled={busy || verificationEmailSent || (turnstile.enabled && !turnstile.ready)}
+              disabled={busy || (turnstile.enabled && !turnstile.ready)}
               className="group relative isolate mt-1 flex min-h-[3.25rem] w-full items-center justify-center overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition active:translate-y-px disabled:opacity-50"
             >
               <span
@@ -929,7 +760,7 @@ export default function TrainerSignUpClient() {
                 className="absolute inset-px rounded-[0.65rem] bg-white/10 opacity-0 transition group-hover:opacity-100"
               />
               <span className="relative">
-                {busy ? "Please wait…" : verificationEmailSent ? "Check your inbox" : "Create account"}
+                {busy ? "Please wait…" : "Create account"}
               </span>
             </button>
           </form>

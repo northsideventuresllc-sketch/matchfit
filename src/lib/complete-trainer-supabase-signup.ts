@@ -14,7 +14,7 @@ import { sendTrainerWelcomeEmail } from "@/lib/trainer-welcome-email";
 import type { TrainerSignupParsed } from "@/lib/trainer-register-service";
 
 export type CompleteTrainerSupabaseSignupResult =
-  | { ok: true; trainerId: string; next: string }
+  | { ok: true; trainerId: string; next: string; emailConfirmed: boolean }
   | { ok: false; error: string; code?: string; status: number };
 
 function mapCreateTrainerError(e: unknown): CompleteTrainerSupabaseSignupResult | null {
@@ -55,18 +55,25 @@ function mapCreateTrainerError(e: unknown): CompleteTrainerSupabaseSignupResult 
 }
 
 /**
- * Validates Supabase credentials, ensures email is confirmed, creates the Match Fit
- * trainer row, and returns the post-signup redirect path.
+ * Validates Supabase credentials, creates the Match Fit trainer row, and returns the
+ * post-signup redirect path plus whether the email has actually been confirmed.
  *
  * Does not call Supabase Auth sign-in APIs (those require a browser captcha token when
- * Attack Protection is enabled). Email ownership is established via confirmation, and
- * Match Fit verifies Turnstile on the API route before calling this helper.
+ * Attack Protection is enabled). Match Fit verifies Turnstile on the API route before
+ * calling this helper.
+ *
+ * `requireEmailConfirmed` defaults to true, which keeps the original behaviour for the
+ * legacy "Finish sign-up with password" route. The Fitness Pro agreement path passes
+ * false: since 2026-08-04 sign-up goes straight to the agreement and the account is
+ * created before the address is proven, with confirmation moved onto the dashboard.
+ * Callers that pass false MUST persist `emailConfirmed` so the dashboard can prompt.
  */
 export async function completeTrainerSupabaseSignup(
   body: TrainerSignupParsed,
-  options?: { createAccount?: boolean },
+  options?: { createAccount?: boolean; requireEmailConfirmed?: boolean },
 ): Promise<CompleteTrainerSupabaseSignupResult> {
   const createAccount = options?.createAccount === true;
+  const requireEmailConfirmed = options?.requireEmailConfirmed !== false;
   try {
     const email = body.email.trim().toLowerCase();
     const username = body.username.trim();
@@ -108,7 +115,7 @@ export async function completeTrainerSupabaseSignup(
     }
 
     const emailConfirmed = authUser.email_confirmed_at != null;
-    if (!emailConfirmed) {
+    if (!emailConfirmed && requireEmailConfirmed) {
       return {
         ok: false,
         error: "Confirm your email first, then tap Finish sign-up with password.",
@@ -123,7 +130,9 @@ export async function completeTrainerSupabaseSignup(
       user_metadata: {
         match_fit_role: "trainer",
         pending_match_fit_profile: false,
-        email_verified: true,
+        // Never claim an address is verified when it is not — this metadata is read back by
+        // /auth/callback and by anything else trusting Supabase. It tracks the real flag.
+        email_verified: emailConfirmed,
       },
     });
     if (passwordSyncError) {
@@ -137,12 +146,18 @@ export async function completeTrainerSupabaseSignup(
     }
 
     if (!createAccount) {
-      return { ok: true, trainerId: "", next: "/trainer/signup/terms" };
+      return { ok: true, trainerId: "", next: "/trainer/signup/terms", emailConfirmed };
     }
 
     const { id: trainerId, email: createdEmail } = await createTrainerRecord(body, {
       betaInviteEntryId: gate.betaInviteEntryId,
     });
+
+    if (emailConfirmed) {
+      await prisma.trainer
+        .update({ where: { id: trainerId }, data: { emailVerifiedAt: new Date() } })
+        .catch((err) => console.error("[completeTrainerSupabaseSignup] emailVerifiedAt stamp failed:", err));
+    }
 
     if (gate.betaInviteEntryId) {
       await markTrainerWaitlistRegistered(gate.betaInviteEntryId, trainerId);
@@ -166,7 +181,7 @@ export async function completeTrainerSupabaseSignup(
       trainerId,
     }).catch((err) => console.error("[completeTrainerSupabaseSignup] welcome email failed:", err));
 
-    return { ok: true, trainerId, next: resolveTrainerSignupNextPath(profile) };
+    return { ok: true, trainerId, next: resolveTrainerSignupNextPath(profile), emailConfirmed };
   } catch (e) {
     const mapped = mapCreateTrainerError(e);
     if (mapped) return mapped;

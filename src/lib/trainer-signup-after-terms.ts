@@ -23,7 +23,13 @@ export async function createTrainerAccountAfterTermsAcceptance(
   body: TrainerSignupParsed,
   options?: { betaInviteEntryId?: string | null },
 ): Promise<CreateTrainerAfterTermsResult> {
-  const prep = await completeTrainerSupabaseSignup(body, { createAccount: false });
+  // Sign-up goes straight here from the form, so the email is normally still unconfirmed at
+  // this point (JB, 2026-08-04). We create the account anyway and carry the real state onto
+  // the row, which is what the dashboard prompt reads.
+  const prep = await completeTrainerSupabaseSignup(body, {
+    createAccount: false,
+    requireEmailConfirmed: false,
+  });
   if (!prep.ok) {
     return prep;
   }
@@ -33,6 +39,12 @@ export async function createTrainerAccountAfterTermsAcceptance(
   const { id: trainerId, email } = await createTrainerRecord(body, {
     betaInviteEntryId: options?.betaInviteEntryId ?? null,
   });
+
+  if (prep.emailConfirmed) {
+    await prisma.trainer
+      .update({ where: { id: trainerId }, data: { emailVerifiedAt: now } })
+      .catch((err) => console.error("[createTrainerAccountAfterTermsAcceptance] emailVerifiedAt stamp failed:", err));
+  }
 
   await prisma.$transaction(async (tx) => {
     await markTrainerPendingAfterTermsAcceptance(trainerId, now, tx);
