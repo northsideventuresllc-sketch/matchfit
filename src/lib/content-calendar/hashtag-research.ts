@@ -4,7 +4,11 @@ import { callMatchFitAi } from "@/lib/ai-vault/router";
 import { getAiVaultStatus } from "@/lib/ai-vault";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { CONTENT_CALENDAR_BRAND_FACTS } from "@/lib/content-calendar/constants";
-import { normalizeHashtags } from "@/lib/content-calendar/content-rules";
+import {
+  enforceHighVolumeHashtags,
+  HIGH_VOLUME_HASHTAGS,
+  HIGH_VOLUME_HASHTAG_RULE,
+} from "@/lib/content-calendar/hashtag-policy";
 import { recordContentLearning } from "@/lib/ni-brain-client";
 
 export type HashtagResearchSnapshot = {
@@ -50,7 +54,9 @@ export async function researchTrendingHashtags(args?: {
     researchedAt,
     usedWebSearch: false,
     provider: null,
-    hashtags: normalizeHashtags(["MatchFit", "FitnessApp", "PersonalTrainer", "FitHub", "OnlineCoaching"]),
+    // High-volume only (JB locked rule). The old fallback led with invented/branded
+    // tags (MatchFit, FitnessApp, FitHub) that nobody searches.
+    hashtags: enforceHighVolumeHashtags([], { max: HIGH_VOLUME_HASHTAGS.length }),
     trends: [],
     notes: null,
   };
@@ -63,6 +69,7 @@ export async function researchTrendingHashtags(args?: {
     CONTENT_CALENDAR_BRAND_FACTS,
     "Use web search to find hashtags trending RIGHT NOW across Instagram, TikTok, Threads, and Facebook in fitness, personal training, online coaching, and fitness-creator niches.",
     "Prioritize tags that help Match Fit grow beta Fitness Pros and clients. Avoid local/geo tags (no Atlanta). No # prefix in the arrays.",
+    HIGH_VOLUME_HASHTAG_RULE,
     "OUTPUT FORMAT — CRITICAL: respond with a single raw JSON object only. No prose, no markdown fences.",
     'Shape: {"hashtags":["tag1","tag2",...],"trends":["short note about a trend",...],"notes":"one-line summary of what is trending"}',
   ].join("\n");
@@ -70,7 +77,7 @@ export async function researchTrendingHashtags(args?: {
   const user = [
     args?.dpmoPhase ? `Current growth phase: ${args.dpmoPhase}.` : "",
     args?.socialSummary ? `Recent Match Fit social scan:\n${args.socialSummary.slice(0, 1500)}` : "",
-    "Return 12-20 trending, currently-relevant hashtags plus a few short trend notes.",
+    "Return 12-20 hashtags plus a few short trend notes. Every hashtag must come from the approved high-volume list; report which of them are trending right now in the trend notes.",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -95,7 +102,11 @@ export async function researchTrendingHashtags(args?: {
   if (!ai.text) return fallback;
 
   const parsed = parseJsonBlock<{ hashtags?: string[]; trends?: string[]; notes?: string }>(ai.text);
-  const hashtags = normalizeHashtags(parsed?.hashtags ?? []);
+  // Coerce to the approved high-volume pool. This snapshot is fed into weekly
+  // generation prompts, so an off-list tag here propagates into every post.
+  const hashtags = enforceHighVolumeHashtags(parsed?.hashtags ?? [], {
+    max: HIGH_VOLUME_HASHTAGS.length,
+  });
   const snapshot: HashtagResearchSnapshot = {
     researchedAt,
     usedWebSearch: ai.provider === "anthropic",

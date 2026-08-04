@@ -30,6 +30,7 @@ import {
   normalizeHashtags,
   normalizeTargetGroup,
 } from "@/lib/content-calendar/content-rules";
+import { enforceHighVolumeHashtags, HIGH_VOLUME_HASHTAG_RULE } from "@/lib/content-calendar/hashtag-policy";
 import { isImageGenerationConfigured } from "@/lib/content-calendar/media-generation";
 import { getSocialPostingDateKeys } from "@/lib/content-calendar/posting-schedule";
 import { scanAndRecordSocialProfiles } from "@/lib/content-calendar/social-profile-scan";
@@ -83,10 +84,15 @@ export type BulkGeneratedDraft = GeneratedPostContent & {
   dayIndex: number;
 };
 
-function applyPostRules(content: GeneratedPostContent, postType: ContentCalendarPostType): GeneratedPostContent {
+function applyPostRules(
+  content: GeneratedPostContent,
+  postType: ContentCalendarPostType,
+  targetGroup?: string,
+): GeneratedPostContent {
   const enforced = enforceGeneratedPostContent({
     caption: content.caption,
     hashtags: content.hashtags,
+    targetGroup,
   });
   return {
     ...content,
@@ -222,6 +228,7 @@ function rowToBulkDraft(args: {
       hashtags: args.row.hashtags ?? [],
     },
     postType,
+    targetGroup,
   );
 
   return {
@@ -318,11 +325,19 @@ export async function researchHashtagsForDate(args: {
 ${CONTENT_CALENDAR_BRAND_FACTS}
 ${CONTENT_CALENDAR_AI_RULES}
 ${learning}
-Return ONLY JSON: {"hashtags":["tag1","tag2",...]} with exactly ${CONTENT_CALENDAR_MAX_HASHTAGS} tags (or fewer). Mix broad fitness and niche tags trending around ${args.postDate}. No # prefix. No Atlanta/local geo tags.`;
+Return ONLY JSON: {"hashtags":["tag1","tag2",...]} with exactly ${CONTENT_CALENDAR_MAX_HASHTAGS} tags (or fewer). No # prefix. No Atlanta/local geo tags.
+${HIGH_VOLUME_HASHTAG_RULE}`;
   const user = `Research best hashtags for ${args.postType} post targeting ${targetGroup} to publish on ${args.postDate}.`;
   const aiResult = await callAi(system, user, 600);
   const parsed = aiResult.text ? parseJsonBlock<{ hashtags?: string[] }>(aiResult.text) : null;
-  const tags = normalizeHashtags(parsed?.hashtags ?? []);
+  // Enforce JB's locked high-volume rule deterministically — prompting alone drifts
+  // back to niche/invented tags. Off-list tags are dropped and backfilled from the pool.
+  const tags = normalizeHashtags(
+    enforceHighVolumeHashtags(parsed?.hashtags ?? [], {
+      group: targetGroup,
+      max: CONTENT_CALENDAR_MAX_HASHTAGS,
+    })
+  );
   if (tags.length) {
     await recordContentLearning({
       signalType: "HASHTAG_RESEARCH",
@@ -330,7 +345,11 @@ Return ONLY JSON: {"hashtags":["tag1","tag2",...]} with exactly ${CONTENT_CALEND
       meta: { postDate: args.postDate, postType: args.postType, targetGroup },
     });
   }
-  return tags.length ? tags : normalizeHashtags(["MatchFit", "FitnessApp", "BetaLaunch", "FitHub", "Workout"]);
+  // Fallback is also high-volume-only: the old ["MatchFit","FitnessApp","BetaLaunch","FitHub"]
+  // set was invented/branded tags with no search volume.
+  return tags.length
+    ? tags
+    : normalizeHashtags(enforceHighVolumeHashtags([], { group: targetGroup, max: CONTENT_CALENDAR_MAX_HASHTAGS }));
 }
 
 export async function regenerateCalendarPost(args: {
@@ -370,6 +389,7 @@ ${args.feedback ? `Operator feedback — apply these changes:\n${args.feedback}`
       hashtags: parsed.hashtags ?? [],
     },
     args.postType,
+    targetGroup,
   );
   return {
     dayIndex: args.dayIndex,
@@ -478,6 +498,7 @@ Include day-of-week variety and founding beta urgency aligned with live promos. 
         hashtags: row.hashtags ?? [],
       },
       postType,
+      normalizeTargetGroup(row.targetGroup ?? rot[postType]),
     );
     return {
       dayIndex: row.dayIndex,
@@ -502,9 +523,11 @@ function fallbackWeek(offset: number): GeneratedWeekPost[] {
             postType === "Text"
               ? null
               : `Regenerate ${postType}: describe a specific scene with people, action, setting, and headline text for ${targetGroup}.`,
-          hashtags: ["MatchFit", "FitnessApp", "BetaLaunch"],
+          // High-volume only per JB locked rule; applyPostRules re-enforces against the pool.
+          hashtags: enforceHighVolumeHashtags([], { group: targetGroup, max: CONTENT_CALENDAR_MAX_HASHTAGS }),
         },
         postType,
+        targetGroup,
       );
       posts.push({
         dayIndex: di,
@@ -729,7 +752,10 @@ Create ${count} unique posts. Weave operator themes into every caption and visua
                 postType: spec.postType,
                 targetGroup: normalizeTargetGroup(spec.targetGroup),
               }),
-        hashtags: ["MatchFit"],
+        hashtags: enforceHighVolumeHashtags([], {
+          group: normalizeTargetGroup(spec.targetGroup),
+          max: CONTENT_CALENDAR_MAX_HASHTAGS,
+        }),
       },
       spec,
       index: i,

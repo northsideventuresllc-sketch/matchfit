@@ -1,5 +1,6 @@
 import type { ContentCalendarGroup } from "@/lib/content-calendar/constants";
 import { CONTENT_CALENDAR_GROUPS } from "@/lib/content-calendar/constants";
+import { HIGH_VOLUME_HASHTAG_RULE, enforceHighVolumeHashtags } from "@/lib/content-calendar/hashtag-policy";
 
 /** Repurpose-safe limit: smallest caption budget across Match Fit platforms (Threads). */
 export const CONTENT_CALENDAR_REPURPOSE_CHAR_LIMIT = 500;
@@ -69,8 +70,18 @@ export function fitCaptionForRepurpose(caption: string, hashtags: string[]): str
 export function enforceGeneratedPostContent(args: {
   caption: string;
   hashtags: string[];
+  targetGroup?: ContentCalendarGroup | string;
 }): { caption: string; hashtags: string[]; charCount: number; withinLimit: boolean } {
-  const hashtags = normalizeHashtags(args.hashtags);
+  // Generated content must obey JB's locked high-volume hashtag rule. This is the
+  // single choke point every generation path funnels through, so enforcing here
+  // catches the AI paths and the static fallbacks alike. Operator edits are NOT
+  // coerced (see normalizeUserEditedPostContent) — a human typing a tag wins.
+  const hashtags = normalizeHashtags(
+    enforceHighVolumeHashtags(args.hashtags, {
+      group: args.targetGroup,
+      max: CONTENT_CALENDAR_MAX_HASHTAGS,
+    })
+  );
   const caption = fitCaptionForRepurpose(normalizeCoachLanguage(args.caption), hashtags);
   const charCount = repurposePostLength(caption, hashtags);
   return {
@@ -198,6 +209,7 @@ export const CONTENT_CALENDAR_AI_RULES = `Content rules (strict):
 - Carousel captions must follow the same shape as Static captions (hook → insight → payoff → CTA). Never describe slides in the caption.
 - ${CONTENT_CALENDAR_FOUNDING_PROMO_FACTS}
 - Maximum ${CONTENT_CALENDAR_MAX_HASHTAGS} hashtags per post (no # prefix in JSON array).
+${HIGH_VOLUME_HASHTAG_RULE}
 - Caption + hashtags combined must stay within ${CONTENT_CALENDAR_REPURPOSE_CHAR_LIMIT} characters (Threads repurpose limit).
 - Align offers and urgency with live site/promo scan context when provided — do not invent caps or pricing beyond the locked founding facts above.
 - Never publish placeholder copy that only names post type, audience, or brand hex colors.`;
