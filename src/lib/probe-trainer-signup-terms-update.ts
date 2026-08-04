@@ -45,7 +45,7 @@ export async function probeTrainerSignupTermsUpdate(): Promise<TrainerSignupTerm
               hasSignedTOS: false,
               registrationFeeHoldStatus: "NOT_STARTED",
               complianceCertFailedAttempts: 0,
-              serviceZipCode: "30301",
+              serviceZipCode: "94102",
               backgroundCheckStatus: "NOT_STARTED",
               certificationReviewStatus: "NOT_STARTED",
               nutritionistCertificationReviewStatus: "NOT_STARTED",

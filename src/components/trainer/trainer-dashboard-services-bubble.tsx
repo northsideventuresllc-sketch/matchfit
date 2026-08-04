@@ -1779,12 +1779,12 @@ export function TrainerDashboardServicesBubble() {
             {delivery && (delivery === "in_person" || delivery === "both") ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className={labelClass}>In-Person Center ZIP</label>
+                  <label className={labelClass}>In-Person Center ZIP / Postal Code</label>
                   <input
                     className={`${inputClass} mt-1.5`}
                     value={inPersonZip}
                     onChange={(e) => setInPersonZip(e.target.value)}
-                    placeholder="30301"
+                    placeholder="94102, SW1A 1AA, etc."
                   />
                 </div>
                 <div>
@@ -3136,8 +3136,13 @@ export function TrainerDashboardServicesBubble() {
               {delivery === "in_person" || delivery === "both" ? (
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
-                    <label className={labelClass}>In-Person Center ZIP</label>
-                    <input className={`${inputClass} mt-1.5`} value={inPersonZip} onChange={(e) => setInPersonZip(e.target.value)} />
+                    <label className={labelClass}>In-Person Center ZIP / Postal Code</label>
+                    <input
+                      className={`${inputClass} mt-1.5`}
+                      value={inPersonZip}
+                      onChange={(e) => setInPersonZip(e.target.value)}
+                      placeholder="94102, SW1A 1AA, etc."
+                    />
                   </div>
                   <div>
                     <label className={labelClass}>Max Drive Distance (Miles)</label>
