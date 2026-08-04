@@ -71,8 +71,8 @@ export function HomeBetaSlotWarning() {
         </>
       ) : (
         <>
-          <span className="font-semibold text-white/85">Beta is live</span> — clients anywhere in the world can sign
-          up; in-person sessions launch first in Atlanta. Limited founding slots remain.{" "}
+          <span className="font-semibold text-white/85">Beta is live</span> — clients and coaches anywhere in the
+          world can sign up. Limited founding slots remain.{" "}
           {trainerLeft !== null && (
             <>
               <span className="font-bold text-[#FFD34E]">{trainerLeft}</span> fitness pro{" "}

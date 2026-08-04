@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Prepares local .env and optional production secret file for Atlanta beta launch.
+ * Prepares local .env and optional production secret file for the worldwide beta launch.
  * Does not print secret values to stdout unless --show-secrets.
  *
  * Usage:
@@ -92,16 +92,9 @@ function mergeLaunchDefaults(map, { local }) {
   }
 
   map.set("MATCH_FIT_BETA_GATES_ENABLED", "1");
-  if (!map.get("MATCH_FIT_BETA_MAX_TRAINERS_ATLANTA")) {
-    map.set(
-      "MATCH_FIT_BETA_MAX_TRAINERS_ATLANTA",
-      map.get("MATCH_FIT_BETA_MAX_TRAINERS") || "10",
-    );
-  }
-  if (!map.get("MATCH_FIT_BETA_MAX_TRAINERS_VIRTUAL")) {
-    map.set("MATCH_FIT_BETA_MAX_TRAINERS_VIRTUAL", "20");
-  }
-  if (!map.get("MATCH_FIT_BETA_MAX_TRAINERS")) map.set("MATCH_FIT_BETA_MAX_TRAINERS", "10");
+  // One worldwide trainer cap. The per-metro / virtual split was removed 2026-08-04
+  // (MF-ATLANTA-GATES-AFTER-WORLDWIDE); this scaffolder no longer writes those vars.
+  if (!map.get("MATCH_FIT_BETA_MAX_TRAINERS")) map.set("MATCH_FIT_BETA_MAX_TRAINERS", "30");
   if (!map.get("MATCH_FIT_BETA_MAX_CLIENTS")) map.set("MATCH_FIT_BETA_MAX_CLIENTS", "50");
 
   return map;

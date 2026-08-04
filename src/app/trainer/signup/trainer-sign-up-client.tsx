@@ -785,8 +785,8 @@ export default function TrainerSignUpClient() {
                 className={inputClass}
               />
               <p className="text-xs leading-relaxed text-white/40">
-                Available worldwide — used for matching and your public profile. In-person sessions are available
-                in the Atlanta metro area during beta; you can coach virtually from anywhere.
+                Available worldwide — used for matching and your public profile. Set your own in-person service
+                area and travel radius, or coach virtually from anywhere.
               </p>
             </div>
 

@@ -36,7 +36,7 @@ export function matchFitTestTrainerProfileComplianceData(now = new Date()) {
     matchQuestionnaireCompletedAt: now,
     matchQuestionnaireAnswers: JSON.stringify({
       offersInPerson: true,
-      inPersonZip: "30301",
+      inPersonZip: "94102",
     }),
     aiMatchProfileText:
       "Match Fit owner test trainer — CPT and nutrition paths approved for full service template QA.",

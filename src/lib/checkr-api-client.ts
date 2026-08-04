@@ -3,6 +3,7 @@ import {
   getCheckrApiBase,
   getCheckrPackageSlug,
   getCheckrWorkLocationCity,
+  getCheckrWorkLocationCountry,
   getCheckrWorkLocationState,
   isCheckrApiFullyConfigured,
 } from "@/lib/checkr-integration";
@@ -80,10 +81,10 @@ export async function createCheckrInvitation(args: {
   const fields: Record<string, string> = {
     candidate_id: args.candidateId,
     package: packageSlug,
-    "work_locations[][country]": "US",
-    "work_locations[][state]": state,
+    "work_locations[][country]": getCheckrWorkLocationCountry(),
     "metadata[trainerId]": args.trainerId,
   };
+  if (state) fields["work_locations[][state]"] = state;
   if (city) fields["work_locations[][city]"] = city;
 
   const data = await checkrFetch("/invitations", {

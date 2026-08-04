@@ -16,9 +16,10 @@ import { describe, expect, it } from "vitest";
  * DELIBERATELY OUT OF SCOPE — these are legitimate and must keep working:
  *  - Social-post LOCATION TAGS (post metadata). Decision #342 allows Atlanta there, and
  *    only there.
- *  - Client-side in-person service areas (`trainer-in-person-service-area`,
- *    `beta-atlanta-metro-zips`). Those scope where a client can book an in-person
- *    session — a product feature, not coach acquisition.
+ *  - (WITHDRAWN 2026-08-04) This guard used to declare the in-person service-area
+ *    layer out of scope. That carve-out is exactly what let a metro ZIP allow-list
+ *    keep gating signup and checkout after Match Fit went worldwide. The allow-list
+ *    module is deleted; app-wide coverage now lives in atlanta-removed-guard.test.ts.
  */
 
 const OUTREACH_DIR = join(process.cwd(), "src", "lib");

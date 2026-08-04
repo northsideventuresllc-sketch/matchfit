@@ -435,7 +435,7 @@ export async function runAdminAnalyticsAi(args: {
     site_analysis:
       "Analyze site traffic patterns for a fitness marketplace beta. Identify funnel leaks and recommend concrete CTA and copy tests. Use fitness-industry best practices. Write for a non-technical business owner. Never show raw JSON or code.",
     signup_recommendations:
-      "Given traffic and conversion context, recommend 3–5 tactics to increase client and trainer sign-ups for an Atlanta beta launch. Use short headings and bullet points. Never show raw JSON or code.",
+      "Given traffic and conversion context, recommend 3–5 tactics to increase client and trainer sign-ups for a worldwide beta launch. Do not assume a single city or metro. Use short headings and bullet points. Never show raw JSON or code.",
     freeform:
       "You are Match Fit's operator analytics copilot. Answer in clear, friendly business language using the live metrics context. Never dump raw JSON, field names, or code. If you cite numbers, round and label them plainly.",
   };

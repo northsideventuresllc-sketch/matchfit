@@ -1207,13 +1207,16 @@ model TrainerProfile {
   registrationFeePricingMode       String    @default("FOUNDING_BG_SURCHARGE_20PCT")
   hasPaidRegistrationFee           Boolean   @default(false)
   registrationFeePaidCents         Int?
-  /// Primary service ZIP/postal code; used for in-person Atlanta-metro matching and display.
+  /// Primary service ZIP/postal code; used for in-person matching and display.
   /// Worldwide (JB decision 2026-07-31) — no longer required to be a US ZIP; any location or
-  /// none at all is fine for a virtual-only trainer.
+  /// none at all is fine for a virtual-only trainer. As of 2026-08-04 no metro allow-list
+  /// reads this value: it is display + coach-declared service area only.
   serviceZipCode                   String?
   /// Worldwide (JB decision 2026-07-31). Optional — informational, not used to gate signup.
   country                          String?
-  /// When Atlanta in-person slots are full, overflow trainers keep a virtual-only founding slot.
+  /// Legacy overflow flag from the removed per-metro beta pools (dropped 2026-08-04).
+  /// Retained for history; still honoured where it is already set, never newly derived
+  /// from a coach's location.
   virtualOnlyBetaSlot              Boolean   @default(false)
   /// Vendor pipeline: NOT_STARTED | PENDING | APPROVED | NEEDS_FURTHER_REVIEW | DENIED
   backgroundCheckStatus            String    @default("NOT_STARTED")
@@ -2221,7 +2224,7 @@ model ClientTrainerTokenGift {
   @@schema("public")
 }
 
-/// Atlanta beta — trainer waitlist when coach cap is reached.
+/// Beta — trainer waitlist when the worldwide coach cap is reached.
 model BetaTrainerWaitlistEntry {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -2235,13 +2238,15 @@ model BetaTrainerWaitlistEntry {
   email           String
   phone           String
   desiredUsername String
-  /// Home / service ZIP (5 digits) used for metro eligibility.
+  /// Home / service postal code, any country. Display + service-area only; no eligibility
+  /// is derived from it (per-metro gating removed 2026-08-04).
   serviceZipCode  String
 
   inviteToken     String?   @unique
   invitedAt       DateTime?
   slotExpiresAt   DateTime?
-  /// atlanta | virtual — pool the invite reserves when both caps can diverge.
+  /// Legacy pool label from the removed two-pool split. Historic rows keep their value;
+  /// nothing new is written here and no invite decision reads it.
   invitedBetaPool String?
 
   registeredTrainerId String? @unique
@@ -2253,7 +2258,7 @@ model BetaTrainerWaitlistEntry {
   @@schema("public")
 }
 
-/// Atlanta beta — client waitlist when client cap is reached.
+/// Beta — client waitlist when the worldwide client cap is reached.
 model BetaClientWaitlistEntry {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())

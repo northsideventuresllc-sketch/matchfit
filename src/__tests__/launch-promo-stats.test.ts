@@ -5,12 +5,9 @@ const {
   countLaunchTrainersMock,
   clientBetaSlotsUsedMock,
   trainerBetaSlotsUsedMock,
-  atlantaTrainerBetaPoolSlotsUsedMock,
-  virtualTrainerBetaPoolSlotsUsedMock,
   isBetaLaunchGatesEnabledMock,
   betaMaxClientsMock,
-  betaMaxTrainersAtlantaMock,
-  betaMaxTrainersVirtualMock,
+  betaMaxTrainersMock,
   getTrainerFoundingBgPercentMaxMock,
   getClientFoundingTrialMaxClientsMock,
 } = vi.hoisted(() => ({
@@ -18,12 +15,9 @@ const {
   countLaunchTrainersMock: vi.fn(),
   clientBetaSlotsUsedMock: vi.fn(),
   trainerBetaSlotsUsedMock: vi.fn(),
-  atlantaTrainerBetaPoolSlotsUsedMock: vi.fn(),
-  virtualTrainerBetaPoolSlotsUsedMock: vi.fn(),
   isBetaLaunchGatesEnabledMock: vi.fn(),
   betaMaxClientsMock: vi.fn(),
-  betaMaxTrainersAtlantaMock: vi.fn(),
-  betaMaxTrainersVirtualMock: vi.fn(),
+  betaMaxTrainersMock: vi.fn(),
   getTrainerFoundingBgPercentMaxMock: vi.fn(),
   getClientFoundingTrialMaxClientsMock: vi.fn(),
 }));
@@ -38,15 +32,9 @@ vi.mock("@/lib/beta-waitlist-service", () => ({
   trainerBetaSlotsUsed: trainerBetaSlotsUsedMock,
 }));
 
-vi.mock("@/lib/beta-trainer-pool", () => ({
-  atlantaTrainerBetaPoolSlotsUsed: atlantaTrainerBetaPoolSlotsUsedMock,
-  virtualTrainerBetaPoolSlotsUsed: virtualTrainerBetaPoolSlotsUsedMock,
-}));
-
 vi.mock("@/lib/beta-launch-config", () => ({
   betaMaxClients: betaMaxClientsMock,
-  betaMaxTrainersAtlanta: betaMaxTrainersAtlantaMock,
-  betaMaxTrainersVirtual: betaMaxTrainersVirtualMock,
+  betaMaxTrainers: betaMaxTrainersMock,
   isBetaLaunchGatesEnabled: isBetaLaunchGatesEnabledMock,
 }));
 
@@ -61,8 +49,7 @@ describe("getLaunchPromoStats", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     isBetaLaunchGatesEnabledMock.mockReturnValue(true);
-    betaMaxTrainersAtlantaMock.mockReturnValue(10);
-    betaMaxTrainersVirtualMock.mockReturnValue(20);
+    betaMaxTrainersMock.mockReturnValue(30);
     betaMaxClientsMock.mockReturnValue(50);
     getTrainerFoundingBgPercentMaxMock.mockReturnValue(30);
     getClientFoundingTrialMaxClientsMock.mockReturnValue(150);
@@ -70,8 +57,6 @@ describe("getLaunchPromoStats", () => {
     countLaunchClientsMock.mockResolvedValue(12);
     trainerBetaSlotsUsedMock.mockResolvedValue(3);
     clientBetaSlotsUsedMock.mockResolvedValue(4);
-    atlantaTrainerBetaPoolSlotsUsedMock.mockResolvedValue(1);
-    virtualTrainerBetaPoolSlotsUsedMock.mockResolvedValue(2);
   });
 
   it("derives founding remaining from launch counts (excludes test accounts at source)", async () => {
@@ -83,6 +68,14 @@ describe("getLaunchPromoStats", () => {
     expect(stats.clientFoundingRemaining).toBe(138);
     expect(stats.trainerFoundingActive).toBe(true);
     expect(stats.clientFoundingActive).toBe(true);
+  });
+
+  // MF-ATLANTA-GATES-AFTER-WORLDWIDE (2026-08-04): one worldwide trainer cap.
+  it("reports a single geography-free trainer cap", async () => {
+    const stats = await getLaunchPromoStats();
+
+    expect(stats.trainerBetaCap).toBe(30);
+    expect(Object.keys(stats).some((k) => /atlanta/i.test(k))).toBe(false);
   });
 
   it("skips beta slot usage when gates are disabled", async () => {
@@ -97,8 +90,6 @@ describe("getLaunchPromoStats", () => {
     expect(stats.clientWaitlistOpen).toBe(false);
     expect(trainerBetaSlotsUsedMock).not.toHaveBeenCalled();
     expect(clientBetaSlotsUsedMock).not.toHaveBeenCalled();
-    expect(atlantaTrainerBetaPoolSlotsUsedMock).not.toHaveBeenCalled();
-    expect(virtualTrainerBetaPoolSlotsUsedMock).not.toHaveBeenCalled();
   });
 
   it("marks waitlist open when beta slots used meets cap", async () => {

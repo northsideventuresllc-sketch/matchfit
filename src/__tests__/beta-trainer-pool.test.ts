@@ -2,72 +2,40 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/beta-launch-config", () => ({
   isBetaLaunchGatesEnabled: vi.fn(() => true),
-  betaMaxTrainersAtlanta: vi.fn(() => 10),
-  betaMaxTrainersVirtual: vi.fn(() => 20),
+  betaMaxTrainers: vi.fn(() => 30),
 }));
 
 import {
-  evaluateClientInPersonBetaCheckoutGate,
-  serviceDeliveryRequiresInPersonBetaGate,
-} from "@/lib/beta-client-in-person-checkout-gate";
-import {
   resolveTrainerSignupPoolAssignment,
   trainerDeliveryBlockedByVirtualOnlyBetaSlot,
-  trainerOccupiesAtlantaBetaPool,
-  trainerOccupiesVirtualBetaPool,
-  trainerPrimaryPoolForZip,
 } from "@/lib/beta-trainer-pool";
 
+/**
+ * MF-ATLANTA-GATES-AFTER-WORLDWIDE (2026-08-04): the atlanta/virtual pool split
+ * is gone. These tests exist to keep it gone — beta capacity must not read a
+ * postal code, and no location may change the assignment a coach receives.
+ */
 describe("beta-trainer-pool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("assigns primary pool by service ZIP", () => {
-    expect(trainerPrimaryPoolForZip("30301")).toBe("atlanta");
-    expect(trainerPrimaryPoolForZip("10001")).toBe("virtual");
+  it("assigns a slot on capacity alone, with no location input", () => {
+    expect(resolveTrainerSignupPoolAssignment({ slotsUsed: 0 })).toEqual({
+      virtualOnlyBetaSlot: false,
+    });
+    expect(resolveTrainerSignupPoolAssignment({ slotsUsed: 29 })).toEqual({
+      virtualOnlyBetaSlot: false,
+    });
   });
 
-  it("resolves Atlanta signup to atlanta pool when capacity remains", () => {
-    expect(
-      resolveTrainerSignupPoolAssignment("30301", { atlantaUsed: 4, virtualUsed: 0 }),
-    ).toEqual({ pool: "atlanta", virtualOnlyBetaSlot: false });
+  it("returns null only when the single worldwide cap is reached", () => {
+    expect(resolveTrainerSignupPoolAssignment({ slotsUsed: 30 })).toBeNull();
+    expect(resolveTrainerSignupPoolAssignment({ slotsUsed: 31 })).toBeNull();
   });
 
-  it("overflows Atlanta ZIP to virtual pool with virtualOnlyBetaSlot when atlanta is full", () => {
-    expect(
-      resolveTrainerSignupPoolAssignment("30301", { atlantaUsed: 10, virtualUsed: 5 }),
-    ).toEqual({ pool: "virtual", virtualOnlyBetaSlot: true });
-  });
-
-  it("assigns non-Atlanta ZIP to virtual pool only", () => {
-    expect(
-      resolveTrainerSignupPoolAssignment("90210", { atlantaUsed: 0, virtualUsed: 3 }),
-    ).toEqual({ pool: "virtual", virtualOnlyBetaSlot: false });
-  });
-
-  it("returns null when both pools are full", () => {
-    expect(
-      resolveTrainerSignupPoolAssignment("30301", { atlantaUsed: 10, virtualUsed: 20 }),
-    ).toBeNull();
-    expect(
-      resolveTrainerSignupPoolAssignment("90210", { atlantaUsed: 10, virtualUsed: 20 }),
-    ).toBeNull();
-  });
-
-  it("counts atlanta vs virtual occupancy including virtualOnlyBetaSlot", () => {
-    expect(
-      trainerOccupiesAtlantaBetaPool({ serviceZipCode: "30301", virtualOnlyBetaSlot: false }),
-    ).toBe(true);
-    expect(
-      trainerOccupiesAtlantaBetaPool({ serviceZipCode: "30301", virtualOnlyBetaSlot: true }),
-    ).toBe(false);
-    expect(
-      trainerOccupiesVirtualBetaPool({ serviceZipCode: "30301", virtualOnlyBetaSlot: true }),
-    ).toBe(true);
-    expect(
-      trainerOccupiesVirtualBetaPool({ serviceZipCode: "10001", virtualOnlyBetaSlot: false }),
-    ).toBe(true);
+  it("takes no ZIP argument at all — signature is geography-free", () => {
+    expect(resolveTrainerSignupPoolAssignment.length).toBe(1);
   });
 
   it("blocks in-person publish when virtualOnlyBetaSlot is set", () => {
@@ -80,36 +48,8 @@ describe("beta-trainer-pool", () => {
     expect(
       trainerDeliveryBlockedByVirtualOnlyBetaSlot({ virtualOnlyBetaSlot: true, delivery: "virtual" }),
     ).toBe(false);
-  });
-});
-
-describe("beta-client-in-person-checkout-gate", () => {
-  it("requires in-person gate for in-person and hybrid delivery", () => {
-    expect(serviceDeliveryRequiresInPersonBetaGate("in_person")).toBe(true);
-    expect(serviceDeliveryRequiresInPersonBetaGate("both")).toBe(true);
-    expect(serviceDeliveryRequiresInPersonBetaGate("virtual")).toBe(false);
-  });
-
-  it("allows virtual checkout for any client ZIP", () => {
     expect(
-      evaluateClientInPersonBetaCheckoutGate({ clientZipCode: "10001", delivery: "virtual" }),
-    ).toEqual({ allowed: true });
-  });
-
-  it("allows in-person checkout for Atlanta metro client ZIP", () => {
-    expect(
-      evaluateClientInPersonBetaCheckoutGate({ clientZipCode: "30301", delivery: "in_person" }),
-    ).toEqual({ allowed: true });
-  });
-
-  it("rejects in-person checkout for non-Atlanta client ZIP during beta", () => {
-    const result = evaluateClientInPersonBetaCheckoutGate({
-      clientZipCode: "94105",
-      delivery: "both",
-    });
-    expect(result).toMatchObject({
-      allowed: false,
-      code: "BETA_IN_PERSON_GEO",
-    });
+      trainerDeliveryBlockedByVirtualOnlyBetaSlot({ virtualOnlyBetaSlot: false, delivery: "in_person" }),
+    ).toBe(false);
   });
 });

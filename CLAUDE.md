@@ -77,6 +77,18 @@ Each of these exists because it was broken in a live session and cost JB time.
    storefronts and returned zero usable online coaches. `city` is written NULL
    on every outreach lead on purpose. Newest timestamp wins.
 
+   **Extended 2026-08-04 to the PRODUCT, not just acquisition
+   (MF-ATLANTA-GATES-AFTER-WORLDWIDE).** Decision #342 only ever covered
+   outreach, and the geo guard that enforced it explicitly declared the
+   in-person service-area layer out of scope. That carve-out is why a
+   hardcoded Atlanta-metro ZIP allow-list (`beta-atlanta-metro-zips.ts`) was
+   still gating trainer signup, service publishing and client checkout a week
+   after Match Fit went worldwide. It is deleted. There is no metro allow-list,
+   no per-metro beta cap and no regional default anywhere in the app. A service
+   area is whatever postal code the coach supplies, in any country.
+   `atlanta-removed-guard.test.ts` scans the whole of `src/` and fails the build
+   if any of it comes back.
+
 7. **The Mac mini is the only machine.** Obsidian, Hermes and Ollama are not on
    the MacBook Pro. Anything routed there fails.
 

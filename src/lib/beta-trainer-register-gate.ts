@@ -9,10 +9,10 @@ export type BetaTrainerRegisterGateResult =
  * Match Fit went worldwide 2026-07-31 (JB decision). This gate used to hard-require a valid
  * US ZIP code for EVERY trainer registration, which meant a non-US trainer (or a US trainer
  * offering virtual-only coaching who just left the field blank) could not even create an
- * account. The US-zip check now lives only where it belongs: computing in-person / Atlanta
- * metro eligibility (see trainer-in-person-service-area.ts,
- * zipSupportsTrainerInPersonServices). Any location value, or none at all, is accepted here —
- * a trainer with no matching US zip simply shows as virtual-only / worldwide, not blocked.
+ * account. Any location value, or none at all, is accepted here. As of 2026-08-04
+ * there is no metro allow-list anywhere in the codebase either: a coach's service
+ * area is whatever postal code they supply. MF-ATLANTA-GATES-AFTER-WORLDWIDE geo-guard:allow
+ * geo-guard:allow
  */
 export async function evaluateBetaTrainerRegistrationGate(args: {
   serviceZipCode: string;

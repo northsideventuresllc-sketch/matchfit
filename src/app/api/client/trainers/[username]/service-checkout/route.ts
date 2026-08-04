@@ -1,5 +1,4 @@
 import { evaluateCoachServiceCheckoutPolicy } from "@/lib/coach-service-checkout-policy";
-import { evaluateClientInPersonBetaCheckoutGate } from "@/lib/beta-client-in-person-checkout-gate";
 import { getAppOriginFromRequest } from "@/lib/app-origin";
 import { prisma } from "@/lib/prisma";
 import { isPrismaMissingColumnError } from "@/lib/prisma-missing-column";
@@ -40,7 +39,7 @@ export async function POST(req: Request, ctx: RouteContext) {
 
     const client = await prisma.client.findUnique({
       where: { id: clientId },
-      select: { id: true, email: true, deidentifiedAt: true, zipCode: true },
+      select: { id: true, email: true, deidentifiedAt: true },
     });
     if (!client?.email?.trim() || client.deidentifiedAt) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
@@ -140,13 +139,9 @@ export async function POST(req: Request, ctx: RouteContext) {
     }
     const sku = resolved.sku;
 
-    const inPersonGate = evaluateClientInPersonBetaCheckoutGate({
-      clientZipCode: client.zipCode,
-      delivery: line.delivery,
-    });
-    if (!inPersonGate.allowed) {
-      return NextResponse.json({ error: inPersonGate.message, code: inPersonGate.code }, { status: 403 });
-    }
+    // No geo gate on in-person checkout. Match Fit is worldwide (JB decision,
+    // 2026-07-31). The metro ZIP gate that used to sit here was removed 2026-08-04,
+    // ticket MF-ATLANTA-GATES-AFTER-WORLDWIDE. geo-guard:allow
 
     const conv = await prisma.trainerClientConversation.findUnique({
       where: { trainerId_clientId: { trainerId: trainer.id, clientId } },
