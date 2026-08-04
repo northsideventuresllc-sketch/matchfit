@@ -8,6 +8,7 @@ import {
 } from "@/lib/content-calendar/constants";
 import { addWeekdays, formatCalendarDate, getContentCalendarRotation } from "@/lib/content-calendar/rotation";
 import { normalizeTargetGroup } from "@/lib/content-calendar/content-rules";
+import { insertGeneratedCalendarRow } from "@/lib/content-calendar/post-group";
 import type { GeneratedWeekPost, BulkGeneratedDraft } from "@/lib/content-calendar/content-calendar-ai";
 import { createNiBrainClient, type ContentCalendarPostRow } from "@/lib/ni-brain-client";
 
@@ -378,9 +379,14 @@ export async function saveDraftToHub(args: {
     updated_at: now,
   };
 
-  const { data, error } = await client.from("match_fit_content_calendar_posts").insert(row).select("*").single();
-  if (error) throw new Error(error.message);
-  return data as ContentCalendarPostRow;
+  // Same post_group gate as the v2 generator — this is the other path that creates rows.
+  return insertGeneratedCalendarRow({
+    client,
+    row,
+    weekStart: args.weekStart,
+    dayIndex,
+    source: "saveDraftToHub",
+  });
 }
 
 export async function updateHubPostDate(args: { postId: string; postDate: string }): Promise<void> {

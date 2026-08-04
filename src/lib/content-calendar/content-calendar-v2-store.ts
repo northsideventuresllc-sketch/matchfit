@@ -14,6 +14,7 @@ import {
 import { MEDIA_DIMENSION_MATRIX } from "@/lib/content-calendar/content-prompts";
 import { normalizeTargetGroup } from "@/lib/content-calendar/content-rules";
 import { isMediaAspectRatio } from "@/lib/content-calendar/media-generation";
+import { insertGeneratedCalendarRow } from "@/lib/content-calendar/post-group";
 import { addWeekdays, formatCalendarDate } from "@/lib/content-calendar/rotation";
 import { createNiBrainClient, type ContentCalendarPostRow } from "@/lib/ni-brain-client";
 import { resolveArchivePurgeAfter } from "@/lib/content-calendar/cowork-jobs";
@@ -98,6 +99,7 @@ export function serializeV2Post(row: ContentCalendarPostRow) {
     purgeAfterAt: row.purge_after_at ?? null,
     bulkSessionId: row.bulk_session_id ?? null,
     deletedAt: row.deleted_at ?? null,
+    postGroup: row.post_group ?? null,
   };
 }
 
@@ -313,9 +315,16 @@ export async function createV2Draft(args: {
     updated_at: now,
   };
 
-  const { data, error } = await client.from("match_fit_content_calendar_posts").insert(row).select("*").single();
-  if (error) throw new Error(error.message);
-  return data as ContentCalendarPostRow;
+  // post_group is resolved and asserted here, never left to the column default.
+  // A row that cannot get a valid 5pm/8pm group is written as `blocked` with a reason
+  // instead of a draft that would silently never post.
+  return insertGeneratedCalendarRow({
+    client,
+    row,
+    weekStart: args.weekStart,
+    dayIndex,
+    source: "createV2Draft",
+  });
 }
 
 export async function generateWeeklyPlannerDay(args: {
