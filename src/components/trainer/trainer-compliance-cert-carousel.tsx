@@ -54,7 +54,7 @@ export function TrainerComplianceCertCarousel(props: {
       key: "cpt",
       title: "Certified Personal Trainer (CPT)",
       subtitle: "Primary personal-training credential.",
-      href: props.certificationUrl ?? "#",
+      href: props.certificationUrl ? "/api/trainer/certification/view?type=cpt" : "#",
       reviewStatus: props.certificationReviewStatus ?? "NOT_STARTED",
     });
   }
@@ -64,7 +64,7 @@ export function TrainerComplianceCertCarousel(props: {
       key: "rdn",
       title: "Registered Dietitian Nutritionist (RDN) & related nutrition credentials",
       subtitle: "RDN/RD, CNS, CNC, or equivalent on file.",
-      href: props.nutritionistCertificationUrl ?? "#",
+      href: props.nutritionistCertificationUrl ? "/api/trainer/certification/view?type=nutritionist" : "#",
       reviewStatus: props.nutritionistCertificationReviewStatus ?? "NOT_STARTED",
     });
   }
@@ -76,7 +76,7 @@ export function TrainerComplianceCertCarousel(props: {
       key: "specialist",
       title: "Other certified fitness specialist",
       subtitle: roleLabel,
-      href: props.specialistCertificationUrl ?? "#",
+      href: props.specialistCertificationUrl ? "/api/trainer/certification/view?type=specialist" : "#",
       reviewStatus: props.specialistCertificationReviewStatus ?? "NOT_STARTED",
     });
   }
@@ -86,7 +86,7 @@ export function TrainerComplianceCertCarousel(props: {
       key: "other",
       title: "Additional certification",
       subtitle: "Optional supporting credential.",
-      href: props.otherCertificationUrl,
+      href: "/api/trainer/certification/view?type=other",
       reviewStatus: props.otherCertificationReviewStatus ?? "NOT_STARTED",
     });
   }

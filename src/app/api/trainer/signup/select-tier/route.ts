@@ -1,13 +1,20 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { FP_ACCOUNT_TIERS } from "@/lib/fp-account-tier-types";
-import { fpTierRequiresBackgroundCheck } from "@/lib/fp-account-tier-types";
+import {
+  FP_ACCOUNT_TIERS,
+  FP_TIER_DISPLAY_NAMES,
+  fpTierRequiresBackgroundCheck,
+  fpTierRequiresMonthlyFee,
+} from "@/lib/fp-account-tier-types";
 import {
   fpBetaPremiumPromoEndsAt,
   fpBetaSignupActive,
-  fpTierRequiresPaidSubscriptionDuringBeta,
   fpTierSelectableDuringBeta,
+  resolveFpTierSignupOutcome,
 } from "@/lib/fp-tier-beta-signup";
+import { fpStripePriceEnvKeyForTier } from "@/lib/fp-tier-billing";
+import { getTrainerBetaDiscountedMax } from "@/lib/match-fit-launch-promotion-caps";
+import { countLaunchTrainers } from "@/lib/launch-account-counts";
 import { fpRequiredDocsForTier } from "@/lib/fp-tier-docs";
 import { createFpTierCheckoutSession } from "@/lib/fp-tier-subscription-checkout";
 import { prisma } from "@/lib/prisma";
@@ -71,7 +78,32 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Select a valid account type." }, { status: 400 });
   }
 
-  const tier = parsed.data.tier;
+  // The founding cohort goes straight to the dashboard on every account type — no card, no
+  // Stripe redirect — and anyone asking for Match Fit Pro during beta is upgraded to Premium
+  // Pro. After the cohort fills, the tiers with a monthly fee take payment here instead.
+  const outcome = resolveFpTierSignupOutcome({
+    requested: parsed.data.tier,
+    existingTrainerCount: await countLaunchTrainers(),
+    foundingCohortMax: getTrainerBetaDiscountedMax(),
+    tierHasConfiguredPrice: (t) => {
+      const envKey = fpStripePriceEnvKeyForTier(t);
+      return Boolean(envKey && process.env[envKey]?.trim());
+    },
+  });
+  const tier = outcome.tier;
+
+  // Outside the founding cohort a fee-bearing tier must actually be able to take payment.
+  // Without this it would be granted for free because there was nothing to charge against.
+  if (!outcome.foundingCohort && fpTierRequiresMonthlyFee(tier) && !outcome.requiresCheckoutNow) {
+    return NextResponse.json(
+      {
+        error: `${FP_TIER_DISPLAY_NAMES[tier]} cannot be set up right now. Choose another account type, or try again shortly.`,
+        code: "TIER_UNAVAILABLE",
+      },
+      { status: 503 },
+    );
+  }
+
   if (!fpTierSelectableDuringBeta(tier)) {
     return NextResponse.json(
       { error: "Match Fit Pro is not available during beta. Choose Match Fit Premium Pro or a paid account type." },
@@ -87,7 +119,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Account not found." }, { status: 404 });
   }
 
-  if (fpTierRequiresPaidSubscriptionDuringBeta(tier) && !trainer.stripeSubscriptionActive) {
+  if (outcome.requiresCheckoutNow && !trainer.stripeSubscriptionActive) {
     const origin = appBaseUrlForEmail();
     const checkout = await createFpTierCheckoutSession(
       trainerId,

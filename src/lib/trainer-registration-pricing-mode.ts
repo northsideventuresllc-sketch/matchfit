@@ -8,6 +8,7 @@ export function parseTrainerRegistrationPricingMode(
   if (v === "STANDARD_100_MINUS_BG") return "STANDARD_100_MINUS_BG";
   if (v === "FOUNDING_BG_COVERED") return "FOUNDING_BG_COVERED";
   if (v === "FOUNDING_BG_SURCHARGE_20PCT") return "FOUNDING_BG_COVERED";
+  if (v === "BETA_DISCOUNTED") return "BETA_DISCOUNTED";
   return "FOUNDING_BG_COVERED";
 }
 

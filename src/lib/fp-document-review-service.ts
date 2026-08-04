@@ -187,8 +187,13 @@ export async function listFpDocumentsForAdmin(filter: "pending" | "all" = "pendi
   });
 
   const { FP_DOC_TYPE_LABELS } = await import("@/lib/fp-tier-docs");
+  const { resolveTrainerDocumentUrl } = await import("@/lib/trainer-document-storage");
 
-  return rows.map((row) => ({
+  // Documents live in a private bucket, so the stored value is a reference rather than
+  // something a browser can open. Reviewers get a short-lived signed link instead.
+  const openableUrls = await Promise.all(rows.map((row) => resolveTrainerDocumentUrl(row.fileUrl)));
+
+  return rows.map((row, index) => ({
     id: row.id,
     trainerId: row.trainerId,
     trainerName: [row.trainer.firstName, row.trainer.lastName].filter(Boolean).join(" ").trim() || row.trainer.username,
@@ -197,7 +202,7 @@ export async function listFpDocumentsForAdmin(filter: "pending" | "all" = "pendi
     accountTier: row.trainer.profile?.accountTier ?? null,
     docType: row.docType,
     docLabel: FP_DOC_TYPE_LABELS[row.docType as FpDocType] ?? row.docType,
-    fileUrl: row.fileUrl,
+    fileUrl: openableUrls[index] ?? row.fileUrl,
     status: row.status,
     submittedAt: row.submittedAt.toISOString(),
     autoSuggestedDecision: row.autoSuggestedDecision,

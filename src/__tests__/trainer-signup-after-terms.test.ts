@@ -131,7 +131,12 @@ describe("createTrainerAccountAfterTermsAcceptance", () => {
       betaInviteEntryId: "entry_1",
     });
 
-    expect(completeTrainerSupabaseSignupMock).toHaveBeenCalledWith(signupBody, { createAccount: false });
+    // Sign-up now reaches the agreement before the email is confirmed, so the confirmation
+    // gate is deliberately relaxed here and recorded on the row instead.
+    expect(completeTrainerSupabaseSignupMock).toHaveBeenCalledWith(signupBody, {
+      createAccount: false,
+      requireEmailConfirmed: false,
+    });
     expect(createTrainerRecordMock).toHaveBeenCalledWith(signupBody, {
       betaInviteEntryId: "entry_1",
     });

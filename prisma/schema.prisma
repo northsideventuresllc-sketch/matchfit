@@ -386,7 +386,11 @@ model Client {
   phone                   String
   email                   String    @unique
   passwordHash            String
-  zipCode                 String
+  /// Worldwide (NI-Brain Decision #452): optional, because several countries — notably the
+  /// United Arab Emirates — have no postal code system at all. Free-form, never digit-stripped.
+  zipCode                 String?
+  /// ISO 3166-1 alpha-2. Drives which postal question (if any) the signup form asks.
+  countryCode             String?
   /// Worldwide (JB decision 2026-07-31). Optional — not all countries use ZIP/postal codes the same way.
   country                 String?
   dateOfBirth             String
@@ -621,7 +625,11 @@ model PendingClientRegistration {
   phone                   String
   email                   String
   passwordHash            String
-  zipCode                 String
+  /// Worldwide (NI-Brain Decision #452): optional, because several countries — notably the
+  /// United Arab Emirates — have no postal code system at all. Free-form, never digit-stripped.
+  zipCode                 String?
+  /// ISO 3166-1 alpha-2. Drives which postal question (if any) the signup form asks.
+  countryCode             String?
   /// Worldwide (JB decision 2026-07-31). Optional.
   country                 String?
   dateOfBirth             String
@@ -696,6 +704,22 @@ model Trainer {
 
   termsAcceptedAt         DateTime?
   privacyPolicyAcceptedAt DateTime?
+  /// App-side mirror of Supabase `auth.users.email_confirmed_at`. Null = the address has not
+  /// been proven yet, which is now possible: sign-up goes straight to the Fitness Pro agreement
+  /// and the account is created before the email is confirmed (JB, 2026-08-04). The dashboard
+  /// reads this to show the "confirm your email" prompt; stamped by /auth/callback and by the
+  /// logged-in resend endpoint. Kept here rather than calling Supabase admin on every render.
+  emailVerifiedAt         DateTime?
+
+  /// Keeps a real, working account out of client discovery, FitHub feeds and public profile
+  /// pages without deactivating it. Used for owner/staff accounts that exist to test the live
+  /// product. Reversible from the admin portal — no deploy needed to list them.
+  hiddenFromPublicMarketplace Boolean @default(false)
+  /// Exempts the account from the platform subscription lifecycle entirely: no trial expiry,
+  /// no payment grace, no deactivation, no billing lock. For owner/staff and comped accounts.
+  /// Deliberately separate from Stripe fields so a comp never looks like a paying subscriber
+  /// in finance reporting.
+  platformBillingExempt       Boolean @default(false)
 
   twoFactorEnabled Boolean @default(false)
   /// Last-used delivery channel (EMAIL | SMS | VOICE | NONE).
@@ -1212,6 +1236,11 @@ model TrainerProfile {
   /// none at all is fine for a virtual-only trainer. As of 2026-08-04 no metro allow-list
   /// reads this value: it is display + coach-declared service area only.
   serviceZipCode                   String?
+  /// ISO 3166-1 alpha-2 for the Fitness Pro. Drives the country-aware postal question.
+  countryCode                      String?
+  /// SQL-filterable spoken languages (ISO 639-1 + "other"). Empty = not declared yet, which
+  /// means UNKNOWN — such a Pro is shown to everyone and never excluded by a language filter.
+  spokenLanguageCodes              String[] @default([])
   /// Worldwide (JB decision 2026-07-31). Optional — informational, not used to gate signup.
   country                          String?
   /// Legacy overflow flag from the removed per-metro beta pools (dropped 2026-08-04).

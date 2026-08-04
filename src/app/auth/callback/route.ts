@@ -73,6 +73,14 @@ export async function GET(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Clicking the link is what proves the address. Since sign-up now creates the Fitness Pro
+  // account before confirmation, record it on the trainer row so the dashboard prompt clears.
+  if (user?.email && user.email_confirmed_at && user.user_metadata?.match_fit_role === "trainer") {
+    const { markTrainerEmailVerified } = await import("@/lib/trainer-email-verification");
+    await markTrainerEmailVerified(user.email);
+  }
+
   const path = resolvePostVerifyPath(user);
   response.headers.set("Location", new URL(path, origin).toString());
   return response;

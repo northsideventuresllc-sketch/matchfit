@@ -1,5 +1,3 @@
-import { mkdir, unlink, writeFile } from "fs/promises";
-import path from "path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { FP_DOC_TYPES } from "@/lib/fp-account-tier-types";
@@ -11,19 +9,13 @@ import { isFpAccountTier } from "@/lib/fp-account-tier-types";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { resolveTrainerSignupNextPath } from "@/lib/trainer-signup-next-path";
+import { deleteTrainerDocument, putTrainerDocument } from "@/lib/trainer-document-storage";
+import { resolveUploadFileKind, UPLOAD_UNSUPPORTED_TYPE_MESSAGE } from "@/lib/upload-file-type";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 
 export const dynamic = "force-dynamic";
 
 const MAX_BYTES = 5 * 1024 * 1024;
-
-function extForMime(mime: string): string | null {
-  if (mime === "application/pdf") return "pdf";
-  if (mime === "image/jpeg") return "jpg";
-  if (mime === "image/png") return "png";
-  if (mime === "image/webp") return "webp";
-  return null;
-}
 
 export async function GET() {
   const trainerId = await getSessionTrainerId();
@@ -88,11 +80,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "File must be 5 MB or smaller." }, { status: 400 });
     }
 
-    const mime = file.type || "application/octet-stream";
-    const ext = extForMime(mime);
-    if (!ext) {
-      return NextResponse.json({ error: "Use PDF, JPG, PNG, or WebP." }, { status: 400 });
+    const buf = Buffer.from(await file.arrayBuffer());
+    const kind = resolveUploadFileKind({
+      declaredMime: file.type,
+      filename: file instanceof File ? file.name : null,
+      bytes: buf,
+    });
+    if (!kind) {
+      return NextResponse.json({ error: UPLOAD_UNSUPPORTED_TYPE_MESSAGE }, { status: 400 });
     }
+    const { ext, mime } = kind;
 
     const profile = await prisma.trainerProfile.findUnique({
       where: { trainerId },
@@ -127,28 +124,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "This document is not required for your account type." }, { status: 400 });
     }
 
-    const relative = `/uploads/fp-docs/${trainerId}-${docType}.${ext}`;
-    const dir = path.join(process.cwd(), "public", "uploads", "fp-docs");
-    await mkdir(dir, { recursive: true });
-
     const existing = await prisma.fpDocument.findFirst({
       where: { trainerId, docType },
       select: { id: true, fileUrl: true },
     });
 
-    const prev = existing?.fileUrl?.split("?")[0];
-    if (prev?.startsWith("/uploads/fp-docs/")) {
-      const oldPath = path.join(process.cwd(), "public", prev.replace(/^\//, ""));
-      try {
-        await unlink(oldPath);
-      } catch {
-        // ignore
-      }
-    }
+    const relative = await putTrainerDocument({
+      key: `fp-docs/${trainerId}-${docType}.${ext}`,
+      bytes: buf,
+      contentType: mime,
+    });
 
-    const buf = Buffer.from(await file.arrayBuffer());
-    const outPath = path.join(process.cwd(), "public", relative.replace(/^\//, ""));
-    await writeFile(outPath, buf);
+    // Replacing a document with a different file type leaves the old object behind.
+    if (existing?.fileUrl && existing.fileUrl.split("?")[0] !== relative) {
+      await deleteTrainerDocument(existing.fileUrl);
+    }
 
     const analysis = analyzeFpDocumentUpload({
       docType,

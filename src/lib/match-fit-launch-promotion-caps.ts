@@ -13,13 +13,35 @@ function parsePositiveInt(raw: string | undefined, fallback: number, max: number
 export type TrainerRegistrationPricingMode =
   | "FOUNDING_BG_COVERED"
   | "FOUNDING_BG_SURCHARGE_20PCT"
+  /** Beta band above the founding cap: discounted platform fee, own background check. */
+  | "BETA_DISCOUNTED"
   | "STANDARD_100_MINUS_BG";
+
+/**
+ * Percentage off the standard platform fee for the discounted beta band (JB, 2026-08-04).
+ * Env-overridable so the rate can be changed without a deploy.
+ */
+export function getTrainerBetaDiscountPercent(): number {
+  const n = parseInt(String(process.env.MATCH_FIT_TRAINER_BETA_DISCOUNT_PERCENT ?? "").trim(), 10);
+  if (!Number.isFinite(n) || n < 1 || n > 99) return 50;
+  return n;
+}
 
 /** First N trainers receive platform-covered background screening. Default 10. */
 export function getTrainerFoundingBgCoveredMax(): number {
   const explicit = process.env.MATCH_FIT_TRAINER_FOUNDING_BG_COVERED_MAX?.trim();
   if (explicit) return parsePositiveInt(explicit, 10, 1_000_000);
   return parsePositiveInt(process.env.MATCH_FIT_TRAINER_FOUNDING_BG_PERCENT_MAX, 10, 1_000_000);
+}
+
+/**
+ * Sign-ups above the founding cap but at or below this number pay the discounted onboarding
+ * rate rather than the standard fee (JB, 2026-08-04): first 10 have their background check
+ * covered, the next 20 are discounted, and everyone after that pays the standard fee.
+ * Default 30 — the same cohort that skips paid-tier checkout during beta.
+ */
+export function getTrainerBetaDiscountedMax(): number {
+  return parsePositiveInt(process.env.MATCH_FIT_TRAINER_BETA_DISCOUNTED_MAX, 30, 1_000_000);
 }
 
 /** @deprecated Use getTrainerFoundingBgCoveredMax */

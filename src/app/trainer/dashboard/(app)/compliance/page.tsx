@@ -17,7 +17,6 @@ import {
   trainerSignupPremiumPromoBenefitLabel,
   trainerStandardOnboardingAfterCapLabel,
 } from "@/lib/trainer-signup-promo-copy";
-import { isTrainerComplianceComplete } from "@/lib/trainer-compliance-complete";
 import { backgroundCheckStatusLabel, certificationReviewStatusLabel } from "@/lib/trainer-compliance-status-copy";
 import { prisma } from "@/lib/prisma";
 import { staleTrainerSessionInvalidateRedirect } from "@/lib/stale-session-invalidate-url";
@@ -111,15 +110,11 @@ export default async function TrainerComplianceDetailsPage() {
     redirect("/trainer/dashboard");
   }
 
-  const basicComplianceGate =
-    profile.hasSignedTOS &&
-    profile.hasUploadedW9 &&
-    (profile.backgroundCheckStatus ?? "").trim().toUpperCase() === "APPROVED";
-  const complianceDetailsUnlocked =
-    basicComplianceGate &&
-    (profile.dashboardActivatedAt != null || isTrainerComplianceComplete(profile));
-
-  if (!complianceDetailsUnlocked) {
+  // This page used to redirect away unless compliance was already complete, which meant the one
+  // dashboard surface for certifications and screening was reachable only by people who no
+  // longer needed it. Accepting the agreement is enough to open it now (JB, 2026-08-04) — this
+  // is where a new Fitness Pro comes to finish those steps.
+  if (!profile.hasSignedTOS) {
     redirect("/trainer/dashboard");
   }
 

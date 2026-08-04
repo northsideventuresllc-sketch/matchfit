@@ -93,6 +93,9 @@ function hiddenTrainerOr(): Prisma.TrainerWhereInput[] {
   const exactUsernames = getLaunchExcludeUsernames("trainer");
   return [
     { internalQaSyntheticPersona: true },
+    // Per-account switch, so an owner/staff account can be listed or unlisted from the admin
+    // portal instead of needing a code change to the hardcoded lists below.
+    { hiddenFromPublicMarketplace: true },
     ...(hiddenEmailOr("trainer") as unknown as Prisma.TrainerWhereInput[]),
     ...usernamePrefixes.flatMap(
       (prefix) => hiddenUsernamePrefixOr(prefix) as unknown as Prisma.TrainerWhereInput[],
