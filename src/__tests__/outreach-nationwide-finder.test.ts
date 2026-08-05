@@ -10,6 +10,7 @@ import {
   instagramHandleFrom,
   instagramHandleFromResult,
   looksLikeArticle,
+  looksLikeCoachingProduct,
   looksLikeOnlineCoach,
   pickQueries,
   rotationOffset,
@@ -193,6 +194,29 @@ describe("looksLikeArticle — the junk that reached JB's queue on 2026-07-29", 
     expect(looksLikeArticle("Coach Claire Fitness")).toBe(false);
     expect(looksLikeArticle("Online Fitness Coaching & Personal Training", "https://themovementdr.net/remote-coaching/")).toBe(false);
     expect(looksLikeArticle("Kate Lyman Nutrition")).toBe(false);
+  });
+});
+
+// --- OUT-EMAIL-LANE-PRODUCT-FILTER 2026-08-05 ------------------------------------------------
+
+describe("looksLikeCoachingProduct — coaching SaaS/software, not an individual coach", () => {
+  it("rejects the real defect flagged in Decision #578: rackcoach.com", () => {
+    expect(
+      looksLikeCoachingProduct("RackCoach is weight room management software for high school strength and conditioning pro"),
+    ).toBe(true);
+  });
+
+  it("rejects other common coaching-SaaS marketing shapes", () => {
+    expect(looksLikeCoachingProduct("The all-in-one platform for personal trainers to manage your clients")).toBe(true);
+    expect(looksLikeCoachingProduct("Start a free trial of our coaching software today")).toBe(true);
+    expect(looksLikeCoachingProduct("Scheduling software built for coaches and gyms")).toBe(true);
+    expect(looksLikeCoachingProduct("See our pricing plans and API integration options")).toBe(true);
+  });
+
+  it("keeps a real coach's own coaching copy", () => {
+    expect(looksLikeCoachingProduct("Independent online strength coach — I program for real people, not templates")).toBe(false);
+    expect(looksLikeCoachingProduct("Online personal trainer helping busy parents lose fat and build strength")).toBe(false);
+    expect(looksLikeCoachingProduct("Coach Claire Fitness — online coaching for women")).toBe(false);
   });
 });
 

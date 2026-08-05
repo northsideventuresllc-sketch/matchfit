@@ -9,24 +9,36 @@
  *   Email lane     — independent online coaching businesses with a real contact address on
  *                    their own site (see `findContactEmail`).
  *
- * Row flow per lead (JB's screen depends on this exact order):
- *   insert outreach_leads  (status='new')
- *     -> insert outreach_messages (status='draft')
- *       -> patch outreach_leads (status='drafted')
+ * STORAGE (fixed 2026-08-05, OUT-STORE-MISMATCH-LEADS-INVISIBLE): writes go straight into Match
+ * Fit's OWN Prisma-modeled tables (`OutreachInstagramLead` / `OutreachEmailLead`, Match Fit
+ * Supabase project) via `@/lib/prisma` — the exact tables the Outreach HQ admin screen
+ * (`src/app/api/admin/outreach/leads/*`) reads. Every lead lands in the `today` lane, same as an
+ * admin-triggered "Generate" batch, so it goes through the SAME approve/reject/follow-up pipeline
+ * JB already uses daily. This file previously wrote to NI-Brain's legacy `outreach_leads` /
+ * `outreach_messages` tables via raw Supabase REST — nothing in the Match Fit app ever read those
+ * tables, so every lead this finder produced was permanently invisible to JB and the review loop
+ * never closed. Do not reintroduce a second store: one finder, one set of tables, matching what
+ * the screen JB actually looks at reads.
  *
  * NOT geo-targeted. There is no city, no lat/long and no polygon anywhere in this file. Match Fit geo-guard:allow
  * recruits online/virtual coaches across the whole country, so scoping discovery to a metro area
- * was throwing away almost every real candidate. `city` is written as NULL on every lead for the
+ * was throwing away almost every real candidate. `city` is never written for the
  * same reason — an online coach's location is not a matching signal and guessing one is worse
  * than leaving it empty.
  *
  * Never touches automation_controls, never approves and never sends. No paid API: SerpApi web
  * search (free tier) plus plain-text template fill, no LLM call.
  *
- * Env: NI_BRAIN_SUPABASE_URL, NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY, SERPAPI_API_KEY — all three
- * live in `platform_secrets` under those exact names and are loaded by
+ * Env: SERPAPI_API_KEY — lives in `platform_secrets` and is loaded by
  * `hydratePlatformEnvFromDatabase()` in the cron route.
  */
+import "server-only";
+
+import { prisma } from '@/lib/prisma';
+import { ensureOutreachHubSchema } from '@/lib/ensure-outreach-hub-schema';
+import { getOutreachExclusionList, normalizeEmail, normalizeInstagramHandle } from '@/lib/outreach-exclusions';
+import { startOfEstDayUtc } from '@/lib/outreach-lanes';
+import { fireOutreachAxonEvent, type OutreachAxonLeadRef } from '@/lib/outreach-axon-notify';
 
 /** Leads to insert per lane per run. A lane that can only find fewer inserts fewer. */
 export const LEADS_PER_LANE = 5;
@@ -40,7 +52,6 @@ export const LEADS_PER_LANE = 5;
 export const MAX_SEARCHES_PER_LANE = 2;
 const RESULTS_PER_SEARCH = 30;
 
-const VENTURE = 'match_fit';
 const INSTAGRAM_SOURCE = 'instagram_online_coach_search';
 const EMAIL_SOURCE = 'web_online_coach_search';
 
@@ -136,6 +147,11 @@ const EXCLUDED_HOSTS = [
   'crunch.com', 'goldsgym.com', 'ymca.org', '24hourfitness.com', 'f45training.com',
   'barrys.com', 'soul-cycle.com', 'soulcycle.com', 'clubpilates.com', 'orangetheoryfitness.com',
   'peloton.com', 'nike.com', 'underarmour.com', 'myfitnesspal.com', 'noom.com', 'future.co',
+  // Added 2026-08-05 (OUT-EMAIL-LANE-PRODUCT-FILTER). rackcoach.com reached JB's queue as a
+  // "coach" — it is weight-room management SOFTWARE, not an individual coach's own site. One
+  // measured host plus the shape-based looksLikeCoachingProduct() below, same reasoning as the
+  // article filter: a blocklist alone can never keep up with the next SaaS entrant.
+  'rackcoach.com',
 ];
 
 type SerpOrganicResult = {
@@ -190,60 +206,6 @@ function env(name: string): string {
   const v = process.env[name]?.trim();
   if (!v) throw new Error(`Missing required env var ${name}`);
   return v;
-}
-
-type Db = {
-  select<T = Record<string, unknown>>(table: string, filter: string): Promise<T[]>;
-  insert<T = Record<string, unknown>>(
-    table: string,
-    row: Record<string, unknown>,
-  ): Promise<T | { conflict: true }>;
-  patch(table: string, filter: string, row: Record<string, unknown>): Promise<void>;
-};
-
-function supabase(): Db {
-  const url = env('NI_BRAIN_SUPABASE_URL');
-  const key = env('NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY');
-  const headers = {
-    apikey: key,
-    Authorization: `Bearer ${key}`,
-    'Content-Type': 'application/json',
-  };
-  async function select<T = Record<string, unknown>>(table: string, filter: string): Promise<T[]> {
-    const r = await fetch(`${url}/rest/v1/${table}?${filter}`, {
-      headers: { ...headers, Accept: 'application/json' },
-    });
-    if (!r.ok) throw new Error(`select ${table}: HTTP ${r.status} ${await r.text()}`);
-    return r.json();
-  }
-  async function insert<T = Record<string, unknown>>(
-    table: string,
-    row: Record<string, unknown>,
-  ): Promise<T | { conflict: true }> {
-    const r = await fetch(`${url}/rest/v1/${table}`, {
-      method: 'POST',
-      headers: { ...headers, Prefer: 'return=representation' },
-      body: JSON.stringify(row),
-    });
-    if (r.status === 409) return { conflict: true };
-    if (!r.ok) {
-      const text = await r.text();
-      // 23505 = unique_violation (dedupe_key collision) — treat as a normal skip, not a fatal error.
-      if (r.status === 400 && /23505|duplicate key/i.test(text)) return { conflict: true };
-      throw new Error(`insert ${table}: HTTP ${r.status} ${text}`);
-    }
-    const data = await r.json();
-    return Array.isArray(data) ? data[0] : data;
-  }
-  async function patch(table: string, filter: string, row: Record<string, unknown>): Promise<void> {
-    const r = await fetch(`${url}/rest/v1/${table}?${filter}`, {
-      method: 'PATCH',
-      headers: { ...headers, Prefer: 'return=minimal' },
-      body: JSON.stringify(row),
-    });
-    if (!r.ok) throw new Error(`patch ${table}: HTTP ${r.status} ${await r.text()}`);
-  }
-  return { select, insert, patch };
 }
 
 /** Zero-based day index used to rotate which queries a run uses. */
@@ -403,6 +365,39 @@ export function companyNameFrom(title: string | undefined, host: string): string
   return bare ? bare.replace(/\b\w/g, (c) => c.toUpperCase()) : host;
 }
 
+/**
+ * True when a search result is a piece of coaching SOFTWARE / a SaaS platform / a management
+ * tool sold TO coaches, rather than an individual coach's own coaching business.
+ *
+ * MEASURED 2026-08-05 (OUT-EMAIL-LANE-PRODUCT-FILTER, node 17): the email lane's positive gate
+ * (`looksLikeOnlineCoach`) matches on phrases like "online coaching" and "coaching online" —
+ * language a coaching-SaaS product's own marketing copy uses just as often as a real coach's
+ * site does ("RackCoach is weight room management software for ... coaches"). The listicle
+ * filter (`looksLikeArticle`) does not catch this shape either: it's not an article, it's a
+ * product page. Same durable-signal reasoning as `looksLikeArticle`: a host blocklist can never
+ * keep up with the next SaaS entrant, so this rejects by the SHAPE of product/SaaS marketing
+ * copy — pricing, trials, "manage your clients" — instead of trying to name every tool.
+ */
+export function looksLikeCoachingProduct(text: string): boolean {
+  const haystack = text.toLowerCase();
+  const patterns: RegExp[] = [
+    /\bsoftware\b/,
+    /\bsaas\b/,
+    /\b(management|scheduling|booking|billing|programming|workout[- ]building)\s+(software|platform|system|tool|app)\b/,
+    /\b(app|platform|tool|system)\s+for\s+(coaches|trainers|gyms|studios|personal\s+trainers)\b/,
+    /\bbuilt\s+for\s+(coaches|trainers|gyms|studios)\b/,
+    /\bmanage\s+your\s+clients\b/,
+    /\bclient\s+management\b/,
+    /\bgym\s+management\b/,
+    /\ball-in-one\s+(platform|solution)\b/,
+    /\b(start|begin)\s+(a\s+)?free\s+trial\b/,
+    /\bpricing\s+plans?\b/,
+    /\bmonthly\s+subscription\b/,
+    /\bapi\s+(access|integration)\b/,
+  ];
+  return patterns.some((p) => p.test(haystack));
+}
+
 /** True when the search result text reads like an online/virtual coach rather than a random account. */
 export function looksLikeOnlineCoach(text: string): boolean {
   const haystack = text.toLowerCase();
@@ -507,34 +502,20 @@ export function draftEmail(companyName: string): { subject: string; body: string
 }
 
 // --- Lane runners ---
+//
+// Writes go straight into Match Fit's own Prisma-modeled `OutreachInstagramLead` /
+// `OutreachEmailLead` tables — the same tables and the same `today` lane an admin-triggered
+// "Generate" batch lands in (see `outreach-ai.ts`), so every lead this finder drafts goes through
+// the exact approve/reject/follow-up pipeline Outreach HQ already runs. `ventureId` is left
+// unset: `matchFitLaneScope()` (outreach-venture-scope.ts) reads an unassigned row as Match Fit,
+// which is correct — this finder only ever generates for Match Fit.
 
-/**
- * Writes one lead + its draft message, in the order JB's screen expects.
- * Returns false when the lead was a dedupe_key collision (a normal skip).
- */
-async function insertLeadWithDraft(
-  db: Db,
-  leadRow: Record<string, unknown>,
-  message: { subject: string | null; body: string },
-): Promise<boolean> {
-  const lead = await db.insert<{ id: string }>('outreach_leads', leadRow);
-  if ('conflict' in lead) return false;
-  const leadId = (lead as { id: string }).id;
-
-  await db.insert('outreach_messages', {
-    lead_id: leadId,
-    channel: leadRow.channel,
-    subject: message.subject,
-    body: message.body,
-    step: 1,
-    status: 'draft',
-  });
-
-  await db.patch('outreach_leads', `id=eq.${leadId}`, { status: 'drafted' });
-  return true;
-}
-
-async function runInstagramLane(db: Db, seen: Set<string>, now: Date): Promise<LaneStats> {
+async function runInstagramLane(
+  seen: Set<string>,
+  now: Date,
+  batchId: string,
+  notified: OutreachAxonLeadRef[],
+): Promise<LaneStats> {
   const stats = emptyLaneStats('instagram');
   const queries = pickQueries(INSTAGRAM_QUERIES, MAX_SEARCHES_PER_LANE, now);
 
@@ -565,14 +546,14 @@ async function runInstagramLane(db: Db, seen: Set<string>, now: Date): Promise<L
         continue;
       }
 
-      // dedupe_key on this lane resolves to venture|handle (the generated column falls back to
-      // handle when email is null), so dedupe on the handle here too.
-      const dedupeKey = `${VENTURE}|${handle}`;
-      if (seen.has(dedupeKey)) {
+      // Dedupe on the normalized `@handle` — matches the format `getOutreachExclusionList`
+      // and the rest of the Instagram lead pipeline already use.
+      const normalizedHandle = normalizeInstagramHandle(handle);
+      if (!normalizedHandle || seen.has(normalizedHandle)) {
         stats.duplicate += 1;
         continue;
       }
-      seen.add(dedupeKey); // provisional — stops a second hit in this same run inserting twice
+      seen.add(normalizedHandle); // provisional — stops a second hit in this same run inserting twice
 
       // When the result is a post rather than a profile, the title is the CAPTION ("I just
       // dropped a free live demo in my Stan Store so you can see ...") and makes a terrible
@@ -586,37 +567,36 @@ async function runInstagramLane(db: Db, seen: Set<string>, now: Date): Promise<L
         !/https?:\/\/|\bwww\.|\.(com|net|org|io|store|link)\b/i.test(rawTitle) &&
         !looksLikeArticle(rawTitle);
       const displayName = titleIsName ? rawTitle : `@${handle}`;
-      const leadRow = {
-        venture: VENTURE,
-        channel: 'instagram',
-        full_name: null,
-        handle,
-        // Email is normally unavailable from an Instagram bio and is NOT guessed here.
-        email: null,
-        company: displayName,
-        // Deliberately NULL: Match Fit recruits online coaches nationwide, so an online coach has
-        // no service city and inventing one would be a false matching signal.
-        city: null,
-        niche: 'Online coaching',
-        profile_url: `https://www.instagram.com/${handle}/`,
-        source: INSTAGRAM_SOURCE,
-        source_ref: handle,
-        why: 'Instagram bio describes online / remote coaching — takes clients anywhere, so a Match Fit fit.',
-        score: 100,
-        status: 'new',
-        // dedupe_key is a GENERATED column — do not set it directly.
-      };
+      const profileUrl = `https://www.instagram.com/${handle}/`;
+      const dmText = draftInstagramDm(handle);
 
-      const inserted = await insertLeadWithDraft(db, leadRow, {
-        subject: null,
-        body: draftInstagramDm(handle),
-      });
-      if (!inserted) {
-        stats.duplicate += 1;
+      let created: { id: string };
+      try {
+        created = await prisma.outreachInstagramLead.create({
+          data: {
+            handle: normalizedHandle,
+            profileUrl,
+            niche: 'Online coaching',
+            targetGroup: 'VIRTUAL',
+            whyMatchFit: 'Instagram bio describes online / remote coaching — takes clients anywhere, so a Match Fit fit.',
+            likelihoodScore: 100,
+            notes: `via:${INSTAGRAM_SOURCE} · company:${displayName}`,
+            dmText,
+            commentText: '',
+            generationBatchId: batchId,
+            outreachLane: 'today',
+            queuedForDate: startOfEstDayUtc(now),
+          },
+          select: { id: true },
+        });
+      } catch (err) {
+        console.error(`[lead-finder instagram] write failed for @${handle}:`, err);
+        stats.rejected += 1;
         continue;
       }
       stats.inserted += 1;
       stats.drafted += 1;
+      notified.push({ platform: 'instagram', leadId: created.id, handle: normalizedHandle, contact: profileUrl, dmText });
       console.log(`+ instagram @${handle}`);
     }
   }
@@ -631,7 +611,12 @@ async function runInstagramLane(db: Db, seen: Set<string>, now: Date): Promise<L
   return stats;
 }
 
-async function runEmailLane(db: Db, seen: Set<string>, now: Date): Promise<LaneStats> {
+async function runEmailLane(
+  seen: Set<string>,
+  now: Date,
+  batchId: string,
+  notified: OutreachAxonLeadRef[],
+): Promise<LaneStats> {
   const stats = emptyLaneStats('email');
   const queries = pickQueries(EMAIL_QUERIES, MAX_SEARCHES_PER_LANE, now);
   const hostsTried = new Set<string>();
@@ -669,6 +654,13 @@ async function runEmailLane(db: Db, seen: Set<string>, now: Date): Promise<LaneS
         stats.rejected += 1;
         continue;
       }
+      // Coaching SOFTWARE that slipped past EXCLUDED_HOSTS and the article filter — a SaaS
+      // product's own marketing copy uses the same "online coaching" language a real coach's
+      // site does. See looksLikeCoachingProduct.
+      if (looksLikeCoachingProduct(text)) {
+        stats.rejected += 1;
+        continue;
+      }
       stats.candidates += 1;
 
       const website = `https://${host}`;
@@ -678,42 +670,46 @@ async function runEmailLane(db: Db, seen: Set<string>, now: Date): Promise<LaneS
         continue;
       }
 
-      const dedupeKey = `${VENTURE}|${email.toLowerCase()}`;
-      if (seen.has(dedupeKey)) {
+      const normalizedEmail = normalizeEmail(email);
+      if (!normalizedEmail || seen.has(normalizedEmail)) {
         stats.duplicate += 1;
         continue;
       }
-      seen.add(dedupeKey);
+      seen.add(normalizedEmail);
 
       const company = companyNameFrom(res.title, host);
-      const leadRow = {
-        venture: VENTURE,
-        channel: 'email',
-        full_name: null,
-        handle: null,
-        email,
-        company,
-        // Deliberately NULL — see the Instagram lane note. Online coaching is not a local business.
-        city: null,
-        niche: 'Online coaching',
-        profile_url: website,
-        source: EMAIL_SOURCE,
-        source_ref: host,
-        why: 'Independent online coaching business — contact address published on their own site.',
-        score: 100,
-        status: 'new',
-        // dedupe_key is a GENERATED column — do not set it directly.
-      };
-
       const { subject, body } = draftEmail(company);
-      const inserted = await insertLeadWithDraft(db, leadRow, { subject, body });
-      if (!inserted) {
-        stats.duplicate += 1;
+
+      let created: { id: string };
+      try {
+        created = await prisma.outreachEmailLead.create({
+          data: {
+            name: company,
+            email: normalizedEmail,
+            businessName: company,
+            niche: 'Online coaching',
+            emailSourceUrl: website,
+            targetGroup: 'VIRTUAL',
+            whyMatchFit: 'Independent online coaching business — contact address published on their own site.',
+            likelihoodScore: 100,
+            notes: `via:${EMAIL_SOURCE}`,
+            emailSubject: subject,
+            emailBody: body,
+            generationBatchId: batchId,
+            outreachLane: 'today',
+            queuedForDate: startOfEstDayUtc(now),
+          },
+          select: { id: true },
+        });
+      } catch (err) {
+        console.error(`[lead-finder email] write failed for ${normalizedEmail}:`, err);
+        stats.rejected += 1;
         continue;
       }
       stats.inserted += 1;
       stats.drafted += 1;
-      console.log(`+ email ${company} -> ${email}`);
+      notified.push({ platform: 'email', leadId: created.id, handle: company, contact: normalizedEmail });
+      console.log(`+ email ${company} -> ${normalizedEmail}`);
     }
   }
 
@@ -731,30 +727,52 @@ async function runEmailLane(db: Db, seen: Set<string>, now: Date): Promise<LaneS
  * Runs both lanes. Each lane is isolated: a lane that throws is reported with a note and does
  * NOT stop the other lane from inserting, and a short lane inserts what it found rather than
  * padding with junk or failing the run.
+ *
+ * Dedupe seeds off `getOutreachExclusionList` (Match Fit's own Prisma tables — active leads plus
+ * already-registered Fitness Pros), the same helper the admin "Generate" route already uses, so
+ * this finder and a manual admin batch never pitch the same handle/email twice.
  */
 export async function runOutreachNationwideFinder(now = new Date()): Promise<FinderRunSummary> {
-  const db = supabase();
+  // Same self-heal call the admin "Generate" route makes before touching these tables — repairs
+  // missing columns/tables rather than failing the whole cron on a schema drift.
+  await ensureOutreachHubSchema();
 
-  const existing = await db.select<{ dedupe_key: string | null }>(
-    'outreach_leads',
-    `venture=eq.${VENTURE}&select=dedupe_key`,
-  );
-  const seen = new Set(existing.map((r) => r.dedupe_key).filter((k): k is string => Boolean(k)));
+  const batchId = `nationwide_${now.getTime()}`;
+
+  const [instagramSeen, emailSeen] = await Promise.all([
+    getOutreachExclusionList('instagram'),
+    getOutreachExclusionList('email'),
+  ]);
 
   const lanes: LaneStats[] = [];
-  for (const [lane, run] of [
-    ['instagram', runInstagramLane],
-    ['email', runEmailLane],
-  ] as const) {
-    try {
-      lanes.push(await run(db, seen, now));
-    } catch (err) {
-      const failed = emptyLaneStats(lane);
-      failed.shortfall = LEADS_PER_LANE;
-      failed.note = `The ${lane} lane could not run this time: ${err instanceof Error ? err.message : String(err)}`;
-      console.error(`[lead-finder ${lane}] lane failed:`, err);
-      lanes.push(failed);
-    }
+  const notified: OutreachAxonLeadRef[] = [];
+
+  try {
+    lanes.push(await runInstagramLane(new Set(instagramSeen), now, batchId, notified));
+  } catch (err) {
+    const failed = emptyLaneStats('instagram');
+    failed.shortfall = LEADS_PER_LANE;
+    failed.note = `The instagram lane could not run this time: ${err instanceof Error ? err.message : String(err)}`;
+    console.error('[lead-finder instagram] lane failed:', err);
+    lanes.push(failed);
+  }
+
+  try {
+    lanes.push(await runEmailLane(new Set(emailSeen), now, batchId, notified));
+  } catch (err) {
+    const failed = emptyLaneStats('email');
+    failed.shortfall = LEADS_PER_LANE;
+    failed.note = `The email lane could not run this time: ${err instanceof Error ? err.message : String(err)}`;
+    console.error('[lead-finder email] lane failed:', err);
+    lanes.push(failed);
+  }
+
+  // Fire-and-forget AXON/Telegram notification, same "new_leads" contract the admin generate
+  // route uses — a no-op when AXON_OUTREACH_EVENT_WEBHOOK_URL is unset, never fails the run.
+  if (notified.length > 0) {
+    await fireOutreachAxonEvent({ eventType: 'new_leads', leads: notified, meta: { source: 'nationwide_finder' } }).catch(
+      (err) => console.error('[lead-finder] AXON notify failed (non-fatal):', err),
+    );
   }
 
   const summary: FinderRunSummary = {
