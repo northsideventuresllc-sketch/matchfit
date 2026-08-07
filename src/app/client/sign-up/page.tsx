@@ -10,6 +10,7 @@ import { tryCreateMatchFitSupabaseBrowserClient } from "@/lib/supabase/browser-c
 import { useMetaSignupFunnelStep } from "@/hooks/use-meta-signup-funnel-step";
 import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { trackMetaLead } from "@/lib/meta-pixel-funnel";
+import { useSignupProgressReport } from "@/lib/use-signup-progress-report";
 import {
   trackClientSignupFormEvent,
   type ClientSignupFormFieldId,
@@ -119,6 +120,23 @@ function ClientSignUpPageInner() {
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [betaInviteReserved, setBetaInviteReserved] = useState<string | null>(null);
   const turnstile = useTurnstileGate();
+  const reportSignupProgress = useSignupProgressReport("client");
+
+  useEffect(() => {
+    reportSignupProgress(
+      {
+        firstName: Boolean(firstName.trim()),
+        lastName: Boolean(lastName.trim()),
+        phone: Boolean(phone.trim()),
+        email: Boolean(email.trim()),
+        password: Boolean(password),
+        zipCode: Boolean(zipCode.trim()),
+        dateOfBirth: Boolean(dateOfBirth.trim()),
+        agreedToTerms,
+      },
+      { email },
+    );
+  }, [firstName, lastName, phone, email, password, zipCode, dateOfBirth, agreedToTerms, reportSignupProgress]);
 
   const wizardFunnelStep = useMemo(() => {
     if (wizardStep === 1) {
