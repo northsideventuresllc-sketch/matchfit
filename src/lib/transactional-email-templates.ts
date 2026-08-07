@@ -92,6 +92,7 @@ export function sampleContextForTransactionalEmail(kind: TransactionalEmailKind)
     monthlyUsd: "10.00",
     paymentGraceDays: "14",
     paymentGraceUntilLabel: "August 15, 2026",
+    signupResumeUrl: `${appBaseUrlForEmailSample()}/trainer/signup`,
   };
   return base;
 }

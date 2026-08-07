@@ -38,7 +38,7 @@ import {
   GATE_A_POST_SESSION_SILENCE_HOURS,
   INITIAL_OUTBOUND_MESSAGE_CAP,
   MATCH_BATCH_WINDOW_HOURS,
-  OFF_PLATFORM_LIQUIDATED_DAMAGES_USD,
+  OFF_PLATFORM_TEMP_BAN_DAYS,
   PAYOUT_BUFFER_AFTER_BOTH_GATES_HOURS,
   PLATFORM_ADMIN_FEE_PERCENT,
   STANDARD_MATCH_BATCH_SIZE,
@@ -453,19 +453,20 @@ export default async function TermsPage() {
             discovery <Strong>nudges</Strong> only (currently up to <Strong>{INDEPENDENT_FP_DAILY_NUDGES} nudges per
             day</Strong>, UTC), with optional purchase of <Strong>{FP_NUDGE_PACK_SIZE} additional nudges</Strong> for{" "}
             <Strong>{usdCents(FP_NUDGE_PACK_PRICE_USD)}</Strong> when offered in-product.{" "}
-            <Strong>Elite Fitness Pro</Strong> includes in-app chat and unlimited discovery nudges, with relaxed rules for
-            business email addresses and external listing links as described below; phone numbers and off-platform
-            payment details remain prohibited.
+            <Strong>Elite Fitness Pro</Strong> includes in-app chat and unlimited discovery nudges, with a relaxed rule
+            for business email addresses as described below; phone numbers and off-platform payment details remain
+            prohibited.
           </Li>
           <Li>
-            You agree to use Service messaging for introductions and coordination where required by product rules. For{" "}
-            <Strong>Match Fit Pro</Strong> and <Strong>Match Fit Premium Pro</Strong>, automated tools may mask or remove
-            phone numbers, email addresses, or similar contact data shared in chat. For <Strong>Elite Fitness Pro</Strong>,
-            business email addresses and external listing links (outside Match Fit) may be permitted in chat; phone
-            numbers and off-platform payment instructions remain blocked. The Service may use automated signals (for
-            example, patterns resembling off-platform payment requests, common peer-payment brand names, or phone-like
-            digit sequences) to flag threads for internal review; flagged content may be withheld or delivered according
-            to policy while staff review when queued.
+            You agree to use Service messaging for introductions and coordination where required by product rules. You may
+            share links to external websites, social profiles, or other platforms in chat on every account type — the
+            Service does not require Fitness Pros to use Match Fit exclusively. For <Strong>Match Fit Pro</Strong> and{" "}
+            <Strong>Match Fit Premium Pro</Strong>, automated tools may mask or remove phone numbers, email addresses, or
+            similar contact data shared in chat. For <Strong>Elite Fitness Pro</Strong>, business email addresses may be
+            permitted in chat; phone numbers and off-platform payment instructions remain blocked for every account type.
+            The Service may use automated signals (for example, patterns resembling off-platform payment requests, common
+            peer-payment brand names, or phone-like digit sequences) to flag threads for internal review; flagged content
+            may be withheld or delivered according to policy while staff review when queued.
           </Li>
           <Li>
             The Service may run automated trust-and-safety checks on chat (pattern detection for contact or payment
@@ -582,9 +583,9 @@ export default async function TermsPage() {
             <Strong>Elite Fitness Pro:</Strong> Monthly fee currently{" "}
             <Strong>{usdCents(FP_TIER_MONTHLY_FEES_USD.elite_fitness_pro ?? 40)}</Strong> when billed. Includes in-app
             chat, unlimited discovery nudges, verified business trust indicators, full analytics, Fit Hub, featured listing
-            programs, platform reviews, and permission to share business email addresses and external listing links in
-            chat. Phone numbers and off-platform payment details remain prohibited as described in Section 12. Background
-            screening and document requirements apply as shown in onboarding.
+            programs, platform reviews, and permission to share business email addresses in chat. Phone numbers and
+            off-platform payment details remain prohibited as described in Section 12. Background screening and document
+            requirements apply as shown in onboarding.
           </Li>
           <Li>
             Tier switches, billing grace periods, and document review requirements are enforced in-product. Match Fit may
@@ -597,19 +598,24 @@ export default async function TermsPage() {
         <Ul>
           <Li>
             <Strong>Off-Platform Payments:</Strong> Any Fitness Pro found soliciting or accepting payments off-platform for
-            clients first discovered through Match Fit agrees to pay a <Strong>{usdCents(OFF_PLATFORM_LIQUIDATED_DAMAGES_USD)} Liquidated Damages Fee</Strong> per
-            occurrence, in addition to other remedies available to Match Fit under these Terms or applicable law.
+            clients first discovered through Match Fit is subject to the two-tier suspension schedule below (a temporary
+            suspension on the first substantiated occurrence, permanent on the second), in addition to other remedies
+            available to Match Fit under these Terms or applicable law.
           </Li>
           <Li>
-            <Strong>In-App Communication:</Strong> For <Strong>Match Fit Pro</Strong> and{" "}
-            <Strong>Match Fit Premium Pro</Strong>, attempting to circumvent in-app messaging to share phone numbers or
-            emails may result in enforcement. For <Strong>Elite Fitness Pro</Strong>, business email addresses and
-            external listing links may be permitted; phone numbers and off-platform payment steering remain prohibited.
-            For <Strong>Independent Fitness Pro</Strong>, in-app chat is not available — discovery nudges are subject to
-            daily limits and optional paid packs as described in Section 8. For Fitness Pros on tiers where chat applies,
-            a first substantiated offense may lead to a <Strong>ninety (90) day</Strong> deactivation, a second offense up
-            to <Strong>three hundred sixty-five (365) days</Strong>, and a third offense <Strong>permanent</Strong>{" "}
-            deactivation, tracked in line with account and tax-record associations as reasonably available.
+            <Strong>In-App Communication:</Strong> Sharing links to external websites, social profiles, or other platforms
+            in chat is permitted on every Fitness Pro account type — Match Fit does not require exclusive use of the
+            Service. For <Strong>Match Fit Pro</Strong> and <Strong>Match Fit Premium Pro</Strong>, attempting to
+            circumvent in-app messaging to share phone numbers or emails may result in enforcement. For{" "}
+            <Strong>Elite Fitness Pro</Strong>, business email addresses may be permitted; phone numbers and off-platform
+            payment steering remain prohibited for every account type. For <Strong>Independent Fitness Pro</Strong>,
+            in-app chat is not available — discovery nudges are subject to daily limits and optional paid packs as
+            described in Section 8. For Fitness Pros on tiers where chat applies, a first substantiated offense (phone
+            numbers, personal emails, or off-platform payment solicitation) results in a{" "}
+            <Strong>{OFF_PLATFORM_TEMP_BAN_DAYS}-day</Strong> temporary suspension, and a second substantiated offense
+            results in a <Strong>permanent</Strong> ban, tracked in line with account and tax-record associations as
+            reasonably available. Temporary suspensions lift automatically once the {OFF_PLATFORM_TEMP_BAN_DAYS}-day
+            period ends unless Match Fit staff extends review for a specific case.
           </Li>
           <Li>
             <Strong>DIY Timelines:</Strong> Fitness Pros agree to meet DIY delivery timelines described in Section 6 or escalated
@@ -686,8 +692,8 @@ export default async function TermsPage() {
         <Ul>
           <Li>
             <Strong>Off-Platform Fee Circumvention:</Strong> Fitness Pros must not solicit or accept payment outside Match Fit
-            for relationships that began through the Service. The <Strong>{usdCents(OFF_PLATFORM_LIQUIDATED_DAMAGES_USD)} Liquidated Damages Fee</Strong> described
-            in Section 12 applies per substantiated occurrence.
+            for relationships that began through the Service. The two-tier suspension schedule described in Section 12
+            applies per substantiated occurrence.
           </Li>
           <Li>No unlawful, harassing, discriminatory, fraudulent, or dangerous conduct.</Li>
           <Li>No scraping, security probing, or interference with the Service except as law permits.</Li>

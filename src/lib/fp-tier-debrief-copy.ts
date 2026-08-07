@@ -103,7 +103,7 @@ export const FP_ELITE_PRO_DEBRIEF: FpDebriefSection = {
       ],
       bullets: [
         "Unlimited discovery nudges plus in-app chat on one account.",
-        "Share business email addresses and external listing links in chat when it helps clients book with your brand.",
+        "Share business email addresses in chat when it helps clients book with your brand.",
         "Interest clients workflow when someone swipes right on your profile.",
       ],
     },

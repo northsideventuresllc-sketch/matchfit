@@ -399,6 +399,18 @@ export async function countLaunchLifetimeMembers(): Promise<number> {
   return clients + trainers;
 }
 
+// TODO(founding-rank-drift, audited 2026-08-07): every founding-cohort / pricing-band decision
+// in this file re-derives "how many trainers signed up before this one" live via COUNT(*) at
+// call time (here and in `countLaunchTrainersInTx`), instead of reading a stored per-trainer
+// rank. That means a trainer's founding-cohort status can shift after the fact if earlier
+// trainers are deleted, deidentified, or banned (or, less riskily, drift the other way if the
+// exclusion filters change) between their signup and any later read. A `Trainer.foundingTrainerSignupRank`
+// column was expected to fix this by stamping each trainer's rank once at signup, but as of this
+// audit it exists in NEITHER `prisma/schema.prisma` NOR any tracked migration under
+// `prisma/migrations/` — there is nothing to wire up in this codebase yet. Adding it needs a real
+// migration (out of scope here — this pass does not touch the DB schema). Until that lands, this
+// live-COUNT approach is what's actually running; keep that in mind when auditing founding-cohort
+// edge cases.
 export async function countLaunchTrainers(): Promise<number> {
   return prisma.trainer.count({ where: launchTrainerCountWhere() });
 }

@@ -30,7 +30,8 @@ export async function GET(req: Request) {
   return runCron(req);
 }
 
-/** Scheduled jobs: background-check renewal, session auto-complete, DIY alerts, beta waitlist promotion. */
+/** Scheduled jobs: background-check renewal, session auto-complete, DIY alerts, beta waitlist
+ *  promotion, abandoned-signup follow-up emails. */
 export async function POST(req: Request) {
   return runCron(req);
 }

@@ -11,6 +11,15 @@ import { trainerRegistrationPricingModeForNewTrainer } from "@/lib/trainer-regis
  * Marks a trainer as pending onboarding after Terms acceptance.
  * Starts the 7-day onboarding fee + compliance window once (does not reset an existing clock).
  * Also starts the Independent Pro 60-day free platform trial at registration.
+ *
+ * Signup order is credentials -> terms -> tier -> dashboard (`trainer-signup-next-path.ts`), so
+ * the account tier is NOT known yet when this runs — `platformTrialEndsAt` is stamped for every
+ * trainer here regardless of what tier they will eventually pick. Elite Fitness Pro must never
+ * carry a free trial (it is the one tier that always pays immediately, JB spec 2026-08-07), so
+ * once the tier is actually locked in at `/api/trainer/signup/select-tier`, that route clears
+ * `platformTrialEndsAt` back to null for `elite_fitness_pro`. If another place ever locks in the
+ * tier (e.g. a future admin override), it needs the same clear — see `persistTierSelection` in
+ * `src/app/api/trainer/signup/select-tier/route.ts` for the reference implementation.
  */
 export async function markTrainerPendingAfterTermsAcceptance(
   trainerId: string,

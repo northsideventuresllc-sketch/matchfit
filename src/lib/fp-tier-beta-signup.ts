@@ -58,6 +58,13 @@ export type FpTierSignupOutcome = {
  * the tiers that carry a monthly fee take payment at selection time, while Match Fit Pro still
  * goes straight to the dashboard.
  *
+ * Elite Fitness Pro is the exception to all of the above (JB, 2026-08-07): it is the only tier
+ * that is a paid subscription, and it must always require Stripe checkout immediately at
+ * signup — no free trial, no founding-cohort free pass, regardless of signup rank. It never
+ * takes the founding-cohort path here. (It can still get the background-check fee waived when
+ * within the first 10 signups — that is tracked separately via `registrationFeePricingMode` /
+ * `trainer-founding-bg-covered.ts` and is unaffected by this function.)
+ *
  * Pure: the caller supplies the counts, so the rule is testable without a database.
  */
 export function resolveFpTierSignupOutcome(args: {
@@ -70,6 +77,15 @@ export function resolveFpTierSignupOutcome(args: {
 }): FpTierSignupOutcome {
   const betaActive = args.betaActive ?? fpBetaSignupActive();
   const tier = resolveFpSignupTier(args.requested, args.existingTrainerCount, betaActive);
+
+  if (tier === "elite_fitness_pro") {
+    return {
+      tier,
+      requiresCheckoutNow: fpTierRequiresMonthlyFee(tier) && args.tierHasConfiguredPrice(tier),
+      foundingCohort: false,
+    };
+  }
+
   const foundingCohort = betaActive && args.existingTrainerCount < args.foundingCohortMax;
 
   if (foundingCohort) {
@@ -94,9 +110,17 @@ export function fpTierSelectableDuringBeta(tier: FpAccountTier): boolean {
   return false;
 }
 
+/**
+ * Whether the signup UI should badge a tier as needing payment right now during beta.
+ *
+ * Only Elite Fitness Pro always needs this — it is the one tier with no founding-cohort free
+ * pass. Independent Fitness Pro carries a monthly fee too, but inside the founding cohort (the
+ * first N signups) it gets 60 days free before that fee kicks in, same as the other tiers, so it
+ * must not be badged "subscription required" here (JB spec, 2026-08-07).
+ */
 export function fpTierRequiresPaidSubscriptionDuringBeta(tier: FpAccountTier): boolean {
   if (!fpBetaSignupActive()) return fpTierRequiresMonthlyFee(tier);
-  return tier === "independent_fitness_pro" || tier === "elite_fitness_pro";
+  return tier === "elite_fitness_pro";
 }
 
 export function fpBetaPremiumPromoEndsAt(from = new Date()): Date {

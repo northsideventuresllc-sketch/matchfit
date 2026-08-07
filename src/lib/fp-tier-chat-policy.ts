@@ -55,7 +55,7 @@ export const NUDGE_DAILY_CAP_MESSAGE = (used: number, limit: number) =>
 export const NUDGE_PACK_PURCHASE_NOTICE = `Purchase ${FP_NUDGE_PACK_SIZE} more nudges for $${FP_NUDGE_PACK_PRICE_USD.toFixed(2)}.`;
 
 export function eliteFitnessProChatNotice(): string {
-  return "Elite Fitness Pro may share business email addresses and external listing links in chat. Phone numbers and off-platform payment details are still not allowed.";
+  return "Elite Fitness Pro may share business email addresses in chat. Phone numbers and off-platform payment details are still not allowed.";
 }
 
 export function matchFitProChatNotice(): string {

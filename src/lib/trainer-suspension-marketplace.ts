@@ -2,7 +2,12 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { refundCentsViaStripePaymentIntent } from "@/lib/session-check-in";
 
-export type TrainerSuspensionReasonCode = "CLIENT_REPORT" | "PUNCH_STREAK" | "DISPUTE_VOLUME" | "ADMIN";
+export type TrainerSuspensionReasonCode =
+  | "CLIENT_REPORT"
+  | "PUNCH_STREAK"
+  | "DISPUTE_VOLUME"
+  | "ADMIN"
+  | "CHAT_CONTACT_LEAKAGE";
 
 /**
  * Cancels upcoming bookings for a suspended trainer, refunds net ledger slices where a Stripe PI is known,

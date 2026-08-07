@@ -21,29 +21,40 @@ const EMAIL_LIKE = /\b[A-Z0-9][A-Z0-9._%+-]*@[A-Z0-9][A-Z0-9.-]*\.[A-Z]{2,}\b/i;
 /** Spelled-out obfuscation: "name at domain dot com". */
 const EMAIL_SPELLED = /\b[A-Z0-9][\w.%+-]*\s+at\s+[A-Z0-9][\w.-]*\s+dot\s+[A-Z]{2,}\b/i;
 
-const EXTERNAL_URL = /\bhttps?:\/\/[^\s<>"']+/gi;
-const MATCH_FIT_HOST = /match[-\s]?fit\.(net|com)/i;
-
 export const CHAT_CONTACT_BLOCK_MESSAGE =
   "Remove phone numbers, email addresses, and off-platform payment details. Keep payments and scheduling on Match Fit.";
 
 export const CHAT_ELITE_CONTACT_BLOCK_MESSAGE =
-  "Remove phone numbers and off-platform payment details. Business email addresses and external listing links are allowed on Elite Fitness Pro.";
+  "Remove phone numbers and off-platform payment details. Business email addresses are allowed on Elite Fitness Pro.";
 
 export type ChatLeakageScanResult = {
   flagged: boolean;
   signals: string[];
 };
 
-function isMatchFitUrl(url: string): boolean {
-  try {
-    const host = new URL(url).hostname.toLowerCase();
-    return MATCH_FIT_HOST.test(host);
-  } catch {
-    return MATCH_FIT_HOST.test(url);
-  }
+/**
+ * Signals that represent a substantiated contact-info circumvention (phone number or personal
+ * email) rather than an off-platform-payment keyword mention. Only these count toward the
+ * two-strike chat ban in `@/lib/chat-contact-violation-enforcement` — JB's ask (2026-08-07) was a
+ * ban for routing clients off-platform via personal contact details, not a strike for every
+ * blocked message.
+ */
+export const CONTACT_INFO_VIOLATION_SIGNALS: readonly string[] = ["PHONE_LIKE", "LONG_DIGIT_RUN", "EMAIL_LIKE"];
+
+export function isContactInfoViolationSignal(signals: readonly string[]): boolean {
+  return signals.some((s) => CONTACT_INFO_VIOLATION_SIGNALS.includes(s));
 }
 
+/**
+ * Contact-info and off-platform-payment scan for outbound chat text (used before persistence and
+ * by the admin trust-and-safety review queue).
+ *
+ * Platform exclusivity — blocking links to other websites/platforms — is NOT enforced here. JB
+ * removed that restriction 2026-08-07 as unrealistic; Fitness Pros may share any link in chat on
+ * every tier. Phone numbers, personal emails, and off-platform-payment keywords (Venmo, Cash App,
+ * PayPal, Zelle, Apple Pay, Google Pay) still block on every tier — Elite Fitness Pro keeps its
+ * separate, intentional carve-out for *business* email addresses only (`trainerHasEliteChatPolicy`).
+ */
 export function scanChatTextForLeakageSignals(
   raw: string,
   accountTier?: string | null,
@@ -64,19 +75,7 @@ export function scanChatTextForLeakageSignals(
     if (!elitePolicy) signals.add("EMAIL_LIKE");
   }
 
-  const urls = raw.match(EXTERNAL_URL) ?? [];
-  for (const url of urls) {
-    if (!isMatchFitUrl(url)) {
-      if (elitePolicy) signals.add("EXTERNAL_LISTING_LINK");
-      else signals.add("EXTERNAL_URL");
-    }
-  }
-
-  const blockingSignals = elitePolicy
-    ? [...signals].filter((s) => s !== "EXTERNAL_LISTING_LINK")
-    : [...signals];
-
-  return { flagged: blockingSignals.length > 0, signals: blockingSignals };
+  return { flagged: signals.size > 0, signals: [...signals] };
 }
 
 /** Server-side gate for outbound chat/nudge text — blocks before persistence. */

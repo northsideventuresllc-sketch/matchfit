@@ -1,10 +1,17 @@
 import { parseChatAttachmentJson } from "@/lib/chat-attachment";
 import { runOutboundChatComplianceMonitoring } from "@/lib/chat-compliance-monitor";
-import { getChatContactLeakageBlockReason } from "@/lib/chat-leakage-detection";
+import {
+  CHAT_CONTACT_BLOCK_MESSAGE,
+  CHAT_ELITE_CONTACT_BLOCK_MESSAGE,
+  isContactInfoViolationSignal,
+  scanChatTextForLeakageSignals,
+} from "@/lib/chat-leakage-detection";
+import { recordChatContactViolationAndSuspendTrainer } from "@/lib/chat-contact-violation-enforcement";
 import {
   chatNoticeForTrainerTier,
   INDEPENDENT_FP_NO_CHAT_MESSAGE,
   trainerCanUseInAppChat,
+  trainerHasEliteChatPolicy,
 } from "@/lib/fp-tier-chat-policy";
 import { prisma } from "@/lib/prisma";
 import {
@@ -315,8 +322,18 @@ export async function POST(req: Request, ctx: RouteContext) {
     }
 
     const accountTier = trainer.profile.accountTier;
-    const contactBlock = getChatContactLeakageBlockReason(text, accountTier);
-    if (contactBlock) {
+    const leak = scanChatTextForLeakageSignals(text, accountTier);
+    if (leak.flagged) {
+      if (isContactInfoViolationSignal(leak.signals)) {
+        try {
+          await recordChatContactViolationAndSuspendTrainer(trainerId);
+        } catch (e) {
+          console.error("[trainer chat] contact violation enforcement failed", e);
+        }
+      }
+      const contactBlock = trainerHasEliteChatPolicy(accountTier)
+        ? CHAT_ELITE_CONTACT_BLOCK_MESSAGE
+        : CHAT_CONTACT_BLOCK_MESSAGE;
       return NextResponse.json({ error: contactBlock, code: "CHAT_CONTACT_BLOCKED" }, { status: 400 });
     }
 

@@ -32,6 +32,13 @@ async function persistTierSelection(trainerId: string, tier: (typeof FP_ACCOUNT_
   const listingStatus = fpTierRequiresBackgroundCheck(tier) ? "pending_background" : "pending_docs";
   const requiredDocs = fpRequiredDocsForTier(tier);
   const promoEndsAt = fpBetaSignupActive() && tier === "match_fit_premium_pro" ? fpBetaPremiumPromoEndsAt() : null;
+  // Elite Fitness Pro never gets the 60-day free platform trial. `markTrainerPendingAfterTermsAcceptance`
+  // stamps `platformTrialEndsAt` unconditionally at Terms acceptance — before tier is even chosen — so
+  // this is where the tier is finally known. Clear it here rather than only relying on the
+  // `stripeSubscriptionActive` check in `resolveTrainerPlatformAccessPhase` taking priority, so nothing
+  // downstream (trial-ending reminders, lifecycle jobs, admin counts) reads a stray trial window for an
+  // Elite account (JB spec, 2026-08-07).
+  const clearPlatformTrial = tier === "elite_fitness_pro";
 
   await prisma.$transaction(async (tx) => {
     await tx.trainerProfile.update({
@@ -44,6 +51,12 @@ async function persistTierSelection(trainerId: string, tier: (typeof FP_ACCOUNT_
         ...(promoEndsAt ? { billingCycleEnd: promoEndsAt } : {}),
       },
     });
+    if (clearPlatformTrial) {
+      await tx.trainer.update({
+        where: { id: trainerId },
+        data: { platformTrialEndsAt: null },
+      });
+    }
     await tx.fpListingStats.upsert({
       where: { trainerId },
       create: { trainerId, memberSince: new Date() },

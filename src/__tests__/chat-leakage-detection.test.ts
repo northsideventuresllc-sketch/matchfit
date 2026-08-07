@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getChatContactLeakageBlockReason,
+  isContactInfoViolationSignal,
   scanChatTextForLeakageSignals,
 } from "@/lib/chat-leakage-detection";
 import {
@@ -39,6 +40,11 @@ describe("chat-leakage-detection", () => {
     expect(result.flagged).toBe(false);
   });
 
+  it("allows external links for standard (non-Elite) tiers too — platform exclusivity was removed", () => {
+    expect(scanChatTextForLeakageSignals("Book at https://my-studio.com/listing", "match_fit_pro").flagged).toBe(false);
+    expect(scanChatTextForLeakageSignals("Follow me at https://instagram.com/mycoach").flagged).toBe(false);
+  });
+
   it("flags payment app keywords", () => {
     expect(scanChatTextForLeakageSignals("Pay me on venmo").flagged).toBe(true);
   });
@@ -46,6 +52,15 @@ describe("chat-leakage-detection", () => {
   it("allows normal coaching copy", () => {
     expect(scanChatTextForLeakageSignals("See you Tuesday for legs day.").flagged).toBe(false);
     expect(getChatContactLeakageBlockReason("Great session today!")).toBeNull();
+  });
+
+  it("treats phone numbers and personal emails as contact-info violations (count toward the ban)", () => {
+    expect(isContactInfoViolationSignal(scanChatTextForLeakageSignals("(404) 555-1212").signals)).toBe(true);
+    expect(isContactInfoViolationSignal(scanChatTextForLeakageSignals("coach@studio.edu").signals)).toBe(true);
+  });
+
+  it("does not treat payment-app keyword mentions as a contact-info violation", () => {
+    expect(isContactInfoViolationSignal(scanChatTextForLeakageSignals("Pay me on venmo").signals)).toBe(false);
   });
 });
 

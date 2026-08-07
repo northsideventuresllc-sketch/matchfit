@@ -20,6 +20,8 @@ import { runBetaWaitlistCronJobs } from "@/lib/beta-waitlist-service";
 import { processTrainerComplianceWindowExpirations } from "@/lib/trainer-compliance-window-cron";
 import { processTrainerOnboardingFeeDeadlineExpirations } from "@/lib/trainer-onboarding-fee-deadline-cron";
 import { processOutreachArchiveJobs } from "@/lib/outreach-archive";
+import { liftExpiredChatContactTempBans } from "@/lib/chat-contact-violation-enforcement";
+import { runSignupAbandonmentFollowupJobs } from "@/lib/signup-abandonment-followup-cron";
 
 export type TosCronSummary = {
   backgroundCheckWarningsSent: number;
@@ -63,6 +65,13 @@ export type TosCronSummary = {
   outreachArchive: {
     archivedCount: number;
     uiHiddenCount: number;
+  };
+  chatContactTempBansLifted: number;
+  signupAbandonmentFollowups: {
+    candidatesScanned: number;
+    sent: number;
+    skippedAlreadyHasAccount: number;
+    errors: number;
   };
 };
 
@@ -283,6 +292,23 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   } catch (e) {
     console.error("[tos cron] outreach archive", e);
   }
+  let chatContactTempBansLifted = 0;
+  try {
+    chatContactTempBansLifted = await liftExpiredChatContactTempBans();
+  } catch (e) {
+    console.error("[tos cron] chat contact temp ban lift", e);
+  }
+  let signupAbandonmentFollowups = {
+    candidatesScanned: 0,
+    sent: 0,
+    skippedAlreadyHasAccount: 0,
+    errors: 0,
+  };
+  try {
+    signupAbandonmentFollowups = await runSignupAbandonmentFollowupJobs();
+  } catch (e) {
+    console.error("[tos cron] signup abandonment followups", e);
+  }
   return {
     backgroundCheckClearedBackfill: backfill,
     backgroundCheckWarningsSent: warnings,
@@ -305,5 +331,7 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     trainerComplianceWindowsExpired,
     trainerOnboardingFeeDeadlinesExpired,
     outreachArchive,
+    chatContactTempBansLifted,
+    signupAbandonmentFollowups,
   };
 }

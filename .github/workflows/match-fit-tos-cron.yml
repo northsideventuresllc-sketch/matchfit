@@ -1,4 +1,5 @@
-# Runs Match Fit scheduled jobs (waitlist promotion, TOS/session crons) every 15 minutes.
+# Runs Match Fit scheduled jobs (waitlist promotion, TOS/session crons, abandoned-signup
+# follow-up emails) every 15 minutes.
 # Vercel Hobby cannot deploy vercel.json crons more often than once per day (see vercel.link/3Fpeeb1).
 # On Vercel Pro you may merge vercel.cron.pro.example.json into vercel.json and disable this workflow.
 
