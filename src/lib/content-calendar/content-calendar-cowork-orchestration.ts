@@ -69,13 +69,35 @@ export async function approveContentDay(postDate: string): Promise<{ approved: n
 
   const now = new Date().toISOString();
   const client = createNiBrainClient();
-  const { error } = await client
-    .from("match_fit_content_calendar_posts")
-    .update({ approved_at: now, status: "approved", updated_at: now })
-    .eq("post_date", postDate)
-    .eq("workflow_stage", "hub")
-    .is("deleted_at", null);
-  if (error) throw new Error(error.message);
+
+  // Text posts need no media generation — fireCoworkForDay excludes them and
+  // completeGenerateMediaJob (the only other place that flips workflow_stage)
+  // never sees them. Left at workflow_stage "hub" they never reach Publishing.
+  // Advance them straight to "publishing" here; media posts stay in "hub"
+  // until the media job completes (unchanged behavior).
+  const textIds = posts.filter((p) => p.post_type === "Text").map((p) => p.id);
+  const mediaIds = posts.filter((p) => p.post_type !== "Text").map((p) => p.id);
+
+  if (mediaIds.length) {
+    const { error } = await client
+      .from("match_fit_content_calendar_posts")
+      .update({ approved_at: now, status: "approved", updated_at: now })
+      .in("id", mediaIds);
+    if (error) throw new Error(error.message);
+  }
+
+  if (textIds.length) {
+    const { error } = await client
+      .from("match_fit_content_calendar_posts")
+      .update({
+        approved_at: now,
+        status: "publishing",
+        workflow_stage: "publishing",
+        updated_at: now,
+      })
+      .in("id", textIds);
+    if (error) throw new Error(error.message);
+  }
 
   const summary = [
     `Match Fit content day approved for ${postDate}.`,
