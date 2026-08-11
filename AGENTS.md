@@ -119,3 +119,9 @@ npm run version:verify   # CI enforces bump when product paths change
 - **Owner approval only:** adding/removing BETA or changing version structure
 - **Task completion:** state explicitly that the product version was updated (old → new, level used)
 - Never hardcode version strings in UI — use `MATCH_FIT_PRODUCT_VERSION_LABEL` / `MATCH_FIT_PRODUCT_VERSION_ANNOUNCE`
+
+## Standing conventions (added 2026-08-11, JB-approved)
+
+- **Testing:** write Vitest tests for new business logic (this repo has real test infra — `npm run test`, `vitest.config.ts`). No hard coverage floor enforced yet; use judgment, but a PR adding non-trivial logic with zero test coverage should be flagged, not silently merged.
+- **Pre-PR gate:** before opening a PR, run `npx tsc --noEmit` and `npm run lint` (ESLint, `--max-warnings 0`) locally — both must pass clean. Neither runs automatically on edit in this environment, so this is a manual step, not a hook.
+- **Merging to main always requires JB's explicit sign-off.** Never auto-merge a PR, even if build/types/lint/tests all pass. This matches the Hard Stop already locked in `nvg-operator-core`.
