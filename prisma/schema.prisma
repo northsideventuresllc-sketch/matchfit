@@ -822,6 +822,21 @@ model Trainer {
   /// When set, trainer login and dashboard access are blocked (trial unpaid, deferred fee ban, etc.).
   accountDeactivatedAt DateTime?
 
+  /// Stripe Connect Express account for cashing out the earnings balance — separate from
+  /// `stripeCustomerId` (that one is Match Fit charging the trainer; this one is Match Fit
+  /// paying the trainer). Null until the trainer starts bank-account onboarding.
+  stripeConnectAccountId       String?   @unique
+  /// Mirrors the Connect account's `payouts_enabled` — required before any payout can be sent.
+  stripeConnectPayoutsEnabled  Boolean   @default(false)
+  /// Mirrors the Connect account's `charges_enabled` (informational; Express accounts here only transfer, not charge).
+  stripeConnectChargesEnabled  Boolean   @default(false)
+  /// Set the first time payouts flip enabled (onboarding fully cleared Stripe's KYC requirements).
+  stripeConnectOnboardingCompletedAt DateTime?
+  /// JSON array of Stripe's `requirements.currently_due` strings — surfaced to the trainer so they know what's missing.
+  stripeConnectRequirementsDueJson   String?
+  /// Stripe's `requirements.disabled_reason` when payouts are blocked (e.g. "requirements.pending_verification").
+  stripeConnectDisabledReason        String?
+
   /// Standard-tier deferred platform registration fee (trainers 31+ / post-beta).
   registrationFeeDeferred             Boolean   @default(false)
   registrationFeeDeferredBalanceCents Int       @default(0)

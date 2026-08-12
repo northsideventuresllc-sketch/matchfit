@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-08-12** `2.18.0-beta` → `2.19.0-beta` (**minor** — Stripe Connect Express onboarding for trainer payouts (Phase 2, 2/6))
 - **2026-08-12** `2.17.0-beta` → `2.18.0-beta` (**minor** — Trainer earnings ledger: persist cleared session payouts to a real balance (Phase 2 foundation))
 - **2026-08-12** `2.16.0-beta` → `2.17.0-beta` (**minor** — Forgot password (client/coach/admin), password-changed security notice with account auto-lock, admin account-support tool, stronger password policy)
 - **2026-08-07** `2.15.0-beta` → `2.16.0-beta` (**minor** — Fix Elite Pro paywall bypass; remove platform-exclusivity chat restriction; replace off-platform fee with 2-strike ban; fix abandoned-signup email capture + add 3-email follow-up sequence)
