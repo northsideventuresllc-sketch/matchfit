@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-08-12** `2.22.0-beta` → `2.22.1-beta` (**patch** — Simplify Stripe Connect webhook to reuse the existing endpoint (no behavior change))
 - **2026-08-12** `2.21.0-beta` → `2.22.0-beta` (**minor** — 1099 tax-year earnings summary for admin (Phase 2, 5/6))
 - **2026-08-12** `2.20.0-beta` → `2.21.0-beta` (**minor** — Wallet-balance payment on promo tokens and nudge packs (Phase 2, 4/6))
 - **2026-08-12** `2.19.0-beta` → `2.20.0-beta` (**minor** — Trainer cash-out: instant/standard payouts + scheduled payouts, email-OTP gated (Phase 2, 3/6))
