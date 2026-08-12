@@ -8,6 +8,13 @@ import {
 } from "@/lib/trainer-notification-prefs";
 import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 
+type ConnectStatus = {
+  connected: boolean;
+  payoutsEnabled: boolean;
+  requirementsDue: string[];
+  disabledReason: string | null;
+};
+
 type Summary = {
   mode: "live" | "placeholder";
   email: string;
@@ -30,6 +37,8 @@ export function TrainerBillingPageClient() {
   const locked = searchParams.get("locked") === "1";
   const subscribed = searchParams.get("subscribed") === "1";
   const canceled = searchParams.get("canceled") === "1";
+  const connectReturn = searchParams.get("connect") === "return";
+  const connectRefresh = searchParams.get("connect") === "refresh";
 
   const [summary, setSummary] = useState<Summary | null>(null);
   const [prefs, setPrefs] = useState<TrainerNotificationPrefs>({ ...defaultTrainerNotificationPrefs });
@@ -37,6 +46,9 @@ export function TrainerBillingPageClient() {
   const [prefsBusy, setPrefsBusy] = useState(false);
   const [prefsOk, setPrefsOk] = useState<string | null>(null);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [balanceCents, setBalanceCents] = useState<number | null>(null);
+  const [connectStatus, setConnectStatus] = useState<ConnectStatus | null>(null);
+  const [connectBusy, setConnectBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,6 +83,20 @@ export function TrainerBillingPageClient() {
         if (prefsRes.ok && prefsData.preferences) {
           setPrefs({ ...defaultTrainerNotificationPrefs, ...prefsData.preferences });
         }
+
+        const [balanceRes, connectRes] = await Promise.all([
+          fetch("/api/trainer/payouts/balance"),
+          fetch("/api/trainer/payouts/connect/status"),
+        ]);
+        if (!cancelled) {
+          if (balanceRes.ok) {
+            const balanceData = (await balanceRes.json()) as { balanceCents: number };
+            setBalanceCents(balanceData.balanceCents);
+          }
+          if (connectRes.ok) {
+            setConnectStatus((await connectRes.json()) as ConnectStatus);
+          }
+        }
       } catch {
         if (!cancelled) setError("Could not load billing.");
       }
@@ -79,6 +105,24 @@ export function TrainerBillingPageClient() {
       cancelled = true;
     };
   }, []);
+
+  async function startPayoutsOnboarding() {
+    setConnectBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/trainer/payouts/connect/start", { method: "POST" });
+      const data = (await res.json()) as { error?: string; url?: string };
+      if (!res.ok || !data.url) {
+        setError(data.error ?? "Could not start payout setup.");
+        return;
+      }
+      navigateWithFullLoad(data.url);
+    } catch {
+      setError("Could not start payout setup.");
+    } finally {
+      setConnectBusy(false);
+    }
+  }
 
   async function startSubscriptionCheckout() {
     setCheckoutBusy(true);
@@ -134,6 +178,18 @@ export function TrainerBillingPageClient() {
       {canceled ? (
         <div className="rounded-2xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm text-white/70" role="status">
           Checkout was canceled. You can resume whenever you are ready.
+        </div>
+      ) : null}
+      {connectReturn ? (
+        <div className="rounded-2xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm text-white/70" role="status">
+          {connectStatus?.payoutsEnabled
+            ? "Payout setup is complete."
+            : "We saved your progress. Finish any remaining steps below to enable payouts."}
+        </div>
+      ) : null}
+      {connectRefresh ? (
+        <div className="rounded-2xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm text-white/70" role="status">
+          That payout setup link expired. Start again below.
         </div>
       ) : null}
       {error ? (
@@ -198,6 +254,36 @@ export function TrainerBillingPageClient() {
             </button>
           </div>
         ) : null}
+
+        <div className="rounded-2xl border border-white/[0.06] bg-[#0E1016]/60 px-4 py-4 text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-white/40">Earnings Balance</p>
+          <p className="mt-2 text-2xl font-black text-white">
+            ${((balanceCents ?? 0) / 100).toFixed(2)}
+          </p>
+          <p className="mt-2 text-xs text-white/40">
+            {connectStatus?.payoutsEnabled
+              ? "Bank account connected. Payout options are coming soon."
+              : connectStatus?.connected
+                ? "Bank setup started but not finished — finish it to enable payouts."
+                : "Connect a bank account so this balance can be paid out to you."}
+          </p>
+          <div className="mt-4 flex justify-center">
+            <button
+              type="button"
+              disabled={connectBusy}
+              onClick={() => void startPayoutsOnboarding()}
+              className="inline-flex min-h-[2.6rem] items-center justify-center rounded-xl border border-[#FF7E00]/35 bg-[#FF7E00]/12 px-4 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/50 disabled:opacity-40"
+            >
+              {connectBusy
+                ? "Starting…"
+                : connectStatus?.payoutsEnabled
+                  ? "Update Bank Account"
+                  : connectStatus?.connected
+                    ? "Continue Bank Setup"
+                    : "Connect Bank Account"}
+            </button>
+          </div>
+        </div>
 
         <div className="rounded-2xl border border-white/[0.06] bg-[#0E1016]/60 px-4 py-4">
           <p className="text-center text-[11px] font-semibold uppercase tracking-wide text-white/40">
