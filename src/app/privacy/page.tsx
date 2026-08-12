@@ -282,12 +282,13 @@ export default async function PrivacyPage() {
           </Li>
           <Li>
             <Strong>In-App Chat Monitoring:</Strong> message bodies may be scanned with automated heuristics (for example
-            off-platform contact or payment patterns) and, when configured, optional machine-assisted classifiers to flag
-            content for internal trust-and-safety review. Flagged or reviewed messages may be retained in admin tooling.
-            Rules vary by Fitness Pro account type: <Strong>Match Fit Pro</Strong> and{" "}
-            <Strong>Match Fit Premium Pro</Strong> chats are monitored for phone numbers, email addresses, external URLs,
-            and off-platform payment language; <Strong>Elite Fitness Pro</Strong> may permit business email addresses and
-            external listing links while phone numbers and payment circumvention remain flagged;{" "}
+            phone numbers, email addresses, or off-platform payment patterns) and, when configured, optional
+            machine-assisted classifiers to flag content for internal trust-and-safety review. Flagged or reviewed
+            messages may be retained in admin tooling. Links to external websites or other platforms are not restricted
+            and are not blocked on any account type. Rules vary by Fitness Pro account type: <Strong>Match Fit
+            Pro</Strong> and <Strong>Match Fit Premium Pro</Strong> chats are monitored for phone numbers, email
+            addresses, and off-platform payment language; <Strong>Elite Fitness Pro</Strong> may permit business email
+            addresses while phone numbers and payment circumvention remain flagged;{" "}
             <Strong>Independent Fitness Pro</Strong> accounts do not use in-app chat — outreach uses discovery nudges
             (currently up to <Strong>{INDEPENDENT_FP_DAILY_NUDGES} per day</Strong>, UTC) which are also subject to
             contact and payment pattern checks before delivery.

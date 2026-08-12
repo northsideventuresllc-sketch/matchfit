@@ -14,6 +14,16 @@ export { TRAINER_PLATFORM_REGISTRATION_FEE_CENTS } from "@/lib/trainer-platform-
  *   1–10   background check covered by Match Fit, discounted onboarding rate
  *   11–30  discounted onboarding rate, background check paid by the Fitness Pro
  *   31+    standard fee, and the same after beta ends
+ *
+ * `trainerCountBeforeInsert` is only used here at trainer creation (see
+ * `trainer-register-service.ts`, inside the same Serializable transaction that inserts the row),
+ * and the resulting mode is written once to `trainerProfile.registrationFeePricingMode`. Tier
+ * switches later (`fp-tier-switching.ts` / switch-tier route) never recompute or overwrite this
+ * field, so a trainer's onboarding-fee band correctly stays pinned to their original signup rank
+ * even if they switch tiers — confirmed on 2026-08-07 audit, no gap here. (See the
+ * `foundingTrainerSignupRank` TODO in `launch-account-counts.ts` for the separate, live-COUNT-based
+ * founding-cohort check used for tier-selection billing, which is a different mechanism from this
+ * onboarding-fee band.)
  */
 export function trainerRegistrationPricingModeForNewTrainer(
   trainerCountBeforeInsert: number,

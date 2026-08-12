@@ -24,8 +24,9 @@ export default function TrainerAccountSuspendedPage() {
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF7E00]/90">Account status</p>
         <h1 className="text-3xl font-black uppercase tracking-[0.06em]">Suspended</h1>
         <p className="text-sm leading-relaxed text-white/55">
-          A safety report was filed against your trainer account. Access is paused until a Match Fit representative
-          completes a manual review and lifts the suspension from our internal tools.
+          Your trainer account access is paused. This may be a safety review pending a Match Fit representative, or a
+          time-boxed suspension that lifts automatically once its period ends — check your account notifications for
+          details on why and, if applicable, when.
         </p>
         <p className="text-xs leading-relaxed text-white/40">
           Suspension events remain on file for five years after they are closed, then they are purged automatically for

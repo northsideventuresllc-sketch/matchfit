@@ -20,6 +20,8 @@ type Summary = {
   accessPhase?: string;
   needsPayment?: boolean;
   monthlyPriceUsd?: number;
+  accountTier?: string;
+  accountTierLabel?: string;
   message: string;
 };
 
@@ -59,6 +61,8 @@ export function TrainerBillingPageClient() {
           accessPhase: data.accessPhase,
           needsPayment: data.needsPayment,
           monthlyPriceUsd: data.monthlyPriceUsd,
+          accountTier: data.accountTier,
+          accountTierLabel: data.accountTierLabel,
           message: data.message,
         });
 
@@ -111,19 +115,20 @@ export function TrainerBillingPageClient() {
   }
 
   const monthlyLabel = `$${(summary.monthlyPriceUsd ?? 15).toFixed(2)}`;
+  const tierLabel = summary.accountTierLabel ?? "Independent Pro";
   const showSubscribeCta = !summary.hasActiveSubscription;
 
   return (
     <div className="space-y-6">
       {locked || summary.needsPayment ? (
         <div className="rounded-2xl border border-[#FFD34E]/35 bg-[#FFD34E]/10 px-4 py-4 text-sm text-[#FFE9A8]" role="status">
-          Your Independent Pro free trial has ended. Start the {monthlyLabel} per month subscription to keep your account
+          Your {tierLabel} free trial has ended. Start the {monthlyLabel} per month subscription to keep your account
           active. You will be prompted for payment whenever you log in until billing is connected.
         </div>
       ) : null}
       {subscribed ? (
         <div className="rounded-2xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100" role="status">
-          Subscription started. Your Independent Pro account stays active while billing remains current.
+          Subscription started. Your {tierLabel} account stays active while billing remains current.
         </div>
       ) : null}
       {canceled ? (
@@ -140,7 +145,7 @@ export function TrainerBillingPageClient() {
       <div className="space-y-6 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 sm:p-8">
         <div className="space-y-2 text-center">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">
-            Independent Pro Subscription
+            {tierLabel} Subscription
           </p>
           <p className="text-sm text-white/75">
             {summary.hasActiveSubscription ? "STATUS: ACTIVE" : summary.needsPayment ? "STATUS: PAYMENT REQUIRED" : "STATUS: FREE TRIAL"}
@@ -177,7 +182,7 @@ export function TrainerBillingPageClient() {
           <p className="text-[11px] font-semibold uppercase tracking-wide text-white/40">Plan</p>
           <p className="mt-2 text-sm text-white/80">{summary.message}</p>
           <p className="mt-2 text-xs text-white/35">
-            After your free trial, {monthlyLabel} per month keeps your Independent Pro account active.
+            After your free trial, {monthlyLabel} per month keeps your {tierLabel} account active.
           </p>
         </div>
 

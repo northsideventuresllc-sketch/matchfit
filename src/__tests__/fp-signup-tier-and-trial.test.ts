@@ -23,8 +23,8 @@ describe("Match Fit Pro auto-upgrade during beta", () => {
 });
 
 describe("tier selection outcome", () => {
-  it("sends the founding cohort straight through on every tier, with no checkout", () => {
-    for (const tier of ["match_fit_pro", "match_fit_premium_pro", "independent_fitness_pro", "elite_fitness_pro"] as const) {
+  it("sends the founding cohort straight through on every free tier, with no checkout", () => {
+    for (const tier of ["match_fit_pro", "match_fit_premium_pro", "independent_fitness_pro"] as const) {
       const outcome = resolveFpTierSignupOutcome({
         requested: tier,
         existingTrainerCount: 5,
@@ -35,6 +35,17 @@ describe("tier selection outcome", () => {
       expect(outcome.foundingCohort).toBe(true);
       expect(outcome.requiresCheckoutNow).toBe(false);
     }
+  });
+
+  it("Elite Fitness Pro always requires checkout now, even inside the founding cohort", () => {
+    const elite = resolveFpTierSignupOutcome({
+      requested: "elite_fitness_pro",
+      existingTrainerCount: 5,
+      foundingCohortMax: 30,
+      tierHasConfiguredPrice: allPricesConfigured,
+      betaActive: true,
+    });
+    expect(elite).toMatchObject({ foundingCohort: false, requiresCheckoutNow: true });
   });
 
   it("takes payment for fee-bearing tiers once the cohort is full", () => {

@@ -2,7 +2,7 @@ export type AiTaskComplexity = "simple" | "standard" | "complex";
 
 export type AiTaskKind = "chat" | "json" | "classification" | "creative" | "research";
 
-export type AiVaultProviderId = "anthropic" | "gemini-primary" | "gemini-backup";
+export type AiVaultProviderId = "axon-local" | "anthropic" | "gemini-primary" | "gemini-backup";
 
 export type MatchFitAiCallArgs = {
   system: string;

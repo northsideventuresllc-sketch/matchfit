@@ -477,6 +477,77 @@ const DEFAULTS: Record<TransactionalEmailKind, TransactionalEmailTemplateFields>
       "{{trainerName}} ({{trainerEmail}}) submitted FP documents.\nAccount type: {{accountTier}}\nReview: {{reviewUrl}}\n\n— Match Fit",
     ...STANDARD_CTA("Open review queue", "reviewUrl"),
   },
+  TRAINER_SIGNUP_FOLLOWUP_1: {
+    subject: "Finish setting up your Match Fit coach account",
+    preheader: "You started a coach signup but did not finish.",
+    title: "Finish your coach signup",
+    bodyParagraphs: [
+      "You started creating a Match Fit coach account but did not finish.",
+      "It only takes a couple of minutes to pick back up.",
+    ],
+    textBody:
+      "You started creating a Match Fit coach account but did not finish.\n\nFinish signing up:\n{{signupResumeUrl}}\n\n— Match Fit",
+    ...STANDARD_CTA("Finish signing up", "signupResumeUrl"),
+  },
+  TRAINER_SIGNUP_FOLLOWUP_2: {
+    subject: "Still want to coach on Match Fit?",
+    preheader: "Your coach signup is still open.",
+    title: "Your coach signup is still open",
+    bodyParagraphs: [
+      "Your Match Fit coach signup is still sitting unfinished.",
+      "If you still want in, finish it below — it takes a couple of minutes.",
+    ],
+    textBody:
+      "Your Match Fit coach signup is still unfinished.\n\nFinish signing up:\n{{signupResumeUrl}}\n\n— Match Fit",
+    ...STANDARD_CTA("Finish signing up", "signupResumeUrl"),
+  },
+  TRAINER_SIGNUP_FOLLOWUP_3: {
+    subject: "Last reminder: finish your Match Fit coach signup",
+    preheader: "This is the last reminder we will send.",
+    title: "Last reminder",
+    bodyParagraphs: [
+      "This is the last reminder about your unfinished Match Fit coach signup.",
+      "If you want to join, finish it now. We will not send any more reminders after this.",
+    ],
+    textBody:
+      "Last reminder: your Match Fit coach signup is still unfinished.\n\nFinish signing up:\n{{signupResumeUrl}}\n\nWe will not send any more reminders after this.\n\n— Match Fit",
+    ...STANDARD_CTA("Finish signing up", "signupResumeUrl"),
+  },
+  CLIENT_SIGNUP_FOLLOWUP_1: {
+    subject: "Finish setting up your Match Fit account",
+    preheader: "You started a signup but did not finish.",
+    title: "Finish your signup",
+    bodyParagraphs: [
+      "You started creating a Match Fit account but did not finish.",
+      "It only takes a couple of minutes to pick back up.",
+    ],
+    textBody:
+      "You started creating a Match Fit account but did not finish.\n\nFinish signing up:\n{{signupResumeUrl}}\n\n— Match Fit",
+    ...STANDARD_CTA("Finish signing up", "signupResumeUrl"),
+  },
+  CLIENT_SIGNUP_FOLLOWUP_2: {
+    subject: "Still want to join Match Fit?",
+    preheader: "Your signup is still open.",
+    title: "Your signup is still open",
+    bodyParagraphs: [
+      "Your Match Fit signup is still sitting unfinished.",
+      "If you still want in, finish it below — it takes a couple of minutes.",
+    ],
+    textBody: "Your Match Fit signup is still unfinished.\n\nFinish signing up:\n{{signupResumeUrl}}\n\n— Match Fit",
+    ...STANDARD_CTA("Finish signing up", "signupResumeUrl"),
+  },
+  CLIENT_SIGNUP_FOLLOWUP_3: {
+    subject: "Last reminder: finish your Match Fit signup",
+    preheader: "This is the last reminder we will send.",
+    title: "Last reminder",
+    bodyParagraphs: [
+      "This is the last reminder about your unfinished Match Fit signup.",
+      "If you want to join, finish it now. We will not send any more reminders after this.",
+    ],
+    textBody:
+      "Last reminder: your Match Fit signup is still unfinished.\n\nFinish signing up:\n{{signupResumeUrl}}\n\nWe will not send any more reminders after this.\n\n— Match Fit",
+    ...STANDARD_CTA("Finish signing up", "signupResumeUrl"),
+  },
 };
 
 const PLACEHOLDERS: Record<TransactionalEmailKind, string[]> = {
@@ -521,6 +592,12 @@ const PLACEHOLDERS: Record<TransactionalEmailKind, string[]> = {
   FP_DOCS_ALL_APPROVED: ["firstName", "trainerDashboardUrl"],
   FP_DOC_DENIED: ["firstName", "docLabel", "denialReason", "docsUrl", "trainerDashboardUrl"],
   FP_DOCS_SUBMITTED_STAFF: ["trainerName", "trainerEmail", "trainerUsername", "accountTier", "reviewUrl"],
+  TRAINER_SIGNUP_FOLLOWUP_1: ["signupResumeUrl"],
+  TRAINER_SIGNUP_FOLLOWUP_2: ["signupResumeUrl"],
+  TRAINER_SIGNUP_FOLLOWUP_3: ["signupResumeUrl"],
+  CLIENT_SIGNUP_FOLLOWUP_1: ["signupResumeUrl"],
+  CLIENT_SIGNUP_FOLLOWUP_2: ["signupResumeUrl"],
+  CLIENT_SIGNUP_FOLLOWUP_3: ["signupResumeUrl"],
 };
 
 export function getDefaultTransactionalEmailTemplateFields(kind: TransactionalEmailKind): TransactionalEmailTemplateFields {

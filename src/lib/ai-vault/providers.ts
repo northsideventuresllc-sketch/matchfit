@@ -111,6 +111,14 @@ export async function callGeminiProvider(args: {
   temperature: number;
   jsonMode: boolean;
   timeoutMs: number;
+  /**
+   * AXON-EVERYWHERE-PROJECT (2026-08-05): Gemini's native Google Search grounding tool —
+   * the genuine capability match for Anthropic's web_search tool when a caller needs live
+   * web results (e.g. outreach-ai.ts lead finder). Not compatible with jsonMode (Gemini
+   * rejects responseMimeType + tools together), so callers requesting live search get
+   * plain text back, same as Anthropic's web_search path.
+   */
+  groundWithSearch?: boolean;
 }): Promise<ProviderCallResult> {
   const providerLabel = args.providerId === "gemini-primary" ? "Gemini primary" : "Gemini backup";
   const models = resolveGeminiModelChain();
@@ -132,8 +140,9 @@ export async function callGeminiProvider(args: {
           generationConfig: {
             temperature: args.temperature,
             maxOutputTokens: args.maxTokens,
-            ...(args.jsonMode ? { responseMimeType: "application/json" } : {}),
+            ...(args.jsonMode && !args.groundWithSearch ? { responseMimeType: "application/json" } : {}),
           },
+          ...(args.groundWithSearch ? { tools: [{ google_search: {} }] } : {}),
         }),
         signal: AbortSignal.timeout(args.timeoutMs),
       });

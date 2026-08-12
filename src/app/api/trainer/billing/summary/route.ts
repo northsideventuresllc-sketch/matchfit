@@ -9,13 +9,21 @@ import {
   TRAINER_PAYMENT_GRACE_DAYS,
   TRAINER_PLATFORM_SUBSCRIPTION_USD,
   TRAINER_PLATFORM_TRIAL_DAYS,
-  trainerPlatformSubscriptionLabel,
 } from "@/lib/trainer-platform-trial-constants";
+import {
+  FP_TIER_MONTHLY_FEES_USD,
+  fpAccountTierDisplayName,
+  type FpAccountTier,
+} from "@/lib/fp-account-tier-types";
 import { isTrainerPremiumStudioActive } from "@/lib/trainer-premium-studio";
 import { NextResponse } from "next/server";
 
 /**
- * Trainer Independent Pro billing summary.
+ * Trainer billing summary. Display only — reflects the trainer's real
+ * account tier (Independent Fitness Pro $15/mo, Elite Fitness Pro $40/mo,
+ * etc). Fixed 2026-08-10 (MF-BILLING-LABEL-WRONG): this previously always
+ * showed "Independent Pro" / $15 regardless of the trainer's actual tier,
+ * so Elite Pro accounts saw the wrong plan name and price.
  */
 export async function GET() {
   try {
@@ -42,6 +50,7 @@ export async function GET() {
           select: {
             premiumStudioEnabledAt: true,
             fitHubPromoEndsAt: true,
+            accountTier: true,
           },
         },
       },
@@ -49,6 +58,11 @@ export async function GET() {
     if (!trainer) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
+
+    const accountTier = (trainer.profile?.accountTier as FpAccountTier | null) ?? "independent_fitness_pro";
+    const accountTierLabel = fpAccountTierDisplayName(accountTier);
+    const monthlyPriceUsd = FP_TIER_MONTHLY_FEES_USD[accountTier] ?? TRAINER_PLATFORM_SUBSCRIPTION_USD;
+    const planLabel = `$${monthlyPriceUsd.toFixed(2)} per month`;
 
     const billingFields = {
       stripeSubscriptionId: trainer.stripeSubscriptionId,
@@ -65,16 +79,15 @@ export async function GET() {
 
     let message: string;
     if (phase === "paid") {
-      message = `Your Independent Pro subscription (${trainerPlatformSubscriptionLabel()}) is active.`;
+      message = `Your ${accountTierLabel} subscription (${planLabel}) is active.`;
     } else if (phase === "platform_trial") {
-      message = `You are on your ${TRAINER_PLATFORM_TRIAL_DAYS}-day free Independent Pro trial. After the trial, ${trainerPlatformSubscriptionLabel()} keeps your account active.`;
+      message = `You are on your ${TRAINER_PLATFORM_TRIAL_DAYS}-day free ${accountTierLabel} trial. After the trial, ${planLabel} keeps your account active.`;
     } else if (phase === "payment_grace") {
-      message = `Your free trial has ended. Start the ${trainerPlatformSubscriptionLabel()} subscription within ${TRAINER_PAYMENT_GRACE_DAYS} days to keep your account active.`;
+      message = `Your free trial has ended. Start the ${planLabel} subscription within ${TRAINER_PAYMENT_GRACE_DAYS} days to keep your account active.`;
     } else if (phase === "stripe_lapsed_grace") {
       message = "Your subscription payment failed. Update your payment method to keep your account active.";
     } else {
-      message =
-        "Your Independent Pro account is deactivated. Subscribe to reactivate and restore dashboard access.";
+      message = `Your ${accountTierLabel} account is deactivated. Subscribe to reactivate and restore dashboard access.`;
     }
 
     return NextResponse.json({
@@ -89,7 +102,9 @@ export async function GET() {
       accountDeactivatedAt: trainer.accountDeactivatedAt?.toISOString() ?? null,
       accessPhase: phase,
       needsPayment,
-      monthlyPriceUsd: TRAINER_PLATFORM_SUBSCRIPTION_USD,
+      accountTier,
+      accountTierLabel,
+      monthlyPriceUsd,
       trialDays: TRAINER_PLATFORM_TRIAL_DAYS,
       paymentGraceDays: TRAINER_PAYMENT_GRACE_DAYS,
       premiumStudioActive,

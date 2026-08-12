@@ -105,7 +105,7 @@ export const FP_TIER_MARKETING_GROUPS: readonly FpTierMarketingGroup[] = [
           "Full in-app chat plus unlimited discovery nudges, with expanded brand tools for established businesses.",
         bullets: [
           "Full in-app chat plus unlimited discovery nudges for client outreach.",
-          "Business email addresses and external listing links in chat for brand continuity.",
+          "Business email addresses in chat for brand continuity.",
           "Verified business trust badge with full analytics, waiver tools, and promotion tokens.",
           "Fit Hub, featured listing programs, and platform reviews on your public profile.",
         ],

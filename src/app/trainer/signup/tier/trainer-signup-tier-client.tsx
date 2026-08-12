@@ -75,7 +75,7 @@ export default function TrainerSignupTierClient() {
       title="Choose Account Type"
       description={
         beta
-          ? "Beta users start on Match Fit Premium Pro at no cost for 60 days. Independent Fitness Pro and Elite Fitness Pro require a paid subscription."
+          ? "Beta users start on Match Fit Premium Pro at no cost for 60 days. Independent Fitness Pro is also free for your first 60 days as part of this founding window, then billed monthly. Elite Fitness Pro always requires an active paid subscription starting today."
           : "Pick the Fitness Pro account type that fits how you want to train on Match Fit."
       }
       backHref="/trainer/signup/terms"

@@ -264,9 +264,15 @@ model SignupFormProgress {
   /// started_signup | basic_info_complete | completed
   stage String @default("started_signup")
 
+  /// How many of the 3 abandoned-signup follow-up emails have gone out (0-3). Caps the
+  /// sequence and lets the cron dedupe without a second table.
+  followupEmailsSent  Int       @default(0)
+  lastFollowupSentAt  DateTime?
+
   @@unique([role, visitorId])
   @@index([role, stage])
   @@index([updatedAt])
+  @@index([stage, followupEmailsSent, updatedAt])
   @@map("signup_form_progress")
   @@schema("public")
 }

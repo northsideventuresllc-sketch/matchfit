@@ -206,8 +206,8 @@ export function TrainerDiscoverClientsClient(props: Props) {
       return (
         <p className="mt-2 text-emerald-100/85">
           <span className="font-semibold text-white">Elite Fitness Pro</span> includes unlimited discovery nudges and
-          full in-app chat. You may share business email addresses and external listing links in chat; phone numbers and
-          off-platform payment details are still prohibited.
+          full in-app chat. You may share business email addresses in chat; phone numbers and off-platform payment
+          details are still prohibited.
         </p>
       );
     }

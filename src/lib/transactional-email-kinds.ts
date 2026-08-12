@@ -43,6 +43,12 @@ export const TRANSACTIONAL_EMAIL_KINDS = [
   "FP_DOCS_ALL_APPROVED",
   "FP_DOC_DENIED",
   "FP_DOCS_SUBMITTED_STAFF",
+  "TRAINER_SIGNUP_FOLLOWUP_1",
+  "TRAINER_SIGNUP_FOLLOWUP_2",
+  "TRAINER_SIGNUP_FOLLOWUP_3",
+  "CLIENT_SIGNUP_FOLLOWUP_1",
+  "CLIENT_SIGNUP_FOLLOWUP_2",
+  "CLIENT_SIGNUP_FOLLOWUP_3",
 ] as const;
 
 export type TransactionalEmailKind = (typeof TRANSACTIONAL_EMAIL_KINDS)[number];
@@ -89,6 +95,12 @@ const TRANSACTIONAL_EMAIL_KIND_SAMPLE_LABELS: Record<TransactionalEmailKind, str
   FP_DOCS_ALL_APPROVED: "Fitness Pro documents approved",
   FP_DOC_DENIED: "Fitness Pro document denied",
   FP_DOCS_SUBMITTED_STAFF: "Fitness Pro documents submitted (staff)",
+  TRAINER_SIGNUP_FOLLOWUP_1: "Trainer signup follow-up 1 (1 hour)",
+  TRAINER_SIGNUP_FOLLOWUP_2: "Trainer signup follow-up 2 (24 hours)",
+  TRAINER_SIGNUP_FOLLOWUP_3: "Trainer signup follow-up 3 (72 hours)",
+  CLIENT_SIGNUP_FOLLOWUP_1: "Client signup follow-up 1 (1 hour)",
+  CLIENT_SIGNUP_FOLLOWUP_2: "Client signup follow-up 2 (24 hours)",
+  CLIENT_SIGNUP_FOLLOWUP_3: "Client signup follow-up 3 (72 hours)",
 };
 
 export function transactionalEmailKindSampleLabel(kind: TransactionalEmailKind): string {
