@@ -56,6 +56,7 @@ export function TrainerDiscoverClientsClient(props: Props) {
   const [matchBatchNote, setMatchBatchNote] = useState<string | null>(null);
   const [nudgeSummary, setNudgeSummary] = useState<NudgeSummary | null>(null);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
+  const [walletBalanceCents, setWalletBalanceCents] = useState<number | null>(null);
 
   const loadNudgeSummary = useCallback(async () => {
     try {
@@ -107,6 +108,47 @@ export function TrainerDiscoverClientsClient(props: Props) {
     }, 0);
     return () => window.clearTimeout(id);
   }, [load, loadNudgeSummary]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/trainer/payouts/balance");
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { balanceCents: number };
+        if (!cancelled) setWalletBalanceCents(data.balanceCents);
+      } catch {
+        // Wallet balance is a secondary payment option — a failed fetch just hides it.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function purchaseNudgePackWithWallet() {
+    setPurchaseBusy(true);
+    setToast(null);
+    try {
+      const res = await fetch("/api/trainer/nudges/purchase-wallet", { method: "POST" });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        setToast(data.error ?? "Wallet purchase failed.");
+        return;
+      }
+      setToast(`Added ${FP_NUDGE_PACK_SIZE} nudges from your wallet balance.`);
+      const balanceRes = await fetch("/api/trainer/payouts/balance");
+      if (balanceRes.ok) {
+        const balanceData = (await balanceRes.json()) as { balanceCents: number };
+        setWalletBalanceCents(balanceData.balanceCents);
+      }
+      void loadNudgeSummary();
+    } catch {
+      setToast("Network error.");
+    } finally {
+      setPurchaseBusy(false);
+    }
+  }
 
   async function purchaseNudgePack() {
     setPurchaseBusy(true);
@@ -291,16 +333,28 @@ export function TrainerDiscoverClientsClient(props: Props) {
         </p>
         {nudgeLimitsNotice()}
         {isIndependent ? (
-          <button
-            type="button"
-            disabled={purchaseBusy}
-            onClick={() => void purchaseNudgePack()}
-            className="mt-4 inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/12 px-4 text-xs font-black uppercase tracking-[0.1em] text-white transition hover:border-[#FF7E00]/55 disabled:opacity-50"
-          >
-            {purchaseBusy
-              ? "Starting checkout…"
-              : `Buy ${FP_NUDGE_PACK_SIZE} Nudges — $${FP_NUDGE_PACK_PRICE_USD.toFixed(2)}`}
-          </button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={purchaseBusy}
+              onClick={() => void purchaseNudgePack()}
+              className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-[#FF7E00]/40 bg-[#FF7E00]/12 px-4 text-xs font-black uppercase tracking-[0.1em] text-white transition hover:border-[#FF7E00]/55 disabled:opacity-50"
+            >
+              {purchaseBusy
+                ? "Starting checkout…"
+                : `Buy ${FP_NUDGE_PACK_SIZE} Nudges — $${FP_NUDGE_PACK_PRICE_USD.toFixed(2)}`}
+            </button>
+            {walletBalanceCents != null && walletBalanceCents >= Math.round(FP_NUDGE_PACK_PRICE_USD * 100) ? (
+              <button
+                type="button"
+                disabled={purchaseBusy}
+                onClick={() => void purchaseNudgePackWithWallet()}
+                className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] px-4 text-xs font-black uppercase tracking-[0.1em] text-white/80 transition hover:border-white/25 disabled:opacity-50"
+              >
+                Pay with Wallet
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </section>
 

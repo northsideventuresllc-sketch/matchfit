@@ -68,6 +68,24 @@ export function TrainerPromoTokensClient() {
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [internalQaPackPw, setInternalQaPackPw] = useState("");
+  const [walletBalanceCents, setWalletBalanceCents] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/trainer/payouts/balance");
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { balanceCents: number };
+        if (!cancelled) setWalletBalanceCents(data.balanceCents);
+      } catch {
+        // Wallet balance is a secondary payment option — a failed fetch just hides it.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const load = useCallback(async () => {
     setErr(null);
@@ -157,6 +175,31 @@ export function TrainerPromoTokensClient() {
         return;
       }
       if (data.url) window.location.href = data.url;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function buyPackTierWithWallet(tierId: "starter" | "growth" | "scale") {
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch("/api/trainer/promo-tokens/purchase-wallet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packTier: tierId }),
+      });
+      const data = (await res.json()) as { error?: string; ok?: boolean };
+      if (!res.ok || !data.ok) {
+        setErr(data.error ?? "Wallet purchase failed.");
+        return;
+      }
+      const balanceRes = await fetch("/api/trainer/payouts/balance");
+      if (balanceRes.ok) {
+        const balanceData = (await balanceRes.json()) as { balanceCents: number };
+        setWalletBalanceCents(balanceData.balanceCents);
+      }
+      await load();
     } finally {
       setBusy(false);
     }
@@ -287,6 +330,16 @@ export function TrainerPromoTokensClient() {
               >
                 Buy with Stripe
               </button>
+              {walletBalanceCents != null && walletBalanceCents >= Math.round(t.priceUsd * 100) ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void buyPackTierWithWallet(t.id as "starter" | "growth" | "scale")}
+                  className="mt-2 w-full rounded-xl border border-white/15 bg-white/[0.06] py-2 text-[10px] font-black uppercase tracking-wide text-white/80 transition hover:border-white/25 disabled:opacity-40"
+                >
+                  Pay with Wallet
+                </button>
+              ) : null}
             </div>
           ))}
         </div>
