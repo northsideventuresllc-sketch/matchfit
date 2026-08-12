@@ -6,6 +6,7 @@ import {
 } from "@/lib/tos-governance-thresholds";
 import { suspendTrainerForGovernance } from "@/lib/trainer-suspension-marketplace";
 import { applyWithholdToPayout } from "@/lib/trainer-deferred-fee";
+import { creditTrainerEarningsIfNotAlready } from "@/lib/trainer-earnings-ledger";
 import { deadlineBeforeSession } from "@/lib/trainer-client-booking-service";
 import {
   checkInWindowStartAt,
@@ -840,12 +841,13 @@ export async function settleSessionsPastPayoutBuffer(now = new Date()): Promise<
       allocatedNetAddonCents: true,
     },
   });
-  const sessionUpdates: ReturnType<typeof prisma.bookedTrainingSession.update>[] = [];
   const chatEntries: { conversationId: string; body: string }[] = [];
+  let settledCount = 0;
 
   // applyWithholdToPayout draws down a per-trainer deferred-fee balance, so two
   // rows for the same trainer must be processed in order — it stays sequential.
-  // The session writes and system chat rows it feeds are batched below.
+  // Each row's session update and earnings-ledger credit commit together so a
+  // session is never marked cleared without its funds landing in the balance.
   for (const r of rows) {
     const grossPayoutCents = Math.max(0, r.allocatedCoachServiceCents + r.allocatedNetAddonCents);
     const { netPayoutCents, withheld } = await applyWithholdToPayout(r.trainerId, grossPayoutCents);
@@ -859,8 +861,8 @@ export async function settleSessionsPastPayoutBuffer(now = new Date()): Promise<
       netAddon = Math.max(0, r.allocatedNetAddonCents - (withheld - serviceWithheld));
     }
 
-    sessionUpdates.push(
-      prisma.bookedTrainingSession.update({
+    await prisma.$transaction(async (tx) => {
+      await tx.bookedTrainingSession.update({
         where: { id: r.id },
         data: {
           fulfillmentStatus: "SESSION_PAYMENT_ROUTE_CLEARED",
@@ -870,8 +872,17 @@ export async function settleSessionsPastPayoutBuffer(now = new Date()): Promise<
           trainerAmountCents: netPayoutCents,
           updatedAt: now,
         },
-      }),
-    );
+      });
+      await creditTrainerEarningsIfNotAlready(
+        tx,
+        r.trainerId,
+        netPayoutCents,
+        "SESSION_PAYOUT_CLEARED",
+        r.id,
+        JSON.stringify({ grossPayoutCents, withheld }),
+      );
+    });
+    settledCount += 1;
 
     if (r.conversationId) {
       const withholdNote =
@@ -880,15 +891,14 @@ export async function settleSessionsPastPayoutBuffer(now = new Date()): Promise<
           : "";
       chatEntries.push({
         conversationId: r.conversationId,
-        body: `Match Fit: payout buffer expired without a dispute freeze. Ledger payout may proceed outbound per payout ops (subject to connected accounts / treasury).${withholdNote}`,
+        body: `Match Fit: payout buffer expired without a dispute freeze. $${(netPayoutCents / 100).toFixed(2)} was credited to your Match Fit earnings balance.${withholdNote}`,
       });
     }
   }
 
-  if (sessionUpdates.length) await prisma.$transaction(sessionUpdates);
   await appendSystemChatMany(chatEntries);
 
-  return sessionUpdates.length;
+  return settledCount;
 }
 
 function trainerLabelForNotify(row: {
