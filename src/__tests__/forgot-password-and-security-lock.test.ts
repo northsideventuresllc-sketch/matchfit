@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { checkAndAdvancePasswordChangeRateLimit } from "@/lib/password-change-rate-limit";
 import { describePasswordPolicyViolations, passwordPolicySchema } from "@/lib/validations/client-register";
 import { signWasntMeToken, verifyWasntMeToken } from "@/lib/account-security-lock";
+import { normalizePhoneDigits } from "@/lib/forgot-password-verify";
 
 describe("password change rate limit", () => {
   const now = Date.UTC(2026, 7, 5, 12, 0, 0);
@@ -64,6 +65,27 @@ describe("password strength policy", () => {
     expect(describePasswordPolicyViolations("short1!")).toMatch(/8 characters/);
     expect(describePasswordPolicyViolations("nocapital1!")).toMatch(/capital letter/);
     expect(describePasswordPolicyViolations("NoSpecial1")).toMatch(/special character/);
+  });
+});
+
+describe("coach phone matching for forgot-password", () => {
+  it("matches with or without a leading NANP country code", () => {
+    // The exact bug this covers: a coach's phone is on file as +12025550299 (11 digits,
+    // stored verbatim from signup, no E.164 enforcement there) but they type it back without
+    // the +1. A raw digit compare treated these as different numbers and silently sent
+    // nothing — this normalization is what makes them match.
+    expect(normalizePhoneDigits("+1 (202) 555-0299")).toBe(normalizePhoneDigits("202-555-0299"));
+    expect(normalizePhoneDigits("12025550299")).toBe("2025550299");
+  });
+
+  it("leaves a plain 10-digit number and non-NANP numbers untouched", () => {
+    expect(normalizePhoneDigits("(202) 555-0299")).toBe("2025550299");
+    // An 11-digit international number that doesn't start with 1 is left as-is.
+    expect(normalizePhoneDigits("+27 82 123 4567")).toBe("27821234567");
+  });
+
+  it("still tells apart two genuinely different numbers", () => {
+    expect(normalizePhoneDigits("202-555-0299")).not.toBe(normalizePhoneDigits("202-555-0300"));
   });
 });
 

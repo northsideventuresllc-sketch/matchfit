@@ -14,8 +14,19 @@ import { prisma } from "@/lib/prisma";
  * profile or API response, and every existing coach already has one on file.
  */
 
-function normalizePhoneDigits(raw: string): string {
-  return raw.replace(/\D/g, "");
+/**
+ * Phone is stored as whatever the coach typed at signup (no E.164 enforcement there — see
+ * validations/trainer-register.ts), so the same real number can be on file as "2025550299" or
+ * "+12025550299" depending on whether they included a country code. A raw digit-for-digit
+ * compare made those look like different numbers and silently failed the match (the generic
+ * response hides that from the user, so it looked like the feature "just didn't work" rather
+ * than an error). Stripping a leading NANP "1" from an 11-digit number makes both forms compare
+ * equal without weakening the check — a phone match still requires the exact same
+ * username+email pair to have matched first.
+ */
+export function normalizePhoneDigits(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  return digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
 }
 
 /** DOB is stored as YYYY-MM-DD; the reset form uses a native date input, which always submits
