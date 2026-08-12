@@ -860,6 +860,8 @@ model Trainer {
   tokenLedgerEntries        TrainerTokenLedgerEntry[]
   earningsBalance           TrainerEarningsBalance?
   earningsLedgerEntries     TrainerEarningsLedgerEntry[]
+  payoutRequests            TrainerPayoutRequest[]
+  payoutSchedules           TrainerPayoutSchedule[]
   fitHubPostPromotions      TrainerFitHubPostPromotion[]
   weeklyTokenGrants         TrainerWeeklyTokenGrant[]
   clientServiceTransactions TrainerClientServiceTransaction[] @relation("TrainerServiceTxTrainer")
@@ -2107,6 +2109,69 @@ model TrainerEarningsLedgerEntry {
   @@unique([trainerId, reason, referenceKey])
   @@index([trainerId, createdAt])
   @@map("trainer_earnings_ledger_entries")
+  @@schema("public")
+}
+
+/// One cash-out of the earnings balance to the trainer's connected bank account.
+model TrainerPayoutRequest {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  /// Gross amount debited from the earnings balance (includes the fee — the coach eats it).
+  amountCents Int
+  /// INSTANT ($1.99, ~minutes) | STANDARD (no extra fee, 1-2 business days)
+  method String
+  /// Fee charged for this method, already deducted from `netCents`.
+  feeCents Int
+  /// amountCents - feeCents: what actually gets sent to Stripe for deposit.
+  netCents Int
+
+  /// REQUESTED | PROCESSING | SENT | FAILED
+  status String @default("REQUESTED")
+  /// Set once the Stripe transfer (platform → connected account) succeeds.
+  stripeTransferId String?
+  /// Set once the Stripe payout (connected account → bank) succeeds.
+  stripePayoutId String?
+  /// Human-readable reason when status is FAILED (also when the matching earnings-ledger debit was reversed).
+  failureReason String?
+
+  scheduleId String?
+  schedule   TrainerPayoutSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+
+  @@index([trainerId, createdAt])
+  @@map("trainer_payout_requests")
+  @@schema("public")
+}
+
+/// A trainer's standing instruction to auto cash-out on a cadence (JB spec: "how much, repeating or one time").
+model TrainerPayoutSchedule {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  /// Null means "pay out whatever the available balance is" at run time; otherwise a fixed amount.
+  amountCents Int?
+  /// INSTANT | STANDARD — same fee rules as an on-demand request.
+  method String
+
+  /// ONE_TIME | WEEKLY | BIWEEKLY | MONTHLY
+  cadence String
+  nextRunAt DateTime
+  active    Boolean  @default(true)
+  lastRunAt DateTime?
+
+  payoutRequests TrainerPayoutRequest[]
+
+  @@index([active, nextRunAt])
+  @@index([trainerId])
+  @@map("trainer_payout_schedules")
   @@schema("public")
 }
 

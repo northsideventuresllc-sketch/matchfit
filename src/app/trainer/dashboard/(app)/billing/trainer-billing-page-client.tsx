@@ -49,6 +49,13 @@ export function TrainerBillingPageClient() {
   const [balanceCents, setBalanceCents] = useState<number | null>(null);
   const [connectStatus, setConnectStatus] = useState<ConnectStatus | null>(null);
   const [connectBusy, setConnectBusy] = useState(false);
+  const [cashoutAmount, setCashoutAmount] = useState("");
+  const [cashoutMethod, setCashoutMethod] = useState<"STANDARD" | "INSTANT">("STANDARD");
+  const [cashoutStep, setCashoutStep] = useState<"idle" | "otp">("idle");
+  const [cashoutCode, setCashoutCode] = useState("");
+  const [cashoutBusy, setCashoutBusy] = useState(false);
+  const [cashoutMsg, setCashoutMsg] = useState<string | null>(null);
+  const [cashoutPreview, setCashoutPreview] = useState<{ feeCents: number; netCents: number } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,6 +112,77 @@ export function TrainerBillingPageClient() {
       cancelled = true;
     };
   }, []);
+
+  function parsedCashoutAmountCents(): number | null {
+    const dollars = Number.parseFloat(cashoutAmount);
+    if (!Number.isFinite(dollars) || dollars <= 0) return null;
+    return Math.round(dollars * 100);
+  }
+
+  async function startCashout() {
+    const amountCents = parsedCashoutAmountCents();
+    if (!amountCents) {
+      setCashoutMsg("Enter an amount to cash out.");
+      return;
+    }
+    setCashoutBusy(true);
+    setCashoutMsg(null);
+    try {
+      const res = await fetch("/api/trainer/payouts/cashout/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amountCents, method: cashoutMethod }),
+      });
+      const data = (await res.json()) as { error?: string; feeCents?: number; netCents?: number };
+      if (!res.ok) {
+        setCashoutMsg(data.error ?? "Could not start cash out.");
+        return;
+      }
+      setCashoutPreview({ feeCents: data.feeCents ?? 0, netCents: data.netCents ?? amountCents });
+      setCashoutStep("otp");
+      setCashoutMsg("Check your email for a 6-digit code.");
+    } catch {
+      setCashoutMsg("Could not start cash out.");
+    } finally {
+      setCashoutBusy(false);
+    }
+  }
+
+  async function confirmCashout() {
+    const amountCents = parsedCashoutAmountCents();
+    if (!amountCents || !/^\d{6}$/.test(cashoutCode)) {
+      setCashoutMsg("Enter the 6-digit code from your email.");
+      return;
+    }
+    setCashoutBusy(true);
+    setCashoutMsg(null);
+    try {
+      const res = await fetch("/api/trainer/payouts/cashout/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amountCents, method: cashoutMethod, code: cashoutCode }),
+      });
+      const data = (await res.json()) as { error?: string; netCents?: number };
+      if (!res.ok) {
+        setCashoutMsg(data.error ?? "Could not complete cash out.");
+        return;
+      }
+      setCashoutMsg(`Cash out sent — $${((data.netCents ?? 0) / 100).toFixed(2)} on its way to your bank.`);
+      setCashoutStep("idle");
+      setCashoutAmount("");
+      setCashoutCode("");
+      setCashoutPreview(null);
+      const balanceRes = await fetch("/api/trainer/payouts/balance");
+      if (balanceRes.ok) {
+        const balanceData = (await balanceRes.json()) as { balanceCents: number };
+        setBalanceCents(balanceData.balanceCents);
+      }
+    } catch {
+      setCashoutMsg("Could not complete cash out.");
+    } finally {
+      setCashoutBusy(false);
+    }
+  }
 
   async function startPayoutsOnboarding() {
     setConnectBusy(true);
@@ -262,7 +340,7 @@ export function TrainerBillingPageClient() {
           </p>
           <p className="mt-2 text-xs text-white/40">
             {connectStatus?.payoutsEnabled
-              ? "Bank account connected. Payout options are coming soon."
+              ? "Bank account connected."
               : connectStatus?.connected
                 ? "Bank setup started but not finished — finish it to enable payouts."
                 : "Connect a bank account so this balance can be paid out to you."}
@@ -283,6 +361,104 @@ export function TrainerBillingPageClient() {
                     : "Connect Bank Account"}
             </button>
           </div>
+
+          {connectStatus?.payoutsEnabled ? (
+            <div className="mt-6 space-y-3 border-t border-white/[0.06] pt-6 text-left">
+              <p className="text-center text-[11px] font-semibold uppercase tracking-wide text-white/40">
+                Cash Out
+              </p>
+              <input
+                type="number"
+                min="5"
+                step="0.01"
+                placeholder="Amount ($5.00 minimum)"
+                value={cashoutAmount}
+                disabled={cashoutStep === "otp"}
+                onChange={(e) => {
+                  setCashoutAmount(e.target.value);
+                  setCashoutPreview(null);
+                }}
+                className="w-full rounded-xl border border-white/15 bg-[#12151C]/70 px-4 py-3 text-sm text-white placeholder:text-white/30 disabled:opacity-50"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={cashoutStep === "otp"}
+                  onClick={() => setCashoutMethod("STANDARD")}
+                  className={`flex-1 rounded-xl border px-3 py-2 text-xs font-black uppercase tracking-[0.06em] transition disabled:opacity-50 ${
+                    cashoutMethod === "STANDARD"
+                      ? "border-[#FF7E00]/60 bg-[#FF7E00]/15 text-white"
+                      : "border-white/15 bg-white/[0.04] text-white/70"
+                  }`}
+                >
+                  Standard (1-2 days, no fee)
+                </button>
+                <button
+                  type="button"
+                  disabled={cashoutStep === "otp"}
+                  onClick={() => setCashoutMethod("INSTANT")}
+                  className={`flex-1 rounded-xl border px-3 py-2 text-xs font-black uppercase tracking-[0.06em] transition disabled:opacity-50 ${
+                    cashoutMethod === "INSTANT"
+                      ? "border-[#FF7E00]/60 bg-[#FF7E00]/15 text-white"
+                      : "border-white/15 bg-white/[0.04] text-white/70"
+                  }`}
+                >
+                  Instant ($1.99 fee)
+                </button>
+              </div>
+
+              {cashoutStep === "idle" ? (
+                <button
+                  type="button"
+                  disabled={cashoutBusy}
+                  onClick={() => void startCashout()}
+                  className="w-full rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-4 py-3 text-xs font-black uppercase tracking-[0.08em] text-[#0B0C0F] disabled:opacity-45"
+                >
+                  {cashoutBusy ? "Sending Code…" : "Send Verification Code"}
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  {cashoutPreview ? (
+                    <p className="text-center text-xs text-white/50">
+                      Fee: ${(cashoutPreview.feeCents / 100).toFixed(2)} — you receive $
+                      {(cashoutPreview.netCents / 100).toFixed(2)}
+                    </p>
+                  ) : null}
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="6-digit code"
+                    value={cashoutCode}
+                    onChange={(e) => setCashoutCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    className="w-full rounded-xl border border-white/15 bg-[#12151C]/70 px-4 py-3 text-center text-sm tracking-[0.3em] text-white placeholder:text-white/30"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={cashoutBusy}
+                      onClick={() => {
+                        setCashoutStep("idle");
+                        setCashoutCode("");
+                        setCashoutMsg(null);
+                      }}
+                      className="flex-1 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-xs font-black uppercase tracking-[0.08em] text-white/70"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={cashoutBusy}
+                      onClick={() => void confirmCashout()}
+                      className="flex-1 rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-4 py-3 text-xs font-black uppercase tracking-[0.08em] text-[#0B0C0F] disabled:opacity-45"
+                    >
+                      {cashoutBusy ? "Confirming…" : "Confirm Cash Out"}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {cashoutMsg ? <p className="text-center text-xs text-white/60">{cashoutMsg}</p> : null}
+            </div>
+          ) : null}
         </div>
 
         <div className="rounded-2xl border border-white/[0.06] bg-[#0E1016]/60 px-4 py-4">

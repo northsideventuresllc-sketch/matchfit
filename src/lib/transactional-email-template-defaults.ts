@@ -100,6 +100,20 @@ const DEFAULTS: Record<TransactionalEmailKind, TransactionalEmailTemplateFields>
     textBody: "The password on your Match Fit account was just changed.\n\nIf this was you, no action is needed.\n\nIf it wasn't you, open this link to lock your account immediately and get it into our support queue:\n{{wasntMeUrl}}",
     ...STANDARD_CTA("This wasn't me", "wasntMeUrl"),
   },
+  CASHOUT_OTP: {
+    subject: "Your Match Fit cash-out verification code",
+    preheader: "Your code is {{code}}.",
+    title: "Cash out verification code",
+    bodyParagraphs: [
+      "Enter this code to confirm cashing out your Match Fit earnings:",
+      "Expires in 10 minutes. If you did not request a cash out, secure your password in settings and contact support.",
+    ],
+    textBody:
+      "Your cash-out verification code is: {{code}}\n\nIt expires in 10 minutes. If you did not request a cash out, secure your password and contact support@match-fit.net.",
+    ctaLabel: null,
+    ctaHrefKey: null,
+    layout: { type: "otp", codeKey: "code" },
+  },
   W9_TAX_VERIFICATION: {
     subject: "Your Match Fit W-9 on file",
     preheader: "W-9 copy from Match Fit.",
@@ -559,6 +573,7 @@ const PLACEHOLDERS: Record<TransactionalEmailKind, string[]> = {
   EMAIL_CHANGE_SECURITY: ["newEmail"],
   LOGIN_SECURITY_ALERT: ["loginTime", "deviceLine", "ipLine"],
   PASSWORD_CHANGED_NOTICE: ["wasntMeUrl"],
+  CASHOUT_OTP: ["code"],
   W9_TAX_VERIFICATION: ["w9Summary"],
   CERTIFICATION_RENEWAL_REMINDER: ["certName", "expiryDate", "trainerDashboardUrl"],
   BACKGROUND_CHECK_UPDATE: ["bgStatus", "dashboardUrl"],
