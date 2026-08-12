@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-08-12** `2.20.0-beta` → `2.21.0-beta` (**minor** — Wallet-balance payment on promo tokens and nudge packs (Phase 2, 4/6))
 - **2026-08-12** `2.19.0-beta` → `2.20.0-beta` (**minor** — Trainer cash-out: instant/standard payouts + scheduled payouts, email-OTP gated (Phase 2, 3/6))
 - **2026-08-12** `2.18.0-beta` → `2.19.0-beta` (**minor** — Stripe Connect Express onboarding for trainer payouts (Phase 2, 2/6))
 - **2026-08-12** `2.17.0-beta` → `2.18.0-beta` (**minor** — Trainer earnings ledger: persist cleared session payouts to a real balance (Phase 2 foundation))
