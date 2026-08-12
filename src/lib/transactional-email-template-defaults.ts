@@ -89,6 +89,17 @@ const DEFAULTS: Record<TransactionalEmailKind, TransactionalEmailTemplateFields>
     ctaHrefKey: null,
     layout: { type: "standard" },
   },
+  PASSWORD_CHANGED_NOTICE: {
+    subject: "Your Match Fit password was changed",
+    preheader: "Confirming a password change on your account.",
+    title: "Password changed",
+    bodyParagraphs: [
+      "The password on your Match Fit account was just changed.",
+      "If this was you, no action is needed. If it wasn't, tap the button below — it locks your account immediately and puts it in our support queue to help you secure it.",
+    ],
+    textBody: "The password on your Match Fit account was just changed.\n\nIf this was you, no action is needed.\n\nIf it wasn't you, open this link to lock your account immediately and get it into our support queue:\n{{wasntMeUrl}}",
+    ...STANDARD_CTA("This wasn't me", "wasntMeUrl"),
+  },
   W9_TAX_VERIFICATION: {
     subject: "Your Match Fit W-9 on file",
     preheader: "W-9 copy from Match Fit.",
@@ -547,6 +558,7 @@ const PLACEHOLDERS: Record<TransactionalEmailKind, string[]> = {
   EMAIL_CHANGE_CONFIRM: ["confirmUrl"],
   EMAIL_CHANGE_SECURITY: ["newEmail"],
   LOGIN_SECURITY_ALERT: ["loginTime", "deviceLine", "ipLine"],
+  PASSWORD_CHANGED_NOTICE: ["wasntMeUrl"],
   W9_TAX_VERIFICATION: ["w9Summary"],
   CERTIFICATION_RENEWAL_REMINDER: ["certName", "expiryDate", "trainerDashboardUrl"],
   BACKGROUND_CHECK_UPDATE: ["bgStatus", "dashboardUrl"],

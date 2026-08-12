@@ -146,6 +146,12 @@ export default function AdminLoginPortal() {
                       {showPassword ? "Hide" : "Show"}
                     </button>
                   </div>
+                  <Link
+                    href="/admin/forgot-password"
+                    className={`mt-1 inline-block text-xs font-semibold ${adminPortalLinkClass}`}
+                  >
+                    Forgot password?
+                  </Link>
                 </div>
 
                 <label className="flex cursor-pointer items-center gap-3 text-sm text-white/65">

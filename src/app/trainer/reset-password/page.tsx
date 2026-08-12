@@ -97,7 +97,7 @@ function ResetPasswordForm() {
           required
         />
       </div>
-      <p className="text-xs text-white/40">Use at least 8 characters, one capital letter, and one special character.</p>
+      <p className="text-xs text-white/40">Use at least 8 characters, one capital letter, one number, and one special character.</p>
       <button
         type="submit"
         disabled={busy}

@@ -63,6 +63,15 @@ export async function POST(req: Request) {
     if (client.safetySuspended) {
       return accountSuspendedResponse();
     }
+    if (client.securityLockedAt) {
+      return NextResponse.json(
+        {
+          error: "Your account is locked for security. Contact support to get it unlocked.",
+          code: "ACCOUNT_SECURITY_LOCKED",
+        },
+        { status: 403 },
+      );
+    }
 
     await syncClientPlatformBillingLifecycle(client.id);
     const refreshed = await findClientByIdentifier(identifier);

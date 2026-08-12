@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-08-12** `2.16.0-beta` → `2.17.0-beta` (**minor** — Forgot password (client/coach/admin), password-changed security notice with account auto-lock, admin account-support tool, stronger password policy)
 - **2026-08-07** `2.15.0-beta` → `2.16.0-beta` (**minor** — Fix Elite Pro paywall bypass; remove platform-exclusivity chat restriction; replace off-platform fee with 2-strike ban; fix abandoned-signup email capture + add 3-email follow-up sequence)
 - **2026-08-04** `2.14.6-beta` → `2.15.0-beta` (**minor** — Worldwide signup country field, sign-up straight to agreement with dashboard email confirmation, durable document storage, founding-cohort tier and onboarding fee bands)
 - **2026-08-04** `2.14.5-beta` → `2.14.6-beta` (**patch** — Query-per-loop sweep: 12 hot loops that issued one database round trip per iteration now batch into single queries (fithub feed scoring, punch-miss cron, outreach lead writes, check-ins, suspensions, QA sim))

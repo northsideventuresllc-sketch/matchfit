@@ -49,6 +49,13 @@ export async function POST(req: Request) {
       );
     }
 
+    if (admin.securityLockedAt) {
+      return NextResponse.json(
+        { error: "Your account is locked for security. Contact support to get it unlocked.", code: "ACCOUNT_SECURITY_LOCKED" },
+        { status: 403 },
+      );
+    }
+
     const rememberMe = parsed.data.stayLoggedIn !== false;
     const res = NextResponse.json({
       ok: true,
