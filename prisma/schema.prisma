@@ -772,6 +772,11 @@ model Trainer {
   securityLockedAt   DateTime?
   securityLockReason String?
 
+  /// Email verification code required before a coach can cash out earnings — same hashed
+  /// proof-of-email-ownership pattern as TrainerProfile.w9SelfServeEmailOtpHash.
+  cashoutOtpHash    String?
+  cashoutOtpExpires DateTime?
+
   optionalProfileVisibilityJson String?
   deidentifiedAt                DateTime?
   accountDeletionRequestedAt    DateTime?
@@ -838,6 +843,8 @@ model Trainer {
 
   tokenBalance              TrainerTokenBalance?
   tokenLedgerEntries        TrainerTokenLedgerEntry[]
+  earningsBalance           TrainerEarningsBalance?
+  earningsLedgerEntries     TrainerEarningsLedgerEntry[]
   fitHubPostPromotions      TrainerFitHubPostPromotion[]
   weeklyTokenGrants         TrainerWeeklyTokenGrant[]
   clientServiceTransactions TrainerClientServiceTransaction[] @relation("TrainerServiceTxTrainer")
@@ -2043,6 +2050,48 @@ model TrainerTokenLedgerEntry {
   @@index([trainerId, createdAt])
   @@index([trainerId, reason, referenceKey])
   @@map("trainer_token_ledger_entries")
+  @@schema("public")
+}
+
+/// Cached trainer cash-earnings balance in USD cents (source of truth is `TrainerEarningsLedgerEntry`;
+/// balance updated in the same DB transaction as each entry). Only funds that already cleared the
+/// session payout buffer / dispute window (`BookedTrainingSession.payoutBufferEndsAt`) are ever
+/// credited here, so this balance is always "available", never "pending".
+model TrainerEarningsBalance {
+  trainerId String  @id
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  balanceCents Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  @@map("trainer_earnings_balances")
+  @@schema("public")
+}
+
+/// Immutable audit log for all trainer cash-earnings movements, in USD cents.
+model TrainerEarningsLedgerEntry {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  trainerId String
+  trainer   Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  /// Signed delta applied to balance, in USD cents (credits positive, debits negative).
+  deltaCents Int
+
+  /// SESSION_PAYOUT_CLEARED | SERVICE_SALE_CLEARED | PAYOUT_WITHDRAWAL | PAYOUT_REVERSED | WALLET_SPEND | ADMIN_ADJUST | REFUND_CLAWBACK
+  reason String
+
+  /// Idempotency / linkage (e.g. bookedTrainingSessionId, payout id). Unique per trainer+reason so
+  /// the same source event can never post twice even if a cron or webhook retries.
+  referenceKey String?
+
+  /// Optional JSON for debugging (session id, payout method, Stripe ids, etc.).
+  metaJson String?
+
+  @@unique([trainerId, reason, referenceKey])
+  @@index([trainerId, createdAt])
+  @@map("trainer_earnings_ledger_entries")
   @@schema("public")
 }
 
