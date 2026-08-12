@@ -45,6 +45,7 @@ export default async function TrainerDashboardAppLayout({
       emailVerifiedAt: true,
       profileImageUrl: true,
       safetySuspended: true,
+      securityLockedAt: true,
       deidentifiedAt: true,
       accountDeletionRequestedAt: true,
       accountDeletionFinalizeAt: true,
@@ -90,6 +91,9 @@ export default async function TrainerDashboardAppLayout({
   }
   if (trainer.safetySuspended) {
     redirect("/trainer/account-suspended");
+  }
+  if (trainer.securityLockedAt) {
+    redirect("/trainer/account-locked");
   }
 
   await syncTrainerPlatformBillingLifecycle(trainerId);

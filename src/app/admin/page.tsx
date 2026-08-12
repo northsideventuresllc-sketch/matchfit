@@ -24,10 +24,13 @@ export default async function AdminHomePage() {
 
   const adminRow = await prisma.administrator.findUnique({
     where: { id: sess.adminId },
-    select: { id: true },
+    select: { id: true, securityLockedAt: true },
   });
   if (!adminRow) {
     redirect("/admin/login");
+  }
+  if (adminRow.securityLockedAt) {
+    redirect("/admin/account-locked");
   }
 
   let overview: AdminPortalOverview | null = null;

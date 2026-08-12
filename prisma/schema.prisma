@@ -27,6 +27,22 @@ model Administrator {
   /// JSON admin dashboard layout: section order and visibility preferences.
   adminDashboardLayoutJson String?
 
+  /// Permission tier. Single "owner" value today (JB) — scaffold for staff tiers added later;
+  /// every permission check should read this field rather than assuming full access.
+  role String @default("owner")
+
+  /// One-time nonce for email password-reset link (paired with signed JWT). No in-session OTP
+  /// change flow exists for admins yet — only the forgot-password email-link path.
+  passwordChangeNonce   String?
+  passwordChangeExpires DateTime?
+  /// Max password changes per rolling 24h.
+  passwordChangeCount24h       Int       @default(0)
+  passwordChangeWindowStartsAt DateTime?
+  /// Set when an admin clicks "this wasn't me" on a password-changed notice. Blocks login until
+  /// another admin/support clears it.
+  securityLockedAt   DateTime?
+  securityLockReason String?
+
   auditLogs                     AdministratorAuditLog[]
   goals                         AdminGoal[]
   aiMessages                    AdminAiMessage[]
@@ -415,6 +431,13 @@ model Client {
   passwordChangeExpires    DateTime?
   passwordChangeOtpHash    String?
   passwordChangeOtpExpires DateTime?
+  /// Max password changes per rolling 24h — counts both self-service and forgot-password resets.
+  passwordChangeCount24h      Int       @default(0)
+  passwordChangeWindowStartsAt DateTime?
+  /// Set when the client clicks "this wasn't me" on a password-changed notice. Blocks login/dashboard
+  /// access until support clears it — see securityLockReason for what to tell them.
+  securityLockedAt   DateTime?
+  securityLockReason String?
 
   stripeCustomerId                    String?
   stripeSubscriptionId                String?
@@ -735,6 +758,13 @@ model Trainer {
   passwordChangeExpires    DateTime?
   passwordChangeOtpHash    String?
   passwordChangeOtpExpires DateTime?
+  /// Max password changes per rolling 24h — counts both self-service and forgot-password resets.
+  passwordChangeCount24h      Int       @default(0)
+  passwordChangeWindowStartsAt DateTime?
+  /// Set when the coach clicks "this wasn't me" on a password-changed notice. Blocks login/dashboard
+  /// access until support clears it — see securityLockReason for what to tell them.
+  securityLockedAt   DateTime?
+  securityLockReason String?
 
   optionalProfileVisibilityJson String?
   deidentifiedAt                DateTime?

@@ -17,15 +17,16 @@ export async function deliverPasswordResetEmail(params: { email: string; resetUr
   }
 
   const norm = email.trim().toLowerCase();
-  const [clientRow, trainerRow] = await Promise.all([
+  const [clientRow, trainerRow, adminRow] = await Promise.all([
     prisma.client.findFirst({ where: { email: { equals: norm, mode: "insensitive" } }, select: { id: true } }),
     prisma.trainer.findFirst({ where: { email: { equals: norm, mode: "insensitive" } }, select: { id: true } }),
+    prisma.administrator.findFirst({ where: { email: { equals: norm, mode: "insensitive" } }, select: { id: true } }),
   ]);
 
   await sendTransactionalEmailIfAllowed({
     kind: "PASSWORD_RESET",
     to: email.trim(),
-    audience: clientRow ? "CLIENT" : "TRAINER",
+    audience: clientRow ? "CLIENT" : adminRow ? "STAFF" : "TRAINER",
     clientId: clientRow?.id,
     trainerId: trainerRow?.id,
     variables: { resetUrl },

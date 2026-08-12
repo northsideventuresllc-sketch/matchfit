@@ -586,7 +586,7 @@ function ClientSignUpPageInner() {
                 <span>Show password</span>
               </label>
               <p className="text-xs leading-relaxed text-white/40">
-                Password must be at least 8 characters and include at least one capital letter and one special character.
+                Password must be at least 8 characters and include at least one capital letter, one number, and one special character.
               </p>
 
               <div className="grid min-w-0 grid-cols-1 gap-5 md:grid-cols-2">

@@ -1,6 +1,8 @@
 import { hashPassword } from "@/lib/password";
 import { verifyPasswordChangeToken } from "@/lib/password-change-jwt";
 import { verifyOtp } from "@/lib/otp";
+import { checkAndAdvancePasswordChangeRateLimit } from "@/lib/password-change-rate-limit";
+import { deliverPasswordChangedNotice } from "@/lib/deliver-password-changed-notice";
 import { prisma } from "@/lib/prisma";
 import { clearClientSession, getSessionClientId } from "@/lib/session";
 import { firstZodErrorMessage, passwordChangeCompleteSchema } from "@/lib/validations/client-register";
@@ -39,6 +41,14 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "This reset link has expired. Request a new one." }, { status: 400 });
       }
 
+      const rateLimit = checkAndAdvancePasswordChangeRateLimit({
+        passwordChangeCount24h: client.passwordChangeCount24h,
+        passwordChangeWindowStartsAt: client.passwordChangeWindowStartsAt,
+      });
+      if (!rateLimit.ok) {
+        return NextResponse.json({ error: rateLimit.error }, { status: 429 });
+      }
+
       const passwordHash = await hashPassword(body.newPassword);
       await prisma.client.update({
         where: { id: client.id },
@@ -47,9 +57,12 @@ export async function POST(req: Request) {
           ...CLEAR_PASSWORD_CHANGE,
           twoFactorOtpHash: null,
           twoFactorOtpExpires: null,
+          passwordChangeCount24h: rateLimit.nextState.passwordChangeCount24h,
+          passwordChangeWindowStartsAt: rateLimit.nextState.passwordChangeWindowStartsAt,
         },
       });
 
+      await deliverPasswordChangedNotice({ accountType: "client", accountId: client.id, email: client.email, req });
       await clearClientSession();
       return NextResponse.json({ ok: true, next: "/client?passwordReset=1" });
     }
@@ -70,6 +83,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid verification code." }, { status: 400 });
     }
 
+    const rateLimit = checkAndAdvancePasswordChangeRateLimit({
+      passwordChangeCount24h: client.passwordChangeCount24h,
+      passwordChangeWindowStartsAt: client.passwordChangeWindowStartsAt,
+    });
+    if (!rateLimit.ok) {
+      return NextResponse.json({ error: rateLimit.error }, { status: 429 });
+    }
+
     const passwordHash = await hashPassword(body.newPassword);
     await prisma.client.update({
       where: { id: clientId },
@@ -78,9 +99,12 @@ export async function POST(req: Request) {
         ...CLEAR_PASSWORD_CHANGE,
         twoFactorOtpHash: null,
         twoFactorOtpExpires: null,
+        passwordChangeCount24h: rateLimit.nextState.passwordChangeCount24h,
+        passwordChangeWindowStartsAt: rateLimit.nextState.passwordChangeWindowStartsAt,
       },
     });
 
+    await deliverPasswordChangedNotice({ accountType: "client", accountId: clientId, email: client.email, req });
     await clearClientSession();
     return NextResponse.json({ ok: true, next: "/client?passwordReset=1" });
   } catch (e) {

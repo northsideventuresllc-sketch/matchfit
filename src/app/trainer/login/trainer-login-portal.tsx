@@ -175,6 +175,12 @@ export default function TrainerLoginPortal({
                     />
                     <span>Show password</span>
                   </label>
+                  <Link
+                    href="/trainer/forgot-password"
+                    className="mt-1 self-start text-xs font-semibold text-[#FF7E00] underline-offset-2 hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
                 </div>
 
                 <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-3">

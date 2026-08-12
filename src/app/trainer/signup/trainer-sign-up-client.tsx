@@ -710,7 +710,7 @@ export default function TrainerSignUpClient() {
               <span>Show passwords</span>
             </label>
             <p className="text-xs leading-relaxed text-white/40">
-              Password must be at least 8 characters and include at least one capital letter and one special character.
+              Password must be at least 8 characters and include at least one capital letter, one number, and one special character.
             </p>
 
             <div className="flex gap-3 rounded-xl border border-white/[0.06] bg-[#0E1016]/80 px-4 py-4">

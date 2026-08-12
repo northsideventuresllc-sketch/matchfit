@@ -1,6 +1,8 @@
 import { hashPassword } from "@/lib/password";
 import { verifyPasswordChangeToken } from "@/lib/password-change-jwt";
 import { verifyOtp } from "@/lib/otp";
+import { checkAndAdvancePasswordChangeRateLimit } from "@/lib/password-change-rate-limit";
+import { deliverPasswordChangedNotice } from "@/lib/deliver-password-changed-notice";
 import { prisma } from "@/lib/prisma";
 import { clearTrainerSession, getSessionTrainerId } from "@/lib/session";
 import { firstZodErrorMessage, passwordChangeCompleteSchema } from "@/lib/validations/client-register";
@@ -42,6 +44,14 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "This reset link has expired. Request a new one." }, { status: 400 });
       }
 
+      const rateLimit = checkAndAdvancePasswordChangeRateLimit({
+        passwordChangeCount24h: trainer.passwordChangeCount24h,
+        passwordChangeWindowStartsAt: trainer.passwordChangeWindowStartsAt,
+      });
+      if (!rateLimit.ok) {
+        return NextResponse.json({ error: rateLimit.error }, { status: 429 });
+      }
+
       const passwordHash = await hashPassword(body.newPassword);
       await prisma.trainer.update({
         where: { id: trainer.id },
@@ -50,9 +60,12 @@ export async function POST(req: Request) {
           ...CLEAR_PASSWORD_CHANGE,
           twoFactorOtpHash: null,
           twoFactorOtpExpires: null,
+          passwordChangeCount24h: rateLimit.nextState.passwordChangeCount24h,
+          passwordChangeWindowStartsAt: rateLimit.nextState.passwordChangeWindowStartsAt,
         },
       });
 
+      await deliverPasswordChangedNotice({ accountType: "trainer", accountId: trainer.id, email: trainer.email, req });
       await clearTrainerSession();
       return NextResponse.json({ ok: true, next: "/trainer/dashboard/login?passwordReset=1" });
     }
@@ -73,6 +86,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid verification code." }, { status: 400 });
     }
 
+    const rateLimit = checkAndAdvancePasswordChangeRateLimit({
+      passwordChangeCount24h: trainer.passwordChangeCount24h,
+      passwordChangeWindowStartsAt: trainer.passwordChangeWindowStartsAt,
+    });
+    if (!rateLimit.ok) {
+      return NextResponse.json({ error: rateLimit.error }, { status: 429 });
+    }
+
     const passwordHash = await hashPassword(body.newPassword);
     await prisma.trainer.update({
       where: { id: trainerId },
@@ -81,9 +102,12 @@ export async function POST(req: Request) {
         ...CLEAR_PASSWORD_CHANGE,
         twoFactorOtpHash: null,
         twoFactorOtpExpires: null,
+        passwordChangeCount24h: rateLimit.nextState.passwordChangeCount24h,
+        passwordChangeWindowStartsAt: rateLimit.nextState.passwordChangeWindowStartsAt,
       },
     });
 
+    await deliverPasswordChangedNotice({ accountType: "trainer", accountId: trainerId, email: trainer.email, req });
     await clearTrainerSession();
     return NextResponse.json({ ok: true, next: "/trainer/dashboard/login?passwordReset=1" });
   } catch (e) {

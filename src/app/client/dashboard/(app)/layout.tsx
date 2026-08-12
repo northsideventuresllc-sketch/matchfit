@@ -33,6 +33,7 @@ export default async function ClientDashboardAppLayout({
       profileImageUrl: true,
       matchPreferencesCompletedAt: true,
       safetySuspended: true,
+      securityLockedAt: true,
       stripeSubscriptionId: true,
       stripeSubscriptionActive: true,
       subscriptionGraceUntil: true,
@@ -57,6 +58,9 @@ export default async function ClientDashboardAppLayout({
 
   if (client.safetySuspended) {
     redirect("/client/account-suspended");
+  }
+  if (client.securityLockedAt) {
+    redirect("/client/account-locked");
   }
 
   await syncClientPlatformBillingLifecycle(clientId);

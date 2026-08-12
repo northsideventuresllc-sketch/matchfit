@@ -39,6 +39,7 @@ export function describePasswordPolicyViolations(password: string): string | nul
   if (!password) return "Password is required.";
   if (password.length < 8) return "Password must be at least 8 characters.";
   if (!/[A-Z]/.test(password)) return "Password must include at least one capital letter.";
+  if (!/[0-9]/.test(password)) return "Password must include at least one number.";
   if (!/[^A-Za-z0-9]/.test(password)) return "Password must include at least one special character.";
   return null;
 }
@@ -58,6 +59,7 @@ export const passwordPolicySchema = z
   .min(8, "Password must be at least 8 characters.")
   .max(128, "Password is too long.")
   .regex(/[A-Z]/, "Password must include at least one capital letter.")
+  .regex(/[0-9]/, "Password must include at least one number.")
   .regex(/[^A-Za-z0-9]/, "Password must include at least one special character.");
 
 export const registerProfileSchema = z.object({

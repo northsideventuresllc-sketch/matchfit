@@ -61,6 +61,16 @@ export async function POST(req: Request) {
       );
     }
 
+    if (trainer.securityLockedAt) {
+      return NextResponse.json(
+        {
+          error: "Your account is locked for security. Contact support to get it unlocked.",
+          code: "ACCOUNT_SECURITY_LOCKED",
+        },
+        { status: 403 },
+      );
+    }
+
     await syncTrainerPlatformBillingLifecycle(trainer.id);
     const refreshed = await findTrainerByIdentifier(identifier);
     if (!refreshed) {
