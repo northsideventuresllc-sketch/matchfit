@@ -1,5 +1,14 @@
 # Stripe Connect sample (V2)
 
+**Status: planned, never built.** Nothing under `/stripe-connect-demo`, `src/lib/stripe-connect/`, or
+`src/app/api/webhooks/stripe-connect/` exists in this codebase — confirmed by a full-repo search
+(2026-08-12). This doc describes a marketplace-storefront demo using Stripe's newer V2 connected-accounts
+API; it is unrelated to the real, live Stripe Connect integration for trainer payouts
+(`src/lib/stripe-connect.ts`, V1 classic Express accounts, `account.updated` webhook folded into the
+existing `/api/webhooks/stripe` endpoint). If this demo is ever built, its module needs a different name
+than `src/lib/stripe-connect` (already taken) and its webhook URLs need a different path than
+`/api/webhooks/stripe-connect` (also already used, then removed — see the trainer-payout PR).
+
 Isolated demo at **`/stripe-connect-demo`**. Uses the existing `stripe` npm package (`^22`) and `STRIPE_SECRET_KEY`.
 
 ## Setup
