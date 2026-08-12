@@ -58,6 +58,7 @@ import {
 import { computeCheckoutFeeBreakdown } from "@/lib/stripe-checkout-line-items";
 import { hydrateStripeEnvFromDatabase } from "@/lib/hydrate-stripe-env";
 import { trackServerConversion } from "@/lib/server-conversion-tracking";
+import { syncTrainerConnectAccountStatus } from "@/lib/stripe-connect";
 import { readStripeWebhookRawBody } from "@/lib/stripe-webhook-raw-body";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
@@ -544,6 +545,14 @@ export async function POST(req: Request) {
       }
       if (sub.id && purpose === "trainer_independent_pro_subscription") {
         await syncTrainerSubscriptionFromStripe(sub.id);
+      }
+    }
+    if (event.type === "account.updated") {
+      // Connect event (trainer payout bank account) — same endpoint + secret as the platform
+      // events above, delivered here because this endpoint has "connected accounts" enabled.
+      const account = event.data.object as Stripe.Account;
+      if (account.id) {
+        await syncTrainerConnectAccountStatus(account.id);
       }
     }
   } catch (e) {
