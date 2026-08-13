@@ -8,6 +8,10 @@ const M = vi.hoisted(() => ({
   updateCoworkJobStatus: vi.fn(),
   completeGenerateMediaJob: vi.fn(),
   generateStaticMedia: vi.fn(),
+  // Daily media cap query (getRemainingMediaCapToday) — data:[] means nothing generated yet
+  // today, i.e. the cap is fully open, matching every test's prior (uncapped) expectations
+  // unless a test overrides it to exercise the cap itself.
+  niBrainSelectResult: { data: [] as Array<{ post_type: string }>, error: null as { message: string } | null },
 }));
 
 vi.mock("@/lib/require-cowork-secret", () => ({ hasValidCoworkSecret: M.hasValidCoworkSecret }));
@@ -22,6 +26,17 @@ vi.mock("@/lib/content-calendar/content-calendar-cowork-orchestration", () => ({
 }));
 vi.mock("@/lib/content-calendar/content-calendar-ai", () => ({
   generateStaticMedia: M.generateStaticMedia,
+}));
+vi.mock("@/lib/ni-brain-client", () => ({
+  createNiBrainClient: () => {
+    const builder: Record<string, unknown> = {};
+    Object.assign(builder, {
+      select: () => builder,
+      eq: () => builder,
+      gte: () => Promise.resolve(M.niBrainSelectResult),
+    });
+    return { from: () => builder };
+  },
 }));
 
 import { GET } from "@/app/api/cron/content-calendar-generate-media/route";
@@ -49,6 +64,8 @@ beforeEach(() => {
   M.ensureSchema.mockResolvedValue(undefined);
   M.updateCoworkJobStatus.mockResolvedValue(undefined);
   M.completeGenerateMediaJob.mockResolvedValue({ updated: 1 });
+  M.niBrainSelectResult.data = [];
+  M.niBrainSelectResult.error = null;
 });
 
 describe("generate-media cron aspect ratios", () => {
@@ -171,5 +188,64 @@ describe("generate-media cron zero-image handling", () => {
 
     expect(res.status).toBe(401);
     expect(M.getPendingCoworkJobs).not.toHaveBeenCalled();
+  });
+});
+
+describe("generate-media cron daily cap (JB locked 2026-08-03: 1 static + 1 carousel + 1 video/day)", () => {
+  it("does not generate a type already completed today, and re-queues instead of failing", async () => {
+    M.niBrainSelectResult.data = [{ post_type: "Static" }];
+    M.getPendingCoworkJobs.mockResolvedValue([
+      job({ static: { postId: "p_static", postType: "Static", prompt: "still" } }),
+    ]);
+
+    const res = await GET(req());
+    const body = (await res.json()) as { results: Array<{ cappedPosts?: string[] }> };
+
+    expect(M.generateStaticMedia).not.toHaveBeenCalled();
+    expect(M.completeGenerateMediaJob).not.toHaveBeenCalled();
+    // Left queued for a future run once the cap resets — not marked failed.
+    expect(M.updateCoworkJobStatus).toHaveBeenCalledWith({ jobId: "job_1", status: "queued" });
+    expect(M.updateCoworkJobStatus).not.toHaveBeenCalledWith(expect.objectContaining({ status: "failed" }));
+    expect(body.results[0]?.cappedPosts).toEqual(["p_static"]);
+  });
+
+  it("generates the still-open types and caps only the exhausted one within the same job", async () => {
+    M.niBrainSelectResult.data = [{ post_type: "Video" }];
+    M.getPendingCoworkJobs.mockResolvedValue([
+      job({
+        static: { postId: "p_static", postType: "Static", prompt: "still" },
+        video: { postId: "p_video", postType: "Video", prompt: "hook" },
+      }),
+    ]);
+    M.generateStaticMedia.mockResolvedValue(okImage("https://cdn.test/i.png"));
+
+    await GET(req());
+
+    // Only the Static frame gets generated — Video is capped, Static's single frame goes out.
+    expect(M.generateStaticMedia).toHaveBeenCalledTimes(1);
+    expect(M.completeGenerateMediaJob).toHaveBeenCalledWith({
+      jobId: "job_1",
+      mediaUrls: { p_static: ["https://cdn.test/i.png"] },
+    });
+  });
+
+  it("never generates a second post of the same type within one run, even across two jobs", async () => {
+    M.getPendingCoworkJobs.mockResolvedValue([
+      job({ static: { postId: "p_static_1", postType: "Static", prompt: "still 1" } }),
+      { id: "job_2", brief: { kind: "generate_media", prompts: { static: { postId: "p_static_2", postType: "Static", prompt: "still 2" } } } },
+    ]);
+    M.generateStaticMedia.mockResolvedValue(okImage("https://cdn.test/i.png"));
+
+    await GET(req());
+
+    // Job 1 claims today's only Static slot; job 2's Static prompt is capped in-memory even
+    // though the DB write from job 1 hasn't landed yet.
+    expect(M.generateStaticMedia).toHaveBeenCalledTimes(1);
+    expect(M.completeGenerateMediaJob).toHaveBeenCalledWith({
+      jobId: "job_1",
+      mediaUrls: { p_static_1: ["https://cdn.test/i.png"] },
+    });
+    expect(M.completeGenerateMediaJob).not.toHaveBeenCalledWith(expect.objectContaining({ jobId: "job_2" }));
+    expect(M.updateCoworkJobStatus).toHaveBeenCalledWith({ jobId: "job_2", status: "queued" });
   });
 });

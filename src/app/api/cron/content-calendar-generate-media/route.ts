@@ -8,6 +8,7 @@ import { getPendingCoworkJobs, updateCoworkJobStatus } from "@/lib/content-calen
 import { ensureContentCalendarV22Schema } from "@/lib/ensure-content-hub-schema";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { hasValidCoworkSecret } from "@/lib/require-cowork-secret";
+import { createNiBrainClient } from "@/lib/ni-brain-client";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -63,6 +64,37 @@ function summarizeFailures(failures: string[]): string {
   return [...new Set(failures)].slice(0, 6).join(" | ");
 }
 
+/** The three media-bearing post types the daily cap applies to. Text needs no media. */
+const CAPPED_MEDIA_TYPES = ["Static", "Carousel", "Video"] as const;
+type CappedMediaType = (typeof CAPPED_MEDIA_TYPES)[number];
+
+/**
+ * JB HARD CAP, locked 2026-08-03: media generation is limited to ONE of each type PER CALENDAR
+ * DAY — 1 static, 1 carousel, 1 video, never more. This was never enforced in code (this cron
+ * previously had no scheduled runner at all, so the cap only ever held because a human was
+ * generating media by hand). Now that this route runs unattended several times a day, it must
+ * self-enforce the cap or a single run could burn through the whole day's free Gemini quota (or
+ * blow well past 3 generations/day) the moment more than one day's worth of jobs is queued.
+ *
+ * "Calendar day" here is UTC-day, matching how this cron itself is scheduled (all six fire times
+ * are UTC cron expressions) — good enough for a quota guard; it does not need to be ET-exact.
+ */
+async function getRemainingMediaCapToday(): Promise<Set<CappedMediaType>> {
+  const client = createNiBrainClient();
+  const startOfUtcDay = new Date();
+  startOfUtcDay.setUTCHours(0, 0, 0, 0);
+
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("post_type")
+    .eq("media_status", "ready")
+    .gte("updated_at", startOfUtcDay.toISOString());
+  if (error) throw new Error(error.message);
+
+  const usedToday = new Set((data ?? []).map((row) => row.post_type as string));
+  return new Set(CAPPED_MEDIA_TYPES.filter((t) => !usedToday.has(t)));
+}
+
 function framePrompt(base: string, postType: string | undefined, index: number, total: number): string {
   if (postType === "Carousel") {
     return `${base}\nCarousel frame ${index + 1} of ${total}. Hold the identical Match Fit visual system, palette, logo placement and 4:5 frame across every slide — vary only the slide headline and composition.`;
@@ -91,12 +123,14 @@ export async function GET(req: Request) {
     await ensureContentCalendarV22Schema();
 
     const jobs = await getPendingCoworkJobs("generate_media");
+    const remainingCapToday = await getRemainingMediaCapToday();
     const results: Array<{
       jobId: string;
       updated?: number;
       generated?: number;
       skippedPosts?: string[];
       mediaErrors?: string[];
+      cappedPosts?: string[];
       error?: string;
     }> = [];
 
@@ -111,6 +145,7 @@ export async function GET(req: Request) {
         const mediaUrls: Record<string, string[]> = {};
         const failures: string[] = [];
         const skippedPosts: string[] = [];
+        const cappedPosts: string[] = [];
         let usablePrompts = 0;
         let generated = 0;
 
@@ -119,6 +154,14 @@ export async function GET(req: Request) {
           const base = entry?.prompt?.trim();
           if (!postId || !base) continue;
           usablePrompts += 1;
+
+          // JB's daily media cap (1 static + 1 carousel + 1 video, see getRemainingMediaCapToday)
+          // — a type already used up today stays queued for tomorrow instead of generating.
+          const cappedType = CAPPED_MEDIA_TYPES.find((t) => t === entry.postType);
+          if (cappedType && !remainingCapToday.has(cappedType)) {
+            cappedPosts.push(postId);
+            continue;
+          }
 
           const total = frameCountFor(entry.postType);
           const aspectRatio = aspectRatioFor(entry);
@@ -139,8 +182,15 @@ export async function GET(req: Request) {
           // A post with zero images must NOT be handed to completeGenerateMediaJob — that would
           // push it to workflow_stage "publishing" with no media and it would go out blank.
           // Leaving it out keeps it in the hub as approved for the next run.
-          if (urls.length) mediaUrls[postId] = urls;
-          else skippedPosts.push(postId);
+          if (urls.length) {
+            mediaUrls[postId] = urls;
+            // Claim this type's daily slot immediately — in-memory, so a second job (or a second
+            // entry in this same job) processed later in this same run can't also slip through
+            // before completeGenerateMediaJob's DB write would otherwise reflect it.
+            if (cappedType) remainingCapToday.delete(cappedType);
+          } else {
+            skippedPosts.push(postId);
+          }
         }
 
         if (!usablePrompts) {
@@ -148,6 +198,14 @@ export async function GET(req: Request) {
         }
 
         if (!Object.keys(mediaUrls).length) {
+          if (cappedPosts.length && !failures.length) {
+            // Every prompt in this job hit the daily cap — not a failure, just not this job's turn
+            // yet. Leave it queued (not failed) so it's picked up automatically once the cap
+            // resets tomorrow, instead of burying a healthy job under a false "failed" status.
+            await updateCoworkJobStatus({ jobId: job.id, status: "queued" });
+            results.push({ jobId: job.id, generated: 0, cappedPosts });
+            continue;
+          }
           // Fail the job with the real reason and touch no posts, so they stay approved in the hub.
           throw new Error(
             `No images were generated for any post. ${summarizeFailures(failures) || "No failure reason was reported."}`,
@@ -163,6 +221,7 @@ export async function GET(req: Request) {
           generated,
           ...(skippedPosts.length ? { skippedPosts } : {}),
           ...(failures.length ? { mediaErrors: [...new Set(failures)] } : {}),
+          ...(cappedPosts.length ? { cappedPosts } : {}),
         });
       } catch (e) {
         const message = e instanceof Error ? e.message : "Media generation failed.";

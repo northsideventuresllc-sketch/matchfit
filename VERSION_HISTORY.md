@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-08-13** `2.23.2-beta` → `2.23.3-beta` (**patch** — Enforce JB's daily media generation cap (1 static + 1 carousel + 1 video/day) in the generate-media cron)
 - **2026-08-13** `2.23.1-beta` → `2.23.2-beta` (**patch** — Fix content calendar post_date/day_index desync when weekly-generate reassigns a taken slot)
 - **2026-08-13** `2.23.0-beta` → `2.23.1-beta` (**patch** — Fix Match Fit tier switch: charge via Stripe Checkout before granting a paid tier, promote accountTier on webhook confirm)
 - **2026-08-13** `2.22.2-beta` → `2.23.0-beta` (**minor** — Coach forgot-password phone: country-code dropdown, per-country validation, auto-format)
