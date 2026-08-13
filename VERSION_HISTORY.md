@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-08-13** `2.22.2-beta` → `2.23.0-beta` (**minor** — Coach forgot-password phone: country-code dropdown, per-country validation, auto-format)
 - **2026-08-12** `2.22.1-beta` → `2.22.2-beta` (**patch** — Fix forgot-password phone matching for coaches whose number includes a country code)
 - **2026-08-12** `2.22.0-beta` → `2.22.1-beta` (**patch** — Simplify Stripe Connect webhook to reuse the existing endpoint (no behavior change))
 - **2026-08-12** `2.21.0-beta` → `2.22.0-beta` (**minor** — 1099 tax-year earnings summary for admin (Phase 2, 5/6))

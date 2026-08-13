@@ -1,6 +1,6 @@
 {
   "name": "match-fit-app",
-  "version": "2.22.2-beta",
+  "version": "2.23.0-beta",
   "private": true,
   "engines": {
     "node": ">=20.19.0 <23"
@@ -67,6 +67,7 @@
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",
     "jose": "^6.2.2",
+    "libphonenumber-js": "^1.13.10",
     "next": "^16.2.6",
     "pg": "^8.21.0",
     "react": "19.2.4",

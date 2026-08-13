@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { TurnstileField } from "@/components/turnstile-field";
+import { PhoneNumberField, type PhoneNumberValue } from "@/components/phone-number-field";
 import { useTurnstileGate } from "@/hooks/use-turnstile-gate";
 import { MATCH_FIT_SUPPORT_MAILTO } from "@/lib/match-fit-support-contact";
 
@@ -14,14 +15,20 @@ export default function TrainerForgotPasswordPage() {
   const turnstile = useTurnstileGate();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState<PhoneNumberValue>({ e164: "", isValid: false });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
 
+  const canSubmit = username.trim().length > 0 && email.trim().length > 0 && phone.isValid;
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    if (!canSubmit) {
+      setError("Enter your username, email, and a valid phone number.");
+      return;
+    }
     const tsErr = turnstile.validateBeforeSubmit();
     if (tsErr) {
       setError(tsErr);
@@ -35,7 +42,7 @@ export default function TrainerForgotPasswordPage() {
         body: JSON.stringify({
           username: username.trim(),
           email: email.trim(),
-          phone: phone.trim(),
+          phone: phone.e164,
           ...turnstile.turnstileField(),
         }),
       });
@@ -95,10 +102,7 @@ export default function TrainerForgotPasswordPage() {
               <label htmlFor="fp-email" className={labelClass}>Email</label>
               <input id="fp-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} required />
             </div>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="fp-phone" className={labelClass}>Phone number</label>
-              <input id="fp-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} required />
-            </div>
+            <PhoneNumberField id="fp-phone" label="Phone number" required onChange={setPhone} />
 
             <TurnstileField
               enabled={turnstile.enabled}
@@ -114,7 +118,7 @@ export default function TrainerForgotPasswordPage() {
 
             <button
               type="submit"
-              disabled={busy || (turnstile.enabled && !turnstile.ready)}
+              disabled={busy || !canSubmit || (turnstile.enabled && !turnstile.ready)}
               className="group relative isolate mt-2 flex min-h-[3rem] w-full items-center justify-center overflow-hidden rounded-xl px-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] shadow-[0_20px_50px_-18px_rgba(227,43,43,0.45)] transition disabled:opacity-50"
             >
               <span aria-hidden className="absolute inset-0 bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)]" />
