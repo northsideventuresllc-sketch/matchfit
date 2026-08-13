@@ -10,6 +10,8 @@ import {
 } from "@/lib/fp-tier-switching";
 import { fpTierSelectableDuringBeta } from "@/lib/fp-tier-beta-signup";
 import type { FpDocSubmissionSummary } from "@/lib/fp-tier-docs";
+import { createFpTierCheckoutSession } from "@/lib/fp-tier-subscription-checkout";
+import { appBaseUrlForEmail } from "@/lib/match-fit-email-shell";
 import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 
@@ -43,6 +45,7 @@ export async function POST(req: Request) {
   const trainer = await prisma.trainer.findUnique({
     where: { id: trainerId },
     select: {
+      email: true,
       profile: {
         select: {
           accountTier: true,
@@ -87,6 +90,36 @@ export async function POST(req: Request) {
   }
 
   const fromTier = isFpAccountTier(prof.accountTier) ? prof.accountTier : null;
+  const billingEffect = resolveFpTierSwitchBillingEffect(fromTier, targetTier);
+
+  // MF-TIER-SWITCH-NO-CHARGE fix: a switch that starts NEW paid billing (trainer has no active
+  // FP subscription today) must actually charge through Stripe before anything changes -- it
+  // can no longer just write pendingTier and call that "switched". Mirrors the trainer-signup
+  // checkout pattern (src/app/api/trainer/signup/select-tier/route.ts): create a Checkout
+  // Session, send the trainer to Stripe, and only promote accountTier once Stripe confirms the
+  // subscription (activateFpTierSubscriptionFromWebhook in fp-tier-subscription-checkout.ts).
+  // Paid-tier-to-paid-tier switches (independent_fitness_pro <-> elite_fitness_pro) are NOT
+  // covered by this branch -- billingEffect.startsPaidBilling is false when fromTier is already
+  // paid, so those still fall through to the immediate-write path below. Swapping the price on
+  // an existing active subscription is a different Stripe call (subscription update + proration
+  // policy) that was not part of the approved fix and still needs its own JB call; flagged
+  // separately (NI-Brain, 2026-08-13) rather than guessed at here.
+  if (billingEffect.startsPaidBilling) {
+    const origin = appBaseUrlForEmail();
+    const checkout = await createFpTierCheckoutSession(
+      trainerId,
+      trainer.email,
+      targetTier,
+      `${origin}/trainer/dashboard/account-tier?tierCheckout=success&tier=${targetTier}`,
+      `${origin}/trainer/dashboard/account-tier?tierCheckout=cancel`,
+      fromTier,
+    );
+    if ("error" in checkout) {
+      return NextResponse.json({ error: checkout.error }, { status: 400 });
+    }
+    return NextResponse.json({ ok: true, requiresCheckout: true, checkoutUrl: checkout.url });
+  }
+
   const docs = await prisma.fpDocument.findMany({
     where: { trainerId },
     select: { docType: true, status: true, fileUrl: true },
@@ -97,7 +130,6 @@ export async function POST(req: Request) {
     prof,
     docs as FpDocSubmissionSummary[],
   );
-  const billingEffect = resolveFpTierSwitchBillingEffect(fromTier, targetTier);
   const profileUpdate = buildFpTierSwitchProfileUpdate(
     fromTier,
     targetTier,

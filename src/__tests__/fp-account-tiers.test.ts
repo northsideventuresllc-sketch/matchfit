@@ -8,6 +8,7 @@ import {
   fpTierSwitchLockActive,
   evaluateFpTierSwitchEligibility,
   resolveListingStatusAfterTierSwitch,
+  resolveFpTierSwitchBillingEffect,
 } from "@/lib/fp-tier-switching";
 import { fpDocsCompleteForTier } from "@/lib/fp-tier-docs";
 import { hasFpFitHubAccess, fpTierMatchesDiscoveryFilter } from "@/lib/fp-fithub-access";
@@ -74,6 +75,26 @@ describe("fp tier switching", () => {
       [{ docType: "professional_certification", status: "approved", fileUrl: "/x" }],
     );
     expect(status).toBe("pending_background");
+  });
+
+  // MF-TIER-SWITCH-NO-CHARGE: switch-tier/route.ts gates the Stripe Checkout redirect on
+  // startsPaidBilling. This locks the exact condition the fix depends on so a future change
+  // to resolveFpTierSwitchBillingEffect can't silently reopen the free-tier-switch bug.
+  it("startsPaidBilling is true only when a switch begins NEW paid billing (no active FP subscription)", () => {
+    expect(resolveFpTierSwitchBillingEffect(null, "independent_fitness_pro").startsPaidBilling).toBe(true);
+    expect(resolveFpTierSwitchBillingEffect("match_fit_pro", "elite_fitness_pro").startsPaidBilling).toBe(true);
+    expect(resolveFpTierSwitchBillingEffect("match_fit_premium_pro", "independent_fitness_pro").startsPaidBilling).toBe(
+      true,
+    );
+    // Already-paid trainer switching between paid tiers: not covered by the checkout-redirect
+    // fix (would need a subscription price swap, not a new Checkout Session) -- still routes
+    // through the pre-existing pendingTier path, which stays a known open gap (NI-Brain, 2026-08-13).
+    expect(resolveFpTierSwitchBillingEffect("independent_fitness_pro", "elite_fitness_pro").startsPaidBilling).toBe(
+      false,
+    );
+    // Free-to-free and downgrades never touch Stripe.
+    expect(resolveFpTierSwitchBillingEffect("match_fit_pro", "match_fit_premium_pro").startsPaidBilling).toBe(false);
+    expect(resolveFpTierSwitchBillingEffect("elite_fitness_pro", "match_fit_pro").startsPaidBilling).toBe(false);
   });
 });
 

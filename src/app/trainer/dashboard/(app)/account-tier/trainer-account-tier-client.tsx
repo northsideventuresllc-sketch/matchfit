@@ -49,6 +49,27 @@ export default function TrainerAccountTierClient() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [website, setWebsite] = useState("");
+  const [checkoutNotice] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const result = new URLSearchParams(window.location.search).get("tierCheckout");
+    if (result === "success") {
+      return "Payment received. Your new account type is active — this can take a minute to show below.";
+    }
+    if (result === "cancel") {
+      return "Checkout was cancelled. Your account type has not changed.";
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("tierCheckout")) return;
+    params.delete("tierCheckout");
+    params.delete("tier");
+    const query = params.toString();
+    window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,9 +111,17 @@ export default function TrainerAccountTierClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ targetTier }),
       });
-      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        requiresCheckout?: boolean;
+        checkoutUrl?: string;
+      };
       if (!res.ok) {
         setError(json.error ?? "Could not switch account type.");
+        return;
+      }
+      if (json.requiresCheckout && json.checkoutUrl) {
+        window.location.href = json.checkoutUrl;
         return;
       }
       await reload();
@@ -132,6 +161,10 @@ export default function TrainerAccountTierClient() {
         <h1 className="text-2xl font-semibold">Account Type</h1>
         <p className="mt-1 text-white/60">Manage your Fitness Pro account type, listing status, and promote tokens.</p>
       </div>
+
+      {checkoutNotice ? (
+        <p className="rounded-xl border border-white/10 bg-[#12141C] px-4 py-3 text-sm text-white/80">{checkoutNotice}</p>
+      ) : null}
 
       <section className="rounded-2xl border border-white/10 bg-[#12141C] p-6">
         <p className="text-xs uppercase tracking-widest text-[#FF7E00]">Current Account Type</p>
