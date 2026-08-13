@@ -268,6 +268,19 @@ export async function createV2Draft(args: {
     postType: args.draft.postType,
     preferredDayIndex: args.draft.dayIndex,
   });
+  // Bug fixed 2026-08-13: when resolveUniqueDayIndex bumps a post to a different day than the
+  // caller planned for (its preferred day_index was already taken in this week), the caller's
+  // postDate still points at the ORIGINAL day. That desync shipped a scheduled post with e.g.
+  // day_index=3 but post_date stamped for day_index=0's date -- the admin calendar then showed
+  // it on the wrong day (proven live: a weekly-generate backfill for week 2026-08-10 created
+  // Thu/Fri posts with day_index 3/4 but post_date stuck at the Monday week_start). Recompute
+  // post_date from the RESOLVED day_index whenever the post is week-anchored (weekStart-based
+  // scheduling), so the stored date always matches the slot it actually landed in.
+  const callerPostDate = args.postDate ?? args.draft.postDate ?? null;
+  const postDate =
+    dayIndex !== args.draft.dayIndex && args.weekStart
+      ? formatCalendarDate(addWeekdays(new Date(`${args.weekStart}T00:00:00`), dayIndex))
+      : callerPostDate;
   const media = args.generateMedia
     ? await buildMediaUrls({
         postType: args.draft.postType,
@@ -278,7 +291,7 @@ export async function createV2Draft(args: {
 
   const row = {
     week_start: args.weekStart,
-    post_date: args.postDate ?? args.draft.postDate ?? null,
+    post_date: postDate,
     day_index: dayIndex,
     post_type: args.draft.postType,
     target_group: args.draft.targetGroup,
