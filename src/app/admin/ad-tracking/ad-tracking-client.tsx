@@ -84,6 +84,16 @@ function formatUsd(cents: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
 }
 
+const VENTURE_LABELS: Record<string, string> = {
+  match_fit: "Match Fit",
+  ni: "NORTHSiDE Intelligence",
+  ncc: "NCC",
+};
+
+function ventureLabel(venture: string): string {
+  return VENTURE_LABELS[venture] ?? venture;
+}
+
 function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -645,8 +655,7 @@ export function AdTrackingClient() {
 
             {campaignMigrationPending ? (
               <p className="mt-4 text-sm text-white/45">
-                Database migration pending — campaign registry will activate after the next deploy runs{" "}
-                <code className="text-[#FFD34E]">prisma migrate deploy</code>.
+                Campaign registry is turning on — it will be ready after the next deploy. No action needed from you.
               </p>
             ) : null}
 
@@ -763,7 +772,7 @@ export function AdTrackingClient() {
                             </td>
                             <td className="py-3 pr-3 font-mono text-[11px] text-[#FFD34E]">{row.campaignId}</td>
                             <td className="py-3 pr-3 text-white/75">{row.name}</td>
-                            <td className="py-3 pr-3">{row.venture}</td>
+                            <td className="py-3 pr-3">{ventureLabel(row.venture)}</td>
                             <td className="py-3 pr-3 tabular-nums">
                               {row.budgetCents != null ? formatUsd(row.budgetCents) : "—"}
                             </td>
