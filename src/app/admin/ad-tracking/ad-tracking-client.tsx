@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { AdminPortalShell } from "@/components/admin/admin-portal-shell";
 import {
   AdminPortalAlert,
   AdminPortalBetaNotice,
   AdminLoadingBar,
+  AdminCollapsibleSection,
   adminAccentButtonClass,
-  adminCardClass,
   adminInputClassSm,
   adminLabelClass,
   adminLinkClass,
@@ -26,7 +26,18 @@ import {
 } from "@/lib/ad-tracking-config";
 import { MATCH_FIT_MARKETING_PLAYBOOK_STEPS } from "@/lib/match-fit-marketing-playbook";
 import { B2cRunbookPhasePanel } from "@/components/admin/b2c-runbook-phase-panel";
+import { AdTrackingAiChat } from "./ad-tracking-ai-chat";
 import type { AdPerformancePanel } from "@/lib/ad-platform-performance";
+
+const VENTURE_LABELS: Record<string, string> = {
+  match_fit: "Match Fit",
+  ni: "NORTHSiDE Intelligence",
+  ncc: "NCC",
+};
+
+function ventureLabel(venture: string): string {
+  return VENTURE_LABELS[venture] ?? venture;
+}
 
 type TrackingConfigResponse = {
   pixels: {
@@ -140,6 +151,7 @@ export function AdTrackingClient() {
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   const [campaigns, setCampaigns] = useState<AdCampaignRow[]>([]);
+  const [expandedCampaignId, setExpandedCampaignId] = useState<string | null>(null);
   const [campaignMigrationPending, setCampaignMigrationPending] = useState(false);
   const [campaignSaving, setCampaignSaving] = useState(false);
   const [campaignMessage, setCampaignMessage] = useState<string | null>(null);
@@ -294,10 +306,13 @@ export function AdTrackingClient() {
     >
         <AdminPortalBetaNotice className="mt-0" />
 
-        <section className={`${adminCardClass} border-[#FF7E00]/15 bg-[#FF7E00]/[0.04]`}>
-          <p className={adminSectionTitleClass}>INSTRUCTIONS</p>
-          <h2 className="mt-2 text-lg font-bold">8-step marketing playbook</h2>
-          <ol className="mt-3 space-y-2 text-sm leading-relaxed text-white/60">
+        <AdminCollapsibleSection
+          eyebrow="Instructions"
+          heading="8-step marketing playbook"
+          className="border-[#FF7E00]/15 bg-[#FF7E00]/[0.04]"
+          defaultOpen={false}
+        >
+          <ol className="space-y-2 text-sm leading-relaxed text-white/60">
             {MATCH_FIT_MARKETING_PLAYBOOK_STEPS.map((step) => (
               <li key={step.id}>
                 <strong className="text-white/85">
@@ -310,7 +325,7 @@ export function AdTrackingClient() {
               </li>
             ))}
           </ol>
-        </section>
+        </AdminCollapsibleSection>
 
         {error ? <AdminPortalAlert variant="error">{error}</AdminPortalAlert> : null}
         {syncMessage ? <AdminPortalAlert variant="info">{syncMessage}</AdminPortalAlert> : null}
@@ -329,16 +344,24 @@ export function AdTrackingClient() {
           />
         ) : null}
 
+        <AdminCollapsibleSection
+          eyebrow="Ask AI About Your Ads"
+          heading="Ads Copilot"
+          description="Ask questions about spend, clicks, conversions, and which campaigns need attention. Answers use your live ad tracking numbers."
+          defaultOpen
+        >
+          <AdTrackingAiChat />
+        </AdminCollapsibleSection>
+
         <div className="space-y-8">
-          <section className={adminCardClass}>
-            <p className={adminSectionTitleClass}>Connected Pixels · Runbook 5b</p>
-            <h2 className="mt-2 text-lg font-bold">Live Tags in the App</h2>
-            <p className="mt-1 text-sm text-white/50">
-              These are the tracking tags already running on match-fit.net. You do not need to paste code — use the IDs
-              here to verify setup in Meta Events Manager and Google Ads.
-            </p>
+          <AdminCollapsibleSection
+            eyebrow="Connected Pixels · Runbook 5b"
+            heading="Live Tags in the App"
+            description="These are the tracking tags already running on match-fit.net. You do not need to paste code — use the IDs here to verify setup in Meta Events Manager and Google Ads."
+            defaultOpen
+          >
             {config ? (
-              <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              <div className="grid gap-4 lg:grid-cols-2">
                 <div className={adminPanelClass + " p-4"}>
                   <div className="flex items-center justify-between gap-2">
                     <PlatformBadge platform="meta" />
@@ -385,17 +408,16 @@ export function AdTrackingClient() {
                 </div>
               </div>
             ) : null}
-          </section>
+          </AdminCollapsibleSection>
 
           {config ? (
-            <section className={adminCardClass}>
-              <p className={adminSectionTitleClass}>Server Conversions</p>
-              <h2 className="mt-2 text-lg font-bold">Meta CAPI and GA4 (Ad-Blocker Safe)</h2>
-              <p className="mt-1 text-sm text-white/50">
-                Signup milestones also fire server-side so ad blockers cannot drop them. These use separate credentials
-                from the reporting API tokens above.
-              </p>
-              <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            <AdminCollapsibleSection
+              eyebrow="Server Conversions"
+              heading="Meta CAPI and GA4 (Ad-Blocker Safe)"
+              description="Signup milestones also fire server-side so ad blockers cannot drop them. These use separate credentials from the reporting API tokens above."
+              defaultOpen={false}
+            >
+              <div className="grid gap-4 lg:grid-cols-2">
                 <div className={adminPanelClass + " p-4"}>
                   <div className="flex items-center gap-2">
                     <PlatformBadge platform="meta" />
@@ -447,19 +469,17 @@ export function AdTrackingClient() {
                   ) : null}
                 </div>
               </div>
-            </section>
+            </AdminCollapsibleSection>
           ) : null}
 
-          <section className={adminCardClass}>
-            <p className={adminSectionTitleClass}>Campaign Link Builder · Runbook 6b</p>
-            <h2 className="mt-2 text-lg font-bold">Generate Client Tracking URLs</h2>
-            <p className="mt-1 text-sm text-white/50">
-              B2C runbook 6b — default to client sign-up. Use waitlist only when the beta client cap is full. Copy the
-              final URL into your ad creative.
-            </p>
-
+          <AdminCollapsibleSection
+            eyebrow="Campaign Link Builder · Runbook 6b"
+            heading="Generate Client Tracking URLs"
+            description="Runbook 6b — default to client sign-up. Use waitlist only when the beta client cap is full. Copy the final URL into your ad creative."
+            defaultOpen={false}
+          >
             {config ? (
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   className={adminAccentButtonClass}
@@ -547,20 +567,17 @@ export function AdTrackingClient() {
               </div>
               <p className="mt-2 break-all font-mono text-xs text-[#FFD34E]">{trackedUrl}</p>
             </div>
-          </section>
+          </AdminCollapsibleSection>
 
-          <section className={adminCardClass}>
-            <p className={adminSectionTitleClass}>Campaign Registry</p>
-            <h2 className="mt-2 text-lg font-bold">Register Campaign ID</h2>
-            <p className="mt-1 text-sm text-white/50">
-              Playbook step 8 · B2C runbook after 6b — after you launch a client campaign, record its platform campaign
-              ID here with the same week and budget from step 1.
-            </p>
-
+          <AdminCollapsibleSection
+            eyebrow="Campaign Registry"
+            heading="Register Campaign ID"
+            description="Playbook step 8 · Runbook after 6b — after you launch a client campaign, record its platform campaign ID here with the same week and budget from step 1."
+            defaultOpen
+          >
             {campaignMigrationPending ? (
-              <p className="mt-4 text-sm text-white/45">
-                Database migration pending — campaign registry will activate after the next deploy runs{" "}
-                <code className="text-[#FFD34E]">prisma migrate deploy</code>.
+              <p className="text-sm text-white/45">
+                Campaign registry is turning on — it will be ready after the next deploy. No action needed from you.
               </p>
             ) : null}
 
@@ -661,37 +678,106 @@ export function AdTrackingClient() {
                     </tr>
                   </thead>
                   <tbody>
-                    {campaigns.map((row) => (
-                      <tr key={row.id} className="border-b border-white/[0.06] text-white/60">
-                        <td className="py-3 pr-3">
-                          <PlatformBadge platform={row.platform} />
-                        </td>
-                        <td className="py-3 pr-3 font-mono text-[11px] text-[#FFD34E]">{row.campaignId}</td>
-                        <td className="py-3 pr-3 text-white/75">{row.name}</td>
-                        <td className="py-3 pr-3">{row.venture}</td>
-                        <td className="py-3 pr-3 tabular-nums">
-                          {row.budgetCents != null ? formatUsd(row.budgetCents) : "—"}
-                        </td>
-                        <td className="py-3 tabular-nums">{row.weekOf ?? "—"}</td>
-                      </tr>
-                    ))}
+                    {campaigns.map((row) => {
+                      const expanded = expandedCampaignId === row.id;
+                      const needle = row.campaignId.toLowerCase();
+                      const nameNeedle = row.name.toLowerCase();
+                      const linkedAttribution = (panel?.attribution ?? []).filter((a) => {
+                        const campaign = a.utmCampaign.toLowerCase();
+                        return campaign.includes(needle) || (nameNeedle.length > 0 && campaign.includes(nameNeedle));
+                      });
+                      return (
+                        <Fragment key={row.id}>
+                          <tr
+                            className="cursor-pointer border-b border-white/[0.06] text-white/60 hover:bg-white/[0.03]"
+                            onClick={() => setExpandedCampaignId(expanded ? null : row.id)}
+                            aria-expanded={expanded}
+                          >
+                            <td className="py-3 pr-3">
+                              <PlatformBadge platform={row.platform} />
+                            </td>
+                            <td className="py-3 pr-3 font-mono text-[11px] text-[#FFD34E]">{row.campaignId}</td>
+                            <td className="py-3 pr-3 text-white/75">{row.name}</td>
+                            <td className="py-3 pr-3">{ventureLabel(row.venture)}</td>
+                            <td className="py-3 pr-3 tabular-nums">
+                              {row.budgetCents != null ? formatUsd(row.budgetCents) : "—"}
+                            </td>
+                            <td className="py-3 tabular-nums">{row.weekOf ?? "—"}</td>
+                          </tr>
+                          {expanded ? (
+                            <tr className="border-b border-white/[0.06] bg-white/[0.02]">
+                              <td colSpan={6} className="px-3 py-4">
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                  <div>
+                                    <p className="text-[10px] font-black uppercase tracking-wide text-white/40">
+                                      Campaign details
+                                    </p>
+                                    <dl className="mt-2 space-y-1 text-[11px] text-white/60">
+                                      <div className="flex justify-between gap-3">
+                                        <dt className="text-white/40">Venture</dt>
+                                        <dd>{ventureLabel(row.venture)}</dd>
+                                      </div>
+                                      <div className="flex justify-between gap-3">
+                                        <dt className="text-white/40">Week of</dt>
+                                        <dd>{row.weekOf ?? "—"}</dd>
+                                      </div>
+                                      <div className="flex justify-between gap-3">
+                                        <dt className="text-white/40">Budget</dt>
+                                        <dd>{row.budgetCents != null ? formatUsd(row.budgetCents) : "—"}</dd>
+                                      </div>
+                                      <div className="flex justify-between gap-3">
+                                        <dt className="text-white/40">Notes</dt>
+                                        <dd className="text-right">{row.notes ?? "—"}</dd>
+                                      </div>
+                                    </dl>
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] font-black uppercase tracking-wide text-white/40">
+                                      On-site traffic linked to this campaign
+                                    </p>
+                                    {linkedAttribution.length > 0 ? (
+                                      <ul className="mt-2 space-y-1.5 text-[11px] text-white/60">
+                                        {linkedAttribution.map((a) => (
+                                          <li key={`${a.utmSource}-${a.utmCampaign}`} className="flex justify-between gap-3">
+                                            <span className="text-white/75">
+                                              {a.utmSource} · {a.utmCampaign}
+                                            </span>
+                                            <span className="tabular-nums">
+                                              {a.pageViews} views · {a.signupPageViews} signup views
+                                            </span>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    ) : (
+                                      <p className="mt-2 text-[11px] text-white/40">
+                                        No on-site traffic linked to this campaign yet. Traffic links when a tracking
+                                        link&apos;s campaign tag matches this campaign&apos;s ID or name.
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          ) : null}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             ) : (
               <p className="mt-6 text-sm text-white/40">No campaigns registered yet.</p>
             )}
-          </section>
+          </AdminCollapsibleSection>
 
-          <section className={adminCardClass}>
-            <p className={adminSectionTitleClass}>Conversion Events</p>
-            <h2 className="mt-2 text-lg font-bold">Events Match Fit Sends Automatically</h2>
-            <p className="mt-1 text-sm text-white/50">
-              When someone signs up, Match Fit fires these events to Meta and Google. Create matching conversion actions in
-              each ad platform using the names below — no custom code required on your side.
-            </p>
+          <AdminCollapsibleSection
+            eyebrow="Conversion Events"
+            heading="Events Match Fit Sends Automatically"
+            description="When someone signs up, Match Fit fires these events to Meta and Google. Create matching conversion actions in each ad platform using the names below — no custom code required on your side."
+            defaultOpen={false}
+          >
             {config ? (
-              <div className="mt-5 overflow-x-auto">
+              <div className="overflow-x-auto">
                 <table className="w-full min-w-[640px] text-left text-xs">
                   <thead>
                     <tr className="border-b border-white/10 text-[10px] font-black uppercase tracking-wide text-white/40">
@@ -719,26 +805,22 @@ export function AdTrackingClient() {
                 </table>
               </div>
             ) : null}
-          </section>
+          </AdminCollapsibleSection>
 
-          <section className={adminCardClass}>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className={adminSectionTitleClass}>Performance</p>
-                <h2 className="mt-2 text-lg font-bold">Ad Platform Metrics (7 Days)</h2>
-                <p className="mt-1 text-sm text-white/50">
-                  Pull spend and clicks from Meta, Google, and TikTok, then compare with visitors who arrived via your
-                  tracking links.
-                </p>
-              </div>
+          <AdminCollapsibleSection
+            eyebrow="Performance"
+            heading="Ad Platform Metrics (7 Days)"
+            description="Pull spend and clicks from Meta, Google, and TikTok, then compare with visitors who arrived via your tracking links."
+            defaultOpen
+            headerExtra={
               <button type="button" className={adminAccentButtonClass} disabled={syncing} onClick={() => void syncPerformance()}>
                 {syncing ? "Syncing…" : "Sync now"}
               </button>
-            </div>
-
+            }
+          >
             {panel ? (
               <>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <StatTile label="Meta spend" value={formatUsd(panel.totals.meta.spendCents)} />
                   <StatTile label="Meta clicks" value={panel.totals.meta.clicks} />
                   <StatTile label="Google spend" value={formatUsd(panel.totals.google.spendCents)} />
@@ -840,17 +922,16 @@ export function AdTrackingClient() {
                 )}
               </>
             ) : null}
-          </section>
+          </AdminCollapsibleSection>
 
           {config ? (
-            <section className={adminCardClass}>
-              <p className={adminSectionTitleClass}>Verification</p>
-              <h2 className="mt-2 text-lg font-bold">Tag Snippets (Already Deployed)</h2>
-              <p className="mt-1 text-sm text-white/50">
-                Reference only if Meta or Google asks you to verify domain ownership. These tags are already live on every
-                public page.
-              </p>
-              <div className="mt-5 space-y-4">
+            <AdminCollapsibleSection
+              eyebrow="Verification"
+              heading="Tag Snippets (Already Deployed)"
+              description="Reference only if Meta or Google asks you to verify domain ownership. These tags are already live on every public page."
+              defaultOpen={false}
+            >
+              <div className="space-y-4">
                 {(["meta", "google"] as const).map((key) => (
                   <div key={key} className={adminPanelClass + " p-4"}>
                     <div className="flex items-center justify-between gap-2">
@@ -863,7 +944,7 @@ export function AdTrackingClient() {
                   </div>
                 ))}
               </div>
-            </section>
+            </AdminCollapsibleSection>
           ) : null}
         </div>
     </AdminPortalShell>

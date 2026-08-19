@@ -176,6 +176,54 @@ export const adminNavLinkActiveClass =
 export const adminImpersonationBannerClass =
   "mb-6 rounded-2xl border border-[#FF7E00]/35 bg-[#FF7E00]/[0.08] px-4 py-3 text-sm text-white/90 shadow-[0_12px_40px_-24px_rgba(227,43,43,0.35)]";
 
+/**
+ * Collapsible admin section built on native <details>/<summary> — no JS state needed,
+ * keyboard/screen-reader accessible by default. `defaultOpen` sets the initial DOM `open`
+ * attribute only; pass a static literal (not a value derived from re-rendering state) so a
+ * parent re-render never fights the operator's manual expand/collapse.
+ */
+export function AdminCollapsibleSection({
+  eyebrow,
+  heading,
+  description,
+  headerExtra,
+  defaultOpen = true,
+  className = "",
+  children,
+}: {
+  eyebrow: string;
+  heading: string;
+  description?: ReactNode;
+  headerExtra?: ReactNode;
+  defaultOpen?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <details className={`${adminCardClass} group ${className}`} open={defaultOpen}>
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
+        <div className="min-w-0">
+          <p className={adminSectionTitleClass}>{eyebrow}</p>
+          <h2 className="mt-2 text-lg font-bold">{heading}</h2>
+          {description ? <p className="mt-1 text-sm text-white/50">{description}</p> : null}
+        </div>
+        <span
+          aria-hidden
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-xs text-white/50 transition-transform group-open:rotate-180"
+        >
+          ▾
+        </span>
+      </summary>
+      {headerExtra ? (
+        <div className="mt-4 flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          {headerExtra}
+        </div>
+      ) : null}
+      <div className="mt-5">{children}</div>
+    </details>
+  );
+}
+
 export function AdminStatCard({
   label,
   value,

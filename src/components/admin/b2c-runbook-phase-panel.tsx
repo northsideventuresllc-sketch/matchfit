@@ -30,7 +30,7 @@ export function B2cRunbookPhasePanel({ phaseId, readiness5b, className = "" }: P
 
   return (
     <section className={`${adminCardClass} border-[#FF7E00]/15 ${className}`}>
-      <p className={adminSectionTitleClass}>B2C runbook</p>
+      <p className={adminSectionTitleClass}>Runbook</p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className="rounded-md border border-[#FF7E00]/40 bg-[#FF7E00]/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#FFD34E]">
           Phase {phase.phase}

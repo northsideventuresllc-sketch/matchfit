@@ -476,7 +476,8 @@ export async function persistAdminAiTurn(args: {
   conversationId?: string | null;
   role: "user" | "assistant";
   content: string;
-  actionType?: AdminAiAction;
+  /** AdminAiAction for the built-in assistant, or any other feature-scoped action tag (e.g. "ads_analysis"). */
+  actionType?: AdminAiAction | (string & {});
 }): Promise<void> {
   await prisma.adminAiMessage.create({
     data: {
