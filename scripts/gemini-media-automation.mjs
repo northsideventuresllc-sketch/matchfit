@@ -75,9 +75,6 @@ const TELEGRAM_CHAT_IDS = (envOf("TELEGRAM_CHAT_IDS") || "")
   .map((s) => s.trim())
   .filter(Boolean);
 const CDP_PORT = Number(envOf("GEMINI_CDP_PORT") || 9333);
-const AUTOMATION_PROFILE_DIR =
-  envOf("GEMINI_CHROME_PROFILE") ||
-  path.join(os.homedir(), ".nvg-chrome-automation");
 const BUCKET = "content-calendar-media";
 const TABLE = "match_fit_content_calendar_posts";
 
@@ -141,19 +138,6 @@ async function writeMediaResult(rowId, mediaUrls, statusLabel) {
     throw new Error(`write-back failed for ${rowId}: ${res.status} ${await res.text()}`);
   }
   return res.json();
-}
-
-async function uploadToStorage(objectPath, buffer, contentType) {
-  const res = await sbFetch(`/storage/v1/object/${BUCKET}/${objectPath}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": contentType,
-      "x-upsert": "true",
-    },
-    body: undefined, // overridden below — fetch needs raw body, not JSON
-  });
-  // sbFetch always JSON-encodes body; storage upload needs raw bytes, so do it directly.
-  return uploadRaw(objectPath, buffer, contentType);
 }
 
 async function uploadRaw(objectPath, buffer, contentType) {
