@@ -64,6 +64,15 @@ export type AdAttributionCampaignRow = {
   signupPageViews: number;
 };
 
+export type AdCampaignPerformanceRow = {
+  campaignId: string;
+  platform: AdPlatform;
+  impressions: number;
+  clicks: number;
+  spendCents: number;
+  conversions: number;
+};
+
 export type AdPerformancePanel = {
   windowDays: number;
   integrations: AdPlatformIntegrationStatus[];
@@ -73,6 +82,8 @@ export type AdPerformancePanel = {
   };
   platformDaily: AdPlatformDailyMetrics[];
   attribution: AdAttributionCampaignRow[];
+  /** Per-campaign totals from level=campaign Insights sync, keyed to AdCampaignRegistry.campaignId. */
+  campaignPerformance: AdCampaignPerformanceRow[];
   totals: {
     meta: { impressions: number; clicks: number; spendCents: number; conversions: number };
     google: { impressions: number; clicks: number; spendCents: number; conversions: number };
@@ -429,6 +440,73 @@ export async function fetchMetaDailySnapshot(dayKey: string): Promise<{
   };
 }
 
+export type AdPlatformCampaignDailyMetrics = {
+  campaignId: string;
+  campaignName: string | null;
+  impressions: number;
+  clicks: number;
+  spendCents: number;
+  conversions: number;
+  rawJson: string;
+};
+
+function metaCampaignInsightsUrl(actId: string, dayKey: string, token: string): URL {
+  const timeRange = JSON.stringify({ since: dayKey, until: dayKey });
+  const url = new URL(`https://graph.facebook.com/${META_ADS_GRAPH_VERSION}/${actId}/insights`);
+  url.searchParams.set("fields", "campaign_id,campaign_name,impressions,clicks,spend,actions");
+  url.searchParams.set("time_range", timeRange);
+  url.searchParams.set("time_increment", "1");
+  url.searchParams.set("level", "campaign");
+  url.searchParams.set("limit", "200");
+  return withMetaGraphAuth(url, token);
+}
+
+/** Per-campaign Meta Insights for one day — powers the Ad Tracking HQ drilldown. Same credentials as the account-level sync. */
+export async function fetchMetaCampaignDailySnapshots(
+  dayKey: string,
+): Promise<AdPlatformCampaignDailyMetrics[] | null> {
+  const token = process.env.META_ADS_ACCESS_TOKEN?.trim();
+  const accountRaw = process.env.META_AD_ACCOUNT_ID?.trim();
+  if (!token || !accountRaw) return null;
+
+  const account = normalizeMetaAdAccountId(accountRaw);
+  if (!account) {
+    throw new Error(
+      formatMetaInsightsOperatorError(
+        `Invalid META_AD_ACCOUNT_ID "${accountRaw}". Use the Ads Manager act_… id (digits or act_ prefix).`,
+      ),
+    );
+  }
+
+  const url = metaCampaignInsightsUrl(account.actId, dayKey, token);
+  const res = await fetch(url.toString(), { cache: "no-store" });
+  type MetaCampaignInsightsRow = MetaInsightsRow & { campaign_id?: string; campaign_name?: string };
+  const json = (await res.json()) as {
+    data?: MetaCampaignInsightsRow[];
+    error?: MetaInsightsResponse["error"];
+  };
+
+  if (!res.ok || json.error) {
+    const msg = json.error?.message ?? json.error?.error_user_msg ?? `Meta insights HTTP ${res.status}`;
+    throw new Error(formatMetaInsightsOperatorError(msg));
+  }
+
+  return (json.data ?? [])
+    .filter((row) => row.campaign_id)
+    .map((row) => {
+      const spendUsd = Number.parseFloat(row.spend ?? "0") || 0;
+      return {
+        campaignId: row.campaign_id as string,
+        campaignName: row.campaign_name ?? null,
+        impressions: Number.parseInt(row.impressions ?? "0", 10) || 0,
+        clicks: Number.parseInt(row.clicks ?? "0", 10) || 0,
+        spendCents: Math.round(spendUsd * 100),
+        conversions: parseMetaConversions(row.actions),
+        rawJson: JSON.stringify(row),
+      };
+    });
+}
+
 async function getGoogleAdsAccessToken(): Promise<string | null> {
   const clientId = process.env.GOOGLE_ADS_CLIENT_ID?.trim();
   const clientSecret = process.env.GOOGLE_ADS_CLIENT_SECRET?.trim();
@@ -526,6 +604,82 @@ export async function fetchGoogleAdsDailySnapshot(dayKey: string): Promise<{
   };
 }
 
+/** Per-campaign Google Ads metrics for one day (FROM campaign, not FROM customer). */
+export async function fetchGoogleAdsCampaignDailySnapshots(
+  dayKey: string,
+): Promise<AdPlatformCampaignDailyMetrics[] | null> {
+  const customerId = process.env.GOOGLE_ADS_CUSTOMER_ID?.trim()?.replace(/-/g, "");
+  const loginCustomerId = process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID?.trim()?.replace(/-/g, "");
+  const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN?.trim();
+  if (!customerId || !developerToken) return null;
+
+  const accessToken = await getGoogleAdsAccessToken();
+  if (!accessToken) return null;
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${accessToken}`,
+    "developer-token": developerToken,
+    "Content-Type": "application/json",
+  };
+  if (loginCustomerId) {
+    headers["login-customer-id"] = loginCustomerId;
+  }
+
+  const query = `
+    SELECT
+      campaign.id,
+      campaign.name,
+      metrics.impressions,
+      metrics.clicks,
+      metrics.cost_micros,
+      metrics.conversions
+    FROM campaign
+    WHERE segments.date = '${dayKey}'
+  `;
+
+  const res = await fetch(
+    `https://googleads.googleapis.com/v18/customers/${customerId}/googleAds:search`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ query }),
+      cache: "no-store",
+    },
+  );
+
+  const json = (await res.json()) as {
+    results?: Array<{
+      campaign?: { id?: string; name?: string };
+      metrics?: {
+        impressions?: string;
+        clicks?: string;
+        costMicros?: string;
+        conversions?: number;
+      };
+    }>;
+    error?: { message?: string };
+  };
+
+  if (!res.ok || json.error) {
+    throw new Error(json.error?.message ?? `Google Ads API HTTP ${res.status}`);
+  }
+
+  return (json.results ?? [])
+    .filter((r) => r.campaign?.id)
+    .map((r) => {
+      const costMicros = Number.parseInt(r.metrics?.costMicros ?? "0", 10) || 0;
+      return {
+        campaignId: r.campaign?.id as string,
+        campaignName: r.campaign?.name ?? null,
+        impressions: Number.parseInt(r.metrics?.impressions ?? "0", 10) || 0,
+        clicks: Number.parseInt(r.metrics?.clicks ?? "0", 10) || 0,
+        spendCents: Math.round(costMicros / 10_000),
+        conversions: Math.round(Number(r.metrics?.conversions ?? 0)),
+        rawJson: JSON.stringify(r),
+      };
+    });
+}
+
 export async function fetchTikTokAdsDailySnapshot(dayKey: string): Promise<{
   impressions: number;
   clicks: number;
@@ -587,6 +741,182 @@ export async function fetchTikTokAdsDailySnapshot(dayKey: string): Promise<{
     conversions: Number.parseInt(metrics?.conversion ?? "0", 10) || 0,
     rawJson: JSON.stringify(json),
   };
+}
+
+/** Per-campaign TikTok Ads metrics for one day (data_level=AUCTION_CAMPAIGN, not AUCTION_ADVERTISER). */
+export async function fetchTikTokCampaignDailySnapshots(
+  dayKey: string,
+): Promise<AdPlatformCampaignDailyMetrics[] | null> {
+  const accessToken = process.env.TIKTOK_ADS_ACCESS_TOKEN?.trim();
+  const advertiserId = process.env.TIKTOK_ADS_ADVERTISER_ID?.trim();
+  if (!accessToken || !advertiserId) return null;
+
+  const res = await fetch("https://business-api.tiktok.com/open_api/v1.3/report/integrated/get/", {
+    method: "POST",
+    headers: {
+      "Access-Token": accessToken,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      advertiser_id: advertiserId,
+      service_type: "AUCTION",
+      report_type: "BASIC",
+      data_level: "AUCTION_CAMPAIGN",
+      dimensions: ["campaign_id", "stat_time_day"],
+      metrics: ["campaign_name", "spend", "impressions", "clicks", "conversion"],
+      start_date: dayKey,
+      end_date: dayKey,
+      page: 1,
+      page_size: 1000,
+    }),
+    cache: "no-store",
+  });
+
+  const json = (await res.json()) as {
+    code?: number;
+    message?: string;
+    data?: {
+      list?: Array<{
+        dimensions?: { campaign_id?: string };
+        metrics?: {
+          campaign_name?: string;
+          spend?: string;
+          impressions?: string;
+          clicks?: string;
+          conversion?: string;
+        };
+      }>;
+    };
+  };
+
+  if (!res.ok || json.code !== 0) {
+    throw new Error(json.message ?? `TikTok Ads API HTTP ${res.status}`);
+  }
+
+  return (json.data?.list ?? [])
+    .filter((row) => row.dimensions?.campaign_id)
+    .map((row) => {
+      const spendUsd = Number.parseFloat(row.metrics?.spend ?? "0") || 0;
+      return {
+        campaignId: row.dimensions?.campaign_id as string,
+        campaignName: row.metrics?.campaign_name ?? null,
+        impressions: Number.parseInt(row.metrics?.impressions ?? "0", 10) || 0,
+        clicks: Number.parseInt(row.metrics?.clicks ?? "0", 10) || 0,
+        spendCents: Math.round(spendUsd * 100),
+        conversions: Number.parseInt(row.metrics?.conversion ?? "0", 10) || 0,
+        rawJson: JSON.stringify(row),
+      };
+    });
+}
+
+export async function upsertAdCampaignSnapshot(
+  platform: AdPlatform,
+  campaignId: string,
+  dayKey: string,
+  metrics: {
+    impressions: number;
+    clicks: number;
+    spendCents: number;
+    conversions: number;
+    rawJson?: string;
+  },
+): Promise<void> {
+  await prisma.adCampaignDailySnapshot.upsert({
+    where: { platform_campaignId_dayKey: { platform, campaignId, dayKey } },
+    create: {
+      platform,
+      campaignId,
+      dayKey,
+      impressions: metrics.impressions,
+      clicks: metrics.clicks,
+      spendCents: metrics.spendCents,
+      conversions: metrics.conversions,
+      rawJson: metrics.rawJson ?? null,
+    },
+    update: {
+      impressions: metrics.impressions,
+      clicks: metrics.clicks,
+      spendCents: metrics.spendCents,
+      conversions: metrics.conversions,
+      rawJson: metrics.rawJson ?? null,
+    },
+  });
+}
+
+/** Syncs level=campaign Insights for meta/google/tiktok — sibling to {@link syncAdPlatformPerformance} (account-level). */
+export async function syncAdCampaignPerformance(days = 7): Promise<{
+  synced: AdPlatform[];
+  errors: Partial<Record<AdPlatform, string>>;
+}> {
+  const synced: AdPlatform[] = [];
+  const errors: Partial<Record<AdPlatform, string>> = {};
+  const dayCount = Math.min(30, Math.max(1, Math.floor(days)));
+
+  for (let i = 0; i < dayCount; i++) {
+    const dayKey = daysAgoEastern(i);
+
+    try {
+      const rows = await fetchMetaCampaignDailySnapshots(dayKey);
+      if (rows) {
+        for (const row of rows) {
+          await upsertAdCampaignSnapshot("meta", row.campaignId, dayKey, row);
+        }
+        if (!synced.includes("meta")) synced.push("meta");
+      }
+    } catch (e) {
+      errors.meta = e instanceof Error ? e.message : "Meta campaign sync failed.";
+    }
+
+    try {
+      const rows = await fetchGoogleAdsCampaignDailySnapshots(dayKey);
+      if (rows) {
+        for (const row of rows) {
+          await upsertAdCampaignSnapshot("google", row.campaignId, dayKey, row);
+        }
+        if (!synced.includes("google")) synced.push("google");
+      }
+    } catch (e) {
+      errors.google = e instanceof Error ? e.message : "Google Ads campaign sync failed.";
+    }
+
+    try {
+      const rows = await fetchTikTokCampaignDailySnapshots(dayKey);
+      if (rows) {
+        for (const row of rows) {
+          await upsertAdCampaignSnapshot("tiktok", row.campaignId, dayKey, row);
+        }
+        if (!synced.includes("tiktok")) synced.push("tiktok");
+      }
+    } catch (e) {
+      errors.tiktok = e instanceof Error ? e.message : "TikTok campaign sync failed.";
+    }
+  }
+
+  return { synced, errors };
+}
+
+export async function getAdCampaignPerformanceTotals(windowDays = 7): Promise<AdCampaignPerformanceRow[]> {
+  const days = Math.min(30, Math.max(1, Math.floor(windowDays)));
+  const sinceDayKey = daysAgoEastern(days - 1);
+
+  try {
+    const rows = await prisma.adCampaignDailySnapshot.groupBy({
+      by: ["platform", "campaignId"],
+      where: { dayKey: { gte: sinceDayKey } },
+      _sum: { impressions: true, clicks: true, spendCents: true, conversions: true },
+    });
+    return rows.map((r) => ({
+      campaignId: r.campaignId,
+      platform: r.platform as AdPlatform,
+      impressions: r._sum.impressions ?? 0,
+      clicks: r._sum.clicks ?? 0,
+      spendCents: r._sum.spendCents ?? 0,
+      conversions: r._sum.conversions ?? 0,
+    }));
+  } catch (e) {
+    if (isPrismaMissingTableError(e, "ad_campaign_daily_snapshots")) return [];
+    throw e;
+  }
 }
 
 export async function upsertAdPlatformSnapshot(
@@ -733,6 +1063,7 @@ export async function getAdPerformancePanel(windowDays = 7): Promise<AdPerforman
   }
 
   const attribution = await getAdAttributionRows(days);
+  const campaignPerformance = await getAdCampaignPerformanceTotals(days);
 
   const sumPlatform = (platform: AdPlatform) =>
     platformDaily
@@ -794,6 +1125,7 @@ export async function getAdPerformancePanel(windowDays = 7): Promise<AdPerforman
     },
     platformDaily,
     attribution,
+    campaignPerformance,
     totals: {
       meta: sumPlatform("meta"),
       google: sumPlatform("google"),

@@ -377,6 +377,35 @@ model AdCampaignRegistry {
   @@schema("public")
 }
 
+/// Daily per-campaign ad platform performance (level=campaign Insights sync), keyed to
+/// AdCampaignRegistry.campaignId — powers the Ad Tracking HQ per-campaign drilldown.
+model AdCampaignDailySnapshot {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Platform-native campaign ID from Ads Manager / Google Ads / TikTok Ads.
+  campaignId String
+  /// google | meta | tiktok
+  platform   String
+  /// YYYY-MM-DD (America/New_York)
+  dayKey     String
+
+  impressions Int @default(0)
+  clicks      Int @default(0)
+  spendCents  Int @default(0)
+  conversions Int @default(0)
+
+  /// Optional raw API payload for debugging.
+  rawJson String?
+
+  @@unique([platform, campaignId, dayKey])
+  @@index([dayKey])
+  @@index([platform, campaignId])
+  @@map("ad_campaign_daily_snapshots")
+  @@schema("public")
+}
+
 /// Prospective administrator awaiting approval email action (creates {@link Administrator} when approved).
 model PendingAdministratorRegistration {
   id        String   @id @default(cuid())

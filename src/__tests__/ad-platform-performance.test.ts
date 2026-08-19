@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  fetchGoogleAdsCampaignDailySnapshots,
+  fetchMetaCampaignDailySnapshots,
+  fetchTikTokCampaignDailySnapshots,
   formatMetaInsightsOperatorError,
   getAdPlatformIntegrationStatus,
   getServerConversionIntegrationStatus,
@@ -124,5 +127,11 @@ describe("ad-platform-performance", () => {
       { action_type: "lead", value: "2" },
     ]);
     expect(total).toBe(5);
+  });
+
+  it("per-campaign fetchers no-op (return null, no network call) when platform credentials are missing", async () => {
+    await expect(fetchMetaCampaignDailySnapshots("2026-08-19")).resolves.toBeNull();
+    await expect(fetchGoogleAdsCampaignDailySnapshots("2026-08-19")).resolves.toBeNull();
+    await expect(fetchTikTokCampaignDailySnapshots("2026-08-19")).resolves.toBeNull();
   });
 });

@@ -26,7 +26,9 @@ import {
 } from "@/lib/ad-tracking-config";
 import { MATCH_FIT_MARKETING_PLAYBOOK_STEPS } from "@/lib/match-fit-marketing-playbook";
 import { B2cRunbookPhasePanel } from "@/components/admin/b2c-runbook-phase-panel";
-import type { AdPerformancePanel } from "@/lib/ad-platform-performance";
+import type { AdCampaignPerformanceRow, AdPerformancePanel } from "@/lib/ad-platform-performance";
+import { AdminCollapsibleSection, AdminTechnicalDetails } from "@/components/admin/admin-collapsible-section";
+import { AdTrackingChatWidget } from "@/components/admin/ad-tracking-chat-widget";
 
 type TrackingConfigResponse = {
   pixels: {
@@ -82,6 +84,15 @@ type CampaignsResponse = {
 
 function formatUsd(cents: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
+}
+
+function findCampaignPerformance(
+  campaign: { campaignId: string; platform: AdCampaignPlatform },
+  rows: AdCampaignPerformanceRow[],
+): AdCampaignPerformanceRow | null {
+  return (
+    rows.find((r) => r.campaignId === campaign.campaignId && r.platform === campaign.platform) ?? null
+  );
 }
 
 function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
@@ -289,27 +300,35 @@ export function AdTrackingClient() {
       current="ad-tracking"
       maxWidth="full"
       title="Ad Tracking HQ"
-      description="Default Match Fit ads surface. Steps 1, 5–8 of the marketing playbook — plan budget, confirm pixels, build links, register campaigns, and review paid performance."
+      description="Plan budget, confirm your ad tags are live, build tracking links, register campaigns, and see how paid ads are performing — all in one place."
       contentClassName="space-y-6"
     >
         <AdminPortalBetaNotice className="mt-0" />
 
         <section className={`${adminCardClass} border-[#FF7E00]/15 bg-[#FF7E00]/[0.04]`}>
-          <p className={adminSectionTitleClass}>INSTRUCTIONS</p>
-          <h2 className="mt-2 text-lg font-bold">8-step marketing playbook</h2>
-          <ol className="mt-3 space-y-2 text-sm leading-relaxed text-white/60">
-            {MATCH_FIT_MARKETING_PLAYBOOK_STEPS.map((step) => (
-              <li key={step.id}>
-                <strong className="text-white/85">
-                  Step {step.step} — {step.title}:
-                </strong>{" "}
-                {step.description}
-                {step.jbLane ? (
-                  <span className="text-white/40"> (your lane — outside the admin portal)</span>
-                ) : null}
-              </li>
-            ))}
-          </ol>
+          <AdminCollapsibleSection
+            defaultOpen
+            title={
+              <>
+                <p className={adminSectionTitleClass}>INSTRUCTIONS</p>
+                <h2 className="mt-2 text-lg font-bold">8-step marketing playbook</h2>
+              </>
+            }
+          >
+            <ol className="space-y-2 text-sm leading-relaxed text-white/60">
+              {MATCH_FIT_MARKETING_PLAYBOOK_STEPS.map((step) => (
+                <li key={step.id}>
+                  <strong className="text-white/85">
+                    Step {step.step} — {step.title}:
+                  </strong>{" "}
+                  {step.description}
+                  {step.jbLane ? (
+                    <span className="text-white/40"> (your lane — outside the admin portal)</span>
+                  ) : null}
+                </li>
+              ))}
+            </ol>
+          </AdminCollapsibleSection>
         </section>
 
         {error ? <AdminPortalAlert variant="error">{error}</AdminPortalAlert> : null}
@@ -331,14 +350,23 @@ export function AdTrackingClient() {
 
         <div className="space-y-8">
           <section className={adminCardClass}>
-            <p className={adminSectionTitleClass}>Connected Pixels · Runbook 5b</p>
-            <h2 className="mt-2 text-lg font-bold">Live Tags in the App</h2>
-            <p className="mt-1 text-sm text-white/50">
-              These are the tracking tags already running on match-fit.net. You do not need to paste code — use the IDs
-              here to verify setup in Meta Events Manager and Google Ads.
-            </p>
+            <AdminCollapsibleSection
+              defaultOpen
+              title={
+                <>
+                  <p className={adminSectionTitleClass}>Connected Tags · RUNBOOK 5b</p>
+                  <h2 className="mt-2 text-lg font-bold">Live Tags in the App</h2>
+                </>
+              }
+              subtitle={
+                <p className="text-sm text-white/50">
+                  These are the tracking tags already running on match-fit.net. You do not need to paste any code — use
+                  the IDs here to double-check setup inside Meta and Google&apos;s own ad dashboards.
+                </p>
+              }
+            >
             {config ? (
-              <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              <div className="grid gap-4 lg:grid-cols-2">
                 <div className={adminPanelClass + " p-4"}>
                   <div className="flex items-center justify-between gap-2">
                     <PlatformBadge platform="meta" />
@@ -385,17 +413,27 @@ export function AdTrackingClient() {
                 </div>
               </div>
             ) : null}
+            </AdminCollapsibleSection>
           </section>
 
           {config ? (
             <section className={adminCardClass}>
-              <p className={adminSectionTitleClass}>Server Conversions</p>
-              <h2 className="mt-2 text-lg font-bold">Meta CAPI and GA4 (Ad-Blocker Safe)</h2>
-              <p className="mt-1 text-sm text-white/50">
-                Signup milestones also fire server-side so ad blockers cannot drop them. These use separate credentials
-                from the reporting API tokens above.
-              </p>
-              <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              <AdminCollapsibleSection
+                defaultOpen
+                title={
+                  <>
+                    <p className={adminSectionTitleClass}>Backup Tracking</p>
+                    <h2 className="mt-2 text-lg font-bold">Works Even With Ad Blockers</h2>
+                  </>
+                }
+                subtitle={
+                  <p className="text-sm text-white/50">
+                    Signups are also recorded straight from Match Fit&apos;s servers, so an ad blocker on the visitor&apos;s
+                    browser can&apos;t hide the signup from Meta or Google.
+                  </p>
+                }
+              >
+              <div className="grid gap-4 lg:grid-cols-2">
                 <div className={adminPanelClass + " p-4"}>
                   <div className="flex items-center gap-2">
                     <PlatformBadge platform="meta" />
@@ -409,12 +447,12 @@ export function AdTrackingClient() {
                       }
                     >
                       {config.serverConversions.metaCapi.capiSyncStatus === "capi_ok"
-                        ? "CAPI connected"
+                        ? "Connected"
                         : config.serverConversions.metaCapi.capiSyncStatus === "capi_error"
-                          ? "CAPI token set — Meta rejected probe"
+                          ? "Set up, but Meta rejected the test"
                           : config.serverConversions.metaCapi.configured
-                            ? "CAPI credentials present"
-                            : "CAPI not configured"}
+                            ? "Credentials saved — not tested yet"
+                            : "Not set up"}
                     </span>
                   </div>
                   {config.serverConversions.metaCapi.capiSyncDetail ? (
@@ -423,13 +461,19 @@ export function AdTrackingClient() {
                     </p>
                   ) : !config.serverConversions.metaCapi.configured ? (
                     <p className="mt-3 text-[11px] leading-relaxed text-white/45">
-                      Add META_PIXEL_ID and META_ACCESS_TOKEN (Conversions API system user token from Events Manager).
+                      Ask your developer to finish backup Meta tracking setup.
                     </p>
+                  ) : null}
+                  {!config.serverConversions.metaCapi.configured ? (
+                    <AdminTechnicalDetails>
+                      Add <code>META_PIXEL_ID</code> and <code>META_ACCESS_TOKEN</code> (Conversions API system user
+                      token from Events Manager).
+                    </AdminTechnicalDetails>
                   ) : null}
                 </div>
                 <div className={adminPanelClass + " p-4"}>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wide text-[#E37400]">GA4</span>
+                    <span className="text-[10px] font-black uppercase tracking-wide text-[#E37400]">Google Analytics</span>
                     <span
                       className={
                         config.serverConversions.ga4.configured
@@ -437,29 +481,44 @@ export function AdTrackingClient() {
                           : "text-[11px] font-bold text-white/40"
                       }
                     >
-                      {config.serverConversions.ga4.configured ? "Measurement Protocol connected" : "GA4 not configured"}
+                      {config.serverConversions.ga4.configured ? "Connected" : "Not set up"}
                     </span>
                   </div>
                   {!config.serverConversions.ga4.configured ? (
-                    <p className="mt-3 text-[11px] leading-relaxed text-white/45">
-                      Add GA_MEASUREMENT_ID and GA_API_SECRET from Admin → Data Streams → Measurement Protocol.
-                    </p>
+                    <>
+                      <p className="mt-3 text-[11px] leading-relaxed text-white/45">
+                        Ask your developer to finish backup Google Analytics tracking setup.
+                      </p>
+                      <AdminTechnicalDetails>
+                        Add <code>GA_MEASUREMENT_ID</code> and <code>GA_API_SECRET</code> from Admin → Data Streams →
+                        Measurement Protocol.
+                      </AdminTechnicalDetails>
+                    </>
                   ) : null}
                 </div>
               </div>
+              </AdminCollapsibleSection>
             </section>
           ) : null}
 
           <section className={adminCardClass}>
-            <p className={adminSectionTitleClass}>Campaign Link Builder · Runbook 6b</p>
-            <h2 className="mt-2 text-lg font-bold">Generate Client Tracking URLs</h2>
-            <p className="mt-1 text-sm text-white/50">
-              B2C runbook 6b — default to client sign-up. Use waitlist only when the beta client cap is full. Copy the
-              final URL into your ad creative.
-            </p>
-
+            <AdminCollapsibleSection
+              defaultOpen
+              title={
+                <>
+                  <p className={adminSectionTitleClass}>Campaign Link Builder · RUNBOOK 6b</p>
+                  <h2 className="mt-2 text-lg font-bold">Generate Client Tracking URLs</h2>
+                </>
+              }
+              subtitle={
+                <p className="text-sm text-white/50">
+                  Default to client sign-up. Use the waitlist option only when the beta client cap is full. Copy the
+                  final URL into your ad creative.
+                </p>
+              }
+            >
             {config ? (
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   className={adminAccentButtonClass}
@@ -547,20 +606,29 @@ export function AdTrackingClient() {
               </div>
               <p className="mt-2 break-all font-mono text-xs text-[#FFD34E]">{trackedUrl}</p>
             </div>
+            </AdminCollapsibleSection>
           </section>
 
           <section className={adminCardClass}>
-            <p className={adminSectionTitleClass}>Campaign Registry</p>
-            <h2 className="mt-2 text-lg font-bold">Register Campaign ID</h2>
-            <p className="mt-1 text-sm text-white/50">
-              Playbook step 8 · B2C runbook after 6b — after you launch a client campaign, record its platform campaign
-              ID here with the same week and budget from step 1.
-            </p>
-
+            <AdminCollapsibleSection
+              defaultOpen
+              title={
+                <>
+                  <p className={adminSectionTitleClass}>Campaign Registry · RUNBOOK after 6b</p>
+                  <h2 className="mt-2 text-lg font-bold">Register Campaign ID</h2>
+                </>
+              }
+              subtitle={
+                <p className="text-sm text-white/50">
+                  After you launch a client campaign, record its platform campaign ID here with the same week and
+                  budget from step 1. This also lets the per-campaign drilldown below show real numbers for it.
+                </p>
+              }
+            >
             {campaignMigrationPending ? (
-              <p className="mt-4 text-sm text-white/45">
-                Database migration pending — campaign registry will activate after the next deploy runs{" "}
-                <code className="text-[#FFD34E]">prisma migrate deploy</code>.
+              <p className="text-sm text-white/45">
+                The campaign registry is not turned on in the database yet — it will activate automatically after the
+                next deploy.
               </p>
             ) : null}
 
@@ -681,17 +749,92 @@ export function AdTrackingClient() {
             ) : (
               <p className="mt-6 text-sm text-white/40">No campaigns registered yet.</p>
             )}
+            </AdminCollapsibleSection>
           </section>
 
+          {panel && campaigns.length > 0 ? (
+            <section className={adminCardClass}>
+              <AdminCollapsibleSection
+                defaultOpen
+                title={
+                  <>
+                    <p className={adminSectionTitleClass}>Per-Campaign Drilldown</p>
+                    <h2 className="mt-2 text-lg font-bold">How Each Campaign Is Doing</h2>
+                  </>
+                }
+                subtitle={
+                  <p className="text-sm text-white/50">
+                    Spend, clicks, and conversions pulled straight from each platform for the campaigns you&apos;ve
+                    registered above. Use Sync now (in Performance below) to refresh these numbers.
+                  </p>
+                }
+              >
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[720px] text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-white/10 text-[10px] font-black uppercase tracking-wide text-white/40">
+                        <th className="py-2 pr-3">Campaign</th>
+                        <th className="py-2 pr-3">Platform</th>
+                        <th className="py-2 pr-3">Budget</th>
+                        <th className="py-2 pr-3">Spend</th>
+                        <th className="py-2 pr-3">Clicks</th>
+                        <th className="py-2">Conversions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {campaigns.map((row) => {
+                        const perf = findCampaignPerformance(row, panel.campaignPerformance);
+                        return (
+                          <tr key={row.id} className="border-b border-white/[0.06] text-white/60">
+                            <td className="py-3 pr-3 text-white/75">
+                              {row.name}
+                              <span className="ml-2 font-mono text-[10px] text-white/35">{row.campaignId}</span>
+                            </td>
+                            <td className="py-3 pr-3">
+                              <PlatformBadge platform={row.platform} />
+                            </td>
+                            <td className="py-3 pr-3 tabular-nums">
+                              {row.budgetCents != null ? formatUsd(row.budgetCents) : "—"}
+                            </td>
+                            {perf ? (
+                              <>
+                                <td className="py-3 pr-3 tabular-nums text-white/85">{formatUsd(perf.spendCents)}</td>
+                                <td className="py-3 pr-3 tabular-nums">{perf.clicks}</td>
+                                <td className="py-3 tabular-nums">{perf.conversions}</td>
+                              </>
+                            ) : (
+                              <td className="py-3 text-white/35" colSpan={3}>
+                                No synced data yet — click Sync now below.
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </AdminCollapsibleSection>
+            </section>
+          ) : null}
+
           <section className={adminCardClass}>
-            <p className={adminSectionTitleClass}>Conversion Events</p>
-            <h2 className="mt-2 text-lg font-bold">Events Match Fit Sends Automatically</h2>
-            <p className="mt-1 text-sm text-white/50">
-              When someone signs up, Match Fit fires these events to Meta and Google. Create matching conversion actions in
-              each ad platform using the names below — no custom code required on your side.
-            </p>
+            <AdminCollapsibleSection
+              defaultOpen
+              title={
+                <>
+                  <p className={adminSectionTitleClass}>Conversion Events</p>
+                  <h2 className="mt-2 text-lg font-bold">Events Match Fit Sends Automatically</h2>
+                </>
+              }
+              subtitle={
+                <p className="text-sm text-white/50">
+                  When someone signs up, Match Fit fires these events to Meta and Google. Create matching conversion actions in
+                  each ad platform using the names below — no custom code required on your side.
+                </p>
+              }
+            >
             {config ? (
-              <div className="mt-5 overflow-x-auto">
+              <div className="overflow-x-auto">
                 <table className="w-full min-w-[640px] text-left text-xs">
                   <thead>
                     <tr className="border-b border-white/10 text-[10px] font-black uppercase tracking-wide text-white/40">
@@ -719,16 +862,17 @@ export function AdTrackingClient() {
                 </table>
               </div>
             ) : null}
+            </AdminCollapsibleSection>
           </section>
 
           <section className={adminCardClass}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className={adminSectionTitleClass}>Performance</p>
-                <h2 className="mt-2 text-lg font-bold">Ad Platform Metrics (7 Days)</h2>
+                <h2 className="mt-2 text-lg font-bold">Ad Platform Results (Last {panel?.windowDays ?? 7} Days)</h2>
                 <p className="mt-1 text-sm text-white/50">
-                  Pull spend and clicks from Meta, Google, and TikTok, then compare with visitors who arrived via your
-                  tracking links.
+                  See how much you spent and how many clicks you got from Meta, Google, and TikTok, plus how that
+                  compares with visitors who actually arrived via your tracking links.
                 </p>
               </div>
               <button type="button" className={adminAccentButtonClass} disabled={syncing} onClick={() => void syncPerformance()}>
@@ -737,8 +881,12 @@ export function AdTrackingClient() {
             </div>
 
             {panel ? (
-              <>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <AdminCollapsibleSection
+                defaultOpen
+                className="mt-5"
+                title={<span className="text-[10px] font-black uppercase tracking-wide text-white/35">Detailed metrics</span>}
+              >
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <StatTile label="Meta spend" value={formatUsd(panel.totals.meta.spendCents)} />
                   <StatTile label="Meta clicks" value={panel.totals.meta.clicks} />
                   <StatTile label="Google spend" value={formatUsd(panel.totals.google.spendCents)} />
@@ -757,14 +905,14 @@ export function AdTrackingClient() {
                     const status = integration.spendSyncStatus ?? (integration.configured ? "credentials_present" : "not_configured");
                     const statusLabel =
                       status === "insights_ok"
-                        ? "Insights spend ready"
+                        ? "Spend syncing"
                         : status === "insights_error"
-                          ? "Insights error"
+                          ? "Connected, but sync failed"
                           : status === "credentials_present"
                             ? integration.platform === "meta"
-                              ? "Credentials set — Insights not verified"
-                              : "API credentials set"
-                            : "Not configured";
+                              ? "Credentials saved — not verified yet"
+                              : "Credentials saved"
+                            : "Not connected";
                     const statusClass =
                       status === "insights_ok"
                         ? "text-[11px] font-bold text-[#9BE7B0]"
@@ -783,22 +931,32 @@ export function AdTrackingClient() {
                           <p className="mt-3 text-[11px] leading-relaxed text-white/55">{integration.spendSyncDetail}</p>
                         ) : null}
                         {!integration.configured ? (
-                          <p className="mt-3 text-[11px] leading-relaxed text-white/45">
-                            API sync is not set up yet. Ask your developer to add{" "}
-                            {integration.platform === "meta"
-                              ? "Meta (System User with ads_read + correct act_ Ad Account ID)"
-                              : integration.platform === "google"
-                                ? "Google"
-                                : "TikTok"}{" "}
-                            ad API credentials in production environment variables. Tracking links and on-site pixels still
-                            work.
-                          </p>
+                          <>
+                            <p className="mt-3 text-[11px] leading-relaxed text-white/45">
+                              Spend and click reporting for this platform isn&apos;t connected yet. Ask your developer to
+                              set it up — your tracking links and on-site tags still work either way.
+                            </p>
+                            <AdminTechnicalDetails>
+                              {integration.platform === "meta"
+                                ? "Needs a Meta System User token with ads_read on the correct act_ Ad Account ID."
+                                : integration.platform === "google"
+                                  ? "Needs Google Ads API credentials."
+                                  : "Needs TikTok Ads API credentials."}{" "}
+                              Set the ad platform API credentials in production environment variables.
+                            </AdminTechnicalDetails>
+                          </>
                         ) : null}
                         {integration.platform === "meta" && status === "credentials_present" ? (
-                          <p className="mt-3 text-[11px] leading-relaxed text-white/45">
-                            Credentials alone are not enough. Meta spend sync requires Insights to return costs for the
-                            System User token on the matching act_ ad account. Use Sync now to refresh.
-                          </p>
+                          <>
+                            <p className="mt-3 text-[11px] leading-relaxed text-white/45">
+                              Credentials are saved, but spend reporting isn&apos;t confirmed working yet. Click Sync now
+                              above to test it.
+                            </p>
+                            <AdminTechnicalDetails>
+                              Meta spend sync requires Insights to return costs for the System User token on the
+                              matching act_ ad account.
+                            </AdminTechnicalDetails>
+                          </>
                         ) : null}
                       </div>
                     );
@@ -838,33 +996,54 @@ export function AdTrackingClient() {
                     No UTM-attributed traffic yet. Use the link builder above in your ad creatives.
                   </p>
                 )}
-              </>
+              </AdminCollapsibleSection>
             ) : null}
           </section>
 
           {config ? (
             <section className={adminCardClass}>
-              <p className={adminSectionTitleClass}>Verification</p>
-              <h2 className="mt-2 text-lg font-bold">Tag Snippets (Already Deployed)</h2>
-              <p className="mt-1 text-sm text-white/50">
-                Reference only if Meta or Google asks you to verify domain ownership. These tags are already live on every
-                public page.
-              </p>
-              <div className="mt-5 space-y-4">
-                {(["meta", "google"] as const).map((key) => (
-                  <div key={key} className={adminPanelClass + " p-4"}>
-                    <div className="flex items-center justify-between gap-2">
-                      <PlatformBadge platform={key} />
-                      <CopyButton text={config.verificationSnippets[key]} />
+              <AdminCollapsibleSection
+                defaultOpen={false}
+                title={
+                  <>
+                    <p className={adminSectionTitleClass}>Verification</p>
+                    <h2 className="mt-2 text-lg font-bold">Domain Verification Codes</h2>
+                  </>
+                }
+                subtitle={
+                  <p className="text-sm text-white/50">
+                    You only need this if Meta or Google ever asks you to verify you own match-fit.net. Hand the code
+                    to your developer — these tags are already live on every public page.
+                  </p>
+                }
+              >
+                <div className="space-y-4">
+                  {(["meta", "google"] as const).map((key) => (
+                    <div key={key} className={adminPanelClass + " p-4"}>
+                      <div className="flex items-center justify-between gap-2">
+                        <PlatformBadge platform={key} />
+                        <CopyButton text={config.verificationSnippets[key]} />
+                      </div>
+                      <pre className="mt-3 overflow-x-auto whitespace-pre-wrap font-mono text-[11px] text-white/55">
+                        {config.verificationSnippets[key]}
+                      </pre>
                     </div>
-                    <pre className="mt-3 overflow-x-auto whitespace-pre-wrap font-mono text-[11px] text-white/55">
-                      {config.verificationSnippets[key]}
-                    </pre>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              </AdminCollapsibleSection>
             </section>
           ) : null}
+
+          <section className={adminCardClass}>
+            <p className={adminSectionTitleClass}>Ads Copilot</p>
+            <h2 className="mt-2 text-lg font-bold">Ask The AI About Your Ads</h2>
+            <p className="mt-1 text-sm text-white/50">
+              Get a plain-English read on spend, clicks, and campaigns using the live numbers above.
+            </p>
+            <div className="mt-5">
+              <AdTrackingChatWidget />
+            </div>
+          </section>
         </div>
     </AdminPortalShell>
   );

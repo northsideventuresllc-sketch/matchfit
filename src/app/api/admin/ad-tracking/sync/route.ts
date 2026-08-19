@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { syncAdPlatformPerformance } from "@/lib/ad-platform-performance";
+import { syncAdCampaignPerformance, syncAdPlatformPerformance } from "@/lib/ad-platform-performance";
+import type { AdPlatform } from "@/lib/ad-tracking-config";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { requireAdminSession } from "@/lib/require-admin";
 
@@ -24,8 +25,13 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await syncAdPlatformPerformance(days);
-    return NextResponse.json(result);
+    const [accountResult, campaignResult] = await Promise.all([
+      syncAdPlatformPerformance(days),
+      syncAdCampaignPerformance(days),
+    ]);
+    const synced = Array.from(new Set([...accountResult.synced, ...campaignResult.synced])) as AdPlatform[];
+    const errors = { ...accountResult.errors, ...campaignResult.errors };
+    return NextResponse.json({ synced, errors });
   } catch (e) {
     console.error("[ad-tracking sync POST]", e);
     return NextResponse.json({ error: "Ad platform sync failed." }, { status: 500 });
