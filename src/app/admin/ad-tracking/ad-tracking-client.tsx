@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { AdminPortalShell } from "@/components/admin/admin-portal-shell";
 import {
+  AdminCollapsibleSection,
   AdminPortalAlert,
   AdminPortalBetaNotice,
   AdminLoadingBar,
   adminAccentButtonClass,
-  adminCardClass,
   adminInputClassSm,
   adminLabelClass,
   adminLinkClass,
@@ -159,6 +159,12 @@ export function AdTrackingClient() {
   const [utmContent, setUtmContent] = useState("");
   const [utmTerm, setUtmTerm] = useState("");
 
+  const [expandedCampaignId, setExpandedCampaignId] = useState<string | null>(null);
+
+  const [chatMessages, setChatMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatBusy, setChatBusy] = useState(false);
+
   const load = useCallback(async () => {
     setError(null);
     setLoading(true);
@@ -284,6 +290,59 @@ export function AdTrackingClient() {
     }
   }
 
+  function attributionForCampaign(campaign: AdCampaignRow) {
+    if (!panel) return [];
+    const needle = campaign.campaignId.trim().toLowerCase();
+    const nameNeedle = campaign.name.trim().toLowerCase();
+    return panel.attribution.filter((row) => {
+      const utm = row.utmCampaign.trim().toLowerCase();
+      return utm === needle || utm === nameNeedle || utm.includes(needle) || needle.includes(utm);
+    });
+  }
+
+  async function askChatbot(e: React.FormEvent) {
+    e.preventDefault();
+    const question = chatInput.trim();
+    if (!question || !panel || chatBusy) return;
+
+    const nextMessages = [...chatMessages, { role: "user" as const, content: question }];
+    setChatMessages(nextMessages);
+    setChatInput("");
+    setChatBusy(true);
+    try {
+      const res = await fetch("/api/admin/ad-tracking/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question,
+          windowDays: 7,
+          panel,
+          campaigns: campaigns.map((c) => ({
+            campaignId: c.campaignId,
+            platform: c.platform,
+            name: c.name,
+            budgetCents: c.budgetCents,
+            weekOf: c.weekOf,
+          })),
+          priorTurns: chatMessages.slice(-8),
+        }),
+      });
+      const json = (await res.json()) as { answer?: string; error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Could not analyze ad performance.");
+      setChatMessages([...nextMessages, { role: "assistant", content: json.answer ?? "No answer returned." }]);
+    } catch (err) {
+      setChatMessages([
+        ...nextMessages,
+        {
+          role: "assistant",
+          content: err instanceof Error ? err.message : "Could not analyze ad performance.",
+        },
+      ]);
+    } finally {
+      setChatBusy(false);
+    }
+  }
+
   return (
     <AdminPortalShell
       current="ad-tracking"
@@ -294,10 +353,17 @@ export function AdTrackingClient() {
     >
         <AdminPortalBetaNotice className="mt-0" />
 
-        <section className={`${adminCardClass} border-[#FF7E00]/15 bg-[#FF7E00]/[0.04]`}>
-          <p className={adminSectionTitleClass}>INSTRUCTIONS</p>
-          <h2 className="mt-2 text-lg font-bold">8-step marketing playbook</h2>
-          <ol className="mt-3 space-y-2 text-sm leading-relaxed text-white/60">
+        <AdminCollapsibleSection
+          className="border-[#FF7E00]/15 bg-[#FF7E00]/[0.04]"
+          defaultOpen={false}
+          title={
+            <>
+              <p className={adminSectionTitleClass}>How this page works</p>
+              <h2 className="mt-2 text-lg font-bold">8-step marketing playbook</h2>
+            </>
+          }
+        >
+          <ol className="space-y-2 text-sm leading-relaxed text-white/60">
             {MATCH_FIT_MARKETING_PLAYBOOK_STEPS.map((step) => (
               <li key={step.id}>
                 <strong className="text-white/85">
@@ -310,7 +376,7 @@ export function AdTrackingClient() {
               </li>
             ))}
           </ol>
-        </section>
+        </AdminCollapsibleSection>
 
         {error ? <AdminPortalAlert variant="error">{error}</AdminPortalAlert> : null}
         {syncMessage ? <AdminPortalAlert variant="info">{syncMessage}</AdminPortalAlert> : null}
@@ -330,10 +396,15 @@ export function AdTrackingClient() {
         ) : null}
 
         <div className="space-y-8">
-          <section className={adminCardClass}>
-            <p className={adminSectionTitleClass}>Connected Pixels · Runbook 5b</p>
-            <h2 className="mt-2 text-lg font-bold">Live Tags in the App</h2>
-            <p className="mt-1 text-sm text-white/50">
+          <AdminCollapsibleSection
+            title={
+              <>
+                <p className={adminSectionTitleClass}>Connected Tags · RUNBOOK 5b</p>
+                <h2 className="mt-2 text-lg font-bold">Live Tags in the App</h2>
+              </>
+            }
+          >
+            <p className="text-sm text-white/50">
               These are the tracking tags already running on match-fit.net. You do not need to paste code — use the IDs
               here to verify setup in Meta Events Manager and Google Ads.
             </p>
@@ -385,13 +456,18 @@ export function AdTrackingClient() {
                 </div>
               </div>
             ) : null}
-          </section>
+          </AdminCollapsibleSection>
 
           {config ? (
-            <section className={adminCardClass}>
-              <p className={adminSectionTitleClass}>Server Conversions</p>
-              <h2 className="mt-2 text-lg font-bold">Meta CAPI and GA4 (Ad-Blocker Safe)</h2>
-              <p className="mt-1 text-sm text-white/50">
+            <AdminCollapsibleSection
+              title={
+                <>
+                  <p className={adminSectionTitleClass}>Backup Tracking</p>
+                  <h2 className="mt-2 text-lg font-bold">Meta CAPI and GA4 (Ad-Blocker Safe)</h2>
+                </>
+              }
+            >
+              <p className="text-sm text-white/50">
                 Signup milestones also fire server-side so ad blockers cannot drop them. These use separate credentials
                 from the reporting API tokens above.
               </p>
@@ -447,14 +523,19 @@ export function AdTrackingClient() {
                   ) : null}
                 </div>
               </div>
-            </section>
+            </AdminCollapsibleSection>
           ) : null}
 
-          <section className={adminCardClass}>
-            <p className={adminSectionTitleClass}>Campaign Link Builder · Runbook 6b</p>
-            <h2 className="mt-2 text-lg font-bold">Generate Client Tracking URLs</h2>
-            <p className="mt-1 text-sm text-white/50">
-              B2C runbook 6b — default to client sign-up. Use waitlist only when the beta client cap is full. Copy the
+          <AdminCollapsibleSection
+            title={
+              <>
+                <p className={adminSectionTitleClass}>Link Builder · RUNBOOK 6b</p>
+                <h2 className="mt-2 text-lg font-bold">Generate Client Tracking URLs</h2>
+              </>
+            }
+          >
+            <p className="text-sm text-white/50">
+              Default to client sign-up. Use waitlist only when the beta client cap is full. Copy the
               final URL into your ad creative.
             </p>
 
@@ -547,14 +628,19 @@ export function AdTrackingClient() {
               </div>
               <p className="mt-2 break-all font-mono text-xs text-[#FFD34E]">{trackedUrl}</p>
             </div>
-          </section>
+          </AdminCollapsibleSection>
 
-          <section className={adminCardClass}>
-            <p className={adminSectionTitleClass}>Campaign Registry</p>
-            <h2 className="mt-2 text-lg font-bold">Register Campaign ID</h2>
-            <p className="mt-1 text-sm text-white/50">
-              Playbook step 8 · B2C runbook after 6b — after you launch a client campaign, record its platform campaign
-              ID here with the same week and budget from step 1.
+          <AdminCollapsibleSection
+            title={
+              <>
+                <p className={adminSectionTitleClass}>Campaign Registry · RUNBOOK after 6b</p>
+                <h2 className="mt-2 text-lg font-bold">Register Campaign ID</h2>
+              </>
+            }
+          >
+            <p className="text-sm text-white/50">
+              After you launch a client campaign, record its platform campaign ID here with the same week and budget
+              from step 1. Click a row below to see how that campaign is doing on-site.
             </p>
 
             {campaignMigrationPending ? (
@@ -652,6 +738,7 @@ export function AdTrackingClient() {
                 <table className="w-full min-w-[640px] text-left text-xs">
                   <thead>
                     <tr className="border-b border-white/10 text-[10px] font-black uppercase tracking-wide text-white/40">
+                      <th className="py-2 pr-3" />
                       <th className="py-2 pr-3">Platform</th>
                       <th className="py-2 pr-3">Campaign ID</th>
                       <th className="py-2 pr-3">Name</th>
@@ -661,32 +748,78 @@ export function AdTrackingClient() {
                     </tr>
                   </thead>
                   <tbody>
-                    {campaigns.map((row) => (
-                      <tr key={row.id} className="border-b border-white/[0.06] text-white/60">
-                        <td className="py-3 pr-3">
-                          <PlatformBadge platform={row.platform} />
-                        </td>
-                        <td className="py-3 pr-3 font-mono text-[11px] text-[#FFD34E]">{row.campaignId}</td>
-                        <td className="py-3 pr-3 text-white/75">{row.name}</td>
-                        <td className="py-3 pr-3">{row.venture}</td>
-                        <td className="py-3 pr-3 tabular-nums">
-                          {row.budgetCents != null ? formatUsd(row.budgetCents) : "—"}
-                        </td>
-                        <td className="py-3 tabular-nums">{row.weekOf ?? "—"}</td>
-                      </tr>
-                    ))}
+                    {campaigns.map((row) => {
+                      const isOpen = expandedCampaignId === row.id;
+                      const drilldown = isOpen ? attributionForCampaign(row) : [];
+                      return (
+                        <Fragment key={row.id}>
+                          <tr
+                            className="cursor-pointer border-b border-white/[0.06] text-white/60 hover:bg-white/[0.03]"
+                            onClick={() => setExpandedCampaignId(isOpen ? null : row.id)}
+                          >
+                            <td className="w-4 py-3 pl-1 text-white/30">{isOpen ? "▾" : "▸"}</td>
+                            <td className="py-3 pr-3">
+                              <PlatformBadge platform={row.platform} />
+                            </td>
+                            <td className="py-3 pr-3 font-mono text-[11px] text-[#FFD34E]">{row.campaignId}</td>
+                            <td className="py-3 pr-3 text-white/75">{row.name}</td>
+                            <td className="py-3 pr-3">{row.venture}</td>
+                            <td className="py-3 pr-3 tabular-nums">
+                              {row.budgetCents != null ? formatUsd(row.budgetCents) : "—"}
+                            </td>
+                            <td className="py-3 tabular-nums">{row.weekOf ?? "—"}</td>
+                          </tr>
+                          {isOpen ? (
+                            <tr className="border-b border-white/[0.06] bg-white/[0.02]">
+                              <td colSpan={7} className="px-4 py-4">
+                                {row.notes ? (
+                                  <p className="mb-3 text-[11px] text-white/50">Notes: {row.notes}</p>
+                                ) : null}
+                                {drilldown.length > 0 ? (
+                                  <div className="grid gap-3 sm:grid-cols-3">
+                                    <StatTile
+                                      label="Page views"
+                                      value={drilldown.reduce((sum, r) => sum + r.pageViews, 0)}
+                                    />
+                                    <StatTile
+                                      label="Visitors"
+                                      value={drilldown.reduce((sum, r) => sum + r.uniqueVisitors, 0)}
+                                    />
+                                    <StatTile
+                                      label="Signup views"
+                                      value={drilldown.reduce((sum, r) => sum + r.signupPageViews, 0)}
+                                    />
+                                  </div>
+                                ) : (
+                                  <p className="text-[11px] text-white/40">
+                                    No on-site traffic matched to this campaign ID yet. Make sure the utm_campaign on
+                                    your ad links matches &quot;{row.campaignId}&quot; exactly.
+                                  </p>
+                                )}
+                              </td>
+                            </tr>
+                          ) : null}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             ) : (
               <p className="mt-6 text-sm text-white/40">No campaigns registered yet.</p>
             )}
-          </section>
+          </AdminCollapsibleSection>
 
-          <section className={adminCardClass}>
-            <p className={adminSectionTitleClass}>Conversion Events</p>
-            <h2 className="mt-2 text-lg font-bold">Events Match Fit Sends Automatically</h2>
-            <p className="mt-1 text-sm text-white/50">
+          <AdminCollapsibleSection
+            defaultOpen={false}
+            title={
+              <>
+                <p className={adminSectionTitleClass}>Reference</p>
+                <h2 className="mt-2 text-lg font-bold">Events Match Fit Sends Automatically</h2>
+              </>
+            }
+          >
+            <p className="text-sm text-white/50">
               When someone signs up, Match Fit fires these events to Meta and Google. Create matching conversion actions in
               each ad platform using the names below — no custom code required on your side.
             </p>
@@ -719,19 +852,30 @@ export function AdTrackingClient() {
                 </table>
               </div>
             ) : null}
-          </section>
+          </AdminCollapsibleSection>
 
-          <section className={adminCardClass}>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
+          <AdminCollapsibleSection
+            title={
+              <>
                 <p className={adminSectionTitleClass}>Performance</p>
                 <h2 className="mt-2 text-lg font-bold">Ad Platform Metrics (7 Days)</h2>
-                <p className="mt-1 text-sm text-white/50">
-                  Pull spend and clicks from Meta, Google, and TikTok, then compare with visitors who arrived via your
-                  tracking links.
-                </p>
-              </div>
-              <button type="button" className={adminAccentButtonClass} disabled={syncing} onClick={() => void syncPerformance()}>
+              </>
+            }
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <p className="text-sm text-white/50">
+                Pull spend and clicks from Meta, Google, and TikTok, then compare with visitors who arrived via your
+                tracking links.
+              </p>
+              <button
+                type="button"
+                className={adminAccentButtonClass}
+                disabled={syncing}
+                onClick={(e) => {
+                  e.preventDefault();
+                  void syncPerformance();
+                }}
+              >
                 {syncing ? "Syncing…" : "Sync now"}
               </button>
             </div>
@@ -840,13 +984,75 @@ export function AdTrackingClient() {
                 )}
               </>
             ) : null}
-          </section>
+          </AdminCollapsibleSection>
+
+          {panel ? (
+            <AdminCollapsibleSection
+              title={
+                <>
+                  <p className={adminSectionTitleClass}>AI Copilot</p>
+                  <h2 className="mt-2 text-lg font-bold">Ask About Your Ad Performance</h2>
+                </>
+              }
+            >
+              <p className="text-sm text-white/50">
+                Ask a plain-English question about the numbers above — spend, clicks, or which campaign is pulling its
+                weight. Answers are grounded in the last 7 days of data loaded on this page.
+              </p>
+
+              <div className="mt-4 space-y-3">
+                {chatMessages.length === 0 ? (
+                  <p className="text-[11px] text-white/35">
+                    Try: &quot;Which platform is spending the most per click?&quot; or &quot;Is any campaign getting
+                    traffic but no signups?&quot;
+                  </p>
+                ) : (
+                  <div className="max-h-96 space-y-3 overflow-y-auto">
+                    {chatMessages.map((m, i) => (
+                      <div
+                        key={i}
+                        className={
+                          m.role === "user"
+                            ? `${adminPanelClass} ml-auto max-w-[85%] p-3 text-sm text-white/85`
+                            : `${adminPanelClass} max-w-[85%] p-3 text-sm text-white/70`
+                        }
+                      >
+                        <p className="mb-1 text-[10px] font-black uppercase tracking-wide text-white/35">
+                          {m.role === "user" ? "You" : "Copilot"}
+                        </p>
+                        <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <form className="flex flex-wrap gap-2" onSubmit={(e) => void askChatbot(e)}>
+                  <input
+                    className={`${adminInputClassSm} flex-1`}
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Ask about spend, clicks, or a campaign…"
+                    disabled={chatBusy}
+                  />
+                  <button type="submit" className={adminAccentButtonClass} disabled={chatBusy || !chatInput.trim()}>
+                    {chatBusy ? "Thinking…" : "Ask"}
+                  </button>
+                </form>
+              </div>
+            </AdminCollapsibleSection>
+          ) : null}
 
           {config ? (
-            <section className={adminCardClass}>
-              <p className={adminSectionTitleClass}>Verification</p>
-              <h2 className="mt-2 text-lg font-bold">Tag Snippets (Already Deployed)</h2>
-              <p className="mt-1 text-sm text-white/50">
+            <AdminCollapsibleSection
+              defaultOpen={false}
+              title={
+                <>
+                  <p className={adminSectionTitleClass}>Reference</p>
+                  <h2 className="mt-2 text-lg font-bold">Tag Snippets (Already Deployed)</h2>
+                </>
+              }
+            >
+              <p className="text-sm text-white/50">
                 Reference only if Meta or Google asks you to verify domain ownership. These tags are already live on every
                 public page.
               </p>
@@ -863,7 +1069,7 @@ export function AdTrackingClient() {
                   </div>
                 ))}
               </div>
-            </section>
+            </AdminCollapsibleSection>
           ) : null}
         </div>
     </AdminPortalShell>
