@@ -119,3 +119,18 @@ npm run version:verify   # CI enforces bump when product paths change
 - **Owner approval only:** adding/removing BETA or changing version structure
 - **Task completion:** state explicitly that the product version was updated (old → new, level used)
 - Never hardcode version strings in UI — use `MATCH_FIT_PRODUCT_VERSION_LABEL` / `MATCH_FIT_PRODUCT_VERSION_ANNOUNCE`
+
+
+## Slack posting rule (added 2026-08-19, JB direct order)
+
+Every agent posts status/updates to Slack through ONE method only — never your own personal/native Slack connection:
+
+```
+POST https://kxijunwgbrlfzvgkhklo.supabase.co/functions/v1/slack-post
+Header: Authorization: Bearer sb_publishable_-JPXXSn9eyX9BxdvIzTulw_QkHPIERR
+Content-Type: application/json
+Body: {"channel":"C0BR6ATGHGR","text":"<your message>"}
+```
+
+C0BR6ATGHGR is the only #agent-ops channel JB watches. Do not post to any other channel ID, and do not use a native/per-session Slack app connection for agent status posts.
+
