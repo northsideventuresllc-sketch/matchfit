@@ -80,11 +80,22 @@ JB has ADHD and dyslexia and is paying for output, not narration.
 
 Each of these exists because it was broken in a live session and cost JB time.
 
-1. **Nothing routes to a paid API. Ever.** Free tier only: Gemini for generation
-   (`gemini-first.ts` honours the `GEMINI_MODEL` secret and has no paid
-   fallback), local Ollama on the Mac mini for local work. If free quota is
-   exhausted, fail with a plain sentence — do not fall through to a paid
-   provider. JB has said many times he will not refill credits.
+1. **Free tiers first, paid only as genuine last resort — never paid by default,
+   never paid without every free tier having failed first.** The canonical AI
+   Vault chain (`callMatchFitAi()` in `src/lib/ai-vault/router.ts`, see
+   `docs/ai-vault.md`) tries, in order: AXON local (Mac mini Ollama, free) →
+   RunPod AXON v1 (NVG's own model, free, not deployed yet) → Gemini primary
+   (free) → Gemini backup (free) → Anthropic Claude (paid — genuinely last
+   resort, only reached once all four free tiers above have failed). This is
+   intentional tiered fallback, not a violation: JB has said many times he
+   will not refill credits, so the paid tier exists only to keep a feature
+   working when every free option is down, never as a default path. Corrected
+   2026-08-20 — the previous wording of this rule ("nothing routes to a paid
+   API, ever") contradicted the live code in `router.ts`, which has always
+   called paid Anthropic as a last-resort fallback. The code is the intended,
+   working safety net; this rule was the stale part and has been fixed to
+   match it. Do not remove the Anthropic fallback to "fix" this — that would
+   delete a real safety net for a documentation error.
 
 2. **Never tell JB something failed because of API keys, tokens, credits or
    billing.** He has already refused that fix, so naming it is pure noise.
@@ -272,7 +283,9 @@ Reference: public home page (`src/app/page.tsx`, `src/components/home-info-secti
 Applies to any file touching AI features (`**/*ai*.ts`, `**/ai-vault/**`):
 
 1. Use `callMatchFitAi` from `@/lib/ai-vault` — never call Anthropic/OpenAI/Gemini HTTP APIs directly for text generation.
-2. Provider order: Claude (auto model) → Gemini primary → Gemini backup → fail.
+2. Provider order (corrected 2026-08-20, see standing rule 1 above and `docs/ai-vault.md`):
+   AXON local → RunPod AXON v1 (not deployed yet) → Gemini primary → Gemini backup →
+   Anthropic Claude (auto model, paid last resort) → fail.
 3. Keys live in `platform_secrets` (AI Vault), never in source.
 4. Pick `kind` + optional `complexity` so Claude model auto-selection fits the task.
 5. Image generation is free-tier Gemini only (`generateStaticMedia` in `@/lib/content-calendar/media-generation`) — `responseModalities: ["IMAGE"]` + `imageConfig.aspectRatio`, hosted in NI Brain Storage. Nothing routes to OpenAI/DALL·E or any other paid image API, and there is no paid fallback when free quota runs out.
