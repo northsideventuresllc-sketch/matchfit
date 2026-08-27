@@ -463,12 +463,12 @@ function buildPlatformPrompt(
   const retryBlock = rejectionFeedback ? `\n\n${rejectionFeedback}\n` : "";
 
   if (platform === "instagram") {
-    return `Find ${leadCount} US-based fitness professionals on Instagram for Match Fit trainer outreach.
+    return `Find ${leadCount} fitness professionals on Instagram for Match Fit trainer outreach. Match Fit is worldwide — do not restrict candidates to any one country.
 Already in database (exclude): ${excl}
 ${retryBlock}
 ${OUTREACH_INSTAGRAM_CRITERIA}
 
-Focus on personal trainers, online coaches, nutrition coaches, and hybrid coaches based in the United States.
+Focus on personal trainers, online coaches, nutrition coaches, and hybrid coaches — any country, virtual/online coaches especially welcome.
 
 QUALITY BAR:
 - personalHook must reference a SPECIFIC recent post or content piece.
@@ -485,7 +485,7 @@ Generic invite tail (for later copy generation): "${tailVirtual}"
 Respond with ONLY the JSON array.`;
   }
   if (platform === "facebook") {
-    return `Find ${leadCount} US-based Facebook pages or trainer-focused groups for Match Fit outreach.
+    return `Find ${leadCount} Facebook pages or trainer-focused groups for Match Fit outreach, worldwide — do not restrict to any one country.
 Already in database (exclude): ${excl}
 ${retryBlock}
 ${OUTREACH_FACEBOOK_CRITERIA}
@@ -497,7 +497,7 @@ Do NOT draft page post copy — lead discovery only.
 Generic tail: "${tailVirtual}"`;
   }
   if (platform === "email") {
-    return `Find ${leadCount} US-based fitness professionals with public contact emails.
+    return `Find ${leadCount} fitness professionals with public contact emails, worldwide — do not restrict candidates to any one country.
 Already in database (exclude): ${excl}
 ${retryBlock}
 ${OUTREACH_EMAIL_CRITERIA}

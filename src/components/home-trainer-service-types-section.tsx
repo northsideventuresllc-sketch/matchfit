@@ -234,7 +234,7 @@ export function HomeTrainerServiceTypesSection({ embedded = false }: { embedded?
                         and background screening where required) so your dashboard can stay active for payouts.
                       </li>
                       <li>
-                        If you sell in-person or hybrid packages, publish a valid U.S. ZIP for your base and a travel
+                        If you sell in-person or hybrid packages, publish a valid postal code for your base and a travel
                         radius (up to 150 miles) that covers where you actually meet clients.
                       </li>
                       <li>

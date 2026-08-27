@@ -19,6 +19,7 @@ import { describePasswordPolicyViolations } from "@/lib/validations/client-regis
 import { BetaCapFullSignupNotice } from "@/components/beta-cap-full-signup-notice";
 import { useBetaLaunchStatus } from "@/hooks/use-beta-launch-status";
 import { CLIENT_PLATFORM_TRIAL_DAYS } from "@/lib/client-platform-trial-constants";
+import { COUNTRY_OPTIONS } from "@/lib/user-location";
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -112,6 +113,7 @@ function ClientSignUpPageInner() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [zipCode, setZipCode] = useState("");
+  const [countryCode, setCountryCode] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -208,6 +210,7 @@ function ClientSignUpPageInner() {
       dateOfBirth,
       agreedToTerms: true as const,
       stayLoggedIn,
+      ...(countryCode ? { country: countryCode } : {}),
       ...(betaInviteTokenFromUrl ? { betaInviteToken: betaInviteTokenFromUrl } : {}),
     };
   }
@@ -606,6 +609,30 @@ function ClientSignUpPageInner() {
               <p className="text-xs leading-relaxed text-white/40">
                 Password must be at least 8 characters and include at least one capital letter, one number, and one special character.
               </p>
+
+              <div className="flex min-w-0 flex-col gap-2">
+                <label htmlFor="su-country" className={labelClass}>
+                  Country <span className="font-normal normal-case text-white/35">(optional)</span>
+                </label>
+                <select
+                  id="su-country"
+                  autoComplete="country"
+                  value={countryCode}
+                  onChange={(e) => setCountryCode(e.target.value)}
+                  onFocus={() => trackFieldFocus("country")}
+                  className={inputClass}
+                >
+                  <option value="">Select your country</option>
+                  {COUNTRY_OPTIONS.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs leading-relaxed text-white/40">
+                  Match Fit is available worldwide. This just helps us show you coaches near your time zone.
+                </p>
+              </div>
 
               <div className="grid min-w-0 grid-cols-1 gap-5 md:grid-cols-2">
                 <div className="flex min-w-0 flex-col gap-2">

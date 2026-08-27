@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionTrainerId } from "@/lib/session";
 import { defaultTrainerBookingAvailability, trainerBookingAvailabilitySchema } from "@/lib/booking-availability";
 import { validateTrainerAvailabilityConsistency } from "@/lib/booking-availability-validate";
-import { normalizeUsBookingTimezone } from "@/lib/us-booking-timezones";
+import { normalizeBookingTimezone } from "@/lib/booking-timezones";
 import { hasTrainerFullPlatformAccess } from "@/lib/trainer-full-access";
 import { NextResponse } from "next/server";
 
@@ -35,7 +35,7 @@ export async function GET() {
       }
     }
     return NextResponse.json({
-      timezone: normalizeUsBookingTimezone(profile.bookingTimezone),
+      timezone: normalizeBookingTimezone(profile.bookingTimezone),
       document,
       clientPublicSelfBookingEnabled: profile.clientPublicSelfBookingEnabled,
     });
@@ -90,7 +90,7 @@ export async function PATCH(req: Request) {
       nextJson = JSON.stringify(normalized);
     }
     const tzRaw = typeof json.timezone === "string" && json.timezone.trim().length > 2 ? json.timezone.trim().slice(0, 64) : undefined;
-    const tz = tzRaw ? normalizeUsBookingTimezone(tzRaw) : undefined;
+    const tz = tzRaw ? normalizeBookingTimezone(tzRaw) : undefined;
     const selfBook = hasSelf ? (json!.clientPublicSelfBookingEnabled as boolean) : undefined;
 
     await prisma.trainerProfile.update({

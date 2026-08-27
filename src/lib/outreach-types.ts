@@ -383,9 +383,9 @@ export type OutreachSendMode = "manual" | "agent";
 
 export function targetGroupLabel(group: string): string {
   // Both groups are dead legacy (see DEAD_LEGACY_TARGET_GROUPS). Recruiting is
-  // nationwide, so neither may present itself as a city/metro audience.
-  if (group === "ATL_LOCAL") return "US · earlier leads";
-  return "US";
+  // worldwide, so neither may present itself as a city/metro/country-restricted audience.
+  if (group === "ATL_LOCAL") return "Earlier leads (legacy)";
+  return "Worldwide";
 }
 
 /** Copy fields that can be AI-generated per platform in Outreach Hub. */

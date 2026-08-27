@@ -192,6 +192,7 @@ export default function TrainerSignUpClient() {
     password: string;
     stayLoggedIn: boolean;
     serviceZipCode: string;
+    country?: string;
     betaInviteToken?: string;
     turnstileToken?: string | null;
   }): Promise<{ ok: true } | { ok: false; error: string; code?: string }> {
@@ -209,6 +210,7 @@ export default function TrainerSignUpClient() {
         stayLoggedIn: registerCore.stayLoggedIn,
         serviceZipCode: registerCore.serviceZipCode,
         agreedToTerms: true,
+        ...(registerCore.country ? { country: registerCore.country } : {}),
         ...(registerCore.betaInviteToken ? { betaInviteToken: registerCore.betaInviteToken } : {}),
         ...(registerCore.turnstileToken ? { turnstileToken: registerCore.turnstileToken } : {}),
       }),
@@ -287,6 +289,7 @@ export default function TrainerSignUpClient() {
         password,
         stayLoggedIn,
         serviceZipCode: postalRule.requirement === "none" ? "" : serviceZipCode.trim(),
+        ...(countryCode ? { country: countryCode } : {}),
         ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
         ...(turnstileToken ? { turnstileToken } : {}),
       };
@@ -302,6 +305,7 @@ export default function TrainerSignUpClient() {
           agreedToTerms: true,
           stayLoggedIn,
           serviceZipCode: postalRule.requirement === "none" ? "" : serviceZipCode.trim(),
+          ...(countryCode ? { country: countryCode } : {}),
           ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
         });
 
@@ -383,6 +387,7 @@ export default function TrainerSignUpClient() {
               agreedToTerms: true,
               stayLoggedIn,
               serviceZipCode: postalRule.requirement === "none" ? "" : serviceZipCode.trim(),
+              ...(countryCode ? { country: countryCode } : {}),
               ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
             });
             navigateWithFullLoad(data.next ?? "/trainer/signup/terms");
@@ -459,6 +464,7 @@ export default function TrainerSignUpClient() {
         agreedToTerms: true,
         stayLoggedIn,
         serviceZipCode: postalRule.requirement === "none" ? "" : serviceZipCode.trim(),
+        ...(countryCode ? { country: countryCode } : {}),
         ...(betaInviteFromUrl ? { betaInviteToken: betaInviteFromUrl } : {}),
       });
       navigateWithFullLoad(data.next ?? "/trainer/signup/terms");
