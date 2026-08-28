@@ -213,13 +213,21 @@ path (`~/Desktop/.../Northside Ventures Group Vault/...`) that isn't reachable f
 Code sandbox session. Use the git-hosted `northsideventuresllc-sketch/nv-vault` repo instead —
 same content, actually reachable. Step 2 (NI-Brain Supabase query) works unchanged.
 
-**Risk note (JB confirm before relying on this):** `deploy-and-merge-workflow.mdc` below grants
-standing approval to merge PRs and deploy `main` to production without asking each time. This is
-a live, paid, revenue product with Stripe billing and 99+ Prisma migrations — Claude Code is
-porting this rule for informational parity but will hold off exercising full merge/deploy
-autonomy here until JB explicitly confirms it, same bar as everywhere else: prod DB migrations,
-billing/Stripe changes, and BETA/version-structure changes always get a check-in first regardless
-of what this rule says.
+**JB CONFIRMED 2026-08-28 — the hold-off below is lifted.** `deploy-and-merge-workflow.mdc`'s
+standing approval to merge and deploy is now live for any agent holding an active row in
+`nvg_agent_authority` (NI-Brain) with `can_merge_to_main` / `can_deploy_to_production` true.
+Read that row live; never hardcode the agent list. Absent a row, the old bar applies.
+
+Match Fit is still the highest-care repo in the org — live users, live Stripe billing, 99+ Prisma
+migrations — so the two standing holds bite hardest here. An agent holds when: (1) the change
+requires **active money-spend** to take effect, which includes a pricing or billing change
+affecting what customers are actually charged — note that merely *touching* payment-integration
+code is NOT a hold; or (2) JB named this specific change as a hold. Mechanical gate every time:
+green CI (`lint`, `typecheck`, `version:verify`, `test`, `build`) plus a written rollback note.
+
+Unchanged and still off-limits without JB: applying a prod DB migration, rotating a credential,
+force-pushing main, and adding/removing BETA or changing the version structure (owner approval
+only, per `AGENTS.md`).
 
 ---
 
