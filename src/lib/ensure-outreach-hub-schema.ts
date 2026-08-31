@@ -309,6 +309,40 @@ async function countOutreachIntentColumns(): Promise<number> {
   return Number(rows[0]?.count ?? 0);
 }
 
+const OUTREACH_SEND_MODE_DDL = `
+ALTER TABLE "outreach_instagram_leads"
+  ADD COLUMN IF NOT EXISTS "sendMode" TEXT,
+  ADD COLUMN IF NOT EXISTS "manualSentAt" TIMESTAMP(3);
+ALTER TABLE "outreach_facebook_leads"
+  ADD COLUMN IF NOT EXISTS "sendMode" TEXT,
+  ADD COLUMN IF NOT EXISTS "manualSentAt" TIMESTAMP(3);
+ALTER TABLE "outreach_email_leads"
+  ADD COLUMN IF NOT EXISTS "sendMode" TEXT,
+  ADD COLUMN IF NOT EXISTS "manualSentAt" TIMESTAMP(3);
+
+CREATE INDEX IF NOT EXISTS "outreach_instagram_leads_lane_send_mode_idx"
+  ON "outreach_instagram_leads"("outreachLane", "sendMode");
+CREATE INDEX IF NOT EXISTS "outreach_facebook_leads_lane_send_mode_idx"
+  ON "outreach_facebook_leads"("outreachLane", "sendMode");
+CREATE INDEX IF NOT EXISTS "outreach_email_leads_lane_send_mode_idx"
+  ON "outreach_email_leads"("outreachLane", "sendMode");
+`;
+
+async function countOutreachSendModeColumns(): Promise<number> {
+  const rows = await prisma.$queryRaw<{ count: bigint }[]>`
+    SELECT COUNT(*)::bigint AS "count"
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name IN (
+        'outreach_instagram_leads',
+        'outreach_facebook_leads',
+        'outreach_email_leads'
+      )
+      AND column_name = 'sendMode'
+  `;
+  return Number(rows[0]?.count ?? 0);
+}
+
 const OUTREACH_V2_LANES_DDL = `
 ALTER TABLE "outreach_instagram_leads"
   ADD COLUMN IF NOT EXISTS "outreachLane" TEXT NOT NULL DEFAULT 'today',
@@ -525,5 +559,16 @@ export async function ensureOutreachHubSchema(): Promise<void> {
   // v2: Cowork scan jobs table (migration 20260723130000_outreach_cowork_scan_jobs).
   if (!(await tableExists("outreach_cowork_scan_jobs"))) {
     await runOutreachDdl(OUTREACH_COWORK_SCAN_JOBS_DDL);
+  }
+
+  // Send Queue: manual vs. agent send tracking (migration 20260831120000_outreach_send_mode).
+  if ((await countOutreachSendModeColumns()) < OUTREACH_LEAD_TABLES.length) {
+    await runOutreachDdl(OUTREACH_SEND_MODE_DDL);
+    const sendModeReady = await countOutreachSendModeColumns();
+    if (sendModeReady < OUTREACH_LEAD_TABLES.length) {
+      throw new Error(
+        `[ensureOutreachHubSchema] sendMode columns still missing after DDL (${sendModeReady}/${OUTREACH_LEAD_TABLES.length}). Set DIRECT_URL on the server and redeploy.`,
+      );
+    }
   }
 }

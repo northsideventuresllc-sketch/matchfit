@@ -211,6 +211,8 @@ export async function queueOutreachDispatch(args: {
       outreachLane: "dispatch_queued",
       dispatchBatchId: batch.id,
       dispatchPreviousLane: state.outreachLane,
+      sendMode: "agent",
+      manualSentAt: null,
     });
     queued.push(ref.id);
   }
@@ -265,6 +267,126 @@ export async function pullOutreachDispatch(args: {
   }
 
   return { pulled, skipped };
+}
+
+/**
+ * Manual Send: flips the given leads into the `dispatch_queued` lane with sendMode="manual" and no
+ * dispatch batch — they show on the Send Queue tab's Manual section with a sent/not-sent toggle
+ * (`setManualSentState`) instead of an agent-scheduled date/time. Already-queued leads are skipped.
+ */
+export async function queueManualSend(args: {
+  leads: LeadRefInput[];
+}): Promise<{ queued: string[]; skipped: string[] }> {
+  await ensureOutreachHubSchema();
+  const queued: string[] = [];
+  const skipped: string[] = [];
+
+  for (const ref of args.leads) {
+    const state = await getLeadLaneState(ref.platform, ref.id);
+    if (!state) {
+      skipped.push(ref.id);
+      continue;
+    }
+    if (state.outreachLane === "dispatch_queued" || state.dispatchBatchId) {
+      skipped.push(ref.id);
+      continue;
+    }
+    await setLeadLaneFields(ref.platform, ref.id, {
+      outreachLane: "dispatch_queued",
+      dispatchBatchId: null,
+      dispatchPreviousLane: state.outreachLane,
+      sendMode: "manual",
+      manualSentAt: null,
+    });
+    queued.push(ref.id);
+  }
+
+  return { queued, skipped };
+}
+
+/**
+ * Cancel an Agent Send: pulls a lead out of its Cowork dispatch batch (if any) without dropping it
+ * out of the send queue — it stays in `dispatch_queued`, flips to sendMode="manual", and reappears
+ * under the Send Queue tab's Manual section for a manual sent/not-sent toggle.
+ */
+export async function convertAgentSendToManual(args: {
+  leadIds: string[];
+}): Promise<{ converted: string[]; skipped: string[] }> {
+  await ensureOutreachHubSchema();
+  const converted: string[] = [];
+  const skipped: string[] = [];
+  const affectedBatchIds = new Set<string>();
+
+  for (const id of args.leadIds) {
+    const platform = await findLeadPlatform(id);
+    if (!platform) {
+      skipped.push(id);
+      continue;
+    }
+    const state = await getLeadLaneState(platform, id);
+    if (!state || state.outreachLane !== "dispatch_queued") {
+      skipped.push(id);
+      continue;
+    }
+    if (state.dispatchBatchId) affectedBatchIds.add(state.dispatchBatchId);
+    await setLeadLaneFields(platform, id, {
+      dispatchBatchId: null,
+      sendMode: "manual",
+      manualSentAt: null,
+    });
+    converted.push(id);
+  }
+
+  for (const batchId of affectedBatchIds) {
+    const batch = await prisma.outreachCoworkDispatchBatch.findUnique({ where: { id: batchId } });
+    if (batch && batch.status === "queued") await rebuildBatchBrief(batch);
+  }
+
+  return { converted, skipped };
+}
+
+/**
+ * Send Queue "Manual" sent/not-sent toggle. Marking sent mirrors the same lane transition as a
+ * successful agent dispatch (`completeOutreachDispatchBatch`'s "sent" branch): status flips to
+ * OUTREACH_SENT, and the lead moves into the follow-up pipeline (or `pending` for Facebook, which
+ * has none). Marking not-sent just clears the timestamp — the lead stays in the Manual queue.
+ */
+export async function setManualSentState(args: {
+  id: string;
+  platform: OutreachPlatform;
+  sent: boolean;
+  now?: Date;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  await ensureOutreachHubSchema();
+  const now = args.now ?? new Date();
+  const state = await getLeadLaneState(args.platform, args.id);
+  if (!state) return { ok: false, error: "Lead not found." };
+  if (state.outreachLane !== "dispatch_queued") {
+    return { ok: false, error: "Lead is not in the Send Queue." };
+  }
+
+  if (!args.sent) {
+    await setLeadLaneFields(args.platform, args.id, { manualSentAt: null });
+    return { ok: true };
+  }
+
+  const data: Record<string, unknown> = {
+    status: "OUTREACH_SENT",
+    outreachSentAt: now,
+    manualSentAt: now,
+    sendMode: null,
+    dispatchBatchId: null,
+    dispatchPreviousLane: null,
+  };
+  if (args.platform === "facebook") {
+    data.outreachLane = "pending";
+  } else {
+    data.outreachLane = "follow_up_1";
+    data.followUp1DueAt = new Date(now.getTime() + OUTREACH_FOLLOW_UP_1_DUE_HOURS * MS_HOUR);
+    data.followUp2DueAt = new Date(now.getTime() + OUTREACH_FOLLOW_UP_2_DUE_DAYS * MS_DAY);
+  }
+  await setLeadLaneFields(args.platform, args.id, data);
+  return { ok: true };
 }
 
 /**

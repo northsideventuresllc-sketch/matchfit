@@ -1,10 +1,14 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { probeAdminAiProvider } from "@/lib/admin-analytics-ai";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/session";
-import { OutreachHqClient } from "./outreach-hq-client";
+import { OutreachHqRetiredNotice } from "./outreach-hq-client";
 
+/**
+ * Outreach HQ v1 — retired. Outreach HQ now means v2 only (see AdminPortalNav's "outreach" entry
+ * and /admin/outreach/v2). This route and outreach-hq-client.tsx stay in place, unlinked from the
+ * main nav, so the archive-tools page (separate build) has a stable place to point at.
+ */
 export default async function AdminOutreachPage() {
   const store = await cookies();
   const tok = store.get(ADMIN_SESSION_COOKIE)?.value;
@@ -17,7 +21,5 @@ export default async function AdminOutreachPage() {
   });
   if (!adminRow) redirect("/admin/login");
 
-  const aiStatus = await probeAdminAiProvider();
-
-  return <OutreachHqClient aiStatus={aiStatus} />;
+  return <OutreachHqRetiredNotice />;
 }
