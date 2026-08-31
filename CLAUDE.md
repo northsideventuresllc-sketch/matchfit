@@ -153,7 +153,7 @@ Each of these exists because it was broken in a live session and cost JB time.
 ### Match Fit specifics
 
 **THE marketing workflow is `.claude/skills/matchfit-marketing-workflow/SKILL.md` — JB's
-18 locked steps. Read it before touching Match Fit social content. Media is generated in
+19 locked steps. Read it before touching Match Fit social content. Media is generated in
 GOOGLE GEMINI / GOOGLE FLOW through the browser on JB's accounts, never via an API; the
 GEMINI FLOW button in the admin Content Calendar opens it. Instagram posts go through an
 ANDROID EMULATOR. Do not reinvent any of this and never ask JB to re-explain it.**
