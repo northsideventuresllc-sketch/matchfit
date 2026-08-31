@@ -51,6 +51,15 @@ export function outreachSendRequiresIntent(
   return SEND_CLAIM_STATUSES.has(nextStatus);
 }
 
+/** Read-only Instagram send checklist shown on the Outreach HQ v2 lead card (mirrors the checklist below). */
+export const OUTREACH_INSTAGRAM_PROCEDURE_STEPS = [
+  "Confirm this is the correct person or account.",
+  "Send the DM.",
+  "Follow the account.",
+  "Like the 4 most recent posts.",
+  "Comment on the referenced post.",
+] as const;
+
 export const OUTREACH_COWORK_EMAIL_FROM = "jb@match-fit.net";
 /** Workflow 2 locked BCC trio — always include all three. */
 export const OUTREACH_COWORK_EMAIL_BCC = [

@@ -67,6 +67,7 @@ function serializeInstagramLead(
     archiveUiHiddenAfterAt: serializeDate(r.archiveUiHiddenAfterAt),
     replyReceivedAt: serializeDate(r.replyReceivedAt),
     pendingResponseDraftAt: serializeDate(r.pendingResponseDraftAt),
+    manualSentAt: serializeDate(r.manualSentAt),
   };
 }
 
@@ -96,6 +97,7 @@ function serializeFacebookLead(
     archiveUiHiddenAfterAt: serializeDate(r.archiveUiHiddenAfterAt),
     replyReceivedAt: serializeDate(r.replyReceivedAt),
     pendingResponseDraftAt: serializeDate(r.pendingResponseDraftAt),
+    manualSentAt: serializeDate(r.manualSentAt),
   };
 }
 
@@ -135,6 +137,7 @@ function serializeEmailLead(
     archiveUiHiddenAfterAt: serializeDate(r.archiveUiHiddenAfterAt),
     replyReceivedAt: serializeDate(r.replyReceivedAt),
     pendingResponseDraftAt: serializeDate(r.pendingResponseDraftAt),
+    manualSentAt: serializeDate(r.manualSentAt),
   };
 }
 

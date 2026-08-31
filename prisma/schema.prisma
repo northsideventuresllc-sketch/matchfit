@@ -2559,6 +2559,11 @@ model OutreachInstagramLead {
   dispatchBatchId         String?
   /// Lane to restore the lead to when JB pulls it back out of a dispatch batch before it fires.
   dispatchPreviousLane    String?
+  /// manual | agent — set when the lead enters the `dispatch_queued` lane via Manual Send or Agent
+  /// Send (Send Queue tab). Null once sent (cleared alongside dispatchBatchId/dispatchPreviousLane).
+  sendMode                String?
+  /// Set/cleared by the Send Queue tab's per-lead sent/not-sent toggle (sendMode="manual" only).
+  manualSentAt            DateTime?
 
   // --- Lead taxonomy (JB LOCKED, NI-Brain Decision #388) ---
   /// Nullable on purpose: existing rows keep working with NULLs. The legacy
@@ -2584,6 +2589,7 @@ model OutreachInstagramLead {
   @@index([archivedAt, archiveUiHiddenAfterAt])
   @@index([hasUnrespondedReply])
   @@index([dispatchBatchId])
+  @@index([outreachLane, sendMode], map: "outreach_instagram_leads_lane_send_mode_idx")
   @@index([handle])
   @@index([ventureId])
   @@index([offeringId])
@@ -2642,6 +2648,11 @@ model OutreachFacebookLead {
   pendingResponseDraftAt DateTime?
   dispatchBatchId        String?
   dispatchPreviousLane   String?
+  /// manual | agent — set when the lead enters the `dispatch_queued` lane via Manual Send or Agent
+  /// Send (Send Queue tab). Null once sent (cleared alongside dispatchBatchId/dispatchPreviousLane).
+  sendMode               String?
+  /// Set/cleared by the Send Queue tab's per-lead sent/not-sent toggle (sendMode="manual" only).
+  manualSentAt           DateTime?
 
   // --- Lead taxonomy (JB LOCKED, NI-Brain Decision #388) ---
   /// Nullable on purpose: existing rows keep working with NULLs. The legacy
@@ -2665,6 +2676,7 @@ model OutreachFacebookLead {
   @@index([archivedAt, archiveUiHiddenAfterAt])
   @@index([hasUnrespondedReply])
   @@index([dispatchBatchId])
+  @@index([outreachLane, sendMode], map: "outreach_facebook_leads_lane_send_mode_idx")
   @@index([pageUrl])
   @@index([ventureId])
   @@index([offeringId])
@@ -2733,6 +2745,11 @@ model OutreachEmailLead {
   pendingResponseDraftAt  DateTime?
   dispatchBatchId         String?
   dispatchPreviousLane    String?
+  /// manual | agent — set when the lead enters the `dispatch_queued` lane via Manual Send or Agent
+  /// Send (Send Queue tab). Null once sent (cleared alongside dispatchBatchId/dispatchPreviousLane).
+  sendMode                String?
+  /// Set/cleared by the Send Queue tab's per-lead sent/not-sent toggle (sendMode="manual" only).
+  manualSentAt            DateTime?
 
   // --- Lead taxonomy (JB LOCKED, NI-Brain Decision #388) ---
   /// Nullable on purpose: existing rows keep working with NULLs. The legacy
@@ -2758,6 +2775,7 @@ model OutreachEmailLead {
   @@index([archivedAt, archiveUiHiddenAfterAt])
   @@index([hasUnrespondedReply])
   @@index([dispatchBatchId])
+  @@index([outreachLane, sendMode], map: "outreach_email_leads_lane_send_mode_idx")
   @@index([email])
   @@index([ventureId])
   @@index([offeringId])
