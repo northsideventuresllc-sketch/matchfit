@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AdminPortalShell } from "@/components/admin/admin-portal-shell";
 import {
@@ -13,9 +12,15 @@ import {
 import type { ClientContentCalendarV2Post } from "@/lib/content-calendar/content-calendar-v2-store";
 import { ContentHubPanel, type DayActionResult } from "./components/content-hub-panel";
 import { ImpromptuPanel } from "./components/impromptu-panel";
+// Owned by the next wave of agents — these two files do not exist yet, so this import will not
+// resolve until they land at exactly these paths. That is expected: this file is the single owner
+// of tab state and the shell that wires every panel in, so the plumbing (state, loads, actions,
+// tab-follow) is built here first; the panel-owning agents fill in the component bodies right after.
+import { PendingTabPanel } from "./components/pending-tab-panel";
 import { PublishingPanel } from "./components/publishing-panel";
 import { ScheduledPanel } from "./components/scheduled-panel";
 import { ArchivesPanel } from "./components/archives-panel";
+import { SocialMediaResearchPanel } from "./components/social-media-research-panel";
 import { Modal } from "./components/ui-bits";
 import { useUnsavedRegistry } from "./components/use-unsaved-registry";
 
@@ -26,16 +31,63 @@ type AiStatus = {
   message: string;
 };
 
-type Tab = "hub" | "impromptu" | "publishing" | "scheduled" | "archives";
-type Stage = "hub" | "publishing" | "scheduled" | "archived";
+type Tab = "research" | "hub" | "impromptu" | "pending" | "publishing" | "scheduled" | "archives";
+type Stage = "hub" | "pending" | "publishing" | "scheduled" | "archived";
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: "research", label: "SOCIAL MEDIA RESEARCH" },
   { id: "hub", label: "CONTENT HUB" },
   { id: "impromptu", label: "IMPROMPTU CONTENT GENERATION" },
+  { id: "pending", label: "PENDING" },
   { id: "publishing", label: "PUBLISHING" },
   { id: "scheduled", label: "SCHEDULED POSTS" },
   { id: "archives", label: "ARCHIVES" },
 ];
+
+const TAB_IDS = TABS.map((t) => t.id);
+
+function isValidTab(value: string | undefined | null): value is Tab {
+  return typeof value === "string" && (TAB_IDS as string[]).includes(value);
+}
+
+/** Post-load stage each tab reflects. "research" and "impromptu" have no post list of their own — they fall back to "hub" (impromptu drafts land there; research never loads a stage at all). */
+function tabToStage(tab: Tab): Stage {
+  switch (tab) {
+    case "archives":
+      return "archived";
+    case "impromptu":
+    case "research":
+      return "hub";
+    default:
+      return tab;
+  }
+}
+
+/** Reverse of tabToStage, for auto-advancing the active tab to wherever a post/action actually sent content. */
+function stageToTab(stage: string | null | undefined): Tab | null {
+  switch (stage) {
+    case "hub":
+      return "hub";
+    case "pending":
+      return "pending";
+    case "publishing":
+      return "publishing";
+    case "scheduled":
+      return "scheduled";
+    case "archived":
+      return "archives";
+    default:
+      return null;
+  }
+}
+
+/**
+ * Post-level actions whose outcome should auto-advance the active tab to wherever the post
+ * actually went, per the plan's routing rules: submit_for_generation (media→pending,
+ * text→publishing), regenerate_via_agent ("Regenerate", →pending), back_to_drafts ("Stop", →hub).
+ * Keyed by action name (not by caller) so this applies no matter which panel triggers it.
+ */
+const TAB_FOLLOW_ACTIONS = new Set(["submit_for_generation", "regenerate_via_agent", "back_to_drafts"]);
 
 const AUTO_SAVE_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -45,9 +97,17 @@ async function readApi<T>(res: Response, fallback: string): Promise<T> {
   return data;
 }
 
-export function ContentCalendarV2Client({ aiStatus }: { aiStatus: AiStatus }) {
-  const [tab, setTab] = useState<Tab>("hub");
+export function ContentCalendarV2Client({
+  aiStatus,
+  initialTab,
+}: {
+  aiStatus: AiStatus;
+  /** From the ?tab= query param — seeds the active tab (e.g. the old /pending URL's redirect lands on "pending"). Defaults to "hub" when absent or unrecognized. */
+  initialTab?: string;
+}) {
+  const [tab, setTab] = useState<Tab>(() => (isValidTab(initialTab) ? initialTab : "hub"));
   const [hubPosts, setHubPosts] = useState<ClientContentCalendarV2Post[]>([]);
+  const [pendingPosts, setPendingPosts] = useState<ClientContentCalendarV2Post[]>([]);
   const [publishingPosts, setPublishingPosts] = useState<ClientContentCalendarV2Post[]>([]);
   const [scheduledPosts, setScheduledPosts] = useState<ClientContentCalendarV2Post[]>([]);
   const [archivedPosts, setArchivedPosts] = useState<ClientContentCalendarV2Post[]>([]);
@@ -60,6 +120,12 @@ export function ContentCalendarV2Client({ aiStatus }: { aiStatus: AiStatus }) {
   const [pendingTab, setPendingTab] = useState<Tab | null>(null);
   const [savingAll, setSavingAll] = useState(false);
 
+  // Manual media bypass (Lane 1) — a top-level control since the per-day button in the Hub tab's
+  // day cards belongs to the ContentHubPanel-owning agent. This gives the route/handler a working
+  // entry point today; that agent can call the same route from inside each day card instead/too.
+  const [manualMediaDate, setManualMediaDate] = useState("");
+  const [manualMediaBusy, setManualMediaBusy] = useState(false);
+
   const registry = useUnsavedRegistry();
   const { anyDirty, saveAll } = registry;
 
@@ -70,6 +136,7 @@ export function ContentCalendarV2Client({ aiStatus }: { aiStatus: AiStatus }) {
       const res = await fetch(`/api/admin/content-calendar/v2/posts?stage=${stage}`, { credentials: "include" });
       const data = await readApi<{ posts: ClientContentCalendarV2Post[] }>(res, "Could not load posts.");
       if (stage === "hub") setHubPosts(data.posts ?? []);
+      if (stage === "pending") setPendingPosts(data.posts ?? []);
       if (stage === "publishing") setPublishingPosts(data.posts ?? []);
       if (stage === "scheduled") setScheduledPosts(data.posts ?? []);
       if (stage === "archived") setArchivedPosts(data.posts ?? []);
@@ -82,16 +149,18 @@ export function ContentCalendarV2Client({ aiStatus }: { aiStatus: AiStatus }) {
 
   useEffect(() => {
     if (tab === "hub") queueMicrotask(() => void loadStage("hub"));
+    if (tab === "pending") queueMicrotask(() => void loadStage("pending"));
     if (tab === "publishing") queueMicrotask(() => void loadStage("publishing"));
     if (tab === "scheduled") queueMicrotask(() => void loadStage("scheduled"));
     if (tab === "archives") queueMicrotask(() => void loadStage("archived"));
   }, [tab, loadStage]);
 
-  // Reflect any in-flight Cowork media completions moving posts into Publishing without a manual
-  // refresh — safe on remount because it re-reads server state rather than assuming the tab stayed open.
+  // Reflect any in-flight Cowork media completions (or elapsed pending-progress) moving posts
+  // between stages without a manual refresh — safe on remount because it re-reads server state
+  // rather than assuming the tab stayed open.
   useEffect(() => {
-    if (tab !== "publishing" && tab !== "hub") return;
-    const stage: Stage = tab === "hub" ? "hub" : "publishing";
+    if (tab !== "publishing" && tab !== "hub" && tab !== "pending") return;
+    const stage = tabToStage(tab);
     const timer = window.setInterval(() => {
       if (!anyDirty) void loadStage(stage);
     }, 15000);
@@ -102,6 +171,7 @@ export function ContentCalendarV2Client({ aiStatus }: { aiStatus: AiStatus }) {
     if (!post) return;
     const swap = (list: ClientContentCalendarV2Post[]) => list.map((p) => (p.id === post.id ? post : p));
     setHubPosts(swap);
+    setPendingPosts(swap);
     setPublishingPosts(swap);
     setScheduledPosts(swap);
     setArchivedPosts(swap);
@@ -122,7 +192,7 @@ export function ContentCalendarV2Client({ aiStatus }: { aiStatus: AiStatus }) {
     [replacePostInLists],
   );
 
-  const currentStage: Stage = tab === "archives" ? "archived" : (tab === "impromptu" ? "hub" : tab);
+  const currentStage = tabToStage(tab);
 
   const postAction = useCallback(
     async (id: string, body: Record<string, unknown>, success?: string) => {
@@ -135,8 +205,18 @@ export function ContentCalendarV2Client({ aiStatus }: { aiStatus: AiStatus }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        await readApi(res, "Action failed.");
+        const data = await readApi<{ post: ClientContentCalendarV2Post | null }>(res, "Action failed.");
         if (success) setNotice(success);
+
+        const actionName = typeof body.action === "string" ? body.action : "";
+        if (TAB_FOLLOW_ACTIONS.has(actionName)) {
+          const nextTab = stageToTab(data.post?.workflowStage);
+          if (nextTab && nextTab !== tab) {
+            setTab(nextTab);
+            await loadStage(tabToStage(nextTab));
+          }
+        }
+
         await loadStage(currentStage);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Action failed.");
@@ -144,7 +224,7 @@ export function ContentCalendarV2Client({ aiStatus }: { aiStatus: AiStatus }) {
         setBusyId(null);
       }
     },
-    [currentStage, loadStage],
+    [currentStage, loadStage, tab],
   );
 
   const dayAction = useCallback(
@@ -162,12 +242,44 @@ export function ContentCalendarV2Client({ aiStatus }: { aiStatus: AiStatus }) {
     [loadStage],
   );
 
-  const onApproveDay = useCallback((postDate: string) => dayAction("approve", { postDate, action: "approve" }), [dayAction]);
+  // Approve Day queues media posts into Pending and sends text posts straight to Publishing — a
+  // real day almost always has media posts, so Pending is where the operator's attention goes next.
+  const onApproveDay = useCallback(
+    async (postDate: string) => {
+      const result = await dayAction("approve", { postDate, action: "approve" });
+      setTab("pending");
+      await loadStage("pending");
+      return result;
+    },
+    [dayAction, loadStage],
+  );
   const onReturnToEditing = useCallback(
     (postDate: string) => dayAction("approve", { postDate, action: "return_to_editing" }),
     [dayAction],
   );
   const onFireCowork = useCallback((postDate: string) => dayAction("fire-cowork", { postDate }), [dayAction]);
+
+  // Manually Generate Media Day (Lane 1) — skips Cowork entirely, so every post for the date lands
+  // straight in Publishing, unconditionally.
+  const onManuallyGenerateDayMedia = useCallback(
+    async (postDate: string): Promise<{ moved?: number; memoId?: string | null }> => {
+      const res = await fetch("/api/admin/content-calendar/v2/posts/day/manually-generate-media", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postDate }),
+      });
+      const data = await readApi<{ moved?: number; memoId?: string | null }>(
+        res,
+        "Could not manually generate media for that day.",
+      );
+      await loadStage("hub");
+      setTab("publishing");
+      await loadStage("publishing");
+      return data;
+    },
+    [loadStage],
+  );
 
   const onApproveForPosting = useCallback(
     async (
@@ -199,6 +311,20 @@ export function ContentCalendarV2Client({ aiStatus }: { aiStatus: AiStatus }) {
       setSavingAll(false);
     }
   }, [saveAll]);
+
+  const runManualMediaBypass = useCallback(async () => {
+    if (!manualMediaDate) return;
+    setManualMediaBusy(true);
+    setError(null);
+    try {
+      await onManuallyGenerateDayMedia(manualMediaDate);
+      setNotice(`Media generation bypassed for ${manualMediaDate} — that day's posts moved straight to Publishing.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not manually generate media for that day.");
+    } finally {
+      setManualMediaBusy(false);
+    }
+  }, [manualMediaDate, onManuallyGenerateDayMedia]);
 
   // Warn on hard browser navigation / close while edits are unsaved.
   useEffect(() => {
@@ -246,13 +372,28 @@ export function ContentCalendarV2Client({ aiStatus }: { aiStatus: AiStatus }) {
       current="content-calendar"
       maxWidth="full"
       title="Content Calendar v2"
-      description="Five-tab content pipeline: Content Hub, Impromptu, Publishing, Scheduled Posts, Archives."
+      description="Seven-tab content pipeline: Social Media Research, Content Hub, Impromptu, Pending, Publishing, Scheduled Posts, Archives."
       contentClassName="space-y-6"
       actions={
         <div className="flex flex-wrap items-center gap-3">
-          <Link href="/admin/content-calendar/pending" className={adminSecondaryButtonClass}>
-            Pending Posts
-          </Link>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={manualMediaDate}
+              onChange={(e) => setManualMediaDate(e.target.value)}
+              aria-label="Post date for manual media bypass"
+              className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 text-xs text-white/80"
+            />
+            <button
+              type="button"
+              className={adminSecondaryButtonClass}
+              disabled={manualMediaBusy || !manualMediaDate}
+              onClick={() => void runManualMediaBypass()}
+              title="Skip Cowork media generation and send that day's hub posts straight to Publishing."
+            >
+              {manualMediaBusy ? "WORKING…" : "MANUALLY GENERATE MEDIA"}
+            </button>
+          </div>
           <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-white/60">
             <input type="checkbox" checked={autoSave} onChange={(e) => setAutoSave(e.target.checked)} />
             Auto Save {autoSave ? "on" : "off"}
@@ -298,6 +439,14 @@ export function ContentCalendarV2Client({ aiStatus }: { aiStatus: AiStatus }) {
 
       {loading ? <AdminLoadingBar label="Loading v2 content…" /> : null}
 
+      {tab === "research" ? (
+        <SocialMediaResearchPanel
+          disabled={!aiStatus.configured || !aiStatus.niBrain}
+          setError={setError}
+          setNotice={setNotice}
+        />
+      ) : null}
+
       {tab === "hub" ? (
         <ContentHubPanel
           posts={hubPosts}
@@ -315,6 +464,17 @@ export function ContentCalendarV2Client({ aiStatus }: { aiStatus: AiStatus }) {
             await loadStage("hub");
           }}
           setError={setError}
+        />
+      ) : null}
+
+      {tab === "pending" ? (
+        <PendingTabPanel
+          posts={pendingPosts}
+          busyId={busyId}
+          onPatch={patchPost}
+          onAction={postAction}
+          register={registry.setEntry}
+          unregister={registry.removeEntry}
         />
       ) : null}
 

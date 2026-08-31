@@ -5,7 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/session";
 import { ContentCalendarV2Client } from "./content-calendar-v2-client";
 
-export default async function AdminContentCalendarV2Page() {
+export default async function AdminContentCalendarV2Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const store = await cookies();
   const tok = store.get(ADMIN_SESSION_COOKIE)?.value;
   const sess = tok ? await verifyAdminSessionToken(tok) : null;
@@ -18,6 +22,7 @@ export default async function AdminContentCalendarV2Page() {
   if (!adminRow) redirect("/admin/login");
 
   const aiStatus = await getContentCalendarAiStatusAsync();
+  const { tab } = await searchParams;
 
-  return <ContentCalendarV2Client aiStatus={aiStatus} />;
+  return <ContentCalendarV2Client aiStatus={aiStatus} initialTab={tab} />;
 }

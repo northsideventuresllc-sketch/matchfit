@@ -20,9 +20,9 @@ describe("content-calendar clipboard helpers", () => {
     ).toEqual(["one", "two", "three", "four", "five"]);
   });
 
-  it("builds caption with hashtags for copy post", () => {
+  it("builds caption with hashtags for copy post, hashtags on their own indented line", () => {
     expect(buildCaptionWithHashtags("Hello coaches", ["MatchFit", "Beta"])).toBe(
-      "Hello coaches\n\n#MatchFit #Beta",
+      "Hello coaches\n\n  #MatchFit #Beta",
     );
   });
 
