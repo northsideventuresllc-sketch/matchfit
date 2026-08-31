@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { adminLabelClass, adminPanelClass, adminSecondaryButtonClass } from "@/components/admin/admin-portal-ui";
-import type { OutreachCoworkDispatchBatchRow } from "@/lib/outreach-types";
-import { dispatchBriefLeads, formatDispatchSlot } from "./helpers";
-import { pullDispatch } from "./client-api";
+import type { OutreachCoworkDispatchBatchRow, OutreachHubLead } from "@/lib/outreach-types";
+import { dispatchBriefLeads, formatDispatchSlot, leadContactUrl, leadDisplayName } from "./helpers";
+import { cancelAgentSendToManual, pullDispatch, setManualSent } from "./client-api";
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {
@@ -27,6 +27,7 @@ function BatchCard(props: {
   const pullable = batch.status === "queued";
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [cancelingIds, setCancelingIds] = useState<Set<string>>(new Set());
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -46,6 +47,22 @@ function BatchCard(props: {
       return;
     }
     setSelected(new Set());
+    props.onError("");
+    props.onChanged();
+  }
+
+  async function cancelToManual(leadId: string) {
+    setCancelingIds((prev) => new Set(prev).add(leadId));
+    const result = await cancelAgentSendToManual([leadId]);
+    setCancelingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(leadId);
+      return next;
+    });
+    if (!result.ok) {
+      props.onError(result.error);
+      return;
+    }
     props.onError("");
     props.onChanged();
   }
@@ -90,6 +107,16 @@ function BatchCard(props: {
                 <span className="font-semibold text-white">{l.displayName}</span>
                 <span className="text-white/40"> · {l.platform}</span>
               </span>
+              {pullable ? (
+                <button
+                  type="button"
+                  className="shrink-0 rounded-lg border border-white/15 bg-white/[0.04] px-2 py-1 text-[11px] font-semibold text-white/70 transition hover:border-white/25 hover:text-white disabled:opacity-50"
+                  disabled={cancelingIds.has(l.leadId)}
+                  onClick={() => void cancelToManual(l.leadId)}
+                >
+                  {cancelingIds.has(l.leadId) ? "Moving…" : "→ Manual"}
+                </button>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -112,16 +139,114 @@ function BatchCard(props: {
   );
 }
 
+function ManualQueueCard(props: {
+  entry: OutreachHubLead;
+  onChanged: () => void;
+  onError: (message: string) => void;
+}) {
+  const { entry } = props;
+  const { lead } = entry;
+  const [busy, setBusy] = useState(false);
+  const sent = Boolean(lead.manualSentAt);
+  const contactUrl = leadContactUrl(entry);
+
+  async function toggleSent(nextSent: boolean) {
+    setBusy(true);
+    const result = await setManualSent(lead.id, entry.platform, nextSent);
+    setBusy(false);
+    if (!result.ok) {
+      props.onError(result.error);
+      return;
+    }
+    props.onError("");
+    props.onChanged();
+  }
+
+  return (
+    <div className={`${adminPanelClass} space-y-3 p-5`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-base font-black text-white">{leadDisplayName(entry)}</p>
+          <p className="text-xs text-white/45">
+            {entry.platform}
+            {contactUrl ? (
+              <>
+                {" · "}
+                <a
+                  href={contactUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline decoration-white/30 underline-offset-2 hover:text-white"
+                >
+                  Open contact
+                </a>
+              </>
+            ) : null}
+          </p>
+        </div>
+        <span className={sent ? statusBadge("complete") : statusBadge("queued")}>
+          {sent ? "Sent" : "Not sent"}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        {sent ? (
+          <>
+            <span className="text-[11px] text-white/40">
+              Marked sent {new Date(lead.manualSentAt as string).toLocaleString()}
+            </span>
+            <button
+              type="button"
+              className={adminSecondaryButtonClass}
+              disabled={busy}
+              onClick={() => void toggleSent(false)}
+            >
+              {busy ? "Updating…" : "Not Sent"}
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className={adminSecondaryButtonClass}
+            disabled={busy}
+            onClick={() => void toggleSent(true)}
+          >
+            {busy ? "Updating…" : "Mark Sent"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function DispatchPanel(props: {
   upcoming: OutreachCoworkDispatchBatchRow[];
   recentlyCompleted: OutreachCoworkDispatchBatchRow[];
+  /** Leads queued via Manual Send (sendMode="manual", no Cowork batch) — see selectManualQueuedLeads. */
+  manualQueued: OutreachHubLead[];
   onChanged: () => void;
   onError: (message: string) => void;
 }) {
   return (
     <div className="space-y-6">
       <section className="space-y-3">
-        <p className={adminLabelClass}>Upcoming batches</p>
+        <p className={adminLabelClass}>Manual ({props.manualQueued.length})</p>
+        {props.manualQueued.length === 0 ? (
+          <p className="text-sm text-white/55">No leads queued for manual send.</p>
+        ) : (
+          props.manualQueued.map((entry) => (
+            <ManualQueueCard
+              key={`${entry.platform}-${entry.lead.id}`}
+              entry={entry}
+              onChanged={props.onChanged}
+              onError={props.onError}
+            />
+          ))
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <p className={adminLabelClass}>Agent scheduled</p>
         {props.upcoming.length === 0 ? (
           <p className="text-sm text-white/55">No upcoming dispatch batches. Approve leads to queue the next 1pm or 4pm run.</p>
         ) : (

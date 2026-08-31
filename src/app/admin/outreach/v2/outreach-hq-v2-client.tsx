@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminPortalShell } from "@/components/admin/admin-portal-shell";
-import { AdminPortalAlert, adminLinkClass, adminSecondaryButtonClass } from "@/components/admin/admin-portal-ui";
+import { AdminPortalAlert, adminSecondaryButtonClass } from "@/components/admin/admin-portal-ui";
+import { AdminNavBadge } from "@/components/admin/admin-nav-badge";
 import type { AdminAiProviderStatus } from "@/lib/admin-analytics-ai";
 import { readJsonResponse } from "@/lib/read-json-response";
 import type {
@@ -11,7 +12,7 @@ import type {
   OutreachCoworkDispatchBatchRow,
   OutreachHubLead,
 } from "@/lib/outreach-types";
-import { groupHubLeadsByLane, type OutreachV2Tab } from "./components/helpers";
+import { groupHubLeadsByLane, selectManualQueuedLeads, tabBadgeCount, type OutreachV2Tab } from "./components/helpers";
 import { LeadsPanel } from "./components/leads-panel";
 import { PendingResponsesPanel } from "./components/pending-responses-panel";
 import { OutreachHubPanel } from "./components/outreach-hub-panel";
@@ -25,7 +26,7 @@ const TABS: { id: OutreachV2Tab; label: string }[] = [
   { id: "follow_ups", label: "Follow-ups" },
   { id: "pending_responses", label: "Pending Responses" },
   { id: "hub", label: "Outreach Hub" },
-  { id: "dispatch", label: "Dispatch" },
+  { id: "dispatch", label: "Send Queue" },
   { id: "pending", label: "Pending Leads" },
   { id: "archives", label: "Archives" },
 ];
@@ -95,25 +96,13 @@ export function OutreachHqV2Client(props: { aiStatus: AdminAiProviderStatus }) {
     <AdminPortalShell
       current="outreach"
       maxWidth="full"
-      title="Outreach HQ v2"
-      description={
-        <>
-          Leads are generated Monday–Friday and pushed to Telegram for on-the-go approve, delete, or rewrite. Approved
-          leads batch into the next 1pm or 4pm Dispatch run. Live{" "}
-          <Link href="/admin/outreach" className={adminLinkClass}>
-            Outreach HQ
-          </Link>{" "}
-          stays until cutover.
-        </>
-      }
+      title="Outreach HQ"
+      description="Leads are generated Monday–Friday and pushed to Telegram for on-the-go approve, delete, or rewrite. Manual Send or Agent Send moves a lead to the Send Queue tab."
       headerActions={
         <>
           <button type="button" className={adminSecondaryButtonClass} disabled={loading} onClick={() => void loadAll()}>
             {loading ? "Refreshing…" : "Refresh"}
           </button>
-          <Link href="/admin/outreach" className={adminSecondaryButtonClass}>
-            Live Outreach HQ
-          </Link>
           <Link href="/admin" className={adminSecondaryButtonClass}>
             Dashboard
           </Link>
@@ -123,19 +112,20 @@ export function OutreachHqV2Client(props: { aiStatus: AdminAiProviderStatus }) {
       {!props.aiStatus.configured ? <AdminPortalAlert variant="info">{props.aiStatus.message}</AdminPortalAlert> : null}
       {error ? <AdminPortalAlert variant="error">{error}</AdminPortalAlert> : null}
 
-      <nav className="mb-6 flex flex-wrap gap-2 border-b border-white/[0.06] pb-1" aria-label="Outreach HQ v2 tabs">
+      <nav className="mb-6 flex flex-wrap gap-2 border-b border-white/[0.06] pb-1" aria-label="Outreach HQ tabs">
         {TABS.map((t) => (
           <button
             key={t.id}
             type="button"
             className={
               tab === t.id
-                ? "rounded-lg border border-[#FF7E00]/40 bg-[#FF7E00]/10 px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#FFD34E]"
-                : adminSecondaryButtonClass
+                ? "relative rounded-lg border border-[#FF7E00]/40 bg-[#FF7E00]/10 px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#FFD34E]"
+                : `relative ${adminSecondaryButtonClass}`
             }
             onClick={() => setTab(t.id)}
           >
             {t.label}
+            <AdminNavBadge count={tabBadgeCount(t.id, grouped)} />
           </button>
         ))}
       </nav>
@@ -159,6 +149,7 @@ export function OutreachHqV2Client(props: { aiStatus: AdminAiProviderStatus }) {
         <DispatchPanel
           upcoming={upcoming}
           recentlyCompleted={recentlyCompleted}
+          manualQueued={selectManualQueuedLeads(grouped)}
           onChanged={() => void loadAll()}
           onError={onError}
         />
