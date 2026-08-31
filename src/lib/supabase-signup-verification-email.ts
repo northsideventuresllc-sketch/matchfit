@@ -30,6 +30,21 @@ export type TrainerSignupDraftFields = {
 
 export type SupabaseSignupVerificationRole = "trainer" | "client";
 
+export const EMAIL_ALREADY_CONFIRMED_MESSAGE =
+  "This email is already verified. Use Continue with password below, or sign in.";
+
+/**
+ * Cheap pre-check so callers can skip spending a Turnstile token on a request that is
+ * never going to send anything — Cloudflare tokens are single-use, and the trainer
+ * sign-up client immediately reuses the same token against `complete-supabase-signup`
+ * when this comes back already-confirmed.
+ */
+export async function checkEmailAlreadyConfirmed(email: string): Promise<boolean> {
+  if (!isSupabaseAdminConfigured()) return false;
+  const existing = await findAuthUserByEmail(email.trim().toLowerCase());
+  return Boolean(existing?.email_confirmed_at);
+}
+
 export type SendSupabaseSignupVerificationResult =
   | { ok: true; resendId?: string }
   | { ok: false; error: string; code: string; retryAfterSeconds?: number };
@@ -137,7 +152,7 @@ async function ensureSupabaseAuthSignupUser(args: {
     return {
       ok: false,
       code: "EMAIL_ALREADY_CONFIRMED",
-      error: "This email is already verified. Use Continue with password below, or sign in.",
+      error: EMAIL_ALREADY_CONFIRMED_MESSAGE,
     };
   }
 

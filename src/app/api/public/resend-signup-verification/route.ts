@@ -1,4 +1,8 @@
-import { sendSupabaseSignupVerificationEmail } from "@/lib/supabase-signup-verification-email";
+import {
+  checkEmailAlreadyConfirmed,
+  EMAIL_ALREADY_CONFIRMED_MESSAGE,
+  sendSupabaseSignupVerificationEmail,
+} from "@/lib/supabase-signup-verification-email";
 import { verifyTurnstileToken } from "@/lib/turnstile-verify";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -36,6 +40,18 @@ export async function POST(req: Request) {
     const parsed = bodySchema.safeParse(json);
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+    }
+
+    // Check this first and skip Turnstile entirely when it's already confirmed: this
+    // request sends nothing in that case, but the trainer sign-up client immediately
+    // reuses the same token against complete-supabase-signup, and Cloudflare tokens
+    // are single-use — verifying here would burn it for nothing and make that next
+    // call fail every time with "Security check expired".
+    if (await checkEmailAlreadyConfirmed(parsed.data.email)) {
+      return NextResponse.json(
+        { error: EMAIL_ALREADY_CONFIRMED_MESSAGE, code: "EMAIL_ALREADY_CONFIRMED" },
+        { status: 409 },
+      );
     }
 
     const turn = await verifyTurnstileToken(parsed.data.turnstileToken, req);
