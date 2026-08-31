@@ -1,0 +1,39 @@
+# Daily Match Fit content generation — every weekday 8am ET.
+# GitHub Actions crons are fixed-UTC. 8am ET during EDT (UTC-4, currently in effect) = 12:00 UTC.
+# During EST (UTC-5) this fires at 7am ET; adjust to "5 13 * * 1-5" if you want to hold 8am year-round.
+#
+# Companion to match-fit-content-calendar-weekly-generate.yml (Monday-only, plans a full week in
+# one batch): this runs every weekday and tops up ONLY today's Content Hub slot with whichever of
+# the four post types (Carousel/Static/Video/Text) are still missing, researching fresh trending
+# hashtags each time via the AI Vault (AXON local first, see docs/ai-vault.md). It is idempotent —
+# a post type already sitting in the Hub is left alone — so this self-heals a day whose weekly
+# batch never ran, timed out, or got scrapped, instead of leaving that day empty until next Monday.
+# Everything it writes is status="draft" — JB still has to press approve in the admin UI before
+# anything moves further (standing rule 5, approve-only). Offset 5 minutes after the weekly cron's
+# top of the hour so the two never race the same Monday slot.
+
+name: Match Fit content calendar daily generate
+
+on:
+  schedule:
+    - cron: "5 12 * * 1-5"
+  workflow_dispatch: {}
+
+jobs:
+  content-calendar-daily-generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke daily content generation cron
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ secrets.MATCH_FIT_APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$APP_URL" ]; then
+            echo "::error::Missing repository secrets CRON_SECRET and/or MATCH_FIT_APP_URL (e.g. https://match-fit.net). The cron job is NOT running."
+            exit 1
+          fi
+          URL="${APP_URL%/}/api/cron/content-calendar-daily-generate"
+          echo "GET $URL"
+          curl -fsS -X GET \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "$URL"

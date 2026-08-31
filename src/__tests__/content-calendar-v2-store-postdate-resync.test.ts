@@ -37,6 +37,7 @@ describe("createV2Draft post_date / day_index sync", () => {
     Object.assign(builder, {
       select: () => builder,
       eq: () => builder,
+      is: () => builder,
       then: (resolve: (v: unknown) => void) =>
         resolve({ data: [{ day_index: 0 }, { day_index: 1 }], error: null }),
     });
@@ -71,6 +72,7 @@ describe("createV2Draft post_date / day_index sync", () => {
     Object.assign(builder, {
       select: () => builder,
       eq: () => builder,
+      is: () => builder,
       then: (resolve: (v: unknown) => void) => resolve({ data: [], error: null }),
     });
     mockCreateNiBrainClient.mockReturnValue({ from: () => builder });
