@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  computeManualPostSchedule,
   describeEtMoment,
   describePendingPost,
   etTimeLabel,
@@ -131,5 +132,31 @@ describe("describeEtMoment wording", () => {
     const media = nextEtSlotAfter(MEDIA_BUILD_SLOTS_ET, janFriday);
     expect(etTimeLabel(media)).toBe("4:15pm");
     expect(media.toISOString()).toBe("2027-01-08T21:15:00.000Z"); // 4:15pm EST = 21:15 UTC
+  });
+});
+
+describe("computeManualPostSchedule", () => {
+  it("lands 24 hours after 11:59pm ET of the post date, during EDT", () => {
+    // Mon Jul 27 2026 11:59pm EDT = 2026-07-28T03:59:00Z; +24h = Tue 11:59pm EDT.
+    expect(computeManualPostSchedule("2026-07-27").toISOString()).toBe("2026-07-29T03:59:00.000Z");
+  });
+
+  it("lands 24 hours after 11:59pm ET of the post date, during EST", () => {
+    // Fri Jan 8 2027 11:59pm EST = 2027-01-09T04:59:00Z; +24h = Sat 11:59pm EST.
+    expect(computeManualPostSchedule("2027-01-08").toISOString()).toBe("2027-01-10T04:59:00.000Z");
+  });
+
+  it("is a literal +24h UTC offset, so it shifts an hour of ET wall-clock across the DST fall-back", () => {
+    // Sat Oct 31 2026 11:59pm EDT = 2026-11-01T03:59:00Z. Adding a literal 24h UTC crosses the
+    // Nov 1 2am fall-back, so the result reads as Sun Nov 1 10:59pm EST — not 11:59pm.
+    const result = computeManualPostSchedule("2026-10-31");
+    expect(result.toISOString()).toBe("2026-11-02T03:59:00.000Z");
+    expect(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(result),
+    ).toBe("Nov 1, 2026, 10:59 PM");
   });
 });
