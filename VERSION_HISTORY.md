@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-08-31** `2.26.0-beta` → `2.26.1-beta` (**patch** — Stop raw Postgres auth error leaking to Content Hub admin UI)
 - **2026-08-31** `2.25.0-beta` → `2.26.0-beta` (**minor** — Content Calendar v2 rebuild: pending stage, social media research tab, manual/agent posting split)
 - **2026-08-31** `2.24.2-beta` → `2.25.0-beta` (**minor** — Outreach HQ v2 cutover: v1 retired, Send Queue (manual + agent send), nav badges)
 - **2026-08-31** `2.24.1-beta` → `2.24.2-beta` (**patch** — Fix trainer sign-up reusing an already-spent Turnstile token, which made the security check fail every retry)

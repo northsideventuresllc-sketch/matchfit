@@ -240,6 +240,11 @@ function isConnectivityError(message: string): boolean {
   );
 }
 
+/** Postgres rejected the credential itself (28P01) rather than failing to reach the host. */
+function isAuthError(message: string): boolean {
+  return /password authentication failed|28P01/i.test(message);
+}
+
 async function probeContentHubSchema(): Promise<boolean> {
   const client = createNiBrainClient();
   const { error } = await client
@@ -381,6 +386,14 @@ async function runNiBrainDdl(sql: string): Promise<void> {
         `Content Hub schema repair could not reach NI Brain Postgres (${message}). ` +
           "Set NI_BRAIN_DATABASE_PASSWORD with NI_BRAIN_SUPABASE_URL, or NI_BRAIN_DATABASE_URL to the session pooler " +
           "(aws-1-us-east-1.pooler.supabase.com:5432). Direct db.<ref>.supabase.co is IPv6-only on many hosts.",
+      );
+    }
+
+    if (isAuthError(message)) {
+      throw new Error(
+        "Content Hub schema repair could not authenticate to NI Brain Postgres — the stored " +
+          "NI_BRAIN_DATABASE_PASSWORD no longer matches the database. Update it in platform_secrets " +
+          "(or set NI_BRAIN_DATABASE_URL) with the current password from Supabase → Settings → Database, then retry.",
       );
     }
     throw e;
