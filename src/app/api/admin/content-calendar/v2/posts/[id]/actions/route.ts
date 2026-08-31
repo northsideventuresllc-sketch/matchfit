@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { fireCoworkForPost } from "@/lib/content-calendar/content-calendar-cowork-orchestration";
 import {
   approveV2Post,
   archiveV2Post,
   cancelV2ScheduledPost,
   getV2Post,
+  manuallyPostV2Post,
+  manuallyRedoV2PostMedia,
   moveV2PostToDrafts,
   regenerateV2PostMedia,
   reviveV2Post,
@@ -13,8 +16,11 @@ import {
   serializeV2Post,
   startV2Optimization,
 } from "@/lib/content-calendar/content-calendar-v2-store";
-import { ensureContentCalendarV2Schema, isMissingContentCalendarV2SchemaError } from "@/lib/ensure-content-hub-schema";
-import { isNiBrainConfiguredAsync } from "@/lib/ni-brain-client";
+import {
+  ensureContentCalendarV23Schema,
+  isMissingContentCalendarV23SchemaError,
+} from "@/lib/ensure-content-hub-schema";
+import { createNiBrainClient, isNiBrainConfiguredAsync } from "@/lib/ni-brain-client";
 import { formatUserFacingError } from "@/lib/read-json-response";
 import { requireAdminSession } from "@/lib/require-admin";
 
@@ -33,6 +39,22 @@ const actionSchema = z.discriminatedUnion("action", [
     action: z.literal("schedule"),
     scheduledAt: z.string().min(1),
   }),
+  // Manual media replacement (Lane 3) — JB uploaded new media directly instead of regenerating it.
+  z.object({
+    action: z.literal("manual_redo_media"),
+    mediaUrls: z.array(z.string().min(1)).min(1),
+  }),
+  // Single-post agent regenerate/redo — stage-agnostic (works from "hub" or "publishing"), always
+  // lands the post in "pending" to await the next media-build slot.
+  z.object({
+    action: z.literal("regenerate_via_agent"),
+    feedback: z.string().max(2000).optional(),
+  }),
+  // Manual-vs-agent posting: JB posted this himself outside Cowork.
+  z.object({ action: z.literal("manual_post") }),
+  // Impromptu-only: Text posts have nothing to build and go straight to Publishing; every other
+  // post type fires a single-post Cowork media job and lands in Pending.
+  z.object({ action: z.literal("submit_for_generation") }),
 ]);
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -47,7 +69,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const { id } = await ctx.params;
 
   try {
-    await ensureContentCalendarV2Schema();
+    await ensureContentCalendarV23Schema();
     switch (parsed.data.action) {
       case "approve":
         await approveV2Post(id);
@@ -75,6 +97,40 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       case "schedule":
         await scheduleV2Post({ postId: id, scheduledAt: parsed.data.scheduledAt });
         break;
+      case "manual_redo_media": {
+        const row = await manuallyRedoV2PostMedia(id, { mediaUrls: parsed.data.mediaUrls });
+        return NextResponse.json({ post: serializeV2Post(row) });
+      }
+      case "regenerate_via_agent": {
+        const { job, post } = await fireCoworkForPost(id, { feedback: parsed.data.feedback });
+        return NextResponse.json({ post: serializeV2Post(post), jobId: job.id });
+      }
+      case "manual_post": {
+        const row = await manuallyPostV2Post(id);
+        return NextResponse.json({ post: serializeV2Post(row) });
+      }
+      case "submit_for_generation": {
+        const post = await getV2Post(id);
+        if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 });
+
+        if (post.post_type === "Text") {
+          // Nothing to build — patch straight to Publishing. No store helper does this bare
+          // single-post transition outside the day-batch/job-completion paths (content-calendar-v2-store.ts
+          // and content-calendar-cowork-orchestration.ts are Phase A1's files, out of scope here), so
+          // this mirrors their exact patch shape directly rather than adding a new export there.
+          const client = createNiBrainClient();
+          const { error: patchError } = await client
+            .from("match_fit_content_calendar_posts")
+            .update({ workflow_stage: "publishing", status: "publishing", updated_at: new Date().toISOString() })
+            .eq("id", id);
+          if (patchError) throw new Error(patchError.message);
+          const updated = await getV2Post(id);
+          return NextResponse.json({ post: updated ? serializeV2Post(updated) : null });
+        }
+
+        const { job, post: updatedPost } = await fireCoworkForPost(id);
+        return NextResponse.json({ post: serializeV2Post(updatedPost), jobId: job.id });
+      }
       default:
         return NextResponse.json({ error: "Unknown action." }, { status: 400 });
     }
@@ -85,7 +141,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     console.error("[content-calendar v2 post action]", e);
     return NextResponse.json(
       { error: formatUserFacingError(e, "Content calendar v2 action failed.") },
-      { status: isMissingContentCalendarV2SchemaError(e) ? 503 : 500 },
+      { status: isMissingContentCalendarV23SchemaError(e) ? 503 : 500 },
     );
   }
 }

@@ -12,7 +12,8 @@ import {
 import { ContentHashtagTagInput } from "@/components/admin/content-hashtag-tag-input";
 import { CONTENT_CALENDAR_POST_TYPES, type ContentCalendarPostType } from "@/lib/content-calendar/constants";
 import type { ClientContentCalendarV2Post } from "@/lib/content-calendar/content-calendar-v2-store";
-import { CopyButton, Modal, ProgressBar } from "./ui-bits";
+import { DeviceMediaUploadWidget } from "./device-media-upload-widget";
+import { CopyButton, Modal, ProgressBar, SeePromptCollapsible } from "./ui-bits";
 import { useSimulatedProgress } from "./use-simulated-progress";
 import {
   collectPublishingPlatforms,
@@ -135,6 +136,7 @@ function PublishingCard({
   onPatch,
   onAction,
   onToggleReady,
+  onApproveForPosting,
   register,
   unregister,
 }: {
@@ -146,6 +148,10 @@ function PublishingCard({
   onPatch: (id: string, fields: Partial<ClientContentCalendarV2Post>) => Promise<void>;
   onAction: (id: string, body: Record<string, unknown>, success?: string) => Promise<void>;
   onToggleReady: (id: string, ready: boolean) => void;
+  onApproveForPosting: (
+    postIds: string[],
+    platformOverrides?: Record<string, string[]>,
+  ) => Promise<{ jobId?: string; postCount?: number }>;
   register: (key: string, dirty: boolean, save: () => Promise<void>) => void;
   unregister: (key: string) => void;
 }) {
@@ -155,6 +161,31 @@ function PublishingCard({
   const [showFiles, setShowFiles] = useState(false);
   const [showReschedule, setShowReschedule] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Regenerate via agent — optional feedback textarea, then regenerate_via_agent moves the post to
+  // Pending. TAB_FOLLOW_ACTIONS in the client already switches tabs on this action, and onAction
+  // always refetches the current stage, so the card just disappears from this list on success —
+  // nothing to remove by hand here.
+  const [showRegenerate, setShowRegenerate] = useState(false);
+  const [regenerateFeedback, setRegenerateFeedback] = useState("");
+  const [regenerating, setRegenerating] = useState(false);
+
+  // Manually Redo — reveals the device upload widget; manual_redo_media overwrites media in place
+  // server-side (works identically for a post that already has media and one that has none yet, e.g.
+  // the day-level Manually Generate Media bypass), so there's no separate delete step needed.
+  const [showManualRedo, setShowManualRedo] = useState(false);
+  const [redoBusy, setRedoBusy] = useState(false);
+  const [redoError, setRedoError] = useState<string | null>(null);
+
+  // Manually Post — irreversible (archives the post), so it gets the same confirm-dialog pattern
+  // Approve For Posting already uses below.
+  const [posting, setPosting] = useState(false);
+
+  // Agent Post — the per-post counterpart to Manually Post, giving Publishing the paired
+  // MANUALLY POST / AGENT POST buttons the spec asked for on every card, not just via the batch
+  // "mark ready then APPROVE FOR POSTING" flow below. Reuses that same single-post-array call.
+  const [agentPosting, setAgentPosting] = useState(false);
+  const [agentPostError, setAgentPostError] = useState<string | null>(null);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -184,6 +215,69 @@ function PublishingCard({
     register(`pub_${post.id}`, dirty, () => saveRef.current());
     return () => unregister(`pub_${post.id}`);
   }, [post.id, dirty, register, unregister]);
+
+  // Mirrors RescheduleModal's onSchedule below: always await onAction, then close/reset local UI
+  // regardless of outcome — onAction already swallows its own errors into the page-level error state
+  // and always refetches the current stage, so there's no separate success/failure branch to handle
+  // here.
+  async function regenerate() {
+    setRegenerating(true);
+    try {
+      const feedback = regenerateFeedback.trim();
+      await onAction(
+        post.id,
+        feedback ? { action: "regenerate_via_agent", feedback } : { action: "regenerate_via_agent" },
+        "Sent back to Pending for the agent to redo.",
+      );
+      setShowRegenerate(false);
+      setRegenerateFeedback("");
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
+  async function manuallyRedoMedia(urls: string[]) {
+    setRedoBusy(true);
+    setRedoError(null);
+    try {
+      await onAction(post.id, { action: "manual_redo_media", mediaUrls: urls }, "Media updated.");
+      setShowManualRedo(false);
+    } finally {
+      setRedoBusy(false);
+    }
+  }
+
+  async function manuallyPost() {
+    const confirmed = window.confirm(
+      "Mark this post as manually posted? It moves straight to Archives and this cannot be undone.",
+    );
+    if (!confirmed) return;
+    setPosting(true);
+    try {
+      // The route computes the real schedule server-side but onAction here (Promise<void>) doesn't
+      // surface the updated post back to the caller, so there's no scheduledAt value to read at this
+      // call site — falls back to the generic sentence as specified.
+      await onAction(post.id, { action: "manual_post" }, "Scheduled — moved to Archives.");
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  async function agentPost() {
+    const confirmed = window.confirm(
+      `Send this post to ${activePlatforms.length ? activePlatforms.join(", ") : "no platforms"}? This queues an immediate cross-post and cannot be undone.`,
+    );
+    if (!confirmed) return;
+    setAgentPosting(true);
+    setAgentPostError(null);
+    try {
+      await onApproveForPosting([post.id], excluded.length ? { [post.id]: activePlatforms } : undefined);
+    } catch (e) {
+      setAgentPostError(e instanceof Error ? e.message : "Could not post this via the agent.");
+    } finally {
+      setAgentPosting(false);
+    }
+  }
 
   return (
     <article className={`rounded-2xl border ${ready ? "border-emerald-400/40" : "border-white/[0.08]"} bg-[#12151C]/90`}>
@@ -237,6 +331,14 @@ function PublishingCard({
               No media yet — generated by Cowork after Fire Cowork.
             </p>
           )}
+
+          {post.generationSource === "manual_upload" || post.generationSource === "cowork_gemini" ? (
+            <p className="text-[10px] uppercase tracking-wide text-white/35">
+              {post.generationSource === "manual_upload" ? "Manually uploaded media" : "Agent-generated media"}
+            </p>
+          ) : null}
+
+          <SeePromptCollapsible prompt={post.lastGenerationPrompt} label="See Prompt" />
 
           {/* Per-platform variations with exclude checkboxes + preview links */}
           <div>
@@ -309,6 +411,99 @@ function PublishingCard({
               {saving ? "SAVING…" : dirty ? "SAVE EDITS" : "SAVED"}
             </button>
           </div>
+
+          {/* Agent redo / manual redo / manual post — separated from the edit-and-save row above since
+              these three change the post's stage or media, not just its text. */}
+          <div className="flex flex-wrap gap-2 border-t border-white/[0.06] pt-3">
+            <button
+              type="button"
+              className={adminSecondaryButtonClass}
+              disabled={busy || regenerating}
+              onClick={() => setShowRegenerate((v) => !v)}
+            >
+              Regenerate
+            </button>
+            <button
+              type="button"
+              className={adminSecondaryButtonClass}
+              disabled={busy || redoBusy}
+              onClick={() => setShowManualRedo((v) => !v)}
+            >
+              Manually Redo
+            </button>
+            <button
+              type="button"
+              className={adminAccentButtonClass}
+              disabled={busy || posting}
+              onClick={() => void manuallyPost()}
+            >
+              {posting ? "Posting…" : "Manually Post"}
+            </button>
+            <button
+              type="button"
+              className={adminAccentButtonClass}
+              disabled={busy || agentPosting}
+              onClick={() => void agentPost()}
+            >
+              {agentPosting ? "Posting…" : "Agent Post"}
+            </button>
+          </div>
+          {agentPostError ? <p className="text-xs font-semibold text-[#FFB4B4]">{agentPostError}</p> : null}
+
+          {showRegenerate ? (
+            <div className="space-y-2 rounded-xl border border-white/[0.08] bg-black/20 p-3">
+              <label className="block">
+                <span className={adminLabelClass}>Feedback for the agent (optional)</span>
+                <textarea
+                  className={`${adminInputClassSm} mt-1 min-h-[70px]`}
+                  value={regenerateFeedback}
+                  onChange={(e) => setRegenerateFeedback(e.target.value)}
+                  placeholder="What should change this time?"
+                />
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className={adminPrimaryButtonClass}
+                  disabled={busy || regenerating}
+                  onClick={() => void regenerate()}
+                >
+                  {regenerating ? "Sending…" : "Send To Agent"}
+                </button>
+                <button
+                  type="button"
+                  className={adminSecondaryButtonClass}
+                  disabled={regenerating}
+                  onClick={() => {
+                    setShowRegenerate(false);
+                    setRegenerateFeedback("");
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {showManualRedo ? (
+            <div className="space-y-2 rounded-xl border border-white/[0.08] bg-black/20 p-3">
+              <p className="text-xs text-white/55">
+                {post.mediaUrls.length
+                  ? "Uploading replaces the current media for this post."
+                  : "No media yet — upload the first file for this post."}
+              </p>
+              <DeviceMediaUploadWidget
+                postId={post.id}
+                label="publishing-manual-redo"
+                multiple
+                buttonLabel="Upload New Media"
+                disabled={busy || redoBusy}
+                onUploaded={(urls) => void manuallyRedoMedia(urls)}
+                onError={(message) => setRedoError(message)}
+              />
+              {redoError ? <p className="text-xs font-semibold text-[#FFB4B4]">{redoError}</p> : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -391,12 +586,16 @@ export function PublishingPanel({
   );
 
   async function approveForPosting() {
-    // Selection semantics: PUBLISH-marked (ready) posts within the current filter win; if none are
-    // marked ready, every currently-filtered post is sent.
-    const readyFiltered = filtered.filter((p) => readyIds.has(p.id)).map((p) => p.id);
-    const ids = readyFiltered.length ? readyFiltered : filtered.map((p) => p.id);
-    if (!ids.length) {
+    // Selection semantics: only PUBLISH-marked (ready) posts within the current filter are sent.
+    // There is no silent fallback to "everything currently filtered" — an empty selection is a real
+    // validation error, not an invitation to post the whole filtered list.
+    if (!filtered.length) {
       setApproveError("No posts match the current filters to approve for posting.");
+      return;
+    }
+    const ids = filtered.filter((p) => readyIds.has(p.id)).map((p) => p.id);
+    if (!ids.length) {
+      setApproveError("SELECT POSTS TO PUBLISH");
       return;
     }
 
@@ -441,8 +640,9 @@ export function PublishingPanel({
         <div>
           <h2 className="text-lg font-black uppercase tracking-[0.12em] text-white">Publishing</h2>
           <p className="mt-1 max-w-3xl text-sm leading-relaxed text-white/55">
-            Prepare each post per platform, mark it ready with PUBLISH, then APPROVE FOR POSTING batches the selected
-            posts into a Cowork cross-post job. Posted posts stay visible for the retention window, then move to
+            Each post has its own Agent Post button to send it immediately, or mark several posts ready with PUBLISH
+            and use APPROVE FOR POSTING below to batch them into one Cowork cross-post job. Manually Post schedules a
+            post you posted yourself instead. Posted posts stay visible for the retention window, then move to
             Archives automatically.
           </p>
         </div>
@@ -551,6 +751,7 @@ export function PublishingPanel({
             onPatch={onPatch}
             onAction={onAction}
             onToggleReady={toggleReady}
+            onApproveForPosting={onApproveForPosting}
             register={register}
             unregister={unregister}
           />

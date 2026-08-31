@@ -23,15 +23,28 @@ export const MATCHFIT_CONTENT_RULES = {
   },
 };
 
-/** M–F rotation: post type → audience (alternates by weekday). */
+/**
+ * M–F rotation: post type → audience.
+ * Updated 2026-08-30 — real per-weekday structure replaces the old flat baseline.
+ * M/W/F carry video + carousel to a fixed audience each; Tu/Th carry static + text
+ * and alternate audience across the three (Join the Team / List With Us / Clients).
+ */
 export const MATCHFIT_WEEKLY_ROTATION = {
+  byWeekday: {
+    Monday: { formats: ["Carousel", "Video"], audience: "Join the Team", platforms: ["Instagram", "TikTok"] },
+    Tuesday: { formats: ["Static", "Text"], audience: "Alternates", platforms: ["Threads", "Facebook", "Instagram"] },
+    Wednesday: { formats: ["Carousel", "Video"], audience: "Clients", platforms: ["Instagram", "TikTok"] },
+    Thursday: { formats: ["Static", "Text"], audience: "Alternates", platforms: ["Threads", "Facebook", "Instagram"] },
+    Friday: { formats: ["Carousel", "Video"], audience: "List With Us", platforms: ["Instagram", "TikTok"] },
+  },
+  /** @deprecated kept for back-compat with any code still reading the old flat shape. */
   baseline: {
     Carousel: "Join the Team",
     Static: "List With Us",
     Video: "Clients",
     Text: "Join the Team",
   },
-  note: "Offset rotates audiences each weekday across Join the Team, List With Us, and Clients.",
+  note: "Monday/Wednesday/Friday are fixed-audience video+carousel days. Tuesday/Thursday are static+text days that alternate across Join the Team, List With Us, and Clients.",
 };
 
 export const MATCHFIT_CONTENT_PILLARS = [

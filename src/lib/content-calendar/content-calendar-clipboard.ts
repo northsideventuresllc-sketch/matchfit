@@ -19,12 +19,18 @@ export function hashtagsToInputValue(tags: string[]): string {
   return normalizeHashtags(tags).join("\n");
 }
 
+/**
+ * Copy Post's clipboard format: the caption, a blank line, then the hashtags on their own
+ * two-space-indented line — `{body}\n\n  {hashtags}` — so a paste into a platform composer keeps
+ * the hashtag line visually distinct from the body. (Content Calendar v2, 2026-08-31.)
+ */
 export function buildCaptionWithHashtags(caption: string, hashtags: string[]): string {
   const tags = formatHashtagsForPost(hashtags);
   const trimmed = caption.trim();
   if (!tags) return trimmed;
-  if (!trimmed) return tags;
-  return `${trimmed}\n\n${tags}`;
+  const indentedTags = `  ${tags}`;
+  if (!trimmed) return indentedTags;
+  return `${trimmed}\n\n${indentedTags}`;
 }
 
 /** Space-separated #tags for clipboard (no chip UI artifacts). */

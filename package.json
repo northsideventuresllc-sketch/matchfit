@@ -1,6 +1,6 @@
 {
   "name": "match-fit-app",
-  "version": "2.25.0-beta",
+  "version": "2.26.0-beta",
   "private": true,
   "engines": {
     "node": ">=20.19.0 <23"

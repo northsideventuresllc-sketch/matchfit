@@ -3,7 +3,9 @@ import {
   safeMediaPathSegment as safeSegment,
   uploadContentCalendarMedia,
 } from "@/lib/content-calendar/media-storage";
+import { ensureContentCalendarV23Schema } from "@/lib/ensure-content-hub-schema";
 import { isNiBrainConfiguredAsync } from "@/lib/ni-brain-client";
+import { requireAdminSession } from "@/lib/require-admin";
 import { hasValidCoworkSecret } from "@/lib/require-cowork-secret";
 
 export const dynamic = "force-dynamic";
@@ -15,9 +17,17 @@ export const dynamic = "force-dynamic";
  * no way to give the app a public URL for them. This route accepts the raw file (multipart
  * form-data: `file`, `jobId`, `label`) and re-hosts it in NI Brain Supabase Storage, so the
  * Cowork session can then call the job-completion callback with a real URL.
+ *
+ * Also accepts a plain admin session — DeviceMediaUploadWidget lets a human upload media
+ * directly (the Manually-Generate-Media and Manually-Redo Media flows) without going through
+ * Cowork at all, so this checks the Cowork secret OR a logged-in admin, either is enough.
  */
 export async function POST(req: Request) {
-  if (!(await hasValidCoworkSecret(req))) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const validCoworkSecret = await hasValidCoworkSecret(req);
+  const adminSession = validCoworkSecret ? null : await requireAdminSession();
+  if (!validCoworkSecret && !adminSession) {
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
 
   if (!(await isNiBrainConfiguredAsync())) {
     return NextResponse.json({ error: "NI Brain is not configured." }, { status: 503 });
@@ -41,6 +51,7 @@ export async function POST(req: Request) {
   const path = `${safeSegment(jobId)}/${safeSegment(label)}-${Date.now()}.${safeSegment(ext)}`;
 
   try {
+    await ensureContentCalendarV23Schema();
     const uploaded = await uploadContentCalendarMedia({
       bytes: new Uint8Array(await file.arrayBuffer()),
       path,

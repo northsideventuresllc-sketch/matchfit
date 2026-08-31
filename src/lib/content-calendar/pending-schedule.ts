@@ -152,6 +152,23 @@ export function describeEtMoment(instant: Date, now: Date): string {
   return `${etDateLabel(instant)} at ${time}`;
 }
 
+/**
+ * Manual-vs-agent posting schedule: "24 hours after 11:59pm ET of the post's calendar date." Used
+ * when JB posts something himself rather than through Cowork — there is no real posting slot to
+ * point at, so this is a flat, predictable placeholder instant for the archive record instead.
+ */
+export function computeManualPostSchedule(postDate: string): Date {
+  const [year, month, day] = postDate.split("-").map(Number);
+  const lastMinuteOfDay = etInstant({ year, month, day }, { hour: 23, minute: 59 });
+  return new Date(lastMinuteOfDay.getTime() + 24 * 60 * 60 * 1000);
+}
+
+/** Today's America/New_York calendar date as YYYY-MM-DD. */
+export function currentEtCalendarDate(now: Date = new Date()): string {
+  const wall = etWallClock(now);
+  return `${wall.year}-${String(wall.month).padStart(2, "0")}-${String(wall.day).padStart(2, "0")}`;
+}
+
 /** Minimum shape the Pending page needs to work out timings for one post. */
 export type PendingSchedulePost = {
   postType: string;

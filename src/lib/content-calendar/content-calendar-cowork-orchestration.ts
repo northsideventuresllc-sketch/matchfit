@@ -21,9 +21,20 @@ import { splitPlatforms } from "@/lib/content-calendar/content-calendar-v2-store
 import { normalizeTargetGroup } from "@/lib/content-calendar/content-rules";
 import { fireAxonPostingConfirmation } from "@/lib/content-calendar/axon-notify";
 import {
+  describeEtMoment,
+  MEDIA_BUILD_SLOTS_ET,
+  nextEtSlotAfter,
+  POSTING_SLOTS_ET,
+} from "@/lib/content-calendar/pending-schedule";
+import { MATCH_FIT_NOREPLY_FROM, sendResendEmail } from "@/lib/resend-client";
+import {
   cancelDayApprovalMemo,
   createNiBrainClient,
+  hasDayAllPostedEmailBeenSent,
+  hasDayScheduledEmailBeenSent,
+  recordDayAllPostedEmailSent,
   recordDayApprovalMemo,
+  recordDayScheduledEmailSent,
   type ContentCalendarPostRow,
 } from "@/lib/ni-brain-client";
 
@@ -45,6 +56,111 @@ function resolveAppBaseUrl(): string {
 
 function completeCallbackUrl(jobId: string): string {
   return `${resolveAppBaseUrl()}/api/admin/content-calendar/v2/cowork-jobs/${jobId}/complete`;
+}
+
+/** Fixed recipient trio for both day-level operator emails — always all three, JB's standing rule. */
+const DAY_NOTIFICATION_RECIPIENTS = [
+  "jb@match-fit.net",
+  "jb@northsideintelligence.com",
+  "jb@northsideventuresgroup.com",
+] as const;
+
+function dayFeedbackLink(postDate: string): string {
+  return `${resolveAppBaseUrl()}/admin/content-calendar/v2/day-feedback/${postDate}`;
+}
+
+/** Sends one plain-text operator email to all three day-notification recipients. Never throws — a
+ * failed send is logged and swallowed so a Resend outage can't block the stage move that triggered it. */
+async function sendDayNotificationEmail(args: { subject: string; text: string }): Promise<void> {
+  await Promise.all(
+    DAY_NOTIFICATION_RECIPIENTS.map((to) =>
+      sendResendEmail({ subject: args.subject, text: args.text, to, from: MATCH_FIT_NOREPLY_FROM }).catch((e) => {
+        console.error(`[content-calendar day email] send to ${to} failed:`, e);
+      }),
+    ),
+  );
+}
+
+/**
+ * Fires once a day's media generation is genuinely set in motion. Two callers, two ETA flavors:
+ *  - approveContentDay's media branch (etaKind "media", the default) — posts just entered
+ *    "pending" and media_generation_started_at is stamped, so the next MEDIA_BUILD_SLOTS_ET slot
+ *    is a real ETA regardless of when (or whether) an admin later clicks Fire Cowork.
+ *  - manuallyGenerateDayMedia (etaKind "posting") — media generation is bypassed entirely and the
+ *    posts already sit in "publishing", so the only ETA left to give is the next posting slot.
+ * Guarded via ni-brain-client's hasDayScheduledEmailBeenSent so a retry never double-sends.
+ */
+export async function notifyDayScheduled(postDate: string, args?: { etaKind?: "media" | "posting" }): Promise<void> {
+  if (await hasDayScheduledEmailBeenSent(postDate)) return;
+  const now = new Date();
+  const etaKind = args?.etaKind ?? "media";
+  const etaSlot =
+    etaKind === "media" ? nextEtSlotAfter(MEDIA_BUILD_SLOTS_ET, now) : nextEtSlotAfter(POSTING_SLOTS_ET, now);
+  const etaLabel = etaKind === "media" ? "Media build ETA" : "Posting ETA";
+
+  const text = [
+    `Match Fit content for ${postDate} is scheduled.`,
+    `${etaLabel}: ${describeEtMoment(etaSlot, now)}.`,
+    "",
+    `Leave feedback on this day: ${dayFeedbackLink(postDate)}`,
+  ].join("\n");
+
+  await sendDayNotificationEmail({ subject: `Match Fit content scheduled — ${postDate}`, text });
+  await recordDayScheduledEmailSent(postDate);
+}
+
+/** True when every non-deleted post for a date is archived as posted. */
+async function isDayFullyPosted(postDate: string): Promise<boolean> {
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("workflow_stage, archive_type")
+    .eq("post_date", postDate)
+    .is("deleted_at", null);
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as { workflow_stage: string | null; archive_type: string | null }[];
+  if (!rows.length) return false;
+  return rows.every((row) => row.workflow_stage === "archived" && row.archive_type === "posted");
+}
+
+/**
+ * Checks whether every post for a date has now gone out and, the first time that becomes true,
+ * sends the "day fully posted" operator email with each post's live URL. Call this from every
+ * place a post for a date gets archived as posted — completePostBatchJob below (the agent path)
+ * and manuallyPostV2Post in content-calendar-v2-store.ts (the manual path). Guarded via
+ * ni-brain-client's hasDayAllPostedEmailBeenSent so it only ever fires once per date.
+ */
+export async function maybeNotifyDayFullyPosted(postDate: string): Promise<{ notified: boolean }> {
+  if (!postDate) return { notified: false };
+  if (await hasDayAllPostedEmailBeenSent(postDate)) return { notified: false };
+  if (!(await isDayFullyPosted(postDate))) return { notified: false };
+
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("post_type, posted_urls")
+    .eq("post_date", postDate)
+    .is("deleted_at", null);
+  if (error) throw new Error(error.message);
+
+  const lines: string[] = [];
+  for (const row of (data ?? []) as { post_type: string; posted_urls: Record<string, string> | null }[]) {
+    for (const [platform, url] of Object.entries(row.posted_urls ?? {})) {
+      lines.push(`${row.post_type} on ${platform}: ${url}`);
+    }
+  }
+
+  const text = [
+    `Every Match Fit post for ${postDate} is now live.`,
+    "",
+    ...lines,
+    "",
+    `Leave feedback on this day: ${dayFeedbackLink(postDate)}`,
+  ].join("\n");
+
+  await sendDayNotificationEmail({ subject: `Match Fit content fully posted — ${postDate}`, text });
+  await recordDayAllPostedEmailSent(postDate);
+  return { notified: true };
 }
 
 async function getHubPostsForDate(postDate: string): Promise<ContentCalendarPostRow[]> {
@@ -72,16 +188,22 @@ export async function approveContentDay(postDate: string): Promise<{ approved: n
 
   // Text posts need no media generation — fireCoworkForDay excludes them and
   // completeGenerateMediaJob (the only other place that flips workflow_stage)
-  // never sees them. Left at workflow_stage "hub" they never reach Publishing.
-  // Advance them straight to "publishing" here; media posts stay in "hub"
-  // until the media job completes (unchanged behavior).
+  // never sees them. Advance them straight to "publishing" here; media posts
+  // move into the real "pending" stage, where they wait for the media-build
+  // cron (fireCoworkForDay) or a manual bypass (manuallyGenerateDayMedia).
   const textIds = posts.filter((p) => p.post_type === "Text").map((p) => p.id);
   const mediaIds = posts.filter((p) => p.post_type !== "Text").map((p) => p.id);
 
   if (mediaIds.length) {
     const { error } = await client
       .from("match_fit_content_calendar_posts")
-      .update({ approved_at: now, status: "approved", updated_at: now })
+      .update({
+        approved_at: now,
+        status: "pending",
+        workflow_stage: "pending",
+        media_generation_started_at: now,
+        updated_at: now,
+      })
       .in("id", mediaIds);
     if (error) throw new Error(error.message);
   }
@@ -117,6 +239,15 @@ export async function approveContentDay(postDate: string): Promise<{ approved: n
     },
   });
 
+  // Only fire when there is media actually queued — media_generation_started_at (set above) is
+  // the moment this day genuinely gets a media-build ETA. A text-only day has nothing to build and
+  // goes straight to Publishing, so there is no ETA worth emailing about.
+  if (mediaIds.length) {
+    await notifyDayScheduled(postDate).catch((e) => {
+      console.error(`[content-calendar day email] day-scheduled notify failed for ${postDate}:`, e);
+    });
+  }
+
   return { approved: posts.length, memoId };
 }
 
@@ -142,39 +273,137 @@ export async function returnContentDayToEditing(postDate: string): Promise<{ rev
 }
 
 /**
- * Fire Cowork for an approved day: creates ONE generate_media Cowork job whose brief carries the
- * day's video/static/carousel prompts in priority order (video first), the Mac Mini download
- * folder convention, and the completion callback contract. The learning memo is already committed
- * at Approve Day, so it is NOT re-triggered here.
+ * Manual day-level media generation bypass: same precondition and memo write-back as
+ * approveContentDay, but skips Cowork entirely — JB is producing the day's media himself outside
+ * the agent pipeline, so the media-post branch goes straight to "publishing" instead of "pending"
+ * (no Cowork job, no media_generation_started_at). Text posts behave exactly as they do under
+ * approveContentDay, since they never had media to build either way.
  */
-export async function fireCoworkForDay(postDate: string): Promise<{ job: CoworkJobRow; mediaPostCount: number }> {
+export async function manuallyGenerateDayMedia(postDate: string): Promise<{ moved: number; memoId: string | null }> {
   const posts = await getHubPostsForDate(postDate);
-  const approvedMedia = posts.filter(
-    (p): p is ContentCalendarPostRow & { post_type: MediaPostType } =>
-      p.post_type !== "Text" && Boolean(p.approved_at),
-  );
-  if (!approvedMedia.length) {
-    throw new Error("No approved media posts (Static/Carousel/Video) found for this date. Approve the day first.");
+  if (!posts.length) throw new Error("No hub posts found for this date to approve.");
+
+  const now = new Date().toISOString();
+  const client = createNiBrainClient();
+
+  const textIds = posts.filter((p) => p.post_type === "Text").map((p) => p.id);
+  const mediaIds = posts.filter((p) => p.post_type !== "Text").map((p) => p.id);
+  const allIds = [...mediaIds, ...textIds];
+
+  if (allIds.length) {
+    const { error } = await client
+      .from("match_fit_content_calendar_posts")
+      .update({ approved_at: now, status: "publishing", workflow_stage: "publishing", updated_at: now })
+      .in("id", allIds);
+    if (error) throw new Error(error.message);
   }
 
-  const prompts: Partial<Record<CoworkMediaOrderKey, unknown>> = {};
+  const summary = [
+    `Match Fit content day approved for ${postDate} (manual media bypass — no Cowork job).`,
+    `Posts: ${posts.map((p) => `${p.post_type}→${normalizeTargetGroup(p.target_group)}`).join(", ")}.`,
+    posts[0]?.dpmo_phase ? `DPMO phase: ${posts[0].dpmo_phase}.` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const { id: memoId } = await recordDayApprovalMemo({
+    postDate,
+    summary,
+    meta: {
+      postCount: posts.length,
+      postTypes: posts.map((p) => p.post_type),
+      dpmoPhase: posts[0]?.dpmo_phase ?? null,
+      manualMediaBypass: true,
+    },
+  });
+
+  // Media is bypassed here, so the "day now has an ETA" moment is a posting ETA (next 5pm/8pm
+  // slot), not a media-build ETA — these posts already sit in Publishing waiting on that window.
+  if (mediaIds.length) {
+    await notifyDayScheduled(postDate, { etaKind: "posting" }).catch((e) => {
+      console.error(`[content-calendar day email] day-scheduled notify failed for ${postDate}:`, e);
+    });
+  }
+
+  return { moved: posts.length, memoId };
+}
+
+/** One post's media-generation prompt entry, shared by the day batch job and the single-post job. */
+type MediaJobPromptEntry = {
+  postId: string;
+  postType: MediaPostType;
+  platforms: string[];
+  dimensions: { aspectRatio: string; pixels: string; orientation: string };
+  prompt: string;
+};
+
+/**
+ * Builds one post's Cowork media-generation prompt entry. Shared by fireCoworkForDay's per-post
+ * loop and fireCoworkForPost's single-post job — extracted so both build the exact same shape and
+ * so operator feedback (regenerate) only has to be appended in one place.
+ */
+function buildMediaJobPromptEntry(
+  post: ContentCalendarPostRow & { post_type: MediaPostType },
+  args?: { feedback?: string },
+): MediaJobPromptEntry {
+  const dims = MEDIA_DIMENSION_MATRIX[post.post_type];
+  let prompt = buildMediaGenerationPrompt({
+    postType: post.post_type,
+    visualPrompt: post.visual_prompt,
+    caption: post.caption,
+    targetGroup: normalizeTargetGroup(post.target_group),
+  });
+  if (args?.feedback?.trim()) {
+    prompt = `${prompt}\n\nOPERATOR FEEDBACK — apply these adjustments:\n${args.feedback.trim()}`;
+  }
+  return {
+    postId: post.id,
+    postType: post.post_type,
+    platforms: splitPlatforms(post.platforms),
+    dimensions: { aspectRatio: dims.aspectRatio, pixels: dims.pixels, orientation: dims.orientation },
+    prompt,
+  };
+}
+
+/**
+ * Fire Cowork for a pending day: creates ONE generate_media Cowork job whose brief carries the
+ * day's video/static/carousel prompts in priority order (video first), the Mac Mini download
+ * folder convention, and the completion callback contract. The learning memo is already committed
+ * at Approve Day, so it is NOT re-triggered here. Reads workflow_stage "pending" (not "hub") — that
+ * stage now IS "day approved, media generation queued".
+ */
+export async function fireCoworkForDay(postDate: string): Promise<{ job: CoworkJobRow; mediaPostCount: number }> {
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("*")
+    .eq("post_date", postDate)
+    .eq("workflow_stage", "pending")
+    .is("deleted_at", null);
+  if (error) throw new Error(error.message);
+  const posts = (data ?? []) as ContentCalendarPostRow[];
+
+  const pendingMedia = posts.filter(
+    (p): p is ContentCalendarPostRow & { post_type: MediaPostType } => p.post_type !== "Text",
+  );
+  if (!pendingMedia.length) {
+    throw new Error("No pending media posts (Static/Carousel/Video) found for this date. Approve the day first.");
+  }
+
+  const prompts: Partial<Record<CoworkMediaOrderKey, MediaJobPromptEntry>> = {};
   const platformTargets = new Set<string>();
-  for (const post of approvedMedia) {
+  const now = new Date().toISOString();
+  for (const post of pendingMedia) {
     const key = POST_TYPE_TO_ORDER_KEY[post.post_type];
-    const dims = MEDIA_DIMENSION_MATRIX[post.post_type];
+    const entry = buildMediaJobPromptEntry(post);
     splitPlatforms(post.platforms).forEach((p) => platformTargets.add(p));
-    prompts[key] = {
-      postId: post.id,
-      postType: post.post_type,
-      platforms: splitPlatforms(post.platforms),
-      dimensions: { aspectRatio: dims.aspectRatio, pixels: dims.pixels, orientation: dims.orientation },
-      prompt: buildMediaGenerationPrompt({
-        postType: post.post_type,
-        visualPrompt: post.visual_prompt,
-        caption: post.caption,
-        targetGroup: normalizeTargetGroup(post.target_group),
-      }),
-    };
+    prompts[key] = entry;
+
+    const { error: promptError } = await client
+      .from("match_fit_content_calendar_posts")
+      .update({ last_generation_prompt: entry.prompt, media_status: "generating", updated_at: now })
+      .eq("id", post.id);
+    if (promptError) throw new Error(promptError.message);
   }
 
   const order = COWORK_MEDIA_GENERATION_ORDER.filter((key) => prompts[key]);
@@ -212,7 +441,94 @@ export async function fireCoworkForDay(postDate: string): Promise<{ job: CoworkJ
   };
   await updateCoworkJobBrief(job.id, briefWithCallback);
 
-  return { job: { ...job, brief: briefWithCallback }, mediaPostCount: approvedMedia.length };
+  return { job: { ...job, brief: briefWithCallback }, mediaPostCount: pendingMedia.length };
+}
+
+/**
+ * Single-post version of fireCoworkForDay: creates ONE generate_media Cowork job scoped to just
+ * this post. Two callers use this — Impromptu's "submit for generation" (post starts in "hub") and
+ * Publishing's "Regenerate" (post starts in "publishing", with existing media already attached) —
+ * so this makes no assumption about the post's starting stage; it only requires the post to have
+ * media at all (Text posts never generate media). Existing media/media_urls are left in place until
+ * the job's callback lands (completeGenerateMediaJob), so Regenerate never blanks out a live post
+ * mid-flight.
+ */
+export async function fireCoworkForPost(
+  postId: string,
+  args?: { feedback?: string },
+): Promise<{ job: CoworkJobRow; post: ContentCalendarPostRow }> {
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("*")
+    .eq("id", postId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  const post = data as ContentCalendarPostRow | null;
+  if (!post) throw new Error("Post not found.");
+  if (post.post_type === "Text") {
+    throw new Error("Text posts have no media to generate.");
+  }
+  const mediaPost = post as ContentCalendarPostRow & { post_type: MediaPostType };
+
+  const now = new Date().toISOString();
+  const entry = buildMediaJobPromptEntry(mediaPost, { feedback: args?.feedback });
+  const key = POST_TYPE_TO_ORDER_KEY[mediaPost.post_type];
+
+  const { error: updateError } = await client
+    .from("match_fit_content_calendar_posts")
+    .update({
+      workflow_stage: "pending",
+      status: "pending",
+      media_status: "generating",
+      media_generation_started_at: now,
+      last_generation_prompt: entry.prompt,
+      updated_at: now,
+    })
+    .eq("id", postId);
+  if (updateError) throw new Error(updateError.message);
+
+  const job = await createCoworkJob({
+    jobType: "generate_media",
+    platformTargets: entry.platforms,
+    brief: {
+      kind: "generate_media",
+      postDate: post.post_date,
+      order: [key],
+      prompts: { [key]: entry },
+      downloadFolder: getCoworkMediaDownloadFolder(),
+      logoReference: "public/logo.png",
+      callback: {
+        method: "POST",
+        url: "",
+        bodyShape: { mediaUrls: { "<postId>": ["<downloadedMediaUrl>"] } },
+      },
+    },
+  });
+
+  const briefWithCallback = {
+    kind: "generate_media",
+    postDate: post.post_date,
+    order: [key],
+    prompts: { [key]: entry },
+    downloadFolder: getCoworkMediaDownloadFolder(),
+    logoReference: "public/logo.png",
+    callback: {
+      method: "POST",
+      url: completeCallbackUrl(job.id),
+      bodyShape: { mediaUrls: { "<postId>": ["<downloadedMediaUrl>"] } },
+    },
+  };
+  await updateCoworkJobBrief(job.id, briefWithCallback);
+
+  const { data: updated, error: reloadError } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("*")
+    .eq("id", postId)
+    .single();
+  if (reloadError) throw new Error(reloadError.message);
+
+  return { job: { ...job, brief: briefWithCallback }, post: updated as ContentCalendarPostRow };
 }
 
 /**
@@ -300,7 +616,13 @@ export async function approvePublishingPostsForPosting(args: {
   return { job: { ...job, brief: briefWithCallback }, postCount: posts.length };
 }
 
-/** Completes a generate_media job: attaches media to posts and advances them to Publishing. */
+/**
+ * Completes a generate_media job: attaches media to posts and advances them to Publishing. Guarded
+ * on workflow_stage still being "pending" — a post moved off pending before this callback landed
+ * (e.g. JB hit Stop, or manuallyGenerateDayMedia already bypassed it to Publishing) is skipped
+ * silently instead of being incorrectly resurrected into Publishing out from under whatever state
+ * it's actually in now.
+ */
 export async function completeGenerateMediaJob(args: {
   jobId: string;
   mediaUrls: Record<string, string[]>;
@@ -311,7 +633,7 @@ export async function completeGenerateMediaJob(args: {
 
   for (const [postId, urls] of Object.entries(args.mediaUrls)) {
     const cleanUrls = (Array.isArray(urls) ? urls : []).filter((u): u is string => typeof u === "string" && Boolean(u));
-    const { error } = await client
+    const { data, error } = await client
       .from("match_fit_content_calendar_posts")
       .update({
         media_url: cleanUrls[0] ?? null,
@@ -319,11 +641,14 @@ export async function completeGenerateMediaJob(args: {
         media_status: cleanUrls.length ? "ready" : "failed",
         workflow_stage: "publishing",
         status: "publishing",
+        generation_source: "cowork_gemini",
         updated_at: now,
       })
-      .eq("id", postId);
+      .eq("id", postId)
+      .eq("workflow_stage", "pending")
+      .select("id");
     if (error) throw new Error(error.message);
-    updated += 1;
+    if ((data ?? []).length) updated += 1;
   }
 
   await updateCoworkJobStatus({ jobId: args.jobId, status: "complete", result: { mediaUrls: args.mediaUrls } });
@@ -349,6 +674,22 @@ export async function completePostBatchJob(args: {
     const map = byPost.get(entry.postId) ?? {};
     map[entry.platform] = entry.url;
     byPost.set(entry.postId, map);
+  }
+
+  // Resolved up front, defensively — only used for the best-effort day-fully-posted check below,
+  // so a lookup failure here should never block the archive writes that actually matter.
+  const postDatesTouched = new Set<string>();
+  try {
+    const { data: dateRows, error: dateError } = await client
+      .from("match_fit_content_calendar_posts")
+      .select("post_date")
+      .in("id", [...byPost.keys()]);
+    if (dateError) throw new Error(dateError.message);
+    for (const row of (dateRows ?? []) as { post_date: string | null }[]) {
+      if (row.post_date) postDatesTouched.add(row.post_date);
+    }
+  } catch (e) {
+    console.error("[content-calendar day email] could not resolve touched post dates:", e);
   }
 
   let updated = 0;
@@ -379,6 +720,15 @@ export async function completePostBatchJob(args: {
       .filter((p) => p?.platform && p.url)
       .map((p) => ({ platform: p.platform, url: p.url, postedAt: nowIso })),
   });
+
+  // Day-fully-posted check: this batch may have just posted the last outstanding post for one or
+  // more of the dates it touched. Guarded per-date in ni-brain-client (hasDayAllPostedEmailBeenSent)
+  // so it only ever fires once.
+  for (const postDate of postDatesTouched) {
+    await maybeNotifyDayFullyPosted(postDate).catch((e) => {
+      console.error(`[content-calendar day email] all-posted check failed for ${postDate}:`, e);
+    });
+  }
 
   return { updated };
 }

@@ -249,3 +249,40 @@ describe("generate-media cron daily cap (JB locked 2026-08-03: 1 static + 1 caro
     expect(M.updateCoworkJobStatus).toHaveBeenCalledWith({ jobId: "job_2", status: "queued" });
   });
 });
+
+describe("generate-media cron pending-stage guard (completeGenerateMediaJob's own workflow_stage='pending' check)", () => {
+  // completeGenerateMediaJob is mocked at the top of this file, so its real guard (a post moved
+  // off "pending" — e.g. JB hit Stop — before this callback lands is skipped, not resurrected into
+  // "publishing") is unit-tested directly in content-calendar-cowork-orchestration.test.ts. What
+  // this cron route can and must do on its own: pass every generated post through unconditionally
+  // and trust whatever `updated` count comes back, never assuming updated === the number of
+  // mediaUrls entries it sent.
+  it("reports whatever updated count completeGenerateMediaJob returns, even when it's less than the posts generated (one already moved off pending)", async () => {
+    M.getPendingCoworkJobs.mockResolvedValue([
+      job({
+        static: { postId: "p_still_pending", postType: "Static", prompt: "still" },
+        video: { postId: "p_moved_away", postType: "Video", prompt: "hook" },
+      }),
+    ]);
+    M.generateStaticMedia.mockResolvedValue(okImage("https://cdn.test/i.png"));
+    // Both posts got media generated here, but only one was genuinely still "pending" by the time
+    // the (mocked) store function's own guard ran — it reports 1 updated, not 2.
+    M.completeGenerateMediaJob.mockResolvedValue({ updated: 1 });
+
+    const res = await GET(req());
+    const body = (await res.json()) as { results: Array<{ updated?: number; generated?: number }> };
+
+    expect(res.status).toBe(200);
+    expect(body.results[0]?.updated).toBe(1);
+    // Still reports every frame it actually generated (2) — the cron doesn't silently reconcile
+    // "generated" against the guarded "updated" count, it just passes both through honestly.
+    expect(body.results[0]?.generated).toBe(2);
+    expect(M.completeGenerateMediaJob).toHaveBeenCalledWith({
+      jobId: "job_1",
+      mediaUrls: {
+        p_still_pending: ["https://cdn.test/i.png"],
+        p_moved_away: ["https://cdn.test/i.png"],
+      },
+    });
+  });
+});

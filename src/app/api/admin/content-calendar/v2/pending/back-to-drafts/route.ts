@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { sendV2PostBackToDrafts, serializeV2Post } from "@/lib/content-calendar/content-calendar-v2-store";
-import { ensureContentCalendarV2Schema, isMissingContentCalendarV2SchemaError } from "@/lib/ensure-content-hub-schema";
+import {
+  ensureContentCalendarV23Schema,
+  isMissingContentCalendarV23SchemaError,
+} from "@/lib/ensure-content-hub-schema";
 import { isNiBrainConfiguredAsync } from "@/lib/ni-brain-client";
 import { formatUserFacingError } from "@/lib/read-json-response";
 import { requireAdminSession } from "@/lib/require-admin";
@@ -11,6 +14,12 @@ const bodySchema = z.object({
 });
 
 /**
+ * @deprecated Left working (this URL may still be referenced) but the new Pending tab calls the
+ * generic per-post actions route instead — `POST /api/admin/content-calendar/v2/posts/[id]/actions`
+ * with `{ action: "back_to_drafts" }`, same as every other tab's "send back to drafts" — rather
+ * than this standalone route. That generic action calls moveV2PostToDrafts, a slightly different
+ * (simpler) transition than sendV2PostBackToDrafts below; both leave media attached.
+ *
  * Pulls one post out of the batch and back into drafts. An already-posted post is refused with a
  * plain sentence (409) instead of being un-posted.
  */
@@ -25,7 +34,7 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Pick a post to send back to drafts." }, { status: 400 });
 
   try {
-    await ensureContentCalendarV2Schema();
+    await ensureContentCalendarV23Schema();
     const row = await sendV2PostBackToDrafts(parsed.data.postId);
     return NextResponse.json({ ok: true, post: serializeV2Post(row) });
   } catch (e) {
@@ -34,7 +43,7 @@ export async function POST(req: Request) {
     if (!alreadyPosted) console.error("[content-calendar v2 pending back-to-drafts]", e);
     return NextResponse.json(
       { error: message },
-      { status: alreadyPosted ? 409 : isMissingContentCalendarV2SchemaError(e) ? 503 : 500 },
+      { status: alreadyPosted ? 409 : isMissingContentCalendarV23SchemaError(e) ? 503 : 500 },
     );
   }
 }
