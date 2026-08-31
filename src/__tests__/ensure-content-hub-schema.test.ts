@@ -113,4 +113,33 @@ describe("ensureContentHubSchema", () => {
     expect(mockPoolQuery).toHaveBeenCalledTimes(1);
     expect(calls).toBeGreaterThan(1);
   });
+
+  it("replaces a raw Postgres auth-failure error with a friendly, actionable message", async () => {
+    mockCreateNiBrainClient.mockReturnValue({
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          limit: vi.fn(() =>
+            Promise.resolve({
+              data: null,
+              error: { message: "Could not find the 'saved_to_hub_at' column" },
+            }),
+          ),
+        })),
+      })),
+    });
+    process.env.NI_BRAIN_DATABASE_URL = "postgresql://postgres:secret@db.kxijunwgbrlfzvgkhklo.supabase.co:5432/postgres";
+    mockPoolQuery.mockRejectedValue(new Error('password authentication failed for user "postgres"'));
+
+    let thrown: unknown;
+    try {
+      await ensureContentHubSchema();
+    } catch (e) {
+      thrown = e;
+    }
+
+    const message = thrown instanceof Error ? thrown.message : String(thrown);
+    expect(message).toMatch(/stored NI_BRAIN_DATABASE_PASSWORD no longer matches the database/);
+    // The raw driver text must not reach the caller (standing rule: no raw DB values on screen).
+    expect(message).not.toMatch(/password authentication failed/);
+  });
 });
