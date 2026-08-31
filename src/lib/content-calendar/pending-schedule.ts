@@ -163,6 +163,12 @@ export function computeManualPostSchedule(postDate: string): Date {
   return new Date(lastMinuteOfDay.getTime() + 24 * 60 * 60 * 1000);
 }
 
+/** Today's America/New_York calendar date as YYYY-MM-DD. */
+export function currentEtCalendarDate(now: Date = new Date()): string {
+  const wall = etWallClock(now);
+  return `${wall.year}-${String(wall.month).padStart(2, "0")}-${String(wall.day).padStart(2, "0")}`;
+}
+
 /** Minimum shape the Pending page needs to work out timings for one post. */
 export type PendingSchedulePost = {
   postType: string;

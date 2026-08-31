@@ -8,7 +8,7 @@ import {
   serializeResearchRun,
   type ContentResearchRunRow,
 } from "@/lib/content-calendar/content-research-store";
-import { etWallClock } from "@/lib/content-calendar/pending-schedule";
+import { currentEtCalendarDate } from "@/lib/content-calendar/pending-schedule";
 import {
   ensureContentCalendarV23Schema,
   isMissingContentCalendarV23SchemaError,
@@ -19,12 +19,6 @@ import { requireAdminSession } from "@/lib/require-admin";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
-
-/** Today's America/New_York calendar date as YYYY-MM-DD — same reader content-research-store.ts uses internally. */
-function currentEtCalendarDate(now: Date = new Date()): string {
-  const wall = etWallClock(now);
-  return `${wall.year}-${String(wall.month).padStart(2, "0")}-${String(wall.day).padStart(2, "0")}`;
-}
 
 type TodaysPostRow = {
   post_type: string;

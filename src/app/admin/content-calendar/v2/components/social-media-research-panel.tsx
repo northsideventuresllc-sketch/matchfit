@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { adminCardClass, adminPrimaryButtonClass, adminSecondaryButtonClass } from "@/components/admin/admin-portal-ui";
-import { Modal, ProgressBar } from "./ui-bits";
+import { Modal, ProgressBar, readApi } from "./ui-bits";
 import { ReportArtifactViewer } from "./report-artifact-viewer";
 import { useSimulatedProgress } from "./use-simulated-progress";
 
@@ -27,12 +27,6 @@ const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
-
-async function readApi<T>(res: Response, fallback: string): Promise<T> {
-  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
-  if (!res.ok) throw new Error(data.error ?? fallback);
-  return data;
-}
 
 function oneLineSummary(run: ResearchRun): string {
   if (run.status === "failed") return run.error ?? "This run failed.";

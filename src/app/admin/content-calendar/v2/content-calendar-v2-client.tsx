@@ -12,16 +12,12 @@ import {
 import type { ClientContentCalendarV2Post } from "@/lib/content-calendar/content-calendar-v2-store";
 import { ContentHubPanel, type DayActionResult } from "./components/content-hub-panel";
 import { ImpromptuPanel } from "./components/impromptu-panel";
-// Owned by the next wave of agents — these two files do not exist yet, so this import will not
-// resolve until they land at exactly these paths. That is expected: this file is the single owner
-// of tab state and the shell that wires every panel in, so the plumbing (state, loads, actions,
-// tab-follow) is built here first; the panel-owning agents fill in the component bodies right after.
 import { PendingTabPanel } from "./components/pending-tab-panel";
 import { PublishingPanel } from "./components/publishing-panel";
 import { ScheduledPanel } from "./components/scheduled-panel";
 import { ArchivesPanel } from "./components/archives-panel";
 import { SocialMediaResearchPanel } from "./components/social-media-research-panel";
-import { Modal } from "./components/ui-bits";
+import { Modal, readApi } from "./components/ui-bits";
 import { useUnsavedRegistry } from "./components/use-unsaved-registry";
 
 type AiStatus = {
@@ -90,12 +86,6 @@ function stageToTab(stage: string | null | undefined): Tab | null {
 const TAB_FOLLOW_ACTIONS = new Set(["submit_for_generation", "regenerate_via_agent", "back_to_drafts"]);
 
 const AUTO_SAVE_INTERVAL_MS = 5 * 60 * 1000;
-
-async function readApi<T>(res: Response, fallback: string): Promise<T> {
-  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
-  if (!res.ok) throw new Error(data.error ?? fallback);
-  return data;
-}
 
 export function ContentCalendarV2Client({
   aiStatus,

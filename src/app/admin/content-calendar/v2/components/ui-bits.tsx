@@ -3,6 +3,13 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { adminSecondaryButtonClass } from "@/components/admin/admin-portal-ui";
 
+/** Parses a fetch Response as JSON, throwing the server's `error` message (or `fallback`) on a non-2xx status. */
+export async function readApi<T>(res: Response, fallback: string): Promise<T> {
+  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
+  if (!res.ok) throw new Error(data.error ?? fallback);
+  return data;
+}
+
 /** Determinate progress bar with a live percentage — used for every loading/queuing state. */
 export function ProgressBar({ percent, label }: { percent: number; label?: string }) {
   const clamped = Math.max(0, Math.min(100, Math.round(percent)));

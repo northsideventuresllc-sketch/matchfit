@@ -1,6 +1,6 @@
 import "server-only";
 
-import { etWallClock } from "@/lib/content-calendar/pending-schedule";
+import { currentEtCalendarDate } from "@/lib/content-calendar/pending-schedule";
 import { createNiBrainClient } from "@/lib/ni-brain-client";
 
 export type ContentResearchRunStatus = "running" | "complete" | "failed";
@@ -38,12 +38,6 @@ export function serializeResearchRun(row: ContentResearchRunRow) {
 }
 
 export type ClientContentResearchRun = ReturnType<typeof serializeResearchRun>;
-
-/** Today's America/New_York calendar date as YYYY-MM-DD — reuses pending-schedule's ET wall-clock reader. */
-function currentEtCalendarDate(now: Date = new Date()): string {
-  const wall = etWallClock(now);
-  return `${wall.year}-${String(wall.month).padStart(2, "0")}-${String(wall.day).padStart(2, "0")}`;
-}
 
 /** Starts a new research run "running" for today's ET calendar date. */
 export async function createRunningResearchRun(args: { adminId: string }): Promise<ContentResearchRunRow> {

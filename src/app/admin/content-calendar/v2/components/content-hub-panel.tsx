@@ -22,45 +22,6 @@ export type DayActionResult = {
   moved?: number;
 };
 
-const MANUALLY_GENERATE_MEDIA_ROUTE = "/api/admin/content-calendar/v2/posts/day/manually-generate-media";
-
-/**
- * Local fallback for the day-level manual media bypass. The parent (content-calendar-v2-client.tsx)
- * already owns a fully-wired version of this call (fetch + reload hub/publishing stages + tab switch)
- * for its interim top-bar control, but does not thread it down into this panel and is off-limits to
- * edit here. When the parent later supplies `onManuallyGenerateMedia`, that richer version runs
- * instead of this one; until then this keeps the per-day button working by hitting the exact same
- * route/body shape the top-bar control already uses.
- */
-async function manuallyGenerateDayMediaFallback(postDate: string): Promise<DayActionResult> {
-  const res = await fetch(MANUALLY_GENERATE_MEDIA_ROUTE, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ postDate }),
-  });
-  const data = (await res.json().catch(() => ({}))) as DayActionResult & { error?: string };
-  if (!res.ok) throw new Error(data.error ?? "Could not manually generate media for that day.");
-  return data;
-}
-
-/**
- * Local fallback for a per-post `posts/[id]/actions` call — mirrors the `onAction` prop already
- * threaded into PendingTabPanel / PublishingPanel from the parent's `postAction` (fetch + busy state
- * + stage reload + tab-follow). This panel does not currently receive that callback, so this hits the
- * same route/body shape directly; supply `onPostAction` from the parent to get the richer behavior.
- */
-async function postActionFallback(id: string, body: Record<string, unknown>): Promise<void> {
-  const res = await fetch(`/api/admin/content-calendar/v2/posts/${id}/actions`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = (await res.json().catch(() => ({}))) as { error?: string };
-  if (!res.ok) throw new Error(data.error ?? "Action failed.");
-}
-
 type BubbleWiring = {
   busyId: string | null;
   onPatch: (id: string, fields: Partial<ClientContentCalendarV2Post>) => Promise<void>;
@@ -273,20 +234,10 @@ export function ContentHubPanel({
   onApproveDay: (postDate: string) => Promise<DayActionResult>;
   onReturnToEditing: (postDate: string) => Promise<DayActionResult>;
   onFireCowork: (postDate: string) => Promise<DayActionResult>;
-  /**
-   * Optional. The parent already builds a fully-wired version of this call (fetch + reload
-   * hub/publishing stages + tab switch) for its interim top-bar control, but does not currently pass
-   * it here. Supply it to get that richer post-success behavior; omit it and the per-day button still
-   * works — it falls back to calling the route directly.
-   */
-  onManuallyGenerateMedia?: (postDate: string) => Promise<DayActionResult>;
-  /**
-   * Optional. Mirrors the `onAction` prop already threaded into PendingTabPanel / PublishingPanel
-   * from the parent's `postAction` (fetch + busy state + stage reload + tab-follow to wherever the
-   * post landed). Not currently passed to this panel. Supply it to get that richer behavior; omit it
-   * and Submit For Generation still works — it falls back to calling the route directly.
-   */
-  onPostAction?: (id: string, body: Record<string, unknown>, success?: string) => Promise<void>;
+  /** Fetch + reload hub/publishing stages + tab switch, owned by the parent shell. */
+  onManuallyGenerateMedia: (postDate: string) => Promise<DayActionResult>;
+  /** Mirrors the `onAction` prop threaded into PendingTabPanel / PublishingPanel from the parent's `postAction`. */
+  onPostAction: (id: string, body: Record<string, unknown>, success?: string) => Promise<void>;
 }) {
   // Optimistic local hide, independent of the parent's post list — a successful manual-media or
   // submit-for-generation call moves posts out of the "hub" stage server-side, but this panel has no
@@ -299,7 +250,7 @@ export function ContentHubPanel({
 
   const runManuallyGenerateMedia = useCallback(
     async (postDate: string): Promise<DayActionResult> => {
-      const result = await (onManuallyGenerateMedia ?? manuallyGenerateDayMediaFallback)(postDate);
+      const result = await onManuallyGenerateMedia(postDate);
       setHiddenDates((prev) => new Set(prev).add(postDate));
       return result;
     },
@@ -308,11 +259,7 @@ export function ContentHubPanel({
 
   const submitForGeneration = useCallback(
     async (id: string) => {
-      if (onPostAction) {
-        await onPostAction(id, { action: "submit_for_generation" }, "Submitted for generation.");
-      } else {
-        await postActionFallback(id, { action: "submit_for_generation" });
-      }
+      await onPostAction(id, { action: "submit_for_generation" }, "Submitted for generation.");
       setHiddenPostIds((prev) => new Set(prev).add(id));
     },
     [onPostAction],
