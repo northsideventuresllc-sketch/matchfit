@@ -454,6 +454,8 @@ export function ContentCalendarV2Client({
           onApproveDay={onApproveDay}
           onReturnToEditing={onReturnToEditing}
           onFireCowork={onFireCowork}
+          onManuallyGenerateMedia={onManuallyGenerateDayMedia}
+          onPostAction={postAction}
         />
       ) : null}
 

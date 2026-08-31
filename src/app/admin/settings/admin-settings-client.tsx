@@ -92,6 +92,18 @@ export function AdminSettingsClient(props: {
           onClose={() => setCustomizerOpen(false)}
         />
       ) : null}
+
+      <section className="rounded-2xl border border-white/[0.08] bg-[#12151C]/75 p-5 backdrop-blur-xl">
+        <h2 className="text-lg font-black text-white">Archived Tools</h2>
+        <p className="mt-2 text-sm text-white/70">
+          Tools kept for reference — v2 is the primary tool for daily use.
+        </p>
+        <p className="mt-4 text-xs text-white/40">
+          <Link href="/admin/content-calendar" className={adminPortalLinkClass}>
+            Content Calendar (v1)
+          </Link>
+        </p>
+      </section>
     </AdminPortalShell>
   );
 }

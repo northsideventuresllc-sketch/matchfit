@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   adminLabelClass,
   adminInputClassSm,
+  adminPrimaryButtonClass,
   adminSecondaryButtonClass,
 } from "@/components/admin/admin-portal-ui";
 import { ContentHashtagTagInput } from "@/components/admin/content-hashtag-tag-input";
@@ -29,19 +30,25 @@ export function HubPostBubble({
   onPatch,
   register,
   unregister,
+  onSubmitForGeneration,
 }: {
   post: ClientContentCalendarV2Post;
   busy: boolean;
   onPatch: (id: string, fields: Partial<ClientContentCalendarV2Post>) => Promise<void>;
   register: (key: string, dirty: boolean, save: () => Promise<void>) => void;
   unregister: (key: string) => void;
+  /** Impromptu-lane only — fires `submit_for_generation` (Text→publishing, media→Cowork job→pending). */
+  onSubmitForGeneration: (id: string) => Promise<void>;
 }) {
   const isText = post.postType === "Text";
+  const isImpromptu = post.contentLane === "impromptu";
   const [caption, setCaption] = useState(post.caption);
   const [hashtags, setHashtags] = useState<string[]>(post.hashtags);
   const [visualPrompt, setVisualPrompt] = useState(post.visualPrompt ?? "");
   const [dpmoRationale, setDpmoRationale] = useState(post.dpmoRationale ?? "");
   const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Re-sync local state whenever the server post changes (after a save/refresh).
   useEffect(() => {
@@ -82,6 +89,18 @@ export function HubPostBubble({
     register(post.id, dirty, () => saveRef.current());
     return () => unregister(post.id);
   }, [post.id, dirty, register, unregister]);
+
+  const submitForGeneration = useCallback(async () => {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      await onSubmitForGeneration(post.id);
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "Could not submit for generation.");
+    } finally {
+      setSubmitting(false);
+    }
+  }, [onSubmitForGeneration, post.id]);
 
   const copyValue = buildCaptionWithHashtags(caption, hashtags);
   const approved = Boolean(post.approvedAt);
@@ -167,6 +186,16 @@ export function HubPostBubble({
       <div className="mt-3 flex flex-wrap gap-2">
         <CopyButton value={copyValue} label="COPY POST" />
         {!isText ? <CopyButton value={visualPrompt} label="COPY PROMPT" /> : null}
+        {isImpromptu ? (
+          <button
+            type="button"
+            className={adminPrimaryButtonClass}
+            disabled={busy || saving || submitting}
+            onClick={() => void submitForGeneration()}
+          >
+            {submitting ? "SUBMITTING…" : "SUBMIT FOR GENERATION"}
+          </button>
+        ) : null}
         <button
           type="button"
           className={adminSecondaryButtonClass}
@@ -176,6 +205,7 @@ export function HubPostBubble({
           {saving ? "SAVING…" : dirty ? "SAVE EDITS" : "SAVED"}
         </button>
       </div>
+      {submitError ? <p className="mt-2 text-[11px] font-semibold text-[#FFB4B4]">{submitError}</p> : null}
     </article>
   );
 }
