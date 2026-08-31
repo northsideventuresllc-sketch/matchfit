@@ -38,8 +38,11 @@ vi.mock("@/lib/prisma", () => ({
 
 import {
   completeOutreachDispatchBatch,
+  convertAgentSendToManual,
   pullOutreachDispatch,
+  queueManualSend,
   queueOutreachDispatch,
+  setManualSentState,
 } from "@/lib/outreach-dispatch";
 
 const SCHEDULED = new Date("2026-07-23T17:00:00Z");
@@ -79,6 +82,8 @@ describe("queueOutreachDispatch", () => {
         outreachLane: "dispatch_queued",
         dispatchBatchId: "batch1",
         dispatchPreviousLane: "today",
+        sendMode: "agent",
+        manualSentAt: null,
       },
     });
   });
@@ -122,6 +127,106 @@ describe("pullOutreachDispatch", () => {
       where: { id: "ig1" },
       data: { outreachLane: "past_due", dispatchBatchId: null, dispatchPreviousLane: null },
     });
+  });
+});
+
+describe("queueManualSend", () => {
+  it("flips a lead to dispatch_queued with sendMode manual and no batch", async () => {
+    M.igFindUnique.mockResolvedValue({
+      outreachLane: "today",
+      dispatchBatchId: null,
+      dispatchPreviousLane: null,
+    });
+
+    const result = await queueManualSend({ leads: [{ id: "ig1", platform: "instagram" }] });
+
+    expect(result.queued).toEqual(["ig1"]);
+    expect(M.igUpdate).toHaveBeenCalledWith({
+      where: { id: "ig1" },
+      data: {
+        outreachLane: "dispatch_queued",
+        dispatchBatchId: null,
+        dispatchPreviousLane: "today",
+        sendMode: "manual",
+        manualSentAt: null,
+      },
+    });
+  });
+
+  it("skips leads already queued", async () => {
+    M.igFindUnique.mockResolvedValue({
+      outreachLane: "dispatch_queued",
+      dispatchBatchId: "batch1",
+      dispatchPreviousLane: "today",
+    });
+
+    const result = await queueManualSend({ leads: [{ id: "ig1", platform: "instagram" }] });
+
+    expect(result.skipped).toEqual(["ig1"]);
+    expect(M.igUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe("convertAgentSendToManual", () => {
+  it("clears the batch FK and flips sendMode to manual, keeping the lane", async () => {
+    M.igFindUnique.mockResolvedValue({ id: "ig1", outreachLane: "dispatch_queued" });
+    M.fbFindUnique.mockResolvedValue(null);
+    M.emFindUnique.mockResolvedValue(null);
+    M.batchFindUnique.mockResolvedValue({ id: "batch1", status: "queued", scheduledFor: SCHEDULED, slot: "13:00" });
+
+    const result = await convertAgentSendToManual({ leadIds: ["ig1"] });
+
+    expect(result.converted).toEqual(["ig1"]);
+    expect(M.igUpdate).toHaveBeenCalledWith({
+      where: { id: "ig1" },
+      data: { dispatchBatchId: null, sendMode: "manual", manualSentAt: null },
+    });
+  });
+
+  it("skips a lead that isn't in the dispatch_queued lane", async () => {
+    M.igFindUnique.mockResolvedValue({ id: "ig1", outreachLane: "today" });
+    M.fbFindUnique.mockResolvedValue(null);
+    M.emFindUnique.mockResolvedValue(null);
+
+    const result = await convertAgentSendToManual({ leadIds: ["ig1"] });
+
+    expect(result.skipped).toEqual(["ig1"]);
+    expect(M.igUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe("setManualSentState", () => {
+  it("marking sent moves the lead to follow_up_1 with FU1@48h and FU2@5d", async () => {
+    M.igFindUnique.mockResolvedValue({ outreachLane: "dispatch_queued", dispatchBatchId: null, dispatchPreviousLane: "today" });
+    const now = new Date("2026-07-23T12:00:00Z");
+
+    const result = await setManualSentState({ id: "ig1", platform: "instagram", sent: true, now });
+
+    expect(result).toEqual({ ok: true });
+    const data = M.igUpdate.mock.calls[0][0].data;
+    expect(data.status).toBe("OUTREACH_SENT");
+    expect(data.outreachLane).toBe("follow_up_1");
+    expect(data.sendMode).toBeNull();
+    expect(data.followUp1DueAt.toISOString()).toBe("2026-07-25T12:00:00.000Z");
+    expect(data.followUp2DueAt.toISOString()).toBe("2026-07-28T12:00:00.000Z");
+  });
+
+  it("marking not-sent only clears manualSentAt", async () => {
+    M.emFindUnique.mockResolvedValue({ outreachLane: "dispatch_queued", dispatchBatchId: null, dispatchPreviousLane: "today" });
+
+    const result = await setManualSentState({ id: "em1", platform: "email", sent: false });
+
+    expect(result).toEqual({ ok: true });
+    expect(M.emUpdate).toHaveBeenCalledWith({ where: { id: "em1" }, data: { manualSentAt: null } });
+  });
+
+  it("errors when the lead is not in the Send Queue", async () => {
+    M.igFindUnique.mockResolvedValue({ outreachLane: "today", dispatchBatchId: null, dispatchPreviousLane: null });
+
+    const result = await setManualSentState({ id: "ig1", platform: "instagram", sent: true });
+
+    expect(result).toEqual({ ok: false, error: "Lead is not in the Send Queue." });
+    expect(M.igUpdate).not.toHaveBeenCalled();
   });
 });
 

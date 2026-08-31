@@ -181,6 +181,9 @@ export type InstagramLeadRow = {
   pendingResponseDraftAt: string | null;
   dispatchBatchId: string | null;
   dispatchPreviousLane: string | null;
+  /** manual | agent | null — which Send Queue lane the lead is in while `dispatch_queued`. */
+  sendMode: string | null;
+  manualSentAt: string | null;
 };
 
 export type FacebookLeadRow = {
@@ -218,6 +221,9 @@ export type FacebookLeadRow = {
   pendingResponseDraftAt: string | null;
   dispatchBatchId: string | null;
   dispatchPreviousLane: string | null;
+  /** manual | agent | null — which Send Queue lane the lead is in while `dispatch_queued`. */
+  sendMode: string | null;
+  manualSentAt: string | null;
 };
 
 export type EmailLeadRow = {
@@ -268,6 +274,9 @@ export type EmailLeadRow = {
   pendingResponseDraftAt: string | null;
   dispatchBatchId: string | null;
   dispatchPreviousLane: string | null;
+  /** manual | agent | null — which Send Queue lane the lead is in while `dispatch_queued`. */
+  sendMode: string | null;
+  manualSentAt: string | null;
 };
 
 /** Legacy rows from the retired "Other" outreach platform (LinkedIn, etc.). */
@@ -322,6 +331,9 @@ export type OutreachHubLead = {
   savedToHubAt: string;
   lead: InstagramLeadRow | FacebookLeadRow | EmailLeadRow;
 };
+
+/** manual | agent — which Send Queue lane a `dispatch_queued` lead currently sits in. */
+export type OutreachSendMode = "manual" | "agent";
 
 export function targetGroupLabel(group: string): string {
   // Both groups are dead legacy (see DEAD_LEGACY_TARGET_GROUPS). Recruiting is
