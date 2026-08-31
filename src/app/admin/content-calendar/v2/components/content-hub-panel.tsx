@@ -117,8 +117,8 @@ function DayContainer({
           setJobNote(null);
           setManualMediaNote(
             typeof result.moved === "number"
-              ? `Media generation bypassed — ${result.moved} post${result.moved === 1 ? "" : "s"} moved straight to Publishing.`
-              : "Media generation bypassed — this day's posts moved straight to Publishing.",
+              ? `Media generation bypassed — ${result.moved} post${result.moved === 1 ? "" : "s"} moved straight to Publishing. Use Manually Redo there to upload your own media.`
+              : "Media generation bypassed — this day's posts moved straight to Publishing. Use Manually Redo there to upload your own media.",
           );
         }
       } catch (e) {

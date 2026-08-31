@@ -6,9 +6,11 @@ import { adminSecondaryButtonClass } from "@/components/admin/admin-portal-ui";
 /**
  * Hidden file input wrapped in a button. Posts each selected file straight to the v2 media-upload
  * route (now admin-session-capable, not just Cowork) and hands the resulting public URL(s) back
- * via onUploaded. Shared by two flows that both just need "here are the URLs, nothing about where
- * the button lives": the Manually-Generate-Media day bypass (Lane 1) and Manually-Redo Media on a
- * single post (Lane 3).
+ * via onUploaded. Used by Publishing's Manually Redo action (manual_redo_media) — this is also
+ * where a device upload happens for a post that landed in Publishing with no media yet via the
+ * Manually-Generate-Media day bypass, since manual_redo_media overwrites in place whether or not
+ * media already exists. Lane 1's bypass button itself doesn't render this widget: it only ever
+ * moves posts to Publishing, where this is already reachable per post.
  */
 export function DeviceMediaUploadWidget({
   postId,

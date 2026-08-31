@@ -136,6 +136,7 @@ function PublishingCard({
   onPatch,
   onAction,
   onToggleReady,
+  onApproveForPosting,
   register,
   unregister,
 }: {
@@ -147,6 +148,10 @@ function PublishingCard({
   onPatch: (id: string, fields: Partial<ClientContentCalendarV2Post>) => Promise<void>;
   onAction: (id: string, body: Record<string, unknown>, success?: string) => Promise<void>;
   onToggleReady: (id: string, ready: boolean) => void;
+  onApproveForPosting: (
+    postIds: string[],
+    platformOverrides?: Record<string, string[]>,
+  ) => Promise<{ jobId?: string; postCount?: number }>;
   register: (key: string, dirty: boolean, save: () => Promise<void>) => void;
   unregister: (key: string) => void;
 }) {
@@ -175,6 +180,12 @@ function PublishingCard({
   // Manually Post — irreversible (archives the post), so it gets the same confirm-dialog pattern
   // Approve For Posting already uses below.
   const [posting, setPosting] = useState(false);
+
+  // Agent Post — the per-post counterpart to Manually Post, giving Publishing the paired
+  // MANUALLY POST / AGENT POST buttons the spec asked for on every card, not just via the batch
+  // "mark ready then APPROVE FOR POSTING" flow below. Reuses that same single-post-array call.
+  const [agentPosting, setAgentPosting] = useState(false);
+  const [agentPostError, setAgentPostError] = useState<string | null>(null);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -249,6 +260,22 @@ function PublishingCard({
       await onAction(post.id, { action: "manual_post" }, "Scheduled — moved to Archives.");
     } finally {
       setPosting(false);
+    }
+  }
+
+  async function agentPost() {
+    const confirmed = window.confirm(
+      `Send this post to ${activePlatforms.length ? activePlatforms.join(", ") : "no platforms"}? This queues an immediate cross-post and cannot be undone.`,
+    );
+    if (!confirmed) return;
+    setAgentPosting(true);
+    setAgentPostError(null);
+    try {
+      await onApproveForPosting([post.id], excluded.length ? { [post.id]: activePlatforms } : undefined);
+    } catch (e) {
+      setAgentPostError(e instanceof Error ? e.message : "Could not post this via the agent.");
+    } finally {
+      setAgentPosting(false);
     }
   }
 
@@ -412,7 +439,16 @@ function PublishingCard({
             >
               {posting ? "Posting…" : "Manually Post"}
             </button>
+            <button
+              type="button"
+              className={adminAccentButtonClass}
+              disabled={busy || agentPosting}
+              onClick={() => void agentPost()}
+            >
+              {agentPosting ? "Posting…" : "Agent Post"}
+            </button>
           </div>
+          {agentPostError ? <p className="text-xs font-semibold text-[#FFB4B4]">{agentPostError}</p> : null}
 
           {showRegenerate ? (
             <div className="space-y-2 rounded-xl border border-white/[0.08] bg-black/20 p-3">
@@ -604,8 +640,9 @@ export function PublishingPanel({
         <div>
           <h2 className="text-lg font-black uppercase tracking-[0.12em] text-white">Publishing</h2>
           <p className="mt-1 max-w-3xl text-sm leading-relaxed text-white/55">
-            Prepare each post per platform, mark it ready with PUBLISH, then APPROVE FOR POSTING batches the selected
-            posts into a Cowork cross-post job. Posted posts stay visible for the retention window, then move to
+            Each post has its own Agent Post button to send it immediately, or mark several posts ready with PUBLISH
+            and use APPROVE FOR POSTING below to batch them into one Cowork cross-post job. Manually Post schedules a
+            post you posted yourself instead. Posted posts stay visible for the retention window, then move to
             Archives automatically.
           </p>
         </div>
@@ -714,6 +751,7 @@ export function PublishingPanel({
             onPatch={onPatch}
             onAction={onAction}
             onToggleReady={toggleReady}
+            onApproveForPosting={onApproveForPosting}
             register={register}
             unregister={unregister}
           />

@@ -110,12 +110,6 @@ export function ContentCalendarV2Client({
   const [pendingTab, setPendingTab] = useState<Tab | null>(null);
   const [savingAll, setSavingAll] = useState(false);
 
-  // Manual media bypass (Lane 1) — a top-level control since the per-day button in the Hub tab's
-  // day cards belongs to the ContentHubPanel-owning agent. This gives the route/handler a working
-  // entry point today; that agent can call the same route from inside each day card instead/too.
-  const [manualMediaDate, setManualMediaDate] = useState("");
-  const [manualMediaBusy, setManualMediaBusy] = useState(false);
-
   const registry = useUnsavedRegistry();
   const { anyDirty, saveAll } = registry;
 
@@ -302,20 +296,6 @@ export function ContentCalendarV2Client({
     }
   }, [saveAll]);
 
-  const runManualMediaBypass = useCallback(async () => {
-    if (!manualMediaDate) return;
-    setManualMediaBusy(true);
-    setError(null);
-    try {
-      await onManuallyGenerateDayMedia(manualMediaDate);
-      setNotice(`Media generation bypassed for ${manualMediaDate} — that day's posts moved straight to Publishing.`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not manually generate media for that day.");
-    } finally {
-      setManualMediaBusy(false);
-    }
-  }, [manualMediaDate, onManuallyGenerateDayMedia]);
-
   // Warn on hard browser navigation / close while edits are unsaved.
   useEffect(() => {
     if (!anyDirty) return;
@@ -366,24 +346,6 @@ export function ContentCalendarV2Client({
       contentClassName="space-y-6"
       actions={
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <input
-              type="date"
-              value={manualMediaDate}
-              onChange={(e) => setManualMediaDate(e.target.value)}
-              aria-label="Post date for manual media bypass"
-              className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 text-xs text-white/80"
-            />
-            <button
-              type="button"
-              className={adminSecondaryButtonClass}
-              disabled={manualMediaBusy || !manualMediaDate}
-              onClick={() => void runManualMediaBypass()}
-              title="Skip Cowork media generation and send that day's hub posts straight to Publishing."
-            >
-              {manualMediaBusy ? "WORKING…" : "MANUALLY GENERATE MEDIA"}
-            </button>
-          </div>
           <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-white/60">
             <input type="checkbox" checked={autoSave} onChange={(e) => setAutoSave(e.target.checked)} />
             Auto Save {autoSave ? "on" : "off"}

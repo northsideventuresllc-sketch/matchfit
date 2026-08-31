@@ -105,6 +105,7 @@ Respond ONLY with JSON: {"summary":"2-4 sentence plain-English summary of the wh
 3. What is working and what needs work, and why.
 4. Which parts of Match Fit (features, promos, audiences) to push harder right now, and why.
 5. How today's generated/approved posts already reflect this research, or where they miss it.
+6. The plan of action for today's social run — concretely, what to generate or adjust next given everything above.
 
 Match Fit context (live site/social scans, recent operator learnings, winning angles):
 ${context}
