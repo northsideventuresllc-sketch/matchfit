@@ -16,11 +16,12 @@ import { normalizeTargetGroup } from "@/lib/content-calendar/content-rules";
 import { isMediaAspectRatio } from "@/lib/content-calendar/media-generation";
 import { insertGeneratedCalendarRow } from "@/lib/content-calendar/post-group";
 import { addWeekdays, formatCalendarDate } from "@/lib/content-calendar/rotation";
+import { computeManualPostSchedule } from "@/lib/content-calendar/pending-schedule";
 import { createNiBrainClient, type ContentCalendarPostRow } from "@/lib/ni-brain-client";
 import { resolveArchivePurgeAfter } from "@/lib/content-calendar/cowork-jobs";
 
 export type ContentCalendarV2Lane = "scheduled" | "impromptu";
-export type ContentCalendarV2Stage = "hub" | "publishing" | "scheduled" | "archived";
+export type ContentCalendarV2Stage = "hub" | "pending" | "publishing" | "scheduled" | "archived";
 
 export const CONTENT_CALENDAR_V2_ARCHIVE_RETENTION_HOURS = 72;
 
@@ -100,6 +101,9 @@ export function serializeV2Post(row: ContentCalendarPostRow) {
     bulkSessionId: row.bulk_session_id ?? null,
     deletedAt: row.deleted_at ?? null,
     postGroup: row.post_group ?? null,
+    lastGenerationPrompt: row.last_generation_prompt ?? null,
+    mediaGenerationStartedAt: row.media_generation_started_at ?? null,
+    generationSource: row.generation_source ?? null,
   };
 }
 
@@ -148,14 +152,18 @@ export async function listV2Posts(args: {
   return (data ?? []) as ContentCalendarPostRow[];
 }
 
-/** Stages a post can sit in while it is approved but has not gone out yet. */
+/**
+ * @deprecated Pending is now a real workflow_stage ("pending"), not a derived concept spanning
+ * hub/publishing/scheduled. Left working for existing callers; nothing new should read this.
+ */
 const PENDING_V2_STAGES = ["hub", "publishing", "scheduled"] as const;
 
 /**
- * "Pending" means JB approved it and it has not gone out yet. That covers three stages: an approved
- * post still waiting in the hub for its media build, a post in publishing waiting for a posting
- * window, and a post with an exact scheduled time. Anything already posted, deleted, or archived is
- * not pending.
+ * @deprecated See {@link PENDING_V2_STAGES}. "Pending" means JB approved it and it has not gone out
+ * yet. That covers three stages: an approved post still waiting in the hub for its media build, a
+ * post in publishing waiting for a posting window, and a post with an exact scheduled time.
+ * Anything already posted, deleted, or archived is not pending. New code should filter on
+ * `workflow_stage === "pending"` directly instead.
  */
 export function isPendingV2Row(row: ContentCalendarPostRow): boolean {
   if (row.posted) return false;
@@ -165,7 +173,10 @@ export function isPendingV2Row(row: ContentCalendarPostRow): boolean {
   return stage === "hub" && Boolean(row.approved_at);
 }
 
-/** Every approved-but-not-yet-posted row, soonest post date first. */
+/**
+ * @deprecated See {@link PENDING_V2_STAGES}. Every approved-but-not-yet-posted row, soonest post
+ * date first. New code should call {@link listV2Posts} with `stage: "pending"` instead.
+ */
 export async function listPendingV2Posts(): Promise<ContentCalendarPostRow[]> {
   await purgeExpiredV2Posts();
   const client = createNiBrainClient();
@@ -434,7 +445,7 @@ export async function submitApprovedV2Posts(args: {
   const client = createNiBrainClient();
   let read = client
     .from("match_fit_content_calendar_posts")
-    .select("id")
+    .select("id, post_type")
     .eq("workflow_stage", "hub")
     .eq("content_lane", args.lane)
     .not("approved_at", "is", null)
@@ -447,22 +458,36 @@ export async function submitApprovedV2Posts(args: {
 
   const { data, error } = await read;
   if (error) throw new Error(error.message);
-  const ids = (data ?? []).map((row) => row.id as string);
-  if (!ids.length) return 0;
+  const rows = (data ?? []) as { id: string; post_type: ContentCalendarPostType }[];
+  if (!rows.length) return 0;
 
-  const patch: Record<string, unknown> = {
-    workflow_stage: "publishing",
-    status: "publishing",
-    updated_at: new Date().toISOString(),
-  };
-  if (args.lane === "impromptu") {
-    patch.post_date = args.postDate;
-    patch.is_scheduled = true;
+  const now = new Date().toISOString();
+  // Impromptu posts get their date/scheduled flag stamped regardless of which stage they land in.
+  const impromptuExtra: Record<string, unknown> =
+    args.lane === "impromptu" ? { post_date: args.postDate, is_scheduled: true } : {};
+
+  // Media posts still need a build (or a bypass) before they can post, so they land in "pending".
+  // Text posts have nothing to build and go straight to "publishing", same as before.
+  const mediaIds = rows.filter((row) => row.post_type !== "Text").map((row) => row.id);
+  const textIds = rows.filter((row) => row.post_type === "Text").map((row) => row.id);
+
+  if (mediaIds.length) {
+    const { error: updateError } = await client
+      .from("match_fit_content_calendar_posts")
+      .update({ workflow_stage: "pending", status: "pending", updated_at: now, ...impromptuExtra })
+      .in("id", mediaIds);
+    if (updateError) throw new Error(updateError.message);
   }
 
-  const { error: updateError } = await client.from("match_fit_content_calendar_posts").update(patch).in("id", ids);
-  if (updateError) throw new Error(updateError.message);
-  return ids.length;
+  if (textIds.length) {
+    const { error: updateError } = await client
+      .from("match_fit_content_calendar_posts")
+      .update({ workflow_stage: "publishing", status: "publishing", updated_at: now, ...impromptuExtra })
+      .in("id", textIds);
+    if (updateError) throw new Error(updateError.message);
+  }
+
+  return rows.length;
 }
 
 export async function moveV2PostToDrafts(postId: string): Promise<void> {
@@ -665,6 +690,83 @@ export async function archiveV2Post(postId: string, args?: { scrapReason?: strin
     })
     .eq("id", postId);
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Manual-vs-agent posting: JB posted this himself outside Cowork, so there is no real posted_urls
+ * batch callback to wait on. Computes the same "24 hours after 11:59pm ET of the post date"
+ * placeholder schedule the Pending page math would use, then archives the post as posted in one
+ * write — mirroring completePostBatchJob's archive shape (posted / posted_at / status /
+ * workflow_stage / archive_type / archived_at / purge_after_at) so it reads identically once it's
+ * in the archive.
+ */
+export async function manuallyPostV2Post(postId: string): Promise<ContentCalendarPostRow> {
+  const post = await getV2Post(postId);
+  if (!post) throw new Error("Post not found.");
+  if (!post.post_date) {
+    throw new Error("This post has no post date set, so a manual posting time cannot be computed.");
+  }
+
+  const now = new Date();
+  const scheduledAt = computeManualPostSchedule(post.post_date);
+  const purgeAfter = await resolveArchivePurgeAfter("posted", now);
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .update({
+      scheduled_at: scheduledAt.toISOString(),
+      is_scheduled: true,
+      posted: true,
+      posted_at: now.toISOString(),
+      status: "posted",
+      workflow_stage: "archived",
+      archive_type: "posted",
+      archived_at: now.toISOString(),
+      purge_after_at: purgeAfter,
+      updated_at: now.toISOString(),
+    })
+    .eq("id", postId)
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+
+  // Same "is the day now fully posted" check the agent post-batch completion path runs — a manual
+  // post can just as easily be the day's last one. Dynamic import avoids a top-level circular
+  // dependency (content-calendar-cowork-orchestration.ts already imports splitPlatforms from this
+  // file); the day-fully-posted email itself is guarded against double-sending in ni-brain-client.ts.
+  const { maybeNotifyDayFullyPosted } = await import(
+    "@/lib/content-calendar/content-calendar-cowork-orchestration"
+  );
+  await maybeNotifyDayFullyPosted(post.post_date).catch((e) => {
+    console.error(`[content-calendar day email] all-posted check failed for ${post.post_date}:`, e);
+  });
+
+  return data as ContentCalendarPostRow;
+}
+
+/**
+ * Manual media replacement: JB uploaded new media directly instead of regenerating it. Plain field
+ * update — the post stays in "publishing", nothing about its stage changes.
+ */
+export async function manuallyRedoV2PostMedia(
+  postId: string,
+  args: { mediaUrls: string[] },
+): Promise<ContentCalendarPostRow> {
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .update({
+      media_url: args.mediaUrls[0] ?? null,
+      media_urls: args.mediaUrls,
+      media_status: "ready",
+      generation_source: "manual_upload",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", postId)
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+  return data as ContentCalendarPostRow;
 }
 
 export async function reviveV2Post(postId: string): Promise<void> {

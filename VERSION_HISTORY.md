@@ -4,6 +4,8 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-08-31** `2.25.0-beta` → `2.25.1-beta` (**patch** — Resolve version-verify collision after merging main (Outreach HQ v2 also bumped to 2.25.0-beta independently))
+- **2026-08-31** `2.24.2-beta` → `2.25.0-beta` (**minor** — Content Calendar v2 rebuild: pending stage, social media research tab, manual/agent posting split)
 - **2026-08-31** `2.24.2-beta` → `2.25.0-beta` (**minor** — Outreach HQ v2 cutover: v1 retired, Send Queue (manual + agent send), nav badges)
 - **2026-08-31** `2.24.1-beta` → `2.24.2-beta` (**patch** — Fix trainer sign-up reusing an already-spent Turnstile token, which made the security check fail every retry)
 - **2026-08-20** `2.24.0-beta` → `2.24.1-beta` (**patch** — Add RunPod AXON v1 tier to the AI Vault chain (JB direct order 2026-08-20); correct stale ai-vault docs and CLAUDE.md paid-API rule to match live tiered-fallback behavior)

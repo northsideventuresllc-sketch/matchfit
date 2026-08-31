@@ -28,7 +28,13 @@ export type ContentCalendarPostRow = {
   theme: string | null;
   cta: string | null;
   content_lane: "scheduled" | "impromptu" | null;
-  workflow_stage: "hub" | "publishing" | "scheduled" | "archived" | null;
+  workflow_stage: "hub" | "pending" | "publishing" | "scheduled" | "archived" | null;
+  /** Exact prompt last sent for this post's media generation (Cowork job or manual regenerate). */
+  last_generation_prompt: string | null;
+  /** Stamped when a post enters "pending" (agent path) or fireCoworkForPost fires (manual regenerate). */
+  media_generation_started_at: string | null;
+  /** Where the post's current media came from — null until it has been generated or replaced once. */
+  generation_source: "cowork_gemini" | "manual_upload" | null;
   platform_captions: Record<string, string> | null;
   platform_hashtags: Record<string, string[]> | null;
   optimize_status: "idle" | "running" | "done" | "failed" | null;
@@ -207,6 +213,59 @@ export async function cancelDayApprovalMemo(postDate: string): Promise<number> {
     .select("id");
   if (error) throw new Error(error.message);
   return (data ?? []).length;
+}
+
+/**
+ * Idempotency guards for the two day-level operator emails (content-calendar-cowork-orchestration.ts).
+ * Both reuse match_fit_content_learning_signals the same way recordDayApprovalMemo/cancelDayApprovalMemo
+ * do — a signal_type discriminator plus meta_json.postDate — rather than a new table, since these are
+ * just "has this fired for this date" existence checks.
+ */
+const DAY_SCHEDULED_EMAIL_SIGNAL = "DAY_SCHEDULED_EMAIL";
+const DAY_ALL_POSTED_EMAIL_SIGNAL = "DAY_ALL_POSTED_EMAIL";
+
+async function hasDaySignalBeenSent(signalType: string, postDate: string): Promise<boolean> {
+  if (!isNiBrainConfigured()) return false;
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_learning_signals")
+    .select("id")
+    .eq("signal_type", signalType)
+    .eq("meta_json->>postDate", postDate)
+    .limit(1);
+  if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
+}
+
+async function recordDaySignalSent(signalType: string, postDate: string): Promise<void> {
+  if (!isNiBrainConfigured()) return;
+  const client = createNiBrainClient();
+  const { error } = await client.from("match_fit_content_learning_signals").insert({
+    signal_type: signalType,
+    post_id: null,
+    meta_json: { postDate },
+  });
+  if (error) throw new Error(error.message);
+}
+
+/** True when the "day scheduled" email has already gone out for this date. */
+export async function hasDayScheduledEmailBeenSent(postDate: string): Promise<boolean> {
+  return hasDaySignalBeenSent(DAY_SCHEDULED_EMAIL_SIGNAL, postDate);
+}
+
+/** Marks the "day scheduled" email sent for this date so a retry never double-sends it. */
+export async function recordDayScheduledEmailSent(postDate: string): Promise<void> {
+  return recordDaySignalSent(DAY_SCHEDULED_EMAIL_SIGNAL, postDate);
+}
+
+/** True when the "day fully posted" email has already gone out for this date. */
+export async function hasDayAllPostedEmailBeenSent(postDate: string): Promise<boolean> {
+  return hasDaySignalBeenSent(DAY_ALL_POSTED_EMAIL_SIGNAL, postDate);
+}
+
+/** Marks the "day fully posted" email sent for this date so a retry never double-sends it. */
+export async function recordDayAllPostedEmailSent(postDate: string): Promise<void> {
+  return recordDaySignalSent(DAY_ALL_POSTED_EMAIL_SIGNAL, postDate);
 }
 
 function truncate(s: string, max: number): string {

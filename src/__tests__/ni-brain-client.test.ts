@@ -18,9 +18,13 @@ import {
   ensureNiBrainEnvHydrated,
   fetchNiBrainMatchFitContext,
   fetchRecentContentLearnings,
+  hasDayAllPostedEmailBeenSent,
+  hasDayScheduledEmailBeenSent,
   isNiBrainConfigured,
   isNiBrainConfiguredAsync,
   recordContentLearning,
+  recordDayAllPostedEmailSent,
+  recordDayScheduledEmailSent,
 } from "@/lib/ni-brain-client";
 
 describe("ni-brain-client", () => {
@@ -263,5 +267,117 @@ describe("ni-brain-client", () => {
     });
 
     expect(mockCreateClient).not.toHaveBeenCalled();
+  });
+
+  describe("day-level email idempotency signals", () => {
+    function selectChain(data: unknown[] | null, error: { message: string } | null = null) {
+      const eq2 = vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data, error }) });
+      const eq1 = vi.fn().mockReturnValue({ eq: eq2 });
+      const select = vi.fn().mockReturnValue({ eq: eq1 });
+      return { select, eq1, eq2 };
+    }
+
+    function fromReturning(expected: string, shape: Record<string, unknown>) {
+      return vi.fn((table: string) => {
+        if (table !== expected) throw new Error(`Unexpected table ${table}`);
+        return shape;
+      });
+    }
+
+    it("hasDayScheduledEmailBeenSent returns true when a matching signal row exists", async () => {
+      const { select, eq1, eq2 } = selectChain([{ id: "sig_1" }]);
+      const fromMock = fromReturning("match_fit_content_learning_signals", { select });
+      mockCreateClient.mockReturnValueOnce({ from: fromMock });
+
+      const result = await hasDayScheduledEmailBeenSent("2026-08-15");
+
+      expect(result).toBe(true);
+      expect(fromMock).toHaveBeenCalledWith("match_fit_content_learning_signals");
+      expect(select).toHaveBeenCalledWith("id");
+      expect(eq1).toHaveBeenCalledWith("signal_type", "DAY_SCHEDULED_EMAIL");
+      expect(eq2).toHaveBeenCalledWith("meta_json->>postDate", "2026-08-15");
+    });
+
+    it("hasDayScheduledEmailBeenSent returns false when no signal row exists", async () => {
+      const { select } = selectChain([]);
+      mockCreateClient.mockReturnValueOnce({
+        from: fromReturning("match_fit_content_learning_signals", { select }),
+      });
+
+      await expect(hasDayScheduledEmailBeenSent("2026-08-15")).resolves.toBe(false);
+    });
+
+    it("hasDayAllPostedEmailBeenSent filters on the DAY_ALL_POSTED_EMAIL signal type", async () => {
+      const { select, eq1 } = selectChain([{ id: "sig_2" }]);
+      mockCreateClient.mockReturnValueOnce({
+        from: fromReturning("match_fit_content_learning_signals", { select }),
+      });
+
+      await expect(hasDayAllPostedEmailBeenSent("2026-08-16")).resolves.toBe(true);
+      expect(eq1).toHaveBeenCalledWith("signal_type", "DAY_ALL_POSTED_EMAIL");
+    });
+
+    it("propagates a query error from the has* check", async () => {
+      const { select } = selectChain(null, { message: "signals table unreachable" });
+      mockCreateClient.mockReturnValueOnce({
+        from: fromReturning("match_fit_content_learning_signals", { select }),
+      });
+
+      await expect(hasDayScheduledEmailBeenSent("2026-08-15")).rejects.toThrow("signals table unreachable");
+    });
+
+    it("has* checks short-circuit to false without a client when NI Brain is not configured", async () => {
+      delete process.env.NI_BRAIN_SUPABASE_URL;
+
+      await expect(hasDayScheduledEmailBeenSent("2026-08-15")).resolves.toBe(false);
+      await expect(hasDayAllPostedEmailBeenSent("2026-08-15")).resolves.toBe(false);
+      expect(mockCreateClient).not.toHaveBeenCalled();
+    });
+
+    it("recordDayScheduledEmailSent inserts a DAY_SCHEDULED_EMAIL signal row for the date", async () => {
+      const insert = vi.fn().mockResolvedValue({ error: null });
+      const fromMock = fromReturning("match_fit_content_learning_signals", { insert });
+      mockCreateClient.mockReturnValueOnce({ from: fromMock });
+
+      await recordDayScheduledEmailSent("2026-08-15");
+
+      expect(insert).toHaveBeenCalledWith({
+        signal_type: "DAY_SCHEDULED_EMAIL",
+        post_id: null,
+        meta_json: { postDate: "2026-08-15" },
+      });
+    });
+
+    it("recordDayAllPostedEmailSent inserts a DAY_ALL_POSTED_EMAIL signal row for the date", async () => {
+      const insert = vi.fn().mockResolvedValue({ error: null });
+      mockCreateClient.mockReturnValueOnce({
+        from: fromReturning("match_fit_content_learning_signals", { insert }),
+      });
+
+      await recordDayAllPostedEmailSent("2026-08-20");
+
+      expect(insert).toHaveBeenCalledWith({
+        signal_type: "DAY_ALL_POSTED_EMAIL",
+        post_id: null,
+        meta_json: { postDate: "2026-08-20" },
+      });
+    });
+
+    it("propagates an insert error from the record* helper", async () => {
+      const insert = vi.fn().mockResolvedValue({ error: { message: "insert failed" } });
+      mockCreateClient.mockReturnValueOnce({
+        from: fromReturning("match_fit_content_learning_signals", { insert }),
+      });
+
+      await expect(recordDayScheduledEmailSent("2026-08-15")).rejects.toThrow("insert failed");
+    });
+
+    it("record* no-ops without a client when NI Brain is not configured", async () => {
+      delete process.env.NI_BRAIN_SUPABASE_URL;
+
+      await expect(recordDayScheduledEmailSent("2026-08-15")).resolves.toBeUndefined();
+      await expect(recordDayAllPostedEmailSent("2026-08-15")).resolves.toBeUndefined();
+      expect(mockCreateClient).not.toHaveBeenCalled();
+    });
   });
 });
