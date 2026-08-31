@@ -283,4 +283,4 @@ Assert against artifacts, not claims:
 - Background checks outside the US — flagged (risk 7); product decision belongs to JB.
 - Re-architecting the browse route's in-memory scoring (capped, not rebuilt).
 - `TrainerSessionPunchIn` GPS — untouched by order.
-- Marketing content/workflow changes (the 18-step locked workflow) — DPMO data and copy only; nothing sends without JB.
+- Marketing content/workflow changes (the 19-step locked workflow) — DPMO data and copy only; nothing sends without JB.
