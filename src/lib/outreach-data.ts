@@ -7,6 +7,7 @@ import type {
   InstagramLeadRow,
   OutreachArchiveLead,
   OutreachHubLead,
+  OutreachLane,
   OutreachLeadStatus,
   OutreachPlatform,
 } from "@/lib/outreach-types";
@@ -456,6 +457,29 @@ export async function massSaveOutreachLeadsToHub(
   throw new Error(`Unsupported outreach platform: ${platform}`);
 }
 
+/**
+ * Outreach HQ v2 groups leads purely by `outreachLane` (see `groupHubLeadsByLane` /
+ * `listOutreachHubLeads`), which does NOT filter by `status` — so a status transition into or
+ * out of DEAD_LEAD / RESPONSE_RECEIVED has to move the lane in lockstep here, or a lead stays
+ * parked on whatever lane it already had (e.g. a lead marked DEAD_LEAD from the "today" lane
+ * keeps showing on v2's Today tab for up to the 48h archive-cron window). Mirrors the exact lane
+ * values already used elsewhere: `outreach-archive.ts` (DEAD_LEAD -> "archived", revive ->
+ * "pending") and the reply-scan cron (`outreach-instagram-scan.ts` / `outreach-email-scan.ts`,
+ * RESPONSE_RECEIVED -> "pending_response"). Returns undefined for "leave the lane alone" so the
+ * Prisma `update` calls below can spread it in the same `field: undefined` pattern already used
+ * for the rest of this function's optional patch fields.
+ */
+function outreachLaneForStatusTransition(
+  prevStatus: string,
+  nextStatus: string,
+): OutreachLane | undefined {
+  if (nextStatus === prevStatus) return undefined;
+  if (nextStatus === "DEAD_LEAD") return "archived";
+  if (nextStatus === "RESPONSE_RECEIVED") return "pending_response";
+  if (prevStatus === "DEAD_LEAD") return "pending";
+  return undefined;
+}
+
 export async function updateOutreachLead(
   platform: OutreachPlatform,
   id: string,
@@ -485,6 +509,7 @@ export async function updateOutreachLead(
     });
     const deadLeadAt =
       status === "DEAD_LEAD" && !existing.deadLeadAt ? new Date() : status !== "DEAD_LEAD" ? null : undefined;
+    const outreachLane = outreachLaneForStatusTransition(existing.status, status);
     return prisma.outreachInstagramLead.update({
       where: { id },
       data: {
@@ -504,6 +529,7 @@ export async function updateOutreachLead(
         autoClassification,
         savedToHubAt: patch.saveToHub === true ? new Date() : undefined,
         deadLeadAt,
+        outreachLane,
         ...stamps,
       },
     });
@@ -519,6 +545,7 @@ export async function updateOutreachLead(
     });
     const deadLeadAt =
       status === "DEAD_LEAD" && !existing.deadLeadAt ? new Date() : status !== "DEAD_LEAD" ? null : undefined;
+    const outreachLane = outreachLaneForStatusTransition(existing.status, status);
     return prisma.outreachFacebookLead.update({
       where: { id },
       data: {
@@ -542,6 +569,7 @@ export async function updateOutreachLead(
         }),
         savedToHubAt: patch.saveToHub === true ? new Date() : undefined,
         deadLeadAt,
+        outreachLane,
         outreachSentAt: stamps.outreachSentAt,
         responseReceivedAt: stamps.responseReceivedAt,
       },
@@ -565,6 +593,7 @@ export async function updateOutreachLead(
     );
     const deadLeadAt =
       status === "DEAD_LEAD" && !existing.deadLeadAt ? new Date() : status !== "DEAD_LEAD" ? null : undefined;
+    const outreachLane = outreachLaneForStatusTransition(existing.status, status);
     return prisma.outreachEmailLead.update({
       where: { id },
       data: {
@@ -592,6 +621,7 @@ export async function updateOutreachLead(
         }),
         savedToHubAt: patch.saveToHub === true ? new Date() : undefined,
         deadLeadAt,
+        outreachLane,
         ...stamps,
       },
     });
