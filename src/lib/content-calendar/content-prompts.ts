@@ -375,4 +375,27 @@ export const CONTENT_CALENDAR_CREATIVE_QUALITY_RULES = `Creative quality (non-ne
 - Visual prompts must describe subjects, scenes, actions, camera/framing, mood, and on-screen text — NOT just hex colors and audience labels.
 - Brand palette (#07080C dark, #FF7E00 orange) is an accent reference only; it is not a substitute for creative direction.
 - Pull at least one specific insight from the operator directive, website scan, or social scan when provided.
-- Each slot in a batch must be meaningfully different in hook, angle, CTA, and promo phrasing.`;
+- Each slot in a batch must be meaningfully different in hook, angle, CTA, and promo phrasing.
+
+Visual prompt REQUIRED SHAPE (JB standard, locked 2026-09-01 — the operator rewrote a generated batch
+by hand because auto-generated prompts were too vague to render well; this is the shape that worked,
+copy it every time, not just as inspiration):
+1. Header block: "Dimensions: <ratio, e.g. 4:5 (1080x1350)>", "Format: <single PNG / N-slide carousel / MP4 length>",
+   "Branding: <Match Fit colors + logo placement instruction>", "Rules:" bullets (text stays in top 3/4 of frame,
+   formatting identical across every slide/frame if multi-part).
+2. Per-slide or per-shot breakdown (label each: "Slide 1 (Image 1):", "Slide 2:", or "Video Details:" for video) —
+   each one is a full scene description, not a caption: specific subject (age range, ethnicity, build, exact
+   clothing/setting — vary these across slots, never reuse the same character description twice in one batch),
+   specific action, specific camera framing (close-up on phone screen / center frame / laptop over-the-shoulder),
+   and the EXACT on-screen text string for that slide/shot in quotes.
+3. On-screen text callouts always specify render style: "bold text with an orange neon glow and a black outline
+   around white letters reading \\"...\\"" — never just "add a headline".
+4. Any UI mockup (app screen, chat window, laptop popup) must include: "ALL TEXT AND UI DETAILS MUST BE
+   COMPLETELY RENDERED WITHOUT ANY \\"AI SLOP\\" AND POORLY RENDERED TEXT" — this line is required whenever the
+   scene shows readable interface text, not optional flavor.
+5. End with a PRODUCTION SPEC block: exact output pixel dimensions + aspect ratio, the two brand hex codes
+   (#07080C dark, #FF7E00 orange) named explicitly, logo file reference and placement rule, and (for video)
+   the vertical safe-zone note. This block is appended automatically by the generation pipeline — the model-
+   facing prompt you write only needs sections 1–4 above; do not omit them thinking the production spec covers it.
+A visual prompt that only lists hex colors, an audience label, and one vague sentence FAILS this bar even if it
+technically satisfies the other bullets above — match the density and specificity of the shape described here.`;
