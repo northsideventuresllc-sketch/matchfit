@@ -4,6 +4,7 @@ import {
   LEADS_PER_LANE,
   MAX_SEARCHES_PER_LANE,
   draftEmail,
+  draftInstagramComment,
   draftInstagramDm,
   hostnameOf,
   companyNameFrom,
@@ -11,6 +12,7 @@ import {
   instagramHandleFromResult,
   looksLikeArticle,
   looksLikeCoachingProduct,
+  looksLikeLifeUpdateNotCoaching,
   looksLikeOnlineCoach,
   pickQueries,
   rotationOffset,
@@ -232,6 +234,37 @@ describe("companyNameFrom", () => {
 
   it("never returns an empty name", () => {
     expect(companyNameFrom(undefined, "joshstrength.com")).toBe("Joshstrength");
+  });
+});
+
+// --- Fix #4 (WF2.01) — recency-of-coaching-content scoring signal ------------------------------
+
+describe("looksLikeLifeUpdateNotCoaching", () => {
+  it("flags the real failure case: a coach queued while their recent content was postpartum/maternity leave", () => {
+    expect(looksLikeLifeUpdateNotCoaching("On maternity leave right now, back to coaching soon!")).toBe(true);
+    expect(looksLikeLifeUpdateNotCoaching("Newborn keeping us busy — not taking new clients for now")).toBe(true);
+  });
+
+  it("flags other personal-life-update shapes", () => {
+    expect(looksLikeLifeUpdateNotCoaching("Taking a break from the gym to recover from surgery")).toBe(true);
+    expect(looksLikeLifeUpdateNotCoaching("We're engaged! Off on our honeymoon next week")).toBe(true);
+  });
+
+  it("does not flag active coaching content", () => {
+    expect(looksLikeLifeUpdateNotCoaching("Online coach | fat loss | spots open this month")).toBe(false);
+    expect(looksLikeLifeUpdateNotCoaching("New client transformation — 12 weeks of online coaching")).toBe(false);
+  });
+});
+
+// --- Fix #2 (WF2.05) — LIKES vs COMMENT split --------------------------------------------------
+
+describe("draftInstagramComment", () => {
+  it("is separate copy from the DM and references coaching specifically", () => {
+    const comment = draftInstagramComment("coach.jane");
+    const dm = draftInstagramDm("coach.jane");
+    expect(comment).toContain("@coach.jane");
+    expect(comment.toLowerCase()).toContain("coaching");
+    expect(comment).not.toBe(dm);
   });
 });
 

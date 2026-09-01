@@ -102,6 +102,27 @@ export function isEstWeekend(now: Date = new Date()): boolean {
 }
 
 /**
+ * True when `now`'s America/New_York wall-clock hour equals `hour` (0-23).
+ *
+ * DST guard for a fixed-UTC GitHub Actions cron (OUT-LEAD-FINDER-DST-GUARD): a single cron
+ * expression is only correct for one of EDT/EST and silently drifts an hour when the clocks
+ * change (e.g. an "8am ET" cron pinned to "0 12 * * 1-5" becomes 7am ET the moment EST returns).
+ * The fix is the same shape as `isEstWeekend` guarding the weekend skip: schedule the caller at
+ * BOTH the EDT-correct and EST-correct UTC times year-round, and let the route itself decide
+ * whether it is actually the target ET hour right now. The "wrong" fire (whichever DST regime is
+ * not currently in effect) becomes a harmless no-op instead of running an hour early/late.
+ */
+export function isEstHour(hour: number, now: Date = new Date()): boolean {
+  const raw = now.toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    hour: "2-digit",
+    hour12: false,
+  });
+  const wallClockHour = Number(raw.replace(/[^0-9]/g, ""));
+  return (wallClockHour === 24 ? 0 : wallClockHour) === hour;
+}
+
+/**
  * True when a `today`-lane lead should flip to `past_due`: its queued date is strictly before
  * the current America/New_York calendar day.
  */
