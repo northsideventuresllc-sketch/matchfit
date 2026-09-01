@@ -17,26 +17,21 @@ export function isMediaAspectRatio(value: unknown): value is MediaAspectRatio {
 }
 
 /**
- * Free-tier Gemini image models, in preference order. JB direct order 2026-09-01: Flash-tier
- * image output is not acceptable quality for Match Fit content — always try the Pro-tier model
- * first. `gemini-3.1-flash-image` and the lite entry stay in the chain purely as availability
- * fallbacks (a 404/503/quota-exhausted on the Pro model must not sink the whole run) — they are
- * NOT preference-equal to Pro, they are the "still generate something rather than nothing" net.
+ * JB direct live order 2026-09-01 (tightened from the earlier "Pro first, Flash fallback"
+ * version same day): Flash-tier image output is NEVER acceptable for Match Fit content — not
+ * even as a fallback. Only the Pro-tier model is used. On any error, retry the SAME Pro model
+ * (see GEMINI_IMAGE_MAX_ATTEMPTS below) instead of falling through to a worse model.
  *
  * There is deliberately NO paid fallback here — CLAUDE.md standing rule 1: nothing routes to a
  * paid API. When the free quota is gone we fail loudly and wait for the daily reset.
  */
-export const GEMINI_IMAGE_MODEL_CHAIN = [
-  "gemini-3.1-pro-image",
-  "gemini-3.1-flash-image",
-  "gemini-2.5-flash-image",
-  "gemini-3.1-flash-lite-image",
-] as const;
+export const GEMINI_IMAGE_MODEL = "gemini-3.1-pro-image";
 
-export function resolveGeminiImageModelChain(): string[] {
-  const preferred = process.env.GEMINI_IMAGE_MODEL?.trim();
-  const chain = preferred ? [preferred, ...GEMINI_IMAGE_MODEL_CHAIN] : [...GEMINI_IMAGE_MODEL_CHAIN];
-  return [...new Set(chain)];
+/** How many times to retry the Pro model on a non-quota error before giving up on a key. */
+export const GEMINI_IMAGE_MAX_ATTEMPTS = 10;
+
+export function resolveGeminiImageModel(): string {
+  return process.env.GEMINI_IMAGE_MODEL?.trim() || GEMINI_IMAGE_MODEL;
 }
 
 const GEMINI_IMAGE_TIMEOUT_MS = 90_000;
@@ -186,6 +181,13 @@ function generatedMediaPath(mimeType: string, aspectRatio: MediaAspectRatio): st
  * report the quota reason. Free image quota resets daily, so the next morning's run recovers on
  * its own without a code change.
  */
+/** Brief pause between retries of the same model so a transient error gets a fresh shot. */
+const GEMINI_IMAGE_RETRY_DELAY_MS = 2_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function generateStaticMedia(
   prompt: string,
   aspectRatio: MediaAspectRatio = "1:1",
@@ -200,7 +202,7 @@ export async function generateStaticMedia(
   }
 
   const fullPrompt = buildImagePrompt(trimmedPrompt, aspectRatio);
-  const models = resolveGeminiImageModelChain();
+  const model = resolveGeminiImageModel();
   let quotaBlocked = false;
   let lastReason: string | null = null;
 
@@ -208,7 +210,9 @@ export async function generateStaticMedia(
     const label = entry.slot === "primary" ? "Gemini primary" : "Gemini backup";
     let keyQuotaBlocked = false;
 
-    for (const model of models) {
+    // JB direct order 2026-09-01: never fall through to a worse model. Retry this same
+    // Pro-tier model up to GEMINI_IMAGE_MAX_ATTEMPTS times on this key before moving on.
+    for (let attemptNumber = 1; attemptNumber <= GEMINI_IMAGE_MAX_ATTEMPTS; attemptNumber++) {
       const attempt = await requestGeminiImage({
         apiKey: entry.key,
         model,
@@ -233,23 +237,29 @@ export async function generateStaticMedia(
 
       lastReason = attempt.reason;
 
-      // 429 is quota, not a bad model — switching models on the same key won't help.
+      // 429 is quota, not a transient error — retrying the same key won't help; try the backup key.
       if (attempt.status === 429) {
         keyQuotaBlocked = true;
         quotaBlocked = true;
         break;
       }
-      // 404/503 mean this model is unavailable right now; the next model may work.
-      if (attempt.status === 404 || attempt.status === 503 || attempt.status === undefined) continue;
-      // Anything else (400 bad request, 401/403 bad key) is not model-specific.
-      break;
+
+      // Any other error (model temporarily unavailable, timeout, no image returned, etc.):
+      // retry the same Pro model rather than falling back to a different one.
+      if (attemptNumber < GEMINI_IMAGE_MAX_ATTEMPTS) {
+        await sleep(GEMINI_IMAGE_RETRY_DELAY_MS);
+      }
     }
 
     if (!keyQuotaBlocked) break;
   }
 
   if (quotaBlocked) return fail(IMAGE_QUOTA_EXHAUSTED_REASON);
-  return fail(lastReason ?? "Gemini image generation failed for every configured key and model");
+  return fail(
+    lastReason
+      ? `${lastReason} (after ${GEMINI_IMAGE_MAX_ATTEMPTS} attempts on ${model})`
+      : `Gemini image generation failed for every configured key after ${GEMINI_IMAGE_MAX_ATTEMPTS} attempts on ${model}`,
+  );
 }
 
 function fail(reason: string): { ok: false; reason: string } {
