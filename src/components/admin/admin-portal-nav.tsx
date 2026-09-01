@@ -25,8 +25,8 @@ export type AdminPortalNavPage =
 const PAGES: { id: AdminPortalNavPage; href: string; label: string }[] = [
   { id: "dashboard", href: "/admin", label: "Dashboard" },
   { id: "ad-tracking", href: MATCH_FIT_DEFAULT_ADS_SURFACE_PATH, label: MATCH_FIT_DEFAULT_ADS_SURFACE_LABEL },
-  { id: "outreach", href: "/admin/outreach", label: "Outreach HQ" },
-  { id: "content-calendar", href: "/admin/content-calendar", label: "Content Calendar" },
+  { id: "outreach", href: "/admin/outreach/v2", label: "Outreach HQ" },
+  { id: "content-calendar", href: "/admin/content-calendar/v2", label: "Content Calendar" },
   { id: "support-inbox", href: "/admin/support-inbox", label: "Support Inbox" },
   { id: "fp-documents", href: "/admin/fp-documents", label: "Fitness Pro Documents" },
   { id: "email-templates", href: "/admin/email-templates", label: "Email Templates" },

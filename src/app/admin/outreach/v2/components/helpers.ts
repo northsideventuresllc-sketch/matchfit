@@ -206,6 +206,27 @@ export function dispatchBriefLeads(brief: Record<string, unknown> | null | undef
   return out;
 }
 
+/**
+ * Nav badge count per tab (the "needs attention" backlogs only — Today/Hub/Dispatch/Pending/Archives
+ * don't get a red dot). Pending Responses only counts leads with an actual unread reply, matching
+ * what that tab shows — not every `pending_response`-lane row.
+ */
+export function tabBadgeCount(tab: OutreachV2Tab, grouped: Record<OutreachLane, OutreachHubLead[]>): number {
+  if (tab === "past_due") return grouped.past_due.length;
+  if (tab === "follow_ups") return grouped.follow_up_1.length + grouped.follow_up_2.length;
+  if (tab === "pending_responses") {
+    return grouped.pending_response.filter((e) => e.lead.hasUnrespondedReply).length;
+  }
+  return 0;
+}
+
+/** Leads currently in the Send Queue's Manual section (queued, no Cowork batch). */
+export function selectManualQueuedLeads(
+  grouped: Record<OutreachLane, OutreachHubLead[]>,
+): OutreachHubLead[] {
+  return grouped.dispatch_queued.filter((e) => e.lead.sendMode === "manual");
+}
+
 /** "Mon, Jul 28 · 1:00 PM ET" style label for a dispatch batch slot. */
 export function formatDispatchSlot(scheduledForIso: string, slot: string | null): string {
   const d = new Date(scheduledForIso);

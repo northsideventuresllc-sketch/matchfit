@@ -73,6 +73,38 @@ export function pullDispatch(
   return postJson("/api/admin/outreach/dispatch/pull", { leadIds }, "Could not pull leads from dispatch.");
 }
 
+/** Manual Send — queues the given leads into the Send Queue tab's Manual section (no Cowork batch). */
+export function sendManual(
+  leadIds: { id: string; platform: OutreachPlatform }[],
+): Promise<ApiResult<{ queued: string[]; skipped: string[] }>> {
+  return postJson("/api/admin/outreach/send/manual", { leadIds }, "Could not queue manual send.");
+}
+
+/** Cancel an Agent Send — pulls a lead out of its Cowork batch and flips it to Manual (stays queued). */
+export function cancelAgentSendToManual(
+  leadIds: string[],
+): Promise<ApiResult<{ converted: string[]; skipped: string[] }>> {
+  return postJson(
+    "/api/admin/outreach/send/cancel-to-manual",
+    { leadIds },
+    "Could not cancel agent send.",
+  );
+}
+
+/** Send Queue "Manual" sent/not-sent toggle. */
+export function setManualSent(
+  id: string,
+  platform: OutreachPlatform,
+  sent: boolean,
+): Promise<ApiResult<{ ok: true }>> {
+  return postJson(
+    "/api/admin/outreach/send/manual-sent",
+    { id, platform, sent },
+    "Could not update send status.",
+    "PATCH",
+  );
+}
+
 export type ScanResult = {
   email: { configured: boolean; matched: number; matches: unknown[] };
   instagram: { jobId: string; candidateCount: number };

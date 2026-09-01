@@ -13,6 +13,7 @@ import {
 } from "@/lib/match-fit-signature";
 import {
   OUTREACH_COWORK_EMAIL_BCC,
+  OUTREACH_INSTAGRAM_PROCEDURE_STEPS,
   OUTREACH_INTENT_OPTIONS,
   isOutreachIntent,
   outreachIntentLabel,
@@ -26,7 +27,7 @@ import type {
   OutreachPlatform,
 } from "@/lib/outreach-types";
 import { CollapsibleCard, CopyButton, Modal } from "./ui-bits";
-import { deleteLead, patchLead, queueDispatch, regenerateCopy } from "./client-api";
+import { deleteLead, patchLead, queueDispatch, regenerateCopy, sendManual } from "./client-api";
 import { followUpDueAt, formatOverdue, laneOf, leadContactUrl, leadDisplayName } from "./helpers";
 
 export type LeadStage = "primary" | "follow_up_1" | "follow_up_2";
@@ -170,6 +171,7 @@ export function LeadCard(props: {
   const [saving, setSaving] = useState(false);
   const [regenBusy, setRegenBusy] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [manualSending, setManualSending] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showPreview, setShowPreview] = useState(platform === "email");
@@ -234,6 +236,18 @@ export function LeadCard(props: {
     }
     if (result.data.queued.length === 0) {
       props.onError("Lead was already queued for dispatch.");
+      return;
+    }
+    props.onError("");
+    props.onChanged();
+  }
+
+  async function manualSend() {
+    setManualSending(true);
+    const result = await sendManual([{ id: lead.id, platform }]);
+    setManualSending(false);
+    if (!result.ok) {
+      props.onError(result.error);
       return;
     }
     props.onError("");
@@ -340,6 +354,17 @@ export function LeadCard(props: {
             </label>
           ))}
 
+          {platform === "instagram" ? (
+            <div className="space-y-1">
+              <span className={adminLabelClass}>Send checklist</span>
+              <ol className="list-decimal space-y-0.5 pl-4 text-xs text-white/55">
+                {OUTREACH_INSTAGRAM_PROCEDURE_STEPS.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ol>
+            </div>
+          ) : null}
+
           {platform === "email" && showPreview ? (
             <EmailClientPreview
               name={(lead as EmailLeadRow).name}
@@ -361,8 +386,23 @@ export function LeadCard(props: {
 
           <div className="flex flex-wrap gap-2 pt-1">
             {props.showApprove ? (
-              <button type="button" className={adminAccentButtonClass} disabled={approving} onClick={() => void approve()}>
-                {approving ? "Queuing…" : "Approve → dispatch"}
+              <button
+                type="button"
+                className={adminAccentButtonClass}
+                disabled={approving || manualSending}
+                onClick={() => void approve()}
+              >
+                {approving ? "Queuing…" : "Agent Send"}
+              </button>
+            ) : null}
+            {props.showApprove ? (
+              <button
+                type="button"
+                className={adminSecondaryButtonClass}
+                disabled={approving || manualSending}
+                onClick={() => void manualSend()}
+              >
+                {manualSending ? "Sending…" : "Manual Send"}
               </button>
             ) : null}
             <button

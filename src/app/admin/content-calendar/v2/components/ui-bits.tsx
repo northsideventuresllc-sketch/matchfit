@@ -3,6 +3,13 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { adminSecondaryButtonClass } from "@/components/admin/admin-portal-ui";
 
+/** Parses a fetch Response as JSON, throwing the server's `error` message (or `fallback`) on a non-2xx status. */
+export async function readApi<T>(res: Response, fallback: string): Promise<T> {
+  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
+  if (!res.ok) throw new Error(data.error ?? fallback);
+  return data;
+}
+
 /** Determinate progress bar with a live percentage — used for every loading/queuing state. */
 export function ProgressBar({ percent, label }: { percent: number; label?: string }) {
   const clamped = Math.max(0, Math.min(100, Math.round(percent)));
@@ -62,6 +69,29 @@ export function CopyButton({
     >
       {copied ? copiedLabel : label}
     </button>
+  );
+}
+
+/** <details>-style expand/collapse for a generation prompt, with a copy button once opened. Renders nothing for an empty prompt. */
+export function SeePromptCollapsible({
+  prompt,
+  label = "SEE PROMPT",
+}: {
+  prompt: string | null | undefined;
+  label?: string;
+}) {
+  if (!prompt?.trim()) return null;
+  return (
+    <details className="group rounded-xl border border-white/[0.08] bg-white/[0.02]">
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-white/55 hover:text-white/80">
+        <span className="inline-block transition-transform group-open:rotate-90">▸</span>
+        {label}
+      </summary>
+      <div className="space-y-2 border-t border-white/[0.06] px-3 py-2">
+        <p className="whitespace-pre-wrap text-xs leading-relaxed text-white/65">{prompt}</p>
+        <CopyButton value={prompt} label="COPY PROMPT" />
+      </div>
+    </details>
   );
 }
 

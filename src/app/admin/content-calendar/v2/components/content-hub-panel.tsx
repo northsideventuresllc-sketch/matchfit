@@ -12,7 +12,15 @@ import { ProgressBar } from "./ui-bits";
 import { useSimulatedProgress } from "./use-simulated-progress";
 import { groupHubPosts, WEEKLY_GENERATION_TIME_LABEL, type HubDayGroup } from "./helpers";
 
-export type DayActionResult = { memoId?: string | null; approved?: number; reverted?: number; memosCanceled?: number; jobId?: string; mediaPostCount?: number };
+export type DayActionResult = {
+  memoId?: string | null;
+  approved?: number;
+  reverted?: number;
+  memosCanceled?: number;
+  jobId?: string;
+  mediaPostCount?: number;
+  moved?: number;
+};
 
 type BubbleWiring = {
   busyId: string | null;
@@ -21,7 +29,15 @@ type BubbleWiring = {
   unregister: (key: string) => void;
 };
 
-function BubbleGrid({ posts, wiring }: { posts: ClientContentCalendarV2Post[]; wiring: BubbleWiring }) {
+function BubbleGrid({
+  posts,
+  wiring,
+  onSubmitForGeneration,
+}: {
+  posts: ClientContentCalendarV2Post[];
+  wiring: BubbleWiring;
+  onSubmitForGeneration: (id: string) => Promise<void>;
+}) {
   return (
     <div className="grid gap-4 xl:grid-cols-2">
       {posts.map((post) => (
@@ -32,6 +48,7 @@ function BubbleGrid({ posts, wiring }: { posts: ClientContentCalendarV2Post[]; w
           onPatch={wiring.onPatch}
           register={wiring.register}
           unregister={wiring.unregister}
+          onSubmitForGeneration={onSubmitForGeneration}
         />
       ))}
     </div>
@@ -44,22 +61,27 @@ function DayContainer({
   onApproveDay,
   onReturnToEditing,
   onFireCowork,
+  onManuallyGenerateMedia,
+  onSubmitForGeneration,
 }: {
   group: HubDayGroup;
   wiring: BubbleWiring;
   onApproveDay: (postDate: string) => Promise<DayActionResult>;
   onReturnToEditing: (postDate: string) => Promise<DayActionResult>;
   onFireCowork: (postDate: string) => Promise<DayActionResult>;
+  onManuallyGenerateMedia: (postDate: string) => Promise<DayActionResult>;
+  onSubmitForGeneration: (id: string) => Promise<void>;
 }) {
-  const [action, setAction] = useState<"approve" | "return" | "fire" | null>(null);
+  const [action, setAction] = useState<"approve" | "return" | "fire" | "manual-media" | null>(null);
   const [memoNote, setMemoNote] = useState<string | null>(null);
   const [canceledNote, setCanceledNote] = useState<string | null>(null);
   const [jobNote, setJobNote] = useState<string | null>(null);
+  const [manualMediaNote, setManualMediaNote] = useState<string | null>(null);
   const [dayError, setDayError] = useState<string | null>(null);
   const progress = useSimulatedProgress();
 
   const run = useCallback(
-    async (kind: "approve" | "return" | "fire", fn: () => Promise<DayActionResult>) => {
+    async (kind: "approve" | "return" | "fire" | "manual-media", fn: () => Promise<DayActionResult>) => {
       setAction(kind);
       setDayError(null);
       if (kind === "fire") progress.start();
@@ -67,6 +89,7 @@ function DayContainer({
         const result = await fn();
         if (kind === "approve") {
           setCanceledNote(null);
+          setManualMediaNote(null);
           setMemoNote(
             result.memoId
               ? `Self-learning memo recorded (${result.memoId}).`
@@ -76,14 +99,26 @@ function DayContainer({
         if (kind === "return") {
           setMemoNote(null);
           setJobNote(null);
+          setManualMediaNote(null);
           setCanceledNote(
             `Approval reverted — self-learning memo canceled (${result.memosCanceled ?? 0}).`,
           );
         }
         if (kind === "fire") {
           progress.finish();
+          setManualMediaNote(null);
           setJobNote(
             `Cowork media job queued${result.jobId ? ` (${result.jobId})` : ""}. An external Cowork session will pick it up — it does not finish here.`,
+          );
+        }
+        if (kind === "manual-media") {
+          setMemoNote(null);
+          setCanceledNote(null);
+          setJobNote(null);
+          setManualMediaNote(
+            typeof result.moved === "number"
+              ? `Media generation bypassed — ${result.moved} post${result.moved === 1 ? "" : "s"} moved straight to Publishing. Use Manually Redo there to upload your own media.`
+              : "Media generation bypassed — this day's posts moved straight to Publishing. Use Manually Redo there to upload your own media.",
           );
         }
       } catch (e) {
@@ -107,14 +142,25 @@ function DayContainer({
         </div>
         <div className="flex flex-wrap gap-2">
           {!group.approved ? (
-            <button
-              type="button"
-              className={adminPrimaryButtonClass}
-              disabled={action !== null}
-              onClick={() => void run("approve", () => onApproveDay(group.date))}
-            >
-              {action === "approve" ? "APPROVING…" : "APPROVE DAY"}
-            </button>
+            <>
+              <button
+                type="button"
+                className={adminPrimaryButtonClass}
+                disabled={action !== null}
+                onClick={() => void run("approve", () => onApproveDay(group.date))}
+              >
+                {action === "approve" ? "APPROVING…" : "APPROVE DAY"}
+              </button>
+              <button
+                type="button"
+                className={adminSecondaryButtonClass}
+                disabled={action !== null}
+                onClick={() => void run("manual-media", () => onManuallyGenerateMedia(group.date))}
+                title="Skip Cowork media generation and send this day's posts straight to Publishing."
+              >
+                {action === "manual-media" ? "WORKING…" : "MANUALLY GENERATE MEDIA"}
+              </button>
+            </>
           ) : (
             <>
               <button
@@ -124,6 +170,15 @@ function DayContainer({
                 onClick={() => void run("return", () => onReturnToEditing(group.date))}
               >
                 {action === "return" ? "REVERTING…" : "RETURN TO EDITING"}
+              </button>
+              <button
+                type="button"
+                className={adminSecondaryButtonClass}
+                disabled={action !== null}
+                onClick={() => void run("manual-media", () => onManuallyGenerateMedia(group.date))}
+                title="Skip Cowork media generation and send this day's posts straight to Publishing."
+              >
+                {action === "manual-media" ? "WORKING…" : "MANUALLY GENERATE MEDIA"}
               </button>
               <button
                 type="button"
@@ -146,10 +201,11 @@ function DayContainer({
       {memoNote ? <p className="mt-3 text-xs font-semibold text-emerald-300">{memoNote}</p> : null}
       {canceledNote ? <p className="mt-3 text-xs font-semibold text-[#FFD34E]">{canceledNote}</p> : null}
       {jobNote ? <p className="mt-3 text-xs font-semibold text-emerald-300">{jobNote}</p> : null}
+      {manualMediaNote ? <p className="mt-3 text-xs font-semibold text-emerald-300">{manualMediaNote}</p> : null}
       {dayError ? <p className="mt-3 text-xs font-semibold text-[#FFB4B4]">{dayError}</p> : null}
 
       <div className="mt-4">
-        <BubbleGrid posts={group.scheduled} wiring={wiring} />
+        <BubbleGrid posts={group.scheduled} wiring={wiring} onSubmitForGeneration={onSubmitForGeneration} />
       </div>
 
       {group.impromptu.length ? (
@@ -157,7 +213,7 @@ function DayContainer({
           <p className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-[#FF7E00]">
             Impromptu drafts for this day
           </p>
-          <BubbleGrid posts={group.impromptu} wiring={wiring} />
+          <BubbleGrid posts={group.impromptu} wiring={wiring} onSubmitForGeneration={onSubmitForGeneration} />
         </div>
       ) : null}
     </section>
@@ -170,14 +226,48 @@ export function ContentHubPanel({
   onApproveDay,
   onReturnToEditing,
   onFireCowork,
+  onManuallyGenerateMedia,
+  onPostAction,
 }: {
   posts: ClientContentCalendarV2Post[];
   wiring: BubbleWiring;
   onApproveDay: (postDate: string) => Promise<DayActionResult>;
   onReturnToEditing: (postDate: string) => Promise<DayActionResult>;
   onFireCowork: (postDate: string) => Promise<DayActionResult>;
+  /** Fetch + reload hub/publishing stages + tab switch, owned by the parent shell. */
+  onManuallyGenerateMedia: (postDate: string) => Promise<DayActionResult>;
+  /** Mirrors the `onAction` prop threaded into PendingTabPanel / PublishingPanel from the parent's `postAction`. */
+  onPostAction: (id: string, body: Record<string, unknown>, success?: string) => Promise<void>;
 }) {
-  const { days, undated } = groupHubPosts(posts);
+  // Optimistic local hide, independent of the parent's post list — a successful manual-media or
+  // submit-for-generation call moves posts out of the "hub" stage server-side, but this panel has no
+  // callback to force the parent to refetch `posts` immediately (the parent's own 15s hub poll will
+  // pick it up eventually). Hiding locally gives the operator instant feedback either way. A stale id
+  // left in these sets after the parent's own refetch has already dropped that post from `posts` is
+  // harmless — it simply has nothing left to filter out.
+  const [hiddenPostIds, setHiddenPostIds] = useState<Set<string>>(new Set());
+  const [hiddenDates, setHiddenDates] = useState<Set<string>>(new Set());
+
+  const runManuallyGenerateMedia = useCallback(
+    async (postDate: string): Promise<DayActionResult> => {
+      const result = await onManuallyGenerateMedia(postDate);
+      setHiddenDates((prev) => new Set(prev).add(postDate));
+      return result;
+    },
+    [onManuallyGenerateMedia],
+  );
+
+  const submitForGeneration = useCallback(
+    async (id: string) => {
+      await onPostAction(id, { action: "submit_for_generation" }, "Submitted for generation.");
+      setHiddenPostIds((prev) => new Set(prev).add(id));
+    },
+    [onPostAction],
+  );
+
+  const visiblePosts = posts.filter((p) => !hiddenPostIds.has(p.id));
+  const { days, undated } = groupHubPosts(visiblePosts);
+  const visibleDays = days.filter((d) => !hiddenDates.has(d.date));
 
   return (
     <div className="space-y-6">
@@ -190,7 +280,7 @@ export function ContentHubPanel({
         </p>
       </section>
 
-      {days.map((group) => (
+      {visibleDays.map((group) => (
         <DayContainer
           key={group.date}
           group={group}
@@ -198,6 +288,8 @@ export function ContentHubPanel({
           onApproveDay={onApproveDay}
           onReturnToEditing={onReturnToEditing}
           onFireCowork={onFireCowork}
+          onManuallyGenerateMedia={runManuallyGenerateMedia}
+          onSubmitForGeneration={submitForGeneration}
         />
       ))}
 
@@ -209,12 +301,12 @@ export function ContentHubPanel({
             them here, or use them as source material.
           </p>
           <div className="mt-4">
-            <BubbleGrid posts={undated} wiring={wiring} />
+            <BubbleGrid posts={undated} wiring={wiring} onSubmitForGeneration={submitForGeneration} />
           </div>
         </section>
       ) : null}
 
-      {!days.length && !undated.length ? (
+      {!visibleDays.length && !undated.length ? (
         <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-10 text-center text-sm text-white/45">
           No Content Hub posts yet. The weekly generation job fills this in {WEEKLY_GENERATION_TIME_LABEL}, or add
           impromptu drafts from the Impromptu Content Generation tab.

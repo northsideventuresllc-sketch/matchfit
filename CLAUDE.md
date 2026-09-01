@@ -80,11 +80,22 @@ JB has ADHD and dyslexia and is paying for output, not narration.
 
 Each of these exists because it was broken in a live session and cost JB time.
 
-1. **Nothing routes to a paid API. Ever.** Free tier only: Gemini for generation
-   (`gemini-first.ts` honours the `GEMINI_MODEL` secret and has no paid
-   fallback), local Ollama on the Mac mini for local work. If free quota is
-   exhausted, fail with a plain sentence — do not fall through to a paid
-   provider. JB has said many times he will not refill credits.
+1. **Free tiers first, paid only as genuine last resort — never paid by default,
+   never paid without every free tier having failed first.** The canonical AI
+   Vault chain (`callMatchFitAi()` in `src/lib/ai-vault/router.ts`, see
+   `docs/ai-vault.md`) tries, in order: AXON local (Mac mini Ollama, free) →
+   RunPod AXON v1 (NVG's own model, free, not deployed yet) → Gemini primary
+   (free) → Gemini backup (free) → Anthropic Claude (paid — genuinely last
+   resort, only reached once all four free tiers above have failed). This is
+   intentional tiered fallback, not a violation: JB has said many times he
+   will not refill credits, so the paid tier exists only to keep a feature
+   working when every free option is down, never as a default path. Corrected
+   2026-08-20 — the previous wording of this rule ("nothing routes to a paid
+   API, ever") contradicted the live code in `router.ts`, which has always
+   called paid Anthropic as a last-resort fallback. The code is the intended,
+   working safety net; this rule was the stale part and has been fixed to
+   match it. Do not remove the Anthropic fallback to "fix" this — that would
+   delete a real safety net for a documentation error.
 
 2. **Never tell JB something failed because of API keys, tokens, credits or
    billing.** He has already refused that fix, so naming it is pure noise.
@@ -142,7 +153,7 @@ Each of these exists because it was broken in a live session and cost JB time.
 ### Match Fit specifics
 
 **THE marketing workflow is `.claude/skills/matchfit-marketing-workflow/SKILL.md` — JB's
-18 locked steps. Read it before touching Match Fit social content. Media is generated in
+19 locked steps. Read it before touching Match Fit social content. Media is generated in
 GOOGLE GEMINI / GOOGLE FLOW through the browser on JB's accounts, never via an API; the
 GEMINI FLOW button in the admin Content Calendar opens it. Instagram posts go through an
 ANDROID EMULATOR. Do not reinvent any of this and never ask JB to re-explain it.**
@@ -202,13 +213,21 @@ path (`~/Desktop/.../Northside Ventures Group Vault/...`) that isn't reachable f
 Code sandbox session. Use the git-hosted `northsideventuresllc-sketch/nv-vault` repo instead —
 same content, actually reachable. Step 2 (NI-Brain Supabase query) works unchanged.
 
-**Risk note (JB confirm before relying on this):** `deploy-and-merge-workflow.mdc` below grants
-standing approval to merge PRs and deploy `main` to production without asking each time. This is
-a live, paid, revenue product with Stripe billing and 99+ Prisma migrations — Claude Code is
-porting this rule for informational parity but will hold off exercising full merge/deploy
-autonomy here until JB explicitly confirms it, same bar as everywhere else: prod DB migrations,
-billing/Stripe changes, and BETA/version-structure changes always get a check-in first regardless
-of what this rule says.
+**JB CONFIRMED 2026-08-28 — the hold-off below is lifted.** `deploy-and-merge-workflow.mdc`'s
+standing approval to merge and deploy is now live for any agent holding an active row in
+`nvg_agent_authority` (NI-Brain) with `can_merge_to_main` / `can_deploy_to_production` true.
+Read that row live; never hardcode the agent list. Absent a row, the old bar applies.
+
+Match Fit is still the highest-care repo in the org — live users, live Stripe billing, 99+ Prisma
+migrations — so the two standing holds bite hardest here. An agent holds when: (1) the change
+requires **active money-spend** to take effect, which includes a pricing or billing change
+affecting what customers are actually charged — note that merely *touching* payment-integration
+code is NOT a hold; or (2) JB named this specific change as a hold. Mechanical gate every time:
+green CI (`lint`, `typecheck`, `version:verify`, `test`, `build`) plus a written rollback note.
+
+Unchanged and still off-limits without JB: applying a prod DB migration, rotating a credential,
+force-pushing main, and adding/removing BETA or changing the version structure (owner approval
+only, per `AGENTS.md`).
 
 ---
 
@@ -272,7 +291,9 @@ Reference: public home page (`src/app/page.tsx`, `src/components/home-info-secti
 Applies to any file touching AI features (`**/*ai*.ts`, `**/ai-vault/**`):
 
 1. Use `callMatchFitAi` from `@/lib/ai-vault` — never call Anthropic/OpenAI/Gemini HTTP APIs directly for text generation.
-2. Provider order: Claude (auto model) → Gemini primary → Gemini backup → fail.
+2. Provider order (corrected 2026-08-20, see standing rule 1 above and `docs/ai-vault.md`):
+   AXON local → RunPod AXON v1 (not deployed yet) → Gemini primary → Gemini backup →
+   Anthropic Claude (auto model, paid last resort) → fail.
 3. Keys live in `platform_secrets` (AI Vault), never in source.
 4. Pick `kind` + optional `complexity` so Claude model auto-selection fits the task.
 5. Image generation is free-tier Gemini only (`generateStaticMedia` in `@/lib/content-calendar/media-generation`) — `responseModalities: ["IMAGE"]` + `imageConfig.aspectRatio`, hosted in NI Brain Storage. Nothing routes to OpenAI/DALL·E or any other paid image API, and there is no paid fallback when free quota runs out.

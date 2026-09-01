@@ -6,6 +6,7 @@ import { resolveGeminiApiKeyChain } from "@/lib/ai-vault/keys";
 import { resolveClaudeModelForComplexity, resolveGeminiModel } from "@/lib/ai-vault/models";
 import { callAnthropicProvider, callGeminiProvider } from "@/lib/ai-vault/providers";
 import { callAxonLocalProvider } from "@/lib/ai-vault/axon-local";
+import { callRunpodAxonV1Provider } from "@/lib/ai-vault/runpod-axon-v1";
 import type {
   AiVaultProviderId,
   MatchFitAiAttempt,
@@ -15,11 +16,17 @@ import type {
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 
 /**
- * AXON-EVERYWHERE-PROJECT (2026-08-05): tier order per JB is AXON local (Mac mini) ->
- * Gemini main -> Gemini backup -> Anthropic (paid, last resort) — locked in Decision
- * #598 item 11 / #619. Every path below tries AXON-local first; where AXON structurally
- * can't do the job (live web search — Ollama has no internet access or tool execution),
- * that is documented explicitly at the call site, never silently skipped.
+ * AXON-EVERYWHERE-PROJECT (2026-08-05, tier order extended 2026-08-20 per JB direct
+ * order): the ONE canonical tier order, binding across every NVG repo — AXON local
+ * (Mac mini Ollama) -> RunPod AXON v1 (NVG's own fine-tuned model, not deployed yet,
+ * see NI-Brain Decision #1261) -> Gemini primary -> Gemini backup -> Anthropic (paid,
+ * last resort) — locked in Decision #598 item 11 / #619, extended by the 2026-08-20
+ * order. Every path below tries AXON-local, then RunPod AXON v1, first; where AXON
+ * structurally can't do the job (live web search — Ollama has no internet access or
+ * tool execution), that is documented explicitly at the call site, never silently
+ * skipped. RunPod AXON v1 returns null immediately (no network call) until
+ * `RUNPOD_AXON_V1_ENDPOINT` / `RUNPOD_AXON_V1_KEY` are configured, so this tier is a
+ * no-op until the pod is live.
  */
 async function attemptAxonLocal(
   args: MatchFitAiCallArgs,
@@ -28,6 +35,20 @@ async function attemptAxonLocal(
   const axon = await callAxonLocalProvider({ system: args.system, user: args.user });
   attempts.push({ provider: "axon-local", model: axon.model ?? "axon-ornith:latest", error: axon.error });
   return axon.text;
+}
+
+/** RunPod AXON v1 — see docstring above. Returns null (no-op) until deployed. */
+async function attemptRunpodAxonV1(
+  args: MatchFitAiCallArgs,
+  attempts: MatchFitAiAttempt[],
+): Promise<string | null> {
+  const runpod = await callRunpodAxonV1Provider({ system: args.system, user: args.user });
+  attempts.push({
+    provider: "runpod-axon-v1",
+    model: runpod.model ?? "Qwen3-Coder-30B-A3B-Instruct",
+    error: runpod.error,
+  });
+  return runpod.text;
 }
 
 /**
@@ -60,6 +81,18 @@ async function callAnthropicFirst(
       model: "axon-ornith:latest",
       complexity,
       usedFallback: false,
+      attempts,
+    };
+  }
+
+  const runpodText = await attemptRunpodAxonV1({ ...args, system: axonSystem }, attempts);
+  if (runpodText && runpodText.trim() !== "NO_LIVE_SEARCH") {
+    return {
+      text: runpodText,
+      provider: "runpod-axon-v1",
+      model: "Qwen3-Coder-30B-A3B-Instruct",
+      complexity,
+      usedFallback: true,
       attempts,
     };
   }
@@ -128,12 +161,15 @@ async function callAnthropicFirst(
     usedFallback: true,
     error: errors.length
       ? errors.join(" → ")
-      : "All AI providers failed (AXON local, Gemini primary, Gemini backup, Anthropic).",
+      : "All AI providers failed (AXON local, RunPod AXON v1, Gemini primary, Gemini backup, Anthropic).",
     attempts,
   };
 }
 
-/** Standard (non-tool-calling) path: AXON-local -> Gemini primary -> Gemini backup -> Anthropic last. */
+/**
+ * Standard (non-tool-calling) path: AXON-local -> RunPod AXON v1 -> Gemini primary ->
+ * Gemini backup -> Anthropic last.
+ */
 async function callGeminiFirst(
   args: MatchFitAiCallArgs,
   claudeModel: string,
@@ -152,6 +188,18 @@ async function callGeminiFirst(
       model: "axon-ornith:latest",
       complexity,
       usedFallback: false,
+      attempts,
+    };
+  }
+
+  const runpodText = await attemptRunpodAxonV1(args, attempts);
+  if (runpodText) {
+    return {
+      text: runpodText,
+      provider: "runpod-axon-v1",
+      model: "Qwen3-Coder-30B-A3B-Instruct",
+      complexity,
+      usedFallback: true,
       attempts,
     };
   }
@@ -221,7 +269,7 @@ async function callGeminiFirst(
     usedFallback: true,
     error: errors.length
       ? errors.join(" → ")
-      : "All AI providers failed (AXON local, Gemini primary, Gemini backup, Anthropic).",
+      : "All AI providers failed (AXON local, RunPod AXON v1, Gemini primary, Gemini backup, Anthropic).",
     attempts,
   };
 }

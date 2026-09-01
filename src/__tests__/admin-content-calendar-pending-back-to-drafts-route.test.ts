@@ -4,12 +4,12 @@ const {
   mockRequireAdminSession,
   mockIsNiBrainConfiguredAsync,
   mockCreateNiBrainClient,
-  mockEnsureContentCalendarV2Schema,
+  mockEnsureContentCalendarV23Schema,
 } = vi.hoisted(() => ({
   mockRequireAdminSession: vi.fn(),
   mockIsNiBrainConfiguredAsync: vi.fn(),
   mockCreateNiBrainClient: vi.fn(),
-  mockEnsureContentCalendarV2Schema: vi.fn(),
+  mockEnsureContentCalendarV23Schema: vi.fn(),
 }));
 
 vi.mock("@/lib/require-admin", () => ({
@@ -22,8 +22,8 @@ vi.mock("@/lib/ni-brain-client", () => ({
 }));
 
 vi.mock("@/lib/ensure-content-hub-schema", () => ({
-  ensureContentCalendarV2Schema: mockEnsureContentCalendarV2Schema,
-  isMissingContentCalendarV2SchemaError: () => false,
+  ensureContentCalendarV23Schema: mockEnsureContentCalendarV23Schema,
+  isMissingContentCalendarV23SchemaError: () => false,
 }));
 
 import { POST } from "@/app/api/admin/content-calendar/v2/pending/back-to-drafts/route";
@@ -84,7 +84,7 @@ describe("POST /api/admin/content-calendar/v2/pending/back-to-drafts", () => {
     vi.clearAllMocks();
     mockRequireAdminSession.mockResolvedValue({ adminId: "admin_1", testMode: false, rememberMe: true });
     mockIsNiBrainConfiguredAsync.mockResolvedValue(true);
-    mockEnsureContentCalendarV2Schema.mockResolvedValue(undefined);
+    mockEnsureContentCalendarV23Schema.mockResolvedValue(undefined);
   });
 
   it("returns 401 when the requester is not an authenticated admin", async () => {
@@ -149,5 +149,20 @@ describe("POST /api/admin/content-calendar/v2/pending/back-to-drafts", () => {
 
     expect(res.status).toBe(500);
     await expect(res.json()).resolves.toEqual({ error: "That post could not be found." });
+  });
+
+  // This route is @deprecated (see its file header) — the v2 Pending tab now calls the generic
+  // POST /posts/[id]/actions route with { action: "back_to_drafts" } instead. It is still live for
+  // anything that still points at this URL, and must keep working for a post genuinely sitting in
+  // the new "pending" workflow_stage (introduced alongside this deprecation), not just "publishing".
+  it("still works for a post in the new pending stage, same as it always did for publishing", async () => {
+    const { client, updates } = fakeClient({ ...pendingRow, workflow_stage: "pending", status: "pending" });
+    mockCreateNiBrainClient.mockReturnValue(client);
+
+    const res = await POST(postJson({ postId: "post_1" }));
+
+    expect(res.status).toBe(200);
+    expect(updates).toHaveLength(1);
+    expect(updates[0]).toMatchObject({ workflow_stage: "hub", status: "draft", approved_at: null });
   });
 });

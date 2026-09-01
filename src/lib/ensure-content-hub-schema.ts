@@ -148,6 +148,35 @@ CREATE INDEX IF NOT EXISTS idx_content_calendar_v2_archive_type
   WHERE archive_type IS NOT NULL;
 `;
 
+const CONTENT_CALENDAR_V2_3_COLUMNS = [
+  "last_generation_prompt",
+  "media_generation_started_at",
+  "generation_source",
+] as const;
+
+const CONTENT_CALENDAR_V2_3_MIGRATION_SQL = `
+ALTER TABLE match_fit_content_calendar_posts
+  ADD COLUMN IF NOT EXISTS last_generation_prompt text,
+  ADD COLUMN IF NOT EXISTS media_generation_started_at timestamptz,
+  ADD COLUMN IF NOT EXISTS generation_source text;
+
+CREATE TABLE IF NOT EXISTS match_fit_content_research_runs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  status text NOT NULL DEFAULT 'running' CHECK (status IN ('running','complete','failed')),
+  trigger text NOT NULL DEFAULT 'manual' CHECK (trigger IN ('manual','scheduled')),
+  run_date date NOT NULL,
+  summary text,
+  report_body text,
+  model text,
+  error text,
+  admin_id text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  completed_at timestamptz
+);
+CREATE INDEX IF NOT EXISTS idx_content_research_runs_date
+  ON match_fit_content_research_runs (run_date DESC, created_at DESC);
+`;
+
 const POST_DATE_NULLABLE_SQL = `
 ALTER TABLE match_fit_content_calendar_posts
   ALTER COLUMN post_date DROP NOT NULL;
@@ -195,10 +224,25 @@ export function isMissingContentCalendarV22SchemaError(e: unknown): boolean {
   return /does not exist|42P01|42703|PGRST204|schema cache/i.test(message);
 }
 
+export function isMissingContentCalendarV23SchemaError(e: unknown): boolean {
+  const message = e instanceof Error ? e.message : String(e);
+  if (/Content Calendar v2\.3 schema is missing/i.test(message)) return true;
+  const mentioned =
+    CONTENT_CALENDAR_V2_3_COLUMNS.some((column) => message.includes(column)) ||
+    message.includes("match_fit_content_research_runs");
+  if (!mentioned) return isMissingContentCalendarV22SchemaError(e);
+  return /does not exist|42P01|42703|PGRST204|schema cache/i.test(message);
+}
+
 function isConnectivityError(message: string): boolean {
   return /tenant\/user|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|EAI_AGAIN|Network is unreachable|pooler/i.test(
     message,
   );
+}
+
+/** Postgres rejected the credential itself (28P01) rather than failing to reach the host. */
+function isAuthError(message: string): boolean {
+  return /password authentication failed|28P01/i.test(message);
 }
 
 async function probeContentHubSchema(): Promise<boolean> {
@@ -271,6 +315,21 @@ async function probeContentCalendarV22Schema(): Promise<boolean> {
   return !error;
 }
 
+async function probeContentCalendarV23Schema(): Promise<boolean> {
+  const client = createNiBrainClient();
+  const { error: postsError } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("last_generation_prompt, media_generation_started_at, generation_source")
+    .limit(1);
+  if (postsError) return false;
+
+  const { error: runsError } = await client
+    .from("match_fit_content_research_runs")
+    .select("id, status, trigger, run_date, summary, report_body, model, error, admin_id")
+    .limit(1);
+  return !runsError;
+}
+
 async function runSqlOnUrl(databaseUrl: string, sql: string): Promise<void> {
   const pool = new pg.Pool({
     ...pgPoolConfigForConnectionString(databaseUrl),
@@ -327,6 +386,14 @@ async function runNiBrainDdl(sql: string): Promise<void> {
         `Content Hub schema repair could not reach NI Brain Postgres (${message}). ` +
           "Set NI_BRAIN_DATABASE_PASSWORD with NI_BRAIN_SUPABASE_URL, or NI_BRAIN_DATABASE_URL to the session pooler " +
           "(aws-1-us-east-1.pooler.supabase.com:5432). Direct db.<ref>.supabase.co is IPv6-only on many hosts.",
+      );
+    }
+
+    if (isAuthError(message)) {
+      throw new Error(
+        "Content Hub schema repair could not authenticate to NI Brain Postgres — the stored " +
+          "NI_BRAIN_DATABASE_PASSWORD no longer matches the database. Update it in platform_secrets " +
+          "(or set NI_BRAIN_DATABASE_URL) with the current password from Supabase → Settings → Database, then retry.",
       );
     }
     throw e;
@@ -418,6 +485,24 @@ export async function ensureContentCalendarV22Schema(): Promise<void> {
   if (!(await probeContentCalendarV22Schema())) {
     throw new Error(
       "Content Calendar v2.2 schema is missing on NI Brain after migration. Confirm NI_BRAIN_DATABASE_URL points at project kxijunwgbrlfzvgkhklo, then redeploy.",
+    );
+  }
+}
+
+/**
+ * Applies Content Calendar v2.3 DDL on NI Brain: the generation-tracking columns (last prompt,
+ * generation-started timestamp, generation source) on match_fit_content_calendar_posts, plus the
+ * match_fit_content_research_runs table for the Social Media Research tab.
+ */
+export async function ensureContentCalendarV23Schema(): Promise<void> {
+  await ensureContentCalendarV22Schema();
+  if (await probeContentCalendarV23Schema()) return;
+
+  await runNiBrainDdl(CONTENT_CALENDAR_V2_3_MIGRATION_SQL);
+
+  if (!(await probeContentCalendarV23Schema())) {
+    throw new Error(
+      "Content Calendar v2.3 schema is missing on NI Brain after migration. Confirm NI_BRAIN_DATABASE_URL points at project kxijunwgbrlfzvgkhklo, then redeploy.",
     );
   }
 }

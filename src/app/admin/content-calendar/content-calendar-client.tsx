@@ -274,9 +274,6 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
           <Link href="/admin/content-calendar/pending" className={adminSecondaryButtonClass}>
             Pending Posts
           </Link>
-          <Link href="/admin/content-calendar/v2" className={adminSecondaryButtonClass}>
-            Open v2 (preview)
-          </Link>
           <a
             href="https://labs.google/flow"
             target="_blank"
@@ -298,6 +295,15 @@ export function ContentCalendarClient(props: { aiStatus: AiStatus }) {
       }
       contentClassName="space-y-6"
     >
+      <AdminPortalAlert variant="info">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span>Content Calendar v2 is now the primary tool for daily use.</span>
+          <Link href="/admin/content-calendar/v2" className={adminSecondaryButtonClass}>
+            Open Content Calendar v2
+          </Link>
+        </div>
+      </AdminPortalAlert>
+
       <AdminPortalBetaNotice className="mt-0" />
 
       <MarketingPlaybookStepBanner currentStepId="generate_content" />

@@ -1,20 +1,10 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/session";
-import { ContentPendingClient } from "./pending-client";
 
-export default async function AdminContentCalendarPendingPage() {
-  const store = await cookies();
-  const tok = store.get(ADMIN_SESSION_COOKIE)?.value;
-  const sess = tok ? await verifyAdminSessionToken(tok) : null;
-  if (!sess) redirect("/admin/login");
-
-  const adminRow = await prisma.administrator.findUnique({
-    where: { id: sess.adminId },
-    select: { id: true },
-  });
-  if (!adminRow) redirect("/admin/login");
-
-  return <ContentPendingClient />;
+/**
+ * Superseded by the v2 shell's Pending tab — Pending is now a real workflow_stage with its own tab
+ * instead of a standalone page. This redirect keeps the old URL working (it may still be bookmarked
+ * or linked) by landing on the same tab via the v2 page's initialTab query param.
+ */
+export default function AdminContentCalendarPendingPage() {
+  redirect("/admin/content-calendar/v2?tab=pending");
 }

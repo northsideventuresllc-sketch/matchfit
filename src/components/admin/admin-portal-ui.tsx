@@ -176,6 +176,37 @@ export const adminNavLinkActiveClass =
 export const adminImpersonationBannerClass =
   "mb-6 rounded-2xl border border-[#FF7E00]/35 bg-[#FF7E00]/[0.08] px-4 py-3 text-sm text-white/90 shadow-[0_12px_40px_-24px_rgba(227,43,43,0.35)]";
 
+/** Collapsible section wrapper (native `<details>`, no extra JS deps) so long admin pages can hide reference/setup panels the operator doesn't need open every visit. */
+export function AdminCollapsibleSection({
+  title,
+  subtitle,
+  defaultOpen = true,
+  className = "",
+  children,
+}: {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  defaultOpen?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <details className={`${adminCardClass} group ${className}`} open={defaultOpen}>
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
+        <div className="min-w-0">{title}</div>
+        <span
+          aria-hidden
+          className="mt-1 shrink-0 text-white/40 transition-transform duration-150 group-open:rotate-90"
+        >
+          ▶
+        </span>
+      </summary>
+      {subtitle ? <div className="mt-1">{subtitle}</div> : null}
+      <div className="mt-5">{children}</div>
+    </details>
+  );
+}
+
 export function AdminStatCard({
   label,
   value,
