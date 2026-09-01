@@ -16,7 +16,11 @@ vi.mock("@/lib/content-calendar/media-storage", () => ({
   CONTENT_CALENDAR_MEDIA_BUCKET: "content-calendar-media",
 }));
 
-import { generateStaticMedia } from "@/lib/content-calendar/media-generation";
+import {
+  generateStaticMedia,
+  GEMINI_IMAGE_MAX_ATTEMPTS,
+  GEMINI_IMAGE_MODEL,
+} from "@/lib/content-calendar/media-generation";
 
 const PNG_BASE64 = Buffer.from("fake-png-bytes").toString("base64");
 
@@ -77,7 +81,7 @@ describe("generateStaticMedia (free Gemini image generation)", () => {
       ok: true,
       url: "https://ni-brain.test/storage/content-calendar-media/img.png",
       aspectRatio: "9:16",
-      model: "gemini-3.1-flash-image",
+      model: GEMINI_IMAGE_MODEL,
     });
 
     const body = requestBody(fetchMock, 0) as {
@@ -140,7 +144,8 @@ describe("generateStaticMedia (free Gemini image generation)", () => {
     expect(apiKeyHeader(fetchMock, 1)).toBe("AIzaBackupTestKey");
   });
 
-  it("reports a clear reason when the response carries no image", async () => {
+  it("reports a clear reason when the response carries no image (after exhausting retries)", async () => {
+    vi.useFakeTimers();
     const fetchMock = vi.fn(
       async () =>
         new Response(
@@ -152,15 +157,19 @@ describe("generateStaticMedia (free Gemini image generation)", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await generateStaticMedia("Prompt with no image back", "4:5");
+    const resultPromise = generateStaticMedia("Prompt with no image back", "4:5");
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected failure");
     expect(result.reason).toContain("returned no image in the response");
     expect(M.uploadContentCalendarMedia).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 
-  it("surfaces a blocked prompt as the reason instead of a bare failure", async () => {
+  it("surfaces a blocked prompt as the reason instead of a bare failure (after exhausting retries)", async () => {
+    vi.useFakeTimers();
     const fetchMock = vi.fn(
       async () =>
         new Response(JSON.stringify({ promptFeedback: { blockReason: "SAFETY" } }), {
@@ -170,24 +179,57 @@ describe("generateStaticMedia (free Gemini image generation)", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await generateStaticMedia("Blocked prompt", "1:1");
+    const resultPromise = generateStaticMedia("Blocked prompt", "1:1");
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected failure");
     expect(result.reason).toContain("prompt blocked: SAFETY");
+    vi.useRealTimers();
   });
 
-  it("walks to the next free model when one model is unavailable (404)", async () => {
+  it("retries the same Pro model (never a different one) on a transient error and succeeds on a later attempt", async () => {
+    vi.useFakeTimers();
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ error: { message: "model not found" } }), { status: 404 }))
       .mockResolvedValueOnce(imageResponse());
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await generateStaticMedia("Fallback model prompt", "4:5");
+    const resultPromise = generateStaticMedia("Fallback model prompt", "4:5");
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
 
-    expect(result).toMatchObject({ ok: true, model: "gemini-2.5-flash-image" });
+    expect(result).toMatchObject({ ok: true, model: GEMINI_IMAGE_MODEL });
+    expect(String(fetchMock.mock.calls[0][0])).toContain(GEMINI_IMAGE_MODEL);
+    expect(String(fetchMock.mock.calls[1][0])).toContain(GEMINI_IMAGE_MODEL);
     expect(apiKeyHeader(fetchMock, 1)).toBe("AIzaPrimaryTestKey");
+    vi.useRealTimers();
+  });
+
+  it("gives up after GEMINI_IMAGE_MAX_ATTEMPTS retries of the same model on a non-quota error, never falling back to a different model or key", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(
+      async () => new Response(JSON.stringify({ error: { message: "model not found" } }), { status: 404 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const resultPromise = generateStaticMedia("Persistently failing prompt", "4:5");
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected failure");
+    expect(result.reason).toContain(`after ${GEMINI_IMAGE_MAX_ATTEMPTS} attempts on ${GEMINI_IMAGE_MODEL}`);
+    // A non-quota error is a model problem, not a key problem -- only the primary key is tried,
+    // GEMINI_IMAGE_MAX_ATTEMPTS times, never the backup key and never a different model.
+    expect(fetchMock).toHaveBeenCalledTimes(GEMINI_IMAGE_MAX_ATTEMPTS);
+    for (const call of fetchMock.mock.calls) {
+      expect(String(call[0])).toContain(GEMINI_IMAGE_MODEL);
+    }
+    expect(apiKeyHeader(fetchMock, 0)).toBe("AIzaPrimaryTestKey");
+    vi.useRealTimers();
   });
 
   it("fails with a no-key reason when no Gemini key is configured", async () => {
