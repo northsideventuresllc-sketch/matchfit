@@ -7,7 +7,7 @@ import {
   CONTENT_CALENDAR_BRAND_FACTS,
   CONTENT_CALENDAR_DAYS_LONG,
   CONTENT_CALENDAR_GROUPS,
-  CONTENT_CALENDAR_POST_TYPES,
+  CONTENT_CALENDAR_WEEKDAY_POST_TYPES,
   type ContentCalendarPostType,
 } from "@/lib/content-calendar/constants";
 import { getMatchFitDpmoPhase } from "@/lib/content-calendar/cowork-jobs";
@@ -134,9 +134,10 @@ async function planWeek(args: {
 /**
  * Monday weekly generation pipeline. Reads the current DPMO phase, runs a social scan across
  * TikTok / Instagram / Threads / Facebook, researches trending hashtags via web search, plans the
- * week, then generates 5 days × 4 post types (Static, Carousel, Video, Text) into the Content Hub
- * with each post's DPMO phase snapshot, an editable DPMO rationale, and the shared media prompt
- * (dimensions + brand colors + logo) baked into every media post's visual prompt.
+ * week, then generates each day's locked post types into the Content Hub — Mon/Wed/Fri get
+ * Carousel + Video, Tue/Thu get Static + Text (CONTENT_CALENDAR_WEEKDAY_POST_TYPES) — with each
+ * post's DPMO phase snapshot, an editable DPMO rationale, and the shared media prompt (dimensions
+ * + brand colors + logo) baked into every media post's visual prompt.
  */
 export async function runWeeklyContentGeneration(args?: { weekStart?: string }): Promise<WeeklyGenerationResult> {
   await hydratePlatformEnvFromDatabase();
@@ -159,7 +160,8 @@ export async function runWeeklyContentGeneration(args?: { weekStart?: string }):
 
   for (const dayPlan of plan) {
     const postDate = formatCalendarDate(addWeekdays(monday, dayPlan.dayIndex));
-    const items = CONTENT_CALENDAR_POST_TYPES.map((postType) => ({
+    const dayFormats = CONTENT_CALENDAR_WEEKDAY_POST_TYPES[dayPlan.dayIndex];
+    const items = dayFormats.map((postType) => ({
       postType,
       targetGroup: dayPlan.targetAudience,
     }));
@@ -170,7 +172,7 @@ export async function runWeeklyContentGeneration(args?: { weekStart?: string }):
       `CTA: ${dayPlan.cta}`,
       dpmoPhase ? `DPMO phase: ${dpmoPhase} — ${dayPlan.dpmoRationale}` : dayPlan.dpmoRationale,
       `Weave in currently-trending hashtags where natural: ${hashtags.hashtags.map((t) => `#${t}`).join(" ")}`,
-      "Generate the four locked daily post types: Static, Carousel, Video, Text. Keep each distinct.",
+      `Generate exactly these locked post types for ${CONTENT_CALENDAR_DAYS_LONG[dayPlan.dayIndex]}: ${dayFormats.join(", ")}. Keep each distinct. Do not generate any other post type today.`,
     ].join("\n");
 
     const { drafts } = await generateBulkContent({
@@ -181,9 +183,8 @@ export async function runWeeklyContentGeneration(args?: { weekStart?: string }):
     });
 
     let created = 0;
-    for (const postType of CONTENT_CALENDAR_POST_TYPES) {
-      const draft =
-        drafts.find((d) => d.postType === postType) ?? drafts[CONTENT_CALENDAR_POST_TYPES.indexOf(postType)];
+    for (const postType of dayFormats) {
+      const draft = drafts.find((d) => d.postType === postType) ?? drafts[dayFormats.indexOf(postType)];
       if (!draft) continue;
 
       const visualPrompt =

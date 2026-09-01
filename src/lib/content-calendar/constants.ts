@@ -82,6 +82,20 @@ export const CONTENT_CALENDAR_SOCIAL_POSTING_CUTOFF_HOUR_EST = 17;
 export const CONTENT_CALENDAR_DAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const;
 export const CONTENT_CALENDAR_DAYS_LONG = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] as const;
 
+/**
+ * JB-locked per-weekday post-type rotation (mirrors content/social/matchfit-content-calendar.jsx
+ * MATCHFIT_WEEKLY_ROTATION.byWeekday): Mon/Wed/Fri carry Carousel + Video; Tue/Thu carry
+ * Static + Text. Keyed by dayIndex 0=Mon..4=Fri, matching WeeklyDayPlan.dayIndex — NOT
+ * JS Date.getDay() (0=Sun), which is what CONTENT_CALENDAR_SOCIAL_POSTING_WEEKDAYS uses.
+ */
+export const CONTENT_CALENDAR_WEEKDAY_POST_TYPES: Record<number, readonly ContentCalendarPostType[]> = {
+  0: ["Carousel", "Video"], // Monday
+  1: ["Static", "Text"], // Tuesday
+  2: ["Carousel", "Video"], // Wednesday
+  3: ["Static", "Text"], // Thursday
+  4: ["Carousel", "Video"], // Friday
+};
+
 export const CONTENT_CALENDAR_BRAND_FACTS = `Match Fit — two-sided fitness marketplace connecting Fitness Pros with clients.
 Beta v1.2+. Clients: $10/month. Independent Pro from $15/month after a 60-day free trial at registration. 20% platform fee on sessions.
 Features: swipe-based discovery, Fit Hub social feed, algorithmic matching, virtual + in-person. Match Fit is worldwide — do NOT name a city, metro or region in marketing, and never imply a launch is limited to one place.
