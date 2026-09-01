@@ -3,6 +3,7 @@ import { generateStaticMedia } from "@/lib/content-calendar/content-calendar-ai"
 import {
   completeGenerateMediaJob,
 } from "@/lib/content-calendar/content-calendar-cowork-orchestration";
+import { updatePostMedia } from "@/lib/content-calendar/content-calendar-store";
 import { isMediaAspectRatio, type MediaAspectRatio } from "@/lib/content-calendar/media-generation";
 import { getPendingCoworkJobs, updateCoworkJobStatus } from "@/lib/content-calendar/cowork-jobs";
 import { ensureContentCalendarV22Schema } from "@/lib/ensure-content-hub-schema";
@@ -190,6 +191,17 @@ export async function GET(req: Request) {
             if (cappedType) remainingCapToday.delete(cappedType);
           } else {
             skippedPosts.push(postId);
+            // FIXED 2026-09-01 (JB direct live order — reported two approved posts stuck showing
+            // "generating" forever with no error visible): this post was set to media_status
+            // "generating" before the job ran and, without this, was left exactly there on
+            // failure — the queue-drain path never told the individual post it failed, unlike
+            // the single-post admin "generate_media" action, which always did. The post still
+            // stays approved in the hub (untouched status/workflow_stage, same as before) so a
+            // fresh generate attempt can pick it up — only media_status changes, so the operator
+            // sees "failed" instead of a spinner that never resolves.
+            await updatePostMedia({ postId, mediaUrl: null, mediaStatus: "failed" }).catch((err) => {
+              console.error(`[content-calendar-generate-media] failed to mark post ${postId} failed:`, err);
+            });
           }
         }
 

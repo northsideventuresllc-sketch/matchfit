@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-01** `2.26.5-beta` → `2.26.6-beta` (**patch** — Fix stuck approved posts: reset media_status to failed on generation failure, add maxDuration for Pro retry chain)
 - **2026-09-01** `2.26.4-beta` → `2.26.5-beta` (**patch** — Gemini image gen: Pro-only, retry same model up to 10x, never fall back to Flash (JB direct order))
 - **2026-09-01** `2.26.3-beta` → `2.26.4-beta` (**patch** — Content-calendar generation fixes: Gemini Pro image-model default, JB's locked visual-prompt format)
 - **2026-09-01** `2.26.2-beta` → `2.26.3-beta` (**patch** — Daily four-pack assertion (WF1.01) + Telegram posting ping (WF1.18) -- ops guardrails, no new user-facing surface)
