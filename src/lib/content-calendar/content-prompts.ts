@@ -389,9 +389,9 @@ copy it every time, not just as inspiration):
    specific action, specific camera framing (close-up on phone screen / center frame / laptop over-the-shoulder),
    and the EXACT on-screen text string for that slide/shot in quotes.
 3. On-screen text callouts always specify render style: "bold text with an orange neon glow and a black outline
-   around white letters reading \\"...\\"" — never just "add a headline".
+   around white letters reading "..."" — never just "add a headline".
 4. Any UI mockup (app screen, chat window, laptop popup) must include: "ALL TEXT AND UI DETAILS MUST BE
-   COMPLETELY RENDERED WITHOUT ANY \\"AI SLOP\\" AND POORLY RENDERED TEXT" — this line is required whenever the
+   COMPLETELY RENDERED WITHOUT ANY "AI SLOP" AND POORLY RENDERED TEXT" — this line is required whenever the
    scene shows readable interface text, not optional flavor.
 5. End with a PRODUCTION SPEC block: exact output pixel dimensions + aspect ratio, the two brand hex codes
    (#07080C dark, #FF7E00 orange) named explicitly, logo file reference and placement rule, and (for video)
