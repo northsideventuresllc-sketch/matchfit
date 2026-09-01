@@ -17,14 +17,17 @@ export function isMediaAspectRatio(value: unknown): value is MediaAspectRatio {
 }
 
 /**
- * Free-tier Gemini image models, in preference order. `gemini-3.1-flash-image` is the current
- * best free image model on the key; the 2.5 and lite entries exist purely as availability
- * fallbacks (a 404/503 on one model must not sink the whole run).
+ * Free-tier Gemini image models, in preference order. JB direct order 2026-09-01: Flash-tier
+ * image output is not acceptable quality for Match Fit content — always try the Pro-tier model
+ * first. `gemini-3.1-flash-image` and the lite entry stay in the chain purely as availability
+ * fallbacks (a 404/503/quota-exhausted on the Pro model must not sink the whole run) — they are
+ * NOT preference-equal to Pro, they are the "still generate something rather than nothing" net.
  *
  * There is deliberately NO paid fallback here — CLAUDE.md standing rule 1: nothing routes to a
  * paid API. When the free quota is gone we fail loudly and wait for the daily reset.
  */
 export const GEMINI_IMAGE_MODEL_CHAIN = [
+  "gemini-3.1-pro-image",
   "gemini-3.1-flash-image",
   "gemini-2.5-flash-image",
   "gemini-3.1-flash-lite-image",
