@@ -8,6 +8,7 @@ const M = vi.hoisted(() => ({
   updateCoworkJobStatus: vi.fn(),
   completeGenerateMediaJob: vi.fn(),
   generateStaticMedia: vi.fn(),
+  updatePostMedia: vi.fn(),
   // Daily media cap query (getRemainingMediaCapToday) — data:[] means nothing generated yet
   // today, i.e. the cap is fully open, matching every test's prior (uncapped) expectations
   // unless a test overrides it to exercise the cap itself.
@@ -26,6 +27,9 @@ vi.mock("@/lib/content-calendar/content-calendar-cowork-orchestration", () => ({
 }));
 vi.mock("@/lib/content-calendar/content-calendar-ai", () => ({
   generateStaticMedia: M.generateStaticMedia,
+}));
+vi.mock("@/lib/content-calendar/content-calendar-store", () => ({
+  updatePostMedia: M.updatePostMedia,
 }));
 vi.mock("@/lib/ni-brain-client", () => ({
   createNiBrainClient: () => {
@@ -64,6 +68,7 @@ beforeEach(() => {
   M.ensureSchema.mockResolvedValue(undefined);
   M.updateCoworkJobStatus.mockResolvedValue(undefined);
   M.completeGenerateMediaJob.mockResolvedValue({ updated: 1 });
+  M.updatePostMedia.mockResolvedValue(undefined);
   M.niBrainSelectResult.data = [];
   M.niBrainSelectResult.error = null;
 });
@@ -167,6 +172,15 @@ describe("generate-media cron zero-image handling", () => {
     expect(body.results[0]?.skippedPosts).toEqual(["p_empty"]);
     expect(body.results[0]?.generated).toBe(1);
     expect(body.results[0]?.mediaErrors?.[0]).toContain("HTTP 500");
+    // FIXED 2026-09-01: the skipped post must be told it failed, not left at whatever
+    // media_status it had before (e.g. "generating" forever with no visible error).
+    expect(M.updatePostMedia).toHaveBeenCalledWith({
+      postId: "p_empty",
+      mediaUrl: null,
+      mediaStatus: "failed",
+    });
+    // The post that actually got media is never touched by this reset.
+    expect(M.updatePostMedia).not.toHaveBeenCalledWith(expect.objectContaining({ postId: "p_ok" }));
   });
 
   it("still fails a job whose brief has no usable prompts", async () => {

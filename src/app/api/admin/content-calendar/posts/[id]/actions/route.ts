@@ -15,6 +15,14 @@ import type { ContentCalendarPostType } from "@/lib/content-calendar/constants";
 import { isNiBrainConfiguredAsync, recordContentLearning } from "@/lib/ni-brain-client";
 import { requireAdminSession } from "@/lib/require-admin";
 
+// FIXED 2026-09-01 (JB direct live order — no maxDuration meant the Vercel default applied,
+// which is short enough that generate_media's now-longer Pro-only retry chain (up to
+// GEMINI_IMAGE_MAX_ATTEMPTS attempts, each up to 90s) could get killed mid-request. A killed
+// serverless function never reaches this file's own try/catch, so the post is left stuck at
+// media_status "generating" forever with no error recorded anywhere -- exactly the "approved
+// posts stuck on pending" symptom reported live this session. Matches the cron route's budget.
+export const maxDuration = 300;
+
 const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("posted") }),
   z.object({ action: z.literal("restore") }),
