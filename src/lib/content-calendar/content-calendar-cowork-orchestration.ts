@@ -18,6 +18,7 @@ import {
   type MediaPostType,
 } from "@/lib/content-calendar/content-prompts";
 import { splitPlatforms } from "@/lib/content-calendar/content-calendar-v2-store";
+import { sendTelegramPing } from "@/lib/content-calendar/telegram-ping";
 import { normalizeTargetGroup } from "@/lib/content-calendar/content-rules";
 import { fireAxonPostingConfirmation } from "@/lib/content-calendar/axon-notify";
 import {
@@ -159,6 +160,7 @@ export async function maybeNotifyDayFullyPosted(postDate: string): Promise<{ not
   ].join("\n");
 
   await sendDayNotificationEmail({ subject: `Match Fit content fully posted — ${postDate}`, text });
+  void sendTelegramPing(`Match Fit: every post for ${postDate} is now live.`);
   await recordDayAllPostedEmailSent(postDate);
   return { notified: true };
 }
@@ -676,17 +678,20 @@ export async function completePostBatchJob(args: {
     byPost.set(entry.postId, map);
   }
 
-  // Resolved up front, defensively — only used for the best-effort day-fully-posted check below,
-  // so a lookup failure here should never block the archive writes that actually matter.
+  // Resolved up front, defensively — used for the best-effort day-fully-posted check and the
+  // per-post Telegram ping below, so a lookup failure here should never block the archive
+  // writes that actually matter.
   const postDatesTouched = new Set<string>();
+  const postTypeById = new Map<string, string>();
   try {
     const { data: dateRows, error: dateError } = await client
       .from("match_fit_content_calendar_posts")
-      .select("post_date")
+      .select("id, post_date, post_type")
       .in("id", [...byPost.keys()]);
     if (dateError) throw new Error(dateError.message);
-    for (const row of (dateRows ?? []) as { post_date: string | null }[]) {
+    for (const row of (dateRows ?? []) as { id: string; post_date: string | null; post_type: string | null }[]) {
       if (row.post_date) postDatesTouched.add(row.post_date);
+      if (row.post_type) postTypeById.set(row.id, row.post_type);
     }
   } catch (e) {
     console.error("[content-calendar day email] could not resolve touched post dates:", e);
@@ -710,6 +715,12 @@ export async function completePostBatchJob(args: {
       .eq("id", postId);
     if (error) throw new Error(error.message);
     updated += 1;
+
+    // WF1.18 fix: a Telegram ping was supposed to fire after every posted post type and never
+    // did, because it depended on an agent remembering to send it by hand.
+    const postType = postTypeById.get(postId) ?? "post";
+    const platforms = Object.keys(urls).join(", ");
+    void sendTelegramPing(`Match Fit: ${postType} posted (${platforms}).`);
   }
 
   await updateCoworkJobStatus({ jobId: args.jobId, status: "complete", result: { postedUrls: args.postedUrls } });

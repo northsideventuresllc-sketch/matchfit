@@ -105,6 +105,7 @@ export function ContentCalendarV2Client({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [todayGap, setTodayGap] = useState<string[]>([]);
 
   const [autoSave, setAutoSave] = useState(false);
   const [pendingTab, setPendingTab] = useState<Tab | null>(null);
@@ -129,6 +130,23 @@ export function ContentCalendarV2Client({
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  // WF1.01 fix: surface today's missing four-pack formats (a catch-up run can silently skip
+  // today while building yesterday/tomorrow) instead of leaving an empty day nobody notices.
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/admin/content-calendar/today-gap", { credentials: "include" });
+        const data = await readApi<{ date: string | null; missingPostTypes: string[] }>(
+          res,
+          "Could not check today's four-pack.",
+        );
+        setTodayGap(data.missingPostTypes ?? []);
+      } catch {
+        // Non-critical: a failed gap check should never block the calendar screen itself.
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -371,6 +389,9 @@ export function ContentCalendarV2Client({
       ) : null}
       {error ? <AdminPortalAlert>{error}</AdminPortalAlert> : null}
       {notice ? <AdminPortalAlert variant="success">{notice}</AdminPortalAlert> : null}
+      {todayGap.length > 0 ? (
+        <AdminPortalAlert>{`Today's four-pack is incomplete — missing: ${todayGap.join(", ")}.`}</AdminPortalAlert>
+      ) : null}
 
       <nav className="flex flex-wrap gap-2 border-b border-white/[0.06] pb-1" aria-label="Content Calendar v2 tabs">
         {TABS.map((t) => (

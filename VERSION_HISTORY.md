@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-01** `2.26.2-beta` → `2.26.3-beta` (**patch** — Daily four-pack assertion (WF1.01) + Telegram posting ping (WF1.18) -- ops guardrails, no new user-facing surface)
 - **2026-09-01** `2.26.1-beta` → `2.26.2-beta` (**patch** — Outreach lead-finder fixes: 5+5 count assertion, likes/comment split, pre-approval spellcheck, coaching-recency scoring, DST-safe cron guard (nvg_workflow_improvements #1/#2/#3/#4/#7))
 - **2026-08-31** `2.26.0-beta` → `2.26.1-beta` (**patch** — Stop raw Postgres auth error leaking to Content Hub admin UI)
 - **2026-08-31** `2.25.0-beta` → `2.26.0-beta` (**minor** — Content Calendar v2 rebuild: pending stage, social media research tab, manual/agent posting split)

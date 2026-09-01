@@ -19,6 +19,7 @@ import { addWeekdays, formatCalendarDate } from "@/lib/content-calendar/rotation
 import { computeManualPostSchedule } from "@/lib/content-calendar/pending-schedule";
 import { createNiBrainClient, type ContentCalendarPostRow } from "@/lib/ni-brain-client";
 import { resolveArchivePurgeAfter } from "@/lib/content-calendar/cowork-jobs";
+import { sendTelegramPing } from "@/lib/content-calendar/telegram-ping";
 
 export type ContentCalendarV2Lane = "scheduled" | "impromptu";
 export type ContentCalendarV2Stage = "hub" | "pending" | "publishing" | "scheduled" | "archived";
@@ -189,6 +190,24 @@ export async function listPendingV2Posts(): Promise<ContentCalendarPostRow[]> {
     .order("post_date", { ascending: true, nullsFirst: false });
   if (error) throw new Error(error.message);
   return ((data ?? []) as ContentCalendarPostRow[]).filter(isPendingV2Row);
+}
+
+/**
+ * WF1.01 fix: a catch-up run can build yesterday and queue tomorrow while silently skipping
+ * today, and nothing previously asserted that today's four-pack (one post per
+ * CONTENT_CALENDAR_POST_TYPES) actually exists. Called from the daily sync cron so a gap fails
+ * loudly instead of leaving an empty day nobody notices until send time.
+ */
+export async function findTodaysMissingPostTypes(today: string): Promise<ContentCalendarPostType[]> {
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("post_type")
+    .eq("post_date", today)
+    .is("deleted_at", null);
+  if (error) throw new Error(error.message);
+  const present = new Set((data ?? []).map((row) => row.post_type as ContentCalendarPostType));
+  return CONTENT_CALENDAR_POST_TYPES.filter((postType) => !present.has(postType));
 }
 
 export async function getV2Post(postId: string): Promise<ContentCalendarPostRow | null> {
@@ -729,6 +748,10 @@ export async function manuallyPostV2Post(postId: string): Promise<ContentCalenda
     .select("*")
     .single();
   if (error) throw new Error(error.message);
+
+  // WF1.18 fix: same per-post-type Telegram ping the agent post-batch completion path fires —
+  // a manual post is still a post type going out and must not go silently unpinged.
+  void sendTelegramPing(`Match Fit: ${post.post_type} posted manually.`);
 
   // Same "is the day now fully posted" check the agent post-batch completion path runs — a manual
   // post can just as easily be the day's last one. Dynamic import avoids a top-level circular
