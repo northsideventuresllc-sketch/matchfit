@@ -1,10 +1,29 @@
 import { describe, expect, it } from "vitest";
 import {
   followUpReminderDue,
+  isEstHour,
   isPastDueForToday,
   nextDispatchSlot,
   startOfEstDayUtc,
 } from "@/lib/outreach-lanes";
+
+describe("isEstHour — dual-cron DST guard (OUT-LEAD-FINDER-DST-GUARD)", () => {
+  it("is true at 8am ET during EDT (12:00 UTC)", () => {
+    expect(isEstHour(8, new Date("2026-07-23T12:00:00Z"))).toBe(true);
+  });
+
+  it("is false at 9am ET during EDT (13:00 UTC) — the EST-correct fire is a no-op in summer", () => {
+    expect(isEstHour(8, new Date("2026-07-23T13:00:00Z"))).toBe(false);
+  });
+
+  it("is true at 8am ET during EST (13:00 UTC)", () => {
+    expect(isEstHour(8, new Date("2026-01-15T13:00:00Z"))).toBe(true);
+  });
+
+  it("is false at 7am ET during EST (12:00 UTC) — the EDT-correct fire is a no-op in winter", () => {
+    expect(isEstHour(8, new Date("2026-01-15T12:00:00Z"))).toBe(false);
+  });
+});
 
 describe("nextDispatchSlot (America/New_York, EDT/UTC-4 in July)", () => {
   it("before 1pm ET → 1pm today", () => {

@@ -39,6 +39,7 @@ import { ensureOutreachHubSchema } from '@/lib/ensure-outreach-hub-schema';
 import { getOutreachExclusionList, normalizeEmail, normalizeInstagramHandle } from '@/lib/outreach-exclusions';
 import { startOfEstDayUtc } from '@/lib/outreach-lanes';
 import { fireOutreachAxonEvent, type OutreachAxonLeadRef } from '@/lib/outreach-axon-notify';
+import { spellcheckOutreachCopy } from '@/lib/outreach-spellcheck';
 
 /** Leads to insert per lane per run. A lane that can only find fewer inserts fewer. */
 export const LEADS_PER_LANE = 5;
@@ -185,6 +186,12 @@ export type FinderRunSummary = {
   inserted: number;
   drafted: number;
   shortfall: number;
+  /**
+   * Fix #1 (WF2.01) — true when any lane is still short of `target` after its refill pass.
+   * A flag on the response itself, not just a buried per-lane note, so a shortfall can never
+   * silently pass as a clean run.
+   */
+  incomplete: boolean;
 };
 
 function emptyLaneStats(lane: LaneName): LaneStats {
@@ -405,6 +412,31 @@ export function looksLikeOnlineCoach(text: string): boolean {
   return LINK_IN_BIO_HOSTS.some((h) => haystack.includes(h)) && /coach|trainer|training|fitness/.test(haystack);
 }
 
+/**
+ * True when a search result's visible text signals a personal life update — new baby, maternity
+ * / paternity leave, a break from clients, a wedding, a health event — rather than active
+ * coaching content.
+ *
+ * MEASURED: a lead reached the queue scored as an "active online coach" whose only visible
+ * content was postpartum / maternity-leave posts — `looksLikeOnlineCoach` still matched because
+ * the account's bio elsewhere said "online coach", but the specific piece of content this lead
+ * was actually built from had nothing to do with coaching right now. This is a separate,
+ * overriding check run AFTER `looksLikeOnlineCoach` passes: even a confirmed "online coach"
+ * account is rejected here if the content we actually found is a life update, not coaching
+ * content — same durable-signal reasoning as `looksLikeArticle` / `looksLikeCoachingProduct`
+ * above (check the shape of the content, not a blocklist of every possible life event).
+ */
+export function looksLikeLifeUpdateNotCoaching(text: string): boolean {
+  const haystack = text.toLowerCase();
+  const patterns: RegExp[] = [
+    /\b(postpartum|maternity leave|paternity leave|just had (a |my )?baby|newborn|due date|baby(?:'s| is| just)? (here|arrived))\b/,
+    /\b(on a break|taking a break|stepping away (from|for)|on hiatus|out of office|not taking (new )?clients (right now|for now)?)\b/,
+    /\b(i'?m engaged|getting married|our wedding|on our honeymoon)\b/,
+    /\b(in the hospital|recovering from surgery|health update)\b/,
+  ];
+  return patterns.some((p) => p.test(haystack));
+}
+
 // --- Email discovery (unchanged domain-trust logic — JB relies on this exact behaviour) ---
 
 // No '%' in the local-part class: a leading url-encoded space ("%20info@...")
@@ -486,6 +518,18 @@ export function draftInstagramDm(handle: string): string {
   );
 }
 
+/**
+ * Coaching-specific Instagram comment. Deliberately separate from `draftInstagramDm` and only
+ * ever paired with `commentPostRef` — the ONE specific post that was actually confirmed to be
+ * about coaching (see the LIKES-vs-COMMENT split below). A coach's 3 newest posts are often
+ * personal content (travel, family, milestones), so reusing a coaching-specific comment across
+ * all of them reads as bot behavior — the fix is to comment only on the post this text is
+ * actually about.
+ */
+export function draftInstagramComment(handle: string): string {
+  return `Love the coaching content, @${handle} — this is exactly the kind of programming Match Fit clients are looking for.`;
+}
+
 /** Email draft. Subject line stays (the Instagram lane has none). */
 export function draftEmail(companyName: string): { subject: string; body: string } {
   const greeting = companyName ? `Hi ${companyName}` : 'Hi';
@@ -510,6 +554,14 @@ export function draftEmail(companyName: string): { subject: string; body: string
 // unset: `matchFitLaneScope()` (outreach-venture-scope.ts) reads an unassigned row as Match Fit,
 // which is correct — this finder only ever generates for Match Fit.
 
+/**
+ * Queries not yet tried this run, in pool order starting from `pool[offset % pool.length]` — used
+ * both for the initial rotated pick and for the refill pass below.
+ */
+function untriedQueries(pool: string[], tried: Set<string>): string[] {
+  return pool.filter((q) => !tried.has(q));
+}
+
 async function runInstagramLane(
   seen: Set<string>,
   now: Date,
@@ -517,88 +569,129 @@ async function runInstagramLane(
   notified: OutreachAxonLeadRef[],
 ): Promise<LaneStats> {
   const stats = emptyLaneStats('instagram');
-  const queries = pickQueries(INSTAGRAM_QUERIES, MAX_SEARCHES_PER_LANE, now);
+  const tried = new Set<string>();
+  let queries = pickQueries(INSTAGRAM_QUERIES, MAX_SEARCHES_PER_LANE, now);
 
-  for (const query of queries) {
-    if (stats.drafted >= LEADS_PER_LANE) break;
-    let results: SerpOrganicResult[];
-    try {
-      results = await webSearch(query);
-      stats.searches += 1;
-    } catch (err) {
-      console.error(`[lead-finder instagram] search failed for "${query}":`, err);
-      continue;
-    }
-
-    for (const res of results) {
+  // Fix #1 (WF2.01) — refill: if the initial rotated queries don't reach LEADS_PER_LANE, keep
+  // pulling untried queries from the rest of the pool (bounded by pool size, so this can never
+  // run away) instead of shipping a short batch. Only the rare short day spends the extra
+  // SerpApi searches; a normal day still uses just MAX_SEARCHES_PER_LANE.
+  while (queries.length > 0 && stats.drafted < LEADS_PER_LANE) {
+    for (const query of queries) {
       if (stats.drafted >= LEADS_PER_LANE) break;
-      if (!res.link) continue;
-      const handle = instagramHandleFromResult(res);
-      if (!handle) {
-        stats.rejected += 1;
-        continue;
-      }
-      stats.candidates += 1;
-
-      const text = `${res.title ?? ''} ${res.snippet ?? ''} ${handle}`;
-      if (!looksLikeOnlineCoach(text)) {
-        stats.rejected += 1;
-        continue;
-      }
-
-      // Dedupe on the normalized `@handle` — matches the format `getOutreachExclusionList`
-      // and the rest of the Instagram lead pipeline already use.
-      const normalizedHandle = normalizeInstagramHandle(handle);
-      if (!normalizedHandle || seen.has(normalizedHandle)) {
-        stats.duplicate += 1;
-        continue;
-      }
-      seen.add(normalizedHandle); // provisional — stops a second hit in this same run inserting twice
-
-      // When the result is a post rather than a profile, the title is the CAPTION ("I just
-      // dropped a free live demo in my Stan Store so you can see ...") and makes a terrible
-      // company name. Only keep a title that reads like a name; otherwise show the handle.
-      const rawTitle = (res.title ?? '').split('(')[0].split('|')[0].trim();
-      const titleIsName =
-        rawTitle.length > 0 &&
-        rawTitle.length <= 40 &&
-        !/[.!?…]$/.test(rawTitle) &&
-        // Some captions are just a link ("https://stan.store/CoachGymRat") — not a name.
-        !/https?:\/\/|\bwww\.|\.(com|net|org|io|store|link)\b/i.test(rawTitle) &&
-        !looksLikeArticle(rawTitle);
-      const displayName = titleIsName ? rawTitle : `@${handle}`;
-      const profileUrl = `https://www.instagram.com/${handle}/`;
-      const dmText = draftInstagramDm(handle);
-
-      let created: { id: string };
+      tried.add(query);
+      let results: SerpOrganicResult[];
       try {
-        created = await prisma.outreachInstagramLead.create({
-          data: {
-            handle: normalizedHandle,
-            profileUrl,
-            niche: 'Online coaching',
-            targetGroup: 'VIRTUAL',
-            whyMatchFit: 'Instagram bio describes online / remote coaching — takes clients anywhere, so a Match Fit fit.',
-            likelihoodScore: 100,
-            notes: `via:${INSTAGRAM_SOURCE} · company:${displayName}`,
-            dmText,
-            commentText: '',
-            generationBatchId: batchId,
-            outreachLane: 'today',
-            queuedForDate: startOfEstDayUtc(now),
-          },
-          select: { id: true },
-        });
+        results = await webSearch(query);
+        stats.searches += 1;
       } catch (err) {
-        console.error(`[lead-finder instagram] write failed for @${handle}:`, err);
-        stats.rejected += 1;
+        console.error(`[lead-finder instagram] search failed for "${query}":`, err);
         continue;
       }
-      stats.inserted += 1;
-      stats.drafted += 1;
-      notified.push({ platform: 'instagram', leadId: created.id, handle: normalizedHandle, contact: profileUrl, dmText });
-      console.log(`+ instagram @${handle}`);
+
+      for (const res of results) {
+        if (stats.drafted >= LEADS_PER_LANE) break;
+        if (!res.link) continue;
+        const handle = instagramHandleFromResult(res);
+        if (!handle) {
+          stats.rejected += 1;
+          continue;
+        }
+        stats.candidates += 1;
+
+        const text = `${res.title ?? ''} ${res.snippet ?? ''} ${handle}`;
+        if (!looksLikeOnlineCoach(text)) {
+          stats.rejected += 1;
+          continue;
+        }
+        // Fix #4 (WF2.01) — recency-of-coaching-content signal: reject even a confirmed
+        // "online coach" account when the content we actually found is a personal life update
+        // (postpartum, maternity leave, a break, a wedding) rather than coaching content.
+        if (looksLikeLifeUpdateNotCoaching(text)) {
+          stats.rejected += 1;
+          continue;
+        }
+
+        // Dedupe on the normalized `@handle` — matches the format `getOutreachExclusionList`
+        // and the rest of the Instagram lead pipeline already use.
+        const normalizedHandle = normalizeInstagramHandle(handle);
+        if (!normalizedHandle || seen.has(normalizedHandle)) {
+          stats.duplicate += 1;
+          continue;
+        }
+        seen.add(normalizedHandle); // provisional — stops a second hit in this same run inserting twice
+
+        // When the result is a post rather than a profile, the title is the CAPTION ("I just
+        // dropped a free live demo in my Stan Store so you can see ...") and makes a terrible
+        // company name. Only keep a title that reads like a name; otherwise show the handle.
+        const rawTitle = (res.title ?? '').split('(')[0].split('|')[0].trim();
+        const titleIsName =
+          rawTitle.length > 0 &&
+          rawTitle.length <= 40 &&
+          !/[.!?…]$/.test(rawTitle) &&
+          // Some captions are just a link ("https://stan.store/CoachGymRat") — not a name.
+          !/https?:\/\/|\bwww\.|\.(com|net|org|io|store|link)\b/i.test(rawTitle) &&
+          !looksLikeArticle(rawTitle);
+        const displayName = titleIsName ? rawTitle : `@${handle}`;
+        const profileUrl = `https://www.instagram.com/${handle}/`;
+
+        // Fix #2 (WF2.05) — LIKES vs COMMENT split: LIKES (see the dispatch brief) hit the 3
+        // most recent posts regardless of topic; the COMMENT below only ever targets THIS one
+        // post — `res.link`, the specific post `looksLikeOnlineCoach` just confirmed is actually
+        // about coaching — stored on `commentPostRef` so which post got the comment is auditable.
+        const commentPostRef = res.link ?? profileUrl;
+
+        // Fix #3 (WF2.02) — spellcheck pass, run before this copy is ever written to a row JB
+        // can open for approval.
+        const dmSpellchecked = await spellcheckOutreachCopy(draftInstagramDm(handle));
+        const commentSpellchecked = await spellcheckOutreachCopy(draftInstagramComment(handle));
+
+        let created: { id: string };
+        try {
+          created = await prisma.outreachInstagramLead.create({
+            data: {
+              handle: normalizedHandle,
+              profileUrl,
+              niche: 'Online coaching',
+              targetGroup: 'VIRTUAL',
+              whyMatchFit: 'Instagram bio describes online / remote coaching — takes clients anywhere, so a Match Fit fit.',
+              likelihoodScore: 100,
+              notes: `via:${INSTAGRAM_SOURCE} · company:${displayName}`,
+              dmText: dmSpellchecked.text,
+              commentText: commentSpellchecked.text,
+              commentPostRef,
+              generationBatchId: batchId,
+              outreachLane: 'today',
+              queuedForDate: startOfEstDayUtc(now),
+            },
+            select: { id: true },
+          });
+        } catch (err) {
+          console.error(`[lead-finder instagram] write failed for @${handle}:`, err);
+          stats.rejected += 1;
+          continue;
+        }
+        stats.inserted += 1;
+        stats.drafted += 1;
+        notified.push({
+          platform: 'instagram',
+          leadId: created.id,
+          handle: normalizedHandle,
+          contact: profileUrl,
+          dmText: dmSpellchecked.text,
+        });
+        console.log(`+ instagram @${handle}`);
+      }
     }
+
+    if (stats.drafted >= LEADS_PER_LANE) break;
+    const remaining = untriedQueries(INSTAGRAM_QUERIES, tried);
+    if (!remaining.length) break; // whole pool exhausted this run — nothing left to refill with
+    console.warn(
+      `[lead-finder instagram] refilling — only ${stats.drafted}/${LEADS_PER_LANE} found so far, ` +
+        `trying ${remaining.length} more untried quer${remaining.length === 1 ? 'y' : 'ies'}.`,
+    );
+    queries = remaining;
   }
 
   stats.shortfall = Math.max(0, LEADS_PER_LANE - stats.drafted);
@@ -606,7 +699,7 @@ async function runInstagramLane(
     stats.note =
       `Only found ${stats.drafted} of ${LEADS_PER_LANE} Instagram coaches this run ` +
       `(${stats.candidates} profiles looked at, ${stats.rejected} not online coaches, ${stats.duplicate} already on the list).`;
-    console.warn(`[lead-finder instagram] ${stats.note}`);
+    console.warn(`[lead-finder instagram] SHORTFALL: ${stats.note}`);
   }
   return stats;
 }
@@ -618,99 +711,125 @@ async function runEmailLane(
   notified: OutreachAxonLeadRef[],
 ): Promise<LaneStats> {
   const stats = emptyLaneStats('email');
-  const queries = pickQueries(EMAIL_QUERIES, MAX_SEARCHES_PER_LANE, now);
+  const tried = new Set<string>();
+  let queries = pickQueries(EMAIL_QUERIES, MAX_SEARCHES_PER_LANE, now);
   const hostsTried = new Set<string>();
 
-  for (const query of queries) {
-    if (stats.drafted >= LEADS_PER_LANE) break;
-    let results: SerpOrganicResult[];
-    try {
-      results = await webSearch(query);
-      stats.searches += 1;
-    } catch (err) {
-      console.error(`[lead-finder email] search failed for "${query}":`, err);
-      continue;
-    }
-
-    for (const res of results) {
+  // Fix #1 (WF2.01) — same refill behaviour as the Instagram lane: keep trying untried queries
+  // from the rest of the pool when short of LEADS_PER_LANE, bounded by pool size.
+  while (queries.length > 0 && stats.drafted < LEADS_PER_LANE) {
+    for (const query of queries) {
       if (stats.drafted >= LEADS_PER_LANE) break;
-      if (!res.link) continue;
-      const host = hostnameOf(res.link);
-      if (!host || isExcludedHost(host) || hostsTried.has(host)) {
-        stats.rejected += 1;
-        continue;
-      }
-      hostsTried.add(host);
-
-      const text = `${res.title ?? ''} ${res.snippet ?? ''}`;
-      if (!looksLikeOnlineCoach(text)) {
-        stats.rejected += 1;
-        continue;
-      }
-      // Publisher content that slipped past EXCLUDED_HOSTS. A listicle is not a coach, and the
-      // email on it belongs to an editor. This is what put emily.phares@fortune.com in front of
-      // JB on 2026-07-29.
-      if (looksLikeArticle(res.title ?? '', res.link)) {
-        stats.rejected += 1;
-        continue;
-      }
-      // Coaching SOFTWARE that slipped past EXCLUDED_HOSTS and the article filter — a SaaS
-      // product's own marketing copy uses the same "online coaching" language a real coach's
-      // site does. See looksLikeCoachingProduct.
-      if (looksLikeCoachingProduct(text)) {
-        stats.rejected += 1;
-        continue;
-      }
-      stats.candidates += 1;
-
-      const website = `https://${host}`;
-      const email = await findContactEmail(website);
-      if (!email) {
-        stats.noEmail += 1;
-        continue;
-      }
-
-      const normalizedEmail = normalizeEmail(email);
-      if (!normalizedEmail || seen.has(normalizedEmail)) {
-        stats.duplicate += 1;
-        continue;
-      }
-      seen.add(normalizedEmail);
-
-      const company = companyNameFrom(res.title, host);
-      const { subject, body } = draftEmail(company);
-
-      let created: { id: string };
+      tried.add(query);
+      let results: SerpOrganicResult[];
       try {
-        created = await prisma.outreachEmailLead.create({
-          data: {
-            name: company,
-            email: normalizedEmail,
-            businessName: company,
-            niche: 'Online coaching',
-            emailSourceUrl: website,
-            targetGroup: 'VIRTUAL',
-            whyMatchFit: 'Independent online coaching business — contact address published on their own site.',
-            likelihoodScore: 100,
-            notes: `via:${EMAIL_SOURCE}`,
-            emailSubject: subject,
-            emailBody: body,
-            generationBatchId: batchId,
-            outreachLane: 'today',
-            queuedForDate: startOfEstDayUtc(now),
-          },
-          select: { id: true },
-        });
+        results = await webSearch(query);
+        stats.searches += 1;
       } catch (err) {
-        console.error(`[lead-finder email] write failed for ${normalizedEmail}:`, err);
-        stats.rejected += 1;
+        console.error(`[lead-finder email] search failed for "${query}":`, err);
         continue;
       }
-      stats.inserted += 1;
-      stats.drafted += 1;
-      notified.push({ platform: 'email', leadId: created.id, handle: company, contact: normalizedEmail });
-      console.log(`+ email ${company} -> ${normalizedEmail}`);
+
+      for (const res of results) {
+        if (stats.drafted >= LEADS_PER_LANE) break;
+        if (!res.link) continue;
+        const host = hostnameOf(res.link);
+        if (!host || isExcludedHost(host) || hostsTried.has(host)) {
+          stats.rejected += 1;
+          continue;
+        }
+        hostsTried.add(host);
+
+        const text = `${res.title ?? ''} ${res.snippet ?? ''}`;
+        if (!looksLikeOnlineCoach(text)) {
+          stats.rejected += 1;
+          continue;
+        }
+        // Publisher content that slipped past EXCLUDED_HOSTS. A listicle is not a coach, and the
+        // email on it belongs to an editor. This is what put emily.phares@fortune.com in front of
+        // JB on 2026-07-29.
+        if (looksLikeArticle(res.title ?? '', res.link)) {
+          stats.rejected += 1;
+          continue;
+        }
+        // Coaching SOFTWARE that slipped past EXCLUDED_HOSTS and the article filter — a SaaS
+        // product's own marketing copy uses the same "online coaching" language a real coach's
+        // site does. See looksLikeCoachingProduct.
+        if (looksLikeCoachingProduct(text)) {
+          stats.rejected += 1;
+          continue;
+        }
+        // Fix #4 (WF2.01) — recency-of-coaching-content signal: same override as the Instagram
+        // lane. See looksLikeLifeUpdateNotCoaching.
+        if (looksLikeLifeUpdateNotCoaching(text)) {
+          stats.rejected += 1;
+          continue;
+        }
+        stats.candidates += 1;
+
+        const website = `https://${host}`;
+        const email = await findContactEmail(website);
+        if (!email) {
+          stats.noEmail += 1;
+          continue;
+        }
+
+        const normalizedEmail = normalizeEmail(email);
+        if (!normalizedEmail || seen.has(normalizedEmail)) {
+          stats.duplicate += 1;
+          continue;
+        }
+        seen.add(normalizedEmail);
+
+        const company = companyNameFrom(res.title, host);
+        const draft = draftEmail(company);
+        // Fix #3 (WF2.02) — spellcheck pass before this copy is ever written to a row JB can
+        // open for approval. `company` is scraped from a page title, so it's the field most
+        // likely to carry a typo/garbled text through into the greeting.
+        const subjectSpellchecked = await spellcheckOutreachCopy(draft.subject);
+        const bodySpellchecked = await spellcheckOutreachCopy(draft.body);
+
+        let created: { id: string };
+        try {
+          created = await prisma.outreachEmailLead.create({
+            data: {
+              name: company,
+              email: normalizedEmail,
+              businessName: company,
+              niche: 'Online coaching',
+              emailSourceUrl: website,
+              targetGroup: 'VIRTUAL',
+              whyMatchFit: 'Independent online coaching business — contact address published on their own site.',
+              likelihoodScore: 100,
+              notes: `via:${EMAIL_SOURCE}`,
+              emailSubject: subjectSpellchecked.text,
+              emailBody: bodySpellchecked.text,
+              generationBatchId: batchId,
+              outreachLane: 'today',
+              queuedForDate: startOfEstDayUtc(now),
+            },
+            select: { id: true },
+          });
+        } catch (err) {
+          console.error(`[lead-finder email] write failed for ${normalizedEmail}:`, err);
+          stats.rejected += 1;
+          continue;
+        }
+        stats.inserted += 1;
+        stats.drafted += 1;
+        notified.push({ platform: 'email', leadId: created.id, handle: company, contact: normalizedEmail });
+        console.log(`+ email ${company} -> ${normalizedEmail}`);
+      }
     }
+
+    if (stats.drafted >= LEADS_PER_LANE) break;
+    const remaining = untriedQueries(EMAIL_QUERIES, tried);
+    if (!remaining.length) break; // whole pool exhausted this run — nothing left to refill with
+    console.warn(
+      `[lead-finder email] refilling — only ${stats.drafted}/${LEADS_PER_LANE} found so far, ` +
+        `trying ${remaining.length} more untried quer${remaining.length === 1 ? 'y' : 'ies'}.`,
+    );
+    queries = remaining;
   }
 
   stats.shortfall = Math.max(0, LEADS_PER_LANE - stats.drafted);
@@ -718,7 +837,7 @@ async function runEmailLane(
     stats.note =
       `Only found ${stats.drafted} of ${LEADS_PER_LANE} email leads this run ` +
       `(${stats.candidates} sites looked at, ${stats.noEmail} had no address we could trust, ${stats.duplicate} already on the list).`;
-    console.warn(`[lead-finder email] ${stats.note}`);
+    console.warn(`[lead-finder email] SHORTFALL: ${stats.note}`);
   }
   return stats;
 }
@@ -775,12 +894,24 @@ export async function runOutreachNationwideFinder(now = new Date()): Promise<Fin
     );
   }
 
+  const incomplete = lanes.some((l) => l.shortfall > 0);
   const summary: FinderRunSummary = {
     target: LEADS_PER_LANE,
     lanes,
     inserted: lanes.reduce((n, l) => n + l.inserted, 0),
     drafted: lanes.reduce((n, l) => n + l.drafted, 0),
     shortfall: lanes.reduce((n, l) => n + l.shortfall, 0),
+    incomplete,
   };
+  // Fix #1 (WF2.01) — surface a shortfall loudly at the top level, even though each short lane
+  // already logged and refilled on its own, so a batch that still came up short after refilling
+  // never just quietly ships as if nothing happened.
+  if (incomplete) {
+    console.error(
+      `[lead-finder] SHORTFALL — batch queued with ${summary.drafted}/${summary.target * lanes.length} ` +
+        `leads after refill attempts. ` +
+        lanes.filter((l) => l.note).map((l) => l.note).join(' '),
+    );
+  }
   return summary;
 }

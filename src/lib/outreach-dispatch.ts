@@ -66,8 +66,15 @@ function buildBatchBrief(
         `1) Open ${r.profileUrl}`,
         `2) Send DM: ${r.dmText}`,
         "3) Follow the account",
-        "4) Like the 3 most recent posts",
-        `5) Comment on ${r.commentPostRef ?? "the latest post"}: ${r.commentText}`,
+        // Fix #2 (WF2.05) — LIKES vs COMMENT split: likes are any of the 3 most recent posts,
+        // any topic (a coach's newest posts are often personal — travel, family, milestones).
+        // The comment below is deliberately a SEPARATE, narrower target: only the one post that
+        // is actually about coaching content, never the same coaching-specific line reused
+        // across all 3 liked posts.
+        "4) Like the 3 most recent posts (any topic — likes are not content-specific)",
+        r.commentPostRef
+          ? `5) Comment ONLY on this specific post (the one confirmed to be about coaching — do NOT reuse this comment on their other recent posts): ${r.commentPostRef}: ${r.commentText}`
+          : `5) Find their most recent post that is actually about coaching content (skip travel/family/personal posts) and comment ONLY there — do NOT reuse this comment on their other recent posts: ${r.commentText}`,
       ],
     });
   }
