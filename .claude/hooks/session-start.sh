@@ -77,5 +77,9 @@ if [ "$DB_PUSH_STATUS" -ne 0 ]; then
   echo "[session-start] db:push failed (exit $DB_PUSH_STATUS). Postgres or DATABASE_URL may need attention." >&2
 fi
 
+echo "[session-start] NVG BOOT CONTRACT v2 (2026-09-02) — identical in every repo and every routine"
+echo "[session-start] 1. Invoke skill nvg-operator-core — binding law. If it fails to load: stop, say so, assert nothing."
+echo "[session-start] 2. select * from v_boot; on NI-Brain kxijunwgbrlfzvgkhklo — live rules, switches, open jobs, health. The one door."
+
 echo "[session-start] Done."
 exit 0
