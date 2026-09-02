@@ -376,22 +376,37 @@ async function generateAndDownload(page, visualPrompt, workDir) {
   await page.locator("body").click({ position: { x: 5, y: 5 }, force: true }).catch(() => null);
   await page.waitForTimeout(1500);
 
-  const base64 = await page.evaluate(async () => {
-    const items = await navigator.clipboard.read();
-    for (const item of items) {
-      for (const type of item.types) {
-        if (type.startsWith("image/")) {
-          const blob = await item.getType(type);
-          const buf = await blob.arrayBuffer();
-          let binary = "";
-          const bytes = new Uint8Array(buf);
-          for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-          return btoa(binary);
+  // The OS/browser clipboard write triggered by the "Copy image" click is not always
+  // immediately visible to clipboard.read() — observed live 2026-09-02 (a real Carousel
+  // generation failed on the very first slide with the clipboard read racing ahead of the
+  // write). Retry a few times with a short backoff before giving up.
+  async function readClipboardImage() {
+    return page.evaluate(async () => {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        for (const type of item.types) {
+          if (type.startsWith("image/")) {
+            const blob = await item.getType(type);
+            const buf = await blob.arrayBuffer();
+            let binary = "";
+            const bytes = new Uint8Array(buf);
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            return btoa(binary);
+          }
         }
       }
-    }
-    return null;
-  }).catch((e) => { console.error("clipboard read failed: " + e); return null; });
+      return null;
+    }).catch((e) => {
+      console.error("clipboard read failed: " + e);
+      return null;
+    });
+  }
+
+  let base64 = null;
+  for (let attempt = 0; attempt < 4 && !base64; attempt++) {
+    if (attempt > 0) await page.waitForTimeout(1000);
+    base64 = await readClipboardImage();
+  }
 
   if (!base64) {
     await page.screenshot({ path: "/tmp/gemini-fail-debug.png", fullPage: false }).catch(() => null);
