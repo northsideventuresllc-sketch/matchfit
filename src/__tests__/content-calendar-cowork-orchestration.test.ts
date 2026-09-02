@@ -185,6 +185,7 @@ function buildSinglePostClient(initialPost: Record<string, unknown>) {
   const post: Record<string, unknown> = { ...initialPost };
   const updates: Record<string, unknown>[] = [];
   const jobInserts: Record<string, unknown>[] = [];
+  const miniJobInserts: Record<string, unknown>[] = [];
 
   const postsBuilder: Record<string, unknown> = {};
   Object.assign(postsBuilder, {
@@ -207,11 +208,22 @@ function buildSinglePostClient(initialPost: Record<string, unknown>) {
     update: () => ({ eq: () => Promise.resolve({ error: null }) }),
   };
 
-  const client = {
-    from: (table: string) => (table === "match_fit_content_cowork_jobs" ? jobsBuilder : postsBuilder),
+  const miniJobsBuilder = {
+    insert: (row: Record<string, unknown>) => {
+      miniJobInserts.push(row);
+      return Promise.resolve({ error: null });
+    },
   };
 
-  return { client, updates, jobInserts };
+  const client = {
+    from: (table: string) => {
+      if (table === "match_fit_content_cowork_jobs") return jobsBuilder;
+      if (table === "nvg_mini_jobs") return miniJobsBuilder;
+      return postsBuilder;
+    },
+  };
+
+  return { client, updates, jobInserts, miniJobInserts };
 }
 
 const baseMediaPost = {
@@ -226,7 +238,10 @@ const baseMediaPost = {
 
 describe("fireCoworkForPost", () => {
   it("starting from hub: creates a single-post generate_media job and lands the post in pending", async () => {
-    const { client, updates, jobInserts } = buildSinglePostClient({ ...baseMediaPost, workflow_stage: "hub" });
+    const { client, updates, jobInserts, miniJobInserts } = buildSinglePostClient({
+      ...baseMediaPost,
+      workflow_stage: "hub",
+    });
     mockCreateNiBrainClient.mockReturnValue(client);
 
     const { job, post } = await fireCoworkForPost("post_1");
@@ -236,6 +251,12 @@ describe("fireCoworkForPost", () => {
     expect(updates[0]).toMatchObject({ workflow_stage: "pending", status: "pending", media_status: "generating" });
     expect(updates[0].media_generation_started_at).toBeTruthy();
     expect(jobInserts[0]).toMatchObject({ job_type: "generate_media" });
+    // The real agent fires too — a shell job on the mini running the browser/Gemini-Pro
+    // automation for this exact post, not just the (broken) REST-API cowork job above.
+    expect(miniJobInserts).toHaveLength(1);
+    expect(miniJobInserts[0]).toMatchObject({ kind: "shell" });
+    expect((miniJobInserts[0].payload as { cmd: string }).cmd).toContain("--ids=post_1");
+    expect((miniJobInserts[0].payload as { cmd: string }).cmd).toContain("gemini-media-automation.mjs");
   });
 
   it("starting from publishing (Regenerate): still lands the post in pending, existing media untouched by the patch", async () => {
@@ -281,8 +302,19 @@ describe("fireCoworkForDay reads from pending", () => {
       }),
       update: () => ({ eq: () => Promise.resolve({ error: null }) }),
     };
+    const miniJobInserts: Record<string, unknown>[] = [];
+    const miniJobsBuilder = {
+      insert: (row: Record<string, unknown>) => {
+        miniJobInserts.push(row);
+        return Promise.resolve({ error: null });
+      },
+    };
     mockCreateNiBrainClient.mockReturnValue({
-      from: (table: string) => (table === "match_fit_content_cowork_jobs" ? jobsBuilder : postsBuilder),
+      from: (table: string) => {
+        if (table === "match_fit_content_cowork_jobs") return jobsBuilder;
+        if (table === "nvg_mini_jobs") return miniJobsBuilder;
+        return postsBuilder;
+      },
     });
 
     const { job, mediaPostCount } = await fireCoworkForDay("2026-08-31");
@@ -291,6 +323,9 @@ describe("fireCoworkForDay reads from pending", () => {
     expect(capturedFilters.post_date).toBe("2026-08-31");
     expect(mediaPostCount).toBe(1);
     expect(job.id).toBe("job_1");
+    // The real agent fires for every media post staged that day, not just the REST-API job.
+    expect(miniJobInserts).toHaveLength(1);
+    expect((miniJobInserts[0].payload as { cmd: string }).cmd).toContain("--ids=post_1");
   });
 });
 

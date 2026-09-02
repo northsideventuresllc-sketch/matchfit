@@ -59,6 +59,34 @@ export async function createCoworkJob(args: {
   return data as CoworkJobRow;
 }
 
+/**
+ * Fires the real browser-driven media generator on JB's Mac mini for the given posts —
+ * scripts/gemini-media-automation.mjs, which drives the Gemini web app over CDP/Playwright
+ * (dedicated automation Chrome profile, JB's own logged-in Gemini session) and writes real
+ * images back onto match_fit_content_calendar_posts. This is the only generation path that
+ * actually produces media: the Gemini Developer API key behind the REST cron
+ * (content-calendar/media-generation.ts) has zero free-tier image/video quota — confirmed
+ * live 2026-08-04 (nv-vault scripts/media/README-mf-media-drain.md) and re-confirmed
+ * 2026-09-02 — so that path can never succeed regardless of model choice or retry count.
+ *
+ * Queues into nvg_mini_jobs (NI-Brain), kind="shell" — the only kind the mini's runner
+ * executes. The mini's own job-queue runner (liveness in nvg_mini_heartbeat) claims and
+ * runs this independently of whether this session or any live browser-tool bridge is
+ * connected — this is what makes "press the button, the agent goes and does it" real
+ * rather than requiring an attended Cowork session.
+ */
+export async function queueMiniChromeAgentJob(args: { ids: string[]; title: string }): Promise<void> {
+  if (!args.ids.length) return;
+  const client = createNiBrainClient();
+  const cmd = `cd $HOME/nvg-gemini-automation && node gemini-media-automation.mjs --ids=${args.ids.join(",")} 2>&1`;
+  const { error } = await client.from("nvg_mini_jobs").insert({
+    kind: "shell",
+    title: args.title,
+    payload: { cmd, timeout: 600 },
+  });
+  if (error) throw new Error(`queueMiniChromeAgentJob failed: ${error.message}`);
+}
+
 export async function updateCoworkJobStatus(args: {
   jobId: string;
   status: CoworkJobStatus;
