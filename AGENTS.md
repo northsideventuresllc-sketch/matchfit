@@ -4,7 +4,7 @@
 You are working inside the NORTHSiDE Intelligence (NI) ecosystem. Before touching any code:
 
 1. **Read the master state file** from the vault:
-   `~/Desktop/Desktop/Northside Ventures/Obsidian Vault/Northside Ventures Group Vault/_Command Center/NI-Master-Context.md`
+   read from GitHub `northsideventuresllc-sketch/nv-vault` → `_Command Center/CONTEXT-MAP.md`
    — This has today's date, all project statuses, and critical open items.
 
 2. **Query NI-Brain** (Supabase project `kxijunwgbrlfzvgkhklo`):
@@ -19,7 +19,7 @@ You are working inside the NORTHSiDE Intelligence (NI) ecosystem. Before touchin
 
 **Write-back after work:** Log any [DECISION] [LEARNED] [CORRECTION] to NI-Brain Learnings/Decisions tables. Never ask JB to re-explain anything in the vault.
 
-**Operator:** Jonny (JB) — never Jonathan. Brand: `NORTHSiDE` — exact casing always.
+**Operator:** Jonny (JB) — never Jonathan. Brand: Northside (title case). DEAD RULE, do not reinstate the old NORTHSiDE casing — JB 2026-08-25, Decision #1389.
 <!-- END:ni-context-protocol -->
 
 ---
