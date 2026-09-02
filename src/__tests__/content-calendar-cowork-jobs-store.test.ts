@@ -9,19 +9,19 @@ vi.mock("@/lib/ni-brain-client", () => ({
 }));
 
 import {
-  createCoworkJob,
+  createMediaAgentJob,
   getContentCalendarSettings,
   getMatchFitDpmoPhase,
-  getPendingCoworkJobs,
+  getPendingMediaAgentJobs,
   updateContentCalendarSettings,
-  updateCoworkJobStatus,
+  updateMediaAgentJobStatus,
 } from "@/lib/content-calendar/cowork-jobs";
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe("createCoworkJob", () => {
+describe("createMediaAgentJob", () => {
   it("inserts a queued job and returns the row", async () => {
     let captured: Record<string, unknown> | null = null;
     mockCreateNiBrainClient.mockReturnValue({
@@ -37,7 +37,7 @@ describe("createCoworkJob", () => {
       }),
     });
 
-    const job = await createCoworkJob({
+    const job = await createMediaAgentJob({
       jobType: "generate_media",
       brief: { prompt: "make a reel" },
       platformTargets: ["Instagram"],
@@ -53,7 +53,7 @@ describe("createCoworkJob", () => {
   });
 });
 
-describe("updateCoworkJobStatus", () => {
+describe("updateMediaAgentJobStatus", () => {
   it("stamps completed_at and result when completing", async () => {
     let captured: Record<string, unknown> | null = null;
     mockCreateNiBrainClient.mockReturnValue({
@@ -65,7 +65,7 @@ describe("updateCoworkJobStatus", () => {
       }),
     });
 
-    await updateCoworkJobStatus({
+    await updateMediaAgentJobStatus({
       jobId: "job_1",
       status: "complete",
       result: { urls: ["https://example.com/a.png"] },
@@ -86,14 +86,14 @@ describe("updateCoworkJobStatus", () => {
       }),
     });
 
-    await updateCoworkJobStatus({ jobId: "job_1", status: "dispatched" });
+    await updateMediaAgentJobStatus({ jobId: "job_1", status: "dispatched" });
 
     expect((captured as Record<string, unknown>).dispatched_at).toBeTruthy();
     expect((captured as Record<string, unknown>).completed_at).toBeUndefined();
   });
 });
 
-describe("getPendingCoworkJobs", () => {
+describe("getPendingMediaAgentJobs", () => {
   it("returns only queued jobs ordered by creation", async () => {
     let capturedEq: [string, string] | null = null;
     mockCreateNiBrainClient.mockReturnValue({
@@ -107,7 +107,7 @@ describe("getPendingCoworkJobs", () => {
       }),
     });
 
-    const jobs = await getPendingCoworkJobs();
+    const jobs = await getPendingMediaAgentJobs();
 
     expect(capturedEq).toEqual(["status", "queued"]);
     expect(jobs).toHaveLength(1);

@@ -5,7 +5,7 @@ import { adminSecondaryButtonClass } from "@/components/admin/admin-portal-ui";
 
 /**
  * Hidden file input wrapped in a button. Posts each selected file straight to the v2 media-upload
- * route (now admin-session-capable, not just Cowork) and hands the resulting public URL(s) back
+ * route (now admin-session-capable, not just the media agent) and hands the resulting public URL(s) back
  * via onUploaded. Used by Publishing's Manually Redo action (manual_redo_media) — this is also
  * where a device upload happens for a post that landed in Publishing with no media yet via the
  * Manually-Generate-Media day bypass, since manual_redo_media overwrites in place whether or not

@@ -4,8 +4,8 @@ const M = vi.hoisted(() => ({
   hasValidCoworkSecret: vi.fn(),
   hydratePlatformEnv: vi.fn(),
   ensureSchema: vi.fn(),
-  getPendingCoworkJobs: vi.fn(),
-  updateCoworkJobStatus: vi.fn(),
+  getPendingMediaAgentJobs: vi.fn(),
+  updateMediaAgentJobStatus: vi.fn(),
   completeGenerateMediaJob: vi.fn(),
   generateStaticMedia: vi.fn(),
   updatePostMedia: vi.fn(),
@@ -19,8 +19,8 @@ vi.mock("@/lib/require-cowork-secret", () => ({ hasValidCoworkSecret: M.hasValid
 vi.mock("@/lib/hydrate-platform-env", () => ({ hydratePlatformEnvFromDatabase: M.hydratePlatformEnv }));
 vi.mock("@/lib/ensure-content-hub-schema", () => ({ ensureContentCalendarV22Schema: M.ensureSchema }));
 vi.mock("@/lib/content-calendar/cowork-jobs", () => ({
-  getPendingCoworkJobs: M.getPendingCoworkJobs,
-  updateCoworkJobStatus: M.updateCoworkJobStatus,
+  getPendingMediaAgentJobs: M.getPendingMediaAgentJobs,
+  updateMediaAgentJobStatus: M.updateMediaAgentJobStatus,
 }));
 vi.mock("@/lib/content-calendar/content-calendar-cowork-orchestration", () => ({
   completeGenerateMediaJob: M.completeGenerateMediaJob,
@@ -66,7 +66,7 @@ beforeEach(() => {
   M.hasValidCoworkSecret.mockResolvedValue(true);
   M.hydratePlatformEnv.mockResolvedValue(undefined);
   M.ensureSchema.mockResolvedValue(undefined);
-  M.updateCoworkJobStatus.mockResolvedValue(undefined);
+  M.updateMediaAgentJobStatus.mockResolvedValue(undefined);
   M.completeGenerateMediaJob.mockResolvedValue({ updated: 1 });
   M.updatePostMedia.mockResolvedValue(undefined);
   M.niBrainSelectResult.data = [];
@@ -75,7 +75,7 @@ beforeEach(() => {
 
 describe("generate-media cron aspect ratios", () => {
   it("maps post type to the platform-correct ratio (Video 9:16, Static/Carousel 4:5)", async () => {
-    M.getPendingCoworkJobs.mockResolvedValue([
+    M.getPendingMediaAgentJobs.mockResolvedValue([
       job({
         video: { postId: "p_video", postType: "Video", prompt: "video hook" },
         static: { postId: "p_static", postType: "Static", prompt: "static still" },
@@ -92,7 +92,7 @@ describe("generate-media cron aspect ratios", () => {
   });
 
   it("prefers the brief's dimensions.aspectRatio over the post-type map", async () => {
-    M.getPendingCoworkJobs.mockResolvedValue([
+    M.getPendingMediaAgentJobs.mockResolvedValue([
       job({
         static: {
           postId: "p_static",
@@ -110,7 +110,7 @@ describe("generate-media cron aspect ratios", () => {
   });
 
   it("ignores an unsupported ratio in the brief and falls back to the post-type map", async () => {
-    M.getPendingCoworkJobs.mockResolvedValue([
+    M.getPendingMediaAgentJobs.mockResolvedValue([
       job({
         video: { postId: "p_video", postType: "Video", prompt: "hook", dimensions: { aspectRatio: "3:2" } },
       }),
@@ -125,7 +125,7 @@ describe("generate-media cron aspect ratios", () => {
 
 describe("generate-media cron zero-image handling", () => {
   it("does NOT promote anything to publishing and fails the job with the real reason", async () => {
-    M.getPendingCoworkJobs.mockResolvedValue([
+    M.getPendingMediaAgentJobs.mockResolvedValue([
       job({ static: { postId: "p_static", postType: "Static", prompt: "still" } }),
     ]);
     M.generateStaticMedia.mockResolvedValue({
@@ -139,7 +139,7 @@ describe("generate-media cron zero-image handling", () => {
     // The bug: completeGenerateMediaJob used to run anyway, marking the job complete and
     // pushing media-less posts into workflow_stage 'publishing'.
     expect(M.completeGenerateMediaJob).not.toHaveBeenCalled();
-    expect(M.updateCoworkJobStatus).toHaveBeenCalledWith(
+    expect(M.updateMediaAgentJobStatus).toHaveBeenCalledWith(
       expect.objectContaining({
         jobId: "job_1",
         status: "failed",
@@ -150,7 +150,7 @@ describe("generate-media cron zero-image handling", () => {
   });
 
   it("promotes only the posts that actually got media and skips the empty one", async () => {
-    M.getPendingCoworkJobs.mockResolvedValue([
+    M.getPendingMediaAgentJobs.mockResolvedValue([
       job({
         static: { postId: "p_ok", postType: "Static", prompt: "still" },
         video: { postId: "p_empty", postType: "Video", prompt: "hook" },
@@ -184,13 +184,13 @@ describe("generate-media cron zero-image handling", () => {
   });
 
   it("still fails a job whose brief has no usable prompts", async () => {
-    M.getPendingCoworkJobs.mockResolvedValue([job({ static: { postId: "p_1" } })]);
+    M.getPendingMediaAgentJobs.mockResolvedValue([job({ static: { postId: "p_1" } })]);
 
     await GET(req());
 
     expect(M.generateStaticMedia).not.toHaveBeenCalled();
     expect(M.completeGenerateMediaJob).not.toHaveBeenCalled();
-    expect(M.updateCoworkJobStatus).toHaveBeenCalledWith(
+    expect(M.updateMediaAgentJobStatus).toHaveBeenCalledWith(
       expect.objectContaining({ status: "failed", error: "Job brief contained no usable prompts." }),
     );
   });
@@ -201,14 +201,14 @@ describe("generate-media cron zero-image handling", () => {
     const res = await GET(req());
 
     expect(res.status).toBe(401);
-    expect(M.getPendingCoworkJobs).not.toHaveBeenCalled();
+    expect(M.getPendingMediaAgentJobs).not.toHaveBeenCalled();
   });
 });
 
 describe("generate-media cron daily cap (JB locked 2026-08-03: 1 static + 1 carousel + 1 video/day)", () => {
   it("does not generate a type already completed today, and re-queues instead of failing", async () => {
     M.niBrainSelectResult.data = [{ post_type: "Static" }];
-    M.getPendingCoworkJobs.mockResolvedValue([
+    M.getPendingMediaAgentJobs.mockResolvedValue([
       job({ static: { postId: "p_static", postType: "Static", prompt: "still" } }),
     ]);
 
@@ -218,14 +218,14 @@ describe("generate-media cron daily cap (JB locked 2026-08-03: 1 static + 1 caro
     expect(M.generateStaticMedia).not.toHaveBeenCalled();
     expect(M.completeGenerateMediaJob).not.toHaveBeenCalled();
     // Left queued for a future run once the cap resets — not marked failed.
-    expect(M.updateCoworkJobStatus).toHaveBeenCalledWith({ jobId: "job_1", status: "queued" });
-    expect(M.updateCoworkJobStatus).not.toHaveBeenCalledWith(expect.objectContaining({ status: "failed" }));
+    expect(M.updateMediaAgentJobStatus).toHaveBeenCalledWith({ jobId: "job_1", status: "queued" });
+    expect(M.updateMediaAgentJobStatus).not.toHaveBeenCalledWith(expect.objectContaining({ status: "failed" }));
     expect(body.results[0]?.cappedPosts).toEqual(["p_static"]);
   });
 
   it("generates the still-open types and caps only the exhausted one within the same job", async () => {
     M.niBrainSelectResult.data = [{ post_type: "Video" }];
-    M.getPendingCoworkJobs.mockResolvedValue([
+    M.getPendingMediaAgentJobs.mockResolvedValue([
       job({
         static: { postId: "p_static", postType: "Static", prompt: "still" },
         video: { postId: "p_video", postType: "Video", prompt: "hook" },
@@ -244,7 +244,7 @@ describe("generate-media cron daily cap (JB locked 2026-08-03: 1 static + 1 caro
   });
 
   it("never generates a second post of the same type within one run, even across two jobs", async () => {
-    M.getPendingCoworkJobs.mockResolvedValue([
+    M.getPendingMediaAgentJobs.mockResolvedValue([
       job({ static: { postId: "p_static_1", postType: "Static", prompt: "still 1" } }),
       { id: "job_2", brief: { kind: "generate_media", prompts: { static: { postId: "p_static_2", postType: "Static", prompt: "still 2" } } } },
     ]);
@@ -260,7 +260,7 @@ describe("generate-media cron daily cap (JB locked 2026-08-03: 1 static + 1 caro
       mediaUrls: { p_static_1: ["https://cdn.test/i.png"] },
     });
     expect(M.completeGenerateMediaJob).not.toHaveBeenCalledWith(expect.objectContaining({ jobId: "job_2" }));
-    expect(M.updateCoworkJobStatus).toHaveBeenCalledWith({ jobId: "job_2", status: "queued" });
+    expect(M.updateMediaAgentJobStatus).toHaveBeenCalledWith({ jobId: "job_2", status: "queued" });
   });
 });
 
@@ -272,7 +272,7 @@ describe("generate-media cron pending-stage guard (completeGenerateMediaJob's ow
   // and trust whatever `updated` count comes back, never assuming updated === the number of
   // mediaUrls entries it sent.
   it("reports whatever updated count completeGenerateMediaJob returns, even when it's less than the posts generated (one already moved off pending)", async () => {
-    M.getPendingCoworkJobs.mockResolvedValue([
+    M.getPendingMediaAgentJobs.mockResolvedValue([
       job({
         static: { postId: "p_still_pending", postType: "Static", prompt: "still" },
         video: { postId: "p_moved_away", postType: "Video", prompt: "hook" },

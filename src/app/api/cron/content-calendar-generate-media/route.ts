@@ -5,7 +5,7 @@ import {
 } from "@/lib/content-calendar/content-calendar-cowork-orchestration";
 import { updatePostMedia } from "@/lib/content-calendar/content-calendar-store";
 import { isMediaAspectRatio, type MediaAspectRatio } from "@/lib/content-calendar/media-generation";
-import { getPendingCoworkJobs, updateCoworkJobStatus } from "@/lib/content-calendar/cowork-jobs";
+import { getPendingMediaAgentJobs, updateMediaAgentJobStatus } from "@/lib/content-calendar/cowork-jobs";
 import { ensureContentCalendarV22Schema } from "@/lib/ensure-content-hub-schema";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { hasValidCoworkSecret } from "@/lib/require-cowork-secret";
@@ -123,7 +123,7 @@ export async function GET(req: Request) {
     await hydratePlatformEnvFromDatabase();
     await ensureContentCalendarV22Schema();
 
-    const jobs = await getPendingCoworkJobs("generate_media");
+    const jobs = await getPendingMediaAgentJobs("generate_media");
     const remainingCapToday = await getRemainingMediaCapToday();
     const results: Array<{
       jobId: string;
@@ -138,7 +138,7 @@ export async function GET(req: Request) {
     for (const job of jobs) {
       // Claim it first so a concurrent run cannot double-generate, and so dispatched_at is
       // finally populated — it was never being set, leaving the queue with no liveness signal.
-      await updateCoworkJobStatus({ jobId: job.id, status: "running" });
+      await updateMediaAgentJobStatus({ jobId: job.id, status: "running" });
 
       try {
         const brief = (job.brief ?? {}) as { prompts?: Record<string, BriefPrompt> };
@@ -214,7 +214,7 @@ export async function GET(req: Request) {
             // Every prompt in this job hit the daily cap — not a failure, just not this job's turn
             // yet. Leave it queued (not failed) so it's picked up automatically once the cap
             // resets tomorrow, instead of burying a healthy job under a false "failed" status.
-            await updateCoworkJobStatus({ jobId: job.id, status: "queued" });
+            await updateMediaAgentJobStatus({ jobId: job.id, status: "queued" });
             results.push({ jobId: job.id, generated: 0, cappedPosts });
             continue;
           }
@@ -237,7 +237,7 @@ export async function GET(req: Request) {
         });
       } catch (e) {
         const message = e instanceof Error ? e.message : "Media generation failed.";
-        await updateCoworkJobStatus({ jobId: job.id, status: "failed", error: message });
+        await updateMediaAgentJobStatus({ jobId: job.id, status: "failed", error: message });
         results.push({ jobId: job.id, error: message });
       }
     }
