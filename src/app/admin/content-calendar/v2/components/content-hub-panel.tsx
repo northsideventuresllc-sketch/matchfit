@@ -60,7 +60,7 @@ function DayContainer({
   wiring,
   onApproveDay,
   onReturnToEditing,
-  onFireCowork,
+  onFireMediaAgent,
   onManuallyGenerateMedia,
   onSubmitForGeneration,
 }: {
@@ -68,7 +68,7 @@ function DayContainer({
   wiring: BubbleWiring;
   onApproveDay: (postDate: string) => Promise<DayActionResult>;
   onReturnToEditing: (postDate: string) => Promise<DayActionResult>;
-  onFireCowork: (postDate: string) => Promise<DayActionResult>;
+  onFireMediaAgent: (postDate: string) => Promise<DayActionResult>;
   onManuallyGenerateMedia: (postDate: string) => Promise<DayActionResult>;
   onSubmitForGeneration: (id: string) => Promise<void>;
 }) {
@@ -95,6 +95,11 @@ function DayContainer({
               ? `Self-learning memo recorded (${result.memoId}).`
               : "Self-learning memo recorded on approval.",
           );
+          setJobNote(
+            result.jobId
+              ? `Media agent job queued${result.jobId ? ` (${result.jobId})` : ""}. The agent on the Mac mini will pick it up — it does not finish here.`
+              : null,
+          );
         }
         if (kind === "return") {
           setMemoNote(null);
@@ -108,7 +113,7 @@ function DayContainer({
           progress.finish();
           setManualMediaNote(null);
           setJobNote(
-            `Cowork media job queued${result.jobId ? ` (${result.jobId})` : ""}. An external Cowork session will pick it up — it does not finish here.`,
+            `Media agent job queued${result.jobId ? ` (${result.jobId})` : ""}. The agent on the Mac mini will pick it up — it does not finish here.`,
           );
         }
         if (kind === "manual-media") {
@@ -148,6 +153,7 @@ function DayContainer({
                 className={adminPrimaryButtonClass}
                 disabled={action !== null}
                 onClick={() => void run("approve", () => onApproveDay(group.date))}
+                title="Approves the day and immediately fires the media agent — no separate click needed."
               >
                 {action === "approve" ? "APPROVING…" : "APPROVE DAY"}
               </button>
@@ -156,7 +162,7 @@ function DayContainer({
                 className={adminSecondaryButtonClass}
                 disabled={action !== null}
                 onClick={() => void run("manual-media", () => onManuallyGenerateMedia(group.date))}
-                title="Skip Cowork media generation and send this day's posts straight to Publishing."
+                title="Skip the media agent and send this day's posts straight to Publishing."
               >
                 {action === "manual-media" ? "WORKING…" : "MANUALLY GENERATE MEDIA"}
               </button>
@@ -176,17 +182,18 @@ function DayContainer({
                 className={adminSecondaryButtonClass}
                 disabled={action !== null}
                 onClick={() => void run("manual-media", () => onManuallyGenerateMedia(group.date))}
-                title="Skip Cowork media generation and send this day's posts straight to Publishing."
+                title="Skip the media agent and send this day's posts straight to Publishing."
               >
                 {action === "manual-media" ? "WORKING…" : "MANUALLY GENERATE MEDIA"}
               </button>
               <button
                 type="button"
-                className={adminPrimaryButtonClass}
+                className={adminSecondaryButtonClass}
                 disabled={action !== null}
-                onClick={() => void run("fire", () => onFireCowork(group.date))}
+                onClick={() => void run("fire", () => onFireMediaAgent(group.date))}
+                title="Approve Day already fires the media agent automatically — use this only to retry if that didn't queue (e.g. the mini was unreachable)."
               >
-                {action === "fire" ? "QUEUING…" : "FIRE COWORK"}
+                {action === "fire" ? "QUEUING…" : "RETRY FIRE MEDIA AGENT"}
               </button>
             </>
           )}
@@ -195,7 +202,7 @@ function DayContainer({
 
       {progress.active ? (
         <div className="mt-4">
-          <ProgressBar percent={progress.percent} label="Queuing Cowork media job" />
+          <ProgressBar percent={progress.percent} label="Queuing media agent job" />
         </div>
       ) : null}
       {memoNote ? <p className="mt-3 text-xs font-semibold text-emerald-300">{memoNote}</p> : null}
@@ -225,7 +232,7 @@ export function ContentHubPanel({
   wiring,
   onApproveDay,
   onReturnToEditing,
-  onFireCowork,
+  onFireMediaAgent,
   onManuallyGenerateMedia,
   onPostAction,
 }: {
@@ -233,7 +240,7 @@ export function ContentHubPanel({
   wiring: BubbleWiring;
   onApproveDay: (postDate: string) => Promise<DayActionResult>;
   onReturnToEditing: (postDate: string) => Promise<DayActionResult>;
-  onFireCowork: (postDate: string) => Promise<DayActionResult>;
+  onFireMediaAgent: (postDate: string) => Promise<DayActionResult>;
   /** Fetch + reload hub/publishing stages + tab switch, owned by the parent shell. */
   onManuallyGenerateMedia: (postDate: string) => Promise<DayActionResult>;
   /** Mirrors the `onAction` prop threaded into PendingTabPanel / PublishingPanel from the parent's `postAction`. */
@@ -276,7 +283,7 @@ export function ContentHubPanel({
         <p className="mt-2 text-sm leading-relaxed text-white/75">
           Match Fit posts four times a day, Monday–Friday — Static, Carousel, Text, and Video. The full week is
           generated automatically {WEEKLY_GENERATION_TIME_LABEL}. Edit any post below, approve the whole day, then
-          fire Cowork to generate the media.
+          fire the media agent to generate it.
         </p>
       </section>
 
@@ -287,7 +294,7 @@ export function ContentHubPanel({
           wiring={wiring}
           onApproveDay={onApproveDay}
           onReturnToEditing={onReturnToEditing}
-          onFireCowork={onFireCowork}
+          onFireMediaAgent={onFireMediaAgent}
           onManuallyGenerateMedia={runManuallyGenerateMedia}
           onSubmitForGeneration={submitForGeneration}
         />
@@ -297,7 +304,7 @@ export function ContentHubPanel({
         <section className={adminCardClass}>
           <h3 className="text-sm font-black uppercase tracking-[0.14em] text-white">Impromptu drafts (no scheduled day)</h3>
           <p className="mt-0.5 text-[11px] text-white/40">
-            These impromptu drafts have no post date, so day-level approve / fire Cowork does not apply. Edit and copy
+            These impromptu drafts have no post date, so day-level approve / fire media agent does not apply. Edit and copy
             them here, or use them as source material.
           </p>
           <div className="mt-4">

@@ -93,7 +93,7 @@ export function isDayApproved(posts: ClientContentCalendarV2Post[]): boolean {
 /**
  * Groups Content Hub posts into day-level containers (one window per calendar date holding all of
  * that day's posts), keeping impromptu-lane posts separated within their date. Posts with no date
- * (dateless impromptu drafts) are returned separately since the day-approve / fire-cowork routes
+ * (dateless impromptu drafts) are returned separately since the day-approve / fire-media-agent routes
  * are keyed by date and cannot act on them.
  */
 export function groupHubPosts(posts: ClientContentCalendarV2Post[]): {

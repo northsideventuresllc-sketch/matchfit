@@ -157,7 +157,7 @@ export function ContentCalendarV2Client({
     if (tab === "archives") queueMicrotask(() => void loadStage("archived"));
   }, [tab, loadStage]);
 
-  // Reflect any in-flight Cowork media completions (or elapsed pending-progress) moving posts
+  // Reflect any in-flight media agent completions (or elapsed pending-progress) moving posts
   // between stages without a manual refresh — safe on remount because it re-reads server state
   // rather than assuming the tab stayed open.
   useEffect(() => {
@@ -259,9 +259,9 @@ export function ContentCalendarV2Client({
     (postDate: string) => dayAction("approve", { postDate, action: "return_to_editing" }),
     [dayAction],
   );
-  const onFireCowork = useCallback((postDate: string) => dayAction("fire-cowork", { postDate }), [dayAction]);
+  const onFireMediaAgent = useCallback((postDate: string) => dayAction("fire-media-agent", { postDate }), [dayAction]);
 
-  // Manually Generate Media Day (Lane 1) — skips Cowork entirely, so every post for the date lands
+  // Manually Generate Media Day (Lane 1) — skips the media agent entirely, so every post for the date lands
   // straight in Publishing, unconditionally.
   const onManuallyGenerateDayMedia = useCallback(
     async (postDate: string): Promise<{ moved?: number; memoId?: string | null }> => {
@@ -426,7 +426,7 @@ export function ContentCalendarV2Client({
           wiring={bubbleWiring}
           onApproveDay={onApproveDay}
           onReturnToEditing={onReturnToEditing}
-          onFireCowork={onFireCowork}
+          onFireMediaAgent={onFireMediaAgent}
           onManuallyGenerateMedia={onManuallyGenerateDayMedia}
           onPostAction={postAction}
         />

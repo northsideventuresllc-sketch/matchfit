@@ -5,7 +5,7 @@ import {
   completePostBatchJob,
   loadJobForCompletion,
 } from "@/lib/content-calendar/content-calendar-cowork-orchestration";
-import { updateCoworkJobStatus } from "@/lib/content-calendar/cowork-jobs";
+import { updateMediaAgentJobStatus } from "@/lib/content-calendar/cowork-jobs";
 import {
   ensureContentCalendarV22Schema,
   isMissingContentCalendarV22SchemaError,
@@ -37,18 +37,18 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Invalid cowork job completion payload." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: "Invalid media agent job completion payload." }, { status: 400 });
   const { id } = await ctx.params;
 
   try {
     await ensureContentCalendarV22Schema();
     const job = await loadJobForCompletion(id);
-    if (!job) return NextResponse.json({ error: "Cowork job not found." }, { status: 404 });
+    if (!job) return NextResponse.json({ error: "Media agent job not found." }, { status: 404 });
 
     const body = parsed.data;
 
     if ("error" in body && body.error && !("mediaUrls" in body) && !("postedUrls" in body)) {
-      await updateCoworkJobStatus({ jobId: id, status: "failed", error: body.error });
+      await updateMediaAgentJobStatus({ jobId: id, status: "failed", error: body.error });
       return NextResponse.json({ ok: true, status: "failed" });
     }
 
@@ -70,9 +70,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
     return NextResponse.json({ error: "Unrecognized completion payload." }, { status: 400 });
   } catch (e) {
-    console.error("[content-calendar v2 cowork-job complete]", e);
+    console.error("[content-calendar v2 media-agent-job complete]", e);
     return NextResponse.json(
-      { error: formatUserFacingError(e, "Could not complete cowork job.") },
+      { error: formatUserFacingError(e, "Could not complete media agent job.") },
       { status: isMissingContentCalendarV22SchemaError(e) ? 503 : 500 },
     );
   }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getPendingCoworkJobs } from "@/lib/content-calendar/cowork-jobs";
+import { getPendingMediaAgentJobs } from "@/lib/content-calendar/cowork-jobs";
 import {
   ensureContentCalendarV22Schema,
   isMissingContentCalendarV22SchemaError,
@@ -10,10 +10,11 @@ import { hasValidCoworkSecret } from "@/lib/require-cowork-secret";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/admin/content-calendar/v2/cowork-jobs?jobType=generate_media|post_batch
+ * GET /api/admin/content-calendar/v2/media-agent-jobs?jobType=generate_media|post_batch
  *
- * Lists queued/dispatched Cowork jobs (with their full brief) for an external Cowork
- * Desktop-Control session to pick up. Omit jobType to return both kinds.
+ * Lists queued/dispatched media-agent jobs (with their full brief) for the Mac-mini job-queue
+ * runner (nvg_mini_jobs) to pick up and hand to scripts/gemini-media-automation.mjs. Omit
+ * jobType to return both kinds.
  */
 export async function GET(req: Request) {
   if (!(await hasValidCoworkSecret(req))) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
@@ -28,13 +29,13 @@ export async function GET(req: Request) {
 
   try {
     await ensureContentCalendarV22Schema();
-    const jobs = await getPendingCoworkJobs(jobType);
+    const jobs = await getPendingMediaAgentJobs(jobType);
     return NextResponse.json({ jobs });
   } catch (e) {
-    console.error("[content-calendar cowork-jobs GET]", e);
+    console.error("[content-calendar media-agent-jobs GET]", e);
     if (isMissingContentCalendarV22SchemaError(e)) {
       return NextResponse.json({ error: "Content calendar schema is still updating." }, { status: 503 });
     }
-    return NextResponse.json({ error: "Could not load cowork jobs." }, { status: 500 });
+    return NextResponse.json({ error: "Could not load media agent jobs." }, { status: 500 });
   }
 }

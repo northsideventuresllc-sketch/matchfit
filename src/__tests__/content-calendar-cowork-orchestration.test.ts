@@ -25,8 +25,8 @@ import {
   approvePublishingPostsForPosting,
   completeGenerateMediaJob,
   completePostBatchJob,
-  fireCoworkForDay,
-  fireCoworkForPost,
+  fireMediaAgentForDay,
+  fireMediaAgentForPost,
   manuallyGenerateDayMedia,
 } from "@/lib/content-calendar/content-calendar-cowork-orchestration";
 
@@ -180,7 +180,7 @@ describe("approvePublishingPostsForPosting platformOverrides", () => {
   });
 });
 
-/** Minimal chainable fake for a single-post read/update/reload cycle, shared by fireCoworkForPost's two tests. */
+/** Minimal chainable fake for a single-post read/update/reload cycle, shared by fireMediaAgentForPost's two tests. */
 function buildSinglePostClient(initialPost: Record<string, unknown>) {
   const post: Record<string, unknown> = { ...initialPost };
   const updates: Record<string, unknown>[] = [];
@@ -236,7 +236,7 @@ const baseMediaPost = {
   post_date: "2026-08-31",
 };
 
-describe("fireCoworkForPost", () => {
+describe("fireMediaAgentForPost", () => {
   it("starting from hub: creates a single-post generate_media job and lands the post in pending", async () => {
     const { client, updates, jobInserts, miniJobInserts } = buildSinglePostClient({
       ...baseMediaPost,
@@ -244,7 +244,7 @@ describe("fireCoworkForPost", () => {
     });
     mockCreateNiBrainClient.mockReturnValue(client);
 
-    const { job, post } = await fireCoworkForPost("post_1");
+    const { job, post } = await fireMediaAgentForPost("post_1");
 
     expect(job.id).toBe("job_1");
     expect(post.workflow_stage).toBe("pending");
@@ -267,7 +267,7 @@ describe("fireCoworkForPost", () => {
     });
     mockCreateNiBrainClient.mockReturnValue(client);
 
-    const { post } = await fireCoworkForPost("post_1", { feedback: "Brighter lighting." });
+    const { post } = await fireMediaAgentForPost("post_1", { feedback: "Brighter lighting." });
 
     expect(post.workflow_stage).toBe("pending");
     // Regenerate's stage-move patch never touches media_url(s) — existing media stays attached
@@ -277,7 +277,7 @@ describe("fireCoworkForPost", () => {
   });
 });
 
-describe("fireCoworkForDay reads from pending", () => {
+describe("fireMediaAgentForDay reads from pending", () => {
   it("filters on workflow_stage 'pending' (not hub+approved) and creates one generate_media job", async () => {
     const pendingPosts = [{ ...baseMediaPost, id: "post_1", workflow_stage: "pending" }];
     const capturedFilters: Record<string, unknown> = {};
@@ -317,7 +317,7 @@ describe("fireCoworkForDay reads from pending", () => {
       },
     });
 
-    const { job, mediaPostCount } = await fireCoworkForDay("2026-08-31");
+    const { job, mediaPostCount } = await fireMediaAgentForDay("2026-08-31");
 
     expect(capturedFilters.workflow_stage).toBe("pending");
     expect(capturedFilters.post_date).toBe("2026-08-31");

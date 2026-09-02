@@ -2,14 +2,14 @@ import "server-only";
 
 import { createNiBrainClient } from "@/lib/ni-brain-client";
 
-export type CoworkJobType = "generate_media" | "post_batch";
-export type CoworkJobStatus = "queued" | "dispatched" | "running" | "complete" | "failed";
+export type MediaAgentJobType = "generate_media" | "post_batch";
+export type MediaAgentJobStatus = "queued" | "dispatched" | "running" | "complete" | "failed";
 
-export type CoworkJobRow = {
+export type MediaAgentJobRow = {
   id: string;
-  job_type: CoworkJobType;
+  job_type: MediaAgentJobType;
   brief: Record<string, unknown>;
-  status: CoworkJobStatus;
+  status: MediaAgentJobStatus;
   platform_targets: string[] | null;
   created_at: string;
   dispatched_at: string | null;
@@ -39,11 +39,16 @@ export const CONTENT_CALENDAR_SETTINGS_DEFAULTS = {
   scrapped_retention_days: 7,
 } as const;
 
-export async function createCoworkJob(args: {
-  jobType: CoworkJobType;
+/** Table name kept as `match_fit_content_cowork_jobs` on purpose — it's the live NI-Brain
+ * Supabase table; renaming it is a schema migration, out of scope for the naming cleanup that
+ * renamed every code-facing symbol here (2026-09-02, JB direct: "cowork is not part of the loop
+ * anymore" — this table never held an actual Claude Cowork session, only job-history rows for
+ * the real Mac-mini browser agent below). */
+export async function createMediaAgentJob(args: {
+  jobType: MediaAgentJobType;
   brief: Record<string, unknown>;
   platformTargets?: string[] | null;
-}): Promise<CoworkJobRow> {
+}): Promise<MediaAgentJobRow> {
   const client = createNiBrainClient();
   const { data, error } = await client
     .from("match_fit_content_cowork_jobs")
@@ -56,7 +61,7 @@ export async function createCoworkJob(args: {
     .select("*")
     .single();
   if (error) throw new Error(error.message);
-  return data as CoworkJobRow;
+  return data as MediaAgentJobRow;
 }
 
 /**
@@ -72,8 +77,9 @@ export async function createCoworkJob(args: {
  * Queues into nvg_mini_jobs (NI-Brain), kind="shell" — the only kind the mini's runner
  * executes. The mini's own job-queue runner (liveness in nvg_mini_heartbeat) claims and
  * runs this independently of whether this session or any live browser-tool bridge is
- * connected — this is what makes "press the button, the agent goes and does it" real
- * rather than requiring an attended Cowork session.
+ * connected — this is what makes "press the button, the agent goes and does it" real. No
+ * Claude Cowork AI session is involved anywhere in this path — this IS the agent: a script on
+ * JB's own Mac mini driving Chrome directly via CDP (desktop-level browser control).
  */
 export async function queueMiniChromeAgentJob(args: { ids: string[]; title: string }): Promise<void> {
   if (!args.ids.length) return;
@@ -87,9 +93,9 @@ export async function queueMiniChromeAgentJob(args: { ids: string[]; title: stri
   if (error) throw new Error(`queueMiniChromeAgentJob failed: ${error.message}`);
 }
 
-export async function updateCoworkJobStatus(args: {
+export async function updateMediaAgentJobStatus(args: {
   jobId: string;
-  status: CoworkJobStatus;
+  status: MediaAgentJobStatus;
   result?: Record<string, unknown> | null;
   error?: string | null;
 }): Promise<void> {
@@ -111,7 +117,7 @@ export async function updateCoworkJobStatus(args: {
   if (error) throw new Error(error.message);
 }
 
-export async function updateCoworkJobBrief(jobId: string, brief: Record<string, unknown>): Promise<void> {
+export async function updateMediaAgentJobBrief(jobId: string, brief: Record<string, unknown>): Promise<void> {
   const client = createNiBrainClient();
   const { error } = await client
     .from("match_fit_content_cowork_jobs")
@@ -120,7 +126,7 @@ export async function updateCoworkJobBrief(jobId: string, brief: Record<string, 
   if (error) throw new Error(error.message);
 }
 
-export async function getPendingCoworkJobs(jobType?: CoworkJobType): Promise<CoworkJobRow[]> {
+export async function getPendingMediaAgentJobs(jobType?: MediaAgentJobType): Promise<MediaAgentJobRow[]> {
   const client = createNiBrainClient();
   let query = client
     .from("match_fit_content_cowork_jobs")
@@ -129,10 +135,10 @@ export async function getPendingCoworkJobs(jobType?: CoworkJobType): Promise<Cow
   if (jobType) query = query.eq("job_type", jobType);
   const { data, error } = await query.order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
-  return (data ?? []) as CoworkJobRow[];
+  return (data ?? []) as MediaAgentJobRow[];
 }
 
-export async function getCoworkJob(jobId: string): Promise<CoworkJobRow | null> {
+export async function getMediaAgentJob(jobId: string): Promise<MediaAgentJobRow | null> {
   const client = createNiBrainClient();
   const { data, error } = await client
     .from("match_fit_content_cowork_jobs")
@@ -140,7 +146,7 @@ export async function getCoworkJob(jobId: string): Promise<CoworkJobRow | null> 
     .eq("id", jobId)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  return (data ?? null) as CoworkJobRow | null;
+  return (data ?? null) as MediaAgentJobRow | null;
 }
 
 export async function getContentCalendarSettings(): Promise<ContentCalendarSettingsRow | null> {
@@ -221,23 +227,25 @@ export async function resolveArchivePurgeAfter(
 }
 
 /**
- * Mac Mini download folder convention for Cowork-generated media. Configurable because JB's exact
- * folder name is unknown; defaults to a "Social Media" subfolder inside a "Match Fit" folder.
+ * Mac Mini download folder convention for media-agent-generated media. Configurable because JB's
+ * exact folder name is unknown; defaults to a "Social Media" subfolder inside a "Match Fit"
+ * folder. Env var name kept as MATCH_FIT_COWORK_MEDIA_FOLDER on purpose — it's a live Vercel prod
+ * setting; renaming it needs a coordinated env-var update there, out of scope for this pass.
  */
-export function getCoworkMediaDownloadFolder(): string {
+export function getMediaAgentDownloadFolder(): string {
   return process.env.MATCH_FIT_COWORK_MEDIA_FOLDER?.trim() || "Match Fit/Social Media";
 }
 
 /** Priority order for a day's media generation — video first per spec. */
-export const COWORK_MEDIA_GENERATION_ORDER = ["video", "static", "carousel"] as const;
+export const MEDIA_AGENT_GENERATION_ORDER = ["video", "static", "carousel"] as const;
 
-export type CoworkMediaOrderKey = (typeof COWORK_MEDIA_GENERATION_ORDER)[number];
+export type MediaAgentOrderKey = (typeof MEDIA_AGENT_GENERATION_ORDER)[number];
 
 /**
- * Routing note so the Cowork poster sends TikTok video through TikTok Studio, where scheduled
- * posting works under 1K followers (the regular app does not offer it).
+ * Routing note so the media agent's poster sends TikTok video through TikTok Studio, where
+ * scheduled posting works under 1K followers (the regular app does not offer it).
  */
-export const COWORK_TIKTOK_VIDEO_NOTE =
+export const MEDIA_AGENT_TIKTOK_VIDEO_NOTE =
   "TikTok video posts must be published via TikTok Studio (studio.tiktok.com), not the regular TikTok app — scheduled posting is unavailable in the app under 1,000 followers.";
 
 export async function getMatchFitDpmoPhase(): Promise<string | null> {

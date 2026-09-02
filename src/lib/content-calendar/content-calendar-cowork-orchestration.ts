@@ -1,17 +1,17 @@
 import "server-only";
 
 import {
-  COWORK_MEDIA_GENERATION_ORDER,
-  COWORK_TIKTOK_VIDEO_NOTE,
-  createCoworkJob,
-  getCoworkJob,
-  getCoworkMediaDownloadFolder,
+  MEDIA_AGENT_GENERATION_ORDER,
+  MEDIA_AGENT_TIKTOK_VIDEO_NOTE,
+  createMediaAgentJob,
+  getMediaAgentJob,
+  getMediaAgentDownloadFolder,
   queueMiniChromeAgentJob,
   resolveArchivePurgeAfter,
-  updateCoworkJobBrief,
-  updateCoworkJobStatus,
-  type CoworkJobRow,
-  type CoworkMediaOrderKey,
+  updateMediaAgentJobBrief,
+  updateMediaAgentJobStatus,
+  type MediaAgentJobRow,
+  type MediaAgentOrderKey,
 } from "@/lib/content-calendar/cowork-jobs";
 import {
   buildMediaGenerationPrompt,
@@ -40,7 +40,7 @@ import {
   type ContentCalendarPostRow,
 } from "@/lib/ni-brain-client";
 
-const POST_TYPE_TO_ORDER_KEY: Record<MediaPostType, CoworkMediaOrderKey> = {
+const POST_TYPE_TO_ORDER_KEY: Record<MediaPostType, MediaAgentOrderKey> = {
   Video: "video",
   Static: "static",
   Carousel: "carousel",
@@ -57,7 +57,7 @@ function resolveAppBaseUrl(): string {
 }
 
 function completeCallbackUrl(jobId: string): string {
-  return `${resolveAppBaseUrl()}/api/admin/content-calendar/v2/cowork-jobs/${jobId}/complete`;
+  return `${resolveAppBaseUrl()}/api/admin/content-calendar/v2/media-agent-jobs/${jobId}/complete`;
 }
 
 /** Fixed recipient trio for both day-level operator emails — always all three, JB's standing rule. */
@@ -87,7 +87,7 @@ async function sendDayNotificationEmail(args: { subject: string; text: string })
  * Fires once a day's media generation is genuinely set in motion. Two callers, two ETA flavors:
  *  - approveContentDay's media branch (etaKind "media", the default) — posts just entered
  *    "pending" and media_generation_started_at is stamped, so the next MEDIA_BUILD_SLOTS_ET slot
- *    is a real ETA regardless of when (or whether) an admin later clicks Fire Cowork.
+ *    is a real ETA — Approve Day itself fires the media agent immediately (see approveContentDay).
  *  - manuallyGenerateDayMedia (etaKind "posting") — media generation is bypassed entirely and the
  *    posts already sit in "publishing", so the only ETA left to give is the next posting slot.
  * Guarded via ni-brain-client's hasDayScheduledEmailBeenSent so a retry never double-sends.
@@ -179,21 +179,32 @@ async function getHubPostsForDate(postDate: string): Promise<ContentCalendarPost
 }
 
 /**
- * Approve Day: marks every hub post for the date approved and writes the (cancelable) pending
- * learning memo to NI Brain. The Cowork job is NOT created here — that happens on Fire Cowork.
+ * Approve Day: marks every hub post for the date approved, writes the (cancelable) pending
+ * learning memo to NI Brain, and — for a day with any media posts — immediately fires the same
+ * media-agent job fireMediaAgentForDay creates, so clicking Approve Day is the one click that gets
+ * media generation moving (matching Impromptu's single-click "Submit for generation"). JB's own
+ * WF1_MF_MARKETING workflow only has one approval gate (step 2) — it never described a second,
+ * separate "fire" click, so a day sitting "approved" with nothing actually queued until a second
+ * button press was the wrong default. The Fire Media Agent button stays in the UI as a manual
+ * retry — see fireMediaAgentForDay's own doc comment on why the mini-queue call is caught, not
+ * fatal. No Claude Cowork AI session is ever created by any of this (2026-09-02, JB direct
+ * correction) — "fire the media agent" means queuing a shell job that runs
+ * scripts/gemini-media-automation.mjs on JB's own Mac mini, driving Chrome directly over CDP.
  */
-export async function approveContentDay(postDate: string): Promise<{ approved: number; memoId: string | null }> {
+export async function approveContentDay(
+  postDate: string,
+): Promise<{ approved: number; memoId: string | null; jobId?: string; mediaPostCount?: number }> {
   const posts = await getHubPostsForDate(postDate);
   if (!posts.length) throw new Error("No hub posts found for this date to approve.");
 
   const now = new Date().toISOString();
   const client = createNiBrainClient();
 
-  // Text posts need no media generation — fireCoworkForDay excludes them and
+  // Text posts need no media generation — fireMediaAgentForDay excludes them and
   // completeGenerateMediaJob (the only other place that flips workflow_stage)
   // never sees them. Advance them straight to "publishing" here; media posts
   // move into the real "pending" stage, where they wait for the media-build
-  // cron (fireCoworkForDay) or a manual bypass (manuallyGenerateDayMedia).
+  // cron (fireMediaAgentForDay) or a manual bypass (manuallyGenerateDayMedia).
   const textIds = posts.filter((p) => p.post_type === "Text").map((p) => p.id);
   const mediaIds = posts.filter((p) => p.post_type !== "Text").map((p) => p.id);
 
@@ -245,13 +256,27 @@ export async function approveContentDay(postDate: string): Promise<{ approved: n
   // Only fire when there is media actually queued — media_generation_started_at (set above) is
   // the moment this day genuinely gets a media-build ETA. A text-only day has nothing to build and
   // goes straight to Publishing, so there is no ETA worth emailing about.
+  let jobId: string | undefined;
+  let mediaPostCount: number | undefined;
   if (mediaIds.length) {
     await notifyDayScheduled(postDate).catch((e) => {
       console.error(`[content-calendar day email] day-scheduled notify failed for ${postDate}:`, e);
     });
+
+    // Fire the media agent immediately — the posts are already "pending" from the update above,
+    // which is exactly the stage fireMediaAgentForDay reads. Never lets a queue failure fail the
+    // approval itself: the memo above already recorded the approval, and JB can still hit Retry
+    // Fire Media Agent by hand if this fails (mini unreachable, etc).
+    try {
+      const fired = await fireMediaAgentForDay(postDate);
+      jobId = fired.job.id;
+      mediaPostCount = fired.mediaPostCount;
+    } catch (e) {
+      console.error(`[approveContentDay] auto fire-media-agent failed for ${postDate}:`, e);
+    }
   }
 
-  return { approved: posts.length, memoId };
+  return { approved: posts.length, memoId, jobId, mediaPostCount };
 }
 
 /**
@@ -277,10 +302,10 @@ export async function returnContentDayToEditing(postDate: string): Promise<{ rev
 
 /**
  * Manual day-level media generation bypass: same precondition and memo write-back as
- * approveContentDay, but skips Cowork entirely — JB is producing the day's media himself outside
- * the agent pipeline, so the media-post branch goes straight to "publishing" instead of "pending"
- * (no Cowork job, no media_generation_started_at). Text posts behave exactly as they do under
- * approveContentDay, since they never had media to build either way.
+ * approveContentDay, but skips the media agent entirely — JB is producing the day's media himself
+ * outside the agent pipeline, so the media-post branch goes straight to "publishing" instead of
+ * "pending" (no media-agent job, no media_generation_started_at). Text posts behave exactly as
+ * they do under approveContentDay, since they never had media to build either way.
  */
 export async function manuallyGenerateDayMedia(postDate: string): Promise<{ moved: number; memoId: string | null }> {
   const posts = await getHubPostsForDate(postDate);
@@ -302,7 +327,7 @@ export async function manuallyGenerateDayMedia(postDate: string): Promise<{ move
   }
 
   const summary = [
-    `Match Fit content day approved for ${postDate} (manual media bypass — no Cowork job).`,
+    `Match Fit content day approved for ${postDate} (manual media bypass — no media-agent job).`,
     `Posts: ${posts.map((p) => `${p.post_type}→${normalizeTargetGroup(p.target_group)}`).join(", ")}.`,
     posts[0]?.dpmo_phase ? `DPMO phase: ${posts[0].dpmo_phase}.` : "",
   ]
@@ -341,9 +366,9 @@ type MediaJobPromptEntry = {
 };
 
 /**
- * Builds one post's Cowork media-generation prompt entry. Shared by fireCoworkForDay's per-post
- * loop and fireCoworkForPost's single-post job — extracted so both build the exact same shape and
- * so operator feedback (regenerate) only has to be appended in one place.
+ * Builds one post's media-agent generation prompt entry. Shared by fireMediaAgentForDay's per-post
+ * loop and fireMediaAgentForPost's single-post job — extracted so both build the exact same shape
+ * and so operator feedback (regenerate) only has to be appended in one place.
  */
 function buildMediaJobPromptEntry(
   post: ContentCalendarPostRow & { post_type: MediaPostType },
@@ -369,13 +394,13 @@ function buildMediaJobPromptEntry(
 }
 
 /**
- * Fire Cowork for a pending day: creates ONE generate_media Cowork job whose brief carries the
+ * Fire Media Agent for a pending day: creates ONE generate_media job whose brief carries the
  * day's video/static/carousel prompts in priority order (video first), the Mac Mini download
  * folder convention, and the completion callback contract. The learning memo is already committed
  * at Approve Day, so it is NOT re-triggered here. Reads workflow_stage "pending" (not "hub") — that
  * stage now IS "day approved, media generation queued".
  */
-export async function fireCoworkForDay(postDate: string): Promise<{ job: CoworkJobRow; mediaPostCount: number }> {
+export async function fireMediaAgentForDay(postDate: string): Promise<{ job: MediaAgentJobRow; mediaPostCount: number }> {
   const client = createNiBrainClient();
   const { data, error } = await client
     .from("match_fit_content_calendar_posts")
@@ -393,7 +418,7 @@ export async function fireCoworkForDay(postDate: string): Promise<{ job: CoworkJ
     throw new Error("No pending media posts (Static/Carousel/Video) found for this date. Approve the day first.");
   }
 
-  const prompts: Partial<Record<CoworkMediaOrderKey, MediaJobPromptEntry>> = {};
+  const prompts: Partial<Record<MediaAgentOrderKey, MediaJobPromptEntry>> = {};
   const platformTargets = new Set<string>();
   const now = new Date().toISOString();
   for (const post of pendingMedia) {
@@ -409,9 +434,9 @@ export async function fireCoworkForDay(postDate: string): Promise<{ job: CoworkJ
     if (promptError) throw new Error(promptError.message);
   }
 
-  const order = COWORK_MEDIA_GENERATION_ORDER.filter((key) => prompts[key]);
+  const order = MEDIA_AGENT_GENERATION_ORDER.filter((key) => prompts[key]);
 
-  const job = await createCoworkJob({
+  const job = await createMediaAgentJob({
     jobType: "generate_media",
     platformTargets: [...platformTargets],
     brief: {
@@ -419,7 +444,7 @@ export async function fireCoworkForDay(postDate: string): Promise<{ job: CoworkJ
       postDate,
       order,
       prompts,
-      downloadFolder: getCoworkMediaDownloadFolder(),
+      downloadFolder: getMediaAgentDownloadFolder(),
       logoReference: "public/logo.png",
       callback: {
         method: "POST",
@@ -434,7 +459,7 @@ export async function fireCoworkForDay(postDate: string): Promise<{ job: CoworkJ
     postDate,
     order,
     prompts,
-    downloadFolder: getCoworkMediaDownloadFolder(),
+    downloadFolder: getMediaAgentDownloadFolder(),
     logoReference: "public/logo.png",
     callback: {
       method: "POST",
@@ -442,33 +467,33 @@ export async function fireCoworkForDay(postDate: string): Promise<{ job: CoworkJ
       bodyShape: { mediaUrls: { "<postId>": ["<downloadedMediaUrl>"] } },
     },
   };
-  await updateCoworkJobBrief(job.id, briefWithCallback);
+  await updateMediaAgentJobBrief(job.id, briefWithCallback);
 
   // Fires the real agent — see queueMiniChromeAgentJob's own doc comment for why this,
   // not the REST cron, is the only path that can actually produce media. Never lets a
-  // mini-queue failure fail the day's approval: the cowork job row above already
-  // recorded the request, and JB can still retry Fire Cowork if the mini is unreachable.
+  // mini-queue failure fail the day's approval: the job row above already
+  // recorded the request, and JB can still retry Fire Media Agent if the mini is unreachable.
   await queueMiniChromeAgentJob({
     ids: pendingMedia.map((p) => p.id),
     title: `mf-gen day ${postDate}`,
-  }).catch((e) => console.error(`[fireCoworkForDay] queueMiniChromeAgentJob failed:`, e));
+  }).catch((e) => console.error(`[fireMediaAgentForDay] queueMiniChromeAgentJob failed:`, e));
 
   return { job: { ...job, brief: briefWithCallback }, mediaPostCount: pendingMedia.length };
 }
 
 /**
- * Single-post version of fireCoworkForDay: creates ONE generate_media Cowork job scoped to just
- * this post. Two callers use this — Impromptu's "submit for generation" (post starts in "hub") and
+ * Single-post version of fireMediaAgentForDay: creates ONE generate_media job scoped to just this
+ * post. Two callers use this — Impromptu's "submit for generation" (post starts in "hub") and
  * Publishing's "Regenerate" (post starts in "publishing", with existing media already attached) —
  * so this makes no assumption about the post's starting stage; it only requires the post to have
  * media at all (Text posts never generate media). Existing media/media_urls are left in place until
  * the job's callback lands (completeGenerateMediaJob), so Regenerate never blanks out a live post
  * mid-flight.
  */
-export async function fireCoworkForPost(
+export async function fireMediaAgentForPost(
   postId: string,
   args?: { feedback?: string },
-): Promise<{ job: CoworkJobRow; post: ContentCalendarPostRow }> {
+): Promise<{ job: MediaAgentJobRow; post: ContentCalendarPostRow }> {
   const client = createNiBrainClient();
   const { data, error } = await client
     .from("match_fit_content_calendar_posts")
@@ -500,7 +525,7 @@ export async function fireCoworkForPost(
     .eq("id", postId);
   if (updateError) throw new Error(updateError.message);
 
-  const job = await createCoworkJob({
+  const job = await createMediaAgentJob({
     jobType: "generate_media",
     platformTargets: entry.platforms,
     brief: {
@@ -508,7 +533,7 @@ export async function fireCoworkForPost(
       postDate: post.post_date,
       order: [key],
       prompts: { [key]: entry },
-      downloadFolder: getCoworkMediaDownloadFolder(),
+      downloadFolder: getMediaAgentDownloadFolder(),
       logoReference: "public/logo.png",
       callback: {
         method: "POST",
@@ -523,7 +548,7 @@ export async function fireCoworkForPost(
     postDate: post.post_date,
     order: [key],
     prompts: { [key]: entry },
-    downloadFolder: getCoworkMediaDownloadFolder(),
+    downloadFolder: getMediaAgentDownloadFolder(),
     logoReference: "public/logo.png",
     callback: {
       method: "POST",
@@ -531,16 +556,16 @@ export async function fireCoworkForPost(
       bodyShape: { mediaUrls: { "<postId>": ["<downloadedMediaUrl>"] } },
     },
   };
-  await updateCoworkJobBrief(job.id, briefWithCallback);
+  await updateMediaAgentJobBrief(job.id, briefWithCallback);
 
   // Fires the real agent — see queueMiniChromeAgentJob's own doc comment for why this,
   // not the REST cron, is the only path that can actually produce media. Never lets a
-  // mini-queue failure fail this action: the cowork job row above already recorded the
+  // mini-queue failure fail this action: the job row above already recorded the
   // request, and JB can still retry Regenerate if the mini is unreachable.
   await queueMiniChromeAgentJob({
     ids: [postId],
     title: `mf-gen ${mediaPost.post_type} ${postId.slice(0, 8)}`,
-  }).catch((e) => console.error(`[fireCoworkForPost] queueMiniChromeAgentJob failed:`, e));
+  }).catch((e) => console.error(`[fireMediaAgentForPost] queueMiniChromeAgentJob failed:`, e));
 
   const { data: updated, error: reloadError } = await client
     .from("match_fit_content_calendar_posts")
@@ -553,16 +578,16 @@ export async function fireCoworkForPost(
 }
 
 /**
- * APPROVE FOR POSTING: batches Publishing-window posts into ONE post_batch Cowork job. When
- * postIds are supplied (the UI's checked/filtered selection) only those are included; otherwise
- * every publishing-stage post is batched. `platformOverrides` (postId → included platform list)
- * lets the UI exclude platforms per post; a post with no override entry uses its stored platforms
- * unchanged. TikTok video routing is flagged in platformNotes.
+ * APPROVE FOR POSTING: batches Publishing-window posts into ONE post_batch job. When postIds are
+ * supplied (the UI's checked/filtered selection) only those are included; otherwise every
+ * publishing-stage post is batched. `platformOverrides` (postId → included platform list) lets the
+ * UI exclude platforms per post; a post with no override entry uses its stored platforms unchanged.
+ * TikTok video routing is flagged in platformNotes.
  */
 export async function approvePublishingPostsForPosting(args: {
   postIds?: string[];
   platformOverrides?: Record<string, string[]>;
-}): Promise<{ job: CoworkJobRow; postCount: number }> {
+}): Promise<{ job: MediaAgentJobRow; postCount: number }> {
   const client = createNiBrainClient();
   const overrides = args.platformOverrides ?? {};
   const platformsForPost = (post: ContentCalendarPostRow): string[] =>
@@ -605,27 +630,27 @@ export async function approvePublishingPostsForPosting(args: {
     };
   });
 
-  const job = await createCoworkJob({
+  const job = await createMediaAgentJob({
     jobType: "post_batch",
     platformTargets: [...new Set(posts.flatMap((p) => platformsForPost(p)))],
     brief: {
       kind: "post_batch",
       posts: briefPosts,
-      platformNotes: { tiktokVideo: COWORK_TIKTOK_VIDEO_NOTE },
+      platformNotes: { tiktokVideo: MEDIA_AGENT_TIKTOK_VIDEO_NOTE },
     },
   });
 
   const briefWithCallback = {
     kind: "post_batch",
     posts: briefPosts,
-    platformNotes: { tiktokVideo: COWORK_TIKTOK_VIDEO_NOTE },
+    platformNotes: { tiktokVideo: MEDIA_AGENT_TIKTOK_VIDEO_NOTE },
     callback: {
       method: "POST",
       url: completeCallbackUrl(job.id),
       bodyShape: { postedUrls: [{ postId: "<postId>", platform: "<platform>", url: "<postedUrl>" }] },
     },
   };
-  await updateCoworkJobBrief(job.id, briefWithCallback);
+  await updateMediaAgentJobBrief(job.id, briefWithCallback);
 
   const now = new Date().toISOString();
   const { error: markError } = await client
@@ -672,7 +697,7 @@ export async function completeGenerateMediaJob(args: {
     if ((data ?? []).length) updated += 1;
   }
 
-  await updateCoworkJobStatus({ jobId: args.jobId, status: "complete", result: { mediaUrls: args.mediaUrls } });
+  await updateMediaAgentJobStatus({ jobId: args.jobId, status: "complete", result: { mediaUrls: args.mediaUrls } });
   return { updated };
 }
 
@@ -742,7 +767,7 @@ export async function completePostBatchJob(args: {
     void sendTelegramPing(`Match Fit: ${postType} posted (${platforms}).`);
   }
 
-  await updateCoworkJobStatus({ jobId: args.jobId, status: "complete", result: { postedUrls: args.postedUrls } });
+  await updateMediaAgentJobStatus({ jobId: args.jobId, status: "complete", result: { postedUrls: args.postedUrls } });
 
   await fireAxonPostingConfirmation({
     batchId: args.jobId,
@@ -764,6 +789,6 @@ export async function completePostBatchJob(args: {
 }
 
 /** Loads a job and asserts its type before running a completion handler. */
-export async function loadJobForCompletion(jobId: string): Promise<CoworkJobRow | null> {
-  return getCoworkJob(jobId);
+export async function loadJobForCompletion(jobId: string): Promise<MediaAgentJobRow | null> {
+  return getMediaAgentJob(jobId);
 }

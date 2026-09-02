@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { fireCoworkForPost } from "@/lib/content-calendar/content-calendar-cowork-orchestration";
+import { fireMediaAgentForPost } from "@/lib/content-calendar/content-calendar-cowork-orchestration";
 import {
   approveV2Post,
   archiveV2Post,
@@ -102,7 +102,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         return NextResponse.json({ post: serializeV2Post(row) });
       }
       case "regenerate_via_agent": {
-        const { job, post } = await fireCoworkForPost(id, { feedback: parsed.data.feedback });
+        const { job, post } = await fireMediaAgentForPost(id, { feedback: parsed.data.feedback });
         return NextResponse.json({ post: serializeV2Post(post), jobId: job.id });
       }
       case "manual_post": {
@@ -128,7 +128,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           return NextResponse.json({ post: updated ? serializeV2Post(updated) : null });
         }
 
-        const { job, post: updatedPost } = await fireCoworkForPost(id);
+        const { job, post: updatedPost } = await fireMediaAgentForPost(id);
         return NextResponse.json({ post: serializeV2Post(updatedPost), jobId: job.id });
       }
       default:

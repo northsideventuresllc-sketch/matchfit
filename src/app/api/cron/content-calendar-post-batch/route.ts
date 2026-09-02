@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ensureContentCalendarV22Schema } from "@/lib/ensure-content-hub-schema";
-import { getPendingCoworkJobs, updateCoworkJobStatus } from "@/lib/content-calendar/cowork-jobs";
+import { getPendingMediaAgentJobs, updateMediaAgentJobStatus } from "@/lib/content-calendar/cowork-jobs";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 
 export const dynamic = "force-dynamic";
@@ -26,10 +26,10 @@ export async function GET(req: Request) {
   try {
     await hydratePlatformEnvFromDatabase();
     await ensureContentCalendarV22Schema();
-    const jobs = await getPendingCoworkJobs("post_batch");
+    const jobs = await getPendingMediaAgentJobs("post_batch");
     const dispatched: string[] = [];
     for (const job of jobs) {
-      await updateCoworkJobStatus({ jobId: job.id, status: "dispatched" });
+      await updateMediaAgentJobStatus({ jobId: job.id, status: "dispatched" });
       dispatched.push(job.id);
     }
     return NextResponse.json({ ok: true, dispatched, count: dispatched.length });

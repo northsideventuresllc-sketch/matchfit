@@ -5,7 +5,7 @@ import type { ClientContentCalendarV2Post } from "@/lib/content-calendar/content
 import { defaultPlatformsForPost, postTypeIcon } from "./helpers";
 
 /**
- * Read-only list of scheduled posts. The post row has no Cowork job-id column (a post joins a
+ * Read-only list of scheduled posts. The post row has no media-agent job-id column (a post joins a
  * post_batch job only when APPROVE FOR POSTING runs from Publishing), so the batch column shows the
  * pending state rather than a fabricated id.
  */
@@ -14,7 +14,7 @@ export function ScheduledPanel({ posts }: { posts: ClientContentCalendarV2Post[]
     <section className={adminCardClass}>
       <h2 className="text-lg font-black uppercase tracking-[0.12em] text-white">Scheduled Posts</h2>
       <p className="mt-1 text-sm leading-relaxed text-white/55">
-        Posts with a set date and time. They join a Cowork post batch when approved for posting.
+        Posts with a set date and time. They join a media agent post batch when approved for posting.
       </p>
 
       <div className="mt-5 overflow-x-auto">
@@ -22,7 +22,7 @@ export function ScheduledPanel({ posts }: { posts: ClientContentCalendarV2Post[]
           <thead>
             <tr className="border-b border-white/[0.08] text-[11px] uppercase tracking-wide text-white/45">
               <th className="py-2 pr-4 font-semibold">Post time</th>
-              <th className="py-2 pr-4 font-semibold">Cowork batch</th>
+              <th className="py-2 pr-4 font-semibold">Media agent batch</th>
               <th className="py-2 pr-4 font-semibold">Date</th>
               <th className="py-2 pr-4 font-semibold">Type</th>
               <th className="py-2 pr-4 font-semibold">Platforms</th>

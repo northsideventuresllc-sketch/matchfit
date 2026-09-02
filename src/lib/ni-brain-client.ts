@@ -31,7 +31,7 @@ export type ContentCalendarPostRow = {
   workflow_stage: "hub" | "pending" | "publishing" | "scheduled" | "archived" | null;
   /** Exact prompt last sent for this post's media generation (Cowork job or manual regenerate). */
   last_generation_prompt: string | null;
-  /** Stamped when a post enters "pending" (agent path) or fireCoworkForPost fires (manual regenerate). */
+  /** Stamped when a post enters "pending" (agent path) or fireMediaAgentForPost fires (manual regenerate). */
   media_generation_started_at: string | null;
   /** Where the post's current media came from — null until it has been generated or replaced once. */
   generation_source: "cowork_gemini" | "manual_upload" | null;
