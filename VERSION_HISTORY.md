@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-02** `2.26.7-beta` → `2.26.8-beta` (**patch** — Wire Content Calendar v2 generation buttons to the real Chrome/Gemini-Pro agent on the Mac mini; fix generation script for v2 schema and force Pro model)
 - **2026-09-01** `2.26.6-beta` → `2.26.7-beta` (**patch** — Fix weekly content generation ignoring the locked Mon/Wed/Fri Carousel+Video, Tue/Thu Static+Text post-type rotation)
 - **2026-09-01** `2.26.5-beta` → `2.26.6-beta` (**patch** — Fix stuck approved posts: reset media_status to failed on generation failure, add maxDuration for Pro retry chain)
 - **2026-09-01** `2.26.4-beta` → `2.26.5-beta` (**patch** — Gemini image gen: Pro-only, retry same model up to 10x, never fall back to Flash (JB direct order))

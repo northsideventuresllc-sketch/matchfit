@@ -6,6 +6,7 @@ import {
   createCoworkJob,
   getCoworkJob,
   getCoworkMediaDownloadFolder,
+  queueMiniChromeAgentJob,
   resolveArchivePurgeAfter,
   updateCoworkJobBrief,
   updateCoworkJobStatus,
@@ -443,6 +444,15 @@ export async function fireCoworkForDay(postDate: string): Promise<{ job: CoworkJ
   };
   await updateCoworkJobBrief(job.id, briefWithCallback);
 
+  // Fires the real agent — see queueMiniChromeAgentJob's own doc comment for why this,
+  // not the REST cron, is the only path that can actually produce media. Never lets a
+  // mini-queue failure fail the day's approval: the cowork job row above already
+  // recorded the request, and JB can still retry Fire Cowork if the mini is unreachable.
+  await queueMiniChromeAgentJob({
+    ids: pendingMedia.map((p) => p.id),
+    title: `mf-gen day ${postDate}`,
+  }).catch((e) => console.error(`[fireCoworkForDay] queueMiniChromeAgentJob failed:`, e));
+
   return { job: { ...job, brief: briefWithCallback }, mediaPostCount: pendingMedia.length };
 }
 
@@ -522,6 +532,15 @@ export async function fireCoworkForPost(
     },
   };
   await updateCoworkJobBrief(job.id, briefWithCallback);
+
+  // Fires the real agent — see queueMiniChromeAgentJob's own doc comment for why this,
+  // not the REST cron, is the only path that can actually produce media. Never lets a
+  // mini-queue failure fail this action: the cowork job row above already recorded the
+  // request, and JB can still retry Regenerate if the mini is unreachable.
+  await queueMiniChromeAgentJob({
+    ids: [postId],
+    title: `mf-gen ${mediaPost.post_type} ${postId.slice(0, 8)}`,
+  }).catch((e) => console.error(`[fireCoworkForPost] queueMiniChromeAgentJob failed:`, e));
 
   const { data: updated, error: reloadError } = await client
     .from("match_fit_content_calendar_posts")
