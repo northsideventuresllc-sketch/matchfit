@@ -184,7 +184,20 @@ export type DispatchBriefLead = {
   displayName: string;
   contact: string;
   outreachIntent: string | null;
+  /** Instagram only — undefined for other platforms. */
+  dmText?: string;
+  commentText?: string;
+  commentPostRef?: string;
+  /** Facebook only. */
+  pagePostText?: string;
+  /** Email only. */
+  emailSubject?: string;
+  emailBody?: string;
 };
+
+function optionalString(rec: Record<string, unknown>, key: string): string | undefined {
+  return typeof rec[key] === "string" ? (rec[key] as string) : undefined;
+}
 
 /** Safely read the `brief.leads[]` snapshot off a dispatch batch (best-effort, tolerant of shape). */
 export function dispatchBriefLeads(brief: Record<string, unknown> | null | undefined): DispatchBriefLead[] {
@@ -201,7 +214,75 @@ export function dispatchBriefLeads(brief: Record<string, unknown> | null | undef
       displayName: typeof rec.displayName === "string" ? rec.displayName : rec.leadId,
       contact: typeof rec.contact === "string" ? rec.contact : "",
       outreachIntent: typeof rec.outreachIntent === "string" ? rec.outreachIntent : null,
+      dmText: optionalString(rec, "dmText"),
+      commentText: optionalString(rec, "commentText"),
+      commentPostRef: optionalString(rec, "commentPostRef"),
+      pagePostText: optionalString(rec, "pagePostText"),
+      emailSubject: optionalString(rec, "emailSubject"),
+      emailBody: optionalString(rec, "emailBody"),
     });
+  }
+  return out;
+}
+
+export type MessageField = { label: string; text: string };
+
+/**
+ * The actual message text queued for an Agent Send batch lead, straight off the brief snapshot
+ * built by `buildBatchBrief()` — this is exactly what Cowork will send, so it's the right source
+ * even though (pre-existing, separate gap) `buildBatchBrief` always embeds the primary-stage text
+ * regardless of whether the lead was queued from a follow-up lane.
+ */
+export function briefLeadMessageFields(l: DispatchBriefLead): MessageField[] {
+  const out: MessageField[] = [];
+  if (l.platform === "instagram") {
+    if (l.dmText) out.push({ label: "DM", text: l.dmText });
+    if (l.commentText) out.push({ label: "Comment", text: l.commentText });
+  } else if (l.platform === "facebook") {
+    if (l.pagePostText) out.push({ label: "Page post", text: l.pagePostText });
+  } else if (l.platform === "email") {
+    if (l.emailSubject) out.push({ label: "Subject", text: l.emailSubject });
+    if (l.emailBody) out.push({ label: "Body", text: l.emailBody });
+  }
+  return out;
+}
+
+/**
+ * The message text for a Manual Send queue entry, stage-aware: `dispatchPreviousLane` records the
+ * lane the lead was in the moment it was queued (today/past_due/pending = primary send,
+ * follow_up_1/follow_up_2 = that follow-up's text). Facebook has no follow-up pipeline, so it's
+ * always the page post text.
+ */
+export function manualQueueMessageFields(entry: OutreachHubLead): MessageField[] {
+  const lead = entry.lead as InstagramLeadRow | FacebookLeadRow | EmailLeadRow;
+  const stage = (lead as { dispatchPreviousLane?: string | null }).dispatchPreviousLane ?? null;
+  const out: MessageField[] = [];
+
+  if (entry.platform === "instagram") {
+    const ig = lead as InstagramLeadRow;
+    if (stage === "follow_up_1") {
+      if (ig.followUp1DmText) out.push({ label: "First follow-up DM", text: ig.followUp1DmText });
+    } else if (stage === "follow_up_2") {
+      if (ig.followUp2DmText) out.push({ label: "Second follow-up DM", text: ig.followUp2DmText });
+    } else {
+      if (ig.dmText) out.push({ label: "First DM", text: ig.dmText });
+      if (ig.commentText) out.push({ label: "Comment", text: ig.commentText });
+    }
+  } else if (entry.platform === "facebook") {
+    const fb = lead as FacebookLeadRow;
+    if (fb.pagePostText) out.push({ label: "Page post", text: fb.pagePostText });
+  } else {
+    const em = lead as EmailLeadRow;
+    if (stage === "follow_up_1") {
+      if (em.followUp1EmailSubject) out.push({ label: "First follow-up subject", text: em.followUp1EmailSubject });
+      if (em.followUp1EmailBody) out.push({ label: "First follow-up email", text: em.followUp1EmailBody });
+    } else if (stage === "follow_up_2") {
+      if (em.followUp2EmailSubject) out.push({ label: "Second follow-up subject", text: em.followUp2EmailSubject });
+      if (em.followUp2EmailBody) out.push({ label: "Second follow-up email", text: em.followUp2EmailBody });
+    } else {
+      if (em.emailSubject) out.push({ label: "Subject", text: em.emailSubject });
+      if (em.emailBody) out.push({ label: "Body", text: em.emailBody });
+    }
   }
   return out;
 }
