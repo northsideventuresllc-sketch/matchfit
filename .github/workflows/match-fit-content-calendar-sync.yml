@@ -1,8 +1,9 @@
+# NOTE (2026-09-03, Decision #1699 / lane D2): schedule: removed -- GitHub Actions schedules are
+# forbidden. Needs an equivalent NI-Brain pg_cron job before the daily 8am sync resumes;
+# workflow_dispatch stays for manual runs only in the meantime.
 name: Match Fit content calendar sync
 
 on:
-  schedule:
-    - cron: "0 8 * * *"
   workflow_dispatch: {}
 
 jobs:

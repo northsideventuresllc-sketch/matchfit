@@ -1,3 +1,6 @@
+# NOTE (2026-09-03, Decision #1699 / lane D2): the weekly schedule: block removed -- GitHub
+# Actions schedules are forbidden. This workflow's push trigger is untouched (not a clock).
+# The weekly reminder needs an equivalent NI-Brain pg_cron job if it is still wanted.
 name: Terms alignment & notify
 
 on:
@@ -16,8 +19,6 @@ on:
       - "src/app/client/subscribe/**"
       - "scripts/tos-alignment-check.ts"
       - "scripts/tos-governance-notify.mjs"
-  schedule:
-    - cron: "0 14 * * 1"
   workflow_dispatch: {}
 
 jobs:

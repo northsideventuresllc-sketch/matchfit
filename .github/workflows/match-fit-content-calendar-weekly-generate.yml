@@ -1,3 +1,6 @@
+# NOTE (2026-09-03, Decision #1699 / lane D2): schedule: removed -- GitHub Actions schedules are
+# forbidden. Needs an equivalent NI-Brain pg_cron job before the Monday weekly generation
+# resumes; workflow_dispatch stays for manual runs only in the meantime.
 # Weekly Match Fit content generation — Monday 8am ET.
 # GitHub Actions crons are fixed-UTC. 8am ET during EDT (UTC-4, currently in effect) = 12:00 UTC.
 # During EST (UTC-5) this fires at 7am ET; adjust to "0 13 * * 1" if you want to hold 8am year-round.
@@ -5,8 +8,6 @@
 name: Match Fit content calendar weekly generate
 
 on:
-  schedule:
-    - cron: "0 12 * * 1"
   workflow_dispatch: {}
 
 jobs:
