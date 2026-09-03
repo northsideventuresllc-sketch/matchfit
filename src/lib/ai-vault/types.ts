@@ -5,6 +5,7 @@ export type AiTaskKind = "chat" | "json" | "classification" | "creative" | "rese
 export type AiVaultProviderId =
   | "axon-local"
   | "runpod-axon-v1"
+  | "openrouter"
   | "anthropic"
   | "gemini-primary"
   | "gemini-backup";

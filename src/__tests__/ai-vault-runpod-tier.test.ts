@@ -102,7 +102,7 @@ describe("callMatchFitAi() chain — RunPod tier is a no-op in current live beha
     clearAiVaultEnv();
   });
 
-  it("falls through AXON local -> RunPod AXON v1 (no-op) -> Gemini primary, exactly as before this change", async () => {
+  it("falls through AXON local -> RunPod AXON v1 (no-op) -> OpenRouter (no-op) -> Gemini primary, exactly as before this change plus the new OpenRouter tier", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -118,15 +118,19 @@ describe("callMatchFitAi() chain — RunPod tier is a no-op in current live beha
 
     // Exactly one attempt logged per tier that actually ran before Gemini succeeded:
     // axon-local (no NI Brain config -> null, no network) then runpod-axon-v1 (no
-    // RunPod config -> null, no network) then gemini-primary (succeeded).
+    // RunPod config -> null, no network) then openrouter (no OPENROUTER_API_KEY -> null,
+    // no network) then gemini-primary (succeeded).
     const providers = result.attempts.map((a) => a.provider);
-    expect(providers).toEqual(["axon-local", "runpod-axon-v1", "gemini-primary"]);
+    expect(providers).toEqual(["axon-local", "runpod-axon-v1", "openrouter", "gemini-primary"]);
 
     const runpodAttempt = result.attempts.find((a) => a.provider === "runpod-axon-v1");
     expect(runpodAttempt?.error).toBeTruthy();
 
-    // Only Gemini's HTTP call should have hit the network — AXON local and RunPod AXON v1
-    // both bailed out on missing config before any fetch.
+    const openrouterAttempt = result.attempts.find((a) => a.provider === "openrouter");
+    expect(openrouterAttempt?.error).toBeTruthy();
+
+    // Only Gemini's HTTP call should have hit the network — AXON local, RunPod AXON v1,
+    // and OpenRouter all bailed out on missing config before any fetch.
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("generativelanguage.googleapis.com");
   });
