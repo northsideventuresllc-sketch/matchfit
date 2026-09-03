@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-03** `2.26.9-beta` → `2.26.10-beta` (**patch** — Send Queue now shows the queued outreach message text with a copy button)
 - **2026-09-02** `2.26.8-beta` → `2.26.9-beta` (**patch** — Approve Day auto-fires media generation; rename Cowork to media agent in content calendar)
 - **2026-09-02** `2.26.7-beta` → `2.26.8-beta` (**patch** — Wire Content Calendar v2 generation buttons to the real Chrome/Gemini-Pro agent on the Mac mini; fix generation script for v2 schema and force Pro model)
 - **2026-09-01** `2.26.6-beta` → `2.26.7-beta` (**patch** — Fix weekly content generation ignoring the locked Mon/Wed/Fri Carousel+Video, Tue/Thu Static+Text post-type rotation)
