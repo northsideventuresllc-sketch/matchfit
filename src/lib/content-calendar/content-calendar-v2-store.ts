@@ -2,7 +2,6 @@ import "server-only";
 
 import {
   generateBulkContent,
-  generateStaticMedia,
   optimizePostForPlatforms,
   type BulkGeneratedDraft,
 } from "@/lib/content-calendar/content-calendar-ai";
@@ -11,14 +10,12 @@ import {
   CONTENT_CALENDAR_POST_TYPES,
   type ContentCalendarPostType,
 } from "@/lib/content-calendar/constants";
-import { MEDIA_DIMENSION_MATRIX } from "@/lib/content-calendar/content-prompts";
 import { normalizeTargetGroup } from "@/lib/content-calendar/content-rules";
-import { isMediaAspectRatio } from "@/lib/content-calendar/media-generation";
 import { insertGeneratedCalendarRow } from "@/lib/content-calendar/post-group";
 import { addWeekdays, formatCalendarDate } from "@/lib/content-calendar/rotation";
 import { computeManualPostSchedule } from "@/lib/content-calendar/pending-schedule";
 import { createNiBrainClient, type ContentCalendarPostRow } from "@/lib/ni-brain-client";
-import { resolveArchivePurgeAfter } from "@/lib/content-calendar/cowork-jobs";
+import { resolveArchivePurgeAfter, queueMiniChromeAgentJob } from "@/lib/content-calendar/cowork-jobs";
 import { sendTelegramPing } from "@/lib/content-calendar/telegram-ping";
 
 export type ContentCalendarV2Lane = "scheduled" | "impromptu";
@@ -247,34 +244,28 @@ async function resolveUniqueDayIndex(args: {
   );
 }
 
-async function buildMediaUrls(args: {
-  postType: ContentCalendarPostType;
-  visualPrompt: string | null;
-  caption: string;
-}): Promise<{ urls: string[]; status: ContentCalendarPostRow["media_status"] }> {
-  if (args.postType === "Text") return { urls: [], status: "none" };
+/**
+ * Media is NEVER generated over an API here (Decision #1699 / JB direct 2026-09-03: it is
+ * JB's Gemini subscription in Chrome on the Mac mini, never generativelanguage.googleapis.com).
+ * This just decides the starting media_status for a new/regenerated post — the actual pixels
+ * come later from queueMiniAgentForPost() once the row has an id.
+ */
+function initialMediaStatus(postType: ContentCalendarPostType): ContentCalendarPostRow["media_status"] {
+  return postType === "Text" ? "none" : "generating";
+}
 
-  const prompt = args.visualPrompt?.trim() || args.caption;
-  const count = args.postType === "Carousel" ? 3 : 1;
-  // Real platform output shape, not the old hardcoded square.
-  const aspectRatio = MEDIA_DIMENSION_MATRIX[args.postType].aspectRatio;
-  const urls: string[] = [];
-  for (let i = 0; i < count; i += 1) {
-    const framePrompt =
-      args.postType === "Carousel"
-        ? `${prompt}\nCarousel frame ${i + 1} of ${count}. Keep the same Match Fit visual system but vary the frame headline and composition.`
-        : args.postType === "Video"
-          ? `${prompt}\nCreate a storyboard keyframe / thumbnail preview for this short-form video concept.`
-          : prompt;
-    const result = await generateStaticMedia(
-      framePrompt,
-      isMediaAspectRatio(aspectRatio) ? aspectRatio : "1:1",
-    );
-    if (result.ok) urls.push(result.url);
-    else console.error(`[content-calendar v2 draft media] ${args.postType} frame ${i + 1}: ${result.reason}`);
-  }
-
-  return { urls, status: urls.length ? "ready" : "failed" };
+/**
+ * Queues the real producer — scripts/gemini-media-automation.mjs on the Mac mini, driving JB's
+ * own logged-in Gemini web session — for one already-created post. Fire-and-forget: failure to
+ * queue is logged, never thrown, so it can't take down draft creation/regeneration. The mini
+ * writes media_url/media_urls/media_status back onto the row itself when it finishes (see
+ * scripts/gemini-media-automation.mjs writeMediaResult).
+ */
+function queueMiniAgentForPost(args: { postId: string; postType: ContentCalendarPostType }): void {
+  if (args.postType === "Text") return;
+  queueMiniChromeAgentJob({ ids: [args.postId], title: `Content calendar media: ${args.postId}` }).catch((e) =>
+    console.error(`[content-calendar v2 draft media] queueMiniChromeAgentJob failed for ${args.postId}:`, e),
+  );
 }
 
 export async function createV2Draft(args: {
@@ -311,13 +302,7 @@ export async function createV2Draft(args: {
     dayIndex !== args.draft.dayIndex && args.weekStart
       ? formatCalendarDate(addWeekdays(new Date(`${args.weekStart}T00:00:00`), dayIndex))
       : callerPostDate;
-  const media = args.generateMedia
-    ? await buildMediaUrls({
-        postType: args.draft.postType,
-        visualPrompt: args.draft.visualPrompt,
-        caption: args.draft.caption,
-      })
-    : { urls: [] as string[], status: args.draft.postType === "Text" ? "none" : "none" };
+  const mediaStatus = args.generateMedia ? initialMediaStatus(args.draft.postType) : "none";
 
   const row = {
     week_start: args.weekStart,
@@ -330,9 +315,9 @@ export async function createV2Draft(args: {
     caption: args.draft.caption,
     visual_prompt: args.draft.postType === "Text" ? null : args.draft.visualPrompt,
     hashtags: args.draft.hashtags ?? [],
-    media_url: media.urls[0] ?? null,
-    media_urls: media.urls,
-    media_status: media.status,
+    media_url: null,
+    media_urls: [],
+    media_status: mediaStatus,
     posted: false,
     missed_prompt_dismissed: false,
     saved_to_hub_at: now,
@@ -361,13 +346,17 @@ export async function createV2Draft(args: {
   // post_group is resolved and asserted here, never left to the column default.
   // A row that cannot get a valid 5pm/8pm group is written as `blocked` with a reason
   // instead of a draft that would silently never post.
-  return insertGeneratedCalendarRow({
+  const inserted = await insertGeneratedCalendarRow({
     client,
     row,
     weekStart: args.weekStart,
     dayIndex,
     source: "createV2Draft",
   });
+  if (args.generateMedia) {
+    queueMiniAgentForPost({ postId: inserted.id, postType: inserted.post_type });
+  }
+  return inserted;
 }
 
 export async function generateWeeklyPlannerDay(args: {
@@ -563,28 +552,19 @@ export async function regenerateV2PostMedia(postId: string): Promise<ContentCale
   const post = await getV2Post(postId);
   if (!post) throw new Error("Post not found.");
   const client = createNiBrainClient();
-  await client
-    .from("match_fit_content_calendar_posts")
-    .update({ media_status: post.post_type === "Text" ? "none" : "generating", updated_at: new Date().toISOString() })
-    .eq("id", postId);
-
-  const media = await buildMediaUrls({
-    postType: post.post_type,
-    visualPrompt: post.visual_prompt,
-    caption: post.caption,
-  });
   const { data, error } = await client
     .from("match_fit_content_calendar_posts")
     .update({
-      media_url: media.urls[0] ?? null,
-      media_urls: media.urls,
-      media_status: media.status,
+      media_url: null,
+      media_urls: [],
+      media_status: initialMediaStatus(post.post_type),
       updated_at: new Date().toISOString(),
     })
     .eq("id", postId)
     .select("*")
     .single();
   if (error) throw new Error(error.message);
+  queueMiniAgentForPost({ postId, postType: post.post_type });
   return data as ContentCalendarPostRow;
 }
 

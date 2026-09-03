@@ -13,7 +13,7 @@ const {
   mockUpsertWeekPosts,
   mockSerializePostForClient,
   mockRegenerateCalendarPost,
-  mockGenerateStaticMedia,
+  mockFireMediaAgentForPost,
 } = vi.hoisted(() => ({
   mockRequireAdminSession: vi.fn(),
   mockIsNiBrainConfiguredAsync: vi.fn(),
@@ -27,7 +27,7 @@ const {
   mockUpsertWeekPosts: vi.fn(),
   mockSerializePostForClient: vi.fn(),
   mockRegenerateCalendarPost: vi.fn(),
-  mockGenerateStaticMedia: vi.fn(),
+  mockFireMediaAgentForPost: vi.fn(),
 }));
 
 vi.mock("@/lib/require-admin", () => ({
@@ -41,7 +41,10 @@ vi.mock("@/lib/ni-brain-client", () => ({
 
 vi.mock("@/lib/content-calendar/content-calendar-ai", () => ({
   regenerateCalendarPost: mockRegenerateCalendarPost,
-  generateStaticMedia: mockGenerateStaticMedia,
+}));
+
+vi.mock("@/lib/content-calendar/content-calendar-cowork-orchestration", () => ({
+  fireMediaAgentForPost: mockFireMediaAgentForPost,
 }));
 
 vi.mock("@/lib/content-calendar/content-calendar-store", () => ({
@@ -230,7 +233,10 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     mockReschedulePost.mockResolvedValue(undefined);
     mockUpdatePostMedia.mockResolvedValue(undefined);
     mockRecordContentLearning.mockResolvedValue(undefined);
-    mockGenerateStaticMedia.mockResolvedValue({ ok: true, url: "https://cdn.test/image.png" });
+    mockFireMediaAgentForPost.mockResolvedValue({
+      job: { id: "job_1" },
+      post: { id: "post_1", media_status: "generating" },
+    });
     mockRegenerateCalendarPost.mockResolvedValue({
       dayIndex: 1,
       postType: "Static",
@@ -371,8 +377,11 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     });
   });
 
-  it("sets media status to failed when image generation fails", async () => {
-    mockGenerateStaticMedia.mockResolvedValueOnce({ ok: false, reason: "free image quota exhausted for today" });
+  // Corrected 2026-09-03 (Decision #1722 item 4 + same-date Learning, lane D2): media generation
+  // is never an image API — this route now queues the Mac mini's Chrome/Gemini agent via
+  // fireMediaAgentForPost() and never writes media_status itself.
+  it("returns 502 without touching media_status when the mini queue fails", async () => {
+    mockFireMediaAgentForPost.mockRejectedValueOnce(new Error("nvg_mini_jobs insert failed"));
 
     const res = await postAction(
       new Request("https://matchfit.test/api/admin/content-calendar/posts/post_1/actions", {
@@ -380,70 +389,40 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           action: "generate_media",
-          prompt: "Create a high-energy fitness visual for Atlanta trainers",
+          prompt: "Create a high-energy fitness visual for online coaches",
         }),
       }),
       params("post_1"),
     );
 
     expect(res.status).toBe(502);
-    await expect(res.json()).resolves.toEqual({
-      error: "Image generation failed: free image quota exhausted for today",
-    });
-    expect(mockUpdatePostMedia).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        postId: "post_1",
-        mediaUrl: null,
-        mediaStatus: "generating",
-      }),
-    );
-    expect(mockUpdatePostMedia).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        postId: "post_1",
-        mediaUrl: null,
-        mediaStatus: "failed",
-      }),
-    );
+    await expect(res.json()).resolves.toEqual({ error: "nvg_mini_jobs insert failed" });
+    expect(mockUpdatePostMedia).not.toHaveBeenCalled();
   });
 
-  it("returns media URL and records MEDIA_GENERATED learning on success", async () => {
+  it("queues the Mac mini agent and records MEDIA_GENERATED learning on success", async () => {
+    const prompt = "Create a high-energy fitness visual for online coaches";
     const res = await postAction(
       new Request("https://matchfit.test/api/admin/content-calendar/posts/post_1/actions", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           action: "generate_media",
-          prompt: "Create a high-energy fitness visual for Atlanta trainers",
+          prompt,
         }),
       }),
       params("post_1"),
     );
 
     expect(res.status).toBe(200);
-    await expect(res.json()).resolves.toEqual({ mediaUrl: "https://cdn.test/image.png" });
-    expect(mockUpdatePostMedia).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        postId: "post_1",
-        mediaUrl: null,
-        mediaStatus: "generating",
-      }),
-    );
-    expect(mockUpdatePostMedia).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        postId: "post_1",
-        mediaUrl: "https://cdn.test/image.png",
-        mediaStatus: "ready",
-      }),
-    );
+    await expect(res.json()).resolves.toEqual({ ok: true, queued: true });
+    expect(mockFireMediaAgentForPost).toHaveBeenCalledWith("post_1", { feedback: prompt });
+    expect(mockUpdatePostMedia).not.toHaveBeenCalled();
     expect(mockRecordContentLearning).toHaveBeenCalledWith(
       expect.objectContaining({
         signalType: "MEDIA_GENERATED",
         postId: "post_1",
-        editedText: "https://cdn.test/image.png",
+        meta: expect.objectContaining({ queuedToMini: true }),
       }),
     );
   });
