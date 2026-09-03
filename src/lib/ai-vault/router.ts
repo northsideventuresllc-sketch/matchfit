@@ -14,6 +14,8 @@ import type {
   MatchFitAiCallResult,
 } from "@/lib/ai-vault/types";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
+import { logLlmUsage } from "@/lib/ai-vault/usage-ledger";
+import type { ProviderCallResult } from "@/lib/ai-vault/providers";
 
 /**
  * AXON-EVERYWHERE-PROJECT (2026-08-05, tier order extended 2026-08-20 per JB direct
@@ -28,12 +30,34 @@ import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
  * `RUNPOD_AXON_V1_ENDPOINT` / `RUNPOD_AXON_V1_KEY` are configured, so this tier is a
  * no-op until the pod is live.
  */
+/**
+ * Fire-and-forget usage log for one successful provider call. Never awaited by callers —
+ * logging must never add latency to, or ever break, the live AI reply path.
+ */
+function logProviderUsage(
+  provider: string,
+  result: Pick<ProviderCallResult, "model" | "usage" | "ms">,
+  args: MatchFitAiCallArgs,
+) {
+  if (!result.usage) return; // nothing reported — don't write a row of nulls
+  logLlmUsage({
+    provider,
+    model: result.model,
+    tokensIn: result.usage.tokensIn,
+    tokensOut: result.usage.tokensOut,
+    ms: result.ms,
+    product: args.kind,
+    meta: { complexity: args.complexity },
+  });
+}
+
 async function attemptAxonLocal(
   args: MatchFitAiCallArgs,
   attempts: MatchFitAiAttempt[],
 ): Promise<string | null> {
   const axon = await callAxonLocalProvider({ system: args.system, user: args.user });
   attempts.push({ provider: "axon-local", model: axon.model ?? "axon-ornith:latest", error: axon.error });
+  if (axon.text) logProviderUsage("ollama", axon, args);
   return axon.text;
 }
 
@@ -48,6 +72,7 @@ async function attemptRunpodAxonV1(
     model: runpod.model ?? "Qwen3-Coder-30B-A3B-Instruct",
     error: runpod.error,
   });
+  if (runpod.text) logProviderUsage("runpod", runpod, args);
   return runpod.text;
 }
 
@@ -117,6 +142,7 @@ async function callAnthropicFirst(
     attempts.push({ provider: providerId, model: geminiModel, error: gemini.error });
 
     if (gemini.text) {
+      logProviderUsage(providerId, { ...gemini, model: geminiModel }, args);
       return {
         text: gemini.text,
         provider: providerId,
@@ -142,6 +168,7 @@ async function callAnthropicFirst(
   attempts.push({ provider: "anthropic", model: claudeModel, error: anthropic.error });
 
   if (anthropic.text) {
+    logProviderUsage("anthropic", anthropic, args);
     return {
       text: anthropic.text,
       provider: "anthropic",
@@ -223,6 +250,7 @@ async function callGeminiFirst(
     attempts.push({ provider: providerId, model: geminiModel, error: gemini.error });
 
     if (gemini.text) {
+      logProviderUsage(providerId, { ...gemini, model: geminiModel }, args);
       return {
         text: gemini.text,
         provider: providerId,
@@ -250,6 +278,7 @@ async function callGeminiFirst(
   attempts.push({ provider: "anthropic", model: claudeModel, error: anthropic.error });
 
   if (anthropic.text) {
+    logProviderUsage("anthropic", anthropic, args);
     return {
       text: anthropic.text,
       provider: "anthropic",
