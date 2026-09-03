@@ -29,6 +29,10 @@ export type ProviderCallResult = {
   text: string | null;
   error?: string;
   model?: string;
+  /** Token usage reported by the provider, when it reports one. Undefined = not reported. */
+  usage?: { tokensIn?: number; tokensOut?: number };
+  /** Wall-clock latency of the call in milliseconds. */
+  ms?: number;
 };
 
 export async function callAnthropicProvider(args: {
@@ -47,6 +51,7 @@ export async function callAnthropicProvider(args: {
   }
 
   for (let attempt = 1; attempt <= AI_VAULT_ANTHROPIC_MAX_ATTEMPTS; attempt += 1) {
+    const startedAt = Date.now();
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -77,18 +82,25 @@ export async function callAnthropicProvider(args: {
         return { text: null, error: message, model: args.model };
       }
 
-      const data = (await res.json()) as { content?: { type: string; text?: string }[] };
+      const data = (await res.json()) as {
+        content?: { type: string; text?: string }[];
+        usage?: { input_tokens?: number; output_tokens?: number };
+      };
       const text =
         data.content
           ?.filter((block) => block.type === "text" && block.text?.trim())
           .map((block) => block.text!.trim())
           .join("\n\n") ?? null;
 
+      const usage = data.usage
+        ? { tokensIn: data.usage.input_tokens, tokensOut: data.usage.output_tokens }
+        : undefined;
+
       if (!text) {
-        return { text: null, error: "Anthropic returned an empty response.", model: args.model };
+        return { text: null, error: "Anthropic returned an empty response.", model: args.model, usage, ms: Date.now() - startedAt };
       }
 
-      return { text, model: args.model };
+      return { text, model: args.model, usage, ms: Date.now() - startedAt };
     } catch (error) {
       const message = requestFailureMessage(error, "Anthropic");
       if (attempt < AI_VAULT_ANTHROPIC_MAX_ATTEMPTS) {
@@ -126,6 +138,7 @@ export async function callGeminiProvider(args: {
 
   for (const model of models) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+    const startedAt = Date.now();
 
     try {
       const res = await fetch(url, {
@@ -159,6 +172,7 @@ export async function callGeminiProvider(args: {
 
       const data = (await res.json()) as {
         candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+        usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
       };
 
       const text =
@@ -167,12 +181,16 @@ export async function callGeminiProvider(args: {
           .filter(Boolean)
           .join("\n\n") ?? null;
 
+      const usage = data.usageMetadata
+        ? { tokensIn: data.usageMetadata.promptTokenCount, tokensOut: data.usageMetadata.candidatesTokenCount }
+        : undefined;
+
       if (!text) {
         lastError = `${providerLabel} (${model}) returned an empty response.`;
         continue;
       }
 
-      return { text, model };
+      return { text, model, usage, ms: Date.now() - startedAt };
     } catch (error) {
       lastError = requestFailureMessage(error, `${providerLabel} (${model})`);
     }

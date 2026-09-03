@@ -31,12 +31,21 @@ function resolveRunpodKey(): string | null {
   return process.env.RUNPOD_AXON_V1_KEY?.trim() || null;
 }
 
+type RunpodUsage = { prompt_tokens?: number; completion_tokens?: number };
+
 type RunpodAxonV1Response = {
   output?: {
     text?: string;
     choices?: Array<{ message?: { content?: string }; text?: string }>;
+    usage?: RunpodUsage;
   };
   choices?: Array<{ message?: { content?: string }; text?: string }>;
+  usage?: RunpodUsage;
+};
+
+export type RunpodAxonV1Result = {
+  text: string | null;
+  usage?: { tokensIn?: number; tokensOut?: number };
 };
 
 /**
@@ -44,6 +53,12 @@ type RunpodAxonV1Response = {
  * Returns null on any missing config / failure / timeout — never throws.
  */
 export async function callRunpodAxonV1(system: string, user: string): Promise<string | null> {
+  const result = await callRunpodAxonV1WithUsage(system, user);
+  return result.text;
+}
+
+/** Same as callRunpodAxonV1 but also surfaces token usage when RunPod reports one. */
+export async function callRunpodAxonV1WithUsage(system: string, user: string): Promise<RunpodAxonV1Result> {
   const endpoint = resolveRunpodEndpoint();
   const key = resolveRunpodKey();
 
@@ -55,7 +70,7 @@ export async function callRunpodAxonV1(system: string, user: string): Promise<st
           "(AXON v1 is not deployed yet, see NI-Brain Decision #1261). Falling through to Gemini.",
       );
     }
-    return null;
+    return { text: null };
   }
 
   try {
@@ -77,7 +92,7 @@ export async function callRunpodAxonV1(system: string, user: string): Promise<st
       signal: AbortSignal.timeout(RUNPOD_AXON_V1_TIMEOUT_MS),
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) return { text: null };
 
     const data = (await res.json()) as RunpodAxonV1Response;
     const text =
@@ -88,9 +103,14 @@ export async function callRunpodAxonV1(system: string, user: string): Promise<st
       data.choices?.[0]?.text?.trim() ||
       null;
 
-    return text || null;
+    const rawUsage = data.output?.usage ?? data.usage;
+    const usage = rawUsage
+      ? { tokensIn: rawUsage.prompt_tokens, tokensOut: rawUsage.completion_tokens }
+      : undefined;
+
+    return { text: text || null, usage };
   } catch {
-    return null;
+    return { text: null };
   }
 }
 
@@ -99,13 +119,16 @@ export async function callRunpodAxonV1Provider(args: {
   system: string;
   user: string;
 }): Promise<ProviderCallResult> {
-  const text = await callRunpodAxonV1(args.system, args.user).catch(() => null);
-  if (!text) {
+  const startedAt = Date.now();
+  const result = await callRunpodAxonV1WithUsage(args.system, args.user).catch(
+    () => ({ text: null }) as RunpodAxonV1Result,
+  );
+  if (!result.text) {
     return {
       text: null,
       error: "RunPod AXON v1 unavailable, not configured, or returned no text.",
       model: RUNPOD_AXON_V1_MODEL,
     };
   }
-  return { text, model: RUNPOD_AXON_V1_MODEL };
+  return { text: result.text, model: RUNPOD_AXON_V1_MODEL, usage: result.usage, ms: Date.now() - startedAt };
 }

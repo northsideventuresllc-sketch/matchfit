@@ -43,10 +43,21 @@ function resolveSupabaseKey(): string | null {
  * Try AXON's own local model (Mac mini, Ollama) via the mini job-queue relay.
  * Returns null on any missing config / failure / timeout — never throws.
  */
+export type AxonLocalResult = {
+  text: string | null;
+  usage?: { tokensIn?: number; tokensOut?: number };
+};
+
 export async function callAxonLocal(system: string, user: string): Promise<string | null> {
+  const result = await callAxonLocalWithUsage(system, user);
+  return result.text;
+}
+
+/** Same as callAxonLocal but also surfaces Ollama's token counts when the relay returns them. */
+export async function callAxonLocalWithUsage(system: string, user: string): Promise<AxonLocalResult> {
   const supabaseUrl = resolveSupabaseUrl();
   const supabaseKey = resolveSupabaseKey();
-  if (!supabaseUrl || !supabaseKey) return null;
+  if (!supabaseUrl || !supabaseKey) return { text: null };
 
   const prompt = `${system}\n\nUser: ${user}\nAssistant:`;
   // think:false is required — axon-ornith is a thinking-capable model (qwen3.5 base) that
@@ -70,13 +81,13 @@ export async function callAxonLocal(system: string, user: string): Promise<strin
         status: "queued",
       }),
     });
-    if (!insertRes.ok) return null;
+    if (!insertRes.ok) return { text: null };
     const rows = (await insertRes.json()) as Array<{ id?: number }> | { id?: number };
     jobId = Array.isArray(rows) ? rows[0]?.id ?? null : rows?.id ?? null;
   } catch {
-    return null;
+    return { text: null };
   }
-  if (!jobId) return null;
+  if (!jobId) return { text: null };
 
   const deadline = Date.now() + MINI_RELAY_MAX_WAIT_MS;
   while (Date.now() < deadline) {
@@ -94,23 +105,30 @@ export async function callAxonLocal(system: string, user: string): Promise<strin
       const row = rows?.[0];
       if (!row) continue;
 
-      if (row.status === "failed") return null;
+      if (row.status === "failed") return { text: null };
       if (row.status !== "done") continue;
 
       const stdout = row.result?.stdout;
-      if (!stdout) return null;
+      if (!stdout) return { text: null };
       try {
-        const parsed = JSON.parse(stdout) as { response?: string };
+        const parsed = JSON.parse(stdout) as {
+          response?: string;
+          prompt_eval_count?: number;
+          eval_count?: number;
+        };
         const text = typeof parsed.response === "string" ? parsed.response.trim() : null;
-        return text || null;
+        return {
+          text: text || null,
+          usage: { tokensIn: parsed.prompt_eval_count, tokensOut: parsed.eval_count },
+        };
       } catch {
-        return null;
+        return { text: null };
       }
     } catch {
       // transient poll error — keep trying until deadline
     }
   }
-  return null; // timed out — caller falls through to the next tier, mini job keeps running
+  return { text: null }; // timed out — caller falls through to the next tier, mini job keeps running
 }
 
 /** Same shape as the other ai-vault providers so router.ts can use it interchangeably. */
@@ -118,9 +136,12 @@ export async function callAxonLocalProvider(args: {
   system: string;
   user: string;
 }): Promise<ProviderCallResult> {
-  const text = await callAxonLocal(args.system, args.user).catch(() => null);
-  if (!text) {
+  const startedAt = Date.now();
+  const result = await callAxonLocalWithUsage(args.system, args.user).catch(
+    () => ({ text: null }) as AxonLocalResult,
+  );
+  if (!result.text) {
     return { text: null, error: "AXON local (Mac mini) unavailable or returned no text.", model: MINI_RELAY_MODEL };
   }
-  return { text, model: MINI_RELAY_MODEL };
+  return { text: result.text, model: MINI_RELAY_MODEL, usage: result.usage, ms: Date.now() - startedAt };
 }
