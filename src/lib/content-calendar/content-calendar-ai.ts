@@ -31,7 +31,6 @@ import {
   normalizeTargetGroup,
 } from "@/lib/content-calendar/content-rules";
 import { enforceHighVolumeHashtags, HIGH_VOLUME_HASHTAG_RULE } from "@/lib/content-calendar/hashtag-policy";
-import { isImageGenerationConfigured } from "@/lib/content-calendar/media-generation";
 import { getSocialPostingDateKeys } from "@/lib/content-calendar/posting-schedule";
 import { scanAndRecordSocialProfiles } from "@/lib/content-calendar/social-profile-scan";
 import { addWeekdays, formatCalendarDate, getContentCalendarRotation } from "@/lib/content-calendar/rotation";
