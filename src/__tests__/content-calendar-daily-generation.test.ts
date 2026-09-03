@@ -63,14 +63,19 @@ import { runDailyContentGeneration } from "@/lib/content-calendar/daily-generati
 
 function mockExistingPostTypes(postTypes: string[]) {
   const builder: Record<string, unknown> = {};
+  // `is` is a real vi.fn (not a passthrough no-op) so tests can assert it was actually invoked
+  // with ("deleted_at", null) — the exact filter the 2026-08-31 resolveUniqueDayIndex fix added,
+  // proving this query excludes archived/scrapped rows from counting as "already filled".
+  const isSpy = vi.fn(() => builder);
   Object.assign(builder, {
     select: () => builder,
     eq: () => builder,
-    is: () => builder,
+    is: isSpy,
     then: (resolve: (v: unknown) => void) =>
       resolve({ data: postTypes.map((post_type) => ({ post_type })), error: null }),
   });
   mockCreateNiBrainClient.mockReturnValue({ from: () => builder });
+  return isSpy;
 }
 
 beforeEach(() => {
@@ -99,7 +104,7 @@ describe("runDailyContentGeneration", () => {
   });
 
   it("skips generation entirely when all four post types already exist for today (idempotent)", async () => {
-    mockExistingPostTypes(["Carousel", "Static", "Video", "Text"]);
+    const isSpy = mockExistingPostTypes(["Carousel", "Static", "Video", "Text"]);
 
     const result = await runDailyContentGeneration({ date: "2026-09-01" }); // Tuesday
 
@@ -108,6 +113,9 @@ describe("runDailyContentGeneration", () => {
       expect(result.createdPostTypes).toEqual([]);
       expect(result.skippedExistingPostTypes).toHaveLength(4);
     }
+    // Proves the "existing post types" lookup actually excludes archived/scrapped rows the way
+    // resolveUniqueDayIndex's 2026-08-31 fix does, rather than the mock silently no-op'ing the check.
+    expect(isSpy).toHaveBeenCalledWith("deleted_at", null);
     expect(mockGenerateBulkContent).not.toHaveBeenCalled();
     expect(mockCreateV2Draft).not.toHaveBeenCalled();
   });
@@ -165,5 +173,55 @@ describe("runDailyContentGeneration", () => {
       expect(call[0].lane).toBe("scheduled");
       expect(call[0].generateMedia).toBe(false);
     }
+  });
+
+  it("skips a missing post type by strict match instead of guessing from a differently-ordered response", async () => {
+    // Video + Text are missing, but the AI vault returns them out of request order AND labeled
+    // with only one matching postType -- a positional fallback (drafts[i]) would have wrongly
+    // saved the "Carousel" draft under "Video". The fix must match strictly by postType and skip
+    // (not mislabel) whichever requested type genuinely never came back.
+    mockExistingPostTypes(["Static"]); // Carousel, Video, Text missing
+    mockGenerateBulkContent.mockResolvedValue({
+      drafts: [
+        {
+          tempId: "t1",
+          postType: "Text",
+          targetGroup: "Join the Team",
+          platforms: "Threads,Facebook",
+          postDate: "2026-09-01",
+          dayIndex: 1,
+          caption: "Text caption",
+          visualPrompt: null,
+          hashtags: ["fitness"],
+        },
+        {
+          tempId: "t2",
+          postType: "Carousel", // mislabeled / out of order -- NOT one of the three missing types' order
+          targetGroup: "Join the Team",
+          platforms: "Instagram",
+          postDate: "2026-09-01",
+          dayIndex: 1,
+          caption: "Carousel caption",
+          visualPrompt: "carousel visual",
+          hashtags: ["fitness"],
+        },
+        // "Video" never comes back at all.
+      ],
+      meta: {},
+    });
+
+    const result = await runDailyContentGeneration({ date: "2026-09-01" });
+
+    expect(result.ran).toBe(true);
+    if (result.ran) {
+      // Only Text and Carousel actually matched a returned draft by postType; Video was skipped,
+      // never filled in with someone else's content.
+      expect(result.createdPostTypes.sort()).toEqual(["Carousel", "Text"]);
+    }
+    expect(mockCreateV2Draft).toHaveBeenCalledTimes(2);
+    const postTypesWritten = mockCreateV2Draft.mock.calls.map((call) => call[0].draft.postType).sort();
+    expect(postTypesWritten).toEqual(["Carousel", "Text"]);
+    // Never wrote a "Video" row using the Carousel draft's content.
+    expect(mockCreateV2Draft.mock.calls.some((call) => call[0].draft.postType === "Video")).toBe(false);
   });
 });

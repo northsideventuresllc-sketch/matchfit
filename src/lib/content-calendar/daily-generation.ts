@@ -69,13 +69,31 @@ async function getExistingPostTypesForSlot(weekStart: string, dayIndex: number):
  * here ever sets status past draft or touches posted/posted_urls — approval and posting stay
  * 100% manual (standing rule 5, approve-only).
  */
+/**
+ * "Today" as a YYYY-MM-DD key in America/New_York, not server-local/UTC time. The cron this
+ * feeds is documented (and named) as an ET-aligned 8am-ET job; using bare `new Date().getDay()`
+ * would judge the weekday in whatever timezone the runner happens to be in, which can disagree
+ * with the ET calendar date near midnight ET / around DST transitions. Only used for the no-args
+ * (live cron) path — an explicit `date` override (manual backfill/testing) is taken literally.
+ */
+function todayKeyInEasternTime(): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
 export async function runDailyContentGeneration(args?: { date?: string }): Promise<DailyGenerationResult> {
   await hydratePlatformEnvFromDatabase();
   resetContentContextCache();
 
-  const today = args?.date ? new Date(`${args.date}T00:00:00`) : new Date();
+  const todayKey = args?.date ?? todayKeyInEasternTime();
+  const today = new Date(`${todayKey}T00:00:00`);
   const jsDay = today.getDay(); // 0=Sun .. 6=Sat
-  const todayKey = formatCalendarDate(today);
   if (jsDay === 0 || jsDay === 6) {
     return { ran: false, reason: "Weekend — Match Fit's content calendar only runs Monday-Friday.", date: todayKey };
   }
@@ -127,10 +145,22 @@ export async function runDailyContentGeneration(args?: { date?: string }): Promi
     weekStart,
   });
 
+  // Match strictly by postType via a Map — never fall back to positional indexing. A position-based
+  // fallback (drafts[i]) would silently save the wrong post type's copy/prompt under the wrong slot
+  // (e.g. a Carousel draft's content landing on the Video row) if the AI vault ever returns drafts
+  // out of request order. Missing a postType entirely is a real failure — skip it loudly instead of
+  // guessing, so it stays absent from the Hub rather than showing up mislabeled.
+  const draftsByType = new Map(drafts.map((draft) => [draft.postType, draft] as const));
+
   const createdPostTypes: ContentCalendarPostType[] = [];
   for (const postType of missingPostTypes) {
-    const draft = drafts.find((d) => d.postType === postType) ?? drafts[missingPostTypes.indexOf(postType)];
-    if (!draft) continue;
+    const draft = draftsByType.get(postType);
+    if (!draft) {
+      console.error(
+        `[content-calendar daily generate] AI vault did not return a draft for ${postType} on ${postDate} — skipping rather than mislabeling another type's content.`,
+      );
+      continue;
+    }
 
     const visualPrompt =
       postType === "Text"
@@ -151,7 +181,12 @@ export async function runDailyContentGeneration(args?: { date?: string }): Promi
       postDate,
       generateMedia: false,
       dpmoPhase,
-      hashtagResearchSnapshot: hashtags as unknown as Record<string, unknown>,
+      // createV2Draft's param type is the generic jsonb shape (Record<string, unknown> | null), not
+      // the concrete HashtagResearchSnapshot `hashtags` already is — a single structural cast is
+      // sufficient and verified to compile (no index-signature mismatch requiring an `unknown`
+      // bridge); narrowed from the `as unknown as ...` double-cast used elsewhere in this codebase
+      // (weekly-generation.ts), which isn't actually needed for this direction of cast.
+      hashtagResearchSnapshot: hashtags as Record<string, unknown>,
     });
     createdPostTypes.push(postType);
   }
