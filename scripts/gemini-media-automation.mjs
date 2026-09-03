@@ -36,6 +36,10 @@
  *      so a post generated here continues through Content Calendar v2 the same
  *      way the (broken) API cron path would have. Guarded on workflow_stage
  *      still being "pending", so a post JB already moved elsewhere is untouched.
+ *   7.5. Mark the matching match_fit_content_cowork_jobs row(s) complete (or
+ *      failed) — added 2026-09-03 (Decision #1722 item 4, lane D2). Before this
+ *      the job queue never learned this script had already handled a post, so
+ *      the REST cron kept treating it as unresolved and re-queued/clobbered it.
  *   8. Pings JB on Telegram when a batch finishes.
  *
  * Env required (read from /usr/local/etc/nvg-mini.env on the mini, or process env):
@@ -168,6 +172,67 @@ async function writeMediaResult(rowId, mediaUrls) {
     throw new Error(`write-back failed for ${rowId}: ${res.status} ${await res.text()}`);
   }
   return res.json();
+}
+
+const COWORK_JOBS_TABLE = "match_fit_content_cowork_jobs";
+
+/**
+ * Write-back added 2026-09-03 (Decision #1722 item 4 + same-date Learning, lane D2): before
+ * this, the mini never updated match_fit_content_cowork_jobs at all, so a generate_media job
+ * queued by fireMediaAgentForDay/fireMediaAgentForPost sat "queued" or "running" forever from
+ * the job-row's point of view even after this script actually finished the post — and the
+ * cron drain (content-calendar-generate-media/route.ts) kept treating that same queue as
+ * unresolved, re-queueing and clobbering posts the mini had already handled. This closes the
+ * loop: whichever queued/running generate_media job's brief references this post id gets
+ * marked complete (or failed) here, right after writeMediaResult.
+ *
+ * Matching is done client-side against the brief JSON (not a DB filter) because a job's brief
+ * nests postId under a handful of different order keys (video/static/carousel/...) rather than
+ * one fixed column — simplest robust match for what is normally a handful of live rows.
+ */
+async function findLiveCoworkJobsForPost(postId) {
+  const params = new URLSearchParams();
+  params.set("select", "id,brief,status");
+  params.set("job_type", "eq.generate_media");
+  params.set("status", "in.(queued,dispatched,running)");
+  const res = await sbFetch(`/rest/v1/${COWORK_JOBS_TABLE}?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error(`fetch cowork jobs failed: ${res.status} ${await res.text()}`);
+  }
+  const jobs = await res.json();
+  return jobs.filter((job) => JSON.stringify(job.brief ?? {}).includes(postId));
+}
+
+async function patchCoworkJob(jobId, patch) {
+  const res = await sbFetch(`/rest/v1/${COWORK_JOBS_TABLE}?id=eq.${jobId}`, {
+    method: "PATCH",
+    headers: { Prefer: "return=minimal" },
+    body: { updated_at: new Date().toISOString(), ...patch },
+  });
+  if (!res.ok) {
+    throw new Error(`cowork job write-back failed for ${jobId}: ${res.status} ${await res.text()}`);
+  }
+}
+
+async function completeCoworkJobsForPost(postId, { generationSource }) {
+  const jobs = await findLiveCoworkJobsForPost(postId);
+  for (const job of jobs) {
+    await patchCoworkJob(job.id, {
+      status: "complete",
+      completed_at: new Date().toISOString(),
+      result: { postId, generation_source: generationSource },
+      error: null,
+    });
+  }
+  return jobs.length;
+}
+
+async function failCoworkJobsForPost(postId, errorMessage) {
+  const jobs = await findLiveCoworkJobsForPost(postId);
+  for (const job of jobs) {
+    await patchCoworkJob(job.id, { status: "failed", error: errorMessage });
+  }
+  return jobs.length;
 }
 
 async function uploadRaw(objectPath, buffer, contentType) {
@@ -533,11 +598,21 @@ async function main() {
       }
 
       await writeMediaResult(row.id, mediaUrls);
-      results.push({ id: row.id, post_type: row.post_type, mediaUrls });
-      console.log(`OK ${row.id} (${row.post_type}) -> ${mediaUrls.length} asset(s)`);
+      const closedJobs = await completeCoworkJobsForPost(row.id, {
+        generationSource: "chrome_agent_gemini_pro",
+      }).catch((e) => {
+        console.error(`WARN ${row.id}: writeMediaResult succeeded but cowork job write-back failed: ${e.message || e}`);
+        return 0;
+      });
+      results.push({ id: row.id, post_type: row.post_type, mediaUrls, closedJobs });
+      console.log(`OK ${row.id} (${row.post_type}) -> ${mediaUrls.length} asset(s), ${closedJobs} cowork job(s) closed`);
     } catch (e) {
-      errors.push({ id: row.id, post_type: row.post_type, error: String(e.message || e) });
-      console.error(`FAIL ${row.id}: ${e.message || e}`);
+      const message = String(e.message || e);
+      errors.push({ id: row.id, post_type: row.post_type, error: message });
+      console.error(`FAIL ${row.id}: ${message}`);
+      await failCoworkJobsForPost(row.id, message).catch((e2) => {
+        console.error(`WARN ${row.id}: failed to write the failure back to cowork jobs too: ${e2.message || e2}`);
+      });
       // Do not throw — keep going so one bad row doesn't stall the batch.
     }
   }
