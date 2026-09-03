@@ -235,7 +235,7 @@ Applies to any file touching AI features (`**/*ai*.ts`, `**/ai-vault/**`):
    Anthropic Claude (auto model, paid last resort) → fail.
 3. Keys live in `platform_secrets` (AI Vault), never in source.
 4. Pick `kind` + optional `complexity` so Claude model auto-selection fits the task.
-5. Image generation is free-tier Gemini only (`generateStaticMedia` in `@/lib/content-calendar/media-generation`) — `responseModalities: ["IMAGE"]` + `imageConfig.aspectRatio`, hosted in NI Brain Storage. Nothing routes to OpenAI/DALL·E or any other paid image API, and there is no paid fallback when free quota runs out.
+5. Corrected 2026-09-03 (Decision #1722 item 4 + same-date Learning, JB direct: "media generation is NEVER the Gemini API — it is my Gemini subscription in Chrome on the Mac mini; this assumption is the main reason social media is not getting updated"). Social media images/video are generated ONLY in the Gemini app in Chrome on the Mac mini using JB's subscription (`scripts/gemini-media-automation.mjs`, queued via `queueMiniChromeAgentJob` in `@/lib/content-calendar/cowork-jobs`). No image API, free or paid, ever — `@/lib/content-calendar/media-generation`'s `generateStaticMedia` is dead on purpose and throws if called. Text generation still uses the AXON chain (point 2 above), unaffected by this.
 6. See `docs/ai-vault.md` for Hermes and cross-repo standards.
 
 ---

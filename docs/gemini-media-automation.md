@@ -4,26 +4,37 @@
 **Updated:** 2026-09-02 — wired to Content Calendar v2's real buttons, forced to Gemini
 Pro, and corrected to match how this actually runs in production (see "What changed"
 below — the original design doc described a path that was never implemented).
+**Updated again 2026-09-03** (Decision #1722 item 4 + same-date Learning, lane D2): the
+Gemini image API path this script's own doc already called dead was still wired into the
+generate-media cron and the admin single-post action — both now route through
+`queueMiniChromeAgentJob` instead, and this script now writes its result back onto the
+`match_fit_content_cowork_jobs` row too (see "Job-queue write-back" below), which it
+never did before.
 
 **Why:** WF1 steps 3-9 (generate media in Gemini, crop, upload, write back) only ever
 worked from an attended Cowork session with the desktop bridge. Every scheduled/cloud
 session has zero bridge and zero OS-level screen/click access. This script replaces
 that with a real, code-driven route — and it is the **only** route that actually
-produces media: the Gemini Developer API key behind the REST cron
-(`src/lib/content-calendar/media-generation.ts`, drained by
-`.github/workflows/match-fit-content-calendar-generate-media.yml`) has **zero free-tier
-image/video quota** on the Google Cloud project it's tied to — confirmed live 2026-08-04
-(`nv-vault/scripts/media/README-mf-media-drain.md`) and re-confirmed live 2026-09-02.
-That path cannot succeed regardless of model name or retry count; do not spend more time
-tuning it.
+produces media: JB direct order 2026-09-03 (Decision #1722 item 4 + same-date Learning),
+"media generation is NEVER the Gemini API — it is my Gemini subscription in Chrome on
+the Mac mini." `src/lib/content-calendar/media-generation.ts` is now dead on purpose
+(`generateStaticMedia` throws if called) — it used to call
+`generativelanguage.googleapis.com` directly with a key that had **zero free-tier
+image/video quota**, confirmed live 2026-08-04 (`nv-vault/scripts/media/README-mf-media-
+drain.md`) and re-confirmed 2026-09-02/03. `.github/workflows/match-fit-content-
+calendar-generate-media.yml` no longer runs on a GitHub Actions schedule at all
+(Decision #1699), and the cron route it used to trigger
+(`src/app/api/cron/content-calendar-generate-media/route.ts`) no longer calls that API
+either — it only re-queues posts to this script via `queueMiniChromeAgentJob`.
 
 ## Architecture (as actually deployed)
 
 ```
 Content Calendar v2 button (FIRE COWORK / SUBMIT FOR GENERATION / Send To Agent)
         │  fireCoworkForDay / fireCoworkForPost (content-calendar-cowork-orchestration.ts)
-        │  → creates a match_fit_content_cowork_jobs row (job_type=generate_media) — kept
-        │    for the admin UI's own job history, but nothing drains it into real media
+        │  → creates a match_fit_content_cowork_jobs row (job_type=generate_media) — the
+        │    admin UI's job history, closed by this script itself when it finishes (see
+        │    "Job-queue write-back" below) — not by anything that generates media
         │  → queueMiniChromeAgentJob (cowork-jobs.ts) inserts nvg_mini_jobs
         │    (kind="shell", cmd="cd $HOME/nvg-gemini-automation && node
         │    gemini-media-automation.mjs --ids=<postId,...>")
@@ -50,8 +61,32 @@ workflow_stage/status → "publishing" (matches completeGenerateMediaJob's write
 exactly, guarded on workflow_stage still being "pending" so a post JB already moved
 elsewhere is left alone)
         ▼
+match_fit_content_cowork_jobs: any queued/dispatched/running generate_media job whose
+brief references this post id is marked complete (or failed, on error) — see
+"Job-queue write-back" below
+        ▼
 Telegram ping to JB when the batch finishes
 ```
+
+## Job-queue write-back (added 2026-09-03, Decision #1722 item 4)
+
+Before this, the script wrote the finished media onto the post row (`writeMediaResult`)
+but never touched `match_fit_content_cowork_jobs` — so a job `fireMediaAgentForDay` /
+`fireMediaAgentForPost` created stayed `queued`/`dispatched`/`running` forever from the
+job-row's point of view, even after this script had actually finished the post. That let
+the (now-corrected) REST cron keep treating the same post as unresolved and re-queue it,
+racing with whatever the mini was doing.
+
+`completeCoworkJobsForPost(postId, { generationSource })` now runs right after
+`writeMediaResult` on success: it finds every `match_fit_content_cowork_jobs` row with
+`job_type=generate_media` and `status in (queued, dispatched, running)` whose `brief`
+JSON mentions this post id (matched client-side against the brief text — a job's brief
+nests `postId` under a handful of different keys like `video`/`static`/`carousel`, not
+one fixed column), and marks each `complete` with `result.generation_source` and
+`completed_at`. `failCoworkJobsForPost(postId, message)` does the same thing on the
+`catch` path, marking them `failed` with the real error instead. Either write failing is
+logged as a `WARN`, never thrown — a job-queue write-back miss must never take down a
+media generation run that otherwise succeeded.
 
 ## What changed 2026-09-02 (read this before trusting the rest of this doc)
 

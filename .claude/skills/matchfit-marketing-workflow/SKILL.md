@@ -21,15 +21,30 @@ description: >-
 1. Posts generate at **8am**. Make sure the prompts for **carousel, static, and video** all have the **white frame** in there.
 2. **JB edits and approves** for drafting.
 
-## Media production (Cowork does this)
+## Media production (the Mac mini's browser agent does this, unattended — corrected 2026-09-03, Decision #1722 item 4)
 
-3. Open Cowork and paste the **VIDEO** prompt and generate in **Google Gemini**.
-4. **Crop the white frame out.**
-5. Download it and **upload it to the publishing page.**
-6. **Simultaneously** paste in the **STATIC** prompt and the **CAROUSEL** prompt in **two different tabs**.
-7. Generate.
-8. **Crop the white frames out.**
-9. Download and upload to publishing page.
+> **No Claude Cowork AI session is involved in media generation at all.** JB direct order,
+> live 2026-09-03: "media generation is NEVER the Gemini API — it is my Gemini subscription in
+> Chrome on the Mac mini." Steps 3–9 below used to say "open Cowork and paste the prompt" — that
+> line described a person/agent doing it by hand in a chat session, which is not what actually
+> runs. What actually runs is `scripts/gemini-media-automation.mjs` on the Mac mini: a script
+> that drives Chrome directly over CDP against JB's own logged-in Gemini web session, queued via
+> `queueMiniChromeAgentJob()` (`@/lib/content-calendar/cowork-jobs.ts`). It is fired automatically
+> by Content Calendar v2's Approve Day / "FIRE COWORK" / "SUBMIT FOR GENERATION" / "Send To Agent"
+> buttons, or by hand with `node gemini-media-automation.mjs --ids=<uuid>,...`. There is still no
+> image or video generation API anywhere in this loop — free or paid.
+
+3. **VIDEO** prompt is generated in **Google Gemini** by the mini's browser agent, in a fresh
+   conversation per post.
+4. The agent **crops the white frame out** itself (`sharp` `.trim()` on the copied image).
+5. The agent uploads the cropped asset straight to Supabase Storage and writes it onto the post
+   row — no manual download/upload step.
+6. **STATIC** and **CAROUSEL** prompts are generated the same way, each post type in its own
+   fresh Gemini conversation so one post's context never bleeds into the next.
+7. Generate (same agent, same session, no separate "generate" step for a human to trigger).
+8. Crop the white frames out (same automatic step as #4, per asset).
+9. The agent writes the finished media straight onto the post row and marks the matching job
+   complete — no manual download/upload to the publishing page.
 10. Make sure each post is ready for each site and **PING JB** when ready to look over pre-publish.
 11. **JB approves to post.**
 
