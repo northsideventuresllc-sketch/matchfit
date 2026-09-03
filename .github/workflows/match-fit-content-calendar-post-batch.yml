@@ -1,6 +1,8 @@
 # NOTE (2026-09-03, Decision #1699 / lane D2): schedule: removed -- GitHub Actions schedules are
-# forbidden. Needs an equivalent NI-Brain pg_cron job before the 5pm/8pm ET posting windows
-# resume; workflow_dispatch stays for manual runs only in the meantime.
+# forbidden. Moved to NI-Brain Supabase pg_cron (see scripts/sql/ni-brain/
+# 20260903_pg_cron_matchfit_http_jobs.sql, job mf-content-calendar-post-batch -- four
+# cron.schedule calls, one per original cron expression); workflow_dispatch stays for
+# manual runs only until the coordinator applies that SQL file.
 # Match Fit post-batch dispatcher — 5pm and 8pm ET, Monday–Friday.
 # GitHub Actions crons are fixed-UTC. During EDT (UTC-4, currently in effect):
 #   5pm ET M-F  = 21:00 UTC, Mon-Fri  -> "0 21 * * 1-5"

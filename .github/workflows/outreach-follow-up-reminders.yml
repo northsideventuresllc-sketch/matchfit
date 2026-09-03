@@ -1,5 +1,6 @@
 # NOTE (2026-09-03, Decision #1699 / lane D2): schedule: removed -- GitHub Actions schedules are
-# forbidden. This needs an equivalent NI-Brain pg_cron job before the hourly reminder resumes;
+# forbidden. Moved to NI-Brain Supabase pg_cron (see scripts/sql/ni-brain/
+# 20260903_pg_cron_matchfit_http_jobs.sql, job mf-outreach-follow-up-reminders);
 # workflow_dispatch stays for manual runs only in the meantime.
 # Fires AXON follow-up reminders for due follow_up_1 / follow_up_2 outreach leads, hourly.
 # Vercel Hobby cannot deploy vercel.json crons more than once/day, so this runs via GitHub Actions

@@ -1,5 +1,6 @@
 # NOTE (2026-09-03, Decision #1699 / lane D2): schedule: removed -- GitHub Actions schedules are
-# forbidden. Needs an equivalent NI-Brain pg_cron job before the daily flip resumes;
+# forbidden. Moved to NI-Brain Supabase pg_cron (see scripts/sql/ni-brain/
+# 20260903_pg_cron_matchfit_http_jobs.sql, job mf-outreach-past-due-flip);
 # workflow_dispatch stays for manual runs only in the meantime.
 # Flips Outreach HQ "today"-lane leads with a past queuedForDate into "past_due", once daily.
 # Vercel Hobby cannot deploy vercel.json crons, so this runs via GitHub Actions (same pattern as

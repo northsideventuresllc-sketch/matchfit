@@ -3,6 +3,10 @@
 # scripts/gemini-media-automation.mjs, queued through queueMiniChromeAgentJob(). This workflow
 # stays as workflow_dispatch only for manual/debug invocation of the queue-drain route; it is
 # no longer the producer and must never run on a GitHub Actions clock again.
+# The schedule itself moved to NI-Brain Supabase pg_cron (see scripts/sql/ni-brain/
+# 20260903_pg_cron_matchfit_http_jobs.sql, job mf-content-calendar-generate-media -- six
+# cron.schedule calls, one per original cron expression); safe to restore since this route no
+# longer calls any image API (see PR #357).
 # Match Fit media generation — runs AHEAD of each posting window so approved posts actually
 # reach the publishing window instead of sitting in the queue.
 #
