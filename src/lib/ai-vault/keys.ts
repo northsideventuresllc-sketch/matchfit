@@ -33,6 +33,11 @@ export function resolveGeminiBackupApiKey(): string | null {
   return null;
 }
 
+export function resolveOpenRouterApiKey(): string | null {
+  const key = process.env[AI_VAULT_SECRET_KEYS.openRouterApiKey]?.trim();
+  return key ? key : null;
+}
+
 export function resolveGeminiApiKeyChain(): Array<{ slot: "primary" | "backup"; key: string }> {
   const chain: Array<{ slot: "primary" | "backup"; key: string }> = [];
   const primary = resolveGeminiPrimaryApiKey();

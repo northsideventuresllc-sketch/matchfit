@@ -1,6 +1,12 @@
-import { AI_VAULT_ANTHROPIC_MAX_ATTEMPTS, AI_VAULT_DEFAULT_TIMEOUT_MS } from "@/lib/ai-vault/constants";
+import {
+  AI_VAULT_ANTHROPIC_MAX_ATTEMPTS,
+  AI_VAULT_DEFAULT_TIMEOUT_MS,
+  OPENROUTER_CHAT_COMPLETIONS_URL,
+  OPENROUTER_FREE_MODEL_FALLBACK_UNVERIFIED,
+} from "@/lib/ai-vault/constants";
 import { resolveAnthropicApiKey } from "@/lib/ai-vault/keys";
 import { isRetryableGeminiModelError, resolveGeminiModelChain } from "@/lib/ai-vault/models";
+import { resolveOpenRouterFreeModelChain } from "@/lib/ai-vault/openrouter-models";
 import type { AiVaultProviderId } from "@/lib/ai-vault/types";
 
 function summarizeHttpError(status: number, body: string, provider: string): string {
@@ -200,6 +206,78 @@ export async function callGeminiProvider(args: {
     text: null,
     error: lastError ?? `${providerLabel} request failed for all Gemini models.`,
     model: models[models.length - 1],
+  };
+}
+
+/**
+ * OpenRouter FREE tier — AXON-EVERYWHERE-PROJECT Phase 3 (Decision #1721): sits between
+ * RunPod AXON v1 and Gemini in the canonical chain. Reads the enabled cost_tier=0 model
+ * list for the 'openrouter' route from NI-Brain (router_models/router_routes) via
+ * resolveOpenRouterFreeModelChain(); falls back to OPENROUTER_FREE_MODEL_FALLBACK_UNVERIFIED
+ * when that query is empty or unreachable. OpenAI-compatible chat/completions endpoint.
+ */
+export async function callOpenRouterProvider(args: {
+  system: string;
+  user: string;
+  apiKey: string;
+  maxTokens: number;
+  temperature: number;
+  timeoutMs: number;
+}): Promise<ProviderCallResult> {
+  const models = await resolveOpenRouterFreeModelChain();
+  let lastError: string | undefined;
+
+  for (const model of models) {
+    const startedAt = Date.now();
+    try {
+      const res = await fetch(OPENROUTER_CHAT_COMPLETIONS_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${args.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: args.system },
+            { role: "user", content: args.user },
+          ],
+          max_tokens: args.maxTokens,
+          temperature: args.temperature,
+        }),
+        signal: AbortSignal.timeout(args.timeoutMs),
+      });
+
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => "");
+        lastError = summarizeHttpError(res.status, errBody, `OpenRouter (${model})`);
+        continue;
+      }
+
+      const data = (await res.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+        usage?: { prompt_tokens?: number; completion_tokens?: number };
+      };
+      const text = data.choices?.[0]?.message?.content?.trim() ?? null;
+      const usage = data.usage
+        ? { tokensIn: data.usage.prompt_tokens, tokensOut: data.usage.completion_tokens }
+        : undefined;
+
+      if (!text) {
+        lastError = `OpenRouter (${model}) returned an empty response.`;
+        continue;
+      }
+
+      return { text, model, usage, ms: Date.now() - startedAt };
+    } catch (error) {
+      lastError = requestFailureMessage(error, `OpenRouter (${model})`);
+    }
+  }
+
+  return {
+    text: null,
+    error: lastError ?? "OpenRouter request failed for all free models.",
+    model: models[models.length - 1] ?? OPENROUTER_FREE_MODEL_FALLBACK_UNVERIFIED[0],
   };
 }
 

@@ -2,9 +2,9 @@ import "server-only";
 
 import { AI_VAULT_DEFAULT_TIMEOUT_MS } from "@/lib/ai-vault/constants";
 import { inferTaskComplexity } from "@/lib/ai-vault/complexity";
-import { resolveGeminiApiKeyChain } from "@/lib/ai-vault/keys";
+import { resolveGeminiApiKeyChain, resolveOpenRouterApiKey } from "@/lib/ai-vault/keys";
 import { resolveClaudeModelForComplexity, resolveGeminiModel } from "@/lib/ai-vault/models";
-import { callAnthropicProvider, callGeminiProvider } from "@/lib/ai-vault/providers";
+import { callAnthropicProvider, callGeminiProvider, callOpenRouterProvider } from "@/lib/ai-vault/providers";
 import { callAxonLocalProvider } from "@/lib/ai-vault/axon-local";
 import { callRunpodAxonV1Provider } from "@/lib/ai-vault/runpod-axon-v1";
 import type {
@@ -19,16 +19,18 @@ import type { ProviderCallResult } from "@/lib/ai-vault/providers";
 
 /**
  * AXON-EVERYWHERE-PROJECT (2026-08-05, tier order extended 2026-08-20 per JB direct
- * order): the ONE canonical tier order, binding across every NVG repo — AXON local
- * (Mac mini Ollama) -> RunPod AXON v1 (NVG's own fine-tuned model, not deployed yet,
- * see NI-Brain Decision #1261) -> Gemini primary -> Gemini backup -> Anthropic (paid,
- * last resort) — locked in Decision #598 item 11 / #619, extended by the 2026-08-20
- * order. Every path below tries AXON-local, then RunPod AXON v1, first; where AXON
- * structurally can't do the job (live web search — Ollama has no internet access or
+ * order; OpenRouter free tier inserted 2026-09-03, Phase 3 / Decision #1721): the ONE
+ * canonical tier order, binding across every NVG repo — AXON local (Mac mini Ollama) ->
+ * RunPod AXON v1 (NVG's own fine-tuned model, not deployed yet, see NI-Brain Decision
+ * #1261) -> OpenRouter free models -> Gemini primary -> Gemini backup -> Anthropic (paid,
+ * last resort) — locked in Decision #598 item 11 / #619, extended by the 2026-08-20 and
+ * 2026-09-03 orders. Every path below tries AXON-local, then RunPod AXON v1, first; where
+ * AXON structurally can't do the job (live web search — Ollama has no internet access or
  * tool execution), that is documented explicitly at the call site, never silently
  * skipped. RunPod AXON v1 returns null immediately (no network call) until
  * `RUNPOD_AXON_V1_ENDPOINT` / `RUNPOD_AXON_V1_KEY` are configured, so this tier is a
- * no-op until the pod is live.
+ * no-op until the pod is live. OpenRouter is likewise a no-op until `OPENROUTER_API_KEY`
+ * is configured.
  */
 /**
  * Fire-and-forget usage log for one successful provider call. Never awaited by callers —
@@ -77,6 +79,35 @@ async function attemptRunpodAxonV1(
 }
 
 /**
+ * OpenRouter FREE tier — Phase 3 (Decision #1721): sits between RunPod AXON v1 and
+ * Gemini. No-op (returns null immediately) when OPENROUTER_API_KEY is not configured.
+ */
+async function attemptOpenRouter(
+  args: MatchFitAiCallArgs,
+  maxTokens: number,
+  temperature: number,
+  timeoutMs: number,
+  attempts: MatchFitAiAttempt[],
+): Promise<string | null> {
+  const apiKey = resolveOpenRouterApiKey();
+  if (!apiKey) {
+    attempts.push({ provider: "openrouter", model: "unconfigured", error: "OPENROUTER_API_KEY is not configured." });
+    return null;
+  }
+  const openrouter = await callOpenRouterProvider({
+    system: args.system,
+    user: args.user,
+    apiKey,
+    maxTokens,
+    temperature,
+    timeoutMs,
+  });
+  attempts.push({ provider: "openrouter", model: openrouter.model ?? "unknown", error: openrouter.error });
+  if (openrouter.text) logProviderUsage("openrouter", openrouter, args);
+  return openrouter.text;
+}
+
+/**
  * Tool-calling path (e.g. outreach-ai.ts's lead finder, which needs live web search).
  * AXON-local (Ollama, no internet access, no tool execution) is asked first but told to
  * self-report when it cannot do live search rather than fabricate results — protects the
@@ -116,6 +147,19 @@ async function callAnthropicFirst(
       text: runpodText,
       provider: "runpod-axon-v1",
       model: "Qwen3-Coder-30B-A3B-Instruct",
+      complexity,
+      usedFallback: true,
+      attempts,
+    };
+  }
+
+  // OpenRouter has no live-search capability either — same NO_LIVE_SEARCH self-report guard.
+  const openrouterText = await attemptOpenRouter({ ...args, system: axonSystem }, maxTokens, temperature, timeoutMs, attempts);
+  if (openrouterText && openrouterText.trim() !== "NO_LIVE_SEARCH") {
+    return {
+      text: openrouterText,
+      provider: "openrouter",
+      model: attempts[attempts.length - 1]?.model ?? "openrouter",
       complexity,
       usedFallback: true,
       attempts,
@@ -188,7 +232,7 @@ async function callAnthropicFirst(
     usedFallback: true,
     error: errors.length
       ? errors.join(" → ")
-      : "All AI providers failed (AXON local, RunPod AXON v1, Gemini primary, Gemini backup, Anthropic).",
+      : "All AI providers failed (AXON local, RunPod AXON v1, OpenRouter free, Gemini primary, Gemini backup, Anthropic).",
     attempts,
   };
 }
@@ -231,6 +275,18 @@ async function callGeminiFirst(
     };
   }
 
+  const openrouterText = await attemptOpenRouter(args, maxTokens, temperature, timeoutMs, attempts);
+  if (openrouterText) {
+    return {
+      text: openrouterText,
+      provider: "openrouter",
+      model: attempts[attempts.length - 1]?.model ?? "openrouter",
+      complexity,
+      usedFallback: true,
+      attempts,
+    };
+  }
+
   const geminiKeys = resolveGeminiApiKeyChain();
   for (const entry of geminiKeys) {
     const providerId: AiVaultProviderId =
@@ -262,7 +318,7 @@ async function callGeminiFirst(
     }
   }
 
-  // Free-tier AXON/Gemini exhausted/unavailable — fall back to paid Anthropic so the
+  // Free-tier AXON/OpenRouter/Gemini exhausted/unavailable — fall back to paid Anthropic so the
   // request still completes instead of failing outright.
   const anthropic = await callAnthropicProvider({
     system: args.system,
@@ -298,7 +354,7 @@ async function callGeminiFirst(
     usedFallback: true,
     error: errors.length
       ? errors.join(" → ")
-      : "All AI providers failed (AXON local, RunPod AXON v1, Gemini primary, Gemini backup, Anthropic).",
+      : "All AI providers failed (AXON local, RunPod AXON v1, OpenRouter free, Gemini primary, Gemini backup, Anthropic).",
     attempts,
   };
 }

@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-03** `2.26.11-beta` → `2.26.12-beta` (**patch** — AI Vault: OpenRouter free tier in the AXON chain)
 - **2026-09-03** `2.26.10-beta` → `2.26.11-beta` (**patch** — Send Queue now shows the queued outreach message text with a copy button)
 - **2026-09-03** `2.26.9-beta` → `2.26.10-beta` (**patch** — Log AI Vault provider calls to the AXON usage ledger)
 - **2026-09-02** `2.26.8-beta` → `2.26.9-beta` (**patch** — Approve Day auto-fires media generation; rename Cowork to media agent in content calendar)
