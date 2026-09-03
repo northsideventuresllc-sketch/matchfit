@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-03** `2.26.13-beta` → `2.26.14-beta` (**patch** — Media jobs auto-launch the Mac mini automation Chrome)
 - **2026-09-03** `2.26.12-beta` → `2.26.13-beta` (**patch** — Media generation: Mac mini Chrome only, API path removed)
 - **2026-09-03** `2.26.11-beta` → `2.26.12-beta` (**patch** — AI Vault: OpenRouter free tier in the AXON chain)
 - **2026-09-03** `2.26.10-beta` → `2.26.11-beta` (**patch** — Send Queue now shows the queued outreach message text with a copy button)

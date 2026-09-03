@@ -84,7 +84,13 @@ export async function createMediaAgentJob(args: {
 export async function queueMiniChromeAgentJob(args: { ids: string[]; title: string }): Promise<void> {
   if (!args.ids.length) return;
   const client = createNiBrainClient();
-  const cmd = `cd $HOME/nvg-gemini-automation && node gemini-media-automation.mjs --ids=${args.ids.join(",")} 2>&1`;
+  // JB 2026-09-03: the mini must open its own automation Chrome if it is closed —
+  // never depend on someone having left it running. The launcher is idempotent
+  // (confirms the CDP port if Chrome is already up, otherwise starts it); it is
+  // refreshed from main so the mini never runs a stale copy.
+  const launcher =
+    "mkdir -p $HOME/nvg-gemini-automation && curl -fsSL https://raw.githubusercontent.com/northsideventuresllc-sketch/matchfit/main/scripts/mini-chrome-automation-launcher.sh -o $HOME/nvg-gemini-automation/mini-chrome-automation-launcher.sh && zsh $HOME/nvg-gemini-automation/mini-chrome-automation-launcher.sh >/dev/null 2>&1; sleep 3;";
+  const cmd = `${launcher} cd $HOME/nvg-gemini-automation && node gemini-media-automation.mjs --ids=${args.ids.join(",")} 2>&1`;
   const { error } = await client.from("nvg_mini_jobs").insert({
     kind: "shell",
     title: args.title,
