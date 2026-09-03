@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Coverage for the daily Content Hub top-up (daily-generation.ts): the "AXON agents do the
-// research and push it to the MF portal every day" pipeline. Three behaviors matter most:
-// (1) it never runs on a weekend (Match Fit's calendar is Monday-Friday only), (2) it never
-// re-generates a post type that's already sitting in the Hub (idempotent, no over-generation),
-// and (3) when it does generate, it only asks for the post types actually missing.
+// research and push it to the MF portal every day" pipeline. What matters most:
+// (1) it never runs on a weekend (Match Fit's calendar is Monday-Friday only), (2) it targets
+// ONLY the JB-locked post-type pair for that weekday (Mon/Wed/Fri: Carousel+Video, Tue/Thu:
+// Static+Text) -- never the other pair, since reproducing the exact bug fixed 2026-09-01 in the
+// weekly job would be a real regression here, (3) it never re-generates a post type already
+// sitting in the Hub (idempotent, no over-generation), and (4) a missing AI response is skipped,
+// never guessed at positionally.
 
 const {
   mockCreateNiBrainClient,
@@ -60,6 +63,14 @@ vi.mock("@/lib/content-calendar/content-calendar-v2-store", () => ({
 }));
 
 import { runDailyContentGeneration } from "@/lib/content-calendar/daily-generation";
+import { CONTENT_CALENDAR_WEEKDAY_POST_TYPES } from "@/lib/content-calendar/constants";
+
+// 2026-09-01 = Tuesday (dayIndex 1, locked pair Static+Text).
+// 2026-09-02 = Wednesday (dayIndex 2, locked pair Carousel+Video).
+// 2026-09-05 = Saturday (weekend, no-op).
+const TUESDAY = "2026-09-01";
+const WEDNESDAY = "2026-09-02";
+const SATURDAY = "2026-09-05";
 
 function mockExistingPostTypes(postTypes: string[]) {
   const builder: Record<string, unknown> = {};
@@ -95,7 +106,7 @@ beforeEach(() => {
 
 describe("runDailyContentGeneration", () => {
   it("does not run on a weekend and never touches the database or AI vault", async () => {
-    const result = await runDailyContentGeneration({ date: "2026-09-05" }); // Saturday
+    const result = await runDailyContentGeneration({ date: SATURDAY });
 
     expect(result.ran).toBe(false);
     expect(mockCreateNiBrainClient).not.toHaveBeenCalled();
@@ -103,15 +114,59 @@ describe("runDailyContentGeneration", () => {
     expect(mockCreateV2Draft).not.toHaveBeenCalled();
   });
 
-  it("skips generation entirely when all four post types already exist for today (idempotent)", async () => {
-    const isSpy = mockExistingPostTypes(["Carousel", "Static", "Video", "Text"]);
+  it("targets only today's JB-locked post-type pair, never the other weekday's pair", async () => {
+    // Tuesday's locked pair is Static+Text. Nothing exists yet for today.
+    mockExistingPostTypes([]);
+    mockGenerateBulkContent.mockResolvedValue({
+      drafts: [
+        {
+          tempId: "t1",
+          postType: "Static",
+          targetGroup: "Join the Team",
+          platforms: "Instagram,Threads,Facebook",
+          postDate: TUESDAY,
+          dayIndex: 1,
+          caption: "Static caption",
+          visualPrompt: "static visual",
+          hashtags: ["fitness"],
+        },
+        {
+          tempId: "t2",
+          postType: "Text",
+          targetGroup: "Join the Team",
+          platforms: "Threads,Facebook",
+          postDate: TUESDAY,
+          dayIndex: 1,
+          caption: "Text caption",
+          visualPrompt: null,
+          hashtags: ["fitness"],
+        },
+      ],
+      meta: {},
+    });
 
-    const result = await runDailyContentGeneration({ date: "2026-09-01" }); // Tuesday
+    const result = await runDailyContentGeneration({ date: TUESDAY });
+
+    expect(result.ran).toBe(true);
+    if (result.ran) {
+      expect(result.createdPostTypes.sort()).toEqual(["Static", "Text"]);
+    }
+    // Never asked the AI vault for Carousel or Video on a Tuesday — that's Mon/Wed/Fri's pair.
+    const items = mockGenerateBulkContent.mock.calls[0][0].items;
+    expect(items.map((i: { postType: string }) => i.postType).sort()).toEqual(["Static", "Text"]);
+    const postTypesWritten = mockCreateV2Draft.mock.calls.map((call) => call[0].draft.postType).sort();
+    expect(postTypesWritten).toEqual(["Static", "Text"]);
+  });
+
+  it("skips generation entirely when today's locked pair already exists (idempotent)", async () => {
+    const isSpy = mockExistingPostTypes(["Static", "Text"]); // Tuesday's full locked pair
+
+    const result = await runDailyContentGeneration({ date: TUESDAY });
 
     expect(result.ran).toBe(true);
     if (result.ran) {
       expect(result.createdPostTypes).toEqual([]);
-      expect(result.skippedExistingPostTypes).toHaveLength(4);
+      expect(result.skippedExistingPostTypes.sort()).toEqual(["Static", "Text"]);
     }
     // Proves the "existing post types" lookup actually excludes archived/scrapped rows the way
     // resolveUniqueDayIndex's 2026-08-31 fix does, rather than the mock silently no-op'ing the check.
@@ -120,108 +175,76 @@ describe("runDailyContentGeneration", () => {
     expect(mockCreateV2Draft).not.toHaveBeenCalled();
   });
 
-  it("generates only the missing post types and writes one draft per missing type", async () => {
-    mockExistingPostTypes(["Carousel", "Static"]); // Video + Text missing
+  it("generates only the missing half of today's locked pair (Wednesday: Carousel+Video)", async () => {
+    expect(CONTENT_CALENDAR_WEEKDAY_POST_TYPES[2]).toEqual(["Carousel", "Video"]); // sanity-check the fixture assumption
+    mockExistingPostTypes(["Carousel"]); // Video still missing
     mockGenerateBulkContent.mockResolvedValue({
       drafts: [
         {
           tempId: "t1",
           postType: "Video",
           targetGroup: "Join the Team",
-          platforms: "TikTok,Instagram",
-          postDate: "2026-09-01",
-          dayIndex: 1,
+          platforms: "Instagram Reels,Facebook Reels,Threads,TikTok",
+          postDate: WEDNESDAY,
+          dayIndex: 2,
           caption: "Video caption",
           visualPrompt: "video visual",
           hashtags: ["fitness"],
         },
-        {
-          tempId: "t2",
-          postType: "Text",
-          targetGroup: "Join the Team",
-          platforms: "Threads,Facebook",
-          postDate: "2026-09-01",
-          dayIndex: 1,
-          caption: "Text caption",
-          visualPrompt: null,
-          hashtags: ["fitness"],
-        },
       ],
       meta: {},
     });
 
-    const result = await runDailyContentGeneration({ date: "2026-09-01" }); // Tuesday
+    const result = await runDailyContentGeneration({ date: WEDNESDAY });
 
     expect(result.ran).toBe(true);
     if (result.ran) {
-      expect(result.createdPostTypes.sort()).toEqual(["Text", "Video"]);
-      expect(result.skippedExistingPostTypes.sort()).toEqual(["Carousel", "Static"]);
+      expect(result.createdPostTypes).toEqual(["Video"]);
+      expect(result.skippedExistingPostTypes).toEqual(["Carousel"]);
     }
-
-    // Only asked the AI vault to generate the two missing types, never the two already in the Hub.
     expect(mockGenerateBulkContent).toHaveBeenCalledTimes(1);
     const items = mockGenerateBulkContent.mock.calls[0][0].items;
-    expect(items.map((i: { postType: string }) => i.postType).sort()).toEqual(["Text", "Video"]);
+    expect(items.map((i: { postType: string }) => i.postType)).toEqual(["Video"]);
 
-    // One draft written per missing post type, never one for an already-existing type.
-    expect(mockCreateV2Draft).toHaveBeenCalledTimes(2);
-    const postTypesWritten = mockCreateV2Draft.mock.calls.map((call) => call[0].draft.postType).sort();
-    expect(postTypesWritten).toEqual(["Text", "Video"]);
-
+    expect(mockCreateV2Draft).toHaveBeenCalledTimes(1);
+    expect(mockCreateV2Draft.mock.calls[0][0].draft.postType).toBe("Video");
     // Every write stays inside the approve-only rule: draft status, hub stage, scheduled lane.
-    for (const call of mockCreateV2Draft.mock.calls) {
-      expect(call[0].lane).toBe("scheduled");
-      expect(call[0].generateMedia).toBe(false);
-    }
+    expect(mockCreateV2Draft.mock.calls[0][0].lane).toBe("scheduled");
+    expect(mockCreateV2Draft.mock.calls[0][0].generateMedia).toBe(false);
   });
 
-  it("skips a missing post type by strict match instead of guessing from a differently-ordered response", async () => {
-    // Video + Text are missing, but the AI vault returns them out of request order AND labeled
-    // with only one matching postType -- a positional fallback (drafts[i]) would have wrongly
-    // saved the "Carousel" draft under "Video". The fix must match strictly by postType and skip
-    // (not mislabel) whichever requested type genuinely never came back.
-    mockExistingPostTypes(["Static"]); // Carousel, Video, Text missing
+  it("skips a missing post type by strict match instead of guessing from a differently-shaped response", async () => {
+    // Both of Wednesday's locked types (Carousel + Video) are missing, but the AI vault only
+    // returns Video. A positional fallback would have wrongly matched some other item to
+    // "Carousel"; the fix must skip Carousel outright rather than mislabel it.
+    mockExistingPostTypes([]);
     mockGenerateBulkContent.mockResolvedValue({
       drafts: [
         {
           tempId: "t1",
-          postType: "Text",
+          postType: "Video",
           targetGroup: "Join the Team",
-          platforms: "Threads,Facebook",
-          postDate: "2026-09-01",
-          dayIndex: 1,
-          caption: "Text caption",
-          visualPrompt: null,
+          platforms: "Instagram Reels,Facebook Reels,Threads,TikTok",
+          postDate: WEDNESDAY,
+          dayIndex: 2,
+          caption: "Video caption",
+          visualPrompt: "video visual",
           hashtags: ["fitness"],
         },
-        {
-          tempId: "t2",
-          postType: "Carousel", // mislabeled / out of order -- NOT one of the three missing types' order
-          targetGroup: "Join the Team",
-          platforms: "Instagram",
-          postDate: "2026-09-01",
-          dayIndex: 1,
-          caption: "Carousel caption",
-          visualPrompt: "carousel visual",
-          hashtags: ["fitness"],
-        },
-        // "Video" never comes back at all.
+        // "Carousel" never comes back at all.
       ],
       meta: {},
     });
 
-    const result = await runDailyContentGeneration({ date: "2026-09-01" });
+    const result = await runDailyContentGeneration({ date: WEDNESDAY });
 
     expect(result.ran).toBe(true);
     if (result.ran) {
-      // Only Text and Carousel actually matched a returned draft by postType; Video was skipped,
-      // never filled in with someone else's content.
-      expect(result.createdPostTypes.sort()).toEqual(["Carousel", "Text"]);
+      expect(result.createdPostTypes).toEqual(["Video"]);
     }
-    expect(mockCreateV2Draft).toHaveBeenCalledTimes(2);
-    const postTypesWritten = mockCreateV2Draft.mock.calls.map((call) => call[0].draft.postType).sort();
-    expect(postTypesWritten).toEqual(["Carousel", "Text"]);
-    // Never wrote a "Video" row using the Carousel draft's content.
-    expect(mockCreateV2Draft.mock.calls.some((call) => call[0].draft.postType === "Video")).toBe(false);
+    expect(mockCreateV2Draft).toHaveBeenCalledTimes(1);
+    expect(mockCreateV2Draft.mock.calls[0][0].draft.postType).toBe("Video");
+    // Never wrote a "Carousel" row using some other type's content.
+    expect(mockCreateV2Draft.mock.calls.some((call) => call[0].draft.postType === "Carousel")).toBe(false);
   });
 });

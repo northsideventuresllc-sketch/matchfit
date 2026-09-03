@@ -1,22 +1,24 @@
-# Daily Match Fit content generation — every weekday 8am ET.
-# GitHub Actions crons are fixed-UTC. 8am ET during EDT (UTC-4, currently in effect) = 12:00 UTC.
-# During EST (UTC-5) this fires at 7am ET; adjust to "5 13 * * 1-5" if you want to hold 8am year-round.
+# NOTE (2026-09-03, Decision #1699 / lane D2): no schedule: block -- GitHub Actions schedules are
+# forbidden org-wide (every other .github/workflows/*.yml in this repo had theirs removed the same
+# way, see match-fit-content-calendar-weekly-generate.yml). The daily 8am-ET trigger lives on
+# NI-Brain Supabase pg_cron instead (job mf-cron-daily-generate, see scripts/sql/ni-brain/
+# 20260903_pg_cron_matchfit_content_calendar_daily_generate.sql) -- workflow_dispatch stays here
+# for manual/debug runs only, once that SQL file has been applied by the coordinator (it targets
+# /api/cron/content-calendar-daily-generate, which only exists once this PR is merged and deployed).
 #
 # Companion to match-fit-content-calendar-weekly-generate.yml (Monday-only, plans a full week in
 # one batch): this runs every weekday and tops up ONLY today's Content Hub slot with whichever of
-# the four post types (Carousel/Static/Video/Text) are still missing, researching fresh trending
-# hashtags each time via the AI Vault (AXON local first, see docs/ai-vault.md). It is idempotent —
-# a post type already sitting in the Hub is left alone — so this self-heals a day whose weekly
-# batch never ran, timed out, or got scrapped, instead of leaving that day empty until next Monday.
+# TODAY's JB-locked post-type pair (CONTENT_CALENDAR_WEEKDAY_POST_TYPES: Mon/Wed/Fri Carousel +
+# Video, Tue/Thu Static + Text) are still missing, researching fresh trending hashtags each time
+# via the AI Vault (AXON local first, see docs/ai-vault.md). It is idempotent — a post type
+# already sitting in the Hub is left alone — so this self-heals a day whose weekly batch never
+# ran, timed out, or got scrapped, instead of leaving that day empty until next Monday.
 # Everything it writes is status="draft" — JB still has to press approve in the admin UI before
-# anything moves further (standing rule 5, approve-only). Offset 5 minutes after the weekly cron's
-# top of the hour so the two never race the same Monday slot.
+# anything moves further (standing rule 5, approve-only).
 
 name: Match Fit content calendar daily generate
 
 on:
-  schedule:
-    - cron: "5 12 * * 1-5"
   workflow_dispatch: {}
 
 jobs:

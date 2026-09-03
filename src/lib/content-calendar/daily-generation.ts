@@ -1,9 +1,8 @@
 import "server-only";
 
-import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import {
   CONTENT_CALENDAR_DAYS_LONG,
-  CONTENT_CALENDAR_POST_TYPES,
+  CONTENT_CALENDAR_WEEKDAY_POST_TYPES,
   type ContentCalendarPostType,
 } from "@/lib/content-calendar/constants";
 import { getMatchFitDpmoPhase } from "@/lib/content-calendar/cowork-jobs";
@@ -15,6 +14,7 @@ import { getContentCalendarRotation, addWeekdays, formatCalendarDate, getMondayO
 import { createV2Draft } from "@/lib/content-calendar/content-calendar-v2-store";
 import { normalizeTargetGroup } from "@/lib/content-calendar/content-rules";
 import { createNiBrainClient } from "@/lib/ni-brain-client";
+import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 
 const DAILY_GENERATION_ADMIN_ID = "cron_daily_generate";
 
@@ -47,29 +47,6 @@ async function getExistingPostTypesForSlot(weekStart: string, dayIndex: number):
 }
 
 /**
- * Daily Match Fit Content Hub generation — the "AXON agents do the research and push it to the
- * MF portal every day" pipeline JB asked for.
- *
- * This is a companion to the Monday `runWeeklyContentGeneration` (weekly-generation.ts), not a
- * replacement: the weekly job plans and drafts a full Mon-Fri week in one run (social scan +
- * hashtag research + a 5-day AI plan). This daily job runs every weekday morning, checks ONLY
- * today's Content Hub slot, and fills in whichever of the four locked post types
- * (Carousel/Static/Video/Text) are still missing — using fresh trending-hashtag research each
- * time via callMatchFitAi (AXON local Ollama first, then the free-tier fallbacks in
- * docs/ai-vault.md; no static/repeated template). That makes it self-healing: if the weekly
- * batch never ran, timed out partway through, or a day's drafts got scrapped after the fact
- * (the exact situation found live for week 2026-08-31 — see the resolveUniqueDayIndex fix),
- * today still gets a fresh set of drafts instead of staying empty until next Monday.
- *
- * Idempotent by construction: a post type already sitting in the Hub (any non-deleted row for
- * today's week_start/day_index/post_type) is left untouched, so running this after the weekly
- * job — or twice in one day — never over-generates or duplicates.
- *
- * Output is always workflow_stage="hub" / status="draft" / content_lane="scheduled". Nothing
- * here ever sets status past draft or touches posted/posted_urls — approval and posting stay
- * 100% manual (standing rule 5, approve-only).
- */
-/**
  * "Today" as a YYYY-MM-DD key in America/New_York, not server-local/UTC time. The cron this
  * feeds is documented (and named) as an ET-aligned 8am-ET job; using bare `new Date().getDay()`
  * would judge the weekday in whatever timezone the runner happens to be in, which can disagree
@@ -87,6 +64,36 @@ function todayKeyInEasternTime(): string {
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
+/**
+ * Daily Match Fit Content Hub generation — the "AXON agents do the research and push it to the
+ * MF portal every day" pipeline JB asked for.
+ *
+ * This is a companion to the Monday `runWeeklyContentGeneration` (weekly-generation.ts), not a
+ * replacement: the weekly job plans and drafts a full Mon-Fri week in one run (social scan +
+ * hashtag research + a 5-day AI plan). This daily job runs every weekday morning, checks ONLY
+ * today's Content Hub slot, and fills in whichever of TODAY's locked post types are still
+ * missing — using fresh trending-hashtag research each time via callMatchFitAi (AXON local
+ * Ollama first, then the free-tier fallbacks in docs/ai-vault.md; no static/repeated template).
+ *
+ * "Today's locked post types" is CONTENT_CALENDAR_WEEKDAY_POST_TYPES[dayIndex], the same
+ * JB-locked per-weekday rotation weekly-generation.ts uses (Mon/Wed/Fri: Carousel + Video;
+ * Tue/Thu: Static + Text) — NOT all four post types every day. Generating the other two types on
+ * the wrong day would be exactly the bug fixed 2026-09-01 in the weekly job; this daily job must
+ * never reintroduce it via a second code path.
+ *
+ * That makes this self-healing: if the weekly batch never ran, timed out partway through, or a
+ * day's drafts got scrapped after the fact (the exact situation found live for week 2026-08-31 —
+ * see the resolveUniqueDayIndex fix), today still gets a fresh set of drafts instead of staying
+ * empty until next Monday.
+ *
+ * Idempotent by construction: a post type already sitting in the Hub (any non-deleted row for
+ * today's week_start/day_index/post_type) is left untouched, so running this after the weekly
+ * job — or twice in one day — never over-generates or duplicates.
+ *
+ * Output is always workflow_stage="hub" / status="draft" / content_lane="scheduled". Nothing
+ * here ever sets status past draft or touches posted/posted_urls — approval and posting stay
+ * 100% manual (standing rule 5, approve-only).
+ */
 export async function runDailyContentGeneration(args?: { date?: string }): Promise<DailyGenerationResult> {
   await hydratePlatformEnvFromDatabase();
   resetContentContextCache();
@@ -102,8 +109,11 @@ export async function runDailyContentGeneration(args?: { date?: string }): Promi
   const weekStart = formatCalendarDate(monday);
   const postDate = formatCalendarDate(addWeekdays(monday, dayIndex));
 
+  // Today's locked pair, not all four types — see the function doc comment above.
+  const dayFormats = CONTENT_CALENDAR_WEEKDAY_POST_TYPES[dayIndex];
+
   const existing = await getExistingPostTypesForSlot(weekStart, dayIndex);
-  const missingPostTypes = CONTENT_CALENDAR_POST_TYPES.filter((type) => !existing.has(type));
+  const missingPostTypes = dayFormats.filter((type) => !existing.has(type));
 
   if (!missingPostTypes.length) {
     return {
@@ -113,7 +123,7 @@ export async function runDailyContentGeneration(args?: { date?: string }): Promi
       dayIndex,
       targetGroup: "",
       createdPostTypes: [],
-      skippedExistingPostTypes: [...CONTENT_CALENDAR_POST_TYPES],
+      skippedExistingPostTypes: [...dayFormats],
       hashtagSnapshot: null,
     };
   }
@@ -133,7 +143,7 @@ export async function runDailyContentGeneration(args?: { date?: string }): Promi
     dpmoPhase ? `Current DPMO growth phase: ${dpmoPhase}.` : "",
     `Weave in currently-trending hashtags where natural: ${hashtags.hashtags.map((t) => `#${t}`).join(" ")}`,
     hashtags.trends.length ? `Trend notes: ${hashtags.trends.join(" | ")}` : "",
-    `Generate only these post types for today: ${missingPostTypes.join(", ")}. Keep each distinct.`,
+    `${CONTENT_CALENDAR_DAYS_LONG[dayIndex]}'s locked post types are exactly: ${dayFormats.join(", ")}. Generate only these: ${missingPostTypes.join(", ")}. Keep each distinct. Do not generate any other post type today.`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -198,7 +208,7 @@ export async function runDailyContentGeneration(args?: { date?: string }): Promi
     dayIndex,
     targetGroup,
     createdPostTypes,
-    skippedExistingPostTypes: [...existing],
+    skippedExistingPostTypes: [...existing].filter((type) => dayFormats.includes(type)),
     hashtagSnapshot: hashtags,
   };
 }

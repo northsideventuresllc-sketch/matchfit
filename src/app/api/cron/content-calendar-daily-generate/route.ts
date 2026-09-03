@@ -16,9 +16,10 @@ function authorize(req: Request): boolean {
 }
 
 /**
- * Daily (weekday morning) Content Hub top-up — fills in whichever of today's four post types are
- * still missing, with fresh trending-hashtag research each run. See daily-generation.ts for why
- * this exists alongside, not instead of, the Monday weekly batch (content-calendar-weekly-generate).
+ * Daily (weekday morning) Content Hub top-up — fills in whichever of today's JB-locked post-type
+ * pair (CONTENT_CALENDAR_WEEKDAY_POST_TYPES) are still missing, with fresh trending-hashtag
+ * research each run. See daily-generation.ts for why this exists alongside, not instead of, the
+ * Monday weekly batch (content-calendar-weekly-generate).
  */
 export async function GET(req: Request) {
   if (!authorize(req)) {
