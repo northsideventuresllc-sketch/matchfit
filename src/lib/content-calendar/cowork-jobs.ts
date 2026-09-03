@@ -93,6 +93,28 @@ export async function queueMiniChromeAgentJob(args: { ids: string[]; title: stri
   if (error) throw new Error(`queueMiniChromeAgentJob failed: ${error.message}`);
 }
 
+/** "Live" nvg_mini_jobs statuses — anything not yet resolved one way or the other. */
+const LIVE_MINI_JOB_STATUSES = ["queued", "blocked_needs_jb"];
+
+/**
+ * True when a not-yet-resolved nvg_mini_jobs shell row already references this post id in its
+ * `payload.cmd` (queueMiniChromeAgentJob's `--ids=...` argument). Used so re-queueing logic
+ * (e.g. the generate-media cron drain) never double-queues a post the mini is already about to
+ * pick up or is stuck on pending JB.
+ */
+export async function hasLiveMiniJobForPost(postId: string): Promise<boolean> {
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("nvg_mini_jobs")
+    .select("id")
+    .eq("kind", "shell")
+    .in("status", LIVE_MINI_JOB_STATUSES)
+    .ilike("payload->>cmd", `%${postId}%`)
+    .limit(1);
+  if (error) throw new Error(`hasLiveMiniJobForPost failed: ${error.message}`);
+  return Boolean(data?.length);
+}
+
 export async function updateMediaAgentJobStatus(args: {
   jobId: string;
   status: MediaAgentJobStatus;

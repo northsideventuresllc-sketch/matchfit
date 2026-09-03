@@ -1,3 +1,8 @@
+# NOTE (2026-09-03, Decision #1699 / lane D2): schedule: removed -- GitHub Actions schedules are
+# forbidden. Moved to NI-Brain Supabase pg_cron (see scripts/sql/ni-brain/
+# 20260903_pg_cron_matchfit_http_jobs.sql, job mf-content-calendar-post-batch -- four
+# cron.schedule calls, one per original cron expression); workflow_dispatch stays for
+# manual runs only until the coordinator applies that SQL file.
 # Match Fit post-batch dispatcher — 5pm and 8pm ET, Monday–Friday.
 # GitHub Actions crons are fixed-UTC. During EDT (UTC-4, currently in effect):
 #   5pm ET M-F  = 21:00 UTC, Mon-Fri  -> "0 21 * * 1-5"
@@ -10,11 +15,6 @@
 name: Match Fit content calendar post batch
 
 on:
-  schedule:
-    - cron: "0 21 * * 1-5"
-    - cron: "0 0 * * 2-6"
-    - cron: "0 21 * * 6,0"
-    - cron: "0 0 * * 0,1"
   workflow_dispatch: {}
 
 jobs:

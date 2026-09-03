@@ -31,7 +31,6 @@ import {
   normalizeTargetGroup,
 } from "@/lib/content-calendar/content-rules";
 import { enforceHighVolumeHashtags, HIGH_VOLUME_HASHTAG_RULE } from "@/lib/content-calendar/hashtag-policy";
-import { isImageGenerationConfigured } from "@/lib/content-calendar/media-generation";
 import { getSocialPostingDateKeys } from "@/lib/content-calendar/posting-schedule";
 import { scanAndRecordSocialProfiles } from "@/lib/content-calendar/social-profile-scan";
 import { addWeekdays, formatCalendarDate, getContentCalendarRotation } from "@/lib/content-calendar/rotation";
@@ -916,14 +915,15 @@ export function getContentCalendarAiStatus(): { configured: boolean; niBrain: bo
   const niBrain = Boolean(
     process.env.NI_BRAIN_SUPABASE_URL?.trim() && process.env.NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY?.trim(),
   );
-  // Images are generated on the free Gemini API and hosted in NI Brain Storage, so both are
-  // required. This used to report on OPENAI_API_KEY, which no longer generates anything.
-  const media = isImageGenerationConfigured() && niBrain;
+  // Media is generated in Chrome on the Mac mini (JB's Gemini subscription), queued through
+  // nvg_mini_jobs — never an image API (Decision #1722, 2026-09-03). isImageGenerationConfigured()
+  // always returns false now (see its doc comment); it is deliberately not part of this check.
+  // "media" here means "the queue this app writes to is reachable", i.e. NI Brain is configured.
+  const media = niBrain;
   const parts: string[] = [vault.message];
-  if (!niBrain) parts.push("Add NI Brain Supabase keys (Vercel env or platform_secrets) for learning persistence.");
-  if (!media) {
+  if (!niBrain) {
     parts.push(
-      "Add GEMINI_API_KEY plus NI Brain Supabase keys to platform_secrets for free image generation.",
+      "Add NI Brain Supabase keys (Vercel env or platform_secrets) — media generation queues to the Mac mini through NI Brain and needs it too.",
     );
   }
   return {

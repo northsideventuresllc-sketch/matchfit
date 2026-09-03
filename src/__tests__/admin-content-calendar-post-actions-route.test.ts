@@ -11,7 +11,7 @@ const {
   mockSerializePostForClient,
   mockUpdatePostMedia,
   mockRegenerateCalendarPost,
-  mockGenerateStaticMedia,
+  mockFireMediaAgentForPost,
 } = vi.hoisted(() => ({
   mockRequireAdminSession: vi.fn(),
   mockIsNiBrainConfiguredAsync: vi.fn(),
@@ -23,7 +23,7 @@ const {
   mockSerializePostForClient: vi.fn(),
   mockUpdatePostMedia: vi.fn(),
   mockRegenerateCalendarPost: vi.fn(),
-  mockGenerateStaticMedia: vi.fn(),
+  mockFireMediaAgentForPost: vi.fn(),
 }));
 
 vi.mock("@/lib/require-admin", () => ({
@@ -45,8 +45,11 @@ vi.mock("@/lib/content-calendar/content-calendar-store", () => ({
 }));
 
 vi.mock("@/lib/content-calendar/content-calendar-ai", () => ({
-  generateStaticMedia: mockGenerateStaticMedia,
   regenerateCalendarPost: mockRegenerateCalendarPost,
+}));
+
+vi.mock("@/lib/content-calendar/content-calendar-cowork-orchestration", () => ({
+  fireMediaAgentForPost: mockFireMediaAgentForPost,
 }));
 
 import { POST } from "@/app/api/admin/content-calendar/posts/[id]/actions/route";
@@ -91,7 +94,10 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
       },
     ]);
     mockSerializePostForClient.mockReturnValue({ id: "row_1_client" });
-    mockGenerateStaticMedia.mockResolvedValue({ ok: true, url: "https://cdn.matchfit.test/generated.png" });
+    mockFireMediaAgentForPost.mockResolvedValue({
+      job: { id: "job_1" },
+      post: { id: "post_1", media_status: "generating" },
+    });
   });
 
   it("returns 401 when requester is not an authenticated admin", async () => {
@@ -276,7 +282,10 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     expect(mockRegenerateCalendarPost).not.toHaveBeenCalled();
   });
 
-  it("generates media, updates status transitions, and records prompt learning", async () => {
+  // Corrected 2026-09-03 (Decision #1722 item 4 + same-date Learning, lane D2): generate_media
+  // no longer calls an image API — it queues the real producer (the Mac mini's Chrome/Gemini
+  // agent) through fireMediaAgentForPost(), the same path Approve Day / Regenerate use.
+  it("queues the Mac mini agent with the operator's prompt as feedback, and records the queue as a learning signal", async () => {
     const prompt = "a".repeat(600);
 
     const res = await POST(
@@ -288,30 +297,18 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     );
 
     expect(res.status).toBe(200);
-    await expect(res.json()).resolves.toEqual({ mediaUrl: "https://cdn.matchfit.test/generated.png" });
-    expect(mockUpdatePostMedia).toHaveBeenNthCalledWith(1, {
-      postId: "post_1",
-      mediaUrl: null,
-      mediaStatus: "generating",
-    });
-    expect(mockUpdatePostMedia).toHaveBeenNthCalledWith(2, {
-      postId: "post_1",
-      mediaUrl: "https://cdn.matchfit.test/generated.png",
-      mediaStatus: "ready",
-    });
+    await expect(res.json()).resolves.toEqual({ ok: true, queued: true });
+    expect(mockFireMediaAgentForPost).toHaveBeenCalledWith("post_1", { feedback: prompt });
+    expect(mockUpdatePostMedia).not.toHaveBeenCalled();
     expect(mockRecordContentLearning).toHaveBeenCalledWith({
       signalType: "MEDIA_GENERATED",
       postId: "post_1",
-      editedText: "https://cdn.matchfit.test/generated.png",
-      meta: { prompt: "a".repeat(500) },
+      meta: { prompt: "a".repeat(500), queuedToMini: true },
     });
   });
 
-  it("returns 502 and marks media generation failed when no image is produced", async () => {
-    mockGenerateStaticMedia.mockResolvedValueOnce({
-      ok: false,
-      reason: "Gemini primary (gemini-3.1-flash-image) returned no image in the response",
-    });
+  it("returns 502 when the post can't be queued to the mini, and never touches media_status itself", async () => {
+    mockFireMediaAgentForPost.mockRejectedValueOnce(new Error("Post not found."));
 
     const res = await POST(
       postJson({
@@ -322,20 +319,9 @@ describe("POST /api/admin/content-calendar/posts/[id]/actions", () => {
     );
 
     expect(res.status).toBe(502);
-    await expect(res.json()).resolves.toEqual({
-      error:
-        "Image generation failed: Gemini primary (gemini-3.1-flash-image) returned no image in the response",
-    });
-    expect(mockUpdatePostMedia).toHaveBeenNthCalledWith(1, {
-      postId: "post_1",
-      mediaUrl: null,
-      mediaStatus: "generating",
-    });
-    expect(mockUpdatePostMedia).toHaveBeenNthCalledWith(2, {
-      postId: "post_1",
-      mediaUrl: null,
-      mediaStatus: "failed",
-    });
+    await expect(res.json()).resolves.toEqual({ error: "Post not found." });
+    expect(mockUpdatePostMedia).not.toHaveBeenCalled();
+    expect(mockRecordContentLearning).not.toHaveBeenCalled();
   });
 
   it("returns 500 when an action throws unexpectedly", async () => {

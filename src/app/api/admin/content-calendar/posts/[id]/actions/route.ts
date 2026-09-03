@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { generateStaticMedia, regenerateCalendarPost } from "@/lib/content-calendar/content-calendar-ai";
+import { regenerateCalendarPost } from "@/lib/content-calendar/content-calendar-ai";
 import {
   dismissMissedPrompt,
   markPostPosted,
   reschedulePost,
   restoreDeletedPost,
   serializePostForClient,
-  updatePostMedia,
   upsertWeekPosts,
   updateHubPostDate,
 } from "@/lib/content-calendar/content-calendar-store";
@@ -15,12 +14,8 @@ import type { ContentCalendarPostType } from "@/lib/content-calendar/constants";
 import { isNiBrainConfiguredAsync, recordContentLearning } from "@/lib/ni-brain-client";
 import { requireAdminSession } from "@/lib/require-admin";
 
-// FIXED 2026-09-01 (JB direct live order — no maxDuration meant the Vercel default applied,
-// which is short enough that generate_media's now-longer Pro-only retry chain (up to
-// GEMINI_IMAGE_MAX_ATTEMPTS attempts, each up to 90s) could get killed mid-request. A killed
-// serverless function never reaches this file's own try/catch, so the post is left stuck at
-// media_status "generating" forever with no error recorded anywhere -- exactly the "approved
-// posts stuck on pending" symptom reported live this session. Matches the cron route's budget.
+// generate_media now just queues the Mac mini agent (fireMediaAgentForPost) and returns — kept
+// at 300s to match the cron route's budget for the other actions here (e.g. AI regenerate).
 export const maxDuration = 300;
 
 const actionSchema = z.discriminatedUnion("action", [
@@ -114,22 +109,27 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         return NextResponse.json({ post: post ? serializePostForClient(post) : null });
       }
       case "generate_media": {
-        await updatePostMedia({ postId: id, mediaUrl: null, mediaStatus: "generating" });
-        const result = await generateStaticMedia(parsed.data.prompt);
-        if (!result.ok) {
-          await updatePostMedia({ postId: id, mediaUrl: null, mediaStatus: "failed" });
-          // Surface the actual reason (quota / missing key / no image / upload) instead of a
-          // generic message — a silent failure here is what hid the dead generator for days.
-          return NextResponse.json({ error: `Image generation failed: ${result.reason}` }, { status: 502 });
+        // Corrected 2026-09-03 (Decision #1722 item 4, lane D2): this used to call
+        // generateStaticMedia() directly against a Gemini image API key with zero free
+        // quota — every call failed. Media is generated in Chrome on the Mac mini (JB's own
+        // Gemini subscription), so this routes through the same fireMediaAgentForPost() path
+        // Approve Day / Regenerate already use: it stamps the operator's prompt in as
+        // feedback, sets media_status "generating", and queues the real producer
+        // (queueMiniChromeAgentJob -> scripts/gemini-media-automation.mjs on the mini). The
+        // mini writes the finished media_url back onto the post itself when it's done.
+        const { fireMediaAgentForPost } = await import("@/lib/content-calendar/content-calendar-cowork-orchestration");
+        try {
+          await fireMediaAgentForPost(id, { feedback: parsed.data.prompt });
+        } catch (e) {
+          const message = e instanceof Error ? e.message : "Could not queue media generation.";
+          return NextResponse.json({ error: message }, { status: 502 });
         }
-        await updatePostMedia({ postId: id, mediaUrl: result.url, mediaStatus: "ready" });
         await recordContentLearning({
           signalType: "MEDIA_GENERATED",
           postId: id,
-          editedText: result.url,
-          meta: { prompt: parsed.data.prompt.slice(0, 500) },
+          meta: { prompt: parsed.data.prompt.slice(0, 500), queuedToMini: true },
         });
-        return NextResponse.json({ mediaUrl: result.url });
+        return NextResponse.json({ ok: true, queued: true });
       }
       default:
         return NextResponse.json({ error: "Unknown action." }, { status: 400 });

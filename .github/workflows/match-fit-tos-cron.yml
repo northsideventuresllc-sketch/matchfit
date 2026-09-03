@@ -1,3 +1,8 @@
+# NOTE (2026-09-03, Decision #1699 / lane D2): schedule: removed -- GitHub Actions schedules are
+# forbidden. Moved to NI-Brain Supabase pg_cron (see scripts/sql/ni-brain/
+# 20260903_pg_cron_matchfit_http_jobs.sql, job mf-tos-cron -- NOT under supabase/migrations,
+# that path would apply it to the wrong Supabase project on merge). workflow_dispatch stays for
+# manual runs only until the coordinator applies that SQL file against NI-Brain.
 # Runs Match Fit scheduled jobs (waitlist promotion, TOS/session crons, abandoned-signup
 # follow-up emails) every 15 minutes.
 # Vercel Hobby cannot deploy vercel.json crons more often than once per day (see vercel.link/3Fpeeb1).
@@ -6,8 +11,6 @@
 name: Match Fit scheduled jobs
 
 on:
-  schedule:
-    - cron: "*/15 * * * *"
   workflow_dispatch: {}
 
 jobs:

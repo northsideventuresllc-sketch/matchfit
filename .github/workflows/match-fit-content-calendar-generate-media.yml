@@ -1,3 +1,12 @@
+# NOTE (2026-09-03, Decision #1699 / lane D2): schedule: removed. Media generation is never
+# the Gemini image API -- it runs in JB's Gemini subscription in Chrome on the Mac mini via
+# scripts/gemini-media-automation.mjs, queued through queueMiniChromeAgentJob(). This workflow
+# stays as workflow_dispatch only for manual/debug invocation of the queue-drain route; it is
+# no longer the producer and must never run on a GitHub Actions clock again.
+# The schedule itself moved to NI-Brain Supabase pg_cron (see scripts/sql/ni-brain/
+# 20260903_pg_cron_matchfit_http_jobs.sql, job mf-content-calendar-generate-media -- six
+# cron.schedule calls, one per original cron expression); safe to restore since this route no
+# longer calls any image API (see PR #357).
 # Match Fit media generation — runs AHEAD of each posting window so approved posts actually
 # reach the publishing window instead of sitting in the queue.
 #
@@ -16,13 +25,6 @@
 name: Match Fit content calendar generate media
 
 on:
-  schedule:
-    - cron: "30 12 * * 1-5"
-    - cron: "15 20 * * 1-5"
-    - cron: "15 23 * * 1-5"
-    - cron: "30 12 * * 6,0"
-    - cron: "15 20 * * 6,0"
-    - cron: "15 23 * * 6,0"
   workflow_dispatch: {}
 
 jobs:
