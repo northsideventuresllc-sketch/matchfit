@@ -9,6 +9,7 @@ import type {
 } from "@/lib/outreach-types";
 import {
   archiveOrigin,
+  briefLeadMessageFields,
   computeLaneTiles,
   dispatchBriefLeads,
   filterLeadsByPlatform,
@@ -17,6 +18,7 @@ import {
   groupHubLeadsByLane,
   laneOf,
   leadDisplayName,
+  manualQueueMessageFields,
   selectFollowUpLeads,
 } from "@/app/admin/outreach/v2/components/helpers";
 
@@ -181,6 +183,92 @@ describe("outreach-hq-v2 helpers", () => {
   it("reads display names per platform", () => {
     expect(leadDisplayName(igEntry({ handle: "@x" }))).toBe("@x");
     expect(leadDisplayName(emailEntry({ name: "Jane" }))).toBe("Jane");
+  });
+
+  it("reads message text off a dispatch brief lead", () => {
+    expect(
+      briefLeadMessageFields({
+        leadId: "a",
+        platform: "instagram",
+        displayName: "@a",
+        contact: "url",
+        outreachIntent: null,
+        dmText: "Hey there",
+        commentText: "Nice post",
+      }),
+    ).toEqual([
+      { label: "DM", text: "Hey there" },
+      { label: "Comment", text: "Nice post" },
+    ]);
+
+    expect(
+      briefLeadMessageFields({
+        leadId: "b",
+        platform: "email",
+        displayName: "Jane",
+        contact: "jane@example.com",
+        outreachIntent: null,
+        emailSubject: "Subject line",
+        emailBody: "Body text",
+      }),
+    ).toEqual([
+      { label: "Subject", text: "Subject line" },
+      { label: "Body", text: "Body text" },
+    ]);
+
+    // Fields absent from the brief (e.g. a follow-up lead, since buildBatchBrief only ever
+    // embeds primary-stage text) are simply omitted, never rendered blank.
+    expect(
+      briefLeadMessageFields({
+        leadId: "c",
+        platform: "facebook",
+        displayName: "Page",
+        contact: "url",
+        outreachIntent: null,
+      }),
+    ).toEqual([]);
+  });
+
+  it("picks the manual-queue message stage from dispatchPreviousLane", () => {
+    const primary = manualQueueMessageFields(
+      igEntry({ dmText: "First DM", commentText: "First comment", dispatchPreviousLane: "today" }),
+    );
+    expect(primary).toEqual([
+      { label: "First DM", text: "First DM" },
+      { label: "Comment", text: "First comment" },
+    ]);
+
+    const followUp1 = manualQueueMessageFields(
+      igEntry({
+        dmText: "First DM",
+        followUp1DmText: "Follow-up 1 DM",
+        dispatchPreviousLane: "follow_up_1",
+      }),
+    );
+    expect(followUp1).toEqual([{ label: "First follow-up DM", text: "Follow-up 1 DM" }]);
+
+    const followUp2Email = manualQueueMessageFields(
+      emailEntry({
+        emailSubject: "Primary subject",
+        emailBody: "Primary body",
+        followUp2EmailSubject: "FU2 subject",
+        followUp2EmailBody: "FU2 body",
+        dispatchPreviousLane: "follow_up_2",
+      }),
+    );
+    expect(followUp2Email).toEqual([
+      { label: "Second follow-up subject", text: "FU2 subject" },
+      { label: "Second follow-up email", text: "FU2 body" },
+    ]);
+
+    // No dispatchPreviousLane recorded (e.g. legacy data) falls back to primary text.
+    const noStage = manualQueueMessageFields(
+      emailEntry({ emailSubject: "Subject", emailBody: "Body" }),
+    );
+    expect(noStage).toEqual([
+      { label: "Subject", text: "Subject" },
+      { label: "Body", text: "Body" },
+    ]);
   });
 });
 

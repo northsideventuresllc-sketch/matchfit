@@ -3,8 +3,34 @@
 import { useState } from "react";
 import { adminLabelClass, adminPanelClass, adminSecondaryButtonClass } from "@/components/admin/admin-portal-ui";
 import type { OutreachCoworkDispatchBatchRow, OutreachHubLead } from "@/lib/outreach-types";
-import { dispatchBriefLeads, formatDispatchSlot, leadContactUrl, leadDisplayName } from "./helpers";
+import {
+  briefLeadMessageFields,
+  dispatchBriefLeads,
+  formatDispatchSlot,
+  leadContactUrl,
+  leadDisplayName,
+  manualQueueMessageFields,
+  type MessageField,
+} from "./helpers";
 import { cancelAgentSendToManual, pullDispatch, setManualSent } from "./client-api";
+import { CopyButton } from "./ui-bits";
+
+/** Read-only message text + a copy button — the same text queued to actually send. */
+function MessageFieldBlock({ field }: { field: MessageField }) {
+  return (
+    <div className="space-y-1 rounded-lg border border-white/[0.06] bg-[#0E1016]/60 p-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-wide text-white/45">{field.label}</span>
+        <CopyButton
+          value={field.text}
+          label="Copy"
+          className="rounded-md border border-white/15 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold text-white/70 transition hover:border-white/25 hover:text-white"
+        />
+      </div>
+      <p className="whitespace-pre-wrap text-sm text-white/85 selection:bg-[#FF7E00]/30">{field.text}</p>
+    </div>
+  );
+}
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {
@@ -89,36 +115,48 @@ function BatchCard(props: {
         <p className="text-xs text-white/40">No leads in this batch.</p>
       ) : (
         <ul className="space-y-1.5">
-          {leads.map((l) => (
-            <li
-              key={`${l.platform}-${l.leadId}`}
-              className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-[#0E1016]/70 px-3 py-2 text-sm"
-            >
-              {pullable ? (
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 shrink-0 accent-[#FF7E00]"
-                  checked={selected.has(l.leadId)}
-                  onChange={() => toggle(l.leadId)}
-                  aria-label={`Select ${l.displayName}`}
-                />
-              ) : null}
-              <span className="min-w-0 flex-1 truncate">
-                <span className="font-semibold text-white">{l.displayName}</span>
-                <span className="text-white/40"> · {l.platform}</span>
-              </span>
-              {pullable ? (
-                <button
-                  type="button"
-                  className="shrink-0 rounded-lg border border-white/15 bg-white/[0.04] px-2 py-1 text-[11px] font-semibold text-white/70 transition hover:border-white/25 hover:text-white disabled:opacity-50"
-                  disabled={cancelingIds.has(l.leadId)}
-                  onClick={() => void cancelToManual(l.leadId)}
-                >
-                  {cancelingIds.has(l.leadId) ? "Moving…" : "→ Manual"}
-                </button>
-              ) : null}
-            </li>
-          ))}
+          {leads.map((l) => {
+            const messageFields = briefLeadMessageFields(l);
+            return (
+              <li
+                key={`${l.platform}-${l.leadId}`}
+                className="space-y-2 rounded-xl border border-white/[0.06] bg-[#0E1016]/70 px-3 py-2 text-sm"
+              >
+                <div className="flex items-center gap-3">
+                  {pullable ? (
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 shrink-0 accent-[#FF7E00]"
+                      checked={selected.has(l.leadId)}
+                      onChange={() => toggle(l.leadId)}
+                      aria-label={`Select ${l.displayName}`}
+                    />
+                  ) : null}
+                  <span className="min-w-0 flex-1 truncate">
+                    <span className="font-semibold text-white">{l.displayName}</span>
+                    <span className="text-white/40"> · {l.platform}</span>
+                  </span>
+                  {pullable ? (
+                    <button
+                      type="button"
+                      className="shrink-0 rounded-lg border border-white/15 bg-white/[0.04] px-2 py-1 text-[11px] font-semibold text-white/70 transition hover:border-white/25 hover:text-white disabled:opacity-50"
+                      disabled={cancelingIds.has(l.leadId)}
+                      onClick={() => void cancelToManual(l.leadId)}
+                    >
+                      {cancelingIds.has(l.leadId) ? "Moving…" : "→ Manual"}
+                    </button>
+                  ) : null}
+                </div>
+                {messageFields.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {messageFields.map((field) => (
+                      <MessageFieldBlock key={field.label} field={field} />
+                    ))}
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -149,6 +187,7 @@ function ManualQueueCard(props: {
   const [busy, setBusy] = useState(false);
   const sent = Boolean(lead.manualSentAt);
   const contactUrl = leadContactUrl(entry);
+  const messageFields = manualQueueMessageFields(entry);
 
   async function toggleSent(nextSent: boolean) {
     setBusy(true);
@@ -188,6 +227,14 @@ function ManualQueueCard(props: {
           {sent ? "Sent" : "Not sent"}
         </span>
       </div>
+
+      {messageFields.length > 0 ? (
+        <div className="space-y-1.5">
+          {messageFields.map((field) => (
+            <MessageFieldBlock key={field.label} field={field} />
+          ))}
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
         {sent ? (
