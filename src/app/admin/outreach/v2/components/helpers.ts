@@ -9,8 +9,9 @@ import type {
 } from "@/lib/outreach-types";
 
 /**
- * The seven Outreach HQ v2 tabs (Outreach Hub is a zoom-out view, not a lane). WF2 item 10 removed
- * the standalone Follow-ups tab — follow-up leads now live inside Pending Leads.
+ * The eight Outreach HQ v2 tabs (Outreach Hub is a zoom-out view, not a lane). WF2 item 10 removed
+ * the standalone Follow-ups tab — follow-up leads now live inside Pending Leads. "conversions" sits
+ * immediately to the left of Archives — leads marked Converted from Pending Responses.
  */
 export type OutreachV2Tab =
   | "hub"
@@ -19,6 +20,7 @@ export type OutreachV2Tab =
   | "dispatch"
   | "pending"
   | "pending_responses"
+  | "conversions"
   | "archives";
 
 /** Platform filter used on the lead-list tabs. `both` = every platform (nothing hidden). */
@@ -74,6 +76,7 @@ export function groupHubLeadsByLane(
     dispatch_queued: [],
     pending: [],
     archived: [],
+    converted: [],
   };
   for (const entry of entries) {
     const lane = laneOf(entry);
@@ -179,6 +182,7 @@ export type LaneTile = {
 export function computeLaneTiles(
   grouped: Record<OutreachLane, OutreachHubLead[]>,
   archiveCount: number,
+  conversionCount = 0,
 ): LaneTile[] {
   const pendingCount = grouped.pending.length + grouped.follow_up_1.length + grouped.follow_up_2.length;
   return [
@@ -192,6 +196,7 @@ export function computeLaneTiles(
       label: "Pending responses",
       count: grouped.pending_response.length,
     },
+    { tab: "conversions", lane: "converted", label: "Successful conversions", count: conversionCount },
     { tab: "archives", lane: "archived", label: "Archives", count: archiveCount },
   ];
 }

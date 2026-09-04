@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { adminLabelClass, adminPanelClass } from "@/components/admin/admin-portal-ui";
-import type { OutreachArchiveLead, OutreachHubLead, OutreachLane } from "@/lib/outreach-types";
+import type { OutreachArchiveLead, OutreachConversionLead, OutreachHubLead, OutreachLane } from "@/lib/outreach-types";
 import { computeLaneTiles, leadDisplayName, type LaneTile, type OutreachV2Tab } from "./helpers";
 
 function Tile(props: {
@@ -59,14 +59,22 @@ function Tile(props: {
 export function OutreachHubPanel(props: {
   grouped: Record<OutreachLane, OutreachHubLead[]>;
   archiveEntries: OutreachArchiveLead[];
+  conversionEntries: OutreachConversionLead[];
   onNavigate: (tab: OutreachV2Tab, leadId?: string) => void;
 }) {
-  const tiles = computeLaneTiles(props.grouped, props.archiveEntries.length);
+  const tiles = computeLaneTiles(props.grouped, props.archiveEntries.length, props.conversionEntries.length);
   const [expanded, setExpanded] = useState<string | null>(null);
 
   function rowsForTile(tile: LaneTile): { id: string; label: string; platform: string }[] {
     if (tile.lane === "archived") {
       return props.archiveEntries.map((e) => ({
+        id: e.lead.id,
+        label: leadDisplayName(e),
+        platform: e.platform,
+      }));
+    }
+    if (tile.lane === "converted") {
+      return props.conversionEntries.map((e) => ({
         id: e.lead.id,
         label: leadDisplayName(e),
         platform: e.platform,

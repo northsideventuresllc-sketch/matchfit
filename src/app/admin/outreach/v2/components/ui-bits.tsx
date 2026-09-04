@@ -13,6 +13,7 @@ import {
   adminLabelClass,
   adminSecondaryButtonClass,
 } from "@/components/admin/admin-portal-ui";
+import { searchAdminAccounts, type AdminAccountSearchResult } from "./client-api";
 
 /**
  * Determinate progress bar with a live percentage. Duplicated (not cross-imported) from the
@@ -274,6 +275,95 @@ export function Modal({
         <div className={title ? "mt-4" : "mt-2"}>{children}</div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Search-and-pick a real Match Fit account (client or trainer) — used by the Converted button and
+ * the conversions panel's "Link account" action. Linking is always optional: "Skip — link later"
+ * closes without picking, since a lead can convert before its real account is fully set up.
+ */
+export function AccountPickerModal({
+  onClose,
+  onPick,
+  onSkip,
+}: {
+  onClose: () => void;
+  onPick: (account: { type: "client" | "trainer"; id: string; label: string }) => void;
+  onSkip: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<AdminAccountSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [searched, setSearched] = useState(false);
+
+  async function runSearch() {
+    const q = query.trim();
+    if (!q) return;
+    setSearching(true);
+    setError(null);
+    const res = await searchAdminAccounts(q);
+    setSearching(false);
+    setSearched(true);
+    if (!res.ok) {
+      setError(res.error);
+      setResults([]);
+      return;
+    }
+    setResults(res.data);
+  }
+
+  return (
+    <Modal title="Link Match Fit account" onClose={onClose}>
+      <div className="space-y-3">
+        <p className="text-xs text-white/55">Search by username or email to link the real account this lead converted into.</p>
+        <div className="flex gap-2">
+          <input
+            className={adminInputClassSm}
+            value={query}
+            placeholder="Username or email…"
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void runSearch();
+            }}
+          />
+          <button type="button" className={adminSecondaryButtonClass} disabled={searching || !query.trim()} onClick={() => void runSearch()}>
+            {searching ? "Searching…" : "Search"}
+          </button>
+        </div>
+        {error ? <p className="text-xs font-semibold text-[#FFB4B4]">{error}</p> : null}
+        {searched && !searching && results.length === 0 && !error ? (
+          <p className="text-xs text-white/45">No accounts found.</p>
+        ) : null}
+        {results.length > 0 ? (
+          <div className="max-h-64 space-y-1.5 overflow-y-auto">
+            {results.map((r) => (
+              <button
+                key={`${r.accountType}-${r.id}`}
+                type="button"
+                className="block w-full truncate rounded-lg border border-white/[0.06] bg-[#0E1016]/60 px-3 py-2 text-left text-xs text-white/75 transition hover:border-[#FF7E00]/30 hover:text-[#FFD34E]"
+                onClick={() =>
+                  onPick({
+                    type: r.accountType,
+                    id: r.id,
+                    label: `${r.firstName} ${r.lastName} (${r.username})`,
+                  })
+                }
+              >
+                {r.firstName} {r.lastName} <span className="text-white/35">· {r.username} · {r.email}</span>
+                <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-white/40">{r.accountType}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button type="button" className={adminSecondaryButtonClass} onClick={onSkip}>
+          Skip — link later
+        </button>
+      </div>
+    </Modal>
   );
 }
 

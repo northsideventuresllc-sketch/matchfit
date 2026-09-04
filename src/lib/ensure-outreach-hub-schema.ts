@@ -343,6 +343,67 @@ async function countOutreachSendModeColumns(): Promise<number> {
   return Number(rows[0]?.count ?? 0);
 }
 
+const OUTREACH_CONVERSIONS_DDL = `
+ALTER TABLE "outreach_instagram_leads"
+  ADD COLUMN IF NOT EXISTS "convertedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "convertedByAdminId" TEXT,
+  ADD COLUMN IF NOT EXISTS "matchedAccountType" TEXT,
+  ADD COLUMN IF NOT EXISTS "matchedAccountId" TEXT;
+
+ALTER TABLE "outreach_facebook_leads"
+  ADD COLUMN IF NOT EXISTS "convertedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "convertedByAdminId" TEXT,
+  ADD COLUMN IF NOT EXISTS "matchedAccountType" TEXT,
+  ADD COLUMN IF NOT EXISTS "matchedAccountId" TEXT;
+
+ALTER TABLE "outreach_email_leads"
+  ADD COLUMN IF NOT EXISTS "convertedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "convertedByAdminId" TEXT,
+  ADD COLUMN IF NOT EXISTS "matchedAccountType" TEXT,
+  ADD COLUMN IF NOT EXISTS "matchedAccountId" TEXT;
+
+CREATE INDEX IF NOT EXISTS "outreach_instagram_leads_converted_idx"
+  ON "outreach_instagram_leads"("convertedAt");
+CREATE INDEX IF NOT EXISTS "outreach_facebook_leads_converted_idx"
+  ON "outreach_facebook_leads"("convertedAt");
+CREATE INDEX IF NOT EXISTS "outreach_email_leads_converted_idx"
+  ON "outreach_email_leads"("convertedAt");
+
+CREATE TABLE IF NOT EXISTS "outreach_lead_touch_log" (
+  "id" TEXT NOT NULL,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "platform" TEXT NOT NULL,
+  "leadId" TEXT NOT NULL,
+  "stage" TEXT NOT NULL,
+  "sentAt" TIMESTAMP(3) NOT NULL,
+  "sendMode" TEXT NOT NULL,
+  "messageFields" JSONB NOT NULL,
+  "dispatchBatchId" TEXT,
+  "performedByAdminId" TEXT,
+  "reconstructed" BOOLEAN NOT NULL DEFAULT false,
+
+  CONSTRAINT "outreach_lead_touch_log_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "outreach_lead_touch_log_leadId_platform_sentAt_idx"
+  ON "outreach_lead_touch_log"("leadId", "platform", "sentAt");
+`;
+
+async function countOutreachConvertedColumns(): Promise<number> {
+  const rows = await prisma.$queryRaw<{ count: bigint }[]>`
+    SELECT COUNT(*)::bigint AS "count"
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name IN (
+        'outreach_instagram_leads',
+        'outreach_facebook_leads',
+        'outreach_email_leads'
+      )
+      AND column_name = 'convertedAt'
+  `;
+  return Number(rows[0]?.count ?? 0);
+}
+
 const OUTREACH_V2_LANES_DDL = `
 ALTER TABLE "outreach_instagram_leads"
   ADD COLUMN IF NOT EXISTS "outreachLane" TEXT NOT NULL DEFAULT 'today',
@@ -568,6 +629,20 @@ export async function ensureOutreachHubSchema(): Promise<void> {
     if (sendModeReady < OUTREACH_LEAD_TABLES.length) {
       throw new Error(
         `[ensureOutreachHubSchema] sendMode columns still missing after DDL (${sendModeReady}/${OUTREACH_LEAD_TABLES.length}). Set DIRECT_URL on the server and redeploy.`,
+      );
+    }
+  }
+
+  // Successful Conversions: conversion fields + per-touch send history (migration 20260904190000_outreach_conversions).
+  if (
+    (await countOutreachConvertedColumns()) < OUTREACH_LEAD_TABLES.length ||
+    !(await tableExists("outreach_lead_touch_log"))
+  ) {
+    await runOutreachDdl(OUTREACH_CONVERSIONS_DDL);
+    const convertedReady = await countOutreachConvertedColumns();
+    if (convertedReady < OUTREACH_LEAD_TABLES.length || !(await tableExists("outreach_lead_touch_log"))) {
+      throw new Error(
+        `[ensureOutreachHubSchema] conversion columns/table still missing after DDL (${convertedReady}/${OUTREACH_LEAD_TABLES.length}). Set DIRECT_URL on the server and redeploy.`,
       );
     }
   }

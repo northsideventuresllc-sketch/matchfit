@@ -179,6 +179,46 @@ export function markResponded(
   );
 }
 
+/** "Converted" — marks a lead as a real Match Fit signup, optionally linked to its account. */
+export function markOutreachLeadConverted(
+  id: string,
+  platform: OutreachPlatform,
+  account?: { type: "client" | "trainer"; id: string } | null,
+): Promise<ApiResult<{ ok: true }>> {
+  return postJson(
+    `/api/admin/outreach/leads/${id}/convert`,
+    {
+      platform,
+      matchedAccountType: account?.type ?? null,
+      matchedAccountId: account?.id ?? null,
+    },
+    "Could not mark lead converted.",
+  );
+}
+
+export type AdminAccountSearchResult = {
+  accountType: "client" | "trainer";
+  id: string;
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+};
+
+/** Search real Match Fit accounts (client/trainer) by username or email — the account picker. */
+export async function searchAdminAccounts(query: string): Promise<ApiResult<AdminAccountSearchResult[]>> {
+  try {
+    const res = await fetch(`/api/admin/support/account/search?q=${encodeURIComponent(query)}`, {
+      credentials: "include",
+    });
+    const data = await readJsonResponse<{ results?: AdminAccountSearchResult[]; error?: string }>(res);
+    if (!res.ok) return { ok: false, error: formatUserFacingError(data.error, "Could not search accounts.") };
+    return { ok: true, data: data.results ?? [] };
+  } catch (e) {
+    return { ok: false, error: formatUserFacingError(e, "Could not search accounts.") };
+  }
+}
+
 /** Regenerate outbound copy fields for a lead (rewrite assist). */
 export function regenerateCopy(
   id: string,
