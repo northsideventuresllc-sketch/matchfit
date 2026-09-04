@@ -177,6 +177,25 @@ CREATE INDEX IF NOT EXISTS idx_content_research_runs_date
   ON match_fit_content_research_runs (run_date DESC, created_at DESC);
 `;
 
+const CONTENT_CALENDAR_V2_4_COLUMNS = [
+  "media_progress",
+  "media_progress_stage",
+  "media_progress_updated_at",
+  "posted_retain_until",
+] as const;
+
+const CONTENT_CALENDAR_V2_4_MIGRATION_SQL = `
+ALTER TABLE match_fit_content_calendar_posts
+  ADD COLUMN IF NOT EXISTS media_progress integer,
+  ADD COLUMN IF NOT EXISTS media_progress_stage text,
+  ADD COLUMN IF NOT EXISTS media_progress_updated_at timestamptz,
+  ADD COLUMN IF NOT EXISTS posted_retain_until timestamptz;
+
+CREATE INDEX IF NOT EXISTS idx_content_calendar_v2_posted_retain
+  ON match_fit_content_calendar_posts (posted_retain_until)
+  WHERE posted_retain_until IS NOT NULL;
+`;
+
 const POST_DATE_NULLABLE_SQL = `
 ALTER TABLE match_fit_content_calendar_posts
   ALTER COLUMN post_date DROP NOT NULL;
@@ -231,6 +250,15 @@ export function isMissingContentCalendarV23SchemaError(e: unknown): boolean {
     CONTENT_CALENDAR_V2_3_COLUMNS.some((column) => message.includes(column)) ||
     message.includes("match_fit_content_research_runs");
   if (!mentioned) return isMissingContentCalendarV22SchemaError(e);
+  return /does not exist|42P01|42703|PGRST204|schema cache/i.test(message);
+}
+
+export function isMissingContentCalendarV24SchemaError(e: unknown): boolean {
+  const message = e instanceof Error ? e.message : String(e);
+  if (/Content Calendar v2\.4 schema is missing/i.test(message)) return true;
+  if (!CONTENT_CALENDAR_V2_4_COLUMNS.some((column) => message.includes(column))) {
+    return isMissingContentCalendarV23SchemaError(e);
+  }
   return /does not exist|42P01|42703|PGRST204|schema cache/i.test(message);
 }
 
@@ -328,6 +356,15 @@ async function probeContentCalendarV23Schema(): Promise<boolean> {
     .select("id, status, trigger, run_date, summary, report_body, model, error, admin_id")
     .limit(1);
   return !runsError;
+}
+
+async function probeContentCalendarV24Schema(): Promise<boolean> {
+  const client = createNiBrainClient();
+  const { error } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("media_progress, media_progress_stage, media_progress_updated_at, posted_retain_until")
+    .limit(1);
+  return !error;
 }
 
 async function runSqlOnUrl(databaseUrl: string, sql: string): Promise<void> {
@@ -503,6 +540,24 @@ export async function ensureContentCalendarV23Schema(): Promise<void> {
   if (!(await probeContentCalendarV23Schema())) {
     throw new Error(
       "Content Calendar v2.3 schema is missing on NI Brain after migration. Confirm NI_BRAIN_DATABASE_URL points at project kxijunwgbrlfzvgkhklo, then redeploy.",
+    );
+  }
+}
+
+/**
+ * Applies Content Calendar v2.4 DDL on NI Brain: live media-generation progress columns
+ * (media_progress / media_progress_stage / media_progress_updated_at) and posted_retain_until
+ * (48h "Posted" retention on the Scheduled tab).
+ */
+export async function ensureContentCalendarV24Schema(): Promise<void> {
+  await ensureContentCalendarV23Schema();
+  if (await probeContentCalendarV24Schema()) return;
+
+  await runNiBrainDdl(CONTENT_CALENDAR_V2_4_MIGRATION_SQL);
+
+  if (!(await probeContentCalendarV24Schema())) {
+    throw new Error(
+      "Content Calendar v2.4 schema is missing on NI Brain after migration. Confirm NI_BRAIN_DATABASE_URL points at project kxijunwgbrlfzvgkhklo, then redeploy.",
     );
   }
 }

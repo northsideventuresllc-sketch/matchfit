@@ -211,6 +211,7 @@ export function SocialMediaResearchPanel({
   const [recent, setRecent] = useState<ResearchRun[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(false);
   const [running, setRunning] = useState(false);
+  const [axonFindings, setAxonFindings] = useState<Array<{ id: string; text: string; date: string | null }>>([]);
   const progress = useSimulatedProgress();
 
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -231,8 +232,24 @@ export function SocialMediaResearchPanel({
     }
   }, [setError]);
 
+  const loadAxonFindings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/content-calendar/v2/research/axon-findings", { credentials: "include" });
+      const data = await readApi<{ findings: Array<{ id: string; text: string; date: string | null }> }>(
+        res,
+        "Could not load AXON findings.",
+      );
+      setAxonFindings(data.findings ?? []);
+    } catch {
+      // AXON findings are supplementary — never block the panel on them.
+    }
+  }, []);
+
   useEffect(() => {
-    queueMicrotask(() => void loadRecent());
+    queueMicrotask(() => {
+      void loadRecent();
+      void loadAxonFindings();
+    });
     // Only on mount — the run button prepends its own result, and the archive browser has its own loads.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -306,6 +323,34 @@ export function SocialMediaResearchPanel({
             <ProgressBar percent={progress.percent} label="Running social media research" />
           </div>
         ) : null}
+      </section>
+
+      <section className={adminCardClass}>
+        <h3 className="text-sm font-black uppercase tracking-[0.14em] text-white">Latest AXON Research</h3>
+        <p className="mt-0.5 text-[11px] uppercase tracking-wide text-white/40">
+          What the daily AXON agent found for Match Fit
+        </p>
+        <div className="mt-4 space-y-2">
+          {axonFindings.length ? (
+            axonFindings.map((f) => (
+              <div
+                key={f.id}
+                className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3 text-sm leading-relaxed text-white/75"
+              >
+                {f.date ? (
+                  <p className="mb-1 text-[10px] uppercase tracking-wide text-[#FFD34E]">
+                    {new Date(f.date).toLocaleDateString()}
+                  </p>
+                ) : null}
+                {f.text}
+              </div>
+            ))
+          ) : (
+            <p className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-6 text-center text-sm text-white/45">
+              No AXON research findings for Match Fit yet — they appear here after the daily agent runs.
+            </p>
+          )}
+        </div>
       </section>
 
       <section className={adminCardClass}>

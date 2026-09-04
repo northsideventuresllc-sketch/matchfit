@@ -8,8 +8,8 @@ import {
   serializeV2Post,
 } from "@/lib/content-calendar/content-calendar-v2-store";
 import {
-  ensureContentCalendarV23Schema,
-  isMissingContentCalendarV23SchemaError,
+  ensureContentCalendarV24Schema,
+  isMissingContentCalendarV24SchemaError,
 } from "@/lib/ensure-content-hub-schema";
 import { isNiBrainConfiguredAsync } from "@/lib/ni-brain-client";
 import { formatUserFacingError } from "@/lib/read-json-response";
@@ -53,7 +53,7 @@ export async function GET(req: Request) {
   const lane = laneRaw ? laneSchema.parse(laneRaw) : undefined;
 
   try {
-    await ensureContentCalendarV23Schema();
+    await ensureContentCalendarV24Schema();
     const posts = await listV2Posts({ stage, lane });
     if (stage === "publishing") void resumeRunningV2Optimizations(posts);
     return NextResponse.json({ posts: posts.map(serializeV2Post), total: posts.length });
@@ -61,7 +61,7 @@ export async function GET(req: Request) {
     console.error("[content-calendar v2 posts GET]", e);
     return NextResponse.json(
       { error: formatUserFacingError(e, "Could not load content calendar v2 posts.") },
-      { status: isMissingContentCalendarV23SchemaError(e) ? 503 : 500 },
+      { status: isMissingContentCalendarV24SchemaError(e) ? 503 : 500 },
     );
   }
 }
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid v2 draft." }, { status: 400 });
 
   try {
-    await ensureContentCalendarV23Schema();
+    await ensureContentCalendarV24Schema();
     const row = await createV2Draft({
       draft: parsed.data.draft,
       weekStart: parsed.data.weekStart,
@@ -93,7 +93,7 @@ export async function POST(req: Request) {
     console.error("[content-calendar v2 posts POST]", e);
     return NextResponse.json(
       { error: formatUserFacingError(e, "Could not save v2 draft.") },
-      { status: isMissingContentCalendarV23SchemaError(e) ? 503 : 500 },
+      { status: isMissingContentCalendarV24SchemaError(e) ? 503 : 500 },
     );
   }
 }

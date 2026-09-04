@@ -46,6 +46,8 @@ export function HubPostBubble({
   const [hashtags, setHashtags] = useState<string[]>(post.hashtags);
   const [visualPrompt, setVisualPrompt] = useState(post.visualPrompt ?? "");
   const [dpmoRationale, setDpmoRationale] = useState(post.dpmoRationale ?? "");
+  const [editDpmo, setEditDpmo] = useState(false);
+  const [postDate, setPostDate] = useState(post.postDate ?? "");
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -57,6 +59,7 @@ export function HubPostBubble({
       setHashtags(post.hashtags);
       setVisualPrompt(post.visualPrompt ?? "");
       setDpmoRationale(post.dpmoRationale ?? "");
+      setPostDate(post.postDate ?? "");
     });
   }, [post]);
 
@@ -64,7 +67,8 @@ export function HubPostBubble({
     caption !== post.caption ||
     !arraysEqual(hashtags, post.hashtags) ||
     (!isText && visualPrompt !== (post.visualPrompt ?? "")) ||
-    dpmoRationale !== (post.dpmoRationale ?? "");
+    dpmoRationale !== (post.dpmoRationale ?? "") ||
+    postDate !== (post.postDate ?? "");
 
   const save = useCallback(async () => {
     setSaving(true);
@@ -74,11 +78,12 @@ export function HubPostBubble({
         hashtags,
         visualPrompt: isText ? null : visualPrompt,
         dpmoRationale: dpmoRationale.trim() ? dpmoRationale : null,
+        postDate,
       });
     } finally {
       setSaving(false);
     }
-  }, [caption, dpmoRationale, hashtags, isText, onPatch, post.id, visualPrompt]);
+  }, [caption, dpmoRationale, hashtags, isText, onPatch, post.id, postDate, visualPrompt]);
 
   // Keep the registry pointed at the latest save closure without re-registering every render.
   const saveRef = useRef(save);
@@ -173,13 +178,40 @@ export function HubPostBubble({
         <ContentHashtagTagInput tags={hashtags} onChange={setHashtags} />
       </div>
 
+      <div className="mt-3">
+        <div className="flex items-center justify-between">
+          <span className={adminLabelClass}>How this fits the DPMO</span>
+          <button
+            type="button"
+            className="text-[10px] font-bold uppercase tracking-wide text-white/45 hover:text-white/70"
+            onClick={() => setEditDpmo((v) => !v)}
+          >
+            {editDpmo ? "Done" : "Edit"}
+          </button>
+        </div>
+        {editDpmo ? (
+          <textarea
+            className={`${adminInputClassSm} mt-1 min-h-[72px]`}
+            value={dpmoRationale}
+            placeholder="Plain English: how this post moves the current growth phase forward, and the strategy behind it."
+            onChange={(e) => setDpmoRationale(e.target.value)}
+          />
+        ) : (
+          <p className="mt-1 rounded-xl border border-white/[0.06] bg-black/20 p-3 text-sm leading-relaxed text-white/75">
+            {dpmoRationale.trim()
+              ? dpmoRationale
+              : "A plain-English DPMO rationale is written when this post is generated — it explains how the post fits the current growth phase and the strategy behind it."}
+          </p>
+        )}
+      </div>
+
       <label className="mt-3 block">
-        <span className={adminLabelClass}>How this fits the DPMO</span>
-        <textarea
-          className={`${adminInputClassSm} mt-1 min-h-[64px]`}
-          value={dpmoRationale}
-          placeholder="One line on how this post moves the current growth phase forward."
-          onChange={(e) => setDpmoRationale(e.target.value)}
+        <span className={adminLabelClass}>Goes up on</span>
+        <input
+          type="date"
+          className={`${adminInputClassSm} mt-1 max-w-[200px]`}
+          value={postDate}
+          onChange={(e) => setPostDate(e.target.value)}
         />
       </label>
 

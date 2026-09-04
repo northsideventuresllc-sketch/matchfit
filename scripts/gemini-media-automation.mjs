@@ -165,6 +165,9 @@ async function writeMediaResult(rowId, mediaUrls) {
       workflow_stage: "publishing",
       status: "publishing",
       generation_source: "chrome_agent_gemini_pro",
+      media_progress: 100,
+      media_progress_stage: mediaUrls.length ? "done" : "failed",
+      media_progress_updated_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     },
   });
@@ -172,6 +175,46 @@ async function writeMediaResult(rowId, mediaUrls) {
     throw new Error(`write-back failed for ${rowId}: ${res.status} ${await res.text()}`);
   }
   return res.json();
+}
+
+/**
+ * Live progress write (added 2026-09-03): the admin Pending tab polls the posts list and drives a
+ * real loading bar off media_progress / media_progress_stage instead of guessing from elapsed time.
+ * Best-effort and guarded on workflow_stage=pending so it never clobbers a post JB moved elsewhere,
+ * and never throws — a progress-write hiccup must not stall a real generation.
+ */
+async function writeProgress(rowId, percent, stage) {
+  try {
+    await sbFetch(`/rest/v1/${TABLE}?id=eq.${rowId}&workflow_stage=eq.pending`, {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: {
+        media_progress: Math.max(0, Math.min(100, Math.round(percent))),
+        media_progress_stage: stage,
+        media_progress_updated_at: new Date().toISOString(),
+      },
+    });
+  } catch (e) {
+    console.warn(`progress write skipped for ${rowId}: ${e.message || e}`);
+  }
+}
+
+/** Mark a row's media build failed so the Pending bar shows the failure instead of hanging. */
+async function writeMediaFailure(rowId) {
+  try {
+    await sbFetch(`/rest/v1/${TABLE}?id=eq.${rowId}&workflow_stage=eq.pending`, {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: {
+        media_status: "failed",
+        media_progress_stage: "failed",
+        media_progress_updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    });
+  } catch (e) {
+    console.warn(`failure write skipped for ${rowId}: ${e.message || e}`);
+  }
 }
 
 const COWORK_JOBS_TABLE = "match_fit_content_cowork_jobs";
@@ -555,11 +598,25 @@ async function main() {
 
   console.log(`Processing ${pending.length} row(s): ${pending.map((r) => r.id).join(", ")}`);
 
+  // Show the operator the bar has started before the (slow) browser connect + Pro-mode check.
+  for (const row of pending) await writeProgress(row.id, 5, "connecting");
+
   const browser = await connectBrowser();
   const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "nvg-gemini-"));
-  const page = await getGeminiPage(browser, workDir);
-  await assertLoggedIn(page);
-  await ensureProModel(page);
+  // Batch setup (open Gemini, confirm login, select Pro) happens once before the per-row loop.
+  // If it throws, no row's per-row try/catch runs, so mark every pending row failed here — otherwise
+  // the Pending bars would hang at "connecting" forever instead of showing the failure.
+  let page;
+  try {
+    page = await getGeminiPage(browser, workDir);
+    await assertLoggedIn(page);
+    await ensureProModel(page);
+  } catch (e) {
+    for (const row of pending) await writeMediaFailure(row.id);
+    await browser.close().catch(() => null);
+    throw e;
+  }
+  for (const row of pending) await writeProgress(row.id, 12, "model_pro");
   const results = [];
   const errors = [];
 
@@ -587,10 +644,16 @@ async function main() {
 
       const mediaUrls = [];
       let slideIdx = 0;
+      const slideCount = slidePrompts.length;
+      // 15% (starting) → 90% (last upload) across all slides, so the bar tracks real work.
+      const slideSpan = (idx, frac) => 15 + Math.round(((idx - 1 + frac) / slideCount) * 75);
       for (const slidePrompt of slidePrompts) {
         slideIdx += 1;
+        await writeProgress(row.id, slideSpan(slideIdx, 0), "generating");
         const rawPath = await generateAndDownload(page, slidePrompt, workDir);
+        await writeProgress(row.id, slideSpan(slideIdx, 0.5), "cropping");
         const cropped = await cropWhiteFrame(rawPath);
+        await writeProgress(row.id, slideSpan(slideIdx, 0.8), "uploading");
         const objectPath = `${row.post_date}/${row.id}-slide${slideIdx}-${Date.now()}.png`;
         const publicUrl = await uploadRaw(objectPath, cropped, "image/png");
         mediaUrls.push(publicUrl);
@@ -610,6 +673,7 @@ async function main() {
       const message = String(e.message || e);
       errors.push({ id: row.id, post_type: row.post_type, error: message });
       console.error(`FAIL ${row.id}: ${message}`);
+      await writeMediaFailure(row.id);
       await failCoworkJobsForPost(row.id, message).catch((e2) => {
         console.error(`WARN ${row.id}: failed to write the failure back to cowork jobs too: ${e2.message || e2}`);
       });

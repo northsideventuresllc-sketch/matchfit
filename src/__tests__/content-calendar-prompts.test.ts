@@ -54,9 +54,17 @@ describe("content-prompts", () => {
         postType: "Carousel",
       }),
     ).toBe(false);
+    // "Coach" is allowed in social copy now (JB 2026-09-03) — only a broken signup URL is a hard reject.
     expect(
       isLazyCalendarDraft({
-        caption: "Join as a Coach at match-fit.net/trainer/sign-up.",
+        caption: "Join as a coach at match-fit.net/trainer/sign-up.",
+        visualPrompt: null,
+        postType: "Static",
+      }),
+    ).toBe(false);
+    expect(
+      isLazyCalendarDraft({
+        caption: "Join as a coach at match-fit.net/coach/signup.",
         visualPrompt: null,
         postType: "Static",
       }),

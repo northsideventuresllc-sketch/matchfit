@@ -9,9 +9,11 @@ import {
   adminSecondaryButtonClass,
 } from "@/components/admin/admin-portal-ui";
 import { ContentHashtagTagInput } from "@/components/admin/content-hashtag-tag-input";
+import { buildCaptionWithHashtags } from "@/lib/content-calendar/content-calendar-clipboard";
 import type { ClientContentCalendarV2Post } from "@/lib/content-calendar/content-calendar-v2-store";
+import { DeviceMediaUploadWidget } from "./device-media-upload-widget";
 import { defaultPlatformsForPost, postTypeIcon } from "./helpers";
-import { Modal, ProgressBar, SeePromptCollapsible } from "./ui-bits";
+import { CopyButton, Modal, PipelineHealthBanner, ProgressBar, SeePromptCollapsible } from "./ui-bits";
 import { usePendingProgress } from "./use-pending-progress";
 
 /** "Monday, Jul 27" from a YYYY-MM-DD date, or a plain fallback. */
@@ -42,6 +44,7 @@ function PendingCard({
   busy,
   onStop,
   onPatch,
+  onAction,
   register,
   unregister,
 }: {
@@ -49,35 +52,46 @@ function PendingCard({
   busy: boolean;
   onStop: (post: ClientContentCalendarV2Post) => void;
   onPatch: (id: string, fields: Partial<ClientContentCalendarV2Post>) => Promise<void>;
+  onAction: (id: string, body: Record<string, unknown>, success?: string) => Promise<void>;
   register: (key: string, dirty: boolean, save: () => Promise<void>) => void;
   unregister: (key: string) => void;
 }) {
   const progress = usePendingProgress(post);
   const platforms = defaultPlatformsForPost(post);
   const isMediaPost = post.postType !== "Text";
+  // A media post is "building" only while it is actively generating. Manual-generate / manual-prompt
+  // posts sit in Pending without a live build, so they show editable fields + upload instead of a bar.
+  const building = isMediaPost && post.mediaStatus === "generating";
 
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(!building);
   const [caption, setCaption] = useState(post.caption);
   const [hashtags, setHashtags] = useState<string[]>(post.hashtags);
+  const [visualPrompt, setVisualPrompt] = useState(post.visualPrompt ?? "");
   const [saving, setSaving] = useState(false);
+  const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
+  const [cardError, setCardError] = useState<string | null>(null);
 
   useEffect(() => {
     queueMicrotask(() => {
       setCaption(post.caption);
       setHashtags(post.hashtags);
+      setVisualPrompt(post.visualPrompt ?? "");
     });
   }, [post]);
 
-  const dirty = caption !== post.caption || !arraysEqual(hashtags, post.hashtags);
+  const dirty =
+    caption !== post.caption ||
+    !arraysEqual(hashtags, post.hashtags) ||
+    (isMediaPost && visualPrompt !== (post.visualPrompt ?? ""));
 
   const save = useCallback(async () => {
     setSaving(true);
     try {
-      await onPatch(post.id, { caption, hashtags });
+      await onPatch(post.id, { caption, hashtags, visualPrompt: isMediaPost ? visualPrompt : null });
     } finally {
       setSaving(false);
     }
-  }, [caption, hashtags, onPatch, post.id]);
+  }, [caption, hashtags, isMediaPost, onPatch, post.id, visualPrompt]);
 
   const saveRef = useRef(save);
   useEffect(() => {
@@ -87,6 +101,9 @@ function PendingCard({
     register(`pending_${post.id}`, dirty, () => saveRef.current());
     return () => unregister(`pending_${post.id}`);
   }, [post.id, dirty, register, unregister]);
+
+  const copyValue = buildCaptionWithHashtags(caption, hashtags);
+  const hasUpload = uploadedUrls.length > 0 || post.mediaUrls.length > 0;
 
   return (
     <article className="rounded-2xl border border-white/[0.08] bg-[#12151C]/90 p-4 sm:p-5">
@@ -102,23 +119,27 @@ function PendingCard({
           <p className="mt-3 text-xs uppercase tracking-wide text-white/40">Goes to</p>
           <p className="text-sm text-white/70">{platforms.length ? platforms.join(", ") : "No places picked yet"}</p>
 
-          <p className="mt-3 text-xs uppercase tracking-wide text-white/40">What it says</p>
-          <p className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed text-white/65">
-            {captionPreview(caption)}
-          </p>
-
-          {isMediaPost ? (
-            <div className="mt-4 max-w-sm">
-              <ProgressBar percent={progress.percent} label={progress.active ? "Building media" : "Media"} />
-              <p className="mt-1.5 text-xs text-white/50">{progress.etaLabel}</p>
-            </div>
+          {building ? (
+            <>
+              <p className="mt-3 text-xs uppercase tracking-wide text-white/40">What it says</p>
+              <p className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed text-white/65">
+                {captionPreview(caption)}
+              </p>
+              <div className="mt-4 max-w-sm">
+                <ProgressBar percent={progress.percent} label={progress.active ? "Building media" : "Media"} />
+                <p className="mt-1.5 text-xs text-white/50">{progress.etaLabel}</p>
+              </div>
+              <div className="mt-3">
+                <SeePromptCollapsible prompt={post.lastGenerationPrompt} />
+              </div>
+            </>
           ) : (
-            <p className="mt-4 text-xs text-white/50">Text posts need no media build — waiting to move on.</p>
+            <p className="mt-3 text-xs text-white/50">
+              {isMediaPost
+                ? "Review and edit this post below, then generate its media or upload your own."
+                : "Text post — review it below, then approve it for publishing."}
+            </p>
           )}
-
-          <div className="mt-3">
-            <SeePromptCollapsible prompt={post.lastGenerationPrompt} />
-          </div>
         </div>
 
         <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
@@ -141,18 +162,87 @@ function PendingCard({
               onChange={(e) => setCaption(e.target.value)}
             />
           </label>
+
+          {isMediaPost ? (
+            <label className="block">
+              <span className={adminLabelClass}>Generation prompt</span>
+              <textarea
+                className={`${adminInputClassSm} mt-1 min-h-[90px] font-mono text-[11px]`}
+                value={visualPrompt}
+                onChange={(e) => setVisualPrompt(e.target.value)}
+              />
+            </label>
+          ) : null}
+
           <div>
             <span className={adminLabelClass}>Hashtags</span>
             <ContentHashtagTagInput tags={hashtags} onChange={setHashtags} />
           </div>
-          <button
-            type="button"
-            className={adminPrimaryButtonClass}
-            disabled={busy || saving || !dirty}
-            onClick={() => void save()}
-          >
-            {saving ? "Saving…" : dirty ? "Save Edits" : "Saved"}
-          </button>
+
+          <div className="flex flex-wrap gap-2">
+            <CopyButton value={copyValue} label="COPY POST" />
+            {isMediaPost ? <CopyButton value={visualPrompt} label="COPY PROMPT" /> : null}
+            <button
+              type="button"
+              className={adminSecondaryButtonClass}
+              disabled={busy || saving || !dirty}
+              onClick={() => void save()}
+            >
+              {saving ? "Saving…" : dirty ? "Save Edits" : "Saved"}
+            </button>
+          </div>
+
+          {!building ? (
+            <div className="flex flex-wrap gap-2 border-t border-white/[0.06] pt-3">
+              {isMediaPost ? (
+                <>
+                  <button
+                    type="button"
+                    className={adminSecondaryButtonClass}
+                    disabled={busy}
+                    onClick={() =>
+                      void onAction(post.id, { action: "regenerate_via_agent" }, "Media generation started.")
+                    }
+                  >
+                    GENERATE NOW
+                  </button>
+                  <DeviceMediaUploadWidget
+                    postId={post.id}
+                    multiple={post.postType === "Carousel"}
+                    buttonLabel="UPLOAD MEDIA"
+                    disabled={busy}
+                    onUploaded={(urls) => {
+                      setUploadedUrls((prev) => [...prev, ...urls]);
+                      setCardError(null);
+                    }}
+                    onError={(m) => setCardError(m)}
+                  />
+                </>
+              ) : null}
+              <button
+                type="button"
+                className={adminPrimaryButtonClass}
+                disabled={busy || (isMediaPost && !hasUpload)}
+                title={isMediaPost && !hasUpload ? "Upload media (or generate it) first" : undefined}
+                onClick={() =>
+                  void onAction(
+                    post.id,
+                    { action: "approve_for_publishing", ...(uploadedUrls.length ? { mediaUrls: uploadedUrls } : {}) },
+                    "Approved for publishing.",
+                  )
+                }
+              >
+                APPROVE FOR PUBLISHING
+              </button>
+            </div>
+          ) : null}
+
+          {uploadedUrls.length ? (
+            <p className="text-[11px] text-emerald-300">
+              {uploadedUrls.length} file{uploadedUrls.length === 1 ? "" : "s"} uploaded — ready to approve.
+            </p>
+          ) : null}
+          {cardError ? <p className="text-[11px] font-semibold text-[#FFB4B4]">{cardError}</p> : null}
         </div>
       ) : null}
     </article>
@@ -198,6 +288,7 @@ export function PendingTabPanel({
 
   return (
     <section className={adminCardClass}>
+      <PipelineHealthBanner />
       <div>
         <h2 className="text-lg font-black uppercase tracking-[0.12em] text-white">Pending</h2>
         <p className="mt-1 max-w-3xl text-sm leading-relaxed text-white/55">
@@ -222,6 +313,7 @@ export function PendingTabPanel({
             busy={busyId === post.id}
             onStop={setConfirming}
             onPatch={onPatch}
+            onAction={onAction}
             register={register}
             unregister={unregister}
           />

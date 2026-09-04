@@ -74,6 +74,7 @@ export function serializeV2Post(row: ContentCalendarPostRow) {
     mediaStatus: row.media_status,
     posted: row.posted,
     postedAt: row.posted_at,
+    postedRetainUntil: row.posted_retain_until ?? null,
     approvedAt: row.approved_at ?? null,
     scheduledAt: row.scheduled_at ?? null,
     savedToHubAt: row.saved_to_hub_at ?? null,
@@ -101,6 +102,9 @@ export function serializeV2Post(row: ContentCalendarPostRow) {
     postGroup: row.post_group ?? null,
     lastGenerationPrompt: row.last_generation_prompt ?? null,
     mediaGenerationStartedAt: row.media_generation_started_at ?? null,
+    mediaProgress: typeof row.media_progress === "number" ? row.media_progress : null,
+    mediaProgressStage: row.media_progress_stage ?? null,
+    mediaProgressUpdatedAt: row.media_progress_updated_at ?? null,
     generationSource: row.generation_source ?? null,
   };
 }
@@ -121,11 +125,45 @@ export async function purgeExpiredV2Posts(): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/**
+ * A manually-posted post confirmed "POSTED" stays on the Scheduled tab as Posted for 48h
+ * (posted_retain_until). Once that window passes it rolls into Archives as a posted post — the same
+ * end-state a normal agent post reaches — instead of lingering on Scheduled forever.
+ */
+export async function archiveExpiredPostedScheduled(): Promise<void> {
+  const client = createNiBrainClient();
+  const nowIso = new Date().toISOString();
+  const { data } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("id")
+    .eq("workflow_stage", "scheduled")
+    .eq("posted", true)
+    .not("posted_retain_until", "is", null)
+    .lte("posted_retain_until", nowIso);
+
+  const ids = (data ?? []).map((row) => row.id as string).filter(Boolean);
+  if (!ids.length) return;
+  const purgeAfter = await resolveArchivePurgeAfter("posted", new Date());
+  const { error } = await client
+    .from("match_fit_content_calendar_posts")
+    .update({
+      workflow_stage: "archived",
+      status: "posted",
+      archive_type: "posted",
+      archived_at: nowIso,
+      purge_after_at: purgeAfter,
+      updated_at: nowIso,
+    })
+    .in("id", ids);
+  if (error) throw new Error(error.message);
+}
+
 export async function listV2Posts(args: {
   stage: ContentCalendarV2Stage;
   lane?: ContentCalendarV2Lane;
 }): Promise<ContentCalendarPostRow[]> {
   await purgeExpiredV2Posts();
+  await archiveExpiredPostedScheduled();
   const client = createNiBrainClient();
   let query = client
     .from("match_fit_content_calendar_posts")
@@ -133,9 +171,11 @@ export async function listV2Posts(args: {
     .eq("workflow_stage", args.stage)
     .is("deleted_at", null);
 
-  // Archived posts can be posted=true (posted then archived) or posted=false
-  // (scrapped, never posted) — only non-archived stages exclude posted rows.
-  if (args.stage !== "archived") {
+  // Archived posts can be posted=true (posted then archived) or posted=false (scrapped, never
+  // posted). The Scheduled tab also shows recently-posted rows — a manually-posted post confirmed
+  // "POSTED" stays there as Posted for 48h (posted_retain_until) before rolling into Archives — so
+  // only the other non-archived stages exclude posted rows.
+  if (args.stage !== "archived" && args.stage !== "scheduled") {
     query = query.eq("posted", false);
   }
 
@@ -417,6 +457,7 @@ export async function updateV2PostFields(args: {
   targetGroup?: string;
   cta?: string;
   dpmoRationale?: string | null;
+  postDate?: string | null;
   platformCaptions?: Record<string, string>;
   platformHashtags?: Record<string, string[]>;
 }): Promise<void> {
@@ -428,6 +469,9 @@ export async function updateV2PostFields(args: {
   if (args.targetGroup !== undefined) patch.target_group = normalizeTargetGroup(args.targetGroup);
   if (args.cta !== undefined) patch.cta = args.cta;
   if (args.dpmoRationale !== undefined) patch.dpmo_rationale = args.dpmoRationale;
+  // Content Hub scheduling: the operator picks which day a hub/impromptu post goes up, without
+  // moving it out of the hub. Empty string clears the date back to unscheduled.
+  if (args.postDate !== undefined) patch.post_date = args.postDate ? args.postDate : null;
   if (args.platformCaptions !== undefined) patch.platform_captions = args.platformCaptions;
   if (args.platformHashtags !== undefined) patch.platform_hashtags = args.platformHashtags;
 
@@ -692,12 +736,11 @@ export async function archiveV2Post(postId: string, args?: { scrapReason?: strin
 }
 
 /**
- * Manual-vs-agent posting: JB posted this himself outside Cowork, so there is no real posted_urls
- * batch callback to wait on. Computes the same "24 hours after 11:59pm ET of the post date"
- * placeholder schedule the Pending page math would use, then archives the post as posted in one
- * write — mirroring completePostBatchJob's archive shape (posted / posted_at / status /
- * workflow_stage / archive_type / archived_at / purge_after_at) so it reads identically once it's
- * in the archive.
+ * "Manually Post" (JB 2026-09-03): pressing Manually Post no longer archives the post. It moves the
+ * post to the Scheduled tab awaiting a POSTED confirmation — JB posts it himself, then presses
+ * POSTED to confirm it actually went out (markV2PostPosted). Until then it sits on Scheduled as
+ * "Waiting for you to confirm". Computes the same placeholder schedule the Pending page math uses
+ * when the post has no explicit scheduled_at yet.
  */
 export async function manuallyPostV2Post(postId: string): Promise<ContentCalendarPostRow> {
   const post = await getV2Post(postId);
@@ -706,22 +749,48 @@ export async function manuallyPostV2Post(postId: string): Promise<ContentCalenda
     throw new Error("This post has no post date set, so a manual posting time cannot be computed.");
   }
 
-  const now = new Date();
-  const scheduledAt = computeManualPostSchedule(post.post_date);
-  const purgeAfter = await resolveArchivePurgeAfter("posted", now);
+  const now = new Date().toISOString();
+  const scheduledAt = post.scheduled_at ?? computeManualPostSchedule(post.post_date).toISOString();
   const client = createNiBrainClient();
   const { data, error } = await client
     .from("match_fit_content_calendar_posts")
     .update({
-      scheduled_at: scheduledAt.toISOString(),
+      scheduled_at: scheduledAt,
       is_scheduled: true,
+      posted: false,
+      workflow_stage: "scheduled",
+      status: "ready_to_post",
+      updated_at: now,
+    })
+    .eq("id", postId)
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+  return data as ContentCalendarPostRow;
+}
+
+const POSTED_RETAIN_HOURS = 48;
+
+/**
+ * POSTED confirmation on the Scheduled tab: the operator confirms the post actually went out. It
+ * flips to Posted and stays on the Scheduled tab for 48h (posted_retain_until) before
+ * archiveExpiredPostedScheduled rolls it into Archives. Fires the same per-post-type Telegram ping
+ * and day-fully-posted check the agent post-batch path fires.
+ */
+export async function markV2PostPosted(postId: string): Promise<ContentCalendarPostRow> {
+  const post = await getV2Post(postId);
+  if (!post) throw new Error("Post not found.");
+  const now = new Date();
+  const retainUntil = new Date(now.getTime() + POSTED_RETAIN_HOURS * 60 * 60 * 1000).toISOString();
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .update({
       posted: true,
       posted_at: now.toISOString(),
+      posted_retain_until: retainUntil,
       status: "posted",
-      workflow_stage: "archived",
-      archive_type: "posted",
-      archived_at: now.toISOString(),
-      purge_after_at: purgeAfter,
+      workflow_stage: "scheduled",
       updated_at: now.toISOString(),
     })
     .eq("id", postId)
@@ -729,21 +798,117 @@ export async function manuallyPostV2Post(postId: string): Promise<ContentCalenda
     .single();
   if (error) throw new Error(error.message);
 
-  // WF1.18 fix: same per-post-type Telegram ping the agent post-batch completion path fires —
-  // a manual post is still a post type going out and must not go silently unpinged.
-  void sendTelegramPing(`Match Fit: ${post.post_type} posted manually.`);
+  void sendTelegramPing(`Match Fit: ${post.post_type} posted.`);
+  if (post.post_date) {
+    const { maybeNotifyDayFullyPosted } = await import(
+      "@/lib/content-calendar/content-calendar-cowork-orchestration"
+    );
+    await maybeNotifyDayFullyPosted(post.post_date).catch((e) => {
+      console.error(`[content-calendar day email] all-posted check failed for ${post.post_date}:`, e);
+    });
+  }
+  return data as ContentCalendarPostRow;
+}
 
-  // Same "is the day now fully posted" check the agent post-batch completion path runs — a manual
-  // post can just as easily be the day's last one. Dynamic import avoids a top-level circular
-  // dependency (content-calendar-cowork-orchestration.ts already imports splitPlatforms from this
-  // file); the day-fully-posted email itself is guarded against double-sending in ni-brain-client.ts.
-  const { maybeNotifyDayFullyPosted } = await import(
-    "@/lib/content-calendar/content-calendar-cowork-orchestration"
-  );
-  await maybeNotifyDayFullyPosted(post.post_date).catch((e) => {
-    console.error(`[content-calendar day email] all-posted check failed for ${post.post_date}:`, e);
-  });
+/** Undo a POSTED confirmation — the operator can change the status back to not-yet-posted. */
+export async function markV2PostUnposted(postId: string): Promise<ContentCalendarPostRow> {
+  const now = new Date().toISOString();
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .update({
+      posted: false,
+      posted_at: null,
+      posted_retain_until: null,
+      status: "ready_to_post",
+      workflow_stage: "scheduled",
+      updated_at: now,
+    })
+    .eq("id", postId)
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+  return data as ContentCalendarPostRow;
+}
 
+/** Send a scheduled post back to Publishing (JB: "send the post back to publishing from the scheduled tab"). */
+export async function sendV2PostBackToPublishing(postId: string): Promise<ContentCalendarPostRow> {
+  const now = new Date().toISOString();
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .update({
+      workflow_stage: "publishing",
+      status: "publishing",
+      posted: false,
+      posted_at: null,
+      posted_retain_until: null,
+      scheduled_at: null,
+      is_scheduled: false,
+      updated_at: now,
+    })
+    .eq("id", postId)
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+  return data as ContentCalendarPostRow;
+}
+
+/**
+ * Manual-prompt flow (JB 2026-09-03): the operator uploaded their own media on the Pending tab and
+ * pressed APPROVE FOR PUBLISHING. Attach the uploaded media (if any) and advance pending→publishing.
+ * Text/no-media posts are allowed through with whatever media they already carry.
+ */
+export async function approveV2PostForPublishing(
+  postId: string,
+  args?: { mediaUrls?: string[] },
+): Promise<ContentCalendarPostRow> {
+  const now = new Date().toISOString();
+  const patch: Record<string, unknown> = {
+    workflow_stage: "publishing",
+    status: "publishing",
+    updated_at: now,
+  };
+  if (args?.mediaUrls?.length) {
+    patch.media_url = args.mediaUrls[0] ?? null;
+    patch.media_urls = args.mediaUrls;
+    patch.media_status = "ready";
+    patch.generation_source = "manual_upload";
+    patch.media_progress = 100;
+    patch.media_progress_stage = "done";
+    patch.media_progress_updated_at = now;
+  }
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .update(patch)
+    .eq("id", postId)
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+  return data as ContentCalendarPostRow;
+}
+
+/** Remove the media from a post (Publishing tab), leaving it in place to re-upload or regenerate. */
+export async function removeV2PostMedia(postId: string): Promise<ContentCalendarPostRow> {
+  const now = new Date().toISOString();
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .update({
+      media_url: null,
+      media_urls: [],
+      media_status: "none",
+      generation_source: null,
+      media_progress: null,
+      media_progress_stage: null,
+      media_progress_updated_at: null,
+      updated_at: now,
+    })
+    .eq("id", postId)
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
   return data as ContentCalendarPostRow;
 }
 

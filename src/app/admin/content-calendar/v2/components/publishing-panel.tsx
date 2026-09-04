@@ -10,10 +10,11 @@ import {
   adminSecondaryButtonClass,
 } from "@/components/admin/admin-portal-ui";
 import { ContentHashtagTagInput } from "@/components/admin/content-hashtag-tag-input";
+import { buildCaptionWithHashtags } from "@/lib/content-calendar/content-calendar-clipboard";
 import { CONTENT_CALENDAR_POST_TYPES, type ContentCalendarPostType } from "@/lib/content-calendar/constants";
 import type { ClientContentCalendarV2Post } from "@/lib/content-calendar/content-calendar-v2-store";
 import { DeviceMediaUploadWidget } from "./device-media-upload-widget";
-import { CopyButton, Modal, ProgressBar, SeePromptCollapsible } from "./ui-bits";
+import { CopyButton, Modal, PipelineHealthBanner, ProgressBar, SeePromptCollapsible } from "./ui-bits";
 import { useSimulatedProgress } from "./use-simulated-progress";
 import {
   collectPublishingPlatforms,
@@ -249,17 +250,26 @@ function PublishingCard({
 
   async function manuallyPost() {
     const confirmed = window.confirm(
-      "Mark this post as manually posted? It moves straight to Archives and this cannot be undone.",
+      "Send this to Scheduled Posts to post it yourself? You'll press POSTED there once it's live.",
     );
     if (!confirmed) return;
     setPosting(true);
     try {
-      // The route computes the real schedule server-side but onAction here (Promise<void>) doesn't
-      // surface the updated post back to the caller, so there's no scheduledAt value to read at this
-      // call site — falls back to the generic sentence as specified.
-      await onAction(post.id, { action: "manual_post" }, "Scheduled — moved to Archives.");
+      await onAction(post.id, { action: "manual_post" }, "Moved to Scheduled Posts — press POSTED once it's live.");
     } finally {
       setPosting(false);
+    }
+  }
+
+  async function removeMedia() {
+    const confirmed = window.confirm("Remove the media from this post? You can upload or regenerate new media after.");
+    if (!confirmed) return;
+    setRedoBusy(true);
+    setRedoError(null);
+    try {
+      await onAction(post.id, { action: "remove_media" }, "Media removed.");
+    } finally {
+      setRedoBusy(false);
     }
   }
 
@@ -395,7 +405,7 @@ function PublishingCard({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <CopyButton value={caption} label="COPY CAPTION" />
+            <CopyButton value={buildCaptionWithHashtags(caption, hashtags)} label="COPY POST" />
             <button type="button" className={adminSecondaryButtonClass} onClick={() => setShowFiles(true)}>
               FILES
             </button>
@@ -429,8 +439,18 @@ function PublishingCard({
               disabled={busy || redoBusy}
               onClick={() => setShowManualRedo((v) => !v)}
             >
-              Manually Redo
+              {post.mediaUrls.length ? "Replace Media" : "Upload Media"}
             </button>
+            {post.mediaUrls.length ? (
+              <button
+                type="button"
+                className={adminSecondaryButtonClass}
+                disabled={busy || redoBusy}
+                onClick={() => void removeMedia()}
+              >
+                Remove Media
+              </button>
+            ) : null}
             <button
               type="button"
               className={adminAccentButtonClass}
@@ -636,6 +656,7 @@ export function PublishingPanel({
 
   return (
     <section className={adminCardClass}>
+      <PipelineHealthBanner />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-lg font-black uppercase tracking-[0.12em] text-white">Publishing</h2>

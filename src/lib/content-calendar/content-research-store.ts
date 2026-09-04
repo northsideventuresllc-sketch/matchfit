@@ -40,13 +40,16 @@ export function serializeResearchRun(row: ContentResearchRunRow) {
 export type ClientContentResearchRun = ReturnType<typeof serializeResearchRun>;
 
 /** Starts a new research run "running" for today's ET calendar date. */
-export async function createRunningResearchRun(args: { adminId: string }): Promise<ContentResearchRunRow> {
+export async function createRunningResearchRun(args: {
+  adminId: string | null;
+  trigger?: ContentResearchRunTrigger;
+}): Promise<ContentResearchRunRow> {
   const client = createNiBrainClient();
   const { data, error } = await client
     .from("match_fit_content_research_runs")
     .insert({
       status: "running",
-      trigger: "manual",
+      trigger: args.trigger ?? "manual",
       run_date: currentEtCalendarDate(),
       admin_id: args.adminId,
     })
@@ -54,6 +57,31 @@ export async function createRunningResearchRun(args: { adminId: string }): Promi
     .single();
   if (error) throw new Error(error.message);
   return data as ContentResearchRunRow;
+}
+
+/**
+ * Recent Match Fit findings written by AXON's daily Social Media Research agent
+ * (scripts/axon-social-media-research.mjs → NI-Brain `Decisions`, each row prefixed
+ * "[AXON Social Media Research, <date>] <brand>: ..."). Surfaced in the research panel and folded
+ * into the research prompt so the in-app report actually reflects AXON's competitor/trend work.
+ */
+export async function fetchRecentAxonMatchFitFindings(limit = 5): Promise<
+  Array<{ id: string; text: string; date: string | null }>
+> {
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("Decisions")
+    .select("id, decision, date, created_at")
+    .ilike("decision", "%AXON Social Media Research%")
+    .or("decision.ilike.%Match Fit%,decision.ilike.%match-fit%")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) return [];
+  return (data ?? []).map((row) => ({
+    id: String(row.id),
+    text: String(row.decision ?? "").trim(),
+    date: (row.date as string | null) ?? (row.created_at as string | null) ?? null,
+  }));
 }
 
 /** Marks a running research run complete and attaches its report. */

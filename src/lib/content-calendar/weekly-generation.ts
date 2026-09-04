@@ -88,7 +88,7 @@ async function planWeek(args: {
     "You are Match Fit's weekly content strategist.",
     CONTENT_CALENDAR_BRAND_FACTS,
     `Current DPMO growth phase: ${args.dpmoPhase ?? "unspecified"}.`,
-    "Plan Monday–Friday. Each day gets a theme, a single target audience, an audience-correct CTA, and a one-sentence rationale explaining how the day fits the current DPMO phase.",
+    "Plan Monday–Friday. Each day gets a theme, a single target audience, an audience-correct CTA, and a plain-English `dpmoRationale` (1-2 sentences) stating BOTH how the day fits the current DPMO growth phase AND the strategy behind it (why this audience/angle now). No jargon, no internal codes — write it so a founder skims it and immediately gets the point.",
     `Target audiences (use only these): ${CONTENT_CALENDAR_GROUPS.join(", ")}.`,
     "Respond with ONLY a JSON array of 5 objects (dayIndex 0=Mon..4=Fri). No prose, no markdown.",
     'Shape: [{"dayIndex":0,"theme":"...","targetAudience":"Join the Team","cta":"...","dpmoRationale":"..."}]',

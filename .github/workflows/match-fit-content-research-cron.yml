@@ -1,0 +1,28 @@
+# NOTE (2026-09-04): GitHub Actions schedules are forbidden in this repo (Decision #1699). The daily
+# cadence is applied via NI-Brain Supabase pg_cron — see
+# scripts/sql/ni-brain/20260904_pg_cron_matchfit_content_research.sql (job mf-content-research).
+# workflow_dispatch stays for manual runs only.
+# Runs one Match Fit Social Media Research pass (writes a daily research run + folds AXON findings in).
+
+name: Match Fit content research
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  match-fit-content-research:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke production research cron endpoint
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ secrets.MATCH_FIT_APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$APP_URL" ]; then
+            echo "::error::Missing repository secrets CRON_SECRET and/or MATCH_FIT_APP_URL (e.g. https://match-fit.net). The research cron is NOT running."
+            exit 1
+          fi
+          # Do not echo the URL — keep the production host out of the workflow logs.
+          curl -fsS -X GET \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${APP_URL%/}/api/cron/content-calendar-research"

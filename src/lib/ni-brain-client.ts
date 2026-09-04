@@ -20,6 +20,8 @@ export type ContentCalendarPostRow = {
   media_status: "none" | "generating" | "ready" | "failed";
   posted: boolean;
   posted_at: string | null;
+  /** When set, a manually-posted post stays on the Scheduled tab as "Posted" until this time (48h). */
+  posted_retain_until: string | null;
   approved_at: string | null;
   scheduled_at: string | null;
   missed_prompt_dismissed: boolean;
@@ -33,6 +35,16 @@ export type ContentCalendarPostRow = {
   last_generation_prompt: string | null;
   /** Stamped when a post enters "pending" (agent path) or fireMediaAgentForPost fires (manual regenerate). */
   media_generation_started_at: string | null;
+  /**
+   * Live media-generation progress 0-100, written step-by-step by the Mac mini producer
+   * (gemini-media-automation.mjs). Null until a run starts. Drives the real Pending progress bar
+   * instead of the old elapsed-time simulation.
+   */
+  media_progress: number | null;
+  /** Human/machine phase label for the current media step: connecting|model_pro|generating|cropping|uploading|done|failed. */
+  media_progress_stage: string | null;
+  /** Last time media_progress was written — used to detect a stalled run. */
+  media_progress_updated_at: string | null;
   /** Where the post's current media came from — null until it has been generated or replaced once. */
   generation_source: "cowork_gemini" | "manual_upload" | null;
   platform_captions: Record<string, string> | null;

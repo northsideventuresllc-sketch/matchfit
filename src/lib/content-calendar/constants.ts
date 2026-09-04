@@ -101,7 +101,7 @@ Beta v1.2+. Clients: $10/month. Independent Pro from $15/month after a 60-day fr
 Features: swipe-based discovery, Fit Hub social feed, algorithmic matching, virtual + in-person. Match Fit is worldwide — do NOT name a city, metro or region in marketing, and never imply a launch is limited to one place.
 
 Brand: bold, direct, real — no fluff. Colors: dark #07080C, orange #FF7E00. Handle: @theofficialmatchfit
-Universal social language: always "Fitness Pros" / "Fitness Pro" (never "Coaches" as the primary public label; "trainer" stays only for narrow allowed cases — assigned coach in a session, personal-training-industry positioning, service types, and /trainer/ routes).
+Universal social language (JB 2026-09-03): in public social copy, lead with trending, widely-understood words — "coach", "trainer", "personal trainer". "Fitness Pro" is our INTERNAL brand term; use it sparingly and never lead with it while the brand is still being established. The app UI, signup, CTAs and legal copy keep "Fitness Pro" as the canonical term — this trending-terms rule is for generated social content only.
 Target audiences (content calendar only): "Join the Team" (Fitness Pros joining Match Fit), "List With Us" (independent Fitness Pros & facilities using Match Fit for listing/discovery), "Clients" (athletes and individuals looking for training).
 Goal: grow beta Fitness Pros and clients. Site: match-fit.net
 Canonical signup URLs: Fitness Pros join at match-fit.net/trainer/sign-up; clients join at match-fit.net/client/sign-up. Never use match-fit.net/Fitness Pro/signup or match-fit.net/trainer/signup in social copy.

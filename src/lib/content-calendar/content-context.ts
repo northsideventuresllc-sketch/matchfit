@@ -54,10 +54,15 @@ export async function buildContentGenerationContext(options?: {
   const socialUrls = MATCH_FIT_OFFICIAL_SOCIAL_LINKS.map((l) => `${l.label}: ${l.href}`).join("\n");
 
   return [
-    `Craft lock (overrides stale learnings): say Fitness Pros not Coaches; CTA match-fit.net/trainer/sign-up; carousel captions = static-style; ${CONTENT_CALENDAR_FOUNDING_PROMO_FACTS}`,
+    // Craft lock = the few hard facts we never break. It NO LONGER forces "Fitness Pro" — JB's
+    // operator learnings below now win on wording. Hard facts only: worldwide, canonical CTA,
+    // carousel shape, founding promo meaning.
+    `Craft lock (hard facts — never break): Match Fit is WORLDWIDE, never "nationwide"/place-based; CTA match-fit.net/trainer/sign-up; carousel captions = static-style; ${CONTENT_CALENDAR_FOUNDING_PROMO_FACTS}`,
+    // Social wording lock: lead with trending terms, not our internal brand term.
+    `Social wording (JB 2026-09-03): lead with trending, widely-understood words — "coach", "trainer", "personal trainer". "Fitness Pro" is our internal term; use it sparingly, never lead with it until the brand is established. Follow the operator learnings below over any generic wording habit.`,
     niContext ? `NI Brain context:\n${niContext.slice(0, 1500)}` : "",
     learnings.length
-      ? `Recent operator learnings (prefer tone/structure — but never violate craft lock above):\n${learnings.join("\n")}`
+      ? `Recent operator learnings (APPLY THESE — they reflect JB's own edits and win on tone, wording and structure):\n${learnings.join("\n")}`
       : "",
     winningAngles.length
       ? `Marketing skeleton — current winning angles (lead with these, revenue-proven):\n${winningAngles.join("\n")}`

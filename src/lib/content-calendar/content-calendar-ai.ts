@@ -26,8 +26,8 @@ import {
   CONTENT_CALENDAR_AI_RULES,
   CONTENT_CALENDAR_MAX_HASHTAGS,
   enforceGeneratedPostContent,
-  normalizeCoachLanguage,
   normalizeHashtags,
+  normalizeSocialContentLanguage,
   normalizeTargetGroup,
 } from "@/lib/content-calendar/content-rules";
 import { enforceHighVolumeHashtags, HIGH_VOLUME_HASHTAG_RULE } from "@/lib/content-calendar/hashtag-policy";
@@ -101,7 +101,7 @@ function applyPostRules(
       postType === "Text"
         ? null
         : content.visualPrompt
-          ? normalizeCoachLanguage(content.visualPrompt)
+          ? normalizeSocialContentLanguage(content.visualPrompt)
           : content.visualPrompt,
   };
 }
@@ -428,7 +428,7 @@ Target audiences to rotate between: Join the Team (Fitness Pro recruitment), Lis
 Goal: drive signups with audience-appropriate CTAs only:
 - Join the Team / List With Us → match-fit.net/trainer/sign-up (never match-fit.net/Fitness Pro/signup or /trainer/signup)
 - Clients → match-fit.net/client/sign-up
-Say Fitness Pros — never Coaches. Carousel captions = static-style (no slide inventories).`;
+Lead with trending, widely-understood words — "coach", "trainer", "personal trainer". "Fitness Pro" is our internal term; use it sparingly and never lead with it yet. Match Fit is worldwide — never "nationwide". Carousel captions = static-style (no slide inventories).`;
   const aiResult = await callAi(system, user);
   const parsed = aiResult.text
     ? parseJsonBlock<{ hook?: string; body?: string; cta?: string; hashtags?: string[]; dmScript?: string }>(aiResult.text)
@@ -439,11 +439,11 @@ Say Fitness Pros — never Coaches. Carousel captions = static-style (no slide i
     hashtags: parsed.hashtags ?? [],
   });
   return {
-    hook: normalizeCoachLanguage(parsed.hook ?? ""),
-    body: normalizeCoachLanguage(parsed.body ?? ""),
-    cta: normalizeCoachLanguage(parsed.cta ?? ""),
+    hook: normalizeSocialContentLanguage(parsed.hook ?? ""),
+    body: normalizeSocialContentLanguage(parsed.body ?? ""),
+    cta: normalizeSocialContentLanguage(parsed.cta ?? ""),
     hashtags: enforced.hashtags,
-    dmScript: parsed.dmScript ? normalizeCoachLanguage(parsed.dmScript) : undefined,
+    dmScript: parsed.dmScript ? normalizeSocialContentLanguage(parsed.dmScript) : undefined,
   };
 }
 
