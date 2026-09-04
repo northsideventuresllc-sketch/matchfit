@@ -40,6 +40,28 @@ import { getOutreachExclusionList, normalizeEmail, normalizeInstagramHandle } fr
 import { startOfEstDayUtc } from '@/lib/outreach-lanes';
 import { fireOutreachAxonEvent, type OutreachAxonLeadRef } from '@/lib/outreach-axon-notify';
 import { spellcheckOutreachCopy } from '@/lib/outreach-spellcheck';
+import { scopedToMatchFit } from '@/lib/outreach-venture-scope';
+
+/**
+ * Queue-aware top-up (WF2 item 1, JB 2026-09-03): count leads still sitting UNSENT in the
+ * `today` + `past_due` lanes for one platform. Sending a lead moves it out of these lanes
+ * (dispatch_queued / pending / follow_up_*), so a today/past_due row is by definition a draft
+ * JB hasn't actioned yet. The morning finder only tops the lane back up to LEADS_PER_LANE, so
+ * leftover drafts are counted against the max instead of piling new ones on top.
+ */
+async function countUnsentQueue(platform: 'instagram' | 'email'): Promise<number> {
+  const where = scopedToMatchFit({ outreachLane: { in: ['today', 'past_due'] } });
+  if (platform === 'instagram') return prisma.outreachInstagramLead.count({ where });
+  return prisma.outreachEmailLead.count({ where });
+}
+
+/**
+ * How many new leads to draft for one lane so the unsent queue tops back up to LEADS_PER_LANE.
+ * 2 already waiting -> draft 3; 5 already waiting -> draft 0; never negative.
+ */
+export function topUpTarget(unsentInQueue: number): number {
+  return Math.max(0, LEADS_PER_LANE - unsentInQueue);
+}
 
 /** Leads to insert per lane per run. A lane that can only find fewer inserts fewer. */
 export const LEADS_PER_LANE = 5;
@@ -567,18 +589,20 @@ async function runInstagramLane(
   now: Date,
   batchId: string,
   notified: OutreachAxonLeadRef[],
+  target: number = LEADS_PER_LANE,
 ): Promise<LaneStats> {
   const stats = emptyLaneStats('instagram');
   const tried = new Set<string>();
+  if (target <= 0) return stats; // queue already full — spend no SerpApi quota
   let queries = pickQueries(INSTAGRAM_QUERIES, MAX_SEARCHES_PER_LANE, now);
 
-  // Fix #1 (WF2.01) — refill: if the initial rotated queries don't reach LEADS_PER_LANE, keep
+  // Fix #1 (WF2.01) — refill: if the initial rotated queries don't reach the target, keep
   // pulling untried queries from the rest of the pool (bounded by pool size, so this can never
   // run away) instead of shipping a short batch. Only the rare short day spends the extra
   // SerpApi searches; a normal day still uses just MAX_SEARCHES_PER_LANE.
-  while (queries.length > 0 && stats.drafted < LEADS_PER_LANE) {
+  while (queries.length > 0 && stats.drafted < target) {
     for (const query of queries) {
-      if (stats.drafted >= LEADS_PER_LANE) break;
+      if (stats.drafted >= target) break;
       tried.add(query);
       let results: SerpOrganicResult[];
       try {
@@ -590,7 +614,7 @@ async function runInstagramLane(
       }
 
       for (const res of results) {
-        if (stats.drafted >= LEADS_PER_LANE) break;
+        if (stats.drafted >= target) break;
         if (!res.link) continue;
         const handle = instagramHandleFromResult(res);
         if (!handle) {
@@ -684,20 +708,20 @@ async function runInstagramLane(
       }
     }
 
-    if (stats.drafted >= LEADS_PER_LANE) break;
+    if (stats.drafted >= target) break;
     const remaining = untriedQueries(INSTAGRAM_QUERIES, tried);
     if (!remaining.length) break; // whole pool exhausted this run — nothing left to refill with
     console.warn(
-      `[lead-finder instagram] refilling — only ${stats.drafted}/${LEADS_PER_LANE} found so far, ` +
+      `[lead-finder instagram] refilling — only ${stats.drafted}/${target} found so far, ` +
         `trying ${remaining.length} more untried quer${remaining.length === 1 ? 'y' : 'ies'}.`,
     );
     queries = remaining;
   }
 
-  stats.shortfall = Math.max(0, LEADS_PER_LANE - stats.drafted);
+  stats.shortfall = Math.max(0, target - stats.drafted);
   if (stats.shortfall > 0) {
     stats.note =
-      `Only found ${stats.drafted} of ${LEADS_PER_LANE} Instagram coaches this run ` +
+      `Only found ${stats.drafted} of ${target} Instagram coaches this run ` +
       `(${stats.candidates} profiles looked at, ${stats.rejected} not online coaches, ${stats.duplicate} already on the list).`;
     console.warn(`[lead-finder instagram] SHORTFALL: ${stats.note}`);
   }
@@ -709,17 +733,19 @@ async function runEmailLane(
   now: Date,
   batchId: string,
   notified: OutreachAxonLeadRef[],
+  target: number = LEADS_PER_LANE,
 ): Promise<LaneStats> {
   const stats = emptyLaneStats('email');
   const tried = new Set<string>();
+  if (target <= 0) return stats; // queue already full — spend no SerpApi quota
   let queries = pickQueries(EMAIL_QUERIES, MAX_SEARCHES_PER_LANE, now);
   const hostsTried = new Set<string>();
 
   // Fix #1 (WF2.01) — same refill behaviour as the Instagram lane: keep trying untried queries
-  // from the rest of the pool when short of LEADS_PER_LANE, bounded by pool size.
-  while (queries.length > 0 && stats.drafted < LEADS_PER_LANE) {
+  // from the rest of the pool when short of the target, bounded by pool size.
+  while (queries.length > 0 && stats.drafted < target) {
     for (const query of queries) {
-      if (stats.drafted >= LEADS_PER_LANE) break;
+      if (stats.drafted >= target) break;
       tried.add(query);
       let results: SerpOrganicResult[];
       try {
@@ -731,7 +757,7 @@ async function runEmailLane(
       }
 
       for (const res of results) {
-        if (stats.drafted >= LEADS_PER_LANE) break;
+        if (stats.drafted >= target) break;
         if (!res.link) continue;
         const host = hostnameOf(res.link);
         if (!host || isExcludedHost(host) || hostsTried.has(host)) {
@@ -822,20 +848,20 @@ async function runEmailLane(
       }
     }
 
-    if (stats.drafted >= LEADS_PER_LANE) break;
+    if (stats.drafted >= target) break;
     const remaining = untriedQueries(EMAIL_QUERIES, tried);
     if (!remaining.length) break; // whole pool exhausted this run — nothing left to refill with
     console.warn(
-      `[lead-finder email] refilling — only ${stats.drafted}/${LEADS_PER_LANE} found so far, ` +
+      `[lead-finder email] refilling — only ${stats.drafted}/${target} found so far, ` +
         `trying ${remaining.length} more untried quer${remaining.length === 1 ? 'y' : 'ies'}.`,
     );
     queries = remaining;
   }
 
-  stats.shortfall = Math.max(0, LEADS_PER_LANE - stats.drafted);
+  stats.shortfall = Math.max(0, target - stats.drafted);
   if (stats.shortfall > 0) {
     stats.note =
-      `Only found ${stats.drafted} of ${LEADS_PER_LANE} email leads this run ` +
+      `Only found ${stats.drafted} of ${target} email leads this run ` +
       `(${stats.candidates} sites looked at, ${stats.noEmail} had no address we could trust, ${stats.duplicate} already on the list).`;
     console.warn(`[lead-finder email] SHORTFALL: ${stats.note}`);
   }
@@ -866,21 +892,34 @@ export async function runOutreachNationwideFinder(now = new Date()): Promise<Fin
   const lanes: LaneStats[] = [];
   const notified: OutreachAxonLeadRef[] = [];
 
+  // Top up each lane only by the gap between the max (LEADS_PER_LANE) and the drafts already
+  // waiting unsent in today + past_due. e.g. 2 left over -> generate 3; 5 left over -> generate 0.
+  const [igUnsent, emailUnsent] = await Promise.all([
+    countUnsentQueue('instagram'),
+    countUnsentQueue('email'),
+  ]);
+  const igTarget = topUpTarget(igUnsent);
+  const emailTarget = topUpTarget(emailUnsent);
+  console.log(
+    `[lead-finder] top-up targets — instagram ${igTarget} (${igUnsent} unsent), ` +
+      `email ${emailTarget} (${emailUnsent} unsent).`,
+  );
+
   try {
-    lanes.push(await runInstagramLane(new Set(instagramSeen), now, batchId, notified));
+    lanes.push(await runInstagramLane(new Set(instagramSeen), now, batchId, notified, igTarget));
   } catch (err) {
     const failed = emptyLaneStats('instagram');
-    failed.shortfall = LEADS_PER_LANE;
+    failed.shortfall = igTarget;
     failed.note = `The instagram lane could not run this time: ${err instanceof Error ? err.message : String(err)}`;
     console.error('[lead-finder instagram] lane failed:', err);
     lanes.push(failed);
   }
 
   try {
-    lanes.push(await runEmailLane(new Set(emailSeen), now, batchId, notified));
+    lanes.push(await runEmailLane(new Set(emailSeen), now, batchId, notified, emailTarget));
   } catch (err) {
     const failed = emptyLaneStats('email');
-    failed.shortfall = LEADS_PER_LANE;
+    failed.shortfall = emailTarget;
     failed.note = `The email lane could not run this time: ${err instanceof Error ? err.message : String(err)}`;
     console.error('[lead-finder email] lane failed:', err);
     lanes.push(failed);
@@ -895,6 +934,7 @@ export async function runOutreachNationwideFinder(now = new Date()): Promise<Fin
   }
 
   const incomplete = lanes.some((l) => l.shortfall > 0);
+  const combinedTarget = igTarget + emailTarget;
   const summary: FinderRunSummary = {
     target: LEADS_PER_LANE,
     lanes,
@@ -908,7 +948,7 @@ export async function runOutreachNationwideFinder(now = new Date()): Promise<Fin
   // never just quietly ships as if nothing happened.
   if (incomplete) {
     console.error(
-      `[lead-finder] SHORTFALL — batch queued with ${summary.drafted}/${summary.target * lanes.length} ` +
+      `[lead-finder] SHORTFALL — batch queued with ${summary.drafted}/${combinedTarget} ` +
         `leads after refill attempts. ` +
         lanes.filter((l) => l.note).map((l) => l.note).join(' '),
     );

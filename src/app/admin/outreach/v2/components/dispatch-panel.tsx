@@ -1,19 +1,53 @@
 "use client";
 
-import { useState } from "react";
-import { adminLabelClass, adminPanelClass, adminSecondaryButtonClass } from "@/components/admin/admin-portal-ui";
-import type { OutreachCoworkDispatchBatchRow, OutreachHubLead } from "@/lib/outreach-types";
+import { useMemo, useState } from "react";
+import {
+  adminInputClassSm,
+  adminLabelClass,
+  adminPanelClass,
+  adminSecondaryButtonClass,
+} from "@/components/admin/admin-portal-ui";
+import type {
+  EmailLeadRow,
+  InstagramLeadRow,
+  OutreachCoworkDispatchBatchRow,
+  OutreachHubLead,
+} from "@/lib/outreach-types";
 import {
   briefLeadMessageFields,
   dispatchBriefLeads,
   formatDispatchSlot,
   leadContactUrl,
   leadDisplayName,
-  manualQueueMessageFields,
   type MessageField,
 } from "./helpers";
-import { cancelAgentSendToManual, pullDispatch, setManualSent } from "./client-api";
-import { CopyButton } from "./ui-bits";
+import {
+  cancelAgentSendToManual,
+  deleteLead,
+  patchLead,
+  pullDispatch,
+  regenerateCopy,
+  regenerateResponse,
+  saveResponseDraft,
+  setManualSent,
+} from "./client-api";
+import {
+  CollapsibleCard,
+  ConfirmModal,
+  CopyButton,
+  ProgressBar,
+  RegenerateModal,
+  SaveIndicator,
+  useAutosave,
+} from "./ui-bits";
+import {
+  EmailClientPreview,
+  RegenerateButtons,
+  emailFieldKeys,
+  fieldDescriptors,
+  seedFields,
+  type LeadStage,
+} from "./lead-fields";
 
 /** Read-only message text + a copy button — the same text queued to actually send. */
 function MessageFieldBlock({ field }: { field: MessageField }) {
@@ -43,6 +77,35 @@ function statusBadge(status: string) {
   return `rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${map[status] ?? "border-white/15 bg-white/[0.04] text-white/55"}`;
 }
 
+/**
+ * Estimated agent progress for an Agent Send batch (WF2 item 4.2.3). The real percentage lands when
+ * the local Chrome/desktop send agent is wired in; until then this reflects the batch's own status
+ * so the bar shows roughly where the run is.
+ */
+function progressForStatus(status: string): number {
+  switch (status) {
+    case "queued":
+      return 5;
+    case "dispatched":
+      return 25;
+    case "running":
+      return 60;
+    case "complete":
+      return 100;
+    case "failed":
+      return 100;
+    default:
+      return 0;
+  }
+}
+
+/** dispatchPreviousLane -> the copy stage to edit in the Send Queue. */
+function stageForPreviousLane(prev: string | null | undefined): LeadStage {
+  if (prev === "follow_up_1") return "follow_up_1";
+  if (prev === "follow_up_2") return "follow_up_2";
+  return "primary";
+}
+
 function BatchCard(props: {
   batch: OutreachCoworkDispatchBatchRow;
   onChanged: () => void;
@@ -68,10 +131,7 @@ function BatchCard(props: {
     setBusy(true);
     const result = await pullDispatch([...selected]);
     setBusy(false);
-    if (!result.ok) {
-      props.onError(result.error);
-      return;
-    }
+    if (!result.ok) return props.onError(result.error);
     setSelected(new Set());
     props.onError("");
     props.onChanged();
@@ -85,10 +145,7 @@ function BatchCard(props: {
       next.delete(leadId);
       return next;
     });
-    if (!result.ok) {
-      props.onError(result.error);
-      return;
-    }
+    if (!result.ok) return props.onError(result.error);
     props.onError("");
     props.onChanged();
   }
@@ -97,19 +154,29 @@ function BatchCard(props: {
     batch.result && typeof batch.result === "object"
       ? (batch.result as { sent?: number; failed?: number })
       : null;
+  const status = String(batch.status);
+  const live = status === "queued" || status === "dispatched" || status === "running";
 
   return (
     <div className={`${adminPanelClass} space-y-3 p-5`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-base font-black text-white">{formatDispatchSlot(batch.scheduledFor, batch.slot)}</p>
+          <p className="text-base font-black text-white">
+            <span className="mr-2 rounded-md border border-sky-400/40 bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-sky-100">
+              Agent
+            </span>
+            {formatDispatchSlot(batch.scheduledFor, batch.slot)}
+          </p>
           <p className="text-xs text-white/45">
             {leads.length} lead{leads.length === 1 ? "" : "s"}
             {resultSummary ? ` · ${resultSummary.sent ?? 0} sent · ${resultSummary.failed ?? 0} failed` : ""}
           </p>
         </div>
-        <span className={statusBadge(String(batch.status))}>{String(batch.status)}</span>
+        <span className={statusBadge(status)}>{status}</span>
       </div>
+
+      {/* Agent progress — live estimate on the local send agent (wiring; real % when agent lands). */}
+      {live ? <ProgressBar percent={progressForStatus(status)} label="Agent send progress (estimated)" /> : null}
 
       {leads.length === 0 ? (
         <p className="text-xs text-white/40">No leads in this batch.</p>
@@ -162,12 +229,7 @@ function BatchCard(props: {
 
       {pullable && leads.length > 0 ? (
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            className={adminSecondaryButtonClass}
-            disabled={busy || selected.size === 0}
-            onClick={() => void pull()}
-          >
+          <button type="button" className={adminSecondaryButtonClass} disabled={busy || selected.size === 0} onClick={() => void pull()}>
             {busy ? "Pulling…" : `Pull ${selected.size || ""} from batch`.trim()}
           </button>
           <span className="text-[11px] text-white/40">Pulled leads return to their previous lane.</span>
@@ -177,92 +239,228 @@ function BatchCard(props: {
   );
 }
 
+/**
+ * Manual Send bubble — editable copy + the full manual button set (WF2 item 4.2). A reply queued
+ * from Pending Responses (previousLane = pending_response) edits its reply draft instead of the
+ * outbound copy. Everything autosaves.
+ */
 function ManualQueueCard(props: {
   entry: OutreachHubLead;
   onChanged: () => void;
   onError: (message: string) => void;
 }) {
   const { entry } = props;
-  const { lead } = entry;
-  const [busy, setBusy] = useState(false);
-  const sent = Boolean(lead.manualSentAt);
+  const platform = entry.platform;
+  const lead = entry.lead as InstagramLeadRow | EmailLeadRow & { dispatchPreviousLane?: string | null };
+  const prevLane = (lead as { dispatchPreviousLane?: string | null }).dispatchPreviousLane ?? null;
+  const isReply = prevLane === "pending_response";
+  const stage = stageForPreviousLane(prevLane);
+  const sent = Boolean((lead as { manualSentAt?: string | null }).manualSentAt);
   const contactUrl = leadContactUrl(entry);
-  const messageFields = manualQueueMessageFields(entry);
 
-  async function toggleSent(nextSent: boolean) {
-    setBusy(true);
-    const result = await setManualSent(lead.id, entry.platform, nextSent);
-    setBusy(false);
-    if (!result.ok) {
-      props.onError(result.error);
-      return;
+  const descs = useMemo(() => fieldDescriptors(platform, stage), [platform, stage]);
+  const [fields, setFields] = useState<Record<string, string>>(() =>
+    seedFields(lead as unknown as Record<string, unknown>, descs),
+  );
+  const [replyDraft, setReplyDraft] = useState((lead as { pendingResponseDraft?: string | null }).pendingResponseDraft ?? "");
+  const [showPreview, setShowPreview] = useState(platform === "email");
+  const [showRegenReply, setShowRegenReply] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
+  const [busy, setBusy] = useState<null | "sent" | "drafts" | "archive">(null);
+
+  // Autosave copy edits (outbound) or the reply draft, whichever this bubble is showing.
+  const saveStatus = useAutosave(isReply ? { replyDraft } : { fields }, async () => {
+    if (isReply) {
+      const r = await saveResponseDraft(lead.id, platform, replyDraft);
+      if (!r.ok) props.onError(r.error);
+      return { ok: r.ok };
     }
+    const r = await patchLead(lead.id, { platform, ...fields, saveToHub: true });
+    if (!r.ok) props.onError(r.error);
+    return { ok: r.ok };
+  });
+
+  const setField = (key: string, value: string) => setFields((prev) => ({ ...prev, [key]: value }));
+
+  async function regenerateOutbound(fieldKeys: string[], feedback: string): Promise<{ ok: boolean; error?: string }> {
+    const result = await regenerateCopy(lead.id, platform, fieldKeys, feedback);
+    if (!result.ok) return { ok: false, error: result.error };
+    const copy = result.data.copy ?? {};
+    setFields((prev) => {
+      const next = { ...prev };
+      for (const key of fieldKeys) if (typeof copy[key] === "string") next[key] = copy[key];
+      return next;
+    });
+    return { ok: true };
+  }
+
+  async function regenerateReply(feedback: string): Promise<{ ok: boolean; error?: string }> {
+    const result = await regenerateResponse(lead.id, platform, feedback || undefined);
+    if (!result.ok) return { ok: false, error: result.error };
+    setReplyDraft(result.data.pendingResponseDraft ?? "");
+    return { ok: true };
+  }
+
+  async function markSent() {
+    setBusy("sent");
+    const result = await setManualSent(lead.id, platform, true);
+    setBusy(null);
+    if (!result.ok) return props.onError(result.error);
     props.onError("");
     props.onChanged();
   }
 
-  return (
-    <div className={`${adminPanelClass} space-y-3 p-5`}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate text-base font-black text-white">{leadDisplayName(entry)}</p>
-          <p className="text-xs text-white/45">
-            {entry.platform}
-            {contactUrl ? (
-              <>
-                {" · "}
-                <a
-                  href={contactUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline decoration-white/30 underline-offset-2 hover:text-white"
-                >
-                  Open contact
-                </a>
-              </>
-            ) : null}
-          </p>
-        </div>
-        <span className={sent ? statusBadge("complete") : statusBadge("queued")}>
-          {sent ? "Sent" : "Not sent"}
+  async function sendDrafts() {
+    setBusy("drafts");
+    const result = await pullDispatch([lead.id]);
+    setBusy(null);
+    if (!result.ok) return props.onError(result.error);
+    props.onError("");
+    props.onChanged();
+  }
+
+  async function confirmArchive() {
+    setBusy("archive");
+    const result = await deleteLead(lead.id, platform, "Archived from Send Queue");
+    setBusy(null);
+    if (!result.ok) return props.onError(result.error);
+    setShowArchive(false);
+    props.onError("");
+    props.onChanged();
+  }
+
+  const { subjectKey, bodyKey } = emailFieldKeys(stage);
+  const previewSubject = isReply ? `Re: ${(lead as EmailLeadRow).emailSubject ?? ""}` : fields[subjectKey] ?? "";
+  const previewBody = isReply ? replyDraft : fields[bodyKey] ?? "";
+
+  const header = (
+    <>
+      <p className="truncate text-base font-black text-white">
+        <span className="mr-2 rounded-md border border-[#FF7E00]/40 bg-[#FF7E00]/10 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#FFD34E]">
+          Manual{isReply ? " reply" : ""}
         </span>
-      </div>
-
-      {messageFields.length > 0 ? (
-        <div className="space-y-1.5">
-          {messageFields.map((field) => (
-            <MessageFieldBlock key={field.label} field={field} />
-          ))}
-        </div>
+        {leadDisplayName(entry)}
+        <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-white/40">{platform}</span>
+      </p>
+      {contactUrl ? (
+        <a
+          href={contactUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-0.5 inline-block text-xs text-white/45 underline decoration-white/30 underline-offset-2 hover:text-white"
+        >
+          Open contact ↗
+        </a>
       ) : null}
+    </>
+  );
 
-      <div className="flex flex-wrap items-center gap-3">
-        {sent ? (
-          <>
-            <span className="text-[11px] text-white/40">
-              Marked sent {new Date(lead.manualSentAt as string).toLocaleString()}
-            </span>
+  return (
+    <>
+      <CollapsibleCard
+        header={header}
+        defaultOpen
+        badges={<span className={sent ? statusBadge("complete") : statusBadge("queued")}>{sent ? "Sent" : "Not sent"}</span>}
+      >
+        <div className="space-y-3">
+          {isReply ? (
+            <label className="block space-y-1">
+              <span className={adminLabelClass}>Reply</span>
+              <textarea
+                className={adminInputClassSm}
+                rows={6}
+                value={replyDraft}
+                onChange={(e) => setReplyDraft(e.target.value)}
+              />
+            </label>
+          ) : (
+            descs.map((d) => (
+              <label key={d.key} className="block space-y-1">
+                <span className={adminLabelClass}>{d.label}</span>
+                {d.rows === 1 ? (
+                  <input className={adminInputClassSm} value={fields[d.key]} onChange={(e) => setField(d.key, e.target.value)} />
+                ) : (
+                  <textarea
+                    className={adminInputClassSm}
+                    rows={d.rows}
+                    value={fields[d.key]}
+                    onChange={(e) => setField(d.key, e.target.value)}
+                  />
+                )}
+              </label>
+            ))
+          )}
+
+          {platform === "email" && showPreview ? (
+            <EmailClientPreview
+              name={(lead as EmailLeadRow).name}
+              email={(lead as EmailLeadRow).email}
+              subject={previewSubject}
+              body={previewBody}
+            />
+          ) : null}
+
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            {sent ? (
+              <button type="button" className={adminSecondaryButtonClass} disabled={busy !== null} onClick={() => void setManualSent(lead.id, platform, false).then((r) => (r.ok ? props.onChanged() : props.onError(r.error)))}>
+                Not Sent
+              </button>
+            ) : (
+              <button type="button" className={adminSecondaryButtonClass} disabled={busy !== null} onClick={() => void markSent()}>
+                {busy === "sent" ? "Updating…" : "Mark Sent"}
+              </button>
+            )}
+
+            {isReply ? (
+              <button type="button" className={adminSecondaryButtonClass} onClick={() => setShowRegenReply(true)}>
+                Regenerate DM
+              </button>
+            ) : (
+              <RegenerateButtons platform={platform} stage={stage} onRegenerate={regenerateOutbound} />
+            )}
+
+            {platform === "email" ? (
+              <button type="button" className={adminSecondaryButtonClass} onClick={() => setShowPreview((v) => !v)}>
+                {showPreview ? "Hide preview" : "Preview"}
+              </button>
+            ) : null}
+
+            <button type="button" className={adminSecondaryButtonClass} disabled={busy !== null} onClick={() => void sendDrafts()}>
+              {busy === "drafts" ? "Moving…" : "Send Drafts"}
+            </button>
             <button
               type="button"
-              className={adminSecondaryButtonClass}
-              disabled={busy}
-              onClick={() => void toggleSent(false)}
+              className="rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/[0.08] px-4 py-2.5 text-xs font-black uppercase tracking-[0.1em] text-[#FFB4B4] transition hover:bg-[#E32B2B]/15"
+              onClick={() => setShowArchive(true)}
             >
-              {busy ? "Updating…" : "Not Sent"}
+              Archive
             </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            className={adminSecondaryButtonClass}
-            disabled={busy}
-            onClick={() => void toggleSent(true)}
-          >
-            {busy ? "Updating…" : "Mark Sent"}
-          </button>
-        )}
-      </div>
-    </div>
+            <SaveIndicator status={saveStatus} />
+          </div>
+          <p className="text-[11px] text-white/40">
+            Send Drafts returns this lead to Today&apos;s Leads / Past Due. Mark Sent moves it to Pending Leads.
+          </p>
+        </div>
+      </CollapsibleCard>
+      {showRegenReply ? (
+        <RegenerateModal title="Regenerate reply" onClose={() => setShowRegenReply(false)} onRegenerate={regenerateReply} />
+      ) : null}
+      {showArchive ? (
+        <ConfirmModal
+          title="Archive lead"
+          danger
+          confirmLabel="Archive lead"
+          busy={busy === "archive"}
+          message={
+            <>
+              Archive <span className="font-semibold text-white">{leadDisplayName(entry)}</span>? It moves to the Archives tab.
+            </>
+          }
+          onCancel={() => setShowArchive(false)}
+          onConfirm={() => void confirmArchive()}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -277,17 +475,12 @@ export function DispatchPanel(props: {
   return (
     <div className="space-y-6">
       <section className="space-y-3">
-        <p className={adminLabelClass}>Manual ({props.manualQueued.length})</p>
+        <p className={adminLabelClass}>Manual send ({props.manualQueued.length})</p>
         {props.manualQueued.length === 0 ? (
           <p className="text-sm text-white/55">No leads queued for manual send.</p>
         ) : (
           props.manualQueued.map((entry) => (
-            <ManualQueueCard
-              key={`${entry.platform}-${entry.lead.id}`}
-              entry={entry}
-              onChanged={props.onChanged}
-              onError={props.onError}
-            />
+            <ManualQueueCard key={`${entry.platform}-${entry.lead.id}`} entry={entry} onChanged={props.onChanged} onError={props.onError} />
           ))
         )}
       </section>
@@ -295,11 +488,9 @@ export function DispatchPanel(props: {
       <section className="space-y-3">
         <p className={adminLabelClass}>Agent scheduled</p>
         {props.upcoming.length === 0 ? (
-          <p className="text-sm text-white/55">No upcoming dispatch batches. Approve leads to queue the next 1pm or 4pm run.</p>
+          <p className="text-sm text-white/55">No upcoming dispatch batches. Agent Send queues leads into the next 1pm or 4pm run.</p>
         ) : (
-          props.upcoming.map((b) => (
-            <BatchCard key={b.id} batch={b} onChanged={props.onChanged} onError={props.onError} />
-          ))
+          props.upcoming.map((b) => <BatchCard key={b.id} batch={b} onChanged={props.onChanged} onError={props.onError} />)
         )}
       </section>
 
@@ -308,9 +499,7 @@ export function DispatchPanel(props: {
         {props.recentlyCompleted.length === 0 ? (
           <p className="text-sm text-white/55">No batches completed in the last 24 hours.</p>
         ) : (
-          props.recentlyCompleted.map((b) => (
-            <BatchCard key={b.id} batch={b} onChanged={props.onChanged} onError={props.onError} />
-          ))
+          props.recentlyCompleted.map((b) => <BatchCard key={b.id} batch={b} onChanged={props.onChanged} onError={props.onError} />)
         )}
       </section>
     </div>

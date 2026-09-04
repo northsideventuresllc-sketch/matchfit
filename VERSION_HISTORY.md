@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-04** `2.26.14-beta` → `2.27.0-beta` (**minor** — Outreach HQ agent wiring: queue-aware lead top-up, 7-tab board, autosave, per-lead regenerate/copy/send, reply-scan schedule)
 - **2026-09-03** `2.26.13-beta` → `2.26.14-beta` (**patch** — Media jobs auto-launch the Mac mini automation Chrome)
 - **2026-09-03** `2.26.12-beta` → `2.26.13-beta` (**patch** — Media generation: Mac mini Chrome only, API path removed)
 - **2026-09-03** `2.26.11-beta` → `2.26.12-beta` (**patch** — AI Vault: OpenRouter free tier in the AXON chain)

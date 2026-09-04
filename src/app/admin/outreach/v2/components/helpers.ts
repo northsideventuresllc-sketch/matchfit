@@ -8,15 +8,17 @@ import type {
   OutreachPlatform,
 } from "@/lib/outreach-types";
 
-/** The eight Outreach HQ v2 tabs (Outreach Hub is a zoom-out view, not a lane). */
+/**
+ * The seven Outreach HQ v2 tabs (Outreach Hub is a zoom-out view, not a lane). WF2 item 10 removed
+ * the standalone Follow-ups tab — follow-up leads now live inside Pending Leads.
+ */
 export type OutreachV2Tab =
+  | "hub"
   | "today"
   | "past_due"
-  | "follow_ups"
-  | "pending_responses"
-  | "hub"
   | "dispatch"
   | "pending"
+  | "pending_responses"
   | "archives";
 
 /** Platform filter used on the lead-list tabs. `both` = every platform (nothing hidden). */
@@ -99,6 +101,24 @@ export function selectFollowUpLeads(
   return [...grouped.follow_up_1, ...grouped.follow_up_2];
 }
 
+/**
+ * Every lead that has been contacted and is now awaiting a reply / follow-up — the Pending Leads
+ * tab (WF2 item 6). Aggregates the `pending` lane (sent, no follow-up pending / Facebook) with the
+ * two follow-up lanes so JB sees one list of "already sent" leads.
+ */
+export function selectPendingLeads(
+  grouped: Record<OutreachLane, OutreachHubLead[]>,
+): OutreachHubLead[] {
+  return [...grouped.pending, ...grouped.follow_up_1, ...grouped.follow_up_2];
+}
+
+/** How many follow-ups a lead has already had, from its lane: fu1 lane = 0 done, fu2 = 1, pending = 2. */
+export function followUpCount(lane: OutreachLane): number {
+  if (lane === "follow_up_1") return 0;
+  if (lane === "follow_up_2") return 1;
+  return 2;
+}
+
 /** The due timestamp that governs the current follow-up lane for a lead. */
 export function followUpDueAt(entry: OutreachHubLead): string | null {
   const lane = laneOf(entry);
@@ -160,19 +180,18 @@ export function computeLaneTiles(
   grouped: Record<OutreachLane, OutreachHubLead[]>,
   archiveCount: number,
 ): LaneTile[] {
+  const pendingCount = grouped.pending.length + grouped.follow_up_1.length + grouped.follow_up_2.length;
   return [
     { tab: "today", lane: "today", label: "Today's leads", count: grouped.today.length },
     { tab: "past_due", lane: "past_due", label: "Past due", count: grouped.past_due.length },
-    { tab: "follow_ups", lane: "follow_up_1", label: "Follow-up 1", count: grouped.follow_up_1.length },
-    { tab: "follow_ups", lane: "follow_up_2", label: "Follow-up 2", count: grouped.follow_up_2.length },
+    { tab: "dispatch", lane: "dispatch_queued", label: "Send queue", count: grouped.dispatch_queued.length },
+    { tab: "pending", lane: "pending", label: "Pending leads", count: pendingCount },
     {
       tab: "pending_responses",
       lane: "pending_response",
       label: "Pending responses",
       count: grouped.pending_response.length,
     },
-    { tab: "dispatch", lane: "dispatch_queued", label: "Dispatch", count: grouped.dispatch_queued.length },
-    { tab: "pending", lane: "pending", label: "Pending", count: grouped.pending.length },
     { tab: "archives", lane: "archived", label: "Archives", count: archiveCount },
   ];
 }
@@ -258,6 +277,13 @@ export function manualQueueMessageFields(entry: OutreachHubLead): MessageField[]
   const stage = (lead as { dispatchPreviousLane?: string | null }).dispatchPreviousLane ?? null;
   const out: MessageField[] = [];
 
+  // A reply queued from Pending Responses carries its own drafted reply text, not the outbound copy.
+  if (stage === "pending_response") {
+    const draft = (lead as { pendingResponseDraft?: string | null }).pendingResponseDraft;
+    if (draft) out.push({ label: "Reply", text: draft });
+    return out;
+  }
+
   if (entry.platform === "instagram") {
     const ig = lead as InstagramLeadRow;
     if (stage === "follow_up_1") {
@@ -294,7 +320,6 @@ export function manualQueueMessageFields(entry: OutreachHubLead): MessageField[]
  */
 export function tabBadgeCount(tab: OutreachV2Tab, grouped: Record<OutreachLane, OutreachHubLead[]>): number {
   if (tab === "past_due") return grouped.past_due.length;
-  if (tab === "follow_ups") return grouped.follow_up_1.length + grouped.follow_up_2.length;
   if (tab === "pending_responses") {
     return grouped.pending_response.filter((e) => e.lead.hasUnrespondedReply).length;
   }

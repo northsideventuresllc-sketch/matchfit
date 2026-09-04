@@ -8,11 +8,6 @@ import {
   adminSecondaryButtonClass,
 } from "@/components/admin/admin-portal-ui";
 import {
-  MATCH_FIT_SIGNATURE_FROM_EMAIL,
-  MATCH_FIT_SIGNATURE_LINES,
-} from "@/lib/match-fit-signature";
-import {
-  OUTREACH_COWORK_EMAIL_BCC,
   OUTREACH_INSTAGRAM_PROCEDURE_STEPS,
   OUTREACH_INTENT_OPTIONS,
   isOutreachIntent,
@@ -24,132 +19,28 @@ import type {
   FacebookLeadRow,
   InstagramLeadRow,
   OutreachHubLead,
-  OutreachPlatform,
 } from "@/lib/outreach-types";
-import { CollapsibleCard, CopyButton, Modal } from "./ui-bits";
+import { CollapsibleCard, ConfirmModal, SaveIndicator, useAutosave } from "./ui-bits";
+import {
+  CopyFieldButtons,
+  EmailClientPreview,
+  RegenerateButtons,
+  emailFieldKeys,
+  fieldDescriptors,
+  seedFields,
+  type LeadStage,
+} from "./lead-fields";
 import { deleteLead, patchLead, queueDispatch, regenerateCopy, sendManual } from "./client-api";
 import { followUpDueAt, formatOverdue, laneOf, leadContactUrl, leadDisplayName } from "./helpers";
 
-export type LeadStage = "primary" | "follow_up_1" | "follow_up_2";
+export type { LeadStage };
 
-type FieldDesc = { key: string; label: string; rows: number };
-
-function fieldDescriptors(platform: OutreachPlatform, stage: LeadStage): FieldDesc[] {
-  if (platform === "instagram") {
-    if (stage === "follow_up_1") return [{ key: "followUp1DmText", label: "First follow-up DM", rows: 5 }];
-    if (stage === "follow_up_2") return [{ key: "followUp2DmText", label: "Second follow-up DM", rows: 5 }];
-    return [
-      { key: "dmText", label: "First DM", rows: 5 },
-      { key: "commentText", label: "Comment", rows: 3 },
-    ];
-  }
-  if (platform === "email") {
-    if (stage === "follow_up_1")
-      return [
-        { key: "followUp1EmailSubject", label: "First follow-up subject", rows: 1 },
-        { key: "followUp1EmailBody", label: "First follow-up email", rows: 6 },
-      ];
-    if (stage === "follow_up_2")
-      return [
-        { key: "followUp2EmailSubject", label: "Second follow-up subject", rows: 1 },
-        { key: "followUp2EmailBody", label: "Second follow-up email", rows: 6 },
-      ];
-    return [
-      { key: "emailSubject", label: "Subject", rows: 1 },
-      { key: "emailBody", label: "Body", rows: 8 },
-    ];
-  }
-  return [{ key: "pagePostText", label: "Page post", rows: 6 }];
-}
-
-function seedFields(lead: Record<string, unknown>, descs: FieldDesc[]): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const d of descs) out[d.key] = typeof lead[d.key] === "string" ? (lead[d.key] as string) : "";
-  return out;
-}
-
-function EmailClientPreview(props: { name: string; email: string; subject: string; body: string }) {
-  return (
-    <div className="mt-3 overflow-hidden rounded-xl border border-white/[0.1] bg-white text-[#0B0C0F] shadow-lg">
-      <div className="flex items-center gap-2 border-b border-black/10 bg-[#F3F4F6] px-4 py-2">
-        <span className="h-3 w-3 rounded-full bg-[#FF5F57]" />
-        <span className="h-3 w-3 rounded-full bg-[#FEBC2E]" />
-        <span className="h-3 w-3 rounded-full bg-[#28C840]" />
-        <span className="ml-2 text-xs font-semibold text-black/50">New Message — Match Fit</span>
-      </div>
-      <div className="space-y-1 border-b border-black/10 px-4 py-3 text-sm">
-        <p>
-          <span className="font-semibold text-black/50">From:</span> Match Fit &lt;
-          {MATCH_FIT_SIGNATURE_FROM_EMAIL}&gt;
-        </p>
-        <p>
-          <span className="font-semibold text-black/50">To:</span> {props.name} &lt;{props.email}&gt;
-        </p>
-        <p>
-          <span className="font-semibold text-black/50">BCC:</span> {OUTREACH_COWORK_EMAIL_BCC.join(" · ")}
-        </p>
-        <p>
-          <span className="font-semibold text-black/50">Subject:</span>{" "}
-          <span className="font-semibold">{props.subject}</span>
-        </p>
-      </div>
-      <div className="px-4 py-4 text-sm leading-relaxed text-[#111]">
-        <p className="whitespace-pre-wrap">{props.body}</p>
-        <div className="mt-5 border-t border-black/10 pt-3">
-          <div className="text-[13px] leading-snug">
-            {MATCH_FIT_SIGNATURE_LINES.map((line, i) => (
-              <p key={line} className={i <= 1 ? "font-semibold" : "text-black/70"}>
-                {line}
-              </p>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DeleteModal(props: {
-  name: string;
-  busy: boolean;
-  onCancel: () => void;
-  onConfirm: (reason: string) => void;
-}) {
-  const [reason, setReason] = useState("");
-  const valid = reason.trim().length >= 3;
-  return (
-    <Modal title="Delete lead" onClose={props.onCancel}>
-      <p className="text-sm text-white/70">
-        Deleting <span className="font-semibold text-white">{props.name}</span> archives it (kept 7 days in
-        Archives). A reason is required so the model can learn from it.
-      </p>
-      <label className="mt-4 block space-y-1">
-        <span className={adminLabelClass}>Delete reason (min 3 characters)</span>
-        <textarea
-          className={adminInputClassSm}
-          rows={3}
-          value={reason}
-          placeholder="Not a fit — chain gym, no independent Fitness Pro angle…"
-          onChange={(e) => setReason(e.target.value)}
-        />
-      </label>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          className="rounded-lg border border-[#E32B2B]/50 bg-[#E32B2B]/15 px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#FFB4B4] transition hover:bg-[#E32B2B]/25 disabled:opacity-40"
-          disabled={!valid || props.busy}
-          onClick={() => props.onConfirm(reason.trim())}
-        >
-          {props.busy ? "Deleting…" : "Delete lead"}
-        </button>
-        <button type="button" className={adminSecondaryButtonClass} disabled={props.busy} onClick={props.onCancel}>
-          Cancel
-        </button>
-      </div>
-    </Modal>
-  );
-}
-
+/**
+ * Today's Leads / Past Due / Pending-follow-up lead bubble. Autosaves every edit (no Save button),
+ * offers per-field Regenerate (feedback popup that loops) and per-field Copy, and the two send
+ * actions (WF2 item 3). Delete stays so junk leads can be pruned (they otherwise count against the
+ * daily top-up).
+ */
 export function LeadCard(props: {
   entry: OutreachHubLead;
   stage: LeadStage;
@@ -167,9 +58,6 @@ export function LeadCard(props: {
     seedFields(lead as unknown as Record<string, unknown>, descs),
   );
   const [intent, setIntent] = useState<string | null>(lead.outreachIntent);
-  const [feedback, setFeedback] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [regenBusy, setRegenBusy] = useState(false);
   const [approving, setApproving] = useState(false);
   const [manualSending, setManualSending] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -181,63 +69,34 @@ export function LeadCard(props: {
   const lane = laneOf(entry);
   const dueInfo = stage !== "primary" ? formatOverdue(followUpDueAt(entry)) : null;
 
-  const dirty =
-    descs.some((d) => fields[d.key] !== ((lead as unknown as Record<string, unknown>)[d.key] ?? "")) ||
-    intent !== lead.outreachIntent;
+  // Autosave every field/intent edit (WF2 item 5). Native cmd/ctrl+Z handles undo inside a field.
+  const saveStatus = useAutosave({ fields, intent }, async ({ fields, intent }) => {
+    const result = await patchLead(lead.id, { platform, ...fields, outreachIntent: intent, saveToHub: true });
+    if (!result.ok) props.onError(result.error);
+    else props.onError("");
+    return { ok: result.ok };
+  });
 
   const setField = (key: string, value: string) => setFields((prev) => ({ ...prev, [key]: value }));
 
-  async function save() {
-    setSaving(true);
-    const result = await patchLead(lead.id, {
-      platform,
-      ...fields,
-      outreachIntent: intent,
-      saveToHub: true,
-    });
-    setSaving(false);
-    if (!result.ok) {
-      props.onError(result.error);
-      return;
-    }
-    props.onError("");
-    props.onChanged();
-  }
-
-  async function regen() {
-    setRegenBusy(true);
-    const result = await regenerateCopy(
-      lead.id,
-      platform,
-      descs.map((d) => d.key),
-      feedback,
-    );
-    setRegenBusy(false);
-    if (!result.ok) {
-      props.onError(result.error);
-      return;
-    }
+  async function regenerate(fieldKeys: string[], feedback: string): Promise<{ ok: boolean; error?: string }> {
+    const result = await regenerateCopy(lead.id, platform, fieldKeys, feedback);
+    if (!result.ok) return { ok: false, error: result.error };
     const copy = result.data.copy ?? {};
     setFields((prev) => {
       const next = { ...prev };
-      for (const d of descs) if (typeof copy[d.key] === "string") next[d.key] = copy[d.key];
+      for (const key of fieldKeys) if (typeof copy[key] === "string") next[key] = copy[key];
       return next;
     });
-    setFeedback("");
+    return { ok: true };
   }
 
   async function approve() {
     setApproving(true);
     const result = await queueDispatch([{ id: lead.id, platform }]);
     setApproving(false);
-    if (!result.ok) {
-      props.onError(result.error);
-      return;
-    }
-    if (result.data.queued.length === 0) {
-      props.onError("Lead was already queued for dispatch.");
-      return;
-    }
+    if (!result.ok) return props.onError(result.error);
+    if (result.data.queued.length === 0) return props.onError("Lead was already queued for dispatch.");
     props.onError("");
     props.onChanged();
   }
@@ -246,29 +105,22 @@ export function LeadCard(props: {
     setManualSending(true);
     const result = await sendManual([{ id: lead.id, platform }]);
     setManualSending(false);
-    if (!result.ok) {
-      props.onError(result.error);
-      return;
-    }
+    if (!result.ok) return props.onError(result.error);
     props.onError("");
     props.onChanged();
   }
 
-  async function confirmDelete(reason: string) {
+  async function confirmDelete() {
     setDeleting(true);
-    const result = await deleteLead(lead.id, platform, reason);
+    const result = await deleteLead(lead.id, platform, "Archived from Outreach HQ");
     setDeleting(false);
-    if (!result.ok) {
-      props.onError(result.error);
-      return;
-    }
+    if (!result.ok) return props.onError(result.error);
     setShowDelete(false);
     props.onError("");
     props.onChanged();
   }
 
-  const subjectKey = stage === "primary" ? "emailSubject" : stage === "follow_up_1" ? "followUp1EmailSubject" : "followUp2EmailSubject";
-  const bodyKey = stage === "primary" ? "emailBody" : stage === "follow_up_1" ? "followUp1EmailBody" : "followUp2EmailBody";
+  const { subjectKey, bodyKey } = emailFieldKeys(stage);
 
   const header = (
     <>
@@ -374,17 +226,7 @@ export function LeadCard(props: {
             />
           ) : null}
 
-          <label className="block space-y-1">
-            <span className={adminLabelClass}>Rewrite feedback (optional)</span>
-            <input
-              className={adminInputClassSm}
-              value={feedback}
-              placeholder="Shorter opener, lead with founding promo…"
-              onChange={(e) => setFeedback(e.target.value)}
-            />
-          </label>
-
-          <div className="flex flex-wrap gap-2 pt-1">
+          <div className="flex flex-wrap items-center gap-2 pt-1">
             {props.showApprove ? (
               <button
                 type="button"
@@ -405,23 +247,13 @@ export function LeadCard(props: {
                 {manualSending ? "Sending…" : "Manual Send"}
               </button>
             ) : null}
-            <button
-              type="button"
-              className={adminSecondaryButtonClass}
-              disabled={saving || !dirty}
-              onClick={() => void save()}
-            >
-              {saving ? "Saving…" : dirty ? "Save edits" : "Saved"}
-            </button>
-            <button type="button" className={adminSecondaryButtonClass} disabled={regenBusy} onClick={() => void regen()}>
-              {regenBusy ? "Regenerating…" : "Regenerate copy"}
-            </button>
+            <RegenerateButtons platform={platform} stage={stage} onRegenerate={regenerate} />
+            <CopyFieldButtons platform={platform} stage={stage} fields={fields} />
             {platform === "email" ? (
               <button type="button" className={adminSecondaryButtonClass} onClick={() => setShowPreview((v) => !v)}>
                 {showPreview ? "Hide preview" : "Show preview"}
               </button>
             ) : null}
-            <CopyButton value={descs.map((d) => fields[d.key]).filter(Boolean).join("\n\n")} label="Copy" />
             <button
               type="button"
               className="rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/[0.08] px-4 py-2.5 text-xs font-black uppercase tracking-[0.1em] text-[#FFB4B4] transition hover:bg-[#E32B2B]/15"
@@ -429,11 +261,24 @@ export function LeadCard(props: {
             >
               Delete
             </button>
+            <SaveIndicator status={saveStatus} />
           </div>
         </div>
       </CollapsibleCard>
       {showDelete ? (
-        <DeleteModal name={name} busy={deleting} onCancel={() => setShowDelete(false)} onConfirm={(r) => void confirmDelete(r)} />
+        <ConfirmModal
+          title="Delete lead"
+          danger
+          confirmLabel="Delete lead"
+          busy={deleting}
+          message={
+            <>
+              Delete <span className="font-semibold text-white">{name}</span>? It moves to Archives (kept 7 days).
+            </>
+          }
+          onCancel={() => setShowDelete(false)}
+          onConfirm={() => void confirmDelete()}
+        />
       ) : null}
     </>
   );
