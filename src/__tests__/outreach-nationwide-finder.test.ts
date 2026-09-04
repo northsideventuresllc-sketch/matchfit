@@ -16,6 +16,7 @@ import {
   looksLikeOnlineCoach,
   pickQueries,
   rotationOffset,
+  topUpTarget,
 } from "@/lib/outreach-nationwide-finder";
 import { isEstWeekend } from "@/lib/outreach-lanes";
 
@@ -38,6 +39,19 @@ describe("targets", () => {
     expect(LEADS_PER_LANE).toBe(5);
     // 2 searches per lane x 2 lanes x ~22 weekdays = 88 searches/month, under the free 100.
     expect(MAX_SEARCHES_PER_LANE * 2 * 22).toBeLessThanOrEqual(100);
+  });
+});
+
+describe("topUpTarget — queue-aware refill (WF2 item 1)", () => {
+  it("only drafts the gap up to the max of 5", () => {
+    expect(topUpTarget(0)).toBe(5); // empty queue -> full batch
+    expect(topUpTarget(2)).toBe(3); // JB's example: 2 left over -> generate 3
+    expect(topUpTarget(3)).toBe(2);
+    expect(topUpTarget(5)).toBe(0); // already full -> generate none
+  });
+
+  it("never goes negative when the queue is over the max", () => {
+    expect(topUpTarget(7)).toBe(0);
   });
 });
 

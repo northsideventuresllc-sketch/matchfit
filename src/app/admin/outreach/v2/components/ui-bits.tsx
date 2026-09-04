@@ -7,7 +7,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { adminSecondaryButtonClass } from "@/components/admin/admin-portal-ui";
+import {
+  adminAccentButtonClass,
+  adminInputClassSm,
+  adminLabelClass,
+  adminSecondaryButtonClass,
+} from "@/components/admin/admin-portal-ui";
 
 /**
  * Determinate progress bar with a live percentage. Duplicated (not cross-imported) from the
@@ -29,6 +34,155 @@ export function ProgressBar({ percent, label }: { percent: number; label?: strin
         />
       </div>
     </div>
+  );
+}
+
+export type SaveStatus = "idle" | "saving" | "saved" | "error";
+
+/**
+ * Debounced autosave (WF2 item 5 — every edit saves itself; no Save button anywhere). Watches a
+ * serialisable snapshot; after `delay` ms of no changes it calls `save` with the latest value.
+ * The initial mount (seeded values) never triggers a save. Undo inside a field is native
+ * browser cmd/ctrl+Z — there is no app-level undo stack by design.
+ */
+export function useAutosave<T>(
+  value: T,
+  save: (v: T) => Promise<{ ok: boolean }>,
+  opts?: { delay?: number },
+): SaveStatus {
+  const delay = opts?.delay ?? 600;
+  const [status, setStatus] = useState<SaveStatus>("idle");
+  const firstRun = useRef(true);
+  const latest = useRef(value);
+  const saveRef = useRef(save);
+  const serialized = JSON.stringify(value);
+
+  // Keep the mutable refs current without writing to them during render.
+  useEffect(() => {
+    latest.current = value;
+    saveRef.current = save;
+  });
+
+  useEffect(() => {
+    if (firstRun.current) {
+      firstRun.current = false;
+      return;
+    }
+    setStatus("saving");
+    const timer = window.setTimeout(async () => {
+      const res = await saveRef.current(latest.current);
+      setStatus(res.ok ? "saved" : "error");
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [serialized, delay]);
+
+  return status;
+}
+
+/** Small inline "Saving… / Saved ✓ / Save failed" text that replaces the old Save button. */
+export function SaveIndicator({ status }: { status: SaveStatus }) {
+  if (status === "idle") return null;
+  const map: Record<Exclude<SaveStatus, "idle">, { text: string; cls: string }> = {
+    saving: { text: "Saving…", cls: "text-white/45" },
+    saved: { text: "Saved ✓", cls: "text-emerald-300" },
+    error: { text: "Save failed — check connection", cls: "text-[#FFB4B4]" },
+  };
+  const s = map[status];
+  return <span className={`text-[11px] font-semibold ${s.cls}`}>{s.text}</span>;
+}
+
+/**
+ * Regenerate popup (WF2 item 3): an optional feedback box, then Confirm regenerates. Stays open so
+ * JB can read the result, add more feedback, and regenerate again — the "loops to improve" flow.
+ */
+export function RegenerateModal({
+  title,
+  onClose,
+  onRegenerate,
+}: {
+  title: string;
+  onClose: () => void;
+  onRegenerate: (feedback: string) => Promise<{ ok: boolean; error?: string }>;
+}) {
+  const [feedback, setFeedback] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [ran, setRan] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run() {
+    setBusy(true);
+    setError(null);
+    setNote(null);
+    const res = await onRegenerate(feedback.trim());
+    setBusy(false);
+    if (!res.ok) {
+      setError(res.error ?? "Could not regenerate.");
+      return;
+    }
+    setRan(true);
+    setNote("Updated. Add more feedback and regenerate again, or close.");
+  }
+
+  return (
+    <Modal title={title} onClose={onClose}>
+      <label className="block space-y-1">
+        <span className={adminLabelClass}>Feedback (optional)</span>
+        <textarea
+          className={adminInputClassSm}
+          rows={3}
+          value={feedback}
+          placeholder="Shorter opener, lead with the founding promo, warmer tone…"
+          onChange={(e) => setFeedback(e.target.value)}
+        />
+      </label>
+      {note ? <p className="mt-2 text-xs font-semibold text-emerald-300">{note}</p> : null}
+      {error ? <p className="mt-2 text-xs font-semibold text-[#FFB4B4]">{error}</p> : null}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button type="button" className={adminAccentButtonClass} disabled={busy} onClick={() => void run()}>
+          {busy ? "Regenerating…" : ran ? "Regenerate again" : "Regenerate"}
+        </button>
+        <button type="button" className={adminSecondaryButtonClass} disabled={busy} onClick={onClose}>
+          {ran ? "Done" : "Cancel"}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+/** Generic confirm dialog (WF2 item 4/6 — Archive confirmation). */
+export function ConfirmModal({
+  title,
+  message,
+  confirmLabel = "Confirm",
+  busy = false,
+  danger = false,
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  message: ReactNode;
+  confirmLabel?: string;
+  busy?: boolean;
+  danger?: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const confirmCls = danger
+    ? "rounded-lg border border-[#E32B2B]/50 bg-[#E32B2B]/15 px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-[#FFB4B4] transition hover:bg-[#E32B2B]/25 disabled:opacity-40"
+    : adminAccentButtonClass;
+  return (
+    <Modal title={title} onClose={onCancel}>
+      <div className="text-sm text-white/70">{message}</div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button type="button" className={confirmCls} disabled={busy} onClick={onConfirm}>
+          {busy ? "Working…" : confirmLabel}
+        </button>
+        <button type="button" className={adminSecondaryButtonClass} disabled={busy} onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </Modal>
   );
 }
 

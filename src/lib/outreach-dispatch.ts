@@ -27,7 +27,9 @@ const INSTAGRAM_HUMAN_PACING_GUIDANCE =
   "(tens of seconds to a few minutes) between the DM, follow, likes, and comment, and do not run " +
   "all leads at the exact same cadence. The goal is to avoid looking automated.";
 
-const INSTAGRAM_ACTION_ORDER = ["dm", "follow", "like_3_recent_posts", "comment"] as const;
+// WF2 item 3.4 (JB 2026-09-03): comment removed from the IG workflow (repeated spam flags). Follow,
+// like recent posts, and DM only — no comment step anywhere in the dispatch brief.
+const INSTAGRAM_ACTION_ORDER = ["follow", "like_recent_posts", "dm"] as const;
 
 type LeadRefInput = { id: string; platform: OutreachPlatform };
 
@@ -52,6 +54,9 @@ function buildBatchBrief(
   const leadRefs: { platform: OutreachPlatform; leadId: string }[] = [];
 
   for (const r of members.ig) {
+    // A lead queued from Pending Responses carries a drafted reply — send that, not the outbound DM.
+    const isReply = r.dispatchPreviousLane === "pending_response" && !!r.pendingResponseDraft;
+    const igDm = isReply ? (r.pendingResponseDraft as string) : r.dmText;
     leadRefs.push({ platform: "instagram", leadId: r.id });
     leads.push({
       leadId: r.id,
@@ -59,23 +64,19 @@ function buildBatchBrief(
       displayName: r.handle,
       contact: r.profileUrl,
       outreachIntent: r.outreachIntent,
-      dmText: r.dmText,
-      commentText: r.commentText,
-      commentPostRef: r.commentPostRef ?? "Latest post",
-      instructions: [
-        `1) Open ${r.profileUrl}`,
-        `2) Send DM: ${r.dmText}`,
-        "3) Follow the account",
-        // Fix #2 (WF2.05) — LIKES vs COMMENT split: likes are any of the 3 most recent posts,
-        // any topic (a coach's newest posts are often personal — travel, family, milestones).
-        // The comment below is deliberately a SEPARATE, narrower target: only the one post that
-        // is actually about coaching content, never the same coaching-specific line reused
-        // across all 3 liked posts.
-        "4) Like the 3 most recent posts (any topic — likes are not content-specific)",
-        r.commentPostRef
-          ? `5) Comment ONLY on this specific post (the one confirmed to be about coaching — do NOT reuse this comment on their other recent posts): ${r.commentPostRef}: ${r.commentText}`
-          : `5) Find their most recent post that is actually about coaching content (skip travel/family/personal posts) and comment ONLY there — do NOT reuse this comment on their other recent posts: ${r.commentText}`,
-      ],
+      isReply,
+      dmText: igDm,
+      // WF2 item 3.4 (JB 2026-09-03): commenting was REMOVED from the Instagram workflow — it kept
+      // getting the account flagged for spam. The sequence is now follow + like recent posts + DM
+      // only. A reply (Pending Responses) is just the DM reply — no follow/like.
+      instructions: isReply
+        ? [`1) Open ${r.profileUrl}`, `2) Reply in the DM thread: ${igDm}`]
+        : [
+            `1) Open ${r.profileUrl}`,
+            `2) Follow the account`,
+            `3) Like their 3–5 most recent posts (any topic)`,
+            `4) Send DM: ${igDm}`,
+          ],
     });
   }
 
@@ -93,6 +94,8 @@ function buildBatchBrief(
   }
 
   for (const r of members.em) {
+    // A reply queued from Pending Responses sends the drafted reply body under a Re: subject.
+    const isReply = r.dispatchPreviousLane === "pending_response" && !!r.pendingResponseDraft;
     leadRefs.push({ platform: "email", leadId: r.id });
     leads.push({
       leadId: r.id,
@@ -100,8 +103,9 @@ function buildBatchBrief(
       displayName: r.name,
       contact: r.email,
       outreachIntent: r.outreachIntent,
-      emailSubject: r.emailSubject,
-      emailBody: r.emailBody,
+      isReply,
+      emailSubject: isReply ? `Re: ${r.emailSubject}` : r.emailSubject,
+      emailBody: isReply ? (r.pendingResponseDraft as string) : r.emailBody,
       sendImmediately: true,
       note:
         `Send now (no ordering constraint). Must be sent through ${OUTREACH_COWORK_EMAIL_FROM} and ` +
@@ -184,6 +188,57 @@ async function getLeadLaneState(
   if (platform === "instagram") return prisma.outreachInstagramLead.findUnique({ where: { id }, select });
   if (platform === "facebook") return prisma.outreachFacebookLead.findUnique({ where: { id }, select });
   return prisma.outreachEmailLead.findUnique({ where: { id }, select });
+}
+
+/**
+ * Lane + timestamp fields to write when a lead's message is marked sent, given the lane it was
+ * sent FROM (`previousLane`). Shared by the manual "Mark Sent" toggle and the agent-dispatch
+ * completion so both advance the follow-up pipeline identically:
+ *   primary (today/past_due/pending/null) -> follow_up_1 (awaiting 1st follow-up, clock armed)
+ *   follow_up_1                            -> follow_up_2 (1st follow-up done, clock armed)
+ *   follow_up_2                            -> pending     (2nd follow-up done, pipeline complete)
+ * Facebook has no follow-up pipeline -> always `pending`.
+ */
+function advanceSentLaneFields(
+  platform: OutreachPlatform,
+  previousLane: string | null,
+  now: Date,
+): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    status: "OUTREACH_SENT",
+    outreachSentAt: now,
+    manualSentAt: now,
+    sendMode: null,
+    dispatchBatchId: null,
+    dispatchPreviousLane: null,
+  };
+  // A reply sent from Pending Responses: the lead has now been answered, so it drops out of the
+  // "needs reply" state back into Pending Leads. No follow-up clock is (re)armed by a reply.
+  if (previousLane === "pending_response") {
+    base.outreachLane = "pending";
+    base.hasUnrespondedReply = false;
+    return base;
+  }
+  if (platform === "facebook") {
+    base.outreachLane = "pending";
+    return base;
+  }
+  if (previousLane === "follow_up_1") {
+    base.outreachLane = "follow_up_2";
+    base.followUp1SentAt = now;
+    base.followUp2DueAt = new Date(now.getTime() + OUTREACH_FOLLOW_UP_2_DUE_DAYS * MS_DAY);
+    return base;
+  }
+  if (previousLane === "follow_up_2") {
+    base.outreachLane = "pending";
+    base.followUp2SentAt = now;
+    return base;
+  }
+  // Primary send.
+  base.outreachLane = "follow_up_1";
+  base.followUp1DueAt = new Date(now.getTime() + OUTREACH_FOLLOW_UP_1_DUE_HOURS * MS_HOUR);
+  base.followUp2DueAt = new Date(now.getTime() + OUTREACH_FOLLOW_UP_2_DUE_DAYS * MS_DAY);
+  return base;
 }
 
 /**
@@ -377,21 +432,14 @@ export async function setManualSentState(args: {
     return { ok: true };
   }
 
-  const data: Record<string, unknown> = {
-    status: "OUTREACH_SENT",
-    outreachSentAt: now,
-    manualSentAt: now,
-    sendMode: null,
-    dispatchBatchId: null,
-    dispatchPreviousLane: null,
-  };
-  if (args.platform === "facebook") {
-    data.outreachLane = "pending";
-  } else {
-    data.outreachLane = "follow_up_1";
-    data.followUp1DueAt = new Date(now.getTime() + OUTREACH_FOLLOW_UP_1_DUE_HOURS * MS_HOUR);
-    data.followUp2DueAt = new Date(now.getTime() + OUTREACH_FOLLOW_UP_2_DUE_DAYS * MS_DAY);
-  }
+  // WF2 item 4/6 (JB 2026-09-03): a "Mark Sent" always lands the lead in the Pending Leads tab,
+  // which now aggregates the follow-up lanes. WHICH lane depends on what was just sent
+  // (`dispatchPreviousLane`), so the follow-up pipeline advances correctly on every touch:
+  //   primary (today/past_due/pending) -> follow_up_1  (awaiting 1st follow-up, clock armed)
+  //   follow_up_1                       -> follow_up_2  (1st follow-up done, clock armed)
+  //   follow_up_2                       -> pending      (2nd follow-up done, pipeline complete)
+  // Facebook has no follow-up pipeline, so it goes straight to `pending`.
+  const data = advanceSentLaneFields(args.platform, state.dispatchPreviousLane, now);
   await setLeadLaneFields(args.platform, args.id, data);
   return { ok: true };
 }
@@ -464,19 +512,10 @@ export async function completeOutreachDispatchBatch(args: {
       continue;
     }
     if (result.status === "sent") {
-      const base: Record<string, unknown> = {
-        status: "OUTREACH_SENT",
-        outreachSentAt: now,
-        dispatchBatchId: null,
-        dispatchPreviousLane: null,
-      };
-      if (platform === "facebook") {
-        base.outreachLane = "pending";
-      } else {
-        base.outreachLane = "follow_up_1";
-        base.followUp1DueAt = new Date(now.getTime() + OUTREACH_FOLLOW_UP_1_DUE_HOURS * MS_HOUR);
-        base.followUp2DueAt = new Date(now.getTime() + OUTREACH_FOLLOW_UP_2_DUE_DAYS * MS_DAY);
-      }
+      // Same stage-aware advance as the manual "Mark Sent" toggle, keyed off the lane the lead
+      // was queued from, so an agent-sent follow-up advances the pipeline just like a manual one.
+      const base = advanceSentLaneFields(platform, prevLaneById.get(result.leadId) ?? null, now);
+      delete base.manualSentAt; // agent send, not a manual toggle
       await setLeadLaneFields(platform, result.leadId, base);
       sent += 1;
     } else {

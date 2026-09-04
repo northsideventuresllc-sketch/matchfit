@@ -146,15 +146,20 @@ describe("outreach-hq-v2 helpers", () => {
     expect(archiveOrigin(noDead)).toBe("dead_lead");
   });
 
-  it("computes one tile per lane plus archives", () => {
+  it("computes the six consolidated Outreach Hub tiles (follow-ups folded into Pending Leads)", () => {
     const grouped = groupHubLeadsByLane([
       igEntry({ outreachLane: "today" }),
       igEntry({ outreachLane: "dispatch_queued" }),
+      igEntry({ outreachLane: "follow_up_1" }),
+      igEntry({ outreachLane: "follow_up_2" }),
+      igEntry({ outreachLane: "pending" }),
     ]);
     const tiles = computeLaneTiles(grouped, 4);
-    expect(tiles).toHaveLength(8);
+    expect(tiles).toHaveLength(6);
     expect(tiles.find((t) => t.lane === "today")?.count).toBe(1);
     expect(tiles.find((t) => t.lane === "dispatch_queued")?.count).toBe(1);
+    // Pending Leads tile aggregates pending + both follow-up lanes.
+    expect(tiles.find((t) => t.tab === "pending")?.count).toBe(3);
     expect(tiles.find((t) => t.lane === "archived")?.count).toBe(4);
   });
 

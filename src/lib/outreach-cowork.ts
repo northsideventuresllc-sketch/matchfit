@@ -52,12 +52,13 @@ export function outreachSendRequiresIntent(
 }
 
 /** Read-only Instagram send checklist shown on the Outreach HQ v2 lead card (mirrors the checklist below). */
+// WF2 item 3.4 (JB 2026-09-03): comment step removed — it kept getting the account flagged for
+// spam. Follow, like recent posts, and DM only.
 export const OUTREACH_INSTAGRAM_PROCEDURE_STEPS = [
   "Confirm this is the correct person or account.",
-  "Send the DM.",
   "Follow the account.",
-  "Like the 4 most recent posts.",
-  "Comment on the referenced post.",
+  "Like their 3–5 most recent posts.",
+  "Send the DM.",
 ] as const;
 
 export const OUTREACH_COWORK_EMAIL_FROM = "jb@match-fit.net";
