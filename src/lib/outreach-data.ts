@@ -33,7 +33,7 @@ function serializeDate(d: Date | null): string | null {
   return d ? d.toISOString() : null;
 }
 
-function serializeInstagramLead(
+export function serializeInstagramLead(
   r: Awaited<ReturnType<typeof prisma.outreachInstagramLead.findMany>>[number],
 ): InstagramLeadRow {
   const autoClassification = classifyOutreachLead({
@@ -69,10 +69,11 @@ function serializeInstagramLead(
     replyReceivedAt: serializeDate(r.replyReceivedAt),
     pendingResponseDraftAt: serializeDate(r.pendingResponseDraftAt),
     manualSentAt: serializeDate(r.manualSentAt),
+    convertedAt: serializeDate(r.convertedAt),
   };
 }
 
-function serializeFacebookLead(
+export function serializeFacebookLead(
   r: Awaited<ReturnType<typeof prisma.outreachFacebookLead.findMany>>[number],
 ): FacebookLeadRow {
   return {
@@ -99,10 +100,11 @@ function serializeFacebookLead(
     replyReceivedAt: serializeDate(r.replyReceivedAt),
     pendingResponseDraftAt: serializeDate(r.pendingResponseDraftAt),
     manualSentAt: serializeDate(r.manualSentAt),
+    convertedAt: serializeDate(r.convertedAt),
   };
 }
 
-function serializeEmailLead(
+export function serializeEmailLead(
   r: Awaited<ReturnType<typeof prisma.outreachEmailLead.findMany>>[number],
 ): EmailLeadRow {
   return {
@@ -139,6 +141,7 @@ function serializeEmailLead(
     replyReceivedAt: serializeDate(r.replyReceivedAt),
     pendingResponseDraftAt: serializeDate(r.pendingResponseDraftAt),
     manualSentAt: serializeDate(r.manualSentAt),
+    convertedAt: serializeDate(r.convertedAt),
   };
 }
 
@@ -232,6 +235,7 @@ export async function listOutreachHubLeads(): Promise<OutreachHubLead[]> {
     deletedAt: null,
     savedToHubAt: { not: null } as const,
     archivedAt: null,
+    convertedAt: null,
   });
 
   const [instagram, facebook, email] = await Promise.all([

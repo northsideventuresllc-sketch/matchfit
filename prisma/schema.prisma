@@ -2564,6 +2564,15 @@ model OutreachInstagramLead {
   sendMode                String?
   /// Set/cleared by the Send Queue tab's per-lead sent/not-sent toggle (sendMode="manual" only).
   manualSentAt            DateTime?
+  /// Set once, when the lead is marked Converted from Pending Responses. Never cleared — no
+  /// "undo conversion" action exists.
+  convertedAt             DateTime?
+  convertedByAdminId      String?
+  /// client | trainer — which Match Fit account model this lead resolved to.
+  matchedAccountType      String?
+  /// Plain reference (Client.id or Trainer.id depending on matchedAccountType), no relation —
+  /// matches the polymorphic-reference convention already used for dispatchBatchId.
+  matchedAccountId        String?
 
   // --- Lead taxonomy (JB LOCKED, NI-Brain Decision #388) ---
   /// Nullable on purpose: existing rows keep working with NULLs. The legacy
@@ -2591,6 +2600,7 @@ model OutreachInstagramLead {
   @@index([dispatchBatchId])
   @@index([outreachLane, sendMode], map: "outreach_instagram_leads_lane_send_mode_idx")
   @@index([handle])
+  @@index([convertedAt], map: "outreach_instagram_leads_converted_idx")
   @@index([ventureId])
   @@index([offeringId])
   @@index([audienceId])
@@ -2653,6 +2663,15 @@ model OutreachFacebookLead {
   sendMode               String?
   /// Set/cleared by the Send Queue tab's per-lead sent/not-sent toggle (sendMode="manual" only).
   manualSentAt           DateTime?
+  /// Set once, when the lead is marked Converted from Pending Responses. Never cleared — no
+  /// "undo conversion" action exists.
+  convertedAt            DateTime?
+  convertedByAdminId     String?
+  /// client | trainer — which Match Fit account model this lead resolved to.
+  matchedAccountType     String?
+  /// Plain reference (Client.id or Trainer.id depending on matchedAccountType), no relation —
+  /// matches the polymorphic-reference convention already used for dispatchBatchId.
+  matchedAccountId       String?
 
   // --- Lead taxonomy (JB LOCKED, NI-Brain Decision #388) ---
   /// Nullable on purpose: existing rows keep working with NULLs. The legacy
@@ -2678,6 +2697,7 @@ model OutreachFacebookLead {
   @@index([dispatchBatchId])
   @@index([outreachLane, sendMode], map: "outreach_facebook_leads_lane_send_mode_idx")
   @@index([pageUrl])
+  @@index([convertedAt], map: "outreach_facebook_leads_converted_idx")
   @@index([ventureId])
   @@index([offeringId])
   @@index([audienceId])
@@ -2750,6 +2770,15 @@ model OutreachEmailLead {
   sendMode                String?
   /// Set/cleared by the Send Queue tab's per-lead sent/not-sent toggle (sendMode="manual" only).
   manualSentAt            DateTime?
+  /// Set once, when the lead is marked Converted from Pending Responses. Never cleared — no
+  /// "undo conversion" action exists.
+  convertedAt             DateTime?
+  convertedByAdminId      String?
+  /// client | trainer — which Match Fit account model this lead resolved to.
+  matchedAccountType      String?
+  /// Plain reference (Client.id or Trainer.id depending on matchedAccountType), no relation —
+  /// matches the polymorphic-reference convention already used for dispatchBatchId.
+  matchedAccountId        String?
 
   // --- Lead taxonomy (JB LOCKED, NI-Brain Decision #388) ---
   /// Nullable on purpose: existing rows keep working with NULLs. The legacy
@@ -2777,10 +2806,51 @@ model OutreachEmailLead {
   @@index([dispatchBatchId])
   @@index([outreachLane, sendMode], map: "outreach_email_leads_lane_send_mode_idx")
   @@index([email])
+  @@index([convertedAt], map: "outreach_email_leads_converted_idx")
   @@index([ventureId])
   @@index([offeringId])
   @@index([audienceId])
   @@map("outreach_email_leads")
+  @@schema("public")
+}
+
+/// Per-touch send history for outreach leads (Successful Conversions tab). Written going forward
+/// from the two real send-completion paths (setManualSentState, completeOutreachDispatchBatch in
+/// outreach-dispatch.ts) via recordOutreachTouch() in outreach-touch-log.ts. No leadId relation —
+/// mirrors the existing dispatchBatchId / leadRefs convention of plain string references across
+/// the three-way-split lead tables rather than a Prisma relation.
+model OutreachLeadTouchLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  /// instagram | facebook | email
+  platform String
+  /// Plain reference to whichever *_leads table `platform` points at.
+  leadId   String
+
+  /// initial | follow_up_1 | follow_up_2 | reply
+  stage    String
+  sentAt   DateTime
+  /// manual | agent — captured as a literal from the calling function's own context at
+  /// send-completion time, never read back off the lead row's `sendMode` column.
+  sendMode String
+
+  /// [{label, text}] snapshot of what was actually sent for this stage — same shape as the
+  /// MessageField type in v2/components/helpers.ts.
+  messageFields Json
+
+  /// Cowork batch this touch went out through (agent sends only).
+  dispatchBatchId    String?
+  /// Admin who clicked the manual sent toggle (manual sends only).
+  performedByAdminId String?
+
+  /// True for rows synthesized at conversion time from stale mutable fields + single timestamps,
+  /// for leads that completed touches before this table existed. False for rows written live from
+  /// an actual send completion.
+  reconstructed Boolean @default(false)
+
+  @@index([leadId, platform, sentAt])
+  @@map("outreach_lead_touch_log")
   @@schema("public")
 }
 

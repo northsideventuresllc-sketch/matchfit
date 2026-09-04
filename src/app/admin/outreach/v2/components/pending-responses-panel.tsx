@@ -6,11 +6,13 @@ import {
   adminInputClassSm,
   adminLabelClass,
   adminPanelClass,
+  adminPrimaryButtonClass,
   adminSecondaryButtonClass,
 } from "@/components/admin/admin-portal-ui";
 import type { EmailLeadRow, InstagramLeadRow, OutreachHubLead } from "@/lib/outreach-types";
-import { CollapsibleCard, CopyButton, RegenerateModal, SaveIndicator, useAutosave } from "./ui-bits";
+import { AccountPickerModal, CollapsibleCard, CopyButton, RegenerateModal, SaveIndicator, useAutosave } from "./ui-bits";
 import {
+  markOutreachLeadConverted,
   queueDispatch,
   regenerateResponse,
   saveResponseDraft,
@@ -31,6 +33,8 @@ function PendingResponseCard(props: {
   const [incoming, setIncoming] = useState("");
   const [showRegen, setShowRegen] = useState(false);
   const [sending, setSending] = useState<null | "manual" | "agent">(null);
+  const [showConvertPicker, setShowConvertPicker] = useState(false);
+  const [converting, setConverting] = useState(false);
 
   const name = leadDisplayName(entry);
   const contact = leadContactUrl(entry);
@@ -55,6 +59,16 @@ function PendingResponseCard(props: {
     const ref = [{ id: lead.id, platform: entry.platform }];
     const result = mode === "manual" ? await sendManual(ref) : await queueDispatch(ref);
     setSending(null);
+    if (!result.ok) return props.onError(result.error);
+    props.onError("");
+    props.onChanged();
+  }
+
+  async function convert(account: { type: "client" | "trainer"; id: string } | null) {
+    setConverting(true);
+    const result = await markOutreachLeadConverted(lead.id, entry.platform, account);
+    setConverting(false);
+    setShowConvertPicker(false);
     if (!result.ok) return props.onError(result.error);
     props.onError("");
     props.onChanged();
@@ -138,14 +152,30 @@ function PendingResponseCard(props: {
             </button>
             <CopyButton value={draft} label="Copy" />
             <SaveIndicator status={saveStatus} />
+            <button
+              type="button"
+              className={adminPrimaryButtonClass}
+              disabled={converting}
+              onClick={() => setShowConvertPicker(true)}
+            >
+              {converting ? "Converting…" : "Converted"}
+            </button>
           </div>
           <p className="text-[11px] text-white/40">
             Send queues the reply to the Send Queue tab. Marking it sent there moves the lead back to Pending Leads.
+            Converted moves this lead to Successful Conversions — it means they signed up.
           </p>
         </div>
       </CollapsibleCard>
       {showRegen ? (
         <RegenerateModal title="Regenerate reply" onClose={() => setShowRegen(false)} onRegenerate={regenerate} />
+      ) : null}
+      {showConvertPicker ? (
+        <AccountPickerModal
+          onClose={() => setShowConvertPicker(false)}
+          onPick={(account) => void convert(account)}
+          onSkip={() => void convert(null)}
+        />
       ) : null}
     </>
   );

@@ -9,6 +9,7 @@ import type { AdminAiProviderStatus } from "@/lib/admin-analytics-ai";
 import { readJsonResponse } from "@/lib/read-json-response";
 import type {
   OutreachArchiveLead,
+  OutreachConversionLead,
   OutreachCoworkDispatchBatchRow,
   OutreachHubLead,
 } from "@/lib/outreach-types";
@@ -18,9 +19,11 @@ import { PendingResponsesPanel } from "./components/pending-responses-panel";
 import { OutreachHubPanel } from "./components/outreach-hub-panel";
 import { DispatchPanel } from "./components/dispatch-panel";
 import { PendingLeadsPanel } from "./components/pending-leads-panel";
+import { ConversionsPanel } from "./components/conversions-panel";
 import { ArchivesPanel } from "./components/archives-panel";
 
-// WF2 item 10 — locked top-menu order. Follow-ups folded into Pending Leads.
+// WF2 item 10 — locked top-menu order. Follow-ups folded into Pending Leads. Successful
+// Conversions sits immediately to the left of Archives.
 const TABS: { id: OutreachV2Tab; label: string }[] = [
   { id: "hub", label: "Outreach Hub" },
   { id: "today", label: "Today's Leads" },
@@ -28,6 +31,7 @@ const TABS: { id: OutreachV2Tab; label: string }[] = [
   { id: "dispatch", label: "Send Queue" },
   { id: "pending", label: "Pending Leads" },
   { id: "pending_responses", label: "Pending Responses" },
+  { id: "conversions", label: "Successful Conversions" },
   { id: "archives", label: "Archives" },
 ];
 
@@ -40,16 +44,18 @@ export function OutreachHqV2Client(props: { aiStatus: AdminAiProviderStatus }) {
   const [upcoming, setUpcoming] = useState<OutreachCoworkDispatchBatchRow[]>([]);
   const [recentlyCompleted, setRecentlyCompleted] = useState<OutreachCoworkDispatchBatchRow[]>([]);
   const [archiveEntries, setArchiveEntries] = useState<OutreachArchiveLead[]>([]);
+  const [conversionEntries, setConversionEntries] = useState<OutreachConversionLead[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [hubRes, dispatchRes, archiveRes] = await Promise.all([
+      const [hubRes, dispatchRes, archiveRes, conversionsRes] = await Promise.all([
         fetch("/api/admin/outreach/hub", { credentials: "include" }),
         fetch("/api/admin/outreach/dispatch", { credentials: "include" }),
         fetch("/api/admin/outreach/archive", { credentials: "include" }),
+        fetch("/api/admin/outreach/conversions", { credentials: "include" }),
       ]);
       const hubData = await readJsonResponse<{ leads?: OutreachHubLead[]; error?: string }>(hubRes);
       const dispatchData = await readJsonResponse<{
@@ -58,6 +64,9 @@ export function OutreachHqV2Client(props: { aiStatus: AdminAiProviderStatus }) {
         error?: string;
       }>(dispatchRes);
       const archiveData = await readJsonResponse<{ entries?: OutreachArchiveLead[]; error?: string }>(archiveRes);
+      const conversionsData = await readJsonResponse<{ entries?: OutreachConversionLead[]; error?: string }>(
+        conversionsRes,
+      );
 
       if (hubRes.ok) setHubEntries(hubData.leads ?? []);
       else setError(hubData.error ?? "Could not load outreach leads.");
@@ -66,6 +75,7 @@ export function OutreachHqV2Client(props: { aiStatus: AdminAiProviderStatus }) {
         setRecentlyCompleted(dispatchData.recentlyCompleted ?? []);
       }
       if (archiveRes.ok) setArchiveEntries(archiveData.entries ?? []);
+      if (conversionsRes.ok) setConversionEntries(conversionsData.entries ?? []);
     } catch {
       setError("Could not load Outreach HQ. Refresh to retry.");
     } finally {
@@ -151,7 +161,12 @@ export function OutreachHqV2Client(props: { aiStatus: AdminAiProviderStatus }) {
         />
       ) : null}
       {tab === "hub" ? (
-        <OutreachHubPanel grouped={grouped} archiveEntries={archiveEntries} onNavigate={navigate} />
+        <OutreachHubPanel
+          grouped={grouped}
+          archiveEntries={archiveEntries}
+          conversionEntries={conversionEntries}
+          onNavigate={navigate}
+        />
       ) : null}
       {tab === "dispatch" ? (
         <DispatchPanel
@@ -164,6 +179,9 @@ export function OutreachHqV2Client(props: { aiStatus: AdminAiProviderStatus }) {
       ) : null}
       {tab === "pending" ? (
         <PendingLeadsPanel grouped={grouped} focusLeadId={focusLeadId} onChanged={() => void loadAll()} onError={onError} />
+      ) : null}
+      {tab === "conversions" ? (
+        <ConversionsPanel entries={conversionEntries} onChanged={() => void loadAll()} />
       ) : null}
       {tab === "archives" ? <ArchivesPanel entries={archiveEntries} /> : null}
     </AdminPortalShell>

@@ -12,6 +12,7 @@ import {
   OUTREACH_FOLLOW_UP_2_DUE_DAYS,
   type OutreachPlatform,
 } from "@/lib/outreach-types";
+import { recordOutreachTouch, snapshotMessageFieldsForTouch, stageForPreviousLane } from "@/lib/outreach-touch-log";
 import { prisma } from "@/lib/prisma";
 
 const MS_HOUR = 3_600_000;
@@ -418,6 +419,8 @@ export async function setManualSentState(args: {
   platform: OutreachPlatform;
   sent: boolean;
   now?: Date;
+  /** Admin who clicked the toggle — recorded on the touch-log row. */
+  adminId?: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   await ensureOutreachHubSchema();
   const now = args.now ?? new Date();
@@ -439,8 +442,26 @@ export async function setManualSentState(args: {
   //   follow_up_1                       -> follow_up_2  (1st follow-up done, clock armed)
   //   follow_up_2                       -> pending      (2nd follow-up done, pipeline complete)
   // Facebook has no follow-up pipeline, so it goes straight to `pending`.
+  const stage = stageForPreviousLane(state.dispatchPreviousLane);
+  const leadRow: Record<string, unknown> | null =
+    args.platform === "instagram"
+      ? await prisma.outreachInstagramLead.findUnique({ where: { id: args.id } })
+      : args.platform === "facebook"
+        ? await prisma.outreachFacebookLead.findUnique({ where: { id: args.id } })
+        : await prisma.outreachEmailLead.findUnique({ where: { id: args.id } });
   const data = advanceSentLaneFields(args.platform, state.dispatchPreviousLane, now);
   await setLeadLaneFields(args.platform, args.id, data);
+  if (leadRow) {
+    await recordOutreachTouch({
+      platform: args.platform,
+      leadId: args.id,
+      stage,
+      sentAt: now,
+      sendMode: "manual",
+      messageFields: snapshotMessageFieldsForTouch(args.platform, stage, leadRow),
+      performedByAdminId: args.adminId ?? null,
+    });
+  }
   return { ok: true };
 }
 
@@ -488,17 +509,21 @@ export async function completeOutreachDispatchBatch(args: {
   const members = await loadBatchMembers(args.batchId);
   const platformById = new Map<string, OutreachPlatform>();
   const prevLaneById = new Map<string, string | null>();
+  const leadRowById = new Map<string, Record<string, unknown>>();
   for (const r of members.ig) {
     platformById.set(r.id, "instagram");
     prevLaneById.set(r.id, r.dispatchPreviousLane);
+    leadRowById.set(r.id, r as unknown as Record<string, unknown>);
   }
   for (const r of members.fb) {
     platformById.set(r.id, "facebook");
     prevLaneById.set(r.id, r.dispatchPreviousLane);
+    leadRowById.set(r.id, r as unknown as Record<string, unknown>);
   }
   for (const r of members.em) {
     platformById.set(r.id, "email");
     prevLaneById.set(r.id, r.dispatchPreviousLane);
+    leadRowById.set(r.id, r as unknown as Record<string, unknown>);
   }
 
   let sent = 0;
@@ -514,9 +539,23 @@ export async function completeOutreachDispatchBatch(args: {
     if (result.status === "sent") {
       // Same stage-aware advance as the manual "Mark Sent" toggle, keyed off the lane the lead
       // was queued from, so an agent-sent follow-up advances the pipeline just like a manual one.
-      const base = advanceSentLaneFields(platform, prevLaneById.get(result.leadId) ?? null, now);
+      const previousLane = prevLaneById.get(result.leadId) ?? null;
+      const base = advanceSentLaneFields(platform, previousLane, now);
       delete base.manualSentAt; // agent send, not a manual toggle
       await setLeadLaneFields(platform, result.leadId, base);
+      const leadRow = leadRowById.get(result.leadId);
+      if (leadRow) {
+        const stage = stageForPreviousLane(previousLane);
+        await recordOutreachTouch({
+          platform,
+          leadId: result.leadId,
+          stage,
+          sentAt: now,
+          sendMode: "agent",
+          messageFields: snapshotMessageFieldsForTouch(platform, stage, leadRow),
+          dispatchBatchId: args.batchId,
+        });
+      }
       sent += 1;
     } else {
       await setLeadLaneFields(platform, result.leadId, {

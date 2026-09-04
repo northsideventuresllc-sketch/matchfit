@@ -41,7 +41,8 @@ export type OutreachLane =
   | "pending_response"
   | "dispatch_queued"
   | "pending"
-  | "archived";
+  | "archived"
+  | "converted";
 
 export const OUTREACH_LANE_VALUES = [
   "today",
@@ -52,6 +53,7 @@ export const OUTREACH_LANE_VALUES = [
   "dispatch_queued",
   "pending",
   "archived",
+  "converted",
 ] as const;
 
 export const OUTREACH_LANE_LABELS: Record<OutreachLane, string> = {
@@ -63,6 +65,7 @@ export const OUTREACH_LANE_LABELS: Record<OutreachLane, string> = {
   dispatch_queued: "Dispatch",
   pending: "Pending leads",
   archived: "Archives",
+  converted: "Successful conversions",
 };
 
 /** Cowork dispatch batch lifecycle status. */
@@ -184,6 +187,11 @@ export type InstagramLeadRow = {
   /** manual | agent | null — which Send Queue lane the lead is in while `dispatch_queued`. */
   sendMode: string | null;
   manualSentAt: string | null;
+  convertedAt: string | null;
+  convertedByAdminId: string | null;
+  /** client | trainer | null — which admin account model `matchedAccountId` points at. */
+  matchedAccountType: string | null;
+  matchedAccountId: string | null;
 };
 
 export type FacebookLeadRow = {
@@ -224,6 +232,11 @@ export type FacebookLeadRow = {
   /** manual | agent | null — which Send Queue lane the lead is in while `dispatch_queued`. */
   sendMode: string | null;
   manualSentAt: string | null;
+  convertedAt: string | null;
+  convertedByAdminId: string | null;
+  /** client | trainer | null — which admin account model `matchedAccountId` points at. */
+  matchedAccountType: string | null;
+  matchedAccountId: string | null;
 };
 
 export type EmailLeadRow = {
@@ -277,6 +290,11 @@ export type EmailLeadRow = {
   /** manual | agent | null — which Send Queue lane the lead is in while `dispatch_queued`. */
   sendMode: string | null;
   manualSentAt: string | null;
+  convertedAt: string | null;
+  convertedByAdminId: string | null;
+  /** client | trainer | null — which admin account model `matchedAccountId` points at. */
+  matchedAccountType: string | null;
+  matchedAccountId: string | null;
 };
 
 /** Legacy rows from the retired "Other" outreach platform (LinkedIn, etc.). */
@@ -330,6 +348,34 @@ export type OutreachHubLead = {
   platform: OutreachPlatform;
   savedToHubAt: string;
   lead: InstagramLeadRow | FacebookLeadRow | EmailLeadRow;
+};
+
+/** initial | follow_up_1 | follow_up_2 | reply — which touch this row records. */
+export type OutreachTouchStage = "initial" | "follow_up_1" | "follow_up_2" | "reply";
+
+/** One row from `outreach_lead_touch_log` — a single logged (or reconstructed) send. */
+export type OutreachTouchLogEntry = {
+  id: string;
+  stage: OutreachTouchStage | string;
+  sentAt: string;
+  /** manual | agent */
+  sendMode: string;
+  messageFields: { label: string; text: string }[];
+  dispatchBatchId: string | null;
+  performedByAdminId: string | null;
+  /** true = synthesized at conversion time from stale mutable fields, not logged live. */
+  reconstructed: boolean;
+};
+
+/** A converted lead for the Successful Conversions tab — hub lead + its touch history. */
+export type OutreachConversionLead = {
+  platform: OutreachPlatform;
+  convertedAt: string;
+  convertedByAdminId: string | null;
+  matchedAccountType: string | null;
+  matchedAccountId: string | null;
+  lead: InstagramLeadRow | FacebookLeadRow | EmailLeadRow;
+  touches: OutreachTouchLogEntry[];
 };
 
 /** manual | agent — which Send Queue lane a `dispatch_queued` lead currently sits in. */

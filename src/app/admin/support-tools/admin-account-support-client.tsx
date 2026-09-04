@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   AdminPortalAlert,
   AdminPortalPageHeader,
@@ -29,6 +30,7 @@ type AccountDetail = Record<string, unknown> & { id: string };
  * couldn't do for themselves, it just does it for them when they can't get in.
  */
 export function AdminAccountSupportClient() {
+  const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -73,6 +75,16 @@ export function AdminAccountSupportClient() {
     setEditEmail(typeof data.account?.email === "string" ? data.account.email : "");
     setEditUsername(typeof data.account?.username === "string" ? data.account.username : "");
   }
+
+  // Deep link from Outreach HQ's Successful Conversions tab: ?type=client|trainer&id=... opens
+  // straight to that account, same as clicking it from a search result.
+  useEffect(() => {
+    const type = searchParams.get("type");
+    const id = searchParams.get("id");
+    if ((type === "client" || type === "trainer") && id) {
+      queueMicrotask(() => void openAccount(type, id));
+    }
+  }, [searchParams]);
 
   async function runAction(action: "reset-password" | "unlock", label: string) {
     if (!selected) return;
