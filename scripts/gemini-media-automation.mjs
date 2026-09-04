@@ -603,9 +603,19 @@ async function main() {
 
   const browser = await connectBrowser();
   const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "nvg-gemini-"));
-  const page = await getGeminiPage(browser, workDir);
-  await assertLoggedIn(page);
-  await ensureProModel(page);
+  // Batch setup (open Gemini, confirm login, select Pro) happens once before the per-row loop.
+  // If it throws, no row's per-row try/catch runs, so mark every pending row failed here — otherwise
+  // the Pending bars would hang at "connecting" forever instead of showing the failure.
+  let page;
+  try {
+    page = await getGeminiPage(browser, workDir);
+    await assertLoggedIn(page);
+    await ensureProModel(page);
+  } catch (e) {
+    for (const row of pending) await writeMediaFailure(row.id);
+    await browser.close().catch(() => null);
+    throw e;
+  }
   for (const row of pending) await writeProgress(row.id, 12, "model_pro");
   const results = [];
   const errors = [];

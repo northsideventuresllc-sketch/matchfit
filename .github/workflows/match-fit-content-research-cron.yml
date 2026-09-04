@@ -22,8 +22,7 @@ jobs:
             echo "::error::Missing repository secrets CRON_SECRET and/or MATCH_FIT_APP_URL (e.g. https://match-fit.net). The research cron is NOT running."
             exit 1
           fi
-          URL="${APP_URL%/}/api/cron/content-calendar-research"
-          echo "GET $URL"
+          # Do not echo the URL — keep the production host out of the workflow logs.
           curl -fsS -X GET \
             -H "Authorization: Bearer ${CRON_SECRET}" \
-            "$URL"
+            "${APP_URL%/}/api/cron/content-calendar-research"
