@@ -14,11 +14,12 @@ import {
   outreachIntentLabel,
   type OutreachIntent,
 } from "@/lib/outreach-cowork";
-import type {
-  EmailLeadRow,
-  FacebookLeadRow,
-  InstagramLeadRow,
-  OutreachHubLead,
+import {
+  OUTREACH_LANE_LABELS,
+  type EmailLeadRow,
+  type FacebookLeadRow,
+  type InstagramLeadRow,
+  type OutreachHubLead,
 } from "@/lib/outreach-types";
 import { CollapsibleCard, ConfirmModal, SaveIndicator, useAutosave } from "./ui-bits";
 import {
@@ -146,7 +147,7 @@ export function LeadCard(props: {
         </span>
       ) : null}
       <span className="hidden rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white/45 sm:inline">
-        {lane.replaceAll("_", " ")}
+        {OUTREACH_LANE_LABELS[lane] ?? lane.replaceAll("_", " ")}
       </span>
     </>
   );
