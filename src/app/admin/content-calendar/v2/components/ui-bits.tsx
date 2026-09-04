@@ -95,6 +95,57 @@ export function SeePromptCollapsible({
   );
 }
 
+type PipelineHealth = {
+  status: "ok" | "mini_offline" | "attention";
+  message: string;
+  miniOnline: boolean;
+  stuckMediaJobs: number;
+};
+
+/**
+ * Plain-English banner shown on Pending/Publishing when the Mac mini media agent is offline or
+ * media jobs are parked — so a build/post that isn't moving explains itself. Polls every 30s and
+ * renders nothing while the pipeline is healthy.
+ */
+export function PipelineHealthBanner() {
+  const [health, setHealth] = useState<PipelineHealth | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    async function load() {
+      try {
+        const res = await fetch("/api/admin/content-calendar/v2/pipeline-health", { cache: "no-store" });
+        const data = (await res.json()) as { health?: PipelineHealth };
+        if (alive && data.health) setHealth(data.health);
+      } catch {
+        // A health-check failure never becomes a scary banner.
+      }
+    }
+    void load();
+    const timer = window.setInterval(load, 30_000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  if (!health || health.status === "ok" || !health.message) return null;
+
+  const offline = health.status === "mini_offline";
+  return (
+    <div
+      role="status"
+      className={`mb-4 rounded-xl border px-4 py-3 text-sm font-semibold ${
+        offline
+          ? "border-[#E32B2B]/40 bg-[#E32B2B]/10 text-[#FFB4B4]"
+          : "border-[#FFD34E]/40 bg-[#FFD34E]/10 text-[#FFE58A]"
+      }`}
+    >
+      {health.message}
+    </div>
+  );
+}
+
 /** Lightweight centered modal with an X in the corner and click-outside to dismiss. */
 export function Modal({
   title,

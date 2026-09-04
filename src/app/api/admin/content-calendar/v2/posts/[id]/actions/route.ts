@@ -3,22 +3,27 @@ import { z } from "zod";
 import { fireMediaAgentForPost } from "@/lib/content-calendar/content-calendar-cowork-orchestration";
 import {
   approveV2Post,
+  approveV2PostForPublishing,
   archiveV2Post,
   cancelV2ScheduledPost,
   getV2Post,
   manuallyPostV2Post,
   manuallyRedoV2PostMedia,
+  markV2PostPosted,
+  markV2PostUnposted,
   moveV2PostToDrafts,
   regenerateV2PostMedia,
+  removeV2PostMedia,
   reviveV2Post,
   runV2OptimizationJob,
   scheduleV2Post,
+  sendV2PostBackToPublishing,
   serializeV2Post,
   startV2Optimization,
 } from "@/lib/content-calendar/content-calendar-v2-store";
 import {
-  ensureContentCalendarV23Schema,
-  isMissingContentCalendarV23SchemaError,
+  ensureContentCalendarV24Schema,
+  isMissingContentCalendarV24SchemaError,
 } from "@/lib/ensure-content-hub-schema";
 import { createNiBrainClient, isNiBrainConfiguredAsync } from "@/lib/ni-brain-client";
 import { formatUserFacingError } from "@/lib/read-json-response";
@@ -50,8 +55,20 @@ const actionSchema = z.discriminatedUnion("action", [
     action: z.literal("regenerate_via_agent"),
     feedback: z.string().max(2000).optional(),
   }),
-  // Manual-vs-agent posting: JB posted this himself outside Cowork.
+  // Manual-vs-agent posting: JB posts this himself, so it moves to Scheduled awaiting a POSTED confirm.
   z.object({ action: z.literal("manual_post") }),
+  // Scheduled tab: confirm the manually-posted post actually went out (POSTED), or undo that.
+  z.object({ action: z.literal("mark_posted") }),
+  z.object({ action: z.literal("mark_unposted") }),
+  // Scheduled tab: send a scheduled post back to Publishing.
+  z.object({ action: z.literal("back_to_publishing") }),
+  // Publishing tab: remove the current media (leaves the post in place to re-upload/regenerate).
+  z.object({ action: z.literal("remove_media") }),
+  // Pending manual-prompt flow: operator uploaded media, approve it straight to Publishing.
+  z.object({
+    action: z.literal("approve_for_publishing"),
+    mediaUrls: z.array(z.string().min(1)).optional(),
+  }),
   // Impromptu-only: Text posts have nothing to build and go straight to Publishing; every other
   // post type fires a single-post Cowork media job and lands in Pending.
   z.object({ action: z.literal("submit_for_generation") }),
@@ -69,7 +86,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const { id } = await ctx.params;
 
   try {
-    await ensureContentCalendarV23Schema();
+    await ensureContentCalendarV24Schema();
     switch (parsed.data.action) {
       case "approve":
         await approveV2Post(id);
@@ -109,6 +126,26 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         const row = await manuallyPostV2Post(id);
         return NextResponse.json({ post: serializeV2Post(row) });
       }
+      case "mark_posted": {
+        const row = await markV2PostPosted(id);
+        return NextResponse.json({ post: serializeV2Post(row) });
+      }
+      case "mark_unposted": {
+        const row = await markV2PostUnposted(id);
+        return NextResponse.json({ post: serializeV2Post(row) });
+      }
+      case "back_to_publishing": {
+        const row = await sendV2PostBackToPublishing(id);
+        return NextResponse.json({ post: serializeV2Post(row) });
+      }
+      case "remove_media": {
+        const row = await removeV2PostMedia(id);
+        return NextResponse.json({ post: serializeV2Post(row) });
+      }
+      case "approve_for_publishing": {
+        const row = await approveV2PostForPublishing(id, { mediaUrls: parsed.data.mediaUrls });
+        return NextResponse.json({ post: serializeV2Post(row) });
+      }
       case "submit_for_generation": {
         const post = await getV2Post(id);
         if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 });
@@ -141,7 +178,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     console.error("[content-calendar v2 post action]", e);
     return NextResponse.json(
       { error: formatUserFacingError(e, "Content calendar v2 action failed.") },
-      { status: isMissingContentCalendarV23SchemaError(e) ? 503 : 500 },
+      { status: isMissingContentCalendarV24SchemaError(e) ? 503 : 500 },
     );
   }
 }

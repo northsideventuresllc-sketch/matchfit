@@ -330,7 +330,7 @@ describe("fireMediaAgentForDay reads from pending", () => {
 });
 
 describe("manuallyGenerateDayMedia", () => {
-  it("moves every hub post for the date straight to workflow_stage publishing, bypassing pending entirely", async () => {
+  it("sends media posts to pending as editable cards and text posts straight to publishing (JB 2026-09-03)", async () => {
     const hubPosts = [
       { id: "post_static", post_type: "Static", target_group: "Join the Team" },
       { id: "post_text", post_type: "Text", target_group: "Join the Team" },
@@ -354,11 +354,12 @@ describe("manuallyGenerateDayMedia", () => {
     const { moved } = await manuallyGenerateDayMedia("2026-08-31");
 
     expect(moved).toBe(2);
-    // Both the static (media) and text post are in the same single "allIds" patch, straight to
-    // publishing — never staged through "pending" at all.
-    expect(patches).toHaveLength(1);
-    expect(patches[0].ids.sort()).toEqual(["post_static", "post_text"]);
-    expect(patches[0].patch).toMatchObject({ workflow_stage: "publishing", status: "publishing" });
+    // Media posts go to pending (editable, media_status "none"); text posts go straight to publishing.
+    expect(patches).toHaveLength(2);
+    const mediaPatch = patches.find((p) => p.ids.includes("post_static"));
+    const textPatch = patches.find((p) => p.ids.includes("post_text"));
+    expect(mediaPatch?.patch).toMatchObject({ workflow_stage: "pending", status: "pending", media_status: "none" });
+    expect(textPatch?.patch).toMatchObject({ workflow_stage: "publishing", status: "publishing" });
   });
 });
 

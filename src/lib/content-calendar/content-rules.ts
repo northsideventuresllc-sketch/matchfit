@@ -1,5 +1,6 @@
 import type { ContentCalendarGroup } from "@/lib/content-calendar/constants";
 import { CONTENT_CALENDAR_GROUPS } from "@/lib/content-calendar/constants";
+import { softFixContentCopy } from "@/lib/content-calendar/content-copy-guard";
 import { HIGH_VOLUME_HASHTAG_RULE, enforceHighVolumeHashtags } from "@/lib/content-calendar/hashtag-policy";
 
 /** Repurpose-safe limit: smallest caption budget across Match Fit platforms (Threads). */
@@ -86,7 +87,10 @@ export function enforceGeneratedPostContent(args: {
       max: CONTENT_CALENDAR_MAX_HASHTAGS,
     })
   );
-  const caption = fitCaptionForRepurpose(normalizeCoachLanguage(args.caption), hashtags);
+  const caption = fitCaptionForRepurpose(
+    softFixContentCopy(normalizeSocialContentLanguage(args.caption)),
+    hashtags,
+  );
   const charCount = repurposePostLength(caption, hashtags);
   return {
     caption,
@@ -96,13 +100,13 @@ export function enforceGeneratedPostContent(args: {
   };
 }
 
-/** Operator edits: normalize language and hashtags but never truncate caption. */
+/** Operator edits: normalize signup URLs and hashtags but never rewrite the operator's wording. */
 export function normalizeUserEditedPostContent(args: {
   caption: string;
   hashtags: string[];
 }): { caption: string; hashtags: string[]; charCount: number; withinLimit: boolean } {
   const hashtags = normalizeHashtags(args.hashtags);
-  const caption = normalizeCoachLanguage(args.caption);
+  const caption = normalizeSocialContentLanguage(args.caption);
   const charCount = repurposePostLength(caption, hashtags);
   return {
     caption,
@@ -161,6 +165,17 @@ export function normalizeCoachLanguage(text: string): string {
 /** @deprecated Use normalizeCoachLanguage — kept for older imports. */
 export const normalizeFitnessProLanguage = normalizeCoachLanguage;
 
+/**
+ * SOCIAL CONTENT normalization (JB 2026-09-03): keep signup URLs canonical, but do NOT force
+ * "Fitness Pro" over "coach"/"trainer". "Fitness Pro" is Northside's internal brand term; in public
+ * social copy we lead with trending, widely-understood words (coaches, trainers, personal trainers)
+ * until the brand is established, and the operator's own edits are never rewritten. Outreach still
+ * uses normalizeCoachLanguage — this variant is content-calendar only.
+ */
+export function normalizeSocialContentLanguage(text: string): string {
+  return canonicalizeSocialSignupUrls(text);
+}
+
 /** True when social copy still contains the retired public audience label ("Coach"/"Coaches"). */
 export function hasForbiddenSocialAudienceLabel(text: string): boolean {
   return /\bCoach(?:es)?\b/i.test(text);
@@ -204,8 +219,8 @@ export const CONTENT_CALENDAR_AI_RULES = `Content rules (strict):
 - "Join the Team" = Fitness Pros exploring Match Fit recruitment / onboarding.
 - "List With Us" = independent Fitness Pros & facilities using Match Fit as a listing/discovery platform.
 - "Clients" = athletes and individuals looking for training.
-- Do NOT name any city, metro, state or country in captions. Match Fit is worldwide; geography is never a marketing hook.
-- Always say "Fitness Pros" / "Fitness Pro" in social copy (never "Coaches" or "coach" as the primary public label).
+- Match Fit is WORLDWIDE. Never say "nationwide", "across the country", "USA", or name any city, metro, state or country in captions. Geography is never a marketing hook.
+- Lead with trending, widely-understood words for the professional — "coach", "trainer", "personal trainer". "Fitness Pro" is our internal brand term: use it sparingly, never force it, and never lead with it while the brand is still being established. Do not rewrite the operator's chosen wording.
 - Canonical signup URLs only (never invent paths):
   - Fitness Pro / Join the Team / List With Us CTAs → ${MATCH_FIT_COACH_SIGNUP_URL}
   - Client CTAs → ${MATCH_FIT_CLIENT_SIGNUP_URL}

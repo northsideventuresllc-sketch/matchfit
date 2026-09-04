@@ -33,6 +33,25 @@ export function buildCaptionWithHashtags(caption: string, hashtags: string[]): s
   return `${trimmed}\n\n${indentedTags}`;
 }
 
+/**
+ * Canonical "Copy Post" clipboard value for any calendar post — caption + hashtags, one format
+ * everywhere (Content Hub, Pending, Publishing). Prefer this over passing caption alone so the
+ * hashtags always travel with the copied post (JB: "copy post needs to copy the post AND the
+ * hashtags"). Optionally use a platform-specific caption/hashtag set when one exists.
+ */
+export function copyPostValue(post: {
+  caption: string;
+  hashtags?: string[] | null;
+  platformCaptions?: Record<string, string> | null;
+  platformHashtags?: Record<string, string[]> | null;
+}, platform?: string): string {
+  const caption =
+    (platform && post.platformCaptions?.[platform]?.trim()) || post.caption || "";
+  const hashtags =
+    (platform && post.platformHashtags?.[platform]) || post.hashtags || [];
+  return buildCaptionWithHashtags(caption, hashtags);
+}
+
 /** Space-separated #tags for clipboard (no chip UI artifacts). */
 export function formatHashtagsForClipboard(hashtags: string[]): string {
   return formatHashtagsForPost(hashtags);

@@ -9,7 +9,6 @@ import {
 } from "@/lib/content-calendar/constants";
 import {
   hasBrokenSocialSignupUrl,
-  hasForbiddenSocialAudienceLabel,
   isSlideInventoryCarouselCaption,
 } from "@/lib/content-calendar/content-rules";
 
@@ -359,7 +358,8 @@ export function isLazyCalendarDraft(args: {
   postType: ContentCalendarPostType;
 }): boolean {
   if (isLazyCalendarCaption(args.caption)) return true;
-  if (hasForbiddenSocialAudienceLabel(args.caption)) return true;
+  // "coach"/"trainer" are allowed (preferred, even) in social captions now — see
+  // normalizeSocialContentLanguage. Only a broken signup URL is still a hard reject.
   if (hasBrokenSocialSignupUrl(args.caption)) return true;
   if (args.postType === "Carousel" && isSlideInventoryCarouselCaption(args.caption)) return true;
   return false;
@@ -368,8 +368,9 @@ export function isLazyCalendarDraft(args: {
 export const CONTENT_CALENDAR_CREATIVE_QUALITY_RULES = `Creative quality (non-negotiable):
 - Every caption needs a specific hook, concrete Match Fit detail (feature, promo, workflow, or outcome), and audience-appropriate CTA.
 - Never output placeholder captions like "{PostType} for {Audience} — Match Fit beta. match-fit.net".
-- Say Fitness Pros — never Coaches in social captions.
-- Fitness Pro CTAs must use match-fit.net/trainer/sign-up (validated before accept).
+- Lead with trending, widely-understood words — "coach", "trainer", "personal trainer". "Fitness Pro" is our internal brand term: use it sparingly, never lead with it while the brand is still being established.
+- Match Fit is worldwide — never say "nationwide", "across the country", or name a place.
+- Signup CTAs must use match-fit.net/trainer/sign-up (validated before accept).
 - Carousel captions must match Static caption quality — never inventory slides in the caption.
 - Founding promo: first 30 Fitness Pros → 60 days Premium free; first 10 Fitness Pros → onboarding fees waived. Vary wording; keep meaning.
 - Visual prompts must describe subjects, scenes, actions, camera/framing, mood, and on-screen text — NOT just hex colors and audience labels.

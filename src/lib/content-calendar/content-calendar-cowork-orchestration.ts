@@ -301,11 +301,11 @@ export async function returnContentDayToEditing(postDate: string): Promise<{ rev
 }
 
 /**
- * Manual day-level media generation bypass: same precondition and memo write-back as
- * approveContentDay, but skips the media agent entirely — JB is producing the day's media himself
- * outside the agent pipeline, so the media-post branch goes straight to "publishing" instead of
- * "pending" (no media-agent job, no media_generation_started_at). Text posts behave exactly as
- * they do under approveContentDay, since they never had media to build either way.
+ * Manual day-level media generation: same precondition and memo write-back as approveContentDay,
+ * but fires no media agent. Media posts land in "pending" as EDITABLE cards (media_status "none",
+ * no media_generation_started_at) so JB can edit caption/prompt/hashtags then Generate Now or upload
+ * his own media + Approve for Publishing (JB 2026-09-03). Text posts go straight to "publishing",
+ * exactly as under approveContentDay, since they never had media to build.
  */
 export async function manuallyGenerateDayMedia(postDate: string): Promise<{ moved: number; memoId: string | null }> {
   const posts = await getHubPostsForDate(postDate);
@@ -316,18 +316,29 @@ export async function manuallyGenerateDayMedia(postDate: string): Promise<{ move
 
   const textIds = posts.filter((p) => p.post_type === "Text").map((p) => p.id);
   const mediaIds = posts.filter((p) => p.post_type !== "Text").map((p) => p.id);
-  const allIds = [...mediaIds, ...textIds];
 
-  if (allIds.length) {
+  // Manual media (JB 2026-09-03): media posts land in PENDING as editable cards (media_status
+  // "none", no media_generation_started_at) so JB can edit the caption/prompt/hashtags and then
+  // either Generate Now or upload his own media + Approve for Publishing — instead of a loading bar.
+  if (mediaIds.length) {
+    const { error } = await client
+      .from("match_fit_content_calendar_posts")
+      .update({ approved_at: now, status: "pending", workflow_stage: "pending", media_status: "none", updated_at: now })
+      .in("id", mediaIds);
+    if (error) throw new Error(error.message);
+  }
+
+  // Text posts have nothing to build — straight to Publishing, exactly like approveContentDay.
+  if (textIds.length) {
     const { error } = await client
       .from("match_fit_content_calendar_posts")
       .update({ approved_at: now, status: "publishing", workflow_stage: "publishing", updated_at: now })
-      .in("id", allIds);
+      .in("id", textIds);
     if (error) throw new Error(error.message);
   }
 
   const summary = [
-    `Match Fit content day approved for ${postDate} (manual media bypass — no media-agent job).`,
+    `Match Fit content day approved for ${postDate} (manual media — editable in Pending, no media-agent job).`,
     `Posts: ${posts.map((p) => `${p.post_type}→${normalizeTargetGroup(p.target_group)}`).join(", ")}.`,
     posts[0]?.dpmo_phase ? `DPMO phase: ${posts[0].dpmo_phase}.` : "",
   ]

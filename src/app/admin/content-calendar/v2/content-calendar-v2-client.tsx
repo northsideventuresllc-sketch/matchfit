@@ -465,7 +465,9 @@ export function ContentCalendarV2Client({
         />
       ) : null}
 
-      {tab === "scheduled" ? <ScheduledPanel posts={scheduledPosts} /> : null}
+      {tab === "scheduled" ? (
+        <ScheduledPanel posts={scheduledPosts} busyId={busyId} onAction={postAction} />
+      ) : null}
 
       {tab === "archives" ? <ArchivesPanel posts={archivedPosts} /> : null}
 

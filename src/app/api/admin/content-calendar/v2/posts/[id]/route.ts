@@ -14,6 +14,11 @@ const patchSchema = z.object({
   targetGroup: z.string().optional(),
   cta: z.string().optional(),
   dpmoRationale: z.string().nullable().optional(),
+  postDate: z
+    .string()
+    .regex(/^(\d{4}-\d{2}-\d{2})?$/, "Use a YYYY-MM-DD date.")
+    .nullable()
+    .optional(),
   platformCaptions: z.record(z.string(), z.string()).optional(),
   platformHashtags: z.record(z.string(), z.array(z.string())).optional(),
 });

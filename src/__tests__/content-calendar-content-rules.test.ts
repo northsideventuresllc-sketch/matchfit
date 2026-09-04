@@ -46,7 +46,9 @@ describe("content-calendar content rules", () => {
     expect(fitted.length + suffix.length).toBeLessThanOrEqual(CONTENT_CALENDAR_REPURPOSE_CHAR_LIMIT + 1);
   });
 
-  it("rewrites audience language to Fitness Pros and canonicalizes the Fitness Pro signup URL", () => {
+  it("keeps trending terms (coaches/trainers) in social copy but still canonicalizes the signup URL", () => {
+    // JB 2026-09-03: social content leads with trending terms — "coaches" is NOT rewritten to
+    // "Fitness Pros" anymore. Only the signup URL is still canonicalized.
     const caption =
       "Verified coaches should join Match Fit at match-fit.net/trainer/signup and start onboarding.";
     const enforced = enforceGeneratedPostContent({
@@ -56,9 +58,17 @@ describe("content-calendar content rules", () => {
 
     expect(enforced.caption).toContain("match-fit.net/trainer/sign-up");
     expect(enforced.caption).not.toContain("match-fit.net/trainer/signup");
-    expect(enforced.caption).not.toContain("match-fit.net/Fitness Pro/signup");
-    expect(enforced.caption).toContain("Fitness Pros");
-    expect(enforced.caption).not.toMatch(/\bCoach(?:es)?\b/i);
+    expect(enforced.caption).toContain("coaches");
+    expect(enforced.caption).not.toContain("Fitness Pros");
+  });
+
+  it("soft-fixes 'nationwide' to worldwide in generated copy (Match Fit is worldwide)", () => {
+    const enforced = enforceGeneratedPostContent({
+      caption: "Match Fit connects clients with trainers nationwide — join today.",
+      hashtags: ["MatchFit"],
+    });
+    expect(enforced.caption).toContain("worldwide");
+    expect(enforced.caption).not.toMatch(/\bnationwide\b/i);
   });
 
   it("repairs broken Fitness Pro signup URLs back to /trainer/sign-up", () => {
