@@ -115,6 +115,20 @@ export function scanPendingResponses(): Promise<ApiResult<ScanResult>> {
   return postJson("/api/admin/outreach/pending-responses/scan", {}, "Could not run pending-response scan.");
 }
 
+/** Autosave the edited reply draft in Pending Responses (no lane/status change). */
+export function saveResponseDraft(
+  id: string,
+  platform: OutreachPlatform,
+  pendingResponseDraft: string,
+): Promise<ApiResult<{ ok: true }>> {
+  return postJson(
+    `/api/admin/outreach/leads/${id}/response-draft`,
+    { platform, pendingResponseDraft },
+    "Could not save reply.",
+    "PATCH",
+  );
+}
+
 /** Regenerate a pending-response draft for one lead. */
 export function regenerateResponse(
   id: string,
@@ -138,6 +152,30 @@ export function sendAnother(
     `/api/admin/outreach/leads/${id}/send-another`,
     { platform, feedback: feedback?.trim() || undefined },
     "Could not queue another message.",
+  );
+}
+
+/** "Send To Follow Ups" — push a Pending Leads lead into the Send Queue now (follow-up override). */
+export function sendToFollowUps(
+  id: string,
+  platform: OutreachPlatform,
+): Promise<ApiResult<{ queued: string[]; skipped: string[] }>> {
+  return postJson(
+    "/api/admin/outreach/send/to-follow-ups",
+    { id, platform },
+    "Could not queue follow-up.",
+  );
+}
+
+/** "Responded" — move a Pending Leads lead into Pending Responses. */
+export function markResponded(
+  id: string,
+  platform: OutreachPlatform,
+): Promise<ApiResult<{ ok: true }>> {
+  return postJson(
+    `/api/admin/outreach/leads/${id}/mark-responded`,
+    { platform },
+    "Could not mark lead as responded.",
   );
 }
 

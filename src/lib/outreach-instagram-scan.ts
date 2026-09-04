@@ -1,7 +1,9 @@
 import "server-only";
 
+import { archiveHubOutreachLeadOnAdminDelete } from "@/lib/outreach-archive";
 import { ensureOutreachHubSchema } from "@/lib/ensure-outreach-hub-schema";
 import { fireOutreachAxonEvent, type OutreachAxonLeadRef } from "@/lib/outreach-axon-notify";
+import { normalizeInstagramHandle } from "@/lib/outreach-exclusions";
 import { generateOutreachResponseDraft } from "@/lib/outreach-response-draft";
 import { prisma } from "@/lib/prisma";
 
@@ -36,10 +38,11 @@ export async function createOutreachInstagramScanJob(args: {
     generatedAt: new Date().toISOString(),
     platform: "instagram",
     instructions: [
-      "Open Instagram DMs for the Match Fit account.",
+      "Open Instagram DMs for the Match Fit account (@theofficialmatchfit).",
       "For each lead below, check whether they replied to our outreach DM since it was sent.",
-      "Report only NEW replies not already handled. Include the leadId so we can match it back.",
-      "Post results to the completion callback as { replies: [{ leadId, handle, preview }] }.",
+      "Report only NEW replies not already handled. Include the leadId AND the @handle so we can match it back (handle is used as a fallback when the leadId is missing).",
+      "If a reply clearly says they are NOT interested, set notInterested:true on that reply — it will be archived instead of drafted.",
+      "Post results to the completion callback as { replies: [{ leadId, handle, preview, notInterested }] }.",
     ],
     leads: candidates.map((c) => ({ leadId: c.id, handle: c.handle, profileUrl: c.profileUrl })),
   };
@@ -56,7 +59,13 @@ export async function createOutreachInstagramScanJob(args: {
   return { jobId: job.id, candidateCount: candidates.length };
 }
 
-export type InstagramScanReply = { leadId: string; handle?: string; preview?: string };
+export type InstagramScanReply = {
+  leadId?: string;
+  handle?: string;
+  preview?: string;
+  /** Agent-classified: the reply says they aren't interested — archive instead of drafting. */
+  notInterested?: boolean;
+};
 
 /**
  * Completion callback for an Instagram Cowork scan job. Flags each replying lead
@@ -90,13 +99,39 @@ export async function completeOutreachInstagramScanJob(args: {
 
   const replies = args.replies ?? [];
 
-  // Resolve every referenced lead in one query instead of one per reply.
-  const leadRows = replies.length
+  // Resolve referenced leads by id in one query. Handle-only replies (no leadId) are matched by
+  // normalized @handle as a fallback — an inbound DM the executor read straight from the inbox
+  // won't always carry the leadId, but the username always maps back to the lead row.
+  const idsToLookUp = [...new Set(replies.map((r) => r.leadId).filter((v): v is string => !!v))];
+  const leadRows = idsToLookUp.length
     ? await prisma.outreachInstagramLead.findMany({
-        where: { id: { in: [...new Set(replies.map((r) => r.leadId))] }, deletedAt: null, archivedAt: null },
+        where: { id: { in: idsToLookUp }, deletedAt: null, archivedAt: null },
       })
     : [];
   const leadById = new Map(leadRows.map((lead) => [lead.id, lead]));
+
+  // Handle fallback: for any reply whose leadId didn't resolve, look the lead up by @handle.
+  const handlesToLookUp = [
+    ...new Set(
+      replies
+        .filter((r) => (!r.leadId || !leadById.has(r.leadId)) && r.handle)
+        .map((r) => normalizeInstagramHandle(r.handle as string))
+        .filter((v): v is string => !!v),
+    ),
+  ];
+  const leadByHandle = new Map<string, (typeof leadRows)[number]>();
+  if (handlesToLookUp.length) {
+    const handleRows = await prisma.outreachInstagramLead.findMany({
+      where: { handle: { in: handlesToLookUp }, deletedAt: null, archivedAt: null },
+    });
+    for (const row of handleRows) leadByHandle.set(row.handle, row);
+  }
+
+  const resolveLead = (reply: InstagramScanReply): (typeof leadRows)[number] | undefined => {
+    if (reply.leadId && leadById.has(reply.leadId)) return leadById.get(reply.leadId);
+    const norm = reply.handle ? normalizeInstagramHandle(reply.handle) : null;
+    return norm ? leadByHandle.get(norm) : undefined;
+  };
 
   // A repeat leadId re-read the same row and wrote the same values, so one
   // update per distinct lead is equivalent — but matched/notifyLeads still get
@@ -106,9 +141,20 @@ export async function completeOutreachInstagramScanJob(args: {
   const draftJobs: { leadId: string; incomingMessage: string | undefined }[] = [];
 
   for (const reply of replies) {
-    const lead = leadById.get(reply.leadId);
+    const lead = resolveLead(reply);
     if (!lead) {
-      skipped.push(reply.leadId);
+      skipped.push(reply.leadId ?? reply.handle ?? "unknown");
+      continue;
+    }
+    // "Not interested" replies are archived, not drafted (WF2 item 6.2).
+    if (reply.notInterested) {
+      if (!updatedLeadIds.has(lead.id)) {
+        updatedLeadIds.add(lead.id);
+        await archiveHubOutreachLeadOnAdminDelete("instagram", lead.id).catch((e) =>
+          console.warn("[outreach-instagram-scan] archive on not-interested failed", e),
+        );
+      }
+      matched.push(lead.id);
       continue;
     }
     if (!updatedLeadIds.has(lead.id)) {

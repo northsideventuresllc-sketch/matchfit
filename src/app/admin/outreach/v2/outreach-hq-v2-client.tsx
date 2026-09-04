@@ -20,14 +20,14 @@ import { DispatchPanel } from "./components/dispatch-panel";
 import { PendingLeadsPanel } from "./components/pending-leads-panel";
 import { ArchivesPanel } from "./components/archives-panel";
 
+// WF2 item 10 — locked top-menu order. Follow-ups folded into Pending Leads.
 const TABS: { id: OutreachV2Tab; label: string }[] = [
+  { id: "hub", label: "Outreach Hub" },
   { id: "today", label: "Today's Leads" },
   { id: "past_due", label: "Past Due" },
-  { id: "follow_ups", label: "Follow-ups" },
-  { id: "pending_responses", label: "Pending Responses" },
-  { id: "hub", label: "Outreach Hub" },
   { id: "dispatch", label: "Send Queue" },
   { id: "pending", label: "Pending Leads" },
+  { id: "pending_responses", label: "Pending Responses" },
   { id: "archives", label: "Archives" },
 ];
 
@@ -100,7 +100,13 @@ export function OutreachHqV2Client(props: { aiStatus: AdminAiProviderStatus }) {
       description="Leads are generated Monday–Friday and pushed to Telegram for on-the-go approve, delete, or rewrite. Manual Send or Agent Send moves a lead to the Send Queue tab."
       headerActions={
         <>
-          <button type="button" className={adminSecondaryButtonClass} disabled={loading} onClick={() => void loadAll()}>
+          <button
+            type="button"
+            className={adminSecondaryButtonClass}
+            disabled={loading}
+            onClick={() => void loadAll()}
+            title="Pull the latest agent sends and reply-scan results (they land on the server, so the board needs a refresh to show them)."
+          >
             {loading ? "Refreshing…" : "Refresh"}
           </button>
           <Link href="/admin" className={adminSecondaryButtonClass}>
@@ -136,11 +142,13 @@ export function OutreachHqV2Client(props: { aiStatus: AdminAiProviderStatus }) {
       {tab === "past_due" ? (
         <LeadsPanel variant="past_due" grouped={grouped} focusLeadId={focusLeadId} onChanged={() => void loadAll()} onError={onError} />
       ) : null}
-      {tab === "follow_ups" ? (
-        <LeadsPanel variant="follow_ups" grouped={grouped} focusLeadId={focusLeadId} onChanged={() => void loadAll()} onError={onError} />
-      ) : null}
       {tab === "pending_responses" ? (
-        <PendingResponsesPanel leads={grouped.pending_response} focusLeadId={focusLeadId} onError={onError} />
+        <PendingResponsesPanel
+          leads={grouped.pending_response}
+          focusLeadId={focusLeadId}
+          onChanged={() => void loadAll()}
+          onError={onError}
+        />
       ) : null}
       {tab === "hub" ? (
         <OutreachHubPanel grouped={grouped} archiveEntries={archiveEntries} onNavigate={navigate} />
@@ -155,7 +163,7 @@ export function OutreachHqV2Client(props: { aiStatus: AdminAiProviderStatus }) {
         />
       ) : null}
       {tab === "pending" ? (
-        <PendingLeadsPanel leads={grouped.pending} focusLeadId={focusLeadId} onChanged={() => void loadAll()} onError={onError} />
+        <PendingLeadsPanel grouped={grouped} focusLeadId={focusLeadId} onChanged={() => void loadAll()} onError={onError} />
       ) : null}
       {tab === "archives" ? <ArchivesPanel entries={archiveEntries} /> : null}
     </AdminPortalShell>

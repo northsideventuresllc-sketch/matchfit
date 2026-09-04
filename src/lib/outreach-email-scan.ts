@@ -1,5 +1,6 @@
 import "server-only";
 
+import { archiveHubOutreachLeadOnAdminDelete } from "@/lib/outreach-archive";
 import { ensureOutreachHubSchema } from "@/lib/ensure-outreach-hub-schema";
 import { fireOutreachAxonEvent, type OutreachAxonLeadRef } from "@/lib/outreach-axon-notify";
 import { withOutreachGraph } from "@/lib/outreach-graph";
@@ -7,6 +8,30 @@ import { generateOutreachResponseDraft } from "@/lib/outreach-response-draft";
 import { prisma } from "@/lib/prisma";
 
 const MS_DAY = 86_400_000;
+
+/**
+ * Conservative "not interested" detector (WF2 item 6.2). Only explicit opt-out / rejection
+ * language — never a curious "tell me more" — so a genuine lead is never auto-archived. When this
+ * matches, the reply archives the lead instead of moving it to Pending Responses for a draft.
+ */
+export function looksNotInterested(text: string): boolean {
+  const t = text.toLowerCase();
+  return [
+    "not interested",
+    "no thanks",
+    "no thank you",
+    "unsubscribe",
+    "remove me",
+    "stop emailing",
+    "stop contacting",
+    "please stop",
+    "do not contact",
+    "don't contact",
+    "opt out",
+    "opt-out",
+    "not a fit for me",
+  ].some((phrase) => t.includes(phrase));
+}
 
 type GraphMessage = {
   id: string;
@@ -94,9 +119,20 @@ export async function scanOutreachEmailReplies(args: {
   const updates: ReturnType<typeof prisma.outreachEmailLead.update>[] = [];
   const draftJobs: { leadId: string; incomingMessage: string | undefined }[] = [];
 
+  const archivedNotInterested: string[] = [];
+
   for (const [sender, msg] of firstMessageBySender) {
     const lead = leadBySender.get(sender);
     if (!lead) continue;
+
+    // Explicit "not interested" reply -> archive, don't draft (WF2 item 6.2).
+    if (looksNotInterested(`${msg.subject ?? ""} ${msg.bodyPreview ?? ""}`)) {
+      await archiveHubOutreachLeadOnAdminDelete("email", lead.id).catch((e) =>
+        console.warn("[outreach-email-scan] archive on not-interested failed", e),
+      );
+      archivedNotInterested.push(lead.id);
+      continue;
+    }
 
     const receivedAt = msg.receivedDateTime ? new Date(msg.receivedDateTime) : now;
     updates.push(
@@ -138,6 +174,9 @@ export async function scanOutreachEmailReplies(args: {
 
   if (notifyLeads.length > 0) {
     await fireOutreachAxonEvent({ eventType: "pending_response", leads: notifyLeads });
+  }
+  if (archivedNotInterested.length > 0) {
+    console.log(`[outreach-email-scan] archived ${archivedNotInterested.length} not-interested repl${archivedNotInterested.length === 1 ? "y" : "ies"}.`);
   }
 
   return { configured: true, matched };
