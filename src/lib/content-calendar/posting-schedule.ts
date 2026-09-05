@@ -45,6 +45,12 @@ function isSocialPostingWeekday(weekday: number): boolean {
   return (CONTENT_CALENDAR_SOCIAL_POSTING_WEEKDAYS as readonly number[]).includes(weekday);
 }
 
+/** 0=Mon..4=Fri for a date key (America/New_York), or null for a Sat/Sun date. */
+export function getContentCalendarWeekdayIndex(dateKey: string): number | null {
+  const weekday = easternWeekdayIndex(dateKey); // Sun=0..Sat=6
+  return weekday >= 1 && weekday <= 5 ? weekday - 1 : null;
+}
+
 /**
  * Returns the next N calendar dates that align with the live social posting rhythm
  * (Mon / Wed / Fri). After 5pm Eastern, the current day is skipped even on posting days.
