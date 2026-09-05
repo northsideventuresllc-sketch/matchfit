@@ -272,7 +272,18 @@ async function resolveUniqueDayIndex(args: {
     .from("match_fit_content_calendar_posts")
     .select("day_index")
     .eq("week_start", args.weekStart)
-    .eq("post_type", args.postType);
+    .eq("post_type", args.postType)
+    // Bug fixed 2026-08-31 (MF-CONTENT-CRON-STUCK-WEEK): this used to count EVERY row for the
+    // week/post_type, including soft-deleted (archived/scrapped) ones. match_fit_calendar_posts_slot_unique
+    // is scoped `WHERE deleted_at IS NULL`, so a scrapped week could still fill this in-memory
+    // Set and permanently wedge every future generation for that week behind a "no available
+    // slot" throw, even though the DB itself had 5 free slots. Confirmed live: week 2026-08-31 had
+    // all 5 Carousel slots archived, and the weekly-generate cron 500'd on every retry with
+    // "No available content calendar slot for Carousel in week 2026-08-31" (Vercel runtime error
+    // log, first seen 2026-08-13, still recurring 2026-08-31) instead of quietly reusing the
+    // now-open slots. Matching every other read in this file (see the `.is("deleted_at", null)`
+    // calls above), only live rows should count as "taken".
+    .is("deleted_at", null);
   if (error) throw new Error(error.message);
 
   const used = new Set((data ?? []).map((row) => Number(row.day_index)));

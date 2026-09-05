@@ -1,0 +1,41 @@
+# NOTE (2026-09-03, Decision #1699 / lane D2): no schedule: block -- GitHub Actions schedules are
+# forbidden org-wide (every other .github/workflows/*.yml in this repo had theirs removed the same
+# way, see match-fit-content-calendar-weekly-generate.yml). The daily 8am-ET trigger lives on
+# NI-Brain Supabase pg_cron instead (job mf-cron-daily-generate, see scripts/sql/ni-brain/
+# 20260903_pg_cron_matchfit_content_calendar_daily_generate.sql) -- workflow_dispatch stays here
+# for manual/debug runs only, once that SQL file has been applied by the coordinator (it targets
+# /api/cron/content-calendar-daily-generate, which only exists once this PR is merged and deployed).
+#
+# Companion to match-fit-content-calendar-weekly-generate.yml (Monday-only, plans a full week in
+# one batch): this runs every weekday and tops up ONLY today's Content Hub slot with whichever of
+# TODAY's JB-locked post-type pair (CONTENT_CALENDAR_WEEKDAY_POST_TYPES: Mon/Wed/Fri Carousel +
+# Video, Tue/Thu Static + Text) are still missing, researching fresh trending hashtags each time
+# via the AI Vault (AXON local first, see docs/ai-vault.md). It is idempotent — a post type
+# already sitting in the Hub is left alone — so this self-heals a day whose weekly batch never
+# ran, timed out, or got scrapped, instead of leaving that day empty until next Monday.
+# Everything it writes is status="draft" — JB still has to press approve in the admin UI before
+# anything moves further (standing rule 5, approve-only).
+
+name: Match Fit content calendar daily generate
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  content-calendar-daily-generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke daily content generation cron
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ secrets.MATCH_FIT_APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$APP_URL" ]; then
+            echo "::error::Missing repository secrets CRON_SECRET and/or MATCH_FIT_APP_URL (e.g. https://match-fit.net). The cron job is NOT running."
+            exit 1
+          fi
+          URL="${APP_URL%/}/api/cron/content-calendar-daily-generate"
+          echo "GET $URL"
+          curl -fsS -X GET \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "$URL"
