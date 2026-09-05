@@ -13,6 +13,8 @@ description: >-
 
 # THE FOUR WORKFLOWS — JB LOCKED
 
+> **CORRECTED 2026-09-05 (JB live, NI-Brain Decision #1770 — supersedes Decision #486 and every "emulator is dead / do not reinstate" line in this file).** The Android emulator on the Mac mini is **back and logged in** (JB, 2026-09-05). Rule now: **probe the emulator at boot** from a CSP-free control (adb / emulator ports) and log the result every run. Running → Instagram (and the TikTok carousel photo-mode) go through the emulator per the live WF1 nodes. Not running → Mac mini Chrome per `nvg-browser-publishing`, and the miss is reported to PULSE as a bug, never as "dead". The wrong-workflow drift JB keeps seeing comes from agents trusting whichever of these files they read last — the probe result is the only truth.
+
 > **These four run every day. NEVER ask JB to re-explain any of them.**
 > He had to dictate all four from memory because no agent had saved them. That must never happen again.
 >
