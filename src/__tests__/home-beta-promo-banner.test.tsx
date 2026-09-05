@@ -29,7 +29,7 @@ describe("HomeBetaPromoBanner", () => {
     expect(html).toContain("60 days of Match Fit Premium Pro");
     expect(html).toContain("Fully covered background check");
     expect(html).toContain("zero upfront cost");
-    expect(html).toContain("Match Fit Pro and Match Fit Premium Pro");
+    expect(html).toContain("Match Fit Pro, Match Fit Premium Pro, and Elite Fitness Pro");
     expect(html).toContain("VIP access");
     expect(html).toContain("Free plan");
     expect(html).toContain("cannot sell or offer services");

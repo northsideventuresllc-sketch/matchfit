@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-05** `2.29.2-beta` → `2.29.3-beta` (**patch** — Fix founding promo copy: reflect Fitness Pro / Independent Pro / Elite Fitness Pro tier breakdown)
 - **2026-09-05** `2.29.1-beta` → `2.29.2-beta` (**patch** — Remove remaining US/Atlanta-only copy, fix hardcoded booking timezone restriction, wire real country field into client/trainer signup)
 - **2026-09-05** `2.29.0-beta` → `2.29.1-beta` (**minor** — Daily Content Hub auto-generation (self-healing top-up alongside weekly batch) + fix resolveUniqueDayIndex counting archived rows as taken slots)
 - **2026-09-04** `2.28.0-beta` → `2.29.0-beta` (**minor** — Outreach HQ v2: Successful Conversions tab (Converted button, per-touch send history, Match Fit account link))

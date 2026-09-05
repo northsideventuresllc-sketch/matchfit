@@ -6,6 +6,7 @@ import {
   trainerFoundingBgCheckBenefitShortLabel,
   trainerFoundingBgCheckEligibleTiersLabel,
   trainerFoundingPromoBullets,
+  trainerFoundingTierAccessBreakdownSentence,
   trainerIndependentProSubscriptionLabel,
   trainerIndependentProTrialPromoSentence,
   trainerSignupOnboardingBeginDeadlineLabel,
@@ -114,7 +115,7 @@ export function HomeBetaPromoBanner() {
               />
               <span className="min-w-0 flex-1 text-left [overflow-wrap:anywhere]">
                 <span className="font-semibold text-white/90">All fitness professionals:</span>{" "}
-                {trainerIndependentProTrialPromoSentence()}
+                {trainerIndependentProTrialPromoSentence()} {trainerFoundingTierAccessBreakdownSentence()}
               </span>
             </li>
             <li className="flex min-w-0 gap-3">

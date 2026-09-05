@@ -24,9 +24,9 @@ export function trainerSignupOnboardingBeginDeadlineLabel(): string {
   return `${TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} days`;
 }
 
-/** Verified Fit Pro paths eligible for founding background-check coverage. */
+/** Verified Fit Pro paths eligible for founding background-check coverage (tiers that require a background check). */
 export function trainerFoundingBgCheckEligibleTiersLabel(): string {
-  return "Match Fit Pro and Match Fit Premium Pro";
+  return "Match Fit Pro, Match Fit Premium Pro, and Elite Fitness Pro";
 }
 
 /** Marketing line for platform-covered Checkr screening (founding cohort). */
@@ -49,6 +49,11 @@ export function trainerIndependentProTrialBenefitLabel(): string {
 
 export function trainerIndependentProTrialPromoSentence(): string {
   return `Independent Pros receive ${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days free after registration. After the trial, keep your account active with the ${trainerIndependentProSubscriptionLabel()} subscription — you will be prompted for payment info whenever you log in once the trial ends.`;
+}
+
+/** One sentence explaining how the free-access period differs by tier (Fitness Pro vs Independent Pro vs Elite). */
+export function trainerFoundingTierAccessBreakdownSentence(): string {
+  return `Fitness Pros get ${trainerSignupPremiumPromoBenefitLabel()} at sign-up, Independent Pros get ${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days of free listing access, and Elite Fitness Pros get both.`;
 }
 
 /** One sentence for hero / banner Fitness Pro promo bullets. */
