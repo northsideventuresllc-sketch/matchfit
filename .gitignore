@@ -67,3 +67,6 @@ next-env.d.ts
 # trainer → client chat file shares (keep directory via .gitkeep)
 /public/uploads/chat-attachments/**
 !/public/uploads/chat-attachments/.gitkeep
+
+# NVG close-out markers (per-session, never committed)
+.nvg/
