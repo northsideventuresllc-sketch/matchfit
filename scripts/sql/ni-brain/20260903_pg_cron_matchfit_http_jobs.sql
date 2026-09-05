@@ -13,8 +13,8 @@
 -- (workflow_dispatch kept everywhere for manual runs) with no replacement scheduler wired up yet
 -- -- this file is that replacement for the seven that are a simple HTTP call, using pg_net
 -- (already enabled on kxijunwgbrlfzvgkhklo) to make the same call NI-Brain-side that GitHub
--- Actions used to make. The eighth (tos-governance.yml) is NOT covered here -- see the note at
--- the bottom of this file for why.
+-- Actions used to make. The eighth (tos-governance.yml) is NOT covered here -- it was removed
+-- outright on 2026-09-05 (Agentic OS audit, Decision #1767); see the note at the bottom.
 --
 -- Before applying: pg_cron + pg_net are already enabled on kxijunwgbrlfzvgkhklo (confirmed
 -- 2026-09-03), and a secret literally named `CRON_SECRET` already exists in ni_platform_secrets
@@ -273,7 +273,9 @@ select cron.schedule(
 );
 
 -- ---------------------------------------------------------------------------------------------
--- 8. tos-governance.yml -- NOT COVERED HERE. Its weekly "0 14 * * 1" schedule did not hit an
+-- 8. tos-governance.yml -- REMOVED 2026-09-05 (Agentic OS audit, Decision #1767): it was never
+--    scheduled in practice and is replaced by the AXON Legal Docs agent. Historical note kept
+--    for context only. Its weekly "0 14 * * 1" schedule did not hit an
 --    HTTP endpoint at all: the workflow checks out the repo, runs `npm ci`, runs
 --    `npm run tos:alignment` (a local script), and on completion runs
 --    `node scripts/tos-governance-notify.mjs` to email JB via Resend directly from the runner.
