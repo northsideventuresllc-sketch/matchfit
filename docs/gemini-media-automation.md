@@ -145,6 +145,17 @@ date-batch invocation (`--post-date`/`--post-group`, unused by v2).
   check — re-probe the live DOM rather than guessing at a fix.
 - The CDP endpoint has been observed going unresponsive after ~2 days of continuous
   Chrome uptime (needs the launcher re-run to relaunch it) — not yet root-caused.
-- Carousel rows: the script splits the prompt on a `---SLIDE---` marker to support
-  multi-image carousels in one job. Confirm the content-generation step actually writes
-  that marker for Carousel posts before relying on multi-slide output.
+- **Resolved (Carousel slide splitting).** Confirmed by SQL against a
+  real Carousel post that Match Fit Carousels are genuinely 5 separate PNG
+  generations, not one multi-panel composite — `content-prompts.ts`'s
+  `CONTENT_CALENDAR_CREATIVE_QUALITY_RULES` (JB-locked) and
+  `content-calendar-v2-store.ts`'s instant-preview path both already treat a
+  Carousel as N discrete images. The content calendar never emits a literal
+  `---SLIDE---` marker — it labels slides in natural language ("Slide 1 (Image
+  1):", "Slide 2:", ... "Slide 5 CTA card:"). The script's splitter
+  (`scripts/carousel-slide-prompts.mjs`, `splitCarouselSlidePrompts()`) now
+  parses that real label format — carrying the shared header (dimensions/
+  format/branding/rules) and the shared "PRODUCTION SPEC (required):" footer
+  into every slide's prompt — and keeps `---SLIDE---` as a fallback for
+  hand-authored prompts that still use it. See
+  `scripts/carousel-slide-prompts.test.mjs` for coverage.

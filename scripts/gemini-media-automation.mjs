@@ -23,7 +23,10 @@
  *   2. Confirm the Gemini web app's mode picker reads Pro; switch it if not —
  *      JB's standing order is Pro only, Flash never (see ensureProModel below).
  *   3. Open Gemini, paste last_generation_prompt (falls back to visual_prompt),
- *      generate, wait for the image(s).
+ *      generate, wait for the image(s). Carousel prompts are split into one
+ *      generation per slide by parsing the real "Slide N:" labels — see
+ *      splitCarouselSlidePrompts() in carousel-slide-prompts.mjs (never a naive
+ *      ---SLIDE--- string split).
  *   4. Copy each generated image via Gemini's own "Copy image" control and read
  *      it back off the OS clipboard — the Download button opens a native
  *      File-System-Access save dialog that Playwright/CDP cannot see or drive,
@@ -59,6 +62,7 @@ import sharp from "sharp";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { splitCarouselSlidePrompts } from "./carousel-slide-prompts.mjs";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -626,21 +630,17 @@ async function main() {
       // audience context can bleed into the next row's image (e.g. a Video post's
       // prompt influencing the following Carousel's composition).
       await startNewChat(page);
-      // Prefer last_generation_prompt — Content Calendar v2's fully-formatted
-      // production prompt (dimensions, brand colors, JB's locked creative-quality
-      // rules) built by buildMediaGenerationPrompt(). Raw visual_prompt is only
-      // the earlier creative brief and is the fallback for older/date-batch rows
-      // that never got a formatted prompt written.
-      const prompt = row.last_generation_prompt || row.visual_prompt;
-      if (!prompt) {
+      // last_generation_prompt is the finalized prompt the orchestration layer
+      // staged for generation (creative text + production spec); visual_prompt
+      // is a fallback for older rows generated before that column existed.
+      const sourcePrompt = row.last_generation_prompt || row.visual_prompt;
+      if (!sourcePrompt) {
         throw new Error("row has no last_generation_prompt or visual_prompt — nothing to generate from");
       }
-      // Carousels may pack multiple prompts separated by "---SLIDE---";
-      // everything else is a single-image generation.
-      const slidePrompts = String(prompt)
-        .split(/---\s*SLIDE\s*---/i)
-        .map((s) => s.trim())
-        .filter(Boolean);
+      // Carousel prompts pack one prompt per slide, labeled "Slide 1 (Image 1):",
+      // "Slide 2:", etc. (see CONTENT_CALENDAR_CREATIVE_QUALITY_RULES); everything
+      // else is a single-image generation.
+      const slidePrompts = splitCarouselSlidePrompts(sourcePrompt);
 
       const mediaUrls = [];
       let slideIdx = 0;
