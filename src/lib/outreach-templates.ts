@@ -11,13 +11,13 @@ export const OUTREACH_CRAFT_LOCK_RULES = `Outreach craft lock (strict — JB 202
 - Tone: direct founder voice (JB) — real, confident, not salesy brochure paste.`;
 
 export const OUTREACH_BRAND_FACTS = [
-  "Match Fit (match-fit.net) is a US fitness marketplace connecting Fitness Pros with clients.",
+  "Match Fit (match-fit.net) is a worldwide fitness marketplace connecting Fitness Pros with clients.",
   "Clients: $10/mo, 60-day free trial, no card upfront.",
   "Fitness Pros join at match-fit.net/trainer/sign-up.",
   "Founding promo (exact meaning; vary wording): first 30 Fitness Pros get 60 days Premium access free; first 10 Fitness Pros get onboarding fees waived completely.",
   "Founder voice: Jonny / JB — direct, real, confident, not salesy.",
   "Beta roster is selective; early Fitness Pros get visibility before public launch.",
-  "Focus on US-based Fitness Pros and clients nationwide.",
+  "Match Fit recruits Fitness Pros and clients worldwide — never restrict outreach to one country.",
   OUTREACH_CRAFT_LOCK_RULES,
 ].join("\n");
 

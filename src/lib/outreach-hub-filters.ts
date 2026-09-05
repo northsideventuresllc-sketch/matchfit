@@ -49,8 +49,8 @@ export const HUB_TARGET_GROUP_FILTER_OPTIONS: {
   label: string;
 }[] = [
   { id: "all", label: "All audiences" },
-  { id: "ATL_LOCAL", label: "US · earlier leads" },
-  { id: "VIRTUAL", label: "US" },
+  { id: "ATL_LOCAL", label: "Earlier leads (legacy)" },
+  { id: "VIRTUAL", label: "Worldwide" },
 ];
 
 export function hubStatusFilterOptions(

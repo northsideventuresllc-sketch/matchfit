@@ -9,7 +9,7 @@ import {
   validateTrainerAvailabilityConsistency,
   type AvailabilityCalendarHit,
 } from "@/lib/booking-availability-validate";
-import { US_BOOKING_TIMEZONE_OPTIONS, normalizeUsBookingTimezone } from "@/lib/us-booking-timezones";
+import { BOOKING_TIMEZONE_OPTIONS, normalizeBookingTimezone } from "@/lib/booking-timezones";
 
 type BookingRow = {
   id: string;
@@ -189,7 +189,7 @@ export function TrainerDashboardBookingsClient() {
         setAvailabilityFetchErr(data.error ?? "Could not load availability.");
         return;
       }
-      if (data.timezone) setTimezone(normalizeUsBookingTimezone(data.timezone));
+      if (data.timezone) setTimezone(normalizeBookingTimezone(data.timezone));
       if (typeof data.clientPublicSelfBookingEnabled === "boolean") {
         setClientPublicSelfBookingEnabled(data.clientPublicSelfBookingEnabled);
       }
@@ -350,7 +350,7 @@ export function TrainerDashboardBookingsClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           document: nextDoc,
-          timezone: normalizeUsBookingTimezone(timezone),
+          timezone: normalizeBookingTimezone(timezone),
           clientPublicSelfBookingEnabled,
         }),
       });
@@ -390,7 +390,7 @@ export function TrainerDashboardBookingsClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           document: nextDoc,
-          timezone: normalizeUsBookingTimezone(timezone),
+          timezone: normalizeBookingTimezone(timezone),
           clientPublicSelfBookingEnabled,
         }),
       });
@@ -1416,13 +1416,13 @@ export function TrainerDashboardBookingsClient() {
           {settingsSectionOpen ? (
           <div className="mx-auto mt-6 max-w-md space-y-5 text-center">
             <div>
-              <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-white/40">Timezone (United States)</label>
+              <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-white/40">Timezone</label>
               <select
-                value={normalizeUsBookingTimezone(timezone)}
+                value={normalizeBookingTimezone(timezone)}
                 onChange={(e) => setTimezone(e.target.value)}
                 className="mt-2 w-full rounded-xl border border-white/12 bg-[#0E1016] px-3 py-2.5 text-left text-sm text-white"
               >
-                {US_BOOKING_TIMEZONE_OPTIONS.map((o) => (
+                {BOOKING_TIMEZONE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>

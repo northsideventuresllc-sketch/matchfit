@@ -77,6 +77,7 @@ export default function TrainerSignupTermsClient() {
           password: draft.password,
           stayLoggedIn: draft.stayLoggedIn,
           serviceZipCode: draft.serviceZipCode?.trim() ?? "",
+          ...(draft.country ? { country: draft.country } : {}),
           ...(draft.betaInviteToken ? { betaInviteToken: draft.betaInviteToken } : {}),
         };
         const token = turnstile.getCaptchaToken();

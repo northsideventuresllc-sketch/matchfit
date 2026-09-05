@@ -5,6 +5,7 @@ export type ClientSignupFormFieldId =
   | "email"
   | "password"
   | "zipCode"
+  | "country"
   | "dateOfBirth"
   | "agreedToTerms";
 

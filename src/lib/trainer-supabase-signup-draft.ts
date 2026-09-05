@@ -12,6 +12,8 @@ export type TrainerSupabaseSignupDraft = {
   stayLoggedIn: boolean;
   /** Primary service ZIP when beta geo gates are enabled. */
   serviceZipCode?: string;
+  /** ISO 3166-1 alpha-2, selected on the sign-up form. Informational — not used to gate signup. */
+  country?: string;
   betaInviteToken?: string;
   turnstileToken?: string;
 };
