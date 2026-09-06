@@ -10,6 +10,12 @@ export const OUTREACH_CRAFT_LOCK_RULES = `Outreach craft lock (strict — JB 202
   2) First 10 Fitness Pros get onboarding fees waived completely.
 - Tone: direct founder voice (JB) — real, confident, not salesy brochure paste.`;
 
+/** Zero-Sales Signup Engine guardrails (JB locked 2026-07-22) — machine-enforced at generation time. */
+export const OUTREACH_SIGNUP_ENGINE_RULES = `Zero-Sales Signup Engine rules (strict — JB 2026-07-22, never break):
+- G1 NO phone calls, ever: never write "call," "hop on," "chat," "book time," or any calendar link.
+- G2 Minimal back-and-forth: this message must carry the full pitch AND end with the signup link. Do NOT end the message with a question — a question invites a reply and creates back-and-forth. End on a link + instruction (e.g. "Claim your spot here → [link]"), never on "?".
+- The goal is a click on the link, not a reply in the DM/email.`;
+
 export const OUTREACH_BRAND_FACTS = [
   "Match Fit (match-fit.net) is a worldwide fitness marketplace connecting Fitness Pros with clients.",
   "Clients: $10/mo, 60-day free trial, no card upfront.",
@@ -19,6 +25,7 @@ export const OUTREACH_BRAND_FACTS = [
   "Beta roster is selective; early Fitness Pros get visibility before public launch.",
   "Match Fit recruits Fitness Pros and clients worldwide — never restrict outreach to one country.",
   OUTREACH_CRAFT_LOCK_RULES,
+  OUTREACH_SIGNUP_ENGINE_RULES,
 ].join("\n");
 
 export function genericInviteTail(platform: OutreachPlatform, group: OutreachTargetGroup): string {

@@ -692,15 +692,38 @@ model PendingClientRegistration {
 /// browser-only sessionStorage draft is lost before the Trainer row is created.
 /// Never stores the plaintext password — only fields needed to re-show the form.
 model TrainerDraft {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  email     String?
-  data      Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  email             String?
+  data              Json
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  resumeEmailSentAt DateTime?
 
   @@index([email])
   @@map("trainer_drafts")
+  @@schema("public")
+}
+
+/// Zero-Sales Signup Engine (G3) resume-signup nudge awaiting explicit admin approval
+/// before the email goes out to a real trainer (JB ruled 2026-08-20 -- NI-Brain
+/// Decision #1280 / Learning #7461: approve-only, no auto-send direct from the cron).
+model PendingTrainerResumeSignupNudge {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  trainerDraftId String @unique
+  email          String
+  firstName      String?
+
+  /// PENDING | SENT | DENIED
+  status String @default("PENDING")
+
+  decidedAt        DateTime?
+  decidedByAdminId String?
+
+  @@index([status])
+  @@map("pending_trainer_resume_signup_nudges")
   @@schema("public")
 }
 

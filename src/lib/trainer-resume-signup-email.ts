@@ -21,8 +21,8 @@ export type SendTrainerResumeSignupResult =
  * `/trainer/signup/complete`, where the server-side draft (see
  * `sendSupabaseSignupVerificationEmail`) fills the form back in.
  *
- * Not wired to an automatic trigger yet — call this from an admin action or a future
- * cron once a "confirmed but incomplete" signal exists (see TrainerDraft.createdAt).
+ * Wired to the match-fit-tos-jobs cron (every 15 min) via
+ * processTrainerResumeSignupNudges — see trainer-resume-signup-nudge-cron.ts.
  */
 export async function sendTrainerResumeSignupEmail(args: {
   email: string;
