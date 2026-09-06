@@ -75,7 +75,7 @@ export type TosCronSummary = {
     errors: number;
   };
   trainerResumeSignupNudges: {
-    sent: number;
+    queued: number;
     skipped: number;
     errors: number;
   };
@@ -315,7 +315,7 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   } catch (e) {
     console.error("[tos cron] signup abandonment followups", e);
   }
-  let trainerResumeSignupNudges = { sent: 0, skipped: 0, errors: 0 };
+  let trainerResumeSignupNudges = { queued: 0, skipped: 0, errors: 0 };
   try {
     trainerResumeSignupNudges = await processTrainerResumeSignupNudges();
   } catch (e) {

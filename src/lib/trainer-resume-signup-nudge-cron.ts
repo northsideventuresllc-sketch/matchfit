@@ -6,13 +6,18 @@ import { sendTrainerResumeSignupEmail } from "@/lib/trainer-resume-signup-email"
  * nudge. A trainer confirmed their email (TrainerDraft exists) but never finished
  * the Fitness Pro agreement (no Trainer row). Nudge once, ~1h after the draft was
  * last touched, then never again for that draft.
+ *
+ * Approve-only (JB ruled 2026-08-20 — NI-Brain Decision #1280 / Learning #7461):
+ * this cron only ever queues a PendingTrainerResumeSignupNudge row. It never calls
+ * sendTrainerResumeSignupEmail itself — an admin must explicitly approve each one
+ * via approveTrainerResumeSignupNudge before a real trainer gets emailed.
  */
 const NUDGE_AFTER_MS = 60 * 60 * 1000; // 1h
 const STOP_NUDGING_AFTER_MS = 30 * 24 * 60 * 60 * 1000; // 30d — stale drafts are dead, not nudged
 const MAX_PER_RUN = 25;
 
 export async function processTrainerResumeSignupNudges(): Promise<{
-  sent: number;
+  queued: number;
   skipped: number;
   errors: number;
 }> {
@@ -30,7 +35,7 @@ export async function processTrainerResumeSignupNudges(): Promise<{
     take: MAX_PER_RUN,
   });
 
-  let sent = 0;
+  let queued = 0;
   let skipped = 0;
   let errors = 0;
 
@@ -52,23 +57,88 @@ export async function processTrainerResumeSignupNudges(): Promise<{
       continue;
     }
 
-    const data = (draft.data ?? {}) as { firstName?: string };
-    const result = await sendTrainerResumeSignupEmail({ email, firstName: data.firstName });
-
-    if (result.ok) {
-      await prisma.trainerDraft.update({
-        where: { id: draft.id },
-        data: { resumeEmailSentAt: new Date() },
-      });
-      sent++;
-    } else if (result.code === "SUPABASE_USER_MISSING") {
-      // No confirmed auth user for this email — nothing to resume yet, try again later.
+    const existingPending = await prisma.pendingTrainerResumeSignupNudge.findUnique({
+      where: { trainerDraftId: draft.id },
+    });
+    if (existingPending) {
+      // Already queued (pending, sent, or denied) — never queue the same draft twice.
       skipped++;
-    } else {
-      console.error("[trainer resume signup nudge]", draft.id, result.code, result.error);
+      continue;
+    }
+
+    try {
+      const data = (draft.data ?? {}) as { firstName?: string };
+      await prisma.pendingTrainerResumeSignupNudge.create({
+        data: { trainerDraftId: draft.id, email, firstName: data.firstName ?? null },
+      });
+      queued++;
+    } catch (err) {
+      console.error("[trainer resume signup nudge] queue", draft.id, err);
       errors++;
     }
   }
 
-  return { sent, skipped, errors };
+  return { queued, skipped, errors };
+}
+
+export type PendingTrainerResumeSignupNudgeSummary = {
+  id: string;
+  trainerDraftId: string;
+  email: string;
+  firstName: string | null;
+  createdAt: Date;
+};
+
+/** Nudges awaiting explicit admin approval before the resume email goes out. */
+export async function listPendingTrainerResumeSignupNudges(): Promise<PendingTrainerResumeSignupNudgeSummary[]> {
+  return prisma.pendingTrainerResumeSignupNudge.findMany({
+    where: { status: "PENDING" },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, trainerDraftId: true, email: true, firstName: true, createdAt: true },
+  });
+}
+
+export type NudgeDecisionResult = { ok: true } | { ok: false; error: string };
+
+/** Admin-approved: sends the resume email now and marks the draft nudged. */
+export async function approveTrainerResumeSignupNudge(id: string, adminId: string): Promise<NudgeDecisionResult> {
+  const pending = await prisma.pendingTrainerResumeSignupNudge.findUnique({ where: { id } });
+  if (!pending || pending.status !== "PENDING") {
+    return { ok: false, error: "Nudge not found or already decided." };
+  }
+
+  const result = await sendTrainerResumeSignupEmail({
+    email: pending.email,
+    firstName: pending.firstName ?? undefined,
+  });
+  if (!result.ok) {
+    // Left PENDING on purpose — e.g. SUPABASE_USER_MISSING can resolve itself; an
+    // admin can retry the approval later instead of the cron silently re-sending.
+    return { ok: false, error: result.error };
+  }
+
+  await prisma.$transaction([
+    prisma.pendingTrainerResumeSignupNudge.update({
+      where: { id },
+      data: { status: "SENT", decidedAt: new Date(), decidedByAdminId: adminId },
+    }),
+    prisma.trainerDraft.update({
+      where: { id: pending.trainerDraftId },
+      data: { resumeEmailSentAt: new Date() },
+    }),
+  ]);
+  return { ok: true };
+}
+
+/** Admin-denied: never sends; closes the nudge out so the draft is not re-queued. */
+export async function denyTrainerResumeSignupNudge(id: string, adminId: string): Promise<NudgeDecisionResult> {
+  const pending = await prisma.pendingTrainerResumeSignupNudge.findUnique({ where: { id } });
+  if (!pending || pending.status !== "PENDING") {
+    return { ok: false, error: "Nudge not found or already decided." };
+  }
+  await prisma.pendingTrainerResumeSignupNudge.update({
+    where: { id },
+    data: { status: "DENIED", decidedAt: new Date(), decidedByAdminId: adminId },
+  });
+  return { ok: true };
 }
