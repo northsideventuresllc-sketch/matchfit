@@ -7,6 +7,7 @@ import {
   OUTREACH_COWORK_EMAIL_FROM,
 } from "@/lib/outreach-cowork";
 import { nextDispatchSlot } from "@/lib/outreach-lanes";
+import { assertSendAllowed } from "@/lib/outreach-send-steps";
 import {
   OUTREACH_FOLLOW_UP_1_DUE_HOURS,
   OUTREACH_FOLLOW_UP_2_DUE_DAYS,
@@ -421,6 +422,9 @@ export async function setManualSentState(args: {
   now?: Date;
   /** Admin who clicked the toggle — recorded on the touch-log row. */
   adminId?: string;
+  /** BPA-B3-OUTREACH-SEND-0906: optional note about the manual send, folded into the touch-log
+   *  row's `messageFields` alongside what was sent. */
+  note?: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   await ensureOutreachHubSchema();
   const now = args.now ?? new Date();
@@ -433,6 +437,14 @@ export async function setManualSentState(args: {
   if (!args.sent) {
     await setLeadLaneFields(args.platform, args.id, { manualSentAt: null });
     return { ok: true };
+  }
+
+  // BPA-B3-OUTREACH-SEND-0906: approve-only + weekday-only gate. `state.outreachLane ===
+  // "dispatch_queued"` (checked above) is already the approval marker; assertSendAllowed also
+  // re-checks it plus the weekday rule (and, in a test run only, the recipient allowlist).
+  const gate = assertSendAllowed({ outreachLane: state.outreachLane }, now);
+  if (!gate.allowed) {
+    return { ok: false, error: gate.reason };
   }
 
   // WF2 item 4/6 (JB 2026-09-03): a "Mark Sent" always lands the lead in the Pending Leads tab,
@@ -452,13 +464,15 @@ export async function setManualSentState(args: {
   const data = advanceSentLaneFields(args.platform, state.dispatchPreviousLane, now);
   await setLeadLaneFields(args.platform, args.id, data);
   if (leadRow) {
+    const messageFields = snapshotMessageFieldsForTouch(args.platform, stage, leadRow);
+    if (args.note?.trim()) messageFields.push({ label: "Note", text: args.note.trim() });
     await recordOutreachTouch({
       platform: args.platform,
       leadId: args.id,
       stage,
       sentAt: now,
       sendMode: "manual",
-      messageFields: snapshotMessageFieldsForTouch(args.platform, stage, leadRow),
+      messageFields,
       performedByAdminId: args.adminId ?? null,
     });
   }
@@ -536,7 +550,13 @@ export async function completeOutreachDispatchBatch(args: {
       unknown += 1;
       continue;
     }
-    if (result.status === "sent") {
+    // BPA-B3-OUTREACH-SEND-0906: weekday-only gate, even on a completion callback the agent
+    // reports back on its own. Every member of this batch reached it via `dispatch_queued`
+    // (queueOutreachDispatch's only entry point), so that lane is asserted directly here rather
+    // than re-fetched. A weekend completion is treated exactly like a failed send — reverted to
+    // its previous lane, never silently accepted as sent.
+    const gate = result.status === "sent" ? assertSendAllowed({ outreachLane: "dispatch_queued" }, now) : null;
+    if (result.status === "sent" && gate?.allowed) {
       // Same stage-aware advance as the manual "Mark Sent" toggle, keyed off the lane the lead
       // was queued from, so an agent-sent follow-up advances the pipeline just like a manual one.
       const previousLane = prevLaneById.get(result.leadId) ?? null;
