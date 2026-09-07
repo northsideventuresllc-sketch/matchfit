@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-07** `2.29.13-beta` → `2.29.14-beta` (**patch** — Content Hub: Approve Day reliably activates the Mac mini media job, TRY AGAIN on a failed build)
 - **2026-09-07** `2.29.12-beta` → `2.29.13-beta` (**patch** — Fix weekly content-calendar cron duplicate-week race and silent hop timeout)
 - **2026-09-07** `2.29.11-beta` → `2.29.12-beta` (**patch** — ADHD-friendly formatting for Social Media Research report (bold, bullets, emoji headings))
 - **2026-09-07** `2.29.10-beta` → `2.29.11-beta` (**patch** — Single-post synchronous content generation (?sync=1&postType=) so each post writes within the function budget — reliable Content Hub fill)
