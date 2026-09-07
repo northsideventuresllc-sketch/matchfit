@@ -166,7 +166,7 @@ export async function runDailyContentGeneration(args?: {
 
   const dpmoPhase = await getMatchFitDpmoPhase();
   // Deliberately skip the weekly job's full social-profile scan here — it's the slowest step in
-  // runWeeklyContentGeneration and this route already has a tighter maxDuration budget. Hashtag
+  // runWeeklyContentGeneration and this is only a single day's top-up, not a 5-day plan. Hashtag
   // research alone (still live web search, not a template) is enough for a single day's plan.
   const hashtags = await researchTrendingHashtags({ dpmoPhase });
   const targetGroup = normalizeTargetGroup(getContentCalendarRotation(dayIndex, 0).Static);

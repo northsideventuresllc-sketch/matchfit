@@ -19,13 +19,20 @@
 --
 -- Idempotent: the unschedule is guarded to silently no-op if the job doesn't exist yet, so this
 -- can be re-run safely once applied.
+--
+-- UPDATE 2026-09-07 (MF-CONTENT-GEN-VERCEL-504-0907 follow-up): the route's own maxDuration went
+-- 120s -> 300s (it kept 504ing on the shared hydrate/schema-ensure prep even with the per-post-type
+-- hop fix already live -- see route.ts). Bumping this job's timeout to 290000ms to keep the same
+-- margin mf-cron-weekly-generate uses under its 300s maxDuration. Re-run this file against
+-- NI-Brain (kxijunwgbrlfzvgkhklo) to pick up the new timeout -- the schedule/unschedule below is
+-- idempotent so it's safe to re-apply.
 
 -- ---------------------------------------------------------------------------------------------
 -- mf-cron-daily-generate -- was .github/workflows/match-fit-content-calendar-daily-generate.yml,
 --    "5 12 * * 1-5" (weekdays, 5 min after mf-cron-weekly-generate's Monday top-of-hour slot so
 --    the two never race)
 --    GET /api/cron/content-calendar-daily-generate, Authorization: Bearer CRON_SECRET
---    Timeout 110000ms, under the route's own maxDuration (120s), mirroring the margin
+--    Timeout 290000ms, under the route's own maxDuration (300s), mirroring the margin
 --    mf-cron-weekly-generate already uses (290000ms under its 300s maxDuration).
 -- ---------------------------------------------------------------------------------------------
 select cron.unschedule('mf-cron-daily-generate') where exists (select 1 from cron.job where jobname = 'mf-cron-daily-generate');
@@ -33,7 +40,7 @@ select cron.schedule(
   'mf-cron-daily-generate',
   '5 12 * * 1-5',
   $$
-  select fn_mf_cron_ping('/api/cron/content-calendar-daily-generate', 'daily-generate', 110000);
+  select fn_mf_cron_ping('/api/cron/content-calendar-daily-generate', 'daily-generate', 290000);
   $$
 );
 
