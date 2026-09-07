@@ -23,6 +23,7 @@ const {
   mockGenerateBulkContent,
   mockBuildMediaGenerationPrompt,
   mockCreateV2Draft,
+  mockDayAlreadyHasLiveContent,
 } = vi.hoisted(() => ({
   mockHydratePlatformEnvFromDatabase: vi.fn(),
   mockGetAiVaultStatus: vi.fn(),
@@ -34,6 +35,7 @@ const {
   mockGenerateBulkContent: vi.fn(),
   mockBuildMediaGenerationPrompt: vi.fn(),
   mockCreateV2Draft: vi.fn(),
+  mockDayAlreadyHasLiveContent: vi.fn(),
 }));
 
 vi.mock("@/lib/hydrate-platform-env", () => ({ hydratePlatformEnvFromDatabase: mockHydratePlatformEnvFromDatabase }));
@@ -50,7 +52,10 @@ vi.mock("@/lib/content-calendar/content-context", () => ({
 }));
 vi.mock("@/lib/content-calendar/content-calendar-ai", () => ({ generateBulkContent: mockGenerateBulkContent }));
 vi.mock("@/lib/content-calendar/content-prompts", () => ({ buildMediaGenerationPrompt: mockBuildMediaGenerationPrompt }));
-vi.mock("@/lib/content-calendar/content-calendar-v2-store", () => ({ createV2Draft: mockCreateV2Draft }));
+vi.mock("@/lib/content-calendar/content-calendar-v2-store", () => ({
+  createV2Draft: mockCreateV2Draft,
+  dayAlreadyHasLiveContent: mockDayAlreadyHasLiveContent,
+}));
 
 import { planWeeklyGeneration, generateWeeklyDayPosts } from "@/lib/content-calendar/weekly-generation";
 
@@ -84,6 +89,7 @@ beforeEach(() => {
     meta: {},
   }));
   mockCreateV2Draft.mockResolvedValue({ id: "post_1" });
+  mockDayAlreadyHasLiveContent.mockResolvedValue(false);
 });
 
 describe("planWeeklyGeneration", () => {
@@ -164,5 +170,30 @@ describe("generateWeeklyDayPosts", () => {
     expect(written).toEqual(["Static", "Text"]);
     expect(written).not.toContain("Carousel");
     expect(written).not.toContain("Video");
+  });
+
+  // MF-CONTENT-CRON-DUPLICATE-0907: a second full cron trigger for a week that already has a
+  // day's content must skip that day cleanly instead of resolveUniqueDayIndex bumping the
+  // repeat generation onto a different (wrong) day's slot and eventually exhausting all 5.
+  it("skips a day that already has live content instead of generating a duplicate", async () => {
+    mockDayAlreadyHasLiveContent.mockResolvedValue(true);
+    const dayPlan: WeeklyDayPlan = {
+      dayIndex: 0,
+      theme: "Monday spotlight",
+      targetAudience: "Clients",
+      cta: "Drive to match-fit.net/client/sign-up",
+      dpmoRationale: "Kick the week off on clients.",
+    };
+
+    const result = await generateWeeklyDayPosts({ ...baseArgs, dayPlan });
+
+    expect(result.created).toBe(0);
+    expect(mockGenerateBulkContent).not.toHaveBeenCalled();
+    expect(mockCreateV2Draft).not.toHaveBeenCalled();
+    expect(mockDayAlreadyHasLiveContent).toHaveBeenCalledWith({
+      weekStart: "2026-09-07",
+      dayIndex: 0,
+      postTypes: ["Carousel", "Video"],
+    });
   });
 });
