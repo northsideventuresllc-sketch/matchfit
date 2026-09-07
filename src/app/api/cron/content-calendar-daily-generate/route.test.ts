@@ -146,6 +146,27 @@ describe("daily content-calendar cron route — hop fan-out", () => {
     expect(mockGetDailyMissing).not.toHaveBeenCalled();
   });
 
+  it("?sync=1&postType= runs exactly ONE post inline (onlyPostType), no after()/hops", async () => {
+    mockRunDaily.mockResolvedValue({ ran: true, createdPostTypes: ["Video"] });
+
+    const res = (await GET(
+      new Request(`${ROUTE}?sync=1&date=2026-09-11&postType=Video`, {
+        headers: { authorization: `Bearer ${SECRET}` },
+      }),
+    )) as unknown as JsonRes;
+
+    expect(res.status).toBe(200);
+    expect(res.body.mode).toBe("sync");
+    expect(res.body.onlyPostType).toBe("Video");
+    // Bounded to the single type, inline, with the date passed through.
+    expect(mockRunDaily).toHaveBeenCalledTimes(1);
+    expect(mockRunDaily).toHaveBeenCalledWith({ date: "2026-09-11", onlyPostType: "Video" });
+    // Nothing deferred: this is the reliable one-post-at-a-time path.
+    expect(mockAfter).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mockGetDailyMissing).not.toHaveBeenCalled();
+  });
+
   it("a ?postType= hop acks immediately and runs exactly one bounded generation in after()", async () => {
     const res = (await GET(
       new Request(`${ROUTE}?postType=Video`, { headers: { authorization: `Bearer ${SECRET}` } }),
