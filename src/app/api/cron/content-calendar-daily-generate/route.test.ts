@@ -126,6 +126,26 @@ describe("daily content-calendar cron route — hop fan-out", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("?sync=1 runs the day's generation INLINE (no after(), no hops) and returns after the write", async () => {
+    mockRunDaily.mockResolvedValue({ ran: true, createdPostTypes: ["Carousel", "Video"] });
+
+    const res = (await GET(
+      new Request(`${ROUTE}?sync=1&date=2026-09-07`, { headers: { authorization: `Bearer ${SECRET}` } }),
+    )) as unknown as JsonRes;
+
+    // Ran inline: the result is returned in the response, not deferred.
+    expect(res.status).toBe(200);
+    expect(res.body.mode).toBe("sync");
+    expect((res.body.result as { createdPostTypes: string[] }).createdPostTypes).toEqual(["Carousel", "Video"]);
+    // The whole day was generated synchronously by the top-level request itself...
+    expect(mockRunDaily).toHaveBeenCalledTimes(1);
+    expect(mockRunDaily).toHaveBeenCalledWith({ date: "2026-09-07" });
+    // ...with NO background hop and NO same-origin fan-out — nothing left to get cut off.
+    expect(mockAfter).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mockGetDailyMissing).not.toHaveBeenCalled();
+  });
+
   it("a ?postType= hop acks immediately and runs exactly one bounded generation in after()", async () => {
     const res = (await GET(
       new Request(`${ROUTE}?postType=Video`, { headers: { authorization: `Bearer ${SECRET}` } }),
