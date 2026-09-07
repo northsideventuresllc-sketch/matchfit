@@ -39,6 +39,14 @@ export type WeeklyGenerationResult = {
   days: { dayIndex: number; postDate: string; created: number }[];
 };
 
+export type WeeklyPlanResult = {
+  weekStart: string;
+  dpmoPhase: string | null;
+  socialScanSnapshotId: string;
+  hashtags: HashtagResearchSnapshot;
+  plan: WeeklyDayPlan[];
+};
+
 function parseJsonBlock<T>(text: string): T | null {
   const cleaned = text.replace(/```json|```/g, "").trim();
   try {
@@ -132,14 +140,15 @@ async function planWeek(args: {
 }
 
 /**
- * Monday weekly generation pipeline. Reads the current DPMO phase, runs a social scan across
- * TikTok / Instagram / Threads / Facebook, researches trending hashtags via web search, plans the
- * week, then generates each day's locked post types into the Content Hub — Mon/Wed/Fri get
- * Carousel + Video, Tue/Thu get Static + Text (CONTENT_CALENDAR_WEEKDAY_POST_TYPES) — with each
- * post's DPMO phase snapshot, an editable DPMO rationale, and the shared media prompt (dimensions
- * + brand colors + logo) baked into every media post's visual prompt.
+ * Shared prep for the Monday weekly generation pipeline: reads the current DPMO phase, runs a
+ * social scan across TikTok / Instagram / Threads / Facebook, researches trending hashtags via
+ * web search, and plans the week (theme/audience/CTA per day). Split out from the per-day
+ * generation loop (see {@link generateWeeklyDayPosts}) so the cron route can run this once and
+ * then fan each day out to its own HTTP hop with a fresh maxDuration budget, instead of one
+ * request looping all 5 days' AI calls sequentially — see MF-CONTENT-GEN-VERCEL-504-0907, where
+ * that combined loop 504'd past the deploy plan's real function-duration cap.
  */
-export async function runWeeklyContentGeneration(args?: { weekStart?: string }): Promise<WeeklyGenerationResult> {
+export async function planWeeklyGeneration(args?: { weekStart?: string }): Promise<WeeklyPlanResult> {
   await hydratePlatformEnvFromDatabase();
   resetContentContextCache();
 
@@ -147,81 +156,119 @@ export async function runWeeklyContentGeneration(args?: { weekStart?: string }):
   const social = await scanAndRecordSocialProfiles();
   const hashtags = await researchTrendingHashtags({ dpmoPhase, socialSummary: social.summary });
   const socialScanSnapshotId = `scan_${Date.parse(social.scannedAt) || Date.now()}`;
-  const hashtagSnapshot = hashtags as unknown as Record<string, unknown>;
 
   const weekStart = args?.weekStart ?? formatCalendarDate(getMondayOfWeek());
-  const monday = new Date(`${weekStart}T00:00:00`);
   const contextBlock = await buildContentGenerationContext({ forceRefresh: true });
 
   const plan = await planWeek({ dpmoPhase, socialSummary: social.summary, hashtags, contextBlock });
 
+  return { weekStart, dpmoPhase, socialScanSnapshotId, hashtags, plan };
+}
+
+/**
+ * Generates and writes ONE day's locked post types (a bounded single AI call), using a plan
+ * already produced by {@link planWeeklyGeneration}. Each post gets its DPMO phase snapshot, an
+ * editable DPMO rationale, and the shared media prompt (dimensions + brand colors + logo) baked
+ * into every media post's visual prompt.
+ */
+export async function generateWeeklyDayPosts(args: {
+  weekStart: string;
+  dpmoPhase: string | null;
+  socialScanSnapshotId: string;
+  hashtags: HashtagResearchSnapshot;
+  dayPlan: WeeklyDayPlan;
+}): Promise<{ dayIndex: number; postDate: string; created: number }> {
+  const { weekStart, dpmoPhase, socialScanSnapshotId, hashtags, dayPlan } = args;
+  const hashtagSnapshot = hashtags as unknown as Record<string, unknown>;
+  const monday = new Date(`${weekStart}T00:00:00`);
+  const postDate = formatCalendarDate(addWeekdays(monday, dayPlan.dayIndex));
+  const dayFormats = CONTENT_CALENDAR_WEEKDAY_POST_TYPES[dayPlan.dayIndex];
+  const items = dayFormats.map((postType) => ({
+    postType,
+    targetGroup: dayPlan.targetAudience,
+  }));
+  const customPrompt = [
+    `Weekly generation — ${CONTENT_CALENDAR_DAYS_LONG[dayPlan.dayIndex]} (${postDate}).`,
+    `Day theme: ${dayPlan.theme}`,
+    `Target audience: ${dayPlan.targetAudience}`,
+    `CTA: ${dayPlan.cta}`,
+    dpmoPhase ? `DPMO phase: ${dpmoPhase} — ${dayPlan.dpmoRationale}` : dayPlan.dpmoRationale,
+    `Weave in currently-trending hashtags where natural: ${hashtags.hashtags.map((t) => `#${t}`).join(" ")}`,
+    `Generate exactly these locked post types for ${CONTENT_CALENDAR_DAYS_LONG[dayPlan.dayIndex]}: ${dayFormats.join(", ")}. Keep each distinct. Do not generate any other post type today.`,
+  ].join("\n");
+
+  const { drafts } = await generateBulkContent({
+    items,
+    scheduled: false,
+    customPrompt,
+    weekStart,
+  });
+
+  let created = 0;
+  for (const postType of dayFormats) {
+    const draft = drafts.find((d) => d.postType === postType) ?? drafts[dayFormats.indexOf(postType)];
+    if (!draft) continue;
+
+    const visualPrompt =
+      postType === "Text"
+        ? null
+        : buildMediaGenerationPrompt({
+            postType: postType as MediaPostType,
+            visualPrompt: draft.visualPrompt,
+            caption: draft.caption,
+            targetGroup: dayPlan.targetAudience as (typeof CONTENT_CALENDAR_GROUPS)[number],
+          });
+
+    await createV2Draft({
+      draft: { ...draft, postType: postType as ContentCalendarPostType, dayIndex: dayPlan.dayIndex, postDate, visualPrompt },
+      weekStart,
+      lane: "scheduled",
+      adminId: WEEKLY_GENERATION_ADMIN_ID,
+      theme: dayPlan.theme,
+      cta: dayPlan.cta,
+      postDate,
+      generateMedia: false,
+      dpmoPhase,
+      dpmoRationale: dayPlan.dpmoRationale,
+      socialScanSnapshotId,
+      hashtagResearchSnapshot: hashtagSnapshot,
+    });
+    created += 1;
+  }
+
+  return { dayIndex: dayPlan.dayIndex, postDate, created };
+}
+
+/**
+ * Monday weekly generation pipeline — runs {@link planWeeklyGeneration} then
+ * {@link generateWeeklyDayPosts} for every day in sequence, in one request. Used directly by
+ * tests and any manual/backfill caller; the live cron route instead chains the per-day step
+ * across separate HTTP hops (see that file) so production runs never share one request's time
+ * budget across all 5 days.
+ */
+export async function runWeeklyContentGeneration(args?: { weekStart?: string }): Promise<WeeklyGenerationResult> {
+  const planResult = await planWeeklyGeneration(args);
+
   const days: WeeklyGenerationResult["days"] = [];
   let createdPostCount = 0;
 
-  for (const dayPlan of plan) {
-    const postDate = formatCalendarDate(addWeekdays(monday, dayPlan.dayIndex));
-    const dayFormats = CONTENT_CALENDAR_WEEKDAY_POST_TYPES[dayPlan.dayIndex];
-    const items = dayFormats.map((postType) => ({
-      postType,
-      targetGroup: dayPlan.targetAudience,
-    }));
-    const customPrompt = [
-      `Weekly generation — ${CONTENT_CALENDAR_DAYS_LONG[dayPlan.dayIndex]} (${postDate}).`,
-      `Day theme: ${dayPlan.theme}`,
-      `Target audience: ${dayPlan.targetAudience}`,
-      `CTA: ${dayPlan.cta}`,
-      dpmoPhase ? `DPMO phase: ${dpmoPhase} — ${dayPlan.dpmoRationale}` : dayPlan.dpmoRationale,
-      `Weave in currently-trending hashtags where natural: ${hashtags.hashtags.map((t) => `#${t}`).join(" ")}`,
-      `Generate exactly these locked post types for ${CONTENT_CALENDAR_DAYS_LONG[dayPlan.dayIndex]}: ${dayFormats.join(", ")}. Keep each distinct. Do not generate any other post type today.`,
-    ].join("\n");
-
-    const { drafts } = await generateBulkContent({
-      items,
-      scheduled: false,
-      customPrompt,
-      weekStart,
+  for (const dayPlan of planResult.plan) {
+    const dayResult = await generateWeeklyDayPosts({
+      weekStart: planResult.weekStart,
+      dpmoPhase: planResult.dpmoPhase,
+      socialScanSnapshotId: planResult.socialScanSnapshotId,
+      hashtags: planResult.hashtags,
+      dayPlan,
     });
-
-    let created = 0;
-    for (const postType of dayFormats) {
-      const draft = drafts.find((d) => d.postType === postType) ?? drafts[dayFormats.indexOf(postType)];
-      if (!draft) continue;
-
-      const visualPrompt =
-        postType === "Text"
-          ? null
-          : buildMediaGenerationPrompt({
-              postType: postType as MediaPostType,
-              visualPrompt: draft.visualPrompt,
-              caption: draft.caption,
-              targetGroup: dayPlan.targetAudience as (typeof CONTENT_CALENDAR_GROUPS)[number],
-            });
-
-      await createV2Draft({
-        draft: { ...draft, postType: postType as ContentCalendarPostType, dayIndex: dayPlan.dayIndex, postDate, visualPrompt },
-        weekStart,
-        lane: "scheduled",
-        adminId: WEEKLY_GENERATION_ADMIN_ID,
-        theme: dayPlan.theme,
-        cta: dayPlan.cta,
-        postDate,
-        generateMedia: false,
-        dpmoPhase,
-        dpmoRationale: dayPlan.dpmoRationale,
-        socialScanSnapshotId,
-        hashtagResearchSnapshot: hashtagSnapshot,
-      });
-      created += 1;
-      createdPostCount += 1;
-    }
-    days.push({ dayIndex: dayPlan.dayIndex, postDate, created });
+    days.push(dayResult);
+    createdPostCount += dayResult.created;
   }
 
   return {
-    weekStart,
-    dpmoPhase,
-    socialScanSnapshotId,
-    hashtagCount: hashtags.hashtags.length,
+    weekStart: planResult.weekStart,
+    dpmoPhase: planResult.dpmoPhase,
+    socialScanSnapshotId: planResult.socialScanSnapshotId,
+    hashtagCount: planResult.hashtags.hashtags.length,
     createdPostCount,
     days,
   };
