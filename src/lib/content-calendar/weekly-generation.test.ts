@@ -11,6 +11,7 @@ const {
   mockGenerateBulkContent,
   mockBuildMediaGenerationPrompt,
   mockCreateV2Draft,
+  mockDayAlreadyHasLiveContent,
 } = vi.hoisted(() => ({
   mockHydratePlatformEnvFromDatabase: vi.fn(),
   mockGetAiVaultStatus: vi.fn(),
@@ -22,6 +23,7 @@ const {
   mockGenerateBulkContent: vi.fn(),
   mockBuildMediaGenerationPrompt: vi.fn(),
   mockCreateV2Draft: vi.fn(),
+  mockDayAlreadyHasLiveContent: vi.fn(),
 }));
 
 vi.mock("@/lib/hydrate-platform-env", () => ({
@@ -48,6 +50,7 @@ vi.mock("@/lib/content-calendar/content-prompts", () => ({
 }));
 vi.mock("@/lib/content-calendar/content-calendar-v2-store", () => ({
   createV2Draft: mockCreateV2Draft,
+  dayAlreadyHasLiveContent: mockDayAlreadyHasLiveContent,
 }));
 
 import { runWeeklyContentGeneration } from "@/lib/content-calendar/weekly-generation";
@@ -74,6 +77,7 @@ describe("runWeeklyContentGeneration — per-weekday post type lock", () => {
       meta: {},
     }));
     mockCreateV2Draft.mockResolvedValue({ id: "post_1" });
+    mockDayAlreadyHasLiveContent.mockResolvedValue(false);
   });
 
   it("only requests each day's two locked post types — never all four", async () => {

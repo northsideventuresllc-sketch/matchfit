@@ -587,7 +587,23 @@ async function main() {
     process.exit(2);
   }
 
-  const rows = await fetchRows({ ids, postDate, postGroup });
+  let rows;
+  try {
+    rows = await fetchRows({ ids, postDate, postGroup });
+  } catch (e) {
+    // Same silent-stuck-forever risk as the batch-setup catch below: if this throws (network
+    // blip hitting NI-Brain), we never even learn what's pending. When the caller passed explicit
+    // --ids (the only way queueMiniChromeAgentJob invokes this script), those ids ARE the pending
+    // set, so mark them failed directly instead of leaving them on "generating" forever.
+    if (ids && ids.length) {
+      const message = String(e.message || e);
+      for (const id of ids) {
+        await writeMediaFailure(id);
+        await failCoworkJobsForPost(id, message).catch(() => {});
+      }
+    }
+    throw e;
+  }
   // Explicit --ids trusts the caller's own gate (v2's fireCoworkForPost/fireCoworkForDay
   // already staged these at workflow_stage="pending"). Date-batch mode keeps the
   // older status="approved" contract, already enforced by fetchRows' query filter.
@@ -605,19 +621,32 @@ async function main() {
   // Show the operator the bar has started before the (slow) browser connect + Pro-mode check.
   for (const row of pending) await writeProgress(row.id, 5, "connecting");
 
-  const browser = await connectBrowser();
-  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "nvg-gemini-"));
-  // Batch setup (open Gemini, confirm login, select Pro) happens once before the per-row loop.
-  // If it throws, no row's per-row try/catch runs, so mark every pending row failed here — otherwise
-  // the Pending bars would hang at "connecting" forever instead of showing the failure.
+  // Batch setup (browser connect, open Gemini, confirm login, select Pro) happens once before
+  // the per-row loop. If ANY of it throws, no row's per-row try/catch ever runs, so mark every
+  // pending row (and its cowork job) failed here — otherwise the Pending bars hang at
+  // "connecting" forever with no failure ever written back. connectBrowser() used to sit outside
+  // this try/catch (a CDP-connect failure escaped straight to main()'s catch, which never touches
+  // the DB), and even the covered branch never called failCoworkJobsForPost — both are why a
+  // crashed run could leave posts stuck on "generating" and their job stuck on "queued"
+  // indefinitely with zero visibility (fixed 2026-09-07, JB report: "approved posts, nothing
+  // happened, again").
+  let browser;
   let page;
   try {
+    browser = await connectBrowser();
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "nvg-gemini-"));
     page = await getGeminiPage(browser, workDir);
     await assertLoggedIn(page);
     await ensureProModel(page);
   } catch (e) {
-    for (const row of pending) await writeMediaFailure(row.id);
-    await browser.close().catch(() => null);
+    const message = String(e.message || e);
+    for (const row of pending) {
+      await writeMediaFailure(row.id);
+      await failCoworkJobsForPost(row.id, message).catch((e2) => {
+        console.error(`WARN ${row.id}: failed to write the batch-setup failure back to cowork jobs too: ${e2.message || e2}`);
+      });
+    }
+    await browser?.close().catch(() => null);
     throw e;
   }
   for (const row of pending) await writeProgress(row.id, 12, "model_pro");

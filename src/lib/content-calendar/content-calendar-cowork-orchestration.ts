@@ -412,6 +412,46 @@ function buildMediaJobPromptEntry(
 }
 
 /**
+ * Queues the real Mac-mini job for a media-agent job row and its posts — and, unlike the old
+ * "queueMiniChromeAgentJob(...).catch(console.error)" pattern this replaces, a failure here is
+ * NEVER silent. Before this fix (JB direct report 2026-09-07: "when I say approve day it needs to
+ * ACTIVATE the mini job — something is still wrong"), if the nvg_mini_jobs insert itself failed —
+ * a DB hiccup, RLS issue, anything — the posts were already sitting at media_status="generating"
+ * (written earlier in the same call) and the match_fit_content_cowork_jobs row was already
+ * "queued", but NO mini job ever existed for the mini to pick up. Nothing was ever coming. The
+ * posts just sat there forever, indistinguishable in the UI from a real in-flight build. Now: a
+ * failure to queue marks the job AND every post in this batch "failed" immediately, so Approve Day
+ * (and Generate Now / Regenerate, which hit this same path) either genuinely activates the mini
+ * job or visibly fails — never a third, silent option.
+ */
+async function queueMiniChromeAgentJobOrFail(args: { jobId: string; postIds: string[]; title: string }): Promise<void> {
+  try {
+    await queueMiniChromeAgentJob({ ids: args.postIds, title: args.title });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.error(`[queueMiniChromeAgentJobOrFail] failed to queue mini job for ${args.jobId}:`, e);
+    try {
+      const client = createNiBrainClient();
+      const now = new Date().toISOString();
+      const { error: postError } = await client
+        .from("match_fit_content_calendar_posts")
+        .update({ media_status: "failed", media_progress_stage: "failed", media_progress_updated_at: now, updated_at: now })
+        .in("id", args.postIds)
+        .eq("workflow_stage", "pending");
+      if (postError) throw new Error(postError.message);
+    } catch (e2) {
+      console.error(`[queueMiniChromeAgentJobOrFail] post write-back also failed:`, e2);
+    }
+    await updateMediaAgentJobStatus({
+      jobId: args.jobId,
+      status: "failed",
+      error: `Could not queue the Mac mini job: ${message}`,
+    }).catch((e2) => console.error(`[queueMiniChromeAgentJobOrFail] job write-back also failed:`, e2));
+    throw new Error(`Could not activate the Mac mini media agent: ${message}`);
+  }
+}
+
+/**
  * Fire Media Agent for a pending day: creates ONE generate_media job whose brief carries the
  * day's video/static/carousel prompts in priority order (video first), the Mac Mini download
  * folder convention, and the completion callback contract. The learning memo is already committed
@@ -487,14 +527,15 @@ export async function fireMediaAgentForDay(postDate: string): Promise<{ job: Med
   };
   await updateMediaAgentJobBrief(job.id, briefWithCallback);
 
-  // Fires the real agent — see queueMiniChromeAgentJob's own doc comment for why this,
-  // not the REST cron, is the only path that can actually produce media. Never lets a
-  // mini-queue failure fail the day's approval: the job row above already
-  // recorded the request, and JB can still retry Fire Media Agent if the mini is unreachable.
-  await queueMiniChromeAgentJob({
-    ids: pendingMedia.map((p) => p.id),
+  // Fires the real agent — see queueMiniChromeAgentJobOrFail's own doc comment for why this,
+  // not the REST cron, is the only path that can actually produce media. A failure here now marks
+  // the job AND every post in this batch "failed" (see queueMiniChromeAgentJobOrFail) instead of
+  // leaving them stuck on "generating" forever with no mini job ever queued.
+  await queueMiniChromeAgentJobOrFail({
+    jobId: job.id,
+    postIds: pendingMedia.map((p) => p.id),
     title: `mf-gen day ${postDate}`,
-  }).catch((e) => console.error(`[fireMediaAgentForDay] queueMiniChromeAgentJob failed:`, e));
+  });
 
   return { job: { ...job, brief: briefWithCallback }, mediaPostCount: pendingMedia.length };
 }
@@ -576,14 +617,15 @@ export async function fireMediaAgentForPost(
   };
   await updateMediaAgentJobBrief(job.id, briefWithCallback);
 
-  // Fires the real agent — see queueMiniChromeAgentJob's own doc comment for why this,
-  // not the REST cron, is the only path that can actually produce media. Never lets a
-  // mini-queue failure fail this action: the job row above already recorded the
-  // request, and JB can still retry Regenerate if the mini is unreachable.
-  await queueMiniChromeAgentJob({
-    ids: [postId],
+  // Fires the real agent — see queueMiniChromeAgentJobOrFail's own doc comment for why this,
+  // not the REST cron, is the only path that can actually produce media. A failure here now marks
+  // this job and post "failed" (see queueMiniChromeAgentJobOrFail) instead of leaving the post
+  // stuck on "generating" forever with no mini job ever queued.
+  await queueMiniChromeAgentJobOrFail({
+    jobId: job.id,
+    postIds: [postId],
     title: `mf-gen ${mediaPost.post_type} ${postId.slice(0, 8)}`,
-  }).catch((e) => console.error(`[fireMediaAgentForPost] queueMiniChromeAgentJob failed:`, e));
+  });
 
   const { data: updated, error: reloadError } = await client
     .from("match_fit_content_calendar_posts")

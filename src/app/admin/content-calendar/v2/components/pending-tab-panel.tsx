@@ -62,6 +62,10 @@ function PendingCard({
   // A media post is "building" only while it is actively generating. Manual-generate / manual-prompt
   // posts sit in Pending without a live build, so they show editable fields + upload instead of a bar.
   const building = isMediaPost && post.mediaStatus === "generating";
+  // Media build genuinely died (mini-queue failure, script crash, etc — see
+  // queueMiniChromeAgentJobOrFail) — distinct from a fresh post that never started, so the card
+  // shows a real failure state and a TRY AGAIN button instead of looking identical to "not built yet".
+  const failed = isMediaPost && post.mediaStatus === "failed";
 
   const [expanded, setExpanded] = useState(!building);
   const [caption, setCaption] = useState(post.caption);
@@ -133,6 +137,10 @@ function PendingCard({
                 <SeePromptCollapsible prompt={post.lastGenerationPrompt} />
               </div>
             </>
+          ) : failed ? (
+            <div className="mt-3 rounded-xl border border-[#E32B2B]/40 bg-[#E32B2B]/10 px-3 py-2 text-sm font-semibold text-[#FFB4B4]">
+              {progress.etaLabel} Hit Try Again below, or upload your own media.
+            </div>
           ) : (
             <p className="mt-3 text-xs text-white/50">
               {isMediaPost
@@ -198,13 +206,17 @@ function PendingCard({
                 <>
                   <button
                     type="button"
-                    className={adminSecondaryButtonClass}
+                    className={
+                      failed
+                        ? "rounded-xl border border-[#E32B2B]/50 bg-[#E32B2B]/15 px-4 py-2 text-xs font-black uppercase tracking-wide text-[#FFB4B4] transition hover:bg-[#E32B2B]/25 disabled:opacity-50"
+                        : adminSecondaryButtonClass
+                    }
                     disabled={busy}
                     onClick={() =>
                       void onAction(post.id, { action: "regenerate_via_agent" }, "Media generation started.")
                     }
                   >
-                    GENERATE NOW
+                    {failed ? "TRY AGAIN" : "GENERATE NOW"}
                   </button>
                   <DeviceMediaUploadWidget
                     postId={post.id}
