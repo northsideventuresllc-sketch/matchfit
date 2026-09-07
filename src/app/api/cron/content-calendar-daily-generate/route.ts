@@ -5,7 +5,14 @@ import type { ContentCalendarPostType } from "@/lib/content-calendar/constants";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+// Was 120 — observed live 2026-09-07 hitting "Task timed out after 120 seconds" (504) even after
+// the per-post-type hop fix (MF-CONTENT-GEN-VERCEL-504-0907): the synchronous prep this route does
+// before dispatching hops (hydratePlatformEnvFromDatabase + ensureContentCalendarV22Schema +
+// getDailyMissingPostTypes) is the same shared prep content-calendar-weekly-generate does before
+// its own hop dispatch — weekly budgets 300s for it (and does strictly more, including the full
+// social-profile scan this route explicitly skips), so 120s here was never enough margin. Matching
+// weekly's maxDuration removes that margin problem without changing the hop-fan-out shape.
+export const maxDuration = 300;
 
 function authorize(req: Request): boolean {
   const secret = process.env.CRON_SECRET?.trim();
