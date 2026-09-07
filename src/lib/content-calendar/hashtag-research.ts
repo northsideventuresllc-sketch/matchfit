@@ -9,7 +9,7 @@ import {
   HIGH_VOLUME_HASHTAGS,
   HIGH_VOLUME_HASHTAG_RULE,
 } from "@/lib/content-calendar/hashtag-policy";
-import { recordContentLearning } from "@/lib/ni-brain-client";
+import { createNiBrainClient, isNiBrainConfigured, recordContentLearning } from "@/lib/ni-brain-client";
 
 export type HashtagResearchSnapshot = {
   researchedAt: string;
@@ -20,7 +20,67 @@ export type HashtagResearchSnapshot = {
   notes: string | null;
 };
 
-const HASHTAG_RESEARCH_TIMEOUT_MS = 120_000;
+/**
+ * Live web-search cap. Was 120_000 — long enough that a single serverless invocation of the
+ * daily/weekly content-generation cron was killed by Vercel's function timeout BEFORE it wrote a
+ * single post (proven live 2026-09-07: the daily endpoint returned 504 FUNCTION_INVOCATION_TIMEOUT
+ * and zero rows landed). The web search now runs at most once per 24h (see the cache below) and,
+ * when it does run, is capped well under the function budget so an empty/slow search falls back to
+ * the static high-volume tag set instead of eating the whole invocation.
+ */
+const HASHTAG_RESEARCH_TIMEOUT_MS = 25_000;
+
+/** A stored snapshot this new or newer is reused as-is; older forces a fresh live search. */
+export const HASHTAG_RESEARCH_FRESHNESS_MS = 24 * 60 * 60 * 1000;
+
+/** Narrows an untyped `meta_json.snapshot` blob back into a HashtagResearchSnapshot, or null. */
+function coerceSnapshot(value: unknown): HashtagResearchSnapshot | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  if (typeof v.researchedAt !== "string") return null;
+  if (!Array.isArray(v.hashtags)) return null;
+  const hashtags = v.hashtags.filter((t): t is string => typeof t === "string");
+  if (!hashtags.length) return null;
+  return {
+    researchedAt: v.researchedAt,
+    usedWebSearch: v.usedWebSearch === true,
+    provider: typeof v.provider === "string" ? v.provider : null,
+    hashtags,
+    trends: Array.isArray(v.trends) ? v.trends.filter((t): t is string => typeof t === "string") : [],
+    notes: typeof v.notes === "string" ? v.notes : null,
+  };
+}
+
+/**
+ * Returns the most recent persisted hashtag snapshot when it is still fresh (≤ 24h), else null.
+ * Snapshots are written by researchTrendingHashtags itself into match_fit_content_learning_signals
+ * (signal_type "HASHTAG_RESEARCH", meta_json.snapshot) — no new table/migration. A fresh hit means
+ * the hot path does ZERO live web search, which is the whole point of this cache. Any read failure
+ * degrades silently to "no cache" so a cache miss can never break generation.
+ */
+export async function readFreshCachedHashtagSnapshot(now = Date.now()): Promise<HashtagResearchSnapshot | null> {
+  if (!isNiBrainConfigured()) return null;
+  try {
+    const client = createNiBrainClient();
+    const { data, error } = await client
+      .from("match_fit_content_learning_signals")
+      .select("meta_json, created_at")
+      .eq("signal_type", "HASHTAG_RESEARCH")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    const meta = (data.meta_json ?? null) as { snapshot?: unknown } | null;
+    const snapshot = coerceSnapshot(meta?.snapshot);
+    if (!snapshot) return null;
+    const researchedMs = Date.parse(snapshot.researchedAt);
+    if (!Number.isFinite(researchedMs)) return null;
+    if (now - researchedMs > HASHTAG_RESEARCH_FRESHNESS_MS) return null;
+    return snapshot;
+  } catch {
+    return null;
+  }
+}
 
 function parseJsonBlock<T>(text: string): T | null {
   const cleaned = text.replace(/```json|```/g, "").trim();
@@ -47,8 +107,19 @@ function parseJsonBlock<T>(text: string): T | null {
 export async function researchTrendingHashtags(args?: {
   dpmoPhase?: string | null;
   socialSummary?: string;
+  /** Skip the 24h cache and force a fresh live search (e.g. the manual "run research now" button). */
+  forceRefresh?: boolean;
 }): Promise<HashtagResearchSnapshot> {
   await hydratePlatformEnvFromDatabase();
+
+  // Cache-first: a fresh (≤24h) snapshot means NO live web search on this run. This is what keeps
+  // the daily/weekly generation cron inside the serverless timeout so it actually writes its posts
+  // — the 120s live search that used to run on every invocation was killing the function first.
+  if (!args?.forceRefresh) {
+    const cached = await readFreshCachedHashtagSnapshot();
+    if (cached) return cached;
+  }
+
   const researchedAt = new Date().toISOString();
   const fallback: HashtagResearchSnapshot = {
     researchedAt,
@@ -82,22 +153,28 @@ export async function researchTrendingHashtags(args?: {
     .filter(Boolean)
     .join("\n\n");
 
-  const ai = await callMatchFitAi({
-    system,
-    user,
-    maxTokens: 2000,
-    temperature: 0.3,
-    kind: "research",
-    complexity: "complex",
-    timeoutMs: HASHTAG_RESEARCH_TIMEOUT_MS,
-    anthropicTools: [
-      {
-        type: "web_search_20250305",
-        name: "web_search",
-        max_uses: 6,
-      },
-    ],
-  });
+  let ai: Awaited<ReturnType<typeof callMatchFitAi>>;
+  try {
+    ai = await callMatchFitAi({
+      system,
+      user,
+      maxTokens: 2000,
+      temperature: 0.3,
+      kind: "research",
+      complexity: "complex",
+      timeoutMs: HASHTAG_RESEARCH_TIMEOUT_MS,
+      anthropicTools: [
+        {
+          type: "web_search_20250305",
+          name: "web_search",
+          max_uses: 6,
+        },
+      ],
+    });
+  } catch {
+    // Short-timeout abort or any provider error → static high-volume set, never a stuck function.
+    return fallback;
+  }
 
   if (!ai.text) return fallback;
 
@@ -119,7 +196,15 @@ export async function researchTrendingHashtags(args?: {
   await recordContentLearning({
     signalType: "HASHTAG_RESEARCH",
     editedText: [snapshot.notes, snapshot.hashtags.map((t) => `#${t}`).join(" ")].filter(Boolean).join("\n"),
-    meta: { researchedAt, usedWebSearch: snapshot.usedWebSearch, trends: snapshot.trends, source: "weekly_generation" },
+    // `snapshot` is the full structured cache payload readFreshCachedHashtagSnapshot reads back — the
+    // 24h freshness cache lives entirely in this row, no new table.
+    meta: {
+      researchedAt,
+      usedWebSearch: snapshot.usedWebSearch,
+      trends: snapshot.trends,
+      source: "weekly_generation",
+      snapshot,
+    },
   });
 
   return snapshot;
