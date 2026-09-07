@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-07** `2.29.8-beta` → `2.29.9-beta` (**patch** — Chain content-calendar cron generation into bounded per-item background hops so each post gets a fresh function budget (fixes the generator timeout))
 - **2026-09-07** `2.29.7-beta` → `2.29.8-beta` (**patch** — Cache trending-hashtag research (24h) so content generators skip the up-to-120s web search and no longer time out before writing posts)
 - **2026-09-07** `2.29.6-beta` → `2.29.7-beta` (**patch** — Outreach send steps: weekday gate, Instagram job queue, Resend account routing)
 - **2026-09-07** `2.29.5-beta` → `2.29.6-beta` (**patch** — Social posting: boot probe, per-post workflow log, approve-only queueing)
