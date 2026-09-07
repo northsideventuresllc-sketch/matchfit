@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { emailSubject, genericInviteTail, instagramPersonalizedOpener } from "@/lib/outreach-templates";
+import {
+  emailSubject,
+  genericInviteTail,
+  instagramPersonalizedOpener,
+  OUTREACH_BRAND_FACTS,
+} from "@/lib/outreach-templates";
 
 describe("outreach-templates", () => {
   it("uses sentence hooks directly for ATL_LOCAL opener copy", () => {
@@ -45,6 +50,18 @@ describe("outreach-templates", () => {
     expect(genericInviteTail("email", "VIRTUAL")).toContain("Virtual clients discover you through Match Fit");
     expect(genericInviteTail("email", "VIRTUAL")).toContain("match-fit.net/trainer/sign-up");
     expect(emailSubject("VIRTUAL")).toBe("Virtual Fitness Pros — early roster on Match Fit");
+  });
+
+  // Zero-Sales Signup Engine G1/G2 (JB locked 2026-07-22) — the AI-generation system
+  // prompt must explicitly forbid call/calendar language and question-ending copy;
+  // template *structure* alone was never enough to guarantee the AI honors this.
+  it("instructs the AI to never write call/calendar language (G1)", () => {
+    expect(OUTREACH_BRAND_FACTS.toLowerCase()).toMatch(/never write "call," "hop on," "chat," "book time,"/);
+  });
+
+  it("instructs the AI to end on the signup link, never on a question (G2)", () => {
+    expect(OUTREACH_BRAND_FACTS).toMatch(/do not end the message with a question/i);
+    expect(OUTREACH_BRAND_FACTS).toMatch(/claim your spot here/i);
   });
 
   // NI-Brain Decision #342 — recruiting is nationwide. The legacy ATL_LOCAL group still
