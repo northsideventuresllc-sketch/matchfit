@@ -215,10 +215,22 @@ export async function generateWeeklyDayPosts(args: {
     weekStart,
   });
 
+  // Match strictly by postType via a Map — never fall back to positional indexing. A position-based
+  // fallback (drafts[i]) would silently save the wrong post type's copy/prompt under the wrong slot
+  // (e.g. a Carousel draft's content landing on the Video row) if the AI vault ever returns drafts
+  // out of request order. Missing a postType entirely is a real failure — skip it loudly instead of
+  // guessing, so it stays absent from the Hub rather than showing up mislabeled.
+  const draftsByType = new Map(drafts.map((draft) => [draft.postType, draft] as const));
+
   let created = 0;
   for (const postType of dayFormats) {
-    const draft = drafts.find((d) => d.postType === postType) ?? drafts[dayFormats.indexOf(postType)];
-    if (!draft) continue;
+    const draft = draftsByType.get(postType);
+    if (!draft) {
+      console.error(
+        `[content-calendar weekly generate] AI vault did not return a draft for ${postType} on ${postDate} — skipping rather than mislabeling another type's content.`,
+      );
+      continue;
+    }
 
     const visualPrompt =
       postType === "Text"

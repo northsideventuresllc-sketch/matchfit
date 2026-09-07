@@ -128,4 +128,50 @@ describe("runWeeklyContentGeneration — per-weekday post type lock", () => {
     expect(result.createdPostCount).toBe(10);
     expect(mockCreateV2Draft).toHaveBeenCalledTimes(10);
   });
+
+  it("never mislabels a post when the AI vault returns drafts out of request order", async () => {
+    // Monday/Wednesday/Friday request [Carousel, Video]. Return them reversed —
+    // a positional fallback (drafts[i]) would save the Video draft's caption under
+    // the Carousel slot and vice versa. Strict postType matching must not do that.
+    mockGenerateBulkContent.mockImplementation(async (args: { items: { postType: string }[] }) => ({
+      drafts: [...args.items]
+        .reverse()
+        .map((item) => ({
+          postType: item.postType,
+          caption: `${item.postType} caption`,
+          visualPrompt: `${item.postType} visual`,
+          dayIndex: 0,
+          postDate: null,
+        })),
+      meta: {},
+    }));
+
+    await runWeeklyContentGeneration({ weekStart: "2026-09-07" });
+
+    for (const call of mockCreateV2Draft.mock.calls) {
+      const arg = call[0] as { draft: { postType: string; caption: string } };
+      expect(arg.draft.caption).toBe(`${arg.draft.postType} caption`);
+    }
+  });
+
+  it("skips a post type loudly instead of guessing when the AI vault omits it", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // Monday requests [Carousel, Video] — return only Video, dropping Carousel entirely.
+    mockGenerateBulkContent.mockImplementationOnce(async () => ({
+      drafts: [{ postType: "Video", caption: "Video caption", visualPrompt: "Video visual", dayIndex: 0, postDate: null }],
+      meta: {},
+    }));
+
+    await runWeeklyContentGeneration({ weekStart: "2026-09-07" });
+
+    const mondayCreates = mockCreateV2Draft.mock.calls.filter(
+      (call) => (call[0] as { draft: { dayIndex: number } }).draft.dayIndex === 0,
+    );
+    expect(mondayCreates).toHaveLength(1);
+    expect((mondayCreates[0][0] as { draft: { postType: string } }).draft.postType).toBe("Video");
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("Carousel"));
+
+    consoleErrorSpy.mockRestore();
+  });
 });

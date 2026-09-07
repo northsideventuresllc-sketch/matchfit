@@ -4,7 +4,8 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
-- **2026-09-07** `2.29.11-beta` → `2.29.12-beta` (**patch** — Fix weekly content-calendar cron duplicate-week race and silent hop timeout)
+- **2026-09-07** `2.29.12-beta` → `2.29.13-beta` (**patch** — Fix weekly content-calendar cron duplicate-week race and silent hop timeout)
+- **2026-09-07** `2.29.11-beta` → `2.29.12-beta` (**patch** — ADHD-friendly formatting for Social Media Research report (bold, bullets, emoji headings))
 - **2026-09-07** `2.29.10-beta` → `2.29.11-beta` (**patch** — Single-post synchronous content generation (?sync=1&postType=) so each post writes within the function budget — reliable Content Hub fill)
 - **2026-09-07** `2.29.9-beta` → `2.29.10-beta` (**patch** — Add synchronous mode to daily content-calendar cron (inline generation) so the operator can populate the Content Hub reliably without depending on after-response background hops)
 - **2026-09-07** `2.29.8-beta` → `2.29.9-beta` (**patch** — Chain content-calendar cron generation into bounded per-item background hops so each post gets a fresh function budget (fixes the generator timeout))
