@@ -329,10 +329,20 @@ function PublishingCard({
             <div className="grid gap-2 sm:grid-cols-3">
               {post.mediaUrls.map((url, i) =>
                 isVideoUrl(url) ? (
-                  <video key={`${url}_${i}`} src={url} controls className="h-36 w-full rounded-lg object-cover" />
+                  <video
+                    key={`${url}_${i}`}
+                    src={url}
+                    controls
+                    className="max-h-72 w-full rounded-lg bg-black/20 object-contain"
+                  />
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img key={`${url}_${i}`} src={url} alt={`${post.postType} ${i + 1}`} className="h-36 w-full rounded-lg object-cover" />
+                  <img
+                    key={`${url}_${i}`}
+                    src={url}
+                    alt={`${post.postType} ${i + 1}`}
+                    className="max-h-72 w-full rounded-lg bg-black/20 object-contain"
+                  />
                 ),
               )}
             </div>

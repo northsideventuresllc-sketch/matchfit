@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-07** `2.29.15-beta` → `2.29.16-beta` (**patch** — Publishing tab: show the full generated image instead of cropping it to a fixed short box)
 - **2026-09-07** `2.29.14-beta` → `2.29.15-beta` (**patch** — Fix content-calendar-daily-generate cron 504 (maxDuration 120->300))
 - **2026-09-07** `2.29.13-beta` → `2.29.14-beta` (**patch** — Content Hub: Approve Day reliably activates the Mac mini media job, TRY AGAIN on a failed build)
 - **2026-09-07** `2.29.12-beta` → `2.29.13-beta` (**patch** — Fix weekly content-calendar cron duplicate-week race and silent hop timeout)
