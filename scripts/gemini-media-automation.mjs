@@ -62,7 +62,7 @@ import sharp from "sharp";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { splitCarouselSlidePrompts } from "./carousel-slide-prompts.mjs";
+import { splitCarouselSlidePrompts, assertCarouselHasEnoughSlides } from "./carousel-slide-prompts.mjs";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -671,6 +671,14 @@ async function main() {
       // else is a single-image generation.
       const slidePrompts = splitCarouselSlidePrompts(sourcePrompt);
 
+      // Hard gate (scripts/carousel-slide-prompts.mjs) — a Carousel that only split into
+      // 1-2 prompts means the splitter failed to recognize the real "Slide N:" labels
+      // (stale deploy, or a future prompt-format change it doesn't understand yet) and
+      // would otherwise generate ONE combined image and still write media_status="ready".
+      // Fail loud instead — JB gets a Telegram FAIL ping and the post stays out of
+      // publishing, rather than a silently-broken carousel reaching "ready".
+      assertCarouselHasEnoughSlides(row.post_type, slidePrompts.length);
+
       const mediaUrls = [];
       let slideIdx = 0;
       const slideCount = slidePrompts.length;
@@ -688,6 +696,13 @@ async function main() {
         mediaUrls.push(publicUrl);
         fs.unlinkSync(rawPath);
       }
+
+      // Second half of the same hard gate: never write media_status="ready" with fewer
+      // uploaded images than slides this row was supposed to generate. The loop above
+      // already guarantees this (any generateAndDownload/upload failure throws before
+      // reaching here), but this makes the invariant explicit and survives a future
+      // refactor that might otherwise let a partial batch slip through as "ready".
+      assertCarouselHasEnoughSlides(row.post_type, mediaUrls.length, { minSlides: slidePrompts.length });
 
       await writeMediaResult(row.id, mediaUrls);
       const closedJobs = await completeCoworkJobsForPost(row.id, {
