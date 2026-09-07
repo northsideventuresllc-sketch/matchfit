@@ -281,9 +281,9 @@ export function ContentHubPanel({
       <section className="rounded-2xl border border-[#FF7E00]/30 bg-[#FF7E00]/10 p-5">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-[#FFD34E]">Content Hub</p>
         <p className="mt-2 text-sm leading-relaxed text-white/75">
-          Match Fit posts four times a day, Monday–Friday — Static, Carousel, Text, and Video. The full week is
-          generated automatically {WEEKLY_GENERATION_TIME_LABEL}. Edit any post below, approve the whole day, then
-          fire the media agent to generate it.
+          Match Fit generates two posts a day, Monday–Friday — Carousel + Video on Monday, Wednesday and Friday;
+          Static + Text on Tuesday and Thursday. The full week is generated automatically {WEEKLY_GENERATION_TIME_LABEL}.
+          Edit any post below, approve the whole day, then fire the media agent to generate it.
         </p>
       </section>
 
