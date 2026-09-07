@@ -423,7 +423,13 @@ export async function generateWeeklyPlannerDay(args: {
   prompts: Record<ContentCalendarPostType, string>;
   adminId: string;
 }): Promise<ContentCalendarPostRow[]> {
-  const items = CONTENT_CALENDAR_POST_TYPES.map((postType) => ({
+  // Locked per-weekday pair (Mon/Wed/Fri = Carousel+Video, Tue/Thu = Static+Text) — NOT all four
+  // types every day. This mirrors the fix already applied to weekly-generation.ts and
+  // daily-generation.ts; this manual/admin single-day planner action was a third producer of
+  // per-day drafts that still generated all four CONTENT_CALENDAR_POST_TYPES regardless of
+  // weekday, which is what actually produced the mismatched 09-01..09-03 rows (MF-CONTENT-ROTATION-MISMATCH-0904).
+  const dayFormats = CONTENT_CALENDAR_WEEKDAY_POST_TYPES[args.dayIndex];
+  const items = dayFormats.map((postType) => ({
     postType,
     targetGroup: normalizeTargetGroup(args.targetAudience),
   }));
@@ -431,8 +437,8 @@ export async function generateWeeklyPlannerDay(args: {
     `Weekly planner day theme: ${args.theme}`,
     `Target audience: ${args.targetAudience}`,
     `CTA: ${args.cta}`,
-    ...CONTENT_CALENDAR_POST_TYPES.map((postType) => `${postType} prompt: ${args.prompts[postType]}`),
-    "Generate exactly the four locked daily post types: Static, Carousel, Text, Video. Keep each prompt's intent distinct.",
+    ...dayFormats.map((postType) => `${postType} prompt: ${args.prompts[postType]}`),
+    `Generate exactly today's locked post types: ${dayFormats.join(", ")}. Keep each prompt's intent distinct. Do not generate any other post type today.`,
   ].join("\n");
 
   const { drafts } = await generateBulkContent({
@@ -444,8 +450,8 @@ export async function generateWeeklyPlannerDay(args: {
   const monday = new Date(`${args.weekStart}T00:00:00`);
   const postDate = formatCalendarDate(addWeekdays(monday, args.dayIndex));
   const rows: ContentCalendarPostRow[] = [];
-  for (const postType of CONTENT_CALENDAR_POST_TYPES) {
-    const draft = drafts.find((d) => d.postType === postType) ?? drafts[CONTENT_CALENDAR_POST_TYPES.indexOf(postType)];
+  for (const postType of dayFormats) {
+    const draft = drafts.find((d) => d.postType === postType) ?? drafts[dayFormats.indexOf(postType)];
     if (!draft) continue;
     rows.push(
       await createV2Draft({
