@@ -262,6 +262,33 @@ export async function getV2Post(postId: string): Promise<ContentCalendarPostRow 
   return (data ?? null) as ContentCalendarPostRow | null;
 }
 
+/**
+ * True once this exact week/day already has a live (non-deleted) post of one of the given
+ * types — used by the weekly-generate cron to make a duplicate/retried trigger for the same
+ * week a safe no-op per day, instead of letting resolveUniqueDayIndex's bump-to-next-free-slot
+ * fallback silently reassign the repeat generation onto a DIFFERENT day and eventually exhaust
+ * all 5 slots. Confirmed live 2026-09-07 (MF-CONTENT-CRON-DUPLICATE-0907): a second full run for
+ * week 2026-09-07 landed Tuesday's Static/Text pair on day_index=0 (Monday's slot) because day 1
+ * was already taken, and the week eventually threw "no available slot" once every day_index had
+ * been consumed by a mix of real and bumped rows.
+ */
+export async function dayAlreadyHasLiveContent(args: {
+  weekStart: string;
+  dayIndex: number;
+  postTypes: readonly ContentCalendarPostType[];
+}): Promise<boolean> {
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("post_type")
+    .eq("week_start", args.weekStart)
+    .eq("day_index", args.dayIndex)
+    .in("post_type", args.postTypes as string[])
+    .is("deleted_at", null);
+  if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
+}
+
 async function resolveUniqueDayIndex(args: {
   weekStart: string;
   postType: ContentCalendarPostType;
