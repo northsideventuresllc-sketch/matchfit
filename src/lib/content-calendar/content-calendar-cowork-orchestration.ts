@@ -20,6 +20,13 @@ import {
 } from "@/lib/content-calendar/content-prompts";
 import { splitPlatforms } from "@/lib/content-calendar/content-calendar-v2-store";
 import { sendTelegramPing } from "@/lib/content-calendar/telegram-ping";
+import { probeEmulator } from "@/lib/content-calendar/posting-probe";
+import {
+  loadMatchFitVentureBlock,
+  partitionByApproval,
+  planRequiresEmulator,
+  resolvePlatformWorkflow,
+} from "@/lib/content-calendar/posting-workflow";
 import { normalizeTargetGroup } from "@/lib/content-calendar/content-rules";
 import { fireAxonPostingConfirmation } from "@/lib/content-calendar/axon-notify";
 import {
@@ -613,8 +620,39 @@ export async function approvePublishingPostsForPosting(args: {
 
   const { data, error } = await read;
   if (error) throw new Error(error.message);
-  const posts = (data ?? []) as ContentCalendarPostRow[];
-  if (!posts.length) throw new Error("No publishing posts matched to approve for posting.");
+  const candidates = (data ?? []) as ContentCalendarPostRow[];
+  if (!candidates.length) throw new Error("No publishing posts matched to approve for posting.");
+
+  // Approve-only guard (BPA-B1-SOCIAL-POSTING-0906): a row reaching "publishing" should already
+  // carry approved_at from submitApprovedV2Posts/approveV2Post, but this is the last stop before
+  // a real post_batch job is created, so it is asserted again here rather than trusted from
+  // upstream. Nothing in `skipped` is ever included in the job brief.
+  const { approved: posts, skipped } = partitionByApproval(candidates);
+  for (const s of skipped) {
+    console.warn(`[approvePublishingPostsForPosting] skipping ${s.id}: ${s.reason}`);
+  }
+  if (!posts.length) {
+    throw new Error("No publishing posts matched to approve for posting: every candidate is missing approval.");
+  }
+
+  // Venture Map workflow routing + emulator gate (Decision #1770, Decision #1767: never guess).
+  const ventureBlock = loadMatchFitVentureBlock();
+  if (!ventureBlock) {
+    const reason = "venture block missing";
+    console.warn(`[approvePublishingPostsForPosting] refusing to post: ${reason}`);
+    throw new Error(
+      "Refusing to post: the Match Fit venture block could not be read from the vault (missing file, bad JSON, or no channels). Nothing was queued.",
+    );
+  }
+
+  const allPlatforms = [...new Set(posts.flatMap((p) => platformsForPost(p)))];
+  if (planRequiresEmulator(allPlatforms)) {
+    const probe = await probeEmulator();
+    console.log(`[approvePublishingPostsForPosting] emulator probe: ${probe.ok ? "ok" : "blocked"} — ${probe.reason}`);
+    if (!probe.ok) {
+      throw new Error(`Emulator not reachable — ${probe.reason} Batch blocked, nothing was queued.`);
+    }
+  }
 
   const briefPosts = posts.map((post) => {
     const platformList = platformsForPost(post);
@@ -624,13 +662,20 @@ export async function approvePublishingPostsForPosting(args: {
       const hashtags =
         (post.platform_hashtags && post.platform_hashtags[platform]) || post.hashtags || [];
       const isTikTokVideo = post.post_type === "Video" && /tiktok/i.test(platform);
+      const workflow = resolvePlatformWorkflow(platform);
       return {
         platform,
         caption,
         hashtags,
         routeVia: isTikTokVideo ? "tiktok_studio" : "native",
+        workflow,
       };
     });
+    console.log(
+      `[approvePublishingPostsForPosting] post ${post.id}: ${perPlatform
+        .map((p) => `${p.platform}=${p.workflow}`)
+        .join(", ")}`,
+    );
     return {
       postId: post.id,
       postDate: post.post_date,
@@ -643,7 +688,7 @@ export async function approvePublishingPostsForPosting(args: {
 
   const job = await createMediaAgentJob({
     jobType: "post_batch",
-    platformTargets: [...new Set(posts.flatMap((p) => platformsForPost(p)))],
+    platformTargets: allPlatforms,
     brief: {
       kind: "post_batch",
       posts: briefPosts,
