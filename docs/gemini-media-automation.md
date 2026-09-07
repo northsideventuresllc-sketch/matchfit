@@ -159,3 +159,54 @@ date-batch invocation (`--post-date`/`--post-group`, unused by v2).
   into every slide's prompt — and keeps `---SLIDE---` as a fallback for
   hand-authored prompts that still use it. See
   `scripts/carousel-slide-prompts.test.mjs` for coverage.
+
+- **Recurred once after being "resolved" above, root-caused 2026-09-07.** Post
+  `2b0ab910-98f4-470b-9d1d-f3b57fd1b5a0` (week 2026-09-07, day_index 0, Carousel)
+  reached `media_status="ready"` with only 1 of 5 images
+  (`...-slide1-1788820941480.png`), `generation_source="chrome_agent_gemini_pro"`.
+  Confirmed by running the *current* `splitCarouselSlidePrompts()` against this
+  row's exact `last_generation_prompt` (now `scripts/carousel-slide-prompts.test.mjs`'s
+  "2026-09-07 incident" regression case) — it correctly returns 5 slides. The fix above
+  (PR #351, merged to `main` 2026-09-05) was already live in git two days before this
+  run. **Root cause: this script's deployed copy on the mini is a manually-curled file
+  (see "What changed 2026-09-02" above — "deploy your change to
+  `$HOME/nvg-gemini-automation/...` on the mini, e.g. curl the raw file from GitHub
+  `main` once your PR is merged") with no automated sync.** The mini almost certainly
+  ran a pre-#351 copy for this job — the same failure mode ("drifted from git through
+  several rounds of live debugging") the 2026-09-02 note above already flagged once.
+  **This is now closed with a code-level gate, not just a redeploy:**
+  `assertCarouselHasEnoughSlides()` in `scripts/carousel-slide-prompts.mjs` throws
+  before generating and again before write-back if a Carousel row split into fewer than
+  `MIN_CAROUSEL_SLIDES` (3, the locked creative-rule floor) prompts — so even a stale
+  deployed copy that regresses to the old naive split now fails the job loud (Telegram
+  FAIL ping, `media_status="failed"`) instead of silently writing "ready" with a
+  partial carousel. **Still open, needs a human/ops action, not a code fix:** the mini's
+  copy of `gemini-media-automation.mjs`/`carousel-slide-prompts.mjs` needs re-deploying
+  from current `main` before the next Carousel run, and the manual-curl deploy step
+  itself is the standing risk — it should become an automated pull (e.g. the mini's own
+  job runner does a `git pull`/curl of these two files at the start of every batch,
+  before reading `--ids`) so "merged to main" and "running on the mini" can't drift
+  apart again. Not implemented in this pass — it requires a change to the mini-side job
+  runner or its cron-manifest, which this session cannot reach or verify (no device
+  bridge; see repo rule "NOTHING runs on the MacBook Pro / Mac mini only" and "never go
+  looking for code on a local Mac, a mounted folder, or a device bridge").
+
+- **No content-level QA between "mini generates image" and "media_status=ready."**
+  JB flagged garbled on-screen text in a generated image ("Lnat is not a ... word") on
+  the same 2026-09-07 Carousel. The post's `caption` field is clean — this is Gemini's
+  own image-text-rendering artifact, a known weakness of image generation models, not a
+  caption/DB bug. Checked every file this script touches (`writeMediaResult`,
+  `completeGenerateMediaJob`, the admin Pending/Publishing tabs): there is no automated
+  step anywhere that looks at pixel content before `media_status="ready"` — the only
+  check today is a human (JB) looking at it, which is exactly how this was caught, just
+  later than ideal. **Not fixed in this pass — here's exactly what a real fix needs:**
+  the same already-open Gemini Pro chat that just generated each slide could be asked a
+  follow-up text question in the same free session ("does every on-screen text string in
+  the image you just made read as a correctly spelled real word? reply OK or BAD: ..."),
+  parsed, and treated as a slide failure on BAD — no new API, no paid vision call, uses
+  JB's existing Gemini subscription. This was deliberately **not** built into this
+  urgent hotfix pass: it adds a new browser-automation surface (a second conversation
+  turn per slide, a new selector to read Gemini's text reply, new timeout/parsing
+  failure modes) to a script that is mid-incident-recovery, and shipping it untested
+  risks stalling every carousel generation rather than just this one bug. Build and test
+  it as its own follow-up change, not folded into this fix.
