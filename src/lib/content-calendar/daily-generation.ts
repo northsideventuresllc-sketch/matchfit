@@ -31,6 +31,17 @@ export type DailyGenerationResult =
       hashtagSnapshot: HashtagResearchSnapshot | null;
     };
 
+export type DailySlot =
+  | { ran: false; reason: string; date: string }
+  | {
+      ran: true;
+      weekStart: string;
+      postDate: string;
+      dayIndex: number;
+      dayFormats: readonly ContentCalendarPostType[];
+      missingPostTypes: ContentCalendarPostType[];
+    };
+
 /** Only LIVE (non-deleted) rows count as "already filled" — matches the unique index, which is
  * itself scoped `WHERE deleted_at IS NULL` (see the 2026-08-31 fix note in
  * content-calendar-v2-store.ts's resolveUniqueDayIndex, the same bug this mirrors). */
@@ -65,6 +76,33 @@ function todayKeyInEasternTime(): string {
 }
 
 /**
+ * Fast, AI-free lookup of which of today's locked post types are still missing — the DB-only
+ * front half of {@link runDailyContentGeneration}, split out so the cron route can decide what
+ * to do (and dispatch one bounded hop per missing type) without paying for hashtag research or
+ * an AI call just to find out how many types are missing.
+ */
+export async function getDailyMissingPostTypes(args?: { date?: string }): Promise<DailySlot> {
+  const todayKey = args?.date ?? todayKeyInEasternTime();
+  const today = new Date(`${todayKey}T00:00:00`);
+  const jsDay = today.getDay(); // 0=Sun .. 6=Sat
+  if (jsDay === 0 || jsDay === 6) {
+    return { ran: false, reason: "Weekend — Match Fit's content calendar only runs Monday-Friday.", date: todayKey };
+  }
+  const dayIndex = jsDay - 1; // Mon=0 .. Fri=4
+  const monday = getMondayOfWeek(today);
+  const weekStart = formatCalendarDate(monday);
+  const postDate = formatCalendarDate(addWeekdays(monday, dayIndex));
+
+  // Today's locked pair, not all four types — see the function doc comment above.
+  const dayFormats = CONTENT_CALENDAR_WEEKDAY_POST_TYPES[dayIndex];
+
+  const existing = await getExistingPostTypesForSlot(weekStart, dayIndex);
+  const missingPostTypes = dayFormats.filter((type) => !existing.has(type));
+
+  return { ran: true, weekStart, postDate, dayIndex, dayFormats, missingPostTypes };
+}
+
+/**
  * Daily Match Fit Content Hub generation — the "AXON agents do the research and push it to the
  * MF portal every day" pipeline JB asked for.
  *
@@ -93,27 +131,25 @@ function todayKeyInEasternTime(): string {
  * Output is always workflow_stage="hub" / status="draft" / content_lane="scheduled". Nothing
  * here ever sets status past draft or touches posted/posted_urls — approval and posting stay
  * 100% manual (standing rule 5, approve-only).
+ *
+ * `onlyPostType` bounds a run to a single locked-pair type — used by the cron route to fan out
+ * one HTTP hop per missing post type (each hop gets its own fresh maxDuration budget) instead of
+ * generating today's whole pair in one request. See MF-CONTENT-GEN-VERCEL-504-0907: the combined
+ * pair sometimes took long enough (hashtag research + AI call, per type) to hit the deploy plan's
+ * real function-duration cap. Omitting it preserves the original all-in-one-request behavior.
  */
-export async function runDailyContentGeneration(args?: { date?: string }): Promise<DailyGenerationResult> {
+export async function runDailyContentGeneration(args?: {
+  date?: string;
+  onlyPostType?: ContentCalendarPostType;
+}): Promise<DailyGenerationResult> {
   await hydratePlatformEnvFromDatabase();
   resetContentContextCache();
 
-  const todayKey = args?.date ?? todayKeyInEasternTime();
-  const today = new Date(`${todayKey}T00:00:00`);
-  const jsDay = today.getDay(); // 0=Sun .. 6=Sat
-  if (jsDay === 0 || jsDay === 6) {
-    return { ran: false, reason: "Weekend — Match Fit's content calendar only runs Monday-Friday.", date: todayKey };
-  }
-  const dayIndex = jsDay - 1; // Mon=0 .. Fri=4
-  const monday = getMondayOfWeek(today);
-  const weekStart = formatCalendarDate(monday);
-  const postDate = formatCalendarDate(addWeekdays(monday, dayIndex));
-
-  // Today's locked pair, not all four types — see the function doc comment above.
-  const dayFormats = CONTENT_CALENDAR_WEEKDAY_POST_TYPES[dayIndex];
-
-  const existing = await getExistingPostTypesForSlot(weekStart, dayIndex);
-  const missingPostTypes = dayFormats.filter((type) => !existing.has(type));
+  const slot = await getDailyMissingPostTypes(args?.date ? { date: args.date } : undefined);
+  if (!slot.ran) return slot;
+  const { weekStart, postDate, dayIndex, dayFormats, missingPostTypes: allMissing } = slot;
+  const skippedExistingPostTypes = dayFormats.filter((type) => !allMissing.includes(type));
+  const missingPostTypes = args?.onlyPostType ? allMissing.filter((type) => type === args.onlyPostType) : allMissing;
 
   if (!missingPostTypes.length) {
     return {
@@ -123,7 +159,7 @@ export async function runDailyContentGeneration(args?: { date?: string }): Promi
       dayIndex,
       targetGroup: "",
       createdPostTypes: [],
-      skippedExistingPostTypes: [...dayFormats],
+      skippedExistingPostTypes,
       hashtagSnapshot: null,
     };
   }
@@ -208,7 +244,7 @@ export async function runDailyContentGeneration(args?: { date?: string }): Promi
     dayIndex,
     targetGroup,
     createdPostTypes,
-    skippedExistingPostTypes: [...existing].filter((type) => dayFormats.includes(type)),
+    skippedExistingPostTypes,
     hashtagSnapshot: hashtags,
   };
 }
