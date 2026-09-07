@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-07** `2.29.5-beta` → `2.29.6-beta` (**patch** — Social posting: boot probe, per-post workflow log, approve-only queueing)
 - **2026-09-07** `2.29.4-beta` → `2.29.5-beta` (**patch** — Approval-gated trainer resume-signup nudges (Pending pattern) + admin queue UI)
 - **2026-09-07** `2.29.3-beta` → `2.29.4-beta` (**patch** — Content calendar daily drafts follow the locked weekday rotation)
 - **2026-09-05** `2.29.2-beta` → `2.29.3-beta` (**patch** — Fix founding promo copy: reflect Fitness Pro / Independent Pro / Elite Fitness Pro tier breakdown)
