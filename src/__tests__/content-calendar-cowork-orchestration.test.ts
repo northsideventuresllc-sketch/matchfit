@@ -1,12 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockCreateNiBrainClient, mockFireAxonPostingConfirmation, mockHasDayScheduledEmailBeenSent } = vi.hoisted(
-  () => ({
-    mockCreateNiBrainClient: vi.fn(),
-    mockFireAxonPostingConfirmation: vi.fn(),
-    mockHasDayScheduledEmailBeenSent: vi.fn(),
-  }),
-);
+const {
+  mockCreateNiBrainClient,
+  mockFireAxonPostingConfirmation,
+  mockHasDayScheduledEmailBeenSent,
+  mockLoadMatchFitVentureBlock,
+  mockProbeEmulator,
+} = vi.hoisted(() => ({
+  mockCreateNiBrainClient: vi.fn(),
+  mockFireAxonPostingConfirmation: vi.fn(),
+  mockHasDayScheduledEmailBeenSent: vi.fn(),
+  mockLoadMatchFitVentureBlock: vi.fn(),
+  mockProbeEmulator: vi.fn(),
+}));
 
 vi.mock("@/lib/ni-brain-client", () => ({
   createNiBrainClient: mockCreateNiBrainClient,
@@ -21,6 +27,18 @@ vi.mock("@/lib/content-calendar/axon-notify", () => ({
   fireAxonPostingConfirmation: mockFireAxonPostingConfirmation,
 }));
 
+// approvePublishingPostsForPosting now reads the Venture Map for workflow routing and probes the
+// emulator when a batch needs it. Every test in this file except the dedicated
+// "posting-probe/venture-map gates" block below is exercising unrelated behaviour, so those two
+// dependencies are stubbed to their happy path here — the gating behaviour itself is covered in
+// src/lib/content-calendar/posting-workflow.test.ts and src/lib/content-calendar/posting-probe.test.ts
+// plus the dedicated describe block at the bottom of this file.
+vi.mock("@/lib/content-calendar/posting-workflow", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/content-calendar/posting-workflow")>();
+  return { ...actual, loadMatchFitVentureBlock: mockLoadMatchFitVentureBlock };
+});
+vi.mock("@/lib/content-calendar/posting-probe", () => ({ probeEmulator: mockProbeEmulator }));
+
 import {
   approvePublishingPostsForPosting,
   completeGenerateMediaJob,
@@ -34,6 +52,16 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockFireAxonPostingConfirmation.mockResolvedValue(undefined);
   mockHasDayScheduledEmailBeenSent.mockResolvedValue(true);
+  mockLoadMatchFitVentureBlock.mockReturnValue({
+    id: "match-fit",
+    channels: {
+      instagram: "@theofficialmatchfit",
+      threads: "@theofficialmatchfit",
+      facebook: "Match Fit Page",
+      tiktok: "@theofficialmatchfit",
+    },
+  });
+  mockProbeEmulator.mockResolvedValue({ ok: true, reason: "Emulator reachable (1 device)." });
 });
 
 describe("completePostBatchJob", () => {
@@ -93,6 +121,7 @@ type PostRow = {
   media_urls: string[];
   platform_captions: Record<string, string> | null;
   platform_hashtags: Record<string, string[]> | null;
+  approved_at?: string | null;
 };
 
 function buildApproveClient(rows: PostRow[]) {
@@ -130,6 +159,7 @@ const baseRow: PostRow = {
   media_urls: ["https://cdn.test/a.png"],
   platform_captions: null,
   platform_hashtags: null,
+  approved_at: "2026-07-27T12:00:00.000Z",
 };
 
 describe("approvePublishingPostsForPosting platformOverrides", () => {
@@ -409,5 +439,80 @@ describe("completeGenerateMediaJob stage guard", () => {
     expect(updated).toBe(1);
     expect(updateAttempts).toHaveLength(2);
     expect(updateAttempts.every((f) => f.workflow_stage === "pending")).toBe(true);
+  });
+});
+
+describe("approvePublishingPostsForPosting — no-drift gates (BPA-B1-SOCIAL-POSTING-0906)", () => {
+  it("skips a candidate row with no approved_at instead of posting it", async () => {
+    const unapproved: PostRow = { ...baseRow, id: "post_unapproved", approved_at: null };
+    const { client, captured } = buildApproveClient([baseRow, unapproved]);
+    mockCreateNiBrainClient.mockReturnValue(client);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    const { postCount } = await approvePublishingPostsForPosting({ postIds: ["post_1", "post_unapproved"] });
+
+    expect(postCount).toBe(1);
+    const brief = captured.insert?.brief as { posts: { postId: string }[] };
+    expect(brief.posts.map((p) => p.postId)).toEqual(["post_1"]);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("post_unapproved"));
+    warnSpy.mockRestore();
+  });
+
+  it("refuses the whole batch when every candidate lacks approved_at", async () => {
+    const unapproved: PostRow = { ...baseRow, approved_at: null };
+    const { client } = buildApproveClient([unapproved]);
+    mockCreateNiBrainClient.mockReturnValue(client);
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    await expect(approvePublishingPostsForPosting({ postIds: ["post_1"] })).rejects.toThrow(/missing approval/i);
+  });
+
+  it("refuses to post when the Venture Map match-fit block is missing (Decision #1767: never guess)", async () => {
+    mockLoadMatchFitVentureBlock.mockReturnValue(null);
+    const { client } = buildApproveClient([baseRow]);
+    mockCreateNiBrainClient.mockReturnValue(client);
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    await expect(approvePublishingPostsForPosting({ postIds: ["post_1"] })).rejects.toThrow(
+      /venture block/i,
+    );
+    expect(mockProbeEmulator).not.toHaveBeenCalled();
+  });
+
+  it("blocks the batch with 'Emulator not reachable' when Instagram is in the batch and the probe fails", async () => {
+    mockProbeEmulator.mockResolvedValue({ ok: false, reason: "adb reports no devices." });
+    const { client } = buildApproveClient([baseRow]); // baseRow platforms include Instagram
+    mockCreateNiBrainClient.mockReturnValue(client);
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    await expect(approvePublishingPostsForPosting({ postIds: ["post_1"] })).rejects.toThrow(
+      /Emulator not reachable/,
+    );
+  });
+
+  it("does not probe the emulator at all when the batch has no Instagram platform", async () => {
+    const noIgRow: PostRow = { ...baseRow, id: "post_no_ig", platforms: "Threads, Facebook" };
+    const { client } = buildApproveClient([noIgRow]);
+    mockCreateNiBrainClient.mockReturnValue(client);
+
+    const { postCount } = await approvePublishingPostsForPosting({ postIds: ["post_no_ig"] });
+
+    expect(postCount).toBe(1);
+    expect(mockProbeEmulator).not.toHaveBeenCalled();
+  });
+
+  it("records instagram=emulator and threads=mini_chrome on the job brief per platform", async () => {
+    const { client, captured } = buildApproveClient([baseRow]); // Instagram, Threads, Facebook, TikTok
+    mockCreateNiBrainClient.mockReturnValue(client);
+
+    await approvePublishingPostsForPosting({ postIds: ["post_1"] });
+
+    const brief = captured.insert?.brief as { posts: { platforms: { platform: string; workflow: string }[] }[] };
+    const byPlatform = Object.fromEntries(brief.posts[0].platforms.map((p) => [p.platform, p.workflow]));
+    expect(byPlatform.Instagram).toBe("emulator");
+    expect(byPlatform.Threads).toBe("mini_chrome");
+    expect(byPlatform.Facebook).toBe("mini_chrome");
+    expect(byPlatform.TikTok).toBe("mini_chrome");
   });
 });
