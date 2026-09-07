@@ -62,16 +62,25 @@ export async function GET(req: Request) {
     const dateOverride = url.searchParams.get("date")?.trim() || undefined;
     const postType = url.searchParams.get("postType")?.trim() as ContentCalendarPostType | undefined;
 
-    // Synchronous mode (?sync=1): run the day's generation INLINE and return only after the
-    // posts are written — no `after()` hop. Vercel's after-response background work is not
-    // guaranteed to run to completion on this deploy plan (observed live 2026-09-07: hops acked
-    // 200 but only 1 of 10 writes landed), so a caller that must SEE the rows created — a manual
-    // backfill / operator "generate this day now" — uses this instead of the fire-and-forget
-    // hop fan-out. Safe within the 120s budget now that hashtag research is cached
-    // (MF-CONTENT-GEN-VERCEL-504-0907 / PR #369): cached hashtags + the day's ≤2 post AI calls.
+    // Synchronous mode (?sync=1): run generation INLINE and return only after the posts are
+    // written — no `after()` hop. Vercel's after-response background work is not guaranteed to
+    // run to completion on this deploy plan (observed live 2026-09-07: hop acks returned 200 but
+    // their deferred writes were lost), so a caller that must SEE the rows created — a manual
+    // backfill / operator "generate this now" — uses this instead of the fire-and-forget hops.
+    //
+    // Combine with `?postType=X` to generate exactly ONE post inline. This is the reliable unit:
+    // generateBulkContent produces ALL requested items before it writes any of them, so a full
+    // 2-type day (~2×≈100s) overruns the 120s function budget and is killed before a single row
+    // lands (observed live 2026-09-07: a 1-post day completed, a 2-fresh-post day wrote nothing).
+    // One post at a time fits (cached hashtags per PR #369 + one ≈100s AI call), so an operator
+    // fills a day with two `?sync=1&postType=` calls. Idempotent: a type already in the Hub is
+    // skipped, so re-firing only generates what is missing.
     if (url.searchParams.get("sync") === "1") {
-      const result = await runDailyContentGeneration(dateOverride ? { date: dateOverride } : undefined);
-      return NextResponse.json({ ok: true, mode: "sync", result });
+      const result = await runDailyContentGeneration({
+        date: dateOverride,
+        ...(postType ? { onlyPostType: postType } : {}),
+      });
+      return NextResponse.json({ ok: true, mode: "sync", onlyPostType: postType ?? null, result });
     }
 
     if (postType) {
