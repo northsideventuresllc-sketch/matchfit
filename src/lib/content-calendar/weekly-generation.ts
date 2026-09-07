@@ -17,7 +17,7 @@ import { buildMediaGenerationPrompt, type MediaPostType } from "@/lib/content-ca
 import { researchTrendingHashtags, type HashtagResearchSnapshot } from "@/lib/content-calendar/hashtag-research";
 import { getContentCalendarRotation, addWeekdays, formatCalendarDate, getMondayOfWeek } from "@/lib/content-calendar/rotation";
 import { scanAndRecordSocialProfiles } from "@/lib/content-calendar/social-profile-scan";
-import { createV2Draft } from "@/lib/content-calendar/content-calendar-v2-store";
+import { createV2Draft, dayAlreadyHasLiveContent } from "@/lib/content-calendar/content-calendar-v2-store";
 import { normalizeTargetGroup } from "@/lib/content-calendar/content-rules";
 
 const WEEKLY_GENERATION_ADMIN_ID = "cron_weekly_generate";
@@ -183,6 +183,17 @@ export async function generateWeeklyDayPosts(args: {
   const monday = new Date(`${weekStart}T00:00:00`);
   const postDate = formatCalendarDate(addWeekdays(monday, dayPlan.dayIndex));
   const dayFormats = CONTENT_CALENDAR_WEEKDAY_POST_TYPES[dayPlan.dayIndex];
+
+  // A duplicate/retried cron trigger for the same week must be a safe no-op for a day that
+  // already generated — otherwise resolveUniqueDayIndex bumps the repeat onto a different day's
+  // slot (see dayAlreadyHasLiveContent) instead of this hop just skipping cleanly.
+  if (await dayAlreadyHasLiveContent({ weekStart, dayIndex: dayPlan.dayIndex, postTypes: dayFormats })) {
+    console.log(
+      `[weekly-generation] day ${dayPlan.dayIndex} (${weekStart}) already has live content — skipping duplicate generation.`,
+    );
+    return { dayIndex: dayPlan.dayIndex, postDate, created: 0 };
+  }
+
   const items = dayFormats.map((postType) => ({
     postType,
     targetGroup: dayPlan.targetAudience,

@@ -55,7 +55,12 @@ function dispatchDayHops(req: Request, plan: WeeklyPlanResult) {
       };
       hopUrl.searchParams.set("dayHop", JSON.stringify(payload));
       try {
-        await fetch(hopUrl.toString(), { headers: { authorization: `Bearer ${secret}` } });
+        const res = await fetch(hopUrl.toString(), { headers: { authorization: `Bearer ${secret}` } });
+        if (!res.ok) {
+          console.error(
+            `[cron content-calendar-weekly-generate] hop dispatch for day ${dayPlan.dayIndex} was not accepted: ${res.status} ${await res.text().catch(() => "")}`,
+          );
+        }
       } catch (e) {
         console.error(`[cron content-calendar-weekly-generate] hop dispatch failed for day ${dayPlan.dayIndex}`, e);
       }
@@ -86,7 +91,17 @@ export async function GET(req: Request) {
       // Single-day hop: ack immediately, do the one bounded AI call + writes in after().
       after(async () => {
         try {
-          const result = await generateWeeklyDayPosts(payload);
+          // Race against a bound comfortably under maxDuration (300s) so a stuck AI call fails
+          // loudly with a log line naming the day, instead of the platform silently killing the
+          // whole invocation at the 300s cap with no trace this day never generated (proven live
+          // 2026-09-07: "Vercel Runtime Timeout Error: Task timed out after 300 seconds" left no
+          // application-level signal that day's content was missing — MF-CONTENT-CRON-HOP-TIMEOUT-0907).
+          const result = await Promise.race([
+            generateWeeklyDayPosts(payload),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error(`hop for day ${payload.dayPlan.dayIndex} exceeded 280s budget`)), 280_000),
+            ),
+          ]);
           console.log("[cron content-calendar-weekly-generate] hop complete", payload.dayPlan.dayIndex, result);
         } catch (e) {
           console.error("[cron content-calendar-weekly-generate] hop failed", payload.dayPlan.dayIndex, e);
