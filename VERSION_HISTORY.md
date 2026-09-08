@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-08** `2.30.0-beta` → `2.30.1-beta` (**patch** — Publishing tab: show the full generated image instead of cropping it to a fixed short box)
 - **2026-09-08** `2.29.16-beta` → `2.30.0-beta` (**minor** — Content Calendar: fix theme showing Untitled/missing on Text posts; add admin-uploadable reference files (photos/videos/other files) so Gemini media generation can use them)
 - **2026-09-07** `2.29.15-beta` → `2.29.16-beta` (**patch** — refresh gemini-media-automation.mjs on mini before every run)
 - **2026-09-07** `2.29.14-beta` → `2.29.15-beta` (**patch** — Fix content-calendar-daily-generate cron 504 (maxDuration 120->300))
