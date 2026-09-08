@@ -88,9 +88,16 @@ export async function queueMiniChromeAgentJob(args: { ids: string[]; title: stri
   // never depend on someone having left it running. The launcher is idempotent
   // (confirms the CDP port if Chrome is already up, otherwise starts it); it is
   // refreshed from main so the mini never runs a stale copy.
+  //
+  // 2026-09-07: gemini-media-automation.mjs itself was NOT being refreshed —
+  // only the launcher was. The mini kept running whatever local copy was seeded
+  // once, so fixes to this script (e.g. writeMediaFailure's write-back) never
+  // reached it. Now pulled from main on every run, same as the launcher.
   const launcher =
     "mkdir -p $HOME/nvg-gemini-automation && curl -fsSL https://raw.githubusercontent.com/northsideventuresllc-sketch/matchfit/main/scripts/mini-chrome-automation-launcher.sh -o $HOME/nvg-gemini-automation/mini-chrome-automation-launcher.sh && zsh $HOME/nvg-gemini-automation/mini-chrome-automation-launcher.sh >/dev/null 2>&1; sleep 3;";
-  const cmd = `${launcher} cd $HOME/nvg-gemini-automation && node gemini-media-automation.mjs --ids=${args.ids.join(",")} 2>&1`;
+  const refreshAutomationScript =
+    "curl -fsSL https://raw.githubusercontent.com/northsideventuresllc-sketch/matchfit/main/scripts/gemini-media-automation.mjs -o $HOME/nvg-gemini-automation/gemini-media-automation.mjs;";
+  const cmd = `${launcher} ${refreshAutomationScript} cd $HOME/nvg-gemini-automation && node gemini-media-automation.mjs --ids=${args.ids.join(",")} 2>&1`;
   const { error } = await client.from("nvg_mini_jobs").insert({
     kind: "shell",
     title: args.title,
