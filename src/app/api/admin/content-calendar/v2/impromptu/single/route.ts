@@ -71,6 +71,11 @@ export async function POST(req: Request) {
       weekStart,
       lane: "impromptu",
       adminId: sess.adminId,
+      // Bug fixed 2026-09-08 (JB report: "untitled theme" on posts) — this route never passed a
+      // theme, so every impromptu draft got theme:"". Impromptu posts aren't weekday-locked like
+      // the scheduled pipeline, so there's no day-plan theme to reuse — just the same
+      // "audience spotlight" fallback format used everywhere else a theme has to be invented.
+      theme: `${targetAudience} spotlight`,
       generateMedia: false,
     });
     return NextResponse.json({ post: serializeV2Post(row), generationMeta: meta });

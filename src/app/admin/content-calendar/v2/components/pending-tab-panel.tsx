@@ -13,6 +13,7 @@ import { buildCaptionWithHashtags } from "@/lib/content-calendar/content-calenda
 import type { ClientContentCalendarV2Post } from "@/lib/content-calendar/content-calendar-v2-store";
 import { DeviceMediaUploadWidget } from "./device-media-upload-widget";
 import { defaultPlatformsForPost, postTypeIcon } from "./helpers";
+import { ReferenceFilesField } from "./reference-files-field";
 import { CopyButton, Modal, PipelineHealthBanner, ProgressBar, SeePromptCollapsible } from "./ui-bits";
 import { usePendingProgress } from "./use-pending-progress";
 
@@ -181,6 +182,8 @@ function PendingCard({
               />
             </label>
           ) : null}
+
+          {isMediaPost ? <ReferenceFilesField post={post} onPatch={onPatch} disabled={busy} /> : null}
 
           <div>
             <span className={adminLabelClass}>Hashtags</span>

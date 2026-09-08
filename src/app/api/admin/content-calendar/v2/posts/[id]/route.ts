@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { serializeV2Post, updateV2PostFields, getV2Post } from "@/lib/content-calendar/content-calendar-v2-store";
-import { ensureContentCalendarV2Schema, isMissingContentCalendarV2SchemaError } from "@/lib/ensure-content-hub-schema";
+import { ensureContentCalendarV25Schema, isMissingContentCalendarV25SchemaError } from "@/lib/ensure-content-hub-schema";
 import { isNiBrainConfiguredAsync } from "@/lib/ni-brain-client";
 import { formatUserFacingError } from "@/lib/read-json-response";
 import { requireAdminSession } from "@/lib/require-admin";
@@ -21,6 +21,7 @@ const patchSchema = z.object({
     .optional(),
   platformCaptions: z.record(z.string(), z.string()).optional(),
   platformHashtags: z.record(z.string(), z.array(z.string())).optional(),
+  referenceFileUrls: z.array(z.string()).optional(),
 });
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -31,7 +32,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   }
   const { id } = await ctx.params;
   try {
-    await ensureContentCalendarV2Schema();
+    await ensureContentCalendarV25Schema();
     const post = await getV2Post(id);
     if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 });
     return NextResponse.json({ post: serializeV2Post(post) });
@@ -39,7 +40,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     console.error("[content-calendar v2 post GET]", e);
     return NextResponse.json(
       { error: formatUserFacingError(e, "Could not load v2 post.") },
-      { status: isMissingContentCalendarV2SchemaError(e) ? 503 : 500 },
+      { status: isMissingContentCalendarV25SchemaError(e) ? 503 : 500 },
     );
   }
 }
@@ -55,7 +56,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
   const { id } = await ctx.params;
   try {
-    await ensureContentCalendarV2Schema();
+    await ensureContentCalendarV25Schema();
     await updateV2PostFields({ postId: id, ...parsed.data });
     const post = await getV2Post(id);
     return NextResponse.json({ post: post ? serializeV2Post(post) : null });
@@ -63,7 +64,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     console.error("[content-calendar v2 post PATCH]", e);
     return NextResponse.json(
       { error: formatUserFacingError(e, "Could not save v2 post edits.") },
-      { status: isMissingContentCalendarV2SchemaError(e) ? 503 : 500 },
+      { status: isMissingContentCalendarV25SchemaError(e) ? 503 : 500 },
     );
   }
 }

@@ -108,6 +108,9 @@ export function serializeV2Post(row: ContentCalendarPostRow) {
     mediaProgressStage: row.media_progress_stage ?? null,
     mediaProgressUpdatedAt: row.media_progress_updated_at ?? null,
     generationSource: row.generation_source ?? null,
+    referenceFileUrls: Array.isArray(row.reference_file_urls)
+      ? row.reference_file_urls.filter((url): url is string => typeof url === "string")
+      : [],
   };
 }
 
@@ -421,6 +424,7 @@ export async function createV2Draft(args: {
     purge_after_at: null,
     bulk_session_id: args.draft.tempId,
     admin_id: args.adminId,
+    reference_file_urls: [],
     created_at: now,
     updated_at: now,
   };
@@ -508,6 +512,7 @@ export async function updateV2PostFields(args: {
   postDate?: string | null;
   platformCaptions?: Record<string, string>;
   platformHashtags?: Record<string, string[]>;
+  referenceFileUrls?: string[];
 }): Promise<void> {
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (args.caption !== undefined) patch.caption = args.caption;
@@ -517,6 +522,7 @@ export async function updateV2PostFields(args: {
   if (args.targetGroup !== undefined) patch.target_group = normalizeTargetGroup(args.targetGroup);
   if (args.cta !== undefined) patch.cta = args.cta;
   if (args.dpmoRationale !== undefined) patch.dpmo_rationale = args.dpmoRationale;
+  if (args.referenceFileUrls !== undefined) patch.reference_file_urls = args.referenceFileUrls;
   // Content Hub scheduling: the operator picks which day a hub/impromptu post goes up, without
   // moving it out of the hub. Empty string clears the date back to unscheduled.
   if (args.postDate !== undefined) patch.post_date = args.postDate ? args.postDate : null;
