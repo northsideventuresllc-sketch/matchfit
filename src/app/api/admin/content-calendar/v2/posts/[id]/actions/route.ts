@@ -22,8 +22,8 @@ import {
   startV2Optimization,
 } from "@/lib/content-calendar/content-calendar-v2-store";
 import {
-  ensureContentCalendarV24Schema,
-  isMissingContentCalendarV24SchemaError,
+  ensureContentCalendarV25Schema,
+  isMissingContentCalendarV25SchemaError,
 } from "@/lib/ensure-content-hub-schema";
 import { createNiBrainClient, isNiBrainConfiguredAsync } from "@/lib/ni-brain-client";
 import { formatUserFacingError } from "@/lib/read-json-response";
@@ -86,7 +86,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const { id } = await ctx.params;
 
   try {
-    await ensureContentCalendarV24Schema();
+    await ensureContentCalendarV25Schema();
     switch (parsed.data.action) {
       case "approve":
         await approveV2Post(id);
@@ -178,7 +178,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     console.error("[content-calendar v2 post action]", e);
     return NextResponse.json(
       { error: formatUserFacingError(e, "Content calendar v2 action failed.") },
-      { status: isMissingContentCalendarV24SchemaError(e) ? 503 : 500 },
+      { status: isMissingContentCalendarV25SchemaError(e) ? 503 : 500 },
     );
   }
 }

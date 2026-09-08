@@ -58,6 +58,24 @@ async function getExistingPostTypesForSlot(weekStart: string, dayIndex: number):
 }
 
 /**
+ * The day's theme, if this slot already has a live post carrying one — e.g. the weekly batch
+ * already ran for the other post type in today's locked pair. Reused so both post types on the
+ * same day always share one theme instead of the daily top-up minting its own.
+ */
+async function getExistingThemeForSlot(weekStart: string, dayIndex: number): Promise<string | null> {
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .select("theme")
+    .eq("week_start", weekStart)
+    .eq("day_index", dayIndex)
+    .is("deleted_at", null);
+  if (error) throw new Error(error.message);
+  const existing = (data ?? []).map((row) => (row.theme as string | null)?.trim()).find((theme) => Boolean(theme));
+  return existing || null;
+}
+
+/**
  * "Today" as a YYYY-MM-DD key in America/New_York, not server-local/UTC time. The cron this
  * feeds is documented (and named) as an ET-aligned 8am-ET job; using bare `new Date().getDay()`
  * would judge the weekday in whatever timezone the runner happens to be in, which can disagree
@@ -172,6 +190,14 @@ export async function runDailyContentGeneration(args?: {
   const targetGroup = normalizeTargetGroup(getContentCalendarRotation(dayIndex, 0).Static);
   // Same audience-correct CTA pattern as weekly-generation.ts's fallbackDayPlan.
   const cta = targetGroup === "Clients" ? "Drive to match-fit.net/client/sign-up" : "Drive to match-fit.net/trainer/sign-up";
+  // Bug fixed 2026-09-08 (JB report: "untitled theme" showing on posts this cron created): this
+  // path never passed a theme to createV2Draft at all, unlike the weekly batch and the manual
+  // weekly-planner day action — every top-up post silently got theme:"". Reuse the day's theme if
+  // the other locked-pair post type already has one (weekly batch ran first), else fall back to
+  // the exact same "Weekday — audience spotlight" format weekly-generation.ts's fallbackDayPlan
+  // uses, so the theme schedule reads consistently everywhere it shows up.
+  const theme =
+    (await getExistingThemeForSlot(weekStart, dayIndex)) ?? `${CONTENT_CALENDAR_DAYS_LONG[dayIndex]} — ${targetGroup} spotlight`;
 
   const customPrompt = [
     `Daily generation — ${CONTENT_CALENDAR_DAYS_LONG[dayIndex]} (${postDate}).`,
@@ -223,6 +249,7 @@ export async function runDailyContentGeneration(args?: {
       weekStart,
       lane: "scheduled",
       adminId: DAILY_GENERATION_ADMIN_ID,
+      theme,
       cta,
       postDate,
       generateMedia: false,

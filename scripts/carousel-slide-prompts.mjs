@@ -24,6 +24,35 @@ const LEGACY_SLIDE_DELIMITER_RE = /---\s*SLIDE\s*---/i;
 const SLIDE_LABEL_RE = /^[ \t]*Slide\s+\d+\b[^\n:]*:/gim;
 const PRODUCTION_SPEC_RE = /^PRODUCTION SPEC \(required\):/im;
 
+/**
+ * Hard floor for a real Carousel: CONTENT_CALENDAR_CREATIVE_QUALITY_RULES (content-prompts.ts)
+ * locks a Carousel to 3-5 slides. 3 is the correctness floor used here — below that, a split
+ * result means the splitter failed to recognize the prompt's slide labels (stale deployed copy,
+ * or a future prompt format it doesn't understand), not that the row is a legitimate 1-2 slide
+ * carousel (there is no such thing).
+ */
+export const MIN_CAROUSEL_SLIDES = 3;
+
+/**
+ * Throws if a Carousel row split into fewer than MIN_CAROUSEL_SLIDES prompts. This is the
+ * gate that stops the 2026-09-07 incident (post 2b0ab910-98f4-470b-9d1d-f3b57fd1b5a0: a real
+ * 5-slide Carousel prompt collapsed to ONE combined generation and still reached
+ * media_status="ready") from ever reaching "ready" again — independent of whether
+ * splitCarouselSlidePrompts() itself is the current version or a stale deployed copy.
+ * No-op for any other post_type.
+ */
+export function assertCarouselHasEnoughSlides(postType, slideCount, { minSlides = MIN_CAROUSEL_SLIDES } = {}) {
+  if (postType !== "Carousel") return;
+  if (slideCount < minSlides) {
+    throw new Error(
+      `CAROUSEL_SPLIT_TOO_FEW_SLIDES: expected at least ${minSlides} slide prompts for a Carousel ` +
+        `post, got ${slideCount}. Refusing to generate/accept a partial carousel — this is either a ` +
+        `stale deployed copy of gemini-media-automation.mjs/carousel-slide-prompts.mjs on the mini ` +
+        `(redeploy from main) or a prompt format splitCarouselSlidePrompts() no longer recognizes.`
+    );
+  }
+}
+
 export function splitCarouselSlidePrompts(rawPrompt) {
   const text = String(rawPrompt ?? "").trim();
   if (!text) return [];

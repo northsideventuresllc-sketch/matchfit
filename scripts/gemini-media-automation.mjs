@@ -22,6 +22,9 @@
  *      touch JB's live logged-in Chrome — separate --user-data-dir + port).
  *   2. Confirm the Gemini web app's mode picker reads Pro; switch it if not —
  *      JB's standing order is Pro only, Flash never (see ensureProModel below).
+ *   2.5. If the post has admin-uploaded reference files (reference_file_urls —
+ *      Content Calendar v2's "Reference files" field), download and attach them
+ *      into the chat before the prompt is typed. See attachReferenceFiles below.
  *   3. Open Gemini, paste last_generation_prompt (falls back to visual_prompt),
  *      generate, wait for the image(s). Carousel prompts are split into one
  *      generation per slide by parsing the real "Slide N:" labels — see
@@ -62,7 +65,7 @@ import sharp from "sharp";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { splitCarouselSlidePrompts } from "./carousel-slide-prompts.mjs";
+import { splitCarouselSlidePrompts, assertCarouselHasEnoughSlides } from "./carousel-slide-prompts.mjs";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -130,7 +133,7 @@ async function fetchRows({ ids, postDate, postGroup }) {
   const params = new URLSearchParams();
   params.set(
     "select",
-    "id,post_date,post_group,post_type,target_group,visual_prompt,last_generation_prompt,caption,media_status,media_urls,status,workflow_stage"
+    "id,post_date,post_group,post_type,target_group,visual_prompt,last_generation_prompt,caption,media_status,media_urls,status,workflow_stage,reference_file_urls"
   );
   if (ids && ids.length) {
     params.set("id", `in.(${ids.join(",")})`);
@@ -539,6 +542,87 @@ async function cropWhiteFrame(rawPath) {
   return cropped;
 }
 
+/**
+ * Downloads JB's admin-uploaded reference photos/videos/other files (Content Calendar v2's
+ * "Reference files" field, reference_file_urls on the post row) and attaches them into the
+ * current Gemini chat BEFORE the prompt is typed, so Gemini has them as context while generating.
+ * No-op when a row has no reference files — every existing post keeps behaving exactly as before.
+ *
+ * SELECTORS BELOW ARE BEST-EFFORT AND UNVERIFIED against the live Gemini web app — this repo's
+ * sandbox has no network path to gemini.google.com, so this could only be written from the same
+ * general Gemini-UI conventions the rest of this script already relies on (a "+"/attach control
+ * near the composer that opens either a native file picker directly or a small menu with an
+ * "Upload files"-style item first). `page.waitForEvent('filechooser')` is used instead of hunting
+ * for a specific `<input type=file>` element, because Chrome/CDP surfaces a fileChooser event for
+ * both a classic file input AND the modern File System Access picker (the same API this script's
+ * own comments note the Download button uses) — so this works either way as long as SOME native
+ * file-selection UI opens. If Gemini's DOM has moved and neither the direct-picker nor the
+ * menu-item path finds anything, this throws a clear error rather than silently generating
+ * without the reference — callers below catch it, log/report it, and continue the generation
+ * without references rather than failing the whole post over an attach problem.
+ */
+async function attachReferenceFiles(page, referenceUrls, workDir) {
+  if (!referenceUrls || !referenceUrls.length) return;
+
+  const localPaths = [];
+  for (let i = 0; i < referenceUrls.length; i++) {
+    const url = referenceUrls[i];
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
+      const buf = Buffer.from(await res.arrayBuffer());
+      const ext = (url.split("?")[0].split(".").pop() || "bin").slice(0, 10);
+      const localPath = path.join(workDir, `ref-${i + 1}.${ext}`);
+      fs.writeFileSync(localPath, buf);
+      localPaths.push(localPath);
+    } catch (e) {
+      console.error(`REFERENCE_DOWNLOAD_FAILED for ${url}: ${e.message || e}`);
+    }
+  }
+  if (!localPaths.length) {
+    throw new Error("REFERENCE_ATTACH_FAILED: none of the reference files could be downloaded.");
+  }
+
+  const attachBtn = page
+    .locator(
+      'button[aria-label*="upload file" i], button[aria-label*="add photo" i], button[aria-label*="attach" i], button[aria-label*="insert" i]',
+    )
+    .first();
+  const attachVisible = await attachBtn.isVisible().catch(() => false);
+  if (!attachVisible) {
+    throw new Error("REFERENCE_ATTACH_FAILED: could not find Gemini's attach/upload button near the composer.");
+  }
+
+  let fileChooser = null;
+  try {
+    [fileChooser] = await Promise.all([
+      page.waitForEvent("filechooser", { timeout: 4000 }),
+      attachBtn.click(),
+    ]);
+  } catch {
+    // The click likely opened a menu instead of a direct file picker — look for an
+    // "upload files"-style item and click that instead.
+    const menuItem = page
+      .getByRole("menuitem", { name: /upload file|add photo|upload from (this )?(computer|device)/i })
+      .first();
+    const menuVisible = await menuItem.isVisible().catch(() => false);
+    if (!menuVisible) {
+      await page.keyboard.press("Escape").catch(() => null);
+      throw new Error(
+        "REFERENCE_ATTACH_FAILED: the attach button did not open a file picker or a recognizable upload menu.",
+      );
+    }
+    [fileChooser] = await Promise.all([
+      page.waitForEvent("filechooser", { timeout: 4000 }),
+      menuItem.click(),
+    ]);
+  }
+
+  await fileChooser.setFiles(localPaths);
+  // Give Gemini a moment to show the attached-file chips before the prompt gets typed/sent.
+  await page.waitForTimeout(1500);
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -652,6 +736,7 @@ async function main() {
   for (const row of pending) await writeProgress(row.id, 12, "model_pro");
   const results = [];
   const errors = [];
+  const attachWarnings = [];
 
   for (const row of pending) {
     try {
@@ -659,6 +744,13 @@ async function main() {
       // audience context can bleed into the next row's image (e.g. a Video post's
       // prompt influencing the following Carousel's composition).
       await startNewChat(page);
+      if (row.reference_file_urls && row.reference_file_urls.length) {
+        await attachReferenceFiles(page, row.reference_file_urls, workDir).catch((e) => {
+          const msg = `${row.id} (${row.post_type}): reference files could not be attached, continuing without them — ${e.message || e}`;
+          console.error(`WARN ${msg}`);
+          attachWarnings.push(msg);
+        });
+      }
       // last_generation_prompt is the finalized prompt the orchestration layer
       // staged for generation (creative text + production spec); visual_prompt
       // is a fallback for older rows generated before that column existed.
@@ -670,6 +762,14 @@ async function main() {
       // "Slide 2:", etc. (see CONTENT_CALENDAR_CREATIVE_QUALITY_RULES); everything
       // else is a single-image generation.
       const slidePrompts = splitCarouselSlidePrompts(sourcePrompt);
+
+      // Hard gate (scripts/carousel-slide-prompts.mjs) — a Carousel that only split into
+      // 1-2 prompts means the splitter failed to recognize the real "Slide N:" labels
+      // (stale deploy, or a future prompt-format change it doesn't understand yet) and
+      // would otherwise generate ONE combined image and still write media_status="ready".
+      // Fail loud instead — JB gets a Telegram FAIL ping and the post stays out of
+      // publishing, rather than a silently-broken carousel reaching "ready".
+      assertCarouselHasEnoughSlides(row.post_type, slidePrompts.length);
 
       const mediaUrls = [];
       let slideIdx = 0;
@@ -688,6 +788,13 @@ async function main() {
         mediaUrls.push(publicUrl);
         fs.unlinkSync(rawPath);
       }
+
+      // Second half of the same hard gate: never write media_status="ready" with fewer
+      // uploaded images than slides this row was supposed to generate. The loop above
+      // already guarantees this (any generateAndDownload/upload failure throws before
+      // reaching here), but this makes the invariant explicit and survives a future
+      // refactor that might otherwise let a partial batch slip through as "ready".
+      assertCarouselHasEnoughSlides(row.post_type, mediaUrls.length, { minSlides: slidePrompts.length });
 
       await writeMediaResult(row.id, mediaUrls);
       const closedJobs = await completeCoworkJobsForPost(row.id, {
@@ -720,6 +827,10 @@ async function main() {
   if (errors.length) {
     summaryLines.push(`Failed: ${errors.length}`);
     summaryLines.push(...errors.map((e) => `  - ${e.post_type} (${e.id.slice(0, 8)}): ${e.error}`));
+  }
+  if (attachWarnings.length) {
+    summaryLines.push(`Reference file attach issues (generated anyway, without them): ${attachWarnings.length}`);
+    summaryLines.push(...attachWarnings.map((w) => `  - ${w}`));
   }
   await notifyTelegram(summaryLines.join("\n"));
 

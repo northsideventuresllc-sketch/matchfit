@@ -47,6 +47,8 @@ export type ContentCalendarPostRow = {
   media_progress_updated_at: string | null;
   /** Where the post's current media came from — null until it has been generated or replaced once. */
   generation_source: "cowork_gemini" | "manual_upload" | null;
+  /** Admin-supplied reference photos/videos/other files for Gemini to consult while generating this post's media. */
+  reference_file_urls: string[] | null;
   platform_captions: Record<string, string> | null;
   platform_hashtags: Record<string, string[]> | null;
   optimize_status: "idle" | "running" | "done" | "failed" | null;
