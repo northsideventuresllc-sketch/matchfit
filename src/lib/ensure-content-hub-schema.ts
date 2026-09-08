@@ -196,6 +196,13 @@ CREATE INDEX IF NOT EXISTS idx_content_calendar_v2_posted_retain
   WHERE posted_retain_until IS NOT NULL;
 `;
 
+const CONTENT_CALENDAR_V2_5_COLUMNS = ["reference_file_urls"] as const;
+
+const CONTENT_CALENDAR_V2_5_MIGRATION_SQL = `
+ALTER TABLE match_fit_content_calendar_posts
+  ADD COLUMN IF NOT EXISTS reference_file_urls jsonb NOT NULL DEFAULT '[]'::jsonb;
+`;
+
 const POST_DATE_NULLABLE_SQL = `
 ALTER TABLE match_fit_content_calendar_posts
   ALTER COLUMN post_date DROP NOT NULL;
@@ -258,6 +265,15 @@ export function isMissingContentCalendarV24SchemaError(e: unknown): boolean {
   if (/Content Calendar v2\.4 schema is missing/i.test(message)) return true;
   if (!CONTENT_CALENDAR_V2_4_COLUMNS.some((column) => message.includes(column))) {
     return isMissingContentCalendarV23SchemaError(e);
+  }
+  return /does not exist|42P01|42703|PGRST204|schema cache/i.test(message);
+}
+
+export function isMissingContentCalendarV25SchemaError(e: unknown): boolean {
+  const message = e instanceof Error ? e.message : String(e);
+  if (/Content Calendar v2\.5 schema is missing/i.test(message)) return true;
+  if (!CONTENT_CALENDAR_V2_5_COLUMNS.some((column) => message.includes(column))) {
+    return isMissingContentCalendarV24SchemaError(e);
   }
   return /does not exist|42P01|42703|PGRST204|schema cache/i.test(message);
 }
@@ -364,6 +380,12 @@ async function probeContentCalendarV24Schema(): Promise<boolean> {
     .from("match_fit_content_calendar_posts")
     .select("media_progress, media_progress_stage, media_progress_updated_at, posted_retain_until")
     .limit(1);
+  return !error;
+}
+
+async function probeContentCalendarV25Schema(): Promise<boolean> {
+  const client = createNiBrainClient();
+  const { error } = await client.from("match_fit_content_calendar_posts").select("reference_file_urls").limit(1);
   return !error;
 }
 
@@ -558,6 +580,23 @@ export async function ensureContentCalendarV24Schema(): Promise<void> {
   if (!(await probeContentCalendarV24Schema())) {
     throw new Error(
       "Content Calendar v2.4 schema is missing on NI Brain after migration. Confirm NI_BRAIN_DATABASE_URL points at project kxijunwgbrlfzvgkhklo, then redeploy.",
+    );
+  }
+}
+
+/**
+ * Applies Content Calendar v2.5 DDL on NI Brain: reference_file_urls (admin-supplied
+ * photos/videos/other files for Gemini to consult while generating a post's media).
+ */
+export async function ensureContentCalendarV25Schema(): Promise<void> {
+  await ensureContentCalendarV24Schema();
+  if (await probeContentCalendarV25Schema()) return;
+
+  await runNiBrainDdl(CONTENT_CALENDAR_V2_5_MIGRATION_SQL);
+
+  if (!(await probeContentCalendarV25Schema())) {
+    throw new Error(
+      "Content Calendar v2.5 schema is missing on NI Brain after migration. Confirm NI_BRAIN_DATABASE_URL points at project kxijunwgbrlfzvgkhklo, then redeploy.",
     );
   }
 }
