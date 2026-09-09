@@ -16,8 +16,12 @@
  *     "tries": {"blocked_items": 0, "routes_tried": 0},
  *     "regressed": ["anything that used to work and now does not"],
  *     "instruction_change": [{"target": "_Command Center/Agents/EXEC.md", "change": "plain-English proposed edit", "why": "..."}],
- *     "carry_forward": ["open items for the next run"]
+ *     "carry_forward": ["open items for the next run"],
+ *     "started_at": "<ISO8601, optional — when this run actually began, for the heartbeat row>"
  *   }'
+ *
+ * `started_at` is OPTIONAL — defaults to close-out time if the caller doesn't have a real
+ * run-start timestamp handy.
  *
  * What it does, in order:
  *   1. Validates every key exists (empty arrays are fine; missing keys are not).
@@ -26,6 +30,10 @@
  *        - inserts the session_notes_apartment row (raw tier),
  *        - inserts one Learnings row per `fix` and per `regressed` (structured tier),
  *        - posts one agent_bus row to ARCEUS per `instruction_change` (ARCEUS → council → Telegram only if JB must decide),
+ *        - inserts one nvg_run_heartbeats row (job_key=agent, status ok/ok_with_fixes) —
+ *          added 2026-09-09 after PULSE found its own heartbeat frozen since 2026-09-05:
+ *          this hook is the only mechanical close-out path and had never written one,
+ *          so every agent using it looked dead in v_run_liveness despite running fine,
  *      and prints the ids. Otherwise it prints the exact rows for the agent to insert
  *      with its Supabase tool, and appends them to .nvg/closeout-queue.jsonl so nothing is lost.
  */
@@ -74,7 +82,14 @@ function buildRows(a) {
     body: { kind: 'instruction_change_request', target: c.target, change: c.change, why: c.why, requested_by: a.agent, task: a.task, date, route: 'ARCEUS → council → Telegram only if JB must decide' },
     needs_answer: true, status: 'open',
   }));
-  return { apartment, learnings, bus };
+  const nowIso = new Date().toISOString();
+  const heartbeat = {
+    job_key: a.agent,
+    status: a.regressed.length ? 'ok_with_fixes' : (a.fix.length ? 'ok_with_fixes' : 'ok'),
+    started_at: a.started_at || nowIso,
+    finished_at: nowIso,
+  };
+  return { apartment, learnings, bus, heartbeat };
 }
 
 async function main() {
@@ -96,10 +111,11 @@ async function main() {
     const out = { apartment: (await sbInsert('session_notes_apartment', rows.apartment)).id, learnings: [], bus: [] };
     for (const l of rows.learnings) out.learnings.push((await sbInsert('Learnings', l)).id);
     for (const b of rows.bus) out.bus.push((await sbInsert('agent_bus', b)).id);
+    out.heartbeat = (await sbInsert('nvg_run_heartbeats', rows.heartbeat)).id;
     console.log('close-out written to the brain: ' + JSON.stringify(out));
   } else {
     fs.appendFileSync(path.join(dir, 'closeout-queue.jsonl'), JSON.stringify(rows) + '\n');
-    console.log('NO BRAIN KEY IN ENV — insert these with your Supabase tool now (session_notes_apartment, Learnings, agent_bus), then you are closed:');
+    console.log('NO BRAIN KEY IN ENV — insert these with your Supabase tool now (session_notes_apartment, Learnings, agent_bus, nvg_run_heartbeats), then you are closed:');
     console.log(JSON.stringify(rows, null, 2));
   }
 }
