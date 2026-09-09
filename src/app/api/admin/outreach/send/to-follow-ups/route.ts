@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { prisma } from "@/lib/prisma";
 import {
   ensureOutreachHubSchema,
   isMissingOutreachHubSchemaError,
 } from "@/lib/ensure-outreach-hub-schema";
-import { queueManualSend } from "@/lib/outreach-dispatch";
 import { OUTREACH_PLATFORM_VALUES } from "@/lib/outreach-types";
 import { requireAdminSession } from "@/lib/require-admin";
 
@@ -16,11 +16,9 @@ const bodySchema = z.object({
 });
 
 /**
- * "Send To Follow Ups" (WF2 item 6): manually push a lead from Pending Leads into the Send Queue
- * NOW, overriding the wired follow-up clock. The lead's current lane (follow_up_1 / follow_up_2 /
- * pending) is recorded as `dispatchPreviousLane`, so the Send Queue shows the correct follow-up
- * copy and marking it sent advances the follow-up pipeline one step. Queues only — nothing sends
- * until JB marks it sent (approve-only).
+ * "Send To Follow Ups" (WF2 item 6): manually mark a lead's follow-up as due NOW, overriding the 
+ * wired follow-up clock. This makes the lead immediately appear in the "Today's Leads" tab under 
+ * "Follow Ups", where JB can edit/approve it before it flows to the Send Queue.
  */
 export async function POST(req: Request) {
   const sess = await requireAdminSession();
@@ -31,16 +29,35 @@ export async function POST(req: Request) {
 
   try {
     await ensureOutreachHubSchema();
-    const result = await queueManualSend({ leads: [parsed.data] });
-    if (result.queued.length === 0) {
-      return NextResponse.json({ error: "Lead is already in the Send Queue." }, { status: 400 });
+    const { id, platform } = parsed.data;
+    const now = new Date();
+    
+    if (platform === "instagram") {
+      const lead = await prisma.outreachInstagramLead.findUnique({ where: { id } });
+      if (lead) {
+        if (lead.outreachLane === "follow_up_1") {
+          await prisma.outreachInstagramLead.update({ where: { id }, data: { followUp1DueAt: now } });
+        } else if (lead.outreachLane === "follow_up_2") {
+          await prisma.outreachInstagramLead.update({ where: { id }, data: { followUp2DueAt: now } });
+        }
+      }
+    } else if (platform === "email") {
+      const lead = await prisma.outreachEmailLead.findUnique({ where: { id } });
+      if (lead) {
+        if (lead.outreachLane === "follow_up_1") {
+          await prisma.outreachEmailLead.update({ where: { id }, data: { followUp1DueAt: now } });
+        } else if (lead.outreachLane === "follow_up_2") {
+          await prisma.outreachEmailLead.update({ where: { id }, data: { followUp2DueAt: now } });
+        }
+      }
     }
-    return NextResponse.json(result);
+
+    return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("[outreach send to-follow-ups]", e);
     if (isMissingOutreachHubSchemaError(e)) {
       return NextResponse.json({ error: "Outreach schema is still updating." }, { status: 503 });
     }
-    return NextResponse.json({ error: "Could not queue follow-up." }, { status: 500 });
+    return NextResponse.json({ error: "Could not override follow-up clock." }, { status: 500 });
   }
 }

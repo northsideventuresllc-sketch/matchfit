@@ -125,6 +125,7 @@ async function remindStage(
   const refs: OutreachAxonLeadRef[] = [];
   for (const l of igLeads) {
     if (!(await claimReminder("instagram", l.id, remindedField, now, reminderCutoff))) continue;
+    await generateFollowUpCopyIfNeeded("instagram", l.id, stage).catch(e => console.error(e));
     refs.push({
       platform: "instagram",
       leadId: l.id,
@@ -135,6 +136,7 @@ async function remindStage(
   }
   for (const l of emLeads) {
     if (!(await claimReminder("email", l.id, remindedField, now, reminderCutoff))) continue;
+    await generateFollowUpCopyIfNeeded("email", l.id, stage).catch(e => console.error(e));
     refs.push({
       platform: "email",
       leadId: l.id,
@@ -202,4 +204,37 @@ export async function processOutreachFollowUpReminders(
     total: fu1.length + fu2.length,
     skippedReason: null,
   };
+}
+import { generateOutreachLeadCopy } from "@/lib/outreach-copy-generation";
+import type { OutreachCopyField } from "@/lib/outreach-types";
+
+async function generateFollowUpCopyIfNeeded(
+  platform: "instagram" | "email",
+  id: string,
+  stage: "follow_up_1" | "follow_up_2"
+) {
+  const admin = await prisma.administrator.findFirst({ select: { id: true } });
+  if (!admin) return;
+
+  if (platform === "instagram") {
+    const lead = await prisma.outreachInstagramLead.findUnique({ where: { id } });
+    if (!lead) return;
+    const field: OutreachCopyField = stage === "follow_up_1" ? "followUp1DmText" : "followUp2DmText";
+    if (!lead[field] || lead[field].trim() === "") {
+      await generateOutreachLeadCopy({ platform, leadId: id, fields: [field], adminId: admin.id });
+    }
+  } else if (platform === "email") {
+    const lead = await prisma.outreachEmailLead.findUnique({ where: { id } });
+    if (!lead) return;
+    const subField: OutreachCopyField = stage === "follow_up_1" ? "followUp1EmailSubject" : "followUp2EmailSubject";
+    const bodyField: OutreachCopyField = stage === "follow_up_1" ? "followUp1EmailBody" : "followUp2EmailBody";
+    
+    const fieldsToGen: OutreachCopyField[] = [];
+    if (!lead[subField] || lead[subField].trim() === "") fieldsToGen.push(subField);
+    if (!lead[bodyField] || lead[bodyField].trim() === "") fieldsToGen.push(bodyField);
+    
+    if (fieldsToGen.length > 0) {
+      await generateOutreachLeadCopy({ platform, leadId: id, fields: fieldsToGen, adminId: admin.id });
+    }
+  }
 }

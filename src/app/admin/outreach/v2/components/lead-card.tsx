@@ -20,6 +20,8 @@ import {
   type FacebookLeadRow,
   type InstagramLeadRow,
   type OutreachHubLead,
+  outreachStatusOptionsForPlatform,
+  type OutreachPlatform,
 } from "@/lib/outreach-types";
 import { CollapsibleCard, ConfirmModal, SaveIndicator, useAutosave } from "./ui-bits";
 import {
@@ -58,7 +60,10 @@ export function LeadCard(props: {
   const [fields, setFields] = useState<Record<string, string>>(() =>
     seedFields(lead as unknown as Record<string, unknown>, descs),
   );
-  const [intent, setIntent] = useState<string | null>(lead.outreachIntent);
+  const [intent, setIntent] = useState<OutreachIntent | null>(
+    isOutreachIntent(lead.outreachIntent) ? lead.outreachIntent : null,
+  );
+  const [status, setStatus] = useState<string>(lead.status);
   const [approving, setApproving] = useState(false);
   const [manualSending, setManualSending] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -70,9 +75,9 @@ export function LeadCard(props: {
   const lane = laneOf(entry);
   const dueInfo = stage !== "primary" ? formatOverdue(followUpDueAt(entry)) : null;
 
-  // Autosave every field/intent edit (WF2 item 5). Native cmd/ctrl+Z handles undo inside a field.
-  const saveStatus = useAutosave({ fields, intent }, async ({ fields, intent }) => {
-    const result = await patchLead(lead.id, { platform, ...fields, outreachIntent: intent, saveToHub: true });
+  // Autosave every field/intent/status edit (WF2 item 5). Native cmd/ctrl+Z handles undo inside a field.
+  const saveStatus = useAutosave({ fields, intent, status }, async ({ fields, intent, status }) => {
+    const result = await patchLead(lead.id, { platform, ...fields, outreachIntent: intent, status, saveToHub: true });
     if (!result.ok) props.onError(result.error);
     else props.onError("");
     return { ok: result.ok };
@@ -168,24 +173,40 @@ export function LeadCard(props: {
           ) : null}
           {lead.whyMatchFit ? <p className="text-sm text-white/70">{lead.whyMatchFit}</p> : null}
 
-          <label className="block space-y-1">
-            <span className={adminLabelClass}>Intent (required before live send)</span>
-            <select
-              className={adminInputClassSm}
-              value={intent ?? ""}
-              onChange={(e) => {
-                const raw = e.target.value;
-                setIntent(raw && isOutreachIntent(raw) ? (raw as OutreachIntent) : null);
-              }}
-            >
-              <option value="">Unset</option>
-              {OUTREACH_INTENT_OPTIONS.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block space-y-1">
+              <span className={adminLabelClass}>Intent (required before live send)</span>
+              <select
+                className={adminInputClassSm}
+                value={intent ?? ""}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  setIntent(raw && isOutreachIntent(raw) ? (raw as OutreachIntent) : null);
+                }}
+              >
+                <option value="">Unset</option>
+                {OUTREACH_INTENT_OPTIONS.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block space-y-1">
+              <span className={adminLabelClass}>Status</span>
+              <select
+                className={adminInputClassSm}
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                {outreachStatusOptionsForPlatform(platform).map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
 
           {descs.map((d) => (
             <label key={d.key} className="block space-y-1">
