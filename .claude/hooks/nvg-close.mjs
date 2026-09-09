@@ -85,6 +85,7 @@ function buildRows(a) {
   const nowIso = new Date().toISOString();
   const heartbeat = {
     job_key: a.agent,
+    run_id: `${a.agent}-${date}-${Math.random().toString(36).slice(2, 10)}`,
     status: a.regressed.length ? 'ok_with_fixes' : (a.fix.length ? 'ok_with_fixes' : 'ok'),
     started_at: a.started_at || nowIso,
     finished_at: nowIso,
