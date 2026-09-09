@@ -104,15 +104,36 @@ export function selectFollowUpLeads(
   return [...grouped.follow_up_1, ...grouped.follow_up_2];
 }
 
+export function isFollowUpDue(entry: OutreachHubLead, nowMs: number = Date.now()): boolean {
+  const lane = laneOf(entry);
+  if (lane !== "follow_up_1" && lane !== "follow_up_2") return false;
+  const due = followUpDueAt(entry);
+  if (!due) return false;
+  return new Date(due).getTime() <= nowMs;
+}
+
+export function selectTodayLeads(
+  grouped: Record<OutreachLane, OutreachHubLead[]>,
+  nowMs: number = Date.now(),
+): OutreachHubLead[] {
+  const dueFu1 = grouped.follow_up_1.filter((e) => isFollowUpDue(e, nowMs));
+  const dueFu2 = grouped.follow_up_2.filter((e) => isFollowUpDue(e, nowMs));
+  return [...grouped.today, ...dueFu1, ...dueFu2];
+}
+
 /**
  * Every lead that has been contacted and is now awaiting a reply / follow-up — the Pending Leads
  * tab (WF2 item 6). Aggregates the `pending` lane (sent, no follow-up pending / Facebook) with the
- * two follow-up lanes so JB sees one list of "already sent" leads.
+ * two follow-up lanes so JB sees one list of "already sent" leads. Due follow-ups are excluded
+ * as they appear in Today's Leads.
  */
 export function selectPendingLeads(
   grouped: Record<OutreachLane, OutreachHubLead[]>,
+  nowMs: number = Date.now(),
 ): OutreachHubLead[] {
-  return [...grouped.pending, ...grouped.follow_up_1, ...grouped.follow_up_2];
+  const notDueFu1 = grouped.follow_up_1.filter((e) => !isFollowUpDue(e, nowMs));
+  const notDueFu2 = grouped.follow_up_2.filter((e) => !isFollowUpDue(e, nowMs));
+  return [...grouped.pending, ...notDueFu1, ...notDueFu2];
 }
 
 /** How many follow-ups a lead has already had, from its lane: fu1 lane = 0 done, fu2 = 1, pending = 2. */
@@ -184,9 +205,10 @@ export function computeLaneTiles(
   archiveCount: number,
   conversionCount = 0,
 ): LaneTile[] {
-  const pendingCount = grouped.pending.length + grouped.follow_up_1.length + grouped.follow_up_2.length;
+  const pendingCount = selectPendingLeads(grouped).length;
+  const todayCount = selectTodayLeads(grouped).length;
   return [
-    { tab: "today", lane: "today", label: "Today's leads", count: grouped.today.length },
+    { tab: "today", lane: "today", label: "Today's leads", count: todayCount },
     { tab: "past_due", lane: "past_due", label: "Past due", count: grouped.past_due.length },
     { tab: "dispatch", lane: "dispatch_queued", label: "Send queue", count: grouped.dispatch_queued.length },
     { tab: "pending", lane: "pending", label: "Pending leads", count: pendingCount },

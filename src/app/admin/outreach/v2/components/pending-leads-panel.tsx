@@ -3,20 +3,22 @@
 import { useState } from "react";
 import {
   adminAccentButtonClass,
+  adminInputClassSm,
   adminLabelClass,
   adminPanelClass,
   adminSecondaryButtonClass,
 } from "@/components/admin/admin-portal-ui";
 import { outreachIntentLabel } from "@/lib/outreach-cowork";
-import type {
-  EmailLeadRow,
-  FacebookLeadRow,
-  InstagramLeadRow,
-  OutreachHubLead,
-  OutreachLane,
+import {
+  outreachStatusOptionsForPlatform,
+  type EmailLeadRow,
+  type FacebookLeadRow,
+  type InstagramLeadRow,
+  type OutreachHubLead,
+  type OutreachLane,
 } from "@/lib/outreach-types";
-import { CollapsibleCard, ConfirmModal } from "./ui-bits";
-import { deleteLead, markResponded, sendToFollowUps } from "./client-api";
+import { CollapsibleCard, ConfirmModal, SaveIndicator, useAutosave } from "./ui-bits";
+import { deleteLead, markResponded, sendToFollowUps, patchLead } from "./client-api";
 import {
   followUpCount,
   followUpDueAt,
@@ -64,6 +66,14 @@ function PendingLeadCard(props: {
   const [busy, setBusy] = useState<null | "follow" | "responded">(null);
   const [showArchive, setShowArchive] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [status, setStatus] = useState<string>(lead.status);
+
+  const saveStatus = useAutosave({ status }, async ({ status }) => {
+    const result = await patchLead(lead.id, { platform: entry.platform, status });
+    if (!result.ok) props.onError(result.error);
+    else props.onError("");
+    return { ok: result.ok };
+  });
 
   const name = leadDisplayName(entry);
   const contact = leadContactUrl(entry);
@@ -182,6 +192,22 @@ function PendingLeadCard(props: {
             >
               Archive
             </button>
+          </div>
+
+          <div className="flex items-center gap-3 pt-2">
+            <span className={adminLabelClass}>Status</span>
+            <select
+              className={adminInputClassSm}
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              {outreachStatusOptionsForPlatform(entry.platform).map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <SaveIndicator status={saveStatus} />
           </div>
         </div>
       </CollapsibleCard>

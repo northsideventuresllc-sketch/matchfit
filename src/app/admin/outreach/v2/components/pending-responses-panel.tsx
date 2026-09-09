@@ -9,7 +9,12 @@ import {
   adminPrimaryButtonClass,
   adminSecondaryButtonClass,
 } from "@/components/admin/admin-portal-ui";
-import type { EmailLeadRow, InstagramLeadRow, OutreachHubLead } from "@/lib/outreach-types";
+import { 
+  outreachStatusOptionsForPlatform, 
+  type EmailLeadRow, 
+  type InstagramLeadRow, 
+  type OutreachHubLead 
+} from "@/lib/outreach-types";
 import { AccountPickerModal, CollapsibleCard, CopyButton, RegenerateModal, SaveIndicator, useAutosave } from "./ui-bits";
 import {
   markOutreachLeadConverted,
@@ -18,6 +23,7 @@ import {
   saveResponseDraft,
   scanPendingResponses,
   sendManual,
+  patchLead,
 } from "./client-api";
 import { leadContactUrl, leadDisplayName } from "./helpers";
 
@@ -30,6 +36,7 @@ function PendingResponseCard(props: {
   const { entry } = props;
   const lead = entry.lead as InstagramLeadRow | EmailLeadRow;
   const [draft, setDraft] = useState(lead.pendingResponseDraft ?? "");
+  const [status, setStatus] = useState(lead.status);
   const [incoming, setIncoming] = useState("");
   const [showRegen, setShowRegen] = useState(false);
   const [sending, setSending] = useState<null | "manual" | "agent">(null);
@@ -40,10 +47,15 @@ function PendingResponseCard(props: {
   const contact = leadContactUrl(entry);
 
   // Autosave the edited reply (WF2 item 5/8) — draft-only route, never moves the lead.
-  const saveStatus = useAutosave({ draft }, async ({ draft }) => {
-    const result = await saveResponseDraft(lead.id, entry.platform, draft);
-    if (!result.ok) props.onError(result.error);
-    return { ok: result.ok };
+  // We also save status using patchLead.
+  const saveStatus = useAutosave({ draft, status }, async ({ draft, status }) => {
+    const p1 = saveResponseDraft(lead.id, entry.platform, draft);
+    const p2 = patchLead(lead.id, { platform: entry.platform, status });
+    const [r1, r2] = await Promise.all([p1, p2]);
+    if (!r1.ok) props.onError(r1.error);
+    else if (!r2.ok) props.onError(r2.error);
+    else props.onError("");
+    return { ok: r1.ok && r2.ok };
   });
 
   async function regenerate(feedback: string): Promise<{ ok: boolean; error?: string }> {
@@ -128,6 +140,21 @@ function PendingResponseCard(props: {
               placeholder="No draft yet — run Regenerate to generate one."
               onChange={(e) => setDraft(e.target.value)}
             />
+          </label>
+
+          <label className="block space-y-1">
+            <span className={adminLabelClass}>Status</span>
+            <select
+              className={adminInputClassSm}
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              {outreachStatusOptionsForPlatform(entry.platform).map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           </label>
 
           <div className="flex flex-wrap items-center gap-2 pt-1">
