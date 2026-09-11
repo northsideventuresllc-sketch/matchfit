@@ -46,10 +46,26 @@ export async function getLaunchPromoStats(): Promise<LaunchPromoStats> {
   const clientBetaCap = betaMaxClients();
 
   const [trainerCount, clientCount, trainerUsed, clientUsed] = await Promise.all([
-    countLaunchTrainers(),
-    countLaunchClients(),
-    gatesEnabled ? trainerBetaSlotsUsed() : Promise.resolve(0),
-    gatesEnabled ? clientBetaSlotsUsed() : Promise.resolve(0),
+    countLaunchTrainers().catch((e) => {
+      console.error("[launch-promo-stats] countLaunchTrainers failed", e);
+      return 0;
+    }),
+    countLaunchClients().catch((e) => {
+      console.error("[launch-promo-stats] countLaunchClients failed", e);
+      return 0;
+    }),
+    gatesEnabled
+      ? trainerBetaSlotsUsed().catch((e) => {
+          console.error("[launch-promo-stats] trainerBetaSlotsUsed failed", e);
+          return 0;
+        })
+      : Promise.resolve(0),
+    gatesEnabled
+      ? clientBetaSlotsUsed().catch((e) => {
+          console.error("[launch-promo-stats] clientBetaSlotsUsed failed", e);
+          return 0;
+        })
+      : Promise.resolve(0),
   ]);
 
   const trainerFoundingRemaining = Math.max(0, trainerFoundingMax - trainerCount);
