@@ -63,17 +63,24 @@ function computeView(post: PendingProgressPost, now: number): PendingProgressVie
   }
 
   const elapsed = Math.max(0, now - startedAt);
-  const percent = Math.max(0, Math.min(100, Math.round((elapsed / PENDING_MEDIA_BUILD_DURATION_MS) * 100)));
+  
+  // If no progress update for > 7 minutes, flag as stalled rather than hanging at 100%
+  if (elapsed > 7 * 60_000) {
+    return { percent: 85, active: true, etaLabel: "Stalled on Mac mini (checking status…)" };
+  }
+
+  // Cap synthetic time-based progress at 85% — only real producer completion can reach 100%
+  const percent = Math.max(0, Math.min(85, Math.round((elapsed / PENDING_MEDIA_BUILD_DURATION_MS) * 85)));
   const remainingMs = PENDING_MEDIA_BUILD_DURATION_MS - elapsed;
 
   const etaLabel =
     remainingMs <= 0
-      ? "Any moment now."
+      ? "Finishing generation on Mac mini…"
       : Math.ceil(remainingMs / 60_000) <= 1
         ? "About a minute left."
         : `About ${Math.ceil(remainingMs / 60_000)} minutes left.`;
 
-  return { percent, active: percent < 100, etaLabel };
+  return { percent, active: true, etaLabel };
 }
 
 /**
