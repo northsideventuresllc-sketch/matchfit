@@ -9,12 +9,18 @@ import {
   TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE,
   TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS,
   TRAINER_SIGNUP_PREMIUM_PROMO_DAYS,
+  trainerIndependentProSubscriptionLabel,
   trainerStandardOnboardingAfterCapLabel,
 } from "@/lib/trainer-signup-promo-copy";
 import {
   CLIENT_PAYMENT_GRACE_DAYS,
   CLIENT_PLATFORM_TRIAL_DAYS,
 } from "@/lib/client-platform-trial-constants";
+import {
+  TRAINER_PAYMENT_GRACE_DAYS,
+  TRAINER_PLATFORM_SUBSCRIPTION_USD,
+  TRAINER_PLATFORM_TRIAL_DAYS,
+} from "@/lib/trainer-platform-trial-constants";
 import {
   CHECK_IN_LEAD_HOURS,
   GATE_A_POST_SESSION_SILENCE_HOURS,
@@ -188,12 +194,22 @@ export default async function TermsPage() {
         <P>
           <Strong>Founding trainer promotions (while caps last):</Strong> The first{" "}
           <Strong>{FOUNDING_TRAINER_CAP} Trainers</Strong> who complete registration receive{" "}
-          <Strong>{TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days</Strong> of complimentary Premium Page access starting at
-          sign-up. During this promo, Trainers pay only the independent background-check fee through Match Fit&apos;s
-          portal (plus transaction fees). Trainers must{" "}
+          <Strong>{TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days</Strong> of complimentary Independent Pro platform access
+          starting at sign-up. During this promo, Trainers pay only the independent background-check fee through Match
+          Fit&apos;s portal (plus transaction fees). Trainers must{" "}
           <Strong>begin onboarding within {TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} calendar days</Strong> of account
           creation (including paying the background check through our portal and starting certification and screening
           steps). {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}
+        </P>
+        <P>
+          <Strong>Trainer sign-up trial (Independent Pro):</Strong> After you complete trainer registration, your account
+          receives a <Strong>{TRAINER_PLATFORM_TRIAL_DAYS}-day</Strong> complimentary Independent Pro platform access
+          period with <Strong>no subscription card required at sign-up</Strong>. When that trial ends, you have an
+          additional <Strong>{TRAINER_PAYMENT_GRACE_DAYS} days</Strong> to connect a card and start the recurring
+          Independent Pro subscription ({trainerIndependentProSubscriptionLabel()}). If payment is not completed before
+          the grace period ends, your account is deactivated and dashboard access is blocked until you pay to
+          reactivate. You will be prompted for payment information whenever you log in once the trial ends. A new free
+          trial is not offered if you previously consumed the sign-up trial.
         </P>
 
         <H2 id="fees-and-payments">3. Fees, Administrative Charges, and Payment Processing</H2>
@@ -222,9 +238,9 @@ export default async function TermsPage() {
           pricing when arranging services off-platform.
         </P>
         <P>
-          <Strong>Trainer Premium Subscription:</Strong> Where we offer a Trainer premium plan at a stated monthly price
-          (for example, twenty U.S. dollars ($20.00) per month), applicable payment processor costs may be included in that
-          advertised price as described at checkout.
+          <Strong>Trainer Premium Subscription (Independent Pro):</Strong> Where we offer a Trainer Independent Pro /
+          premium plan at a stated monthly price (for example, {usdCents(TRAINER_PLATFORM_SUBSCRIPTION_USD)} per month),
+          applicable payment processor costs may be included in that advertised price as described at checkout.
         </P>
         <P>
           <Strong>Subscriptions and Promotions:</Strong> Client Platform subscriptions may be offered at published rates
@@ -443,7 +459,7 @@ export default async function TermsPage() {
             portal plus applicable transaction fees, as shown at checkout.{" "}
             <Strong>Founding-coach promo (first {FOUNDING_TRAINER_CAP} Trainers):</Strong> pay only the background-check
             fee through our portal (plus processing) and receive <Strong>{TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days</Strong>{" "}
-            of Premium Page access at sign-up. Trainers must begin onboarding within{" "}
+            of complimentary Independent Pro platform access at sign-up. Trainers must begin onboarding within{" "}
             <Strong>{TRAINER_SIGNUP_ONBOARDING_BEGIN_DAYS} calendar days</Strong> of account creation and may not offer
             or sell services until all onboarding requirements are completed.{" "}
             <Strong>Standard pricing (after founding caps):</Strong> {trainerStandardOnboardingAfterCapLabel()}. Match Fit

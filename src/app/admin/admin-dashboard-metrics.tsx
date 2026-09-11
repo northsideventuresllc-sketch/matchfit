@@ -21,6 +21,7 @@ import type {
 } from "@/lib/admin-portal-types";
 import type { AdPerformancePanel } from "@/lib/ad-platform-performance";
 import { formatUsdFromCents } from "@/lib/admin-portal-types";
+import { TRAINER_PREMIUM_SUBSCRIPTION_USD } from "@/lib/platform-revenue-accounting";
 
 const FINANCE_WINDOW_LABELS: Record<AdminFinanceWindowKey, string> = {
   "24h": "24 hours",
@@ -158,7 +159,7 @@ export function PlatformHealthSection({ panel }: { panel: AdminPlatformSummaryPa
         <StatCard
           label="Annualized subscription ARR"
           value={formatUsdFromCents(valuation.subscriptionArrCents)}
-          hint="Client $10/mo + trainer premium $20/mo"
+          hint={`Client $10/mo + trainer Independent Pro $${TRAINER_PREMIUM_SUBSCRIPTION_USD}/mo`}
         />
         <StatCard
           label="Annualized 30d gross profit"

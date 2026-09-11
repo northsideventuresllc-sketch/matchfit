@@ -64,7 +64,7 @@ export const CONTENT_CALENDAR_DAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri"] a
 export const CONTENT_CALENDAR_DAYS_LONG = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] as const;
 
 export const CONTENT_CALENDAR_BRAND_FACTS = `Match Fit — two-sided fitness marketplace connecting personal trainers with clients in Atlanta.
-Beta v1.2+, Atlanta focus. Clients: $10/month. Trainer premium from $20/month. 20% platform fee on sessions.
+Beta v1.2+, Atlanta focus. Clients: $10/month. Trainer Independent Pro from $15/month. 20% platform fee on sessions.
 Features: swipe-based discovery, Fit Hub social feed, AI matching, virtual + in-person.
 Brand: bold, direct, real — no fluff. Colors: dark #07080C, orange #FF7E00. Handle: @theofficialmatchfit
 Goal: grow beta trainers and clients. Site: match-fit.net`;

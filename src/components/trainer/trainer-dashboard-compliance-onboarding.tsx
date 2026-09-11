@@ -18,7 +18,8 @@ import { coerceTrainerBackgroundVendorStatus, coerceTrainerCptStatus } from "@/l
 import type { TrainerComplianceWindowState } from "@/lib/trainer-compliance-window";
 import {
   TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE,
-  TRAINER_SIGNUP_PREMIUM_PROMO_DAYS,
+  trainerIndependentProSubscriptionLabel,
+  trainerSignupPremiumPromoBenefitLabel,
 } from "@/lib/trainer-signup-promo-copy";
 
 type Props = {
@@ -128,8 +129,10 @@ export function TrainerDashboardComplianceOnboarding({
       </h2>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/60">
         Upload your credentials and complete Checkr screening to unlock messaging, services, and client discovery. During
-        the founding promo, pay only your background check through our portal and receive {TRAINER_SIGNUP_PREMIUM_PROMO_DAYS}{" "}
-        days of Premium Page access at sign-up. {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}
+        the founding promo, pay only your background check through our portal and receive{" "}
+        {trainerSignupPremiumPromoBenefitLabel()} of Independent Pro access at sign-up; after the trial, the{" "}
+        {trainerIndependentProSubscriptionLabel()} subscription keeps your account active.{" "}
+        {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}
       </p>
 
       {complianceWindow.paused && !complianceWindow.humanReviewActive ? (

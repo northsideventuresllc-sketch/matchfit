@@ -1,25 +1,40 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   type TrainerNotificationPrefs,
   defaultTrainerNotificationPrefs,
 } from "@/lib/trainer-notification-prefs";
+import { navigateWithFullLoad } from "@/lib/navigate-full-load";
 
 type Summary = {
-  mode: "placeholder";
+  mode: "live" | "placeholder";
   email: string;
   premiumStudioActive: boolean;
   premiumStudioEnabledAt: string | null;
+  hasActiveSubscription: boolean;
+  stripeSubscriptionActive?: boolean;
+  platformTrialEndsAt?: string | null;
+  paymentGraceUntil?: string | null;
+  accessPhase?: string;
+  needsPayment?: boolean;
+  monthlyPriceUsd?: number;
   message: string;
 };
 
 export function TrainerBillingPageClient() {
+  const searchParams = useSearchParams();
+  const locked = searchParams.get("locked") === "1";
+  const subscribed = searchParams.get("subscribed") === "1";
+  const canceled = searchParams.get("canceled") === "1";
+
   const [summary, setSummary] = useState<Summary | null>(null);
   const [prefs, setPrefs] = useState<TrainerNotificationPrefs>({ ...defaultTrainerNotificationPrefs });
   const [error, setError] = useState<string | null>(null);
   const [prefsBusy, setPrefsBusy] = useState(false);
   const [prefsOk, setPrefsOk] = useState<string | null>(null);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,6 +52,13 @@ export function TrainerBillingPageClient() {
           email: data.email,
           premiumStudioActive: data.premiumStudioActive,
           premiumStudioEnabledAt: data.premiumStudioEnabledAt,
+          hasActiveSubscription: data.hasActiveSubscription,
+          stripeSubscriptionActive: data.stripeSubscriptionActive,
+          platformTrialEndsAt: data.platformTrialEndsAt,
+          paymentGraceUntil: data.paymentGraceUntil,
+          accessPhase: data.accessPhase,
+          needsPayment: data.needsPayment,
+          monthlyPriceUsd: data.monthlyPriceUsd,
           message: data.message,
         });
 
@@ -54,7 +76,29 @@ export function TrainerBillingPageClient() {
     };
   }, []);
 
-  if (error) {
+  async function startSubscriptionCheckout() {
+    setCheckoutBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/trainer/billing/create-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reactivation: Boolean(summary?.needsPayment) }),
+      });
+      const data = (await res.json()) as { error?: string; url?: string };
+      if (!res.ok || !data.url) {
+        setError(data.error ?? "Could not start checkout.");
+        return;
+      }
+      navigateWithFullLoad(data.url);
+    } catch {
+      setError("Could not start checkout.");
+    } finally {
+      setCheckoutBusy(false);
+    }
+  }
+
+  if (error && !summary) {
     return (
       <p className="rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]" role="alert">
         {error}
@@ -66,17 +110,57 @@ export function TrainerBillingPageClient() {
     return <p className="text-center text-sm text-white/45">Loading billing…</p>;
   }
 
+  const monthlyLabel = `$${(summary.monthlyPriceUsd ?? 15).toFixed(2)}`;
+  const showSubscribeCta = !summary.hasActiveSubscription;
+
   return (
     <div className="space-y-6">
+      {locked || summary.needsPayment ? (
+        <div className="rounded-2xl border border-[#FFD34E]/35 bg-[#FFD34E]/10 px-4 py-4 text-sm text-[#FFE9A8]" role="status">
+          Your Independent Pro free trial has ended. Start the {monthlyLabel} per month subscription to keep your account
+          active. You will be prompted for payment whenever you log in until billing is connected.
+        </div>
+      ) : null}
+      {subscribed ? (
+        <div className="rounded-2xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100" role="status">
+          Subscription started. Your Independent Pro account stays active while billing remains current.
+        </div>
+      ) : null}
+      {canceled ? (
+        <div className="rounded-2xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm text-white/70" role="status">
+          Checkout was canceled. You can resume whenever you are ready.
+        </div>
+      ) : null}
+      {error ? (
+        <p className="rounded-xl border border-[#E32B2B]/35 bg-[#E32B2B]/10 px-4 py-3 text-sm text-[#FFB4B4]" role="alert">
+          {error}
+        </p>
+      ) : null}
+
       <div className="space-y-6 rounded-3xl border border-white/[0.08] bg-[#12151C]/90 p-6 sm:p-8">
         <div className="space-y-2 text-center">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">Premium subscription</p>
-          <p className="text-sm text-white/75">
-            {summary.premiumStudioActive ? "STATUS: ACTIVE" : "STATUS: NOT ACTIVE"}
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">
+            Independent Pro Subscription
           </p>
+          <p className="text-sm text-white/75">
+            {summary.hasActiveSubscription ? "STATUS: ACTIVE" : summary.needsPayment ? "STATUS: PAYMENT REQUIRED" : "STATUS: FREE TRIAL"}
+          </p>
+          {summary.platformTrialEndsAt ? (
+            <p className="text-xs text-white/50">
+              Trial ends:{" "}
+              <span className="font-semibold text-white/80">
+                {new Date(summary.platformTrialEndsAt).toLocaleDateString(undefined, {
+                  weekday: "short",
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })}
+              </span>
+            </p>
+          ) : null}
           {summary.premiumStudioEnabledAt ? (
             <p className="text-xs text-white/50">
-              STARTED:{" "}
+              Premium started:{" "}
               <span className="font-semibold text-white/80">
                 {new Date(summary.premiumStudioEnabledAt).toLocaleDateString(undefined, {
                   weekday: "short",
@@ -90,13 +174,25 @@ export function TrainerBillingPageClient() {
         </div>
 
         <div className="rounded-2xl border border-white/[0.06] bg-[#0E1016]/60 px-4 py-4 text-center">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-white/40">Billing History</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-white/40">Plan</p>
           <p className="mt-2 text-sm text-white/80">{summary.message}</p>
           <p className="mt-2 text-xs text-white/35">
-            Your trainer billing history, invoices, and payment methods will appear here when Stripe for coaches is
-            connected.
+            After your free trial, {monthlyLabel} per month keeps your Independent Pro account active.
           </p>
         </div>
+
+        {showSubscribeCta ? (
+          <div className="flex justify-center">
+            <button
+              type="button"
+              disabled={checkoutBusy}
+              onClick={() => void startSubscriptionCheckout()}
+              className="inline-flex min-h-[3rem] items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-6 text-xs font-black uppercase tracking-[0.08em] text-[#0B0C0F] disabled:opacity-45"
+            >
+              {checkoutBusy ? "Starting Checkout…" : `Start ${monthlyLabel}/Mo Subscription`}
+            </button>
+          </div>
+        ) : null}
 
         <div className="rounded-2xl border border-white/[0.06] bg-[#0E1016]/60 px-4 py-4">
           <p className="text-center text-[11px] font-semibold uppercase tracking-wide text-white/40">
@@ -172,23 +268,16 @@ export function TrainerBillingPageClient() {
                 href="/trainer/dashboard/premium"
                 className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-[#FF7E00]/35 bg-[#FF7E00]/12 px-4 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/50 sm:max-w-xs"
               >
-                OPEN PREMIUM HUB
+                Open Premium Hub
               </a>
               <a
                 href="/trainer/dashboard/premium/fit-hub-content"
                 className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] px-4 text-xs font-black uppercase tracking-[0.08em] text-white/85 transition hover:border-white/25 sm:max-w-xs"
               >
-                FIT HUB &amp; CONTENT
+                Fit Hub &amp; Content
               </a>
             </>
-          ) : (
-            <a
-              href="/trainer/dashboard/premium"
-              className="inline-flex min-h-[3rem] flex-1 items-center justify-center rounded-xl border border-[#FF7E00]/35 bg-[#FF7E00]/12 px-4 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:border-[#FF7E00]/50 sm:max-w-xs"
-            >
-              PURCHASE PREMIUM PAGE
-            </a>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

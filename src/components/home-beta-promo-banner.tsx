@@ -3,8 +3,9 @@ import { MATCH_FIT_PRODUCT_VERSION_ANNOUNCE } from "@/lib/match-fit-product-vers
 import { getTrainerFoundingBgPercentMax } from "@/lib/match-fit-launch-promotion-caps";
 import { getClientFoundingTrialDays } from "@/lib/match-fit-launch-promotions";
 import {
-  TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE,
   trainerFoundingPromoHeadline,
+  trainerIndependentProSubscriptionLabel,
+  trainerIndependentProTrialPromoSentence,
   trainerSignupOnboardingBeginDeadlineLabel,
   trainerSignupPremiumPromoBenefitLabel,
 } from "@/lib/trainer-signup-promo-copy";
@@ -77,8 +78,17 @@ export function HomeBetaPromoBanner() {
                 <span className="font-semibold text-white/90">
                   First {trainerFoundingCap} fitness professionals:
                 </span>{" "}
-                {trainerFoundingPromoHeadline(trainerFoundingCap)}{" "}
-                {TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}
+                {trainerFoundingPromoHeadline(trainerFoundingCap)}
+              </span>
+            </li>
+            <li className="flex min-w-0 gap-3">
+              <span
+                className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[linear-gradient(135deg,#FFD34E,#E32B2B)]"
+                aria-hidden
+              />
+              <span className="min-w-0 flex-1 text-left [overflow-wrap:anywhere]">
+                <span className="font-semibold text-white/90">All fitness professionals:</span>{" "}
+                {trainerIndependentProTrialPromoSentence()}
               </span>
             </li>
             <li className="flex min-w-0 gap-3">
@@ -95,9 +105,11 @@ export function HomeBetaPromoBanner() {
           </ul>
           <p className="text-left text-xs leading-relaxed text-white/50 [overflow-wrap:anywhere] sm:text-[13px]">
             <span className="font-semibold text-white/70">Trainer reminder:</span> begin onboarding within{" "}
-            {trainerSignupOnboardingBeginDeadlineLabel()} of sign-up and pay your background check through our portal to
-            keep your <span className="font-semibold text-white/75">{trainerSignupPremiumPromoBenefitLabel()}</span>{" "}
-            active while you finish compliance.
+            {trainerSignupOnboardingBeginDeadlineLabel()} of sign-up and pay your background check through our portal.
+            Your <span className="font-semibold text-white/75">{trainerSignupPremiumPromoBenefitLabel()}</span>{" "}
+            Independent Pro trial starts at registration; after the trial, the{" "}
+            <span className="font-semibold text-white/75">{trainerIndependentProSubscriptionLabel()}</span> subscription
+            keeps your account active.
           </p>
         </div>
 

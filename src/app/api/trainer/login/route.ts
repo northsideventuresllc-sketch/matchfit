@@ -2,6 +2,8 @@ import { trainerLoginDeletionRedirect } from "@/lib/account-deletion-login-redir
 import { send2FACode } from "@/lib/auth-2fa-email";
 import { findTrainerByIdentifier } from "@/lib/trainer-queries";
 import { getTrainerLoginOtpDelivery } from "@/lib/trainer-login-two-factor-target";
+import { isTrainerAccountLoginBlocked, trainerNeedsPaymentSetup } from "@/lib/trainer-platform-access";
+import { syncTrainerPlatformBillingLifecycle } from "@/lib/trainer-platform-lifecycle";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
 import {
@@ -14,6 +16,18 @@ import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
 import { verifyTurnstileToken } from "@/lib/turnstile-verify";
 import { trainerLoginSchema } from "@/lib/validations/trainer-register";
 import { NextResponse } from "next/server";
+
+function accountDeactivatedResponse() {
+  return NextResponse.json(
+    {
+      error:
+        "Your Match Fit Independent Pro account is deactivated because payment was not completed after your free trial. Pay to reactivate your account.",
+      code: "ACCOUNT_DEACTIVATED",
+      next: "/trainer/reactivate",
+    },
+    { status: 403 },
+  );
+}
 
 export async function POST(req: Request) {
   try {
@@ -47,16 +61,41 @@ export async function POST(req: Request) {
       );
     }
 
-    const otpDelivery = await getTrainerLoginOtpDelivery(trainer.id);
-    if (trainer.twoFactorEnabled && otpDelivery) {
+    await syncTrainerPlatformBillingLifecycle(trainer.id);
+    const refreshed = await findTrainerByIdentifier(identifier);
+    if (!refreshed) {
+      return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
+    }
+
+    const billingFields = {
+      stripeSubscriptionId: refreshed.stripeSubscriptionId,
+      stripeSubscriptionActive: refreshed.stripeSubscriptionActive,
+      subscriptionGraceUntil: refreshed.subscriptionGraceUntil,
+      platformTrialEndsAt: refreshed.platformTrialEndsAt,
+      paymentGraceUntil: refreshed.paymentGraceUntil,
+      accountDeactivatedAt: refreshed.accountDeactivatedAt,
+      platformTrialConsumed: refreshed.platformTrialConsumed,
+    };
+
+    if (isTrainerAccountLoginBlocked(billingFields)) {
+      return accountDeactivatedResponse();
+    }
+
+    const paymentRequired = trainerNeedsPaymentSetup(billingFields);
+    const postAuthNext = paymentRequired
+      ? "/trainer/dashboard/billing?locked=1"
+      : redirectAfterLogin;
+
+    const otpDelivery = await getTrainerLoginOtpDelivery(refreshed.id);
+    if (refreshed.twoFactorEnabled && otpDelivery) {
       try {
-        await send2FACode(otpDelivery.email, trainer.id, "TRAINER");
+        await send2FACode(otpDelivery.email, refreshed.id, "TRAINER");
       } catch (deliverErr) {
         console.error("[Match Fit trainer login 2FA] Email OTP delivery failed.", deliverErr);
         throw deliverErr;
       }
       await prisma.trainer.update({
-        where: { id: trainer.id },
+        where: { id: refreshed.id },
         data: {
           stayLoggedIn,
           twoFactorLoginAttempts: 0,
@@ -65,26 +104,43 @@ export async function POST(req: Request) {
           twoFactorOtpExpires: null,
         },
       });
-      const token = await signTrainerLoginChallengeToken(trainer.id, { stayLoggedIn, redirectAfterLogin });
+      const token = await signTrainerLoginChallengeToken(refreshed.id, {
+        stayLoggedIn,
+        redirectAfterLogin: postAuthNext,
+      });
       const res = NextResponse.json({
         needsTwoFactor: true,
         next: "/verify-2fa",
+        ...(paymentRequired
+          ? {
+              code: "PAYMENT_REQUIRED",
+              message:
+                "Your Independent Pro free trial has ended. Enter payment info to keep your account active at $15.00 per month.",
+            }
+          : {}),
       });
       applyTrainerLoginChallengeToNextResponse(res, token);
       return res;
     }
 
     await prisma.trainer.update({
-      where: { id: trainer.id },
+      where: { id: refreshed.id },
       data: { stayLoggedIn },
     });
-    const deletionRedirect = await trainerLoginDeletionRedirect(trainer.id);
+    const deletionRedirect = await trainerLoginDeletionRedirect(refreshed.id);
     const res = NextResponse.json({
       ok: true,
-      next: deletionRedirect?.next ?? redirectAfterLogin,
+      next: deletionRedirect?.next ?? postAuthNext,
       ...(deletionRedirect ? { finalizeAt: deletionRedirect.finalizeAt } : {}),
+      ...(paymentRequired
+        ? {
+            code: "PAYMENT_REQUIRED",
+            message:
+              "Your Independent Pro free trial has ended. Enter payment info to keep your account active at $15.00 per month.",
+          }
+        : {}),
     });
-    await applyTrainerSessionToNextResponse(res, trainer.id, stayLoggedIn);
+    await applyTrainerSessionToNextResponse(res, refreshed.id, stayLoggedIn);
     return res;
   } catch (e) {
     const { message, status } = publicApiErrorFromUnknown(e, "Sign-in failed. Please try again.", {

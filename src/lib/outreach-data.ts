@@ -127,24 +127,139 @@ const generationLeadWhere = {
 
 export async function listOutreachLeads(platform: OutreachPlatform, includeDeleted = false) {
   await ensureOutreachReady();
-  const where = includeDeleted ? {} : generationLeadWhere;
+  if (includeDeleted) {
+    if (platform === "instagram") {
+      const rows = await prisma.outreachInstagramLead.findMany({ orderBy: { createdAt: "desc" } });
+      return rows.map((r) => serializeInstagramLead(r));
+    }
+    if (platform === "facebook") {
+      const rows = await prisma.outreachFacebookLead.findMany({ orderBy: { createdAt: "desc" } });
+      return rows.map((r) => serializeFacebookLead(r));
+    }
+    if (platform === "email") {
+      const rows = await prisma.outreachEmailLead.findMany({ orderBy: { createdAt: "desc" } });
+      return rows.map((r) => serializeEmailLead(r));
+    }
+    return [];
+  }
 
   if (platform === "instagram") {
-    const rows = await prisma.outreachInstagramLead.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-    });
-    return rows.map((r) => serializeInstagramLead(r));
+    const [unsaved, saved] = await Promise.all([
+      prisma.outreachInstagramLead.findMany({
+        where: generationLeadWhere,
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.outreachInstagramLead.findMany({
+        where: {
+          deletedAt: null,
+          archivedAt: null,
+          savedToHubAt: { not: null },
+          status: { in: ["OUTREACH_SENT", "FOLLOW_UP_1", "FOLLOW_UP_2"] },
+        },
+        orderBy: { updatedAt: "desc" },
+      }),
+    ]);
+
+    const followUpsNeeded = saved
+      .map((r) => serializeInstagramLead(r))
+      .filter((l) => l.autoClassification === "FOLLOW_UP_NEEDED")
+      .map((l) => {
+        if (l.status === "OUTREACH_SENT" && !l.followUp1DmText?.trim()) {
+          l.followUp1DmText = "Hey — circling back on Match Fit. Still a few beta spots for US trainers if you're open to a quick look. — JB";
+        } else if (l.status === "FOLLOW_UP_1" && !l.followUp2DmText?.trim()) {
+          l.followUp2DmText = "Last note from me — happy to share more on Match Fit if timing opens up. Either way, keep crushing it. — JB";
+        }
+        return l;
+      });
+
+    const seen = new Set<string>();
+    const merged: InstagramLeadRow[] = [];
+    for (const lead of [...unsaved.map((r) => serializeInstagramLead(r)), ...followUpsNeeded]) {
+      if (!seen.has(lead.id)) {
+        seen.add(lead.id);
+        merged.push(lead);
+      }
+    }
+    return merged;
   }
 
   if (platform === "facebook") {
-    const rows = await prisma.outreachFacebookLead.findMany({ where, orderBy: { createdAt: "desc" } });
-    return rows.map((r) => serializeFacebookLead(r));
+    const [unsaved, saved] = await Promise.all([
+      prisma.outreachFacebookLead.findMany({
+        where: generationLeadWhere,
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.outreachFacebookLead.findMany({
+        where: {
+          deletedAt: null,
+          archivedAt: null,
+          savedToHubAt: { not: null },
+          status: { in: ["POST_SUBMITTED_PENDING_REVIEW"] },
+        },
+        orderBy: { updatedAt: "desc" },
+      }),
+    ]);
+
+    const followUpsNeeded = saved
+      .map((r) => serializeFacebookLead(r))
+      .filter((l) => l.autoClassification === "FOLLOW_UP_NEEDED");
+
+    const seen = new Set<string>();
+    const merged: FacebookLeadRow[] = [];
+    for (const lead of [...unsaved.map((r) => serializeFacebookLead(r)), ...followUpsNeeded]) {
+      if (!seen.has(lead.id)) {
+        seen.add(lead.id);
+        merged.push(lead);
+      }
+    }
+    return merged;
   }
 
   if (platform === "email") {
-    const rows = await prisma.outreachEmailLead.findMany({ where, orderBy: { createdAt: "desc" } });
-    return rows.map((r) => serializeEmailLead(r));
+    const [unsaved, saved] = await Promise.all([
+      prisma.outreachEmailLead.findMany({
+        where: generationLeadWhere,
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.outreachEmailLead.findMany({
+        where: {
+          deletedAt: null,
+          archivedAt: null,
+          savedToHubAt: { not: null },
+          status: { in: ["OUTREACH_SENT", "FOLLOW_UP_1", "FOLLOW_UP_2"] },
+        },
+        orderBy: { updatedAt: "desc" },
+      }),
+    ]);
+
+    const followUpsNeeded = saved
+      .map((r) => serializeEmailLead(r))
+      .filter((l) => l.autoClassification === "FOLLOW_UP_NEEDED")
+      .map((l) => {
+        const firstName = (l.name?.split(" ")[0] || "there").trim();
+        if (l.status === "OUTREACH_SENT") {
+          if (!l.followUp1EmailSubject?.trim()) l.followUp1EmailSubject = "Re: Match Fit — still a few spots left";
+          if (!l.followUp1EmailBody?.trim()) {
+            l.followUp1EmailBody = `Hey ${firstName},\n\nFollowing up on Match Fit — still a few beta spots for US trainers. Happy to answer questions.\n\n— Jonny`;
+          }
+        } else if (l.status === "FOLLOW_UP_1") {
+          if (!l.followUp2EmailSubject?.trim()) l.followUp2EmailSubject = "Re: Match Fit — closing the loop";
+          if (!l.followUp2EmailBody?.trim()) {
+            l.followUp2EmailBody = `Hey ${firstName},\n\nLast note from me on Match Fit founding coach spots. If the timing doesn't work right now, no problem at all. Wishing you continued success with your coaching business!\n\n— Jonny`;
+          }
+        }
+        return l;
+      });
+
+    const seen = new Set<string>();
+    const merged: EmailLeadRow[] = [];
+    for (const lead of [...unsaved.map((r) => serializeEmailLead(r)), ...followUpsNeeded]) {
+      if (!seen.has(lead.id)) {
+        seen.add(lead.id);
+        merged.push(lead);
+      }
+    }
+    return merged;
   }
 
   return [];

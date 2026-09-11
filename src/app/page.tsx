@@ -26,12 +26,29 @@ export default async function Home({ searchParams }: HomeProps) {
   // skip DB-dependent work so the page still renders rather than returning 500.
   const hasDb = Boolean(process.env.DATABASE_URL);
 
-  if (hasDb) await redirectStayLoggedInClientToDashboard();
+  if (hasDb) {
+    try {
+      await redirectStayLoggedInClientToDashboard();
+    } catch (e) {
+      // In Next.js, redirect() throws NEXT_REDIRECT which must be rethrown
+      if (typeof e === "object" && e !== null && "digest" in e && typeof (e as { digest: string }).digest === "string" && (e as { digest: string }).digest.startsWith("NEXT_REDIRECT")) {
+        throw e;
+      }
+      console.error("[Home] redirect check error:", e);
+    }
+  }
 
   const sp = searchParams ? await searchParams : {};
   const zipFromQuery = typeof sp.zip === "string" && sp.zip.trim() ? sp.zip.trim() : null;
 
-  const [clientId, trainerId] = await Promise.all([getSessionClientId(), getSessionTrainerId()]);
+  let clientId: string | null = null;
+  let trainerId: string | null = null;
+  try {
+    [clientId, trainerId] = await Promise.all([getSessionClientId(), getSessionTrainerId()]);
+  } catch (e) {
+    console.error("[Home] session resolution error:", e);
+  }
+
   const homeAuth = {
     clientLoggedIn: Boolean(clientId),
     trainerLoggedIn: Boolean(trainerId),
@@ -41,19 +58,33 @@ export default async function Home({ searchParams }: HomeProps) {
   let meetOurCoaches: Awaited<ReturnType<typeof getMeetOurCoachesForHomepage>> = [];
 
   if (hasDb) {
-    let zipForFeatured = zipFromQuery;
-    if (clientId) {
-      const client = await prisma.client.findUnique({
-        where: { id: clientId },
-        select: { zipCode: true },
-      });
-      if (client?.zipCode?.trim()) zipForFeatured = client.zipCode.trim();
-    }
+    try {
+      let zipForFeatured = zipFromQuery;
+      if (clientId) {
+        try {
+          const client = await prisma.client.findUnique({
+            where: { id: clientId },
+            select: { zipCode: true },
+          });
+          if (client?.zipCode?.trim()) zipForFeatured = client.zipCode.trim();
+        } catch (e) {
+          console.error("[Home] client zip lookup error:", e);
+        }
+      }
 
-    [featuredTrainers, meetOurCoaches] = await Promise.all([
-      getFeaturedTrainersForHomepage({ zipInput: zipForFeatured }),
-      getMeetOurCoachesForHomepage(8),
-    ]);
+      [featuredTrainers, meetOurCoaches] = await Promise.all([
+        getFeaturedTrainersForHomepage({ zipInput: zipForFeatured }).catch((e) => {
+          console.error("[Home] featured trainers error:", e);
+          return [];
+        }),
+        getMeetOurCoachesForHomepage(8).catch((e) => {
+          console.error("[Home] meet our coaches error:", e);
+          return [];
+        }),
+      ]);
+    } catch (e) {
+      console.error("[Home] data fetch error:", e);
+    }
   }
 
   return (

@@ -32,7 +32,11 @@ const ANTHROPIC_OUTREACH_TIMEOUT_MS = 180_000;
 
 function resolveOutreachAiModel(provider: AdminAiProviderId): string {
   if (provider === "anthropic") {
-    return process.env.ANTHROPIC_OUTREACH_MODEL?.trim() || "claude-opus-4-6";
+    return (
+      process.env.ANTHROPIC_OUTREACH_MODEL?.trim() ||
+      process.env.ANTHROPIC_ADMIN_ANALYTICS_MODEL?.trim() ||
+      "claude-3-7-sonnet-20250219"
+    );
   }
   return process.env.OPENAI_OUTREACH_MODEL?.trim() || "gpt-4o";
 }
@@ -564,6 +568,7 @@ ${OUTREACH_INSTAGRAM_CRITERIA}
 Focus on personal trainers, online coaches, nutrition coaches, and hybrid coaches based in the United States.
 
 QUALITY BAR:
+- profileUrl MUST be their direct Instagram profile URL (https://www.instagram.com/username/), NEVER an external website. External websites are only used for email leads.
 - personalHook must reference a SPECIFIC recent post or content piece.
 - whyMatchFit must state a concrete business signal: follower count, credential, open spots, active booking link, client results content.
 - commentPostRef must describe a post: topic + how recent.

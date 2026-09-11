@@ -8,6 +8,7 @@ const {
   prismaMock: {
     trainer: {
       update: vi.fn(),
+      findUnique: vi.fn(),
       findMany: vi.fn(),
     },
     trainerProfile: {
@@ -41,6 +42,7 @@ describe("trainer pending onboarding", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     prismaMock.trainer.update.mockResolvedValue({});
+    prismaMock.trainer.findUnique.mockResolvedValue({ platformTrialEndsAt: null });
     prismaMock.trainer.findMany.mockResolvedValue([]);
     prismaMock.trainerProfile.findUnique.mockResolvedValue(null);
     prismaMock.trainerProfile.update.mockResolvedValue({});
@@ -52,11 +54,50 @@ describe("trainer pending onboarding", () => {
   it("updates an existing profile and starts onboarding window when missing", async () => {
     const now = new Date("2026-06-09T00:00:00.000Z");
     const deadline = new Date("2026-06-16T00:00:00.000Z");
+    const trialEnds = new Date("2026-08-08T00:00:00.000Z");
     mockTrainerOnboardingFeeDeadlineAt.mockReturnValueOnce(deadline);
     prismaMock.trainerProfile.findUnique.mockResolvedValueOnce({
       complianceWindowStartedAt: null,
       limitedDashboardUnlockedAt: null,
       onboardingFeePaymentDeadlineAt: null,
+      fitHubPromoEndsAt: null,
+    });
+
+    await markTrainerPendingAfterTermsAcceptance("trainer_1", now);
+
+    expect(prismaMock.trainer.update).toHaveBeenCalledWith({
+      where: { id: "trainer_1" },
+      data: {
+        termsAcceptedAt: now,
+        privacyPolicyAcceptedAt: now,
+        platformTrialEndsAt: trialEnds,
+        platformTrialConsumed: false,
+      },
+    });
+    expect(prismaMock.trainerProfile.update).toHaveBeenCalledWith({
+      where: { trainerId: "trainer_1" },
+      data: {
+        hasSignedTOS: true,
+        limitedDashboardUnlockedAt: now,
+        complianceWindowStartedAt: now,
+        onboardingFeePaymentDeadlineAt: deadline,
+        fitHubPromoEndsAt: trialEnds,
+        updatedAt: now,
+      },
+    });
+    expect(prismaMock.trainerProfile.create).not.toHaveBeenCalled();
+  });
+
+  it("does not reset an existing onboarding window", async () => {
+    const now = new Date("2026-06-09T00:00:00.000Z");
+    prismaMock.trainer.findUnique.mockResolvedValueOnce({
+      platformTrialEndsAt: new Date("2026-08-01T00:00:00.000Z"),
+    });
+    prismaMock.trainerProfile.findUnique.mockResolvedValueOnce({
+      complianceWindowStartedAt: new Date("2026-06-02T00:00:00.000Z"),
+      limitedDashboardUnlockedAt: new Date("2026-06-02T00:00:00.000Z"),
+      onboardingFeePaymentDeadlineAt: new Date("2026-06-09T00:00:00.000Z"),
+      fitHubPromoEndsAt: new Date("2026-08-01T00:00:00.000Z"),
     });
 
     await markTrainerPendingAfterTermsAcceptance("trainer_1", now);
@@ -72,29 +113,6 @@ describe("trainer pending onboarding", () => {
       where: { trainerId: "trainer_1" },
       data: {
         hasSignedTOS: true,
-        limitedDashboardUnlockedAt: now,
-        complianceWindowStartedAt: now,
-        onboardingFeePaymentDeadlineAt: deadline,
-        updatedAt: now,
-      },
-    });
-    expect(prismaMock.trainerProfile.create).not.toHaveBeenCalled();
-  });
-
-  it("does not reset an existing onboarding window", async () => {
-    const now = new Date("2026-06-09T00:00:00.000Z");
-    prismaMock.trainerProfile.findUnique.mockResolvedValueOnce({
-      complianceWindowStartedAt: new Date("2026-06-02T00:00:00.000Z"),
-      limitedDashboardUnlockedAt: new Date("2026-06-02T00:00:00.000Z"),
-      onboardingFeePaymentDeadlineAt: new Date("2026-06-09T00:00:00.000Z"),
-    });
-
-    await markTrainerPendingAfterTermsAcceptance("trainer_1", now);
-
-    expect(prismaMock.trainerProfile.update).toHaveBeenCalledWith({
-      where: { trainerId: "trainer_1" },
-      data: {
-        hasSignedTOS: true,
         updatedAt: now,
       },
     });
@@ -104,6 +122,7 @@ describe("trainer pending onboarding", () => {
   it("creates a pending profile with defaults when profile is missing", async () => {
     const now = new Date("2026-06-09T00:00:00.000Z");
     const deadline = new Date("2026-06-16T00:00:00.000Z");
+    const trialEnds = new Date("2026-08-08T00:00:00.000Z");
     mockTrainerOnboardingFeeDeadlineAt.mockReturnValueOnce(deadline);
     prismaMock.trainerProfile.findUnique.mockResolvedValueOnce(null);
 
@@ -120,6 +139,7 @@ describe("trainer pending onboarding", () => {
         limitedDashboardUnlockedAt: now,
         complianceWindowStartedAt: now,
         onboardingFeePaymentDeadlineAt: deadline,
+        fitHubPromoEndsAt: trialEnds,
         updatedAt: now,
       },
     });
@@ -161,7 +181,11 @@ describe("trainer pending onboarding", () => {
         complianceWindowStartedAt: null,
         limitedDashboardUnlockedAt: null,
         onboardingFeePaymentDeadlineAt: null,
+        fitHubPromoEndsAt: null,
       });
+    prismaMock.trainer.findUnique
+      .mockResolvedValueOnce({ platformTrialEndsAt: null })
+      .mockResolvedValueOnce({ platformTrialEndsAt: null });
 
     const repaired = await repairStaleTrainerPendingRecords(50);
 
@@ -171,21 +195,18 @@ describe("trainer pending onboarding", () => {
         take: 50,
       }),
     );
-    expect(prismaMock.trainer.update).toHaveBeenNthCalledWith(1, {
-      where: { id: "trainer_missing_profile" },
-      data: {
-        termsAcceptedAt: termsAnchor,
-        privacyPolicyAcceptedAt: termsAnchor,
-      },
-    });
-    expect(prismaMock.trainer.update).toHaveBeenNthCalledWith(2, {
-      where: { id: "trainer_missing_window" },
-      data: {
-        termsAcceptedAt: createdAnchor,
-        privacyPolicyAcceptedAt: createdAnchor,
-      },
-    });
     expect(prismaMock.trainer.update).toHaveBeenCalledTimes(2);
+    expect(prismaMock.trainer.update).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: { id: "trainer_missing_profile" },
+        data: expect.objectContaining({
+          termsAcceptedAt: termsAnchor,
+          privacyPolicyAcceptedAt: termsAnchor,
+          platformTrialConsumed: false,
+        }),
+      }),
+    );
   });
 
   it("returns zero when stale repair scan finds no candidates", async () => {

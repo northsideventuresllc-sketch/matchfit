@@ -2,12 +2,15 @@ import "server-only";
 
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { TRAINER_FITHUB_PROMO_MS } from "@/lib/trainer-compliance-window";
 import { trainerOnboardingFeeDeadlineAt } from "@/lib/trainer-onboarding-fee-deadline";
+import { addTrainerPlatformTrialDays } from "@/lib/trainer-platform-trial-constants";
 import { trainerRegistrationPricingModeForNewTrainer } from "@/lib/trainer-registration-fee";
 
 /**
  * Marks a trainer as pending onboarding after Terms acceptance.
  * Starts the 7-day onboarding fee + compliance window once (does not reset an existing clock).
+ * Also starts the Independent Pro 60-day free platform trial at registration.
  */
 export async function markTrainerPendingAfterTermsAcceptance(
   trainerId: string,
@@ -16,6 +19,8 @@ export async function markTrainerPendingAfterTermsAcceptance(
 ): Promise<void> {
   const db = tx ?? prisma;
   const paymentDeadline = trainerOnboardingFeeDeadlineAt(now);
+  const platformTrialEndsAt = addTrainerPlatformTrialDays(now);
+  const fitHubPromoEndsAt = new Date(now.getTime() + TRAINER_FITHUB_PROMO_MS);
 
   const existing = await db.trainerProfile.findUnique({
     where: { trainerId },
@@ -23,7 +28,13 @@ export async function markTrainerPendingAfterTermsAcceptance(
       complianceWindowStartedAt: true,
       limitedDashboardUnlockedAt: true,
       onboardingFeePaymentDeadlineAt: true,
+      fitHubPromoEndsAt: true,
     },
+  });
+
+  const existingTrainer = await db.trainer.findUnique({
+    where: { id: trainerId },
+    select: { platformTrialEndsAt: true },
   });
 
   const windowAlreadyStarted = Boolean(existing?.complianceWindowStartedAt);
@@ -35,6 +46,7 @@ export async function markTrainerPendingAfterTermsAcceptance(
           limitedDashboardUnlockedAt: existing?.limitedDashboardUnlockedAt ?? now,
           complianceWindowStartedAt: now,
           onboardingFeePaymentDeadlineAt: existing?.onboardingFeePaymentDeadlineAt ?? paymentDeadline,
+          fitHubPromoEndsAt: existing?.fitHubPromoEndsAt ?? fitHubPromoEndsAt,
         }),
     updatedAt: now,
   };
@@ -44,9 +56,14 @@ export async function markTrainerPendingAfterTermsAcceptance(
     data: {
       termsAcceptedAt: now,
       privacyPolicyAcceptedAt: now,
+      ...(existingTrainer?.platformTrialEndsAt
+        ? {}
+        : {
+            platformTrialEndsAt,
+            platformTrialConsumed: false,
+          }),
     },
   });
-
   if (existing) {
     await db.trainerProfile.update({
       where: { trainerId },

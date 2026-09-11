@@ -3,8 +3,8 @@ import type { CheckoutFeeBreakdown } from "@/lib/stripe-checkout-line-items";
 import { estimateStripeProcessingFeeCents } from "@/lib/stripe-processing-fee";
 import { TOS_CLIENT_PLATFORM_SUBSCRIPTION_USD } from "@/lib/tos-implementation-contract";
 
-/** Trainer Premium Page subscription profit (Terms §3 example). */
-export const TRAINER_PREMIUM_SUBSCRIPTION_USD = 20;
+/** Trainer Independent Pro / Premium Page subscription (Terms §3). */
+export const TRAINER_PREMIUM_SUBSCRIPTION_USD = 15;
 
 export const CLIENT_PLATFORM_SUBSCRIPTION_PROFIT_CENTS = TOS_CLIENT_PLATFORM_SUBSCRIPTION_USD * 100;
 export const TRAINER_PREMIUM_SUBSCRIPTION_PROFIT_CENTS = TRAINER_PREMIUM_SUBSCRIPTION_USD * 100;

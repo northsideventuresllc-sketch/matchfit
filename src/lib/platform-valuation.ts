@@ -5,6 +5,8 @@
  * marketplace multiple, and a conservative per-active-member network value.
  */
 
+import { TRAINER_PREMIUM_SUBSCRIPTION_USD } from "@/lib/platform-revenue-accounting";
+
 export type PlatformValuationInput = {
   activePlatformSubscribers: number;
   activeTrainerPremiumSubscribers: number;
@@ -24,7 +26,7 @@ export type PlatformValuationBreakdown = {
 };
 
 const CLIENT_PLATFORM_MRR_CENTS = 1000;
-const TRAINER_PREMIUM_MRR_CENTS = 2000;
+const TRAINER_PREMIUM_MRR_CENTS = TRAINER_PREMIUM_SUBSCRIPTION_USD * 100;
 const NETWORK_VALUE_PER_ACTIVE_USER_CENTS = 2500;
 const MIN_MULTIPLE = 3;
 const MAX_MULTIPLE = 8;

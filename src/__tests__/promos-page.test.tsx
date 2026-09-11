@@ -94,7 +94,10 @@ describe("promos page", () => {
     expect(html).toContain("2 / 10");
     expect(html).toContain("60-day free trial");
     expect(html).toContain("no card required at sign-up");
-    expect(html).toContain("60 days of Premium status");
+    expect(html).toContain("60 days free");
+    expect(html).toContain("$15.00 per month");
+    expect(html).toContain("Free Independent Pro trial at sign-up");
+    expect(html).toContain("Independent Pro platform trial");
     expect(html).toContain("cannot sell or offer services");
   });
 

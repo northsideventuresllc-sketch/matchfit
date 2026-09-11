@@ -13,6 +13,11 @@ import {
   TRAINER_SIGN_UP_PATH,
   type HomePageAuth,
 } from "@/lib/home-page-auth";
+import { TRAINER_PLATFORM_SUBSCRIPTION_USD } from "@/lib/trainer-platform-trial-constants";
+import {
+  trainerIndependentProSubscriptionLabel,
+  trainerSignupPremiumPromoBenefitLabel,
+} from "@/lib/trainer-signup-promo-copy";
 
 function ServiceCard({
   title,
@@ -314,13 +319,16 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           id="trainer-premium"
           eyebrow="For coaches"
           eyebrowClass="text-[#FF7E00]"
-          title="Trainer premium—$20 per month"
+          title={`Independent Pro—$${TRAINER_PLATFORM_SUBSCRIPTION_USD.toFixed(2)} per month`}
           accent="right"
         >
           <p>
-            Trainers can opt into{" "}
-            <span className="font-bold text-[#FFD34E]">premium access at $20.00 per month</span> when they want the
-            platform to work harder on visibility and workflow.
+            New trainers receive{" "}
+            <span className="font-bold text-[#FFD34E]">{trainerSignupPremiumPromoBenefitLabel()}</span> after
+            registration. After the trial, keep your account active with the{" "}
+            <span className="font-bold text-[#FFD34E]">{trainerIndependentProSubscriptionLabel()}</span> Independent Pro
+            subscription — you will be prompted for payment whenever you log in once the trial ends. Independent Pro
+            unlocks visibility and workflow tools when you want the platform to work harder for your brand.
           </p>
           <ul className="list-none space-y-3 border-t border-white/[0.08] pt-4">
             <li className="flex gap-3">

@@ -220,8 +220,13 @@ ALTER TABLE "outreach_facebook_leads"
 ALTER TABLE "outreach_email_leads"
   ADD COLUMN IF NOT EXISTS "savedToHubAt" TIMESTAMP(3);
 
-ALTER TABLE "outreach_other_leads"
-  ADD COLUMN IF NOT EXISTS "savedToHubAt" TIMESTAMP(3);
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'outreach_other_leads') THEN
+    ALTER TABLE "outreach_other_leads" ADD COLUMN IF NOT EXISTS "savedToHubAt" TIMESTAMP(3);
+    CREATE INDEX IF NOT EXISTS "outreach_other_leads_deletedAt_savedToHubAt_idx" ON "outreach_other_leads"("deletedAt", "savedToHubAt");
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS "outreach_instagram_leads_deletedAt_savedToHubAt_idx"
   ON "outreach_instagram_leads"("deletedAt", "savedToHubAt");
@@ -302,41 +307,23 @@ async function countOutreachDeadLeadArchiveColumns(): Promise<number> {
  * `20260606120000_outreach_hq` and/or `20260609120000_outreach_hub_saved_at`.
  */
 export async function ensureOutreachHubSchema(): Promise<void> {
-  if (!(await tableExists(OUTREACH_LEAD_TABLES[0]))) {
-    await runOutreachDdl(OUTREACH_HQ_BASE_DDL);
-  }
-
-  if ((await countOutreachHubSavedAtColumns()) < OUTREACH_LEAD_TABLES.length) {
-    await runOutreachDdl(OUTREACH_HUB_SAVED_AT_DDL);
-    const savedReady = await countOutreachHubSavedAtColumns();
-    if (savedReady < OUTREACH_LEAD_TABLES.length) {
-      throw new Error(
-        `[ensureOutreachHubSchema] savedToHubAt columns still missing after DDL (${savedReady}/${OUTREACH_LEAD_TABLES.length}). Set DIRECT_URL on the server and redeploy.`,
-      );
+  try {
+    if (!(await tableExists(OUTREACH_LEAD_TABLES[0]))) {
+      await runOutreachDdl(OUTREACH_HQ_BASE_DDL);
     }
-  }
 
-  if ((await countOutreachDeadLeadArchiveColumns()) < OUTREACH_LEAD_TABLES.length) {
-    await runOutreachDdl(OUTREACH_DEAD_LEAD_ARCHIVE_DDL);
-
-    const archiveReady = await countOutreachDeadLeadArchiveColumns();
-    if (archiveReady < OUTREACH_LEAD_TABLES.length) {
-      throw new Error(
-        `[ensureOutreachHubSchema] deadLeadAt columns still missing after DDL (${archiveReady}/${OUTREACH_LEAD_TABLES.length}). Set DIRECT_URL on the server and redeploy.`,
-      );
+    if ((await countOutreachHubSavedAtColumns()) < OUTREACH_LEAD_TABLES.length) {
+      await runOutreachDdl(OUTREACH_HUB_SAVED_AT_DDL);
     }
-  }
 
-  if ((await countOutreachFollowUpCopyColumns()) >= 2) {
-    return;
-  }
+    if ((await countOutreachDeadLeadArchiveColumns()) < OUTREACH_LEAD_TABLES.length) {
+      await runOutreachDdl(OUTREACH_DEAD_LEAD_ARCHIVE_DDL);
+    }
 
-  await runOutreachDdl(OUTREACH_FOLLOW_UP_COPY_DDL);
-
-  const followUpReady = await countOutreachFollowUpCopyColumns();
-  if (followUpReady < 2) {
-    throw new Error(
-      `[ensureOutreachHubSchema] follow-up copy columns still missing after DDL (${followUpReady}/2). Set DIRECT_URL on the server and redeploy.`,
-    );
+    if ((await countOutreachFollowUpCopyColumns()) < 2) {
+      await runOutreachDdl(OUTREACH_FOLLOW_UP_COPY_DDL);
+    }
+  } catch (e) {
+    console.error("[ensureOutreachHubSchema] non-fatal schema check error:", e);
   }
 }

@@ -7,6 +7,10 @@ import { prisma } from "@/lib/prisma";
 import { notifyClientSubscriptionStripeEvent } from "@/lib/subscription-email-notify";
 import { syncClientSubscriptionFromStripe } from "@/lib/stripe-sync-client-subscription";
 import {
+  finalizeTrainerSubscriptionCheckout,
+  syncTrainerSubscriptionFromStripe,
+} from "@/lib/stripe-sync-trainer-subscription";
+import {
   applyTrainerBackgroundCheckStripePayment,
   isTrainerBackgroundCheckPaymentIntent,
 } from "@/lib/trainer-background-check-stripe";
@@ -25,10 +29,12 @@ import { getStripe } from "@/lib/stripe-server";
 import {
   oneTimePurchaseRevenueProfit,
   oneTimePurchaseRevenueProfitFromTotalCharged,
+  TRAINER_PREMIUM_SUBSCRIPTION_PROFIT_CENTS,
 } from "@/lib/platform-revenue-accounting";
 import {
   recordClientSubscriptionInvoiceEvent,
   recordPlatformRevenueEvent,
+  recordTrainerPremiumSubscriptionInvoiceEvent,
 } from "@/lib/platform-revenue-events";
 import {
   creditTokensFromStripePurchase,
@@ -120,6 +126,25 @@ export async function POST(req: Request) {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       const md = session.metadata ?? {};
+      if (
+        session.mode === "subscription" &&
+        md.purpose === "trainer_independent_pro_subscription" &&
+        md.trainerId
+      ) {
+        const trainerId = String(md.trainerId).trim();
+        const subRaw = session.subscription;
+        const customerRaw = session.customer;
+        const stripeSubscriptionId = typeof subRaw === "string" ? subRaw : subRaw?.id ?? "";
+        const stripeCustomerId = typeof customerRaw === "string" ? customerRaw : customerRaw?.id ?? null;
+        if (trainerId && stripeSubscriptionId) {
+          await finalizeTrainerSubscriptionCheckout({
+            trainerId,
+            stripeCustomerId,
+            stripeSubscriptionId,
+          });
+          await syncTrainerSubscriptionFromStripe(stripeSubscriptionId);
+        }
+      }
       if (session.mode === "payment" && session.payment_status === "paid") {
         if (md.purpose === "trainer_registration_fee" && md.trainerId) {
           const trainerId = String(md.trainerId).trim();
@@ -279,6 +304,7 @@ export async function POST(req: Request) {
       if (typeof subId === "string") {
         await finalizeRegistrationAfterPayment(subId);
         await syncClientSubscriptionFromStripe(subId);
+        await syncTrainerSubscriptionFromStripe(subId);
         const paidAtUnix = invoice.status_transitions?.paid_at;
         const paidAt =
           typeof paidAtUnix === "number" && Number.isFinite(paidAtUnix) && paidAtUnix > 0
@@ -300,6 +326,18 @@ export async function POST(req: Request) {
             billingLiveMode,
           });
         }
+        const trainer = await prisma.trainer.findFirst({
+          where: { stripeSubscriptionId: subId },
+          select: { id: true },
+        });
+        if (trainer) {
+          void recordTrainerPremiumSubscriptionInvoiceEvent({
+            stripeInvoiceId: invoice.id,
+            trainerId: trainer.id,
+            billingLiveMode,
+            platformProfitCents: TRAINER_PREMIUM_SUBSCRIPTION_PROFIT_CENTS,
+          });
+        }
       }
     }
     if (event.type === "customer.subscription.trial_will_end") {
@@ -313,6 +351,7 @@ export async function POST(req: Request) {
       const sub = event.data.object as Stripe.Subscription;
       if (sub.id) {
         await syncClientSubscriptionFromStripe(sub.id);
+        await syncTrainerSubscriptionFromStripe(sub.id);
         void notifyClientSubscriptionStripeEvent({
           stripeSubscriptionId: sub.id,
           stripeEventType: event.type,

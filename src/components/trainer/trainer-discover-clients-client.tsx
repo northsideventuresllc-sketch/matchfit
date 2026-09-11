@@ -8,6 +8,7 @@ import {
   TRAINER_DISCOVERY_STRICTNESS_MIN,
 } from "@/lib/trainer-discovery-strictness";
 import { PREMIUM_NUDGES_PRODUCT_NOTICE } from "@/lib/trainer-nudge-limits";
+import { trainerIndependentProSubscriptionLabel } from "@/lib/trainer-signup-promo-copy";
 
 type Row = {
   username: string;
@@ -167,7 +168,7 @@ export function TrainerDiscoverClientsClient(props: Props) {
             >
               Match Fit Premium
             </Link>{" "}
-            ($19.99/month) will unlock higher limits — billing is handled by a separate integration.
+            ({trainerIndependentProSubscriptionLabel()}) unlocks higher limits after your free trial.
           </p>
         )}
       </section>
