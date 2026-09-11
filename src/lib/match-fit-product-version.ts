@@ -1,25 +1,11 @@
-import packageJson from "@/../package.json";
+import packageJson from "../../package.json";
 import {
   formatMatchFitProductVersionAnnounce,
   formatMatchFitProductVersionLabel,
   parseMatchFitPackageVersion,
 } from "@/lib/match-fit-product-version-core";
 
-let rawVersion = "2.4.0-beta";
-try {
-  if (packageJson && typeof packageJson.version === "string") {
-    rawVersion = packageJson.version;
-  }
-} catch {
-  // fallback default
-}
-
-let parsed: ReturnType<typeof parseMatchFitPackageVersion>;
-try {
-  parsed = parseMatchFitPackageVersion(rawVersion);
-} catch {
-  parsed = { core: "2.4.0", parts: { major: 2, minor: 4, patch: 0 }, channel: "beta" };
-}
+const parsed = parseMatchFitPackageVersion(packageJson.version);
 
 /** Canonical semver core (no channel), sourced from `package.json`. */
 export const MATCH_FIT_PRODUCT_VERSION_CORE = parsed.core;

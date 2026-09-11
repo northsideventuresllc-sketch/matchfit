@@ -21,7 +21,6 @@ import {
   type InstagramLeadRow,
   type OutreachHubLead,
   outreachStatusOptionsForPlatform,
-  type OutreachPlatform,
 } from "@/lib/outreach-types";
 import { CollapsibleCard, ConfirmModal, SaveIndicator, useAutosave } from "./ui-bits";
 import {

@@ -72,16 +72,23 @@ export async function countTrainerPlatformTrialColumns(): Promise<number> {
  * missed the dedicated migration.
  */
 export async function ensureTrainerPlatformTrialSchema(): Promise<void> {
-  try {
-    if ((await countTrainerPlatformTrialColumns()) >= TRAINER_PLATFORM_TRIAL_COLUMNS.length) {
-      return;
-    }
+  if ((await countTrainerPlatformTrialColumns()) >= TRAINER_PLATFORM_TRIAL_COLUMNS.length) {
+    return;
+  }
 
-    const ddlUrl = directPostgresUrlForDdl();
-    if (ddlUrl) {
-      await runDirectPostgresDdl(TRAINER_PLATFORM_TRIAL_DDL);
-    }
-  } catch (e) {
-    console.error("[ensureTrainerPlatformTrialSchema] non-fatal schema check error:", e);
+  const ddlUrl = directPostgresUrlForDdl();
+  if (ddlUrl) {
+    await runDirectPostgresDdl(TRAINER_PLATFORM_TRIAL_DDL);
+  } else {
+    throw new Error(
+      "[ensureTrainerPlatformTrialSchema] No DIRECT_URL and could not derive a 5432 Postgres URL from DATABASE_URL.",
+    );
+  }
+
+  const ready = await countTrainerPlatformTrialColumns();
+  if (ready < TRAINER_PLATFORM_TRIAL_COLUMNS.length) {
+    throw new Error(
+      `[ensureTrainerPlatformTrialSchema] trainers trial columns still missing after DDL (${ready}/${TRAINER_PLATFORM_TRIAL_COLUMNS.length}). Set DIRECT_URL on the server and redeploy.`,
+    );
   }
 }

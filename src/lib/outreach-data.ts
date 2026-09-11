@@ -7,6 +7,7 @@ import type {
   InstagramLeadRow,
   OutreachArchiveLead,
   OutreachHubLead,
+  OutreachLane,
   OutreachLeadStatus,
   OutreachPlatform,
 } from "@/lib/outreach-types";
@@ -14,6 +15,7 @@ import { prisma } from "@/lib/prisma";
 import { ensureOutreachHubSchema } from "@/lib/ensure-outreach-hub-schema";
 import { backfillOutreachHubLeads } from "@/lib/outreach-hub-backfill";
 import { computeOutreachHubStats, type OutreachHubStats } from "@/lib/outreach-hub-stats";
+import { scopedToMatchFit } from "@/lib/outreach-venture-scope";
 
 let outreachSchemaReady: Promise<void> | null = null;
 
@@ -31,7 +33,7 @@ function serializeDate(d: Date | null): string | null {
   return d ? d.toISOString() : null;
 }
 
-function serializeInstagramLead(
+export function serializeInstagramLead(
   r: Awaited<ReturnType<typeof prisma.outreachInstagramLead.findMany>>[number],
 ): InstagramLeadRow {
   const autoClassification = classifyOutreachLead({
@@ -58,10 +60,20 @@ function serializeInstagramLead(
     followUp1SentAt: serializeDate(r.followUp1SentAt),
     followUp2SentAt: serializeDate(r.followUp2SentAt),
     responseReceivedAt: serializeDate(r.responseReceivedAt),
+    queuedForDate: serializeDate(r.queuedForDate),
+    followUp1DueAt: serializeDate(r.followUp1DueAt),
+    followUp1LastRemindedAt: serializeDate(r.followUp1LastRemindedAt),
+    followUp2DueAt: serializeDate(r.followUp2DueAt),
+    followUp2LastRemindedAt: serializeDate(r.followUp2LastRemindedAt),
+    archiveUiHiddenAfterAt: serializeDate(r.archiveUiHiddenAfterAt),
+    replyReceivedAt: serializeDate(r.replyReceivedAt),
+    pendingResponseDraftAt: serializeDate(r.pendingResponseDraftAt),
+    manualSentAt: serializeDate(r.manualSentAt),
+    convertedAt: serializeDate(r.convertedAt),
   };
 }
 
-function serializeFacebookLead(
+export function serializeFacebookLead(
   r: Awaited<ReturnType<typeof prisma.outreachFacebookLead.findMany>>[number],
 ): FacebookLeadRow {
   return {
@@ -83,10 +95,16 @@ function serializeFacebookLead(
     archivePurgeAfterAt: serializeDate(r.archivePurgeAfterAt),
     outreachSentAt: serializeDate(r.outreachSentAt),
     responseReceivedAt: serializeDate(r.responseReceivedAt),
+    queuedForDate: serializeDate(r.queuedForDate),
+    archiveUiHiddenAfterAt: serializeDate(r.archiveUiHiddenAfterAt),
+    replyReceivedAt: serializeDate(r.replyReceivedAt),
+    pendingResponseDraftAt: serializeDate(r.pendingResponseDraftAt),
+    manualSentAt: serializeDate(r.manualSentAt),
+    convertedAt: serializeDate(r.convertedAt),
   };
 }
 
-function serializeEmailLead(
+export function serializeEmailLead(
   r: Awaited<ReturnType<typeof prisma.outreachEmailLead.findMany>>[number],
 ): EmailLeadRow {
   return {
@@ -114,6 +132,16 @@ function serializeEmailLead(
     followUp1SentAt: serializeDate(r.followUp1SentAt),
     followUp2SentAt: serializeDate(r.followUp2SentAt),
     responseReceivedAt: serializeDate(r.responseReceivedAt),
+    queuedForDate: serializeDate(r.queuedForDate),
+    followUp1DueAt: serializeDate(r.followUp1DueAt),
+    followUp1LastRemindedAt: serializeDate(r.followUp1LastRemindedAt),
+    followUp2DueAt: serializeDate(r.followUp2DueAt),
+    followUp2LastRemindedAt: serializeDate(r.followUp2LastRemindedAt),
+    archiveUiHiddenAfterAt: serializeDate(r.archiveUiHiddenAfterAt),
+    replyReceivedAt: serializeDate(r.replyReceivedAt),
+    pendingResponseDraftAt: serializeDate(r.pendingResponseDraftAt),
+    manualSentAt: serializeDate(r.manualSentAt),
+    convertedAt: serializeDate(r.convertedAt),
   };
 }
 
@@ -127,147 +155,39 @@ const generationLeadWhere = {
 
 export async function listOutreachLeads(platform: OutreachPlatform, includeDeleted = false) {
   await ensureOutreachReady();
-  if (includeDeleted) {
-    if (platform === "instagram") {
-      const rows = await prisma.outreachInstagramLead.findMany({ orderBy: { createdAt: "desc" } });
-      return rows.map((r) => serializeInstagramLead(r));
-    }
-    if (platform === "facebook") {
-      const rows = await prisma.outreachFacebookLead.findMany({ orderBy: { createdAt: "desc" } });
-      return rows.map((r) => serializeFacebookLead(r));
-    }
-    if (platform === "email") {
-      const rows = await prisma.outreachEmailLead.findMany({ orderBy: { createdAt: "desc" } });
-      return rows.map((r) => serializeEmailLead(r));
-    }
-    return [];
-  }
+  // Match Fit HQ only ever shows Match Fit leads — NI Services rows live in their own lane.
+  const where = scopedToMatchFit(includeDeleted ? {} : generationLeadWhere);
 
   if (platform === "instagram") {
-    const [unsaved, saved] = await Promise.all([
-      prisma.outreachInstagramLead.findMany({
-        where: generationLeadWhere,
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.outreachInstagramLead.findMany({
-        where: {
-          deletedAt: null,
-          archivedAt: null,
-          savedToHubAt: { not: null },
-          status: { in: ["OUTREACH_SENT", "FOLLOW_UP_1", "FOLLOW_UP_2"] },
-        },
-        orderBy: { updatedAt: "desc" },
-      }),
-    ]);
-
-    const followUpsNeeded = saved
-      .map((r) => serializeInstagramLead(r))
-      .filter((l) => l.autoClassification === "FOLLOW_UP_NEEDED")
-      .map((l) => {
-        if (l.status === "OUTREACH_SENT" && !l.followUp1DmText?.trim()) {
-          l.followUp1DmText = "Hey — circling back on Match Fit. Still a few beta spots for US trainers if you're open to a quick look. — JB";
-        } else if (l.status === "FOLLOW_UP_1" && !l.followUp2DmText?.trim()) {
-          l.followUp2DmText = "Last note from me — happy to share more on Match Fit if timing opens up. Either way, keep crushing it. — JB";
-        }
-        return l;
-      });
-
-    const seen = new Set<string>();
-    const merged: InstagramLeadRow[] = [];
-    for (const lead of [...unsaved.map((r) => serializeInstagramLead(r)), ...followUpsNeeded]) {
-      if (!seen.has(lead.id)) {
-        seen.add(lead.id);
-        merged.push(lead);
-      }
-    }
-    return merged;
+    const rows = await prisma.outreachInstagramLead.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+    });
+    return rows.map((r) => serializeInstagramLead(r));
   }
 
   if (platform === "facebook") {
-    const [unsaved, saved] = await Promise.all([
-      prisma.outreachFacebookLead.findMany({
-        where: generationLeadWhere,
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.outreachFacebookLead.findMany({
-        where: {
-          deletedAt: null,
-          archivedAt: null,
-          savedToHubAt: { not: null },
-          status: { in: ["POST_SUBMITTED_PENDING_REVIEW"] },
-        },
-        orderBy: { updatedAt: "desc" },
-      }),
-    ]);
-
-    const followUpsNeeded = saved
-      .map((r) => serializeFacebookLead(r))
-      .filter((l) => l.autoClassification === "FOLLOW_UP_NEEDED");
-
-    const seen = new Set<string>();
-    const merged: FacebookLeadRow[] = [];
-    for (const lead of [...unsaved.map((r) => serializeFacebookLead(r)), ...followUpsNeeded]) {
-      if (!seen.has(lead.id)) {
-        seen.add(lead.id);
-        merged.push(lead);
-      }
-    }
-    return merged;
+    const rows = await prisma.outreachFacebookLead.findMany({ where, orderBy: { createdAt: "desc" } });
+    return rows.map((r) => serializeFacebookLead(r));
   }
 
   if (platform === "email") {
-    const [unsaved, saved] = await Promise.all([
-      prisma.outreachEmailLead.findMany({
-        where: generationLeadWhere,
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.outreachEmailLead.findMany({
-        where: {
-          deletedAt: null,
-          archivedAt: null,
-          savedToHubAt: { not: null },
-          status: { in: ["OUTREACH_SENT", "FOLLOW_UP_1", "FOLLOW_UP_2"] },
-        },
-        orderBy: { updatedAt: "desc" },
-      }),
-    ]);
-
-    const followUpsNeeded = saved
-      .map((r) => serializeEmailLead(r))
-      .filter((l) => l.autoClassification === "FOLLOW_UP_NEEDED")
-      .map((l) => {
-        const firstName = (l.name?.split(" ")[0] || "there").trim();
-        if (l.status === "OUTREACH_SENT") {
-          if (!l.followUp1EmailSubject?.trim()) l.followUp1EmailSubject = "Re: Match Fit — still a few spots left";
-          if (!l.followUp1EmailBody?.trim()) {
-            l.followUp1EmailBody = `Hey ${firstName},\n\nFollowing up on Match Fit — still a few beta spots for US trainers. Happy to answer questions.\n\n— Jonny`;
-          }
-        } else if (l.status === "FOLLOW_UP_1") {
-          if (!l.followUp2EmailSubject?.trim()) l.followUp2EmailSubject = "Re: Match Fit — closing the loop";
-          if (!l.followUp2EmailBody?.trim()) {
-            l.followUp2EmailBody = `Hey ${firstName},\n\nLast note from me on Match Fit founding coach spots. If the timing doesn't work right now, no problem at all. Wishing you continued success with your coaching business!\n\n— Jonny`;
-          }
-        }
-        return l;
-      });
-
-    const seen = new Set<string>();
-    const merged: EmailLeadRow[] = [];
-    for (const lead of [...unsaved.map((r) => serializeEmailLead(r)), ...followUpsNeeded]) {
-      if (!seen.has(lead.id)) {
-        seen.add(lead.id);
-        merged.push(lead);
-      }
-    }
-    return merged;
+    const rows = await prisma.outreachEmailLead.findMany({ where, orderBy: { createdAt: "desc" } });
+    return rows.map((r) => serializeEmailLead(r));
   }
 
   return [];
 }
 
-export async function listOutreachArchiveLeads(): Promise<OutreachArchiveLead[]> {
+export async function listOutreachArchiveLeads(now = new Date()): Promise<OutreachArchiveLead[]> {
   await ensureOutreachReady();
-  const archiveWhere = { deletedAt: null, archivedAt: { not: null } as const };
+  // Archived rows are never deleted (NI-Brain history preserved); they simply drop out of the
+  // Archives UI once past their 7-day UI-hide window. Rows with no window set stay visible.
+  const archiveWhere = scopedToMatchFit({
+    deletedAt: null,
+    archivedAt: { not: null } as const,
+    OR: [{ archiveUiHiddenAfterAt: null }, { archiveUiHiddenAfterAt: { gt: now } }],
+  });
 
   const [instagram, facebook, email] = await Promise.all([
     prisma.outreachInstagramLead.findMany({ where: archiveWhere, orderBy: { archivedAt: "desc" } }),
@@ -311,11 +231,12 @@ export async function listOutreachHubLeads(): Promise<OutreachHubLead[]> {
   } catch (e) {
     console.error("[listOutreachHubLeads] backfill skipped:", e);
   }
-  const hubWhere = {
+  const hubWhere = scopedToMatchFit({
     deletedAt: null,
     savedToHubAt: { not: null } as const,
     archivedAt: null,
-  };
+    convertedAt: null,
+  });
 
   const [instagram, facebook, email] = await Promise.all([
     prisma.outreachInstagramLead.findMany({ where: hubWhere, orderBy: { savedToHubAt: "desc" } }),
@@ -540,6 +461,29 @@ export async function massSaveOutreachLeadsToHub(
   throw new Error(`Unsupported outreach platform: ${platform}`);
 }
 
+/**
+ * Outreach HQ v2 groups leads purely by `outreachLane` (see `groupHubLeadsByLane` /
+ * `listOutreachHubLeads`), which does NOT filter by `status` — so a status transition into or
+ * out of DEAD_LEAD / RESPONSE_RECEIVED has to move the lane in lockstep here, or a lead stays
+ * parked on whatever lane it already had (e.g. a lead marked DEAD_LEAD from the "today" lane
+ * keeps showing on v2's Today tab for up to the 48h archive-cron window). Mirrors the exact lane
+ * values already used elsewhere: `outreach-archive.ts` (DEAD_LEAD -> "archived", revive ->
+ * "pending") and the reply-scan cron (`outreach-instagram-scan.ts` / `outreach-email-scan.ts`,
+ * RESPONSE_RECEIVED -> "pending_response"). Returns undefined for "leave the lane alone" so the
+ * Prisma `update` calls below can spread it in the same `field: undefined` pattern already used
+ * for the rest of this function's optional patch fields.
+ */
+function outreachLaneForStatusTransition(
+  prevStatus: string,
+  nextStatus: string,
+): OutreachLane | undefined {
+  if (nextStatus === prevStatus) return undefined;
+  if (nextStatus === "DEAD_LEAD") return "archived";
+  if (nextStatus === "RESPONSE_RECEIVED") return "pending_response";
+  if (prevStatus === "DEAD_LEAD") return "pending";
+  return undefined;
+}
+
 export async function updateOutreachLead(
   platform: OutreachPlatform,
   id: string,
@@ -550,12 +494,17 @@ export async function updateOutreachLead(
     const existing = await prisma.outreachInstagramLead.findUnique({ where: { id } });
     if (!existing) return null;
     const status = typeof patch.status === "string" ? patch.status : existing.status;
-    const stamps = statusTimestampsForUpdate(status as OutreachLeadStatus, {
-      outreachSentAt: existing.outreachSentAt,
-      followUp1SentAt: existing.followUp1SentAt,
-      followUp2SentAt: existing.followUp2SentAt,
-      responseReceivedAt: existing.responseReceivedAt,
-    });
+    const stamps = statusTimestampsForUpdate(
+      status as OutreachLeadStatus,
+      {
+        outreachSentAt: existing.outreachSentAt,
+        followUp1SentAt: existing.followUp1SentAt,
+        followUp2SentAt: existing.followUp2SentAt,
+        responseReceivedAt: existing.responseReceivedAt,
+      },
+      undefined,
+      existing.status,
+    );
     const autoClassification = classifyOutreachLead({
       status,
       platform: "instagram",
@@ -564,6 +513,7 @@ export async function updateOutreachLead(
     });
     const deadLeadAt =
       status === "DEAD_LEAD" && !existing.deadLeadAt ? new Date() : status !== "DEAD_LEAD" ? null : undefined;
+    const outreachLane = outreachLaneForStatusTransition(existing.status, status);
     return prisma.outreachInstagramLead.update({
       where: { id },
       data: {
@@ -571,12 +521,19 @@ export async function updateOutreachLead(
         commentText: typeof patch.commentText === "string" ? patch.commentText : undefined,
         followUp1DmText: typeof patch.followUp1DmText === "string" ? patch.followUp1DmText : undefined,
         followUp2DmText: typeof patch.followUp2DmText === "string" ? patch.followUp2DmText : undefined,
+        outreachIntent:
+          patch.outreachIntent === null
+            ? null
+            : typeof patch.outreachIntent === "string"
+              ? patch.outreachIntent
+              : undefined,
         status,
         dmTextEdited: patch.dmTextEdited === true ? true : undefined,
         commentTextEdited: patch.commentTextEdited === true ? true : undefined,
         autoClassification,
         savedToHubAt: patch.saveToHub === true ? new Date() : undefined,
         deadLeadAt,
+        outreachLane,
         ...stamps,
       },
     });
@@ -592,10 +549,17 @@ export async function updateOutreachLead(
     });
     const deadLeadAt =
       status === "DEAD_LEAD" && !existing.deadLeadAt ? new Date() : status !== "DEAD_LEAD" ? null : undefined;
+    const outreachLane = outreachLaneForStatusTransition(existing.status, status);
     return prisma.outreachFacebookLead.update({
       where: { id },
       data: {
         pagePostText: typeof patch.pagePostText === "string" ? patch.pagePostText : undefined,
+        outreachIntent:
+          patch.outreachIntent === null
+            ? null
+            : typeof patch.outreachIntent === "string"
+              ? patch.outreachIntent
+              : undefined,
         status,
         pagePostTextEdited: patch.pagePostTextEdited === true ? true : undefined,
         autoClassification: classifyOutreachLead({
@@ -609,6 +573,7 @@ export async function updateOutreachLead(
         }),
         savedToHubAt: patch.saveToHub === true ? new Date() : undefined,
         deadLeadAt,
+        outreachLane,
         outreachSentAt: stamps.outreachSentAt,
         responseReceivedAt: stamps.responseReceivedAt,
       },
@@ -619,14 +584,20 @@ export async function updateOutreachLead(
     const existing = await prisma.outreachEmailLead.findUnique({ where: { id } });
     if (!existing) return null;
     const status = typeof patch.status === "string" ? patch.status : existing.status;
-    const stamps = statusTimestampsForUpdate(status, {
-      outreachSentAt: existing.outreachSentAt,
-      followUp1SentAt: existing.followUp1SentAt,
-      followUp2SentAt: existing.followUp2SentAt,
-      responseReceivedAt: existing.responseReceivedAt,
-    });
+    const stamps = statusTimestampsForUpdate(
+      status,
+      {
+        outreachSentAt: existing.outreachSentAt,
+        followUp1SentAt: existing.followUp1SentAt,
+        followUp2SentAt: existing.followUp2SentAt,
+        responseReceivedAt: existing.responseReceivedAt,
+      },
+      undefined,
+      existing.status,
+    );
     const deadLeadAt =
       status === "DEAD_LEAD" && !existing.deadLeadAt ? new Date() : status !== "DEAD_LEAD" ? null : undefined;
+    const outreachLane = outreachLaneForStatusTransition(existing.status, status);
     return prisma.outreachEmailLead.update({
       where: { id },
       data: {
@@ -638,6 +609,12 @@ export async function updateOutreachLead(
         followUp2EmailSubject:
           typeof patch.followUp2EmailSubject === "string" ? patch.followUp2EmailSubject : undefined,
         followUp2EmailBody: typeof patch.followUp2EmailBody === "string" ? patch.followUp2EmailBody : undefined,
+        outreachIntent:
+          patch.outreachIntent === null
+            ? null
+            : typeof patch.outreachIntent === "string"
+              ? patch.outreachIntent
+              : undefined,
         status,
         emailBodyEdited: patch.emailBodyEdited === true ? true : undefined,
         autoClassification: classifyOutreachLead({
@@ -648,6 +625,7 @@ export async function updateOutreachLead(
         }),
         savedToHubAt: patch.saveToHub === true ? new Date() : undefined,
         deadLeadAt,
+        outreachLane,
         ...stamps,
       },
     });

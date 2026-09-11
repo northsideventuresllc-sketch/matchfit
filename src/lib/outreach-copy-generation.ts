@@ -1,10 +1,10 @@
 import "server-only";
 
-import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
-import { getAdminAiProviderStatus } from "@/lib/admin-analytics-ai";
-import type { AdminAiProviderId } from "@/lib/admin-analytics-ai";
+import { callMatchFitAi } from "@/lib/ai-vault/router";
+import { getAiVaultStatus } from "@/lib/ai-vault";
 import { buildOutreachLearningContext, recordOutreachRegenerateFeedbackSignal } from "@/lib/outreach-learning";
 import { updateOutreachLead } from "@/lib/outreach-data";
+import { normalizeCoachLanguage } from "@/lib/content-calendar/content-rules";
 import {
   emailSubject,
   followUpEmailBody,
@@ -18,67 +18,22 @@ import { prisma } from "@/lib/prisma";
 
 const ANTHROPIC_OUTREACH_TIMEOUT_MS = 180_000;
 
-function resolveOutreachAiModel(provider: AdminAiProviderId): string {
-  if (provider === "anthropic") {
-    return (
-      process.env.ANTHROPIC_OUTREACH_MODEL?.trim() ||
-      process.env.ANTHROPIC_ADMIN_ANALYTICS_MODEL?.trim() ||
-      "claude-3-7-sonnet-20250219"
-    );
-  }
-  return process.env.OPENAI_OUTREACH_MODEL?.trim() || "gpt-4o";
-}
-
 async function callOutreachCopyAi(system: string, user: string): Promise<string | null> {
-  await hydratePlatformEnvFromDatabase();
-  const status = getAdminAiProviderStatus();
-  if (!status.configured) return null;
+  const vault = getAiVaultStatus();
+  if (!vault.configured) return null;
 
-  if (status.provider === "anthropic" && process.env.ANTHROPIC_API_KEY) {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: resolveOutreachAiModel("anthropic"),
-        max_tokens: 2048,
-        system,
-        messages: [{ role: "user", content: user }],
-      }),
-      signal: AbortSignal.timeout(ANTHROPIC_OUTREACH_TIMEOUT_MS),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { content?: { type: string; text?: string }[] };
-    const text = data.content?.find((b) => b.type === "text")?.text?.trim();
-    return text ?? null;
-  }
+  const ai = await callMatchFitAi({
+    system,
+    user,
+    maxTokens: 2048,
+    temperature: 0.35,
+    timeoutMs: ANTHROPIC_OUTREACH_TIMEOUT_MS,
+    kind: "creative",
+    complexity: "standard",
+    modelOverride: process.env.ANTHROPIC_OUTREACH_MODEL?.trim() || undefined,
+  });
 
-  if (process.env.OPENAI_API_KEY) {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: resolveOutreachAiModel("openai"),
-        max_tokens: 2048,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-      }),
-      signal: AbortSignal.timeout(90_000),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    return data.choices?.[0]?.message?.content?.trim() ?? null;
-  }
-
-  return null;
+  return ai.text?.trim() ?? null;
 }
 
 function extractHookFromNotes(notes: string | null | undefined): string | null {
@@ -118,27 +73,18 @@ function buildCopyPrompt(
 
   if (platform === "instagram" && field === "dmText") {
     const handle = String(lead.handle ?? "").replace(/^@/, "");
-    return `Write the complete, natural ${fieldLabel(field)} for Match Fit outreach to @${handle}.
+    const opener = instagramPersonalizedOpener("VIRTUAL", handle, hook);
+    return `Write the ${fieldLabel(field)} for Match Fit outreach to ${lead.handle}.
+Why they fit: ${lead.whyMatchFit}
+Niche: ${lead.niche}
+Personal hook context: ${hook}
+Comment target post: ${lead.commentPostRef ?? "latest post"}
 
-LEAD RESEARCH & CONTEXT:
-- Handle: @${handle}
-- Niche: ${lead.niche}
-- Why they fit: ${lead.whyMatchFit}
-- Specific hook / content research: ${hook}
+Start with this personalized opener tone, then end with this invite tail:
+${opener}
+[Tail] ${tail}
 
-CRITICAL RULES:
-- Write a seamless, natural, conversational message as JB (Jonny), founder of Match Fit.
-- NEVER include numbers (1., 2., 3.), step labels (e.g. "Greeting:", "Intro:", "CTA:"), or bracketed template tags in the output.
-- You must synthesize the lead research into an authentic, personalized message following this narrative flow:
-  • Casual greeting: Hey @${handle} 👋
-  • Genuine, individualized compliment about their specific brand/content (${hook}) and how it aligns with Match Fit
-  • Introduce Match Fit (match-fit.net) and yourself as JB, the founder
-  • Low-friction initial check-in (e.g. "Worth taking a quick look?")
-  • Explain the founding virtual coach cohort: 60 days free trial, 0 platform/listing fees upfront, priority athlete discovery feed
-  • Reiterate the CTA and warmly open the door for questions (e.g. "If you have any questions or want to see how listing works, feel free to reach back out!")
-  • Direct frictionless sign-up link: match-fit.net/trainer/sign-up
-
-Output ONLY the raw message ready to send. No preamble, no postamble, no numbered layout list.${feedbackBlock}`;
+Return ONLY the final DM text — no labels or explanation.${feedbackBlock}`;
   }
 
   if (platform === "instagram" && field === "commentText") {
@@ -151,18 +97,18 @@ Keep it 1-2 sentences, specific to their content, friendly, not salesy. Return O
   }
 
   if (platform === "instagram" && field === "followUp1DmText") {
-    return `Write a short 2-4 sentence ${fieldLabel(field)} for ${lead.handle} who did not reply to the first DM.
+    return `Write a ${fieldLabel(field)} for ${lead.handle} who did not reply to the first DM.
 Why they fit: ${lead.whyMatchFit}
 First DM (if any): ${lead.dmText || "(not drafted yet)"}
 
-Point back to the founding coach spots on Match Fit with 60 days free and leave the sign-up link (match-fit.net/trainer/sign-up). Friendly, polite bump from JB. Return ONLY the natural DM text with no template labels or numbers.${feedbackBlock}`;
+Friendly bump — mention Match Fit beta roster, not pushy. Return ONLY the DM text.${feedbackBlock}`;
   }
 
   if (platform === "instagram" && field === "followUp2DmText") {
-    return `Write a brief 2-3 sentence ${fieldLabel(field)} for ${lead.handle} — last polite check-in before moving on.
+    return `Write a ${fieldLabel(field)} for ${lead.handle} — last polite check-in before moving on.
 Why they fit: ${lead.whyMatchFit}
 
-Close the loop respectfully, wishing them continued success, with a final mention of Match Fit founding roster. Sign as JB. Return ONLY the natural DM text with no template labels or numbers.${feedbackBlock}`;
+Brief, respectful close-the-loop message. Return ONLY the DM text.${feedbackBlock}`;
   }
 
   if (platform === "facebook" && field === "pagePostText") {
@@ -186,29 +132,14 @@ Return ONLY the subject line, no quotes.${feedbackBlock}`;
 
   if (platform === "email" && field === "emailBody") {
     const first = String(lead.name ?? "there").split(" ")[0];
-    return `Write the complete, natural ${fieldLabel(field)} to ${first} at ${lead.email}.
+    return `Write the ${fieldLabel(field)} to ${first} at ${lead.email}.
+Why they fit: ${lead.whyMatchFit}
+Hook: ${hook}
 
-LEAD RESEARCH & CONTEXT:
-- Name: ${lead.name}
-- Email: ${lead.email}
-- Business/Niche: ${lead.niche ?? "Fitness Coaching"}
-- Why they fit: ${lead.whyMatchFit}
-- Specific hook / content research: ${hook}
+Sign as Jonny, founder of Match Fit. End with:
+${tail}
 
-CRITICAL RULES:
-- Write a seamless, natural email from JB (Jonny), founder of Match Fit.
-- NEVER include numbers (1., 2., 3.), step labels (e.g. "Greeting:", "Promo explanation:", "CTA:"), or bracketed template tags in the output.
-- You must synthesize the lead research into an authentic, personalized email following this narrative flow:
-  • Greeting: Hi ${first},
-  • Specific, individualized compliment about their coaching business/brand (${hook}) and why Match Fit is an ideal fit
-  • Founder introduction: introduce what Match Fit (match-fit.net) is and who I am (JB, founder)
-  • Low-friction initial CTA (e.g. "Open to taking a quick look?")
-  • Promo explanation: founding virtual fitness coach roster with 60 days free, zero platform/listing fees upfront, automated booking and client payments
-  • Secondary CTA + open door for questions (e.g. "If you have any questions or want to see how listing works, feel free to reply!")
-  • Direct sign-up link: match-fit.net/trainer/sign-up
-  • Sign-off: — JB
-
-Output ONLY the raw email body text ready to send. No preamble, no postamble, no numbered layout list.${feedbackBlock}`;
+Return ONLY the email body.${feedbackBlock}`;
   }
 
   if (platform === "email" && field === "followUp1EmailSubject") {
@@ -216,9 +147,9 @@ Output ONLY the raw email body text ready to send. No preamble, no postamble, no
   }
 
   if (platform === "email" && field === "followUp1EmailBody") {
-    const first = String(lead.name ?? "there").split(" ")[0];
-    return `Write a short 2-4 sentence ${fieldLabel(field)} to ${first}.
-Reference the founding coach roster on Match Fit (60 days free, automated payments/booking), point back to the original email, and leave the sign-up link (match-fit.net/trainer/sign-up). Open the door for questions. Sign as JB. Return ONLY the natural email body with no template labels or numbers.${feedbackBlock}`;
+    return `Write the ${fieldLabel(field)} to ${lead.name}.
+First email subject: ${lead.emailSubject || emailSubject("VIRTUAL")}
+Reference Match Fit beta spots. Return ONLY the body.${feedbackBlock}`;
   }
 
   if (platform === "email" && field === "followUp2EmailSubject") {
@@ -227,8 +158,12 @@ Reference the founding coach roster on Match Fit (60 days free, automated paymen
 
   if (platform === "email" && field === "followUp2EmailBody") {
     const first = String(lead.name ?? "there").split(" ")[0];
-    return `Write a brief 2-3 sentence ${fieldLabel(field)} to ${first}.
-Closing the loop on founding coach spots, wishing them the best with their training business. Sign as JB. Return ONLY the natural email body with no template labels or numbers.${feedbackBlock}`;
+    const template = followUpEmailBody(first);
+    return `Write the ${fieldLabel(field)} to ${lead.name}.
+Use this as tone reference but personalize:
+${template}
+
+Return ONLY the body.${feedbackBlock}`;
   }
 
   return `Write ${fieldLabel(field)} for Match Fit outreach. Return ONLY the copy.${feedbackBlock}`;
@@ -269,7 +204,7 @@ function fallbackCopy(
     return `Last note from me — happy to share more on Match Fit if timing opens up. Either way, keep crushing it. — JB`;
   }
   if (platform === "facebook" && field === "pagePostText") {
-    return `👋 US fitness trainers — Match Fit is hand-selecting founding coaches for beta.\n\n${tail}`;
+    return `👋 US fitness trainers — Match Fit is hand-selecting founding Fitness Pros for beta.\n\n${tail}`;
   }
   if (platform === "email" && field === "emailSubject") {
     return emailSubject("VIRTUAL");
@@ -332,7 +267,8 @@ export async function generateOutreachLeadCopy(args: {
 
     const userPrompt = buildCopyPrompt(args.platform, field, lead as Record<string, unknown>, args.feedback);
     const aiText = await callOutreachCopyAi(system, userPrompt);
-    const copy = aiText?.trim() || fallbackCopy(args.platform, field, lead as Record<string, unknown>);
+    const raw = aiText?.trim() || fallbackCopy(args.platform, field, lead as Record<string, unknown>);
+    const copy = normalizeCoachLanguage(raw);
     result[field] = copy;
 
     await updateOutreachLead(args.platform, args.leadId, { [field]: copy });

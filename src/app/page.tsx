@@ -21,34 +21,20 @@ import { getSessionClientId, getSessionTrainerId } from "@/lib/session";
 
 type HomeProps = { searchParams?: Promise<{ zip?: string }> };
 
+/** Always render fresh homepage copy/version from package.json (no ISR/CDN stale shell). */
+export const revalidate = 0;
+
 export default async function Home({ searchParams }: HomeProps) {
   // DATABASE_URL is required for all DB calls. Preview deployments may omit it;
   // skip DB-dependent work so the page still renders rather than returning 500.
   const hasDb = Boolean(process.env.DATABASE_URL);
 
-  if (hasDb) {
-    try {
-      await redirectStayLoggedInClientToDashboard();
-    } catch (e) {
-      // In Next.js, redirect() throws NEXT_REDIRECT which must be rethrown
-      if (typeof e === "object" && e !== null && "digest" in e && typeof (e as { digest: string }).digest === "string" && (e as { digest: string }).digest.startsWith("NEXT_REDIRECT")) {
-        throw e;
-      }
-      console.error("[Home] redirect check error:", e);
-    }
-  }
+  if (hasDb) await redirectStayLoggedInClientToDashboard();
 
   const sp = searchParams ? await searchParams : {};
   const zipFromQuery = typeof sp.zip === "string" && sp.zip.trim() ? sp.zip.trim() : null;
 
-  let clientId: string | null = null;
-  let trainerId: string | null = null;
-  try {
-    [clientId, trainerId] = await Promise.all([getSessionClientId(), getSessionTrainerId()]);
-  } catch (e) {
-    console.error("[Home] session resolution error:", e);
-  }
-
+  const [clientId, trainerId] = await Promise.all([getSessionClientId(), getSessionTrainerId()]);
   const homeAuth = {
     clientLoggedIn: Boolean(clientId),
     trainerLoggedIn: Boolean(trainerId),
@@ -58,42 +44,28 @@ export default async function Home({ searchParams }: HomeProps) {
   let meetOurCoaches: Awaited<ReturnType<typeof getMeetOurCoachesForHomepage>> = [];
 
   if (hasDb) {
-    try {
-      let zipForFeatured = zipFromQuery;
-      if (clientId) {
-        try {
-          const client = await prisma.client.findUnique({
-            where: { id: clientId },
-            select: { zipCode: true },
-          });
-          if (client?.zipCode?.trim()) zipForFeatured = client.zipCode.trim();
-        } catch (e) {
-          console.error("[Home] client zip lookup error:", e);
-        }
-      }
-
-      [featuredTrainers, meetOurCoaches] = await Promise.all([
-        getFeaturedTrainersForHomepage({ zipInput: zipForFeatured }).catch((e) => {
-          console.error("[Home] featured trainers error:", e);
-          return [];
-        }),
-        getMeetOurCoachesForHomepage(8).catch((e) => {
-          console.error("[Home] meet our coaches error:", e);
-          return [];
-        }),
-      ]);
-    } catch (e) {
-      console.error("[Home] data fetch error:", e);
+    let zipForFeatured = zipFromQuery;
+    if (clientId) {
+      const client = await prisma.client.findUnique({
+        where: { id: clientId },
+        select: { zipCode: true },
+      });
+      if (client?.zipCode?.trim()) zipForFeatured = client.zipCode.trim();
     }
+
+    [featuredTrainers, meetOurCoaches] = await Promise.all([
+      getFeaturedTrainersForHomepage({ zipInput: zipForFeatured }),
+      getMeetOurCoachesForHomepage(8),
+    ]);
   }
 
   return (
     <main className={matchFitBrandPageMainClass}>
       <MatchFitBrandPageBackground />
 
-      <div className="relative z-10 mx-auto flex min-h-svh w-full min-w-0 max-w-6xl flex-col px-4 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14 lg:px-10">
-        <header className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+      <div className="relative z-10 mx-auto flex w-full min-w-0 max-w-6xl flex-col items-stretch px-4 pt-10 sm:px-8 sm:pt-14 lg:px-10">
+        <header className="flex w-full min-w-0 items-center justify-between gap-3 sm:gap-4">
+          <div className="flex min-w-0 items-center gap-3">
             <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl sm:h-16 sm:w-16">
               <Image
                 src="/logo.png"
@@ -114,7 +86,7 @@ export default async function Home({ searchParams }: HomeProps) {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="ml-auto flex shrink-0 items-center gap-3 sm:gap-4">
             <MatchFitSocialLinks variant="compact" showLabel={false} className="hidden sm:block" />
             <HomeLoginMenu homeAuth={homeAuth} />
           </div>
@@ -124,7 +96,7 @@ export default async function Home({ searchParams }: HomeProps) {
           <HomeBetaPromoBanner />
         </div>
 
-        <div className="mt-4">
+        <div className="mt-4 flex justify-center">
           <Link
             href="/promos"
             className="inline-flex items-center gap-1.5 rounded-full border border-[#FF7E00]/35 bg-[#FF7E00]/10 px-3 py-1 text-[0.7rem] font-bold uppercase tracking-[0.1em] text-[#FF7E00] transition hover:border-[#FF7E00]/55 hover:bg-[#FF7E00]/20"
@@ -144,9 +116,11 @@ export default async function Home({ searchParams }: HomeProps) {
             </svg>
           </Link>
         </div>
+      </div>
 
-        <HomeBrandBanner />
+      <HomeBrandBanner />
 
+      <div className="relative z-10 mx-auto flex w-full min-w-0 max-w-6xl flex-col items-stretch px-4 pb-16 sm:px-8 sm:pb-20 lg:px-10">
         <section className="mt-14 flex flex-1 flex-col items-center text-center sm:mt-20 lg:mt-24">
           <div className="relative">
             <div
@@ -176,7 +150,7 @@ export default async function Home({ searchParams }: HomeProps) {
           </p>
 
           <p className="mt-6 max-w-xl text-pretty text-base leading-relaxed text-white/60 sm:text-lg">
-            The fitness matchmaking platform that connects clients with the right coaches—and gives trainers
+            The fitness matchmaking platform that connects clients with the right coaches—and gives fitness pros
             the tools to grow their brands and client base without the usual friction.
           </p>
           <p className="mt-4 text-sm text-white/40">
@@ -186,7 +160,7 @@ export default async function Home({ searchParams }: HomeProps) {
             >
               Learn how it works
             </a>{" "}
-            or scroll to explore trainers, pricing, and session types.
+            or scroll to explore coaches, pricing, and session types.
           </p>
         </section>
 
