@@ -473,20 +473,31 @@ async function generateAndDownload(page, visualPrompt, workDir) {
   // Copy-to-clipboard stays entirely inside the page/browser process.
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin: "https://gemini.google.com" }).catch((e) => console.error("grantPermissions failed: " + e));
 
-  const copyBtn = page.locator('button[aria-label="Copy image"]').last();
+  const copyBtn = page.locator(
+    'button[aria-label*="Copy image" i], button[aria-label*="copy" i][data-test-id*="image" i], button[mattooltip*="Copy image" i]'
+  ).last();
   let copyClicked = false;
-  for (let attempt = 0; attempt < 6 && !copyClicked; attempt++) {
+  for (let attempt = 0; attempt < 8 && !copyClicked; attempt++) {
     await imageLocator.hover().catch(() => null);
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(600);
     if (await copyBtn.isVisible().catch(() => false)) {
       await copyBtn.click();
       copyClicked = true;
     }
   }
   if (!copyClicked) {
-    await page.screenshot({ path: "/tmp/gemini-fail-debug.png", fullPage: false }).catch(() => null);
-    throw new Error("COPY_BUTTON_NOT_FOUND: could not find/click Copy image button after 6 attempts.");
+    // Fallback: click directly on image or right-click context menu
+    const directCopy = page.getByRole("button", { name: /copy image/i }).last();
+    if (await directCopy.isVisible().catch(() => false)) {
+      await directCopy.click().catch(() => null);
+      copyClicked = true;
+    }
   }
+  if (!copyClicked) {
+    await page.screenshot({ path: "/tmp/gemini-fail-debug.png", fullPage: false }).catch(() => null);
+    throw new Error("COPY_BUTTON_NOT_FOUND: could not find/click Copy image button after 8 attempts.");
+  }
+
   await page.bringToFront();
   await page.locator("body").click({ position: { x: 5, y: 5 }, force: true }).catch(() => null);
   await page.waitForTimeout(1500);
