@@ -9,8 +9,9 @@ import type { OutreachPlatform } from "@/lib/outreach-types";
 export const OUTREACH_READY_INTENTS = ["JOIN_AS_FP", "BOTH"] as const;
 export type OutreachReadyIntent = (typeof OUTREACH_READY_INTENTS)[number];
 
-/** Default pipeline floor before JB daily send blocks (REV-FIRST). */
-export const OUTREACH_READY_LEAD_TARGET = 15;
+/** Default pipeline floor before JB daily send blocks (locked to 10 per JB directive). */
+export const OUTREACH_READY_LEAD_TARGET = 10;
+
 
 export function isOutreachReadyIntent(value: unknown): value is OutreachReadyIntent {
   return (
