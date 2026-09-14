@@ -17,6 +17,7 @@ import { PublishingPanel } from "./components/publishing-panel";
 import { ScheduledPanel } from "./components/scheduled-panel";
 import { ArchivesPanel } from "./components/archives-panel";
 import { SocialMediaResearchPanel } from "./components/social-media-research-panel";
+import { WeeklyScheduleGuide } from "./components/weekly-schedule-guide";
 import { Modal, readApi } from "./components/ui-bits";
 import { useUnsavedRegistry } from "./components/use-unsaved-registry";
 
@@ -392,6 +393,8 @@ export function ContentCalendarV2Client({
       {todayGap.length > 0 ? (
         <AdminPortalAlert>{`Today's four-pack is incomplete — missing: ${todayGap.join(", ")}.`}</AdminPortalAlert>
       ) : null}
+
+      <WeeklyScheduleGuide />
 
       <nav className="flex flex-wrap gap-2 border-b border-white/[0.06] pb-1" aria-label="Content Calendar v2 tabs">
         {TABS.map((t) => (

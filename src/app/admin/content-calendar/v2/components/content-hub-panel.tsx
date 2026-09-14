@@ -140,9 +140,33 @@ function DayContainer({
     <section className={adminCardClass}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-sm font-black uppercase tracking-[0.14em] text-white">{group.label}</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-sm font-black uppercase tracking-[0.14em] text-white">{group.label}</h3>
+            {group.rule ? (
+              <span
+                className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${
+                  group.rule.dayIndex === 0
+                    ? "border-[#FF7E00]/40 bg-[#FF7E00]/15 text-[#FFD34E]"
+                    : group.rule.dayIndex === 2
+                      ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+                      : group.rule.dayIndex === 4
+                        ? "border-sky-500/40 bg-sky-500/15 text-sky-300"
+                        : "border-white/10 bg-white/[0.04] text-white/80"
+                }`}
+              >
+                {group.rule.theme}
+              </span>
+            ) : null}
+            {group.rule?.isLivePostingDay ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-2 py-0.5 text-[9px] font-bold tracking-tight text-emerald-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                LIVE POSTING
+              </span>
+            ) : null}
+          </div>
           <p className="mt-0.5 text-[11px] uppercase tracking-wide text-white/40">
             {group.posts.length} post{group.posts.length === 1 ? "" : "s"} · {group.approved ? "Approved" : "Editing"}
+            {group.rule ? ` · Target: ${group.rule.targetGroup} (${group.rule.postTypes.join(" + ")})` : ""}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -279,11 +303,34 @@ export function ContentHubPanel({
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-[#FF7E00]/30 bg-[#FF7E00]/10 p-5">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#FFD34E]">Content Hub</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#FFD34E]">Content Hub</p>
+          <span className="rounded-full bg-[#FF7E00]/20 px-2.5 py-0.5 text-[10px] font-bold text-[#FFD34E]">
+            2 Posts / Day · Mon–Fri Locked Format
+          </span>
+        </div>
         <p className="mt-2 text-sm leading-relaxed text-white/75">
-          Match Fit generates two posts a day, Monday–Friday — Carousel + Video on Monday, Wednesday and Friday;
-          Static + Text on Tuesday and Thursday. The full week is generated automatically {WEEKLY_GENERATION_TIME_LABEL}.
-          Edit any post below, approve the whole day, then fire the media agent to generate it.
+          Match Fit generates two posts a day, Monday–Friday following the active weekly posting rhythm:
+        </p>
+        <div className="mt-2.5 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
+          <div className="rounded-xl border border-white/[0.08] bg-black/30 p-2.5">
+            <span className="font-black text-[#FFD34E]">⚡ Live Posting (Mon · Wed · Fri) — Video + Carousel</span>
+            <ul className="mt-1 space-y-0.5 text-[11px] text-white/60">
+              <li>• <strong className="text-white/90">Monday:</strong> Join Our Team (Fitness Pro recruitment)</li>
+              <li>• <strong className="text-emerald-300">Wednesday:</strong> Client Spotlight (Athlete VIP trial)</li>
+              <li>• <strong className="text-sky-300">Friday:</strong> List With Us (Facility &amp; Pro directory)</li>
+            </ul>
+          </div>
+          <div className="rounded-xl border border-white/[0.08] bg-black/30 p-2.5">
+            <span className="font-black text-white/90">📝 Draft &amp; Feature (Tue · Thu) — Static + Text</span>
+            <ul className="mt-1 space-y-0.5 text-[11px] text-white/60">
+              <li>• <strong className="text-white/90">Tuesday:</strong> Pro Insights &amp; Tool Features</li>
+              <li>• <strong className="text-white/90">Thursday:</strong> Social Proof &amp; Fit Hub Community</li>
+            </ul>
+          </div>
+        </div>
+        <p className="mt-2.5 text-[11px] text-white/50">
+          The full week generates automatically {WEEKLY_GENERATION_TIME_LABEL}. Edit any post below, approve the day, and fire the media agent.
         </p>
       </section>
 

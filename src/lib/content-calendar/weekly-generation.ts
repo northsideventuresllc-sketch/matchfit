@@ -8,6 +8,7 @@ import {
   CONTENT_CALENDAR_DAYS_LONG,
   CONTENT_CALENDAR_GROUPS,
   CONTENT_CALENDAR_WEEKDAY_POST_TYPES,
+  CONTENT_CALENDAR_WEEKDAY_SCHEDULE,
   type ContentCalendarPostType,
 } from "@/lib/content-calendar/constants";
 import { getMatchFitDpmoPhase } from "@/lib/content-calendar/cowork-jobs";
@@ -66,19 +67,20 @@ function parseJsonBlock<T>(text: string): T | null {
 
 function fallbackDayPlan(dpmoPhase: string | null): WeeklyDayPlan[] {
   return [0, 1, 2, 3, 4].map((dayIndex) => {
-    const rot = getContentCalendarRotation(dayIndex, 0);
-    const targetAudience = rot.Static;
+    const rule = CONTENT_CALENDAR_WEEKDAY_SCHEDULE[dayIndex];
+    const targetAudience = rule?.targetGroup ?? "Join the Team";
+    const defaultTheme = rule ? `${rule.dayLong} — ${rule.theme}` : `${CONTENT_CALENDAR_DAYS_LONG[dayIndex]} — ${targetAudience} spotlight`;
     return {
       dayIndex,
-      theme: `${CONTENT_CALENDAR_DAYS_LONG[dayIndex]} — ${targetAudience} spotlight`,
+      theme: defaultTheme,
       targetAudience,
       cta:
         targetAudience === "Clients"
           ? "Drive to match-fit.net/client/sign-up"
           : "Drive to match-fit.net/trainer/sign-up",
       dpmoRationale: dpmoPhase
-        ? `Supports ${dpmoPhase}: focuses this day on ${targetAudience} to move the current growth phase forward.`
-        : `Focuses this day on ${targetAudience} growth.`,
+        ? `Supports ${dpmoPhase}: focuses this day on ${targetAudience} (${rule?.theme ?? "theme"}) to move the current growth phase forward.`
+        : `Focuses this day on ${targetAudience} growth (${rule?.theme ?? "theme"}).`,
     };
   });
 }
@@ -96,7 +98,13 @@ async function planWeek(args: {
     "You are Match Fit's weekly content strategist.",
     CONTENT_CALENDAR_BRAND_FACTS,
     `Current DPMO growth phase: ${args.dpmoPhase ?? "unspecified"}.`,
-    "Plan Monday–Friday. Each day gets a theme, a single target audience, an audience-correct CTA, and a plain-English `dpmoRationale` (1-2 sentences) stating BOTH how the day fits the current DPMO growth phase AND the strategy behind it (why this audience/angle now). No jargon, no internal codes — write it so a founder skims it and immediately gets the point.",
+    "Strict weekly posting schedule and theme rules:",
+    "- Monday: Video + Carousel | Theme: Join Our Team (Fitness Pros recruitment & onboarding, targetAudience='Join the Team')",
+    "- Tuesday: Static + Text | Theme: Pro Insights & Feature Value (tools, tips & coaching value, targetAudience='Join the Team')",
+    "- Wednesday: Video + Carousel | Theme: Client Spotlight & Demand (Athletes & client training demand, targetAudience='Clients')",
+    "- Thursday: Static + Text | Theme: Social Proof & Community (Fit Hub feed & client pain points, targetAudience='Clients')",
+    "- Friday: Video + Carousel | Theme: List With Us (Independent Pros & facility directory listings, targetAudience='List With Us')",
+    "Plan Monday–Friday. Each day gets a theme aligned with the rule above, a single target audience, an audience-correct CTA, and a plain-English `dpmoRationale` (1-2 sentences) stating BOTH how the day fits the current DPMO growth phase AND the strategy behind it (why this audience/angle now). No jargon, no internal codes — write it so a founder skims it and immediately gets the point.",
     `Target audiences (use only these): ${CONTENT_CALENDAR_GROUPS.join(", ")}.`,
     "Respond with ONLY a JSON array of 5 objects (dayIndex 0=Mon..4=Fri). No prose, no markdown.",
     'Shape: [{"dayIndex":0,"theme":"...","targetAudience":"Join the Team","cta":"...","dpmoRationale":"..."}]',
@@ -243,7 +251,14 @@ export async function generateWeeklyDayPosts(args: {
           });
 
     await createV2Draft({
-      draft: { ...draft, postType: postType as ContentCalendarPostType, dayIndex: dayPlan.dayIndex, postDate, visualPrompt },
+      draft: {
+        ...draft,
+        postType: postType as ContentCalendarPostType,
+        dayIndex: dayPlan.dayIndex,
+        targetGroup: normalizeTargetGroup(dayPlan.targetAudience),
+        postDate,
+        visualPrompt,
+      },
       weekStart,
       lane: "scheduled",
       adminId: WEEKLY_GENERATION_ADMIN_ID,
