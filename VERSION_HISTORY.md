@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-14** `2.33.0-beta` → `2.33.1-beta` (**patch** — Security audit fixes: RLS auto-disable removed, RLS added on 20 tables, security headers, login rate limiting, timing-safe secret comparisons)
 - **2026-09-14** `2.32.0-beta` → `2.33.0-beta` (**minor** — Home page overhaul: promo bubble redesign, role-term tooltips, follow-us popup, copy/caps cleanup)
 - **2026-09-14** `2.31.0-beta` → `2.32.0-beta` (**minor** — Promos page overhaul: role-based collapsible promo details, redundant bubbles removed, centered CTAs)
 - **2026-09-14** `2.31.0-beta` → `2.31.1-beta` (**patch** — Fix /promos taking near a minute to load during a Supabase pooler outage)
