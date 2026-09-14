@@ -16,7 +16,7 @@ import { generateBulkContent } from "@/lib/content-calendar/content-calendar-ai"
 import { buildContentGenerationContext, resetContentContextCache } from "@/lib/content-calendar/content-context";
 import { buildMediaGenerationPrompt, type MediaPostType } from "@/lib/content-calendar/content-prompts";
 import { researchTrendingHashtags, type HashtagResearchSnapshot } from "@/lib/content-calendar/hashtag-research";
-import { getContentCalendarRotation, addWeekdays, formatCalendarDate, getMondayOfWeek } from "@/lib/content-calendar/rotation";
+import { addWeekdays, formatCalendarDate, getMondayOfWeek } from "@/lib/content-calendar/rotation";
 import { scanAndRecordSocialProfiles } from "@/lib/content-calendar/social-profile-scan";
 import { createV2Draft, dayAlreadyHasLiveContent } from "@/lib/content-calendar/content-calendar-v2-store";
 import { normalizeTargetGroup } from "@/lib/content-calendar/content-rules";
