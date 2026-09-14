@@ -40,7 +40,7 @@ export const FP_TIER_MARKETING_GROUPS: readonly FpTierMarketingGroup[] = [
     id: "match_fit_pros",
     label: "Match Fit Pros",
     description:
-      "Coaches who train fully on Match Fit — in-app chat, Fit Hub, platform reviews, and verified listing on the marketplace.",
+      "Coaches who decide to use Match Fit as a management software to find, connect, manage, and process clients. Best for coaches who are more of an indie coach who is an entrepreneur.",
     tiers: [
       {
         tier: "match_fit_pro",
@@ -74,7 +74,7 @@ export const FP_TIER_MARKETING_GROUPS: readonly FpTierMarketingGroup[] = [
     id: "independent_pros",
     label: "Independent Pros",
     description:
-      "Coaches who want Match Fit discovery while keeping their own brand and external presence front and center.",
+      "Coaches and fitness businesses who decide to use Match Fit as a listing platform to link clients back to their established website/brand. Best for coaches and businesses that are looking for another channel of online exposure to bring in new clients.",
     tiers: [
       {
         tier: "independent_fitness_pro",
@@ -95,7 +95,7 @@ export const FP_TIER_MARKETING_GROUPS: readonly FpTierMarketingGroup[] = [
     id: "elite_pros",
     label: "Elite Pros",
     description:
-      "Established coaches who want Match Fit chat, unlimited discovery nudges, and flexible brand links in conversation.",
+      "Coaches and fitness businesses looking to get the best of both worlds in what Fitness Pro status and Independent Pro status offers. Best for coaches and businesses looking to integrate a new management platform into their business while looking to acquire new clients.",
     tiers: [
       {
         tier: "elite_fitness_pro",

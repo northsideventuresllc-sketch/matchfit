@@ -71,7 +71,7 @@ export function HomeFitProTypesSection() {
       ))}
 
       <p className="rounded-xl border border-[#FFD34E]/20 bg-[#FFD34E]/[0.06] p-4 text-xs leading-relaxed text-white/55 sm:text-[13px]">
-        <span className="font-semibold text-[#FFD34E]/90">Beta note:</span> {FP_TIER_MARKETING_BETA_NOTE}
+        <span className="font-semibold uppercase text-[#FFD34E]/90">Beta note:</span> {FP_TIER_MARKETING_BETA_NOTE}
       </p>
     </div>
   );

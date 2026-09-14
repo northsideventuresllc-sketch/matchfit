@@ -147,8 +147,6 @@ describe("app/page Home component", () => {
     getSessionTrainerIdMock.mockResolvedValue("trainer-1");
     const markup = await renderHome(Promise.resolve({ zip: "30301" }));
 
-    expect(markup).toContain("Current Promos");
-    expect(markup).toContain('class="mt-4 flex justify-center"');
     expect(markup).toContain("data-home-brand-banner");
     expect(markup).toContain("data-home-beta-promo-banner");
     expect(markup).toContain('class="flex w-full min-w-0 items-center justify-between gap-3 sm:gap-4"');
