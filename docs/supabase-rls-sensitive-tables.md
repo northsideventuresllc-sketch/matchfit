@@ -39,6 +39,38 @@ Migration: `prisma/migrations/20260707210000_enable_rls_fp_account_tier_tables/m
 | `support_group_members` | Prisma support group membership |
 | `fp_ad_integrations` | Prisma FP ad platform connections |
 
+## Remaining unprotected tables (2026-09-14 audit)
+
+Migration: `prisma/migrations/20260914120000_enable_rls_remaining_unprotected_tables/migration.sql`
+
+Found by diffing every `@@map(...)` table in `prisma/schema.prisma` against every
+`ENABLE ROW LEVEL SECURITY` statement across `prisma/migrations/*` — the same method
+used for the two migrations above. All access is via Prisma; none have a PostgREST
+(browser Supabase client) read/write path.
+
+| Table | App access path |
+|-------|-----------------|
+| `trainer_earnings_balances` | Prisma trainer payouts / earnings ledger |
+| `trainer_earnings_ledger_entries` | Prisma trainer earnings ledger |
+| `trainer_payout_requests` | Prisma trainer payout requests |
+| `trainer_payout_schedules` | Prisma trainer payout schedules |
+| `trainer_drafts` | Prisma trainer draft autosave |
+| `pending_trainer_resume_signup_nudges` | Prisma trainer resume signup nudge cron |
+| `outreach_cowork_dispatch_batches` | Prisma Outreach HQ cowork dispatch |
+| `outreach_cowork_scan_jobs` | Prisma Outreach HQ cowork scan jobs |
+| `outreach_daily_templates` | Prisma Outreach HQ daily templates |
+| `outreach_lead_touch_log` | Prisma Outreach HQ lead touch log |
+| `beta_client_waitlist_entries` | Prisma client beta waitlist |
+| `beta_trainer_waitlist_entries` | Prisma trainer beta waitlist |
+| `internal_qa_client_daily_cursors` | Prisma internal QA account reset cron |
+| `internal_qa_trainer_daily_cursors` | Prisma internal QA account reset cron |
+| `internal_qa_deferred_official_chats` | Prisma internal QA account reset cron |
+| `web_push_subscriptions` | Prisma web push notify |
+| `ventures` | Prisma venture/offering DPMO |
+| `venture_offerings` | Prisma venture/offering DPMO |
+| `venture_offering_categories` | Prisma venture/offering DPMO |
+| `venture_audiences` | Prisma venture/offering DPMO |
+
 ## What is **not** used for these tables
 
 - Browser Supabase client (`createBrowserClient`) — auth/session only
