@@ -81,7 +81,7 @@ describe("outreach-ready-leads", () => {
     });
     expect(counts.total).toBe(15);
     expect(counts.meetsTarget).toBe(true);
-    expect(OUTREACH_READY_LEAD_TARGET).toBe(15);
+    expect(OUTREACH_READY_LEAD_TARGET).toBe(10);
   });
 
   it("picks ready Join-as-FP leads first for Cowork brief caps", () => {
