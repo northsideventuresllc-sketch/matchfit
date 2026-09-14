@@ -154,7 +154,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
                 Sessions flex around real life, not the other way around.
               </p>
               <p className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-xs leading-relaxed text-white/45 sm:text-[13px]">
-                <span className="font-semibold text-[#FF7E00]/90">Note:</span> If you train at a gym that requires a
+                <span className="font-semibold uppercase text-[#FF7E00]/90">Note:</span> If you train at a gym that requires a
                 membership or guest pass, those details are between you and your coach. Match Fit does not
                 coordinate or guarantee facility access.
               </p>
@@ -169,7 +169,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
                 the session and train together from wherever you are.
               </p>
               <p className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-xs leading-relaxed text-white/45 sm:text-[13px]">
-                <span className="font-semibold text-[#FF7E00]/90">Important:</span> Clients cannot send{" "}
+                <span className="font-semibold uppercase text-[#FF7E00]/90">Important:</span> Clients cannot send{" "}
                 <span className="font-semibold text-white/60">FaceTime</span> requests or meeting invites that rely on
                 personal <span className="font-semibold text-white/60">phone numbers</span> or{" "}
                 <span className="font-semibold text-white/60">email addresses</span> outside Match Fit. Keep virtual
@@ -184,7 +184,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
                 the plan and keep you accountable.
               </p>
               <p className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-xs leading-relaxed text-white/45 sm:text-[13px]">
-                <span className="font-semibold text-[#FF7E00]/90">Disclaimer:</span> You are responsible for giving your
+                <span className="font-semibold uppercase text-[#FF7E00]/90">Disclaimer:</span> You are responsible for giving your
                 coach accurate and complete information needed to build a safe, effective DIY program. Pricing is set by
                 each coach and will vary based on the scope of work and the monthly workload required to create, update,
                 and support your plan.
@@ -198,7 +198,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
                 program.
               </p>
               <p className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-xs leading-relaxed text-white/45 sm:text-[13px]">
-                <span className="font-semibold text-[#FF7E00]/90">Disclaimer:</span> Only{" "}
+                <span className="font-semibold uppercase text-[#FF7E00]/90">Disclaimer:</span> Only{" "}
                 <span className="font-semibold text-white/60">certified nutritionists</span> may offer nutrition plans
                 and related coaching services on Match Fit.
               </p>
@@ -292,7 +292,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           id="types-of-fit-pros"
           eyebrow="Account types"
           eyebrowClass="text-[#FFD34E]"
-          title="Types of Fit Pros"
+          title="Types of Fitness Pros"
           accent="left"
           defaultOpen
         >
@@ -337,7 +337,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
               </h3>
               <p className="mt-3 text-sm text-white/50">Expand to browse every catalogue template and requirement.</p>
               <p className="mt-3 rounded-xl border border-[#FFD34E]/20 bg-[#FFD34E]/[0.06] p-3 text-xs leading-relaxed text-white/50 sm:text-[13px]">
-                <span className="font-semibold text-[#FFD34E]/90">Disclaimer:</span> {FP_SERVICE_CATALOGUE_DISCLAIMER}
+                <span className="font-semibold uppercase text-[#FFD34E]/90">Disclaimer:</span> {FP_SERVICE_CATALOGUE_DISCLAIMER}
               </p>
             </div>
           </summary>
@@ -391,7 +391,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           eyebrow="Overview"
           eyebrowClass="text-[#FF7E00]"
           title="Platform details"
-          description="Big-picture positioning, liability notice, and ways to stay connected."
+          description="Big-picture positioning and the liability notice."
         />
 
         <HomeCollapsibleSection
@@ -441,20 +441,6 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
             arising from coach-client services, third-party facilities, or off-platform interactions. This
             statement is a general informational notice and does not replace the full Terms of Service.
           </p>
-        </HomeCollapsibleSection>
-
-        <HomeCollapsibleSection
-          id="follow-match-fit"
-          eyebrow="Stay connected"
-          eyebrowClass="text-[#FFD34E]"
-          title="Follow Match Fit for launch updates and community wins"
-          accent="left"
-        >
-          <p className="mx-auto max-w-2xl text-center">
-            We share real progress, coach spotlights, and launch news on our official channels — so you always know Match
-            Fit is active, responsive, and building with you.
-          </p>
-          <MatchFitSocialLinks variant="footer" className="mx-auto mt-4 max-w-md" />
         </HomeCollapsibleSection>
       </div>
 

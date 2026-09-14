@@ -2,25 +2,61 @@ import Image from "next/image";
 import Link from "next/link";
 import { getLaunchPromoStats } from "@/lib/launch-promo-stats";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
-import { getClientFoundingTrialDays } from "@/lib/match-fit-launch-promotions";
 import { clientBetaVipTrialSummary, clientVipPriceLabel } from "@/lib/client-plan-copy";
+import { FP_TIER_MONTHLY_FEES_USD } from "@/lib/fp-account-tier-types";
 import {
-  TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE,
-  trainerFoundingBgCheckBenefitShortLabel,
-  trainerFoundingBgCheckEligibleTiersLabel,
-  trainerFoundingPromoBullets,
-  trainerFoundingPromoParagraph,
-  trainerFoundingTierAccessBreakdownSentence,
+  TRAINER_SIGNUP_PREMIUM_PROMO_DAYS,
   trainerIndependentProSubscriptionLabel,
-  trainerIndependentProTrialPromoSentence,
-  trainerSignupOnboardingBeginDeadlineLabel,
-  trainerSignupPremiumPromoBenefitLabel,
-  trainerStandardOnboardingAfterCapLabel,
 } from "@/lib/trainer-signup-promo-copy";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Current Promos | Match Fit" };
+
+/**
+ * Founding promo details per sign-up type (JB's exact role definitions, 2026-09-14).
+ * Collapsible menus on the promos page — see item 3 of the promo-page-overhaul task.
+ */
+const FOUNDING_ROLE_DETAILS: Array<{
+  id: string;
+  title: string;
+  description: string;
+  bullets: string[];
+}> = [
+  {
+    id: "fitness-pro",
+    title: "Fitness Pro",
+    description:
+      "Coaches who decide to use Match Fit as a management software to find, connect, manage, and process clients. Best for coaches who are more of an indie coach who is an entrepreneur.",
+    bullets: [
+      `Premium access free for ${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days.`,
+      "Background check fully covered.",
+      "After the trial, keep premium status with the platform's per-session fee — no flat monthly charge.",
+    ],
+  },
+  {
+    id: "independent-pro",
+    title: "Independent Pro",
+    description:
+      "Coaches and fitness businesses who decide to use Match Fit as a listing platform to link clients back to their established website/brand. Best for coaches and businesses that are looking for another channel of online exposure to bring in new clients.",
+    bullets: [
+      `Listing access free for ${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days.`,
+      `After the trial, keep listing access with the ${trainerIndependentProSubscriptionLabel()} subscription.`,
+    ],
+  },
+  {
+    id: "elite-pro",
+    title: "Elite Pro",
+    description:
+      "Coaches and fitness businesses looking to get the best of both worlds in what Fitness Pro status and Independent Pro status offers. Best for coaches and businesses looking to integrate a new management platform into their business while looking to acquire new clients.",
+    bullets: [
+      `Premium access free for ${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days.`,
+      `Listing access free for ${TRAINER_SIGNUP_PREMIUM_PROMO_DAYS} days.`,
+      "Background check fully covered.",
+      `After the trial, keep both with the $${(FP_TIER_MONTHLY_FEES_USD.elite_fitness_pro ?? 40).toFixed(2)} per month subscription.`,
+    ],
+  },
+];
 
 function ProgressBar({ value, max }: { value: number; max: number }) {
   const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
@@ -34,13 +70,63 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
   );
 }
 
+/**
+ * `available: false` means the live count query kept failing (DB/pooler blip) — showing "0 / Y"
+ * in that case would read as "all founding spots reopened", which is exactly the wrong-count
+ * report this fixes. Show an honest "temporarily unavailable" state instead of a fake number.
+ */
+function FoundingSpotsCounter({
+  count,
+  max,
+  available,
+  remaining,
+  active,
+}: {
+  count: number;
+  max: number;
+  available: boolean;
+  remaining: number;
+  active: boolean;
+}) {
+  if (!available) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-white/50">Founding spots claimed</span>
+          <span className="text-xs font-semibold text-white/40">Unavailable</span>
+        </div>
+        <p className="text-xs text-white/40">Live count is temporarily unavailable — check back shortly.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-white/50">Founding spots claimed</span>
+        <span className="font-bold text-white/80">
+          {count} / {max}
+        </span>
+      </div>
+      <ProgressBar value={count} max={max} />
+      {active ? (
+        <p className="text-xs text-[#FFD34E]">
+          {remaining} founding {remaining === 1 ? "spot" : "spots"} remaining
+        </p>
+      ) : (
+        <p className="text-xs text-white/40">Founding spots are full. Standard pricing now applies.</p>
+      )}
+    </div>
+  );
+}
+
 export default async function PromosPage() {
   const stats = await getLaunchPromoStats();
-  const trialDays = getClientFoundingTrialDays();
 
   const {
     trainerCount,
     clientCount,
+    trainerCountAvailable,
+    clientCountAvailable,
     trainerFoundingMax,
     clientFoundingMax,
     trainerFoundingRemaining,
@@ -49,6 +135,7 @@ export default async function PromosPage() {
     clientFoundingActive,
     clientBetaCap,
     clientBetaSlotsRemaining,
+    clientBetaSlotsAvailable,
     trainerWaitlistOpen,
     clientWaitlistOpen,
   } = stats;
@@ -102,11 +189,10 @@ export default async function PromosPage() {
             reached. Once the caps hit, standard pricing applies.
           </p>
           <div className="mx-auto mt-6 max-w-xl rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 text-left text-xs leading-relaxed text-white/50 sm:text-[13px]">
-            <span className="font-semibold text-[#FF7E00]/90">Beta reach:</span>{" "}
+            <span className="font-semibold uppercase text-[#FF7E00]/90">Beta reach:</span>{" "}
             <span className="font-semibold text-white/70">Up to 30 Fitness Pros</span> and{" "}
             <span className="font-semibold text-white/70">up to 150 clients</span> can join during beta —{" "}
-            <span className="font-semibold text-white/70">available worldwide</span>. In-person sessions roll out by
-            region as beta activity grows; virtual coaching is available wherever the product supports it.
+            <span className="font-semibold uppercase text-white/70">available worldwide</span>.
           </div>
         </div>
 
@@ -138,72 +224,59 @@ export default async function PromosPage() {
               </div>
 
               <p className="mt-5 text-pretty text-[15px] leading-relaxed text-white/65 sm:text-base">
-                {trainerFoundingPromoParagraph(trainerFoundingMax)}{" "}
-                <span className="font-semibold text-white/70">
-                  All {trainerFoundingMax} founding spots are open to Fitness Pros worldwide
-                </span>
-                .
+                Founding spots are open to Fitness Pros, Independent Pros, and Elite Pros worldwide. See exactly
+                what comes with each sign-up type below.
               </p>
 
               <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 text-sm text-white/60">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-semibold text-white/75">Background check</span>
-                  <span className="text-right text-[#FFD34E]">{trainerFoundingBgCheckBenefitShortLabel()}</span>
-                </div>
-                <p className="mt-2 text-xs leading-relaxed text-white/50">
-                  For the first {trainerFoundingMax} {trainerFoundingBgCheckEligibleTiersLabel()} sign-ups, Match Fit
-                  covers your Checkr screening in full — no upfront screening cost at sign-up.
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#FF7E00]/90">Promo details</p>
+                <p className="mt-3 text-xs leading-relaxed text-white/55">
+                  Background checks are waived completely for the first 30 coach sign-ups — no upfront screening
+                  cost.
                 </p>
-                <div className="mt-4 flex items-center justify-between gap-3">
-                  <span className="font-semibold text-white/75">Free Independent Pro trial at sign-up</span>
-                  <span className="text-[#FFD34E]">{trainerSignupPremiumPromoBenefitLabel()}</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <span className="font-semibold text-white/75">After trial, keep account active</span>
-                  <span>{trainerIndependentProSubscriptionLabel()}</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <span className="font-semibold text-white/75">Onboarding must begin within</span>
-                  <span>{trainerSignupOnboardingBeginDeadlineLabel()} of sign-up</span>
-                </div>
-                <ul className="mt-4 space-y-2 border-t border-white/[0.06] pt-4 text-xs leading-relaxed text-white/55">
-                  {trainerFoundingPromoBullets(trainerFoundingMax).map((bullet) => (
-                    <li key={bullet} className="flex gap-2">
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#FF7E00]/80" aria-hidden />
-                      <span>{bullet}</span>
-                    </li>
+
+                <div className="mt-4 space-y-2">
+                  {FOUNDING_ROLE_DETAILS.map((role) => (
+                    <details
+                      key={role.id}
+                      className="group overflow-hidden rounded-lg border border-white/[0.08] bg-white/[0.02] open:border-[#FF7E00]/30 open:bg-white/[0.04]"
+                    >
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-sm font-bold text-white/80 [&::-webkit-details-marker]:hidden">
+                        {role.title}
+                        <span
+                          className="inline-flex size-6 shrink-0 items-center justify-center rounded-md border border-white/[0.1] text-[0.65rem] text-white/45 transition-transform duration-200 group-open:rotate-90"
+                          aria-hidden
+                        >
+                          ▸
+                        </span>
+                      </summary>
+                      <div className="space-y-2 border-t border-white/[0.06] px-3 pb-3 pt-2.5">
+                        <p className="text-xs leading-relaxed text-white/60">{role.description}</p>
+                        <ul className="space-y-1.5 text-xs leading-relaxed text-white/55">
+                          {role.bullets.map((bullet) => (
+                            <li key={bullet} className="flex gap-2">
+                              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#FF7E00]/80" aria-hidden />
+                              <span>{bullet}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </details>
                   ))}
-                </ul>
-                <p className="mt-3 text-xs leading-relaxed text-white/50">{TRAINER_SIGNUP_CANNOT_SELL_UNTIL_COMPLETE}</p>
-              </div>
-
-              <div className="mt-4 rounded-xl border border-[#FF7E00]/20 bg-[#FF7E00]/[0.05] p-4 text-sm text-white/60">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#FF7E00]/90">
-                  Independent Pro platform trial
-                </p>
-                <p className="mt-2 text-pretty leading-relaxed">{trainerIndependentProTrialPromoSentence()}</p>
-                <p className="mt-2 text-pretty leading-relaxed text-white/55">{trainerFoundingTierAccessBreakdownSentence()}</p>
-              </div>
-
-              <div className="mt-6 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-white/50">Founding spots claimed</span>
-                  <span className="font-bold text-white/80">
-                    {trainerCount} / {trainerFoundingMax}
-                  </span>
                 </div>
-                <ProgressBar value={trainerCount} max={trainerFoundingMax} />
-                {trainerFoundingActive ? (
-                  <p className="text-xs text-[#FFD34E]">
-                    {trainerFoundingRemaining} founding{" "}
-                    {trainerFoundingRemaining === 1 ? "spot" : "spots"} remaining
-                  </p>
-                ) : (
-                  <p className="text-xs text-white/40">Founding spots are full. Standard pricing now applies.</p>
-                )}
               </div>
 
               <div className="mt-6">
+                <FoundingSpotsCounter
+                  count={trainerCount}
+                  max={trainerFoundingMax}
+                  available={trainerCountAvailable}
+                  remaining={trainerFoundingRemaining}
+                  active={trainerFoundingActive}
+                />
+              </div>
+
+              <div className="mt-6 flex justify-center">
                 {trainerCapFull ? (
                   <Link
                     href="/waitlist/trainer"
@@ -216,7 +289,7 @@ export default async function PromosPage() {
                     href="/trainer/signup"
                     className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-6 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] transition hover:opacity-90"
                   >
-                    Sign Up as a Fitness Pro
+                    Sign Up Now
                   </Link>
                 )}
               </div>
@@ -256,45 +329,32 @@ export default async function PromosPage() {
                 <span className="font-semibold text-white/80">{clientVipPriceLabel()}/month</span>.
               </p>
 
-              <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-semibold text-white/75">Beta VIP trial at sign-up</span>
-                  <span className="text-white/55">{trialDays} days, no card</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between text-sm">
-                  <span className="font-semibold text-white/75">After trial</span>
-                  <span className="text-white/55">Free plan or VIP upgrade</span>
-                </div>
-              </div>
-
-              <div className="mt-6 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-white/50">Founding spots claimed</span>
-                  <span className="font-bold text-white/80">
-                    {clientCount} / {clientFoundingMax}
-                  </span>
-                </div>
-                <ProgressBar value={clientCount} max={clientFoundingMax} />
-                {clientFoundingActive ? (
-                  <p className="text-xs text-[#FFD34E]">
-                    {clientFoundingRemaining} founding{" "}
-                    {clientFoundingRemaining === 1 ? "spot" : "spots"} remaining
-                  </p>
-                ) : (
-                  <p className="text-xs text-white/40">Founding spots are full. Standard pricing now applies.</p>
-                )}
+              <div className="mt-6">
+                <FoundingSpotsCounter
+                  count={clientCount}
+                  max={clientFoundingMax}
+                  available={clientCountAvailable}
+                  remaining={clientFoundingRemaining}
+                  active={clientFoundingActive}
+                />
               </div>
 
               {stats.gatesEnabled ? (
                 <p className="mt-4 text-[11px] text-white/40">
-                  Beta membership capacity: {stats.clientBetaSlotsUsed} / {clientBetaCap} slots used
-                  {clientBetaSlotsRemaining > 0
-                    ? ` (${clientBetaSlotsRemaining} open)`
-                    : " (full — waitlist open)"}
+                  {clientBetaSlotsAvailable ? (
+                    <>
+                      Beta membership capacity: {stats.clientBetaSlotsUsed} / {clientBetaCap} slots used
+                      {clientBetaSlotsRemaining > 0
+                        ? ` (${clientBetaSlotsRemaining} open)`
+                        : " (full — waitlist open)"}
+                    </>
+                  ) : (
+                    "Beta membership capacity: temporarily unavailable — check back shortly."
+                  )}
                 </p>
               ) : null}
 
-              <div className="mt-6">
+              <div className="mt-6 flex justify-center">
                 {clientCapFull ? (
                   <Link
                     href="/waitlist/client"
@@ -307,45 +367,12 @@ export default async function PromosPage() {
                     href="/client/sign-up"
                     className="inline-flex min-h-[2.75rem] items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FFD34E_0%,#FF7E00_45%,#E32B2B_100%)] px-6 text-sm font-black uppercase tracking-[0.08em] text-[#0B0C0F] transition hover:opacity-90"
                   >
-                    Sign Up as a Client
+                    Sign Up Now
                   </Link>
                 )}
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="mt-8 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 text-sm leading-relaxed text-white/45">
-          <p className="font-semibold text-white/60">After the founding caps are reached:</p>
-          <ul className="mt-3 space-y-1.5">
-            <li className="flex gap-2">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />
-              <span>
-                Fitness Pros pay the standard onboarding fee ({trainerStandardOnboardingAfterCapLabel()}) and do not
-                receive the {trainerSignupPremiumPromoBenefitLabel()} promo.
-              </span>
-            </li>
-            <li className="flex gap-2">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />
-              <span>
-                Fitness Pros may pay the standard onboarding fee at sign-up or defer it and repay from payouts within 60
-                days of completing onboarding.
-              </span>
-            </li>
-            <li className="flex gap-2">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />
-              <span>
-                Clients receive {clientBetaVipTrialSummary()}, then move to the Free plan unless they subscribe to VIP.
-              </span>
-            </li>
-            <li className="flex gap-2">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" aria-hidden />
-              <span>
-                Waitlist users are notified when slots reopen — standard pricing applies at the time of
-                their invite, regardless of when they joined the waitlist.
-              </span>
-            </li>
-          </ul>
         </div>
 
         <div className="mt-10 flex flex-wrap items-center justify-center gap-2 text-center">

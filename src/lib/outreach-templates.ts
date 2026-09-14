@@ -7,7 +7,7 @@ export const OUTREACH_CRAFT_LOCK_RULES = `Outreach craft lock (strict — JB 202
 - Canonical Fitness Pro CTA: ${MATCH_FIT_COACH_SIGNUP_URL} (never invent paths; never use /trainer/signup in outbound).
 - Founding promo meaning (vary wording every message — do not regurgitate the same sentence):
   1) First 30 Fitness Pros get 60 days of Premium access free — all tools / maximize opportunity.
-  2) First 10 Fitness Pros get onboarding fees waived completely.
+  2) First 30 Fitness Pros get onboarding fees waived completely.
 - Tone: direct founder voice (JB) — real, confident, not salesy brochure paste.`;
 
 /** Zero-Sales Signup Engine guardrails (JB locked 2026-07-22) — machine-enforced at generation time. */
@@ -20,7 +20,7 @@ export const OUTREACH_BRAND_FACTS = [
   "Match Fit (match-fit.net) is a worldwide fitness marketplace connecting Fitness Pros with clients.",
   "Clients: $10/mo, 60-day free trial, no card upfront.",
   "Fitness Pros join at match-fit.net/trainer/sign-up.",
-  "Founding promo (exact meaning; vary wording): first 30 Fitness Pros get 60 days Premium access free; first 10 Fitness Pros get onboarding fees waived completely.",
+  "Founding promo (exact meaning; vary wording): first 30 Fitness Pros get 60 days Premium access free AND get onboarding fees waived completely.",
   "Founder voice: Jonny / JB — direct, real, confident, not salesy.",
   "Beta roster is selective; early Fitness Pros get visibility before public launch.",
   "Match Fit recruits Fitness Pros and clients worldwide — never restrict outreach to one country.",
@@ -33,10 +33,10 @@ export function genericInviteTail(platform: OutreachPlatform, group: OutreachTar
   // recruiting is nationwide, so every group gets the same geo-free message (Decision #342).
   void group;
   if (platform === "instagram") {
-    return `We're building Match Fit — Fitness Pros list, athletes find and book you. Founding window: first 30 Fitness Pros get 60 days Premium free; first 10 get onboarding fees waived. Early spot: ${MATCH_FIT_COACH_SIGNUP_URL} — JB @ Match Fit`;
+    return `We're building Match Fit — Fitness Pros list, athletes find and book you. Founding window: first 30 Fitness Pros get 60 days Premium free and onboarding fees waived. Early spot: ${MATCH_FIT_COACH_SIGNUP_URL} — JB @ Match Fit`;
   }
   if (platform === "facebook") {
-    return `Founding window for Fitness Pros: 60 days Premium free (first 30) · onboarding fees waived (first 10). Apply → ${MATCH_FIT_COACH_SIGNUP_URL} | DM with questions. — Jonny, Founder @ Match Fit`;
+    return `Founding window for Fitness Pros: 60 days Premium free · onboarding fees waived (first 30). Apply → ${MATCH_FIT_COACH_SIGNUP_URL} | DM with questions. — Jonny, Founder @ Match Fit`;
   }
   if (platform === "email") {
     return `Virtual clients discover you through Match Fit — no cold outreach on your end. Founding Fitness Pro window still open. Apply: ${MATCH_FIT_COACH_SIGNUP_URL}\n\n— Jonny, Founder @ Match Fit`;
@@ -66,5 +66,5 @@ export function followUpEmailSubject(): string {
 
 export function followUpEmailBody(name: string): string {
   const first = name.split(" ")[0] || "there";
-  return `Subject: ${followUpEmailSubject()}\n\nHey ${first},\n\nFollowing up on Match Fit. First 30 Fitness Pros still get 60 days Premium free, and the first 10 get onboarding fees waived — wanted to make sure you saw it before those fill.\n\nHappy to answer questions: ${MATCH_FIT_COACH_SIGNUP_URL}\n\n— Jonny`;
+  return `Subject: ${followUpEmailSubject()}\n\nHey ${first},\n\nFollowing up on Match Fit. First 30 Fitness Pros still get 60 days Premium free and onboarding fees waived — wanted to make sure you saw it before those fill.\n\nHappy to answer questions: ${MATCH_FIT_COACH_SIGNUP_URL}\n\n— Jonny`;
 }

@@ -62,7 +62,7 @@ export type FpTierSignupOutcome = {
  * that is a paid subscription, and it must always require Stripe checkout immediately at
  * signup — no free trial, no founding-cohort free pass, regardless of signup rank. It never
  * takes the founding-cohort path here. (It can still get the background-check fee waived when
- * within the first 10 signups — that is tracked separately via `registrationFeePricingMode` /
+ * within the first 30 signups — that is tracked separately via `registrationFeePricingMode` /
  * `trainer-founding-bg-covered.ts` and is unaffected by this function.)
  *
  * Pure: the caller supplies the counts, so the rule is testable without a database.

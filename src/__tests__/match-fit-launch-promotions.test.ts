@@ -46,12 +46,14 @@ describe("match-fit-launch-promotions", () => {
     expect(getClientFoundingTrialDays()).toBe(730);
   });
 
-  it("uses defaults for trainer founding BG tier", () => {
-    expect(getTrainerFoundingBgPercentMax()).toBe(10);
-    expect(getTrainerFoundingRegistrationWaiverMax()).toBe(10);
+  it("uses defaults for trainer founding BG tier (JB correction 2026-09-14: full 30-cohort coverage)", () => {
+    expect(getTrainerFoundingBgPercentMax()).toBe(30);
+    expect(getTrainerFoundingRegistrationWaiverMax()).toBe(30);
     expect(isTrainerFoundingBgPercentTier(0)).toBe(true);
     expect(isTrainerFoundingBgPercentTier(9)).toBe(true);
-    expect(isTrainerFoundingBgPercentTier(10)).toBe(false);
+    expect(isTrainerFoundingBgPercentTier(10)).toBe(true);
+    expect(isTrainerFoundingBgPercentTier(29)).toBe(true);
+    expect(isTrainerFoundingBgPercentTier(30)).toBe(false);
   });
 });
 
