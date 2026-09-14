@@ -30,7 +30,7 @@ export const AUDIENCE_CREATIVE_BRIEFS: Record<ContentCalendarGroup, AudienceCrea
     who: "Fitness Pros exploring Match Fit as their next platform home",
     goals: [
       "Show why verified Match Fit Fitness Pros stand out in discovery",
-      "Highlight founding promos (30×60-day Premium; first 10 fee waiver), onboarding support, and in-app client tools",
+      "Highlight founding promos (30×60-day Premium; 30×fee waiver), onboarding support, and in-app client tools",
       "Make signup feel urgent but credible — not hype without substance",
     ],
     hooks: [
@@ -162,7 +162,7 @@ export function extractSlotDirectiveFromOperatorPrompt(
     /background check|founding|onboarding fee|premium|promo/i.test(prompt)
   ) {
     lines.push(
-      "Mandatory founding promo meaning (vary wording — do not regurgitate): first 30 Fitness Pros get 60 days Premium access free (all tools / maximize opportunity); first 10 Fitness Pros get onboarding fees waived completely.",
+      "Mandatory founding promo meaning (vary wording — do not regurgitate): first 30 Fitness Pros get 60 days Premium access free (all tools / maximize opportunity) AND get onboarding fees waived completely.",
     );
   }
 
@@ -372,7 +372,7 @@ export const CONTENT_CALENDAR_CREATIVE_QUALITY_RULES = `Creative quality (non-ne
 - Match Fit is worldwide — never say "nationwide", "across the country", or name a place.
 - Signup CTAs must use match-fit.net/trainer/sign-up (validated before accept).
 - Carousel captions must match Static caption quality — never inventory slides in the caption.
-- Founding promo: first 30 Fitness Pros → 60 days Premium free; first 10 Fitness Pros → onboarding fees waived. Vary wording; keep meaning.
+- Founding promo: first 30 Fitness Pros → 60 days Premium free AND onboarding fees waived. Vary wording; keep meaning.
 - Visual prompts must describe subjects, scenes, actions, camera/framing, mood, and on-screen text — NOT just hex colors and audience labels.
 - Brand palette (#07080C dark, #FF7E00 orange) is an accent reference only; it is not a substitute for creative direction.
 - Pull at least one specific insight from the operator directive, website scan, or social scan when provided.

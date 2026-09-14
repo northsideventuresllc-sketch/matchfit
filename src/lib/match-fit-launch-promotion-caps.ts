@@ -27,21 +27,31 @@ export function getTrainerBetaDiscountPercent(): number {
   return n;
 }
 
-/** First N trainers receive platform-covered background screening. Default 10. */
-export function getTrainerFoundingBgCoveredMax(): number {
-  const explicit = process.env.MATCH_FIT_TRAINER_FOUNDING_BG_COVERED_MAX?.trim();
-  if (explicit) return parsePositiveInt(explicit, 10, 1_000_000);
-  return parsePositiveInt(process.env.MATCH_FIT_TRAINER_FOUNDING_BG_PERCENT_MAX, 10, 1_000_000);
-}
-
 /**
- * Sign-ups above the founding cap but at or below this number pay the discounted onboarding
- * rate rather than the standard fee (JB, 2026-08-04): first 10 have their background check
- * covered, the next 20 are discounted, and everyone after that pays the standard fee.
- * Default 30 — the same cohort that skips paid-tier checkout during beta.
+ * The founding cohort size — the first N trainer sign-ups during beta. This cohort skips
+ * paid-tier checkout and gets 60 days of Match Fit Premium Pro free (JB, 2026-08-04). Default 30.
  */
 export function getTrainerBetaDiscountedMax(): number {
   return parsePositiveInt(process.env.MATCH_FIT_TRAINER_BETA_DISCOUNTED_MAX, 30, 1_000_000);
+}
+
+/**
+ * First N trainers receive fully platform-covered background screening (Checkr fee paid by
+ * Match Fit, no escrow hold on the Fitness Pro's card).
+ *
+ * Corrected 2026-09-14 (JB direct, "FOUNDING FITNESS PRO BETA PROMOTION" note, confirmed on a
+ * real conflict with the live code): background checks are FULLY covered for the WHOLE founding
+ * cohort — the first 30, not just a smaller first-10 sub-tier. This previously defaulted to a
+ * hardcoded 10, which left sign-ups 11-30 paying for their own Checkr screening. It now tracks
+ * the founding cohort size (`getTrainerBetaDiscountedMax`, default 30) unless explicitly
+ * overridden below, so the two caps can never drift apart again.
+ */
+export function getTrainerFoundingBgCoveredMax(): number {
+  const explicit = process.env.MATCH_FIT_TRAINER_FOUNDING_BG_COVERED_MAX?.trim();
+  if (explicit) return parsePositiveInt(explicit, getTrainerBetaDiscountedMax(), 1_000_000);
+  const legacyPercentMax = process.env.MATCH_FIT_TRAINER_FOUNDING_BG_PERCENT_MAX?.trim();
+  if (legacyPercentMax) return parsePositiveInt(legacyPercentMax, getTrainerBetaDiscountedMax(), 1_000_000);
+  return getTrainerBetaDiscountedMax();
 }
 
 /** @deprecated Use getTrainerFoundingBgCoveredMax */
@@ -52,7 +62,7 @@ export function getTrainerFoundingBgPercentMax(): number {
 /** @deprecated Use getTrainerFoundingBgPercentMax — kept for env migration. */
 export function getTrainerFoundingRegistrationWaiverMax(): number {
   const legacy = process.env.MATCH_FIT_TRAINER_FOUNDING_REGISTRATION_WAIVER_MAX?.trim();
-  if (legacy) return parsePositiveInt(legacy, 10, 1_000_000);
+  if (legacy) return parsePositiveInt(legacy, getTrainerFoundingBgPercentMax(), 1_000_000);
   return getTrainerFoundingBgPercentMax();
 }
 
