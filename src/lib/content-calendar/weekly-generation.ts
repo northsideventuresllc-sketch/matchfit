@@ -251,7 +251,14 @@ export async function generateWeeklyDayPosts(args: {
           });
 
     await createV2Draft({
-      draft: { ...draft, postType: postType as ContentCalendarPostType, dayIndex: dayPlan.dayIndex, postDate, visualPrompt },
+      draft: {
+        ...draft,
+        postType: postType as ContentCalendarPostType,
+        dayIndex: dayPlan.dayIndex,
+        targetGroup: normalizeTargetGroup(dayPlan.targetAudience),
+        postDate,
+        visualPrompt,
+      },
       weekStart,
       lane: "scheduled",
       adminId: WEEKLY_GENERATION_ADMIN_ID,
