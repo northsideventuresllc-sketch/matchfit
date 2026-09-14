@@ -7,7 +7,9 @@ import {
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
+import { getRequestClientIp } from "@/lib/request-client-ip";
 import { applyAdminSessionToNextResponse } from "@/lib/session";
+import { simpleRateLimitAllow } from "@/lib/simple-rate-limit";
 import { verifyTurnstileToken } from "@/lib/turnstile-verify";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -21,9 +23,20 @@ const bodySchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    const ip = getRequestClientIp(req);
+    if (!simpleRateLimitAllow(`admin-login:ip:${ip}`, 30, 15 * 60 * 1000)) {
+      return NextResponse.json({ error: "Too many sign-in attempts. Try again later." }, { status: 429 });
+    }
     const parsed = bodySchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid sign-in request." }, { status: 400 });
+    }
+    const rateLimitCode = normalizeAdministratorCodeInput(parsed.data.adminCode);
+    if (!simpleRateLimitAllow(`admin-login:code:${rateLimitCode}`, 8, 15 * 60 * 1000)) {
+      return NextResponse.json(
+        { error: "Too many sign-in attempts for this account. Try again later." },
+        { status: 429 },
+      );
     }
     const turn = await verifyTurnstileToken(parsed.data.turnstileToken, req);
     if (!turn.ok) {

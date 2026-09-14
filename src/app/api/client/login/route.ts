@@ -13,6 +13,8 @@ import {
   signLoginChallengeToken,
 } from "@/lib/session";
 import { publicApiErrorFromUnknown } from "@/lib/public-api-error";
+import { getRequestClientIp } from "@/lib/request-client-ip";
+import { simpleRateLimitAllow } from "@/lib/simple-rate-limit";
 import { verifyTurnstileToken } from "@/lib/turnstile-verify";
 import { loginSchema } from "@/lib/validations/client-register";
 import { NextResponse } from "next/server";
@@ -42,9 +44,20 @@ function accountSuspendedResponse() {
 
 export async function POST(req: Request) {
   try {
+    const ip = getRequestClientIp(req);
+    if (!simpleRateLimitAllow(`client-login:ip:${ip}`, 30, 15 * 60 * 1000)) {
+      return NextResponse.json({ error: "Too many sign-in attempts. Try again later." }, { status: 429 });
+    }
     const parsed = loginSchema.safeParse(await req.json());
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid login request." }, { status: 400 });
+    }
+    const rateLimitIdentifier = parsed.data.identifier.trim().toLowerCase();
+    if (!simpleRateLimitAllow(`client-login:id:${rateLimitIdentifier}`, 8, 15 * 60 * 1000)) {
+      return NextResponse.json(
+        { error: "Too many sign-in attempts for this account. Try again later." },
+        { status: 429 },
+      );
     }
     const turn = await verifyTurnstileToken(parsed.data.turnstileToken, req);
     if (!turn.ok) {

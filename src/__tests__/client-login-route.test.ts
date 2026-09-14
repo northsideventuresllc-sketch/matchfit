@@ -13,6 +13,8 @@ const {
   publicApiErrorFromUnknownMock,
   verifyTurnstileTokenMock,
   syncClientPlatformBillingLifecycleMock,
+  getRequestClientIpMock,
+  simpleRateLimitAllowMock,
 } = vi.hoisted(() => ({
   clientLoginDeletionRedirectMock: vi.fn(),
   send2FACodeMock: vi.fn(),
@@ -26,6 +28,16 @@ const {
   publicApiErrorFromUnknownMock: vi.fn(),
   verifyTurnstileTokenMock: vi.fn(),
   syncClientPlatformBillingLifecycleMock: vi.fn(),
+  getRequestClientIpMock: vi.fn(),
+  simpleRateLimitAllowMock: vi.fn(),
+}));
+
+vi.mock("@/lib/request-client-ip", () => ({
+  getRequestClientIp: getRequestClientIpMock,
+}));
+
+vi.mock("@/lib/simple-rate-limit", () => ({
+  simpleRateLimitAllow: simpleRateLimitAllowMock,
 }));
 
 vi.mock("@/lib/client-platform-lifecycle", () => ({
@@ -105,6 +117,8 @@ describe("POST /api/client/login", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    getRequestClientIpMock.mockReturnValue("127.0.0.1");
+    simpleRateLimitAllowMock.mockReturnValue(true);
     verifyTurnstileTokenMock.mockResolvedValue({ ok: true });
     findClientByIdentifierMock.mockResolvedValue(activeClient());
     syncClientPlatformBillingLifecycleMock.mockResolvedValue(undefined);
@@ -120,6 +134,32 @@ describe("POST /api/client/login", () => {
       message: "Sign-in failed. Please try again.",
       status: 500,
     });
+  });
+
+  it("returns 429 when the per-IP rate limit denies the request", async () => {
+    simpleRateLimitAllowMock.mockReturnValueOnce(false);
+
+    const response = await POST(makeRequest({ identifier: "member@example.com", password: "Password1!" }));
+
+    expect(response.status).toBe(429);
+    expect(simpleRateLimitAllowMock).toHaveBeenCalledWith("client-login:ip:127.0.0.1", 30, 15 * 60 * 1000);
+    expect(verifyTurnstileTokenMock).not.toHaveBeenCalled();
+    expect(findClientByIdentifierMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 429 when the per-identifier rate limit denies the request", async () => {
+    simpleRateLimitAllowMock.mockReturnValueOnce(true).mockReturnValueOnce(false);
+
+    const response = await POST(makeRequest({ identifier: "member@example.com", password: "Password1!" }));
+
+    expect(response.status).toBe(429);
+    expect(simpleRateLimitAllowMock).toHaveBeenCalledWith(
+      "client-login:id:member@example.com",
+      8,
+      15 * 60 * 1000,
+    );
+    expect(verifyTurnstileTokenMock).not.toHaveBeenCalled();
+    expect(findClientByIdentifierMock).not.toHaveBeenCalled();
   });
 
   it("returns 400 when payload is invalid", async () => {
