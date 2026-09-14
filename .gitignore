@@ -70,3 +70,6 @@ next-env.d.ts
 
 # NVG close-out markers (per-session, never committed)
 .nvg/
+
+# Claude Code isolated worktrees (per-session scaffolding, never committed)
+.claude/worktrees/
