@@ -101,4 +101,44 @@ describe("getLaunchPromoStats", () => {
     expect(stats.clientWaitlistOpen).toBe(true);
     expect(stats.clientBetaSlotsRemaining).toBe(0);
   });
+
+  // Regression coverage for the JB report this fixes: "the beta counter reset" turned out to be a
+  // transient DB/pooler blip that a prior fix (#390) silently rendered as a real "0" instead of
+  // retrying or flagging it as unavailable — see launch-promo-stats.ts's withTransientRetry.
+  describe("transient count failures", () => {
+    it("retries a failing count and still reports the real value once it succeeds", async () => {
+      countLaunchTrainersMock
+        .mockRejectedValueOnce(new Error("pooler blip"))
+        .mockRejectedValueOnce(new Error("pooler blip"))
+        .mockResolvedValueOnce(9);
+
+      const stats = await getLaunchPromoStats();
+
+      expect(stats.trainerCount).toBe(9);
+      expect(stats.trainerCountAvailable).toBe(true);
+      expect(countLaunchTrainersMock).toHaveBeenCalledTimes(3);
+    });
+
+    it("marks the count unavailable (not a fake 0) once retries are exhausted", async () => {
+      countLaunchClientsMock.mockRejectedValue(new Error("pooler still down"));
+
+      const stats = await getLaunchPromoStats();
+
+      expect(stats.clientCount).toBe(0);
+      expect(stats.clientCountAvailable).toBe(false);
+      // The other, independently-fetched counters are unaffected by one query's failure.
+      expect(stats.trainerCount).toBe(2);
+      expect(stats.trainerCountAvailable).toBe(true);
+    });
+
+    it("marks beta-slots-used unavailable the same way, independent of the founding count", async () => {
+      trainerBetaSlotsUsedMock.mockRejectedValue(new Error("pooler still down"));
+
+      const stats = await getLaunchPromoStats();
+
+      expect(stats.trainerBetaSlotsUsed).toBe(0);
+      expect(stats.trainerBetaSlotsAvailable).toBe(false);
+      expect(stats.trainerWaitlistOpen).toBe(false);
+    });
+  });
 });

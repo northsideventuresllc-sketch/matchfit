@@ -45,6 +45,8 @@ function makeStats(overrides?: Partial<LaunchPromoStats>): LaunchPromoStats {
     gatesEnabled: true,
     trainerCount: 2,
     clientCount: 7,
+    trainerCountAvailable: true,
+    clientCountAvailable: true,
     trainerFoundingMax: 10,
     clientFoundingMax: 50,
     trainerFoundingRemaining: 8,
@@ -55,6 +57,8 @@ function makeStats(overrides?: Partial<LaunchPromoStats>): LaunchPromoStats {
     clientBetaCap: 50,
     trainerBetaSlotsUsed: 13,
     clientBetaSlotsUsed: 12,
+    trainerBetaSlotsAvailable: true,
+    clientBetaSlotsAvailable: true,
     trainerBetaSlotsRemaining: 17,
     clientBetaSlotsRemaining: 38,
     trainerBetaCapAtlanta: 10,
@@ -147,6 +151,23 @@ describe("promos page", () => {
     expect(html).toContain("Beta membership capacity: 12 / 50 slots used (full — waitlist open)");
     expect(html).not.toContain("Sign Up as a Fitness Pro");
     expect(html).not.toContain("Sign Up as a Client");
+  });
+
+  it("shows an honest unavailable state instead of a fake 0 when a count query failed", async () => {
+    getLaunchPromoStatsMock.mockResolvedValueOnce(
+      makeStats({
+        trainerCountAvailable: false,
+        clientCountAvailable: false,
+        clientBetaSlotsAvailable: false,
+      }),
+    );
+
+    const html = await renderPromos();
+
+    expect(html).not.toContain("2 / 10");
+    expect(html).not.toContain("7 / 50");
+    expect(html.match(/Live count is temporarily unavailable/g)?.length).toBe(2);
+    expect(html).toContain("Beta membership capacity: temporarily unavailable — check back shortly.");
   });
 
   it("shows founding-ended messaging when founding slots are full", async () => {
