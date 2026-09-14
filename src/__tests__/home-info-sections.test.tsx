@@ -52,10 +52,10 @@ describe("HomeInfoSections", () => {
       <HomeInfoSections homeAuth={{ clientLoggedIn: false, trainerLoggedIn: false }} />,
     );
 
-    expect(html).toContain('id="follow-match-fit"');
-    expect(html).toContain("Stay connected");
+    expect(html).not.toContain('id="follow-match-fit"');
+    expect(html).not.toContain("Stay connected");
     expect(html).toContain('id="types-of-fit-pros"');
-    expect(html).toContain("Types of Fit Pros");
+    expect(html).toContain("Types of Fitness Pros");
     expect(html).toContain('id="match-fit-pro-debrief"');
     expect(html).toContain("Match Fit Pro");
     expect(html).toContain('id="independent-pro-debrief"');
