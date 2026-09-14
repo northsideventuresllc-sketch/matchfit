@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-14** `2.30.3-beta` → `2.30.4-beta` (**patch** — Security audit fixes: RLS auto-disable removed, RLS added on 20 tables, security headers, login rate limiting, timing-safe secret comparisons)
 - **2026-09-11** `2.30.2-beta` → `2.30.3-beta` (**patch**)
 - **2026-09-11** `2.30.1-beta` → `2.30.2-beta` (**patch** — restore valid outreach & homepage modules and remove unused import in lead-card)
 - **2026-09-08** `2.30.0-beta` → `2.30.1-beta` (**patch** — Publishing tab: show the full generated image instead of cropping it to a fixed short box)
