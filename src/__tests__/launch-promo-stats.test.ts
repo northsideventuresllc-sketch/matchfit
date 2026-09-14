@@ -43,6 +43,14 @@ vi.mock("@/lib/match-fit-launch-promotions", () => ({
   getClientFoundingTrialMaxClients: getClientFoundingTrialMaxClientsMock,
 }));
 
+// Not under test here and otherwise hits a real (unmocked) Prisma call — locally that fails fast
+// (connection refused) and is swallowed by getLaunchPromoStats()'s own .catch(), but a CI Postgres
+// service can take real wall-clock time to reject it, which is irrelevant noise for these tests
+// and actively breaks the fake-timers test below (see its comment).
+vi.mock("@/lib/ensure-launch-promo-schema", () => ({
+  ensureLaunchPromoSchema: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { getLaunchPromoStats } from "@/lib/launch-promo-stats";
 
 describe("getLaunchPromoStats", () => {
@@ -180,23 +188,19 @@ describe("getLaunchPromoStats", () => {
     });
 
     it("never holds the whole stats call open past the total retry budget, even if every attempt hangs", async () => {
-      vi.useFakeTimers();
-      try {
-        // Never resolves or rejects on its own — simulates a stuck connection attempt against a
-        // pooler with no connectionTimeoutMillis set (see withTimeout's doc comment).
-        countLaunchTrainersMock.mockImplementation(() => new Promise(() => {}));
+      // Real timers deliberately (not vi.useFakeTimers()): faking global timers would also freeze
+      // any real, unmocked async code's own internal retry/backoff timing for the duration of the
+      // test — flaky across environments (passed locally, hung until the 30s test timeout in CI).
+      // TRANSIENT_RETRY_TOTAL_BUDGET_MS (4s) keeps this well under that 30s ceiling regardless.
+      //
+      // Never resolves or rejects on its own — simulates a stuck connection attempt against a
+      // pooler with no connectionTimeoutMillis set (see withTimeout's doc comment).
+      countLaunchTrainersMock.mockImplementation(() => new Promise(() => {}));
 
-        const statsPromise = getLaunchPromoStats();
-        // Well past TRANSIENT_RETRY_TOTAL_BUDGET_MS (4s) — if the budget ceiling didn't apply,
-        // this promise would still be pending here.
-        await vi.advanceTimersByTimeAsync(10_000);
-        const stats = await statsPromise;
+      const stats = await getLaunchPromoStats();
 
-        expect(stats.trainerCountAvailable).toBe(false);
-        expect(stats.trainerCount).toBe(0);
-      } finally {
-        vi.useRealTimers();
-      }
-    });
+      expect(stats.trainerCountAvailable).toBe(false);
+      expect(stats.trainerCount).toBe(0);
+    }, 10_000);
   });
 });
