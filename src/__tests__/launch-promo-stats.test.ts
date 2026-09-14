@@ -141,4 +141,62 @@ describe("getLaunchPromoStats", () => {
       expect(stats.trainerWaitlistOpen).toBe(false);
     });
   });
+
+  // Regression coverage for the JB report this fixes: "/promos taking close to a minute to
+  // load" during a sustained Supabase pooler circuit-breaker outage — see launch-promo-stats.ts's
+  // isCircuitBreakerError / withTimeout / TRANSIENT_RETRY_TOTAL_BUDGET_MS.
+  describe("sustained outage (circuit breaker) does not stack latency", () => {
+    it("stops retrying immediately on an ECIRCUITBREAKER-class error instead of burning all attempts", async () => {
+      countLaunchTrainersMock.mockRejectedValue(
+        new Error("ECIRCUITBREAKER: too many authentication failures, new connections are temporarily blocked"),
+      );
+
+      const stats = await getLaunchPromoStats();
+
+      expect(stats.trainerCountAvailable).toBe(false);
+      expect(stats.trainerCount).toBe(0);
+      // Retrying into an open breaker is futile — only the first attempt should run.
+      expect(countLaunchTrainersMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("recognizes the circuit-breaker message even without the ECIRCUITBREAKER code", async () => {
+      countLaunchClientsMock.mockRejectedValue(
+        new Error("too many authentication failures, new connections are temporarily blocked"),
+      );
+
+      const stats = await getLaunchPromoStats();
+
+      expect(stats.clientCountAvailable).toBe(false);
+      expect(countLaunchClientsMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("still retries a plain (non-circuit-breaker) transient error up to the normal attempt count", async () => {
+      countLaunchTrainersMock.mockRejectedValue(new Error("connection reset"));
+
+      const stats = await getLaunchPromoStats();
+
+      expect(stats.trainerCountAvailable).toBe(false);
+      expect(countLaunchTrainersMock).toHaveBeenCalledTimes(3);
+    });
+
+    it("never holds the whole stats call open past the total retry budget, even if every attempt hangs", async () => {
+      vi.useFakeTimers();
+      try {
+        // Never resolves or rejects on its own — simulates a stuck connection attempt against a
+        // pooler with no connectionTimeoutMillis set (see withTimeout's doc comment).
+        countLaunchTrainersMock.mockImplementation(() => new Promise(() => {}));
+
+        const statsPromise = getLaunchPromoStats();
+        // Well past TRANSIENT_RETRY_TOTAL_BUDGET_MS (4s) — if the budget ceiling didn't apply,
+        // this promise would still be pending here.
+        await vi.advanceTimersByTimeAsync(10_000);
+        const stats = await statsPromise;
+
+        expect(stats.trainerCountAvailable).toBe(false);
+        expect(stats.trainerCount).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
 });
