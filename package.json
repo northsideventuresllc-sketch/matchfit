@@ -55,6 +55,7 @@
     "media:gemini:check": "node scripts/gemini-media-automation.mjs --check",
     "media:gemini:generate": "node scripts/gemini-media-automation.mjs",
     "outreach:ready-count": "node --env-file=.env scripts/outreach-count-ready-leads.mjs",
+    "outreach:lead-finder": "node --env-file=.env scripts/outreach-lead-finder.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {
