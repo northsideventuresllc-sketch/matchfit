@@ -43,6 +43,14 @@ vi.mock("@/lib/match-fit-launch-promotions", () => ({
   getClientFoundingTrialMaxClients: getClientFoundingTrialMaxClientsMock,
 }));
 
+// Not under test here and otherwise hits a real (unmocked) Prisma call — locally that fails fast
+// (connection refused) and is swallowed by getLaunchPromoStats()'s own .catch(), but a CI Postgres
+// service can take real wall-clock time to reject it, which is irrelevant noise for these tests
+// and actively breaks the fake-timers test below (see its comment).
+vi.mock("@/lib/ensure-launch-promo-schema", () => ({
+  ensureLaunchPromoSchema: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { getLaunchPromoStats } from "@/lib/launch-promo-stats";
 
 describe("getLaunchPromoStats", () => {
@@ -140,5 +148,59 @@ describe("getLaunchPromoStats", () => {
       expect(stats.trainerBetaSlotsAvailable).toBe(false);
       expect(stats.trainerWaitlistOpen).toBe(false);
     });
+  });
+
+  // Regression coverage for the JB report this fixes: "/promos taking close to a minute to
+  // load" during a sustained Supabase pooler circuit-breaker outage — see launch-promo-stats.ts's
+  // isCircuitBreakerError / withTimeout / TRANSIENT_RETRY_TOTAL_BUDGET_MS.
+  describe("sustained outage (circuit breaker) does not stack latency", () => {
+    it("stops retrying immediately on an ECIRCUITBREAKER-class error instead of burning all attempts", async () => {
+      countLaunchTrainersMock.mockRejectedValue(
+        new Error("ECIRCUITBREAKER: too many authentication failures, new connections are temporarily blocked"),
+      );
+
+      const stats = await getLaunchPromoStats();
+
+      expect(stats.trainerCountAvailable).toBe(false);
+      expect(stats.trainerCount).toBe(0);
+      // Retrying into an open breaker is futile — only the first attempt should run.
+      expect(countLaunchTrainersMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("recognizes the circuit-breaker message even without the ECIRCUITBREAKER code", async () => {
+      countLaunchClientsMock.mockRejectedValue(
+        new Error("too many authentication failures, new connections are temporarily blocked"),
+      );
+
+      const stats = await getLaunchPromoStats();
+
+      expect(stats.clientCountAvailable).toBe(false);
+      expect(countLaunchClientsMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("still retries a plain (non-circuit-breaker) transient error up to the normal attempt count", async () => {
+      countLaunchTrainersMock.mockRejectedValue(new Error("connection reset"));
+
+      const stats = await getLaunchPromoStats();
+
+      expect(stats.trainerCountAvailable).toBe(false);
+      expect(countLaunchTrainersMock).toHaveBeenCalledTimes(3);
+    });
+
+    it("never holds the whole stats call open past the total retry budget, even if every attempt hangs", async () => {
+      // Real timers deliberately (not vi.useFakeTimers()): faking global timers would also freeze
+      // any real, unmocked async code's own internal retry/backoff timing for the duration of the
+      // test — flaky across environments (passed locally, hung until the 30s test timeout in CI).
+      // TRANSIENT_RETRY_TOTAL_BUDGET_MS (4s) keeps this well under that 30s ceiling regardless.
+      //
+      // Never resolves or rejects on its own — simulates a stuck connection attempt against a
+      // pooler with no connectionTimeoutMillis set (see withTimeout's doc comment).
+      countLaunchTrainersMock.mockImplementation(() => new Promise(() => {}));
+
+      const stats = await getLaunchPromoStats();
+
+      expect(stats.trainerCountAvailable).toBe(false);
+      expect(stats.trainerCount).toBe(0);
+    }, 10_000);
   });
 });
