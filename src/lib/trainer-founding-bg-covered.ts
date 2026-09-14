@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { launchTrainerAccountWhere } from "@/lib/launch-account-counts";
 import { getTrainerFoundingBgCoveredMax } from "@/lib/match-fit-launch-promotion-caps";
 
-/** Known founding coach in the first-10 BG-covered cohort (explicit allowlist). */
+/** Known founding coach in the founding BG-covered cohort (explicit allowlist). */
 export const KRISTIAN_FOUNDING_BG_COVERED_MATCH: Prisma.TrainerWhereInput = {
   OR: [
     { firstName: { equals: "Kristian", mode: "insensitive" } },
@@ -23,7 +23,14 @@ export function isKristianFoundingBgCoveredTrainer(args: {
   return first === "kristian" || user.includes("kristian") || email.includes("kristian");
 }
 
-/** Upgrade legacy founding rows and explicit cohort members to FOUNDING_BG_COVERED. */
+/**
+ * Upgrade legacy founding rows and explicit cohort members to FOUNDING_BG_COVERED.
+ *
+ * Corrected 2026-09-14 (JB direct — the founding cap moved from 10 to 30, see
+ * `getTrainerFoundingBgCoveredMax`): also upgrades trainers already stuck in `BETA_DISCOUNTED`
+ * (assigned under the old first-10-only logic to anyone ranked 11-30) so already-registered
+ * founding coaches get the corrected full BG coverage retroactively, not just new sign-ups.
+ */
 export async function syncFoundingBgCoveredTrainerPricingModes(): Promise<{
   updatedByRank: number;
   updatedKristian: number;
@@ -43,7 +50,7 @@ export async function syncFoundingBgCoveredTrainerPricingModes(): Promise<{
           where: {
             trainerId: { in: rankedIds },
             registrationFeePricingMode: {
-              in: ["FOUNDING_BG_SURCHARGE_20PCT", "FOUNDING_BG_COVERED"],
+              in: ["FOUNDING_BG_SURCHARGE_20PCT", "FOUNDING_BG_COVERED", "BETA_DISCOUNTED"],
             },
           },
           data: {
@@ -88,7 +95,7 @@ export function buildFoundingBgCoveredTrainerEmail(args: {
   const text = [
     `Hi ${name},`,
     "",
-    "Great news: you are in Match Fit's first 10 founding coaches. Match Fit is covering your Checkr background screening fee.",
+    "Great news: you are in Match Fit's first 30 founding coaches. Match Fit is covering your Checkr background screening fee.",
     "",
     "What you need to do:",
     "",
@@ -106,7 +113,7 @@ export function buildFoundingBgCoveredTrainerEmail(args: {
 
   const html = `<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;line-height:1.55;color:#111;">
 <p>Hi ${name},</p>
-<p><strong>Great news:</strong> you are in Match Fit's first 10 founding coaches. <strong>Match Fit is covering your Checkr background screening fee.</strong></p>
+<p><strong>Great news:</strong> you are in Match Fit's first 30 founding coaches. <strong>Match Fit is covering your Checkr background screening fee.</strong></p>
 <p><strong>What you need to do:</strong></p>
 <ul>
 <li><a href="${onboardingUrl}">Sign in to your trainer onboarding dashboard</a></li>

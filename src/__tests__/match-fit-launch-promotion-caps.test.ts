@@ -3,6 +3,8 @@ import {
   getClientFoundingTrialDays,
   getClientFoundingTrialMaxClients,
   getClientPostCapTrialDays,
+  getTrainerBetaDiscountedMax,
+  getTrainerFoundingBgCoveredMax,
   getTrainerFoundingBgPercentMax,
   getTrainerFoundingRegistrationWaiverMax,
   isNextClientEligibleForFoundingTrial,
@@ -20,29 +22,32 @@ describe("match-fit-launch-promotion-caps", () => {
     delete process.env.MATCH_FIT_TRAINER_FOUNDING_BG_PERCENT_MAX;
     delete process.env.MATCH_FIT_TRAINER_FOUNDING_BG_COVERED_MAX;
     delete process.env.MATCH_FIT_TRAINER_FOUNDING_REGISTRATION_WAIVER_MAX;
+    delete process.env.MATCH_FIT_TRAINER_BETA_DISCOUNTED_MAX;
   });
 
   afterEach(() => {
     process.env = { ...prev };
   });
 
-  it("uses expected defaults when env values are unset", () => {
-    expect(getTrainerFoundingBgPercentMax()).toBe(10);
-    expect(getTrainerFoundingRegistrationWaiverMax()).toBe(10);
+  it("uses expected defaults when env values are unset (JB correction 2026-09-14: BG-covered cap tracks the 30-strong founding cohort, not a hardcoded 10)", () => {
+    expect(getTrainerFoundingBgPercentMax()).toBe(30);
+    expect(getTrainerFoundingRegistrationWaiverMax()).toBe(30);
+    expect(getTrainerFoundingBgCoveredMax()).toBe(30);
+    expect(getTrainerBetaDiscountedMax()).toBe(30);
     expect(getClientFoundingTrialMaxClients()).toBe(150);
     expect(getClientFoundingTrialDays()).toBe(60);
     expect(getClientPostCapTrialDays()).toBe(3);
   });
 
-  it("falls back to defaults for invalid env values", () => {
+  it("falls back to the founding cohort size for invalid env values", () => {
     process.env.MATCH_FIT_TRAINER_FOUNDING_BG_PERCENT_MAX = "0";
     process.env.MATCH_FIT_TRAINER_FOUNDING_REGISTRATION_WAIVER_MAX = "-2";
     process.env.MATCH_FIT_CLIENT_FOUNDING_TRIAL_MAX_CLIENTS = "abc";
     process.env.MATCH_FIT_CLIENT_FOUNDING_TRIAL_DAYS = "";
     process.env.MATCH_FIT_CLIENT_POST_CAP_TRIAL_DAYS = " ";
 
-    expect(getTrainerFoundingBgPercentMax()).toBe(10);
-    expect(getTrainerFoundingRegistrationWaiverMax()).toBe(10);
+    expect(getTrainerFoundingBgPercentMax()).toBe(30);
+    expect(getTrainerFoundingRegistrationWaiverMax()).toBe(30);
     expect(getClientFoundingTrialMaxClients()).toBe(150);
     expect(getClientFoundingTrialDays()).toBe(60);
     expect(getClientPostCapTrialDays()).toBe(3);
@@ -66,6 +71,19 @@ describe("match-fit-launch-promotion-caps", () => {
 
     expect(getTrainerFoundingBgPercentMax()).toBe(44);
     expect(getTrainerFoundingRegistrationWaiverMax()).toBe(17);
+  });
+
+  it("MATCH_FIT_TRAINER_FOUNDING_BG_COVERED_MAX overrides the founding cohort default explicitly", () => {
+    process.env.MATCH_FIT_TRAINER_BETA_DISCOUNTED_MAX = "30";
+    process.env.MATCH_FIT_TRAINER_FOUNDING_BG_COVERED_MAX = "50";
+
+    expect(getTrainerFoundingBgCoveredMax()).toBe(50);
+  });
+
+  it("tracks the founding cohort cap when it changes and no explicit BG override is set", () => {
+    process.env.MATCH_FIT_TRAINER_BETA_DISCOUNTED_MAX = "45";
+
+    expect(getTrainerFoundingBgCoveredMax()).toBe(45);
   });
 
   it("uses boundary-safe eligibility checks", () => {

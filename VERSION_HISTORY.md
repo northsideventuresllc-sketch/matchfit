@@ -4,7 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
-- **2026-09-14** `2.30.5-beta` → `2.31.0-beta` (**minor** — Promos page overhaul: role-based collapsible promo details, redundant bubbles removed, centered CTAs)
+- **2026-09-14** `2.30.5-beta` → `2.31.0-beta` (**minor** — Founding promo: background check fully covered for the whole first-30 trainer cohort (JB direct correction), not just the first 10)
 - **2026-09-14** `2.30.4-beta` → `2.30.5-beta` (**patch** — Beta counter: retry transient DB/pooler failures, show honest unavailable state instead of a fake 0 (fixes counter appearing reset))
 - **2026-09-14** `2.30.3-beta` → `2.30.4-beta` (**patch** — Remove unused import breaking CI lint (max-warnings 0))
 - **2026-09-11** `2.30.2-beta` → `2.30.3-beta` (**patch**)
