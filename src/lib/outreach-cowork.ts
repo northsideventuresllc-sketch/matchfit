@@ -80,7 +80,7 @@ export function buildCoworkRunnerPrompt(generatedAtIso: string): string {
     "- Every lead must have outreach intent before send: List With Us · Join as Fitness Pro · Both.",
     "- Unclear intent = do not send.",
     "- REV-FIRST priority: send Join as Fitness Pro / Both ready hub leads first.",
-    "- Outbound copy: Fitness Pros (not Coaches); CTA match-fit.net/trainer/sign-up; founding promo = first 30×60d Premium + first 10 fee waiver (vary wording).",
+    "- Outbound copy: Fitness Pros (not Coaches); CTA match-fit.net/trainer/sign-up; founding promo = first 30×60d Premium + first 30×fee waiver (vary wording).",
     `- Daily caps: ${instagram} Instagram + ${email} email.`,
     "- JB only for live DM/email send. Agent owns generate, hub save, copy, status updates.",
     "",
