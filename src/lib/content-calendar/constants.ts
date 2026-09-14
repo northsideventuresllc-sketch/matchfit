@@ -96,6 +96,92 @@ export const CONTENT_CALENDAR_WEEKDAY_POST_TYPES: Record<number, readonly Conten
   4: ["Carousel", "Video"], // Friday
 };
 
+export type WeekdayScheduleRule = {
+  dayIndex: number;
+  dayShort: string;
+  dayLong: string;
+  postTypes: readonly ContentCalendarPostType[];
+  theme: string;
+  themeCategory: "Join Our Team" | "Client" | "List With Us" | "Pro Insights" | "Community Proof";
+  targetGroup: ContentCalendarGroup;
+  audienceDescription: string;
+  isLivePostingDay: boolean;
+  suggestedCta: string;
+};
+
+/**
+ * Locked active weekly posting schedule and theme rules (JB specification):
+ * - Mon/Wed/Fri (Live Social Posting): Video + Carousel
+ *   - Mon: Join Our Team (Fitness Pro recruitment / onboarding)
+ *   - Wed: Client (Athletes & client demand / VIP trial)
+ *   - Fri: List With Us (Independent Pros & facility directory listings)
+ * - Tue/Thu (Draft / Refine): Static + Text
+ *   - Tue: Pro Insights & Feature Value
+ *   - Thu: Social Proof, Fit Hub Features & Community
+ */
+export const CONTENT_CALENDAR_WEEKDAY_SCHEDULE: Record<number, WeekdayScheduleRule> = {
+  0: {
+    dayIndex: 0,
+    dayShort: "Mon",
+    dayLong: "Monday",
+    postTypes: ["Video", "Carousel"],
+    theme: "Join Our Team",
+    themeCategory: "Join Our Team",
+    targetGroup: "Join the Team",
+    audienceDescription: "Fitness Pros looking to join Match Fit (recruitment & onboarding)",
+    isLivePostingDay: true,
+    suggestedCta: "match-fit.net/trainer/sign-up",
+  },
+  1: {
+    dayIndex: 1,
+    dayShort: "Tue",
+    dayLong: "Tuesday",
+    postTypes: ["Static", "Text"],
+    theme: "Pro Insights & Feature Value",
+    themeCategory: "Pro Insights",
+    targetGroup: "Join the Team",
+    audienceDescription: "Coaching tips, tools, platform features & educational insights for trainers",
+    isLivePostingDay: false,
+    suggestedCta: "match-fit.net/trainer/sign-up",
+  },
+  2: {
+    dayIndex: 2,
+    dayShort: "Wed",
+    dayLong: "Wednesday",
+    postTypes: ["Video", "Carousel"],
+    theme: "Client Spotlight & Demand",
+    themeCategory: "Client",
+    targetGroup: "Clients",
+    audienceDescription: "Athletes & individuals seeking training, VIP trial & discovery",
+    isLivePostingDay: true,
+    suggestedCta: "match-fit.net/client/sign-up",
+  },
+  3: {
+    dayIndex: 3,
+    dayShort: "Thu",
+    dayLong: "Thursday",
+    postTypes: ["Static", "Text"],
+    theme: "Community & Social Proof",
+    themeCategory: "Community Proof",
+    targetGroup: "Clients",
+    audienceDescription: "Client pain points, social proof, Fit Hub feed & community wins",
+    isLivePostingDay: false,
+    suggestedCta: "match-fit.net/client/sign-up",
+  },
+  4: {
+    dayIndex: 4,
+    dayShort: "Fri",
+    dayLong: "Friday",
+    postTypes: ["Video", "Carousel"],
+    theme: "List With Us",
+    themeCategory: "List With Us",
+    targetGroup: "List With Us",
+    audienceDescription: "Independent Fitness Pros & facilities using Match Fit for listing & discovery",
+    isLivePostingDay: true,
+    suggestedCta: "match-fit.net/trainer/sign-up",
+  },
+};
+
 export const CONTENT_CALENDAR_BRAND_FACTS = `Match Fit — two-sided fitness marketplace connecting Fitness Pros with clients.
 Beta v1.2+. Clients: $10/month. Independent Pro from $15/month after a 60-day free trial at registration. 20% platform fee on sessions.
 Features: swipe-based discovery, Fit Hub social feed, algorithmic matching, virtual + in-person. Match Fit is worldwide — do NOT name a city, metro or region in marketing, and never imply a launch is limited to one place.

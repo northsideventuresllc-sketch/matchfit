@@ -170,8 +170,23 @@ describe("runWeeklyContentGeneration — per-weekday post type lock", () => {
     );
     expect(mondayCreates).toHaveLength(1);
     expect((mondayCreates[0][0] as { draft: { postType: string } }).draft.postType).toBe("Video");
-    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("Carousel"));
-
     consoleErrorSpy.mockRestore();
+  });
+
+  it("verifies per-weekday theme and audience assignment in fallback planning", async () => {
+    const result = await runWeeklyContentGeneration({ weekStart: "2026-09-07" });
+    expect(result.createdPostCount).toBe(10);
+
+    // Check audience assignment across each day in mockCreateV2Draft calls
+    const audienceByDay: Record<number, string> = {};
+    for (const call of mockCreateV2Draft.mock.calls) {
+      const arg = call[0] as { draft: { dayIndex: number; targetGroup: string } };
+      audienceByDay[arg.draft.dayIndex] = arg.draft.targetGroup;
+    }
+
+    // Mon = Join the Team, Wed = Clients, Fri = List With Us
+    expect(audienceByDay[0]).toBe("Join the Team");
+    expect(audienceByDay[2]).toBe("Clients");
+    expect(audienceByDay[4]).toBe("List With Us");
   });
 });

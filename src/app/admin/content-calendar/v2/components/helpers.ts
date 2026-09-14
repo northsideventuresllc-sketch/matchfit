@@ -1,4 +1,9 @@
-import { CONTENT_CALENDAR_TYPE_ICONS, type ContentCalendarPostType } from "@/lib/content-calendar/constants";
+import {
+  CONTENT_CALENDAR_TYPE_ICONS,
+  CONTENT_CALENDAR_WEEKDAY_SCHEDULE,
+  type ContentCalendarPostType,
+  type WeekdayScheduleRule,
+} from "@/lib/content-calendar/constants";
 import type { ClientContentCalendarV2Post } from "@/lib/content-calendar/content-calendar-v2-store";
 
 /**
@@ -58,6 +63,20 @@ function parseCalendarDate(postDate: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/** 0=Mon..4=Fri for a date key, or null for weekend / invalid date. */
+export function getWeekdayIndexForDate(postDate: string): number | null {
+  const d = parseCalendarDate(postDate);
+  if (!d) return null;
+  const day = d.getDay(); // 0=Sun..6=Sat
+  return day >= 1 && day <= 5 ? day - 1 : null;
+}
+
+/** Lookup the active weekday schedule rule (formats, theme, target audience) for any date. */
+export function getScheduleRuleForDate(postDate: string): WeekdayScheduleRule | null {
+  const idx = getWeekdayIndexForDate(postDate);
+  return idx !== null ? (CONTENT_CALENDAR_WEEKDAY_SCHEDULE[idx] ?? null) : null;
+}
+
 /** "Monday · Jul 27" style label from a YYYY-MM-DD post date. */
 export function dayLabelFromDate(postDate: string): string {
   const d = parseCalendarDate(postDate);
@@ -70,6 +89,7 @@ export function dayLabelFromDate(postDate: string): string {
 export type HubDayGroup = {
   date: string;
   label: string;
+  rule: WeekdayScheduleRule | null;
   posts: ClientContentCalendarV2Post[];
   scheduled: ClientContentCalendarV2Post[];
   impromptu: ClientContentCalendarV2Post[];
@@ -120,6 +140,7 @@ export function groupHubPosts(posts: ClientContentCalendarV2Post[]): {
       return {
         date,
         label: dayLabelFromDate(date),
+        rule: getScheduleRuleForDate(date),
         posts: ordered,
         scheduled: ordered.filter((p) => p.contentLane !== "impromptu"),
         impromptu: ordered.filter((p) => p.contentLane === "impromptu"),
