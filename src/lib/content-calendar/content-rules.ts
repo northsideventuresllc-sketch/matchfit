@@ -211,7 +211,7 @@ export function isSlideInventoryCarouselCaption(caption: string): boolean {
 
 export const CONTENT_CALENDAR_FOUNDING_PROMO_FACTS = `Founding Fitness Pro promo (social — exact meaning required; wording MUST vary every post):
 1) First 30 Fitness Pros get 60 days of Premium access free — use all Match Fit tools and maximize opportunity.
-2) First 10 Fitness Pros get onboarding fees waived completely.
+2) First 30 Fitness Pros get onboarding fees waived completely.
 Keep the facts accurate. Never invent other caps or swap the numbers. Never paste the same promo sentence twice in a batch — rotate phrasing while preserving meaning.`;
 
 export const CONTENT_CALENDAR_AI_RULES = `Content rules (strict):

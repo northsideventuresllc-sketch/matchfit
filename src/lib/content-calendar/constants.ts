@@ -43,7 +43,7 @@ export const CONTENT_CALENDAR_GROUP_DESCRIPTIONS: Record<ContentCalendarGroup, s
 export const CONTENT_CALENDAR_BULK_MAX_COUNT = 20;
 
 export const CONTENT_CALENDAR_BULK_DEFAULT_PROMPT =
-  "Use live website promos, social performance, and product features (Fit Hub, discovery matching, founding Fitness Pro offers — first 30 get 60 days Premium free; first 10 get onboarding fees waived — client VIP trial) to write specific hooks — never generic beta filler.";
+  "Use live website promos, social performance, and product features (Fit Hub, discovery matching, founding Fitness Pro offers — first 30 get 60 days Premium free and onboarding fees waived — client VIP trial) to write specific hooks — never generic beta filler.";
 
 /** Soft-deleted hub posts are permanently removed after this window. */
 export const CONTENT_HUB_DELETE_RETENTION_HOURS = 48;
@@ -191,4 +191,4 @@ Universal social language (JB 2026-09-03): in public social copy, lead with tren
 Target audiences (content calendar only): "Join the Team" (Fitness Pros joining Match Fit), "List With Us" (independent Fitness Pros & facilities using Match Fit for listing/discovery), "Clients" (athletes and individuals looking for training).
 Goal: grow beta Fitness Pros and clients. Site: match-fit.net
 Canonical signup URLs: Fitness Pros join at match-fit.net/trainer/sign-up; clients join at match-fit.net/client/sign-up. Never use match-fit.net/Fitness Pro/signup or match-fit.net/trainer/signup in social copy.
-Founding Fitness Pro promo (exact meaning; vary wording every time): first 30 Fitness Pros get 60 days of Premium access free (all tools / maximize opportunity); first 10 Fitness Pros get onboarding fees waived completely.`;
+Founding Fitness Pro promo (exact meaning; vary wording every time): first 30 Fitness Pros get 60 days of Premium access free (all tools / maximize opportunity) AND get onboarding fees waived completely.`;
