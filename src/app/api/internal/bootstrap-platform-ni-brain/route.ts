@@ -5,6 +5,7 @@ import { directPostgresUrlForDdl } from "@/lib/direct-postgres-ddl";
 import { pgPoolConfigForConnectionString } from "@/lib/supabase-database-url";
 import { clearPlatformSecretCache } from "@/lib/platform-secrets";
 import { resolveInternalToolsSecret } from "@/lib/internal-tools-auth";
+import { timingSafeEqualString } from "@/lib/timing-safe-equal";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
     }
     const auth = req.headers.get("authorization")?.trim() ?? "";
     const bearer = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length).trim() : "";
-    if (bearer !== secret) {
+    if (!timingSafeEqualString(bearer, secret)) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
