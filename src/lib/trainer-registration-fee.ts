@@ -1,6 +1,5 @@
 import {
   getTrainerBetaDiscountPercent,
-  getTrainerBetaDiscountedMax,
   getTrainerFoundingBgCoveredMax,
   type TrainerRegistrationPricingMode,
 } from "@/lib/match-fit-launch-promotion-caps";
@@ -10,10 +9,16 @@ import { TRAINER_PLATFORM_REGISTRATION_FEE_CENTS } from "@/lib/trainer-platform-
 export { TRAINER_PLATFORM_REGISTRATION_FEE_CENTS } from "@/lib/trainer-platform-registration-fee";
 
 /**
- * Three onboarding bands (JB, 2026-08-04):
- *   1–10   background check covered by Match Fit, discounted onboarding rate
- *   11–30  discounted onboarding rate, background check paid by the Fitness Pro
- *   31+    standard fee, and the same after beta ends
+ * Two onboarding bands (corrected 2026-09-14, JB direct — see `getTrainerFoundingBgCoveredMax`;
+ * previously three bands split the founding cohort into a smaller first-10 BG-covered slice and
+ * an 11-30 "discounted but pay your own background check" slice — that split is gone):
+ *   1–30  founding cohort: background check fully covered by Match Fit
+ *   31+   standard fee, and the same after beta ends
+ *
+ * `BETA_DISCOUNTED` remains a valid `TrainerRegistrationPricingMode` for already-existing rows
+ * written under the old three-band logic (see `computeTrainerRegistrationDueCents` below and
+ * `syncFoundingBgCoveredTrainerPricingModes` in `trainer-founding-bg-covered.ts`, which upgrades
+ * them) — it is simply never assigned to a new sign-up anymore.
  *
  * `trainerCountBeforeInsert` is only used here at trainer creation (see
  * `trainer-register-service.ts`, inside the same Serializable transaction that inserts the row),
@@ -30,9 +35,6 @@ export function trainerRegistrationPricingModeForNewTrainer(
 ): TrainerRegistrationPricingMode {
   if (trainerCountBeforeInsert < getTrainerFoundingBgCoveredMax()) {
     return "FOUNDING_BG_COVERED";
-  }
-  if (trainerCountBeforeInsert < getTrainerBetaDiscountedMax()) {
-    return "BETA_DISCOUNTED";
   }
   return "STANDARD_100_MINUS_BG";
 }

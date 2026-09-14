@@ -21,18 +21,18 @@ describe("trainer-registration-pricing-mode", () => {
     expect(trainerSignupRequiresBackgroundEscrowHold("FOUNDING_BG_COVERED")).toBe(false);
   });
 
-  it("assigns the three onboarding bands by signup position", () => {
-    // 1-10 background check covered.
+  it("assigns the two onboarding bands by signup position (JB correction 2026-09-14: full 30, not 10)", () => {
+    // 1-30 (the whole founding cohort): background check fully covered.
     expect(trainerRegistrationPricingModeForNewTrainer(0)).toBe("FOUNDING_BG_COVERED");
     expect(trainerRegistrationPricingModeForNewTrainer(9)).toBe("FOUNDING_BG_COVERED");
-    // 11-30 discounted, own background check.
-    expect(trainerRegistrationPricingModeForNewTrainer(10)).toBe("BETA_DISCOUNTED");
-    expect(trainerRegistrationPricingModeForNewTrainer(29)).toBe("BETA_DISCOUNTED");
+    expect(trainerRegistrationPricingModeForNewTrainer(10)).toBe("FOUNDING_BG_COVERED");
+    expect(trainerRegistrationPricingModeForNewTrainer(29)).toBe("FOUNDING_BG_COVERED");
     // 31+ standard.
     expect(trainerRegistrationPricingModeForNewTrainer(30)).toBe("STANDARD_100_MINUS_BG");
+    expect(trainerRegistrationPricingModeForNewTrainer(31)).toBe("STANDARD_100_MINUS_BG");
   });
 
-  it("keeps the discounted band paying for its own background check", () => {
+  it("BETA_DISCOUNTED is no longer assigned to new sign-ups but still resolves correctly for legacy rows", () => {
     expect(isTrainerBackgroundCheckPlatformCovered("BETA_DISCOUNTED")).toBe(false);
     expect(trainerSignupRequiresBackgroundEscrowHold("BETA_DISCOUNTED")).toBe(true);
     expect(parseTrainerRegistrationPricingMode("BETA_DISCOUNTED")).toBe("BETA_DISCOUNTED");
