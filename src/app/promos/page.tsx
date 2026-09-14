@@ -34,6 +34,55 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
   );
 }
 
+/**
+ * `available: false` means the live count query kept failing (DB/pooler blip) — showing "0 / Y"
+ * in that case would read as "all founding spots reopened", which is exactly the wrong-count
+ * report this fixes. Show an honest "temporarily unavailable" state instead of a fake number.
+ */
+function FoundingSpotsCounter({
+  count,
+  max,
+  available,
+  remaining,
+  active,
+}: {
+  count: number;
+  max: number;
+  available: boolean;
+  remaining: number;
+  active: boolean;
+}) {
+  if (!available) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-white/50">Founding spots claimed</span>
+          <span className="text-xs font-semibold text-white/40">Unavailable</span>
+        </div>
+        <p className="text-xs text-white/40">Live count is temporarily unavailable — check back shortly.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-white/50">Founding spots claimed</span>
+        <span className="font-bold text-white/80">
+          {count} / {max}
+        </span>
+      </div>
+      <ProgressBar value={count} max={max} />
+      {active ? (
+        <p className="text-xs text-[#FFD34E]">
+          {remaining} founding {remaining === 1 ? "spot" : "spots"} remaining
+        </p>
+      ) : (
+        <p className="text-xs text-white/40">Founding spots are full. Standard pricing now applies.</p>
+      )}
+    </div>
+  );
+}
+
 export default async function PromosPage() {
   const stats = await getLaunchPromoStats();
   const trialDays = getClientFoundingTrialDays();
@@ -41,6 +90,8 @@ export default async function PromosPage() {
   const {
     trainerCount,
     clientCount,
+    trainerCountAvailable,
+    clientCountAvailable,
     trainerFoundingMax,
     clientFoundingMax,
     trainerFoundingRemaining,
@@ -49,6 +100,7 @@ export default async function PromosPage() {
     clientFoundingActive,
     clientBetaCap,
     clientBetaSlotsRemaining,
+    clientBetaSlotsAvailable,
     trainerWaitlistOpen,
     clientWaitlistOpen,
   } = stats;
@@ -185,22 +237,14 @@ export default async function PromosPage() {
                 <p className="mt-2 text-pretty leading-relaxed text-white/55">{trainerFoundingTierAccessBreakdownSentence()}</p>
               </div>
 
-              <div className="mt-6 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-white/50">Founding spots claimed</span>
-                  <span className="font-bold text-white/80">
-                    {trainerCount} / {trainerFoundingMax}
-                  </span>
-                </div>
-                <ProgressBar value={trainerCount} max={trainerFoundingMax} />
-                {trainerFoundingActive ? (
-                  <p className="text-xs text-[#FFD34E]">
-                    {trainerFoundingRemaining} founding{" "}
-                    {trainerFoundingRemaining === 1 ? "spot" : "spots"} remaining
-                  </p>
-                ) : (
-                  <p className="text-xs text-white/40">Founding spots are full. Standard pricing now applies.</p>
-                )}
+              <div className="mt-6">
+                <FoundingSpotsCounter
+                  count={trainerCount}
+                  max={trainerFoundingMax}
+                  available={trainerCountAvailable}
+                  remaining={trainerFoundingRemaining}
+                  active={trainerFoundingActive}
+                />
               </div>
 
               <div className="mt-6">
@@ -267,30 +311,28 @@ export default async function PromosPage() {
                 </div>
               </div>
 
-              <div className="mt-6 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-white/50">Founding spots claimed</span>
-                  <span className="font-bold text-white/80">
-                    {clientCount} / {clientFoundingMax}
-                  </span>
-                </div>
-                <ProgressBar value={clientCount} max={clientFoundingMax} />
-                {clientFoundingActive ? (
-                  <p className="text-xs text-[#FFD34E]">
-                    {clientFoundingRemaining} founding{" "}
-                    {clientFoundingRemaining === 1 ? "spot" : "spots"} remaining
-                  </p>
-                ) : (
-                  <p className="text-xs text-white/40">Founding spots are full. Standard pricing now applies.</p>
-                )}
+              <div className="mt-6">
+                <FoundingSpotsCounter
+                  count={clientCount}
+                  max={clientFoundingMax}
+                  available={clientCountAvailable}
+                  remaining={clientFoundingRemaining}
+                  active={clientFoundingActive}
+                />
               </div>
 
               {stats.gatesEnabled ? (
                 <p className="mt-4 text-[11px] text-white/40">
-                  Beta membership capacity: {stats.clientBetaSlotsUsed} / {clientBetaCap} slots used
-                  {clientBetaSlotsRemaining > 0
-                    ? ` (${clientBetaSlotsRemaining} open)`
-                    : " (full — waitlist open)"}
+                  {clientBetaSlotsAvailable ? (
+                    <>
+                      Beta membership capacity: {stats.clientBetaSlotsUsed} / {clientBetaCap} slots used
+                      {clientBetaSlotsRemaining > 0
+                        ? ` (${clientBetaSlotsRemaining} open)`
+                        : " (full — waitlist open)"}
+                    </>
+                  ) : (
+                    "Beta membership capacity: temporarily unavailable — check back shortly."
+                  )}
                 </p>
               ) : null}
 

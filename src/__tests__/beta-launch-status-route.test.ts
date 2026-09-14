@@ -12,6 +12,8 @@ const baseStats = {
   gatesEnabled: true,
   trainerCount: 2,
   clientCount: 12,
+  trainerCountAvailable: true,
+  clientCountAvailable: true,
   trainerFoundingMax: 30,
   clientFoundingMax: 150,
   trainerFoundingRemaining: 28,
@@ -22,6 +24,8 @@ const baseStats = {
   clientBetaCap: 200,
   trainerBetaSlotsUsed: 90,
   clientBetaSlotsUsed: 195,
+  trainerBetaSlotsAvailable: true,
+  clientBetaSlotsAvailable: true,
   trainerBetaSlotsRemaining: 10,
   clientBetaSlotsRemaining: 5,
   trainerWaitlistOpen: false,
@@ -90,5 +94,28 @@ describe("GET /api/public/beta-launch-status", () => {
       clientWaitlistOpen: true,
     });
     expect(getLaunchPromoStatsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("nulls out counts and anything derived from them when the underlying query failed", async () => {
+    getLaunchPromoStatsMock.mockResolvedValueOnce({
+      ...baseStats,
+      trainerCountAvailable: false,
+      trainerBetaSlotsAvailable: false,
+      clientBetaSlotsAvailable: false,
+      // Even though the source data claims full, an unavailable count must not report it as such.
+      trainerWaitlistOpen: true,
+    });
+
+    const response = await GET();
+    const body = await response.json();
+
+    expect(body.trainerCount).toBeNull();
+    expect(body.trainerFoundingRemaining).toBeNull();
+    expect(body.clientSlotsUsed).toBeNull();
+    expect(body.clientSlotsRemaining).toBeNull();
+    expect(body.trainerWaitlistOpen).toBe(false);
+    // Unaffected fields still come through.
+    expect(body.clientCount).toBe(12);
+    expect(body.trainerCap).toBe(100);
   });
 });
