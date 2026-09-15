@@ -19,7 +19,7 @@ function windowText(daysLeft: number, expired: boolean): string {
 /**
  * End-of-trial prompt.
  *
- * Premium Pro can decline and keep a working Match Fitness Pro account — declining is a real,
+ * Premium Pro can decline and keep a working Match Fit Fitness Pro account — declining is a real,
  * equally prominent choice here, not a link buried under a payment button.
  */
 export function TrainerTrialEndBanner({ kind, tierLabel, daysLeft, expired }: Props) {
@@ -59,7 +59,7 @@ export function TrainerTrialEndBanner({ kind, tierLabel, daysLeft, expired }: Pr
       {kind === "premium_choice" ? (
         <>
           <p className="mt-1 text-[#FFF4D0]/85">
-            Keep your premium perks by starting a subscription, or continue on a free Match Fitness Pro account. Your
+            Keep your premium perks by starting a subscription, or continue on a free Match Fit Fitness Pro account. Your
             clients, bookings and profile stay exactly as they are either way.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">

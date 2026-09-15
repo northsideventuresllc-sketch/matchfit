@@ -6,8 +6,8 @@ import { resolveUploadFileKind } from "@/lib/upload-file-type";
 const allPricesConfigured = () => true;
 const noPricesConfigured = () => false;
 
-describe("Match Fitness Pro auto-upgrade during beta", () => {
-  it("upgrades Match Fitness Pro to Premium Pro inside the first 30", () => {
+describe("Match Fit Fitness Pro auto-upgrade during beta", () => {
+  it("upgrades Match Fit Fitness Pro to Premium Pro inside the first 30", () => {
     expect(resolveFpSignupTier("match_fit_pro", 0, true)).toBe("match_fit_premium_pro");
     expect(resolveFpSignupTier("match_fit_pro", 29, true)).toBe("match_fit_premium_pro");
   });
@@ -59,7 +59,7 @@ describe("tier selection outcome", () => {
     expect(elite).toMatchObject({ foundingCohort: false, requiresCheckoutNow: true });
   });
 
-  it("still sends Match Fitness Pro to the dashboard after the cohort is full", () => {
+  it("still sends Match Fit Fitness Pro to the dashboard after the cohort is full", () => {
     const pro = resolveFpTierSignupOutcome({
       requested: "match_fit_pro",
       existingTrainerCount: 100,
@@ -121,7 +121,7 @@ describe("end-of-trial prompt", () => {
     ).toMatchObject({ kind: "payment_required", tier: "elite_fitness_pro", expired: true });
   });
 
-  it("says nothing to subscribers, exempt accounts, or free Match Fitness Pro", () => {
+  it("says nothing to subscribers, exempt accounts, or free Match Fit Fitness Pro", () => {
     const base = { platformTrialEndsAt: inDays(1) };
     expect(
       resolveTrainerTrialPrompt({ ...base, accountTier: "elite_fitness_pro", stripeSubscriptionActive: true }, now),

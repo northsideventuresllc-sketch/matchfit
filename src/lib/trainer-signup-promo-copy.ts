@@ -26,7 +26,7 @@ export function trainerSignupOnboardingBeginDeadlineLabel(): string {
 
 /** Verified Fit Pro paths eligible for founding background-check coverage (tiers that require a background check). */
 export function trainerFoundingBgCheckEligibleTiersLabel(): string {
-  return "Match Fitness Pro, Match Fit Premium Pro, and Elite Fitness Pro";
+  return "Match Fit Fitness Pro, Match Fit Premium Pro, and Elite Fitness Pro";
 }
 
 /** Marketing line for platform-covered Checkr screening (founding cohort). */
