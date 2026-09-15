@@ -7,6 +7,24 @@ import { hasValidCoworkSecret } from "@/lib/require-cowork-secret";
 export const dynamic = "force-dynamic";
 
 /**
+ * ROOT CAUSE FIX (2026-09-15, OUT-LEAD-FINDER-8S-TIMEOUT): this route was missing an explicit
+ * `maxDuration`, unlike every other heavy cron route in this directory (content-calendar-*,
+ * match-fit-tos-jobs all declare 300). Without one, the underlying Vercel function runs on the
+ * platform's default execution limit — far too short for this route's real work: up to
+ * `MAX_SEARCHES_PER_LANE` (2) SerpApi calls per lane (20s timeout each) plus, per email
+ * candidate, up to 3 sequential page fetches (8s timeout each) in `findContactEmail`, across two
+ * lanes with a refill loop. That's why leads were never written even though the DB-side caller
+ * (NI-Brain pg_cron jobs `mf-cron-lead-finder-1`/`-2`, via `fn_mf_cron_ping`) already passes a
+ * generous `p_timeout_ms` override of 290000 (290s) — `fn_mf_cron_ping`'s own default is 8000ms
+ * (8s), which is the "always times out at 8s" symptom, but that default is already overridden at
+ * the DB layer for both lead-finder jobs. The Vercel function itself was the still-unfixed half:
+ * it had no execution budget to match, so Vercel killed it long before pg_net's 290s patience ran
+ * out. 300s here matches the DB-side 290000ms override with the same ~10s safety margin every
+ * other `fn_mf_cron_ping('…', '…', 290000)` caller in this repo already uses.
+ */
+export const maxDuration = 300;
+
+/**
  * Target America/New_York hour for the lead finder. The caller (currently
  * nv-vault `.github/workflows/mf-lead-finder-nationwide.yml`) is expected to fire this route at
  * BOTH 12:00 UTC and 13:00 UTC every weekday — one of those lands on 8am ET depending on
