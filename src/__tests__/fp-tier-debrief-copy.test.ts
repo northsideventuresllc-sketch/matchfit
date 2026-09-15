@@ -14,7 +14,7 @@ describe("fp-tier-debrief-copy", () => {
     }
   });
 
-  it("combines onboarding, publishing, and brand guidance for Match Fitness Pros", () => {
+  it("combines onboarding, publishing, and brand guidance for Match Fit Fitness Pros", () => {
     expect(FP_MATCH_FIT_PRO_DEBRIEF.blocks.map((b) => b.title)).toEqual([
       "Fitness Pro Onboarding Fee",
       "Publish Between Sessions",

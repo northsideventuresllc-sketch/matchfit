@@ -6,7 +6,7 @@ import { fpTierRequiresMonthlyFee } from "@/lib/fp-account-tier-types";
  *
  * The founding cohort gets their chosen account type up front without paying (JB, 2026-08-04),
  * so the payment conversation happens here instead of at sign-up. Premium Pro is the one tier
- * with a free fallback: they can decline and keep a working Match Fitness Pro account rather than
+ * with a free fallback: they can decline and keep a working Match Fit Fitness Pro account rather than
  * being pushed into a subscription. Independent and Elite have no free equivalent, so for those
  * the honest prompt is that payment is needed to keep the tier.
  *
@@ -16,7 +16,7 @@ import { fpTierRequiresMonthlyFee } from "@/lib/fp-account-tier-types";
 export type TrainerTrialPrompt =
   /** Nothing to ask. */
   | { kind: "none" }
-  /** Premium Pro: continue paying, or decline and drop to Match Fitness Pro. */
+  /** Premium Pro: continue paying, or decline and drop to Match Fit Fitness Pro. */
   | { kind: "premium_choice"; daysLeft: number; expired: boolean }
   /** Independent / Elite: the tier needs a subscription to continue. */
   | { kind: "payment_required"; tier: FpAccountTier; daysLeft: number; expired: boolean };

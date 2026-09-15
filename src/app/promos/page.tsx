@@ -206,7 +206,7 @@ export default async function PromosPage() {
         <div className="mt-10 space-y-6">
           <GradientBubbleCard
             className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/75 p-7 shadow-[0_34px_90px_-50px_rgba(255,126,0,0.35)] backdrop-blur-xl sm:p-9"
-            spotlightColor="rgba(255,150,40,0.32)"
+            spotlightColor="rgba(255,150,40,0.17)"
           >
             <div
               aria-hidden
@@ -308,7 +308,7 @@ export default async function PromosPage() {
 
           <GradientBubbleCard
             className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/75 p-7 shadow-[0_34px_90px_-50px_rgba(227,43,43,0.35)] backdrop-blur-xl sm:p-9"
-            spotlightColor="rgba(240,90,90,0.32)"
+            spotlightColor="rgba(240,90,90,0.17)"
           >
             <div
               aria-hidden

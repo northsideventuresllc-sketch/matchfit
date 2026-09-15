@@ -40,7 +40,7 @@ export function HomeBetaPromoBanner() {
         aria-hidden
         className="pointer-events-none absolute -right-10 -top-16 h-40 w-40 rounded-full bg-[radial-gradient(circle_at_center,rgba(255,211,78,0.35),transparent_68%)]"
       />
-      <GradientSpotlight color="rgba(255,220,120,0.32)" />
+      <GradientSpotlight color="rgba(255,220,120,0.17)" />
       <summary className={`${summaryRowClass} p-4 sm:p-7`}>
         <span className={chevronClass} aria-hidden>
           ▸
