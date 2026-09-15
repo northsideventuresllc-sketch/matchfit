@@ -92,7 +92,7 @@ export async function POST(req: Request) {
   }
 
   // The founding cohort goes straight to the dashboard on every account type — no card, no
-  // Stripe redirect — and anyone asking for Match Fitness Pro during beta is upgraded to Premium
+  // Stripe redirect — and anyone asking for Match Fit Fitness Pro during beta is upgraded to Premium
   // Pro. After the cohort fills, the tiers with a monthly fee take payment here instead.
   const outcome = resolveFpTierSignupOutcome({
     requested: parsed.data.tier,
@@ -119,7 +119,7 @@ export async function POST(req: Request) {
 
   if (!fpTierSelectableDuringBeta(tier)) {
     return NextResponse.json(
-      { error: "Match Fitness Pro is not available during beta. Choose Match Fit Premium Pro or a paid account type." },
+      { error: "Match Fit Fitness Pro is not available during beta. Choose Match Fit Premium Pro or a paid account type." },
       { status: 400 },
     );
   }

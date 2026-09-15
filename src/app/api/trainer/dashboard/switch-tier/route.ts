@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   const targetTier = parsed.data.targetTier;
   if (!fpTierSelectableDuringBeta(targetTier)) {
     return NextResponse.json(
-      { error: "Match Fitness Pro is not available during beta. Choose Match Fit Premium Pro or a paid account type." },
+      { error: "Match Fit Fitness Pro is not available during beta. Choose Match Fit Premium Pro or a paid account type." },
       { status: 400 },
     );
   }

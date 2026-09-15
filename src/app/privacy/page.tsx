@@ -199,7 +199,7 @@ export default async function PrivacyPage() {
             pairing.
           </Li>
           <Li>
-            <Strong>Account Type and Tier Billing:</Strong> Fitness Pro account tier selection (Match Fitness Pro, Match Fit
+            <Strong>Account Type and Tier Billing:</Strong> Fitness Pro account tier selection (Match Fit Fitness Pro, Match Fit
             Premium Pro, Independent Fitness Pro, or Elite Fitness Pro), optional Premium Page subscription status for
             coaches who enroll in Premium Hub tools, tier subscription status, discovery nudge usage counts, purchased nudge
             credit balances, promote-token ledgers, and document-review status for tier-specific onboarding.
