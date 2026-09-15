@@ -1,8 +1,12 @@
+"use client";
+
 import {
   MATCH_SERVICE_CATALOG,
   MATCH_SERVICE_IDS_NUTRITION_OFFERING,
   type MatchServiceId,
 } from "@/lib/trainer-match-questionnaire";
+import { useGradientSpotlight } from "@/hooks/use-gradient-spotlight";
+import { GradientSpotlight } from "@/components/gradient-spotlight";
 
 function deliverySummary(s: (typeof MATCH_SERVICE_CATALOG)[number]): string {
   if (s.virtual && s.inPerson) {
@@ -106,6 +110,14 @@ const chevronClass =
   "inline-flex size-6 shrink-0 items-center justify-center rounded-md border border-white/[0.1] text-[10px] font-bold text-white/45 transition-transform duration-200";
 
 export function HomeTrainerServiceTypesSection({ embedded = false }: { embedded?: boolean }) {
+  const {
+    ref: spotlightRef,
+    onMouseMove: onSpotlightMouseMove,
+    onMouseEnter: onSpotlightMouseEnter,
+    onMouseLeave: onSpotlightMouseLeave,
+    onClick: onSpotlightClick,
+  } = useGradientSpotlight<HTMLElement>();
+
   const catalogue = (
     <>
       {!embedded ? (
@@ -118,6 +130,7 @@ export function HomeTrainerServiceTypesSection({ embedded = false }: { embedded?
             aria-hidden
             className="pointer-events-none absolute -bottom-8 -left-12 h-48 w-48 rounded-full bg-[radial-gradient(circle_at_center,rgba(227,43,43,0.18),transparent_72%)]"
           />
+          <GradientSpotlight />
         </>
       ) : null}
       <div className={embedded ? "relative p-7 sm:p-9" : "relative"}>
@@ -278,6 +291,11 @@ export function HomeTrainerServiceTypesSection({ embedded = false }: { embedded?
   return (
     <section
       id="trainer-service-types"
+      ref={spotlightRef}
+      onMouseMove={onSpotlightMouseMove}
+      onMouseEnter={onSpotlightMouseEnter}
+      onMouseLeave={onSpotlightMouseLeave}
+      onClick={onSpotlightClick}
       className="relative scroll-mt-28 overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/75 p-7 shadow-[0_34px_90px_-50px_rgba(227,43,43,0.45)] backdrop-blur-xl sm:p-9"
     >
       {catalogue}
