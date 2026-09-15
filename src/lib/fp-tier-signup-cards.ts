@@ -33,7 +33,7 @@ function fpTierSignupSubtitle(tier: FpAccountTier): string {
     case "match_fit_pro":
       return "Full platform with in-app chat. Background check required.";
     case "match_fit_premium_pro":
-      return "Match Fit Pro plus premium discovery and Fit Hub — in-app chat included.";
+      return "Match Fitness Pro plus premium discovery and Fit Hub — in-app chat included.";
     case "independent_fitness_pro":
       return "Discovery nudges only (no in-app chat). Your brand and external site listed on Match Fit.";
     case "elite_fitness_pro":

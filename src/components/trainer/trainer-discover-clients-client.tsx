@@ -256,7 +256,7 @@ export function TrainerDiscoverClientsClient(props: Props) {
     if (isFpProTier) {
       return (
         <p className="mt-2 text-emerald-100/85">
-          <span className="font-semibold text-white">Match Fit Pro</span> and{" "}
+          <span className="font-semibold text-white">Match Fitness Pro</span> and{" "}
           <span className="font-semibold text-white">Match Fit Premium Pro</span> use in-app chat (not discovery nudges)
           for client outreach. Keep payments and scheduling on Match Fit; contact and payment leakage rules apply in
           chat.

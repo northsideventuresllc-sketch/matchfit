@@ -70,7 +70,7 @@ describe("fp-tier-chat-policy", () => {
     expect(trainerCanUseNudgeFeature("independent_fitness_pro")).toBe(true);
   });
 
-  it("Match Fit Pro uses chat, not nudges", () => {
+  it("Match Fitness Pro uses chat, not nudges", () => {
     expect(trainerCanUseInAppChat("match_fit_pro")).toBe(true);
     expect(trainerCanUseNudgeFeature("match_fit_pro")).toBe(false);
   });
@@ -97,7 +97,7 @@ describe("trainer-nudge-limits", () => {
     expect(blocked.reason).toBe("daily_cap");
   });
 
-  it("blocks nudges for Match Fit Pro", () => {
+  it("blocks nudges for Match Fitness Pro", () => {
     const result = evaluateTrainerNudgeQuota({
       accountTier: "match_fit_pro",
       nudgesUsedToday: 0,

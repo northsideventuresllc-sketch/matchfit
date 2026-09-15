@@ -28,7 +28,7 @@ export default async function TrainerDiscoverClientsPage() {
         <p className="mx-auto max-w-xl text-sm leading-relaxed text-white/50">
           {isFpProTier ? (
             <>
-              Match Fit Pro and Match Fit Premium Pro accounts use in-app chat for client outreach. Discovery nudges are
+              Match Fitness Pro and Match Fit Premium Pro accounts use in-app chat for client outreach. Discovery nudges are
               not part of those tiers — use Chats or Inquiries after a client connects with you.
             </>
           ) : tier === "independent_fitness_pro" ? (

@@ -5,6 +5,10 @@ import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version
 import { clientBetaVipTrialSummary, clientVipPriceLabel } from "@/lib/client-plan-copy";
 import { FP_TIER_MONTHLY_FEES_USD } from "@/lib/fp-account-tier-types";
 import {
+  getClientFoundingTrialMaxClients,
+  getTrainerFoundingBgCoveredMax,
+} from "@/lib/match-fit-launch-promotion-caps";
+import {
   TRAINER_SIGNUP_PREMIUM_PROMO_DAYS,
   trainerIndependentProSubscriptionLabel,
 } from "@/lib/trainer-signup-promo-copy";
@@ -142,6 +146,8 @@ export default async function PromosPage() {
 
   const trainerCapFull = trainerWaitlistOpen;
   const clientCapFull = clientWaitlistOpen;
+  const trainerFoundingBgCoveredMax = getTrainerFoundingBgCoveredMax();
+  const clientFoundingTrialMaxClients = getClientFoundingTrialMaxClients();
 
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-[#0B0C0F] text-white antialiased">
@@ -190,8 +196,8 @@ export default async function PromosPage() {
           </p>
           <div className="mx-auto mt-6 max-w-xl rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 text-left text-xs leading-relaxed text-white/50 sm:text-[13px]">
             <span className="font-semibold uppercase text-[#FF7E00]/90">Beta reach:</span>{" "}
-            <span className="font-semibold text-white/70">Up to 30 Fitness Pros</span> and{" "}
-            <span className="font-semibold text-white/70">up to 150 clients</span> can join during beta —{" "}
+            <span className="font-semibold text-white/70">Up to {trainerFoundingBgCoveredMax} Fitness Pros</span> and{" "}
+            <span className="font-semibold text-white/70">up to {clientFoundingTrialMaxClients} clients</span> can join during beta —{" "}
             <span className="font-semibold uppercase text-white/70">available worldwide</span>.
           </div>
         </div>
@@ -231,8 +237,8 @@ export default async function PromosPage() {
               <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 text-sm text-white/60">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#FF7E00]/90">Promo details</p>
                 <p className="mt-3 text-xs leading-relaxed text-white/55">
-                  Background checks are waived completely for the first 30 coach sign-ups — no upfront screening
-                  cost.
+                  Background checks are waived completely for the first {trainerFoundingBgCoveredMax} coach
+                  sign-ups — no upfront screening cost.
                 </p>
 
                 <div className="mt-4 space-y-2">

@@ -675,7 +675,7 @@ export function FinancialDetailsSection({ finances, revenue }: { finances: Admin
         </NestedCollapsible>
 
         <NestedCollapsible
-          title="Match Fit Pros"
+          title="Match Fitness Pros"
           subtitle={`${segments.matchFitPros.liveFitPros} live · ${segments.matchFitPros.activeFitPros} active`}
         >
           <FpTierFinanceSegmentPanel segment={segments.matchFitPros} />
