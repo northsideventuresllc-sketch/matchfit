@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isCronSecretAuthorized } from "@/lib/require-cron-secret";
 import { ensureContentCalendarV22Schema } from "@/lib/ensure-content-hub-schema";
 import { getPendingMediaAgentJobs, updateMediaAgentJobStatus } from "@/lib/content-calendar/cowork-jobs";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
@@ -6,12 +7,7 @@ import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 export const dynamic = "force-dynamic";
 
 function authorize(req: Request): boolean {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) return false;
-  const auth = req.headers.get("authorization");
-  if (auth === `Bearer ${secret}`) return true;
-  const q = new URL(req.url).searchParams.get("secret");
-  return q === secret;
+  return isCronSecretAuthorized(req);
 }
 
 /**

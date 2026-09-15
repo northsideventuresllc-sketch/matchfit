@@ -1,4 +1,5 @@
 import { readPlatformSecret } from "@/lib/platform-secrets";
+import { timingSafeEqualString } from "@/lib/timing-safe-equal";
 
 /**
  * Auth for the external Cowork session's polling/reporting calls. `CRON_SECRET` (Vercel env)
@@ -15,8 +16,8 @@ export async function hasValidCoworkSecret(req: Request): Promise<boolean> {
   if (!provided) return false;
 
   const cronSecret = process.env.CRON_SECRET?.trim();
-  if (cronSecret && provided === cronSecret) return true;
+  if (cronSecret && timingSafeEqualString(provided, cronSecret)) return true;
 
   const dbSecret = await readPlatformSecret("COWORK_POLL_SECRET");
-  return Boolean(dbSecret && provided === dbSecret);
+  return Boolean(dbSecret && timingSafeEqualString(provided, dbSecret));
 }

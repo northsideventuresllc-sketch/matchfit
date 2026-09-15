@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isCronSecretAuthorized } from "@/lib/require-cron-secret";
 import { ensureOutreachHubSchema } from "@/lib/ensure-outreach-hub-schema";
 import { hydratePlatformEnvFromDatabase } from "@/lib/hydrate-platform-env";
 import { scanOutreachEmailReplies } from "@/lib/outreach-email-scan";
@@ -11,12 +12,7 @@ export const maxDuration = 120;
 const CRON_ADMIN_ID = "system-cron";
 
 function authorize(req: Request): boolean {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) return false;
-  const auth = req.headers.get("authorization");
-  if (auth === `Bearer ${secret}`) return true;
-  const q = new URL(req.url).searchParams.get("secret");
-  return q === secret;
+  return isCronSecretAuthorized(req);
 }
 
 /**
