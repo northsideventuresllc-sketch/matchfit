@@ -1,9 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {
   HomeAudienceGroupHeader,
   HomeCollapsibleSection,
 } from "@/components/home-collapsible-section";
+import { useGradientSpotlight } from "@/hooks/use-gradient-spotlight";
+import { GradientSpotlight } from "@/components/gradient-spotlight";
 import { HomeCtaLogoutBar } from "@/components/home-cta-logout-bar";
 import { HomeBetaSlotWarning } from "@/components/home-beta-slot-warning";
 import { HomeFitProTypesSection } from "@/components/home-fit-pro-types-section";
@@ -51,6 +55,13 @@ function ServiceCard({
 
 export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
   const loggedIn = homeAuth.clientLoggedIn || homeAuth.trainerLoggedIn;
+  const {
+    ref: serviceTypesSpotlightRef,
+    onMouseMove: onServiceTypesSpotlightMouseMove,
+    onMouseEnter: onServiceTypesSpotlightMouseEnter,
+    onMouseLeave: onServiceTypesSpotlightMouseLeave,
+    onClick: onServiceTypesSpotlightClick,
+  } = useGradientSpotlight<HTMLDetailsElement>();
 
   return (
     <div className="mt-20 space-y-8 sm:mt-24 sm:space-y-10">
@@ -321,6 +332,11 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
 
         <details
           id="trainer-service-types"
+          ref={serviceTypesSpotlightRef}
+          onMouseMove={onServiceTypesSpotlightMouseMove}
+          onMouseEnter={onServiceTypesSpotlightMouseEnter}
+          onMouseLeave={onServiceTypesSpotlightMouseLeave}
+          onClick={onServiceTypesSpotlightClick}
           className="group scroll-mt-28 overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/75 shadow-[0_34px_90px_-50px_rgba(227,43,43,0.45)] backdrop-blur-xl"
         >
           <summary className="flex w-full cursor-pointer list-none items-start gap-3 p-7 text-left [-webkit-details-marker]:hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7E00]/70 sm:p-9">
@@ -341,6 +357,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
               </p>
             </div>
           </summary>
+          <GradientSpotlight />
           <div className="border-t border-white/[0.08]">
             <HomeTrainerServiceTypesSection embedded />
           </div>

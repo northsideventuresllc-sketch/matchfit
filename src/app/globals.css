@@ -54,6 +54,53 @@ html {
   }
 }
 
+/*
+ * Bubble hover/click gradient — see src/hooks/use-gradient-spotlight.ts.
+ * The hook writes --spot-x / --spot-y straight to the DOM node (no React
+ * state), so this layer only needs to read them; it never causes a re-render.
+ */
+@keyframes mf-gradient-spotlight-pulse {
+  0% {
+    opacity: 0.55;
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.7;
+  }
+}
+
+.mf-gradient-spotlight {
+  opacity: 0;
+  transition: opacity 280ms ease;
+  mix-blend-mode: screen;
+  background: radial-gradient(
+    circle at var(--spot-x, 50%) var(--spot-y, 50%),
+    var(--spot-color, rgba(255, 255, 255, 0.3)),
+    transparent var(--spot-size, 42%)
+  );
+}
+
+/* Cursor-follow glow only where a real pointer can hover — avoids a glow
+   stuck at the last-tapped spot on touch devices. */
+@media (hover: hover) and (pointer: fine) {
+  [data-spotlight-active="true"] .mf-gradient-spotlight {
+    opacity: 1;
+  }
+}
+
+/* The click/tap pulse still plays everywhere, touch included. */
+[data-spotlight-pulse="true"] .mf-gradient-spotlight {
+  animation: mf-gradient-spotlight-pulse 480ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mf-gradient-spotlight {
+    display: none;
+  }
+}
+
 @keyframes admin-loading {
   0% {
     transform: translateX(-100%);

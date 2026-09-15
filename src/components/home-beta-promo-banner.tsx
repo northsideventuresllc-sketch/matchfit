@@ -1,9 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import { MATCH_FIT_PRODUCT_VERSION_ANNOUNCE } from "@/lib/match-fit-product-version";
 import { getTrainerFoundingBgPercentMax } from "@/lib/match-fit-launch-promotion-caps";
 import { TRAINER_SIGNUP_PREMIUM_PROMO_DAYS } from "@/lib/trainer-signup-promo-copy";
 import { HomeRoleDefinitionTerm } from "@/components/home-role-definition-term";
 import { HomeFollowUsPopover } from "@/components/home-follow-us-popover";
+import { useGradientSpotlight } from "@/hooks/use-gradient-spotlight";
+import { GradientSpotlight } from "@/components/gradient-spotlight";
 
 const chevronClass =
   "inline-flex size-7 shrink-0 items-center justify-center rounded-lg border border-white/[0.1] text-xs font-bold text-white/45 transition-transform duration-200 group-open:rotate-90";
@@ -13,17 +17,30 @@ const summaryRowClass =
 
 export function HomeBetaPromoBanner() {
   const trainerFoundingCap = getTrainerFoundingBgPercentMax();
+  const {
+    ref: spotlightRef,
+    onMouseMove: onSpotlightMouseMove,
+    onMouseEnter: onSpotlightMouseEnter,
+    onMouseLeave: onSpotlightMouseLeave,
+    onClick: onSpotlightClick,
+  } = useGradientSpotlight<HTMLDetailsElement>();
 
   return (
     <details
       id="beta-welcome"
       open
+      ref={spotlightRef}
+      onMouseMove={onSpotlightMouseMove}
+      onMouseEnter={onSpotlightMouseEnter}
+      onMouseLeave={onSpotlightMouseLeave}
+      onClick={onSpotlightClick}
       className="group relative w-full min-w-0 scroll-mt-28 overflow-hidden rounded-3xl border border-[#FFD34E]/25 bg-[linear-gradient(135deg,rgba(255,211,78,0.14)_0%,rgba(255,126,0,0.1)_45%,rgba(227,43,43,0.12)_100%)] shadow-[0_24px_80px_-32px_rgba(255,126,0,0.4)] backdrop-blur-xl"
     >
       <div
         aria-hidden
         className="pointer-events-none absolute -right-10 -top-16 h-40 w-40 rounded-full bg-[radial-gradient(circle_at_center,rgba(255,211,78,0.35),transparent_68%)]"
       />
+      <GradientSpotlight color="rgba(255,220,120,0.32)" />
       <summary className={`${summaryRowClass} p-4 sm:p-7`}>
         <span className={chevronClass} aria-hidden>
           ▸
