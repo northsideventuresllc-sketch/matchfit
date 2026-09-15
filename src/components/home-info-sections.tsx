@@ -530,7 +530,7 @@ export function HomeInfoSections({ homeAuth }: { homeAuth: HomePageAuth }) {
           href="/terms"
           className="inline-flex min-h-8 items-center justify-center rounded-lg border border-white/[0.12] bg-white/[0.03] px-3 text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-white/60 transition hover:border-white/[0.22] hover:text-white/85"
         >
-          Terms Of Service
+          Terms of Service
         </Link>
         <Link
           href="/share-idea"

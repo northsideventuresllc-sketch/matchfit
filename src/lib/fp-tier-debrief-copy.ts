@@ -14,12 +14,12 @@ export type FpDebriefSection = {
 export const FP_MATCH_FIT_PRO_DEBRIEF: FpDebriefSection = {
   id: "match-fit-pro-debrief",
   eyebrow: "Match Fit path",
-  title: "Match Fit Pro",
+  title: "Match Fitness Pro",
   blocks: [
     {
       title: "Fitness Pro Onboarding Fee",
       paragraphs: [
-        "Match Fit Pros can pay the platform onboarding fee today or defer it and repay from future payouts within 60 days of completing onboarding.",
+        "Match Fitness Pros can pay the platform onboarding fee today or defer it and repay from future payouts within 60 days of completing onboarding.",
       ],
       bullets: [
         "Pay now: authorize the platform hold at sign-up; Match Fit captures only after certification and background screening are approved.",

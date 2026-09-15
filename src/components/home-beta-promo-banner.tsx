@@ -59,14 +59,14 @@ export function HomeBetaPromoBanner() {
       </summary>
 
       <div className="relative min-w-0 border-t border-[#FFD34E]/15 px-4 pb-4 pt-5 sm:px-7 sm:pb-7">
-        <div className="mx-auto max-w-3xl space-y-3 text-pretty text-left text-[14px] leading-relaxed text-white/65 [overflow-wrap:anywhere] sm:text-[15px] md:text-base">
+        <div className="space-y-3 text-pretty text-left text-[14px] leading-relaxed text-white/65 [overflow-wrap:anywhere] sm:text-[15px] md:text-base">
           <p>
             Thank you for joining Match Fit! Match Fit is built to connect anyone looking to accomplish their
             fitness goals with the best fitness professionals that will help anyone get there.
           </p>
         </div>
 
-        <div className="mx-auto mt-5 min-w-0 max-w-3xl space-y-3 rounded-2xl border border-[#FF7E00]/25 bg-[#FF7E00]/[0.06] p-4 sm:p-5">
+        <div className="mt-5 min-w-0 space-y-3 rounded-2xl border border-[#FF7E00]/25 bg-[#FF7E00]/[0.06] p-4 sm:p-5">
           <p className="text-left text-[11px] font-bold uppercase tracking-[0.12em] text-[#FFD34E] [overflow-wrap:anywhere] sm:text-xs sm:tracking-[0.2em]">
             Founding Fitness Pro Beta Promotion
           </p>
@@ -86,7 +86,7 @@ export function HomeBetaPromoBanner() {
           </p>
         </div>
 
-        <div className="mx-auto mt-5 max-w-3xl space-y-3 text-pretty text-left text-[14px] leading-relaxed text-white/65 [overflow-wrap:anywhere] sm:text-[15px] md:text-base">
+        <div className="mt-5 space-y-3 text-pretty text-left text-[14px] leading-relaxed text-white/65 [overflow-wrap:anywhere] sm:text-[15px] md:text-base">
           <p>
             As of <span className="font-semibold text-white/85">May 21st, 2026</span>, Match Fit is{" "}
             <span className="font-bold text-[#FFD34E]">LIVE!</span> In Version {MATCH_FIT_PRODUCT_VERSION_ANNOUNCE}, we

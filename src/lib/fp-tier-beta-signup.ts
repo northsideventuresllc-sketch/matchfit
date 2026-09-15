@@ -10,12 +10,12 @@ export const FP_BETA_PREMIUM_PRO_STICKER =
 export const FP_BETA_DEFAULT_TIER: FpAccountTier = "match_fit_premium_pro";
 
 /**
- * During beta the first N Fitness Pro sign-ups who ask for Match Fit Pro are given Match Fit
- * Premium Pro instead (JB, 2026-08-04). The tier picker already hides the Match Fit Pro card
+ * During beta the first N Fitness Pro sign-ups who ask for Match Fitness Pro are given Match Fit
+ * Premium Pro instead (JB, 2026-08-04). The tier picker already hides the Match Fitness Pro card
  * during beta, but the upgrade is applied server-side as well so a stale page, a direct API
  * call, or beta ending mid-signup cannot land someone on the lesser tier.
  *
- * Counts Fitness Pro sign-ups overall, not just those who asked for Match Fit Pro.
+ * Counts Fitness Pro sign-ups overall, not just those who asked for Match Fitness Pro.
  */
 export const FP_BETA_PREMIUM_PRO_UPGRADE_MAX_DEFAULT = 30;
 
@@ -55,7 +55,7 @@ export type FpTierSignupOutcome = {
  * The founding cohort — the first N sign-ups during beta — goes straight to the dashboard on
  * every tier, with no card and no Stripe redirect (JB, 2026-08-04). Their paid tier is granted
  * up front and payment is only asked for when the 60-day trial ends. After that cohort fills,
- * the tiers that carry a monthly fee take payment at selection time, while Match Fit Pro still
+ * the tiers that carry a monthly fee take payment at selection time, while Match Fitness Pro still
  * goes straight to the dashboard.
  *
  * Elite Fitness Pro is the exception to all of the above (JB, 2026-08-07): it is the only tier
@@ -129,7 +129,7 @@ export function fpBetaPremiumPromoEndsAt(from = new Date()): Date {
   return ends;
 }
 
-/** Cards shown on signup tier step (beta hides complimentary Match Fit Pro). */
+/** Cards shown on signup tier step (beta hides complimentary Match Fitness Pro). */
 export function fpTierSignupCardsForDisplay(): readonly FpTierCard[] {
   if (!fpBetaSignupActive()) return FP_TIER_SIGNUP_CARDS;
   return FP_TIER_SIGNUP_CARDS.filter((card) => fpTierSelectableDuringBeta(card.tier));

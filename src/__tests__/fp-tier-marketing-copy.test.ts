@@ -27,7 +27,7 @@ describe("fp-tier-marketing-copy", () => {
 
   it("groups Match Fit, Independent, and Elite paths", () => {
     expect(FP_TIER_MARKETING_GROUPS.map((g) => g.label)).toEqual([
-      "Match Fit Pros",
+      "Match Fitness Pros",
       "Independent Pros",
       "Elite Pros",
     ]);
@@ -53,7 +53,7 @@ describe("fp-tier-marketing-copy", () => {
     }
   });
 
-  it("scopes the service catalogue disclaimer to Match Fit Pros and Elite Pros", () => {
-    expect(FP_SERVICE_CATALOGUE_DISCLAIMER).toMatch(/Match Fit Pros and Elite Pros/i);
+  it("scopes the service catalogue disclaimer to Match Fitness Pros and Elite Pros", () => {
+    expect(FP_SERVICE_CATALOGUE_DISCLAIMER).toMatch(/Match Fitness Pros and Elite Pros/i);
   });
 });

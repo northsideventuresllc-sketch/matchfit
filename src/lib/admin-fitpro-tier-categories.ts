@@ -5,7 +5,7 @@ import { FP_TIER_DISPLAY_NAMES } from "@/lib/fp-account-tier-types";
 export const ADMIN_FITPRO_TIER_CATEGORIES = [
   {
     id: "match_fit_pros",
-    label: "Match Fit Pros / Match Fit Premium Pros",
+    label: "Match Fitness Pros / Match Fit Premium Pros",
     tiers: ["match_fit_pro", "match_fit_premium_pro"] as const satisfies readonly FpAccountTier[],
   },
   {

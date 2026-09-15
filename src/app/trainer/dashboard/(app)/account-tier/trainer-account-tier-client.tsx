@@ -185,7 +185,7 @@ export default function TrainerAccountTierClient() {
               onClick={() => void setEliteView("match_fit_pro")}
               className={`rounded-lg px-4 py-2 text-sm ${data.eliteDashboardViewMode === "match_fit_pro" || !data.eliteDashboardViewMode ? "bg-[#FF7E00] text-black" : "border border-white/20"}`}
             >
-              Viewing as Match Fit Pro
+              Viewing as Match Fitness Pro
             </button>
             <button
               type="button"

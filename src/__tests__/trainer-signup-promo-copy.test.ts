@@ -8,8 +8,8 @@ import {
 } from "@/lib/trainer-signup-promo-copy";
 
 describe("trainer-signup-promo-copy", () => {
-  it("promotes fully covered background checks for Match Fit Pro and Premium Pro", () => {
-    expect(trainerFoundingBgCheckEligibleTiersLabel()).toContain("Match Fit Pro");
+  it("promotes fully covered background checks for Match Fitness Pro and Premium Pro", () => {
+    expect(trainerFoundingBgCheckEligibleTiersLabel()).toContain("Match Fitness Pro");
     expect(trainerFoundingBgCheckEligibleTiersLabel()).toContain("Match Fit Premium Pro");
     expect(trainerFoundingBgCheckBenefitShortLabel()).toMatch(/fully covered background check/i);
     expect(trainerFoundingBgCheckBenefitShortLabel()).toMatch(/zero upfront cost/i);
