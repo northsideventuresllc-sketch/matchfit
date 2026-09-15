@@ -22,11 +22,43 @@ describe("trainer onboarding fee deadline helpers", () => {
     expect(trainerOnboardingFeeIsPaid({ registrationFeeHoldStatus: "not_started" })).toBe(false);
   });
 
+  it("treats a waived registration fee as paid, with nothing to hold or capture", () => {
+    // Founding BG-covered/discounted trainers owe $0 and never naturally reach a Stripe
+    // HELD/CAPTURED/DEFERRED hold status — without this, they looked permanently "unpaid" and
+    // the 7-day deadline cron expired them regardless of the waiver (production bug fixed
+    // 2026-09-15: confirmed real trainers Kristian Morgan, Basia Siwik, Benzii Diaz all had
+    // `registrationFeeWaived: true` yet were auto-expired by the deadline cron).
+    expect(
+      trainerOnboardingFeeIsPaid({ registrationFeeWaived: true, registrationFeeHoldStatus: "NOT_STARTED" }),
+    ).toBe(true);
+    expect(trainerOnboardingFeeIsPaid({ registrationFeeWaived: false, registrationFeeHoldStatus: "NOT_STARTED" })).toBe(
+      false,
+    );
+  });
+
   it("treats captured or explicit paid as completed fee, not hold-only", () => {
     expect(trainerOnboardingFeeIsCaptured({ hasPaidRegistrationFee: true })).toBe(true);
     expect(trainerOnboardingFeeIsCaptured({ registrationFeeHoldStatus: "CAPTURED" })).toBe(true);
     expect(trainerOnboardingFeeIsCaptured({ registrationFeeHoldStatus: "HELD" })).toBe(false);
     expect(trainerOnboardingFeeIsCaptured({ registrationFeeHoldStatus: "NOT_STARTED" })).toBe(false);
+  });
+
+  it("treats a waived registration fee as captured (nothing left to collect)", () => {
+    expect(trainerOnboardingFeeIsCaptured({ registrationFeeWaived: true })).toBe(true);
+  });
+
+  it("never treats a waived fee as overdue", () => {
+    const now = new Date("2026-09-15T00:00:00.000Z");
+    expect(
+      isTrainerOnboardingFeePaymentOverdue(
+        {
+          onboardingFeePaymentDeadlineAt: "2026-06-15T11:58:46.511Z",
+          registrationFeeHoldStatus: "CANCELED",
+          registrationFeeWaived: true,
+        },
+        now,
+      ),
+    ).toBe(false);
   });
 
   it("flags overdue only when unpaid and now is past a valid deadline", () => {
