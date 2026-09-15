@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { runMatchFitTosCronJobs } from "@/lib/match-fit-tos-cron";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 function authorize(req: Request): boolean {
   const secret = process.env.CRON_SECRET?.trim();
