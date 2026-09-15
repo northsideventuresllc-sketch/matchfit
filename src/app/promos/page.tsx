@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { getLaunchPromoStats } from "@/lib/launch-promo-stats";
+import { GradientBubbleCard } from "@/components/gradient-bubble-card";
 import { MATCH_FIT_PRODUCT_VERSION_LABEL } from "@/lib/match-fit-product-version";
 import { clientBetaVipTrialSummary, clientVipPriceLabel } from "@/lib/client-plan-copy";
 import { FP_TIER_MONTHLY_FEES_USD } from "@/lib/fp-account-tier-types";
@@ -203,7 +204,10 @@ export default async function PromosPage() {
         </div>
 
         <div className="mt-10 space-y-6">
-          <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/75 p-7 shadow-[0_34px_90px_-50px_rgba(255,126,0,0.35)] backdrop-blur-xl sm:p-9">
+          <GradientBubbleCard
+            className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/75 p-7 shadow-[0_34px_90px_-50px_rgba(255,126,0,0.35)] backdrop-blur-xl sm:p-9"
+            spotlightColor="rgba(255,150,40,0.32)"
+          >
             <div
               aria-hidden
               className="pointer-events-none absolute -left-24 -top-28 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,rgba(255,126,0,0.22),transparent_68%)]"
@@ -300,9 +304,12 @@ export default async function PromosPage() {
                 )}
               </div>
             </div>
-          </div>
+          </GradientBubbleCard>
 
-          <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/75 p-7 shadow-[0_34px_90px_-50px_rgba(227,43,43,0.35)] backdrop-blur-xl sm:p-9">
+          <GradientBubbleCard
+            className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/75 p-7 shadow-[0_34px_90px_-50px_rgba(227,43,43,0.35)] backdrop-blur-xl sm:p-9"
+            spotlightColor="rgba(240,90,90,0.32)"
+          >
             <div
               aria-hidden
               className="pointer-events-none absolute -right-20 -bottom-32 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,rgba(227,43,43,0.22),transparent_68%)]"
@@ -378,7 +385,7 @@ export default async function PromosPage() {
                 )}
               </div>
             </div>
-          </div>
+          </GradientBubbleCard>
         </div>
 
         <div className="mt-10 flex flex-wrap items-center justify-center gap-2 text-center">
