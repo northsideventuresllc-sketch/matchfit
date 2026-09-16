@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-16** `2.33.6-beta` → `2.33.7-beta` (**patch** — merge conflict resolution (2nd re-sync), no new product behavior beyond already-shipped security fixes)
 - **2026-09-16** `2.33.5-beta` → `2.33.6-beta` (**patch** — Second merge-conflict re-bump (PR #386) — main advanced again with its own 2.33.5-beta bump (#398) while this PR's CI was running; no new product change beyond the two fixes already on this branch)
 - **2026-09-16** `2.33.4-beta` → `2.33.5-beta` (**patch** — Merge main into lead-finder fix branch: retain maxDuration fix + doc comment, script conversion) — landed on `main` via PR #398
 - **2026-09-16** `2.33.4-beta` → `2.33.5-beta` (**patch** — Merge conflict resolution against newer main baseline (PR #386) — no new product change beyond the already-shipped fixes) — superseded by the `main` bump above once main advanced again during this PR's CI run; see the next entry for the re-bump this collision required
