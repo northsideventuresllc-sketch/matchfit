@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-16** `2.33.7-beta` → `2.33.8-beta` (**patch** — Fix duplicate production-spec block and literal hex-code-as-text rendering in Match Fit media generation prompts) — merge conflict re-sync of PR #399 onto current `main` (originally `2.33.0-beta` → `2.33.1-beta`); no new product change beyond the content-prompts.ts fix itself
 - **2026-09-16** `2.33.6-beta` → `2.33.7-beta` (**patch** — merge conflict resolution (2nd re-sync), no new product behavior beyond already-shipped security fixes)
 - **2026-09-16** `2.33.5-beta` → `2.33.6-beta` (**patch** — Second merge-conflict re-bump (PR #386) — main advanced again with its own 2.33.5-beta bump (#398) while this PR's CI was running; no new product change beyond the two fixes already on this branch)
 - **2026-09-16** `2.33.4-beta` → `2.33.5-beta` (**patch** — Merge main into lead-finder fix branch: retain maxDuration fix + doc comment, script conversion) — landed on `main` via PR #398

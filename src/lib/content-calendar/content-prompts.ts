@@ -286,6 +286,13 @@ export const MEDIA_DIMENSION_MATRIX: Record<MediaPostType, MediaDimensionSpec> =
  * dimensions for the target use, explicit brand color values, and an explicit Match Fit logo
  * reference. The actual logo image is attached client-side during Fire Cowork — this only
  * guarantees the prompt TEXT calls for the logo + palette.
+ *
+ * This is the ONLY place a production-spec block gets added (locked 2026-09-15 — a generated
+ * post previously carried two of these, because the creative-quality rules also told the model
+ * to write its own; see CONTENT_CALENDAR_CREATIVE_QUALITY_RULES item 5). Every value below is
+ * explicitly framed as reference-only so an image/video model doesn't render the hex codes or
+ * color names as literal on-screen text (JB report 2026-09-15: brand hex codes were showing up
+ * as visible text in generated media).
  */
 export function buildMediaGenerationPrompt(args: {
   postType: MediaPostType;
@@ -305,14 +312,14 @@ export function buildMediaGenerationPrompt(args: {
   return [
     creative,
     "",
-    "PRODUCTION SPEC (required):",
+    "PRODUCTION SPEC (required — these are reference values for the model's own use, never on-screen content):",
     `- Output dimensions: ${dims.pixels}px, ${dims.aspectRatio} ${dims.orientation}. Use case: ${dims.usage}.`,
-    `- Brand colors: dark background ${MATCH_FIT_BRAND_DARK} with ${MATCH_FIT_BRAND_ORANGE} orange as the accent (headline text, highlights, CTA chip). Do not invent other brand colors.`,
-    `- Incorporate the Match Fit logo (${MATCH_FIT_LOGO_PATH}) — place it cleanly (corner or lockup) without covering the focal subject or headline. The logo file is attached to this job for reference.`,
+    `- Brand colors: dark near-black background with a warm orange accent for headline text, highlights, and the CTA chip (internal reference hex — ${MATCH_FIT_BRAND_DARK} dark / ${MATCH_FIT_BRAND_ORANGE} orange — for color-matching only). Do not invent other brand colors. NEVER render these hex codes, color names, or any color-code string as visible on-screen text, a caption, a watermark, or a UI label anywhere in the image or video — they describe colors to use, not text to display.`,
+    `- Incorporate the Match Fit logo (${MATCH_FIT_LOGO_PATH}) — place it cleanly (corner or lockup), fully legible and undistorted, with no garbled marks or invented extra text near it, without covering the focal subject or headline. The logo file is attached to this job for reference.`,
     args.postType === "Carousel"
       ? "- Keep the logo placement, palette, and 4:5 frame consistent across all carousel slides."
       : args.postType === "Video"
-        ? "- Apply the spec to the opening hook frame / thumbnail and keep on-screen text inside the vertical safe zone."
+        ? "- Apply the spec to the opening hook frame / thumbnail and keep on-screen text inside the vertical safe zone. No hex code, color name, or color-code string may ever appear as on-screen text."
         : "- Single composition — headline, subject, logo, and CTA must read at a glance.",
   ].join("\n");
 }
@@ -380,10 +387,15 @@ export const CONTENT_CALENDAR_CREATIVE_QUALITY_RULES = `Creative quality (non-ne
 
 Visual prompt REQUIRED SHAPE (JB standard, locked 2026-09-01 — the operator rewrote a generated batch
 by hand because auto-generated prompts were too vague to render well; this is the shape that worked,
-copy it every time, not just as inspiration):
-1. Header block: "Dimensions: <ratio, e.g. 4:5 (1080x1350)>", "Format: <single PNG / N-slide carousel / MP4 length>",
-   "Branding: <Match Fit colors + logo placement instruction>", "Rules:" bullets (text stays in top 3/4 of frame,
-   formatting identical across every slide/frame if multi-part).
+copy it every time, not just as inspiration). Sections 1–4 below are the COMPLETE model-facing prompt —
+the generation pipeline appends the real production spec (exact pixel dimensions, brand hex codes, logo
+file, safe-zone note) automatically immediately after, in code, every time. Do not write dimensions, hex
+codes, or a "PRODUCTION SPEC" heading yourself anywhere in sections 1–4 (locked 2026-09-15 — writing one
+here is exactly what produced two production-spec blocks, one at the top and one at the bottom, in the
+same generated prompt):
+1. Header block: "Format: <single PNG / N-slide carousel / MP4 length>" and "Rules:" bullets (text stays
+   in top 3/4 of frame, formatting identical across every slide/frame if multi-part). Do NOT include
+   "Dimensions:" or "Branding:" lines here — those are the pipeline's job, not yours.
 2. Per-slide or per-shot breakdown (label each: "Slide 1 (Image 1):", "Slide 2:", or "Video Details:" for video) —
    each one is a full scene description, not a caption: specific subject (age range, ethnicity, build, exact
    clothing/setting — vary these across slots, never reuse the same character description twice in one batch),
@@ -391,12 +403,9 @@ copy it every time, not just as inspiration):
    and the EXACT on-screen text string for that slide/shot in quotes.
 3. On-screen text callouts always specify render style: "bold text with an orange neon glow and a black outline
    around white letters reading "..."" — never just "add a headline".
-4. Any UI mockup (app screen, chat window, laptop popup) must include: "ALL TEXT AND UI DETAILS MUST BE
-   COMPLETELY RENDERED WITHOUT ANY "AI SLOP" AND POORLY RENDERED TEXT" — this line is required whenever the
-   scene shows readable interface text, not optional flavor.
-5. End with a PRODUCTION SPEC block: exact output pixel dimensions + aspect ratio, the two brand hex codes
-   (#07080C dark, #FF7E00 orange) named explicitly, logo file reference and placement rule, and (for video)
-   the vertical safe-zone note. This block is appended automatically by the generation pipeline — the model-
-   facing prompt you write only needs sections 1–4 above; do not omit them thinking the production spec covers it.
+4. Any UI mockup (app screen, chat window, laptop popup) OR any shot featuring the Match Fit logo must include:
+   "ALL TEXT, LOGOS, AND UI DETAILS MUST BE COMPLETELY, CLEANLY RENDERED WITHOUT ANY "AI SLOP", GARBLED
+   LETTERING, OR DISTORTED MARKS" — this line is required whenever the scene shows readable interface text
+   or the brand logo, not optional flavor.
 A visual prompt that only lists hex colors, an audience label, and one vague sentence FAILS this bar even if it
 technically satisfies the other bullets above — match the density and specificity of the shape described here.`;
