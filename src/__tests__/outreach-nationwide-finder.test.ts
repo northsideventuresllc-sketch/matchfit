@@ -138,7 +138,7 @@ describe("draft copy", () => {
     expect(dm.length).toBeLessThanOrEqual(400); // a DM, not an email
     expect(dm.toLowerCase()).toContain("free to list");
     expect(dm.toLowerCase()).toContain("bring yourself");
-    expect(dm.toLowerCase()).toContain("anywhere in the us");
+    expect(dm.toLowerCase()).toContain("worldwide");
   });
 
   it("email keeps a subject line and both hooks", () => {
