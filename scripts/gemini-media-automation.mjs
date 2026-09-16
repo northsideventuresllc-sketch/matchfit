@@ -727,9 +727,10 @@ async function main() {
   // happened, again").
   let browser;
   let page;
+  let workDir;
   try {
     browser = await connectBrowser();
-    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "nvg-gemini-"));
+    workDir = fs.mkdtempSync(path.join(os.tmpdir(), "nvg-gemini-"));
     page = await getGeminiPage(browser, workDir);
     await assertLoggedIn(page);
     await ensureProModel(page);

@@ -52,18 +52,18 @@ describe("HomeInfoSections", () => {
       <HomeInfoSections homeAuth={{ clientLoggedIn: false, trainerLoggedIn: false }} />,
     );
 
-    expect(html).toContain('id="follow-match-fit"');
-    expect(html).toContain("Stay connected");
+    expect(html).not.toContain('id="follow-match-fit"');
+    expect(html).not.toContain("Stay connected");
     expect(html).toContain('id="types-of-fit-pros"');
-    expect(html).toContain("Types of Fit Pros");
+    expect(html).toContain("Types of Fitness Pros");
     expect(html).toContain('id="match-fit-pro-debrief"');
-    expect(html).toContain("Match Fit Pro");
+    expect(html).toContain("Match Fit Fitness Pro");
     expect(html).toContain('id="independent-pro-debrief"');
     expect(html).toContain('id="elite-pro-debrief"');
     expect(html).not.toContain('id="trainer-onboarding-fee"');
     expect(html).not.toContain('id="fithub-trainers"');
     expect(html).not.toContain('id="for-trainers"');
-    expect(html).toContain("Match Fit Pros and Elite Pros");
+    expect(html).toContain("Match Fit Fitness Pros and Elite Pros");
     expect(html).toContain('data-component="home-fit-pro-types-section"');
     expect(html).not.toContain('id="trainer-premium"');
     expect(html).not.toContain("AI-assisted matching");

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 /**
  * "No thanks" at the end of the Premium Pro trial.
  *
- * Moves the account to Match Fit Pro and keeps it working, rather than letting the trial lapse
+ * Moves the account to Match Fit Fitness Pro and keeps it working, rather than letting the trial lapse
  * into payment grace and deactivation. Only ever downgrades, and only the caller's own account.
  */
 export async function POST() {

@@ -4,6 +4,15 @@ export type TrainerOnboardingFeeDeadlineProfile = {
   onboardingFeePaymentDeadlineAt?: Date | string | null;
   registrationFeeHoldStatus?: string | null;
   hasPaidRegistrationFee?: boolean;
+  /**
+   * Platform waived the onboarding fee outright (e.g. founding BG-covered cohort — see
+   * `syncFoundingBgCoveredTrainerPricingModes` in `trainer-founding-bg-covered.ts`). Nothing is
+   * ever owed, so there is no Stripe hold/capture to reach — added 2026-09-15 after confirming
+   * live that every founding trainer stuck on this deadline had `registrationFeeWaived: true`
+   * and nothing to pay: without this check, `trainerOnboardingFeeIsPaid` never became true for
+   * them and `isTrainerOnboardingFeePaymentOverdue` fired on schedule regardless.
+   */
+  registrationFeeWaived?: boolean;
 };
 
 export function trainerOnboardingFeeDeadlineAt(from: Date = new Date()): Date {
@@ -13,16 +22,18 @@ export function trainerOnboardingFeeDeadlineAt(from: Date = new Date()): Date {
 export function trainerOnboardingFeeIsPaid(prof: TrainerOnboardingFeeDeadlineProfile | null | undefined): boolean {
   if (!prof) return false;
   if (prof.hasPaidRegistrationFee) return true;
+  if (prof.registrationFeeWaived) return true;
   const hold = (prof.registrationFeeHoldStatus ?? "NOT_STARTED").trim().toUpperCase();
   return hold === "HELD" || hold === "CAPTURED" || hold === "DEFERRED";
 }
 
-/** True only when the platform onboarding fee was captured or explicitly marked paid (not merely held). */
+/** True only when the platform onboarding fee was captured, waived, or explicitly marked paid (not merely held). */
 export function trainerOnboardingFeeIsCaptured(
   prof: TrainerOnboardingFeeDeadlineProfile | null | undefined,
 ): boolean {
   if (!prof) return false;
   if (prof.hasPaidRegistrationFee) return true;
+  if (prof.registrationFeeWaived) return true;
   const hold = (prof.registrationFeeHoldStatus ?? "NOT_STARTED").trim().toUpperCase();
   return hold === "CAPTURED";
 }

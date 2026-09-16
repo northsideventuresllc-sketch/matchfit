@@ -42,7 +42,7 @@ export const ELITE_DASHBOARD_VIEW_MODES = ["match_fit_pro", "independent_fitness
 export type EliteDashboardViewMode = (typeof ELITE_DASHBOARD_VIEW_MODES)[number];
 
 export const FP_TIER_DISPLAY_NAMES: Record<FpAccountTier, string> = {
-  match_fit_pro: "Match Fit Pro",
+  match_fit_pro: "Match Fit Fitness Pro",
   match_fit_premium_pro: "Match Fit Premium Pro",
   independent_fitness_pro: "Independent Fitness Pro",
   elite_fitness_pro: "Elite Fitness Pro",

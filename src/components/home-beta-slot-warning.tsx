@@ -71,7 +71,7 @@ export function HomeBetaSlotWarning() {
         </>
       ) : (
         <>
-          <span className="font-semibold text-white/85">Beta is live</span> — clients and coaches anywhere in the
+          <span className="font-semibold uppercase text-white/85">Beta is live</span> — clients and coaches anywhere in the
           world can sign up. Limited founding slots remain.{" "}
           {trainerLeft !== null && (
             <>
@@ -87,7 +87,7 @@ export function HomeBetaSlotWarning() {
             </>
           )}{" "}
           remaining with founding promos active.{" "}
-          <Link href="/promos" className="font-semibold text-[#FF7E00] underline-offset-2 hover:underline">
+          <Link href="/promos" className="font-semibold uppercase text-[#FF7E00] underline-offset-2 hover:underline">
             View promos
           </Link>
         </>

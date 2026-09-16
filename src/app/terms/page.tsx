@@ -268,7 +268,7 @@ export default async function TermsPage() {
           <Strong>Fitness Pro Premium Page Add-On:</Strong> Where we offer an optional Premium Page subscription at a stated
           monthly price (for example, twenty U.S. dollars ($20.00) per month), applicable payment processor costs may be
           included in that advertised price as described at checkout. The Premium Page is separate from Fitness Pro account
-          types (Match Fit Pro, Match Fit Premium Pro, Independent Fitness Pro, and Elite Fitness Pro) described in Section
+          types (Match Fit Fitness Pro, Match Fit Premium Pro, Independent Fitness Pro, and Elite Fitness Pro) described in Section
           11A.
         </P>
         <P>
@@ -447,7 +447,7 @@ export default async function TermsPage() {
           </Li>
           <Li>
             <Strong>Fitness Pro account types:</Strong> Match Fit offers tiered Fitness Pro accounts with different
-            messaging capabilities. <Strong>Match Fit Pro</Strong> and <Strong>Match Fit Premium Pro</Strong> use
+            messaging capabilities. <Strong>Match Fit Fitness Pro</Strong> and <Strong>Match Fit Premium Pro</Strong> use
             in-app chat under the communication rules in this section and Section 12.{" "}
             <Strong>Independent Fitness Pro</Strong> accounts do <Strong>not</Strong> include in-app chat; they may send
             discovery <Strong>nudges</Strong> only (currently up to <Strong>{INDEPENDENT_FP_DAILY_NUDGES} nudges per
@@ -460,7 +460,7 @@ export default async function TermsPage() {
           <Li>
             You agree to use Service messaging for introductions and coordination where required by product rules. You may
             share links to external websites, social profiles, or other platforms in chat on every account type — the
-            Service does not require Fitness Pros to use Match Fit exclusively. For <Strong>Match Fit Pro</Strong> and{" "}
+            Service does not require Fitness Pros to use Match Fit exclusively. For <Strong>Match Fit Fitness Pro</Strong> and{" "}
             <Strong>Match Fit Premium Pro</Strong>, automated tools may mask or remove phone numbers, email addresses, or
             similar contact data shared in chat. For <Strong>Elite Fitness Pro</Strong>, business email addresses may be
             permitted in chat; phone numbers and off-platform payment instructions remain blocked for every account type.
@@ -558,12 +558,12 @@ export default async function TermsPage() {
         </P>
         <Ul>
           <Li>
-            <Strong>Match Fit Pro:</Strong> No monthly platform fee for the tier itself. Includes in-app chat, Fit Hub,
+            <Strong>Match Fit Fitness Pro:</Strong> No monthly platform fee for the tier itself. Includes in-app chat, Fit Hub,
             platform reviews, verified trust indicators, and interest-client workflows. Outreach runs through chat and
             client inquiries. Communication rules are described in Section 12.
           </Li>
           <Li>
-            <Strong>Match Fit Premium Pro:</Strong> Includes everything in Match Fit Pro plus premium discovery surfacing,
+            <Strong>Match Fit Premium Pro:</Strong> Includes everything in Match Fit Fitness Pro plus premium discovery surfacing,
             regional featured-placement program eligibility, and Verified Premium trust indicators. During beta, eligible
             users may receive a promotional complimentary period as displayed in-product. Coaches may optionally add the
             Premium Page subscription (currently <Strong>{usdCents(FP_PREMIUM_PAGE_MONTHLY_USD)}</Strong> per month when
@@ -605,7 +605,7 @@ export default async function TermsPage() {
           <Li>
             <Strong>In-App Communication:</Strong> Sharing links to external websites, social profiles, or other platforms
             in chat is permitted on every Fitness Pro account type — Match Fit does not require exclusive use of the
-            Service. For <Strong>Match Fit Pro</Strong> and <Strong>Match Fit Premium Pro</Strong>, attempting to
+            Service. For <Strong>Match Fit Fitness Pro</Strong> and <Strong>Match Fit Premium Pro</Strong>, attempting to
             circumvent in-app messaging to share phone numbers or emails may result in enforcement. For{" "}
             <Strong>Elite Fitness Pro</Strong>, business email addresses may be permitted; phone numbers and off-platform
             payment steering remain prohibited for every account type. For <Strong>Independent Fitness Pro</Strong>,
@@ -663,7 +663,7 @@ export default async function TermsPage() {
           opted into discovery. Limits depend on account type: Independent Fitness Pro accounts receive a daily allowance
           (currently <Strong>{INDEPENDENT_FP_DAILY_NUDGES}</Strong>) with optional{" "}
           <Strong>{FP_NUDGE_PACK_SIZE}-nudge packs</Strong> for <Strong>{usdCents(FP_NUDGE_PACK_PRICE_USD)}</Strong>;
-          Elite Fitness Pro includes unlimited nudges; Match Fit Pro and Match Fit Premium Pro use chat instead of nudges.
+          Elite Fitness Pro includes unlimited nudges; Match Fit Fitness Pro and Match Fit Premium Pro use chat instead of nudges.
           Nudges on Independent Fitness Pro do not open in-app chat threads.
         </P>
 

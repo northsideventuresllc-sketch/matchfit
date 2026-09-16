@@ -45,7 +45,7 @@ const MATCH_FIT_PRO_PERMISSIONS: FpTierPermissionSet = {
   waiver_intake_tools: true,
   appear_in_discovery: true,
   appear_in_recommended: true,
-  badge: "Match Fit Pro",
+  badge: "Match Fit Fitness Pro",
   trust_indicator: "verified",
   platform_reviews: true,
   click_stats_public: false,

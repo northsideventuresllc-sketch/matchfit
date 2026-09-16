@@ -4,7 +4,12 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
-- **2026-09-14** `2.31.1-beta` → `2.31.2-beta` (**patch** — Fix lead-finder cron timeout + convert manual runner script to the repo's standard module shape)
+- **2026-09-15** `2.33.3-beta` → `2.33.4-beta` (**patch** — Fix founding-trainer counter undercounting real signups (deidentifiedAt misuse + fee-waiver not recognized))
+- **2026-09-15** `2.33.2-beta` → `2.33.3-beta` (**patch** — Correct Match Fit Fitness Pro tier naming and soften bubble hover gradient)
+- **2026-09-15** `2.33.1-beta` → `2.33.2-beta` (**patch** — Fix home promo bubble deadspace, Match Fitness Pro tier name, promos page hardcoded caps, Terms of Service casing)
+- **2026-09-15** `2.33.0-beta` → `2.33.1-beta` (**patch** — Bubble cards get a subtle mouse-tracking gradient spotlight on hover/click (promos + home page))
+- **2026-09-14** `2.32.0-beta` → `2.33.0-beta` (**minor** — Home page overhaul: promo bubble redesign, role-term tooltips, follow-us popup, copy/caps cleanup)
+- **2026-09-14** `2.31.0-beta` → `2.32.0-beta` (**minor** — Promos page overhaul: role-based collapsible promo details, redundant bubbles removed, centered CTAs)
 - **2026-09-14** `2.31.0-beta` → `2.31.1-beta` (**patch** — Fix /promos taking near a minute to load during a Supabase pooler outage)
 - **2026-09-14** `2.30.5-beta` → `2.31.0-beta` (**minor** — Founding promo: background check fully covered for the whole first-30 trainer cohort (JB direct correction), not just the first 10)
 - **2026-09-14** `2.30.4-beta` → `2.30.5-beta` (**patch** — Beta counter: retry transient DB/pooler failures, show honest unavailable state instead of a fake 0 (fixes counter appearing reset))
