@@ -5,6 +5,7 @@ import { runOutreachNationwideFinder } from "@/lib/outreach-nationwide-finder";
 import { hasValidCoworkSecret } from "@/lib/require-cowork-secret";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 /**
  * Target America/New_York hour for the lead finder. The caller (currently

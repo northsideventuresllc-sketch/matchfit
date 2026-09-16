@@ -1,4 +1,8 @@
+"use client";
+
 import type { ReactNode } from "react";
+import { useGradientSpotlight } from "@/hooks/use-gradient-spotlight";
+import { GradientSpotlight } from "@/components/gradient-spotlight";
 
 const chevronClass =
   "inline-flex size-7 shrink-0 items-center justify-center rounded-lg border border-white/[0.1] text-xs font-bold text-white/45 transition-transform duration-200 group-open:rotate-90";
@@ -58,8 +62,25 @@ export function HomeCollapsibleSection({
       ? "relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/75 shadow-[0_34px_90px_-50px_rgba(227,43,43,0.45)] backdrop-blur-xl"
       : "relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/75 backdrop-blur-xl";
 
+  const {
+    ref: spotlightRef,
+    onMouseMove: onSpotlightMouseMove,
+    onMouseEnter: onSpotlightMouseEnter,
+    onMouseLeave: onSpotlightMouseLeave,
+    onClick: onSpotlightClick,
+  } = useGradientSpotlight<HTMLDetailsElement>();
+
   return (
-    <details id={id} open={defaultOpen} className={`group scroll-mt-28 ${shellClass}`}>
+    <details
+      id={id}
+      open={defaultOpen}
+      ref={spotlightRef}
+      onMouseMove={onSpotlightMouseMove}
+      onMouseEnter={onSpotlightMouseEnter}
+      onMouseLeave={onSpotlightMouseLeave}
+      onClick={onSpotlightClick}
+      className={`group scroll-mt-28 ${shellClass}`}
+    >
       <summary className={`${summaryRowClass} p-7 sm:p-9`}>
         <span className={chevronClass} aria-hidden>
           ▸
@@ -81,6 +102,7 @@ export function HomeCollapsibleSection({
           </div>
         </div>
       </summary>
+      <GradientSpotlight />
       <div className="border-t border-white/[0.08] px-7 pb-7 pt-2 sm:px-9 sm:pb-9">
         <div className="space-y-4 text-pretty text-[15px] leading-relaxed text-white/65 sm:text-base">
           {children}
