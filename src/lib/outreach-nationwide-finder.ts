@@ -31,6 +31,9 @@
  *
  * Env: SERPAPI_API_KEY — lives in `platform_secrets` and is loaded by
  * `hydratePlatformEnvFromDatabase()` in the cron route.
+ *
+ * Runner: `scripts/outreach-lead-finder.mjs` calls the cron route over HTTP for a manual/agent
+ * run — it does not import this file directly, so this stays the one place the lane logic lives.
  */
 import "server-only";
 

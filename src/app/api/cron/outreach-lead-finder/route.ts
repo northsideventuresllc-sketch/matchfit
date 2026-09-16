@@ -5,6 +5,17 @@ import { runOutreachNationwideFinder } from "@/lib/outreach-nationwide-finder";
 import { hasValidCoworkSecret } from "@/lib/require-cowork-secret";
 
 export const dynamic = "force-dynamic";
+/**
+ * ROOT CAUSE (BUILD-MF-LEADFINDER-8S-TIMEOUT-0914): this route never set its own function
+ * duration, so it inherited the platform default — far shorter than the run actually needs.
+ * A full run can do up to `MAX_SEARCHES_PER_LANE` SerpApi searches per lane (each with its own
+ * 20s fetch timeout) plus, on the email lane, up to 3 page fetches per candidate (8s timeout
+ * each) for `findContactEmail`, across two lanes with a refill pass — comfortably past any
+ * single-digit-second budget on a normal day, which is why this cron "always" timed out and had
+ * never written a single lead. Every other search/generation-heavy cron route in this repo
+ * (e.g. `content-calendar-weekly-generate`) already sets this same 300s ceiling next to
+ * `dynamic = "force-dynamic"` — this route was simply missing it.
+ */
 export const maxDuration = 300;
 
 /**
