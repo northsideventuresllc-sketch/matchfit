@@ -10,6 +10,7 @@ generate-media cron and the admin single-post action — both now route through
 `queueMiniChromeAgentJob` instead, and this script now writes its result back onto the
 `match_fit_content_cowork_jobs` row too (see "Job-queue write-back" below), which it
 never did before.
+**Updated 2026-09-16**: Automated vertical 9:16 video generation (`.mp4`) via **Google Flow (Veo 3.1 Quality / High tier)** on JB's Google One AI Premium ($19.99/mo) plan. Dispatches `post_type === "Video"` to `https://labs.google/fx/tools/flow`, renders 9:16 vertical video with Veo 3.1 Quality, and uploads `.mp4` to `content-calendar-media` with `generation_source: "chrome_agent_google_flow_veo"`.
 
 **Why:** WF1 steps 3-9 (generate media in Gemini, crop, upload, write back) only ever
 worked from an attended Cowork session with the desktop bridge. Every scheduled/cloud

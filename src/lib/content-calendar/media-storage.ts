@@ -15,6 +15,9 @@ const MIME_EXTENSIONS: Record<string, string> = {
   "image/jpg": "jpg",
   "image/webp": "webp",
   "image/gif": "gif",
+  "video/mp4": "mp4",
+  "video/quicktime": "mov",
+  "video/webm": "webm",
 };
 
 export function mediaExtensionForMimeType(mimeType: string | null | undefined): string {

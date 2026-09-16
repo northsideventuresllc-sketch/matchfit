@@ -161,7 +161,7 @@ async function fetchRows({ ids, postDate, postGroup }) {
  * on workflow_stage still being "pending" for the same reason that function is —
  * a post JB already moved elsewhere (Stop, manual bypass) is left alone.
  */
-async function writeMediaResult(rowId, mediaUrls) {
+async function writeMediaResult(rowId, mediaUrls, generationSource = "chrome_agent_gemini_pro") {
   const res = await sbFetch(`/rest/v1/${TABLE}?id=eq.${rowId}&workflow_stage=eq.pending`, {
     method: "PATCH",
     headers: { Prefer: "return=representation" },
@@ -171,7 +171,7 @@ async function writeMediaResult(rowId, mediaUrls) {
       media_status: mediaUrls.length ? "ready" : "failed",
       workflow_stage: "publishing",
       status: "publishing",
-      generation_source: "chrome_agent_gemini_pro",
+      generation_source: generationSource,
       media_progress: 100,
       media_progress_stage: mediaUrls.length ? "done" : "failed",
       media_progress_updated_at: new Date().toISOString(),
@@ -635,6 +635,153 @@ async function attachReferenceFiles(page, referenceUrls, workDir) {
 }
 
 // ---------------------------------------------------------------------------
+// Google Flow (Veo 3.1 Quality) Video Helpers
+// ---------------------------------------------------------------------------
+
+async function getGoogleFlowPage(browser, workDir) {
+  const page = await browser.newPage();
+  if (workDir) {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Page.setDownloadBehavior", {
+      behavior: "allow",
+      downloadPath: workDir,
+    });
+  }
+  await page.goto("https://labs.google/fx/tools/flow", { waitUntil: "domcontentloaded", timeout: 30_000 });
+  await page.waitForTimeout(3000);
+  return page;
+}
+
+async function assertGoogleFlowLoggedIn(page) {
+  const url = page.url();
+  if (url.includes("accounts.google.com")) {
+    throw new Error(
+      `GOOGLE_FLOW_NOT_LOGGED_IN: URL redirected to login (${url}). Run the profile in non-headless mode to log in.`,
+    );
+  }
+  const bodyText = await page.locator("body").innerText().catch(() => "");
+  if (bodyText.includes("Sign in") && !bodyText.includes("Create") && !bodyText.includes("Prompt")) {
+    const signInBtn = page.getByRole("button", { name: /sign in/i }).first();
+    if (await signInBtn.isVisible().catch(() => false)) {
+      throw new Error("GOOGLE_FLOW_NOT_LOGGED_IN: Sign-in button is visible on Google Flow page.");
+    }
+  }
+}
+
+async function ensureFlowVeoModel(page) {
+  // Select Veo 3.1 Quality (JB Google One AI Premium $19.99/mo plan)
+  const modelSelector = page.locator('button[aria-label*="model" i], [data-testid*="model-select" i], button:has-text("Veo")').first();
+  if (await modelSelector.isVisible().catch(() => false)) {
+    await modelSelector.click().catch(() => null);
+    await page.waitForTimeout(600);
+    // Look for Veo 3.1 Quality / High quality option
+    const qualityOption = page.locator('button:has-text("Quality"), [role="menuitem"]:has-text("Quality"), [role="option"]:has-text("Quality"), button:has-text("Veo 3.1"), [role="menuitem"]:has-text("Veo 3.1")').first();
+    if (await qualityOption.isVisible().catch(() => false)) {
+      await qualityOption.click().catch(() => null);
+      await page.waitForTimeout(600);
+    } else {
+      await page.keyboard.press("Escape").catch(() => null);
+    }
+  }
+
+  // Ensure 9:16 aspect ratio
+  const ratioBtn = page.locator('button[aria-label*="aspect" i], button[aria-label*="9:16" i], button:has-text("9:16"), [data-testid*="aspect-ratio" i]').first();
+  if (await ratioBtn.isVisible().catch(() => false)) {
+    await ratioBtn.click().catch(() => null);
+    await page.waitForTimeout(400);
+    const verticalOption = page.locator('[role="menuitem"]:has-text("9:16"), [role="option"]:has-text("9:16"), button:has-text("9:16")').first();
+    if (await verticalOption.isVisible().catch(() => false)) {
+      await verticalOption.click().catch(() => null);
+      await page.waitForTimeout(400);
+    }
+  }
+}
+
+async function generateAndDownloadFlowVideo(page, visualPrompt, workDir) {
+  await assertGoogleFlowLoggedIn(page);
+  await ensureFlowVeoModel(page);
+
+  const promptInput = page.locator('textarea, div[contenteditable="true"], input[placeholder*="prompt" i], [data-testid*="prompt-input" i]').first();
+  await promptInput.waitFor({ state: "visible", timeout: 15_000 });
+  await promptInput.click();
+  await promptInput.fill("");
+  await page.keyboard.insertText(visualPrompt);
+  await page.waitForTimeout(500);
+
+  // Submit prompt
+  const generateBtn = page.locator('button[aria-label*="generate" i], button[aria-label*="submit" i], button[type="submit"], button:has-text("Generate"), button:has-text("Create")').first();
+  if (await generateBtn.isVisible().catch(() => false)) {
+    await generateBtn.click();
+  } else {
+    await page.keyboard.press("Enter");
+  }
+
+  // Poll for video generation completion (Veo 3.1 Quality can take up to 240s)
+  const deadline = Date.now() + 300_000;
+  let videoFound = false;
+  let videoSrc = null;
+
+  while (Date.now() < deadline) {
+    const videoLocator = page.locator('video, video source, [data-testid*="generated-video" i]').last();
+    if (await videoLocator.isVisible().catch(() => false)) {
+      const src = (await videoLocator.getAttribute("src").catch(() => null)) ||
+                  (await videoLocator.evaluate((el) => el.currentSrc || el.src).catch(() => null));
+      if (src && (src.startsWith("http") || src.startsWith("blob:"))) {
+        videoSrc = src;
+        videoFound = true;
+        break;
+      }
+    }
+    await page.waitForTimeout(3000);
+  }
+
+  if (!videoFound) {
+    await page.screenshot({ path: "/tmp/flow-fail-debug.png", fullPage: false }).catch(() => null);
+    throw new Error("FLOW_VIDEO_TIMEOUT: Video generation did not complete within 300s.");
+  }
+
+  const savePath = path.join(workDir, `flow-video-${Date.now()}.mp4`);
+  
+  // Try fetching the video bytes directly inside the page context
+  const videoBufferBase64 = await page.evaluate(async (src) => {
+    try {
+      const resp = await fetch(src);
+      const blob = await resp.blob();
+      const reader = new FileReader();
+      return new Promise((resolve, reject) => {
+        reader.onloadend = () => {
+          const base64data = reader.result.split(",")[1];
+          resolve(base64data);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (e) {
+      return null;
+    }
+  }, videoSrc);
+
+  if (videoBufferBase64) {
+    fs.writeFileSync(savePath, Buffer.from(videoBufferBase64, "base64"));
+    return savePath;
+  }
+
+  // Fallback: look for a Download button on the video card
+  const downloadBtn = page.locator('button[aria-label*="download" i], a[download], [data-testid*="download-button" i]').last();
+  if (await downloadBtn.isVisible().catch(() => false)) {
+    const [download] = await Promise.all([
+      page.waitForEvent("download", { timeout: 15_000 }),
+      downloadBtn.click(),
+    ]);
+    await download.saveAs(savePath);
+    return savePath;
+  }
+
+  await page.screenshot({ path: "/tmp/flow-fail-debug.png", fullPage: false }).catch(() => null);
+  throw new Error("FLOW_VIDEO_DOWNLOAD_FAILED: Video rendered but could not be downloaded.");
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -770,6 +917,39 @@ async function main() {
       if (!sourcePrompt) {
         throw new Error("row has no last_generation_prompt or visual_prompt — nothing to generate from");
       }
+
+      const mediaUrls = [];
+
+      if (row.post_type === "Video") {
+        await writeProgress(row.id, 20, "video_generating");
+        let flowPage = null;
+        try {
+          flowPage = await getGoogleFlowPage(browser, workDir);
+          const rawVideoPath = await generateAndDownloadFlowVideo(flowPage, sourcePrompt, workDir);
+          await writeProgress(row.id, 80, "video_uploading");
+          const videoBuffer = fs.readFileSync(rawVideoPath);
+          const objectPath = `${row.post_date}/${row.id}-${Date.now()}.mp4`;
+          const publicUrl = await uploadRaw(objectPath, videoBuffer, "video/mp4");
+          mediaUrls.push(publicUrl);
+          fs.unlinkSync(rawVideoPath);
+          await flowPage.close().catch(() => null);
+        } catch (videoErr) {
+          if (flowPage) await flowPage.close().catch(() => null);
+          throw videoErr;
+        }
+
+        await writeMediaResult(row.id, mediaUrls, "chrome_agent_google_flow_veo");
+        const closedJobs = await completeCoworkJobsForPost(row.id, {
+          generationSource: "chrome_agent_google_flow_veo",
+        }).catch((e) => {
+          console.error(`WARN ${row.id}: writeMediaResult succeeded but cowork job write-back failed: ${e.message || e}`);
+          return 0;
+        });
+        results.push({ id: row.id, post_type: row.post_type, mediaUrls, closedJobs });
+        console.log(`OK ${row.id} (${row.post_type}) -> video asset, ${closedJobs} cowork job(s) closed`);
+        continue;
+      }
+
       // Carousel prompts pack one prompt per slide, labeled "Slide 1 (Image 1):",
       // "Slide 2:", etc. (see CONTENT_CALENDAR_CREATIVE_QUALITY_RULES); everything
       // else is a single-image generation.
@@ -783,7 +963,6 @@ async function main() {
       // publishing, rather than a silently-broken carousel reaching "ready".
       assertCarouselHasEnoughSlides(row.post_type, slidePrompts.length);
 
-      const mediaUrls = [];
       let slideIdx = 0;
       const slideCount = slidePrompts.length;
       // 15% (starting) → 90% (last upload) across all slides, so the bar tracks real work.
