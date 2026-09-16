@@ -31,9 +31,6 @@
  *
  * Env: SERPAPI_API_KEY — lives in `platform_secrets` and is loaded by
  * `hydratePlatformEnvFromDatabase()` in the cron route.
- *
- * Runner: `scripts/outreach-lead-finder.mjs` calls the cron route over HTTP for a manual/agent
- * run — it does not import this file directly, so this stays the one place the lane logic lives.
  */
 import "server-only";
 
@@ -252,14 +249,13 @@ export function pickQueries(pool: string[], count: number, now: Date): string[] 
   return Array.from({ length: Math.min(count, pool.length) }, (_, i) => pool[(offset + i) % pool.length]);
 }
 
-/** Plain web search. No `location`, no `ll`, no `uule` — results are nationwide on purpose. */
+/** Plain web search. No `location`, no `ll`, no `uule` — results are worldwide. */
 async function webSearch(query: string): Promise<SerpOrganicResult[]> {
   const params = new URLSearchParams({
     engine: 'google',
     q: query,
     num: String(RESULTS_PER_SEARCH),
     hl: 'en',
-    gl: 'us',
     api_key: env('SERPAPI_API_KEY'),
   });
   const r = await fetch(`https://serpapi.com/search.json?${params.toString()}`, {
@@ -537,8 +533,8 @@ export async function findContactEmail(website: string | undefined): Promise<str
  */
 export function draftInstagramDm(handle: string): string {
   return (
-    `Hey @${handle} — saw you coach clients online. I run Match Fit, a marketplace that matches ` +
-    `people to online and virtual coaches anywhere in the US. Free to list, and you pay nothing ` +
+    `Hey @${handle} — saw you coach clients online. I run Match Fit, a worldwide marketplace that matches ` +
+    `people to online and virtual coaches. Free to list, and you pay nothing ` +
     `on any client you bring yourself. Want me to set your profile up? match-fit.net`
   );
 }
@@ -562,8 +558,8 @@ export function draftEmail(companyName: string): { subject: string; body: string
     subject: 'clients looking for an online coach',
     body:
       `${greeting} — found your site while looking for coaches who work with clients online.\n\n` +
-      `I run Match Fit, a marketplace that matches people to online and virtual coaches anywhere ` +
-      `in the US. I'm hand-matching everyone myself right now, so it isn't a lead blast — I'd be ` +
+      `I run Match Fit, a worldwide marketplace that matches people to online and virtual coaches. ` +
+      `I'm hand-matching everyone myself right now, so it isn't a lead blast — I'd be ` +
       `sending you people who fit how you actually coach.\n\n` +
       `Free to list, and zero fee on any client you bring yourself.\n\n` +
       `Reply and I'll build your profile: match-fit.net`,
