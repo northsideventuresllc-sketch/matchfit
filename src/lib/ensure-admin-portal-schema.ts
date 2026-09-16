@@ -2,17 +2,21 @@ import { Prisma } from "@/generated/prisma/client";
 import { directPostgresUrlForDdl, runDirectPostgresDdl } from "@/lib/direct-postgres-ddl";
 import { prisma } from "@/lib/prisma";
 
-/** Server-only tables — RLS blocks Prisma when the pool role does not bypass RLS. */
+/**
+ * Server-only schema-drift repair: adds a column that may be missing on older
+ * databases. This must NEVER touch Row Level Security — a permission/RLS-shaped
+ * error on these tables is a configuration problem to fix by hand (or a real
+ * attempt to read data the app role should not see), not something this
+ * runtime path is allowed to "fix" by disabling RLS. Do not add
+ * `DISABLE ROW LEVEL SECURITY` (or any RLS-weakening statement) back here —
+ * see the 2026-09 security audit and `docs/supabase-rls-sensitive-tables.md`.
+ */
 export const ADMIN_PORTAL_SCHEMA_DDL = `
 ALTER TABLE "administrators" ADD COLUMN IF NOT EXISTS "adminDashboardLayoutJson" TEXT;
-ALTER TABLE public.administrators DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.pending_administrator_registrations DISABLE ROW LEVEL SECURITY;
 `;
 
 const ADMIN_PORTAL_PRISMA_DDL_STATEMENTS = [
   `ALTER TABLE "administrators" ADD COLUMN IF NOT EXISTS "adminDashboardLayoutJson" TEXT`,
-  `ALTER TABLE public.administrators DISABLE ROW LEVEL SECURITY`,
-  `ALTER TABLE public.pending_administrator_registrations DISABLE ROW LEVEL SECURITY`,
 ] as const;
 
 export function isAdminPortalSchemaError(e: unknown): boolean {
@@ -81,7 +85,10 @@ async function runAdminPortalDirectDdl(): Promise<void> {
   await runDirectPostgresDdl(ADMIN_PORTAL_SCHEMA_DDL);
 }
 
-/** Applies admin portal DDL when RLS or missing columns block Prisma reads/writes. */
+/**
+ * Applies admin portal schema-drift DDL (currently: adding a missing column).
+ * Does NOT and must NOT touch Row Level Security — see the DDL comment above.
+ */
 export async function repairAdminPortalSchema(): Promise<void> {
   try {
     await runAdminPortalPrismaDdl();
@@ -97,6 +104,11 @@ export async function repairAdminPortalSchema(): Promise<void> {
 /**
  * Ensures administrator tables are readable by the app runtime role.
  * Fast path: skip DDL when reads already work.
+ *
+ * This only ever repairs schema drift (a missing column) — a permission or
+ * Row-Level-Security-shaped failure is never "fixed" here; it is logged and
+ * rethrown so callers surface a clean failure instead of the app silently
+ * weakening database security to keep working.
  */
 export async function ensureAdminPortalSchema(): Promise<void> {
   try {
@@ -104,6 +116,7 @@ export async function ensureAdminPortalSchema(): Promise<void> {
     return;
   } catch (e) {
     if (!isAdminPortalSchemaError(e)) throw e;
+    console.error("[ensureAdminPortalSchema] administrator table read failed; attempting schema-drift repair only (RLS is never modified)", e);
   }
 
   await repairAdminPortalSchema();

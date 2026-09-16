@@ -2,6 +2,7 @@ import { finalizeSuspensionRecordOnLift } from "@/lib/suspension-lifecycle";
 import { notifyClientsTrainerSuspensionLifted } from "@/lib/trainer-suspension-marketplace";
 import { resolveInternalToolsSecret } from "@/lib/internal-tools-auth";
 import { prisma } from "@/lib/prisma";
+import { timingSafeEqualString } from "@/lib/timing-safe-equal";
 import { NextResponse } from "next/server";
 
 /**
@@ -14,8 +15,8 @@ export async function POST(req: Request) {
     if (!secret) {
       return NextResponse.json({ error: "Internal tools are not configured." }, { status: 503 });
     }
-    const hdr = req.headers.get("x-matchfit-internal-secret");
-    if (hdr !== secret) {
+    const hdr = req.headers.get("x-matchfit-internal-secret") ?? "";
+    if (!timingSafeEqualString(hdr, secret)) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 

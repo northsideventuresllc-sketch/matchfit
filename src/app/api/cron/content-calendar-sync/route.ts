@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isCronSecretAuthorized } from "@/lib/require-cron-secret";
 import { scanAndRecordWebsiteContext } from "@/lib/content-calendar/website-scan";
 import { scanAndRecordSocialProfiles } from "@/lib/content-calendar/social-profile-scan";
 import { resetContentContextCache } from "@/lib/content-calendar/content-context";
@@ -9,12 +10,7 @@ import { findTodaysMissingPostTypes } from "@/lib/content-calendar/content-calen
 export const dynamic = "force-dynamic";
 
 function authorize(req: Request): boolean {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) return false;
-  const auth = req.headers.get("authorization");
-  if (auth === `Bearer ${secret}`) return true;
-  const q = new URL(req.url).searchParams.get("secret");
-  return q === secret;
+  return isCronSecretAuthorized(req);
 }
 
 async function runSync() {
