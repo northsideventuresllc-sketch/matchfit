@@ -135,7 +135,7 @@ export default function TrainerSignupTierClient() {
 
       {beta ? (
         <p className="mt-6 text-xs text-white/45">
-          Match Fit Pro is not offered during beta. Your complimentary tier is{" "}
+          Match Fit Fitness Pro is not offered during beta. Your complimentary tier is{" "}
           {FP_TIER_DISPLAY_NAMES.match_fit_premium_pro}.
         </p>
       ) : null}

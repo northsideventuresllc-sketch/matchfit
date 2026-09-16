@@ -436,8 +436,11 @@ export async function expireTrainerComplianceWindow(trainerId: string): Promise<
     },
   });
 
-  await prisma.trainer.update({
-    where: { id: trainerId },
-    data: { deidentifiedAt: now },
-  });
+  // Deliberately does NOT set `Trainer.deidentifiedAt` (fixed 2026-09-15 alongside the same
+  // bug in `trainer-onboarding-fee-deadline-cron.ts` — see that file's comment for the full
+  // explanation). `complianceWindowExpiredAt` alone already fully represents "this compliance
+  // window expired" for every consumer (`trainer-compliance-window.ts`,
+  // `trainer-onboarding-dashboard.ts`); it must not also mark a real, non-deleted account as
+  // PII-scrubbed, which silently dropped it out of the public founding-trainer counter and
+  // every other `deidentifiedAt: null` query in the app.
 }

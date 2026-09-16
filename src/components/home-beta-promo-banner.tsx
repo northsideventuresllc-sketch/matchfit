@@ -1,9 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import { MATCH_FIT_PRODUCT_VERSION_ANNOUNCE } from "@/lib/match-fit-product-version";
 import { getTrainerFoundingBgPercentMax } from "@/lib/match-fit-launch-promotion-caps";
 import { TRAINER_SIGNUP_PREMIUM_PROMO_DAYS } from "@/lib/trainer-signup-promo-copy";
 import { HomeRoleDefinitionTerm } from "@/components/home-role-definition-term";
 import { HomeFollowUsPopover } from "@/components/home-follow-us-popover";
+import { useGradientSpotlight } from "@/hooks/use-gradient-spotlight";
+import { GradientSpotlight } from "@/components/gradient-spotlight";
 
 const chevronClass =
   "inline-flex size-7 shrink-0 items-center justify-center rounded-lg border border-white/[0.1] text-xs font-bold text-white/45 transition-transform duration-200 group-open:rotate-90";
@@ -13,17 +17,30 @@ const summaryRowClass =
 
 export function HomeBetaPromoBanner() {
   const trainerFoundingCap = getTrainerFoundingBgPercentMax();
+  const {
+    ref: spotlightRef,
+    onMouseMove: onSpotlightMouseMove,
+    onMouseEnter: onSpotlightMouseEnter,
+    onMouseLeave: onSpotlightMouseLeave,
+    onClick: onSpotlightClick,
+  } = useGradientSpotlight<HTMLDetailsElement>();
 
   return (
     <details
       id="beta-welcome"
       open
+      ref={spotlightRef}
+      onMouseMove={onSpotlightMouseMove}
+      onMouseEnter={onSpotlightMouseEnter}
+      onMouseLeave={onSpotlightMouseLeave}
+      onClick={onSpotlightClick}
       className="group relative w-full min-w-0 scroll-mt-28 overflow-hidden rounded-3xl border border-[#FFD34E]/25 bg-[linear-gradient(135deg,rgba(255,211,78,0.14)_0%,rgba(255,126,0,0.1)_45%,rgba(227,43,43,0.12)_100%)] shadow-[0_24px_80px_-32px_rgba(255,126,0,0.4)] backdrop-blur-xl"
     >
       <div
         aria-hidden
         className="pointer-events-none absolute -right-10 -top-16 h-40 w-40 rounded-full bg-[radial-gradient(circle_at_center,rgba(255,211,78,0.35),transparent_68%)]"
       />
+      <GradientSpotlight color="rgba(255,220,120,0.17)" />
       <summary className={`${summaryRowClass} p-4 sm:p-7`}>
         <span className={chevronClass} aria-hidden>
           ▸
@@ -42,14 +59,14 @@ export function HomeBetaPromoBanner() {
       </summary>
 
       <div className="relative min-w-0 border-t border-[#FFD34E]/15 px-4 pb-4 pt-5 sm:px-7 sm:pb-7">
-        <div className="mx-auto max-w-3xl space-y-3 text-pretty text-left text-[14px] leading-relaxed text-white/65 [overflow-wrap:anywhere] sm:text-[15px] md:text-base">
+        <div className="space-y-3 text-pretty text-left text-[14px] leading-relaxed text-white/65 [overflow-wrap:anywhere] sm:text-[15px] md:text-base">
           <p>
             Thank you for joining Match Fit! Match Fit is built to connect anyone looking to accomplish their
             fitness goals with the best fitness professionals that will help anyone get there.
           </p>
         </div>
 
-        <div className="mx-auto mt-5 min-w-0 max-w-3xl space-y-3 rounded-2xl border border-[#FF7E00]/25 bg-[#FF7E00]/[0.06] p-4 sm:p-5">
+        <div className="mt-5 min-w-0 space-y-3 rounded-2xl border border-[#FF7E00]/25 bg-[#FF7E00]/[0.06] p-4 sm:p-5">
           <p className="text-left text-[11px] font-bold uppercase tracking-[0.12em] text-[#FFD34E] [overflow-wrap:anywhere] sm:text-xs sm:tracking-[0.2em]">
             Founding Fitness Pro Beta Promotion
           </p>
@@ -69,7 +86,7 @@ export function HomeBetaPromoBanner() {
           </p>
         </div>
 
-        <div className="mx-auto mt-5 max-w-3xl space-y-3 text-pretty text-left text-[14px] leading-relaxed text-white/65 [overflow-wrap:anywhere] sm:text-[15px] md:text-base">
+        <div className="mt-5 space-y-3 text-pretty text-left text-[14px] leading-relaxed text-white/65 [overflow-wrap:anywhere] sm:text-[15px] md:text-base">
           <p>
             As of <span className="font-semibold text-white/85">May 21st, 2026</span>, Match Fit is{" "}
             <span className="font-bold text-[#FFD34E]">LIVE!</span> In Version {MATCH_FIT_PRODUCT_VERSION_ANNOUNCE}, we
