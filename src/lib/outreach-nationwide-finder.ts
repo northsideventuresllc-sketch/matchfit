@@ -686,6 +686,7 @@ async function runInstagramLane(
               generationBatchId: batchId,
               outreachLane: 'today',
               queuedForDate: startOfEstDayUtc(now),
+              savedToHubAt: now,
             },
             select: { id: true },
           });
@@ -832,6 +833,7 @@ async function runEmailLane(
               generationBatchId: batchId,
               outreachLane: 'today',
               queuedForDate: startOfEstDayUtc(now),
+              savedToHubAt: now,
             },
             select: { id: true },
           });
