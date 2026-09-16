@@ -471,6 +471,7 @@ ${OUTREACH_INSTAGRAM_CRITERIA}
 Focus on personal trainers, online coaches, nutrition coaches, and hybrid coaches — any country, virtual/online coaches especially welcome.
 
 QUALITY BAR:
+- profileUrl MUST be their direct Instagram profile URL (https://www.instagram.com/username/), NEVER an external website. External websites are only used for email leads.
 - personalHook must reference a SPECIFIC recent post or content piece.
 - whyMatchFit must state a concrete business signal: follower count, credential, open spots, active booking link, client results content.
 - commentPostRef must describe a post: topic + how recent.
