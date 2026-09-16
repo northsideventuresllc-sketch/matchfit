@@ -756,7 +756,7 @@ async function generateAndDownloadFlowVideo(page, visualPrompt, workDir) {
         reader.onerror = reject;
         reader.readAsDataURL(blob);
       });
-    } catch (e) {
+    } catch {
       return null;
     }
   }, videoSrc);
