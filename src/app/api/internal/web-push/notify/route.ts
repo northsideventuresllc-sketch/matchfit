@@ -1,5 +1,6 @@
 import { sendWebPushToClient, sendWebPushToTrainer } from "@/lib/web-push-send";
 import { resolveInternalToolsSecret } from "@/lib/internal-tools-auth";
+import { timingSafeEqualString } from "@/lib/timing-safe-equal";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
     if (!secret) {
       return NextResponse.json({ error: "Internal tools are not configured." }, { status: 503 });
     }
-    if (req.headers.get("x-matchfit-internal-secret") !== secret) {
+    if (!timingSafeEqualString(req.headers.get("x-matchfit-internal-secret") ?? "", secret)) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 

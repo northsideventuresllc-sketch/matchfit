@@ -230,7 +230,7 @@ const EMPTY_OVERVIEW: AdminPortalOverview = {
       },
       matchFitPros: {
         tier: "match_fit_pro",
-        label: "Match Fit Pro",
+        label: "Match Fit Fitness Pro",
         activeFitPros: 0,
         pendingFitPros: 0,
         liveFitPros: 0,

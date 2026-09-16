@@ -1,4 +1,5 @@
 import { requireAdminSession } from "@/lib/require-admin";
+import { timingSafeEqualString } from "@/lib/timing-safe-equal";
 
 /**
  * Server-to-server (service) auth for cross-service bots — specifically the AXON-side
@@ -34,7 +35,7 @@ export function hasValidServiceToken(req: Request): boolean {
   if (!expected) return false;
   const provided = req.headers.get(MATCH_FIT_SERVICE_TOKEN_HEADER)?.trim();
   if (!provided) return false;
-  return provided === expected;
+  return timingSafeEqualString(provided, expected);
 }
 
 /**

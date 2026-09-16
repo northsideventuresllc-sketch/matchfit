@@ -4,9 +4,19 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
-- **2026-09-15** `2.33.0-beta` → `2.33.1-beta` (**patch** — Fix duplicate production-spec block and literal hex-code-as-text rendering in Match Fit media generation prompts)
+- **2026-09-16** `2.33.7-beta` → `2.33.8-beta` (**patch** — Fix duplicate production-spec block and literal hex-code-as-text rendering in Match Fit media generation prompts) — merge conflict re-sync of PR #399 onto current `main` (originally `2.33.0-beta` → `2.33.1-beta`); no new product change beyond the content-prompts.ts fix itself
+- **2026-09-16** `2.33.6-beta` → `2.33.7-beta` (**patch** — merge conflict resolution (2nd re-sync), no new product behavior beyond already-shipped security fixes)
+- **2026-09-16** `2.33.5-beta` → `2.33.6-beta` (**patch** — Second merge-conflict re-bump (PR #386) — main advanced again with its own 2.33.5-beta bump (#398) while this PR's CI was running; no new product change beyond the two fixes already on this branch)
+- **2026-09-16** `2.33.4-beta` → `2.33.5-beta` (**patch** — Merge main into lead-finder fix branch: retain maxDuration fix + doc comment, script conversion) — landed on `main` via PR #398
+- **2026-09-16** `2.33.4-beta` → `2.33.5-beta` (**patch** — Merge conflict resolution against newer main baseline (PR #386) — no new product change beyond the already-shipped fixes) — superseded by the `main` bump above once main advanced again during this PR's CI run; see the next entry for the re-bump this collision required
+- **2026-09-15** `2.33.3-beta` → `2.33.4-beta` (**patch** — Fix founding-trainer counter undercounting real signups (deidentifiedAt misuse + fee-waiver not recognized))
+- **2026-09-15** `2.33.2-beta` → `2.33.3-beta` (**patch** — Correct Match Fit Fitness Pro tier naming and soften bubble hover gradient)
+- **2026-09-15** `2.33.1-beta` → `2.33.2-beta` (**patch** — Fix home promo bubble deadspace, Match Fitness Pro tier name, promos page hardcoded caps, Terms of Service casing)
+- **2026-09-15** `2.33.0-beta` → `2.33.1-beta` (**patch** — Bubble cards get a subtle mouse-tracking gradient spotlight on hover/click (promos + home page))
+- **2026-09-14** `2.33.0-beta` → `2.33.1-beta` (**patch** — Security audit fixes: RLS auto-disable removed, RLS added on 20 tables, security headers, login rate limiting, timing-safe secret comparisons) [security-audit branch, independent bump from the same base as the line above; superseded numerically by the merge above, kept here for history]
 - **2026-09-14** `2.32.0-beta` → `2.33.0-beta` (**minor** — Home page overhaul: promo bubble redesign, role-term tooltips, follow-us popup, copy/caps cleanup)
 - **2026-09-14** `2.31.0-beta` → `2.32.0-beta` (**minor** — Promos page overhaul: role-based collapsible promo details, redundant bubbles removed, centered CTAs)
+- **2026-09-14** `2.31.1-beta` → `2.31.2-beta` (**patch** — Defensive package.json version fallback + Instagram outreach lead profileUrl quality-bar guard) — shipped on branch `fix/bootstrap-platform-auth` (PR #386), landed on `main` via this merge
 - **2026-09-14** `2.31.0-beta` → `2.31.1-beta` (**patch** — Fix /promos taking near a minute to load during a Supabase pooler outage)
 - **2026-09-14** `2.30.5-beta` → `2.31.0-beta` (**minor** — Founding promo: background check fully covered for the whole first-30 trainer cohort (JB direct correction), not just the first 10)
 - **2026-09-14** `2.30.4-beta` → `2.30.5-beta` (**patch** — Beta counter: retry transient DB/pooler failures, show honest unavailable state instead of a fake 0 (fixes counter appearing reset))

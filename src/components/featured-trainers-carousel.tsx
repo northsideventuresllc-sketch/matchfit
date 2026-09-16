@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { FeaturedTrainerCard } from "@/lib/featured-homepage-data";
+import { useGradientSpotlight } from "@/hooks/use-gradient-spotlight";
+import { GradientSpotlight } from "@/components/gradient-spotlight";
 
 function subscribeReducedMotion(onStoreChange: () => void) {
   const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -55,6 +57,13 @@ export function FeaturedTrainersCarousel({ trainers }: { trainers?: FeaturedTrai
     getReducedMotionSnapshot,
     getReducedMotionServerSnapshot,
   );
+  const {
+    ref: spotlightRef,
+    onMouseMove: onSpotlightMouseMove,
+    onMouseEnter: onSpotlightMouseEnter,
+    onMouseLeave: onSpotlightMouseLeave,
+    onClick: onSpotlightClick,
+  } = useGradientSpotlight<HTMLDivElement>();
 
   const useReal = Boolean(trainers?.length);
   const n = useReal ? trainers!.length : 1;
@@ -112,7 +121,14 @@ export function FeaturedTrainersCarousel({ trainers }: { trainers?: FeaturedTrai
       </div>
 
       <div className="mx-auto mt-8 max-w-lg">
-        <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/90 px-3 pb-8 pt-8 shadow-[0_34px_90px_-48px_rgba(227,43,43,0.55)] backdrop-blur-xl sm:px-4 sm:pb-10 sm:pt-10">
+        <div
+          ref={spotlightRef}
+          onMouseMove={onSpotlightMouseMove}
+          onMouseEnter={onSpotlightMouseEnter}
+          onMouseLeave={onSpotlightMouseLeave}
+          onClick={onSpotlightClick}
+          className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#12151C]/90 px-3 pb-8 pt-8 shadow-[0_34px_90px_-48px_rgba(227,43,43,0.55)] backdrop-blur-xl sm:px-4 sm:pb-10 sm:pt-10"
+        >
           <div
             aria-hidden
             className="pointer-events-none absolute -right-24 -top-28 h-56 w-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(255,211,78,0.22),transparent_68%)]"
@@ -121,6 +137,7 @@ export function FeaturedTrainersCarousel({ trainers }: { trainers?: FeaturedTrai
             aria-hidden
             className="pointer-events-none absolute -bottom-20 -left-16 h-48 w-48 rounded-full bg-[radial-gradient(circle_at_center,rgba(227,43,43,0.2),transparent_70%)]"
           />
+          <GradientSpotlight />
 
           <button
             type="button"

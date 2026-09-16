@@ -1,15 +1,11 @@
 import { NextResponse } from "next/server";
+import { isCronSecretAuthorized } from "@/lib/require-cron-secret";
 import { processOutreachFollowUpReminders } from "@/lib/outreach-lane-cron";
 
 export const dynamic = "force-dynamic";
 
 function authorize(req: Request): boolean {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) return false;
-  const auth = req.headers.get("authorization");
-  if (auth === `Bearer ${secret}`) return true;
-  const q = new URL(req.url).searchParams.get("secret");
-  return q === secret;
+  return isCronSecretAuthorized(req);
 }
 
 async function runCron(req: Request) {
