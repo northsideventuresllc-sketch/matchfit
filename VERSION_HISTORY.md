@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-16** `2.33.4-beta` → `2.33.5-beta` (**patch** — Merge conflict resolution against newer main baseline (PR #386) — no new product change beyond the already-shipped fixes)
 - **2026-09-15** `2.33.3-beta` → `2.33.4-beta` (**patch** — Fix founding-trainer counter undercounting real signups (deidentifiedAt misuse + fee-waiver not recognized))
 - **2026-09-15** `2.33.2-beta` → `2.33.3-beta` (**patch** — Correct Match Fit Fitness Pro tier naming and soften bubble hover gradient)
 - **2026-09-15** `2.33.1-beta` → `2.33.2-beta` (**patch** — Fix home promo bubble deadspace, Match Fitness Pro tier name, promos page hardcoded caps, Terms of Service casing)
