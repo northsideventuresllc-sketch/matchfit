@@ -3,7 +3,6 @@ import {
   safeMediaPathSegment as safeSegment,
   uploadContentCalendarMedia,
 } from "@/lib/content-calendar/media-storage";
-import { ensureContentCalendarV23Schema } from "@/lib/ensure-content-hub-schema";
 import { isNiBrainConfiguredAsync } from "@/lib/ni-brain-client";
 import { requireAdminSession } from "@/lib/require-admin";
 import { hasValidCoworkSecret } from "@/lib/require-cowork-secret";
@@ -51,7 +50,6 @@ export async function POST(req: Request) {
   const path = `${safeSegment(jobId)}/${safeSegment(label)}-${Date.now()}.${safeSegment(ext)}`;
 
   try {
-    await ensureContentCalendarV23Schema();
     const uploaded = await uploadContentCalendarMedia({
       bytes: new Uint8Array(await file.arrayBuffer()),
       path,
