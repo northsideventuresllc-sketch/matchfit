@@ -93,17 +93,17 @@ export const POST_TYPE_CREATIVE_BRIEFS: Record<
     captionShape:
       "Same as Static: bold hook, one clear insight or stat, emotional payoff, CTA. Do NOT describe or inventory slides in the caption — slide structure belongs only in the visual prompt.",
     visualShape:
-      "Describe 3–5 carousel frames: subject, action, on-slide headline text, layout, and mood. Brand orange/dark palette as accents only.",
+      "Follow Carousel Image Format:\nSlide Number: (slide # of #)\nMain Prompt: (detailed scene description with cross-slide consistency)\nOn Screen Text: (quoted text, font, features, coloring)\n\nProduction Specs:\n-Dimensions & Format: 1080x1350, 4:5 portrait swipeable carousel (Instagram/Facebook/Threads/TikTok)\n-Brand Colors: dark background #07080C with #FF7E00 orange accents\n-Logos & Other Branding: Match Fit logo placed consistently\n-References: match-fit.net\n-Rules:\n\t-All text and important content of the images stays in the top 3/4 of the image\n\t-ALL TEXT WITHIN THE IMAGE AND UI DETAILS MUST BE COMPLETELY RENDERED WITHOUT ANY \"AI SLOP\" AND POORLY RENDERED TEXT",
   },
   Static: {
     captionShape: "Bold hook, one clear insight or stat, emotional payoff, CTA.",
     visualShape:
-      "Single-image composition: focal subject, environment, lighting, headline text placement, and emotional tone.",
+      "Follow Static Image Format:\nMain Prompt: (detailed scene description)\nOn Screen Text: (quoted text, font, features, coloring)\n\nProduction Specs:\n-Dimensions & Format: 1080x1350, 4:5 portrait (Instagram/Facebook/Threads)\n-Brand Colors: dark background #07080C with #FF7E00 orange accents\n-Logos & Other Branding: Match Fit logo placed cleanly\n-References: match-fit.net\n-Rules:\n\t-All text and important content of the image stays in the top 3/4 of the image\n\t-ALL TEXT WITHIN THE IMAGE AND UI DETAILS MUST BE COMPLETELY RENDERED WITHOUT ANY \"AI SLOP\" AND POORLY RENDERED TEXT",
   },
   Video: {
     captionShape: "Pattern-interrupt hook, 2–3 beat story arc for Reels/TikTok, spoken-style CTA.",
     visualShape:
-      "Multi-shot scene breakdown for 18–24s vertical video (3 shots, ~6s each): Shot 1 (Scene 1 - 0-6s Hook): opening hook frame and action; Shot 2 (Scene 2 - 6-13s Value/Demo): core proof/UI demo; Shot 3 (Scene 3 - 13-20s CTA): payoff and action CTA. Include subject, environment, motion, and exact on-screen text in quotes for each shot.",
+      "Follow Video Format:\nMain Prompt: (detailed scene-by-scene description, timestamps, narrator script, transitions, style)\nOn Screen Text: (quoted text, timed appearance, font, features, coloring)\n\nProduction Specs:\n-Dimensions & Format: 1080x1920, 9:16 vertical video (Reels/TikTok/Shorts)\n-Brand Colors: dark background #07080C with #FF7E00 orange accents\n-Logos & Other Branding: Match Fit logo in watermark/end card\n-References: match-fit.net\n-Rules:\n\t-All text and important content of the video stays in the top 3/4 of the frame\n\t-ALL TEXT WITHIN THE IMAGE AND UI DETAILS MUST BE COMPLETELY RENDERED WITHOUT ANY \"AI SLOP\" AND POORLY RENDERED TEXT",
   },
   Text: {
     captionShape:
@@ -302,18 +302,26 @@ export function buildMediaGenerationPrompt(args: {
       targetGroup: args.targetGroup,
     }) ?? args.caption;
 
+  if (/PRODUCTION SPEC|Production Specs/i.test(creative)) {
+    return creative;
+  }
+
   return [
     creative,
     "",
-    "PRODUCTION SPEC (required):",
-    `- Output dimensions: ${dims.pixels}px, ${dims.aspectRatio} ${dims.orientation}. Use case: ${dims.usage}.`,
-    `- Brand colors: dark background ${MATCH_FIT_BRAND_DARK} with ${MATCH_FIT_BRAND_ORANGE} orange as the accent (headline text, highlights, CTA chip). Do not invent other brand colors.`,
-    `- Incorporate the Match Fit logo (${MATCH_FIT_LOGO_PATH}) — place it cleanly (corner or lockup) without covering the focal subject or headline. The logo file is attached to this job for reference.`,
+    "Production Specs:",
+    `-Dimensions & Format: ${dims.pixels}, ${dims.aspectRatio} ${dims.orientation} (${dims.usage})`,
+    `-Brand Colors: dark background ${MATCH_FIT_BRAND_DARK} with ${MATCH_FIT_BRAND_ORANGE} orange as the accent (headline text, highlights, CTA chip). Do not invent other brand colors.`,
+    `-Logos & Other Branding: incorporate Match Fit logo (${MATCH_FIT_LOGO_PATH}) cleanly without covering focal subject or headline. Reference logo attached.`,
+    "-References: match-fit.net | reference image attached",
+    "-Rules:",
+    "\t-All text and important content of the image stays in the top 3/4 of the image",
+    '\t-ALL TEXT WITHIN THE IMAGE AND UI DETAILS MUST BE COMPLETELY RENDERED WITHOUT ANY "AI SLOP" AND POORLY RENDERED TEXT',
     args.postType === "Carousel"
-      ? "- Keep the logo placement, palette, and 4:5 frame consistent across all carousel slides."
+      ? "\t-Keep logo placement, palette, and 4:5 frame consistent across all carousel slides."
       : args.postType === "Video"
-        ? "- Apply the spec to the opening hook frame / thumbnail and keep on-screen text inside the vertical safe zone."
-        : "- Single composition — headline, subject, logo, and CTA must read at a glance.",
+        ? "\t-Apply the spec to opening hook frame / thumbnail and keep on-screen text inside vertical safe zone."
+        : "\t-Single composition — headline, subject, logo, and CTA must read at a glance.",
   ].join("\n");
 }
 
@@ -337,7 +345,7 @@ export function normalizeGeneratedVisualPrompt(args: {
   const trimmed = (args.visualPrompt ?? "").trim();
   if (trimmed.length >= 40 && !LAZY_VISUAL_RE.test(trimmed)) return trimmed;
   const hook = args.caption.split(/[.!?\n]/)[0]?.trim() || args.caption.slice(0, 120);
-  return `Match Fit ${args.postType} for ${args.targetGroup}: ${hook}. Show authentic fitness scene with people in action, bold headline text overlay, dark brand backdrop with orange accent lighting, scroll-stopping composition.`;
+  return `Static Image Format\nMain Prompt: Authentic fitness scene for ${args.targetGroup} with people in action, bold composition: ${hook}.\nOn Screen Text: Bold text with an orange glow reading \"${hook}\"\n\nProduction Specs:\n-Dimensions & Format: 1080x1350, 4:5 portrait\n-Brand Colors: dark background #07080C with #FF7E00 orange accents\n-Logos & Other Branding: Match Fit logo placed cleanly\n-References: match-fit.net\n-Rules:\n\t-All text and important content of the image stays in the top 3/4 of the image\n\t-ALL TEXT WITHIN THE IMAGE AND UI DETAILS MUST BE COMPLETELY RENDERED WITHOUT ANY "AI SLOP" AND POORLY RENDERED TEXT`;
 }
 
 export function isLazyCalendarVisualPrompt(
@@ -378,25 +386,46 @@ export const CONTENT_CALENDAR_CREATIVE_QUALITY_RULES = `Creative quality (non-ne
 - Pull at least one specific insight from the operator directive, website scan, or social scan when provided.
 - Each slot in a batch must be meaningfully different in hook, angle, CTA, and promo phrasing.
 
-Visual prompt REQUIRED SHAPE (JB standard, locked 2026-09-01 — the operator rewrote a generated batch
-by hand because auto-generated prompts were too vague to render well; this is the shape that worked,
-copy it every time, not just as inspiration):
-1. Header block: "Dimensions: <ratio, e.g. 4:5 (1080x1350)>", "Format: <single PNG / N-slide carousel / MP4 length>",
-   "Branding: <Match Fit colors + logo placement instruction>", "Rules:" bullets (text stays in top 3/4 of frame,
-   formatting identical across every slide/frame if multi-part).
-2. Per-slide or per-shot breakdown (label each: "Slide 1 (Image 1):", "Slide 2:" for carousel; "Shot 1 (Scene 1 - 0-6s):", "Shot 2 (Scene 2 - 6-13s):", "Shot 3 (Scene 3 - 13-20s):" for video) —
-   each one is a full scene description (0-6s per shot to prevent cramming and allow multi-shot stitching), not a caption: specific subject (age range, ethnicity, build, exact
-   clothing/setting — vary these across slots, never reuse the same character description twice in one batch),
-   specific action, specific camera framing (close-up on phone screen / center frame / laptop over-the-shoulder),
-   and the EXACT on-screen text string for that slide/shot in quotes.
-3. On-screen text callouts always specify render style: "bold text with an orange neon glow and a black outline
-   around white letters reading "..."" — never just "add a headline".
-4. Any UI mockup (app screen, chat window, laptop popup) must include: "ALL TEXT AND UI DETAILS MUST BE
-   COMPLETELY RENDERED WITHOUT ANY "AI SLOP" AND POORLY RENDERED TEXT" — this line is required whenever the
-   scene shows readable interface text, not optional flavor.
-5. End with a PRODUCTION SPEC block: exact output pixel dimensions + aspect ratio, the two brand hex codes
-   (#07080C dark, #FF7E00 orange) named explicitly, logo file reference and placement rule, and (for video)
-   the vertical safe-zone note. This block is appended automatically by the generation pipeline — the model-
-   facing prompt you write only needs sections 1–4 above; do not omit them thinking the production spec covers it.
-A visual prompt that only lists hex colors, an audience label, and one vague sentence FAILS this bar even if it
-technically satisfies the other bullets above — match the density and specificity of the shape described here.`;
+Visual prompt REQUIRED FORMATS (Non-negotiable — every generated visual prompt MUST follow one of these 3 outlines exactly):
+
+=============================================================================================
+Static Image Format
+Main Prompt: (describe in detail what the photo is to optimize the best image generation — subject, age/ethnicity/build, setting, lighting, camera angle, action)
+On Screen Text: (describe what the text says in quotations, and describe how the text font, features, and coloring is, e.g. "Bold white text with a black outline and an orange hued glow with a text bubble surrounding it reading \"...\"")
+
+Production Specs: 
+-Dimensions & Format: 1080x1350, 4:5 portrait (Instagram / Facebook / Threads static post)
+-Brand Colors: dark background with subtle orange accents (describe colors without numbers with how the coloring looks and how it is transposed)
+-Logos & Other Branding: use match-fit.net for branding guidelines and put the logo in the top right corner cleanly without covering the focal subject
+-References: match-fit.net | use image attached for reference
+-Rules:
+	-All text and important content of the image stays in the top 3/4 of the image
+	-ALL TEXT WITHIN THE IMAGE AND UI DETAILS MUST BE COMPLETELY RENDERED WITHOUT ANY "AI SLOP" AND POORLY RENDERED TEXT
+=============================================================================================
+Carousel Image Format
+Slide Number: (Slide 1 of N — repeat full section per slide)
+Main Prompt: (describe in detail what the photo is to optimize the best image generation and ensure visual consistency between images)
+On Screen Text: (describe what the text says in quotations, and describe how the text font, features, and coloring is)
+
+Production Specs: 
+-Dimensions & Format: 1080x1350, 4:5 portrait swipeable carousel (Instagram / Facebook / Threads / TikTok)
+-Brand Colors: dark background with orange accents consistent across all slides
+-Logos & Other Branding: consistent Match Fit logo placement across slides
+-References: match-fit.net | use image attached for reference
+-Rules:
+	-All text and important content of the images stays in the top 3/4 of the image
+	-ALL TEXT WITHIN THE IMAGE AND UI DETAILS MUST BE COMPLETELY RENDERED WITHOUT ANY "AI SLOP" AND POORLY RENDERED TEXT
+=============================================================================================
+Video Format
+Main Prompt: (describe in detail what the scene is to optimize video generation | include time stamps and what the narrator will say during each time stamp | organize by scene and describe transitions and style)
+On Screen Text: (describe what the text says in quotations, and describe how the text font, features, and coloring is | describe how the text shows up in the video)
+
+Production Specs: 
+-Dimensions & Format: 1080x1920, 9:16 vertical video (Reels / TikTok / Shorts)
+-Brand Colors: dark background with orange accents
+-Logos & Other Branding: Match Fit logo in watermark or outro frame
+-References: match-fit.net | use image attached for reference
+-Rules:
+	-All text and important content of the video stays in the top 3/4 of the image
+	-ALL TEXT WITHIN THE IMAGE AND UI DETAILS MUST BE COMPLETELY RENDERED WITHOUT ANY "AI SLOP" AND POORLY RENDERED TEXT
+`;
