@@ -103,7 +103,7 @@ export const POST_TYPE_CREATIVE_BRIEFS: Record<
   Video: {
     captionShape: "Pattern-interrupt hook, 2–3 beat story arc for Reels/TikTok, spoken-style CTA.",
     visualShape:
-      "Shot list: opening hook frame, b-roll ideas, on-screen captions, pacing (UGC vs cinematic), and setting.",
+      "Multi-shot scene breakdown for 18–24s vertical video (3 shots, ~6s each): Shot 1 (Scene 1 - 0-6s Hook): opening hook frame and action; Shot 2 (Scene 2 - 6-13s Value/Demo): core proof/UI demo; Shot 3 (Scene 3 - 13-20s CTA): payoff and action CTA. Include subject, environment, motion, and exact on-screen text in quotes for each shot.",
   },
   Text: {
     captionShape:
@@ -384,8 +384,8 @@ copy it every time, not just as inspiration):
 1. Header block: "Dimensions: <ratio, e.g. 4:5 (1080x1350)>", "Format: <single PNG / N-slide carousel / MP4 length>",
    "Branding: <Match Fit colors + logo placement instruction>", "Rules:" bullets (text stays in top 3/4 of frame,
    formatting identical across every slide/frame if multi-part).
-2. Per-slide or per-shot breakdown (label each: "Slide 1 (Image 1):", "Slide 2:", or "Video Details:" for video) —
-   each one is a full scene description, not a caption: specific subject (age range, ethnicity, build, exact
+2. Per-slide or per-shot breakdown (label each: "Slide 1 (Image 1):", "Slide 2:" for carousel; "Shot 1 (Scene 1 - 0-6s):", "Shot 2 (Scene 2 - 6-13s):", "Shot 3 (Scene 3 - 13-20s):" for video) —
+   each one is a full scene description (0-6s per shot to prevent cramming and allow multi-shot stitching), not a caption: specific subject (age range, ethnicity, build, exact
    clothing/setting — vary these across slots, never reuse the same character description twice in one batch),
    specific action, specific camera framing (close-up on phone screen / center frame / laptop over-the-shoulder),
    and the EXACT on-screen text string for that slide/shot in quotes.

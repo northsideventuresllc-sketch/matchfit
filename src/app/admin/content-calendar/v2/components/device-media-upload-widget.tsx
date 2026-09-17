@@ -41,18 +41,56 @@ export function DeviceMediaUploadWidget({
       try {
         const urls: string[] = [];
         for (const file of Array.from(files)) {
-          const form = new FormData();
-          form.append("file", file);
-          form.append("jobId", postId);
-          form.append("label", label);
-          const res = await fetch("/api/admin/content-calendar/v2/media-upload", {
-            method: "POST",
-            credentials: "include",
-            body: form,
-          });
-          const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-          if (!res.ok || !data.url) throw new Error(data.error ?? "Upload failed.");
-          urls.push(data.url);
+          let uploadedUrl: string | null = null;
+          // 1. Try presigned direct upload first to support videos/files >4.5MB (bypasses Vercel serverless limits)
+          try {
+            const signRes = await fetch("/api/admin/content-calendar/v2/media-upload/sign", {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                filename: file.name,
+                jobId: postId,
+                label,
+                contentType: file.type || "application/octet-stream",
+              }),
+            });
+            if (signRes.ok) {
+              const signData = (await signRes.json()) as { signedUrl?: string; publicUrl?: string };
+              if (signData.signedUrl && signData.publicUrl) {
+                const uploadRes = await fetch(signData.signedUrl, {
+                  method: "PUT",
+                  headers: {
+                    "Content-Type": file.type || "application/octet-stream",
+                  },
+                  body: file,
+                });
+                if (uploadRes.ok) {
+                  uploadedUrl = signData.publicUrl;
+                }
+              }
+            }
+          } catch (signErr) {
+            console.warn("[device upload] Presigned direct upload failed, attempting fallback:", signErr);
+          }
+
+          // 2. Fallback to multipart proxy route if direct upload was not successful
+          if (!uploadedUrl) {
+            const form = new FormData();
+            form.append("file", file);
+            form.append("jobId", postId);
+            form.append("label", label);
+            const res = await fetch("/api/admin/content-calendar/v2/media-upload", {
+              method: "POST",
+              credentials: "include",
+              body: form,
+            });
+            const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+            if (!res.ok || !data.url) throw new Error(data.error ?? "Upload failed.");
+            uploadedUrl = data.url;
+          }
+
+          urls.push(uploadedUrl);
         }
         onUploaded(urls);
       } catch (e) {
