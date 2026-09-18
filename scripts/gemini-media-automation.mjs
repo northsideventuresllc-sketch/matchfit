@@ -259,7 +259,7 @@ async function patchCoworkJob(jobId, patch) {
   const res = await sbFetch(`/rest/v1/${COWORK_JOBS_TABLE}?id=eq.${jobId}`, {
     method: "PATCH",
     headers: { Prefer: "return=minimal" },
-    body: { updated_at: new Date().toISOString(), ...patch },
+    body: patch,
   });
   if (!res.ok) {
     throw new Error(`cowork job write-back failed for ${jobId}: ${res.status} ${await res.text()}`);
