@@ -304,7 +304,7 @@ async function uploadRaw(objectPath, buffer, contentType) {
   if (!res.ok) {
     throw new Error(`storage upload failed: ${res.status} ${await res.text()}`);
   }
-  return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${objectPath}`;
+  return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${objectPath}` rest;
 }
 
 async function notifyTelegram(text) {
@@ -397,7 +397,7 @@ async function assertLoggedIn(page) {
  * profile (measured live 2026-09-02: it was sitting on "Flash-Lite"), so every run
  * must explicitly select Pro before generating rather than trusting the account's
  * current mode. Confirmed live 2026-09-02 via DOM probe: the mode-picker button is
- * `button[aria-label*="mode picker"]` (aria-label reads "Open mode picker, currently
+ * `button[aria-label*="mode picker" i]` (aria-label reads "Open mode picker, currently
  * <Mode>"), and the opened menu's Pro entry is a custom `<gem-menu-item role="menuitem">`
  * reading "3.1 Pro — Advanced reasoning" (version number will drift over time, so this
  * matches on the "Pro" word with a leading version-number prefix, never on "Extended
@@ -553,163 +553,6 @@ async function cropWhiteFrame(rawPath) {
   // default (10) because the frame is near-white, not pure #fff.
   const cropped = await sharp(input).trim({ background: "#ffffff", threshold: 24 }).toBuffer();
   return cropped;
-}
-
-// ---------------------------------------------------------------------------
-// Google Flow / Veo Video Automation (Workflow 1 Spec, locked 2026-07-20)
-// ---------------------------------------------------------------------------
-
-async function getGoogleFlowPage(browser, workDir) {
-  const contexts = browser.contexts();
-  const context = contexts[0] || (await browser.newContext());
-  let page = context
-    .pages()
-    .find((p) => p.url().includes("labs.google/flow") || p.url().includes("labs.google/fx"));
-  if (!page) {
-    page = await context.newPage();
-    await page.goto("https://labs.google/flow", { waitUntil: "domcontentloaded" });
-  }
-  await page.bringToFront();
-  if (workDir) {
-    const cdp = await context.newCDPSession(page);
-    await cdp.send("Page.setDownloadBehavior", { behavior: "allow", downloadPath: workDir });
-  }
-  return page;
-}
-
-async function assertGoogleFlowLoggedIn(page) {
-  await page.waitForTimeout(2000);
-  const signInVisible = await page
-    .getByRole("link", { name: /sign in/i })
-    .first()
-    .isVisible()
-    .catch(() => false);
-  if (signInVisible) {
-    throw new Error(
-      "GOOGLE_FLOW_NOT_LOGGED_IN: the automation Chrome profile is not authenticated into " +
-        "jonnybooth22@gmail.com on Google Flow (https://labs.google/flow). Please log in once."
-    );
-  }
-}
-
-async function generateAndDownloadFlowVideo(page, videoPrompt, workDir) {
-  await page.goto("https://labs.google/flow", { waitUntil: "domcontentloaded" });
-  await page.waitForTimeout(2500);
-  await assertGoogleFlowLoggedIn(page);
-
-  // If a welcome/start/new project overlay or button exists, click through
-  const startBtn = page
-    .locator(
-      'button:has-text("Create"), button:has-text("New project"), button:has-text("Start"), button:has-text("Get started"), button:has-text("Try"), a:has-text("Create video"), [data-testid*="create" i]'
-    )
-    .first();
-  if (await startBtn.isVisible().catch(() => false)) {
-    await startBtn.click().catch(() => null);
-    await page.waitForTimeout(1500);
-  }
-
-  // Look for prompt input composer
-  const promptInput = page
-    .locator(
-      'textarea, div[contenteditable="true"], input[type="text"][placeholder*="prompt" i], [aria-label*="prompt" i], textarea[placeholder*="describe" i], [data-testid*="prompt" i]'
-    )
-    .first();
-  await promptInput.waitFor({ state: "visible", timeout: 25_000 });
-  await promptInput.click();
-  await promptInput.fill("");
-  await page.keyboard.insertText(videoPrompt);
-
-  // Ensure 9:16 vertical aspect ratio if UI toggle exists
-  const portraitToggle = page
-    .locator(
-      'button[aria-label*="9:16" i], button:has-text("9:16"), [data-testid*="portrait" i], button:has-text("Portrait")'
-    )
-    .first();
-  if (await portraitToggle.isVisible().catch(() => false)) {
-    await portraitToggle.click().catch(() => null);
-  }
-
-  // Submit video generation
-  const submitBtn = page
-    .locator(
-      'button[aria-label*="generate" i], button[aria-label*="create" i], button[aria-label*="submit" i], button:has-text("Generate"), button:has-text("Create")'
-    )
-    .last();
-  await submitBtn.click().catch(async () => {
-    await page.keyboard.press("Enter");
-  });
-
-  // Poll for rendering completion (up to 300 seconds for Veo video render)
-  const videoSel = 'video[src], video source[src], a[download*=".mp4"], button[aria-label*="Download" i]';
-  const pollStart = Date.now();
-  let videoFound = false;
-  while (Date.now() - pollStart < 300_000) {
-    await page.waitForTimeout(5000);
-    const count = await page.locator(videoSel).count().catch(() => 0);
-    if (count > 0) {
-      videoFound = true;
-      break;
-    }
-  }
-
-  if (!videoFound) {
-    throw new Error("VIDEO_NEVER_RENDERED: Google Flow video render did not complete within 300s.");
-  }
-
-  // Download the rendered video
-  const savePath = path.join(workDir, `video-${Date.now()}.mp4`);
-  const downloadBtn = page
-    .locator('button[aria-label*="download" i], a[download*=".mp4"], button:has-text("Download")')
-    .first();
-  if (await downloadBtn.isVisible().catch(() => false)) {
-    try {
-      const [download] = await Promise.all([
-        page.waitForEvent("download", { timeout: 30_000 }),
-        downloadBtn.click(),
-      ]);
-      await download.saveAs(savePath);
-      return savePath;
-    } catch (e) {
-      console.warn("Direct download event failed, falling back to video element extraction: " + (e.message || e));
-    }
-  }
-
-  // Fallback: extract video src blob/URL directly from DOM
-  const videoEl = page.locator("video").first();
-  const src = await videoEl.getAttribute("src").catch(() => null);
-  if (src) {
-    if (src.startsWith("blob:") || src.startsWith("http")) {
-      const buffer = await page
-        .evaluate(async (videoSrc) => {
-          const response = await fetch(videoSrc);
-          const blob = await response.blob();
-          return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result.split(",")[1]);
-            reader.readAsDataURL(blob);
-          });
-        }, src)
-        .catch(() => null);
-
-      if (buffer) {
-        fs.writeFileSync(savePath, Buffer.from(buffer, "base64"));
-        return savePath;
-      }
-    }
-  }
-
-  // Fallback 2: Check workDir for any downloaded .mp4 files
-  const files = fs
-    .readdirSync(workDir)
-    .filter((f) => f.endsWith(".mp4") && f !== path.basename(savePath));
-  if (files.length > 0) {
-    const latest = files
-      .map((f) => ({ file: f, time: fs.statSync(path.join(workDir, f)).mtimeMs }))
-      .sort((a, b) => b.time - a.time)[0];
-    return path.join(workDir, latest.file);
-  }
-
-  throw new Error("VIDEO_DOWNLOAD_FAILED: Google Flow video rendered but could not be downloaded to disk.");
 }
 
 /**
@@ -1028,215 +871,181 @@ async function main() {
   // "connecting" forever with no failure ever written back. connectBrowser() used to sit outside
   // this try/catch (a CDP-connect failure escaped straight to main()'s catch, which never touches
   // the DB), and even the covered branch never called failCoworkJobsForPost — both are why a
-  // crashed run could leave posts stuck on "generating" and their job stuck on "queued"
-  // indefinitely with zero visibility (fixed 2026-09-07, JB report: "approved posts, nothing
-  // happened, again").
+  // crashed run could leave posts and jobs "generating" indefinitely (lane D2 bug).
   let browser;
-  let page;
-  let workDir;
+  let geminiPage;
+  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "gemini-media-"));
+
   try {
     browser = await connectBrowser();
-    workDir = fs.mkdtempSync(path.join(os.tmpdir(), "nvg-gemini-"));
-    page = await getGeminiPage(browser, workDir);
-    await assertLoggedIn(page);
-    await ensureProModel(page);
+    geminiPage = await getGeminiPage(browser, workDir);
+    await assertLoggedIn(geminiPage);
+    await ensureProModel(geminiPage);
   } catch (e) {
     const message = String(e.message || e);
+    console.error(`BATCH_SETUP_FAILED: ${message}`);
     for (const row of pending) {
       await writeMediaFailure(row.id);
-      await failCoworkJobsForPost(row.id, message).catch((e2) => {
-        console.error(`WARN ${row.id}: failed to write the batch-setup failure back to cowork jobs too: ${e2.message || e2}`);
-      });
+      await failCoworkJobsForPost(row.id, message).catch(() => {});
     }
-    await browser?.close().catch(() => null);
-    throw e;
-  }
-  for (const row of pending) await writeProgress(row.id, 12, "model_pro");
-  const results = [];
-  const errors = [];
-  const attachWarnings = [];
-
-  for (const row of pending) {
+    if (browser) await browser.close().catch(() => null);
     try {
-      // Start each post in a fresh Gemini conversation — otherwise one row's brand/
-      // audience context can bleed into the next row's image (e.g. a Video post's
-      // prompt influencing the following Carousel's composition).
-      await startNewChat(page);
-      if (row.reference_file_urls && row.reference_file_urls.length) {
-        await attachReferenceFiles(page, row.reference_file_urls, workDir).catch((e) => {
-          const msg = `${row.id} (${row.post_type}): reference files could not be attached, continuing without them — ${e.message || e}`;
-          console.error(`WARN ${msg}`);
-          attachWarnings.push(msg);
-        });
-      }
-      // last_generation_prompt is the finalized prompt the orchestration layer
-      // staged for generation (creative text + production spec); visual_prompt
-      // is a fallback for older rows generated before that column existed.
-      const sourcePrompt = row.last_generation_prompt || row.visual_prompt;
-      if (!sourcePrompt) {
-        throw new Error("row has no last_generation_prompt or visual_prompt — nothing to generate from");
-      }
+      fs.rmSync(workDir, { recursive: true, force: true });
+    } catch {}
+    process.exit(1);
+  }
 
-      // -----------------------------------------------------------------------
-      // VIDEO GENERATION BRANCH — Google Flow (Veo 3.1 Lite Multi-Shot Stitching)
-      // -----------------------------------------------------------------------
-      if (row.post_type === "Video") {
-        await writeProgress(row.id, 20, "opening_google_flow");
-        const flowPage = await getGoogleFlowPage(browser, workDir);
+  const results = [];
+  try {
+    for (let i = 0; i < pending.length; i++) {
+      const row = pending[i];
+      console.log(`\n[${i + 1}/${pending.length}] Generating for row ${row.id} (${row.post_type} / ${row.post_date} ${row.post_group})...`);
+      const rowStart = Date.now();
+      await writeProgress(row.id, 10, "prompting");
 
-        const shotPrompts = splitVideoShotPrompts(sourcePrompt);
-        const shotCount = shotPrompts.length;
-        const shotPaths = [];
-
-        if (shotCount > 1) {
-          // Multi-shot workflow: generate each shot clip separately
-          const shotSpan = (idx, frac) => 25 + Math.round(((idx - 1 + frac) / shotCount) * 50);
-          for (let sIdx = 0; sIdx < shotCount; sIdx++) {
-            const shotNum = sIdx + 1;
-            const shotPrompt = shotPrompts[sIdx];
-            await writeProgress(row.id, shotSpan(shotNum, 0.2), `generating_shot_${shotNum}_of_${shotCount}`);
-            const clipPath = await generateAndDownloadFlowVideo(flowPage, shotPrompt, workDir);
-            shotPaths.push(clipPath);
-          }
-
-          // Stitch individual shots into unified 1080x1920 MP4
-          await writeProgress(row.id, 80, "stitching_video_shots");
-          const stitchedPath = path.join(workDir, `${row.id}-stitched-${Date.now()}.mp4`);
-          await stitchVideoShots(shotPaths, stitchedPath, {
-            width: 1080,
-            height: 1920,
-            fps: 30,
-          });
-
-          // Clean up individual shot clips
-          for (const sp of shotPaths) {
-            if (fs.existsSync(sp)) fs.unlinkSync(sp);
-          }
-
-          await writeProgress(row.id, 90, "uploading_stitched_video");
-          const videoBuf = fs.readFileSync(stitchedPath);
-          const objectPath = `${row.post_date}/${row.id}-${Date.now()}.mp4`;
-          const publicUrl = await uploadRaw(objectPath, videoBuf, "video/mp4");
-          fs.unlinkSync(stitchedPath);
-
-          await writeMediaResult(row.id, [publicUrl], "chrome_agent_google_flow_veo_multishot");
-          const closedJobs = await completeCoworkJobsForPost(row.id, {
-            generationSource: "chrome_agent_google_flow_veo_multishot",
-          }).catch((e) => {
-            console.error(`WARN ${row.id}: writeMediaResult succeeded but cowork job write-back failed: ${e.message || e}`);
-            return 0;
-          });
-          results.push({ id: row.id, post_type: row.post_type, mediaUrls: [publicUrl], closedJobs });
-          console.log(`OK ${row.id} (${row.post_type}) -> 1 stitched video asset from ${shotCount} shots, ${closedJobs} cowork job(s) closed`);
-          continue;
-        } else {
-          // Single-shot video generation
-          await writeProgress(row.id, 40, "generating_veo_video");
-          const videoPath = await generateAndDownloadFlowVideo(flowPage, sourcePrompt, workDir);
-          await writeProgress(row.id, 85, "uploading_video");
-          const videoBuf = fs.readFileSync(videoPath);
-          const objectPath = `${row.post_date}/${row.id}-${Date.now()}.mp4`;
-          const publicUrl = await uploadRaw(objectPath, videoBuf, "video/mp4");
-          fs.unlinkSync(videoPath);
-
-          await writeMediaResult(row.id, [publicUrl], "chrome_agent_google_flow_veo");
-          const closedJobs = await completeCoworkJobsForPost(row.id, {
-            generationSource: "chrome_agent_google_flow_veo",
-          }).catch((e) => {
-            console.error(`WARN ${row.id}: writeMediaResult succeeded but cowork job write-back failed: ${e.message || e}`);
-            return 0;
-          });
-          results.push({ id: row.id, post_type: row.post_type, mediaUrls: [publicUrl], closedJobs });
-          console.log(`OK ${row.id} (${row.post_type}) -> 1 video asset, ${closedJobs} cowork job(s) closed`);
-          continue;
+      try {
+        const rawPrompt = row.last_generation_prompt || row.visual_prompt;
+        if (!rawPrompt) {
+          throw new Error("Row has no last_generation_prompt or visual_prompt.");
         }
+
+        const isCarousel = row.post_type === "Carousel";
+        const isVideo = row.post_type === "Video";
+
+        // Download and attach admin reference files (if any) before typing the prompt.
+        const refUrls = Array.isArray(row.reference_file_urls) ? row.reference_file_urls : [];
+        if (refUrls.length && !isVideo) {
+          await writeProgress(row.id, 15, "attaching_references");
+          try {
+            await attachReferenceFiles(geminiPage, refUrls, workDir);
+          } catch (e) {
+            console.warn(`Reference attach failed for row ${row.id} (${e.message || e}); continuing without references.`);
+          }
+        }
+
+        if (isVideo) {
+          // --- Multi-Shot Veo Video Generation Pipeline (Google Flow) ---
+          await writeProgress(row.id, 20, "splitting_shots");
+          const shotPrompts = splitVideoShotPrompts(rawPrompt);
+          console.log(`Video prompt split into ${shotPrompts.length} shot(s).`);
+          assertVideoHasEnoughShots(row.post_type, shotPrompts.length);
+
+          const flowPage = await getGoogleFlowPage(browser, workDir);
+          const generatedClipPaths = [];
+
+          try {
+            for (let s = 0; s < shotPrompts.length; s++) {
+              const shotPrompt = shotPrompts[s];
+              const shotPercent = 25 + Math.round(((s + 1) / shotPrompts.length) * 45);
+              console.log(`Generating Video Shot ${s + 1}/${shotPrompts.length}...`);
+              await writeProgress(row.id, shotPercent, `generating_shot_${s + 1}`);
+
+              const clipPath = await generateAndDownloadFlowVideo(flowPage, shotPrompt, workDir);
+              generatedClipPaths.push(clipPath);
+            }
+          } finally {
+            await flowPage.close().catch(() => null);
+          }
+
+          // Stitch video clips if multi-shot, or normalize single clip
+          await writeProgress(row.id, 75, "stitching_video");
+          const finalVideoPath = path.join(workDir, `final-stitched-${Date.now()}.mp4`);
+          console.log(`Stitching ${generatedClipPaths.length} video shot(s) via ffmpeg...`);
+          await stitchVideoShots(generatedClipPaths, finalVideoPath, { width: 1080, height: 1920, fps: 30 });
+
+          // Upload final stitched MP4 to Supabase Storage
+          await writeProgress(row.id, 85, "uploading");
+          const videoBuffer = fs.readFileSync(finalVideoPath);
+          const objectPath = `matchfit/${row.post_date || "undated"}/${row.id}/video-veo-final.mp4`;
+          const publicUrl = await uploadRaw(objectPath, videoBuffer, "video/mp4");
+          console.log(`Uploaded stitched video to ${publicUrl}`);
+
+          // Write back media status and advance to publishing
+          await writeProgress(row.id, 95, "saving");
+          await writeMediaResult(row.id, [publicUrl], "chrome_agent_google_flow_veo");
+          const closed = await completeCoworkJobsForPost(row.id, { generationSource: "chrome_agent_google_flow_veo" });
+          console.log(`Wrote back ready media for ${row.id}; marked ${closed} matching cowork job(s) complete.`);
+
+          results.push({ id: row.id, ok: true, urls: [publicUrl], elapsedSec: Math.round((Date.now() - rowStart) / 1000) });
+        } else if (isCarousel) {
+          // --- Carousel Generation Pipeline ---
+          const slidePrompts = splitCarouselSlidePrompts(rawPrompt);
+          console.log(`Carousel prompt split into ${slidePrompts.length} slide(s).`);
+          assertCarouselHasEnoughSlides(row.post_type, slidePrompts.length);
+
+          const uploadedUrls = [];
+          for (let s = 0; s < slidePrompts.length; s++) {
+            const slidePrompt = slidePrompts[s];
+            const slidePercent = 20 + Math.round(((s + 1) / slidePrompts.length) * 60);
+            console.log(`Generating Slide ${s + 1}/${slidePrompts.length}...`);
+            await writeProgress(row.id, slidePercent, `generating_slide_${s + 1}`);
+
+            await startNewChat(geminiPage);
+            const rawPath = await generateAndDownload(geminiPage, slidePrompt, workDir);
+            const croppedBuffer = await cropWhiteFrame(rawPath);
+
+            const objectPath = `matchfit/${row.post_date || "undated"}/${row.id}/slide-${s + 1}.png`;
+            const publicUrl = await uploadRaw(objectPath, croppedBuffer, "image/png");
+            uploadedUrls.push(publicUrl);
+            console.log(`Uploaded slide ${s + 1} to ${publicUrl}`);
+          }
+
+          await writeProgress(row.id, 90, "saving");
+          await writeMediaResult(row.id, uploadedUrls, "chrome_agent_gemini_pro");
+          const closed = await completeCoworkJobsForPost(row.id, { generationSource: "chrome_agent_gemini_pro" });
+          console.log(`Wrote back ready media for carousel ${row.id}; marked ${closed} matching cowork job(s) complete.`);
+
+          results.push({ id: row.id, ok: true, urls: uploadedUrls, elapsedSec: Math.round((Date.now() - rowStart) / 1000) });
+        } else {
+          // --- Static Image Generation Pipeline ---
+          await writeProgress(row.id, 30, "generating");
+          await startNewChat(geminiPage);
+          const rawPath = await generateAndDownload(geminiPage, rawPrompt, workDir);
+
+          await writeProgress(row.id, 70, "cropping");
+          const croppedBuffer = await cropWhiteFrame(rawPath);
+
+          await writeProgress(row.id, 85, "uploading");
+          const objectPath = `matchfit/${row.post_date || "undated"}/${row.id}/static.png`;
+          const publicUrl = await uploadRaw(objectPath, croppedBuffer, "image/png");
+          console.log(`Uploaded static image to ${publicUrl}`);
+
+          await writeProgress(row.id, 95, "saving");
+          await writeMediaResult(row.id, [publicUrl], "chrome_agent_gemini_pro");
+          const closed = await completeCoworkJobsForPost(row.id, { generationSource: "chrome_agent_gemini_pro" });
+          console.log(`Wrote back ready media for static image ${row.id}; marked ${closed} matching cowork job(s) complete.`);
+
+          results.push({ id: row.id, ok: true, urls: [publicUrl], elapsedSec: Math.round((Date.now() - rowStart) / 1000) });
+        }
+      } catch (err) {
+        console.error(`ERROR processing row ${row.id}: ${err.message || err}`);
+        await writeMediaFailure(row.id);
+        await failCoworkJobsForPost(row.id, String(err.message || err)).catch(() => {});
+        results.push({ id: row.id, ok: false, error: String(err.message || err) });
       }
-
-      // -----------------------------------------------------------------------
-      // IMAGE / CAROUSEL GENERATION BRANCH — Gemini Pro Chat
-      // -----------------------------------------------------------------------
-      // Carousel prompts pack one prompt per slide, labeled "Slide 1 (Image 1):",
-      // "Slide 2:", etc. (see CONTENT_CALENDAR_CREATIVE_QUALITY_RULES); everything
-      // else is a single-image generation.
-      const slidePrompts = splitCarouselSlidePrompts(sourcePrompt);
-
-      // Hard gate (scripts/carousel-slide-prompts.mjs) — a Carousel that only split into
-      // 1-2 prompts means the splitter failed to recognize the real "Slide N:" labels
-      // (stale deploy, or a future prompt-format change it doesn't understand yet) and
-      // would otherwise generate ONE combined image and still write media_status="ready".
-      // Fail loud instead — JB gets a Telegram FAIL ping and the post stays out of
-      // publishing, rather than a silently-broken carousel reaching "ready".
-      assertCarouselHasEnoughSlides(row.post_type, slidePrompts.length);
-
-      let slideIdx = 0;
-      const slideCount = slidePrompts.length;
-      // 15% (starting) → 90% (last upload) across all slides, so the bar tracks real work.
-      const slideSpan = (idx, frac) => 15 + Math.round(((idx - 1 + frac) / slideCount) * 75);
-      for (const slidePrompt of slidePrompts) {
-        slideIdx += 1;
-        await writeProgress(row.id, slideSpan(slideIdx, 0), "generating");
-        const rawPath = await generateAndDownload(page, slidePrompt, workDir);
-        await writeProgress(row.id, slideSpan(slideIdx, 0.5), "cropping");
-        const cropped = await cropWhiteFrame(rawPath);
-        await writeProgress(row.id, slideSpan(slideIdx, 0.8), "uploading");
-        const objectPath = `${row.post_date}/${row.id}-slide${slideIdx}-${Date.now()}.png`;
-        const publicUrl = await uploadRaw(objectPath, cropped, "image/png");
-        mediaUrls.push(publicUrl);
-        fs.unlinkSync(rawPath);
-      }
-
-      // Second half of the same hard gate: never write media_status="ready" with fewer
-      // uploaded images than slides this row was supposed to generate. The loop above
-      // already guarantees this (any generateAndDownload/upload failure throws before
-      // reaching here), but this makes the invariant explicit and survives a future
-      // refactor that might otherwise let a partial batch slip through as "ready".
-      assertCarouselHasEnoughSlides(row.post_type, mediaUrls.length, { minSlides: slidePrompts.length });
-
-      await writeMediaResult(row.id, mediaUrls);
-      const closedJobs = await completeCoworkJobsForPost(row.id, {
-        generationSource: "chrome_agent_gemini_pro",
-      }).catch((e) => {
-        console.error(`WARN ${row.id}: writeMediaResult succeeded but cowork job write-back failed: ${e.message || e}`);
-        return 0;
-      });
-      results.push({ id: row.id, post_type: row.post_type, mediaUrls, closedJobs });
-      console.log(`OK ${row.id} (${row.post_type}) -> ${mediaUrls.length} asset(s), ${closedJobs} cowork job(s) closed`);
-    } catch (e) {
-      const message = String(e.message || e);
-      errors.push({ id: row.id, post_type: row.post_type, error: message });
-      console.error(`FAIL ${row.id}: ${message}`);
-      await writeMediaFailure(row.id);
-      await failCoworkJobsForPost(row.id, message).catch((e2) => {
-        console.error(`WARN ${row.id}: failed to write the failure back to cowork jobs too: ${e2.message || e2}`);
-      });
-      // Do not throw — keep going so one bad row doesn't stall the batch.
     }
+  } finally {
+    if (browser) await browser.close().catch(() => null);
+    try {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    } catch {}
   }
 
-  await browser.close().catch(() => null);
+  // Final summary + Telegram ping
+  const succeeded = results.filter((r) => r.ok);
+  const failed = results.filter((r) => !r.ok);
+  const summary =
+    `Gemini Media Automation batch finished:\n` +
+    `  Total: ${results.length}\n` +
+    `  Succeeded: ${succeeded.length}\n` +
+    `  Failed: ${failed.length}\n` +
+    results.map((r) => `  - ${r.id}: ${r.ok ? `OK (${r.urls?.length} asset(s))` : `FAILED (${r.error})`}`).join("\n");
 
-  const summaryLines = [
-    `Match Fit media generation batch finished.`,
-    `Ready for review: ${results.length}`,
-    ...results.map((r) => `  - ${r.post_type} (${r.id.slice(0, 8)}): ${r.mediaUrls.length} asset(s)`),
-  ];
-  if (errors.length) {
-    summaryLines.push(`Failed: ${errors.length}`);
-    summaryLines.push(...errors.map((e) => `  - ${e.post_type} (${e.id.slice(0, 8)}): ${e.error}`));
-  }
-  if (attachWarnings.length) {
-    summaryLines.push(`Reference file attach issues (generated anyway, without them): ${attachWarnings.length}`);
-    summaryLines.push(...attachWarnings.map((w) => `  - ${w}`));
-  }
-  await notifyTelegram(summaryLines.join("\n"));
-
-  console.log(JSON.stringify({ results, errors }, null, 2));
-  if (errors.length && !results.length) process.exit(1);
+  console.log("\n" + summary);
+  await notifyTelegram(summary);
 }
 
-main().catch((e) => {
-  console.error("FATAL:", e.stack || e);
-  notifyTelegram(`Match Fit Gemini automation crashed: ${e.message || e}`).finally(() => {
-    process.exit(1);
-  });
+main().catch((err) => {
+  console.error("FATAL main error:", err);
+  process.exit(1);
 });
