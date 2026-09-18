@@ -249,21 +249,108 @@ export function pickQueries(pool: string[], count: number, now: Date): string[] 
   return Array.from({ length: Math.min(count, pool.length) }, (_, i) => pool[(offset + i) % pool.length]);
 }
 
-/** Plain web search. No `location`, no `ll`, no `uule` — results are worldwide. */
-async function webSearch(query: string): Promise<SerpOrganicResult[]> {
-  const params = new URLSearchParams({
-    engine: 'google',
-    q: query,
-    num: String(RESULTS_PER_SEARCH),
-    hl: 'en',
-    api_key: env('SERPAPI_API_KEY'),
-  });
-  const r = await fetch(`https://serpapi.com/search.json?${params.toString()}`, {
+const DDG_ENDPOINT = 'https://html.duckduckgo.com/html/';
+const DDG_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
+
+function decodeDdgEntities(s: string): string {
+  return s
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'").replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+}
+
+function unwrapDdgLink(href: string): string {
+  try {
+    const u = new URL(href, 'https://duckduckgo.com');
+    const target = u.searchParams.get('uddg');
+    return target ? decodeURIComponent(target) : u.toString();
+  } catch {
+    return href;
+  }
+}
+
+/**
+ * Keyless DuckDuckGo HTML fallback — same shape/parse approach AXON's
+ * lib/web-search.mjs already ships (parseDuckDuckGoHtml), reimplemented here
+ * because this app doesn't share a package with the AXON repo. No `source` /
+ * `displayed_link` field (SerpApi-only), so instagramHandleFromResult falls
+ * back to link-only matching for these rows — degraded, not zero.
+ */
+function parseDuckDuckGoHtml(html: string, num: number): SerpOrganicResult[] {
+  const out: SerpOrganicResult[] = [];
+  const blocks = html.split(/<div[^>]+class="[^"]*\bresult\b[^"]*"/i).slice(1);
+  for (const block of blocks) {
+    const a = block.match(/<a[^>]+class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
+    if (!a) continue;
+    const link = unwrapDdgLink(decodeDdgEntities(a[1]));
+    const title = decodeDdgEntities(a[2]);
+    const sn =
+      block.match(/<a[^>]+class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/i) ||
+      block.match(/<div[^>]+class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+    const snippet = sn ? decodeDdgEntities(sn[1]) : '';
+    if (!title || !/^https?:\/\//i.test(link)) continue;
+    if (/duckduckgo\.com\/y\.js/i.test(link)) continue; // ads
+    out.push({ title, link, snippet });
+    if (out.length >= num) break;
+  }
+  return out;
+}
+
+async function duckDuckGoSearch(query: string, num: number): Promise<SerpOrganicResult[]> {
+  const r = await fetch(`${DDG_ENDPOINT}?q=${encodeURIComponent(query)}`, {
+    headers: { 'user-agent': DDG_UA, accept: 'text/html' },
     signal: AbortSignal.timeout(20_000),
   });
-  if (!r.ok) throw new Error(`SerpApi HTTP ${r.status} for "${query}"`);
-  const data = (await r.json()) as { organic_results?: SerpOrganicResult[] };
-  return data.organic_results ?? [];
+  if (!r.ok) throw new Error(`DuckDuckGo HTTP ${r.status} for "${query}"`);
+  const html = await r.text();
+  return parseDuckDuckGoHtml(html, num);
+}
+
+/**
+ * Plain web search. No `location`, no `ll`, no `uule` — results are worldwide.
+ *
+ * AX-SERPAPI-QUOTA-PATCHED-NOT-FIXED-0917: this was a direct SerpApi call with no
+ * fallback — the one gap that let the 2026-09-16 lead top-up incident go through
+ * even after AXON's PR#175/#203 fallback shipped, because those only covered the
+ * AXON repo and this app never imported them. SerpApi first while it has quota;
+ * any failure (quota exhausted, missing key, HTTP error) falls through to the
+ * keyless DuckDuckGo endpoint above instead of throwing to the caller, which
+ * previously just skipped the query (see runInstagramLane / runEmailLane).
+ */
+async function webSearch(query: string): Promise<SerpOrganicResult[]> {
+  let serpApiKey: string | null = null;
+  try {
+    serpApiKey = env('SERPAPI_API_KEY');
+  } catch {
+    serpApiKey = null;
+  }
+
+  if (serpApiKey) {
+    try {
+      const params = new URLSearchParams({
+        engine: 'google',
+        q: query,
+        num: String(RESULTS_PER_SEARCH),
+        hl: 'en',
+        api_key: serpApiKey,
+      });
+      const r = await fetch(`https://serpapi.com/search.json?${params.toString()}`, {
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (!r.ok) throw new Error(`SerpApi HTTP ${r.status} for "${query}"`);
+      const data = (await r.json()) as { organic_results?: SerpOrganicResult[]; error?: string };
+      if (data.error) throw new Error(`SerpApi: ${data.error}`);
+      const results = data.organic_results ?? [];
+      if (results.length) return results;
+      // Falls through to DuckDuckGo below on a genuinely empty SerpApi response too.
+    } catch (err) {
+      console.warn(`[lead-finder] SerpApi unavailable for "${query}", falling back to DuckDuckGo:`, err);
+    }
+  }
+
+  return duckDuckGoSearch(query, RESULTS_PER_SEARCH);
 }
 
 export function hostnameOf(url: string): string | null {
