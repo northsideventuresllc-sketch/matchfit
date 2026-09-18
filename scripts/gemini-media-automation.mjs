@@ -304,7 +304,7 @@ async function uploadRaw(objectPath, buffer, contentType) {
   if (!res.ok) {
     throw new Error(`storage upload failed: ${res.status} ${await res.text()}`);
   }
-  return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${objectPath}` rest;
+  return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${objectPath}`;
 }
 
 async function notifyTelegram(text) {
