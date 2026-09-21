@@ -79,14 +79,15 @@ export function DeviceMediaUploadWidget({
           }
 
           const signData = (await signRes.json()) as { signedUrl?: string; publicUrl?: string };
-          if (!signData.signedUrl || !signData.publicUrl) {
+          const { signedUrl, publicUrl } = signData;
+          if (!signedUrl || !publicUrl) {
             throw new Error("Invalid presigned upload response from server.");
           }
 
           // 2. Direct binary PUT upload with progress tracking
           await new Promise<void>((resolve, reject) => {
             const xhr = new XMLHttpRequest();
-            xhr.open("PUT", signData.signedUrl, true);
+            xhr.open("PUT", signedUrl, true);
             xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
 
             xhr.upload.onprogress = (evt) => {
@@ -115,7 +116,7 @@ export function DeviceMediaUploadWidget({
             xhr.send(file);
           });
 
-          urls.push(signData.publicUrl);
+          urls.push(publicUrl);
         }
 
         onUploaded(urls);
