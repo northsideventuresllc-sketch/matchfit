@@ -1,6 +1,9 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
+
+const require = createRequire(import.meta.url);
 
 /**
  * Resolves the path to the ffmpeg executable.
@@ -15,7 +18,6 @@ export function getFfmpegPath() {
   }
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const ffmpegStatic = require("ffmpeg-static");
     if (ffmpegStatic && fs.existsSync(ffmpegStatic)) {
       return ffmpegStatic;
