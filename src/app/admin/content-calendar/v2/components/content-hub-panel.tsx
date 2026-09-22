@@ -11,6 +11,7 @@ import { HubPostBubble } from "./hub-post-bubble";
 import { ProgressBar } from "./ui-bits";
 import { useSimulatedProgress } from "./use-simulated-progress";
 import { groupHubPosts, WEEKLY_GENERATION_TIME_LABEL, type HubDayGroup } from "./helpers";
+import { ApproveDayLearningModal } from "./approve-day-learning-modal";
 
 export type DayActionResult = {
   memoId?: string | null;
@@ -66,13 +67,14 @@ function DayContainer({
 }: {
   group: HubDayGroup;
   wiring: BubbleWiring;
-  onApproveDay: (postDate: string) => Promise<DayActionResult>;
+  onApproveDay: (postDate: string, extra?: { learnings?: string; feedback?: string }) => Promise<DayActionResult>;
   onReturnToEditing: (postDate: string) => Promise<DayActionResult>;
   onFireMediaAgent: (postDate: string) => Promise<DayActionResult>;
   onManuallyGenerateMedia: (postDate: string) => Promise<DayActionResult>;
   onSubmitForGeneration: (id: string) => Promise<void>;
 }) {
   const [action, setAction] = useState<"approve" | "return" | "fire" | "manual-media" | null>(null);
+  const [showLearningModal, setShowLearningModal] = useState(false);
   const [memoNote, setMemoNote] = useState<string | null>(null);
   const [canceledNote, setCanceledNote] = useState<string | null>(null);
   const [jobNote, setJobNote] = useState<string | null>(null);
@@ -176,8 +178,8 @@ function DayContainer({
                 type="button"
                 className={adminPrimaryButtonClass}
                 disabled={action !== null}
-                onClick={() => void run("approve", () => onApproveDay(group.date))}
-                title="Approves the day and immediately fires the media agent — no separate click needed."
+                onClick={() => setShowLearningModal(true)}
+                title="Approves the day, reviews learnings, and fires the media agent."
               >
                 {action === "approve" ? "APPROVING…" : "APPROVE DAY"}
               </button>
@@ -247,6 +249,19 @@ function DayContainer({
           <BubbleGrid posts={group.impromptu} wiring={wiring} onSubmitForGeneration={onSubmitForGeneration} />
         </div>
       ) : null}
+
+      {showLearningModal ? (
+        <ApproveDayLearningModal
+          postDate={group.date}
+          posts={group.posts}
+          busy={action === "approve"}
+          onClose={() => setShowLearningModal(false)}
+          onConfirm={async (data) => {
+            await run("approve", () => onApproveDay(group.date, data));
+            setShowLearningModal(false);
+          }}
+        />
+      ) : null}
     </section>
   );
 }
@@ -262,7 +277,7 @@ export function ContentHubPanel({
 }: {
   posts: ClientContentCalendarV2Post[];
   wiring: BubbleWiring;
-  onApproveDay: (postDate: string) => Promise<DayActionResult>;
+  onApproveDay: (postDate: string, extra?: { learnings?: string; feedback?: string }) => Promise<DayActionResult>;
   onReturnToEditing: (postDate: string) => Promise<DayActionResult>;
   onFireMediaAgent: (postDate: string) => Promise<DayActionResult>;
   /** Fetch + reload hub/publishing stages + tab switch, owned by the parent shell. */

@@ -20,6 +20,7 @@ import { SocialMediaResearchPanel } from "./components/social-media-research-pan
 import { WeeklyScheduleGuide } from "./components/weekly-schedule-guide";
 import { Modal, readApi } from "./components/ui-bits";
 import { useUnsavedRegistry } from "./components/use-unsaved-registry";
+import { AxonContentAgentBubble } from "./components/axon-content-agent-bubble";
 
 type AiStatus = {
   configured: boolean;
@@ -248,13 +249,36 @@ export function ContentCalendarV2Client({
   // Approve Day queues media posts into Pending and sends text posts straight to Publishing — a
   // real day almost always has media posts, so Pending is where the operator's attention goes next.
   const onApproveDay = useCallback(
-    async (postDate: string) => {
-      const result = await dayAction("approve", { postDate, action: "approve" });
+    async (postDate: string, extra?: { learnings?: string; feedback?: string }) => {
+      const result = await dayAction("approve", { postDate, action: "approve", ...(extra ?? {}) });
       setTab("pending");
       await loadStage("pending");
       return result;
     },
     [dayAction, loadStage],
+  );
+
+  const onApprovePendingDay = useCallback(
+    async (postDate: string, extra?: { learnings?: string; feedback?: string }) => {
+      const forDate = pendingPosts.filter((p) => (p.postDate || "No date") === postDate);
+      for (const p of forDate) {
+        await postAction(p.id, {
+          action: "approve_for_publishing",
+          ...(p.mediaUrls.length ? { mediaUrls: p.mediaUrls } : {}),
+        });
+      }
+      if (extra?.learnings?.trim() || extra?.feedback?.trim()) {
+        await fetch("/api/admin/content-calendar/v2/posts/day/approve", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ postDate, action: "approve", ...(extra ?? {}) }),
+        }).catch(() => {});
+      }
+      setTab("publishing");
+      await loadStage("publishing");
+    },
+    [pendingPosts, postAction, loadStage],
   );
   const onReturnToEditing = useCallback(
     (postDate: string) => dayAction("approve", { postDate, action: "return_to_editing" }),
@@ -451,6 +475,7 @@ export function ContentCalendarV2Client({
           busyId={busyId}
           onPatch={patchPost}
           onAction={postAction}
+          onApproveDay={onApprovePendingDay}
           register={registry.setEntry}
           unregister={registry.removeEntry}
         />
@@ -473,6 +498,24 @@ export function ContentCalendarV2Client({
       ) : null}
 
       {tab === "archives" ? <ArchivesPanel posts={archivedPosts} /> : null}
+
+      <AxonContentAgentBubble
+        currentStage={tab}
+        activePosts={
+          tab === "hub"
+            ? hubPosts
+            : tab === "pending"
+              ? pendingPosts
+              : tab === "publishing"
+                ? publishingPosts
+                : tab === "scheduled"
+                  ? scheduledPosts
+                  : archivedPosts
+        }
+        onRefreshCalendar={async () => {
+          await loadStage(currentStage);
+        }}
+      />
 
       {pendingTab ? (
         <Modal title="Unsaved changes" onClose={() => setPendingTab(null)}>
