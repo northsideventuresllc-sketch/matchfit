@@ -17,7 +17,7 @@
  */
 
 const LEGACY_SHOT_DELIMITER_RE = /---\s*(?:SHOT|SCENE)\s*---/i;
-const SHOT_LABEL_RE = /^[ \t]*(?:Shot|Scene)\s+\d+\b[^\n:]*:/gim;
+const SHOT_LABEL_RE = /^[ \t]*(?:Shot|Scene)\s+\d+\b[^\n:]*(?::|$)/gim;
 const PRODUCTION_SPEC_RE = /^PRODUCTION SPEC \(required\):/im;
 
 /**
