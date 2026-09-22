@@ -21,7 +21,7 @@
  */
 
 const LEGACY_SLIDE_DELIMITER_RE = /---\s*SLIDE\s*---/i;
-const SLIDE_LABEL_RE = /^[ \t]*Slide\s+\d+\b[^\n:]*:/gim;
+const SLIDE_LABEL_RE = /^[ \t]*Slide\s+\d+\b[^\n:]*(?::|$)/gim;
 const PRODUCTION_SPEC_RE = /^PRODUCTION SPEC \(required\):/im;
 
 /**
