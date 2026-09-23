@@ -197,4 +197,96 @@ describe("GET /api/public/trainers/search", () => {
     const res = await GET(new Request("https://matchfit.test/api/public/trainers/search"));
     expect(res.status).not.toBe(401);
   });
+
+  // Regression coverage for MF-PUBLIC-SEARCH-STUCK-LISTING-0923: the four real-coach shapes
+  // reported hidden from the public agent storefront search.
+  describe("real-coach visibility parity with the authenticated browse route", () => {
+    it("shows a fully-compliant coach once listingStatus has advanced to active (the fixed coachj case)", async () => {
+      trainerFindManyMock.mockResolvedValue([
+        baseTrainerRow({
+          username: "coachj_real",
+          profile: {
+            ...baseTrainerRow().profile,
+            accountTier: "elite_fitness_pro",
+            listingStatus: "active", // repaired by fp-listing-status-sync
+          },
+        }),
+      ]);
+      const res = await GET(new Request("https://matchfit.test/api/public/trainers/search"));
+      const body = (await res.json()) as { trainers: unknown[] };
+      expect(body.trainers).toHaveLength(1);
+    });
+
+    it("still shows a fully-compliant coach even while listingStatus is momentarily stuck at pending_background (isFpListingVisibleInDiscovery already tolerates it — belt and suspenders)", async () => {
+      trainerFindManyMock.mockResolvedValue([
+        baseTrainerRow({
+          username: "coachj_real",
+          profile: {
+            ...baseTrainerRow().profile,
+            accountTier: "elite_fitness_pro",
+            listingStatus: "pending_background",
+          },
+        }),
+      ]);
+      const res = await GET(new Request("https://matchfit.test/api/public/trainers/search"));
+      const body = (await res.json()) as { trainers: unknown[] };
+      expect(body.trainers).toHaveLength(1);
+    });
+
+    it("shows a pre-verified (TOS signed, limited dashboard unlocked, not yet activated) untiered coach — the BasiaF/Kmfitn case", async () => {
+      trainerFindManyMock.mockResolvedValue([
+        baseTrainerRow({
+          username: "BasiaF_real",
+          profile: {
+            dashboardActivatedAt: null,
+            limitedDashboardUnlockedAt: new Date("2025-12-01"),
+            hasSignedTOS: true,
+            hasUploadedW9: false,
+            backgroundCheckStatus: "NOT_STARTED",
+            backgroundCheckClearedAt: null,
+            onboardingTrackCpt: true,
+            onboardingTrackNutrition: false,
+            onboardingTrackSpecialist: false,
+            certificationReviewStatus: "PENDING",
+            nutritionistCertificationReviewStatus: null,
+            specialistCertificationReviewStatus: null,
+            accountTier: null,
+            listingStatus: "pending_docs",
+            serviceOfferingsJson: null,
+          },
+        }),
+      ]);
+      const res = await GET(new Request("https://matchfit.test/api/public/trainers/search"));
+      const body = (await res.json()) as { trainers: unknown[] };
+      expect(body.trainers).toHaveLength(1);
+    });
+
+    it("keeps a coach with an unstarted background check hidden (the Bodied case: not TOS pre-verified, not activated)", async () => {
+      trainerFindManyMock.mockResolvedValue([
+        baseTrainerRow({
+          username: "BodiedCoach",
+          profile: {
+            dashboardActivatedAt: null,
+            limitedDashboardUnlockedAt: null,
+            hasSignedTOS: false,
+            hasUploadedW9: false,
+            backgroundCheckStatus: "NOT_STARTED",
+            backgroundCheckClearedAt: null,
+            onboardingTrackCpt: true,
+            onboardingTrackNutrition: false,
+            onboardingTrackSpecialist: false,
+            certificationReviewStatus: "PENDING",
+            nutritionistCertificationReviewStatus: null,
+            specialistCertificationReviewStatus: null,
+            accountTier: "match_fit_premium_pro",
+            listingStatus: "pending_background",
+            serviceOfferingsJson: null,
+          },
+        }),
+      ]);
+      const res = await GET(new Request("https://matchfit.test/api/public/trainers/search"));
+      const body = (await res.json()) as { trainers: unknown[] };
+      expect(body.trainers).toHaveLength(0);
+    });
+  });
 });

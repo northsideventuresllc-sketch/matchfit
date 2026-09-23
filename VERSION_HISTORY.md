@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-23** `2.33.8-beta` → `2.33.9-beta` (**patch** — Fix stuck listing status hiding verified coaches from discovery)
 - **2026-09-23** `2.33.7-beta` → `2.33.8-beta` (**patch** — Public unauthenticated trainer search endpoint (`GET /api/public/trainers/search`) for the NI MCP agent storefront. Guest checkout endpoint was scoped but not built — it requires an existing client account id in the Stripe/webhook fulfilment chain; reported back instead of hacked around.)
 - **2026-09-16** `2.33.6-beta` → `2.33.7-beta` (**patch** — merge conflict resolution (2nd re-sync), no new product behavior beyond already-shipped security fixes)
 - **2026-09-16** `2.33.5-beta` → `2.33.6-beta` (**patch** — Second merge-conflict re-bump (PR #386) — main advanced again with its own 2.33.5-beta bump (#398) while this PR's CI was running; no new product change beyond the two fixes already on this branch)

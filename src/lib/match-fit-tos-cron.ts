@@ -23,6 +23,7 @@ import { processOutreachArchiveJobs } from "@/lib/outreach-archive";
 import { liftExpiredChatContactTempBans } from "@/lib/chat-contact-violation-enforcement";
 import { runSignupAbandonmentFollowupJobs } from "@/lib/signup-abandonment-followup-cron";
 import { processTrainerResumeSignupNudges } from "@/lib/trainer-resume-signup-nudge-cron";
+import { repairStuckFpListingStatuses } from "@/lib/fp-listing-status-sync";
 
 export type TosCronSummary = {
   backgroundCheckWarningsSent: number;
@@ -34,6 +35,7 @@ export type TosCronSummary = {
   payoutBuffersRepaired: number;
   sessionsClearedPastPayoutBuffer: number;
   diyRefundAlerts: number;
+  fpListingStatusesRepaired: number;
   trainerPunchMissesProcessed: number;
   diyExtensionsAutoApproved: number;
   videoOAuthTokensRefreshed: number;
@@ -224,6 +226,13 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
   const payoutBuffersRepaired = await reconcilePayoutBufferDates();
   const sessionsClearedPastPayoutBuffer = await settleSessionsPastPayoutBuffer();
   const diyRefundAlerts = await diyMissedDeliveries();
+  let fpListingStatusesRepaired = 0;
+  try {
+    const repaired = await repairStuckFpListingStatuses();
+    fpListingStatusesRepaired = repaired.updatedTrainerIds.length;
+  } catch (e) {
+    console.error("[tos cron] fp listing status repair", e);
+  }
   let trainerPunchMissesProcessed = 0;
   let diyExtensionsAutoApproved = 0;
   let videoOAuthTokensRefreshed = 0;
@@ -331,6 +340,7 @@ export async function runMatchFitTosCronJobs(): Promise<TosCronSummary> {
     payoutBuffersRepaired,
     sessionsClearedPastPayoutBuffer,
     diyRefundAlerts,
+    fpListingStatusesRepaired,
     trainerPunchMissesProcessed,
     diyExtensionsAutoApproved,
     videoOAuthTokensRefreshed,
