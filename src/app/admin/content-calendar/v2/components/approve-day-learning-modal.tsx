@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   adminInputClassSm,
   adminLabelClass,
@@ -66,11 +66,14 @@ export function ApproveDayLearningModal({
 }) {
   const initialLearnings = useMemo(() => synthesizeProposedLearnings(postDate, posts), [postDate, posts]);
   const [learnings, setLearnings] = useState(initialLearnings);
+  const [syncedInitial, setSyncedInitial] = useState(initialLearnings);
   const [feedback, setFeedback] = useState("");
 
-  useEffect(() => {
+  // Reset the draft when the proposed learnings change (render-time sync, no effect).
+  if (syncedInitial !== initialLearnings) {
+    setSyncedInitial(initialLearnings);
     setLearnings(initialLearnings);
-  }, [initialLearnings]);
+  }
 
   async function handleConfirm() {
     await onConfirm({
