@@ -104,7 +104,7 @@ DO NOT wrap with markdown fences or extra prose. Return pure JSON only.`;
 
   try {
     const aiResult = await callMatchFitAi({
-      kind: "admin-assistant",
+      kind: "json",
       system: systemPrompt,
       user: prompt,
       temperature: 0.2,
