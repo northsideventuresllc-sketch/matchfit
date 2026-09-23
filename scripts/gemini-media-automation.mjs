@@ -899,6 +899,7 @@ async function main() {
       // publishing, rather than a silently-broken carousel reaching "ready".
       assertCarouselHasEnoughSlides(row.post_type, slidePrompts.length);
 
+      const mediaUrls = [];
       let slideIdx = 0;
       const slideCount = slidePrompts.length;
       // 15% (starting) → 90% (last upload) across all slides, so the bar tracks real work.
@@ -906,14 +907,14 @@ async function main() {
       for (const slidePrompt of slidePrompts) {
         slideIdx += 1;
         await writeProgress(row.id, slideSpan(slideIdx, 0), "generating");
-        const rawPath = await generateAndDownload(page, slidePrompt, workDir);
+        const mediaResult = await generateAndDownload(page, slidePrompt, workDir);
         await writeProgress(row.id, slideSpan(slideIdx, 0.5), "cropping");
-        const cropped = await cropWhiteFrame(rawPath);
+        const cropped = await cropWhiteFrame(mediaResult.path);
         await writeProgress(row.id, slideSpan(slideIdx, 0.8), "uploading");
         const objectPath = `${row.post_date}/${row.id}-slide${slideIdx}-${Date.now()}.png`;
         const publicUrl = await uploadRaw(objectPath, cropped, "image/png");
         mediaUrls.push(publicUrl);
-        fs.unlinkSync(rawPath);
+        fs.unlinkSync(mediaResult.path);
       }
 
       // Second half of the same hard gate: never write media_status="ready" with fewer
