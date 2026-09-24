@@ -30,8 +30,9 @@ describe("content-prompts", () => {
     expect(brief).toContain("Audience-specific operator notes");
     expect(brief).toContain("founding Premium access");
     expect(brief).toContain("Caption structure:");
-    expect(brief).toMatch(/Same as Static|bold hook/i);
+    expect(brief).toContain("ADHD & Dyslexia Friendly");
     expect(brief).toContain("Visual prompt structure:");
+    expect(brief).toMatch(/Slide Number:|Main Prompt:/);
     expect(brief).toContain("Drive to match-fit.net/trainer/sign-up");
   });
 
