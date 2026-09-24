@@ -23,10 +23,12 @@ function fileNameFromUrl(url: string): string {
 export function ReferenceFilesField({
   post,
   onPatch,
+  getDraftFields,
   disabled,
 }: {
   post: ClientContentCalendarV2Post;
   onPatch: (id: string, fields: Partial<ClientContentCalendarV2Post>) => Promise<void>;
+  getDraftFields?: () => Partial<ClientContentCalendarV2Post>;
   disabled?: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +39,8 @@ export function ReferenceFilesField({
     setBusy(true);
     setError(null);
     try {
-      await onPatch(post.id, { referenceFileUrls: [...files, ...urls] });
+      const draft = getDraftFields ? getDraftFields() : {};
+      await onPatch(post.id, { ...draft, referenceFileUrls: [...files, ...urls] });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save the reference file.");
     } finally {

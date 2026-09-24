@@ -231,6 +231,27 @@ export function ContentCalendarV2Client({
     [currentStage, loadStage, tab],
   );
 
+  const deletePost = useCallback(
+    async (id: string) => {
+      setBusyId(id);
+      setError(null);
+      try {
+        const res = await fetch(`/api/admin/content-calendar/v2/posts/${id}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        await readApi<{ success: boolean }>(res, "Could not delete post.");
+        setNotice("Post deleted.");
+        await loadStage(currentStage);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not delete post.");
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [currentStage, loadStage],
+  );
+
   const dayAction = useCallback(
     async (path: string, body: Record<string, unknown>): Promise<DayActionResult> => {
       const res = await fetch(`/api/admin/content-calendar/v2/posts/day/${path}`, {
@@ -456,6 +477,7 @@ export function ContentCalendarV2Client({
           onFireMediaAgent={onFireMediaAgent}
           onManuallyGenerateMedia={onManuallyGenerateDayMedia}
           onPostAction={postAction}
+          onDeletePost={deletePost}
         />
       ) : null}
 
