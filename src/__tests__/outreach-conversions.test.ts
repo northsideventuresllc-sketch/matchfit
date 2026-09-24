@@ -9,6 +9,8 @@ const M = vi.hoisted(() => ({
   emFindMany: vi.fn(),
   touchFindMany: vi.fn(),
   touchCreate: vi.fn(),
+  trainerFindUnique: vi.fn(),
+  clientFindUnique: vi.fn(),
 }));
 
 vi.mock("@/lib/ensure-outreach-hub-schema", () => ({
@@ -21,6 +23,8 @@ vi.mock("@/lib/prisma", () => ({
     outreachFacebookLead: { findMany: M.fbFindMany },
     outreachEmailLead: { findMany: M.emFindMany },
     outreachLeadTouchLog: { findMany: M.touchFindMany, create: M.touchCreate },
+    trainer: { findUnique: M.trainerFindUnique },
+    client: { findUnique: M.clientFindUnique },
   },
 }));
 
@@ -34,6 +38,8 @@ beforeEach(() => {
   M.touchFindMany.mockResolvedValue([]);
   M.fbFindMany.mockResolvedValue([]);
   M.emFindMany.mockResolvedValue([]);
+  M.trainerFindUnique.mockResolvedValue(null);
+  M.clientFindUnique.mockResolvedValue(null);
 });
 
 describe("setOutreachLeadConversion", () => {
@@ -80,6 +86,7 @@ describe("setOutreachLeadConversion", () => {
       followUp1SentAt: null,
       followUp2SentAt: null,
     });
+    M.trainerFindUnique.mockResolvedValue({ id: "trainer_9" });
 
     const result = await setOutreachLeadConversion({
       platform: "instagram",
@@ -90,12 +97,57 @@ describe("setOutreachLeadConversion", () => {
     });
 
     expect(result).toEqual({ ok: true });
+    expect(M.trainerFindUnique).toHaveBeenCalledWith({ where: { id: "trainer_9" }, select: { id: true } });
     expect(M.igUpdate).toHaveBeenCalledWith({
       where: { id: "ig1" },
       data: { matchedAccountType: "trainer", matchedAccountId: "trainer_9" },
     });
     // No backfill on a lead that was already converted.
     expect(M.touchCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejects linking to a trainer id that does not exist", async () => {
+    M.igFindUnique.mockResolvedValue({
+      id: "ig1",
+      convertedAt: new Date("2026-08-01T00:00:00Z"),
+      outreachSentAt: null,
+      followUp1SentAt: null,
+      followUp2SentAt: null,
+    });
+    M.trainerFindUnique.mockResolvedValue(null);
+
+    const result = await setOutreachLeadConversion({
+      platform: "instagram",
+      id: "ig1",
+      adminId: "admin1",
+      matchedAccountType: "trainer",
+      matchedAccountId: "ghost_trainer",
+    });
+
+    expect(result).toEqual({ ok: false, error: "Matched account not found." });
+    expect(M.igUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects linking to a client id that does not exist", async () => {
+    M.igFindUnique.mockResolvedValue({
+      id: "ig1",
+      convertedAt: new Date("2026-08-01T00:00:00Z"),
+      outreachSentAt: null,
+      followUp1SentAt: null,
+      followUp2SentAt: null,
+    });
+    M.clientFindUnique.mockResolvedValue(null);
+
+    const result = await setOutreachLeadConversion({
+      platform: "instagram",
+      id: "ig1",
+      adminId: "admin1",
+      matchedAccountType: "client",
+      matchedAccountId: "ghost_client",
+    });
+
+    expect(result).toEqual({ ok: false, error: "Matched account not found." });
+    expect(M.igUpdate).not.toHaveBeenCalled();
   });
 
   it("does not fabricate a touch when the lead has zero send timestamps", async () => {

@@ -137,6 +137,17 @@ export async function setOutreachLeadConversion(args: {
   const existing = await getLeadRow(args.platform, args.id);
   if (!existing) return { ok: false, error: "Lead not found." };
 
+  if (args.matchedAccountId) {
+    if (!args.matchedAccountType) {
+      return { ok: false, error: "matchedAccountType is required when linking an account." };
+    }
+    const account =
+      args.matchedAccountType === "trainer"
+        ? await prisma.trainer.findUnique({ where: { id: args.matchedAccountId }, select: { id: true } })
+        : await prisma.client.findUnique({ where: { id: args.matchedAccountId }, select: { id: true } });
+    if (!account) return { ok: false, error: "Matched account not found." };
+  }
+
   const isFirstConversion = !(existing as { convertedAt: Date | null }).convertedAt;
   const data: Record<string, unknown> = {};
   if (args.matchedAccountType !== undefined) data.matchedAccountType = args.matchedAccountType;

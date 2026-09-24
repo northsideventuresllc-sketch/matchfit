@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-24** `2.33.9-beta` → `2.33.10-beta` (**patch** — Reject linking an outreach lead conversion to a non-existent client/trainer account id)
 - **2026-09-24** `2.33.8-beta` → `2.33.9-beta` (**patch** — RunPod AXON v1 gate disabled by default (paid safeguard, Decision #2001))
 - **2026-09-23** `2.33.7-beta` → `2.33.8-beta` (**patch** — Public unauthenticated trainer search endpoint (`GET /api/public/trainers/search`) for the NI MCP agent storefront. Guest checkout endpoint was scoped but not built — it requires an existing client account id in the Stripe/webhook fulfilment chain; reported back instead of hacked around.)
 - **2026-09-16** `2.33.6-beta` → `2.33.7-beta` (**patch** — merge conflict resolution (2nd re-sync), no new product behavior beyond already-shipped security fixes)
