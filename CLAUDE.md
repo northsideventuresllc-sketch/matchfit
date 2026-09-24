@@ -72,9 +72,12 @@ Each of these exists because it was broken in a live session and cost JB time.
    never paid without every free tier having failed first.** The canonical AI
    Vault chain (`callMatchFitAi()` in `src/lib/ai-vault/router.ts`, see
    `docs/ai-vault.md`) tries, in order: AXON local (Mac mini Ollama, free) →
-   RunPod AXON v1 (NVG's own model, free, not deployed yet) → Gemini primary
-   (free) → Gemini backup (free) → Anthropic Claude (paid — genuinely last
-   resort, only reached once all four free tiers above have failed). This is
+   RunPod AXON v1 (NVG's own model, **paid pay-per-use, scale-to-zero —
+   deployed and live since 2026-08-26/28, min workers 0, per NI-Brain Decision
+   #1813; not free, corrected 2026-09-24 per Decision #2001**) → OpenRouter
+   free models → Gemini primary (free) → Gemini backup (free) → Anthropic
+   Claude (paid — genuinely last resort, only reached once every free tier
+   above has failed). This is
    intentional tiered fallback, not a violation: JB has said many times he
    will not refill credits, so the paid tier exists only to keep a feature
    working when every free option is down, never as a default path. Corrected

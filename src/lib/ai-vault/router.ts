@@ -21,16 +21,20 @@ import type { ProviderCallResult } from "@/lib/ai-vault/providers";
  * AXON-EVERYWHERE-PROJECT (2026-08-05, tier order extended 2026-08-20 per JB direct
  * order; OpenRouter free tier inserted 2026-09-03, Phase 3 / Decision #1721): the ONE
  * canonical tier order, binding across every NVG repo — AXON local (Mac mini Ollama) ->
- * RunPod AXON v1 (NVG's own fine-tuned model, not deployed yet, see NI-Brain Decision
- * #1261) -> OpenRouter free models -> Gemini primary -> Gemini backup -> Anthropic (paid,
- * last resort) — locked in Decision #598 item 11 / #619, extended by the 2026-08-20 and
- * 2026-09-03 orders. Every path below tries AXON-local, then RunPod AXON v1, first; where
- * AXON structurally can't do the job (live web search — Ollama has no internet access or
- * tool execution), that is documented explicitly at the call site, never silently
- * skipped. RunPod AXON v1 returns null immediately (no network call) until
- * `RUNPOD_AXON_V1_ENDPOINT` / `RUNPOD_AXON_V1_KEY` are configured, so this tier is a
- * no-op until the pod is live. OpenRouter is likewise a no-op until `OPENROUTER_API_KEY`
- * is configured.
+ * RunPod AXON v1 (NVG's own fine-tuned model, see NI-Brain Decision #1261) -> OpenRouter
+ * free models -> Gemini primary -> Gemini backup -> Anthropic (paid, last resort) —
+ * locked in Decision #598 item 11 / #619, extended by the 2026-08-20 and 2026-09-03
+ * orders. Every path below tries AXON-local, then RunPod AXON v1, first; where AXON
+ * structurally can't do the job (live web search — Ollama has no internet access or tool
+ * execution), that is documented explicitly at the call site, never silently skipped.
+ * RunPod AXON v1 has been deployed and live since 2026-08-26/28 — it is a PAID,
+ * pay-per-use, scale-to-zero tier (pennies per call, min workers 0 per Decision #1813),
+ * not free and not "not deployed yet"; corrected 2026-09-24 per Decision #2001, which
+ * ordered every rule line calling RunPod "free" fixed. It returns null (falls through)
+ * when `RUNPOD_AXON_V1_ENDPOINT` / `RUNPOD_AXON_V1_KEY` are unset, or on a live call
+ * failure such as the negative-balance state tracked in AX-RUNPOD-ZERO-SUCCESS-0915.
+ * OpenRouter is likewise a no-op until `OPENROUTER_API_KEY` is configured, and that one
+ * genuinely is free.
  */
 /**
  * Fire-and-forget usage log for one successful provider call. Never awaited by callers —
@@ -63,7 +67,9 @@ async function attemptAxonLocal(
   return axon.text;
 }
 
-/** RunPod AXON v1 — see docstring above. Returns null (no-op) until deployed. */
+/** RunPod AXON v1 — see docstring above. Paid pay-per-use tier, deployed and live since
+ * 2026-08-26/28 (Decision #1813); returns null (no-op) only on missing config or a live
+ * call failure. */
 async function attemptRunpodAxonV1(
   args: MatchFitAiCallArgs,
   attempts: MatchFitAiAttempt[],

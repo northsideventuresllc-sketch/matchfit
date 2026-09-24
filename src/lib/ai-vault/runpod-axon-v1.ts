@@ -7,15 +7,18 @@ import type { ProviderCallResult } from "@/lib/ai-vault/providers";
  * Vault chain — AXON v1, NVG's own fine-tuned model (base: Qwen3-Coder-30B-A3B-Instruct,
  * per NI-Brain Decision #1261), hosted on RunPod (RTX A6000 48GB, Community Cloud).
  *
- * NOT DEPLOYED YET as of 2026-08-20 — Decision #1261 is model+pod choice only, pilot
- * test run not yet executed. This provider is wired into the chain now so router.ts
- * only needs `RUNPOD_AXON_V1_ENDPOINT` / `RUNPOD_AXON_V1_KEY` added to the AI Vault
- * (`platform_secrets` / `ni_platform_secrets`) once the pod is live — no code change.
+ * DEPLOYED AND LIVE since 2026-08-26/28 — `RUNPOD_AXON_V1_ENDPOINT` / `RUNPOD_AXON_V1_KEY`
+ * are set in the AI Vault (`platform_secrets` / `ni_platform_secrets`) and the endpoint
+ * answers real calls. This is a PAID, pay-per-use, scale-to-zero tier (pennies per call,
+ * min workers 0, no always-warm worker per NI-Brain Decision #1813) — it is not free.
+ * Corrected 2026-09-24 per Decision #2001 (JB direct: fix every rule line that still
+ * called RunPod "free"); the previous "not deployed yet" wording here was stale.
  *
  * Same contract shape as `callAxonLocalProvider`: returns `null` on ANY failure, timeout,
- * or missing config — never throws — so callMatchFitAi() falls through to Gemini primary
- * exactly as if this tier didn't exist. Missing config is logged once per process, not on
- * every call, and never triggers a network request.
+ * or missing config — never throws — so callMatchFitAi() falls through to the next tier
+ * exactly as if this tier didn't exist. Missing config, or a live call failure (e.g. the
+ * negative RunPod account balance tracked in AX-RUNPOD-ZERO-SUCCESS-0915), is logged once
+ * per process, not on every call.
  */
 
 const RUNPOD_AXON_V1_MODEL = "Qwen3-Coder-30B-A3B-Instruct";
