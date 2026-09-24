@@ -1,7 +1,41 @@
 import "server-only";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createNiBrainClient, isNiBrainConfigured } from "@/lib/ni-brain-client";
 import type { OutreachPlatform } from "@/lib/outreach-types";
+
+/**
+ * Autosave (600ms debounce, no Save button — see LeadCard) means a single operator edit
+ * session PATCHes a field several times as they pause mid-edit, each PATCH a "different"
+ * diff from the DB's last-saved value. Without this window, every one of those intermediate
+ * saves promoted its own durable NI-Brain Learning — 420+ near-duplicate rows for the same
+ * lead+field in a week (W2-LOOPGAP-MF-OUTREACH-EDIT-DEDUP-0924). One promoted Learning per
+ * lead+field per window is enough to feed future generation; the raw per-edit signal is still
+ * recorded every time in match_fit_outreach_learning_signals below, unthrottled.
+ */
+const EDIT_LEARNING_DEDUP_WINDOW_MS = 30 * 60 * 1000;
+
+async function hasRecentEditLearningForField(
+  client: SupabaseClient,
+  args: { leadId?: string; field?: string },
+): Promise<boolean> {
+  if (!args.leadId) return false;
+  const windowStart = new Date(Date.now() - EDIT_LEARNING_DEDUP_WINDOW_MS).toISOString();
+  const { data } = await client
+    .from("match_fit_outreach_learning_signals")
+    .select("meta_json, created_at")
+    .eq("lead_id", args.leadId)
+    .eq("signal_type", "EDIT_DIFF")
+    .gte("created_at", windowStart)
+    .order("created_at", { ascending: false })
+    .limit(25);
+  const matchingField = (data ?? []).filter(
+    (row) => ((row.meta_json as { field?: string } | null)?.field ?? undefined) === args.field,
+  );
+  // The signal row for *this* edit was already inserted above, so more than one match means
+  // an earlier edit in this same window already promoted a Learning for this lead+field.
+  return matchingField.length > 1;
+}
 
 export type OutreachNiBrainSignalType =
   | "EDIT_DIFF"
@@ -34,13 +68,19 @@ export async function recordOutreachNiBrainLearning(args: {
 
     if (args.signalType === "EDIT_DIFF" && args.editedText && args.originalText) {
       if (args.originalText.trim() !== args.editedText.trim()) {
-        await client.from("Learnings").insert({
-          learning: `Match Fit outreach edit (${args.platform ?? "unknown"}/${(args.meta?.field as string) ?? "copy"}): prefer "${truncate(args.editedText, 120)}" over "${truncate(args.originalText, 80)}".`,
-          source: "match fit outreach hq",
-          date: new Date().toISOString(),
-          category: "outreach",
-          project: "Match Fit",
+        const alreadyPromoted = await hasRecentEditLearningForField(client, {
+          leadId: args.leadId,
+          field: args.meta?.field as string | undefined,
         });
+        if (!alreadyPromoted) {
+          await client.from("Learnings").insert({
+            learning: `Match Fit outreach edit (${args.platform ?? "unknown"}/${(args.meta?.field as string) ?? "copy"}): prefer "${truncate(args.editedText, 120)}" over "${truncate(args.originalText, 80)}".`,
+            source: "match fit outreach hq",
+            date: new Date().toISOString(),
+            category: "outreach",
+            project: "Match Fit",
+          });
+        }
       }
     }
     if (args.signalType === "DELETE_REASON" && args.editedText) {
