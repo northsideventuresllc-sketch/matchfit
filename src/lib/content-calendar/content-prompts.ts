@@ -1,9 +1,14 @@
 import {
+  CONTENT_ARCHETYPE_LABELS,
   CONTENT_CALENDAR_GROUP_DESCRIPTIONS,
   CONTENT_CALENDAR_PLATFORMS_BY_TYPE,
+  MATCH_FIT_AVATAR_IMAGE_PATH,
+  MATCH_FIT_AVATAR_NAME,
+  MATCH_FIT_AVATAR_PROMPT_DIRECTIVE,
   MATCH_FIT_BRAND_DARK,
   MATCH_FIT_BRAND_ORANGE,
   MATCH_FIT_LOGO_PATH,
+  type ContentArchetype,
   type ContentCalendarGroup,
   type ContentCalendarPostType,
 } from "@/lib/content-calendar/constants";
@@ -15,6 +20,7 @@ import {
 export type BulkContentSlotSpec = {
   postType: ContentCalendarPostType;
   targetGroup: ContentCalendarGroup;
+  archetype?: ContentArchetype;
 };
 
 export type AudienceCreativeBrief = {
@@ -34,9 +40,9 @@ export const AUDIENCE_CREATIVE_BRIEFS: Record<ContentCalendarGroup, AudienceCrea
       "Make signup feel urgent but credible — not hype without substance",
     ],
     hooks: [
-      "Stop renting attention on feeds that do not convert",
-      "Build a verified Fitness Pro brand where clients actually book",
-      "Founding cohort: Premium access window + waived onboarding fees for early Fitness Pros",
+      "Stop renting attention on feeds that do not convert 🔥",
+      "Build a verified Fitness Pro brand where clients actually book ⚡",
+      "Founding cohort: Premium access window + waived onboarding fees for early Fitness Pros 🚀",
     ],
     cta: "Drive to match-fit.net/trainer/sign-up with a clear next step",
     avoid: [
@@ -44,6 +50,7 @@ export const AUDIENCE_CREATIVE_BRIEFS: Record<ContentCalendarGroup, AudienceCrea
       "Saying Coaches — use Fitness Pros",
       "Wrong signup paths — always use match-fit.net/trainer/sign-up",
       "Lazy copy-paste of the same promo sentence — vary wording, keep meaning",
+      "Using markdown bold (**) — keep in natural plain English with emojis",
     ],
   },
   "List With Us": {
@@ -54,15 +61,16 @@ export const AUDIENCE_CREATIVE_BRIEFS: Record<ContentCalendarGroup, AudienceCrea
       "Position Match Fit as amplification, not another complicated CRM",
     ],
     hooks: [
-      "Get discovered by local clients without rebuilding your entire business online",
-      "List your brand where athletes are already searching for training",
-      "Independent Pro path: fast listing, your site, your pricing",
+      "Get discovered by local clients without rebuilding your entire business online 📲",
+      "List your brand where athletes are already searching for training 🎯",
+      "Independent Pro path: fast listing, your site, your pricing 🏆",
     ],
     cta: "Drive to match-fit.net/trainer/sign-up or explore listing benefits on match-fit.net",
     avoid: [
       "Talking about full Match Fit verification if the angle is independent listing",
       "Saying Coaches — use Fitness Pros",
       "Wrong signup paths — always use match-fit.net/trainer/sign-up",
+      "Using markdown bold (**) — keep in natural plain English with emojis",
     ],
   },
   Clients: {
@@ -73,14 +81,15 @@ export const AUDIENCE_CREATIVE_BRIEFS: Record<ContentCalendarGroup, AudienceCrea
       "Make trying Match Fit feel low-friction and outcome-focused",
     ],
     hooks: [
-      "Stop scrolling random profiles — get matched to a Fitness Pro who fits your goals",
-      "Beta VIP trial: explore premium discovery before you commit",
-      "Training that fits your schedule, in-person or virtual",
+      "Stop scrolling random profiles — get matched to a Fitness Pro who fits your goals 👀",
+      "Beta VIP trial: explore premium discovery before you commit ⚡",
+      "Training that fits your schedule, in-person or virtual 💪",
     ],
     cta: "Drive to match-fit.net/client/sign-up with a specific outcome in the post",
     avoid: [
       "Fitness Pro recruitment language when speaking to clients",
       "Sending clients to /trainer/sign-up — clients use match-fit.net/client/sign-up",
+      "Using markdown bold (**) — keep in natural plain English with emojis",
     ],
   },
 };
@@ -91,25 +100,25 @@ export const POST_TYPE_CREATIVE_BRIEFS: Record<
 > = {
   Carousel: {
     captionShape:
-      "ADHD & Dyslexia Friendly: Bold hook headline with emoji, 2-3 short bullet points (under 15 words) with bold subtitles (e.g. • **The Advantage:** ...), clear bold emoji CTA with link. (Do NOT describe or inventory slides in the caption — slide structure belongs only in the visual prompt).",
+      "ADHD & Dyslexia Friendly: Eye-catching emoji hook, 2-3 short bullet points (under 15 words) with plain subtitles (e.g. • Advantage: ...), clear emoji CTA with link. Use 2–4 vibrant emojis (🔥, ⚡, 💪, 🎯). Pure plain English (NEVER markdown asterisks **). (Do NOT describe or inventory slides in the caption — slide structure belongs only in the visual prompt).",
     visualShape:
       "Follow Carousel Image Format:\nSlide Number: (slide # of #)\nMain Prompt: (detailed scene description with cross-slide consistency)\nOn Screen Text: (quoted text, font, features, coloring)\n\nProduction Specs:\n-Dimensions & Format: 1080x1350, 4:5 portrait swipeable carousel (Instagram/Facebook/Threads/TikTok)\n-Brand Colors: dark background #07080C with #FF7E00 orange accents\n-Logos & Other Branding: Match Fit logo placed consistently\n-References: match-fit.net\n-Rules:\n\t-All text and important content of the images stays in the top 3/4 of the image\n\t-ALL TEXT WITHIN THE IMAGE AND UI DETAILS MUST BE COMPLETELY RENDERED WITHOUT ANY \"AI SLOP\" AND POORLY RENDERED TEXT",
   },
   Static: {
     captionShape:
-      "ADHD & Dyslexia Friendly: Bold hook headline with emoji, 2-3 short bullet points (under 15 words) with bold subtitles (e.g. • **The Advantage:** ...), clear bold emoji CTA with link.",
+      "ADHD & Dyslexia Friendly: Eye-catching emoji hook, 2-3 short bullet points (under 15 words) with plain subtitles (e.g. • Advantage: ...), clear emoji CTA with link. Use 2–4 vibrant emojis (🔥, ⚡, 💪, 🎯). Pure plain English (NEVER markdown asterisks **).",
     visualShape:
       "Follow Static Image Format:\nMain Prompt: (detailed scene description)\nOn Screen Text: (quoted text, font, features, coloring)\n\nProduction Specs:\n-Dimensions & Format: 1080x1350, 4:5 portrait (Instagram/Facebook/Threads)\n-Brand Colors: dark background #07080C with #FF7E00 orange accents\n-Logos & Other Branding: Match Fit logo placed cleanly\n-References: match-fit.net\n-Rules:\n\t-All text and important content of the image stays in the top 3/4 of the image\n\t-ALL TEXT WITHIN THE IMAGE AND UI DETAILS MUST BE COMPLETELY RENDERED WITHOUT ANY \"AI SLOP\" AND POORLY RENDERED TEXT",
   },
   Video: {
     captionShape:
-      "ADHD & Dyslexia Friendly: High-energy pattern-interrupt bold hook with emoji, 2-3 short spoken-style bullet points (under 15 words) with bold subtitles, spoken-style bold emoji CTA.",
+      "ADHD & Dyslexia Friendly: High-energy pattern-interrupt emoji hook, 2-3 short spoken-style bullet points (under 15 words) with plain subtitles, spoken-style emoji CTA. Use 2–4 vibrant emojis (🔥, ⚡, 🚀, 👀). Pure plain English (NEVER markdown asterisks **).",
     visualShape:
       "Follow Video Format:\nMain Prompt: (detailed scene-by-scene description, timestamps, narrator script, transitions, style)\nOn Screen Text: (quoted text, timed appearance, font, features, coloring)\n\nProduction Specs:\n-Dimensions & Format: 1080x1920, 9:16 vertical video (Reels/TikTok/Shorts)\n-Brand Colors: dark background #07080C with #FF7E00 orange accents\n-Logos & Other Branding: Match Fit logo in watermark/end card\n-References: match-fit.net\n-Rules:\n\t-All text and important content of the video stays in the top 3/4 of the frame\n\t-ALL TEXT WITHIN THE IMAGE AND UI DETAILS MUST BE COMPLETELY RENDERED WITHOUT ANY \"AI SLOP\" AND POORLY RENDERED TEXT",
   },
   Text: {
     captionShape:
-      "ADHD & Dyslexia Friendly: Conversational bold hook with emoji, 2-3 punchy bullet points (under 15 words) with bold subtitles, engaging single question or bold emoji CTA. No image.",
+      "ADHD & Dyslexia Friendly: Conversational emoji hook, 2-3 punchy bullet points (under 15 words) with plain subtitles, engaging single question or emoji CTA. Use 2–4 vibrant emojis (🔥, ⚡, 🚀, 💪). Pure plain English (NEVER markdown asterisks **). No image.",
     visualShape: "null — Text posts have no visualPrompt.",
   },
 };
@@ -308,6 +317,8 @@ export function buildMediaGenerationPrompt(args: {
     return creative;
   }
 
+  const isUgcOrAvatar = /UGC|avatar|Jordan|talking head/i.test(creative) || /UGC|avatar|Jordan|talking head/i.test(args.caption);
+
   return [
     creative,
     "",
@@ -315,7 +326,10 @@ export function buildMediaGenerationPrompt(args: {
     `-Dimensions & Format: ${dims.pixels}, ${dims.aspectRatio} ${dims.orientation} (${dims.usage})`,
     `-Brand Colors: dark background ${MATCH_FIT_BRAND_DARK} with ${MATCH_FIT_BRAND_ORANGE} orange as the accent (headline text, highlights, CTA chip). Do not invent other brand colors.`,
     `-Logos & Other Branding: incorporate Match Fit logo (${MATCH_FIT_LOGO_PATH}) cleanly without covering focal subject or headline. Reference logo attached.`,
-    "-References: match-fit.net | reference image attached",
+    isUgcOrAvatar
+      ? `-References: match-fit.net | avatar character reference attached (${MATCH_FIT_AVATAR_IMAGE_PATH}) | reference image attached`
+      : "-References: match-fit.net | reference image attached",
+    isUgcOrAvatar ? `-Character Identity: ${MATCH_FIT_AVATAR_NAME} (Match Fit Official Talking Head Avatar — charismatic 28yo athletic trainer in studio).` : null,
     "-Rules:",
     "\t-All text and important content of the image stays in the top 3/4 of the image",
     '\t-ALL TEXT WITHIN THE IMAGE AND UI DETAILS MUST BE COMPLETELY RENDERED WITHOUT ANY "AI SLOP" AND POORLY RENDERED TEXT',
@@ -324,7 +338,7 @@ export function buildMediaGenerationPrompt(args: {
       : args.postType === "Video"
         ? "\t-Apply the spec to opening hook frame / thumbnail and keep on-screen text inside vertical safe zone."
         : "\t-Single composition — headline, subject, logo, and CTA must read at a glance.",
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
 export function isLazyCalendarCaption(caption: string): boolean {
@@ -441,13 +455,20 @@ export function isLazyCalendarDraft(args: {
 }
 
 export const CONTENT_CALENDAR_CREATIVE_QUALITY_RULES = `Creative quality & ADHD/Dyslexia Accessibility (non-negotiable):
-- Every caption MUST follow the ADHD & Dyslexia Friendly layout:
-  1. 🔥 **[Bold Hook Headline with Emoji]**
-  2. • **[Bold Subtitle]:** [Short, punchy takeaway under 15 words]
-  3. • **[Bold Subtitle]:** [Short, punchy takeaway under 15 words]
-  4. 👉 **[Bold CTA with Emoji]:** [Clean signup link]
+- EMOJIS (Required & Eye-Catching): Use 2–4 vibrant, eye-catching emojis (🔥, ⚡, 🚀, 💪, 🎯, 🏆, 👀, 📲, ✨, 📈) in EVERY caption and text post. Place them naturally in the opening hook, bullet points, and CTA so posts immediately pop in social feeds.
+- NO MARKDOWN BOLDING (**): Never use asterisks (**) or (*) in captions or text posts. Social captions do not support markdown bold; writing ** is AI slop. Write pure, natural plain English with emojis for visual emphasis.
+- ADHD & Dyslexia Friendly Layout:
+  1. 🔥 [Eye-Catching Hook Headline with Emoji]
+  2. • [Clean Subtitle]: [Short, punchy takeaway under 15 words]
+  3. • [Clean Subtitle]: [Short, punchy takeaway under 15 words]
+  4. 👉 [Actionable CTA with Emoji]: [Clean signup link]
 - NEVER write unbroken walls of prose or long paragraphs in captions. Use generous whitespace and bullet points.
 - Zero tech jargon or code buzzwords: never say "algorithmic matching", "platform architecture", or "database signals". Use plain human fitness terms: "smart matching", "verified coaches", "direct client connections".
+- The 3 Content Archetypes (Balanced Mix):
+  1) GENERIC INFORMATIONAL: Direct benefit-driven posts explaining Match Fit features (Fit Hub, swipe discovery, founding coach promos, VIP client trial, independent listings). Clear, high-converting value.
+  2) UGC AVATAR TALKING HEAD: UGC creator content starring Jordan Blake (Match Fit's official AI coach/talking head avatar). Relatable, front-camera smartphone framing, conversational advice, candid reactions, real-talk fitness problem solving. Every UGC prompt MUST reference the avatar image (${MATCH_FIT_AVATAR_IMAGE_PATH}).
+  3) CINEMATIC TRAILER (Video Only): High-production teaser / trailer pushing Match Fit creatively. Dramatic athletic action, high-energy movie-trailer narrative arc, intense lighting, motivational beats, and bold on-screen titles.
+- Every caption needs a specific hook, concrete Match Fit detail (feature, promo, workflow, or outcome), and audience-appropriate CTA.
 - Never output placeholder captions like "{PostType} for {Audience} — Match Fit beta. match-fit.net".
 - Lead with trending, widely-understood words — "coach", "trainer", "personal trainer". "Fitness Pro" is our internal brand term: use it sparingly, never lead with it while the brand is still being established.
 - Match Fit is worldwide — never say "nationwide", "across the country", or name a place.
@@ -456,10 +477,10 @@ export const CONTENT_CALENDAR_CREATIVE_QUALITY_RULES = `Creative quality & ADHD/
 - Founding promo: first 30 Fitness Pros → 60 days Premium free AND onboarding fees waived. Vary wording; keep meaning.
 - Visual prompts must describe subjects, scenes, actions, camera/framing, mood, and on-screen text — NOT just hex colors and audience labels.
 - Brand palette (#07080C dark, #FF7E00 orange) is an accent reference only; it is not a substitute for creative direction.
-- Pull at least one specific insight from the operator directive, website scan, or social scan when provided.
+- Pull at least one specific insight from the operator directive, website scan, social scan, daily market research, or social performance analytics when provided.
 - Each slot in a batch must be meaningfully different in hook, angle, CTA, and promo phrasing.
 
-Visual prompt REQUIRED FORMATS (Non-negotiable — every generated visual prompt MUST follow one of these 3 outlines exactly):
+Visual prompt REQUIRED FORMATS (Non-negotiable — every generated visual prompt MUST follow one of these outlines exactly):
 
 =============================================================================================
 Static Image Format
@@ -489,16 +510,29 @@ Production Specs:
 	-All text and important content of the images stays in the top 3/4 of the image
 	-ALL TEXT WITHIN THE IMAGE AND UI DETAILS MUST BE COMPLETELY RENDERED WITHOUT ANY "AI SLOP" AND POORLY RENDERED TEXT
 =============================================================================================
-Video Format
-Main Prompt: (describe in detail what the scene is to optimize video generation | include time stamps and what the narrator will say during each time stamp | organize by scene and describe transitions and style)
+Video Format (Standard / UGC Avatar)
+Main Prompt: (describe in detail what the scene is to optimize video generation | include time stamps and what the narrator/avatar will say during each time stamp | organize by scene and describe transitions and style | if UGC: feature official avatar Jordan Blake front-facing in studio)
 On Screen Text: (describe what the text says in quotations, and describe how the text font, features, and coloring is | describe how the text shows up in the video)
 
 Production Specs: 
 -Dimensions & Format: 1080x1920, 9:16 vertical video (Reels / TikTok / Shorts)
 -Brand Colors: dark background with orange accents
 -Logos & Other Branding: Match Fit logo in watermark or outro frame
--References: match-fit.net | use image attached for reference
+-References: match-fit.net | use image attached for reference (for UGC: reference ${MATCH_FIT_AVATAR_IMAGE_PATH})
 -Rules:
 	-All text and important content of the video stays in the top 3/4 of the image
 	-ALL TEXT WITHIN THE IMAGE AND UI DETAILS MUST BE COMPLETELY RENDERED WITHOUT ANY "AI SLOP" AND POORLY RENDERED TEXT
+=============================================================================================
+Cinematic Trailer Video Format
+Main Prompt: (describe in detail the high-production cinematic movie-trailer style video | dramatic high-contrast lighting, athlete/trainer action cuts, dynamic camera motion, epic soundtrack cues, time stamps, narrator voiceover script, fast-paced editorial transitions pushing Match Fit)
+On Screen Text: (describe high-impact bold typography titles, timed appearances, subtle orange glow, cinematic title cards)
+
+Production Specs: 
+-Dimensions & Format: 1080x1920, 9:16 vertical video (Reels / TikTok / Shorts)
+-Brand Colors: deep cinematic dark #07080C with fiery #FF7E00 orange highlights and lens flares
+-Logos & Other Branding: Match Fit animated logo reveal in outro end card
+-References: match-fit.net
+-Rules:
+	-All key action and title safe content stays in the top 3/4 of the frame
+	-ALL TEXT AND MOTION GRAPHICS COMPLETELY RENDERED WITHOUT AI SLOP
 `;

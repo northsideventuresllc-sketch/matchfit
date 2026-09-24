@@ -34,10 +34,14 @@ function BubbleGrid({
   posts,
   wiring,
   onSubmitForGeneration,
+  onDelete,
+  onRegenerate,
 }: {
   posts: ClientContentCalendarV2Post[];
   wiring: BubbleWiring;
   onSubmitForGeneration: (id: string) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
+  onRegenerate?: (id: string) => Promise<void>;
 }) {
   return (
     <div className="grid gap-4 xl:grid-cols-2">
@@ -47,6 +51,8 @@ function BubbleGrid({
           post={post}
           busy={wiring.busyId === post.id}
           onPatch={wiring.onPatch}
+          onDelete={onDelete}
+          onRegenerate={onRegenerate}
           register={wiring.register}
           unregister={wiring.unregister}
           onSubmitForGeneration={onSubmitForGeneration}
@@ -64,6 +70,8 @@ function DayContainer({
   onFireMediaAgent,
   onManuallyGenerateMedia,
   onSubmitForGeneration,
+  onDeletePost,
+  onRegeneratePost,
 }: {
   group: HubDayGroup;
   wiring: BubbleWiring;
@@ -72,6 +80,8 @@ function DayContainer({
   onFireMediaAgent: (postDate: string) => Promise<DayActionResult>;
   onManuallyGenerateMedia: (postDate: string) => Promise<DayActionResult>;
   onSubmitForGeneration: (id: string) => Promise<void>;
+  onDeletePost?: (id: string) => Promise<void>;
+  onRegeneratePost?: (id: string) => Promise<void>;
 }) {
   const [action, setAction] = useState<"approve" | "return" | "fire" | "manual-media" | null>(null);
   const [showLearningModal, setShowLearningModal] = useState(false);
@@ -238,7 +248,13 @@ function DayContainer({
       {dayError ? <p className="mt-3 text-xs font-semibold text-[#FFB4B4]">{dayError}</p> : null}
 
       <div className="mt-4">
-        <BubbleGrid posts={group.scheduled} wiring={wiring} onSubmitForGeneration={onSubmitForGeneration} />
+        <BubbleGrid
+          posts={group.scheduled}
+          wiring={wiring}
+          onSubmitForGeneration={onSubmitForGeneration}
+          onDelete={onDeletePost}
+          onRegenerate={onRegeneratePost}
+        />
       </div>
 
       {group.impromptu.length ? (
@@ -246,7 +262,13 @@ function DayContainer({
           <p className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-[#FF7E00]">
             Impromptu drafts for this day
           </p>
-          <BubbleGrid posts={group.impromptu} wiring={wiring} onSubmitForGeneration={onSubmitForGeneration} />
+          <BubbleGrid
+            posts={group.impromptu}
+            wiring={wiring}
+            onSubmitForGeneration={onSubmitForGeneration}
+            onDelete={onDeletePost}
+            onRegenerate={onRegeneratePost}
+          />
         </div>
       ) : null}
 
@@ -274,6 +296,8 @@ export function ContentHubPanel({
   onFireMediaAgent,
   onManuallyGenerateMedia,
   onPostAction,
+  onDeletePost,
+  onRegeneratePost,
 }: {
   posts: ClientContentCalendarV2Post[];
   wiring: BubbleWiring;
@@ -284,6 +308,8 @@ export function ContentHubPanel({
   onManuallyGenerateMedia: (postDate: string) => Promise<DayActionResult>;
   /** Mirrors the `onAction` prop threaded into PendingTabPanel / PublishingPanel from the parent's `postAction`. */
   onPostAction: (id: string, body: Record<string, unknown>, success?: string) => Promise<void>;
+  onDeletePost?: (id: string) => Promise<void>;
+  onRegeneratePost?: (id: string) => Promise<void>;
 }) {
   // Optimistic local hide, independent of the parent's post list — a successful manual-media or
   // submit-for-generation call moves posts out of the "hub" stage server-side, but this panel has no
@@ -311,6 +337,33 @@ export function ContentHubPanel({
     [onPostAction],
   );
 
+  const handleDeletePost = useCallback(
+    async (id: string) => {
+      if (onDeletePost) {
+        await onDeletePost(id);
+      } else {
+        const res = await fetch(`/api/admin/content-calendar/v2/posts/${id}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Could not delete post.");
+      }
+      setHiddenPostIds((prev) => new Set(prev).add(id));
+    },
+    [onDeletePost],
+  );
+
+  const handleRegeneratePost = useCallback(
+    async (id: string) => {
+      if (onRegeneratePost) {
+        await onRegeneratePost(id);
+      } else {
+        await onPostAction(id, { action: "regenerate_draft" }, "Post draft regenerated.");
+      }
+    },
+    [onPostAction, onRegeneratePost],
+  );
+
   const visiblePosts = posts.filter((p) => !hiddenPostIds.has(p.id));
   const { days, undated } = groupHubPosts(visiblePosts);
   const visibleDays = days.filter((d) => !hiddenDates.has(d.date));
@@ -321,31 +374,34 @@ export function ContentHubPanel({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[#FFD34E]">Content Hub</p>
           <span className="rounded-full bg-[#FF7E00]/20 px-2.5 py-0.5 text-[10px] font-bold text-[#FFD34E]">
-            2 Posts / Day · Mon–Fri Locked Format
+            10 Posts / Week · 28-Day Archetype Mix (9.28 – 10.25)
           </span>
         </div>
         <p className="mt-2 text-sm leading-relaxed text-white/75">
-          Match Fit generates two posts a day, Monday–Friday following the active weekly posting rhythm:
+          Active 28-day marketing test running 10 posts per week (2 text, 8 media) across 3 strategic content types:
         </p>
-        <div className="mt-2.5 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
+        <div className="mt-2.5 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
           <div className="rounded-xl border border-white/[0.08] bg-black/30 p-2.5">
-            <span className="font-black text-[#FFD34E]">⚡ Live Posting (Mon · Wed · Fri) — Video + Carousel</span>
-            <ul className="mt-1 space-y-0.5 text-[11px] text-white/60">
-              <li>• <strong className="text-white/90">Monday:</strong> Join Our Team (Fitness Pro recruitment)</li>
-              <li>• <strong className="text-emerald-300">Wednesday:</strong> Client Spotlight (Athlete VIP trial)</li>
-              <li>• <strong className="text-sky-300">Friday:</strong> List With Us (Facility &amp; Pro directory)</li>
-            </ul>
+            <span className="font-black text-[#FFD34E]">1. Generic Informational (3/wk)</span>
+            <p className="mt-1 text-[11px] text-white/60">
+              Clear, benefit-driven product and promo ads covering matching, tools, and founding coach fee waivers.
+            </p>
           </div>
           <div className="rounded-xl border border-white/[0.08] bg-black/30 p-2.5">
-            <span className="font-black text-white/90">📝 Draft &amp; Feature (Tue · Thu) — Static + Text</span>
-            <ul className="mt-1 space-y-0.5 text-[11px] text-white/60">
-              <li>• <strong className="text-white/90">Tuesday:</strong> Pro Insights &amp; Tool Features</li>
-              <li>• <strong className="text-white/90">Thursday:</strong> Social Proof &amp; Fit Hub Community</li>
-            </ul>
+            <span className="font-black text-emerald-300">2. UGC Talking Head Avatar (4/wk)</span>
+            <p className="mt-1 text-[11px] text-white/60">
+              Authentic creator content featuring official avatar Jordan Blake with mandatory character reference.
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/[0.08] bg-black/30 p-2.5">
+            <span className="font-black text-sky-300">3. Cinematic Trailer (1/wk) + Text (2/wk)</span>
+            <p className="mt-1 text-[11px] text-white/60">
+              High-production video trailer pushing brand storytelling, plus 2 high-signal plain-English text posts.
+            </p>
           </div>
         </div>
         <p className="mt-2.5 text-[11px] text-white/50">
-          The full week generates automatically {WEEKLY_GENERATION_TIME_LABEL}. Edit any post below, approve the day, and fire the media agent.
+          Auto-saving is active on all edits. Reference files upload safely without resetting changes. Delete or regenerate singular posts below.
         </p>
       </section>
 
@@ -359,6 +415,8 @@ export function ContentHubPanel({
           onFireMediaAgent={onFireMediaAgent}
           onManuallyGenerateMedia={runManuallyGenerateMedia}
           onSubmitForGeneration={submitForGeneration}
+          onDeletePost={handleDeletePost}
+          onRegeneratePost={handleRegeneratePost}
         />
       ))}
 
@@ -370,7 +428,13 @@ export function ContentHubPanel({
             them here, or use them as source material.
           </p>
           <div className="mt-4">
-            <BubbleGrid posts={undated} wiring={wiring} onSubmitForGeneration={submitForGeneration} />
+            <BubbleGrid
+              posts={undated}
+              wiring={wiring}
+              onSubmitForGeneration={submitForGeneration}
+              onDelete={handleDeletePost}
+              onRegenerate={handleRegeneratePost}
+            />
           </div>
         </section>
       ) : null}

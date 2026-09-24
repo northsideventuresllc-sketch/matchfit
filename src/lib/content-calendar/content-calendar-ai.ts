@@ -640,7 +640,7 @@ ${CONTENT_CALENDAR_CREATIVE_QUALITY_RULES}
 ${contextBlock}
 
 Generate ${count} distinct, publish-ready social posts — one per slot below.
-Scheduling mode: ${args.scheduled ? `scheduled — assign posts to Mon/Wed/Fri social posting days starting ${postingDates[0] ?? "next slot"} (after 5pm Eastern rolls to the next posting day)` : "unscheduled — use day_index 0 for all; postDate null"}.
+Scheduling mode: ${args.scheduled ? `scheduled — assign posts across weekday calendar slots starting ${postingDates[0] ?? "next slot"}` : "unscheduled — use day_index 0 for all; postDate null"}.
 Platform mapping: Carousel/Static→Instagram+Facebook; Video→Reels/TikTok; Text→Threads+Facebook (visualPrompt null for Text).
 
 Return valid JSON only. Use this shape:
