@@ -4,7 +4,8 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
-- **2026-09-25** `2.33.10-beta` → `2.33.11-beta` (**patch** — Verify matchedAccountId exists before linking an outreach lead)
+- **2026-09-25** `2.33.11-beta` → `2.33.12-beta` (**patch** — Verify matchedAccountId exists before linking an outreach lead; merge conflict re-bump, no new product change beyond the outreach-conversion fix)
+- **2026-09-25** `2.33.10-beta` → `2.33.11-beta` (**patch** — Fix axon_cost_ledger inserts silently failing on a generated column (total_tokens))
 - **2026-09-24** `2.33.9-beta` → `2.33.10-beta` (**patch** — Fix red main CI: unused imports and stale content prompt test)
 - **2026-09-24** `2.33.8-beta` → `2.33.9-beta` (**patch** — RunPod AXON v1 gate disabled by default (paid safeguard, Decision #2001))
 - **2026-09-23** `2.33.7-beta` → `2.33.8-beta` (**patch** — Public unauthenticated trainer search endpoint (`GET /api/public/trainers/search`) for the NI MCP agent storefront. Guest checkout endpoint was scoped but not built — it requires an existing client account id in the Stripe/webhook fulfilment chain; reported back instead of hacked around.)

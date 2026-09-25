@@ -51,8 +51,6 @@ export async function logLlmUsageAsync(entry: LlmUsageLogEntry): Promise<boolean
 
     const tokensIn = Number.isFinite(entry.tokensIn) ? entry.tokensIn : null;
     const tokensOut = Number.isFinite(entry.tokensOut) ? entry.tokensOut : null;
-    const totalTokens =
-      tokensIn != null || tokensOut != null ? (tokensIn ?? 0) + (tokensOut ?? 0) : null;
 
     let notes: string | null = null;
     if (entry.meta) {
@@ -63,6 +61,15 @@ export async function logLlmUsageAsync(entry: LlmUsageLogEntry): Promise<boolean
       }
     }
 
+    // BUILD-AXON-AGENTS-FIX-BUNDLE-0923 (c): axon_cost_ledger.total_tokens is a Postgres
+    // GENERATED ALWAYS column (COALESCE(input_tokens,0)+COALESCE(output_tokens,0)).
+    // Sending it explicitly makes PostgREST reject the WHOLE insert with 428C9 ("cannot
+    // insert a non-DEFAULT value into a generated column") — confirmed live against the
+    // real table via AXON/lib/axon-router-core.mjs's twin of this function, which hit the
+    // exact same 400 on every attempt before this field was removed. This is the real,
+    // verified reason axon_cost_ledger has sat at 0 rows since the table was created, not
+    // "no real traffic yet". Never add total_tokens back to this payload — Postgres
+    // computes it.
     const res = await fetch(`${supabaseUrl}/rest/v1/axon_cost_ledger`, {
       method: "POST",
       headers: {
@@ -80,7 +87,6 @@ export async function logLlmUsageAsync(entry: LlmUsageLogEntry): Promise<boolean
         agent_name: entry.agentName || "matchfit-ai-vault",
         input_tokens: tokensIn,
         output_tokens: tokensOut,
-        total_tokens: totalTokens,
         cost_usd: Number.isFinite(entry.costUsd) ? entry.costUsd : null,
         ms: Number.isFinite(entry.ms) ? entry.ms : null,
         notes,
