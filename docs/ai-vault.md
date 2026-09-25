@@ -5,7 +5,7 @@ Match Fit and sibling repos (Hermes, NI Brain agents, future Northside apps) use
 ## Provider order (mandatory)
 
 1. **AXON local** — AXON's free Mac-mini Ollama model (`axon-ornith:latest`), reached via the `nvg_mini_jobs` relay. Free, tried first, every time.
-2. **RunPod AXON v1** — NVG's own fine-tuned model (base: `Qwen3-Coder-30B-A3B-Instruct`, per NI-Brain Decision #1261), hosted on RunPod. **Deployed and live since 2026-08-26/28** — `RUNPOD_AXON_V1_ENDPOINT` / `RUNPOD_AXON_V1_KEY` are set in `ni_platform_secrets` and the endpoint answers real job-queue calls. **This is a paid, pay-per-use tier (pennies per call), not free** — NI-Brain Decision #1813 (2026-09-07) kept it at pay-only-when-used / scale-to-zero (min workers 0) rather than an always-warm dedicated GPU, and Decision #2001 (2026-09-24) directly ordered every rule line that still called RunPod "free" to be corrected. As of 2026-09-24 the endpoint is failing ~all calls due to a negative RunPod account balance (billing, not code — see AX-RUNPOD-ZERO-SUCCESS-0915), so callers currently fall through to the next tier; that is a funding/billing state, not a "not deployed" state.
+2. **RunPod AXON v1** — NVG's own fine-tuned model (base: `Qwen3-Coder-30B-A3B-Instruct`, per NI-Brain Decision #1261), hosted on **paid** RunPod GPU hosting. **Skipped by default, no spend, until JB funds it** (NI-Brain Decision #2001, 2026-09-24 — corrects earlier wording that called this tier "free"). This tier is wired into the code and returns `null` immediately (no network call) unless `AXON_ENABLE_RUNPOD=1` is set — setting only `RUNPOD_AXON_V1_ENDPOINT` / `RUNPOD_AXON_V1_KEY` is not enough to enable it — so it is currently a no-op that falls straight through to Gemini.
 3. **Gemini primary** — `GEMINI_API_KEY` (typically `AIza...`)
 4. **Gemini backup** — `GEMINI_API_KEY_BACKUP` (typically `AQ....`)
 5. **Claude (Anthropic)** — last resort, paid. Only reached once every free tier above has failed. Auto-select model by task complexity:
@@ -19,8 +19,9 @@ Only after all five fail should a feature surface a generation error.
 
 | Key | Purpose |
 |-----|---------|
-| `RUNPOD_AXON_V1_ENDPOINT` | RunPod AXON v1 inference endpoint URL (set — pod deployed and live since 2026-08-26/28, paid pay-per-use) |
-| `RUNPOD_AXON_V1_KEY` | RunPod AXON v1 API key (set — see above; not a free tier) |
+| `RUNPOD_AXON_V1_ENDPOINT` | RunPod AXON v1 inference endpoint URL (not set yet — pod not deployed) |
+| `RUNPOD_AXON_V1_KEY` | RunPod AXON v1 API key (not set yet — pod not deployed) |
+| `AXON_ENABLE_RUNPOD` | Must be `1` to enable the RunPod tier at all — paid GPU hosting, disabled by default (Decision #2001). Endpoint/key alone are not enough. |
 | `GEMINI_API_KEY` | Gemini primary |
 | `GEMINI_API_KEY_BACKUP` | Gemini backup |
 | `GEMINI_MODEL` | Default `gemini-2.5-flash` (falls back through 2.5-flash-lite, 2.0-flash) |

@@ -22,6 +22,14 @@ const QUICK_PROMPTS = [
   "Create an impromptu post for Friday about client results",
 ];
 
+function messageId(prefix: string): string {
+  return `${prefix}_${Date.now()}`;
+}
+
+function clockTime(): string {
+  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
 export function AxonContentAgentBubble({
   currentStage,
   activePosts,
@@ -40,7 +48,7 @@ export function AxonContentAgentBubble({
       role: "assistant",
       content:
         "Hi JB! I'm your AXON Content Agent. Tell me what to fix across your calendar (captions, hashtags, video prompts, firing media agents, or impromptu posts) and I will execute it immediately.",
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      timestamp: clockTime(),
     },
   ]);
 
@@ -61,10 +69,10 @@ export function AxonContentAgentBubble({
     if (!text || busy) return;
 
     const userMsg: Message = {
-      id: `usr_${Date.now()}`,
+      id: messageId("usr"),
       role: "user",
       content: text,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      timestamp: clockTime(),
     };
 
     setMessages((prev) => [...prev, userMsg]);
@@ -109,11 +117,11 @@ export function AxonContentAgentBubble({
       }
 
       const assistantMsg: Message = {
-        id: `asst_${Date.now()}`,
+        id: messageId("asst"),
         role: "assistant",
         content: data.reply ?? "Action completed.",
         executedActions: data.executedActions,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        timestamp: clockTime(),
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
@@ -123,10 +131,10 @@ export function AxonContentAgentBubble({
       }
     } catch (err) {
       const errorMsg: Message = {
-        id: `err_${Date.now()}`,
+        id: messageId("err"),
         role: "assistant",
         content: err instanceof Error ? err.message : "Failed to communicate with AXON.",
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        timestamp: clockTime(),
       };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {

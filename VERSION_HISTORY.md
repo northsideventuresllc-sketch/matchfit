@@ -4,6 +4,10 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-25** `2.33.10-beta` → `2.33.11-beta` (**patch** — Fix axon_cost_ledger inserts silently failing on a generated column (total_tokens))
+- **2026-09-24** `2.33.9-beta` → `2.33.10-beta` (**patch** — Fix red main CI: unused imports and stale content prompt test)
+- **2026-09-24** `2.33.8-beta` → `2.33.9-beta` (**patch** — RunPod AXON v1 gate disabled by default (paid safeguard, Decision #2001))
+- **2026-09-23** `2.33.7-beta` → `2.33.8-beta` (**patch** — Public unauthenticated trainer search endpoint (`GET /api/public/trainers/search`) for the NI MCP agent storefront. Guest checkout endpoint was scoped but not built — it requires an existing client account id in the Stripe/webhook fulfilment chain; reported back instead of hacked around.)
 - **2026-09-16** `2.33.6-beta` → `2.33.7-beta` (**patch** — merge conflict resolution (2nd re-sync), no new product behavior beyond already-shipped security fixes)
 - **2026-09-16** `2.33.5-beta` → `2.33.6-beta` (**patch** — Second merge-conflict re-bump (PR #386) — main advanced again with its own 2.33.5-beta bump (#398) while this PR's CI was running; no new product change beyond the two fixes already on this branch)
 - **2026-09-16** `2.33.4-beta` → `2.33.5-beta` (**patch** — Merge main into lead-finder fix branch: retain maxDuration fix + doc comment, script conversion) — landed on `main` via PR #398

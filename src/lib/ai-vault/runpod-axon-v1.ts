@@ -7,18 +7,18 @@ import type { ProviderCallResult } from "@/lib/ai-vault/providers";
  * Vault chain — AXON v1, NVG's own fine-tuned model (base: Qwen3-Coder-30B-A3B-Instruct,
  * per NI-Brain Decision #1261), hosted on RunPod (RTX A6000 48GB, Community Cloud).
  *
- * DEPLOYED AND LIVE since 2026-08-26/28 — `RUNPOD_AXON_V1_ENDPOINT` / `RUNPOD_AXON_V1_KEY`
- * are set in the AI Vault (`platform_secrets` / `ni_platform_secrets`) and the endpoint
- * answers real calls. This is a PAID, pay-per-use, scale-to-zero tier (pennies per call,
- * min workers 0, no always-warm worker per NI-Brain Decision #1813) — it is not free.
- * Corrected 2026-09-24 per Decision #2001 (JB direct: fix every rule line that still
- * called RunPod "free"); the previous "not deployed yet" wording here was stale.
+ * RunPod GPU hosting is PAID, not free, and is DISABLED BY DEFAULT until JB funds it
+ * (NI-Brain Decision #2001, 2026-09-24 — corrects earlier wording that called this tier
+ * "free"). Even if `RUNPOD_AXON_V1_ENDPOINT` / `RUNPOD_AXON_V1_KEY` are set, this tier
+ * stays skipped unless `AXON_ENABLE_RUNPOD=1` is also set — a config leak alone can never
+ * trigger paid spend. This provider is wired into the chain now so router.ts only needs
+ * the endpoint/key added to the AI Vault (`platform_secrets` / `ni_platform_secrets`) plus
+ * `AXON_ENABLE_RUNPOD=1` once the pod is funded and live — no code change at that point.
  *
  * Same contract shape as `callAxonLocalProvider`: returns `null` on ANY failure, timeout,
- * or missing config — never throws — so callMatchFitAi() falls through to the next tier
- * exactly as if this tier didn't exist. Missing config, or a live call failure (e.g. the
- * negative RunPod account balance tracked in AX-RUNPOD-ZERO-SUCCESS-0915), is logged once
- * per process, not on every call.
+ * disabled state, or missing config — never throws — so callMatchFitAi() falls through to
+ * Gemini primary exactly as if this tier didn't exist. Missing config / disabled state is
+ * logged once per process, not on every call, and never triggers a network request.
  */
 
 const RUNPOD_AXON_V1_MODEL = "Qwen3-Coder-30B-A3B-Instruct";
@@ -32,6 +32,11 @@ function resolveRunpodEndpoint(): string | null {
 
 function resolveRunpodKey(): string | null {
   return process.env.RUNPOD_AXON_V1_KEY?.trim() || null;
+}
+
+/** RunPod GPU hosting is paid — this tier never fires unless explicitly opted in. */
+function runpodEnabled(): boolean {
+  return process.env.AXON_ENABLE_RUNPOD === "1";
 }
 
 type RunpodUsage = { prompt_tokens?: number; completion_tokens?: number };
@@ -64,6 +69,17 @@ export async function callRunpodAxonV1(system: string, user: string): Promise<st
 export async function callRunpodAxonV1WithUsage(system: string, user: string): Promise<RunpodAxonV1Result> {
   const endpoint = resolveRunpodEndpoint();
   const key = resolveRunpodKey();
+
+  if (!runpodEnabled()) {
+    if (!warnedMissingConfig) {
+      warnedMissingConfig = true;
+      console.warn(
+        "[ai-vault] RunPod AXON v1 tier skipped — paid GPU hosting, disabled by default until funded " +
+          "(NI-Brain Decision #2001). Set AXON_ENABLE_RUNPOD=1 to opt in once funded. Falling through to Gemini.",
+      );
+    }
+    return { text: null };
+  }
 
   if (!endpoint || !key) {
     if (!warnedMissingConfig) {

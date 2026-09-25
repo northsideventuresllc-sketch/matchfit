@@ -72,21 +72,23 @@ Each of these exists because it was broken in a live session and cost JB time.
    never paid without every free tier having failed first.** The canonical AI
    Vault chain (`callMatchFitAi()` in `src/lib/ai-vault/router.ts`, see
    `docs/ai-vault.md`) tries, in order: AXON local (Mac mini Ollama, free) →
-   RunPod AXON v1 (NVG's own model, **paid pay-per-use, scale-to-zero —
-   deployed and live since 2026-08-26/28, min workers 0, per NI-Brain Decision
-   #1813; not free, corrected 2026-09-24 per Decision #2001**) → OpenRouter
-   free models → Gemini primary (free) → Gemini backup (free) → Anthropic
-   Claude (paid — genuinely last resort, only reached once every free tier
-   above has failed). This is
-   intentional tiered fallback, not a violation: JB has said many times he
-   will not refill credits, so the paid tier exists only to keep a feature
-   working when every free option is down, never as a default path. Corrected
-   2026-08-20 — the previous wording of this rule ("nothing routes to a paid
-   API, ever") contradicted the live code in `router.ts`, which has always
-   called paid Anthropic as a last-resort fallback. The code is the intended,
-   working safety net; this rule was the stale part and has been fixed to
-   match it. Do not remove the Anthropic fallback to "fix" this — that would
-   delete a real safety net for a documentation error.
+   RunPod AXON v1 (NVG's own model, **paid GPU hosting — skipped by default,
+   no spend, until JB funds it; NI-Brain Decision #2001, 2026-09-24, corrects
+   the earlier "free, not deployed yet" wording here**) → OpenRouter free
+   models → Gemini primary (free) → Gemini backup (free) → Anthropic Claude
+   (paid — genuinely last resort, only reached once every free tier above has
+   failed or is skipped). This is intentional tiered fallback, not a
+   violation: JB has said many times he will not refill credits, so a paid
+   tier exists only to keep a feature working when free options are down,
+   never as a default path — and RunPod specifically stays off (code-enforced
+   via `AXON_ENABLE_RUNPOD=1`, not just missing endpoint/key) until it is
+   funded, so it costs nothing by accident. Corrected 2026-08-20 — the
+   previous wording of this rule ("nothing routes to a paid API, ever")
+   contradicted the live code in `router.ts`, which has always called paid
+   Anthropic as a last-resort fallback. The code is the intended, working
+   safety net; this rule was the stale part and has been fixed to match it.
+   Do not remove the Anthropic fallback to "fix" this — that would delete a
+   real safety net for a documentation error.
 
 2. **Never tell JB something failed because of API keys, tokens, credits or
    billing.** He has already refused that fix, so naming it is pure noise.
@@ -244,9 +246,11 @@ Reference: public home page (`src/app/page.tsx`, `src/components/home-info-secti
 Applies to any file touching AI features (`**/*ai*.ts`, `**/ai-vault/**`):
 
 1. Use `callMatchFitAi` from `@/lib/ai-vault` — never call Anthropic/OpenAI/Gemini HTTP APIs directly for text generation.
-2. Provider order (corrected 2026-08-20, see standing rule 1 above and `docs/ai-vault.md`):
-   AXON local → RunPod AXON v1 (not deployed yet) → Gemini primary → Gemini backup →
-   Anthropic Claude (auto model, paid last resort) → fail.
+2. Provider order (corrected 2026-09-24, Decision #2001, see standing rule 1 above and
+   `docs/ai-vault.md`): AXON local → RunPod AXON v1 (paid GPU hosting, disabled by
+   default until funded — not deployed yet either way) → OpenRouter free models →
+   Gemini primary → Gemini backup → Anthropic Claude (auto model, paid last resort) →
+   fail.
 3. Keys live in `platform_secrets` (AI Vault), never in source.
 4. Pick `kind` + optional `complexity` so Claude model auto-selection fits the task.
 5. Corrected 2026-09-03 (Decision #1722 item 4 + same-date Learning, JB direct: "media generation is NEVER the Gemini API — it is my Gemini subscription in Chrome on the Mac mini; this assumption is the main reason social media is not getting updated"). Social media images/video are generated ONLY in the Gemini app in Chrome on the Mac mini using JB's subscription (`scripts/gemini-media-automation.mjs`, queued via `queueMiniChromeAgentJob` in `@/lib/content-calendar/cowork-jobs`). No image API, free or paid, ever — `@/lib/content-calendar/media-generation`'s `generateStaticMedia` is dead on purpose and throws if called. Text generation still uses the AXON chain (point 2 above), unaffected by this.

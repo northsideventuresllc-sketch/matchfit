@@ -19,41 +19,45 @@ import type { ProviderCallResult } from "@/lib/ai-vault/providers";
 
 /**
  * AXON-EVERYWHERE-PROJECT (2026-08-05, tier order extended 2026-08-20 per JB direct
- * order; OpenRouter free tier inserted 2026-09-03, Phase 3 / Decision #1721): the ONE
- * canonical tier order, binding across every NVG repo — AXON local (Mac mini Ollama) ->
- * RunPod AXON v1 (NVG's own fine-tuned model, see NI-Brain Decision #1261) -> OpenRouter
- * free models -> Gemini primary -> Gemini backup -> Anthropic (paid, last resort) —
- * locked in Decision #598 item 11 / #619, extended by the 2026-08-20 and 2026-09-03
- * orders. Every path below tries AXON-local, then RunPod AXON v1, first; where AXON
- * structurally can't do the job (live web search — Ollama has no internet access or tool
- * execution), that is documented explicitly at the call site, never silently skipped.
- * RunPod AXON v1 has been deployed and live since 2026-08-26/28 — it is a PAID,
- * pay-per-use, scale-to-zero tier (pennies per call, min workers 0 per Decision #1813),
- * not free and not "not deployed yet"; corrected 2026-09-24 per Decision #2001, which
- * ordered every rule line calling RunPod "free" fixed. It returns null (falls through)
- * when `RUNPOD_AXON_V1_ENDPOINT` / `RUNPOD_AXON_V1_KEY` are unset, or on a live call
- * failure such as the negative-balance state tracked in AX-RUNPOD-ZERO-SUCCESS-0915.
- * OpenRouter is likewise a no-op until `OPENROUTER_API_KEY` is configured, and that one
- * genuinely is free.
+ * order; OpenRouter free tier inserted 2026-09-03, Phase 3 / Decision #1721; RunPod
+ * corrected to paid/disabled-by-default 2026-09-24, Decision #2001): the ONE canonical
+ * tier order, binding across every NVG repo — AXON local (Mac mini Ollama, free) ->
+ * RunPod AXON v1 (NVG's own fine-tuned model; paid GPU hosting, skipped by default with
+ * no spend until funded — see NI-Brain Decision #2001) -> OpenRouter free models ->
+ * Gemini primary -> Gemini backup -> Anthropic (paid, last resort) — locked in Decision
+ * #598 item 11 / #619, extended by the 2026-08-20 and 2026-09-03 orders. Every path below
+ * tries AXON-local, then RunPod AXON v1, first; where AXON structurally can't do the job
+ * (live web search — Ollama has no internet access or tool execution), that is documented
+ * explicitly at the call site, never silently skipped. RunPod AXON v1 returns null
+ * immediately (no network call) unless `AXON_ENABLE_RUNPOD=1` is set (never on by
+ * accident just because `RUNPOD_AXON_V1_ENDPOINT` / `RUNPOD_AXON_V1_KEY` happen to be
+ * configured), so this tier is a no-op — and incurs no cost — until JB funds the pod and
+ * opts in. OpenRouter is likewise a no-op until `OPENROUTER_API_KEY` is configured.
  */
 /**
  * Fire-and-forget usage log for one successful provider call. Never awaited by callers —
  * logging must never add latency to, or ever break, the live AI reply path.
+ *
+ * BUILD-AXON-AGENTS-FIX-BUNDLE-0923 (c): previously returned early ("nothing reported —
+ * don't write a row of nulls") whenever result.usage was missing, which made "the
+ * provider didn't report usage" indistinguishable from "this call never happened" in
+ * axon_cost_ledger — the exact ambiguity the ticket flagged. Now always logs; a call with
+ * no usage still lands a row with null token counts and meta.usage_missing=true so the
+ * two cases can be told apart. Exported for direct unit testing.
  */
-function logProviderUsage(
+export function logProviderUsage(
   provider: string,
   result: Pick<ProviderCallResult, "model" | "usage" | "ms">,
   args: MatchFitAiCallArgs,
 ) {
-  if (!result.usage) return; // nothing reported — don't write a row of nulls
   logLlmUsage({
     provider,
     model: result.model,
-    tokensIn: result.usage.tokensIn,
-    tokensOut: result.usage.tokensOut,
+    tokensIn: result.usage?.tokensIn,
+    tokensOut: result.usage?.tokensOut,
     ms: result.ms,
     product: args.kind,
-    meta: { complexity: args.complexity },
+    meta: { complexity: args.complexity, usage_missing: !result.usage },
   });
 }
 
@@ -67,9 +71,7 @@ async function attemptAxonLocal(
   return axon.text;
 }
 
-/** RunPod AXON v1 — see docstring above. Paid pay-per-use tier, deployed and live since
- * 2026-08-26/28 (Decision #1813); returns null (no-op) only on missing config or a live
- * call failure. */
+/** RunPod AXON v1 — see docstring above. Returns null (no-op) until deployed. */
 async function attemptRunpodAxonV1(
   args: MatchFitAiCallArgs,
   attempts: MatchFitAiAttempt[],

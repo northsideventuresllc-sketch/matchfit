@@ -1,6 +1,6 @@
 import type { ContentCalendarGroup } from "@/lib/content-calendar/constants";
 import { CONTENT_CALENDAR_GROUPS } from "@/lib/content-calendar/constants";
-import { softFixContentCopy } from "@/lib/content-calendar/content-copy-guard";
+import { softFixContentCopy, stripMarkdownAiSlop } from "@/lib/content-calendar/content-copy-guard";
 import { HIGH_VOLUME_HASHTAG_RULE, enforceHighVolumeHashtags } from "@/lib/content-calendar/hashtag-policy";
 
 /** Repurpose-safe limit: smallest caption budget across Match Fit platforms (Threads). */
@@ -173,7 +173,7 @@ export const normalizeFitnessProLanguage = normalizeCoachLanguage;
  * uses normalizeCoachLanguage — this variant is content-calendar only.
  */
 export function normalizeSocialContentLanguage(text: string): string {
-  return canonicalizeSocialSignupUrls(text);
+  return stripMarkdownAiSlop(canonicalizeSocialSignupUrls(text));
 }
 
 /** True when social copy still contains the retired public audience label ("Coach"/"Coaches"). */
@@ -215,6 +215,8 @@ export const CONTENT_CALENDAR_FOUNDING_PROMO_FACTS = `Founding Fitness Pro promo
 Keep the facts accurate. Never invent other caps or swap the numbers. Never paste the same promo sentence twice in a batch — rotate phrasing while preserving meaning.`;
 
 export const CONTENT_CALENDAR_AI_RULES = `Content rules (strict):
+- Emojis (eye-catching): Use 2–4 vibrant, eye-catching emojis (🔥, ⚡, 🚀, 💪, 🎯, 🏆, 👀, 📲, ✨) placed naturally across hooks, key takeaways, and CTAs in every caption and text post.
+- Plain English only (NO MARKDOWN BOLDING): Never use asterisks (**) or (*) in captions or text posts. Social captions do not support markdown bold; writing ** is AI slop. Write pure plain English with emojis for emphasis.
 - Target audiences: only "Join the Team", "List With Us", or "Clients" — never a geographic or virtual/in-person split in copy.
 - "Join the Team" = Fitness Pros exploring Match Fit recruitment / onboarding.
 - "List With Us" = independent Fitness Pros & facilities using Match Fit as a listing/discovery platform.

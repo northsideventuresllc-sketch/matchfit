@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { serializeV2Post, updateV2PostFields, getV2Post } from "@/lib/content-calendar/content-calendar-v2-store";
+import { serializeV2Post, updateV2PostFields, getV2Post, deleteV2Post } from "@/lib/content-calendar/content-calendar-v2-store";
 import { ensureContentCalendarV25Schema, isMissingContentCalendarV25SchemaError } from "@/lib/ensure-content-hub-schema";
 import { isNiBrainConfiguredAsync } from "@/lib/ni-brain-client";
 import { formatUserFacingError } from "@/lib/read-json-response";
@@ -64,6 +64,26 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     console.error("[content-calendar v2 post PATCH]", e);
     return NextResponse.json(
       { error: formatUserFacingError(e, "Could not save v2 post edits.") },
+      { status: isMissingContentCalendarV25SchemaError(e) ? 503 : 500 },
+    );
+  }
+}
+
+export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const sess = await requireAdminSession();
+  if (!sess) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!(await isNiBrainConfiguredAsync())) {
+    return NextResponse.json({ error: "NI Brain is not configured." }, { status: 503 });
+  }
+  const { id } = await ctx.params;
+  try {
+    await ensureContentCalendarV25Schema();
+    await deleteV2Post(id);
+    return NextResponse.json({ success: true, deletedId: id });
+  } catch (e) {
+    console.error("[content-calendar v2 post DELETE]", e);
+    return NextResponse.json(
+      { error: formatUserFacingError(e, "Could not delete v2 post.") },
       { status: isMissingContentCalendarV25SchemaError(e) ? 503 : 500 },
     );
   }
