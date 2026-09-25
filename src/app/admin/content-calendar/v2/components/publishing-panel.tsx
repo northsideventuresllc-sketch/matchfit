@@ -34,6 +34,143 @@ function arraysEqual(a: string[], b: string[]): boolean {
   return a.length === b.length && a.every((v, i) => v === b[i]);
 }
 
+async function downloadDirectMedia(url: string, filename?: string) {
+  try {
+    const res = await fetch(url, { mode: "cors" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = filename || url.split("/").pop()?.split("?")[0] || "media-download";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  } catch {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename || url.split("/").pop()?.split("?")[0] || "media-download";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+}
+
+export function FullSizeMediaModal({
+  urls,
+  initialIndex = 0,
+  postType,
+  onClose,
+}: {
+  urls: string[];
+  initialIndex?: number;
+  postType: string;
+  onClose: () => void;
+}) {
+  const [index, setIndex] = useState(initialIndex);
+  const currentUrl = urls[index] || urls[0];
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        onClose();
+      } else if (e.key === "ArrowLeft" && urls.length > 1) {
+        setIndex((i) => (i > 0 ? i - 1 : urls.length - 1));
+      } else if (e.key === "ArrowRight" && urls.length > 1) {
+        setIndex((i) => (i < urls.length - 1 ? i + 1 : 0));
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, urls.length]);
+
+  if (!currentUrl) return null;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 p-4 backdrop-blur-md"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <button
+        type="button"
+        aria-label="Close full size view"
+        onClick={onClose}
+        className="absolute top-4 right-4 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-lg font-bold text-white transition hover:bg-white/30"
+      >
+        ✕
+      </button>
+
+      {urls.length > 1 && (
+        <>
+          <button
+            type="button"
+            aria-label="Previous item"
+            onClick={() => setIndex((i) => (i > 0 ? i - 1 : urls.length - 1))}
+            className="absolute left-4 top-1/2 z-50 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-2xl text-white transition hover:bg-white/30"
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            aria-label="Next item"
+            onClick={() => setIndex((i) => (i < urls.length - 1 ? i + 1 : 0))}
+            className="absolute right-4 top-1/2 z-50 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-2xl text-white transition hover:bg-white/30"
+          >
+            ›
+          </button>
+        </>
+      )}
+
+      <div className="flex max-h-[90vh] max-w-[90vw] flex-col items-center justify-center">
+        {isVideoUrl(currentUrl) ? (
+          <video
+            src={currentUrl}
+            controls
+            playsInline
+            autoPlay
+            preload="auto"
+            className="max-h-[78vh] max-w-[85vw] rounded-xl object-contain shadow-2xl"
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={currentUrl}
+            alt={`${postType} full size`}
+            className="max-h-[78vh] max-w-[85vw] rounded-xl object-contain shadow-2xl"
+          />
+        )}
+
+        <div className="mt-4 flex items-center gap-3">
+          {urls.length > 1 && (
+            <span className="text-xs font-semibold text-white/70">
+              {index + 1} of {urls.length}
+            </span>
+          )}
+          <button
+            type="button"
+            className={adminPrimaryButtonClass}
+            onClick={() => void downloadDirectMedia(currentUrl)}
+          >
+            DOWNLOAD NOW
+          </button>
+          <button
+            type="button"
+            className={adminSecondaryButtonClass}
+            onClick={onClose}
+          >
+            CLOSE (ESC)
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FilesModal({ post, onClose }: { post: ClientContentCalendarV2Post; onClose: () => void }) {
   function downloadText() {
     const blob = new Blob([post.caption], { type: "text/plain" });
@@ -63,14 +200,20 @@ function FilesModal({ post, onClose }: { post: ClientContentCalendarV2Post; onCl
           {post.mediaUrls.map((url, i) => (
             <div key={`${url}_${i}`} className="rounded-xl border border-white/[0.08] bg-black/30 p-3">
               {isVideoUrl(url) ? (
-                <video src={url} controls className="max-h-72 w-full rounded-lg" />
+                <video src={url} controls playsInline preload="metadata" className="max-h-72 w-full rounded-lg" />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={url} alt={`${post.postType} file ${i + 1}`} className="max-h-72 w-full rounded-lg object-contain" />
               )}
-              <a href={url} download target="_blank" rel="noreferrer" className={`${adminPrimaryButtonClass} mt-3 inline-flex`}>
-                DOWNLOAD NOW
-              </a>
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => void downloadDirectMedia(url)}
+                  className={adminPrimaryButtonClass}
+                >
+                  DOWNLOAD NOW
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -81,33 +224,29 @@ function FilesModal({ post, onClose }: { post: ClientContentCalendarV2Post; onCl
   );
 }
 
-function RescheduleModal({
+function ChangeDateModal({
   post,
   busy,
   onClose,
-  onSchedule,
+  onSaveDate,
 }: {
   post: ClientContentCalendarV2Post;
   busy: boolean;
   onClose: () => void;
-  onSchedule: (isoDateTime: string) => Promise<void>;
+  onSaveDate: (newDate: string) => Promise<void>;
 }) {
-  const initial = post.scheduledAt
-    ? new Date(post.scheduledAt)
-    : new Date(`${post.postDate || new Date().toISOString().slice(0, 10)}T10:00:00`);
-  const pad = (n: number) => String(n).padStart(2, "0");
   const [value, setValue] = useState(
-    `${initial.getFullYear()}-${pad(initial.getMonth() + 1)}-${pad(initial.getDate())}T${pad(initial.getHours())}:${pad(initial.getMinutes())}`,
+    post.postDate || new Date().toISOString().slice(0, 10),
   );
 
   return (
-    <Modal title="Reschedule / set posting time" onClose={onClose}>
+    <Modal title="Change Post Date" onClose={onClose}>
       <p className="text-xs leading-relaxed text-white/55">
-        Scheduling moves this post into Scheduled Posts with the chosen date and time (uses the schedule action).
+        Updates the calendar date for this post without scheduling it for automated publishing. The post remains in Publishing.
       </p>
       <input
-        type="datetime-local"
-        className={`${adminInputClassSm} mt-3`}
+        type="date"
+        className={`${adminInputClassSm} mt-3 max-w-[220px]`}
         value={value}
         onChange={(e) => setValue(e.target.value)}
       />
@@ -119,9 +258,9 @@ function RescheduleModal({
           type="button"
           className={adminPrimaryButtonClass}
           disabled={busy || !value}
-          onClick={() => void onSchedule(new Date(value).toISOString())}
+          onClick={() => void onSaveDate(value)}
         >
-          {busy ? "SCHEDULING…" : "SCHEDULE"}
+          {busy ? "SAVING…" : "SAVE DATE"}
         </button>
       </div>
     </Modal>
@@ -160,7 +299,8 @@ function PublishingCard({
   const [caption, setCaption] = useState(post.caption);
   const [hashtags, setHashtags] = useState<string[]>(post.hashtags);
   const [showFiles, setShowFiles] = useState(false);
-  const [showReschedule, setShowReschedule] = useState(false);
+  const [showChangeDate, setShowChangeDate] = useState(false);
+  const [fullSizeIndex, setFullSizeIndex] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Regenerate via agent — optional feedback textarea, then regenerate_via_agent moves the post to
@@ -326,24 +466,90 @@ function PublishingCard({
               {caption}
             </pre>
           ) : post.mediaUrls.length ? (
-            <div className="grid gap-2 sm:grid-cols-3">
-              {post.mediaUrls.map((url, i) =>
-                isVideoUrl(url) ? (
-                  <video
-                    key={`${url}_${i}`}
-                    src={url}
-                    controls
-                    className="max-h-72 w-full rounded-lg bg-black/20 object-contain"
-                  />
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={`${url}_${i}`}
-                    src={url}
-                    alt={`${post.postType} ${i + 1}`}
-                    className="max-h-72 w-full rounded-lg bg-black/20 object-contain"
-                  />
-                ),
+            <div className="space-y-2">
+              {post.mediaUrls.length === 1 ? (
+                <div className="group relative inline-block max-w-full overflow-hidden rounded-xl border border-white/[0.1] bg-black/40">
+                  {isVideoUrl(post.mediaUrls[0]) ? (
+                    <video
+                      src={post.mediaUrls[0]}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      className="max-h-[520px] w-auto max-w-full rounded-xl object-contain bg-black/40"
+                    />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={post.mediaUrls[0]}
+                      alt={`${post.postType} preview`}
+                      className="max-h-[520px] w-auto max-w-full cursor-pointer rounded-xl object-contain transition hover:opacity-95"
+                      onClick={() => setFullSizeIndex(0)}
+                    />
+                  )}
+                  <div className="absolute top-2 right-2 flex items-center gap-1.5 rounded-lg bg-black/75 p-1 backdrop-blur-sm">
+                    <button
+                      type="button"
+                      title="View full size (ESC to close)"
+                      className="rounded bg-white/10 px-2 py-1 text-[11px] font-semibold text-white/90 transition hover:bg-white/25 hover:text-white"
+                      onClick={() => setFullSizeIndex(0)}
+                    >
+                      ⛶ FULL SIZE
+                    </button>
+                    <button
+                      type="button"
+                      title="Download file directly"
+                      className="rounded bg-white/10 px-2 py-1 text-[11px] font-semibold text-white/90 transition hover:bg-white/25 hover:text-white"
+                      onClick={() => void downloadDirectMedia(post.mediaUrls[0])}
+                    >
+                      ↓ DOWNLOAD
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {post.mediaUrls.map((url, i) => (
+                    <div
+                      key={`${url}_${i}`}
+                      className="group relative overflow-hidden rounded-xl border border-white/[0.08] bg-black/30"
+                    >
+                      {isVideoUrl(url) ? (
+                        <video
+                          src={url}
+                          controls
+                          playsInline
+                          preload="metadata"
+                          className="max-h-80 w-full rounded-lg bg-black/20 object-contain"
+                        />
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={url}
+                          alt={`${post.postType} ${i + 1}`}
+                          className="max-h-80 w-full cursor-pointer rounded-lg bg-black/20 object-contain transition hover:opacity-95"
+                          onClick={() => setFullSizeIndex(i)}
+                        />
+                      )}
+                      <div className="absolute top-2 right-2 flex items-center gap-1 rounded-lg bg-black/75 p-1 opacity-90 backdrop-blur-sm transition sm:opacity-0 sm:group-hover:opacity-100">
+                        <button
+                          type="button"
+                          title="View full size (ESC to close)"
+                          className="rounded bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/90 transition hover:bg-white/25 hover:text-white"
+                          onClick={() => setFullSizeIndex(i)}
+                        >
+                          ⛶ FULL SIZE
+                        </button>
+                        <button
+                          type="button"
+                          title="Download file directly"
+                          className="rounded bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/90 transition hover:bg-white/25 hover:text-white"
+                          onClick={() => void downloadDirectMedia(url)}
+                        >
+                          ↓ DOWNLOAD
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           ) : (
@@ -419,7 +625,7 @@ function PublishingCard({
             <button type="button" className={adminSecondaryButtonClass} onClick={() => setShowFiles(true)}>
               FILES
             </button>
-            <button type="button" className={adminSecondaryButtonClass} onClick={() => setShowReschedule(true)}>
+            <button type="button" className={adminSecondaryButtonClass} onClick={() => setShowChangeDate(true)}>
               CHANGE DATE
             </button>
             <button
@@ -538,15 +744,23 @@ function PublishingCard({
       ) : null}
 
       {showFiles ? <FilesModal post={post} onClose={() => setShowFiles(false)} /> : null}
-      {showReschedule ? (
-        <RescheduleModal
+      {showChangeDate ? (
+        <ChangeDateModal
           post={post}
           busy={busy}
-          onClose={() => setShowReschedule(false)}
-          onSchedule={async (iso) => {
-            await onAction(post.id, { action: "schedule", scheduledAt: iso }, "Post scheduled.");
-            setShowReschedule(false);
+          onClose={() => setShowChangeDate(false)}
+          onSaveDate={async (newDate) => {
+            await onPatch(post.id, { postDate: newDate });
+            setShowChangeDate(false);
           }}
+        />
+      ) : null}
+      {fullSizeIndex !== null && post.mediaUrls.length > 0 ? (
+        <FullSizeMediaModal
+          urls={post.mediaUrls}
+          initialIndex={fullSizeIndex}
+          postType={post.postType}
+          onClose={() => setFullSizeIndex(null)}
         />
       ) : null}
     </article>

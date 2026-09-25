@@ -15,6 +15,8 @@ import { requireAdminSession } from "@/lib/require-admin";
 const bodySchema = z.object({
   action: z.enum(["approve", "return_to_editing"]).default("approve"),
   postDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  learnings: z.string().optional(),
+  feedback: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -33,7 +35,10 @@ export async function POST(req: Request) {
       const result = await returnContentDayToEditing(parsed.data.postDate);
       return NextResponse.json({ ok: true, ...result });
     }
-    const result = await approveContentDay(parsed.data.postDate);
+    const result = await approveContentDay(parsed.data.postDate, {
+      learnings: parsed.data.learnings,
+      feedback: parsed.data.feedback,
+    });
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     console.error("[content-calendar v2 day approve]", e);
