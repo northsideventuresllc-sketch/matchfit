@@ -224,33 +224,29 @@ function FilesModal({ post, onClose }: { post: ClientContentCalendarV2Post; onCl
   );
 }
 
-function RescheduleModal({
+function ChangeDateModal({
   post,
   busy,
   onClose,
-  onSchedule,
+  onSaveDate,
 }: {
   post: ClientContentCalendarV2Post;
   busy: boolean;
   onClose: () => void;
-  onSchedule: (isoDateTime: string) => Promise<void>;
+  onSaveDate: (newDate: string) => Promise<void>;
 }) {
-  const initial = post.scheduledAt
-    ? new Date(post.scheduledAt)
-    : new Date(`${post.postDate || new Date().toISOString().slice(0, 10)}T10:00:00`);
-  const pad = (n: number) => String(n).padStart(2, "0");
   const [value, setValue] = useState(
-    `${initial.getFullYear()}-${pad(initial.getMonth() + 1)}-${pad(initial.getDate())}T${pad(initial.getHours())}:${pad(initial.getMinutes())}`,
+    post.postDate || new Date().toISOString().slice(0, 10),
   );
 
   return (
-    <Modal title="Reschedule / set posting time" onClose={onClose}>
+    <Modal title="Change Post Date" onClose={onClose}>
       <p className="text-xs leading-relaxed text-white/55">
-        Scheduling moves this post into Scheduled Posts with the chosen date and time (uses the schedule action).
+        Updates the calendar date for this post without scheduling it for automated publishing. The post remains in Publishing.
       </p>
       <input
-        type="datetime-local"
-        className={`${adminInputClassSm} mt-3`}
+        type="date"
+        className={`${adminInputClassSm} mt-3 max-w-[220px]`}
         value={value}
         onChange={(e) => setValue(e.target.value)}
       />
@@ -262,9 +258,9 @@ function RescheduleModal({
           type="button"
           className={adminPrimaryButtonClass}
           disabled={busy || !value}
-          onClick={() => void onSchedule(new Date(value).toISOString())}
+          onClick={() => void onSaveDate(value)}
         >
-          {busy ? "SCHEDULING…" : "SCHEDULE"}
+          {busy ? "SAVING…" : "SAVE DATE"}
         </button>
       </div>
     </Modal>
@@ -303,7 +299,7 @@ function PublishingCard({
   const [caption, setCaption] = useState(post.caption);
   const [hashtags, setHashtags] = useState<string[]>(post.hashtags);
   const [showFiles, setShowFiles] = useState(false);
-  const [showReschedule, setShowReschedule] = useState(false);
+  const [showChangeDate, setShowChangeDate] = useState(false);
   const [fullSizeIndex, setFullSizeIndex] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -629,7 +625,7 @@ function PublishingCard({
             <button type="button" className={adminSecondaryButtonClass} onClick={() => setShowFiles(true)}>
               FILES
             </button>
-            <button type="button" className={adminSecondaryButtonClass} onClick={() => setShowReschedule(true)}>
+            <button type="button" className={adminSecondaryButtonClass} onClick={() => setShowChangeDate(true)}>
               CHANGE DATE
             </button>
             <button
@@ -748,14 +744,14 @@ function PublishingCard({
       ) : null}
 
       {showFiles ? <FilesModal post={post} onClose={() => setShowFiles(false)} /> : null}
-      {showReschedule ? (
-        <RescheduleModal
+      {showChangeDate ? (
+        <ChangeDateModal
           post={post}
           busy={busy}
-          onClose={() => setShowReschedule(false)}
-          onSchedule={async (iso) => {
-            await onAction(post.id, { action: "schedule", scheduledAt: iso }, "Post scheduled.");
-            setShowReschedule(false);
+          onClose={() => setShowChangeDate(false)}
+          onSaveDate={async (newDate) => {
+            await onPatch(post.id, { postDate: newDate });
+            setShowChangeDate(false);
           }}
         />
       ) : null}

@@ -12,6 +12,7 @@ import {
   markV2PostPosted,
   markV2PostUnposted,
   moveV2PostToDrafts,
+  regenerateV2PostDraft,
   regenerateV2PostMedia,
   removeV2PostMedia,
   reviveV2Post,
@@ -72,6 +73,8 @@ const actionSchema = z.discriminatedUnion("action", [
   // Impromptu-only: Text posts have nothing to build and go straight to Publishing; every other
   // post type fires a single-post Cowork media job and lands in Pending.
   z.object({ action: z.literal("submit_for_generation") }),
+  // Content Hub single-post draft content regeneration.
+  z.object({ action: z.literal("regenerate_draft") }),
 ]);
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -88,6 +91,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   try {
     await ensureContentCalendarV25Schema();
     switch (parsed.data.action) {
+      case "regenerate_draft": {
+        const row = await regenerateV2PostDraft(id);
+        return NextResponse.json({ post: serializeV2Post(row) });
+      }
       case "approve":
         await approveV2Post(id);
         break;
