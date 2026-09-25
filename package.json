@@ -1,6 +1,6 @@
 {
   "name": "match-fit-app",
-  "version": "2.33.11-beta",
+  "version": "2.33.12-beta",
   "private": true,
   "engines": {
     "node": ">=20.19.0 <23"
@@ -87,7 +87,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
-    "@types/node": "^20",
+    "@types/node": "^22.20.4",
     "@types/nspell": "^2.1.6",
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
@@ -96,11 +96,14 @@
     "eslint-config-next": "16.2.4",
     "playwright-core": "^1.48.0",
     "prisma": "^7.8.0",
-    "sharp": "^0.33.5",
+    "sharp": "^0.35.4",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5",
-    "vercel": "^54.14.0",
-    "vitest": "^3.2.4"
+    "vercel": "^60.0.1",
+    "vitest": "^5.0.2"
+  },
+  "overrides": {
+    "tar": "^7.5.22"
   }
 }
