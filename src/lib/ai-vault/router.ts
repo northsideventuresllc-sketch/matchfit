@@ -19,18 +19,20 @@ import type { ProviderCallResult } from "@/lib/ai-vault/providers";
 
 /**
  * AXON-EVERYWHERE-PROJECT (2026-08-05, tier order extended 2026-08-20 per JB direct
- * order; OpenRouter free tier inserted 2026-09-03, Phase 3 / Decision #1721): the ONE
- * canonical tier order, binding across every NVG repo — AXON local (Mac mini Ollama) ->
- * RunPod AXON v1 (NVG's own fine-tuned model, not deployed yet, see NI-Brain Decision
- * #1261) -> OpenRouter free models -> Gemini primary -> Gemini backup -> Anthropic (paid,
- * last resort) — locked in Decision #598 item 11 / #619, extended by the 2026-08-20 and
- * 2026-09-03 orders. Every path below tries AXON-local, then RunPod AXON v1, first; where
- * AXON structurally can't do the job (live web search — Ollama has no internet access or
- * tool execution), that is documented explicitly at the call site, never silently
- * skipped. RunPod AXON v1 returns null immediately (no network call) until
- * `RUNPOD_AXON_V1_ENDPOINT` / `RUNPOD_AXON_V1_KEY` are configured, so this tier is a
- * no-op until the pod is live. OpenRouter is likewise a no-op until `OPENROUTER_API_KEY`
- * is configured.
+ * order; OpenRouter free tier inserted 2026-09-03, Phase 3 / Decision #1721; RunPod
+ * corrected to paid/disabled-by-default 2026-09-24, Decision #2001): the ONE canonical
+ * tier order, binding across every NVG repo — AXON local (Mac mini Ollama, free) ->
+ * RunPod AXON v1 (NVG's own fine-tuned model; paid GPU hosting, skipped by default with
+ * no spend until funded — see NI-Brain Decision #2001) -> OpenRouter free models ->
+ * Gemini primary -> Gemini backup -> Anthropic (paid, last resort) — locked in Decision
+ * #598 item 11 / #619, extended by the 2026-08-20 and 2026-09-03 orders. Every path below
+ * tries AXON-local, then RunPod AXON v1, first; where AXON structurally can't do the job
+ * (live web search — Ollama has no internet access or tool execution), that is documented
+ * explicitly at the call site, never silently skipped. RunPod AXON v1 returns null
+ * immediately (no network call) unless `AXON_ENABLE_RUNPOD=1` is set (never on by
+ * accident just because `RUNPOD_AXON_V1_ENDPOINT` / `RUNPOD_AXON_V1_KEY` happen to be
+ * configured), so this tier is a no-op — and incurs no cost — until JB funds the pod and
+ * opts in. OpenRouter is likewise a no-op until `OPENROUTER_API_KEY` is configured.
  */
 /**
  * Fire-and-forget usage log for one successful provider call. Never awaited by callers —
