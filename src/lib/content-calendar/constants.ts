@@ -29,6 +29,54 @@ export const MATCH_FIT_BRAND_ORANGE = "#FF7E00";
 /** Public path to the Match Fit logo; media prompts must reference it. */
 export const MATCH_FIT_LOGO_PATH = "public/logo.png";
 
+/** Official AI Talking Head Avatar for Match Fit UGC content. */
+export const MATCH_FIT_AVATAR_NAME = "Jordan Blake";
+export const MATCH_FIT_AVATAR_IMAGE_PATH = "public/images/avatar/match-fit-avatar.jpg";
+export const MATCH_FIT_AVATAR_PUBLIC_URL = "https://match-fit.net/images/avatar/match-fit-avatar.jpg";
+export const MATCH_FIT_AVATAR_PROMPT_DIRECTIVE = [
+  `Character Identity: Match Fit Official Talking Head Avatar (${MATCH_FIT_AVATAR_NAME})`,
+  "-Subject: Charismatic, athletic 28-year-old fitness coach/creator with short dark hair, well-groomed beard, friendly confident smile.",
+  "-Apparel: Minimalist charcoal black athletic performance t-shirt with subtle Match Fit orange (#FF7E00) trim.",
+  "-Framing: Front-facing smartphone camera angle, eye-level, authentic UGC talking-head format with natural hand gestures.",
+  "-Environment: Bright, sunlit modern functional fitness studio background with warm natural lighting and soft depth-of-field bokeh.",
+  `-Reference Image: ${MATCH_FIT_AVATAR_IMAGE_PATH} (Always attach and reference this avatar character reference image for strict visual identity consistency).`,
+].join("\n");
+
+/** The 3 Content Archetypes for Match Fit marketing mix. */
+export const CONTENT_ARCHETYPES = [
+  "generic_info",      // Generic informational ads (features, offers, how it works)
+  "ugc_avatar",         // UGC content featuring the Match Fit AI talking head avatar
+  "cinematic_trailer",  // Cinematic trailer video pushing Match Fit creatively
+] as const;
+
+export type ContentArchetype = (typeof CONTENT_ARCHETYPES)[number];
+
+export const CONTENT_ARCHETYPE_LABELS: Record<ContentArchetype, string> = {
+  generic_info: "Generic Informational Ad",
+  ugc_avatar: "UGC Avatar Talking Head",
+  cinematic_trailer: "Cinematic Trailer (Video)",
+};
+
+/** 28-Day Content Experiment (2026-09-28 through 2026-10-25):
+ * 10 posts per week:
+ * - 3 Generic Informational
+ * - 4 UGC (Official AI Talking Head Avatar)
+ * - 1 Cinematic Trailer (Video)
+ * - 2 Text posts
+ */
+export const CONTENT_EXPERIMENT_28_DAY = {
+  startDate: "2026-09-28",
+  endDate: "2026-10-25",
+  durationDays: 28,
+  postsPerWeek: 10,
+  targetWeeklyMix: {
+    generic_info: 3,
+    ugc_avatar: 4,
+    cinematic_trailer: 1, // Strictly Video
+    text: 2,
+  },
+} as const;
+
 export const CONTENT_CALENDAR_GROUPS = ["Join the Team", "List With Us", "Clients"] as const;
 
 export type ContentCalendarGroup = (typeof CONTENT_CALENDAR_GROUPS)[number];

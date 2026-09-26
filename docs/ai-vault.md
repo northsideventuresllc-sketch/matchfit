@@ -5,7 +5,7 @@ Match Fit and sibling repos (Hermes, NI Brain agents, future Northside apps) use
 ## Provider order (mandatory)
 
 1. **AXON local** — AXON's free Mac-mini Ollama model (`axon-ornith:latest`), reached via the `nvg_mini_jobs` relay. Free, tried first, every time.
-2. **RunPod AXON v1** — NVG's own fine-tuned model (base: `Qwen3-Coder-30B-A3B-Instruct`, per NI-Brain Decision #1261), hosted on RunPod. **Not deployed yet** as of 2026-08-20 — this tier is wired into the code and returns `null` immediately (no network call) until `RUNPOD_AXON_V1_ENDPOINT` / `RUNPOD_AXON_V1_KEY` are set, so it is currently a no-op that falls straight through to Gemini.
+2. **RunPod AXON v1** — NVG's own fine-tuned model (base: `Qwen3-Coder-30B-A3B-Instruct`, per NI-Brain Decision #1261), hosted on **paid** RunPod GPU hosting. **Skipped by default, no spend, until JB funds it** (NI-Brain Decision #2001, 2026-09-24 — corrects earlier wording that called this tier "free"). This tier is wired into the code and returns `null` immediately (no network call) unless `AXON_ENABLE_RUNPOD=1` is set — setting only `RUNPOD_AXON_V1_ENDPOINT` / `RUNPOD_AXON_V1_KEY` is not enough to enable it — so it is currently a no-op that falls straight through to Gemini.
 3. **Gemini primary** — `GEMINI_API_KEY` (typically `AIza...`)
 4. **Gemini backup** — `GEMINI_API_KEY_BACKUP` (typically `AQ....`)
 5. **Claude (Anthropic)** — last resort, paid. Only reached once every free tier above has failed. Auto-select model by task complexity:
@@ -21,6 +21,7 @@ Only after all five fail should a feature surface a generation error.
 |-----|---------|
 | `RUNPOD_AXON_V1_ENDPOINT` | RunPod AXON v1 inference endpoint URL (not set yet — pod not deployed) |
 | `RUNPOD_AXON_V1_KEY` | RunPod AXON v1 API key (not set yet — pod not deployed) |
+| `AXON_ENABLE_RUNPOD` | Must be `1` to enable the RunPod tier at all — paid GPU hosting, disabled by default (Decision #2001). Endpoint/key alone are not enough. |
 | `GEMINI_API_KEY` | Gemini primary |
 | `GEMINI_API_KEY_BACKUP` | Gemini backup |
 | `GEMINI_MODEL` | Default `gemini-2.5-flash` (falls back through 2.5-flash-lite, 2.0-flash) |

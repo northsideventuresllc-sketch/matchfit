@@ -21,9 +21,10 @@
  *
  * No LLM call anywhere in this path: the finder does a plain-text template fill and a local
  * dictionary spellcheck pass (`nspell`, no network). If an LLM call is ever added to this flow,
- * it must go through `scripts/lib/axon-llm.mjs`'s provider chain (local Ollama -> RunPod ->
- * OpenRouter Free -> Gemini Flash -> Claude Haiku, paid Anthropic last resort only) per the
- * org's AI Vault default — never a direct provider call.
+ * it must go through `scripts/lib/axon-llm.mjs`'s provider chain (local Ollama -> RunPod
+ * [paid, disabled by default until funded, Decision #2001] -> OpenRouter Free -> Gemini
+ * Flash -> Claude Haiku, paid Anthropic last resort only) per the org's AI Vault default —
+ * never a direct provider call.
  *
  * Usage:
  *   MATCH_FIT_APP_URL=https://match-fit.net CRON_SECRET=... node scripts/outreach-lead-finder.mjs

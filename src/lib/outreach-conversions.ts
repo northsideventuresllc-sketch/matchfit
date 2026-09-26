@@ -26,6 +26,25 @@ async function setLeadRow(platform: OutreachPlatform, id: string, data: Record<s
   return prisma.outreachEmailLead.update({ where: { id }, data });
 }
 
+/**
+ * Server-side existence check for a matched Match Fit account before an outreach lead is
+ * linked to it. Without this, setOutreachLeadConversion() would happily write an
+ * matchedAccountId that points at nothing (typo, deleted account, stale admin UI state),
+ * and the dangling reference would only surface later when something tries to join on it.
+ * Flagged on council review of PR #362 (Learning 8122).
+ */
+async function matchedAccountExists(
+  matchedAccountType: "client" | "trainer",
+  matchedAccountId: string
+): Promise<boolean> {
+  if (matchedAccountType === "client") {
+    const row = await prisma.client.findUnique({ where: { id: matchedAccountId }, select: { id: true } });
+    return !!row;
+  }
+  const row = await prisma.trainer.findUnique({ where: { id: matchedAccountId }, select: { id: true } });
+  return !!row;
+}
+
 function messageFieldsForBackfillStage(
   platform: OutreachPlatform,
   stage: OutreachTouchStage,
@@ -136,6 +155,13 @@ export async function setOutreachLeadConversion(args: {
   await ensureOutreachHubSchema();
   const existing = await getLeadRow(args.platform, args.id);
   if (!existing) return { ok: false, error: "Lead not found." };
+
+  if (args.matchedAccountType && args.matchedAccountId) {
+    const accountExists = await matchedAccountExists(args.matchedAccountType, args.matchedAccountId);
+    if (!accountExists) {
+      return { ok: false, error: "Matched account not found." };
+    }
+  }
 
   const isFirstConversion = !(existing as { convertedAt: Date | null }).convertedAt;
   const data: Record<string, unknown> = {};

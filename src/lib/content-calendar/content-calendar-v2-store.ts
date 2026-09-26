@@ -1009,3 +1009,55 @@ export async function reviveV2Post(postId: string): Promise<void> {
     .eq("id", postId);
   if (error) throw new Error(error.message);
 }
+
+export async function deleteV2Post(postId: string): Promise<void> {
+  const now = new Date().toISOString();
+  const client = createNiBrainClient();
+  const { error } = await client
+    .from("match_fit_content_calendar_posts")
+    .update({
+      deleted_at: now,
+      updated_at: now,
+    })
+    .eq("id", postId);
+  if (error) throw new Error(error.message);
+}
+
+export async function regenerateV2PostDraft(postId: string): Promise<ContentCalendarPostRow> {
+  const post = await getV2Post(postId);
+  if (!post) throw new Error("Post not found.");
+
+  const { drafts } = await generateBulkContent({
+    items: [
+      {
+        postType: post.post_type,
+        targetGroup: post.target_group,
+      },
+    ],
+    scheduled: Boolean(post.post_date),
+    weekStart: post.week_start,
+    customPrompt: post.theme || undefined,
+  });
+
+  const generated = drafts[0];
+  if (!generated) throw new Error("Could not regenerate post draft.");
+
+  const now = new Date().toISOString();
+  const client = createNiBrainClient();
+  const { data, error } = await client
+    .from("match_fit_content_calendar_posts")
+    .update({
+      caption: generated.caption,
+      visual_prompt: generated.visualPrompt,
+      hashtags: generated.hashtags,
+      revision: (post.revision ?? 1) + 1,
+      updated_at: now,
+    })
+    .eq("id", postId)
+    .select("*")
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data as ContentCalendarPostRow;
+}
+

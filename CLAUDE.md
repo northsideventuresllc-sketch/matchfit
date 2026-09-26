@@ -12,13 +12,14 @@ nv-vault):** a fired/scheduled session rooted at a multi-repo workspace parent w
 `.claude/settings.json` there never actually loads this repo's `.claude/hooks/*` as harness
 hooks -- this file still loads via recursive discovery, which makes the session *look* gated
 when it is not. Before claiming the mechanical every-task gates are active this session, check
-for `${CLAUDE_PROJECT_DIR:-.}/.nvg/boot-contract-fired-at` dated this session. **Found -> gates
+for `${CLAUDE_PROJECT_DIR:-.}/.nvg/boot-contract-fired-at` dated this session
+(nv-vault has scripts/check-gates-fired.mjs for this). **Found -> gates
 are live, proceed normally. Missing -> say so in one line ("boot-contract hook did not fire
 this session -- gates OFF, proceeding on manual discipline") and never claim mechanical
 enforcement you cannot prove.** Turning the gate back on is JB's/the launch config's switch,
 not something an agent can flip on itself mid-session.
 
-EVERY TASK (Task Execution Pipeline, locked 2026-08-31): context from the two brains → goal + "done" written → plan in plain English → approval by COUNCIL (or by JB via a Telegram button when it spends money, reaches a person, goes public, deletes with no undo, hits a JB-named hold, or the council lenses disagree) → execute with graph engineering by default (fan out for looking, single thread for deciding, verifier ≠ producer, depth ≤ 2, Haiku/Sonnet for lanes) → council review + stress test → merge only via `scripts/merge-pr.mjs` in nv-vault (needs a passing `nvg_pr_council_reviews` row for the exact head SHA; conflicts resolved by COUNCIL subagents) → report in plain English → close: presence close, `session_notes_apartment` row, Decisions/Learnings written as they happen, one Slack close line under your own name.
+EVERY TASK (Task Execution Pipeline, locked 2026-08-31): context from the two brains → goal + "done" written → plan in plain English → approval by COUNCIL (or by JB via a Telegram button when it spends money, reaches a person, goes public, deletes with no undo, hits a JB-named hold, or the council lenses disagree) → execute with graph engineering by default (fan out for looking, single thread for deciding, verifier ≠ producer, depth ≤ 2, Haiku/Sonnet for lanes) → council review + stress test → ship only by pinging COUNCIL GATE (`fn_request_council_gate_review`); COUNCIL GATE is the sole merger (Decision #2029) → report in plain English → close: presence close, `session_notes_apartment` row, Decisions/Learnings written as they happen, one Slack close line under your own name.
 
 COMMS: Slack `#agent-ops` = agents talking (first line `*NAME — what happened*`). Telegram = JB only, four classes (NEEDS APPROVAL / BROKE / FINISHED / DAILY WRAP), one message per outcome, no jargon, no table names. Never Slack-DM JB.
 MONEY: free tiers first; nothing paid without JB; no paid GitHub, ever.
@@ -72,18 +73,23 @@ Each of these exists because it was broken in a live session and cost JB time.
    never paid without every free tier having failed first.** The canonical AI
    Vault chain (`callMatchFitAi()` in `src/lib/ai-vault/router.ts`, see
    `docs/ai-vault.md`) tries, in order: AXON local (Mac mini Ollama, free) →
-   RunPod AXON v1 (NVG's own model, free, not deployed yet) → Gemini primary
-   (free) → Gemini backup (free) → Anthropic Claude (paid — genuinely last
-   resort, only reached once all four free tiers above have failed). This is
-   intentional tiered fallback, not a violation: JB has said many times he
-   will not refill credits, so the paid tier exists only to keep a feature
-   working when every free option is down, never as a default path. Corrected
-   2026-08-20 — the previous wording of this rule ("nothing routes to a paid
-   API, ever") contradicted the live code in `router.ts`, which has always
-   called paid Anthropic as a last-resort fallback. The code is the intended,
-   working safety net; this rule was the stale part and has been fixed to
-   match it. Do not remove the Anthropic fallback to "fix" this — that would
-   delete a real safety net for a documentation error.
+   RunPod AXON v1 (NVG's own model, **paid GPU hosting — skipped by default,
+   no spend, until JB funds it; NI-Brain Decision #2001, 2026-09-24, corrects
+   the earlier "free, not deployed yet" wording here**) → OpenRouter free
+   models → Gemini primary (free) → Gemini backup (free) → Anthropic Claude
+   (paid — genuinely last resort, only reached once every free tier above has
+   failed or is skipped). This is intentional tiered fallback, not a
+   violation: JB has said many times he will not refill credits, so a paid
+   tier exists only to keep a feature working when free options are down,
+   never as a default path — and RunPod specifically stays off (code-enforced
+   via `AXON_ENABLE_RUNPOD=1`, not just missing endpoint/key) until it is
+   funded, so it costs nothing by accident. Corrected 2026-08-20 — the
+   previous wording of this rule ("nothing routes to a paid API, ever")
+   contradicted the live code in `router.ts`, which has always called paid
+   Anthropic as a last-resort fallback. The code is the intended, working
+   safety net; this rule was the stale part and has been fixed to match it.
+   Do not remove the Anthropic fallback to "fix" this — that would delete a
+   real safety net for a documentation error.
 
 2. **Never tell JB something failed because of API keys, tokens, credits or
    billing.** He has already refused that fix, so naming it is pure noise.
@@ -197,13 +203,15 @@ ANDROID EMULATOR. Do not reinvent any of this and never ask JB to re-explain it.
 When asked to ship/push/deploy, or when deployable work is finished, work until production is
 live — don't stop at a local commit.
 
+**COUNCIL GATE is the sole merger (JB Decision #2029, 2026-09-25).** No agent merges a PR directly anymore, including here — "merge if CI green" below means *ask COUNCIL GATE to merge it*: `select fn_request_council_gate_review(repo, pr, requester, summary, head_sha);`. COUNCIL GATE may ask JB for sign-off via a Telegram approval card before it merges.
+
 **Definition of done:**
 1. `main` is green: `npm run lint`, `npm run typecheck`, `npm run version:verify`, `npm run test`, `npm run build` all pass.
-2. Every open PR targeting `main` is resolved (merge if CI green and not already on `main`; close stale/duplicate bot PRs with a short reason).
+2. Every open PR targeting `main` is resolved (ping COUNCIL GATE to merge if CI green and not already on `main`; close stale/duplicate bot PRs with a short reason).
 3. Vercel production deploy shows success on the latest `main` commit.
 4. Version bumped when product-facing code changed (see `AGENTS.md` product-version section).
 
-**Standard sequence:** pull `main` → fix local CI/Vercel blockers (`npx prisma generate` before typecheck if stale) → commit/push or merge PRs → list open PRs → merge (CI green, not duplicate) or close (obsolete/duplicate) each → verify deploy status → report commit SHA, product version, deploy links, and which PRs moved.
+**Standard sequence:** pull `main` → fix local CI/Vercel blockers (`npx prisma generate` before typecheck if stale) → commit/push → list open PRs → ping COUNCIL GATE to merge each (CI green, not duplicate) or close (obsolete/duplicate) each → verify deploy status → report commit SHA, product version, deploy links, and which PRs moved.
 
 **Don't stop early when:** open draft PRs remain with failing checks (unless explicitly closed as obsolete), `main` CI/Vercel is red or pending, or a branch was pushed but production hasn't updated.
 
@@ -241,9 +249,11 @@ Reference: public home page (`src/app/page.tsx`, `src/components/home-info-secti
 Applies to any file touching AI features (`**/*ai*.ts`, `**/ai-vault/**`):
 
 1. Use `callMatchFitAi` from `@/lib/ai-vault` — never call Anthropic/OpenAI/Gemini HTTP APIs directly for text generation.
-2. Provider order (corrected 2026-08-20, see standing rule 1 above and `docs/ai-vault.md`):
-   AXON local → RunPod AXON v1 (not deployed yet) → Gemini primary → Gemini backup →
-   Anthropic Claude (auto model, paid last resort) → fail.
+2. Provider order (corrected 2026-09-24, Decision #2001, see standing rule 1 above and
+   `docs/ai-vault.md`): AXON local → RunPod AXON v1 (paid GPU hosting, disabled by
+   default until funded — not deployed yet either way) → OpenRouter free models →
+   Gemini primary → Gemini backup → Anthropic Claude (auto model, paid last resort) →
+   fail.
 3. Keys live in `platform_secrets` (AI Vault), never in source.
 4. Pick `kind` + optional `complexity` so Claude model auto-selection fits the task.
 5. Corrected 2026-09-03 (Decision #1722 item 4 + same-date Learning, JB direct: "media generation is NEVER the Gemini API — it is my Gemini subscription in Chrome on the Mac mini; this assumption is the main reason social media is not getting updated"). Social media images/video are generated ONLY in the Gemini app in Chrome on the Mac mini using JB's subscription (`scripts/gemini-media-automation.mjs`, queued via `queueMiniChromeAgentJob` in `@/lib/content-calendar/cowork-jobs`). No image API, free or paid, ever — `@/lib/content-calendar/media-generation`'s `generateStaticMedia` is dead on purpose and throws if called. Text generation still uses the AXON chain (point 2 above), unaffected by this.

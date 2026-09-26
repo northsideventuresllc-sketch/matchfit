@@ -200,12 +200,75 @@ async function getHubPostsForDate(postDate: string): Promise<ContentCalendarPost
  */
 export async function approveContentDay(
   postDate: string,
+  extra?: { learnings?: string; feedback?: string },
 ): Promise<{ approved: number; memoId: string | null; jobId?: string; mediaPostCount?: number }> {
   const posts = await getHubPostsForDate(postDate);
   if (!posts.length) throw new Error("No hub posts found for this date to approve.");
 
   const now = new Date().toISOString();
   const client = createNiBrainClient();
+
+  // If operator provided learnings from edits, record them in NI-Brain and vault session log
+  if (extra?.learnings?.trim()) {
+    const trimmedLearnings = extra.learnings.trim();
+    try {
+      await client.from("Learnings").insert({
+        learning: trimmedLearnings,
+        source: "JB Content Day Approval",
+        date: now,
+        category: "content_calendar",
+        project: "match_fit",
+      });
+
+      await client.from("match_fit_content_learning_signals").insert({
+        signal_type: "DAY_APPROVAL_MEMO",
+        post_id: null,
+        edited_text: trimmedLearnings.slice(0, 8000),
+        meta_json: {
+          postDate,
+          kind: "approved_day_learnings",
+          feedback: extra.feedback?.trim() || null,
+          source: "approve_day_modal",
+          timestamp: now,
+        },
+      });
+
+      // Also append to local Obsidian session log if running on Mac
+      try {
+        const fs = await import("fs");
+        const path = await import("path");
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const vaultLogDir = "/Users/jonnybooth/nv-vault/_AI/Session Logs";
+        const logPath = path.join(vaultLogDir, `${todayStr}.md`);
+        if (fs.existsSync(logPath)) {
+          const entry = `\n\n### [LEARNED] Match Fit Content Day (${postDate})\n${trimmedLearnings}${
+            extra.feedback?.trim() ? `\n- Feedback: ${extra.feedback.trim()}` : ""
+          }\n`;
+          fs.appendFileSync(logPath, entry, "utf8");
+        }
+      } catch {
+        // file append is best-effort local sync
+      }
+    } catch (learnErr) {
+      console.error("[approveContentDay] Failed to record day learnings:", learnErr);
+    }
+  } else if (extra?.feedback?.trim()) {
+    try {
+      await client.from("match_fit_content_learning_signals").insert({
+        signal_type: "DAY_APPROVAL_MEMO",
+        post_id: null,
+        edited_text: extra.feedback.trim().slice(0, 8000),
+        meta_json: {
+          postDate,
+          kind: "day_generation_feedback",
+          source: "approve_day_modal",
+          timestamp: now,
+        },
+      });
+    } catch (fbErr) {
+      console.error("[approveContentDay] Failed to record generation feedback:", fbErr);
+    }
+  }
 
   // Text posts need no media generation — fireMediaAgentForDay excludes them and
   // completeGenerateMediaJob (the only other place that flips workflow_stage)

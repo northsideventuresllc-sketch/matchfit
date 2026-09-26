@@ -18,11 +18,42 @@ const MIME_EXTENSIONS: Record<string, string> = {
   "video/mp4": "mp4",
   "video/quicktime": "mov",
   "video/webm": "webm",
+  "video/x-m4v": "m4v",
+  "video/mpeg": "mpeg",
+  "video/ogg": "ogv",
+  "video/avi": "avi",
 };
 
 export function mediaExtensionForMimeType(mimeType: string | null | undefined): string {
   const normalized = mimeType?.split(";")[0]?.trim().toLowerCase() ?? "";
-  return MIME_EXTENSIONS[normalized] ?? "png";
+  return MIME_EXTENSIONS[normalized] ?? (normalized.startsWith("video/") ? "mp4" : "png");
+}
+
+/**
+ * Creates a presigned upload URL for direct browser-to-Supabase uploads.
+ * This completely bypasses Vercel's 4.5MB serverless payload size limit for large video files.
+ */
+export async function createPresignedMediaUploadUrl(args: {
+  path: string;
+}): Promise<{ signedUrl: string; token: string; path: string; publicUrl: string }> {
+  const client = createNiBrainClient();
+  const { data, error } = await client.storage
+    .from(CONTENT_CALENDAR_MEDIA_BUCKET)
+    .createSignedUploadUrl(args.path, { upsert: true });
+
+  if (error || !data?.signedUrl) {
+    throw new Error(error?.message ?? "Failed to create presigned upload URL.");
+  }
+
+  const { data: pub } = client.storage.from(CONTENT_CALENDAR_MEDIA_BUCKET).getPublicUrl(args.path);
+  if (!pub?.publicUrl) throw new Error("Supabase Storage returned no public URL.");
+
+  return {
+    signedUrl: data.signedUrl,
+    token: data.token,
+    path: args.path,
+    publicUrl: pub.publicUrl,
+  };
 }
 
 /**

@@ -34,10 +34,29 @@ const GEO_REWRITES: ReadonlyArray<{ re: RegExp; to: string }> = [
 /** Detect a public caption that LEADS with the internal "Fitness Pro" term (first ~60 chars). */
 const LEADS_WITH_FITNESS_PRO = /^[^.!?\n]{0,60}\bfitness\s*pros?\b/i;
 
-/** Rewrites the objective geo violations to worldwide-safe wording. Leaves everything else intact. */
+/**
+ * Strips markdown asterisks and header markers that AI models emit for bold/italic/headings.
+ * Social captions do not support markdown bolding — writing **bold** or ** is AI slop that looks broken.
+ * Preserves the text itself in clean, readable plain English.
+ */
+export function stripMarkdownAiSlop(text: string): string {
+  if (!text) return text;
+  return text
+    // Remove bold/italic markdown syntax: **bold** -> bold, *italic* -> italic, ***b+i*** -> b+i
+    .replace(/\*{1,3}([^*\n]+?)\*{1,3}/g, "$1")
+    // Remove any orphaned double or single asterisks
+    .replace(/\*{2,}/g, "")
+    // Remove markdown header syntax at the beginning of lines: ### Header -> Header
+    .replace(/^(?:#{1,6}\s+)/gm, "")
+    // Clean up excessive double spaces while preserving newlines
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+/** Rewrites the objective geo violations to worldwide-safe wording and strips markdown AI slop. */
 export function softFixContentCopy(text: string): string {
   if (!text) return text;
-  let out = text;
+  let out = stripMarkdownAiSlop(text);
   for (const { re, to } of GEO_REWRITES) {
     out = out.replace(re, (m) => matchCase(m, to));
   }

@@ -29,6 +29,8 @@ export function HubPostBubble({
   post,
   busy,
   onPatch,
+  onDelete,
+  onRegenerate,
   register,
   unregister,
   onSubmitForGeneration,
@@ -36,6 +38,8 @@ export function HubPostBubble({
   post: ClientContentCalendarV2Post;
   busy: boolean;
   onPatch: (id: string, fields: Partial<ClientContentCalendarV2Post>) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
+  onRegenerate?: (id: string) => Promise<void>;
   register: (key: string, dirty: boolean, save: () => Promise<void>) => void;
   unregister: (key: string) => void;
   /** Impromptu-lane only — fires `submit_for_generation` (Text→publishing, media→agent job→pending). */
@@ -52,17 +56,24 @@ export function HubPostBubble({
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  // Re-sync local state whenever the server post changes (after a save/refresh).
+  const prevPostIdRef = useRef(post.id);
+
+  // Sync state only if post.id changed, preventing outside updates from overwriting in-flight typing
   useEffect(() => {
-    queueMicrotask(() => {
+    if (prevPostIdRef.current !== post.id) {
+      prevPostIdRef.current = post.id;
       setCaption(post.caption);
       setHashtags(post.hashtags);
       setVisualPrompt(post.visualPrompt ?? "");
       setDpmoRationale(post.dpmoRationale ?? "");
       setPostDate(post.postDate ?? "");
-    });
-  }, [post]);
+    }
+  }, [post.id, post.caption, post.hashtags, post.visualPrompt, post.dpmoRationale, post.postDate]);
 
   const dirty =
     caption !== post.caption ||
@@ -86,6 +97,15 @@ export function HubPostBubble({
     }
   }, [caption, dpmoRationale, hashtags, isText, onPatch, post.id, postDate, visualPrompt]);
 
+  // Debounced auto-save on every edit (1000ms delay)
+  useEffect(() => {
+    if (!dirty || busy || saving) return;
+    const timer = setTimeout(() => {
+      void save();
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [dirty, busy, saving, save]);
+
   // Keep the registry pointed at the latest save closure without re-registering every render.
   const saveRef = useRef(save);
   useEffect(() => {
@@ -95,6 +115,43 @@ export function HubPostBubble({
     register(post.id, dirty, () => saveRef.current());
     return () => unregister(post.id);
   }, [post.id, dirty, register, unregister]);
+
+  const getDraftFields = useCallback(
+    () => ({
+      caption,
+      hashtags,
+      visualPrompt: isText ? null : visualPrompt,
+      dpmoRationale: dpmoRationale.trim() ? dpmoRationale : null,
+      postDate,
+    }),
+    [caption, dpmoRationale, hashtags, isText, postDate, visualPrompt],
+  );
+
+  const handleRegenerate = async () => {
+    if (!onRegenerate) return;
+    setRegenerating(true);
+    setActionError(null);
+    try {
+      await onRegenerate(post.id);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Could not regenerate post draft.");
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    setDeleting(true);
+    setActionError(null);
+    try {
+      await onDelete(post.id);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Could not delete post.");
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
 
   const submitForGeneration = useCallback(async () => {
     setSubmitting(true);
@@ -114,14 +171,62 @@ export function HubPostBubble({
   return (
     <article className="rounded-2xl border border-white/[0.08] bg-[#12151C]/90 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-black uppercase tracking-[0.14em] text-[#FFD34E]">
-          {postTypeIcon(post.postType)} {post.postType}
-          {post.contentLane === "impromptu" ? <span className="ml-2 text-white/40">Impromptu</span> : null}
-        </p>
-        <p className="text-[10px] uppercase tracking-wide text-white/40">
-          {post.targetGroup}
-          {approved ? <span className="ml-2 font-bold text-emerald-300">Approved</span> : null}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[#FFD34E]">
+            {postTypeIcon(post.postType)} {post.postType}
+            {post.contentLane === "impromptu" ? <span className="ml-2 text-white/40">Impromptu</span> : null}
+          </p>
+          {onRegenerate ? (
+            <button
+              type="button"
+              disabled={busy || regenerating || deleting}
+              onClick={() => void handleRegenerate()}
+              className="rounded border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/70 hover:bg-white/[0.08] hover:text-[#FFD34E] transition-colors"
+              title="Regenerate this singular post"
+            >
+              {regenerating ? "REGENERATING…" : "↻ REGENERATE"}
+            </button>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-2">
+          <p className="text-[10px] uppercase tracking-wide text-white/40">
+            {post.targetGroup}
+            {approved ? <span className="ml-2 font-bold text-emerald-300">Approved</span> : null}
+          </p>
+          {onDelete ? (
+            confirmDelete ? (
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-[#FFB4B4]">Delete?</span>
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() => void handleDelete()}
+                  className="rounded bg-red-600/40 border border-red-500/50 px-1.5 py-0.5 text-[9px] font-bold text-red-200 hover:bg-red-600/70"
+                >
+                  {deleting ? "…" : "YES"}
+                </button>
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() => setConfirmDelete(false)}
+                  className="rounded bg-white/10 px-1.5 py-0.5 text-[9px] text-white/60 hover:text-white"
+                >
+                  NO
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={busy || deleting || regenerating}
+                onClick={() => setConfirmDelete(true)}
+                className="rounded border border-red-500/20 bg-red-500/5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-300/60 hover:border-red-500/40 hover:bg-red-500/15 hover:text-red-200 transition-colors"
+                title="Delete this post from Content Hub"
+              >
+                ✕ DELETE
+              </button>
+            )
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-3 space-y-2">
@@ -154,7 +259,14 @@ export function HubPostBubble({
         ) : null}
       </div>
 
-      {!isText ? <ReferenceFilesField post={post} onPatch={onPatch} disabled={busy} /> : null}
+      {!isText ? (
+        <ReferenceFilesField
+          post={post}
+          onPatch={onPatch}
+          getDraftFields={getDraftFields}
+          disabled={busy || deleting || regenerating}
+        />
+      ) : null}
 
       <label className="mt-3 block">
         <span className={adminLabelClass}>{isText ? "Text post" : "Caption"}</span>
@@ -237,10 +349,11 @@ export function HubPostBubble({
           disabled={busy || saving || !dirty}
           onClick={() => void save()}
         >
-          {saving ? "SAVING…" : dirty ? "SAVE EDITS" : "SAVED"}
+          {saving ? "SAVING…" : dirty ? "AUTO-SAVING…" : "SAVED"}
         </button>
       </div>
       {submitError ? <p className="mt-2 text-[11px] font-semibold text-[#FFB4B4]">{submitError}</p> : null}
+      {actionError ? <p className="mt-2 text-[11px] font-semibold text-[#FFB4B4]">{actionError}</p> : null}
     </article>
   );
 }

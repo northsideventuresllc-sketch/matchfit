@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   adminCardClass,
   adminInputClassSm,
@@ -16,6 +16,7 @@ import { defaultPlatformsForPost, postTypeIcon } from "./helpers";
 import { ReferenceFilesField } from "./reference-files-field";
 import { CopyButton, Modal, PipelineHealthBanner, ProgressBar, SeePromptCollapsible } from "./ui-bits";
 import { usePendingProgress } from "./use-pending-progress";
+import { ApproveDayLearningModal } from "./approve-day-learning-modal";
 
 /** "Monday, Jul 27" from a YYYY-MM-DD date, or a plain fallback. */
 function plainPostDate(postDate: string): string {
@@ -269,6 +270,7 @@ export function PendingTabPanel({
   busyId,
   onPatch,
   onAction,
+  onApproveDay,
   register,
   unregister,
 }: {
@@ -276,13 +278,27 @@ export function PendingTabPanel({
   busyId: string | null;
   onPatch: (id: string, fields: Partial<ClientContentCalendarV2Post>) => Promise<void>;
   onAction: (id: string, body: Record<string, unknown>, success?: string) => Promise<void>;
+  onApproveDay?: (postDate: string, extra?: { learnings?: string; feedback?: string }) => Promise<void>;
   register: (key: string, dirty: boolean, save: () => Promise<void>) => void;
   unregister: (key: string) => void;
 }) {
   const [confirming, setConfirming] = useState<ClientContentCalendarV2Post | null>(null);
   const [stopError, setStopError] = useState<string | null>(null);
+  const [selectedApproveDate, setSelectedApproveDate] = useState<string | null>(null);
+  const [approvingDay, setApprovingDay] = useState(false);
 
   const readyCount = posts.filter((p) => p.postType === "Text" || p.mediaStatus === "ready").length;
+
+  const groupedByDate = useMemo(() => {
+    const map = new Map<string, ClientContentCalendarV2Post[]>();
+    for (const post of posts) {
+      const date = post.postDate || "No date";
+      const existing = map.get(date) ?? [];
+      existing.push(post);
+      map.set(date, existing);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [posts]);
 
   const stop = useCallback(
     async (post: ClientContentCalendarV2Post) => {
@@ -320,18 +336,45 @@ export function PendingTabPanel({
 
       {stopError ? <p className="mt-3 text-xs font-semibold text-[#FFB4B4]">{stopError}</p> : null}
 
-      <div className="mt-5 space-y-3">
-        {posts.map((post) => (
-          <PendingCard
-            key={post.id}
-            post={post}
-            busy={busyId === post.id}
-            onStop={setConfirming}
-            onPatch={onPatch}
-            onAction={onAction}
-            register={register}
-            unregister={unregister}
-          />
+      <div className="mt-5 space-y-6">
+        {groupedByDate.map(([date, datePosts]) => (
+          <div key={date} className="rounded-2xl border border-white/[0.08] bg-[#161a23]/60 p-4 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] pb-3">
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-[0.14em] text-[#FFD34E]">
+                  {date !== "No date" ? plainPostDate(date) : "Undated Posts"}
+                </h3>
+                <p className="text-xs text-white/50">
+                  {datePosts.length} post{datePosts.length === 1 ? "" : "s"}
+                </p>
+              </div>
+              {onApproveDay && date !== "No date" ? (
+                <button
+                  type="button"
+                  className={adminPrimaryButtonClass}
+                  disabled={approvingDay}
+                  onClick={() => setSelectedApproveDate(date)}
+                  title="Approve this day, review learnings, and move ready posts to Publishing"
+                >
+                  APPROVE DAY
+                </button>
+              ) : null}
+            </div>
+            <div className="space-y-3">
+              {datePosts.map((post) => (
+                <PendingCard
+                  key={post.id}
+                  post={post}
+                  busy={busyId === post.id}
+                  onStop={setConfirming}
+                  onPatch={onPatch}
+                  onAction={onAction}
+                  register={register}
+                  unregister={unregister}
+                />
+              ))}
+            </div>
+          </div>
         ))}
         {!posts.length ? (
           <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-10 text-center text-sm text-white/45">
@@ -339,6 +382,24 @@ export function PendingTabPanel({
           </div>
         ) : null}
       </div>
+
+      {selectedApproveDate && onApproveDay ? (
+        <ApproveDayLearningModal
+          postDate={selectedApproveDate}
+          posts={posts.filter((p) => (p.postDate || "No date") === selectedApproveDate)}
+          busy={approvingDay}
+          onClose={() => setSelectedApproveDate(null)}
+          onConfirm={async (data) => {
+            setApprovingDay(true);
+            try {
+              await onApproveDay(selectedApproveDate, data);
+              setSelectedApproveDate(null);
+            } finally {
+              setApprovingDay(false);
+            }
+          }}
+        />
+      ) : null}
 
       {confirming ? (
         <Modal title="Stop this post?" onClose={() => setConfirming(null)}>

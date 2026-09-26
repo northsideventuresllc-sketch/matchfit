@@ -14,6 +14,7 @@ import { callMatchFitAi } from "@/lib/ai-vault/router";
 const ENV_KEYS = [
   "RUNPOD_AXON_V1_ENDPOINT",
   "RUNPOD_AXON_V1_KEY",
+  "AXON_ENABLE_RUNPOD",
   "NI_BRAIN_SUPABASE_URL",
   "NI_BRAIN_SUPABASE_SERVICE_ROLE_KEY",
   "GEMINI_API_KEY",
@@ -76,6 +77,7 @@ describe("RunPod AXON v1 tier — new provider, not deployed yet", () => {
   });
 
   it("returns null cleanly (never throws) even if fetch is somehow reached and rejects", async () => {
+    process.env.AXON_ENABLE_RUNPOD = "1";
     process.env.RUNPOD_AXON_V1_ENDPOINT = "https://example-runpod-endpoint.invalid/runsync";
     process.env.RUNPOD_AXON_V1_KEY = "test-key";
     const fetchMock = vi.fn().mockRejectedValue(new Error("network down"));
@@ -84,6 +86,41 @@ describe("RunPod AXON v1 tier — new provider, not deployed yet", () => {
     const text = await callRunpodAxonV1("s", "u");
 
     expect(text).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("PAID TIER GATE (NI-Brain Decision #2001): stays a no-op with NO network call even when " +
+    "endpoint + key are both configured, unless AXON_ENABLE_RUNPOD=1 is also set — a leaked " +
+    "or misconfigured endpoint/key can never trigger paid spend on its own", async () => {
+    vi.resetModules();
+    process.env.RUNPOD_AXON_V1_ENDPOINT = "https://example-runpod-endpoint.invalid/runsync";
+    process.env.RUNPOD_AXON_V1_KEY = "test-key";
+    // AXON_ENABLE_RUNPOD intentionally left unset.
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const fresh = await import("@/lib/ai-vault/runpod-axon-v1");
+    const text = await fresh.callRunpodAxonV1("s", "u");
+
+    expect(text).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("fires (attempts a network call) once AXON_ENABLE_RUNPOD=1 is set alongside endpoint + key", async () => {
+    vi.resetModules();
+    process.env.AXON_ENABLE_RUNPOD = "1";
+    process.env.RUNPOD_AXON_V1_ENDPOINT = "https://example-runpod-endpoint.invalid/runsync";
+    process.env.RUNPOD_AXON_V1_KEY = "test-key";
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ output: { text: "runpod answered" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const fresh = await import("@/lib/ai-vault/runpod-axon-v1");
+    const text = await fresh.callRunpodAxonV1("s", "u");
+
+    expect(text).toBe("runpod answered");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

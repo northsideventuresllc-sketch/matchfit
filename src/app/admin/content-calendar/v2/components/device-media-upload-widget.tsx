@@ -4,13 +4,9 @@ import { useCallback, useRef, useState } from "react";
 import { adminSecondaryButtonClass } from "@/components/admin/admin-portal-ui";
 
 /**
- * Hidden file input wrapped in a button. Posts each selected file straight to the v2 media-upload
- * route (now admin-session-capable, not just the media agent) and hands the resulting public URL(s) back
- * via onUploaded. Used by Publishing's Manually Redo action (manual_redo_media) — this is also
- * where a device upload happens for a post that landed in Publishing with no media yet via the
- * Manually-Generate-Media day bypass, since manual_redo_media overwrites in place whether or not
- * media already exists. Lane 1's bypass button itself doesn't render this widget: it only ever
- * moves posts to Publishing, where this is already reachable per post.
+ * Direct file uploader for Content Calendar assets.
+ * Uses presigned Supabase Storage URLs with XHR upload to bypass Vercel's 4.5MB serverless limits,
+ * supporting large videos and carousels of arbitrary size with live percentage progress.
  */
 export function DeviceMediaUploadWidget({
   postId,
@@ -34,36 +30,114 @@ export function DeviceMediaUploadWidget({
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
+  const [progressPercent, setProgressPercent] = useState<number | null>(null);
 
   const handleFiles = useCallback(
     async (files: FileList) => {
       setBusy(true);
+      setProgressPercent(0);
       try {
         const urls: string[] = [];
-        for (const file of Array.from(files)) {
-          const form = new FormData();
-          form.append("file", file);
-          form.append("jobId", postId);
-          form.append("label", label);
-          const res = await fetch("/api/admin/content-calendar/v2/media-upload", {
+        const fileList = Array.from(files);
+
+        for (let i = 0; i < fileList.length; i++) {
+          const file = fileList[i];
+
+          // 1. Request presigned upload URL from NI Brain Supabase Storage
+          const signRes = await fetch("/api/admin/content-calendar/v2/media-upload/sign", {
             method: "POST",
             credentials: "include",
-            body: form,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              filename: file.name,
+              jobId: postId,
+              label,
+              contentType: file.type || "application/octet-stream",
+            }),
           });
-          const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-          if (!res.ok || !data.url) throw new Error(data.error ?? "Upload failed.");
-          urls.push(data.url);
+
+          if (!signRes.ok) {
+            const errData = (await signRes.json().catch(() => ({}))) as { error?: string };
+            // If under 4MB, attempt fallback multipart route before throwing
+            if (file.size < 4 * 1024 * 1024) {
+              const form = new FormData();
+              form.append("file", file);
+              form.append("jobId", postId);
+              form.append("label", label);
+              const fallbackRes = await fetch("/api/admin/content-calendar/v2/media-upload", {
+                method: "POST",
+                credentials: "include",
+                body: form,
+              });
+              const fallbackData = (await fallbackRes.json().catch(() => ({}))) as { url?: string; error?: string };
+              if (fallbackRes.ok && fallbackData.url) {
+                urls.push(fallbackData.url);
+                continue;
+              }
+            }
+            throw new Error(errData.error ?? `Upload authorization failed (${signRes.status}).`);
+          }
+
+          const signData = (await signRes.json()) as { signedUrl?: string; publicUrl?: string };
+          const { signedUrl, publicUrl } = signData;
+          if (!signedUrl || !publicUrl) {
+            throw new Error("Invalid presigned upload response from server.");
+          }
+
+          // 2. Direct binary PUT upload with progress tracking
+          await new Promise<void>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open("PUT", signedUrl, true);
+            xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+
+            xhr.upload.onprogress = (evt) => {
+              if (evt.lengthComputable) {
+                const percent = Math.round((evt.loaded / evt.total) * 100);
+                setProgressPercent(percent);
+              }
+            };
+
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                resolve();
+              } else {
+                reject(
+                  new Error(
+                    `Supabase Storage upload failed (${xhr.status}): ${xhr.responseText || xhr.statusText || "Unknown error"}`,
+                  ),
+                );
+              }
+            };
+
+            xhr.onerror = () => {
+              reject(new Error("Network connection error during file upload to storage."));
+            };
+
+            xhr.send(file);
+          });
+
+          urls.push(publicUrl);
         }
+
         onUploaded(urls);
       } catch (e) {
+        console.error("[DeviceMediaUploadWidget]", e);
         onError?.(e instanceof Error ? e.message : "Upload failed.");
       } finally {
         setBusy(false);
+        setProgressPercent(null);
         if (inputRef.current) inputRef.current.value = "";
       }
     },
     [postId, label, onUploaded, onError],
   );
+
+  const displayButtonText =
+    progressPercent !== null && progressPercent > 0 && progressPercent < 100
+      ? `UPLOADING ${progressPercent}%…`
+      : busy
+        ? "UPLOADING…"
+        : buttonLabel;
 
   return (
     <>
@@ -84,7 +158,7 @@ export function DeviceMediaUploadWidget({
         disabled={disabled || busy}
         onClick={() => inputRef.current?.click()}
       >
-        {busy ? "UPLOADING…" : buttonLabel}
+        {displayButtonText}
       </button>
     </>
   );
