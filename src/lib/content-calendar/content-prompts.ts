@@ -1,8 +1,10 @@
 import {
+  CONTENT_ARCHETYPE_LABELS,
   CONTENT_CALENDAR_GROUP_DESCRIPTIONS,
   CONTENT_CALENDAR_PLATFORMS_BY_TYPE,
   MATCH_FIT_AVATAR_IMAGE_PATH,
   MATCH_FIT_AVATAR_NAME,
+  MATCH_FIT_AVATAR_PROMPT_DIRECTIVE,
   MATCH_FIT_BRAND_DARK,
   MATCH_FIT_BRAND_ORANGE,
   MATCH_FIT_LOGO_PATH,
@@ -247,6 +249,8 @@ export function buildBulkSlotBrief(args: {
       ? "visualPrompt: null"
       : `Visual prompt structure: ${postType.visualShape}`,
     `Platforms: ${platforms}`,
+    args.item.archetype ? `Content archetype: ${CONTENT_ARCHETYPE_LABELS[args.item.archetype]}` : null,
+    args.item.archetype === "ugc_avatar" ? MATCH_FIT_AVATAR_PROMPT_DIRECTIVE : null,
     slotDirective || "Follow the PRIMARY OPERATOR DIRECTIVE for this audience and post type.",
   ]
     .filter(Boolean)
