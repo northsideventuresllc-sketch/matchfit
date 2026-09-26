@@ -37,21 +37,27 @@ import type { ProviderCallResult } from "@/lib/ai-vault/providers";
 /**
  * Fire-and-forget usage log for one successful provider call. Never awaited by callers —
  * logging must never add latency to, or ever break, the live AI reply path.
+ *
+ * BUILD-AXON-AGENTS-FIX-BUNDLE-0923 (c): previously returned early ("nothing reported —
+ * don't write a row of nulls") whenever result.usage was missing, which made "the
+ * provider didn't report usage" indistinguishable from "this call never happened" in
+ * axon_cost_ledger — the exact ambiguity the ticket flagged. Now always logs; a call with
+ * no usage still lands a row with null token counts and meta.usage_missing=true so the
+ * two cases can be told apart. Exported for direct unit testing.
  */
-function logProviderUsage(
+export function logProviderUsage(
   provider: string,
   result: Pick<ProviderCallResult, "model" | "usage" | "ms">,
   args: MatchFitAiCallArgs,
 ) {
-  if (!result.usage) return; // nothing reported — don't write a row of nulls
   logLlmUsage({
     provider,
     model: result.model,
-    tokensIn: result.usage.tokensIn,
-    tokensOut: result.usage.tokensOut,
+    tokensIn: result.usage?.tokensIn,
+    tokensOut: result.usage?.tokensOut,
     ms: result.ms,
     product: args.kind,
-    meta: { complexity: args.complexity },
+    meta: { complexity: args.complexity, usage_missing: !result.usage },
   });
 }
 

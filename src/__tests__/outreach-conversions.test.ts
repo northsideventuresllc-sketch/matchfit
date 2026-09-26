@@ -9,6 +9,8 @@ const M = vi.hoisted(() => ({
   emFindMany: vi.fn(),
   touchFindMany: vi.fn(),
   touchCreate: vi.fn(),
+  clientFindUnique: vi.fn(),
+  trainerFindUnique: vi.fn(),
 }));
 
 vi.mock("@/lib/ensure-outreach-hub-schema", () => ({
@@ -21,6 +23,8 @@ vi.mock("@/lib/prisma", () => ({
     outreachFacebookLead: { findMany: M.fbFindMany },
     outreachEmailLead: { findMany: M.emFindMany },
     outreachLeadTouchLog: { findMany: M.touchFindMany, create: M.touchCreate },
+    client: { findUnique: M.clientFindUnique },
+    trainer: { findUnique: M.trainerFindUnique },
   },
 }));
 
@@ -34,6 +38,10 @@ beforeEach(() => {
   M.touchFindMany.mockResolvedValue([]);
   M.fbFindMany.mockResolvedValue([]);
   M.emFindMany.mockResolvedValue([]);
+  // Default: any matched-account existence check passes, so existing tests that
+  // exercise the account-link path don't need to know about this check.
+  M.clientFindUnique.mockResolvedValue({ id: "client_exists" });
+  M.trainerFindUnique.mockResolvedValue({ id: "trainer_exists" });
 });
 
 describe("setOutreachLeadConversion", () => {
@@ -110,6 +118,55 @@ describe("setOutreachLeadConversion", () => {
     M.igFindUnique.mockResolvedValue(null);
     const result = await setOutreachLeadConversion({ platform: "instagram", id: "ghost", adminId: "admin1" });
     expect(result).toEqual({ ok: false, error: "Lead not found." });
+  });
+
+  it("errors and does not write when matchedAccountId does not resolve to a real trainer", async () => {
+    M.igFindUnique.mockResolvedValue({
+      id: "ig1",
+      convertedAt: null,
+      outreachSentAt: null,
+      followUp1SentAt: null,
+      followUp2SentAt: null,
+    });
+    M.trainerFindUnique.mockResolvedValue(null);
+
+    const result = await setOutreachLeadConversion({
+      platform: "instagram",
+      id: "ig1",
+      adminId: "admin1",
+      matchedAccountType: "trainer",
+      matchedAccountId: "does-not-exist",
+    });
+
+    expect(result).toEqual({ ok: false, error: "Matched account not found." });
+    expect(M.trainerFindUnique).toHaveBeenCalledWith({
+      where: { id: "does-not-exist" },
+      select: { id: true },
+    });
+    expect(M.igUpdate).not.toHaveBeenCalled();
+    expect(M.touchCreate).not.toHaveBeenCalled();
+  });
+
+  it("errors and does not write when matchedAccountId does not resolve to a real client", async () => {
+    M.igFindUnique.mockResolvedValue({
+      id: "ig1",
+      convertedAt: null,
+      outreachSentAt: null,
+      followUp1SentAt: null,
+      followUp2SentAt: null,
+    });
+    M.clientFindUnique.mockResolvedValue(null);
+
+    const result = await setOutreachLeadConversion({
+      platform: "instagram",
+      id: "ig1",
+      adminId: "admin1",
+      matchedAccountType: "client",
+      matchedAccountId: "does-not-exist",
+    });
+
+    expect(result).toEqual({ ok: false, error: "Matched account not found." });
+    expect(M.igUpdate).not.toHaveBeenCalled();
   });
 });
 
