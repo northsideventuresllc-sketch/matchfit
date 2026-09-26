@@ -4,7 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
-- **2026-09-25** `2.33.11-beta` → `2.33.12-beta` (**patch** — Verify matchedAccountId exists before linking an outreach lead; merge conflict re-bump, no new product change beyond the outreach-conversion fix)
+- **2026-09-25** `2.33.11-beta` → `2.33.12-beta` (**patch** — Fix stuck listing status hiding verified coaches from discovery)
 - **2026-09-25** `2.33.10-beta` → `2.33.11-beta` (**patch** — Fix axon_cost_ledger inserts silently failing on a generated column (total_tokens))
 - **2026-09-24** `2.33.9-beta` → `2.33.10-beta` (**patch** — Fix red main CI: unused imports and stale content prompt test)
 - **2026-09-24** `2.33.8-beta` → `2.33.9-beta` (**patch** — RunPod AXON v1 gate disabled by default (paid safeguard, Decision #2001))
