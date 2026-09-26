@@ -12,13 +12,14 @@ nv-vault):** a fired/scheduled session rooted at a multi-repo workspace parent w
 `.claude/settings.json` there never actually loads this repo's `.claude/hooks/*` as harness
 hooks -- this file still loads via recursive discovery, which makes the session *look* gated
 when it is not. Before claiming the mechanical every-task gates are active this session, check
-for `${CLAUDE_PROJECT_DIR:-.}/.nvg/boot-contract-fired-at` dated this session. **Found -> gates
+for `${CLAUDE_PROJECT_DIR:-.}/.nvg/boot-contract-fired-at` dated this session
+(nv-vault has scripts/check-gates-fired.mjs for this). **Found -> gates
 are live, proceed normally. Missing -> say so in one line ("boot-contract hook did not fire
 this session -- gates OFF, proceeding on manual discipline") and never claim mechanical
 enforcement you cannot prove.** Turning the gate back on is JB's/the launch config's switch,
 not something an agent can flip on itself mid-session.
 
-EVERY TASK (Task Execution Pipeline, locked 2026-08-31): context from the two brains → goal + "done" written → plan in plain English → approval by COUNCIL (or by JB via a Telegram button when it spends money, reaches a person, goes public, deletes with no undo, hits a JB-named hold, or the council lenses disagree) → execute with graph engineering by default (fan out for looking, single thread for deciding, verifier ≠ producer, depth ≤ 2, Haiku/Sonnet for lanes) → council review + stress test → merge only via `scripts/merge-pr.mjs` in nv-vault (needs a passing `nvg_pr_council_reviews` row for the exact head SHA; conflicts resolved by COUNCIL subagents) → report in plain English → close: presence close, `session_notes_apartment` row, Decisions/Learnings written as they happen, one Slack close line under your own name.
+EVERY TASK (Task Execution Pipeline, locked 2026-08-31): context from the two brains → goal + "done" written → plan in plain English → approval by COUNCIL (or by JB via a Telegram button when it spends money, reaches a person, goes public, deletes with no undo, hits a JB-named hold, or the council lenses disagree) → execute with graph engineering by default (fan out for looking, single thread for deciding, verifier ≠ producer, depth ≤ 2, Haiku/Sonnet for lanes) → council review + stress test → ship only by pinging COUNCIL GATE (`fn_request_council_gate_review`); COUNCIL GATE is the sole merger (Decision #2029) → report in plain English → close: presence close, `session_notes_apartment` row, Decisions/Learnings written as they happen, one Slack close line under your own name.
 
 COMMS: Slack `#agent-ops` = agents talking (first line `*NAME — what happened*`). Telegram = JB only, four classes (NEEDS APPROVAL / BROKE / FINISHED / DAILY WRAP), one message per outcome, no jargon, no table names. Never Slack-DM JB.
 MONEY: free tiers first; nothing paid without JB; no paid GitHub, ever.
@@ -202,13 +203,15 @@ ANDROID EMULATOR. Do not reinvent any of this and never ask JB to re-explain it.
 When asked to ship/push/deploy, or when deployable work is finished, work until production is
 live — don't stop at a local commit.
 
+**COUNCIL GATE is the sole merger (JB Decision #2029, 2026-09-25).** No agent merges a PR directly anymore, including here — "merge if CI green" below means *ask COUNCIL GATE to merge it*: `select fn_request_council_gate_review(repo, pr, requester, summary, head_sha);`. COUNCIL GATE may ask JB for sign-off via a Telegram approval card before it merges.
+
 **Definition of done:**
 1. `main` is green: `npm run lint`, `npm run typecheck`, `npm run version:verify`, `npm run test`, `npm run build` all pass.
-2. Every open PR targeting `main` is resolved (merge if CI green and not already on `main`; close stale/duplicate bot PRs with a short reason).
+2. Every open PR targeting `main` is resolved (ping COUNCIL GATE to merge if CI green and not already on `main`; close stale/duplicate bot PRs with a short reason).
 3. Vercel production deploy shows success on the latest `main` commit.
 4. Version bumped when product-facing code changed (see `AGENTS.md` product-version section).
 
-**Standard sequence:** pull `main` → fix local CI/Vercel blockers (`npx prisma generate` before typecheck if stale) → commit/push or merge PRs → list open PRs → merge (CI green, not duplicate) or close (obsolete/duplicate) each → verify deploy status → report commit SHA, product version, deploy links, and which PRs moved.
+**Standard sequence:** pull `main` → fix local CI/Vercel blockers (`npx prisma generate` before typecheck if stale) → commit/push → list open PRs → ping COUNCIL GATE to merge each (CI green, not duplicate) or close (obsolete/duplicate) each → verify deploy status → report commit SHA, product version, deploy links, and which PRs moved.
 
 **Don't stop early when:** open draft PRs remain with failing checks (unless explicitly closed as obsolete), `main` CI/Vercel is red or pending, or a branch was pushed but production hasn't updated.
 
