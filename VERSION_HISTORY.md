@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-26** `2.33.13-beta` → `2.33.14-beta` (**patch** — security: major dep bumps (vercel, sharp, vitest) (merge re-bump above main 2.33.13-beta))
 - **2026-09-26** `2.33.12-beta` → `2.33.13-beta` (**patch** — Verify matchedAccountId exists before linking an outreach lead (merge re-bump above main 2.33.12-beta))
 - **2026-09-25** `2.33.11-beta` → `2.33.12-beta` (**patch** — Fix stuck listing status hiding verified coaches from discovery)
 - **2026-09-25** `2.33.10-beta` → `2.33.11-beta` (**patch** — Fix axon_cost_ledger inserts silently failing on a generated column (total_tokens))

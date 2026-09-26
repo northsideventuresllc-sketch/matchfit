@@ -19,10 +19,12 @@ vi.mock("@/lib/hydrate-platform-env", () => ({
 
 vi.mock("pg", () => ({
   default: {
-    Pool: vi.fn(() => ({
-      query: mockPoolQuery,
-      end: mockPoolEnd,
-    })),
+    Pool: vi.fn(function PoolMock() {
+      return {
+        query: mockPoolQuery,
+        end: mockPoolEnd,
+      };
+    }),
   },
 }));
 

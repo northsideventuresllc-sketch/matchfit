@@ -66,10 +66,12 @@ describe("POST /api/internal/bootstrap-platform-anthropic", () => {
       connectionString: "postgresql://matchfit:matchfit@localhost:5432/matchfit",
       ssl: false,
     });
-    mockPoolCtor.mockImplementation(() => ({
-      query: mockQuery,
-      end: mockEnd,
-    }));
+    mockPoolCtor.mockImplementation(function PoolMock() {
+      return {
+        query: mockQuery,
+        end: mockEnd,
+      };
+    });
     mockQuery.mockResolvedValue({ rowCount: 1 });
     mockEnd.mockResolvedValue(undefined);
   });
