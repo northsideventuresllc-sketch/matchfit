@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-27** `2.33.14-beta` → `2.33.15-beta` (**patch** — ticket-cleanup fold: #434 #440 #439 + vitest node:test exclusion)
 - **2026-09-26** `2.33.13-beta` → `2.33.14-beta` (**patch** — merge conflict resolution (PR #406) — re-bump above main; no new product change beyond the AI Vault free-tier model-id fix below)
 - **2026-09-16** `2.33.7-beta` → `2.33.8-beta` (**patch** — AI Vault free-tier model-id fix: drop dead gemini-2.0-flash + refresh stale OpenRouter free IDs (#406))
 - **2026-09-26** `2.33.12-beta` → `2.33.13-beta` (**patch** — Verify matchedAccountId exists before linking an outreach lead (merge re-bump above main 2.33.12-beta))
