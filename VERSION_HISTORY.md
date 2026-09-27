@@ -4,6 +4,9 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-27** `2.33.16-beta` → `2.33.17-beta` (**patch** — ticket-cleanup merge council: merge origin/main (#423 outreach learning dedup) into ticket-cleanup branch after #423 landed post-fork; re-bumped above main's current 2.33.15-beta so both bump chains stay strictly increasing)
+- **2026-09-27** `2.33.15-beta` → `2.33.16-beta` (**patch** — Fix price-tampering hole in agent guest-checkout pilot (MF-AGENT-GUEST-CHECKOUT-0925): look up published price server-side instead of trusting client amountCents; re-bumped above the sibling ticket-cleanup-lane bump below)
+- **2026-09-27** `2.33.14-beta` → `2.33.15-beta` (**patch** — ticket-cleanup fold: #434 #440 #439 + vitest node:test exclusion)
 - **2026-09-27** `2.33.14-beta` → `2.33.15-beta` (**patch** — Dedup Outreach HQ edit Learnings to stop per-lead spam (W2-LOOPGAP-MF-OUTREACH-EDIT-DEDUP-0924) -- re-bump above main)
 - **2026-09-26** `2.33.13-beta` → `2.33.14-beta` (**patch** — Dedup Outreach HQ edit Learnings to stop per-lead spam (W2-LOOPGAP-MF-OUTREACH-EDIT-DEDUP-0924) — merge re-bump above main 2.33.13-beta)
 - **2026-09-26** `2.33.13-beta` → `2.33.14-beta` (**patch** — merge conflict resolution (PR #406) — re-bump above main; no new product change beyond the AI Vault free-tier model-id fix below)
