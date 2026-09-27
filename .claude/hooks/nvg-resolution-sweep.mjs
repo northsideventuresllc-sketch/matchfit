@@ -27,36 +27,53 @@
 const ID_RE = /^[0-9]+$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Pure: build the resolution note for one sibling row. No network, no Date.now() (caller
+ * Pure: build the PATCH body for one sibling row. No network, no Date.now() (caller
  * supplies `nowIso` so this stays deterministic and testable).
  */
-export function buildSupersedeNote(entry, { closeoutTask, agent, nowIso }) {
+export function buildSupersedePatch(entry, { closeoutTask, agent, nowIso }) {
   if (!entry || !entry.id) throw new Error('resolved_siblings entry needs an id');
   if (!ID_RE.test(String(entry.id))) throw new Error(`resolved_siblings entry id is not a valid row id: ${JSON.stringify(entry.id)}`);
   const reason = entry.reason || 'resolved as a side effect of a related fix';
-  return `[RESOLUTION-SWEEP] closed by ${agent} at ${nowIso} as a sibling of "${closeoutTask}" — ${reason}`;
+  // agent_bus has no free-text note column (verified live via information_schema,
+  // Learning #9478/LRNB-T07) — the old `superseded_note` key doesn't exist on the
+  // table, so every PATCH here 400'd (PGRST204) and silently never closed the
+  // sibling row. The resolution reason still needs a home: it goes into `body`,
+  // the one jsonb column this table has, merged onto whatever the caller already
+  // read there so an existing row's body isn't clobbered.
+  //
+  // status is 'dropped', not 'superseded': agent_bus_status_check (live, verified
+  // 2026-09-26) only allows ('open','answered','dropped') — 'superseded' isn't a
+  // legal agent_bus status (that value is for Decisions/Learnings/Context rows,
+  // a different table's convention). Every PATCH here 400'd on the CHECK
+  // constraint, so no sibling row this hook ever targeted actually closed —
+  // ticket BUILD-BUS-SUPERSEDED-STATUS-0925.
+  return {
+    status: 'dropped',
+    body: {
+      ...(entry.body || {}),
+      resolution_note: `[RESOLUTION-SWEEP] closed by ${agent} at ${nowIso} as a sibling of "${closeoutTask}" — ${reason}`,
+    },
+  };
 }
 
 /**
  * Apply the sweep: PATCH every listed sibling to superseded via the injected `patchRow`
  * (same shape as scripts/lib/hermes-supabase.mjs sbPatch). Never throws — a failure to
  * close one sibling must not fail the close-out itself; each result is reported instead.
- *
- * agent_bus has no `superseded_note` column (Learning #9478) — PATCHing one as a top-level
- * field 400s (PGRST204) on every single sweep, silently. Fold the note into the existing
- * jsonb `body` column instead, merged with whatever is already there via `getRow` so a
- * sender's original payload on that row is not clobbered.
  */
-export async function sweepSiblings(entries, { agent, closeoutTask, nowIso, patchRow, getRow }) {
+export async function sweepSiblings(entries, { agent, closeoutTask, nowIso, patchRow, fetchRow }) {
   const list = Array.isArray(entries) ? entries : [];
   const results = [];
   for (const entry of list) {
     try {
-      const note = buildSupersedeNote(entry, { closeoutTask, agent, nowIso });
+      if (!entry || !entry.id) throw new Error('resolved_siblings entry needs an id');
+      if (!ID_RE.test(String(entry.id))) throw new Error(`resolved_siblings entry id is not a valid row id: ${JSON.stringify(entry.id)}`);
       const filter = `id=eq.${encodeURIComponent(String(entry.id))}`;
-      const existing = await getRow('agent_bus', `${filter}&select=body`);
-      const existingBody = existing && existing.body && typeof existing.body === 'object' && !Array.isArray(existing.body) ? existing.body : {};
-      await patchRow('agent_bus', filter, { status: 'superseded', body: { ...existingBody, superseded_note: note } });
+      // Read the row's existing body first (when a fetcher is supplied) so the
+      // resolution note is merged in, not a full-body overwrite.
+      const existingBody = fetchRow ? await fetchRow('agent_bus', filter) : entry.body;
+      const patch = buildSupersedePatch({ ...entry, body: existingBody }, { closeoutTask, agent, nowIso });
+      await patchRow('agent_bus', filter, patch);
       results.push({ id: entry.id, ok: true });
     } catch (e) {
       results.push({ id: entry.id, ok: false, error: e.message });

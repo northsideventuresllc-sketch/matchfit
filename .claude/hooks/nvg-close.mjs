@@ -171,7 +171,10 @@ async function main() {
       closeoutTask: a.task,
       nowIso: new Date().toISOString(),
       patchRow: sbPatch,
-      getRow: sbGet,
+      // nvg-resolution-sweep.mjs's sweepSiblings expects `fetchRow(table, filter)` to
+      // resolve to the sibling row's existing `body` (merged onto, not overwritten) —
+      // wrap sbGet (which returns the whole row) down to just that field.
+      fetchRow: async (table, filter) => (await sbGet(table, `${filter}&select=body`))?.body,
     });
     console.log('close-out written to the brain: ' + JSON.stringify(out));
   } else {

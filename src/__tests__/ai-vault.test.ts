@@ -41,7 +41,8 @@ describe("ai-vault complexity", () => {
     delete process.env.GEMINI_MODEL;
     expect(DEFAULT_GEMINI_MODEL).toBe("gemini-2.5-flash");
     expect(resolveGeminiModelChain()[0]).toBe("gemini-2.5-flash");
-    expect(resolveGeminiModelChain()).toContain("gemini-2.0-flash");
+    expect(resolveGeminiModelChain()).toContain("gemini-2.5-flash-lite");
+    expect(resolveGeminiModelChain()).not.toContain("gemini-2.0-flash");
   });
 
   it("falls back to the next Gemini model when the first is quota-blocked", async () => {
