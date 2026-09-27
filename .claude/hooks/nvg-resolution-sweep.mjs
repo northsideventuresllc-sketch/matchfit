@@ -40,8 +40,15 @@ export function buildSupersedePatch(entry, { closeoutTask, agent, nowIso }) {
   // sibling row. The resolution reason still needs a home: it goes into `body`,
   // the one jsonb column this table has, merged onto whatever the caller already
   // read there so an existing row's body isn't clobbered.
+  //
+  // status is 'dropped', not 'superseded': agent_bus_status_check (live, verified
+  // 2026-09-26) only allows ('open','answered','dropped') — 'superseded' isn't a
+  // legal agent_bus status (that value is for Decisions/Learnings/Context rows,
+  // a different table's convention). Every PATCH here 400'd on the CHECK
+  // constraint, so no sibling row this hook ever targeted actually closed —
+  // ticket BUILD-BUS-SUPERSEDED-STATUS-0925.
   return {
-    status: 'superseded',
+    status: 'dropped',
     body: {
       ...(entry.body || {}),
       resolution_note: `[RESOLUTION-SWEEP] closed by ${agent} at ${nowIso} as a sibling of "${closeoutTask}" — ${reason}`,
