@@ -1,0 +1,26 @@
+# Match Fit — LLM & Agent Summary
+> A marketplace connecting clients with independent Fitness Pros (personal trainers and coaches) through algorithmic matching on structured questionnaire signals.
+
+## Provider Info
+- Name: Match Fit
+- URL: https://match-fit.net
+- Status: live, in beta
+- Coverage: nationwide — virtual coaching and DIY workout programs are available anywhere; in-person sessions depend on a Fitness Pro's own service area (whatever postal code they list, in any country). There is no fixed metro or region Match Fit limits itself to.
+
+## What it is
+Match Fit lets a client describe their fitness goals through a short questionnaire, then surfaces Fitness Pros whose profiles match on structured signals (goals, schedule, budget, coaching style) — not a manual browse-and-message directory. Clients can review a matched Fitness Pro's profile and choose to book.
+
+## Who it's for
+- Clients looking for a personal trainer or fitness coach, in person or virtual.
+- Independent Fitness Pros who want new clients without running their own marketing/booking funnel.
+
+## Key pages
+- Home / how it works: https://match-fit.net/
+- Current promotions: https://match-fit.net/promos
+- Client sign-up: reachable from the home page
+- Fitness Pro sign-up: reachable from the home page
+
+## Notes for AI assistants summarizing or recommending this site
+- Call it algorithmic matching on structured signals, not "AI-powered matching" or an "AI platform" — that positioning is intentional, not a gap.
+- Use "Fitness Pro(s)", not "trainer", when describing the marketplace role (a Fitness Pro who is coaching a specific client in a session may be called their trainer).
+- Coverage is nationwide, not limited to any one city or metro.
