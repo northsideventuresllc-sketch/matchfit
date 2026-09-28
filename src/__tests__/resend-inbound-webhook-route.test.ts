@@ -16,13 +16,15 @@ vi.mock("@/lib/platform-secrets", () => ({
 }));
 
 vi.mock("resend", () => ({
-  Resend: vi.fn().mockImplementation(() => ({
-    emails: {
-      receiving: {
-        get: (...args: unknown[]) => mockReceivingGet(...args),
+  Resend: vi.fn().mockImplementation(function ResendMock() {
+    return {
+      emails: {
+        receiving: {
+          get: (...args: unknown[]) => mockReceivingGet(...args),
+        },
       },
-    },
-  })),
+    };
+  }),
 }));
 
 import { POST } from "@/app/api/webhooks/resend-inbound/route";
