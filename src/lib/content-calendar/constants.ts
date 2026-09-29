@@ -188,7 +188,7 @@ export const CONTENT_CALENDAR_WEEKDAY_SCHEDULE: Record<number, WeekdayScheduleRu
     theme: "Pro Insights & Feature Value",
     themeCategory: "Pro Insights",
     targetGroup: "Join the Team",
-    audienceDescription: "Coaching tips, tools, platform features & educational insights for trainers",
+    audienceDescription: "Coaching tips, tools, platform features & educational insights for Fitness Pros",
     isLivePostingDay: false,
     suggestedCta: "match-fit.net/trainer/sign-up",
   },
