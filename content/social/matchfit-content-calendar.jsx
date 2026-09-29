@@ -1,13 +1,13 @@
 /**
  * Match Fit social content calendar — canonical schedule for agents and the admin portal.
- * Audiences: Join the Team | List With Us | Clients (no Atlanta/virtual marketing split).
+ * Audiences: Join the Team | List With Us | Clients (one nationwide audience split, no geographic targeting).
  */
 
 export const MATCHFIT_CONTENT_AUDIENCES = ["Join the Team", "List With Us", "Clients"] as const;
 
 export const MATCHFIT_CONTENT_AUDIENCE_DESCRIPTIONS = {
-  "Join the Team": "Trainers looking to become a Match Fit Fitness Pro",
-  "List With Us": "Independent trainers & facilities using Match Fit as a listing/discovery platform",
+  "Join the Team": "Fitness Pros looking to join Match Fit",
+  "List With Us": "Independent Fitness Pros & facilities using Match Fit as a listing/discovery platform",
   Clients: "Athletes and individuals looking for training",
 };
 
@@ -15,7 +15,7 @@ export const MATCHFIT_CONTENT_RULES = {
   maxHashtags: 5,
   repurposeCharLimit: 500,
   fitnessProLanguage: 'Always say "Fitness Pros" — never trainers or personal trainers in marketing copy.',
-  geography: "Do not lead with Atlanta or local geography. In-person is Atlanta-only operationally, not a campaign hook.",
+  geography: "Do not lead with any city or local geography. Match Fit marketing is nationwide; location is never a campaign hook.",
   signupUrls: {
     fitnessPro: "match-fit.net/trainer/signup",
     client: "match-fit.net/client/sign-up",

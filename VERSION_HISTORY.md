@@ -4,6 +4,7 @@ Automated log from `npm run version:bump`. UI labels derive from `package.json` 
 
 ## Entries
 
+- **2026-09-29** `2.33.18-beta` → `2.33.19-beta` (**patch** — Fix stale Fitness Pro wording in content calendar and tier copy)
 - **2026-09-27** `2.33.17-beta` → `2.33.18-beta` (**patch** — merge main into SEC-MF-MAJOR-DEPS-0924 branch; re-bump above main so chains stay strictly increasing)
 - **2026-09-27** `2.33.14-beta` → `2.33.15-beta` (**patch** — security: major dep bumps (vercel ^60, sharp ^0.35.4, vitest ^5, @types/node ^22) + overrides.tar ^7.5.22 (merge re-bump above main 2.33.14-beta))
 - **2026-09-27** `2.33.16-beta` → `2.33.17-beta` (**patch** — ticket-cleanup merge council: merge origin/main (#423 outreach learning dedup) into ticket-cleanup branch after #423 landed post-fork; re-bumped above main's current 2.33.15-beta so both bump chains stay strictly increasing)
