@@ -102,24 +102,36 @@ export const POST_TYPE_CREATIVE_BRIEFS: Record<
     captionShape:
       "ADHD & Dyslexia Friendly: Eye-catching emoji hook, 2-3 short bullet points (under 15 words) with plain subtitles (e.g. • Advantage: ...), clear emoji CTA with link. Use 2–4 vibrant emojis (🔥, ⚡, 💪, 🎯). Pure plain English (NEVER markdown asterisks **). (Do NOT describe or inventory slides in the caption — slide structure belongs only in the visual prompt).",
     visualShape:
-      "Follow Carousel Image Format:\nSlide Number: (slide # of #)\nMain Prompt: (detailed scene description with cross-slide consistency)\nOn Screen Text: (quoted text, font, features, coloring)\n\nProduction Specs:\n-Dimensions & Format: 1080x1350, 4:5 portrait swipeable carousel (Instagram/Facebook/Threads/TikTok)\n-Brand Colors: dark background #07080C with #FF7E00 orange accents\n-Logos & Other Branding: Match Fit logo placed consistently\n-References: match-fit.net\n-Rules:\n\t-All text and important content of the images stays in the top 3/4 of the image\n\t-ALL TEXT WITHIN THE IMAGE AND UI DETAILS MUST BE COMPLETELY RENDERED WITHOUT ANY \"AI SLOP\" AND POORLY RENDERED TEXT",
+      "Follow Carousel Image Format:\nSlide Number: (slide # of #)\nMain Prompt: (detailed scene description with cross-slide consistency)\nOn Screen Text: (quoted text, font, features, coloring)\n\nProduction Specs:\n-Dimensions & Format: 1080x1350, 4:5 portrait swipeable carousel (Instagram/Facebook/Threads/TikTok)\n-Brand Colors: dark background dark carbon with vibrant orange orange accents\n-Logos & Other Branding: Match Fit logo placed consistently\n-References: match-fit.net\n-Rules:\n\t-All text and important content of the images stays in the top 3/4 of the image\n\t-ALL TEXT WITHIN THE IMAGE AND UI DETAILS MUST BE COMPLETELY RENDERED WITHOUT ANY \"AI SLOP\" AND POORLY RENDERED TEXT",
   },
   Static: {
     captionShape:
       "ADHD & Dyslexia Friendly: Eye-catching emoji hook, 2-3 short bullet points (under 15 words) with plain subtitles (e.g. • Advantage: ...), clear emoji CTA with link. Use 2–4 vibrant emojis (🔥, ⚡, 💪, 🎯). Pure plain English (NEVER markdown asterisks **).",
     visualShape:
-      "Follow Static Image Format:\nMain Prompt: (detailed scene description)\nOn Screen Text: (quoted text, font, features, coloring)\n\nProduction Specs:\n-Dimensions & Format: 1080x1350, 4:5 portrait (Instagram/Facebook/Threads)\n-Brand Colors: dark background #07080C with #FF7E00 orange accents\n-Logos & Other Branding: Match Fit logo placed cleanly\n-References: match-fit.net\n-Rules:\n\t-All text and important content of the image stays in the top 3/4 of the image\n\t-ALL TEXT WITHIN THE IMAGE AND UI DETAILS MUST BE COMPLETELY RENDERED WITHOUT ANY \"AI SLOP\" AND POORLY RENDERED TEXT",
+      "Follow Static Image Format:\nMain Prompt: (detailed scene description)\nOn Screen Text: (quoted text, font, features, coloring)\n\nProduction Specs:\n-Dimensions & Format: 1080x1350, 4:5 portrait (Instagram/Facebook/Threads)\n-Brand Colors: dark background dark carbon with vibrant orange orange accents\n-Logos & Other Branding: Match Fit logo placed cleanly\n-References: match-fit.net\n-Rules:\n\t-All text and important content of the image stays in the top 3/4 of the image\n\t-ALL TEXT WITHIN THE IMAGE AND UI DETAILS MUST BE COMPLETELY RENDERED WITHOUT ANY \"AI SLOP\" AND POORLY RENDERED TEXT",
   },
   Video: {
     captionShape:
       "ADHD & Dyslexia Friendly: High-energy pattern-interrupt emoji hook, 2-3 short spoken-style bullet points (under 15 words) with plain subtitles, spoken-style emoji CTA. Use 2–4 vibrant emojis (🔥, ⚡, 🚀, 👀). Pure plain English (NEVER markdown asterisks **).",
     visualShape:
-      "Follow Video Format:\nMain Prompt: (detailed scene-by-scene description, timestamps, narrator script, transitions, style)\nOn Screen Text: (quoted text, timed appearance, font, features, coloring)\n\nProduction Specs:\n-Dimensions & Format: 1080x1920, 9:16 vertical video (Reels/TikTok/Shorts)\n-Brand Colors: dark background #07080C with #FF7E00 orange accents\n-Logos & Other Branding: Match Fit logo in watermark/end card\n-References: match-fit.net\n-Rules:\n\t-All text and important content of the video stays in the top 3/4 of the frame\n\t-ALL TEXT WITHIN THE IMAGE AND UI DETAILS MUST BE COMPLETELY RENDERED WITHOUT ANY \"AI SLOP\" AND POORLY RENDERED TEXT",
+      "Follow Video Format:\nMain Prompt: (detailed scene-by-scene description, timestamps, narrator script, transitions, style)\nOn Screen Text: (quoted text, timed appearance, font, features, coloring)\n\nProduction Specs:\n-Dimensions & Format: 1080x1920, 9:16 vertical video (Reels/TikTok/Shorts)\n-Brand Colors: dark background dark carbon with vibrant orange orange accents\n-Logos & Other Branding: Match Fit logo in watermark/end card\n-References: match-fit.net\n-Rules:\n\t-All text and important content of the video stays in the top 3/4 of the frame\n\t-ALL TEXT WITHIN THE IMAGE AND UI DETAILS MUST BE COMPLETELY RENDERED WITHOUT ANY \"AI SLOP\" AND POORLY RENDERED TEXT",
   },
   Text: {
     captionShape:
       "ADHD & Dyslexia Friendly: Conversational emoji hook, 2-3 punchy bullet points (under 15 words) with plain subtitles, engaging single question or emoji CTA. Use 2–4 vibrant emojis (🔥, ⚡, 🚀, 💪). Pure plain English (NEVER markdown asterisks **). No image.",
-    visualShape: "null — Text posts have no visualPrompt.",
+    visualShape: `Follow Text Format:
+Hook / First Line: (eye-catching first line without markdown asterisks)
+Main Content: (conversational plain-text copy with 2-4 emojis, clear insight/story)
+Call to Action: (closing question or conversion next step)
+
+Production Specs:
+-Platform Formatting: Plain text with 2-4 emojis, zero markdown bold asterisks (**)
+-Tone & Voice: Direct, conversational, expert-level authority
+-Target Platforms: LinkedIn / Threads / Facebook
+-Rules:
+\t-NO MARKDOWN ASTERISKS (**) OR AI SLOP
+\t-Human cadence, authentic voice, punchy line breaks`,
+
   },
 };
 
@@ -127,7 +139,7 @@ const LAZY_CAPTION_RE =
   /^(?:◈|▣|▶|≡)?\s*(?:Carousel|Static|Video|Text)\s*(?:#\d+\s*)?for\s+(?:Join the Team|List With Us|Clients)\s*[—–-]\s*Match Fit/i;
 
 const LAZY_VISUAL_RE =
-  /^Dark\s+#07080C(?:,\s*|\s+)orange\s+#FF7E00\.?\s*(?:◈|▣|▶|≡)?\s*(?:Carousel|Static|Video|Text)\s*for/i;
+  /^Dark\s+dark carbon(?:,\s*|\s+)orange\s+vibrant orange\.?\s*(?:◈|▣|▶|≡)?\s*(?:Carousel|Static|Video|Text)\s*for/i;
 
 export function extractSlotDirectiveFromOperatorPrompt(
   customPrompt: string,
@@ -389,7 +401,7 @@ export function normalizeGeneratedVisualPrompt(args: {
       "",
       "Production Specs:",
       "-Dimensions & Format: 1080x1350, 4:5 portrait swipeable carousel (Instagram / Facebook / Threads / TikTok)",
-      "-Brand Colors: dark background #07080C with #FF7E00 orange accents consistent across all slides",
+      "-Brand Colors: dark background dark carbon with vibrant orange orange accents consistent across all slides",
       "-Logos & Other Branding: consistent Match Fit logo placement across slides",
       "-References: match-fit.net | use image attached for reference",
       "-Rules:",
@@ -422,7 +434,7 @@ export function normalizeGeneratedVisualPrompt(args: {
     "",
     "Production Specs:",
     "-Dimensions & Format: 1080x1350, 4:5 portrait (Instagram / Facebook / Threads static post)",
-    "-Brand Colors: dark background #07080C with #FF7E00 orange accents",
+    "-Brand Colors: dark background dark carbon with vibrant orange orange accents",
     "-Logos & Other Branding: use match-fit.net for branding guidelines and put the logo in the top right corner cleanly without covering the focal subject",
     "-References: match-fit.net | use image attached for reference",
     "-Rules:",
@@ -478,7 +490,7 @@ export const CONTENT_CALENDAR_CREATIVE_QUALITY_RULES = `Creative quality & ADHD/
 - Carousel captions must follow this same bulleted format — never inventory slides in the caption.
 - Founding promo: first 30 Fitness Pros → 60 days Premium free AND onboarding fees waived. Vary wording; keep meaning.
 - Visual prompts must describe subjects, scenes, actions, camera/framing, mood, and on-screen text — NOT just hex colors and audience labels.
-- Brand palette (#07080C dark, #FF7E00 orange) is an accent reference only; it is not a substitute for creative direction.
+- Brand palette (dark carbon dark, vibrant orange orange) is an accent reference only; it is not a substitute for creative direction.
 - Pull at least one specific insight from the operator directive, website scan, social scan, daily market research, or social performance analytics when provided.
 - Each slot in a batch must be meaningfully different in hook, angle, CTA, and promo phrasing.
 
@@ -531,7 +543,7 @@ On Screen Text: (describe high-impact bold typography titles, timed appearances,
 
 Production Specs: 
 -Dimensions & Format: 1080x1920, 9:16 vertical video (Reels / TikTok / Shorts)
--Brand Colors: deep cinematic dark #07080C with fiery #FF7E00 orange highlights and lens flares
+-Brand Colors: deep cinematic dark dark carbon with fiery vibrant orange orange highlights and lens flares
 -Logos & Other Branding: Match Fit animated logo reveal in outro end card
 -References: match-fit.net
 -Rules:
